@@ -1,9 +1,9 @@
 ///|
 enum BuslaneRuntimeValueKind {
-  Int(Int64)
-  S32(Int)
+  I64(Int64)
+  I32(Int)
   Char(Int)
-  Double(Double)
+  F64(Double)
   Bool(Bool)
   String(String)
   Unit
@@ -95,14 +95,14 @@ pub fn external_failure(
 
 ///|
 /// Creates an integer Buslane runtime value.
-pub fn BuslaneRuntimeValue::int(value : Int64) -> BuslaneRuntimeValue {
-  { kind: Int(value) }
+pub fn BuslaneRuntimeValue::i64(value : Int64) -> BuslaneRuntimeValue {
+  { kind: I64(value) }
 }
 
 ///|
 /// Creates a signed 32-bit Buslane runtime value.
-pub fn BuslaneRuntimeValue::s32(value : Int) -> BuslaneRuntimeValue {
-  { kind: S32(value) }
+pub fn BuslaneRuntimeValue::i32(value : Int) -> BuslaneRuntimeValue {
+  { kind: I32(value) }
 }
 
 ///|
@@ -113,8 +113,8 @@ pub fn BuslaneRuntimeValue::char(value : Int) -> BuslaneRuntimeValue {
 
 ///|
 /// Creates a double Buslane runtime value.
-pub fn BuslaneRuntimeValue::double(value : Double) -> BuslaneRuntimeValue {
-  { kind: Double(value) }
+pub fn BuslaneRuntimeValue::f64(value : Double) -> BuslaneRuntimeValue {
+  { kind: F64(value) }
 }
 
 ///|
@@ -137,18 +137,18 @@ pub fn BuslaneRuntimeValue::unit() -> BuslaneRuntimeValue {
 
 ///|
 /// Returns this runtime value as an integer when it is an integer value.
-pub fn BuslaneRuntimeValue::as_int(self : BuslaneRuntimeValue) -> Int64? {
+pub fn BuslaneRuntimeValue::as_i64(self : BuslaneRuntimeValue) -> Int64? {
   match self.kind {
-    Int(value) => Some(value)
+    I64(value) => Some(value)
     _ => None
   }
 }
 
 ///|
 /// Returns this runtime value as S32 when it is an S32 value.
-pub fn BuslaneRuntimeValue::as_s32(self : BuslaneRuntimeValue) -> Int? {
+pub fn BuslaneRuntimeValue::as_i32(self : BuslaneRuntimeValue) -> Int? {
   match self.kind {
-    S32(value) => Some(value)
+    I32(value) => Some(value)
     _ => None
   }
 }
@@ -164,9 +164,9 @@ pub fn BuslaneRuntimeValue::as_char(self : BuslaneRuntimeValue) -> Int? {
 
 ///|
 /// Returns this runtime value as a double when it is a double value.
-pub fn BuslaneRuntimeValue::as_double(self : BuslaneRuntimeValue) -> Double? {
+pub fn BuslaneRuntimeValue::as_f64(self : BuslaneRuntimeValue) -> Double? {
   match self.kind {
-    Double(value) => Some(value)
+    F64(value) => Some(value)
     _ => None
   }
 }

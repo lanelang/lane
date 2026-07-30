@@ -52,7 +52,7 @@ test "VM CFG pretty printer exposes control flow and ownership" {
       }),
       RuntimeImport({
         abi_major: 1,
-        parameters: [String, Int],
+        parameters: [String, I64],
         result: Unit,
         symbol: "lane.test.print",
       }),
@@ -96,7 +96,7 @@ test "VM CFG pretty printer exposes control flow and ownership" {
       #|function f2 = runtime_import(
       #|  symbol="lane.test.print",
       #|  abi_major=1,
-      #|  parameters=[string, int],
+      #|  parameters=[string, i64],
       #|  result=unit
       #|)
       #|

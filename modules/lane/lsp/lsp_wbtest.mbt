@@ -146,14 +146,14 @@ test "inlay hint validation reports duplicate positions as compiler bugs" {
     span: @basic.SourceSpan::dummy(),
   }
   let hints : Array[@analysis.InlayHintEntry] = [
-    { location, kind: TypeHint, label: ": Int" },
+    { location, kind: TypeHint, label: ": I64" },
     { location, kind: ParameterHint, label: "value=" },
   ]
   match validate_inlay_hint_positions(hints) {
     Err(message) =>
       inspect(
         message,
-        content="internal Lane compiler bug: multiple inlay hints were produced at file:///Main.lane:1:1 (`: Int` and `value=`)",
+        content="internal Lane compiler bug: multiple inlay hints were produced at file:///Main.lane:1:1 (`: I64` and `value=`)",
       )
     Ok(_) => abort("expected duplicate inlay hint validation failure")
   }
@@ -172,7 +172,7 @@ async test "inlay hint returns inferred binder type hints" {
           (
             #|module Main
             #|
-            #|pub fn answer(seed : Int) -> Int {
+            #|pub fn answer(seed : I64) -> I64 {
             #|  let local = seed
             #|  match local {
             #|    value => value
@@ -197,12 +197,12 @@ async test "inlay hint returns inferred binder type hints" {
       "result": [
         {
           "position": { "line": 3, "character": 11 },
-          "label": ": Int",
+          "label": ": I64",
           "kind": 1,
         },
         {
           "position": { "line": 5, "character": 9 },
-          "label": ": Int",
+          "label": ": I64",
           "kind": 1,
         },
       ],
@@ -223,11 +223,11 @@ async test "inlay hint returns parameter name hints at argument starts" {
           (
             #|module Main
             #|
-            #|pub fn choose(left : Int, right : Int) -> Int {
+            #|pub fn choose(left : I64, right : I64) -> I64 {
             #|  left
             #|}
             #|
-            #|pub fn answer(seed : Int) -> Int {
+            #|pub fn answer(seed : I64) -> I64 {
             #|  let local = choose(seed, 1)
             #|  local
             #|}
@@ -250,7 +250,7 @@ async test "inlay hint returns parameter name hints at argument starts" {
       "result": [
         {
           "position": { "line": 7, "character": 11 },
-          "label": ": Int",
+          "label": ": I64",
           "kind": 1,
         },
         {
@@ -282,7 +282,7 @@ async test "analysis requests traverse explicit generic application" {
             #|module Main
             #|
             #|pub struct Box {
-            #|  value : Int
+            #|  value : I64
             #|}
             #|
             #|pub fn[A] id(value : A) -> A {
@@ -400,14 +400,14 @@ async test "inlay hint anchors field arguments before the full argument" {
             #|module Main
             #|
             #|pub struct Box {
-            #|  field : Int
+            #|  field : I64
             #|}
             #|
-            #|pub fn take(arg : Int) -> Int {
+            #|pub fn take(arg : I64) -> I64 {
             #|  arg
             #|}
             #|
-            #|pub fn answer(value : Box) -> Int {
+            #|pub fn answer(value : Box) -> I64 {
             #|  let local = take(value.field)
             #|  local
             #|}
@@ -430,7 +430,7 @@ async test "inlay hint anchors field arguments before the full argument" {
       "result": [
         {
           "position": { "line": 11, "character": 11 },
-          "label": ": Int",
+          "label": ": I64",
           "kind": 1,
         },
         {
@@ -464,9 +464,9 @@ async test "inlay hint anchors implicit auto offers by call syntax" {
             #|  op.add(a, b)
             #|}
             #|
-            #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
+            #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
             #|
-            #|pub fn answer(seed : Int) -> Int {
+            #|pub fn answer(seed : I64) -> I64 {
             #|  let local = seed + 1
             #|  let explicit = op_add(seed, 1)
             #|  explicit
@@ -490,17 +490,17 @@ async test "inlay hint anchors implicit auto offers by call syntax" {
       "result": [
         {
           "position": { "line": 13, "character": 11 },
-          "label": ": Int",
+          "label": ": I64",
           "kind": 1,
         },
         {
           "position": { "line": 13, "character": 22 },
-          "label": ", op=int_add_ops",
+          "label": ", op=i64_add_ops",
           "kind": 2,
         },
         {
           "position": { "line": 14, "character": 14 },
-          "label": ": Int",
+          "label": ": I64",
           "kind": 1,
         },
         {
@@ -515,7 +515,7 @@ async test "inlay hint anchors implicit auto offers by call syntax" {
         },
         {
           "position": { "line": 14, "character": 31 },
-          "label": ", op=int_add_ops",
+          "label": ", op=i64_add_ops",
           "kind": 2,
         },
       ],
@@ -536,7 +536,7 @@ async test "semantic tokens full is not provided by lane lsp" {
           (
             #|module Main
             #|
-            #|pub fn choose(first : Bool, second : Bool) -> Int {
+            #|pub fn choose(first : Bool, second : Bool) -> I64 {
             #|  let result = first
             #|  if second {
             #|    result
@@ -578,7 +578,7 @@ async test "completion returns a completion list for module trigger" {
     (
       #|module Lib
       #|
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  42
       #|}
     ),
@@ -602,7 +602,7 @@ async test "completion returns a completion list for module trigger" {
             #|
             #|import Lib
             #|
-            #|pub fn use() -> Int {
+            #|pub fn use() -> I64 {
             #|  Lib.answer()
             #|}
           ),
@@ -628,7 +628,7 @@ async test "completion returns a completion list for module trigger" {
           {
             "label": "answer",
             "kind": 3,
-            "detail": "answer : () -> Int",
+            "detail": "answer : () -> I64",
             "sortText": "20:answer",
             "textEdit": {
               "range": {
@@ -657,7 +657,7 @@ async test "completion returns lexical entries for manual requests" {
           (
             #|module Main
             #|
-            #|pub fn answer(seed : Int) -> Int {
+            #|pub fn answer(seed : I64) -> I64 {
             #|  ans
             #|}
           ),
@@ -704,7 +704,7 @@ async test "semantic snapshot is reused until workspace sources change" {
   let source =
     #|module Main
     #|
-    #|pub fn answer(seed : Int) -> Int {
+    #|pub fn answer(seed : I64) -> I64 {
     #|  ans
     #|}
   let state = ServerState::ServerState()
@@ -765,7 +765,7 @@ async test "completion routes colon triggers to owner members" {
             #|  some(A)
             #|}
             #|
-            #|pub fn use() -> Option[Int] {
+            #|pub fn use() -> Option[I64] {
             #|  Option::some(1)
             #|}
           ),
@@ -892,7 +892,7 @@ async test "didChange does not publish stale nominal diagnostics" {
     #|
     #|pub enum Option {
     #|  none()
-    #|  some(Int)
+    #|  some(I64)
     #|}
     #|
     #|pub struct Box {
@@ -903,7 +903,7 @@ async test "didChange does not publish stale nominal diagnostics" {
     #|  read() -> Option
     #|}
     #|
-    #|pub fn use(value : Int) -> Box {
+    #|pub fn use(value : I64) -> Box {
     #|  Box::{ value: some(value) }
     #|}
   let state = ServerState::ServerState()
@@ -946,7 +946,7 @@ test "lsp diagnostics convert text offsets before transport" {
       #|import Builtins.{
       #|  read_int
       #|}
-      #|pub let answer : Int = 1
+      #|pub let answer : I64 = 1
     ),
   }
   let result = @compile.check_source_inputs(input, [])
@@ -1003,8 +1003,8 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
       #|fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
       #|  op.add(a, b)
       #|}
-      #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-      #|pub let x : Int = 1 + true
+      #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+      #|pub let x : I64 = 1 + true
     ),
   }
   let result = @compile.check_source_inputs(input, [])
@@ -1019,7 +1019,7 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
     content=[
       {
         "severity": 1,
-        "message": "type mismatch\nexpected `Int`, found `Bool`",
+        "message": "type mismatch\nexpected `I64`, found `Bool`",
         "source": "lane",
         "code": "E3006",
         "range": {
@@ -1045,7 +1045,7 @@ test "lsp diagnostics transport unused local warnings" {
     source_id: "file:///unused.lane",
     text: (
       #|module Main
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  let unused = 1
       #|  0
       #|}
@@ -1079,8 +1079,8 @@ test "lsp duplicate top-level value diagnostic points at names" {
     source_id: "file:///duplicate.lane",
     text: (
       #|module Main
-      #|let answer : Int = 1
-      #|let answer : Int = 2
+      #|let answer : I64 = 1
+      #|let answer : I64 = 2
     ),
   }
   let result = @compile.check_source_inputs(input, [])
@@ -1129,14 +1129,14 @@ test "lsp duplicate imported top-level value diagnostic points across sources" {
     text: (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = 2
+      #|pub let answer : I64 = 2
     ),
   }
   let lib : @module_frontend.SourceInput = {
     source_id: "file:///Lib.lane",
     text: (
       #|module Lib
-      #|pub let answer : Int = 1
+      #|pub let answer : I64 = 1
     ),
   }
   let result = @compile.check_source_inputs(main, [lib])
@@ -1226,7 +1226,7 @@ async test "didOpen checks against workspace library sources" {
     (
       #|module Lib
       #|
-      #|pub let value : Int = 42
+      #|pub let value : I64 = 42
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1236,7 +1236,7 @@ async test "didOpen checks against workspace library sources" {
     (
       #|module Main
       #|
-      #|pub let stale : Int = 0
+      #|pub let stale : I64 = 0
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1258,7 +1258,7 @@ async test "didOpen checks against workspace library sources" {
           #|
           #|import Lib.*
           #|
-          #|pub let answer : Int = value
+          #|pub let answer : I64 = value
         ),
       ),
     ),
@@ -1306,7 +1306,7 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
     (
       #|module Main
       #|
-      #|pub let stale : Int = 0
+      #|pub let stale : I64 = 0
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1328,7 +1328,7 @@ async test "didOpen publishes workspace diagnostics to their source URI" {
           #|
           #|import Lib.*
           #|
-          #|pub let answer : Int = 1
+          #|pub let answer : I64 = 1
         ),
       ),
     ),
@@ -1397,7 +1397,7 @@ async test "workspace edits publish diagnostics only for affected sources" {
       #|
       #|import Lib.*
       #|
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1478,7 +1478,7 @@ async test "workspace diagnostics include disconnected modules" {
     (
       #|module Lib
       #|
-      #|pub let value : Int = 42
+      #|pub let value : I64 = 42
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1500,7 +1500,7 @@ async test "workspace diagnostics include disconnected modules" {
       #|
       #|import Lib.*
       #|
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1574,7 +1574,7 @@ async test "workspace diagnostics keep parse errors from every module" {
       #|
       #|import Lib.*
       #|
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1626,7 +1626,7 @@ async test "workspace analysis selects root import closure without json rpc" {
     (
       #|module Lib
       #|
-      #|pub let value : Int = 42
+      #|pub let value : I64 = 42
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1646,7 +1646,7 @@ async test "workspace analysis selects root import closure without json rpc" {
     #|
     #|import Lib.*
     #|
-    #|pub let answer : Int = value
+    #|pub let answer : I64 = value
   let document = { uri: "file://\{main_path}", text: main_text }
   let analysis = LspWorkspaceAnalysis(Some(workspace), Map([]))
   let sources = analysis.analysis_sources(document)
@@ -1698,7 +1698,7 @@ async test "workspace libraries prefer unsaved open document snapshots" {
     (
       #|module Lib
       #|
-      #|pub let stale : Int = 0
+      #|pub let stale : I64 = 0
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1708,7 +1708,7 @@ async test "workspace libraries prefer unsaved open document snapshots" {
     (
       #|module Main
       #|
-      #|pub let stale : Int = 0
+      #|pub let stale : I64 = 0
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1729,7 +1729,7 @@ async test "workspace libraries prefer unsaved open document snapshots" {
           (
             #|module Lib
             #|
-            #|pub let value : Int = 42
+            #|pub let value : I64 = 42
           ),
         ),
       ),
@@ -1746,7 +1746,7 @@ async test "workspace libraries prefer unsaved open document snapshots" {
           #|
           #|import Lib.*
           #|
-          #|pub let answer : Int = value
+          #|pub let answer : I64 = value
         ),
       ),
     ),
@@ -1785,7 +1785,7 @@ async test "workspace libraries exclude current document by realpath" {
     (
       #|module Main
       #|
-      #|pub let stale : Int = 0
+      #|pub let stale : I64 = 0
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1806,7 +1806,7 @@ async test "workspace libraries exclude current document by realpath" {
         (
           #|module Main
           #|
-          #|pub let answer : Int = 42
+          #|pub let answer : I64 = 42
           #|
         ),
       ),
@@ -1837,7 +1837,7 @@ async test "definition returns encoded URI for discovered library source" {
     (
       #|module Lib
       #|
-      #|pub let value : Int = 42
+      #|pub let value : I64 = 42
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -1860,7 +1860,7 @@ async test "definition returns encoded URI for discovered library source" {
             #|
             #|import Lib.*
             #|
-            #|pub let answer : Int = value
+            #|pub let answer : I64 = value
           ),
         ),
       ),
@@ -1902,9 +1902,9 @@ async test "definition resolves same-file value references" {
           (
             #|module Main
             #|
-            #|pub let value : Int = 42
+            #|pub let value : I64 = 42
             #|
-            #|pub let answer : Int = value
+            #|pub let answer : I64 = value
           ),
         ),
       ),
@@ -1945,9 +1945,9 @@ async test "hover returns checked value type" {
           (
             #|module Main
             #|
-            #|pub let value : Int = 42
+            #|pub let value : I64 = 42
             #|
-            #|pub let answer : Int = value
+            #|pub let answer : I64 = value
           ),
         ),
       ),
@@ -1965,7 +1965,7 @@ async test "hover returns checked value type" {
       "jsonrpc": "2.0",
       "id": 2,
       "result": {
-        "contents": { "kind": "markdown", "value": "```lane\nvalue : Int\n```" },
+        "contents": { "kind": "markdown", "value": "```lane\nvalue : I64\n```" },
         "range": {
           "start": { "line": 4, "character": 23 },
           "end": { "line": 4, "character": 28 },
@@ -1989,16 +1989,16 @@ async test "hover returns checked handler resume type" {
             #|module Main
             #|
             #|pub effect Console {
-            #|  read() -> Int
+            #|  read() -> I64
             #|}
             #|pub effect State {
-            #|  get() -> Int
+            #|  get() -> I64
             #|}
-            #|pub fn answer() -> Int ! State {
+            #|pub fn answer() -> I64 ! State {
             #|  handle Console::read!() with {
             #|    Console::read(resume) => resume(0)
             #|  } final value {
-            #|    let _state : Int = State::get!()
+            #|    let _state : I64 = State::get!()
             #|    value
             #|  }
             #|}
@@ -2021,7 +2021,7 @@ async test "hover returns checked handler resume type" {
       "result": {
         "contents": {
           "kind": "markdown",
-          "value": "```lane\nresume : (Int) -> Int ! State\n```",
+          "value": "```lane\nresume : (I64) -> I64 ! State\n```",
         },
         "range": {
           "start": { "line": 10, "character": 18 },
@@ -2045,7 +2045,7 @@ async test "hover returns declaration detail" {
           (
             #|module Main
             #|
-            #|pub let value : Int = 42
+            #|pub let value : I64 = 42
           ),
         ),
       ),
@@ -2063,7 +2063,7 @@ async test "hover returns declaration detail" {
       "jsonrpc": "2.0",
       "id": 2,
       "result": {
-        "contents": { "kind": "markdown", "value": "```lane\nvalue : Int\n```" },
+        "contents": { "kind": "markdown", "value": "```lane\nvalue : I64\n```" },
         "range": {
           "start": { "line": 2, "character": 8 },
           "end": { "line": 2, "character": 13 },
@@ -2154,8 +2154,8 @@ async test "definition resolves operation call references" {
             #|  choose[A](A, A) -> A
             #|}
             #|
-            #|fn pick() -> Int ! Prompt {
-            #|  Prompt::choose![Int](1, 2)
+            #|fn pick() -> I64 ! Prompt {
+            #|  Prompt::choose![I64](1, 2)
             #|}
           ),
         ),
@@ -2201,8 +2201,8 @@ async test "definition resolves handler operation arm references" {
             #|  choose[A](A, A) -> A
             #|}
             #|
-            #|fn handled() -> Int {
-            #|  handle Prompt::choose![Int](1, 2) with {
+            #|fn handled() -> I64 {
+            #|  handle Prompt::choose![I64](1, 2) with {
             #|    Prompt::choose[A](left, right, resume) => resume(left)
             #|  } final value { value }
             #|}
@@ -2247,7 +2247,7 @@ async test "hover returns type reference summary" {
             #|module Main
             #|
             #|struct Point {
-            #|  x : Int
+            #|  x : I64
             #|}
             #|
             #|pub let point : Point = Point::{ x: 1 }
@@ -2290,7 +2290,7 @@ async test "definition resolves workspace library references" {
     (
       #|module Lib
       #|
-      #|pub let value : Int = 42
+      #|pub let value : I64 = 42
       #|
     ),
     create_mode=CreateOrTruncate,
@@ -2313,7 +2313,7 @@ async test "definition resolves workspace library references" {
             #|
             #|import Lib.*
             #|
-            #|pub let answer : Int = value
+            #|pub let answer : I64 = value
           ),
         ),
       ),
@@ -2355,11 +2355,11 @@ async test "definition uses partial analysis when unrelated diagnostics exist" {
           (
             #|module Main
             #|
-            #|pub let value : Int = 42
+            #|pub let value : I64 = 42
             #|
-            #|pub let answer : Int = value
+            #|pub let answer : I64 = value
             #|
-            #|pub let bad : Int = missing
+            #|pub let bad : I64 = missing
           ),
         ),
       ),

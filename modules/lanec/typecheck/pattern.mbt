@@ -227,26 +227,26 @@ fn SemanticChecker::check_pattern(
       scope.bind(symbol, name, expected)
       Binding(name~, symbol~, type_=expected, loc~)
     }
-    IntLiteral(raw, loc~) => {
+    IntegerLiteral(raw, loc~) => {
       let (literal, literal_type) = if expected ==
-        @types.Type::Primitive(@types.PrimitiveType::S32) {
+        @types.Type::Primitive(@types.PrimitiveType::I32) {
         (
-          @checked.CheckedLiteral::S32(self.check_s32_literal(raw, loc)),
-          @types.Type::Primitive(@types.PrimitiveType::S32),
+          @checked.CheckedLiteral::I32(self.check_i32_literal(raw, loc)),
+          @types.Type::Primitive(@types.PrimitiveType::I32),
         )
       } else {
         (
-          @checked.CheckedLiteral::Int(self.check_int_literal(raw, loc)),
-          @types.Type::Primitive(@types.PrimitiveType::Int),
+          @checked.CheckedLiteral::I64(self.check_i64_literal(raw, loc)),
+          @types.Type::Primitive(@types.PrimitiveType::I64),
         )
       }
       self.expect_type(expected, literal_type, loc)
       @checked.CheckedPattern::Literal(literal~, type_=expected, loc~)
     }
-    DoubleLiteral(raw, loc~) => {
-      self.expect_type(expected, Primitive(Double), loc)
+    FloatingLiteral(raw, loc~) => {
+      self.expect_type(expected, Primitive(F64), loc)
       Literal(
-        literal=Double(self.check_double_literal(raw, loc)),
+        literal=F64(self.check_f64_literal(raw, loc)),
         type_=expected,
         loc~,
       )
@@ -817,10 +817,10 @@ fn PatternMatrix::is_exhaustive(
 ///|
 priv enum MatrixConstructor {
   BoolConstructor(Bool)
-  IntConstructor(Int64)
-  S32Constructor(Int)
+  I64Constructor(Int64)
+  I32Constructor(Int)
   CharConstructor(Int)
-  DoubleConstructor(Double)
+  F64Constructor(Double)
   StringConstructor(String)
   UnitConstructor
   VariantConstructor(VariantSymbolId)
@@ -1160,10 +1160,10 @@ fn complete_constructor_signatures(
       ])
     Primitive(Unit) => Some([{ tag: UnitConstructor, argument_types: [] }])
     Error
-    | Primitive(Int)
-    | Primitive(S32)
+    | Primitive(I64)
+    | Primitive(I32)
     | Primitive(Char)
-    | Primitive(Double)
+    | Primitive(F64)
     | Primitive(String)
     | Primitive(Byte)
     | Primitive(Bytes) => None
@@ -1207,13 +1207,13 @@ fn constructor_signature_for_pattern(
     Literal(literal~, ..) =>
       match literal {
         Bool(value) => Some({ tag: BoolConstructor(value), argument_types: [] })
-        Int(value) =>
-          Some({ tag: IntConstructor(value.value), argument_types: [] })
-        S32(value) =>
-          Some({ tag: S32Constructor(value.value), argument_types: [] })
+        I64(value) =>
+          Some({ tag: I64Constructor(value.value), argument_types: [] })
+        I32(value) =>
+          Some({ tag: I32Constructor(value.value), argument_types: [] })
         Char(value) => Some({ tag: CharConstructor(value), argument_types: [] })
-        Double(value) =>
-          Some({ tag: DoubleConstructor(value.value), argument_types: [] })
+        F64(value) =>
+          Some({ tag: F64Constructor(value.value), argument_types: [] })
         String(value) =>
           Some({ tag: StringConstructor(value), argument_types: [] })
         Unit => Some({ tag: UnitConstructor, argument_types: [] })

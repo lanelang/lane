@@ -75,14 +75,14 @@ test "type planning shares one generated schema" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])
   let pure_type = @buslane.Type::Function(
-    [Primitive(Int)],
-    Primitive(Int),
+    [Primitive(I64)],
+    Primitive(I64),
     Empty,
   )
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   let planned = [
     schema.rewrite_type(pure_type),
-    schema.rewrite_type(Function([], Primitive(Int), Singleton(effect, []))),
+    schema.rewrite_type(Function([], Primitive(I64), Singleton(effect, []))),
   ]
   assert_eq(planned[0], pure_type)
   guard planned[1] is Forall([_], Function(_, _, Empty)) else {
@@ -97,7 +97,7 @@ test "context types cover empty singleton and ordered unions" {
   let first_effect = metadata.define_effect("First", [])
   let second_effect = metadata.define_effect("Second", [])
   let schema = build_dictionary_cps_schema_or_raise(metadata)
-  let answer : @buslane.Type = Primitive(Int)
+  let answer : @buslane.Type = Primitive(I64)
   assert_eq(schema.packed_context_type(Empty, answer), Primitive(Unit))
   let first_type = schema.context_term_type(
     Singleton(first_effect, []),
@@ -136,8 +136,8 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   let companion = schema.companion_parameter(effect_parameter)
   assert_eq(
-    schema.rewrite_type(Function([Primitive(Int)], Primitive(Int), Empty)),
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    schema.rewrite_type(Function([Primitive(I64)], Primitive(I64), Empty)),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   assert_eq(
     schema.rewrite_type(Function([Primitive(String)], Primitive(Unit), Io)),
@@ -145,9 +145,9 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
   )
   assert_eq(
     schema.rewrite_type(
-      Function([Primitive(Int)], Primitive(Int), Singleton(external, [])),
+      Function([Primitive(I64)], Primitive(I64), Singleton(external, [])),
     ),
-    Function([Primitive(Int)], Primitive(Int), Singleton(external, [])),
+    Function([Primitive(I64)], Primitive(I64), Singleton(external, [])),
   )
   let mixed = schema.rewrite_type(
     Function(
@@ -172,8 +172,8 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
     Forall(
       [effect_parameter],
       Function(
-        [Function([], Primitive(Int), Parameter(effect_parameter))],
-        Primitive(Int),
+        [Function([], Primitive(I64), Parameter(effect_parameter))],
+        Primitive(I64),
         Parameter(effect_parameter),
       ),
     ),
@@ -195,7 +195,7 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
   assert_eq(outer_companion, companion)
   assert_eq(outer_context, Parameter(companion))
   assert_eq(rewritten_answer, Parameter(answer))
-  assert_eq(continuation, Function([Primitive(Int)], Parameter(answer), Empty))
+  assert_eq(continuation, Function([Primitive(I64)], Parameter(answer), Empty))
   guard nested_callable
     is Forall(
       [nested_answer],
@@ -207,6 +207,6 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
   assert_eq(nested_result, Parameter(nested_answer))
   assert_eq(
     nested_continuation,
-    Function([Primitive(Int)], Parameter(nested_answer), Empty),
+    Function([Primitive(I64)], Parameter(nested_answer), Empty),
   )
 }

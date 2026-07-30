@@ -4,7 +4,7 @@ test "elaborate empty enum match into verifiable buslane" {
     (
       #|enum Void {}
       #|
-      #|fn absurd(value : Void) -> Int {
+      #|fn absurd(value : Void) -> I64 {
       #|  match value {}
       #|}
     ),

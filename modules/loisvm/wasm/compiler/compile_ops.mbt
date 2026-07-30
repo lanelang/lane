@@ -80,13 +80,13 @@ fn compile_instruction(
       result.append(mark_slot_dead(live_base, slots, source))
       result
     }
-    ConstInt(destination, value) =>
+    ConstI64(destination, value) =>
       [I64Const(value), LocalSet(slot_local(parameter_count, destination))]
-    ConstS32(destination, value) =>
+    ConstI32(destination, value) =>
       [I32Const(value), LocalSet(slot_local(parameter_count, destination))]
     ConstChar(destination, value) =>
       [I32Const(value), LocalSet(slot_local(parameter_count, destination))]
-    ConstDouble(destination, bits) =>
+    ConstF64(destination, bits) =>
       [
         F64Const(bits.reinterpret_as_double()),
         LocalSet(slot_local(parameter_count, destination)),
@@ -267,13 +267,13 @@ fn compile_instruction(
       }
       result
     }
-    ByteToInt(destination, source) =>
+    ByteToI64(destination, source) =>
       [
         LocalGet(slot_local(parameter_count, source)),
         I64ExtendI32U,
         LocalSet(slot_local(parameter_count, destination)),
       ]
-    IntToByte(destination, source) =>
+    I64ToByte(destination, source) =>
       [
         LocalGet(slot_local(parameter_count, source)),
         I64Const(255L),
@@ -354,76 +354,76 @@ fn compile_instruction(
         Call(runtime_functions.byte_sequence_is_valid_utf8),
         LocalSet(slot_local(parameter_count, destination)),
       ]
-    S32Add(destination, left, right) =>
+    I32Add(destination, left, right) =>
       binary(parameter_count, destination, left, right, I32Add)
-    S32Sub(destination, left, right) =>
+    I32Sub(destination, left, right) =>
       binary(parameter_count, destination, left, right, I32Sub)
-    S32Mul(destination, left, right) =>
+    I32Mul(destination, left, right) =>
       binary(parameter_count, destination, left, right, I32Mul)
-    S32Neg(destination, source) =>
+    I32Neg(destination, source) =>
       [
         I32Const(0),
         LocalGet(slot_local(parameter_count, source)),
         I32Sub,
         LocalSet(slot_local(parameter_count, destination)),
       ]
-    S32Div(destination, left, right) =>
+    I32Div(destination, left, right) =>
       binary(parameter_count, destination, left, right, I32DivS)
-    S32Rem(destination, left, right) =>
+    I32Rem(destination, left, right) =>
       binary(parameter_count, destination, left, right, I32RemS)
-    S32Eq(destination, left, right) =>
+    I32Eq(destination, left, right) =>
       binary(parameter_count, destination, left, right, I32Eq)
-    S32Lt(destination, left, right) =>
+    I32Lt(destination, left, right) =>
       binary(parameter_count, destination, left, right, I32LtS)
-    S32ToInt(destination, source) =>
+    I32ToI64(destination, source) =>
       unary(parameter_count, destination, source, I64ExtendI32S)
-    IntToS32(destination, source) =>
+    I64ToI32(destination, source) =>
       unary(parameter_count, destination, source, I32WrapI64)
-    IntAdd(destination, left, right) =>
+    I64Add(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64Add)
-    IntSub(destination, left, right) =>
+    I64Sub(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64Sub)
-    IntMul(destination, left, right) =>
+    I64Mul(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64Mul)
-    IntNeg(destination, source) =>
+    I64Neg(destination, source) =>
       [
         I64Const(0L),
         LocalGet(slot_local(parameter_count, source)),
         I64Sub,
         LocalSet(slot_local(parameter_count, destination)),
       ]
-    IntDiv(destination, left, right) =>
+    I64Div(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64DivS)
-    IntRem(destination, left, right) =>
+    I64Rem(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64RemS)
-    IntAnd(destination, left, right) =>
+    I64And(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64And)
-    IntOr(destination, left, right) =>
+    I64Or(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64Or)
-    IntXor(destination, left, right) =>
+    I64Xor(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64Xor)
-    IntNot(destination, source) =>
+    I64Not(destination, source) =>
       [
         LocalGet(slot_local(parameter_count, source)),
         I64Const(-1L),
         I64Xor,
         LocalSet(slot_local(parameter_count, destination)),
       ]
-    IntShl(destination, left, right) =>
+    I64Shl(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64Shl)
-    IntShrS(destination, left, right) =>
+    I64ShrS(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64ShrS)
-    IntEq(destination, left, right) =>
+    I64Eq(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64Eq)
-    IntNe(destination, left, right) =>
+    I64Ne(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64Ne)
-    IntLt(destination, left, right) =>
+    I64Lt(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64LtS)
-    IntLe(destination, left, right) =>
+    I64Le(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64LeS)
-    IntGt(destination, left, right) =>
+    I64Gt(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64GtS)
-    IntGe(destination, left, right) =>
+    I64Ge(destination, left, right) =>
       binary(parameter_count, destination, left, right, I64GeS)
     BoolNot(destination, source) =>
       unary(parameter_count, destination, source, I32Eqz)
@@ -431,31 +431,31 @@ fn compile_instruction(
       binary(parameter_count, destination, left, right, I32Eq)
     BoolNe(destination, left, right) =>
       binary(parameter_count, destination, left, right, I32Ne)
-    DoubleAdd(destination, left, right) =>
+    F64Add(destination, left, right) =>
       binary(parameter_count, destination, left, right, F64Add)
-    DoubleSub(destination, left, right) =>
+    F64Sub(destination, left, right) =>
       binary(parameter_count, destination, left, right, F64Sub)
-    DoubleMul(destination, left, right) =>
+    F64Mul(destination, left, right) =>
       binary(parameter_count, destination, left, right, F64Mul)
-    DoubleDiv(destination, left, right) =>
+    F64Div(destination, left, right) =>
       binary(parameter_count, destination, left, right, F64Div)
-    DoubleNeg(destination, source) =>
+    F64Neg(destination, source) =>
       unary(parameter_count, destination, source, F64Neg)
-    DoubleEq(destination, left, right) =>
+    F64Eq(destination, left, right) =>
       binary(parameter_count, destination, left, right, F64Eq)
-    DoubleNe(destination, left, right) =>
+    F64Ne(destination, left, right) =>
       binary(parameter_count, destination, left, right, F64Ne)
-    DoubleLt(destination, left, right) =>
+    F64Lt(destination, left, right) =>
       binary(parameter_count, destination, left, right, F64Lt)
-    DoubleLe(destination, left, right) =>
+    F64Le(destination, left, right) =>
       binary(parameter_count, destination, left, right, F64Le)
-    DoubleGt(destination, left, right) =>
+    F64Gt(destination, left, right) =>
       binary(parameter_count, destination, left, right, F64Gt)
-    DoubleGe(destination, left, right) =>
+    F64Ge(destination, left, right) =>
       binary(parameter_count, destination, left, right, F64Ge)
-    IntToDouble(destination, source) =>
+    I64ToF64(destination, source) =>
       unary(parameter_count, destination, source, F64ConvertI64S)
-    DoubleToInt(destination, source) =>
+    F64ToI64(destination, source) =>
       unary(parameter_count, destination, source, I64TruncF64S)
     EraseI32(destination, source) =>
       compile_erasure_transfer(

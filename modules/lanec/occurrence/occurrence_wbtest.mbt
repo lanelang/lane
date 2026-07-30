@@ -191,7 +191,7 @@ test "occurrence treats explicit roots as reachable" {
 test "occurrence records incomplete type applications only on reachable paths" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit = @buslane.Type::Primitive(Unit)
-  let int = @buslane.Type::Primitive(Int)
+  let int = @buslane.Type::Primitive(I64)
   let function_type = @buslane.Type::Function([], unit, Empty)
   let full_parameter = metadata.define_type_parameter("Full", Type)
   let partial_parameter = metadata.define_type_parameter("Partial", Type)

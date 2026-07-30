@@ -237,7 +237,7 @@ async test "compile writes explicit module artifact outputs" {
     source_path,
     (
       #|module Main
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
   )
   let outcome = lane_compile(
@@ -504,7 +504,7 @@ async test "link rejects non-function selected entry" {
     source,
     (
       #|module Main
-      #|pub let main : Int = 1
+      #|pub let main : I64 = 1
     ),
   )
   guard lane_compile(source, [], "\{workspace}/Main.lmi", object, false)
@@ -521,7 +521,7 @@ async test "link rejects non-function selected entry" {
     errors.map(CliError::render_human).join("\n"),
     content=(
       #|error[E6009]: entry `Main.main` is not executable
-      #|  requested type: Int
+      #|  requested type: I64
       #|  expected: () -> Unit with a closed External Effect row
       #|
       #|The selected public entry is a value, not a function.
@@ -606,8 +606,8 @@ test "run rejects public value entries" {
   let result = @compile.compile_source(
     (
       #|module Test
-      #|pub let answer : Int = 42
-      #|let _hidden : Int = 1
+      #|pub let answer : I64 = 42
+      #|let _hidden : I64 = 1
     ),
   )
   debug_inspect(result.diagnostics, content="[]")
@@ -620,7 +620,7 @@ test "run rejects public value entries" {
       #|Err(
       #|  EntryNotExecutable(
       #|    name="Test.answer",
-      #|    type_=Primitive(Int),
+      #|    type_=Primitive(I64),
       #|    reason=EntryIsNotFunction,
       #|  ),
       #|)
@@ -633,7 +633,7 @@ test "run rejects functions with parameters" {
   let result = @compile.compile_source(
     (
       #|module Test
-      #|pub fn id(x : Int) -> Int { x }
+      #|pub fn id(x : I64) -> I64 { x }
     ),
   )
   debug_inspect(result.diagnostics, content="[]")
@@ -646,7 +646,7 @@ test "run rejects functions with parameters" {
       #|Err(
       #|  EntryNotExecutable(
       #|    name="Test.id",
-      #|    type_=Function([Primitive(Int)], Primitive(Int), Empty),
+      #|    type_=Function([Primitive(I64)], Primitive(I64), Empty),
       #|    reason=EntryHasParameters(count=1),
       #|  ),
       #|)
@@ -798,7 +798,7 @@ test "missing entry error lists available public entries" {
   let result = @compile.compile_source(
     (
       #|module Test
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
   )
   guard find_entry(result.entries, "main") is Err(error) else {
@@ -814,7 +814,7 @@ test "missing entry error lists available public entries" {
       #|      module_path_text: "Test",
       #|      name: "answer",
       #|      value: { index: 0 },
-      #|      type_: Primitive(Int),
+      #|      type_: Primitive(I64),
       #|    },
       #|  ],
       #|)
@@ -836,7 +836,7 @@ test "ambiguous entry error lists available public entries" {
   let result = @compile.compile_source(
     (
       #|module Test
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
   )
   let entry = result.entries[0]
@@ -907,7 +907,7 @@ test "compile diagnostics render source snippets" {
     #|import Builtins.{
     #|  read_int
     #|}
-    #|pub let answer : Int = 1
+    #|pub let answer : I64 = 1
   let root : LaneSourceInput = {
     source_id: "ops.lane",
     path: Some("ops.lane"),
@@ -938,7 +938,7 @@ test "compile diagnostics render source snippets" {
 test "compile warnings render source snippets" {
   let source =
     #|module Main
-    #|pub fn answer() -> Int {
+    #|pub fn answer() -> I64 {
     #|  let unused = 1
     #|  0
     #|}
@@ -973,7 +973,7 @@ test "compile diagnostics convert text offsets before rendering" {
     #|import Builtins.{
     #|  read_int
     #|}
-    #|pub let answer : Int = 1
+    #|pub let answer : I64 = 1
   let root : LaneSourceInput = {
     source_id: "unicode.lane",
     path: Some("unicode.lane"),
@@ -1005,8 +1005,8 @@ test "semantic diagnostics render source snippets" {
   let source =
     #|module Main
     #|struct Point {
-    #|  x : Int
-    #|  y : Int
+    #|  x : I64
+    #|  y : I64
     #|}
     #|pub let point : Point = Point::{ x: 1 }
   let root : LaneSourceInput = {

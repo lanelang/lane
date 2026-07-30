@@ -98,8 +98,8 @@ pub impl @source_prettyprinter.Pretty for EnumVariant
 pub impl @prettyprinter.Pretty for EnumVariant
 
 pub(all) enum Expr {
-  IntLiteral(String, loc~ : @basic.SourceSpan)
-  DoubleLiteral(String, loc~ : @basic.SourceSpan)
+  IntegerLiteral(String, loc~ : @basic.SourceSpan)
+  FloatingLiteral(String, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   CharLiteral(Int, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
@@ -297,8 +297,8 @@ pub(all) struct ParameterModifiers {
 pub(all) enum Pattern {
   Wildcard(@basic.SourceSpan)
   Binding(String, loc~ : @basic.SourceSpan)
-  IntLiteral(String, loc~ : @basic.SourceSpan)
-  DoubleLiteral(String, loc~ : @basic.SourceSpan)
+  IntegerLiteral(String, loc~ : @basic.SourceSpan)
+  FloatingLiteral(String, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   CharLiteral(Int, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)

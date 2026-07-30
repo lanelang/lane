@@ -1,11 +1,11 @@
 ///|
-fn int_type() -> @buslane.Type {
-  Primitive(Int)
+fn i64_type() -> @buslane.Type {
+  Primitive(I64)
 }
 
 ///|
-fn double_type() -> @buslane.Type {
-  Primitive(Double)
+fn f64_type() -> @buslane.Type {
+  Primitive(F64)
 }
 
 ///|
@@ -38,13 +38,13 @@ fn assert_type_equal(actual : @buslane.Type, expected : @buslane.Type) -> Unit {
 ///|
 test "buslane text roundtrips function call program" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value("value", Value, int_type())
+  let value = metadata.define_value("value", Value, i64_type())
   let function = metadata.define_value(
     "value",
     Function,
-    Function([int_type()], int_type(), Empty),
+    Function([i64_type()], i64_type(), Empty),
   )
-  let parameter = metadata.define_value("value", Parameter, int_type())
+  let parameter = metadata.define_value("value", Parameter, i64_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -53,12 +53,12 @@ test "buslane text roundtrips function call program" {
           id: function,
           rhs: Function({
             parameters: [parameter],
-            result_type: int_type(),
+            result_type: i64_type(),
             body: Ref(parameter),
           }),
         },
       ]),
-      Let(value, Call(Ref(function), [Literal(Int(42L))])),
+      Let(value, Call(Ref(function), [Literal(I64(42L))])),
     ],
   }
   let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
@@ -114,7 +114,7 @@ test "buslane text roundtrips standalone type" {
     Function(
       [
         Apply(Constructor({ index: 0 }), [TypeArgument(Parameter({ index: 0 }))]),
-        Function([Primitive(Int)], Primitive(Bool), Empty),
+        Function([Primitive(I64)], Primitive(Bool), Empty),
       ],
       Primitive(String),
       Empty,
@@ -129,22 +129,25 @@ test "buslane text roundtrips standalone type" {
 }
 
 ///|
-test "buslane text roundtrips double primitive and literal" {
+test "buslane text roundtrips F64 primitive and literal" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value("value", Value, double_type())
+  let value = metadata.define_value("value", Value, f64_type())
   let program = @buslane.Program::{
     metadata,
-    terms: [Let(value, Literal(Double(1.25)))],
+    terms: [Let(value, Literal(F64(1.25)))],
   }
   let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
-  let expected =
-    #|buslane {
-    #|  metadata {
-    #|    value value#0 name "value" unique 0 value : Double;
-    #|  }
-    #|  let value#0 = double(1.25);
-    #|}
-  inspect(text, content=expected)
+  inspect(
+    text,
+    content=(
+      #|buslane {
+      #|  metadata {
+      #|    value value#0 name "value" unique 0 value : F64;
+      #|  }
+      #|  let value#0 = f64(1.25);
+      #|}
+    ),
+  )
   let decoded = match parse_program_text(text) {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)
@@ -153,12 +156,12 @@ test "buslane text roundtrips double primitive and literal" {
 }
 
 ///|
-test "buslane text roundtrips S32 primitive and literal" {
+test "buslane text roundtrips I32 primitive and literal" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value("value", Value, Primitive(S32))
+  let value = metadata.define_value("value", Value, Primitive(I32))
   let program = @buslane.Program::{
     metadata,
-    terms: [Let(value, Literal(S32(-2147483647 - 1)))],
+    terms: [Let(value, Literal(I32(-2147483647 - 1)))],
   }
   let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
   inspect(
@@ -166,9 +169,9 @@ test "buslane text roundtrips S32 primitive and literal" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    value value#0 name "value" unique 0 value : S32;
+      #|    value value#0 name "value" unique 0 value : I32;
       #|  }
-      #|  let value#0 = s32(-2147483648);
+      #|  let value#0 = i32(-2147483648);
       #|}
     ),
   )
@@ -229,7 +232,7 @@ test "buslane text roundtrips effectful function type" {
     Primitive(Unit),
     Union([
       Io,
-      Singleton({ index: 0 }, [TypeArgument(Primitive(Int))]),
+      Singleton({ index: 0 }, [TypeArgument(Primitive(I64))]),
       Parameter({ index: 0 }),
     ]),
   )
@@ -249,16 +252,16 @@ test "buslane text roundtrips perform and deep handler syntax" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
-  let result = metadata.define_value("value", Value, int_type())
-  let final_binder = metadata.define_value("value", Local, int_type())
-  let payload = metadata.define_value("value", Parameter, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
+  let final_binder = metadata.define_value("value", Local, i64_type())
+  let payload = metadata.define_value("value", Parameter, i64_type())
   let resume_binder = metadata.define_value(
     "value",
     Parameter,
-    Function([int_type()], int_type(), Empty),
+    Function([i64_type()], i64_type(), Empty),
   )
   let program = @buslane.Program::{
     metadata,
@@ -270,10 +273,10 @@ test "buslane text roundtrips perform and deep handler syntax" {
             operation: print,
             effect_arguments: [],
             hidden_witnesses: [],
-            payloads: [Literal(Int(1L))],
+            payloads: [Literal(I64(1L))],
           }),
           result_binder: final_binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           final_body: Ref(final_binder),
           handlers: [
             {
@@ -313,8 +316,8 @@ test "buslane text roundtrips polymorphic operation witnesses" {
     [Parameter(operation_type_parameter), Parameter(operation_type_parameter)],
     Parameter(operation_type_parameter),
   )
-  let result = metadata.define_value("result", Value, int_type())
-  let final_binder = metadata.define_value("value", Local, int_type())
+  let result = metadata.define_value("result", Value, i64_type())
+  let final_binder = metadata.define_value("value", Local, i64_type())
   let arm_type_binder = metadata.define_type_parameter("T", Type)
   let left = metadata.define_value(
     "left",
@@ -329,7 +332,7 @@ test "buslane text roundtrips polymorphic operation witnesses" {
   let resume_binder = metadata.define_value(
     "resume",
     Parameter,
-    Function([Parameter(arm_type_binder)], int_type(), Empty),
+    Function([Parameter(arm_type_binder)], i64_type(), Empty),
   )
   let program = @buslane.Program::{
     metadata,
@@ -340,11 +343,11 @@ test "buslane text roundtrips polymorphic operation witnesses" {
           body: Perform({
             operation: choose,
             effect_arguments: [],
-            hidden_witnesses: [TypeArgument(int_type())],
-            payloads: [Literal(Int(40L)), Literal(Int(41L))],
+            hidden_witnesses: [TypeArgument(i64_type())],
+            payloads: [Literal(I64(40L)), Literal(I64(41L))],
           }),
           result_binder: final_binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           final_body: Ref(final_binder),
           handlers: [
             {
@@ -385,14 +388,14 @@ test "buslane text roundtrips construct and match" {
   let scrutinee = metadata.define_value(
     "value",
     Value,
-    Apply(Constructor(option_type), [TypeArgument(int_type())]),
+    Apply(Constructor(option_type), [TypeArgument(i64_type())]),
   )
   let match_binder = metadata.define_value(
     "value",
     MatchBinder,
-    Apply(Constructor(option_type), [TypeArgument(int_type())]),
+    Apply(Constructor(option_type), [TypeArgument(i64_type())]),
   )
-  let payload = metadata.define_value("value", Parameter, int_type())
+  let payload = metadata.define_value("value", Parameter, i64_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -400,9 +403,9 @@ test "buslane text roundtrips construct and match" {
         scrutinee,
         Construct({
           data_constructor: some,
-          type_arguments: [TypeArgument(int_type())],
+          type_arguments: [TypeArgument(i64_type())],
           hidden_witnesses: [],
-          payloads: [Literal(Int(1L))],
+          payloads: [Literal(I64(1L))],
         }),
       ),
       Let(
@@ -410,7 +413,7 @@ test "buslane text roundtrips construct and match" {
         Match({
           scrutinee: Ref(scrutinee),
           binder: match_binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           alternatives: [
             {
               alt_constructor: DataCon(some),

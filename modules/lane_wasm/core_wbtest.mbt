@@ -91,12 +91,12 @@ test "explore request accepts multiple source files" {
           #|{
           #|  "root": {
           #|    "sourceId": "main.lane",
-          #|    "text": "module Main\nimport Lib.{value}\npub let copied : Int = value\npub fn main() -> Unit { () }"
+          #|    "text": "module Main\nimport Lib.{value}\npub let copied : I64 = value\npub fn main() -> Unit { () }"
           #|  },
           #|  "libraries": [
           #|    {
           #|      "sourceId": "lib.lane",
-          #|      "text": "module Lib\npub let value : Int = 42"
+          #|      "text": "module Lib\npub let value : I64 = 42"
           #|    }
           #|  ],
           #|  "entry": "main"

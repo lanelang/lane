@@ -10,7 +10,7 @@ test "compiled aliases retain canonical interface and object identities" {
       (
         #|module Types
         #|pub struct Item {
-        #|  value : Int
+        #|  value : I64
         #|}
       ),
     ],
@@ -51,7 +51,7 @@ test "tuple sugar compiles through an aliased canonical provider" {
     (
       #|module Main
       #|import Basic.Data.Tuple as Pair
-      #|pub fn make() -> (Int, Bool) { (1, true) }
+      #|pub fn make() -> (I64, Bool) { (1, true) }
     ),
     [
       (
@@ -75,7 +75,7 @@ test "list sugar compiles through an aliased canonical provider" {
     (
       #|module Main
       #|import Basic.Data.List as Seq
-      #|pub fn make() -> Seq.List[Int] { [1, 2] }
+      #|pub fn make() -> Seq.List[I64] { [1, 2] }
     ),
     [
       (

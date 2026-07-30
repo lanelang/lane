@@ -35,10 +35,10 @@ pub(all) enum Token {
   EFFECT_KIND
   UNIT_TYPE
   BOOL_TYPE
-  INT_TYPE
-  S32_TYPE
+  I64_TYPE
+  I32_TYPE
   CHAR_TYPE
-  DOUBLE_TYPE
+  F64_TYPE
   STRING_TYPE
   BYTE_TYPE
   BYTES_TYPE
@@ -72,10 +72,10 @@ pub(all) enum Token {
   LITERAL_ALT
   TRUE
   FALSE
-  INT_LITERAL
-  S32_LITERAL
+  I64_LITERAL
+  I32_LITERAL
   CHAR_LITERAL
-  DOUBLE_LITERAL
+  F64_LITERAL
   STRING_LITERAL
   UNIT_LITERAL
   LBRACE
@@ -128,10 +128,10 @@ pub fn Token::kind(self : Token) -> TokenKind {
     EFFECT_KIND => TK_EFFECT_KIND
     UNIT_TYPE => TK_UNIT_TYPE
     BOOL_TYPE => TK_BOOL_TYPE
-    INT_TYPE => TK_INT_TYPE
-    S32_TYPE => TK_S32_TYPE
+    I64_TYPE => TK_I64_TYPE
+    I32_TYPE => TK_I32_TYPE
     CHAR_TYPE => TK_CHAR_TYPE
-    DOUBLE_TYPE => TK_DOUBLE_TYPE
+    F64_TYPE => TK_F64_TYPE
     STRING_TYPE => TK_STRING_TYPE
     BYTE_TYPE => TK_BYTE_TYPE
     BYTES_TYPE => TK_BYTES_TYPE
@@ -165,10 +165,10 @@ pub fn Token::kind(self : Token) -> TokenKind {
     LITERAL_ALT => TK_LITERAL_ALT
     TRUE => TK_TRUE
     FALSE => TK_FALSE
-    INT_LITERAL => TK_INT_LITERAL
-    S32_LITERAL => TK_S32_LITERAL
+    I64_LITERAL => TK_I64_LITERAL
+    I32_LITERAL => TK_I32_LITERAL
     CHAR_LITERAL => TK_CHAR_LITERAL
-    DOUBLE_LITERAL => TK_DOUBLE_LITERAL
+    F64_LITERAL => TK_F64_LITERAL
     STRING_LITERAL => TK_STRING_LITERAL
     UNIT_LITERAL => TK_UNIT_LITERAL
     LBRACE => TK_LBRACE
@@ -221,10 +221,10 @@ pub(all) enum TokenKind {
   TK_EFFECT_KIND
   TK_UNIT_TYPE
   TK_BOOL_TYPE
-  TK_INT_TYPE
-  TK_S32_TYPE
+  TK_I64_TYPE
+  TK_I32_TYPE
   TK_CHAR_TYPE
-  TK_DOUBLE_TYPE
+  TK_F64_TYPE
   TK_STRING_TYPE
   TK_BYTE_TYPE
   TK_BYTES_TYPE
@@ -258,10 +258,10 @@ pub(all) enum TokenKind {
   TK_LITERAL_ALT
   TK_TRUE
   TK_FALSE
-  TK_INT_LITERAL
-  TK_S32_LITERAL
+  TK_I64_LITERAL
+  TK_I32_LITERAL
   TK_CHAR_LITERAL
-  TK_DOUBLE_LITERAL
+  TK_F64_LITERAL
   TK_STRING_LITERAL
   TK_UNIT_LITERAL
   TK_LBRACE
@@ -315,10 +315,10 @@ pub impl Show for TokenKind with fn output(self, logger) {
       TK_EFFECT_KIND => "\"Effect\""
       TK_UNIT_TYPE => "\"Unit\""
       TK_BOOL_TYPE => "\"Bool\""
-      TK_INT_TYPE => "\"Int\""
-      TK_S32_TYPE => "\"S32\""
+      TK_I64_TYPE => "\"I64\""
+      TK_I32_TYPE => "\"I32\""
       TK_CHAR_TYPE => "\"Char\""
-      TK_DOUBLE_TYPE => "\"Double\""
+      TK_F64_TYPE => "\"F64\""
       TK_STRING_TYPE => "\"String\""
       TK_BYTE_TYPE => "\"Byte\""
       TK_BYTES_TYPE => "\"Bytes\""
@@ -352,10 +352,10 @@ pub impl Show for TokenKind with fn output(self, logger) {
       TK_LITERAL_ALT => "\"literal\""
       TK_TRUE => "\"true\""
       TK_FALSE => "\"false\""
-      TK_INT_LITERAL => "\"int\""
-      TK_S32_LITERAL => "\"s32\""
+      TK_I64_LITERAL => "\"i64\""
+      TK_I32_LITERAL => "\"i32\""
       TK_CHAR_LITERAL => "\"char\""
-      TK_DOUBLE_LITERAL => "\"double\""
+      TK_F64_LITERAL => "\"f64\""
       TK_STRING_LITERAL => "\"string\""
       TK_UNIT_LITERAL => "\"unit\""
       TK_LBRACE => "\"{\""
@@ -410,10 +410,10 @@ pub impl Debug for TokenKind with fn to_repr(self) {
       TK_EFFECT_KIND => Repr("Effect")
       TK_UNIT_TYPE => Repr("Unit")
       TK_BOOL_TYPE => Repr("Bool")
-      TK_INT_TYPE => Repr("Int")
-      TK_S32_TYPE => Repr("S32")
+      TK_I64_TYPE => Repr("I64")
+      TK_I32_TYPE => Repr("I32")
       TK_CHAR_TYPE => Repr("Char")
-      TK_DOUBLE_TYPE => Repr("Double")
+      TK_F64_TYPE => Repr("F64")
       TK_STRING_TYPE => Repr("String")
       TK_BYTE_TYPE => Repr("Byte")
       TK_BYTES_TYPE => Repr("Bytes")
@@ -447,10 +447,10 @@ pub impl Debug for TokenKind with fn to_repr(self) {
       TK_LITERAL_ALT => Repr("literal")
       TK_TRUE => Repr("true")
       TK_FALSE => Repr("false")
-      TK_INT_LITERAL => Repr("int")
-      TK_S32_LITERAL => Repr("s32")
+      TK_I64_LITERAL => Repr("i64")
+      TK_I32_LITERAL => Repr("i32")
       TK_CHAR_LITERAL => Repr("char")
-      TK_DOUBLE_LITERAL => Repr("double")
+      TK_F64_LITERAL => Repr("f64")
       TK_STRING_LITERAL => Repr("string")
       TK_UNIT_LITERAL => Repr("unit")
       TK_LBRACE => Repr("{")
@@ -692,10 +692,10 @@ priv enum YYSymbol {
   T_EFFECT_KIND
   T_UNIT_TYPE
   T_BOOL_TYPE
-  T_INT_TYPE
-  T_S32_TYPE
+  T_I64_TYPE
+  T_I32_TYPE
   T_CHAR_TYPE
-  T_DOUBLE_TYPE
+  T_F64_TYPE
   T_STRING_TYPE
   T_BYTE_TYPE
   T_BYTES_TYPE
@@ -729,10 +729,10 @@ priv enum YYSymbol {
   T_LITERAL_ALT
   T_TRUE
   T_FALSE
-  T_INT_LITERAL
-  T_S32_LITERAL
+  T_I64_LITERAL
+  T_I32_LITERAL
   T_CHAR_LITERAL
-  T_DOUBLE_LITERAL
+  T_F64_LITERAL
   T_STRING_LITERAL
   T_UNIT_LITERAL
   T_LBRACE
@@ -1225,17 +1225,17 @@ fn yy_action_41(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 292|    "int" "(" INT ")" { Int(@string.parse_int64($3, base=10) catch { _ => 0L }) }
+// 292|    "i64" "(" INT ")" { I64(@string.parse_int64($3, base=10) catch { _ => 0L }) }
 fn yy_action_42(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Literal({();  Int(@string.parse_int64(_dollar3, base=10) catch { _ => 0L }) })
+  YYObj_Literal({();  I64(@string.parse_int64(_dollar3, base=10) catch { _ => 0L }) })
 }
 
 // file:///./parser.mbty
-// 293|    "s32" "(" INT ")" { S32(@string.parse_int($3, base=10) catch { _ => 0 }) }
+// 293|    "i32" "(" INT ")" { I32(@string.parse_int($3, base=10) catch { _ => 0 }) }
 fn yy_action_43(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Literal({();  S32(@string.parse_int(_dollar3, base=10) catch { _ => 0 }) })
+  YYObj_Literal({();  I32(@string.parse_int(_dollar3, base=10) catch { _ => 0 }) })
 }
 
 // file:///./parser.mbty
@@ -1246,10 +1246,10 @@ fn yy_action_44(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 295|    "double" "(" DOUBLE ")" { Double(@string.parse_double($3) catch { _ => 0.0 }) }
+// 295|    "f64" "(" DOUBLE ")" { F64(@string.parse_double($3) catch { _ => 0.0 }) }
 fn yy_action_45(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Literal({();  Double(@string.parse_double(_dollar3) catch { _ => 0.0 }) })
+  YYObj_Literal({();  F64(@string.parse_double(_dollar3) catch { _ => 0.0 }) })
 }
 
 // file:///./parser.mbty
@@ -1873,15 +1873,15 @@ fn yy_action_126(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 327|    "Int" { Int }
+// 327|    "I64" { I64 }
 fn yy_action_127(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_PrimitiveType({();  Int })
+  YYObj_PrimitiveType({();  I64 })
 }
 
 // file:///./parser.mbty
-// 328|    "S32" { S32 }
+// 328|    "I32" { I32 }
 fn yy_action_128(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_PrimitiveType({();  S32 })
+  YYObj_PrimitiveType({();  I32 })
 }
 
 // file:///./parser.mbty
@@ -1891,9 +1891,9 @@ fn yy_action_129(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 330|    "Double" { Double }
+// 330|    "F64" { F64 }
 fn yy_action_130(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_PrimitiveType({();  Double })
+  YYObj_PrimitiveType({();  F64 })
 }
 
 // file:///./parser.mbty
@@ -1965,10 +1965,10 @@ fn yy_input(token : Token, _start_pos : SourceSpan, _end_pos : SourceSpan) -> (Y
     EFFECT_KIND => (T_EFFECT_KIND, YYObj_Void)
     UNIT_TYPE => (T_UNIT_TYPE, YYObj_Void)
     BOOL_TYPE => (T_BOOL_TYPE, YYObj_Void)
-    INT_TYPE => (T_INT_TYPE, YYObj_Void)
-    S32_TYPE => (T_S32_TYPE, YYObj_Void)
+    I64_TYPE => (T_I64_TYPE, YYObj_Void)
+    I32_TYPE => (T_I32_TYPE, YYObj_Void)
     CHAR_TYPE => (T_CHAR_TYPE, YYObj_Void)
-    DOUBLE_TYPE => (T_DOUBLE_TYPE, YYObj_Void)
+    F64_TYPE => (T_F64_TYPE, YYObj_Void)
     STRING_TYPE => (T_STRING_TYPE, YYObj_Void)
     BYTE_TYPE => (T_BYTE_TYPE, YYObj_Void)
     BYTES_TYPE => (T_BYTES_TYPE, YYObj_Void)
@@ -2002,10 +2002,10 @@ fn yy_input(token : Token, _start_pos : SourceSpan, _end_pos : SourceSpan) -> (Y
     LITERAL_ALT => (T_LITERAL_ALT, YYObj_Void)
     TRUE => (T_TRUE, YYObj_Void)
     FALSE => (T_FALSE, YYObj_Void)
-    INT_LITERAL => (T_INT_LITERAL, YYObj_Void)
-    S32_LITERAL => (T_S32_LITERAL, YYObj_Void)
+    I64_LITERAL => (T_I64_LITERAL, YYObj_Void)
+    I32_LITERAL => (T_I32_LITERAL, YYObj_Void)
     CHAR_LITERAL => (T_CHAR_LITERAL, YYObj_Void)
-    DOUBLE_LITERAL => (T_DOUBLE_LITERAL, YYObj_Void)
+    F64_LITERAL => (T_F64_LITERAL, YYObj_Void)
     STRING_LITERAL => (T_STRING_LITERAL, YYObj_Void)
     UNIT_LITERAL => (T_UNIT_LITERAL, YYObj_Void)
     LBRACE => (T_LBRACE, YYObj_Void)
@@ -2030,10 +2030,10 @@ fn yy_state_0(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -2167,10 +2167,10 @@ fn yy_state_23(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -2218,10 +2218,10 @@ fn yy_state_28(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -2257,10 +2257,10 @@ fn yy_state_31(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -2308,10 +2308,10 @@ fn yy_state_36(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -2351,10 +2351,10 @@ fn yy_state_40(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -2628,10 +2628,10 @@ fn yy_state_78(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -2710,10 +2710,10 @@ fn yy_state_91(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -2941,10 +2941,10 @@ fn yy_state_121(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -3231,10 +3231,10 @@ fn yy_state_164(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -3716,10 +3716,10 @@ fn yy_state_233(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -3903,10 +3903,10 @@ fn yy_state_260(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -3957,10 +3957,10 @@ fn yy_state_264(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -3986,10 +3986,10 @@ fn yy_state_266(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4213,10 +4213,10 @@ fn yy_state_294(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4260,10 +4260,10 @@ fn yy_state_298(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4314,10 +4314,10 @@ fn yy_state_302(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -4416,10 +4416,10 @@ fn yy_state_313(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_314(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4491,10 +4491,10 @@ fn yy_state_324(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4570,10 +4570,10 @@ fn yy_state_332(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4632,10 +4632,10 @@ fn yy_state_338(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4668,10 +4668,10 @@ fn yy_state_340(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4768,10 +4768,10 @@ fn yy_state_351(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4811,10 +4811,10 @@ fn yy_state_354(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4851,10 +4851,10 @@ fn yy_state_357(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -4935,10 +4935,10 @@ fn yy_state_366(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -5079,10 +5079,10 @@ fn yy_state_384(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -5159,10 +5159,10 @@ fn yy_state_392(_lookahead : YYSymbol) -> YYDecision {
     T_BYTES_TYPE => Shift(yy_state_4)
     T_BYTE_TYPE => Shift(yy_state_5)
     T_STRING_TYPE => Shift(yy_state_6)
-    T_DOUBLE_TYPE => Shift(yy_state_7)
+    T_F64_TYPE => Shift(yy_state_7)
     T_CHAR_TYPE => Shift(yy_state_8)
-    T_S32_TYPE => Shift(yy_state_9)
-    T_INT_TYPE => Shift(yy_state_10)
+    T_I32_TYPE => Shift(yy_state_9)
+    T_I64_TYPE => Shift(yy_state_10)
     T_BOOL_TYPE => Shift(yy_state_11)
     T_UNIT_TYPE => Shift(yy_state_12)
     T_FORALL => Shift(yy_state_13)
@@ -5195,10 +5195,10 @@ fn yy_state_395(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -5320,10 +5320,10 @@ fn yy_state_416(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_VALUE_ID => Shift(yy_state_153)
     T_STRING_LITERAL => Shift(yy_state_234)
-    T_DOUBLE_LITERAL => Shift(yy_state_238)
+    T_F64_LITERAL => Shift(yy_state_238)
     T_CHAR_LITERAL => Shift(yy_state_242)
-    T_S32_LITERAL => Shift(yy_state_246)
-    T_INT_LITERAL => Shift(yy_state_250)
+    T_I32_LITERAL => Shift(yy_state_246)
+    T_I64_LITERAL => Shift(yy_state_250)
     T_FALSE => Shift(yy_state_254)
     T_TRUE => Shift(yy_state_255)
     T_UNIT_LITERAL => Shift(yy_state_256)
@@ -5482,7 +5482,7 @@ fn error(stack : @list.List[YYState], token : Token?, loc : (SourceSpan, SourceS
     }
     go(stack)
   }
-  for term in ([(T_INT, TK_INT), (T_DOUBLE, TK_DOUBLE), (T_STRING, TK_STRING), (T_TYPE_ID, TK_TYPE_ID), (T_TPARAM_ID, TK_TPARAM_ID), (T_VALUE_ID, TK_VALUE_ID), (T_DATACON_ID, TK_DATACON_ID), (T_EFFECT_ID, TK_EFFECT_ID), (T_OPERATION_ID, TK_OPERATION_ID), (T_EOF, TK_EOF), (T_BUSLANE, TK_BUSLANE), (T_METADATA, TK_METADATA), (T_TYPE, TK_TYPE), (T_TYPE_PARAMETER, TK_TYPE_PARAMETER), (T_VALUE, TK_VALUE), (T_DATACON, TK_DATACON), (T_EFFECT_DECL, TK_EFFECT_DECL), (T_OPERATION, TK_OPERATION), (T_NAME, TK_NAME), (T_UNIQUE, TK_UNIQUE), (T_PARAMETERS, TK_PARAMETERS), (T_CONSTRUCTORS, TK_CONSTRUCTORS), (T_OPERATIONS, TK_OPERATIONS), (T_OWNER, TK_OWNER), (T_HIDDEN, TK_HIDDEN), (T_PAYLOAD, TK_PAYLOAD), (T_RESULT, TK_RESULT), (T_FUNCTION_KIND, TK_FUNCTION_KIND), (T_PARAMETER_KIND, TK_PARAMETER_KIND), (T_LOCAL_KIND, TK_LOCAL_KIND), (T_MATCH_BINDER_KIND, TK_MATCH_BINDER_KIND), (T_TYPE_KIND, TK_TYPE_KIND), (T_EFFECT_KIND, TK_EFFECT_KIND), (T_UNIT_TYPE, TK_UNIT_TYPE), (T_BOOL_TYPE, TK_BOOL_TYPE), (T_INT_TYPE, TK_INT_TYPE), (T_S32_TYPE, TK_S32_TYPE), (T_CHAR_TYPE, TK_CHAR_TYPE), (T_DOUBLE_TYPE, TK_DOUBLE_TYPE), (T_STRING_TYPE, TK_STRING_TYPE), (T_BYTE_TYPE, TK_BYTE_TYPE), (T_BYTES_TYPE, TK_BYTES_TYPE), (T_KIND_FN, TK_KIND_FN), (T_EMPTY_EFFECT, TK_EMPTY_EFFECT), (T_IO_EFFECT, TK_IO_EFFECT), (T_EFFECT_SINGLETON, TK_EFFECT_SINGLETON), (T_EFFECT_UNION, TK_EFFECT_UNION), (T_APPLY, TK_APPLY), (T_TYPE_FN, TK_TYPE_FN), (T_FN_TYPE, TK_FN_TYPE), (T_FORALL, TK_FORALL), (T_LET, TK_LET), (T_LETREC, TK_LETREC), (T_EXTERNAL, TK_EXTERNAL), (T_FN, TK_FN), (T_CALL, TK_CALL), (T_PERFORM, TK_PERFORM), (T_HANDLE, TK_HANDLE), (T_RESUME, TK_RESUME), (T_HANDLER, TK_HANDLER), (T_OP_ALT, TK_OP_ALT), (T_FINAL, TK_FINAL), (T_TYPE_APPLY, TK_TYPE_APPLY), (T_CONSTRUCT, TK_CONSTRUCT), (T_LET_IN, TK_LET_IN), (T_LETREC_IN, TK_LETREC_IN), (T_MATCH, TK_MATCH), (T_ALT, TK_ALT), (T_DEFAULT, TK_DEFAULT), (T_LITERAL_ALT, TK_LITERAL_ALT), (T_TRUE, TK_TRUE), (T_FALSE, TK_FALSE), (T_INT_LITERAL, TK_INT_LITERAL), (T_S32_LITERAL, TK_S32_LITERAL), (T_CHAR_LITERAL, TK_CHAR_LITERAL), (T_DOUBLE_LITERAL, TK_DOUBLE_LITERAL), (T_STRING_LITERAL, TK_STRING_LITERAL), (T_UNIT_LITERAL, TK_UNIT_LITERAL), (T_LBRACE, TK_LBRACE), (T_RBRACE, TK_RBRACE), (T_LBRACKET, TK_LBRACKET), (T_RBRACKET, TK_RBRACKET), (T_LPAREN, TK_LPAREN), (T_RPAREN, TK_RPAREN), (T_COMMA, TK_COMMA), (T_COLON, TK_COLON), (T_SEMI, TK_SEMI), (T_EQUAL, TK_EQUAL), (T_FAT_ARROW, TK_FAT_ARROW)] : Array[(YYSymbol, TokenKind)]) {
+  for term in ([(T_INT, TK_INT), (T_DOUBLE, TK_DOUBLE), (T_STRING, TK_STRING), (T_TYPE_ID, TK_TYPE_ID), (T_TPARAM_ID, TK_TPARAM_ID), (T_VALUE_ID, TK_VALUE_ID), (T_DATACON_ID, TK_DATACON_ID), (T_EFFECT_ID, TK_EFFECT_ID), (T_OPERATION_ID, TK_OPERATION_ID), (T_EOF, TK_EOF), (T_BUSLANE, TK_BUSLANE), (T_METADATA, TK_METADATA), (T_TYPE, TK_TYPE), (T_TYPE_PARAMETER, TK_TYPE_PARAMETER), (T_VALUE, TK_VALUE), (T_DATACON, TK_DATACON), (T_EFFECT_DECL, TK_EFFECT_DECL), (T_OPERATION, TK_OPERATION), (T_NAME, TK_NAME), (T_UNIQUE, TK_UNIQUE), (T_PARAMETERS, TK_PARAMETERS), (T_CONSTRUCTORS, TK_CONSTRUCTORS), (T_OPERATIONS, TK_OPERATIONS), (T_OWNER, TK_OWNER), (T_HIDDEN, TK_HIDDEN), (T_PAYLOAD, TK_PAYLOAD), (T_RESULT, TK_RESULT), (T_FUNCTION_KIND, TK_FUNCTION_KIND), (T_PARAMETER_KIND, TK_PARAMETER_KIND), (T_LOCAL_KIND, TK_LOCAL_KIND), (T_MATCH_BINDER_KIND, TK_MATCH_BINDER_KIND), (T_TYPE_KIND, TK_TYPE_KIND), (T_EFFECT_KIND, TK_EFFECT_KIND), (T_UNIT_TYPE, TK_UNIT_TYPE), (T_BOOL_TYPE, TK_BOOL_TYPE), (T_I64_TYPE, TK_I64_TYPE), (T_I32_TYPE, TK_I32_TYPE), (T_CHAR_TYPE, TK_CHAR_TYPE), (T_F64_TYPE, TK_F64_TYPE), (T_STRING_TYPE, TK_STRING_TYPE), (T_BYTE_TYPE, TK_BYTE_TYPE), (T_BYTES_TYPE, TK_BYTES_TYPE), (T_KIND_FN, TK_KIND_FN), (T_EMPTY_EFFECT, TK_EMPTY_EFFECT), (T_IO_EFFECT, TK_IO_EFFECT), (T_EFFECT_SINGLETON, TK_EFFECT_SINGLETON), (T_EFFECT_UNION, TK_EFFECT_UNION), (T_APPLY, TK_APPLY), (T_TYPE_FN, TK_TYPE_FN), (T_FN_TYPE, TK_FN_TYPE), (T_FORALL, TK_FORALL), (T_LET, TK_LET), (T_LETREC, TK_LETREC), (T_EXTERNAL, TK_EXTERNAL), (T_FN, TK_FN), (T_CALL, TK_CALL), (T_PERFORM, TK_PERFORM), (T_HANDLE, TK_HANDLE), (T_RESUME, TK_RESUME), (T_HANDLER, TK_HANDLER), (T_OP_ALT, TK_OP_ALT), (T_FINAL, TK_FINAL), (T_TYPE_APPLY, TK_TYPE_APPLY), (T_CONSTRUCT, TK_CONSTRUCT), (T_LET_IN, TK_LET_IN), (T_LETREC_IN, TK_LETREC_IN), (T_MATCH, TK_MATCH), (T_ALT, TK_ALT), (T_DEFAULT, TK_DEFAULT), (T_LITERAL_ALT, TK_LITERAL_ALT), (T_TRUE, TK_TRUE), (T_FALSE, TK_FALSE), (T_I64_LITERAL, TK_I64_LITERAL), (T_I32_LITERAL, TK_I32_LITERAL), (T_CHAR_LITERAL, TK_CHAR_LITERAL), (T_F64_LITERAL, TK_F64_LITERAL), (T_STRING_LITERAL, TK_STRING_LITERAL), (T_UNIT_LITERAL, TK_UNIT_LITERAL), (T_LBRACE, TK_LBRACE), (T_RBRACE, TK_RBRACE), (T_LBRACKET, TK_LBRACKET), (T_RBRACKET, TK_RBRACKET), (T_LPAREN, TK_LPAREN), (T_RPAREN, TK_RPAREN), (T_COMMA, TK_COMMA), (T_COLON, TK_COLON), (T_SEMI, TK_SEMI), (T_EQUAL, TK_EQUAL), (T_FAT_ARROW, TK_FAT_ARROW)] : Array[(YYSymbol, TokenKind)]) {
     try_add(term.0, term.1)
   }
   match token {

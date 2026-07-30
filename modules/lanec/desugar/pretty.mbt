@@ -152,8 +152,8 @@ pub impl @prettyprinter.Pretty for DesugaredLiteral with fn pretty(
   literal : DesugaredLiteral,
 ) {
   match literal {
-    Int(value) => text(value)
-    Double(value) => text(value)
+    Integer(value) => text(value)
+    Floating(value) => text(value)
     String(value) => text("\"") + text(value) + text("\"")
     Char(value) => text("'") + text(value.to_string()) + text("'")
     Bool(value) => text(value.to_string())

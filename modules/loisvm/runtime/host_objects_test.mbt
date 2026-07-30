@@ -100,13 +100,13 @@ test "typed Host SDK projects Opaque through its Host Object Store" {
   )
   let parameters = HostParameters::pair(
     HostParameters::one(HostParameter::host_object(store)),
-    HostParameters::one(HostParameter::int()),
+    HostParameters::one(HostParameter::i64()),
   )
   let binding = RuntimeBinding::typed(
     symbol="lane.test.host_object_add",
     abi_major=1,
     parameters~,
-    result=HostResult::int(),
+    result=HostResult::i64(),
     invoke=fn(_context, arguments) {
       let object : TestHostObject = arguments.0
       object.value.to_int64() + arguments.1
@@ -115,11 +115,11 @@ test "typed Host SDK projects Opaque through its Host Object Store" {
   let borrowed = runtime.resolve_host_object(handle)
   let result = binding.call(runtime.context(), [
     BorrowedOpaque(borrowed),
-    Int(2L),
+    I64(2L),
   ])
   debug_inspect(
     (binding.parameters(), binding.result(), result),
-    content="([Opaque, Int], Int, Int(42))",
+    content="([Opaque, I64], I64, I64(42))",
   )
   runtime.release_host_object(handle)
 }

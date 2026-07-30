@@ -71,10 +71,10 @@ pub impl @prettyprinter.Pretty for PrimitiveType with fn pretty(
   match primitive {
     Unit => text("Unit")
     Bool => text("Bool")
-    Int => text("Int")
-    S32 => text("S32")
+    I64 => text("I64")
+    I32 => text("I32")
     Char => text("Char")
-    Double => text("Double")
+    F64 => text("F64")
     String => text("String")
     Byte => text("Byte")
     Bytes => text("Bytes")
@@ -135,10 +135,10 @@ pub impl @prettyprinter.Pretty for Literal with fn pretty(literal : Literal) {
   match literal {
     Unit => text("()")
     Bool(value) => text(value.to_string())
-    Int(value) => text(value.to_string())
-    S32(value) => text(value.to_string())
+    I64(value) => text(value.to_string())
+    I32(value) => text(value.to_string())
     Char(value) => text(value.to_string())
-    Double(value) => text(value.to_string())
+    F64(value) => text(value.to_string())
     String(value) => quoted(value)
   }
 }

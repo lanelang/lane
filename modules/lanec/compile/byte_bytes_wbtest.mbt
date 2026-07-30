@@ -29,12 +29,12 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
     (
       #|module Test
       #|
-      #|let int_to_byte : (Int) -> Byte = builtin("%int_to_byte")
-      #|let bytes_make : (Int, Byte) -> Bytes = builtin("%bytes_make")
-      #|let bytes_get : (Bytes, Int) -> Byte = builtin("%bytes_get")
+      #|let i64_to_byte : (I64) -> Byte = builtin("%i64_to_byte")
+      #|let bytes_make : (I64, Byte) -> Bytes = builtin("%bytes_make")
+      #|let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
       #|
       #|pub fn answer() -> Unit {
-      #|  let _ = bytes_get(bytes_make(0, int_to_byte(0)), 0)
+      #|  let _ = bytes_get(bytes_make(0, i64_to_byte(0)), 0)
       #|  ()
       #|}
     ),
@@ -70,24 +70,24 @@ test "compiler preserves Byte and Bytes through executable lowering" {
     (
       #|module Test
       #|
-      #|let byte_to_int : (Byte) -> Int = builtin("%byte_to_int")
-      #|let int_to_byte : (Int) -> Byte = builtin("%int_to_byte")
-      #|let bytes_make : (Int, Byte) -> Bytes = builtin("%bytes_make")
-      #|let bytes_length : (Bytes) -> Int = builtin("%bytes_length")
-      #|let bytes_get : (Bytes, Int) -> Byte = builtin("%bytes_get")
-      #|let bytes_set : (Bytes, Int, Byte) -> Bytes = builtin("%bytes_set")
-      #|let observe : (Int) -> Unit ! Io = extern("lane.test.observe")
+      #|let byte_to_i64 : (Byte) -> I64 = builtin("%byte_to_i64")
+      #|let i64_to_byte : (I64) -> Byte = builtin("%i64_to_byte")
+      #|let bytes_make : (I64, Byte) -> Bytes = builtin("%bytes_make")
+      #|let bytes_length : (Bytes) -> I64 = builtin("%bytes_length")
+      #|let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
+      #|let bytes_set : (Bytes, I64, Byte) -> Bytes = builtin("%bytes_set")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
       #|
       #|fn[T] identity(value : T) -> T {
       #|  value
       #|}
       #|
       #|pub fn answer() -> Unit ! Io {
-      #|  let fill = identity(int_to_byte(255))
+      #|  let fill = identity(i64_to_byte(255))
       #|  let original = identity(bytes_make(2, fill))
-      #|  let updated = bytes_set(original, 1, int_to_byte(0))
+      #|  let updated = bytes_set(original, 1, i64_to_byte(0))
       #|  observe(bytes_length(updated))
-      #|  observe(byte_to_int(bytes_get(updated, 1)))
+      #|  observe(byte_to_i64(bytes_get(updated, 1)))
       #|}
     ),
   )
@@ -164,8 +164,8 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|          {
       #|            parameters: [],
       #|            instructions: [
-      #|              ConstInt({ value: 0 }, 255),
-      #|              IntToByte({ value: 1 }, { value: 0 }),
+      #|              ConstI64({ value: 0 }, 255),
+      #|              I64ToByte({ value: 1 }, { value: 0 }),
       #|              ConstLayout({ value: 2 }, { value: 1 }),
       #|              EraseI32({ value: 4 }, { value: 1 }),
       #|              CallDirect(
@@ -176,7 +176,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|                Some({ value: 6 }),
       #|              ),
       #|              UneraseI32({ value: 1 }, { value: 6 }),
-      #|              ConstInt({ value: 0 }, 2),
+      #|              ConstI64({ value: 0 }, 2),
       #|              ByteSequenceMake({ value: 7 }, { value: 0 }, { value: 1 }),
       #|              ConstLayout({ value: 1 }, { value: 2 }),
       #|              EraseI32({ value: 9 }, { value: 7 }),
@@ -188,9 +188,9 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|                Some({ value: 11 }),
       #|              ),
       #|              UneraseI32({ value: 12 }, { value: 11 }),
-      #|              ConstInt({ value: 0 }, 0),
-      #|              IntToByte({ value: 1 }, { value: 0 }),
-      #|              ConstInt({ value: 0 }, 1),
+      #|              ConstI64({ value: 0 }, 0),
+      #|              I64ToByte({ value: 1 }, { value: 0 }),
+      #|              ConstI64({ value: 0 }, 1),
       #|              ByteSequenceSet(
       #|                { value: 13 },
       #|                { value: 12 },
@@ -200,7 +200,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|              ByteSequenceLength({ value: 14 }, { value: 13 }),
       #|              CallDirect({ value: 3 }, None, [], [{ value: 14 }], None),
       #|              ByteSequenceGet({ value: 1 }, { value: 13 }, { value: 0 }),
-      #|              ByteToInt({ value: 0 }, { value: 1 }),
+      #|              ByteToI64({ value: 0 }, { value: 1 }),
       #|              Release({ value: 13 }),
       #|            ],
       #|            terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 0 }]),
@@ -211,7 +211,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|    RuntimeImport(
       #|      {
       #|        abi_major: 1,
-      #|        parameters: [Int],
+      #|        parameters: [I64],
       #|        result: Unit,
       #|        symbol: "lane.test.observe",
       #|      },
@@ -232,11 +232,11 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
     (
       #|module Test
       #|
-      #|let byte_to_int : (Byte) -> Int = builtin("%byte_to_int")
-      #|let int_to_byte : (Int) -> Byte = builtin("%int_to_byte")
-      #|let bytes_make : (Int, Byte) -> Bytes = builtin("%bytes_make")
-      #|let bytes_get : (Bytes, Int) -> Byte = builtin("%bytes_get")
-      #|let observe : (Int) -> Unit ! Io = extern("lane.test.observe")
+      #|let byte_to_i64 : (Byte) -> I64 = builtin("%byte_to_i64")
+      #|let i64_to_byte : (I64) -> Byte = builtin("%i64_to_byte")
+      #|let bytes_make : (I64, Byte) -> Bytes = builtin("%bytes_make")
+      #|let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
       #|
       #|struct Stored {
       #|  byte : Byte
@@ -247,11 +247,11 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|  values(Byte, Bytes)
       #|}
       #|
-      #|let global_byte : Byte = int_to_byte(7)
+      #|let global_byte : Byte = i64_to_byte(7)
       #|let global_bytes : Bytes = bytes_make(1, global_byte)
       #|
       #|fn capture(value : Bytes, index : Byte) -> () -> Byte {
-      #|  fn() { bytes_get(value, byte_to_int(index)) }
+      #|  fn() { bytes_get(value, byte_to_i64(index)) }
       #|}
       #|
       #|pub fn answer() -> Unit ! Io {
@@ -261,9 +261,9 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|    match payload {
       #|      values(_, bytes) => bytes
       #|    },
-      #|    int_to_byte(0),
+      #|    i64_to_byte(0),
       #|  )
-      #|  observe(byte_to_int(reader()))
+      #|  observe(byte_to_i64(reader()))
       #|}
     ),
   )
@@ -433,8 +433,8 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|                  },
       #|                ],
       #|              ),
-      #|              ConstInt({ value: 6 }, 0),
-      #|              IntToByte({ value: 0 }, { value: 6 }),
+      #|              ConstI64({ value: 6 }, 0),
+      #|              I64ToByte({ value: 0 }, { value: 6 }),
       #|              CallDirect(
       #|                { value: 3 },
       #|                None,
@@ -443,7 +443,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|                Some({ value: 7 }),
       #|              ),
       #|              CallValue({ value: 7 }, [], [], Some({ value: 0 })),
-      #|              ByteToInt({ value: 6 }, { value: 0 }),
+      #|              ByteToI64({ value: 6 }, { value: 0 }),
       #|            ],
       #|            terminator: TailCallDirect({ value: 7 }, None, [], [{ value: 6 }]),
       #|          },
@@ -463,10 +463,10 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            parameters: [],
       #|            instructions: [
-      #|              ConstInt({ value: 0 }, 7),
-      #|              IntToByte({ value: 1 }, { value: 0 }),
+      #|              ConstI64({ value: 0 }, 7),
+      #|              I64ToByte({ value: 1 }, { value: 0 }),
       #|              InitGlobal({ value: 0 }, { value: 1 }),
-      #|              ConstInt({ value: 0 }, 1),
+      #|              ConstI64({ value: 0 }, 1),
       #|              BorrowGlobal({ value: 1 }, { value: 0 }),
       #|              ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       #|              InitGlobal({ value: 1 }, { value: 2 }),
@@ -506,7 +506,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|                1,
       #|                { value_destination: { value: 2 }, witness_destination: None },
       #|              ),
-      #|              ByteToInt({ value: 3 }, { value: 1 }),
+      #|              ByteToI64({ value: 3 }, { value: 1 }),
       #|              ByteSequenceGet({ value: 1 }, { value: 2 }, { value: 3 }),
       #|              Release({ value: 0 }),
       #|            ],
@@ -518,7 +518,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|    RuntimeImport(
       #|      {
       #|        abi_major: 1,
-      #|        parameters: [Int],
+      #|        parameters: [I64],
       #|        result: Unit,
       #|        symbol: "lane.test.observe",
       #|      },

@@ -9,8 +9,8 @@ fn @syntax.Expr::resolve_expr(
   scope : ResolveScope,
 ) -> ResolvedExpr {
   match self {
-    IntLiteral(value, loc~) => IntLiteral(value, loc~)
-    DoubleLiteral(value, loc~) => DoubleLiteral(value, loc~)
+    IntegerLiteral(value, loc~) => IntegerLiteral(value, loc~)
+    FloatingLiteral(value, loc~) => FloatingLiteral(value, loc~)
     StringLiteral(value, loc~) => StringLiteral(value, loc~)
     CharLiteral(value, loc~) => CharLiteral(value, loc~)
     BoolLiteral(value, loc~) => BoolLiteral(value, loc~)

@@ -476,13 +476,13 @@ test "pre-buslane lowering contract covers source-only forms and witnesses" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-      #|let external_int : () -> Int = extern("%external_int")
+      #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+      #|let external_int : () -> I64 = extern("%external_int")
       #|struct Box[A] {
       #|  value : A
       #|}
       #|struct Cell {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|enum Option[A] {
       #|  none()
@@ -498,18 +498,18 @@ test "pre-buslane lowering contract covers source-only forms and witnesses" {
       #|fn[A] id(value : A) -> A {
       #|  value
       #|}
-      #|fn use_prompt() -> Int ! PromptOnly {
-      #|  Prompt::choose![Int](1, 2)
+      #|fn use_prompt() -> I64 ! PromptOnly {
+      #|  Prompt::choose![I64](1, 2)
       #|}
-      #|let packed : Packed = Packed::hide[Int](1)
-      #|fn answer() -> Int {
+      #|let packed : Packed = Packed::hide[I64](1)
+      #|fn answer() -> I64 {
       #|  handle {
       #|    let Cell::{ value } = Cell::{ value: 1 + 2 }
-      #|    let piped : Int = value |> id[Int]
-      #|    let chosen : Int = Prompt::choose![Int](piped, 4)
+      #|    let piped : I64 = value |> id[I64]
+      #|    let chosen : I64 = Prompt::choose![I64](piped, 4)
       #|    if true {
       #|      match Option::some(chosen) {
-      #|        Option::some(result) => Box[Int]::{ value: result }.value
+      #|        Option::some(result) => Box[I64]::{ value: result }.value
       #|        Option::none() => 0
       #|      }
       #|    } else {
@@ -564,10 +564,10 @@ test "elaborate lowers handler payload binders before alternatives" {
       #|  right()
       #|}
       #|effect Console {
-      #|  write(String) -> Int
-      #|  choose(Choice) -> Int
+      #|  write(String) -> I64
+      #|  choose(Choice) -> I64
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::write!("hi") with {
       #|    Console::write(message, resume) => 0
       #|    Console::choose(Choice::left(), resume2) => 1
@@ -592,7 +592,7 @@ test "elaborate lowers handler payload binders before alternatives" {
   inspect(
     @prettyprinter.render(tables[0].operations[1].body, width=100),
     content=(
-      #|match value#3 as value#3 -> Int {
+      #|match value#3 as value#3 -> I64 {
       #|  datacon#0() => 1
       #|  _ => 2
       #|}
@@ -607,8 +607,8 @@ test "elaborate alpha-renames generic binders across operation arms" {
       #|effect Prompt {
       #|  choose[A](Bool, A) -> A
       #|}
-      #|fn program() -> Int {
-      #|  handle Prompt::choose![Int](true, 42) with {
+      #|fn program() -> I64 {
+      #|  handle Prompt::choose![I64](true, 42) with {
       #|    Prompt::choose[T](true, value, resume) => resume(value)
       #|    Prompt::choose[U](false, value, resume) => resume(value)
       #|  } final value {
@@ -632,10 +632,10 @@ test "elaborate alpha-renames generic binders across operation arms" {
 test "elaborate resolved source into buslane core" {
   let result = elaborate_buslane_source(
     (
-      #|fn identity(x : Int) -> Int {
+      #|fn identity(x : I64) -> I64 {
       #|  x
       #|}
-      #|let answer : Int = identity(42)
+      #|let answer : I64 = identity(42)
     ),
   )
   inspect(
@@ -644,12 +644,12 @@ test "elaborate resolved source into buslane core" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      function identity#0 : (Int) -> Int
-      #|      value answer#1 : Int
-      #|      parameter x#2 : Int
+      #|      function identity#0 : (I64) -> I64
+      #|      value answer#1 : I64
+      #|      parameter x#2 : I64
       #|    }
       #|    letrec {
-      #|      value#0 = fn(value#2) -> Int {
+      #|      value#0 = fn(value#2) -> I64 {
       #|        value#2
       #|      }
       #|    }
@@ -669,7 +669,7 @@ test "elaborate generic enum variant into verifiable buslane" {
       #|  none()
       #|  some(A)
       #|}
-      #|let answer : Option[Int] = Option::some(1)
+      #|let answer : Option[I64] = Option::some(1)
     ),
   )
   guard result.program is Some(program) else {
@@ -688,12 +688,12 @@ test "buslane lowering registry covers nominal and effect declarations" {
   let source = checked_source_for_elaborate_test(
     (
       #|pub struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|pub fn read_int() -> Int ! Console {
+      #|pub fn read_int() -> I64 ! Console {
       #|  Console::read!()
       #|}
     ),
@@ -730,13 +730,13 @@ test "buslane lowering registry covers imported references" {
     (
       #|module Lib
       #|pub struct Box {
-      #|  first : Int
-      #|  second : Int
+      #|  first : I64
+      #|  second : I64
       #|}
       #|pub effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|pub fn read_int() -> Int ! Console {
+      #|pub fn read_int() -> I64 ! Console {
       #|  Console::read!()
       #|}
     ),
@@ -757,8 +757,8 @@ test "buslane lowering registry covers imported references" {
     (
       #|module Main
       #|import Lib.{ Box }
-      #|fn first() -> Int { 1 }
-      #|fn second() -> Int { 2 }
+      #|fn first() -> I64 { 1 }
+      #|fn second() -> I64 { 2 }
       #|pub let answer : Box = Box::{ second: second(), first: first() }
     ),
     registry,
@@ -820,7 +820,7 @@ test "elaborate lowers effect metadata into buslane metadata" {
       #|  get() -> S
       #|  put(S) -> Unit
       #|}
-      #|let answer : Int = 1
+      #|let answer : I64 = 1
     ),
   )
   inspect(
@@ -830,7 +830,7 @@ test "elaborate lowers effect metadata into buslane metadata" {
       #|  buslane {
       #|    metadata {
       #|      type_parameter S#0 : Type
-      #|      value answer#4 : Int
+      #|      value answer#4 : I64
       #|      effect State#1[tparam#0] {
       #|        get#2() -> tparam#0
       #|        put#3(tparam#0) -> Unit
@@ -849,9 +849,9 @@ test "elaborate lowers latent effects into buslane function types" {
   let result = elaborate_buslane_source(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn run_console(f : () -> Int ! Console) -> Int ! Console {
+      #|fn run_console(f : () -> I64 ! Console) -> I64 ! Console {
       #|  f()
       #|}
       #|fn[E : Effect] run_row(f : () -> Unit ! E) -> Unit ! E {
@@ -875,16 +875,16 @@ test "elaborate lowers latent effects into buslane function types" {
       #|  buslane {
       #|    metadata {
       #|      type_parameter E#3 : Effect
-      #|      function run_console#2 : (() -> Int ! effect#0) -> Int ! effect#0
+      #|      function run_console#2 : (() -> I64 ! effect#0) -> I64 ! effect#0
       #|      function run_row#4 : forall [tparam#0]. (() -> Unit ! tparam#0) -> Unit ! tparam#0
-      #|      parameter f#5 : () -> Int ! effect#0
+      #|      parameter f#5 : () -> I64 ! effect#0
       #|      parameter f#6 : () -> Unit ! tparam#0
       #|      effect Console#0 {
-      #|        read#1() -> Int
+      #|        read#1() -> I64
       #|      }
       #|    }
       #|    letrec {
-      #|      value#0 = fn(value#2) -> Int {
+      #|      value#0 = fn(value#2) -> I64 {
       #|        value#2()
       #|      }
       #|      value#1 = fn[tparam#0] {
@@ -913,8 +913,8 @@ test "elaborate lowers operation calls into buslane perform" {
       #|fn write_hello() -> Unit ! Console {
       #|  Console::write!("hi")
       #|}
-      #|fn read_int() -> Int ! State[Int] {
-      #|  State[Int]::get!()
+      #|fn read_int() -> I64 ! State[I64] {
+      #|  State[I64]::get!()
       #|}
     ),
   )
@@ -935,7 +935,7 @@ test "elaborate lowers operation calls into buslane perform" {
       #|    metadata {
       #|      type_parameter S#1 : Type
       #|      function write_hello#5 : () -> Unit ! effect#0
-      #|      function read_int#6 : () -> Int ! effect#1[Int]
+      #|      function read_int#6 : () -> I64 ! effect#1[I64]
       #|      effect Console#0 {
       #|        write#3(String) -> Unit
       #|      }
@@ -947,8 +947,8 @@ test "elaborate lowers operation calls into buslane perform" {
       #|      value#0 = fn() -> Unit {
       #|        perform operation#0("hi")
       #|      }
-      #|      value#1 = fn() -> Int {
-      #|        perform operation#1[Int]()
+      #|      value#1 = fn() -> I64 {
+      #|        perform operation#1[I64]()
       #|      }
       #|    }
       #|  }
@@ -963,9 +963,9 @@ test "elaborate lowers handlers into buslane handler tables" {
   let result = elaborate_buslane_source(
     (
       #|effect Console {
-      #|  choose(Bool) -> Int
+      #|  choose(Bool) -> I64
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::choose!(true) with {
       #|    Console::choose(true, resume) => resume(10)
       #|    Console::choose(_, resume2) => 2
@@ -990,19 +990,19 @@ test "elaborate lowers handlers into buslane handler tables" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      function program#2 : () -> Int
-      #|      match_binder value#3 : Int
+      #|      function program#2 : () -> I64
+      #|      match_binder value#3 : I64
       #|      parameter payload#4 : Bool
-      #|      parameter resume#5 : (Int) -> Int
+      #|      parameter resume#5 : (I64) -> I64
       #|      effect Console#0 {
-      #|        choose#1(Bool) -> Int
+      #|        choose#1(Bool) -> I64
       #|      }
       #|    }
       #|    letrec {
-      #|      value#0 = fn() -> Int {
-      #|        handle perform operation#0(true) as value#1 -> Int {
+      #|      value#0 = fn() -> I64 {
+      #|        handle perform operation#0(true) as value#1 -> I64 {
       #|          effect#0 {
-      #|            operation#0(value#2) resume value#3 => match value#2 as value#2 -> Int {
+      #|            operation#0(value#2) resume value#3 => match value#2 as value#2 -> I64 {
       #|              true => value#3(10)
       #|              _ => 2
       #|            }
@@ -1026,7 +1026,7 @@ test "elaborate type aliases into alias-free buslane types" {
       #|  value : A
       #|}
       #|type Boxed = type[A] => Box[A]
-      #|let answer : Boxed[Int] = Box::{ value: 1 }
+      #|let answer : Boxed[I64] = Box::{ value: 1 }
     ),
   )
   guard result.program is Some(program) else {
@@ -1039,7 +1039,7 @@ test "elaborate type aliases into alias-free buslane types" {
     ),
   )
   let answer_type = program.metadata.values[program.metadata.values.length() - 1].type_
-  inspect(@prettyprinter.render(answer_type, width=100), content="type#0[Int]")
+  inspect(@prettyprinter.render(answer_type, width=100), content="type#0[I64]")
 }
 
 ///|
@@ -1078,10 +1078,10 @@ test "elaborate struct field access into buslane selector" {
   let result = elaborate_buslane_source(
     (
       #|struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
-      #|let answer : Int = Point::{ x: 1, y: 2 }.x
+      #|let answer : I64 = Point::{ x: 1, y: 2 }.x
     ),
   )
   guard result.program is Some(program) else {
@@ -1103,10 +1103,10 @@ test "elaborate higher-order field access into a typed selector" {
       #|  value : A
       #|}
       #|struct Wrapper[F : [Type] -> Type] {
-      #|  inner : F[Int]
+      #|  inner : F[I64]
       #|}
       #|type Boxed : [Type] -> Type = type[A] => Inner[A]
-      #|fn get(w : Wrapper[Boxed]) -> Int {
+      #|fn get(w : Wrapper[Boxed]) -> I64 {
       #|  w.inner.value
       #|}
     ),
@@ -1127,25 +1127,25 @@ test "elaborate pattern binders before match arm bodies" {
   let result = elaborate_buslane_source(
     (
       #|struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
       #|enum Option[A] {
       #|  none()
       #|  some(A)
       #|}
-      #|fn choose(value : Option[Int], fallback : Int) -> Int {
+      #|fn choose(value : Option[I64], fallback : I64) -> I64 {
       #|  match value {
       #|    Option::none() => fallback
       #|    Option::some(x) => x
       #|  }
       #|}
-      #|fn first(point : Point) -> Int {
+      #|fn first(point : Point) -> I64 {
       #|  match point {
       #|    Point::{ x, y } => x
       #|  }
       #|}
-      #|let answer : Int = choose(Option::some(1), first(Point::{ x: 2, y: 3 }))
+      #|let answer : I64 = choose(Option::some(1), first(Point::{ x: 2, y: 3 }))
     ),
   )
   guard result.program is Some(program) else {
@@ -1170,14 +1170,14 @@ test "elaborate nested patterns into verifiable buslane decision tree" {
       #|struct Box[A] {
       #|  value : A
       #|}
-      #|fn flatten(value : Option[Option[Int]]) -> Int {
+      #|fn flatten(value : Option[Option[I64]]) -> I64 {
       #|  match value {
       #|    Option::none() => 0
       #|    Option::some(Option::none()) => 1
       #|    Option::some(Option::some(x)) => x
       #|  }
       #|}
-      #|fn boxed(value : Box[Option[Int]]) -> Int {
+      #|fn boxed(value : Box[Option[I64]]) -> I64 {
       #|  match value {
       #|    Box::{ value: Option::none() } => 0
       #|    Box::{ value: Option::some(x) } => x
@@ -1200,8 +1200,8 @@ test "elaborate nested patterns into verifiable buslane decision tree" {
 test "elaborate local recursive function into verifiable buslane" {
   let result = elaborate_buslane_source(
     (
-      #|fn use(value : Int) -> Int {
-      #|  fn loop(current : Int) -> Int {
+      #|fn use(value : I64) -> I64 {
+      #|  fn loop(current : I64) -> I64 {
       #|    loop(current)
       #|  }
       #|  loop(value)
@@ -1223,7 +1223,7 @@ test "elaborate local recursive function into verifiable buslane" {
 test "elaborate sequential unit expressions in source order" {
   let result = elaborate_buslane_source(
     (
-      #|fn mark(value : Int) -> Unit {
+      #|fn mark(value : I64) -> Unit {
       #|  ()
       #|}
       #|fn run() -> Unit {
@@ -1240,9 +1240,9 @@ test "elaborate sequential unit expressions in source order" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    function mark#0 : (Int) -> Unit
+      #|    function mark#0 : (I64) -> Unit
       #|    function run#1 : () -> Unit
-      #|    parameter value#2 : Int
+      #|    parameter value#2 : I64
       #|    local sequence#3 : Unit
       #|  }
       #|  letrec {
@@ -1277,7 +1277,7 @@ test "elaborate reversed existential witnesses into verifiable buslane" {
       #|}
       #|let packed : Hide = Hide::{
       #|  B = Bool,
-      #|  A = Int,
+      #|  A = I64,
       #|  second: true,
       #|  first: 1,
       #|}
@@ -1328,7 +1328,7 @@ test "elaborate existential enum construction into verifiable buslane" {
       #|enum Packed {
       #|  hide[T](T)
       #|}
-      #|let packed : Packed = Packed::hide[Int](1)
+      #|let packed : Packed = Packed::hide[I64](1)
     ),
   )
   guard result.program is Some(program) else {

@@ -315,16 +315,16 @@ fn FunctionLowerer::lower_literal(
       self.emit(ConstBool(slot, value))
       Slot(slot, type_)
     }
-    Int(value) => {
-      let type_ = @buslane.Type::Primitive(Int)
+    I64(value) => {
+      let type_ = @buslane.Type::Primitive(I64)
       let slot = self.fresh_slot(type_)
-      self.emit(ConstInt(slot, value))
+      self.emit(ConstI64(slot, value))
       Slot(slot, type_)
     }
-    S32(value) => {
-      let type_ = @buslane.Type::Primitive(S32)
+    I32(value) => {
+      let type_ = @buslane.Type::Primitive(I32)
       let slot = self.fresh_slot(type_)
-      self.emit(ConstS32(slot, value))
+      self.emit(ConstI32(slot, value))
       Slot(slot, type_)
     }
     Char(value) => {
@@ -333,10 +333,10 @@ fn FunctionLowerer::lower_literal(
       self.emit(ConstChar(slot, value))
       Slot(slot, type_)
     }
-    Double(value) => {
-      let type_ = @buslane.Type::Primitive(Double)
+    F64(value) => {
+      let type_ = @buslane.Type::Primitive(F64)
       let slot = self.fresh_slot(type_)
-      self.emit(ConstDouble(slot, value.reinterpret_as_int64()))
+      self.emit(ConstF64(slot, value.reinterpret_as_int64()))
       Slot(slot, type_)
     }
     String(value) => {

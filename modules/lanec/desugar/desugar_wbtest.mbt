@@ -22,13 +22,13 @@ fn desugar_source(source : String) -> DesugaredSourceFile {
 test "desugar operators and pipeline into ordinary calls" {
   let source = desugar_source(
     (
-      #|fn op_add(a : Int, b : Int) -> Int {
+      #|fn op_add(a : I64, b : I64) -> I64 {
       #|  a
       #|}
-      #|fn first(a : Int, b : Int) -> Int {
+      #|fn first(a : I64, b : I64) -> I64 {
       #|  a
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  1 + 2 |> first(3)
       #|}
     ),
@@ -103,10 +103,10 @@ test "desugar preserves offered value definitions and expands struct field punni
   let source = desugar_source(
     (
       #|struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|offer box : Box = Box::{ value: 1 }
-      #|fn make(value : Int) -> Box {
+      #|fn make(value : I64) -> Box {
       #|  Box::{ value }
       #|}
     ),
@@ -116,7 +116,7 @@ test "desugar preserves offered value definitions and expands struct field punni
     content=(
       #|desugared_source {
       #|  struct type#0 Box {
-      #|    field field#0 value : Int index=0
+      #|    field field#0 value : I64 index=0
       #|  }
       #|  offer value#0 box {
       #|    Box::{
@@ -145,10 +145,10 @@ test "desugar qualified and unqualified variant calls into one expression shape"
       #|  none()
       #|  some(A)
       #|}
-      #|fn qualified(value : Int) -> Option[Int] {
+      #|fn qualified(value : I64) -> Option[I64] {
       #|  Option::some(value)
       #|}
-      #|fn unqualified(value : Int) -> Option[Int] {
+      #|fn unqualified(value : I64) -> Option[I64] {
       #|  some(value)
       #|}
     ),

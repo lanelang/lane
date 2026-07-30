@@ -61,10 +61,10 @@ pub(all) enum Kind {
 pub(all) enum PrimitiveType {
   Unit
   Bool
-  Int
-  S32
+  I64
+  I32
   Char
-  Double
+  F64
   String
   Byte
   Bytes
@@ -100,10 +100,10 @@ pub(all) enum GenericArgument {
 pub(all) enum Literal {
   Unit
   Bool(Bool)
-  Int(Int64)
-  S32(Int)
+  I64(Int64)
+  I32(Int)
   Char(Int)
-  Double(Double)
+  F64(Double)
   String(String)
 } derive(Debug, Eq)
 

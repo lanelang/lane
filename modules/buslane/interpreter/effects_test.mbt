@@ -1,6 +1,6 @@
 ///|
 fn effect_int_type() -> @buslane.Type {
-  Primitive(Int)
+  Primitive(I64)
 }
 
 ///|
@@ -34,13 +34,13 @@ fn effect_plus_runtime(plus : @buslane.ValueId) -> BuslaneExternalRuntime {
       if arguments.length() != 2 {
         raise external_failure(plus, "plus expects two arguments")
       }
-      guard arguments[0].as_int() is Some(left) else {
+      guard arguments[0].as_i64() is Some(left) else {
         raise external_failure(plus, "plus expects an integer left argument")
       }
-      guard arguments[1].as_int() is Some(right) else {
+      guard arguments[1].as_i64() is Some(right) else {
         raise external_failure(plus, "plus expects an integer right argument")
       }
-      BuslaneRuntimeValue::int(left + right)
+      BuslaneRuntimeValue::i64(left + right)
     })
   })
   runtime
@@ -103,7 +103,7 @@ test "reader effect supplies the same environment to every ask" {
                   type_binders: [],
                   payload_binders: [],
                   resume_binder,
-                  body: Call(Resume(resume_binder), [Literal(Int(21L))]),
+                  body: Call(Resume(resume_binder), [Literal(I64(21L))]),
                 },
               ],
             },
@@ -116,7 +116,9 @@ test "reader effect supplies the same environment to every ask" {
   let evaluated = evaluate_buslane_program(program, effect_plus_runtime(plus))
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 42",
+    content=(
+      #|i64 42
+    ),
   )
 }
 
@@ -159,7 +161,7 @@ test "writer effect folds tell payloads around the resumed continuation" {
               operation: tell,
               effect_arguments: [],
               hidden_witnesses: [],
-              payloads: [Literal(Int(3L))],
+              payloads: [Literal(I64(3L))],
             }),
             Let(
               second_tell,
@@ -167,9 +169,9 @@ test "writer effect folds tell payloads around the resumed continuation" {
                 operation: tell,
                 effect_arguments: [],
                 hidden_witnesses: [],
-                payloads: [Literal(Int(4L))],
+                payloads: [Literal(I64(4L))],
               }),
-              Literal(Int(10L)),
+              Literal(I64(10L)),
             ),
           ),
           result_binder: final_binder,
@@ -200,7 +202,9 @@ test "writer effect folds tell payloads around the resumed continuation" {
   let evaluated = evaluate_buslane_program(program, effect_plus_runtime(plus))
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 17",
+    content=(
+      #|i64 17
+    ),
   )
 }
 
@@ -247,7 +251,7 @@ test "exception effect aborts the captured continuation with a fallback value" {
                   type_binders: [],
                   payload_binders: [message],
                   resume_binder,
-                  body: Literal(Int(42L)),
+                  body: Literal(I64(42L)),
                 },
               ],
             },
@@ -260,7 +264,9 @@ test "exception effect aborts the captured continuation with a fallback value" {
   let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 42",
+    content=(
+      #|i64 42
+    ),
   )
 }
 
@@ -317,13 +323,13 @@ test "nondeterminism effect explores both choices with multi-shot resume" {
                   alt_constructor: Literal(Bool(true)),
                   type_binders: [],
                   value_binders: [],
-                  body: Literal(Int(10L)),
+                  body: Literal(I64(10L)),
                 },
                 {
                   alt_constructor: Literal(Bool(false)),
                   type_binders: [],
                   value_binders: [],
-                  body: Literal(Int(1L)),
+                  body: Literal(I64(1L)),
                 },
               ],
             }),
@@ -356,7 +362,9 @@ test "nondeterminism effect explores both choices with multi-shot resume" {
   let evaluated = evaluate_buslane_program(program, effect_plus_runtime(plus))
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 11",
+    content=(
+      #|i64 11
+    ),
   )
 }
 
@@ -424,7 +432,7 @@ test "state effect threads state through get and put with a state-passing handle
                   operation: put,
                   effect_arguments: [],
                   hidden_witnesses: [],
-                  payloads: [Literal(Int(7L))],
+                  payloads: [Literal(I64(7L))],
                 }),
                 Perform({
                   operation: get,
@@ -480,7 +488,7 @@ test "state effect threads state through get and put with a state-passing handle
               },
             ],
           }),
-          [Literal(Int(1L))],
+          [Literal(I64(1L))],
         ),
       ),
     ],
@@ -491,8 +499,8 @@ test "state effect threads state through get and put with a state-passing handle
     @prettyprinter.render(evaluated.lookup(result), width=80),
     content=(
       #|data_value datacon#0 {
-      #|  int 7
-      #|  int 7
+      #|  i64 7
+      #|  i64 7
       #|}
     ),
   )
@@ -523,7 +531,7 @@ test "perform in call argument resumes into the pending call" {
         result,
         Handle({
           body: Call(Ref(plus), [
-            Literal(Int(1L)),
+            Literal(I64(1L)),
             Perform({
               operation: ask,
               effect_arguments: [],
@@ -543,7 +551,7 @@ test "perform in call argument resumes into the pending call" {
                   type_binders: [],
                   payload_binders: [],
                   resume_binder,
-                  body: Call(Resume(resume_binder), [Literal(Int(41L))]),
+                  body: Call(Resume(resume_binder), [Literal(I64(41L))]),
                 },
               ],
             },
@@ -556,7 +564,9 @@ test "perform in call argument resumes into the pending call" {
   let evaluated = evaluate_buslane_program(program, effect_plus_runtime(plus))
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 42",
+    content=(
+      #|i64 42
+    ),
   )
 }
 
@@ -611,7 +621,7 @@ test "perform in construct payload resumes into the pending constructor" {
                   type_binders: [],
                   payload_binders: [],
                   resume_binder,
-                  body: Call(Resume(resume_binder), [Literal(Int(7L))]),
+                  body: Call(Resume(resume_binder), [Literal(I64(7L))]),
                 },
               ],
             },
@@ -626,7 +636,7 @@ test "perform in construct payload resumes into the pending constructor" {
     @prettyprinter.render(evaluated.lookup(result), width=80),
     content=(
       #|data_value datacon#0 {
-      #|  int 7
+      #|  i64 7
       #|}
     ),
   )
@@ -675,13 +685,13 @@ test "perform in match scrutinee resumes into branch selection" {
                 alt_constructor: Literal(Bool(true)),
                 type_binders: [],
                 value_binders: [],
-                body: Literal(Int(42L)),
+                body: Literal(I64(42L)),
               },
               {
                 alt_constructor: Literal(Bool(false)),
                 type_binders: [],
                 value_binders: [],
-                body: Literal(Int(0L)),
+                body: Literal(I64(0L)),
               },
             ],
           }),
@@ -710,7 +720,9 @@ test "perform in match scrutinee resumes into branch selection" {
   let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 42",
+    content=(
+      #|i64 42
+    ),
   )
 }
 
@@ -785,7 +797,7 @@ test "inner handler final body performs through the outer handler stack" {
                     type_binders: [],
                     payload_binders: [],
                     resume_binder: inner_resume,
-                    body: Call(Resume(inner_resume), [Literal(Int(42L))]),
+                    body: Call(Resume(inner_resume), [Literal(I64(42L))]),
                   },
                 ],
               },
@@ -816,6 +828,8 @@ test "inner handler final body performs through the outer handler stack" {
   let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 42",
+    content=(
+      #|i64 42
+    ),
   )
 }

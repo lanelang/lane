@@ -49,10 +49,10 @@ fn FunctionLowerer::layout_witness(
   let recipe : @bytecode.LayoutRecipe = match type_ {
     Primitive(Unit) => Unit
     Primitive(Bool) => Bool
-    Primitive(Int) => Int
-    Primitive(S32) => S32
+    Primitive(I64) => I64
+    Primitive(I32) => I32
     Primitive(Char) => Char
-    Primitive(Double) => Double
+    Primitive(F64) => F64
     Primitive(String) => ByteSequence
     Primitive(Byte) => Byte
     Primitive(Bytes) => ByteSequence
@@ -81,7 +81,7 @@ fn FunctionLowerer::erase_value(
     (
       Slot(source, _),
       Primitive(Bool)
-      | Primitive(S32)
+      | Primitive(I32)
       | Primitive(Char)
       | Primitive(String)
       | Primitive(Byte)
@@ -89,7 +89,7 @@ fn FunctionLowerer::erase_value(
       | Constructor(_)
       | Apply(_, _),
     ) => self.emit(EraseI32(destination, source))
-    (Slot(source, _), Primitive(Int)) =>
+    (Slot(source, _), Primitive(I64)) =>
       self.emit(EraseI64(destination, source))
     (Slot(source, _), Function(_, _, _) | Forall(_, _)) => {
       let (canonical_type, bindings) = self.canonical_callable_type(type_)
@@ -99,7 +99,7 @@ fn FunctionLowerer::erase_value(
       }
       self.emit(EraseI64(destination, adapted))
     }
-    (Slot(source, _), Primitive(Double)) =>
+    (Slot(source, _), Primitive(F64)) =>
       self.emit(EraseF64(destination, source))
     (Slot(source, Parameter(_)), Parameter(_)) =>
       self.emit(Move(destination, source))
@@ -123,7 +123,7 @@ fn FunctionLowerer::unerase_value(
       Unit
     }
     Primitive(Bool)
-    | Primitive(S32)
+    | Primitive(I32)
     | Primitive(Char)
     | Primitive(String)
     | Primitive(Byte)
@@ -134,7 +134,7 @@ fn FunctionLowerer::unerase_value(
       self.emit(UneraseI32(destination, source))
       Slot(destination, type_)
     }
-    Primitive(Int) => {
+    Primitive(I64) => {
       let destination = self.fresh_slot(type_)
       self.emit(UneraseI64(destination, source))
       Slot(destination, type_)
@@ -145,7 +145,7 @@ fn FunctionLowerer::unerase_value(
       self.emit(UneraseI64(canonical, source))
       self.make_callable_adapter(canonical, canonical_type, type_, bindings)
     }
-    Primitive(Double) => {
+    Primitive(F64) => {
       let destination = self.fresh_slot(type_)
       self.emit(UneraseF64(destination, source))
       Slot(destination, type_)

@@ -36,7 +36,7 @@ test "interpreter reports invalid instance-global initialization" {
   }
   let duplicate = global_test_image(
     global_test_body([trivial_i64], [
-      ConstInt({ value: 0 }, 1L),
+      ConstI64({ value: 0 }, 1L),
       InitGlobal({ value: 0 }, { value: 0 }),
       InitGlobal({ value: 0 }, { value: 0 }),
     ]),
@@ -52,11 +52,11 @@ test "interpreter reports invalid instance-global initialization" {
   )
   let outside_initialization = global_test_image(
     global_test_body([trivial_i64], [
-      ConstInt({ value: 0 }, 1L),
+      ConstI64({ value: 0 }, 1L),
       InitGlobal({ value: 0 }, { value: 0 }),
     ]),
     global_test_body([trivial_i64], [
-      ConstInt({ value: 0 }, 2L),
+      ConstI64({ value: 0 }, 2L),
       InitGlobal({ value: 0 }, { value: 0 }),
     ]),
   )

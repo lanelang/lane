@@ -39,7 +39,7 @@ test "struct existential witnesses enforce member kinds" {
       #|  type T : Type
       #|}
       #|fn invalid_effect() -> EffectBox {
-      #|  EffectBox::{ E = Int }
+      #|  EffectBox::{ E = I64 }
       #|}
       #|fn invalid_type() -> TypeBox {
       #|  TypeBox::{ T = {} }

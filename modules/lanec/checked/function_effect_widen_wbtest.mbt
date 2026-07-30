@@ -31,17 +31,17 @@ test "function effect widening preserves checked expression contracts" {
   expression.for_each_child_expr(fn(child) { children.push(child) })
   assert_eq(children, [value])
 
-  let substitution = @types.TypeSubstitution::single(parameter, Primitive(Int))
+  let substitution = @types.TypeSubstitution::single(parameter, Primitive(I64))
   assert_eq(
     expression.substitute(substitution),
     FunctionEffectWiden(
       value=Value(
         name="target",
         symbol=target,
-        type_=Function([Primitive(Int)], Primitive(Int), Empty),
+        type_=Function([Primitive(I64)], Primitive(I64), Empty),
         loc=location,
       ),
-      type_=Function([Primitive(Int)], Primitive(Int), Io),
+      type_=Function([Primitive(I64)], Primitive(I64), Io),
       loc=location,
     ),
   )

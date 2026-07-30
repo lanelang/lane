@@ -159,7 +159,7 @@ pub(all) struct CheckedPatternLetDeclaration {
 ///|
 /// A checked integer literal keeps the source spelling for diagnostics and
 /// pretty printing, while `value` is the compiler's semantic i64 value.
-pub(all) struct CheckedIntLiteral {
+pub(all) struct CheckedI64Literal {
   raw : String
   value : Int64
 } derive(Debug, Eq)
@@ -167,7 +167,7 @@ pub(all) struct CheckedIntLiteral {
 ///|
 /// A checked S32 literal keeps the source spelling for diagnostics and pretty
 /// printing, while `value` is the compiler's semantic signed 32-bit value.
-pub(all) struct CheckedS32Literal {
+pub(all) struct CheckedI32Literal {
   raw : String
   value : Int
 } derive(Debug, Eq)
@@ -175,16 +175,16 @@ pub(all) struct CheckedS32Literal {
 ///|
 /// A checked double literal keeps the source spelling for diagnostics and
 /// pretty printing, while `value` is the compiler's semantic binary64 value.
-pub(all) struct CheckedDoubleLiteral {
+pub(all) struct CheckedF64Literal {
   raw : String
   value : Double
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum CheckedLiteral {
-  Int(CheckedIntLiteral)
-  S32(CheckedS32Literal)
-  Double(CheckedDoubleLiteral)
+  I64(CheckedI64Literal)
+  I32(CheckedI32Literal)
+  F64(CheckedF64Literal)
   String(String)
   Char(Int)
   Bool(Bool)

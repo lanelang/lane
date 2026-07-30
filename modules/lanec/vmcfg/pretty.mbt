@@ -120,14 +120,14 @@ fn render_instruction(instruction : Instruction) -> String {
     RetainCopy(destination, source) =>
       unary_instruction("retain_copy", destination, source)
     Release(source) => "release \{render_value(source)}"
-    ConstInt(destination, value) =>
-      "const_int \{render_value(destination)}, \{value}"
-    ConstS32(destination, value) =>
-      "const_s32 \{render_value(destination)}, \{value}"
+    ConstI64(destination, value) =>
+      "const_i64 \{render_value(destination)}, \{value}"
+    ConstI32(destination, value) =>
+      "const_i32 \{render_value(destination)}, \{value}"
     ConstChar(destination, value) =>
       "const_char \{render_value(destination)}, \{value}"
-    ConstDouble(destination, bits) =>
-      "const_double \{render_value(destination)}, bits=\{bits}"
+    ConstF64(destination, bits) =>
+      "const_f64 \{render_value(destination)}, bits=\{bits}"
     ConstBool(destination, value) =>
       "const_bool \{render_value(destination)}, \{value}"
     ConstLayout(destination, layout) =>
@@ -158,10 +158,10 @@ fn render_instruction(instruction : Instruction) -> String {
       "consume_captures \{render_shape(shape)}, \{render_value(source)}, [\{render_selections(selections)}]"
     MakeClosure(destination, function, environment) =>
       "make_closure \{render_value(destination)}, \{render_function(function)}, \{render_value(environment)}"
-    ByteToInt(destination, source) =>
-      unary_instruction("byte_to_int", destination, source)
-    IntToByte(destination, source) =>
-      unary_instruction("int_to_byte", destination, source)
+    ByteToI64(destination, source) =>
+      unary_instruction("byte_to_i64", destination, source)
+    I64ToByte(destination, source) =>
+      unary_instruction("i64_to_byte", destination, source)
     ByteSequenceMake(destination, length, fill) =>
       binary_instruction("byte_sequence_make", destination, length, fill)
     ByteSequenceLength(destination, source) =>
@@ -178,94 +178,94 @@ fn render_instruction(instruction : Instruction) -> String {
       "byte_sequence_slice \{render_value(destination)}, \{render_value(source)}, \{render_value(start)}, \{render_value(length)}"
     ByteSequenceIsValidUtf8(destination, source) =>
       unary_instruction("byte_sequence_is_valid_utf8", destination, source)
-    S32Add(destination, left, right) =>
-      binary_instruction("s32_add", destination, left, right)
-    S32Sub(destination, left, right) =>
-      binary_instruction("s32_sub", destination, left, right)
-    S32Mul(destination, left, right) =>
-      binary_instruction("s32_mul", destination, left, right)
-    S32Neg(destination, source) =>
-      unary_instruction("s32_neg", destination, source)
-    S32Div(destination, left, right) =>
-      binary_instruction("s32_div", destination, left, right)
-    S32Rem(destination, left, right) =>
-      binary_instruction("s32_rem", destination, left, right)
-    S32Eq(destination, left, right) =>
-      binary_instruction("s32_eq", destination, left, right)
-    S32Lt(destination, left, right) =>
-      binary_instruction("s32_lt", destination, left, right)
-    S32ToInt(destination, source) =>
-      unary_instruction("s32_to_int", destination, source)
-    IntToS32(destination, source) =>
-      unary_instruction("int_to_s32", destination, source)
-    IntAdd(destination, left, right) =>
-      binary_instruction("int_add", destination, left, right)
-    IntSub(destination, left, right) =>
-      binary_instruction("int_sub", destination, left, right)
-    IntMul(destination, left, right) =>
-      binary_instruction("int_mul", destination, left, right)
-    IntNeg(destination, source) =>
-      unary_instruction("int_neg", destination, source)
-    IntDiv(destination, left, right) =>
-      binary_instruction("int_div", destination, left, right)
-    IntRem(destination, left, right) =>
-      binary_instruction("int_rem", destination, left, right)
-    IntAnd(destination, left, right) =>
-      binary_instruction("int_and", destination, left, right)
-    IntOr(destination, left, right) =>
-      binary_instruction("int_or", destination, left, right)
-    IntXor(destination, left, right) =>
-      binary_instruction("int_xor", destination, left, right)
-    IntNot(destination, source) =>
-      unary_instruction("int_not", destination, source)
-    IntShl(destination, left, right) =>
-      binary_instruction("int_shl", destination, left, right)
-    IntShrS(destination, left, right) =>
-      binary_instruction("int_shr_s", destination, left, right)
-    IntEq(destination, left, right) =>
-      binary_instruction("int_eq", destination, left, right)
-    IntNe(destination, left, right) =>
-      binary_instruction("int_ne", destination, left, right)
-    IntLt(destination, left, right) =>
-      binary_instruction("int_lt", destination, left, right)
-    IntLe(destination, left, right) =>
-      binary_instruction("int_le", destination, left, right)
-    IntGt(destination, left, right) =>
-      binary_instruction("int_gt", destination, left, right)
-    IntGe(destination, left, right) =>
-      binary_instruction("int_ge", destination, left, right)
+    I32Add(destination, left, right) =>
+      binary_instruction("i32_add", destination, left, right)
+    I32Sub(destination, left, right) =>
+      binary_instruction("i32_sub", destination, left, right)
+    I32Mul(destination, left, right) =>
+      binary_instruction("i32_mul", destination, left, right)
+    I32Neg(destination, source) =>
+      unary_instruction("i32_neg", destination, source)
+    I32Div(destination, left, right) =>
+      binary_instruction("i32_div", destination, left, right)
+    I32Rem(destination, left, right) =>
+      binary_instruction("i32_rem", destination, left, right)
+    I32Eq(destination, left, right) =>
+      binary_instruction("i32_eq", destination, left, right)
+    I32Lt(destination, left, right) =>
+      binary_instruction("i32_lt", destination, left, right)
+    I32ToI64(destination, source) =>
+      unary_instruction("i32_to_i64", destination, source)
+    I64ToI32(destination, source) =>
+      unary_instruction("i64_to_i32", destination, source)
+    I64Add(destination, left, right) =>
+      binary_instruction("i64_add", destination, left, right)
+    I64Sub(destination, left, right) =>
+      binary_instruction("i64_sub", destination, left, right)
+    I64Mul(destination, left, right) =>
+      binary_instruction("i64_mul", destination, left, right)
+    I64Neg(destination, source) =>
+      unary_instruction("i64_neg", destination, source)
+    I64Div(destination, left, right) =>
+      binary_instruction("i64_div", destination, left, right)
+    I64Rem(destination, left, right) =>
+      binary_instruction("i64_rem", destination, left, right)
+    I64And(destination, left, right) =>
+      binary_instruction("i64_and", destination, left, right)
+    I64Or(destination, left, right) =>
+      binary_instruction("i64_or", destination, left, right)
+    I64Xor(destination, left, right) =>
+      binary_instruction("i64_xor", destination, left, right)
+    I64Not(destination, source) =>
+      unary_instruction("i64_not", destination, source)
+    I64Shl(destination, left, right) =>
+      binary_instruction("i64_shl", destination, left, right)
+    I64ShrS(destination, left, right) =>
+      binary_instruction("i64_shr_s", destination, left, right)
+    I64Eq(destination, left, right) =>
+      binary_instruction("i64_eq", destination, left, right)
+    I64Ne(destination, left, right) =>
+      binary_instruction("i64_ne", destination, left, right)
+    I64Lt(destination, left, right) =>
+      binary_instruction("i64_lt", destination, left, right)
+    I64Le(destination, left, right) =>
+      binary_instruction("i64_le", destination, left, right)
+    I64Gt(destination, left, right) =>
+      binary_instruction("i64_gt", destination, left, right)
+    I64Ge(destination, left, right) =>
+      binary_instruction("i64_ge", destination, left, right)
     BoolNot(destination, source) =>
       unary_instruction("bool_not", destination, source)
     BoolEq(destination, left, right) =>
       binary_instruction("bool_eq", destination, left, right)
     BoolNe(destination, left, right) =>
       binary_instruction("bool_ne", destination, left, right)
-    DoubleAdd(destination, left, right) =>
-      binary_instruction("double_add", destination, left, right)
-    DoubleSub(destination, left, right) =>
-      binary_instruction("double_sub", destination, left, right)
-    DoubleMul(destination, left, right) =>
-      binary_instruction("double_mul", destination, left, right)
-    DoubleDiv(destination, left, right) =>
-      binary_instruction("double_div", destination, left, right)
-    DoubleNeg(destination, source) =>
-      unary_instruction("double_neg", destination, source)
-    DoubleEq(destination, left, right) =>
-      binary_instruction("double_eq", destination, left, right)
-    DoubleNe(destination, left, right) =>
-      binary_instruction("double_ne", destination, left, right)
-    DoubleLt(destination, left, right) =>
-      binary_instruction("double_lt", destination, left, right)
-    DoubleLe(destination, left, right) =>
-      binary_instruction("double_le", destination, left, right)
-    DoubleGt(destination, left, right) =>
-      binary_instruction("double_gt", destination, left, right)
-    DoubleGe(destination, left, right) =>
-      binary_instruction("double_ge", destination, left, right)
-    IntToDouble(destination, source) =>
-      unary_instruction("int_to_double", destination, source)
-    DoubleToInt(destination, source) =>
-      unary_instruction("double_to_int", destination, source)
+    F64Add(destination, left, right) =>
+      binary_instruction("f64_add", destination, left, right)
+    F64Sub(destination, left, right) =>
+      binary_instruction("f64_sub", destination, left, right)
+    F64Mul(destination, left, right) =>
+      binary_instruction("f64_mul", destination, left, right)
+    F64Div(destination, left, right) =>
+      binary_instruction("f64_div", destination, left, right)
+    F64Neg(destination, source) =>
+      unary_instruction("f64_neg", destination, source)
+    F64Eq(destination, left, right) =>
+      binary_instruction("f64_eq", destination, left, right)
+    F64Ne(destination, left, right) =>
+      binary_instruction("f64_ne", destination, left, right)
+    F64Lt(destination, left, right) =>
+      binary_instruction("f64_lt", destination, left, right)
+    F64Le(destination, left, right) =>
+      binary_instruction("f64_le", destination, left, right)
+    F64Gt(destination, left, right) =>
+      binary_instruction("f64_gt", destination, left, right)
+    F64Ge(destination, left, right) =>
+      binary_instruction("f64_ge", destination, left, right)
+    I64ToF64(destination, source) =>
+      unary_instruction("i64_to_f64", destination, source)
+    F64ToI64(destination, source) =>
+      unary_instruction("f64_to_i64", destination, source)
     EraseI32(destination, source) =>
       unary_instruction("erase_i32", destination, source)
     UneraseI32(destination, source) =>
@@ -474,8 +474,8 @@ fn render_runtime_value_kind(kind : @bytecode.RuntimeValueKind) -> String {
   match kind {
     Unit => "unit"
     Bool => "bool"
-    Int => "int"
-    Double => "double"
+    I64 => "i64"
+    F64 => "f64"
     String => "string"
     Opaque => "opaque"
   }
@@ -486,10 +486,10 @@ fn render_layout_recipe(recipe : @bytecode.LayoutRecipe) -> String {
   match recipe {
     Unit => "unit"
     Bool => "bool"
-    Int => "int"
-    S32 => "s32"
+    I64 => "i64"
+    I32 => "i32"
     Char => "char"
-    Double => "double"
+    F64 => "f64"
     Callable => "callable"
     ByteSequence => "byte_sequence"
     Data(shape) => "data(\{render_shape(shape)})"

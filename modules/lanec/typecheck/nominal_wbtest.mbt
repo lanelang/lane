@@ -29,9 +29,9 @@ test "typecheck generic struct construction and field access" {
       #|struct Box[A] {
       #|  value : A
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  {
-      #|    let box = Box[Int]::{ value: 1 }
+      #|    let box = Box[I64]::{ value: 1 }
       #|    box.value
       #|  }
       #|}
@@ -54,7 +54,7 @@ test "typecheck generic struct construction and field access" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn use#0 : () -> Int
+      #|    fn use#0 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -67,13 +67,13 @@ test "typecheck field access through a higher-order type alias" {
   let result = expect_typecheck_result(
     (
       #|struct Inner {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|struct Wrapper[F : [Type] -> Type] {
       #|  inner : F[Inner]
       #|}
       #|type Id : [Type] -> Type = type[A] => A
-      #|fn get(w : Wrapper[Id]) -> Int {
+      #|fn get(w : Wrapper[Id]) -> I64 {
       #|  w.inner.value
       #|}
     ),
@@ -90,10 +90,10 @@ test "typecheck pattern coverage through a higher-order type alias" {
       #|  some(A)
       #|}
       #|struct Wrapper[F : [Type] -> Type] {
-      #|  inner : F[Int]
+      #|  inner : F[I64]
       #|}
       #|type Maybe : [Type] -> Type = type[A] => Option[A]
-      #|fn unwrap(w : Wrapper[Maybe]) -> Int {
+      #|fn unwrap(w : Wrapper[Maybe]) -> I64 {
       #|  match w.inner {
       #|    Option::none() => 0
       #|    Option::some(value) => value
@@ -111,7 +111,7 @@ test "typecheck infers struct literal generic arguments from fields" {
       #|struct Box[A] {
       #|  value : A
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  {
       #|    let box = Box::{ value: 1 }
       #|    box.value
@@ -131,7 +131,7 @@ test "typecheck infers struct literal generic arguments from expected type" {
       #|  set : (S, A) -> S
       #|}
       #|struct Pool {
-      #|  size : Int
+      #|  size : I64
       #|}
       #|struct Database {
       #|  pool : Pool
@@ -144,7 +144,7 @@ test "typecheck infers struct literal generic arguments from expected type" {
       #|    Database::{ pool }
       #|  }
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  lens.get(Database::{ pool: Pool::{ size: 42 } }).size
       #|}
     ),
@@ -161,12 +161,12 @@ test "typecheck reports missing struct literal generic arguments" {
       #|  set : (S, A) -> S
       #|}
       #|struct Pool {
-      #|  size : Int
+      #|  size : I64
       #|}
       #|struct Database {
       #|  pool : Pool
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  let _lens = Lens::{
       #|    get: fn (database) {
       #|      database.pool
@@ -217,7 +217,7 @@ test "typecheck existential struct witnesses in declaration order" {
       #|  first : A
       #|  second : B
       #|}
-      #|let hidden : Hide = Hide::{ B = Bool, A = Int, second: true, first: 1 }
+      #|let hidden : Hide = Hide::{ B = Bool, A = I64, second: true, first: 1 }
     ),
   )
   inspect(
@@ -233,9 +233,9 @@ test "typecheck existential struct witnesses in declaration order" {
       #|    }
       #|    let hidden#0 : type#0 = {
       #|      let _struct_field_second#1 : Bool = true
-      #|      let _struct_field_first#2 : Int = 1
+      #|      let _struct_field_first#2 : I64 = 1
       #|      type#0::{
-      #|        type A#0 = Int
+      #|        type A#0 = I64
       #|        type B#1 = Bool
       #|        first#0: _struct_field_first#2
       #|        second#1: _struct_field_second#1
@@ -253,7 +253,7 @@ test "silent handler measurement does not consume generated local identities" {
   let result = expect_checked_source_result(
     (
       #|struct Pair {
-      #|  first : Int
+      #|  first : I64
       #|  second : Bool
       #|}
       #|effect Prompt {
@@ -274,7 +274,7 @@ test "silent handler measurement does not consume generated local identities" {
       #|checked_source_typecheck_result {
       #|  checked {
       #|    struct Pair#0 {
-      #|      first#0 : Int
+      #|      first#0 : I64
       #|      second#1 : Bool
       #|    }
       #|    effect Prompt#0 {
@@ -286,7 +286,7 @@ test "silent handler measurement does not consume generated local identities" {
       #|        with effect#0 {
       #|          operation#0(_resume#1) => {
       #|            let _struct_field_second#3 : Bool = true
-      #|            let _struct_field_first#4 : Int = 1
+      #|            let _struct_field_first#4 : I64 = 1
       #|            type#0::{
       #|              first#0: _struct_field_first#4
       #|              second#1: _struct_field_second#3
@@ -313,10 +313,10 @@ test "value use analysis excludes struct sequencing temporaries" {
   let file = expect_parse_ok(
     (
       #|struct Pair {
-      #|  first : Int
+      #|  first : I64
       #|  second : Bool
       #|}
-      #|fn make(number : Int, flag : Bool) -> Pair {
+      #|fn make(number : I64, flag : Bool) -> Pair {
       #|  let pair = Pair::{ second: flag, first: number }
       #|  pair
       #|}
@@ -454,14 +454,14 @@ test "typecheck rejects incomplete existential struct witnesses before checked A
       #|  type T : Type
       #|  value : T
       #|}
-      #|let hidden : Hide = Hide::{ T = Int, T = Bool, value: 1 }
+      #|let hidden : Hide = Hide::{ T = I64, T = Bool, value: 1 }
     ),
     (
       #|struct Hide {
       #|  type T : Type
       #|  value : T
       #|}
-      #|let hidden : Hide = Hide::{ T = Int, Unknown = Bool, value: 1 }
+      #|let hidden : Hide = Hide::{ T = I64, Unknown = Bool, value: 1 }
     ),
     (
       #|struct Hide {
@@ -503,7 +503,7 @@ test "typecheck rejects incomplete existential struct witnesses before checked A
 test "typecheck reports field access on non-struct value" {
   let result = expect_typecheck_result(
     (
-      #|fn bad() -> Int {
+      #|fn bad() -> I64 {
       #|  1.value
       #|}
     ),
@@ -511,7 +511,7 @@ test "typecheck reports field access on non-struct value" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[not_a_struct Int @ 3:3-3:10]
+      #|[not_a_struct I64 @ 3:3-3:10]
     ),
   )
 }
@@ -524,10 +524,10 @@ test "typecheck qualified enum variant construction" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn wrap(value : Int) -> Option[Int] {
+      #|fn wrap(value : I64) -> Option[I64] {
       #|  Option::some(value)
       #|}
-      #|fn empty() -> Option[Int] {
+      #|fn empty() -> Option[I64] {
       #|  Option::none()
       #|}
     ),
@@ -551,8 +551,8 @@ test "typecheck qualified enum variant construction" {
       #|    }
       #|  }
       #|  checked_values {
-      #|    fn wrap#0 : (Int) -> type#0[Int]
-      #|    fn empty#1 : () -> type#0[Int]
+      #|    fn wrap#0 : (I64) -> type#0[I64]
+      #|    fn empty#1 : () -> type#0[I64]
       #|  }
       #|  diagnostics {}
       #|}
@@ -567,7 +567,7 @@ test "typecheck existential enum variant construction with explicit witness" {
       #|enum Packed {
       #|  hide[T](T)
       #|}
-      #|let packed : Packed = Packed::hide[Int](1)
+      #|let packed : Packed = Packed::hide[I64](1)
     ),
   )
   inspect(
@@ -578,7 +578,7 @@ test "typecheck existential enum variant construction with explicit witness" {
       #|    enum Packed#0 {
       #|      hide#0[T#0 : Type](tparam#0)
       #|    }
-      #|    let packed#0 : type#0 = variant#0[Int](1)
+      #|    let packed#0 : type#0 = variant#0[I64](1)
       #|  }
       #|  diagnostics {}
       #|}
@@ -604,7 +604,7 @@ test "typecheck existential enum variant construction infers witness" {
       #|    enum Packed#0 {
       #|      hide#0[T#0 : Type](tparam#0)
       #|    }
-      #|    let packed#0 : type#0 = variant#0[Int](1)
+      #|    let packed#0 : type#0 = variant#0[I64](1)
       #|  }
       #|  diagnostics {}
       #|}
@@ -619,7 +619,7 @@ test "typecheck existential enum pattern opens witness" {
       #|enum Packed {
       #|  hide[T](T)
       #|}
-      #|fn use(p : Packed) -> Int {
+      #|fn use(p : Packed) -> I64 {
       #|  match p {
       #|    Packed::hide[T](value) => 1
       #|  }
@@ -642,7 +642,7 @@ test "typecheck existential enum pattern checks payload under opened witness" {
       #|enum Packed {
       #|  hide[T](T)
       #|}
-      #|fn bad(p : Packed) -> Int {
+      #|fn bad(p : Packed) -> I64 {
       #|  match p {
       #|    Packed::hide[T](value) => value
       #|  }
@@ -665,7 +665,7 @@ test "typecheck existential struct pattern opens type binder" {
       #|  type T : Type
       #|  val : T
       #|}
-      #|fn use(h : Hide) -> Int {
+      #|fn use(h : Hide) -> I64 {
       #|  match h {
       #|    Hide::{ T, val } => 1
       #|  }
@@ -692,7 +692,7 @@ test "typecheck existential struct pattern opens wildcard witness" {
       #|  type T : Type
       #|  val : T
       #|}
-      #|fn use(h : Hide) -> Int {
+      #|fn use(h : Hide) -> I64 {
       #|  match h {
       #|    Hide::{ _, val } => 1
       #|  }
@@ -721,7 +721,7 @@ test "typecheck existential struct pattern assigns multiple wildcards by order" 
       #|  left : A
       #|  right : B
       #|}
-      #|fn use(h : PairHide) -> Int {
+      #|fn use(h : PairHide) -> I64 {
       #|  match h {
       #|    PairHide::{ _, _, left, right } => 1
       #|  }
@@ -750,7 +750,7 @@ test "typecheck existential struct pattern checks field under opened witness" {
       #|  type T : Type
       #|  val : T
       #|}
-      #|fn bad(h : Hide) -> Int {
+      #|fn bad(h : Hide) -> I64 {
       #|  match h {
       #|    Hide::{ T, val } => val
       #|  }
@@ -773,7 +773,7 @@ test "typecheck rejects escaped existential struct binder from block result" {
       #|  type T : Type
       #|  val : T
       #|}
-      #|fn bad(h : Hide) -> Int {
+      #|fn bad(h : Hide) -> I64 {
       #|  {
       #|    let escaped = {
       #|      let Hide::{ T, val } = h
@@ -818,7 +818,7 @@ test "typecheck rejects escaped existential enum binder from match result" {
       #|enum Packed {
       #|  hide[T](T)
       #|}
-      #|fn bad(p : Packed) -> Int {
+      #|fn bad(p : Packed) -> I64 {
       #|  {
       #|    let escaped = match p {
       #|      Packed::hide[T](value) => value
@@ -861,7 +861,7 @@ test "typecheck propagates expected function type into existential match arm" {
       #|  type T
       #|  val : T
       #|}
-      #|fn use(h : Hide) -> (Int) -> Int {
+      #|fn use(h : Hide) -> (I64) -> I64 {
       #|  match h {
       #|    Hide::{ T, val } => fn(x) { x }
       #|  }
@@ -878,7 +878,7 @@ test "typecheck reports hidden escape inside contextually checked function" {
       #|enum Packed {
       #|  hide[T](T)
       #|}
-      #|fn bad(p : Packed) -> () -> Int {
+      #|fn bad(p : Packed) -> () -> I64 {
       #|  match p {
       #|    Packed::hide[T](value) => fn() { value }
       #|  }
@@ -900,7 +900,7 @@ test "typecheck rejects escaped existential enum binder from pattern let" {
       #|enum Packed {
       #|  hide[T](T)
       #|}
-      #|fn bad(p : Packed) -> Int {
+      #|fn bad(p : Packed) -> I64 {
       #|  {
       #|    let escaped = {
       #|      let hide[T](value) = p
@@ -923,7 +923,7 @@ test "typecheck rejects escaped existential enum binder from pattern let" {
 test "typecheck reports type mismatch" {
   let result = expect_typecheck_result(
     (
-      #|fn bad() -> Int {
+      #|fn bad() -> I64 {
       #|  true
       #|}
     ),
@@ -931,7 +931,7 @@ test "typecheck reports type mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[type_mismatch expected=Int actual=Bool @ 3:3-3:7]
+      #|[type_mismatch expected=I64 actual=Bool @ 3:3-3:7]
     ),
   )
 }
@@ -941,10 +941,10 @@ test "typecheck struct literal punning and required fields" {
   let result = expect_typecheck_result(
     (
       #|struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
-      #|fn bad(x : Int) -> Point {
+      #|fn bad(x : I64) -> Point {
       #|  Point::{ x }
       #|}
     ),
@@ -962,7 +962,7 @@ test "typecheck reports missing leading struct field" {
   let result = expect_typecheck_result(
     (
       #|struct Pair {
-      #|  first : Int
+      #|  first : I64
       #|  second : Bool
       #|}
       #|fn bad() -> Pair {
@@ -986,7 +986,7 @@ test "typecheck reports nominal type arity mismatch" {
       #|  value : A
       #|}
       #|struct Bad {
-      #|  broken : Box[Int, Bool]
+      #|  broken : Box[I64, Bool]
       #|}
     ),
   )

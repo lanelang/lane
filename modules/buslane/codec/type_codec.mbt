@@ -126,12 +126,12 @@ fn @bytecodec.ByteWriter::write_primitive_type(
     match value {
       Unit => 0
       Bool => 1
-      Int => 2
-      Double => 3
+      I64 => 2
+      F64 => 3
       String => 4
       Byte => 5
       Bytes => 6
-      S32 => 7
+      I32 => 7
       Char => 8
     },
   )
@@ -153,11 +153,11 @@ fn @bytecodec.ByteReader::read_primitive_type(
     }
     [u8be(2), .. rest] => {
       self.update_view(rest)
-      Int
+      I64
     }
     [u8be(3), .. rest] => {
       self.update_view(rest)
-      Double
+      F64
     }
     [u8be(4), .. rest] => {
       self.update_view(rest)
@@ -173,7 +173,7 @@ fn @bytecodec.ByteReader::read_primitive_type(
     }
     [u8be(7), .. rest] => {
       self.update_view(rest)
-      S32
+      I32
     }
     [u8be(8), .. rest] => {
       self.update_view(rest)

@@ -119,11 +119,6 @@ pub(all) struct CheckedDeriveVariant {
   payload : CheckedDeriveProduct[Unit]
 } derive(Eq, @debug.Debug)
 
-pub(all) struct CheckedDoubleLiteral {
-  raw : String
-  value : Double
-} derive(Eq, @debug.Debug)
-
 pub(all) struct CheckedEffectDeclaration {
   is_public : Bool
   symbol : @symbol.EffectSymbolId
@@ -194,6 +189,11 @@ pub(all) struct CheckedExternalTypeDeclaration {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration
 
+pub(all) struct CheckedF64Literal {
+  raw : String
+  value : Double
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CheckedFieldDeclaration {
   symbol : @symbol.FieldSymbolId
   name : String
@@ -251,7 +251,12 @@ pub(all) struct CheckedHandlerTable {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedHandlerTable
 
-pub(all) struct CheckedIntLiteral {
+pub(all) struct CheckedI32Literal {
+  raw : String
+  value : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CheckedI64Literal {
   raw : String
   value : Int64
 } derive(Eq, @debug.Debug)
@@ -269,9 +274,9 @@ pub(all) struct CheckedLetDeclaration {
 pub impl @prettyprinter.Pretty for CheckedLetDeclaration
 
 pub(all) enum CheckedLiteral {
-  Int(CheckedIntLiteral)
-  S32(CheckedS32Literal)
-  Double(CheckedDoubleLiteral)
+  I64(CheckedI64Literal)
+  I32(CheckedI32Literal)
+  F64(CheckedF64Literal)
   String(String)
   Char(Int)
   Bool(Bool)
@@ -311,11 +316,6 @@ pub(all) struct CheckedPatternLetDeclaration {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for CheckedPatternLetDeclaration
-
-pub(all) struct CheckedS32Literal {
-  raw : String
-  value : Int
-} derive(Eq, @debug.Debug)
 
 pub(all) struct CheckedSourceFile {
   module_path : @syntax.ModulePath

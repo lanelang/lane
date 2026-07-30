@@ -4,8 +4,8 @@ fn loc() -> SourceSpan {
 }
 
 ///|
-fn int_type() -> @types.Type {
-  Primitive(Int)
+fn i64_type() -> @types.Type {
+  Primitive(I64)
 }
 
 ///|
@@ -36,11 +36,11 @@ fn checked_function(
     name_loc: loc(),
     type_parameters: [],
     parameters,
-    return_type: int_type(),
+    return_type: i64_type(),
     body,
     type_: function_type(
       parameters.map(fn(parameter) { parameter.type_ }),
-      int_type(),
+      i64_type(),
     ),
     loc: loc(),
   }
@@ -90,19 +90,19 @@ test "pretty prints checked source without surface-only syntax" {
   let value = CheckedExpr::Value(
     name="x",
     symbol=x,
-    type_=int_type(),
+    type_=i64_type(),
     loc=loc(),
   )
   let callee = CheckedExpr::Value(
     name="increment",
     symbol=increment,
-    type_=function_type([int_type()], int_type()),
+    type_=function_type([i64_type()], i64_type()),
     loc=loc(),
   )
   let call = CheckedExpr::Call(
     callee~,
     arguments=[{ value, loc: loc() }],
-    type_=int_type(),
+    type_=i64_type(),
     loc=loc(),
   )
   let source = CheckedSourceFile::{
@@ -115,7 +115,7 @@ test "pretty prints checked source without surface-only syntax" {
         name: "answer",
         name_loc: loc(),
         initializer: call,
-        type_: int_type(),
+        type_: i64_type(),
         loc: loc(),
       }),
     ],
@@ -125,7 +125,7 @@ test "pretty prints checked source without surface-only syntax" {
     @prettyprinter.render(source),
     content=(
       #|checked {
-      #|  let answer#2 : Int = increment#1(x#0)
+      #|  let answer#2 : I64 = increment#1(x#0)
       #|}
     ),
   )
@@ -188,7 +188,7 @@ test "pretty prints checked match with resolved patterns" {
   let field = registry.define_field(box, "value", 0, loc())
   let binder = registry.define_value("x", PatternBinder, loc())
   let scrutinee = registry.define_value("value", Parameter, loc())
-  let box_int = @types.nominal_type(box, [int_type()])
+  let box_int = @types.nominal_type(box, [i64_type()])
   let option_box = @types.nominal_type(option, [box_int])
   let pattern = CheckedPattern::Variant(
     symbol=some,
@@ -206,7 +206,7 @@ test "pretty prints checked match with resolved patterns" {
             pattern: Binding(
               name="x",
               symbol=binder,
-              type_=int_type(),
+              type_=i64_type(),
               loc=loc(),
             ),
             loc: loc(),
@@ -221,13 +221,13 @@ test "pretty prints checked match with resolved patterns" {
   )
   let arm = CheckedMatchArm::{
     pattern,
-    body: Value(name="x", symbol=binder, type_=int_type(), loc=loc()),
+    body: Value(name="x", symbol=binder, type_=i64_type(), loc=loc()),
     loc: loc(),
   }
   let match_expr = CheckedExpr::Match(
     scrutinee=Value(name="value", symbol=scrutinee, type_=option_box, loc=loc()),
     arms=[arm],
-    type_=int_type(),
+    type_=i64_type(),
     loc=loc(),
   )
   inspect(
@@ -237,7 +237,7 @@ test "pretty prints checked match with resolved patterns" {
       #|  variant#0(type#1::{
       #|    value#0: x#0
       #|  }) => x#0
-      #|} : Int
+      #|} : I64
     ),
   )
 }
@@ -257,23 +257,23 @@ test "value use analysis classifies local dependency groups" {
     is_offered: false,
     name: "n",
     name_loc: loc(),
-    type_: int_type(),
+    type_: i64_type(),
     loc: loc(),
   }
   let loop_body = CheckedExpr::Call(
     callee=Value(
       name="loop",
       symbol=loop_symbol,
-      type_=function_type([int_type()], int_type()),
+      type_=function_type([i64_type()], i64_type()),
       loc=loc(),
     ),
     arguments=[
       {
-        value: Value(name="n", symbol=n, type_=int_type(), loc=loc()),
+        value: Value(name="n", symbol=n, type_=i64_type(), loc=loc()),
         loc: loc(),
       },
     ],
-    type_=int_type(),
+    type_=i64_type(),
     loc=loc(),
   )
   let block = CheckedExpr::Block(
@@ -285,11 +285,11 @@ test "value use analysis classifies local dependency groups" {
         name: "x",
         name_loc: loc(),
         initializer: Literal(
-          literal=Int({ raw: "1", value: 1 }),
-          type_=int_type(),
+          literal=I64({ raw: "1", value: 1 }),
+          type_=i64_type(),
           loc=loc(),
         ),
-        type_: int_type(),
+        type_: i64_type(),
         loc: loc(),
       }),
       Let({
@@ -298,8 +298,8 @@ test "value use analysis classifies local dependency groups" {
         symbol: y,
         name: "y",
         name_loc: loc(),
-        initializer: Value(name="x", symbol=x, type_=int_type(), loc=loc()),
-        type_: int_type(),
+        initializer: Value(name="x", symbol=x, type_=i64_type(), loc=loc()),
+        type_: i64_type(),
         loc: loc(),
       }),
       Function(
@@ -313,7 +313,7 @@ test "value use analysis classifies local dependency groups" {
           Value(
             name="b",
             symbol=b,
-            type_=function_type([], int_type()),
+            type_=function_type([], i64_type()),
             loc=loc(),
           ),
         ),
@@ -326,18 +326,18 @@ test "value use analysis classifies local dependency groups" {
           Value(
             name="a",
             symbol=a,
-            type_=function_type([], int_type()),
+            type_=function_type([], i64_type()),
             loc=loc(),
           ),
         ),
       ),
     ],
     result=Literal(
-      literal=Int({ raw: "0", value: 0 }),
-      type_=int_type(),
+      literal=I64({ raw: "0", value: 0 }),
+      type_=i64_type(),
       loc=loc(),
     ),
-    type_=int_type(),
+    type_=i64_type(),
     loc=loc(),
   )
   debug_inspect(
@@ -371,11 +371,11 @@ test "value use analysis does not cascade through unused captured function" {
         name: "x",
         name_loc: loc(),
         initializer: Literal(
-          literal=Int({ raw: "1", value: 1 }),
-          type_=int_type(),
+          literal=I64({ raw: "1", value: 1 }),
+          type_=i64_type(),
           loc=loc(),
         ),
-        type_: int_type(),
+        type_: i64_type(),
         loc: loc(),
       }),
       Function(
@@ -383,16 +383,16 @@ test "value use analysis does not cascade through unused captured function" {
           helper,
           "helper",
           [],
-          Value(name="x", symbol=x, type_=int_type(), loc=loc()),
+          Value(name="x", symbol=x, type_=i64_type(), loc=loc()),
         ),
       ),
     ],
     result=Literal(
-      literal=Int({ raw: "0", value: 0 }),
-      type_=int_type(),
+      literal=I64({ raw: "0", value: 0 }),
+      type_=i64_type(),
       loc=loc(),
     ),
-    type_=int_type(),
+    type_=i64_type(),
     loc=loc(),
   )
   debug_inspect(
@@ -420,7 +420,7 @@ test "value use analysis excludes generated locals without losing authored uses"
     symbol: input,
     name: "input",
     name_loc: loc(),
-    type_: int_type(),
+    type_: i64_type(),
     loc: loc(),
   }
   let generated_initializer = CheckedExpr::Block(
@@ -434,20 +434,20 @@ test "value use analysis excludes generated locals without losing authored uses"
         initializer: Value(
           name="input",
           symbol=input,
-          type_=int_type(),
+          type_=i64_type(),
           loc=loc(),
         ),
-        type_: int_type(),
+        type_: i64_type(),
         loc: loc(),
       }),
     ],
     result=Value(
       name="_temporary",
       symbol=temporary,
-      type_=int_type(),
+      type_=i64_type(),
       loc=loc(),
     ),
-    type_=int_type(),
+    type_=i64_type(),
     loc=loc(),
   )
   let body = CheckedExpr::Block(
@@ -459,12 +459,12 @@ test "value use analysis excludes generated locals without losing authored uses"
         name: "result",
         name_loc: loc(),
         initializer: generated_initializer,
-        type_: int_type(),
+        type_: i64_type(),
         loc: loc(),
       }),
     ],
-    result=Value(name="result", symbol=result, type_=int_type(), loc=loc()),
-    type_=int_type(),
+    result=Value(name="result", symbol=result, type_=i64_type(), loc=loc()),
+    type_=i64_type(),
     loc=loc(),
   )
   let source = CheckedSourceFile::{

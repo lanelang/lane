@@ -119,8 +119,8 @@ fn write_intrinsic(
       F64Inf => 15
       F64NegativeInf => 16
       F64Nan => 17
-      ByteToInt => 19
-      IntToByte => 20
+      ByteToI64 => 19
+      I64ToByte => 20
       BytesMake => 21
       BytesLength => 22
       BytesGet => 23
@@ -133,10 +133,10 @@ fn write_intrinsic(
       I32Neg => 30
       I32Equal => 31
       I32Less => 32
-      S32ToInt => 33
-      IntToS32 => 34
-      CharToS32 => 35
-      S32ToChar => 36
+      I32ToI64 => 33
+      I64ToI32 => 34
+      CharToI32 => 35
+      I32ToChar => 36
       StringToBytes => 37
       BytesIsValidUtf8 => 38
       BytesToString => 39
@@ -168,8 +168,8 @@ fn write_host_value_kind(
     match kind {
       Unit => 0
       Bool => 1
-      Int => 2
-      Double => 3
+      I64 => 2
+      F64 => 3
       String => 4
       Opaque => 5
     },

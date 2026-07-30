@@ -18,10 +18,10 @@ fn FunctionLowerer::lower_match(
     Slot(condition, scrutinee_type) =>
       match scrutinee_type {
         Primitive(Bool) => self.lower_bool_match(match_, condition, scrutinee)
-        Primitive(Int)
-        | Primitive(S32)
+        Primitive(I64)
+        | Primitive(I32)
         | Primitive(Char)
-        | Primitive(Double)
+        | Primitive(F64)
         | Primitive(String) =>
           self.lower_literal_match(match_, condition, scrutinee_type, scrutinee)
         Function(_, _, _) | Forall(_, _) => {
@@ -170,10 +170,10 @@ fn FunctionLowerer::emit_literal_equality(
   }
   let condition = self.fresh_slot(Primitive(Bool))
   let instruction : @vmcfg.Instruction = match scrutinee_type {
-    Primitive(Int) => IntEq(condition, scrutinee, expected)
-    Primitive(S32) => S32Eq(condition, scrutinee, expected)
-    Primitive(Char) => S32Eq(condition, scrutinee, expected)
-    Primitive(Double) => DoubleEq(condition, scrutinee, expected)
+    Primitive(I64) => I64Eq(condition, scrutinee, expected)
+    Primitive(I32) => I32Eq(condition, scrutinee, expected)
+    Primitive(Char) => I32Eq(condition, scrutinee, expected)
+    Primitive(F64) => F64Eq(condition, scrutinee, expected)
     Primitive(String) => ByteSequenceEqual(condition, scrutinee, expected)
     _ =>
       raise UnsupportedExpression(

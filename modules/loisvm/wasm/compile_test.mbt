@@ -152,9 +152,9 @@ test "compiled scalar bytecode executes with Wasmoon" {
     slots=[trivial_slot(I64), trivial_slot(I64), trivial_slot(I64)],
     result=I64,
     instructions=[
-      ConstInt({ value: 0 }, 40L),
-      ConstInt({ value: 1 }, 2L),
-      IntAdd({ value: 2 }, { value: 0 }, { value: 1 }),
+      ConstI64({ value: 0 }, 40L),
+      ConstI64({ value: 1 }, 2L),
+      I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
     ],
     terminator=Return(Some({ value: 2 })),
   )
@@ -389,22 +389,22 @@ test "structured CFG transfers block arguments in parallel" {
     blocks: [
       {
         parameters: [],
-        instructions: [ConstInt({ value: 0 }, 1L), ConstInt({ value: 1 }, 2L)],
+        instructions: [ConstI64({ value: 0 }, 1L), ConstI64({ value: 1 }, 2L)],
         terminator: Jump(edge(1, arguments=[{ value: 1 }, { value: 0 }])),
       },
       {
         parameters: [{ value: 0 }, { value: 1 }],
         instructions: [
-          ConstInt({ value: 2 }, 2L),
-          IntEq({ value: 3 }, { value: 0 }, { value: 2 }),
+          ConstI64({ value: 2 }, 2L),
+          I64Eq({ value: 3 }, { value: 0 }, { value: 2 }),
         ],
         terminator: BranchBool({ value: 3 }, edge(2), edge(4)),
       },
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 2 }, 1L),
-          IntEq({ value: 3 }, { value: 1 }, { value: 2 }),
+          ConstI64({ value: 2 }, 1L),
+          I64Eq({ value: 3 }, { value: 1 }, { value: 2 }),
         ],
         terminator: BranchBool({ value: 3 }, edge(3), edge(4)),
       },
@@ -421,7 +421,7 @@ test "packed callables execute through the canonical function table" {
     slots=[owned_slot(I64, OwnedCallable), trivial_slot(I64), trivial_slot(I64)],
     instructions=[
       ConstFunction({ value: 0 }, { value: 2 }),
-      ConstInt({ value: 1 }, 42L),
+      ConstI64({ value: 1 }, 42L),
       CallValue({ value: 0 }, [], [{ value: 1 }], Some({ value: 2 })),
     ],
   )
@@ -487,8 +487,8 @@ test "static image materializes layout descriptors and immortal strings" {
         instructions: [
           ConstString({ value: 0 }, { value: 0 }),
           ByteSequenceLength({ value: 1 }, { value: 0 }),
-          ConstInt({ value: 2 }, 3L),
-          IntEq({ value: 3 }, { value: 1 }, { value: 2 }),
+          ConstI64({ value: 2 }, 3L),
+          I64Eq({ value: 3 }, { value: 1 }, { value: 2 }),
         ],
         terminator: BranchBool({ value: 3 }, edge(1), edge(2)),
       },
@@ -590,8 +590,8 @@ test "dynamic String primitives allocate, copy, compare, and release" {
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 6 }, 1L),
-          ConstInt({ value: 7 }, 2L),
+          ConstI64({ value: 6 }, 1L),
+          ConstI64({ value: 7 }, 2L),
           ByteSequenceSlice({ value: 4 }, { value: 2 }, { value: 6 }, {
             value: 7,
           }),
@@ -660,7 +660,7 @@ test "canonical Data and Environment layouts construct and project" {
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 1 }, 42L),
+          ConstI64({ value: 1 }, 42L),
           MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], [
             { value: 1 },
           ]),
@@ -677,8 +677,8 @@ test "canonical Data and Environment layouts construct and project" {
             value_destination: { value: 4 },
             witness_destination: None,
           }),
-          ConstInt({ value: 5 }, 42L),
-          IntEq({ value: 6 }, { value: 4 }, { value: 5 }),
+          ConstI64({ value: 5 }, 42L),
+          I64Eq({ value: 6 }, { value: 4 }, { value: 5 }),
           Release({ value: 0 }),
         ],
         terminator: BranchBool({ value: 6 }, edge(2), edge(4)),
@@ -686,7 +686,7 @@ test "canonical Data and Environment layouts construct and project" {
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 8 }, 99L),
+          ConstI64({ value: 8 }, 99L),
           MakeEnv({ value: 7 }, { value: 1 }, Immediate({ value: 2 }), [], [
             { value: 8 },
           ]),
@@ -694,8 +694,8 @@ test "canonical Data and Environment layouts construct and project" {
             value_destination: { value: 9 },
             witness_destination: None,
           }),
-          ConstInt({ value: 5 }, 99L),
-          IntEq({ value: 6 }, { value: 9 }, { value: 5 }),
+          ConstI64({ value: 5 }, 99L),
+          I64Eq({ value: 6 }, { value: 9 }, { value: 5 }),
           Release({ value: 7 }),
         ],
         terminator: BranchBool({ value: 6 }, edge(3), edge(4)),
@@ -861,7 +861,7 @@ test "OwnedErased ARC dispatches through its layout witness" {
       trivial_slot(I64),
     ],
     instructions=[
-      ConstInt({ value: 4 }, 42L),
+      ConstI64({ value: 4 }, 42L),
       MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], [
         { value: 4 },
       ]),

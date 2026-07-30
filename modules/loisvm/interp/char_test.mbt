@@ -1,6 +1,6 @@
 ///|
 test "interpreter executes character constants" {
-  let slots = Array::make(3, s32_test_slot(I32))
+  let slots = Array::make(3, i32_test_slot(I32))
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
@@ -15,12 +15,12 @@ test "interpreter executes character constants" {
             instructions: [
               ConstChar({ value: 0 }, 0x1F600),
               ConstChar({ value: 1 }, 0x1F600),
-              S32Eq({ value: 2 }, { value: 0 }, { value: 1 }),
+              I32Eq({ value: 2 }, { value: 0 }, { value: 1 }),
             ],
             terminator: BranchBool(
               { value: 2 },
-              s32_test_edge(1),
-              s32_test_edge(2),
+              i32_test_edge(1),
+              i32_test_edge(2),
             ),
           },
           { parameters: [], instructions: [], terminator: Return(None) },

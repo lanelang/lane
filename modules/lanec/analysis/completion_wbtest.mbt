@@ -36,7 +36,7 @@ fn analyze_test_sources(
 
 ///|
 test "completion source indexes parser tokens and line positions" {
-  let text = "module Main\r\nimport Lib\r\n\r\npub fn answer(seed : Int) -> Int {\r\n  ans\r\n}"
+  let text = "module Main\r\nimport Lib\r\n\r\npub fn answer(seed : I64) -> I64 {\r\n  ans\r\n}"
   let parsed = @module_frontend.parse_module_inputs(
     { source_id: "file:///Main.lane", text },
     [],
@@ -72,7 +72,7 @@ test "completion returns top-level semantic entries" {
   let source =
     #|module Main
     #|
-    #|pub fn answer(seed : Int) -> Int {
+    #|pub fn answer(seed : I64) -> I64 {
     #|  ans
     #|}
   debug_inspect(
@@ -258,14 +258,14 @@ test "completion returns imported module surface entries" {
     #|
     #|import Lib
     #|
-    #|pub fn use() -> Int {
+    #|pub fn use() -> I64 {
     #|  Lib.answer()
     #|}
   let lib =
     #|module Lib
     #|
     #|pub effect Console {
-    #|  read() -> Int
+    #|  read() -> I64
     #|}
     #|
     #|pub enum Option[A] {
@@ -273,7 +273,7 @@ test "completion returns imported module surface entries" {
     #|  some(A)
     #|}
     #|
-    #|pub fn answer() -> Int {
+    #|pub fn answer() -> I64 {
     #|  42
     #|}
   debug_inspect(
@@ -291,7 +291,7 @@ test "completion returns imported module surface entries" {
       #|    label: "answer",
       #|    kind: Function,
       #|    is_offered: false,
-      #|    detail: Some("answer : () -> Int"),
+      #|    detail: Some("answer : () -> I64"),
       #|    documentation: None,
       #|    insert_text: None,
       #|    replace: Some(
@@ -363,13 +363,13 @@ test "completion keeps offeredness orthogonal to semantic binding kind" {
   let source =
     #|module Main
     #|
-    #|offer offered_value : Int = 1
+    #|offer offered_value : I64 = 1
     #|
-    #|offer fn offered_function() -> Int {
+    #|offer fn offered_function() -> I64 {
     #|  1
     #|}
     #|
-    #|pub fn use() -> Int {
+    #|pub fn use() -> I64 {
     #|  off
     #|}
   let entries = complete_test_source_inputs(
@@ -393,15 +393,15 @@ test "module completion keeps offeredness orthogonal to interface value kind" {
     #|
     #|import Lib
     #|
-    #|pub fn use() -> Int {
+    #|pub fn use() -> I64 {
     #|  Lib.off
     #|}
   let library =
     #|module Lib
     #|
-    #|pub offer offered_value : Int = 1
+    #|pub offer offered_value : I64 = 1
     #|
-    #|pub offer fn offered_function() -> Int {
+    #|pub offer fn offered_function() -> I64 {
     #|  1
     #|}
   let entries = complete_test_source_inputs(
@@ -432,7 +432,7 @@ test "completion uses importer revision symbol metadata" {
     #|
     #|import A
     #|
-    #|pub fn use() -> Int {
+    #|pub fn use() -> I64 {
     #|  A.identity(1)
     #|}
   guard workspace.replace_sources([
@@ -486,7 +486,7 @@ test "imported completion uses nominal tuple signature presentation" {
     #|
     #|import A
     #|
-    #|pub fn use() -> (Int, Bool) {
+    #|pub fn use() -> (I64, Bool) {
     #|  A.sugared(1)
     #|}
   let library =
@@ -494,11 +494,11 @@ test "imported completion uses nominal tuple signature presentation" {
     #|
     #|import Basic.Data.Tuple
     #|
-    #|pub fn sugared(value : Int) -> (Int, Bool) {
+    #|pub fn sugared(value : I64) -> (I64, Bool) {
     #|  (value, true)
     #|}
     #|
-    #|pub fn explicit(value : Int) -> Basic.Data.Tuple.Tuple[Int, Bool] {
+    #|pub fn explicit(value : I64) -> Basic.Data.Tuple.Tuple[I64, Bool] {
     #|  Basic.Data.Tuple.Tuple::tuple(value, true)
     #|}
   let tuple =
@@ -524,8 +524,8 @@ test "imported completion uses nominal tuple signature presentation" {
     .map(fn(entry) { (entry.label, entry.detail) }),
     content=(
       #|[
-      #|  ("sugared", Some("sugared : (Int) -> Tuple[Int, Bool]")),
-      #|  ("explicit", Some("explicit : (Int) -> Tuple[Int, Bool]")),
+      #|  ("sugared", Some("sugared : (I64) -> Tuple[I64, Bool]")),
+      #|  ("explicit", Some("explicit : (I64) -> Tuple[I64, Bool]")),
       #|]
     ),
   )
@@ -538,7 +538,7 @@ test "imported nominal tuple signature does not expose private aliases" {
     #|
     #|import A
     #|
-    #|pub fn use() -> (Int, Bool) {
+    #|pub fn use() -> (I64, Bool) {
     #|  A.exposed(1)
     #|}
   let library =
@@ -546,7 +546,7 @@ test "imported nominal tuple signature does not expose private aliases" {
     #|
     #|import Basic.Data.Tuple
     #|
-    #|type Secret = Int
+    #|type Secret = I64
     #|
     #|pub fn exposed(value : Secret) -> (Secret, Bool) {
     #|  (value, true)
@@ -572,7 +572,7 @@ test "imported nominal tuple signature does not expose private aliases" {
     entries
     .filter(fn(entry) { entry.label == "exposed" })
     .map(fn(entry) { entry.detail }),
-    content="[Some(\"exposed : (Int) -> Tuple[Int, Bool]\")]",
+    content="[Some(\"exposed : (I64) -> Tuple[I64, Bool]\")]",
   )
 }
 
@@ -599,24 +599,24 @@ test "alias normalization uses safe nominal presentation" {
     #|  other(A, B)
     #|}
     #|
-    #|type Wrap[A] = Other[Pairish[Int, Bool], A]
+    #|type Wrap[A] = Other[Pairish[I64, Bool], A]
     #|type Swap[A, B] = Other[B, A]
     #|type Dup[A] = Other[A, A]
-    #|type Drop[_A] = Pairish[Int, Bool]
+    #|type Drop[_A] = Pairish[I64, Bool]
     #|
-    #|pub fn moved(_value : Wrap[(Int, Bool)]) -> Unit {
+    #|pub fn moved(_value : Wrap[(I64, Bool)]) -> Unit {
     #|  ()
     #|}
     #|
-    #|pub fn swapped(_value : Swap[(Int, Bool), String]) -> Unit {
+    #|pub fn swapped(_value : Swap[(I64, Bool), String]) -> Unit {
     #|  ()
     #|}
     #|
-    #|pub fn duplicated(_value : Dup[(Int, Bool)]) -> Unit {
+    #|pub fn duplicated(_value : Dup[(I64, Bool)]) -> Unit {
     #|  ()
     #|}
     #|
-    #|pub fn dropped(_value : Drop[(Int, Bool)]) -> Unit {
+    #|pub fn dropped(_value : Drop[(I64, Bool)]) -> Unit {
     #|  ()
     #|}
   let tuple =
@@ -652,16 +652,16 @@ test "alias normalization uses safe nominal presentation" {
       #|[
       #|  (
       #|    "moved",
-      #|    Some("moved : (Other[Pairish[Int, Bool], Tuple[Int, Bool]]) -> Unit"),
+      #|    Some("moved : (Other[Pairish[I64, Bool], Tuple[I64, Bool]]) -> Unit"),
       #|  ),
-      #|  ("dropped", Some("dropped : (Pairish[Int, Bool]) -> Unit")),
+      #|  ("dropped", Some("dropped : (Pairish[I64, Bool]) -> Unit")),
       #|  (
       #|    "swapped",
-      #|    Some("swapped : (Other[String, Tuple[Int, Bool]]) -> Unit"),
+      #|    Some("swapped : (Other[String, Tuple[I64, Bool]]) -> Unit"),
       #|  ),
       #|  (
       #|    "duplicated",
-      #|    Some("duplicated : (Other[Tuple[Int, Bool], Tuple[Int, Bool]]) -> Unit"),
+      #|    Some("duplicated : (Other[Tuple[I64, Bool], Tuple[I64, Bool]]) -> Unit"),
       #|  ),
       #|]
     ),
@@ -674,8 +674,8 @@ test "completion returns owner members after double colon" {
     #|module Main
     #|
     #|effect Console {
-    #|  read() -> Int
-    #|  write(Int) -> Unit
+    #|  read() -> I64
+    #|  write(I64) -> Unit
     #|}
     #|
     #|enum Option[A] {
@@ -683,7 +683,7 @@ test "completion returns owner members after double colon" {
     #|  some(A)
     #|}
     #|
-    #|pub fn use() -> Option[Int] {
+    #|pub fn use() -> Option[I64] {
     #|  Option::some(1)
     #|}
   debug_inspect(
@@ -758,13 +758,13 @@ test "owner completion preserves multi-segment paths and aliases" {
   let qualified =
     #|module Main
     #|import Basic.Data.Option
-    #|pub fn use() -> Basic.Data.Option.Option[Int] {
+    #|pub fn use() -> Basic.Data.Option.Option[I64] {
     #|  Basic.Data.Option.Option::none()
     #|}
   let aliased =
     #|module Main
     #|import Basic.Data.Option as O
-    #|pub fn use() -> O.Option[Int] {
+    #|pub fn use() -> O.Option[I64] {
     #|  O.Option::none()
     #|}
   let sources : Array[@module_frontend.SourceInput] = [
@@ -803,7 +803,7 @@ test "completion inserts parens for imported payloadless owner variants" {
     #|
     #|import Lib
     #|
-    #|pub fn use() -> Lib.Option[Int] {
+    #|pub fn use() -> Lib.Option[I64] {
     #|  Lib.Option::none()
     #|}
   let lib =
@@ -885,7 +885,7 @@ test "completion inserts parens for payloadless variants with resolved fallback"
     #|
     #|let broken : Missing = 0
     #|
-    #|pub fn use() -> Option[Int] {
+    #|pub fn use() -> Option[I64] {
     #|  Option::none()
     #|}
   debug_inspect(
@@ -955,15 +955,15 @@ test "completion returns imported owner operations after double colon" {
     #|
     #|import Lib
     #|
-    #|pub fn use() -> Int ! Lib.Console {
+    #|pub fn use() -> I64 ! Lib.Console {
     #|  Lib.Console::read()
     #|}
   let lib =
     #|module Lib
     #|
     #|pub effect Console {
-    #|  read() -> Int
-    #|  write(Int) -> Unit
+    #|  read() -> I64
+    #|  write(I64) -> Unit
     #|}
   debug_inspect(
     complete_test_source_inputs(
@@ -980,7 +980,7 @@ test "completion returns imported owner operations after double colon" {
       #|    label: "read",
       #|    kind: Operation,
       #|    is_offered: false,
-      #|    detail: Some("Console::read() -> Int"),
+      #|    detail: Some("Console::read() -> I64"),
       #|    documentation: None,
       #|    insert_text: None,
       #|    replace: Some(
@@ -1002,7 +1002,7 @@ test "completion returns imported owner operations after double colon" {
       #|    label: "write",
       #|    kind: Operation,
       #|    is_offered: false,
-      #|    detail: Some("Console::write(Int) -> Unit"),
+      #|    detail: Some("Console::write(I64) -> Unit"),
       #|    documentation: None,
       #|    insert_text: None,
       #|    replace: Some(
@@ -1034,8 +1034,8 @@ test "local operation completion uses signature detail" {
     #|  choose[A](A, A) -> A
     #|}
     #|
-    #|pub fn use() -> Int ! Prompt {
-    #|  Prompt::choose![Int](1, 2)
+    #|pub fn use() -> I64 ! Prompt {
+    #|  Prompt::choose![I64](1, 2)
     #|}
   let entries = complete_test_source_inputs(
     { source_id: "file:///Main.lane", text: source },
@@ -1060,8 +1060,8 @@ test "imported operation completion includes type parameters" {
     #|
     #|import Lib
     #|
-    #|pub fn use() -> Int ! Lib.Prompt {
-    #|  Lib.Prompt::choose![Int](1, 2)
+    #|pub fn use() -> I64 ! Lib.Prompt {
+    #|  Lib.Prompt::choose![I64](1, 2)
     #|}
   let lib =
     #|module Lib
@@ -1094,7 +1094,7 @@ test "completion returns known module paths in import declarations" {
   let lib =
     #|module Lib
     #|
-    #|pub fn answer() -> Int {
+    #|pub fn answer() -> I64 {
     #|  42
     #|}
   debug_inspect(
@@ -1141,14 +1141,14 @@ test "completion filters candidates by type and effect positions" {
     #|module Main
     #|
     #|pub struct Thing {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
     #|pub effect Console {
     #|  log(String) -> Unit
     #|}
     #|
-    #|pub fn make() -> Int {
+    #|pub fn make() -> I64 {
     #|  0
     #|}
     #|
@@ -1236,8 +1236,8 @@ test "completion classifies same-line function bodies as value space" {
   let source =
     #|module Main
     #|
-    #|pub fn make() -> Int { 1 }
-    #|pub fn use() -> Int { ma }
+    #|pub fn make() -> I64 { 1 }
+    #|pub fn use() -> I64 { ma }
   let entries = complete_test_source_inputs(
     { source_id: "file:///Main.lane", text: source },
     [],
@@ -1258,10 +1258,10 @@ test "completion classifies struct field initializers as value space" {
     #|module Main
     #|
     #|pub struct make_type {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
     #|pub let item : make_type = make_type::{ value: ma }
   let entries = complete_test_source_inputs(
@@ -1284,10 +1284,10 @@ test "completion classifies type alias bodies as type space" {
     #|module Main
     #|
     #|pub struct make_type {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
     #|pub type Alias = ma
   let entries = complete_test_source_inputs(
@@ -1310,12 +1310,12 @@ test "completion classifies pattern owners as type space" {
     #|module Main
     #|
     #|pub struct make_type {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
-    #|pub fn use(item : make_type) -> Int {
+    #|pub fn use(item : make_type) -> I64 {
     #|  match item {
     #|    ma::{ value } => value
     #|  }
@@ -1342,10 +1342,10 @@ test "completion classifies an empty type annotation slot as type space" {
     #|import Base
     #|
     #|pub struct Thing {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
     #|pub let x : Thing = Thing::{ value: 1 }
   let edited_source =
@@ -1354,17 +1354,17 @@ test "completion classifies an empty type annotation slot as type space" {
     #|import Base
     #|
     #|pub struct Thing {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
     #|pub let x :
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
       {
         source_id: "file:///Base.lane",
-        text: "module Base\n\npub let base : Int = 0",
+        text: "module Base\n\npub let base : I64 = 0",
       },
       { source_id: "file:///Main.lane", text: valid_source },
     ])
@@ -1393,20 +1393,20 @@ test "completion classifies an empty tuple type item as type space" {
     #|module Main
     #|
     #|pub struct Thing {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
-    #|pub type Pair = (Thing, Int)
+    #|pub type Pair = (Thing, I64)
   let edited_source =
     #|module Main
     #|
     #|pub struct Thing {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
     #|pub type Pair = (Thing,
   let workspace = SemanticWorkspace::new()
@@ -1438,7 +1438,7 @@ test "completion classifies an empty tuple expression item as value space" {
     #|module Main
     #|
     #|pub struct Thing {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
     #|pub enum Option[A] {
@@ -1449,16 +1449,16 @@ test "completion classifies an empty tuple expression item as value space" {
     #|  choose() -> Bool
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
-    #|pub fn[T] pair() -> (Int, Int) {
+    #|pub fn[T] pair() -> (I64, I64) {
     #|  (1, make())
     #|}
   let edited_source =
     #|module Main
     #|
     #|pub struct Thing {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
     #|pub enum Option[A] {
@@ -1469,9 +1469,9 @@ test "completion classifies an empty tuple expression item as value space" {
     #|  choose() -> Bool
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
-    #|pub fn[T] pair() -> (Int, Int) {
+    #|pub fn[T] pair() -> (I64, I64) {
     #|  (1,
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
@@ -1515,20 +1515,20 @@ test "completion preserves value space for a truncated identifier" {
     #|module Main
     #|
     #|pub struct Thing {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn[T] pair() -> (Int, Thing) {
+    #|pub fn[T] pair() -> (I64, Thing) {
     #|  (1, Thing::{ value: 0 })
     #|}
   let edited_source =
     #|module Main
     #|
     #|pub struct Thing {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn[T] pair() -> (Int, Thing) {
+    #|pub fn[T] pair() -> (I64, Thing) {
     #|  (1, T
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
@@ -1559,12 +1559,12 @@ test "completion classifies an empty tuple pattern item as pattern space" {
     #|module Main
     #|
     #|pub struct make_type {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
-    #|pub fn use(value : (Int, Int)) -> Int {
+    #|pub fn use(value : (I64, I64)) -> I64 {
     #|  match value {
     #|    (head, tail) => head
     #|  }
@@ -1573,12 +1573,12 @@ test "completion classifies an empty tuple pattern item as pattern space" {
     #|module Main
     #|
     #|pub struct make_type {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
-    #|pub fn use(value : (Int, Int)) -> Int {
+    #|pub fn use(value : (I64, I64)) -> I64 {
     #|  match value {
     #|    (head,
   let workspace = SemanticWorkspace::new()
@@ -1606,12 +1606,12 @@ test "completion classifies an empty tuple pattern item as pattern space" {
     #|module Main
     #|
     #|pub struct make_type {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
-    #|pub fn use(value : (Int, Int)) -> Int {
+    #|pub fn use(value : (I64, I64)) -> I64 {
     #|  match value {
     #|    (head, ma) => head
     #|  }
@@ -1646,7 +1646,7 @@ test "completion classifies an empty effect annotation slot as effect space" {
     #|  log(String) -> Unit
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
     #|pub fn run() -> Unit ! Console { () }
   let edited_source =
@@ -1656,7 +1656,7 @@ test "completion classifies an empty effect annotation slot as effect space" {
     #|  log(String) -> Unit
     #|}
     #|
-    #|pub fn make() -> Int { 0 }
+    #|pub fn make() -> I64 { 0 }
     #|
     #|pub fn run() -> Unit !
   let workspace = SemanticWorkspace::new()
@@ -1688,7 +1688,7 @@ test "semantic definitions retain exact spans for repeated names" {
     (
       #|module Main
       #|
-      #|pub fn same(same : Int) -> Int { same }
+      #|pub fn same(same : I64) -> I64 { same }
     ),
     [],
   )
@@ -1725,11 +1725,11 @@ test "completion returns checked selector fields" {
     #|module Main
     #|
     #|pub struct Point {
-    #|  x : Int
-    #|  y : Int
+    #|  x : I64
+    #|  y : I64
     #|}
     #|
-    #|pub fn use(point : Point) -> Int {
+    #|pub fn use(point : Point) -> I64 {
     #|  point.x
     #|}
   debug_inspect(
@@ -1747,7 +1747,7 @@ test "completion returns checked selector fields" {
       #|    label: "x",
       #|    kind: Field,
       #|    is_offered: false,
-      #|    detail: Some("x : Int"),
+      #|    detail: Some("x : I64"),
       #|    documentation: None,
       #|    insert_text: None,
       #|    replace: Some(
@@ -1769,7 +1769,7 @@ test "completion returns checked selector fields" {
       #|    label: "y",
       #|    kind: Field,
       #|    is_offered: false,
-      #|    detail: Some("y : Int"),
+      #|    detail: Some("y : I64"),
       #|    documentation: None,
       #|    insert_text: None,
       #|    replace: Some(
@@ -1797,7 +1797,7 @@ test "completion returns empty for unsupported triggers and unavailable receiver
   let source =
     #|module Main
     #|
-    #|pub fn use() -> Int {
+    #|pub fn use() -> I64 {
     #|  missing.x
     #|}
   debug_inspect(
@@ -1831,10 +1831,10 @@ test "completion reads match binders from the semantic index" {
     #|
     #|pub enum Option {
     #|  none()
-    #|  some(Int)
+    #|  some(I64)
     #|}
     #|
-    #|pub fn use(value : Option) -> Int {
+    #|pub fn use(value : Option) -> I64 {
     #|  match value {
     #|    Option::none() => 0
     #|    Option::some(item) => it

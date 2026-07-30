@@ -720,10 +720,10 @@ fn buslane_primitive_text(primitive : @buslane.PrimitiveType) -> String {
   match primitive {
     Unit => "Unit"
     Bool => "Bool"
-    Int => "Int"
-    S32 => "S32"
+    I64 => "I64"
+    I32 => "I32"
     Char => "Char"
-    Double => "Double"
+    F64 => "F64"
     String => "String"
     Byte => "Byte"
     Bytes => "Bytes"

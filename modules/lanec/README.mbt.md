@@ -75,7 +75,7 @@ test "check a Lane source file" {
     (
       #|module Example
       #|
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  42
       #|}
     ),
@@ -101,7 +101,7 @@ test "compile a multi-module Lane source set" {
       #|  answer
       #|}
       #|
-      #|pub fn main() -> Int {
+      #|pub fn main() -> I64 {
       #|  answer
       #|}
     ),
@@ -111,7 +111,7 @@ test "compile a multi-module Lane source set" {
     text: (
       #|module Library
       #|
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
   }
   let result = @compile.compile_source_inputs(root, [library])

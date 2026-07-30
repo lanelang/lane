@@ -8,7 +8,7 @@ test "typecheck generic call uses expected result type" {
       #|fn[A] make() -> Marker[A] {
       #|  Marker::marker()
       #|}
-      #|fn use() -> Marker[Int] {
+      #|fn use() -> Marker[I64] {
       #|  make()
       #|}
     ),
@@ -31,7 +31,7 @@ test "typecheck generic call uses expected result type" {
       #|  }
       #|  checked_values {
       #|    fn make#0 : forall [tparam#1 A : Type]. () -> type#0[tparam#1]
-      #|    fn use#1 : () -> type#0[Int]
+      #|    fn use#1 : () -> type#0[I64]
       #|  }
       #|  diagnostics {}
       #|}
@@ -46,7 +46,7 @@ test "typecheck generic call drives function literal argument" {
       #|fn[A] apply(callback : (A) -> A, value : A) -> A {
       #|  callback(value)
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  apply(fn(value) {
       #|    value
       #|  }, 1)
@@ -65,7 +65,7 @@ test "typecheck generic call drives function literal argument" {
       #|  }
       #|  checked_values {
       #|    fn apply#0 : forall [tparam#0 A : Type]. ((tparam#0) -> tparam#0, tparam#0) -> tparam#0
-      #|    fn use#1 : () -> Int
+      #|    fn use#1 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -83,7 +83,7 @@ test "typecheck polymorphic function parameter instantiation" {
       #|fn[A] id(value : A) -> A {
       #|  value
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  apply(id, 1)
       #|}
     ),
@@ -103,7 +103,7 @@ test "typecheck polymorphic function parameter instantiation" {
       #|      tparam#0 B : Type
       #|    ]. (forall [tparam#1 A : Type]. (tparam#1) -> tparam#1, tparam#0) -> tparam#0
       #|    fn id#1 : forall [tparam#2 A : Type]. (tparam#2) -> tparam#2
-      #|    fn use#2 : () -> Int
+      #|    fn use#2 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -118,8 +118,8 @@ test "typecheck explicit generic function application" {
       #|fn[A] id(value : A) -> A {
       #|  value
       #|}
-      #|let id_int : (Int) -> Int = id[Int]
-      #|let value : Int = id[Int](id_int(1))
+      #|let id_int : (I64) -> I64 = id[I64]
+      #|let value : I64 = id[I64](id_int(1))
     ),
   )
   inspect(
@@ -130,8 +130,8 @@ test "typecheck explicit generic function application" {
       #|    fn[A#0 : Type] id#0(value#3 : tparam#0) -> tparam#0 {
       #|      value#3
       #|    }
-      #|    let id_int#1 : (Int) -> Int = id#0[Int]
-      #|    let value#2 : Int = id#0[Int](id_int#1(1))
+      #|    let id_int#1 : (I64) -> I64 = id#0[I64]
+      #|    let value#2 : I64 = id#0[I64](id_int#1(1))
       #|  }
       #|  diagnostics {}
       #|}
@@ -144,7 +144,7 @@ test "typecheck explicit effect-kind generic function argument" {
   let result = expect_checked_source_result(
     (
       #|effect Log {
-      #|  log(Int) -> Unit
+      #|  log(I64) -> Unit
       #|}
       #|effect Coroutine[E : Effect] {
       #|  yield() -> Unit
@@ -152,7 +152,7 @@ test "typecheck explicit effect-kind generic function argument" {
       #|fn[E : Effect] yield_once() -> Unit ! Coroutine[E] {
       #|  Coroutine[E]::yield!()
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  handle yield_once[Log]() with {
       #|    Coroutine[Log]::yield(resume) => resume(())
       #|  } final value {
@@ -167,7 +167,7 @@ test "typecheck explicit effect-kind generic function argument" {
       #|checked_source_typecheck_result {
       #|  checked {
       #|    effect Log#0 {
-      #|      log#0(Int) -> Unit
+      #|      log#0(I64) -> Unit
       #|    }
       #|    effect Coroutine#1[E#0 : Effect] {
       #|      yield#1 -> Unit
@@ -175,7 +175,7 @@ test "typecheck explicit effect-kind generic function argument" {
       #|    fn[E#1 : Effect] yield_once#0() -> Unit {
       #|      operation#1!()
       #|    }
-      #|    fn use#1() -> Int {
+      #|    fn use#1() -> I64 {
       #|      {
       #|        handle yield_once#0[effect#0]()
       #|        with effect#1[effect#0] {
@@ -198,7 +198,7 @@ test "typecheck braced effect generic arguments" {
   let result = expect_typecheck_result(
     (
       #|effect Log {
-      #|  write(Int) -> Unit
+      #|  write(I64) -> Unit
       #|}
       #|effect Ops {
       #|  ping[E : Effect]() -> Unit
@@ -218,10 +218,10 @@ test "typecheck braced effect generic arguments" {
       #|fn pure() -> Unit {
       #|  ()
       #|}
-      #|fn use() -> Int ! Ops {
+      #|fn use() -> I64 ! Ops {
       #|  {
       #|    let ran : Unit = run[{}](pure)
-      #|    let box : Box[Int, {}] = Box[Int, {}]::{ value: 1 }
+      #|    let box : Box[I64, {}] = Box[I64, {}]::{ value: 1 }
       #|    let task : Task = Task::task[{ Log }]()
       #|    let pinged : Unit = Ops::ping![{}]()
       #|    box.value
@@ -249,9 +249,9 @@ test "typecheck infers empty residual effect row in generic function argument" {
   let result = expect_typecheck_result(
     (
       #|effect Log {
-      #|  write(Int) -> Unit
+      #|  write(I64) -> Unit
       #|}
-      #|fn program() -> Int ! Log {
+      #|fn program() -> I64 ! Log {
       #|  let _written : Unit = Log::write!(40)
       #|  42
       #|}
@@ -264,7 +264,7 @@ test "typecheck infers empty residual effect row in generic function argument" {
       #|    }
       #|  }
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  handle_log(program)()
       #|}
     ),
@@ -282,13 +282,13 @@ test "typecheck infers empty effect parameter from unannotated callback" {
   let result = expect_typecheck_result(
     (
       #|struct Pair {
-      #|  first : Int
-      #|  second : Int
+      #|  first : I64
+      #|  second : I64
       #|}
       #|fn[T, R, E : Effect] transform(value : T, callback : (T) -> R ! E) -> R ! E {
       #|  callback(value)
       #|}
-      #|fn use(pair : Pair) -> Int {
+      #|fn use(pair : Pair) -> I64 {
       #|  transform(pair, fn(item) { item.second })
       #|}
     ),
@@ -306,12 +306,12 @@ test "typecheck infers non-empty effect from ground anonymous callback" {
   let result = expect_typecheck_result(
     (
       #|effect Read {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn[E : Effect] consume(callback : () -> Int ! E) -> Int ! E {
+      #|fn[E : Effect] consume(callback : () -> I64 ! E) -> I64 ! E {
       #|  callback()
       #|}
-      #|fn use() -> Int ! Read {
+      #|fn use() -> I64 ! Read {
       #|  consume(fn() { Read::read!() })
       #|}
     ),
@@ -324,13 +324,13 @@ test "typecheck infers effect from explicitly annotated anonymous callback" {
   let result = expect_typecheck_result(
     (
       #|effect Read {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn[E : Effect] consume(callback : () -> Int ! E) -> Int ! E {
+      #|fn[E : Effect] consume(callback : () -> I64 ! E) -> I64 ! E {
       #|  callback()
       #|}
-      #|fn use() -> Int ! Read {
-      #|  consume(fn() -> Int ! Read { Read::read!() })
+      #|fn use() -> I64 ! Read {
+      #|  consume(fn() -> I64 ! Read { Read::read!() })
       #|}
     ),
   )
@@ -342,14 +342,14 @@ test "typecheck rejects effect evidence from invalid callback body" {
   let result = expect_typecheck_result(
     (
       #|effect Read {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn[E : Effect] consume(callback : () -> Int ! E) -> Int ! E {
+      #|fn[E : Effect] consume(callback : () -> I64 ! E) -> I64 ! E {
       #|  callback()
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  let _result = consume(fn() {
-      #|    let _value : Int = Read::read!()
+      #|    let _value : I64 = Read::read!()
       #|    true
       #|  })
       #|  0
@@ -384,13 +384,13 @@ test "typecheck infers non-empty residual effect row in generic function argumen
   let result = expect_typecheck_result(
     (
       #|effect Ask {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|effect Log {
-      #|  write(Int) -> Unit
+      #|  write(I64) -> Unit
       #|}
-      #|fn program() -> Int ! { Ask, Log } {
-      #|  let value : Int = Ask::read!()
+      #|fn program() -> I64 ! { Ask, Log } {
+      #|  let value : I64 = Ask::read!()
       #|  let _written : Unit = Log::write!(value)
       #|  value
       #|}
@@ -403,7 +403,7 @@ test "typecheck infers non-empty residual effect row in generic function argumen
       #|    }
       #|  }
       #|}
-      #|fn use() -> Int ! Log {
+      #|fn use() -> I64 ! Log {
       #|  handle_ask(program)()
       #|}
     ),
@@ -464,7 +464,7 @@ test "typecheck does not infer callback result from its return annotation" {
       #|  ()
       #|}
       #|fn use() -> Unit {
-      #|  consume(fn() -> Int { 1 })
+      #|  consume(fn() -> I64 { 1 })
       #|}
     ),
   )
@@ -544,8 +544,8 @@ test "typecheck does not backtrack ambiguous effect row inference" {
       #|fn[A, B] consume(callback : () -> Unit ! { Mark[A], Mark[B] }) -> Unit {
       #|  ()
       #|}
-      #|fn callback() -> Unit ! { Mark[Int], Mark[Bool] } {
-      #|  let _first : Unit = Mark[Int]::mark!()
+      #|fn callback() -> Unit ! { Mark[I64], Mark[Bool] } {
+      #|  let _first : Unit = Mark[I64]::mark!()
       #|  Mark[Bool]::mark!()
       #|}
       #|fn use() -> Unit {
@@ -569,7 +569,7 @@ test "typecheck does not backtrack ambiguous effect row inference" {
       #|        ),
       #|        actual=Union(
       #|          [
-      #|            Singleton({ index: 0 }, [TypeArgument(Primitive(Int))]),
+      #|            Singleton({ index: 0 }, [TypeArgument(Primitive(I64))]),
       #|            Singleton({ index: 0 }, [TypeArgument(Primitive(Bool))]),
       #|          ],
       #|        ),
@@ -623,8 +623,8 @@ test "typecheck matches effect rows after grounding owner arguments" {
       #|fn[A, E : Effect] consume(callback : () -> Bool ! { State[A], E }, value : A) -> Unit {
       #|  ()
       #|}
-      #|fn callback() -> Bool ! { State[Int], State[Bool] } {
-      #|  let _first : Int = State[Int]::get!()
+      #|fn callback() -> Bool ! { State[I64], State[Bool] } {
+      #|  let _first : I64 = State[I64]::get!()
       #|  State[Bool]::get!()
       #|}
       #|fn use() -> Unit {
@@ -647,13 +647,13 @@ test "typecheck rejects impossible partially ground effect owner candidates" {
       #|  get() -> A
       #|}
       #|fn[T, E : Effect] consume(
-      #|  callback : () -> Bool ! { State[Pair[T, Int]], E }
+      #|  callback : () -> Bool ! { State[Pair[T, I64]], E }
       #|) -> Unit {
       #|  ()
       #|}
       #|fn callback() -> Bool
-      #|  ! { State[Pair[String, Int]], State[Pair[Bool, Bool]] } {
-      #|  let _left : Pair[String, Int] = State[Pair[String, Int]]::get!()
+      #|  ! { State[Pair[String, I64]], State[Pair[Bool, Bool]] } {
+      #|  let _left : Pair[String, I64] = State[Pair[String, I64]]::get!()
       #|  let _right : Pair[Bool, Bool] = State[Pair[Bool, Bool]]::get!()
       #|  true
       #|}
@@ -715,7 +715,7 @@ test "typecheck reports explicit generic function arity mismatch" {
       #|fn[A] id(value : A) -> A {
       #|  value
       #|}
-      #|let value : Int = id[Int, Bool](1)
+      #|let value : I64 = id[I64, Bool](1)
     ),
   )
   inspect(
@@ -731,7 +731,7 @@ test "typecheck reports explicit generic function kind mismatch" {
   let result = expect_typecheck_result(
     (
       #|effect Log {
-      #|  log(Int) -> Unit
+      #|  log(I64) -> Unit
       #|}
       #|fn[E : Effect] run(action : () -> Unit ! E) -> Unit ! E {
       #|  action()
@@ -739,7 +739,7 @@ test "typecheck reports explicit generic function kind mismatch" {
       #|fn logged() -> Unit ! Log {
       #|  Log::log!(1)
       #|}
-      #|let value : Unit = run[Int](logged)
+      #|let value : Unit = run[I64](logged)
     ),
   )
   inspect(
@@ -754,16 +754,16 @@ test "typecheck reports explicit generic function kind mismatch" {
 test "typecheck reports generic arguments on non-generic function" {
   let result = expect_typecheck_result(
     (
-      #|fn plain(value : Int) -> Int {
+      #|fn plain(value : I64) -> I64 {
       #|  value
       #|}
-      #|let value : Int = plain[Int](1)
+      #|let value : I64 = plain[I64](1)
     ),
   )
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[generic_arguments_on_non_generic explicit_generic_application plain (Int) -> Int @ 5:19-5:29]
+      #|[generic_arguments_on_non_generic explicit_generic_application plain (I64) -> I64 @ 5:19-5:29]
     ),
   )
 }
@@ -812,7 +812,7 @@ test "typecheck reports conflicting generic argument inference" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[generic_argument_inference_failed choose conflict A previous=Int actual=Bool @ 7:23-7:27]
+      #|[generic_argument_inference_failed choose conflict A previous=I64 actual=Bool @ 7:23-7:27]
     ),
   )
 }
@@ -822,14 +822,14 @@ test "typecheck expands transparent type alias beta applications" {
   let result = expect_typecheck_result(
     (
       #|type Id[A] = A
-      #|let answer : Id[Int] = 42
+      #|let answer : Id[I64] = 42
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
   guard result.values.values[0] is Let(value) else {
     abort("expected checked let")
   }
-  inspect(@prettyprinter.render(value.type_, width=100), content="Int")
+  inspect(@prettyprinter.render(value.type_, width=100), content="I64")
 }
 
 ///|
@@ -839,8 +839,8 @@ test "typecheck accepts higher-kinded alias parameter" {
       #|struct Box[A] {
       #|  value : A
       #|}
-      #|type ApplyInt[F : [Type] -> Type] = F[Int]
-      #|fn get(box : ApplyInt[Box]) -> Int {
+      #|type ApplyInt[F : [Type] -> Type] = F[I64]
+      #|fn get(box : ApplyInt[Box]) -> I64 {
       #|  box.value
       #|}
     ),
@@ -890,7 +890,7 @@ test "typecheck reports kind mismatch for higher-kinded struct literal type argu
       #|struct Mappable[U : [Type] -> Type] {
       #|  map : [A, B](U[A], (A) -> B) -> U[B]
       #|}
-      #|let bad : Mappable[Option] = Mappable[Int]::{
+      #|let bad : Mappable[Option] = Mappable[I64]::{
       #|  map: map_option
       #|}
     ),
@@ -919,10 +919,10 @@ test "typecheck reports kind mismatch for higher-kinded struct literal type argu
       #|        ],
       #|        Function(
       #|          [
-      #|            Apply(Primitive(Int), [TypeArgument(Parameter({ index: 4 }))]),
+      #|            Apply(Primitive(I64), [TypeArgument(Parameter({ index: 4 }))]),
       #|            Function([Parameter({ index: 4 })], Parameter({ index: 5 }), Empty),
       #|          ],
-      #|          Apply(Primitive(Int), [TypeArgument(Parameter({ index: 5 }))]),
+      #|          Apply(Primitive(I64), [TypeArgument(Parameter({ index: 5 }))]),
       #|          Empty,
       #|        ),
       #|      ),
@@ -962,7 +962,7 @@ test "typecheck reports kind mismatch for higher-kinded struct literal type argu
       #|        Constructor({ index: 1 }),
       #|        [TypeArgument(Constructor({ index: 0 }))],
       #|      ),
-      #|      actual=Apply(Constructor({ index: 1 }), [TypeArgument(Primitive(Int))]),
+      #|      actual=Apply(Constructor({ index: 1 }), [TypeArgument(Primitive(I64))]),
       #|    ),
       #|    loc: {
       #|      start_offset: 323,
@@ -987,7 +987,7 @@ test "typecheck accepts higher-kinded qualified variant type argument" {
       #|  none()
       #|}
       #|enum Box[F : [Type] -> Type] {
-      #|  wrap(F[Int])
+      #|  wrap(F[I64])
       #|}
       #|let boxed : Box[Option] = Box[Option]::wrap(Option::some(1))
     ),
@@ -1004,9 +1004,9 @@ test "typecheck reports kind mismatch for higher-kinded qualified variant type a
       #|  none()
       #|}
       #|enum Box[F : [Type] -> Type] {
-      #|  wrap(F[Int])
+      #|  wrap(F[I64])
       #|}
-      #|let boxed : Box[Option] = Box[Int]::wrap(Option::some(1))
+      #|let boxed : Box[Option] = Box[I64]::wrap(Option::some(1))
     ),
   )
   debug_inspect(
@@ -1026,8 +1026,8 @@ test "typecheck reports kind mismatch for higher-kinded qualified variant type a
       #|  },
       #|  {
       #|    kind: TypeMismatch(
-      #|      expected=Apply(Primitive(Int), [TypeArgument(Primitive(Int))]),
-      #|      actual=Apply(Constructor({ index: 0 }), [TypeArgument(Primitive(Int))]),
+      #|      expected=Apply(Primitive(I64), [TypeArgument(Primitive(I64))]),
+      #|      actual=Apply(Constructor({ index: 0 }), [TypeArgument(Primitive(I64))]),
       #|    ),
       #|    loc: {
       #|      start_offset: 139,
@@ -1044,7 +1044,7 @@ test "typecheck reports kind mismatch for higher-kinded qualified variant type a
       #|        Constructor({ index: 1 }),
       #|        [TypeArgument(Constructor({ index: 0 }))],
       #|      ),
-      #|      actual=Apply(Constructor({ index: 1 }), [TypeArgument(Primitive(Int))]),
+      #|      actual=Apply(Constructor({ index: 1 }), [TypeArgument(Primitive(I64))]),
       #|    ),
       #|    loc: {
       #|      start_offset: 124,
@@ -1068,10 +1068,10 @@ test "typecheck infers higher-kinded generic argument from application spine" {
       #|  some(T)
       #|  none()
       #|}
-      #|fn[F : [Type] -> Type] consume(value : F[Int]) -> Int {
+      #|fn[F : [Type] -> Type] consume(value : F[I64]) -> I64 {
       #|  0
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  consume(Option::some(1))
       #|}
     ),
@@ -1090,7 +1090,7 @@ test "typecheck infers higher-kinded and ordinary arguments from application spi
       #|fn[F : [Type] -> Type, A] select(value : F[A], fallback : A) -> A {
       #|  fallback
       #|}
-      #|let picked : Int = select(Option::some(1), 0)
+      #|let picked : I64 = select(Option::some(1), 0)
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
@@ -1100,10 +1100,10 @@ test "typecheck infers higher-kinded and ordinary arguments from application spi
 test "typecheck forwards outer higher-kinded generic argument" {
   let result = expect_typecheck_result(
     (
-      #|fn[F : [Type] -> Type] consume(value : F[Int]) -> Int {
+      #|fn[F : [Type] -> Type] consume(value : F[I64]) -> I64 {
       #|  0
       #|}
-      #|fn[F : [Type] -> Type] forward(value : F[Int]) -> Int {
+      #|fn[F : [Type] -> Type] forward(value : F[I64]) -> I64 {
       #|  consume(value)
       #|}
     ),
@@ -1118,10 +1118,10 @@ test "typecheck does not synthesize higher-order lambda during generic inference
       #|enum Pair[A, B] {
       #|  pair(A, B)
       #|}
-      #|fn[F : [Type] -> Type] consume(value : F[Int]) -> Int {
+      #|fn[F : [Type] -> Type] consume(value : F[I64]) -> I64 {
       #|  0
       #|}
-      #|fn bad(value : Pair[Int, Bool]) -> Int {
+      #|fn bad(value : Pair[I64, Bool]) -> I64 {
       #|  consume(value)
       #|}
     ),
@@ -1156,8 +1156,8 @@ test "typecheck does not synthesize higher-order lambda during generic inference
 test "typecheck defaults unannotated alias header parameter kind to Type" {
   let result = expect_typecheck_result(
     (
-      #|type ApplyInt[F] = F[Int]
-      #|let answer : ApplyInt[Int] = 42
+      #|type ApplyInt[F] = F[I64]
+      #|let answer : ApplyInt[I64] = 42
     ),
   )
   debug_inspect(
@@ -1185,7 +1185,7 @@ test "typecheck reports duplicate type alias header parameter" {
   let result = expect_typecheck_result(
     (
       #|type Bad[A, A] = A
-      #|let answer : Int = 42
+      #|let answer : I64 = 42
     ),
   )
   debug_inspect(

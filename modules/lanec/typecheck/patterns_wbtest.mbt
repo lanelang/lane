@@ -83,7 +83,7 @@ test "typecheck accepts single-variant enum pattern let" {
       #|enum Id[A] {
       #|  id(A)
       #|}
-      #|fn unwrap(value : Id[Int]) -> Int {
+      #|fn unwrap(value : Id[I64]) -> I64 {
       #|  {
       #|    let id(x) = value
       #|    x
@@ -98,9 +98,9 @@ test "typecheck accepts single-variant enum pattern let" {
 test "typecheck uses pattern let annotation as initializer expected type" {
   let result = expect_typecheck_result(
     (
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  {
-      #|    let _ : Double = builtin("%f64_inf")
+      #|    let _ : F64 = builtin("%f64_inf")
       #|    42
       #|  }
       #|}
@@ -153,7 +153,7 @@ test "typecheck rejects multi-variant enum pattern let" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn bad(value : Option[Int]) -> Int {
+      #|fn bad(value : Option[I64]) -> I64 {
       #|  {
       #|    let some(x) = value
       #|    x
@@ -164,7 +164,7 @@ test "typecheck rejects multi-variant enum pattern let" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[refutable_pattern_let type#0[Int] @ 8:9-8:16]
+      #|[refutable_pattern_let type#0[I64] @ 8:9-8:16]
     ),
   )
 }
@@ -173,7 +173,7 @@ test "typecheck rejects multi-variant enum pattern let" {
 test "typecheck rejects literal pattern let as refutable" {
   let result = expect_typecheck_result(
     (
-      #|fn bad(value : Int) -> Int {
+      #|fn bad(value : I64) -> I64 {
       #|  {
       #|    let 1 = value
       #|    value
@@ -184,7 +184,7 @@ test "typecheck rejects literal pattern let as refutable" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[refutable_pattern_let Int @ 4:9-4:10]
+      #|[refutable_pattern_let I64 @ 4:9-4:10]
     ),
   )
 }
@@ -198,9 +198,9 @@ test "typecheck rejects nested refutable pattern let" {
       #|  some(A)
       #|}
       #|struct Box {
-      #|  value : Option[Int]
+      #|  value : Option[I64]
       #|}
-      #|fn bad(box : Box) -> Int {
+      #|fn bad(box : Box) -> I64 {
       #|  {
       #|    let Box::{ value: some(x) } = box
       #|    x
@@ -211,7 +211,7 @@ test "typecheck rejects nested refutable pattern let" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[refutable_pattern_let type#0[Int] @ 11:23-11:30]
+      #|[refutable_pattern_let type#0[I64] @ 11:23-11:30]
     ),
   )
 }
@@ -224,10 +224,10 @@ test "typecheck unqualified enum variant construction" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn wrap(value : Int) -> Option[Int] {
+      #|fn wrap(value : I64) -> Option[I64] {
       #|  some(value)
       #|}
-      #|fn empty() -> Option[Int] {
+      #|fn empty() -> Option[I64] {
       #|  none()
       #|}
     ),
@@ -251,8 +251,8 @@ test "typecheck unqualified enum variant construction" {
       #|    }
       #|  }
       #|  checked_values {
-      #|    fn wrap#0 : (Int) -> type#0[Int]
-      #|    fn empty#1 : () -> type#0[Int]
+      #|    fn wrap#0 : (I64) -> type#0[I64]
+      #|    fn empty#1 : () -> type#0[I64]
       #|  }
       #|  diagnostics {}
       #|}
@@ -292,15 +292,15 @@ test "typecheck reports enum variant payload mismatch" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn bad() -> Option[Int] {
-      #|  Option[Int]::some(true)
+      #|fn bad() -> Option[I64] {
+      #|  Option[I64]::some(true)
       #|}
     ),
   )
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[type_mismatch expected=Int actual=Bool @ 7:21-7:25]
+      #|[type_mismatch expected=I64 actual=Bool @ 7:21-7:25]
     ),
   )
 }
@@ -313,7 +313,7 @@ test "typecheck reports enum variant arity mismatch" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn bad() -> Option[Int] {
+      #|fn bad() -> Option[I64] {
       #|  some()
       #|}
     ),
@@ -323,7 +323,7 @@ test "typecheck reports enum variant arity mismatch" {
     content=(
       #|[
       #|  application_arity_mismatch variant arity @ 7:3-7:9,
-      #|  type_mismatch expected=type#0[Int] actual=type#0 @ 7:3-7:9
+      #|  type_mismatch expected=type#0[I64] actual=type#0 @ 7:3-7:9
       #|]
     ),
   )
@@ -334,10 +334,10 @@ test "typecheck reports ambiguous unqualified enum variant" {
   let file = expect_parse_ok(
     (
       #|enum Left {
-      #|  same(Int)
+      #|  same(I64)
       #|}
       #|enum Right {
-      #|  same(Int)
+      #|  same(I64)
       #|}
       #|fn bad() -> Left {
       #|  same(1)
@@ -386,7 +386,7 @@ test "typecheck exhaustive enum match" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
+      #|fn unwrap(value : Option[I64], fallback : I64) -> I64 {
       #|  match value {
       #|    Option::none() => fallback
       #|    Option::some(x) => x
@@ -413,7 +413,7 @@ test "typecheck exhaustive enum match" {
       #|    }
       #|  }
       #|  checked_values {
-      #|    fn unwrap#0 : (type#0[Int], Int) -> Int
+      #|    fn unwrap#0 : (type#0[I64], I64) -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -439,17 +439,17 @@ test "typecheck unqualified enum variant patterns from expected type" {
   let result = expect_typecheck_result(
     (
       #|enum Left {
-      #|  same(Int)
+      #|  same(I64)
       #|}
       #|enum Right {
       #|  same(Bool)
       #|}
-      #|fn left(value : Left) -> Int {
+      #|fn left(value : Left) -> I64 {
       #|  match value {
       #|    same(x) => x
       #|  }
       #|}
-      #|fn right(value : Right) -> Int {
+      #|fn right(value : Right) -> I64 {
       #|  match value {
       #|    same(_) => 1
       #|  }
@@ -467,7 +467,7 @@ test "typecheck unqualified enum variant patterns in adjacent match arms" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
+      #|fn unwrap(value : Option[I64], fallback : I64) -> I64 {
       #|  match value {
       #|    none() => fallback
       #|    some(x) => x
@@ -482,7 +482,7 @@ test "typecheck unqualified enum variant patterns in adjacent match arms" {
 test "typecheck rejects unqualified enum variant without enum expected type" {
   let result = expect_typecheck_result(
     (
-      #|fn bad(value : Int) -> Int {
+      #|fn bad(value : I64) -> I64 {
       #|  match value {
       #|    some(x) => x
       #|  }
@@ -505,7 +505,7 @@ test "typecheck rejects unqualified enum variant without enum expected type" {
 test "typecheck reports non-exhaustive bool match" {
   let result = expect_typecheck_result(
     (
-      #|fn bad(value : Bool) -> Int {
+      #|fn bad(value : Bool) -> I64 {
       #|  match value {
       #|    true => 1
       #|  }
@@ -528,7 +528,7 @@ test "typecheck accepts exhaustive nested enum patterns" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn use(value : Option[Option[Int]]) -> Int {
+      #|fn use(value : Option[Option[I64]]) -> I64 {
       #|  match value {
       #|    Option::none() => 0
       #|    Option::some(Option::none()) => 1
@@ -548,7 +548,7 @@ test "typecheck reports non-exhaustive nested enum patterns" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn bad(value : Option[Option[Int]]) -> Int {
+      #|fn bad(value : Option[Option[I64]]) -> I64 {
       #|  match value {
       #|    Option::none() => 0
       #|    Option::some(Option::none()) => 1
@@ -559,7 +559,7 @@ test "typecheck reports non-exhaustive nested enum patterns" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[non_exhaustive_match type#0[type#0[Int]] missing=`some(some(_))` @ 7:3-10:4]
+      #|[non_exhaustive_match type#0[type#0[I64]] missing=`some(some(_))` @ 7:3-10:4]
     ),
   )
 }
@@ -572,7 +572,7 @@ test "typecheck reports unreachable nested enum pattern" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn bad(value : Option[Option[Int]]) -> Int {
+      #|fn bad(value : Option[Option[I64]]) -> I64 {
       #|  match value {
       #|    Option::some(Option::none()) => 1
       #|    Option::some(Option::none()) => 2
@@ -601,7 +601,7 @@ test "typecheck accepts exhaustive nested struct field patterns" {
       #|struct Box[A] {
       #|  value : A
       #|}
-      #|fn use(value : Box[Option[Int]]) -> Int {
+      #|fn use(value : Box[Option[I64]]) -> I64 {
       #|  match value {
       #|    Box::{ value: Option::none() } => 0
       #|    Box::{ value: Option::some(x) } => x
@@ -616,7 +616,7 @@ test "typecheck accepts exhaustive nested struct field patterns" {
 test "typecheck reports unreachable match arm" {
   let result = expect_typecheck_result(
     (
-      #|fn bad(value : Bool) -> Int {
+      #|fn bad(value : Bool) -> I64 {
       #|  match value {
       #|    _ => 1
       #|    true => 2
@@ -636,7 +636,7 @@ test "typecheck reports unreachable match arm" {
 test "typecheck compares int patterns by checked value" {
   let result = expect_typecheck_result(
     (
-      #|fn bad(value : Int) -> Int {
+      #|fn bad(value : I64) -> I64 {
       #|  match value {
       #|    1 => 1
       #|    01 => 2
@@ -658,9 +658,9 @@ test "typecheck reports duplicate pattern binder" {
   let result = expect_typecheck_result(
     (
       #|enum Pair {
-      #|  pair(Int, Int)
+      #|  pair(I64, I64)
       #|}
-      #|fn bad(value : Pair) -> Int {
+      #|fn bad(value : Pair) -> I64 {
       #|  match value {
       #|    Pair::pair(x, x) => x
       #|  }
@@ -680,10 +680,10 @@ test "typecheck reports missing struct pattern field" {
   let result = expect_typecheck_result(
     (
       #|struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
-      #|fn bad(point : Point) -> Int {
+      #|fn bad(point : Point) -> I64 {
       #|  match point {
       #|    Point::{ x } => x
       #|  }
@@ -703,10 +703,10 @@ test "typecheck produces checked struct pattern fields in declaration order" {
   let pattern = expect_first_checked_match_pattern(
     (
       #|struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
-      #|fn use(point : Point) -> Int {
+      #|fn use(point : Point) -> I64 {
       #|  match point {
       #|    Point::{ y, x } => x
       #|  }

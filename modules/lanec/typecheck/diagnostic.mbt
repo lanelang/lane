@@ -822,57 +822,57 @@ fn typecheck_diagnostic(
           "make `\{name}` public or change the public effect alias to hide it",
         ],
       )
-    InvalidIntLiteral(raw) =>
+    InvalidI64Literal(raw) =>
       diagnostic(
-        "invalid integer literal `\{raw}`",
+        "invalid I64 literal `\{raw}`",
         span~,
         severity=Error,
         code=Some("E3009"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "`\{raw}` cannot be represented as a Lane `Int`",
+            message: "`\{raw}` cannot be represented as a Lane `I64`",
             style: Primary,
           },
         ],
         notes=[
-          "Lane `Int` literals must fit the compiler's supported integer range",
+          "Lane `I64` literals must be between -9223372036854775808 and 9223372036854775807",
         ],
         helps=["use a smaller integer literal"],
       )
-    InvalidS32Literal(raw) =>
+    InvalidI32Literal(raw) =>
       diagnostic(
-        "invalid S32 literal `\{raw}`",
+        "invalid I32 literal `\{raw}`",
         span~,
         severity=Error,
         code=Some("E3034"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "`\{raw}` cannot be represented as a Lane `S32`",
+            message: "`\{raw}` cannot be represented as a Lane `I32`",
             style: Primary,
           },
         ],
-        notes=["Lane `S32` literals must be between -2147483648 and 2147483647"],
+        notes=["Lane `I32` literals must be between -2147483648 and 2147483647"],
         helps=["use a value in the signed 32-bit range"],
       )
-    InvalidDoubleLiteral(raw) =>
+    InvalidF64Literal(raw) =>
       diagnostic(
-        "invalid double literal `\{raw}`",
+        "invalid F64 literal `\{raw}`",
         span~,
         severity=Error,
         code=Some("E3025"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "`\{raw}` cannot be represented as a finite Lane `Double`",
+            message: "`\{raw}` cannot be represented as a finite Lane `F64`",
             style: Primary,
           },
         ],
         notes=[
-          "Lane `Double` literals must parse to a finite IEEE 754 binary64 value",
+          "Lane `F64` literals must parse to a finite IEEE 754 binary64 value",
         ],
-        helps=["use a finite double literal within the binary64 range"],
+        helps=["use a finite F64 literal within the binary64 range"],
       )
     UnknownBuiltin(name~) =>
       diagnostic(

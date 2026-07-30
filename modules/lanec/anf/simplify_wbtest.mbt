@@ -4,11 +4,11 @@ test "simplify ANF atom aliases without reordering calls" {
   let function = metadata.define_value(
     "function",
     External,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
-  let first = metadata.define_value("first", Local, Primitive(Int))
-  let second = metadata.define_value("second", Local, Primitive(Int))
-  let result = metadata.define_value("result", Local, Primitive(Int))
+  let first = metadata.define_value("first", Local, Primitive(I64))
+  let second = metadata.define_value("second", Local, Primitive(I64))
+  let result = metadata.define_value("result", Local, Primitive(I64))
   let first_temp = AnfTempId::{ index: 0 }
   let alias_temp = AnfTempId::{ index: 1 }
   let call_temp = AnfTempId::{ index: 2 }
@@ -19,7 +19,7 @@ test "simplify ANF atom aliases without reordering calls" {
       Let(
         result,
         Let(
-          Value(id=first, rhs=Atom(Literal(Int(42L)))),
+          Value(id=first, rhs=Atom(Literal(I64(42L)))),
           Let(
             Temp(temp=first_temp, rhs=Atom(Ref(first))),
             Let(
@@ -50,7 +50,7 @@ test "simplify ANF atom aliases without reordering calls" {
       #|    Let(
       #|      Temp(
       #|        temp={ index: 2 },
-      #|        rhs=Call(callee=Ref({ index: 0 }), arguments=[Literal(Int(42))]),
+      #|        rhs=Call(callee=Ref({ index: 0 }), arguments=[Literal(I64(42))]),
       #|      ),
       #|      Atom(Temp({ index: 2 })),
       #|    ),
@@ -63,18 +63,18 @@ test "simplify ANF atom aliases without reordering calls" {
 ///|
 test "simplify ANF aliases inside function and match scopes" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let parameter = metadata.define_value("parameter", Parameter, Primitive(Int))
-  let local_alias = metadata.define_value("alias", Local, Primitive(Int))
-  let binder = metadata.define_value("binder", Local, Primitive(Int))
+  let parameter = metadata.define_value("parameter", Parameter, Primitive(I64))
+  let local_alias = metadata.define_value("alias", Local, Primitive(I64))
+  let binder = metadata.define_value("binder", Local, Primitive(I64))
   let result = metadata.define_value(
     "result",
     Value,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let match_result = AnfTempId::{ index: 0 }
   let function = Function({
     parameters: [parameter],
-    result_type: Primitive(Int),
+    result_type: Primitive(I64),
     body: Let(
       Value(id=local_alias, rhs=Atom(Ref(parameter))),
       Let(
@@ -83,7 +83,7 @@ test "simplify ANF aliases inside function and match scopes" {
           rhs=Match({
             scrutinee: Ref(local_alias),
             binder,
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             alternatives: [
               {
                 alt_constructor: Default,
@@ -109,7 +109,7 @@ test "simplify ANF aliases inside function and match scopes" {
       #|      Function(
       #|        {
       #|          parameters: [{ index: 0 }],
-      #|          result_type: Primitive(Int),
+      #|          result_type: Primitive(I64),
       #|          body: Let(
       #|            Temp(
       #|              temp={ index: 0 },
@@ -117,7 +117,7 @@ test "simplify ANF aliases inside function and match scopes" {
       #|                {
       #|                  scrutinee: Ref({ index: 0 }),
       #|                  binder: { index: 2 },
-      #|                  result_type: Primitive(Int),
+      #|                  result_type: Primitive(I64),
       #|                  alternatives: [
       #|                    {
       #|                      alt_constructor: Default,

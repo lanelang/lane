@@ -217,7 +217,7 @@ test "Wasm reports Host Object use after explicit close" {
       parameters=@loisvm_runtime.HostParameters::one(
         @loisvm_runtime.HostParameter::host_object(store),
       ),
-      result=@loisvm_runtime.HostResult::int(),
+      result=@loisvm_runtime.HostResult::i64(),
       invoke=(_context, object : WasmTestHostObject) => {
         if object.closed {
           raise Failure(message="Host Object is closed")
@@ -248,7 +248,7 @@ test "Wasm reports Host Object use after explicit close" {
       BytecodeBody(entry),
       wasm_host_import("lane.test.wasm_host_new", [], Opaque),
       wasm_host_import("lane.test.wasm_host_close", [Opaque], Unit),
-      wasm_host_import("lane.test.wasm_host_read", [Opaque], Int),
+      wasm_host_import("lane.test.wasm_host_read", [Opaque], I64),
     ],
     layouts: [Reference],
     object_shapes: [],

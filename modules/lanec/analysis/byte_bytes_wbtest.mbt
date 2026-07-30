@@ -4,10 +4,10 @@ test "semantic hover preserves Byte and Bytes primitive names" {
   let source =
     #|module Main
     #|
-    #|let int_to_byte : (Int) -> Byte = builtin("%int_to_byte")
-    #|let bytes_make : (Int, Byte) -> Bytes = builtin("%bytes_make")
+    #|let i64_to_byte : (I64) -> Byte = builtin("%i64_to_byte")
+    #|let bytes_make : (I64, Byte) -> Bytes = builtin("%bytes_make")
     #|pub fn use() -> Unit {
-    #|  let byte = int_to_byte(255)
+    #|  let byte = i64_to_byte(255)
     #|  let bytes = bytes_make(2, byte)
     #|  let _ = bytes
     #|  ()
@@ -34,7 +34,7 @@ test "type-space completion includes every primitive type" {
   guard workspace.replace_sources([
       {
         source_id: "file:///Main.lane",
-        text: "module Main\n\npub let value : Int = 0",
+        text: "module Main\n\npub let value : I64 = 0",
       },
     ])
     is Some(_) else {
@@ -55,21 +55,21 @@ test "type-space completion includes every primitive type" {
     })
     .map(entry => (entry.label, entry.kind, entry.detail)),
     [
-      ("Int", Type, Some("primitive type Int")),
-      ("S32", Type, Some("primitive type S32")),
+      ("F64", Type, Some("primitive type F64")),
+      ("I32", Type, Some("primitive type I32")),
+      ("I64", Type, Some("primitive type I64")),
       ("Bool", Type, Some("primitive type Bool")),
       ("Byte", Type, Some("primitive type Byte")),
       ("Char", Type, Some("primitive type Char")),
       ("Unit", Type, Some("primitive type Unit")),
       ("Bytes", Type, Some("primitive type Bytes")),
-      ("Double", Type, Some("primitive type Double")),
       ("String", Type, Some("primitive type String")),
     ],
   )
 }
 
 ///|
-test "semantic analysis preserves S32 and Char identity" {
+test "semantic analysis preserves I32 and Char identity" {
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
       {
@@ -77,7 +77,7 @@ test "semantic analysis preserves S32 and Char identity" {
         text: (
           #|module Main
           #|
-          #|pub fn convert(value : S32) -> Char {
+          #|pub fn convert(value : I32) -> Char {
           #|  match value {
           #|    _ => '你'
           #|  }
@@ -108,7 +108,7 @@ test "semantic analysis preserves S32 and Char identity" {
       #|        },
       #|      },
       #|      label: "convert",
-      #|      detail: "convert : (S32) -> Char",
+      #|      detail: "convert : (I32) -> Char",
       #|    },
       #|    {
       #|      symbol: Value({ index: 1 }),
@@ -124,7 +124,7 @@ test "semantic analysis preserves S32 and Char identity" {
       #|        },
       #|      },
       #|      label: "value",
-      #|      detail: "value : S32",
+      #|      detail: "value : I32",
       #|    },
       #|  ],
       #|  references: [
@@ -141,7 +141,7 @@ test "semantic analysis preserves S32 and Char identity" {
       #|        },
       #|      },
       #|      symbol: Value({ index: 1 }),
-      #|      hover: Some("value : S32"),
+      #|      hover: Some("value : I32"),
       #|    },
       #|  ],
       #|  hovers: [
@@ -157,7 +157,7 @@ test "semantic analysis preserves S32 and Char identity" {
       #|          end_column: 15,
       #|        },
       #|      },
-      #|      contents: "convert : (S32) -> Char",
+      #|      contents: "convert : (I32) -> Char",
       #|    },
       #|    {
       #|      location: {
@@ -171,7 +171,7 @@ test "semantic analysis preserves S32 and Char identity" {
       #|          end_column: 21,
       #|        },
       #|      },
-      #|      contents: "value : S32",
+      #|      contents: "value : I32",
       #|    },
       #|    {
       #|      location: {
@@ -185,7 +185,7 @@ test "semantic analysis preserves S32 and Char identity" {
       #|          end_column: 14,
       #|        },
       #|      },
-      #|      contents: "value : S32",
+      #|      contents: "value : I32",
       #|    },
       #|  ],
       #|  semantic_tokens: [

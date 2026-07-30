@@ -182,23 +182,23 @@ test "core optimizer removes an unused empty-effect call" {
 ///|
 test "core optimizer reduces trivial beta calls and known constructor matches" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let box_type = metadata.define_type("Box", [])
   let box_constructor = metadata.define_data_constructor("box", box_type, [], [
-    int_type,
+    i64_type,
   ])
   let box_value_type = @buslane.Type::Constructor(box_type)
-  let parameter = metadata.define_value("parameter", Parameter, int_type)
+  let parameter = metadata.define_value("parameter", Parameter, i64_type)
   let match_binder = metadata.define_value(
     "matched",
     MatchBinder,
     box_value_type,
   )
-  let field = metadata.define_value("field", MatchBinder, int_type)
+  let field = metadata.define_value("field", MatchBinder, i64_type)
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], int_type, Empty),
+    Function([], i64_type, Empty),
   )
   let program : @buslane.Program = {
     metadata,
@@ -207,11 +207,11 @@ test "core optimizer reduces trivial beta calls and known constructor matches" {
         main,
         Function({
           parameters: [],
-          result_type: int_type,
+          result_type: i64_type,
           body: Call(
             Function({
               parameters: [parameter],
-              result_type: int_type,
+              result_type: i64_type,
               body: Match({
                 scrutinee: Construct({
                   data_constructor: box_constructor,
@@ -220,7 +220,7 @@ test "core optimizer reduces trivial beta calls and known constructor matches" {
                   payloads: [Ref(parameter)],
                 }),
                 binder: match_binder,
-                result_type: int_type,
+                result_type: i64_type,
                 alternatives: [
                   {
                     alt_constructor: DataCon(box_constructor),
@@ -231,7 +231,7 @@ test "core optimizer reduces trivial beta calls and known constructor matches" {
                 ],
               }),
             }),
-            [Literal(Int(42L))],
+            [Literal(I64(42L))],
           ),
         }),
       ),
@@ -249,8 +249,8 @@ test "core optimizer reduces trivial beta calls and known constructor matches" {
       #|    Function(
       #|      {
       #|        parameters: [],
-      #|        result_type: Primitive(Int),
-      #|        body: Literal(Int(42)),
+      #|        result_type: Primitive(I64),
+      #|        body: Literal(I64(42)),
       #|      },
       #|    ),
       #|  ),

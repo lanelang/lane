@@ -1,14 +1,14 @@
 ///|
 fn nullary_int_function_type(effect : Effect) -> Type {
-  Function([], Primitive(Int), effect)
+  Function([], Primitive(I64), effect)
 }
 
 ///|
 fn constant_int_function() -> Expr {
   Function({
     parameters: [],
-    result_type: Primitive(Int),
-    body: Literal(Int(0L)),
+    result_type: Primitive(I64),
+    body: Literal(I64(0L)),
   })
 }
 
@@ -20,7 +20,7 @@ test "verify buslane rejects forall function implementation with mismatched bind
   let function = metadata.define_value(
     "function",
     Function,
-    Forall([expected_parameter], Function([], Primitive(Int), Empty)),
+    Forall([expected_parameter], Function([], Primitive(I64), Empty)),
   )
   let program = Program::{
     metadata,
@@ -32,8 +32,8 @@ test "verify buslane rejects forall function implementation with mismatched bind
             [actual_parameter],
             Function({
               parameters: [],
-              result_type: Primitive(Int),
-              body: Literal(Int(0L)),
+              result_type: Primitive(I64),
+              body: Literal(I64(0L)),
             }),
           ),
         },
@@ -45,8 +45,8 @@ test "verify buslane rejects forall function implementation with mismatched bind
     content=(
       #|verify_result {
       #|  type_mismatch {
-      #|    expected forall [tparam#0]. () -> Int
-      #|    actual forall [tparam#1]. () -> Int
+      #|    expected forall [tparam#0]. () -> I64
+      #|    actual forall [tparam#1]. () -> I64
       #|  }
       #|}
     ),
@@ -60,11 +60,11 @@ test "verify buslane exact binding compares forall binder kinds" {
   let actual_parameter = metadata.define_type_parameter("E", Effect)
   let expected_type = Type::Forall(
     [expected_parameter],
-    Function([], Primitive(Int), Empty),
+    Function([], Primitive(I64), Empty),
   )
   let actual_type = Type::Forall(
     [actual_parameter],
-    Function([], Primitive(Int), Empty),
+    Function([], Primitive(I64), Empty),
   )
   let initializer = metadata.define_value("initializer", External, actual_type)
   let binding = metadata.define_value("binding", Value, expected_type)
@@ -77,8 +77,8 @@ test "verify buslane exact binding compares forall binder kinds" {
     content=(
       #|verify_result {
       #|  type_mismatch {
-      #|    expected forall [tparam#0]. () -> Int
-      #|    actual forall [tparam#1]. () -> Int
+      #|    expected forall [tparam#0]. () -> I64
+      #|    actual forall [tparam#1]. () -> I64
       #|  }
       #|}
     ),
@@ -92,16 +92,16 @@ test "verify buslane compares nested forall binder kinds in function implementat
   let actual_parameter = metadata.define_type_parameter("E", Effect)
   let expected_argument = Type::Forall(
     [expected_parameter],
-    Function([], Primitive(Int), Empty),
+    Function([], Primitive(I64), Empty),
   )
   let actual_argument = Type::Forall(
     [actual_parameter],
-    Function([], Primitive(Int), Empty),
+    Function([], Primitive(I64), Empty),
   )
   let function = metadata.define_value(
     "function",
     Function,
-    Function([expected_argument], Primitive(Int), Empty),
+    Function([expected_argument], Primitive(I64), Empty),
   )
   let parameter = metadata.define_value("parameter", Parameter, actual_argument)
   let program = Program::{
@@ -112,8 +112,8 @@ test "verify buslane compares nested forall binder kinds in function implementat
           id: function,
           rhs: Function({
             parameters: [parameter],
-            result_type: Primitive(Int),
-            body: Literal(Int(0L)),
+            result_type: Primitive(I64),
+            body: Literal(I64(0L)),
           }),
         },
       ]),
@@ -124,8 +124,8 @@ test "verify buslane compares nested forall binder kinds in function implementat
     content=(
       #|verify_result {
       #|  type_mismatch {
-      #|    expected (forall [tparam#0]. () -> Int) -> Int
-      #|    actual (forall [tparam#1]. () -> Int) -> Int
+      #|    expected (forall [tparam#0]. () -> I64) -> I64
+      #|    actual (forall [tparam#1]. () -> I64) -> I64
       #|  }
       #|}
     ),
@@ -171,8 +171,8 @@ test "verify buslane keeps direct function-valued value bindings exact" {
     content=(
       #|verify_result {
       #|  type_mismatch {
-      #|    expected () -> Int ! effect#0
-      #|    actual () -> Int
+      #|    expected () -> I64 ! effect#0
+      #|    actual () -> I64
       #|  }
       #|}
     ),
@@ -202,8 +202,8 @@ test "verify buslane keeps function references exact in non-recursive bindings" 
     content=(
       #|verify_result {
       #|  type_mismatch {
-      #|    expected () -> Int ! effect#0
-      #|    actual () -> Int
+      #|    expected () -> I64 ! effect#0
+      #|    actual () -> I64
       #|  }
       #|}
     ),
@@ -219,7 +219,7 @@ test "verify buslane widens a direct local function implementation" {
     Local,
     nullary_int_function_type(Singleton(read, [])),
   )
-  let result = metadata.define_value("result", Value, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
   let program = Program::{
     metadata,
     terms: [
@@ -227,7 +227,7 @@ test "verify buslane widens a direct local function implementation" {
         result,
         LetRec(
           [{ id: local_function, rhs: constant_int_function() }],
-          Literal(Int(0L)),
+          Literal(I64(0L)),
         ),
       ),
     ],

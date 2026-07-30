@@ -54,9 +54,9 @@ pub(all) enum Kind {
 pub impl @prettyprinter.Pretty for Kind
 
 pub(all) enum PrimitiveType {
-  Int
-  S32
-  Double
+  I64
+  I32
+  F64
   Bool
   String
   Char

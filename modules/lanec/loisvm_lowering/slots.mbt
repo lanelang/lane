@@ -79,21 +79,21 @@ fn slot_metadata(
         ownership: Trivial,
         erased_companion: None,
       }
-    Primitive(S32) | Primitive(Char) =>
+    Primitive(I32) | Primitive(Char) =>
       {
         representation: I32,
         cleanup: Trivial,
         ownership: Trivial,
         erased_companion: None,
       }
-    Primitive(Int) =>
+    Primitive(I64) =>
       {
         representation: I64,
         cleanup: Trivial,
         ownership: Trivial,
         erased_companion: None,
       }
-    Primitive(Double) =>
+    Primitive(F64) =>
       {
         representation: F64,
         cleanup: Trivial,
@@ -166,15 +166,15 @@ fn result_representation(
   match type_ {
     Primitive(Unit) => Unit
     Primitive(Bool)
-    | Primitive(S32)
+    | Primitive(I32)
     | Primitive(Char)
     | Primitive(String)
     | Primitive(Byte)
     | Primitive(Bytes)
     | Constructor(_)
     | Apply(_, _) => I32
-    Primitive(Int) | Function(_, _, _) | Forall(_, _) | Parameter(_) => I64
-    Primitive(Double) => F64
+    Primitive(I64) | Function(_, _, _) | Forall(_, _) | Parameter(_) => I64
+    Primitive(F64) => F64
     _ => raise UnsupportedType(type_~)
   }
 }

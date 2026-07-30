@@ -74,8 +74,8 @@ test "simplify VM CFG removes unused parameters and dead scalar work" {
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 1 }, 40L),
-          IntAdd({ value: 2 }, { value: 0 }, { value: 1 }),
+          ConstI64({ value: 1 }, 40L),
+          I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
         ],
         terminator: Jump({
           target: { value: 1 },
@@ -96,8 +96,8 @@ test "simplify VM CFG removes unused parameters and dead scalar work" {
       #|  {
       #|    parameters: [],
       #|    instructions: [
-      #|      ConstInt({ value: 1 }, 40),
-      #|      IntAdd({ value: 2 }, { value: 0 }, { value: 1 }),
+      #|      ConstI64({ value: 1 }, 40),
+      #|      I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
       #|    ],
       #|    terminator: Jump({ target: { value: 1 }, arguments: [{ value: 2 }] }),
       #|  },
@@ -129,13 +129,13 @@ test "simplify VM CFG reuses local constants and scalar slots" {
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 0 }, 1L),
-          ConstInt({ value: 1 }, 2L),
-          IntAdd({ value: 2 }, { value: 0 }, { value: 1 }),
-          ConstInt({ value: 3 }, 1L),
-          IntAdd({ value: 4 }, { value: 2 }, { value: 3 }),
-          ConstInt({ value: 5 }, 3L),
-          IntAdd({ value: 6 }, { value: 4 }, { value: 5 }),
+          ConstI64({ value: 0 }, 1L),
+          ConstI64({ value: 1 }, 2L),
+          I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
+          ConstI64({ value: 3 }, 1L),
+          I64Add({ value: 4 }, { value: 2 }, { value: 3 }),
+          ConstI64({ value: 5 }, 3L),
+          I64Add({ value: 6 }, { value: 4 }, { value: 5 }),
         ],
         terminator: Return(Some({ value: 6 })),
       },
@@ -150,12 +150,12 @@ test "simplify VM CFG reuses local constants and scalar slots" {
       #|  {
       #|    parameters: [],
       #|    instructions: [
-      #|      ConstInt({ value: 0 }, 1),
-      #|      ConstInt({ value: 1 }, 2),
-      #|      IntAdd({ value: 2 }, { value: 0 }, { value: 1 }),
-      #|      IntAdd({ value: 1 }, { value: 2 }, { value: 0 }),
-      #|      ConstInt({ value: 0 }, 3),
-      #|      IntAdd({ value: 2 }, { value: 1 }, { value: 0 }),
+      #|      ConstI64({ value: 0 }, 1),
+      #|      ConstI64({ value: 1 }, 2),
+      #|      I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
+      #|      I64Add({ value: 1 }, { value: 2 }, { value: 0 }),
+      #|      ConstI64({ value: 0 }, 3),
+      #|      I64Add({ value: 2 }, { value: 1 }, { value: 0 }),
       #|    ],
       #|    terminator: Return(Some({ value: 2 })),
       #|  },

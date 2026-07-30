@@ -39,7 +39,7 @@ The Wasm tier currently targets MoonBit native builds because it embeds Wasmoon.
 
 ## Runnable end-to-end example
 
-The following tested example constructs a bytecode image without Lane, round-trips it through the binary codec, binds a host function, and runs the exact decoded image through both backends. The bytecode computes `40 + 2` and sends the result to `example.observe_int`.
+The following tested example constructs a bytecode image without Lane, round-trips it through the binary codec, binds a host function, and runs the exact decoded image through both backends. The bytecode computes `40 + 2` and sends the result to `example.observe_i64`.
 
 ```moonbit check
 ///|
@@ -66,9 +66,9 @@ fn example_image() -> @bytecode.BytecodeImage {
       {
         parameters: [],
         instructions: [
-          ConstInt(left, 40L),
-          ConstInt(right, 2L),
-          IntAdd(sum, left, right),
+          ConstI64(left, 40L),
+          ConstI64(right, 2L),
+          I64Add(sum, left, right),
           CallDirect({ value: 2 }, None, [], [sum], None),
         ],
         terminator: Return(None),
@@ -83,9 +83,9 @@ fn example_image() -> @bytecode.BytecodeImage {
       BytecodeBody(entry),
       RuntimeImport({
         abi_major: 1,
-        parameters: [Int],
+        parameters: [I64],
         result: Unit,
-        symbol: "example.observe_int",
+        symbol: "example.observe_i64",
       }),
     ],
     layouts: [],
@@ -99,13 +99,13 @@ fn example_registry(observed : Array[Int64]) -> @runtime.RuntimeRegistry {
   let registry = @runtime.RuntimeRegistry::new()
   registry.register(
     @runtime.RuntimeBinding::new(
-      symbol="example.observe_int",
+      symbol="example.observe_i64",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=(_context, arguments) => {
-        guard arguments is [Int(value)] else {
-          raise Failure(message="example.observe_int expects one Int")
+        guard arguments is [I64(value)] else {
+          raise Failure(message="example.observe_i64 expects one I64")
         }
         observed.push(value)
         Unit
@@ -185,8 +185,8 @@ Bindings declare their full direct-value signature through `RuntimeBinding`:
 
 - `Unit`
 - `Bool`
-- `Int`, represented to the host as `Int64`
-- `Double`
+- `I64`, represented to the host as `Int64`
+- `F64`, represented to the host as `Double`
 - `String`
 - `Opaque`, represented to bindings as borrowed or owned Host Objects
 
@@ -201,7 +201,7 @@ extern type Counter : Type
 extern type CounterIo : Effect
 
 let counter_new : () -> Counter ! CounterIo = extern("counter.new")
-let counter_add : (Counter, Int) -> Int ! CounterIo = extern("counter.add")
+let counter_add : (Counter, I64) -> I64 ! CounterIo = extern("counter.add")
 let counter_close : (Counter) -> Unit ! CounterIo = extern("counter.close")
 ```
 
@@ -246,9 +246,9 @@ fn readme_counter_registry(
         @runtime.HostParameters::one(
           @runtime.HostParameter::host_object(counters),
         ),
-        @runtime.HostParameters::one(@runtime.HostParameter::int()),
+        @runtime.HostParameters::one(@runtime.HostParameter::i64()),
       ),
-      result=@runtime.HostResult::int(),
+      result=@runtime.HostResult::i64(),
       invoke=(_context, arguments : (ReadmeCounter, Int64)) => {
         if arguments.0.closed {
           raise Failure(message="counter is closed")
@@ -262,7 +262,7 @@ fn readme_counter_registry(
     @runtime.RuntimeBinding::typed(
       symbol="counter.observe",
       abi_major=1,
-      parameters=@runtime.HostParameters::one(@runtime.HostParameter::int()),
+      parameters=@runtime.HostParameters::one(@runtime.HostParameter::i64()),
       result=@runtime.HostResult::unit(),
       invoke=(_context, value : Int64) => observed.push(value),
     ),
@@ -299,8 +299,8 @@ test "typed host registration declares primitive and Opaque ABI kinds" {
     content=(
       #|[
       #|  Some(("counter.new", [], Opaque)),
-      #|  Some(("counter.add", [Opaque, Int], Int)),
-      #|  Some(("counter.observe", [Int], Unit)),
+      #|  Some(("counter.add", [Opaque, I64], I64)),
+      #|  Some(("counter.observe", [I64], Unit)),
       #|  Some(("counter.close", [Opaque], Unit)),
       #|]
     ),

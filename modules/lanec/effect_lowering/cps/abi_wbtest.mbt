@@ -9,12 +9,12 @@ test "selective CPS keeps pure definitions and calls direct" {
   let pure = metadata.define_value(
     "pure",
     External,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
-  let result = metadata.define_value("result", Value, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
   let input = Program::{
     metadata,
-    terms: [External(pure), Let(result, Call(Ref(pure), [Literal(Int(1L))]))],
+    terms: [External(pure), Let(result, Call(Ref(pure), [Literal(I64(1L))]))],
   }
   let output = rewrite_test_program(input)
   assert_eq(output, input)
@@ -66,12 +66,12 @@ test "selective CPS keeps external-effect definitions and calls direct" {
   let vector_get = metadata.define_value(
     "vector_get",
     External,
-    Function([Primitive(Int)], Primitive(Int), effect),
+    Function([Primitive(I64)], Primitive(I64), effect),
   )
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], Primitive(Int), effect),
+    Function([], Primitive(I64), effect),
   )
   let input = Program::{
     metadata,
@@ -82,8 +82,8 @@ test "selective CPS keeps external-effect definitions and calls direct" {
           id: main,
           rhs: Function({
             parameters: [],
-            result_type: Primitive(Int),
-            body: Call(Ref(vector_get), [Literal(Int(0L))]),
+            result_type: Primitive(I64),
+            body: Call(Ref(vector_get), [Literal(I64(0L))]),
           }),
         },
       ]),
@@ -99,7 +99,7 @@ test "selective CPS keeps external-effect definitions and calls direct" {
     content=(
       #|(
       #|  Some(External),
-      #|  Some(Function([], Primitive(Int), Singleton({ index: 0 }, []))),
+      #|  Some(Function([], Primitive(I64), Singleton({ index: 0 }, []))),
       #|)
     ),
   )
@@ -209,7 +209,7 @@ test "direct calls bridge Unit-specialized CPS callables" {
   let encoded_type = @buslane.Type::Forall(
     [answer],
     Function(
-      [Primitive(Unit), Function([Primitive(Int)], Parameter(answer), Empty)],
+      [Primitive(Unit), Function([Primitive(I64)], Parameter(answer), Empty)],
       Parameter(answer),
       Empty,
     ),
@@ -220,18 +220,18 @@ test "direct calls bridge Unit-specialized CPS callables" {
     program.metadata,
     Ref(encoded),
     [],
-    Primitive(Int),
+    Primitive(I64),
     1,
   )
   guard bridged
     is Call(
-      TypeApply(Ref(callee), [TypeArgument(Primitive(Int))]),
+      TypeApply(Ref(callee), [TypeArgument(Primitive(I64))]),
       [Literal(Unit), Function(identity)]
     ) else {
     abort("expected direct CPS bridge")
   }
   assert_eq(callee, encoded)
-  assert_eq(identity.result_type, Primitive(Int))
+  assert_eq(identity.result_type, Primitive(I64))
   assert_eq(identity.body, Ref(identity.parameters[0]))
 }
 
@@ -243,14 +243,14 @@ test "selective CPS rewrites monadic function and tail call ABI" {
   let callee = metadata.define_value(
     "callee",
     External,
-    Function([Primitive(Int)], Primitive(Int), latent),
+    Function([Primitive(I64)], Primitive(I64), latent),
   )
   let outer = metadata.define_value(
     "outer",
     Function,
-    Function([Primitive(Int)], Primitive(Int), latent),
+    Function([Primitive(I64)], Primitive(I64), latent),
   )
-  let input = metadata.define_value("input", Parameter, Primitive(Int))
+  let input = metadata.define_value("input", Parameter, Primitive(I64))
   let output = rewrite_test_program({
     metadata,
     terms: [
@@ -260,7 +260,7 @@ test "selective CPS rewrites monadic function and tail call ABI" {
           id: outer,
           rhs: Function({
             parameters: [input],
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             body: Call(Ref(callee), [Ref(input)]),
           }),
         },
@@ -297,7 +297,7 @@ test "selective CPS rewrites monadic function and tail call ABI" {
   assert_eq(context_answer, Parameter(answer))
   assert_eq(
     metadata.value_info(continuation).unwrap().type_,
-    Function([Primitive(Int)], Parameter(answer), Empty),
+    Function([Primitive(I64)], Parameter(answer), Empty),
   )
   assert_cps_ordinary_output(output)
 }
@@ -307,7 +307,7 @@ test "selective CPS synchronizes local generic callable metadata" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])
   let latent : @buslane.Effect = Singleton(effect, [])
-  let local_type : @buslane.Type = Function([], Primitive(Int), latent)
+  let local_type : @buslane.Type = Function([], Primitive(I64), latent)
   let local_function = metadata.define_value("local", Local, local_type)
   let outer = metadata.define_value(
     "outer",
@@ -329,8 +329,8 @@ test "selective CPS synchronizes local generic callable metadata" {
                   id: local_function,
                   rhs: Function({
                     parameters: [],
-                    result_type: Primitive(Int),
-                    body: Literal(Int(1L)),
+                    result_type: Primitive(I64),
+                    body: Literal(I64(1L)),
                   }),
                 },
               ],
@@ -383,7 +383,7 @@ test "direct CPS lowering commits local binding metadata" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])
   let latent : @buslane.Effect = Singleton(effect, [])
-  let local_type : @buslane.Type = Function([], Primitive(Int), latent)
+  let local_type : @buslane.Type = Function([], Primitive(I64), latent)
   let local_function = metadata.define_value("local", Local, local_type)
   let source = Program::{ metadata: metadata.snapshot(), terms: [] }
   let counts = CpsSourceCounts::{
@@ -400,8 +400,8 @@ test "direct CPS lowering commits local binding metadata" {
       local_function,
       Function({
         parameters: [],
-        result_type: Primitive(Int),
-        body: Literal(Int(1L)),
+        result_type: Primitive(I64),
+        body: Literal(I64(1L)),
       }),
       Ref(local_function),
     ),
@@ -428,8 +428,8 @@ test "direct CPS lowering commits local binding metadata" {
 ///|
 test "recursive CPS metadata commit is atomic" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let first = metadata.define_value("first", Local, Primitive(Int))
-  let second = metadata.define_value("second", Local, Primitive(Int))
+  let first = metadata.define_value("first", Local, Primitive(I64))
+  let second = metadata.define_value("second", Local, Primitive(I64))
   let missing = @buslane.ValueId::{ index: 2 }
   let result : Result[Unit, SynthesisError] = try {
     commit_cps_recursive_binding_types(metadata, [
@@ -446,7 +446,7 @@ test "recursive CPS metadata commit is atomic" {
       metadata.value_info(first).unwrap().type_,
       metadata.value_info(second).unwrap().type_,
     ),
-    (Err(UnknownValue(missing)), Primitive(Int), Primitive(Int)),
+    (Err(UnknownValue(missing)), Primitive(I64), Primitive(I64)),
   )
 }
 
@@ -458,19 +458,19 @@ test "selective CPS composes an explicit bind continuation" {
   let effectful = metadata.define_value(
     "effectful",
     External,
-    Function([], Primitive(Int), latent),
+    Function([], Primitive(I64), latent),
   )
   let pure = metadata.define_value(
     "pure",
     External,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let outer = metadata.define_value(
     "outer",
     Function,
-    Function([], Primitive(Int), latent),
+    Function([], Primitive(I64), latent),
   )
-  let local_value = metadata.define_value("local", Local, Primitive(Int))
+  let local_value = metadata.define_value("local", Local, Primitive(I64))
   let output = rewrite_test_program({
     metadata,
     terms: [
@@ -481,7 +481,7 @@ test "selective CPS composes an explicit bind continuation" {
           id: outer,
           rhs: Function({
             parameters: [],
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             body: Let(
               local_value,
               Call(Ref(effectful), []),
@@ -528,7 +528,7 @@ test "selective CPS replaces effect polymorphism with companions" {
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let generic_type : @buslane.Type = Forall(
     [effect_parameter],
-    Function([], Primitive(Int), Parameter(effect_parameter)),
+    Function([], Primitive(I64), Parameter(effect_parameter)),
   )
   let callee = metadata.define_value("callee", External, generic_type)
   let outer = metadata.define_value("outer", Function, generic_type)
@@ -543,7 +543,7 @@ test "selective CPS replaces effect polymorphism with companions" {
             [effect_parameter],
             Function({
               parameters: [],
-              result_type: Primitive(Int),
+              result_type: Primitive(I64),
               body: Call(
                 TypeApply(Ref(callee), [
                   EffectArgument(Parameter(effect_parameter)),
@@ -592,12 +592,12 @@ test "selective CPS calls a first-class effectful callable" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])
   let latent : @buslane.Effect = Singleton(effect, [])
-  let action_type : @buslane.Type = Function([], Primitive(Int), latent)
+  let action_type : @buslane.Type = Function([], Primitive(I64), latent)
   let action = metadata.define_value("action", Parameter, action_type)
   let apply = metadata.define_value(
     "apply",
     Function,
-    Function([action_type], Primitive(Int), latent),
+    Function([action_type], Primitive(I64), latent),
   )
   let output = rewrite_test_program({
     metadata,
@@ -607,7 +607,7 @@ test "selective CPS calls a first-class effectful callable" {
           id: apply,
           rhs: Function({
             parameters: [action],
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             body: Call(Ref(action), []),
           }),
         },
@@ -639,7 +639,7 @@ test "selective CPS calls a first-class effectful callable" {
   assert_eq(action_result, Parameter(action_answer))
   assert_eq(
     action_continuation,
-    Function([Primitive(Int)], Parameter(action_answer), Empty),
+    Function([Primitive(I64)], Parameter(action_answer), Empty),
   )
   assert_cps_ordinary_output(output)
 }
@@ -652,22 +652,22 @@ test "selective CPS preserves effectful argument evaluation order" {
   let first = metadata.define_value(
     "first",
     External,
-    Function([], Primitive(Int), latent),
+    Function([], Primitive(I64), latent),
   )
   let second = metadata.define_value(
     "second",
     External,
-    Function([], Primitive(Int), latent),
+    Function([], Primitive(I64), latent),
   )
   let combine = metadata.define_value(
     "combine",
     External,
-    Function([Primitive(Int), Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64), Primitive(I64)], Primitive(I64), Empty),
   )
   let outer = metadata.define_value(
     "outer",
     Function,
-    Function([], Primitive(Int), latent),
+    Function([], Primitive(I64), latent),
   )
   let output = rewrite_test_program({
     metadata,
@@ -680,7 +680,7 @@ test "selective CPS preserves effectful argument evaluation order" {
           id: outer,
           rhs: Function({
             parameters: [],
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             body: Call(Ref(combine), [
               Call(Ref(first), []),
               Call(Ref(second), []),
@@ -740,24 +740,24 @@ test "selective CPS shares one continuation after monadic match branches" {
   let effectful = metadata.define_value(
     "effectful",
     External,
-    Function([], Primitive(Int), latent),
+    Function([], Primitive(I64), latent),
   )
   let pure = metadata.define_value(
     "pure",
     External,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let outer = metadata.define_value(
     "outer",
     Function,
-    Function([], Primitive(Int), latent),
+    Function([], Primitive(I64), latent),
   )
   let match_binder = metadata.define_value(
     "match",
     MatchBinder,
     Primitive(Bool),
   )
-  let local_value = metadata.define_value("local", Local, Primitive(Int))
+  let local_value = metadata.define_value("local", Local, Primitive(I64))
   let output = rewrite_test_program({
     metadata,
     terms: [
@@ -768,13 +768,13 @@ test "selective CPS shares one continuation after monadic match branches" {
           id: outer,
           rhs: Function({
             parameters: [],
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             body: Let(
               local_value,
               Match({
                 scrutinee: Literal(Bool(true)),
                 binder: match_binder,
-                result_type: Primitive(Int),
+                result_type: Primitive(I64),
                 alternatives: [
                   {
                     alt_constructor: Literal(Bool(true)),
@@ -786,7 +786,7 @@ test "selective CPS shares one continuation after monadic match branches" {
                     alt_constructor: Default,
                     type_binders: [],
                     value_binders: [],
-                    body: Literal(Int(0L)),
+                    body: Literal(I64(0L)),
                   },
                 ],
               }),
@@ -810,7 +810,7 @@ test "selective CPS shares one continuation after monadic match branches" {
     abort("expected effectful branch continuation")
   }
   guard transformed_match.alternatives[1].body
-    is Call(second_continuation, [Literal(Int(0L))]) else {
+    is Call(second_continuation, [Literal(I64(0L))]) else {
     abort("expected pure branch continuation")
   }
   assert_eq(first_continuation, second_continuation)
@@ -823,7 +823,7 @@ test "selective CPS selects a generic operation dictionary field" {
   let element = metadata.define_type_parameter("Element", Type)
   let hidden = metadata.define_type_parameter("Hidden", Type)
   let effect = metadata.define_effect("Effect", [element])
-  ignore(metadata.define_operation("first", effect, [], [], Primitive(Int)))
+  ignore(metadata.define_operation("first", effect, [], [], Primitive(I64)))
   let operation = metadata.define_operation(
     "second",
     effect,
@@ -831,7 +831,7 @@ test "selective CPS selects a generic operation dictionary field" {
     [Parameter(hidden), Parameter(element)],
     Primitive(Unit),
   )
-  let latent = @buslane.Effect::Singleton(effect, [TypeArgument(Primitive(Int))])
+  let latent = @buslane.Effect::Singleton(effect, [TypeArgument(Primitive(I64))])
   let outer = metadata.define_value(
     "outer",
     Function,
@@ -848,9 +848,9 @@ test "selective CPS selects a generic operation dictionary field" {
             result_type: Primitive(Unit),
             body: Invoke({
               operation,
-              effect_arguments: [TypeArgument(Primitive(Int))],
+              effect_arguments: [TypeArgument(Primitive(I64))],
               hidden_witnesses: [TypeArgument(Primitive(String))],
-              payloads: [Literal(String("payload")), Literal(Int(1L))],
+              payloads: [Literal(String("payload")), Literal(I64(1L))],
             }),
           }),
         },
@@ -878,7 +878,7 @@ test "selective CPS selects a generic operation dictionary field" {
     body,
     Call(TypeApply(Ref(second_field), [TypeArgument(Primitive(String))]), [
       Literal(String("payload")),
-      Literal(Int(1L)),
+      Literal(I64(1L)),
       Ref(continuation),
     ]),
   )

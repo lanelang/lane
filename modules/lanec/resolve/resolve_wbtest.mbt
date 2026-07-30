@@ -13,14 +13,14 @@ test "collect top level declaration symbols" {
   let file = expect_parse_ok(
     (
       #|struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
       #|enum Option[A] {
       #|  none()
       #|  some(A)
       #|}
-      #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
+      #|fn unwrap_or(value : Option[I64], fallback : I64) -> I64 {
       #|  match value {
       #|    Option::none() => fallback
       #|    Option::some(x) => x
@@ -62,14 +62,14 @@ test "collect top level declaration symbols" {
       #|  }
       #|  declarations {
       #|    struct type#0 Point {
-      #|      field field#0 x : Int index=0
-      #|      field field#1 y : Int index=1
+      #|      field field#0 x : I64 index=0
+      #|      field field#1 y : I64 index=1
       #|    }
       #|    enum type#1 Option[tparam#0 A] {
       #|      variant variant#0 none index=0 payloads=0
       #|      variant variant#1 some index=1 payloads=1(tparam#0 A)
       #|    }
-      #|    fn value#0 unwrap_or(value#2 value : type#1 Option[Int], value#3 fallback : Int) -> Int {
+      #|    fn value#0 unwrap_or(value#2 value : type#1 Option[I64], value#3 fallback : I64) -> I64 {
       #|      match var value#2 value {
       #|        variant#0 Option::none => var value#3 fallback
       #|        variant#1 Option::some(bind value#4 x) => var value#4 x
@@ -138,10 +138,10 @@ test "resolve local effect alias references" {
   let file = expect_parse_ok(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|effect Log {
-      #|  write(Int) -> Unit
+      #|  write(I64) -> Unit
       #|}
       #|type UI = { Console, Log }
       #|type Task[E : Effect] = { UI, E }
@@ -375,7 +375,7 @@ test "resolve rejects overlapping effect and type alias name" {
   let file = expect_parse_ok(
     (
       #|effect IO {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|type IO = { IO }
     ),
@@ -398,7 +398,7 @@ test "resolve rejects overlapping effect and struct name" {
     (
       #|struct IO {}
       #|effect IO {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
     ),
   )
@@ -419,7 +419,7 @@ test "resolve rejects overlapping effect and enum name" {
   let file = expect_parse_ok(
     (
       #|effect Choice {
-      #|  pick() -> Int
+      #|  pick() -> I64
       #|}
       #|enum Choice {
       #|  none()
@@ -444,7 +444,7 @@ test "resolve allows distinct effect and type names" {
     (
       #|struct Box {}
       #|effect IO {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|type UI = { IO }
     ),
@@ -536,7 +536,7 @@ test "resolve handler operation arms and binders" {
 test "resolve unqualified variant calls after nominal member collection" {
   let file = expect_parse_ok(
     (
-      #|fn wrap(value : Int) -> Option[Int] {
+      #|fn wrap(value : I64) -> Option[I64] {
       #|  some(value)
       #|}
       #|enum Option[A] {
@@ -570,7 +570,7 @@ test "resolve unqualified variant calls after nominal member collection" {
       #|    }
       #|  }
       #|  declarations {
-      #|    fn value#0 wrap(value#1 value : Int) -> type#0 Option[Int] {
+      #|    fn value#0 wrap(value#1 value : I64) -> type#0 Option[I64] {
       #|      variant#1 some(var value#1 value)
       #|    }
       #|    enum type#0 Option[tparam#0 A] {
@@ -591,7 +591,7 @@ test "report payloadless unqualified variant without parentheses" {
       #|  none()
       #|  some(A)
       #|}
-      #|fn empty() -> Option[Int] {
+      #|fn empty() -> Option[I64] {
       #|  none
       #|}
     ),
@@ -616,10 +616,10 @@ test "resolve existential surface metadata" {
       #|enum Packed {
       #|  hide[T](T)
       #|}
-      #|fn make(value : Int) -> Hide {
-      #|  Hide::{ T = Int, val: value }
+      #|fn make(value : I64) -> Hide {
+      #|  Hide::{ T = I64, val: value }
       #|}
-      #|fn use(h : Hide, p : Packed) -> Int {
+      #|fn use(h : Hide, p : Packed) -> I64 {
       #|  {
       #|    let Hide::{ T, val } = h
       #|    match p {
@@ -627,7 +627,7 @@ test "resolve existential surface metadata" {
       #|    }
       #|  }
       #|}
-      #|fn ignore_hidden(h : Hide) -> Int {
+      #|fn ignore_hidden(h : Hide) -> I64 {
       #|  {
       #|    let Hide::{ _, val } = h
       #|    1
@@ -683,13 +683,13 @@ test "resolve existential surface metadata" {
       #|    enum type#1 Packed {
       #|      variant variant#0 hide index=0 payloads=1[tparam#1 T](tparam#1 T)
       #|    }
-      #|    fn value#0 make(value#3 value : Int) -> type#0 Hide {
+      #|    fn value#0 make(value#3 value : I64) -> type#0 Hide {
       #|      Hide::{
-      #|        T = Int
+      #|        T = I64
       #|        val: var value#3 value
       #|      }
       #|    }
-      #|    fn value#1 use(value#4 h : type#0 Hide, value#5 p : type#1 Packed) -> Int {
+      #|    fn value#1 use(value#4 h : type#0 Hide, value#5 p : type#1 Packed) -> I64 {
       #|      {
       #|        let Hide{
       #|          type tparam#2 T
@@ -700,7 +700,7 @@ test "resolve existential surface metadata" {
       #|        }
       #|      }
       #|    }
-      #|    fn value#2 ignore_hidden(value#8 h : type#0 Hide) -> Int {
+      #|    fn value#2 ignore_hidden(value#8 h : type#0 Hide) -> I64 {
       #|      {
       #|        let Hide{
       #|          type tparam#4 _
@@ -722,7 +722,7 @@ test "report unresolved type and qualified variant diagnostics" {
       #|enum Option {
       #|  none()
       #|}
-      #|fn bad(value : Missing) -> Int {
+      #|fn bad(value : Missing) -> I64 {
       #|  Option::some(0)
       #|}
     ),
@@ -741,12 +741,12 @@ test "resolve ambiguous unqualified variant calls" {
   let file = expect_parse_ok(
     (
       #|enum Left {
-      #|  same(Int)
+      #|  same(I64)
       #|}
       #|enum Right {
-      #|  same(Int)
+      #|  same(I64)
       #|}
-      #|fn choose(value : Int) -> Int {
+      #|fn choose(value : I64) -> I64 {
       #|  same(value)
       #|}
     ),
@@ -775,12 +775,12 @@ test "resolve ambiguous unqualified variant calls" {
       #|  }
       #|  declarations {
       #|    enum type#0 Left {
-      #|      variant variant#0 same index=0 payloads=1(Int)
+      #|      variant variant#0 same index=0 payloads=1(I64)
       #|    }
       #|    enum type#1 Right {
-      #|      variant variant#1 same index=0 payloads=1(Int)
+      #|      variant variant#1 same index=0 payloads=1(I64)
       #|    }
-      #|    fn value#0 choose(value#1 value : Int) -> Int {
+      #|    fn value#0 choose(value#1 value : I64) -> I64 {
       #|      ?ambiguous same [variant#0, variant#1] same(var value#1 value)
       #|    }
       #|  }
@@ -799,7 +799,7 @@ test "resolve ambiguous unqualified variant calls" {
 test "keep unknown calls as unresolved value calls" {
   let file = expect_parse_ok(
     (
-      #|fn call_unknown(value : Int) -> Int {
+      #|fn call_unknown(value : I64) -> I64 {
       #|  missing(value)
       #|}
     ),
@@ -821,7 +821,7 @@ test "keep unknown calls as unresolved value calls" {
       #|    variants {}
       #|  }
       #|  declarations {
-      #|    fn value#0 call_unknown(value#1 value : Int) -> Int {
+      #|    fn value#0 call_unknown(value#1 value : I64) -> I64 {
       #|      var ?missing missing(var value#1 value)
       #|    }
       #|  }
@@ -841,10 +841,10 @@ test "resolve qualified field access when base type is known" {
   let file = expect_parse_ok(
     (
       #|struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
-      #|fn get_x(point : Point) -> Int {
+      #|fn get_x(point : Point) -> I64 {
       #|  point.x
       #|}
     ),
@@ -873,10 +873,10 @@ test "resolve qualified field access when base type is known" {
       #|  }
       #|  declarations {
       #|    struct type#0 Point {
-      #|      field field#0 x : Int index=0
-      #|      field field#1 y : Int index=1
+      #|      field field#0 x : I64 index=0
+      #|      field field#1 y : I64 index=1
       #|    }
-      #|    fn value#0 get_x(value#1 point : type#0 Point) -> Int {
+      #|    fn value#0 get_x(value#1 point : type#0 Point) -> I64 {
       #|      var value#1 point.field#0 x
       #|    }
       #|  }
@@ -890,9 +890,9 @@ test "report unresolved qualified field when base type is known" {
   let file = expect_parse_ok(
     (
       #|struct Point {
-      #|  x : Int
+      #|  x : I64
       #|}
-      #|fn get_z(point : Point) -> Int {
+      #|fn get_z(point : Point) -> I64 {
       #|  point.z
       #|}
     ),
@@ -911,9 +911,9 @@ test "resolve top level function bodies with complete top level values" {
   let file = expect_parse_ok(
     (
       #|struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
-      #|fn read_box() -> Int {
+      #|fn read_box() -> I64 {
       #|  box.value
       #|}
       #|let box : Box = Box::{ value: 42 }
@@ -941,9 +941,9 @@ test "resolve top level function bodies with complete top level values" {
       #|    }
       #|    declarations {
       #|      struct type#0 Box {
-      #|        field field#0 value : Int index=0
+      #|        field field#0 value : I64 index=0
       #|      }
-      #|      fn value#0 read_box() -> Int {
+      #|      fn value#0 read_box() -> I64 {
       #|        var value#1 box.field#0 value
       #|      }
       #|      let value#1 box : type#0 Box = Box::{
@@ -993,10 +993,10 @@ test "operator target mapping covers every syntax operator" {
 test "resolve operator aliases through operation names" {
   let file = expect_parse_ok(
     (
-      #|fn op_add(a : Int, b : Int) -> Int {
+      #|fn op_add(a : I64, b : I64) -> I64 {
       #|  a
       #|}
-      #|fn add(a : Int, b : Int) -> Int {
+      #|fn add(a : I64, b : I64) -> I64 {
       #|  a + b
       #|}
     ),
@@ -1039,10 +1039,10 @@ test "resolve operator aliases through operation names" {
       #|    variants {}
       #|  }
       #|  declarations {
-      #|    fn value#0 op_add(value#2 a : Int, value#3 b : Int) -> Int {
+      #|    fn value#0 op_add(value#2 a : I64, value#3 b : I64) -> I64 {
       #|      var value#2 a
       #|    }
-      #|    fn value#1 add(value#4 a : Int, value#5 b : Int) -> Int {
+      #|    fn value#1 add(value#4 a : I64, value#5 b : I64) -> I64 {
       #|      var value#4 a +[value#0] var value#5 b
       #|    }
       #|  }
@@ -1055,7 +1055,7 @@ test "resolve operator aliases through operation names" {
 test "report unresolved operator operation name" {
   let file = expect_parse_ok(
     (
-      #|fn add(a : Int, b : Int) -> Int {
+      #|fn add(a : I64, b : I64) -> I64 {
       #|  a + b
       #|}
     ),
@@ -1071,7 +1071,7 @@ test "report unresolved operator operation name" {
 
 ///|
 test "resolver reports repeated diagnostics independently" {
-  let file = expect_parse_ok("fn value() -> Int { 0 }")
+  let file = expect_parse_ok("fn value() -> I64 { 0 }")
   let resolver = Resolver::Resolver(SymbolRegistry(), None, file.module_path)
   resolver.report(UnresolvedValue("missing"), file.loc)
   resolver.report(UnresolvedValue("missing"), file.loc)
@@ -1090,7 +1090,7 @@ test "resolver reports repeated diagnostics independently" {
 test "sugar resolution resolves each canonical provider once" {
   let file = expect_parse_ok(
     (
-      #|fn tuple_type(value : (Int, Bool, String, Double)) -> Int {
+      #|fn tuple_type(value : (I64, Bool, String, F64)) -> I64 {
       #|  0
       #|}
       #|fn tuple_value() -> Unit {

@@ -11,17 +11,17 @@ test "effect lowering pretty prints handler elaboration" {
     [Parameter(operation_parameter)],
     Parameter(operation_parameter),
   )
-  let result = metadata.define_value("result", Value, Primitive(Int))
-  let payload = metadata.define_value("payload", Parameter, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
+  let payload = metadata.define_value("payload", Parameter, Primitive(I64))
   let resume_value = metadata.define_value(
     "resume",
     Parameter,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let final_value = metadata.define_value(
     "final_value",
     Parameter,
-    Primitive(Int),
+    Primitive(I64),
   )
   let program = Program::{
     metadata,
@@ -31,20 +31,20 @@ test "effect lowering pretty prints handler elaboration" {
         Install({
           body: Invoke({
             operation,
-            effect_arguments: [TypeArgument(Primitive(Int))],
-            hidden_witnesses: [TypeArgument(Primitive(Int))],
-            payloads: [Literal(Int(40L))],
+            effect_arguments: [TypeArgument(Primitive(I64))],
+            hidden_witnesses: [TypeArgument(Primitive(I64))],
+            payloads: [Literal(I64(40L))],
           }),
-          result_type: Primitive(Int),
+          result_type: Primitive(I64),
           dictionaries: [
             {
-              handled_effect: Singleton(effect, [TypeArgument(Primitive(Int))]),
+              handled_effect: Singleton(effect, [TypeArgument(Primitive(I64))]),
               operations: [
                 {
                   operation,
                   callable: Polymorphic([operation_parameter], {
                     parameters: [payload, resume_value],
-                    result_type: Primitive(Int),
+                    result_type: Primitive(I64),
                     body: Call(Ref(resume_value), [Ref(payload)]),
                   }),
                 },
@@ -53,7 +53,7 @@ test "effect lowering pretty prints handler elaboration" {
           ],
           final_clause: {
             parameters: [final_value],
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             body: Ref(final_value),
           },
         }),
@@ -67,21 +67,21 @@ test "effect lowering pretty prints handler elaboration" {
       #|  metadata {
       #|    type_parameter A#0 : Type
       #|    type_parameter B#2 : Type
-      #|    value result#4 : Int
-      #|    parameter payload#5 : Int
-      #|    parameter resume#6 : (Int) -> Int
-      #|    parameter final_value#7 : Int
+      #|    value result#4 : I64
+      #|    parameter payload#5 : I64
+      #|    parameter resume#6 : (I64) -> I64
+      #|    parameter final_value#7 : I64
       #|    effect Console#1[tparam#0] {
       #|      read#3[tparam#1](tparam#1) -> tparam#1
       #|    }
       #|  }
-      #|  let value#0 = install invoke operation#0[Int; Int](40) -> Int {
-      #|    effect#0[Int] {
-      #|      operation#0 => fn[tparam#1](value#1, value#2) -> Int {
+      #|  let value#0 = install invoke operation#0[I64; I64](40) -> I64 {
+      #|    effect#0[I64] {
+      #|      operation#0 => fn[tparam#1](value#1, value#2) -> I64 {
       #|        value#2(value#1)
       #|      }
       #|    }
-      #|    final => fn(value#3) -> Int {
+      #|    final => fn(value#3) -> I64 {
       #|      value#3
       #|    }
       #|  }
@@ -103,10 +103,10 @@ test "effect lowering pretty prints monadic context adaptation" {
   let callee = metadata.define_value(
     "callee",
     Value,
-    Function([], Primitive(Int), source_effect),
+    Function([], Primitive(I64), source_effect),
   )
-  let result = metadata.define_value("result", Value, Primitive(Int))
-  let binder = metadata.define_value("%bind", Parameter, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
+  let binder = metadata.define_value("%bind", Parameter, Primitive(I64))
   let program = Program::{
     metadata,
     terms: [
@@ -122,7 +122,7 @@ test "effect lowering pretty prints monadic context adaptation" {
           binder,
           continuation: {
             parameters: [binder],
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             body: Ref(binder),
           },
         }),
@@ -135,16 +135,16 @@ test "effect lowering pretty prints monadic context adaptation" {
       #|buslane {
       #|  metadata {
       #|    type_parameter E#0 : Effect
-      #|    value callee#2 : () -> Int ! tparam#0
-      #|    value result#3 : Int
-      #|    parameter %bind#4 : Int
+      #|    value callee#2 : () -> I64 ! tparam#0
+      #|    value result#3 : I64
+      #|    parameter %bind#4 : I64
       #|    effect Handled#1 {}
       #|  }
       #|  external value#0
       #|  let value#1 = bind value#2 <- open_context tparam#0 => {tparam#0, effect#0} {
       #|    value#0()
       #|  } in
-      #|    fn(value#2) -> Int {
+      #|    fn(value#2) -> I64 {
       #|      value#2
       #|    }
       #|}

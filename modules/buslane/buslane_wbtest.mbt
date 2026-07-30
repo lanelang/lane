@@ -1,6 +1,6 @@
 ///|
-fn int_type() -> Type {
-  Primitive(Int)
+fn i64_type() -> Type {
+  Primitive(I64)
 }
 
 ///|
@@ -129,12 +129,12 @@ test "buslane metadata owns effect operation shape" {
   inspect(
     @prettyprinter.render(
       Effect::Union([
-        Singleton(state, [TypeArgument(int_type())]),
+        Singleton(state, [TypeArgument(i64_type())]),
         Parameter(row_param),
       ]),
       width=100,
     ),
-    content="{effect#0[Int], tparam#1}",
+    content="{effect#0[I64], tparam#1}",
   )
   debug_inspect(
     metadata.effect_info(state).unwrap(),
@@ -191,8 +191,8 @@ test "buslane type equality beta normalizes type lambdas" {
   let lambda = Type::TypeLambda([parameter], Parameter(parameter))
   assert_type_equal(
     metadata,
-    Apply(lambda, [TypeArgument(int_type())]),
-    int_type(),
+    Apply(lambda, [TypeArgument(i64_type())]),
+    i64_type(),
   )
 }
 
@@ -224,15 +224,15 @@ test "buslane function latent effects participate in type equality and substitut
   let right_effect_param = metadata.define_type_parameter("F", Effect)
   let left_row : Type = Forall(
     [left_effect_param],
-    Function([], int_type(), Parameter(left_effect_param)),
+    Function([], i64_type(), Parameter(left_effect_param)),
   )
   let right_row : Type = Forall(
     [right_effect_param],
-    Function([], int_type(), Parameter(right_effect_param)),
+    Function([], i64_type(), Parameter(right_effect_param)),
   )
   assert_type_equal(metadata, left_row, right_row)
   let substitution = TypeSubstitution::TypeSubstitution()
-  substitution.insert(left_param, int_type())
+  substitution.insert(left_param, i64_type())
   let effectful : Type = Function(
     [],
     Parameter(left_param),
@@ -240,7 +240,7 @@ test "buslane function latent effects participate in type equality and substitut
   )
   inspect(
     @prettyprinter.render(effectful.substitute(substitution), width=100),
-    content="() -> Int ! effect#0[Int]",
+    content="() -> I64 ! effect#0[I64]",
   )
 }
 
@@ -253,7 +253,7 @@ test "buslane substitution is simultaneous and capture avoiding" {
     metadata,
     [element, result],
     [
-      TypeArgument(int_type()),
+      TypeArgument(i64_type()),
       TypeArgument(Function([Parameter(element)], Parameter(element), Empty)),
     ],
   )
@@ -274,17 +274,17 @@ test "buslane substitution overlay shadows without mutating its base" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let parameter = metadata.define_type_parameter("T", Type)
   let base = TypeSubstitution::from_arguments(metadata, [parameter], [
-    TypeArgument(int_type()),
+    TypeArgument(i64_type()),
   ])
   let shadowing = TypeSubstitution::from_arguments(metadata, [parameter], [
     TypeArgument(bool_type()),
   ])
-  assert_eq(Type::Parameter(parameter).try_substitute(base), int_type())
+  assert_eq(Type::Parameter(parameter).try_substitute(base), i64_type())
   assert_eq(
     Type::Parameter(parameter).try_substitute(base.overlay(shadowing)),
     bool_type(),
   )
-  assert_eq(Type::Parameter(parameter).try_substitute(base), int_type())
+  assert_eq(Type::Parameter(parameter).try_substitute(base), i64_type())
 }
 
 ///|
@@ -293,7 +293,7 @@ test "buslane substitution reports argument kind mismatches" {
   let effect = metadata.define_type_parameter("E", Effect)
   try
     TypeSubstitution::from_arguments(metadata, [effect], [
-      TypeArgument(int_type()),
+      TypeArgument(i64_type()),
     ])
   catch {
     error =>
@@ -337,19 +337,19 @@ test "buslane canonical effect equality ignores ordering and duplicates" {
   let left = Effect::Union([
     Singleton(state, []),
     Empty,
-    Singleton(console, [TypeArgument(int_type())]),
+    Singleton(console, [TypeArgument(i64_type())]),
     Singleton(state, []),
     Parameter(row),
   ])
   let right = Effect::Union([
     Parameter(row),
-    Singleton(console, [TypeArgument(int_type())]),
+    Singleton(console, [TypeArgument(i64_type())]),
     Singleton(state, []),
   ])
   assert_effect_equal(metadata, left, right)
   inspect(
     @prettyprinter.render(metadata.canonicalize_effect(left), width=100),
-    content="{effect#1, effect#0[Int], tparam#1}",
+    content="{effect#1, effect#0[I64], tparam#1}",
   )
 }
 
@@ -395,12 +395,12 @@ test "verify buslane reports malformed effect terms" {
       [ordinary_parameter],
       Function(
         [],
-        int_type(),
+        i64_type(),
         Union([Singleton({ index: 9 }, []), Parameter(ordinary_parameter)]),
       ),
     ),
   )
-  let result = metadata.define_value("value", Value, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
   let program = Program::{
     metadata,
     terms: [
@@ -427,7 +427,7 @@ test "verify buslane reports malformed effect terms" {
       #|  }
       #|  unknown_operation operation#8
       #|  type_mismatch {
-      #|    expected Int
+      #|    expected I64
       #|    actual Unit
       #|  }
       #|}
@@ -443,10 +443,10 @@ test "verify buslane reports unhandled perform effect" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
-  let result = metadata.define_value("value", Value, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
   let program = Program::{
     metadata,
     terms: [
@@ -456,7 +456,7 @@ test "verify buslane reports unhandled perform effect" {
           operation: print,
           effect_arguments: [],
           hidden_witnesses: [],
-          payloads: [Literal(Int(1L))],
+          payloads: [Literal(I64(1L))],
         }),
       ),
     ],
@@ -482,16 +482,16 @@ test "verify buslane handler removes handled perform effect" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
-  let result = metadata.define_value("value", Value, int_type())
-  let final_binder = metadata.define_value("value", Local, int_type())
-  let payload = metadata.define_value("value", Parameter, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
+  let final_binder = metadata.define_value("value", Local, i64_type())
+  let payload = metadata.define_value("value", Parameter, i64_type())
   let resume_binder = metadata.define_value(
     "value",
     Parameter,
-    Function([int_type()], int_type(), Empty),
+    Function([i64_type()], i64_type(), Empty),
   )
   let program = Program::{
     metadata,
@@ -503,10 +503,10 @@ test "verify buslane handler removes handled perform effect" {
             operation: print,
             effect_arguments: [],
             hidden_witnesses: [],
-            payloads: [Literal(Int(1L))],
+            payloads: [Literal(I64(1L))],
           }),
           result_binder: final_binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           final_body: Ref(final_binder),
           handlers: [
             {
@@ -543,25 +543,25 @@ test "verify buslane handler preserves open residual effect row" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
   let external = metadata.define_value(
     "value",
     External,
-    Forall([row], Function([], int_type(), Parameter(row))),
+    Forall([row], Function([], i64_type(), Parameter(row))),
   )
   let function = metadata.define_value(
     "value",
     Function,
-    Forall([row], Function([], int_type(), Parameter(row))),
+    Forall([row], Function([], i64_type(), Parameter(row))),
   )
-  let final_binder = metadata.define_value("value", Local, int_type())
-  let payload = metadata.define_value("value", Parameter, int_type())
+  let final_binder = metadata.define_value("value", Local, i64_type())
+  let payload = metadata.define_value("value", Parameter, i64_type())
   let resume_binder = metadata.define_value(
     "value",
     Parameter,
-    Function([int_type()], int_type(), Parameter(row)),
+    Function([i64_type()], i64_type(), Parameter(row)),
   )
   let program = Program::{
     metadata,
@@ -574,14 +574,14 @@ test "verify buslane handler preserves open residual effect row" {
             [row],
             Function({
               parameters: [],
-              result_type: int_type(),
+              result_type: i64_type(),
               body: Handle({
                 body: Call(
                   TypeApply(Ref(external), [EffectArgument(Parameter(row))]),
                   [],
                 ),
                 result_binder: final_binder,
-                result_type: int_type(),
+                result_type: i64_type(),
                 final_body: Ref(final_binder),
                 handlers: [
                   {
@@ -620,16 +620,16 @@ test "verify buslane reports invalid perform payload and resume types" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
-  let result = metadata.define_value("value", Value, int_type())
-  let final_binder = metadata.define_value("value", Local, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
+  let final_binder = metadata.define_value("value", Local, i64_type())
   let payload = metadata.define_value("value", Parameter, bool_type())
   let resume_binder = metadata.define_value(
     "value",
     Parameter,
-    Function([bool_type()], int_type(), Empty),
+    Function([bool_type()], i64_type(), Empty),
   )
   let program = Program::{
     metadata,
@@ -644,7 +644,7 @@ test "verify buslane reports invalid perform payload and resume types" {
             payloads: [Literal(Bool(true))],
           }),
           result_binder: final_binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           final_body: Ref(final_binder),
           handlers: [
             {
@@ -655,7 +655,7 @@ test "verify buslane reports invalid perform payload and resume types" {
                   type_binders: [],
                   payload_binders: [payload],
                   resume_binder,
-                  body: Literal(Int(1L)),
+                  body: Literal(I64(1L)),
                 },
               ],
             },
@@ -669,15 +669,15 @@ test "verify buslane reports invalid perform payload and resume types" {
     content=(
       #|verify_result {
       #|  type_mismatch {
-      #|    expected Int
+      #|    expected I64
       #|    actual Bool
       #|  }
       #|  type_mismatch {
-      #|    expected Int
+      #|    expected I64
       #|    actual Bool
       #|  }
       #|  type_mismatch {
-      #|    expected Int
+      #|    expected I64
       #|    actual Bool
       #|  }
       #|}
@@ -693,10 +693,10 @@ test "verify buslane reports perform payload arity mismatch" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
-  let result = metadata.define_value("value", Value, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
   let program = Program::{
     metadata,
     terms: [
@@ -737,15 +737,15 @@ test "verify buslane reports operation ownership and resume arity errors" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
-  let result = metadata.define_value("value", Value, int_type())
-  let final_binder = metadata.define_value("value", Local, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
+  let final_binder = metadata.define_value("value", Local, i64_type())
   let resume_binder = metadata.define_value(
     "value",
     Parameter,
-    Function([], int_type(), Empty),
+    Function([], i64_type(), Empty),
   )
   let program = Program::{
     metadata,
@@ -753,9 +753,9 @@ test "verify buslane reports operation ownership and resume arity errors" {
       Let(
         result,
         Handle({
-          body: Literal(Int(1L)),
+          body: Literal(I64(1L)),
           result_binder: final_binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           final_body: Ref(final_binder),
           handlers: [
             {
@@ -766,7 +766,7 @@ test "verify buslane reports operation ownership and resume arity errors" {
                   type_binders: [],
                   payload_binders: [],
                   resume_binder,
-                  body: Literal(Int(1L)),
+                  body: Literal(I64(1L)),
                 },
               ],
             },
@@ -803,13 +803,13 @@ test "verify buslane reports operation ownership and resume arity errors" {
 ///|
 test "pretty buslane expression tree core" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value("value", Value, int_type())
+  let value = metadata.define_value("value", Value, i64_type())
   let function = metadata.define_value(
     "value",
     Function,
-    Function([int_type()], int_type(), Empty),
+    Function([i64_type()], i64_type(), Empty),
   )
-  let parameter = metadata.define_value("value", Parameter, int_type())
+  let parameter = metadata.define_value("value", Parameter, i64_type())
   let program = Program::{
     metadata,
     terms: [
@@ -818,12 +818,12 @@ test "pretty buslane expression tree core" {
           id: function,
           rhs: Function({
             parameters: [parameter],
-            result_type: int_type(),
+            result_type: i64_type(),
             body: Ref(parameter),
           }),
         },
       ]),
-      Let(value, Call(Ref(function), [Literal(Int(42L))])),
+      Let(value, Call(Ref(function), [Literal(I64(42L))])),
     ],
   }
   inspect(
@@ -831,12 +831,12 @@ test "pretty buslane expression tree core" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    value value#0 : Int
-      #|    function value#1 : (Int) -> Int
-      #|    parameter value#2 : Int
+      #|    value value#0 : I64
+      #|    function value#1 : (I64) -> I64
+      #|    parameter value#2 : I64
       #|  }
       #|  letrec {
-      #|    value#1 = fn(value#2) -> Int {
+      #|    value#1 = fn(value#2) -> I64 {
       #|      value#2
       #|    }
       #|  }
@@ -857,14 +857,14 @@ test "pretty buslane construct and one-level match" {
   let scrutinee = metadata.define_value(
     "value",
     Value,
-    Apply(Constructor(option_type), [TypeArgument(int_type())]),
+    Apply(Constructor(option_type), [TypeArgument(i64_type())]),
   )
   let match_binder = metadata.define_value(
     "value",
     MatchBinder,
-    Apply(Constructor(option_type), [TypeArgument(int_type())]),
+    Apply(Constructor(option_type), [TypeArgument(i64_type())]),
   )
-  let payload = metadata.define_value("value", Parameter, int_type())
+  let payload = metadata.define_value("value", Parameter, i64_type())
   let program = Program::{
     metadata,
     terms: [
@@ -872,9 +872,9 @@ test "pretty buslane construct and one-level match" {
         scrutinee,
         Construct({
           data_constructor: some,
-          type_arguments: [TypeArgument(int_type())],
+          type_arguments: [TypeArgument(i64_type())],
           hidden_witnesses: [],
-          payloads: [Literal(Int(1L))],
+          payloads: [Literal(I64(1L))],
         }),
       ),
       Let(
@@ -882,7 +882,7 @@ test "pretty buslane construct and one-level match" {
         Match({
           scrutinee: Ref(scrutinee),
           binder: match_binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           alternatives: [
             {
               alt_constructor: DataCon(some),
@@ -898,7 +898,7 @@ test "pretty buslane construct and one-level match" {
   inspect(
     @prettyprinter.render(program.terms[1], width=100),
     content=(
-      #|let value#2 = match value#0 as value#1 -> Int {
+      #|let value#2 = match value#0 as value#1 -> I64 {
       #|  datacon#0(value#2) => value#2
       #|}
     ),
@@ -908,13 +908,13 @@ test "pretty buslane construct and one-level match" {
 ///|
 test "verify buslane function call program" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value("value", Value, int_type())
+  let value = metadata.define_value("value", Value, i64_type())
   let function = metadata.define_value(
     "value",
     Function,
-    Function([int_type()], int_type(), Empty),
+    Function([i64_type()], i64_type(), Empty),
   )
-  let parameter = metadata.define_value("value", Parameter, int_type())
+  let parameter = metadata.define_value("value", Parameter, i64_type())
   let program = Program::{
     metadata,
     terms: [
@@ -923,12 +923,12 @@ test "verify buslane function call program" {
           id: function,
           rhs: Function({
             parameters: [parameter],
-            result_type: int_type(),
+            result_type: i64_type(),
             body: Ref(parameter),
           }),
         },
       ]),
-      Let(value, Call(Ref(function), [Literal(Int(42L))])),
+      Let(value, Call(Ref(function), [Literal(I64(42L))])),
     ],
   }
   inspect(
@@ -997,14 +997,14 @@ test "verify buslane skips kind-invalid substitution bindings" {
     External,
     Forall(
       [effect_parameter],
-      Function([], int_type(), Parameter(effect_parameter)),
+      Function([], i64_type(), Parameter(effect_parameter)),
     ),
   )
-  let type_result = metadata.define_value("value", Value, int_type())
+  let type_result = metadata.define_value("value", Value, i64_type())
   let effect_result = metadata.define_value(
     "value",
     Value,
-    Function([], int_type(), Empty),
+    Function([], i64_type(), Empty),
   )
   let program = Program::{
     metadata,
@@ -1017,7 +1017,7 @@ test "verify buslane skips kind-invalid substitution bindings" {
       ),
       Let(
         effect_result,
-        TypeApply(Ref(effect_polymorphic), [TypeArgument(int_type())]),
+        TypeApply(Ref(effect_polymorphic), [TypeArgument(i64_type())]),
       ),
     ],
   }
@@ -1027,12 +1027,12 @@ test "verify buslane skips kind-invalid substitution bindings" {
       #|{
       #|  diagnostics: [
       #|    { kind: KindMismatch(expected=Type, actual=Effect) },
-      #|    { kind: TypeMismatch(expected=Primitive(Int), actual=Parameter({ index: 0 })) },
+      #|    { kind: TypeMismatch(expected=Primitive(I64), actual=Parameter({ index: 0 })) },
       #|    { kind: KindMismatch(expected=Effect, actual=Type) },
       #|    {
       #|      kind: TypeMismatch(
-      #|        expected=Function([], Primitive(Int), Empty),
-      #|        actual=Function([], Primitive(Int), Parameter({ index: 1 })),
+      #|        expected=Function([], Primitive(I64), Empty),
+      #|        actual=Function([], Primitive(I64), Parameter({ index: 1 })),
       #|      ),
       #|    },
       #|  ],
@@ -1045,8 +1045,8 @@ test "verify buslane skips kind-invalid substitution bindings" {
 test "verify buslane rejects effect widening through ordinary value binding" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let read = metadata.define_effect("Read", [])
-  let narrow_type = Type::Function([], int_type(), Empty)
-  let wide_type = Type::Function([], int_type(), Singleton(read, []))
+  let narrow_type = Type::Function([], i64_type(), Empty)
+  let wide_type = Type::Function([], i64_type(), Singleton(read, []))
   let narrow = metadata.define_value("narrow", External, narrow_type)
   let wide = metadata.define_value("wide", Value, wide_type)
   let program = Program::{
@@ -1058,8 +1058,8 @@ test "verify buslane rejects effect widening through ordinary value binding" {
     content=(
       #|verify_result {
       #|  type_mismatch {
-      #|    expected () -> Int ! effect#0
-      #|    actual () -> Int
+      #|    expected () -> I64 ! effect#0
+      #|    actual () -> I64
       #|  }
       #|}
     ),
@@ -1118,24 +1118,24 @@ test "verify buslane widens function effects below forall binders" {
 ///|
 test "verify buslane reports structural errors" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value("value", Value, int_type())
+  let value = metadata.define_value("value", Value, i64_type())
   let binder = metadata.define_value("value", MatchBinder, bool_type())
   let program = Program::{
     metadata,
     terms: [
-      Let(value, Call(Literal(Int(1L)), [])),
+      Let(value, Call(Literal(I64(1L)), [])),
       Let(
         value,
         Match({
           scrutinee: Literal(Bool(true)),
           binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           alternatives: [
             {
               alt_constructor: Literal(Bool(true)),
               type_binders: [],
               value_binders: [],
-              body: Literal(Int(1L)),
+              body: Literal(I64(1L)),
             },
           ],
         }),
@@ -1146,9 +1146,9 @@ test "verify buslane reports structural errors" {
     @prettyprinter.render(verify_program(program), width=100),
     content=(
       #|verify_result {
-      #|  not_function Int
+      #|  not_function I64
       #|  type_mismatch {
-      #|    expected Int
+      #|    expected I64
       #|    actual Unit
       #|  }
       #|  non_exhaustive_match

@@ -5,8 +5,8 @@ fn canonical_runtime_type(
   match kind {
     Unit => None
     Bool => Some(I32)
-    Int => Some(I64)
-    Double => Some(F64)
+    I64 => Some(I64)
+    F64 => Some(F64)
     String => Some(I32)
     Opaque => Some(I32)
   }
@@ -21,8 +21,8 @@ fn physical_runtime_parameters(
     match kind {
       Unit => ()
       Bool => parameters.push(I32)
-      Int => parameters.push(I64)
-      Double => parameters.push(F64)
+      I64 => parameters.push(I64)
+      F64 => parameters.push(F64)
       Opaque => parameters.push(I64)
       String => {
         parameters.push(I32)
@@ -109,7 +109,7 @@ fn append_runtime_import_adapter(
   for kind in import_.parameters {
     match kind {
       Unit => ()
-      Bool | Int | Double => {
+      Bool | I64 | F64 => {
         instructions.push(LocalGet(parameter_index))
         parameter_index += 1
       }

@@ -164,10 +164,10 @@ pub impl @prettyprinter.Pretty for Kind
 pub(all) enum Literal {
   Unit
   Bool(Bool)
-  Int(Int64)
-  S32(Int)
+  I64(Int64)
+  I32(Int)
   Char(Int)
-  Double(Double)
+  F64(Double)
   String(String)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Literal
@@ -252,10 +252,10 @@ pub impl @prettyprinter.Pretty for PerformExpr
 pub(all) enum PrimitiveType {
   Unit
   Bool
-  Int
-  S32
+  I64
+  I32
   Char
-  Double
+  F64
   String
   Byte
   Bytes

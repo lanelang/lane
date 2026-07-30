@@ -248,7 +248,7 @@ test "interpreter reports Host Object use after explicit close" {
       parameters=@runtime.HostParameters::one(
         @runtime.HostParameter::host_object(store),
       ),
-      result=@runtime.HostResult::int(),
+      result=@runtime.HostResult::i64(),
       invoke=(_context, object : InterpreterHostObject) => {
         if object.closed {
           raise Failure(message="Host Object is closed")
@@ -279,7 +279,7 @@ test "interpreter reports Host Object use after explicit close" {
       BytecodeBody(entry),
       host_object_runtime_import("lane.test.host_object_new", [], Opaque),
       host_object_runtime_import("lane.test.host_object_close", [Opaque], Unit),
-      host_object_runtime_import("lane.test.host_object_read", [Opaque], Int),
+      host_object_runtime_import("lane.test.host_object_read", [Opaque], I64),
     ],
     layouts: [Reference],
     object_shapes: [],

@@ -8,10 +8,10 @@ fn callable_boundary_registry(
       symbol="lane.test.string_length",
       abi_major=1,
       parameters=[String],
-      result=Int,
+      result=I64,
       invoke=fn(_context, arguments) {
-        guard arguments is [BorrowedString(value)] else { return Int(-1L) }
-        Int(value.length().to_int64())
+        guard arguments is [BorrowedString(value)] else { return I64(-1L) }
+        I64(value.length().to_int64())
       },
     ),
   )
@@ -19,10 +19,10 @@ fn callable_boundary_registry(
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_callable_boundary",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed.push(value)
         }
         Unit
@@ -164,24 +164,24 @@ test "existential callable fields adapt covariant results and contravariant para
   let hidden_type = @buslane.Type::Parameter(hidden)
   let opened_type = @buslane.Type::Parameter(opened)
   let string_type = @buslane.Type::Primitive(String)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let hidden_producer_type = @buslane.Type::Function([], hidden_type, Empty)
   let hidden_mapper_type = @buslane.Type::Function(
     [hidden_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let opened_producer_type = @buslane.Type::Function([], opened_type, Empty)
   let opened_mapper_type = @buslane.Type::Function(
     [opened_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let string_producer_type = @buslane.Type::Function([], string_type, Empty)
   let string_mapper_type = @buslane.Type::Function(
     [string_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let factory = metadata.define_type("Factory", [])
@@ -195,7 +195,7 @@ test "existential callable fields adapt covariant results and contravariant para
     string_producer_type,
   )
   let measure = metadata.define_value("measure", External, string_mapper_type)
-  let observe_type = @buslane.Type::Function([int_type], unit_type, Empty)
+  let observe_type = @buslane.Type::Function([i64_type], unit_type, Empty)
   let observe = metadata.define_value("observe", External, observe_type)
   let scrutinee = metadata.define_value("scrutinee", Local, factory_type)
   let match_binder = metadata.define_value("factory", MatchBinder, factory_type)
@@ -210,7 +210,7 @@ test "existential callable fields adapt covariant results and contravariant para
     opened_mapper_type,
   )
   let produced = metadata.define_value("produced", Local, opened_type)
-  let measured = metadata.define_value("measured", Local, int_type)
+  let measured = metadata.define_value("measured", Local, i64_type)
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -274,13 +274,13 @@ test "existential callable fields adapt covariant results and contravariant para
           {
             value: measure,
             symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: Int },
+            signature: { parameters: [String], result: I64 },
             type_: string_mapper_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [Int], result: Unit },
+            signature: { parameters: [I64], result: Unit },
             type_: observe_type,
           },
         ],
@@ -301,7 +301,7 @@ test "existential callable adapters recurse through callable parameters" {
   let hidden_type = @buslane.Type::Parameter(hidden)
   let opened_type = @buslane.Type::Parameter(opened)
   let string_type = @buslane.Type::Primitive(String)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let hidden_producer_type = @buslane.Type::Function([], hidden_type, Empty)
   let opened_producer_type = @buslane.Type::Function([], opened_type, Empty)
@@ -323,17 +323,17 @@ test "existential callable adapters recurse through callable parameters" {
   )
   let hidden_mapper_type = @buslane.Type::Function(
     [hidden_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let opened_mapper_type = @buslane.Type::Function(
     [opened_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let string_mapper_type = @buslane.Type::Function(
     [string_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let factory = metadata.define_type("NestedFactory", [])
@@ -361,7 +361,7 @@ test "existential callable adapters recurse through callable parameters" {
     External,
     string_mapper_type,
   )
-  let observe_type = @buslane.Type::Function([int_type], unit_type, Empty)
+  let observe_type = @buslane.Type::Function([i64_type], unit_type, Empty)
   let observe = metadata.define_value("observe_nested", External, observe_type)
   let scrutinee = metadata.define_value("nested_scrutinee", Local, factory_type)
   let match_binder = metadata.define_value(
@@ -385,7 +385,7 @@ test "existential callable adapters recurse through callable parameters" {
     opened_mapper_type,
   )
   let produced = metadata.define_value("nested_produced", Local, opened_type)
-  let measured = metadata.define_value("nested_measured", Local, int_type)
+  let measured = metadata.define_value("nested_measured", Local, i64_type)
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let main = metadata.define_value("nested_main", Function, main_type)
   let program : @buslane.Program = {
@@ -459,13 +459,13 @@ test "existential callable adapters recurse through callable parameters" {
           {
             value: measure,
             symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: Int },
+            signature: { parameters: [String], result: I64 },
             type_: string_mapper_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [Int], result: Unit },
+            signature: { parameters: [I64], result: Unit },
             type_: observe_type,
           },
         ],
@@ -488,24 +488,24 @@ test "generic container fields round-trip callable values through erasure" {
   let hidden_type = @buslane.Type::Parameter(hidden)
   let opened_type = @buslane.Type::Parameter(opened)
   let string_type = @buslane.Type::Primitive(String)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let hidden_producer_type = @buslane.Type::Function([], hidden_type, Empty)
   let opened_producer_type = @buslane.Type::Function([], opened_type, Empty)
   let string_producer_type = @buslane.Type::Function([], string_type, Empty)
   let hidden_mapper_type = @buslane.Type::Function(
     [hidden_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let opened_mapper_type = @buslane.Type::Function(
     [opened_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let string_mapper_type = @buslane.Type::Function(
     [string_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let wrapper = metadata.define_type("Wrapper", [callable, value])
@@ -543,7 +543,7 @@ test "generic container fields round-trip callable values through erasure" {
     External,
     string_mapper_type,
   )
-  let observe_type = @buslane.Type::Function([int_type], unit_type, Empty)
+  let observe_type = @buslane.Type::Function([i64_type], unit_type, Empty)
   let observe = metadata.define_value("observe_wrapped", External, observe_type)
   let wrapped = metadata.define_value("wrapped", Local, string_wrapper_type)
   let scrutinee = metadata.define_value(
@@ -577,7 +577,7 @@ test "generic container fields round-trip callable values through erasure" {
     opened_mapper_type,
   )
   let produced = metadata.define_value("wrapped_produced", Local, opened_type)
-  let measured = metadata.define_value("wrapped_measured", Local, int_type)
+  let measured = metadata.define_value("wrapped_measured", Local, i64_type)
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let main = metadata.define_value("wrapped_main", Function, main_type)
   let program : @buslane.Program = {
@@ -665,13 +665,13 @@ test "generic container fields round-trip callable values through erasure" {
           {
             value: measure,
             symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: Int },
+            signature: { parameters: [String], result: I64 },
             type_: string_mapper_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [Int], result: Unit },
+            signature: { parameters: [I64], result: Unit },
             type_: observe_type,
           },
         ],
@@ -694,7 +694,7 @@ test "existential callable adapters forward explicit forall witnesses" {
   let hidden_type = @buslane.Type::Parameter(hidden)
   let opened_type = @buslane.Type::Parameter(opened)
   let string_type = @buslane.Type::Primitive(String)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let hidden_generic_type = @buslane.Type::Forall(
     [argument],
@@ -710,17 +710,17 @@ test "existential callable adapters forward explicit forall witnesses" {
   )
   let hidden_mapper_type = @buslane.Type::Function(
     [hidden_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let opened_mapper_type = @buslane.Type::Function(
     [opened_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let string_mapper_type = @buslane.Type::Function(
     [string_type],
-    int_type,
+    i64_type,
     Empty,
   )
   let factory = metadata.define_type("GenericFactory", [])
@@ -746,7 +746,7 @@ test "existential callable adapters forward explicit forall witnesses" {
     External,
     string_mapper_type,
   )
-  let observe_type = @buslane.Type::Function([int_type], unit_type, Empty)
+  let observe_type = @buslane.Type::Function([i64_type], unit_type, Empty)
   let observe = metadata.define_value("observe_generic", External, observe_type)
   let scrutinee = metadata.define_value(
     "generic_scrutinee",
@@ -769,7 +769,7 @@ test "existential callable adapters forward explicit forall witnesses" {
     opened_mapper_type,
   )
   let produced = metadata.define_value("generic_produced", Local, opened_type)
-  let measured = metadata.define_value("generic_measured", Local, int_type)
+  let measured = metadata.define_value("generic_measured", Local, i64_type)
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let main = metadata.define_value("generic_main", Function, main_type)
   let program : @buslane.Program = {
@@ -813,8 +813,8 @@ test "existential callable adapters forward explicit forall witnesses" {
                   body: Let(
                     produced,
                     Call(
-                      TypeApply(Ref(opened_generic), [TypeArgument(int_type)]),
-                      [Literal(Int(7L))],
+                      TypeApply(Ref(opened_generic), [TypeArgument(i64_type)]),
+                      [Literal(I64(7L))],
                     ),
                     Let(
                       measured,
@@ -839,13 +839,13 @@ test "existential callable adapters forward explicit forall witnesses" {
           {
             value: measure,
             symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: Int },
+            signature: { parameters: [String], result: I64 },
             type_: string_mapper_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [Int], result: Unit },
+            signature: { parameters: [I64], result: Unit },
             type_: observe_type,
           },
         ],

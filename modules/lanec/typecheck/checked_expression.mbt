@@ -217,20 +217,20 @@ fn SemanticChecker::check_checked_expr_with_expectation(
         ErrorRecovery(type_=expectation.type_, loc~),
         expectation.type_,
       ).with_expectation_match(MatchesExpectation)
-    Literal(literal=Int(raw), loc~) if expectation.type_ == Primitive(S32) =>
+    Literal(literal=Integer(raw), loc~) if expectation.type_ == Primitive(I32) =>
       checked_expression(
         Literal(
-          literal=S32(self.check_s32_literal(raw, loc)),
+          literal=I32(self.check_i32_literal(raw, loc)),
           type_=expectation.type_,
           loc~,
         ),
         expectation.type_,
       ).with_expectation_match(MatchesExpectation)
-    Unary(operator=Neg, operand=Literal(literal=Int(raw), ..), loc~, ..) if expectation.type_ ==
-      Primitive(S32) =>
+    Unary(operator=Neg, operand=Literal(literal=Integer(raw), ..), loc~, ..) if expectation.type_ ==
+      Primitive(I32) =>
       checked_expression(
         Literal(
-          literal=S32(self.check_negated_s32_literal(raw, loc)),
+          literal=I32(self.check_negated_i32_literal(raw, loc)),
           type_=expectation.type_,
           loc~,
         ),

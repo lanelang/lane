@@ -29,11 +29,11 @@ test "interpreter executes direct and runtime calls once" {
     @runtime.RuntimeBinding::new(
       symbol="lane.test.observe",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
         match arguments {
-          [Int(value)] => {
+          [I64(value)] => {
             observed = value
             Unit
           }
@@ -46,7 +46,7 @@ test "interpreter executes direct and runtime calls once" {
     slots=[trivial_slot(I64), trivial_slot(I64)],
     result=Unit,
     instructions=[
-      ConstInt({ value: 0 }, 41L),
+      ConstI64({ value: 0 }, 41L),
       CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
       CallDirect({ value: 3 }, None, [], [{ value: 1 }], None),
     ],
@@ -57,8 +57,8 @@ test "interpreter executes direct and runtime calls once" {
     parameters=[{ value: 0 }],
     result=I64,
     instructions=[
-      ConstInt({ value: 1 }, 1L),
-      IntAdd({ value: 2 }, { value: 0 }, { value: 1 }),
+      ConstI64({ value: 1 }, 1L),
+      I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
     ],
     terminator=Return(Some({ value: 2 })),
   )
@@ -71,7 +71,7 @@ test "interpreter executes direct and runtime calls once" {
       BytecodeBody(add_one),
       RuntimeImport({
         abi_major: 1,
-        parameters: [Int],
+        parameters: [I64],
         result: Unit,
         symbol: "lane.test.observe",
       }),

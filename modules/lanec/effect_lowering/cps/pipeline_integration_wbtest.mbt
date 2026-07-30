@@ -6,14 +6,14 @@ test "selective CPS removes concrete open-context markers" {
   let callee = metadata.define_value(
     "callee",
     External,
-    Function([], Primitive(Int), Singleton(first, [])),
+    Function([], Primitive(I64), Singleton(first, [])),
   )
   let outer = metadata.define_value(
     "outer",
     Function,
     Function(
       [],
-      Primitive(Int),
+      Primitive(I64),
       Union([Singleton(first, []), Singleton(second, [])]),
     ),
   )
@@ -26,7 +26,7 @@ test "selective CPS removes concrete open-context markers" {
           id: outer,
           rhs: Function({
             parameters: [],
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             body: Call(Ref(callee), []),
           }),
         },
@@ -51,14 +51,14 @@ test "open-resolve preserves ordered abstract context arguments" {
     Singleton(first, []),
     Singleton(second, []),
   ])
-  let action_type : @buslane.Type = Function([], Primitive(Int), source_effect)
+  let action_type : @buslane.Type = Function([], Primitive(I64), source_effect)
   let action = metadata.define_value("action", Parameter, action_type)
   let apply = metadata.define_value(
     "apply",
     Function,
     Forall(
       [effect_parameter],
-      Function([action_type], Primitive(Int), target_effect),
+      Function([action_type], Primitive(I64), target_effect),
     ),
   )
   let transformed = rewrite_test_program({
@@ -71,7 +71,7 @@ test "open-resolve preserves ordered abstract context arguments" {
             [effect_parameter],
             Function({
               parameters: [action],
-              result_type: Primitive(Int),
+              result_type: Primitive(I64),
               body: Call(Ref(action), []),
             }),
           ),

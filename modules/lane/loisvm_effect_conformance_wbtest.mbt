@@ -134,7 +134,7 @@ test "struct fields evaluate in source order with reversed existential witnesses
       #|  first : A
       #|  second : B
       #|}
-      #|fn mark_int(label : String, value : Int) -> Int ! Io {
+      #|fn mark_int(label : String, value : I64) -> I64 ! Io {
       #|  println(label)
       #|  value
       #|}
@@ -145,7 +145,7 @@ test "struct fields evaluate in source order with reversed existential witnesses
       #|pub fn main() -> Unit ! Io {
       #|  let _hidden : Hide = Hide::{
       #|    B = Bool,
-      #|    A = Int,
+      #|    A = I64,
       #|    second: mark_bool("second", true),
       #|    first: mark_int("first", 1),
       #|  };
@@ -189,14 +189,14 @@ test "chained generic effect handlers preserve layout witnesses" {
       #|import Basic.Io.*
       #|
       #|effect Ask {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|
       #|effect Log {
-      #|  write(Int) -> Unit
+      #|  write(I64) -> Unit
       #|}
       #|
-      #|fn program() -> Int ! { Ask, Log } {
+      #|fn program() -> I64 ! { Ask, Log } {
       #|  let value = Ask::read!()
       #|  let _ = Log::write!(value)
       #|  value
@@ -222,7 +222,7 @@ test "chained generic effect handlers preserve layout witnesses" {
       #|  }
       #|}
       #|
-      #|let handled_value : Int = handle_log(handle_ask(program))()
+      #|let handled_value : I64 = handle_log(handle_ask(program))()
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let _value = handled_value

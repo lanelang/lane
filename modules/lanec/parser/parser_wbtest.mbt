@@ -393,7 +393,7 @@ test "parse failures retain expected identifier slots" {
     .role_at(effect_error.loc.start_offset),
     Some(EffectIdentifier),
   )
-  let value_result = parse_string("module Test\npub let value : Int =")
+  let value_result = parse_string("module Test\npub let value : I64 =")
   guard value_result.parse_errors().get(0) is Some(value_error) else {
     abort("expected missing value parse error")
   }
@@ -408,8 +408,8 @@ test "parse failures retain expected identifier slots" {
 ///|
 test "truncated identifiers retain their syntactic roles" {
   let sources = [
-    "module Test\npub let value : Thi", "module Test\nfn run() -> Unit ! Con", "module Test\nfn make() -> (Int, Int) { (1, Thi",
-    "module Test\nfn use(value : Int) -> Int { match value { (head, Thi",
+    "module Test\npub let value : Thi", "module Test\nfn run() -> Unit ! Con", "module Test\nfn make() -> (I64, I64) { (1, Thi",
+    "module Test\nfn use(value : I64) -> I64 { match value { (head, Thi",
   ]
   let roles = sources.map(fn(source) {
     parse_string(source).syntactic_identifier_index().role_at(source.length())
@@ -429,7 +429,7 @@ test "truncated identifiers retain their syntactic roles" {
 
 ///|
 test "incomplete tuple items retain type value and pattern slots" {
-  let type_result = parse_string("module Test\ntype Pair = (Int,")
+  let type_result = parse_string("module Test\ntype Pair = (I64,")
   guard type_result.parse_errors().get(0) is Some(type_error) else {
     abort("expected missing tuple type item")
   }
@@ -439,7 +439,7 @@ test "incomplete tuple items retain type value and pattern slots" {
     .role_at(type_error.loc.start_offset),
     Some(TypeIdentifier),
   )
-  let value_result = parse_string("module Test\nfn make() -> Int { (1,")
+  let value_result = parse_string("module Test\nfn make() -> I64 { (1,")
   guard value_result.parse_errors().get(0) is Some(value_error) else {
     abort("expected missing tuple expression item")
   }
@@ -450,7 +450,7 @@ test "incomplete tuple items retain type value and pattern slots" {
     Some(ValueIdentifier),
   )
   let pattern_result = parse_string(
-    "module Test\nfn use(value : Int) -> Int { match value { (head,",
+    "module Test\nfn use(value : I64) -> I64 { match value { (head,",
   )
   guard pattern_result.parse_errors().get(0) is Some(pattern_error) else {
     abort("expected missing tuple pattern item")
@@ -468,18 +468,18 @@ test "syntactic identifier roles include nested pattern type owners" {
   let source =
     #|module Test
     #|
-    #|fn inspect(value : Int) -> Int {
+    #|fn inspect(value : I64) -> I64 {
     #|  match value {
     #|    MatchOwner::variant(NestedOwner::{ field }) => 0
     #|  }
     #|}
     #|
-    #|fn destructure(value : Int) -> Int {
+    #|fn destructure(value : I64) -> I64 {
     #|  let LetOwner::{ field: LetNested::variant() } = value
     #|  0
     #|}
     #|
-    #|fn handle_it(value : Int) -> Int {
+    #|fn handle_it(value : I64) -> I64 {
     #|  handle value with {
     #|    Console::op(HandlerOwner::{ field: HandlerNested::variant() }, resume) => 0
     #|  } final result { result }
@@ -532,15 +532,15 @@ test "layout inserts semicolons between newline-delimited items" {
   let source =
     #|module Test
     #|struct Pair {
-    #|  fst : Int
-    #|  snd : Int
+    #|  fst : I64
+    #|  snd : I64
     #|}
     #|enum Choice {
     #|  left()
     #|  right()
     #|}
     #|effect Console {
-    #|  read() -> Int
+    #|  read() -> I64
     #|  write(String) -> Unit
     #|}
     #|fn main() -> Unit {
@@ -559,9 +559,9 @@ test "layout preserves delimited and operator continuations" {
   let source =
     #|module Test
     #|fn add(
-    #|  left : Int,
-    #|  right : Int
-    #|) -> Int {
+    #|  left : I64,
+    #|  right : I64
+    #|) -> I64 {
     #|  left
     #|    + right
     #|}
@@ -574,14 +574,14 @@ test "layout separates a tuple initializer from a following unit expression" {
   let source =
     #|module Test
     #|fn some_f() -> Unit {
-    #|  let x : (Int, Int) = (1, 2)
+    #|  let x : (I64, I64) = (1, 2)
     #|  ()
     #|}
   debug_inspect(synthetic_layout_newline_lines(source), content="[1, 3]")
   let file = expect_parse_ok(
     (
       #|fn some_f() -> Unit {
-      #|  let x : (Int, Int) = (1, 2)
+      #|  let x : (I64, I64) = (1, 2)
       #|  ()
       #|}
     ),
@@ -597,7 +597,7 @@ test "layout separates a tuple initializer from a following unit expression" {
           {
             name: "x",
             initializer: TupleLiteral(
-              items=[IntLiteral("1", ..), IntLiteral("2", ..)],
+              items=[IntegerLiteral("1", ..), IntegerLiteral("2", ..)],
               ..
             ),
             ..,
@@ -645,7 +645,7 @@ test "layout grammar claims item boundaries but not brace continuations" {
     #|module Test
     #|struct Box
     #|{
-    #|  value : Int
+    #|  value : I64
     #|}
     #|fn body() -> Unit
     #|{
@@ -692,7 +692,7 @@ test "layout continues variant patterns and handler operation heads" {
   let file = expect_parse_ok(
     (
       #|enum Option {
-      #|  some(Int)
+      #|  some(I64)
       #|}
       #|fn inspect(value : Option) -> Unit {
       #|  match value {
@@ -785,7 +785,7 @@ test "layout separates wildcard struct pattern fields" {
 ///|
 test "parse rejects explicit semicolons outside item bodies" {
   debug_inspect(
-    parse_string("module M;\npub let answer : Int = 42").parse_errors(),
+    parse_string("module M;\npub let answer : I64 = 42").parse_errors(),
     content=(
       #|[
       #|  {
@@ -819,7 +819,7 @@ test "parse rejects explicit semicolons outside item bodies" {
     ),
   )
   debug_inspect(
-    parse_errors("let first : Int = 1;\nlet second : Int = 2"),
+    parse_errors("let first : I64 = 1;\nlet second : I64 = 2"),
     content=(
       #|[
       #|  {
@@ -874,7 +874,7 @@ test "parse rejects explicit semicolons outside item bodies" {
         #|  first : A
         #|  second : B
         #|}
-        #|fn bad(value : Box[Int; Bool]) -> Box[Int, Bool] {
+        #|fn bad(value : Box[I64; Bool]) -> Box[I64, Bool] {
         #|  value
         #|}
       ),
@@ -965,12 +965,12 @@ test "parse positional call argument keeps argument source span" {
   let file = expect_parse_ok(
     (
       #|struct Box {
-      #|  field : Int
+      #|  field : I64
       #|}
-      #|fn take(input : Int) -> Int {
+      #|fn take(input : I64) -> I64 {
       #|  input
       #|}
-      #|fn answer(value : Box) -> Int {
+      #|fn answer(value : Box) -> I64 {
       #|  take(value.field)
       #|}
     ),
@@ -1013,7 +1013,7 @@ test "parse positional call argument keeps argument source span" {
 
 ///|
 test "parse declarations and blocks keep complete source spans" {
-  let file = expect_parse_ok("pub fn answer() -> Int { 42 }")
+  let file = expect_parse_ok("pub fn answer() -> I64 { 42 }")
   guard file.declarations[0] is Function(function) else {
     abort("expected function declaration")
   }
@@ -1155,8 +1155,8 @@ test "parse newline-separated struct literal fields" {
   let file = expect_parse_ok(
     (
       #|struct Pair {
-      #|  fst : Int
-      #|  snd : Int
+      #|  fst : I64
+      #|  snd : I64
       #|}
       #|fn make() -> Pair {
       #|  Pair::{ fst: 1
@@ -1195,9 +1195,9 @@ test "parse declarations between sequential expressions" {
       #|fn mark() -> Unit {
       #|  ()
       #|}
-      #|fn build() -> Int {
+      #|fn build() -> I64 {
       #|  mark();
-      #|  let answer : Int = 42
+      #|  let answer : I64 = 42
       #|  mark();
       #|  answer
       #|}
@@ -1211,14 +1211,14 @@ test "parse nominal declarations and match" {
   let file = expect_parse_ok(
     (
       #|struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
       #|enum Option[A] {
       #|  none()
       #|  some(A)
       #|}
-      #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
+      #|fn unwrap_or(value : Option[I64], fallback : I64) -> I64 {
       #|  match value {
       #|    none() => fallback
       #|    some(x) => x
@@ -1232,8 +1232,8 @@ test "parse nominal declarations and match" {
       #|module Test
       #|
       #|struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
       #|
       #|enum Option[A] {
@@ -1241,7 +1241,7 @@ test "parse nominal declarations and match" {
       #|  some(A)
       #|}
       #|
-      #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
+      #|fn unwrap_or(value : Option[I64], fallback : I64) -> I64 {
       #|  match value {
       #|    none() => fallback
       #|    some(x) => x
@@ -1256,9 +1256,9 @@ test "parse unqualified enum variant pattern" {
   let file = expect_parse_ok(
     (
       #|enum Single {
-      #|  wrap(Int)
+      #|  wrap(I64)
       #|}
-      #|fn unwrap(value : Single) -> Int {
+      #|fn unwrap(value : Single) -> I64 {
       #|  match value {
       #|    wrap(x) => x
       #|  }
@@ -1271,10 +1271,10 @@ test "parse unqualified enum variant pattern" {
       #|module Test
       #|
       #|enum Single {
-      #|  wrap(Int)
+      #|  wrap(I64)
       #|}
       #|
-      #|fn unwrap(value : Single) -> Int {
+      #|fn unwrap(value : Single) -> I64 {
       #|  match value {
       #|    wrap(x) => x
       #|  }
@@ -1288,9 +1288,9 @@ test "parse single-constructor enum pattern let" {
   let file = expect_parse_ok(
     (
       #|enum Single {
-      #|  wrap(Int)
+      #|  wrap(I64)
       #|}
-      #|fn unwrap(value : Single) -> Int {
+      #|fn unwrap(value : Single) -> I64 {
       #|  {
       #|    let wrap(x) = value
       #|    x
@@ -1304,10 +1304,10 @@ test "parse single-constructor enum pattern let" {
       #|module Test
       #|
       #|enum Single {
-      #|  wrap(Int)
+      #|  wrap(I64)
       #|}
       #|
-      #|fn unwrap(value : Single) -> Int {
+      #|fn unwrap(value : Single) -> I64 {
       #|  {
       #|    let wrap(x) = value
       #|    x
@@ -1326,7 +1326,7 @@ test "parse does not recognize spaced double colon as qualified variant pattern"
         #|  none()
         #|  some(A)
         #|}
-        #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
+        #|fn unwrap(value : Option[I64], fallback : I64) -> I64 {
         #|  match value {
         #|    Option :: none() => fallback
         #|  }
@@ -1359,7 +1359,7 @@ test "parse does not recognize right-spaced double colon as variant pattern" {
         #|  none()
         #|  some(A)
         #|}
-        #|fn unwrap(value : Option[Int], fallback : Int) -> Int {
+        #|fn unwrap(value : Option[I64], fallback : I64) -> I64 {
         #|  match value {
         #|    Option:: none() => fallback
         #|  }
@@ -1389,9 +1389,9 @@ test "parse rejects leading double colon enum variant pattern" {
     parse_errors(
       (
         #|enum Single {
-        #|  wrap(Int)
+        #|  wrap(I64)
         #|}
-        #|fn unwrap(value : Single) -> Int {
+        #|fn unwrap(value : Single) -> I64 {
         #|  match value {
         #|    ::wrap(x) => x
         #|  }
@@ -1409,8 +1409,8 @@ test "parse type aliases and F-omega type expressions" {
       #|  value : A
       #|}
       #|type Id[A] = A
-      #|type ApplyInt[F : [Type] -> Type] = F[Int]
-      #|fn get(box : ApplyInt[Box]) -> Id[Int] {
+      #|type ApplyInt[F : [Type] -> Type] = F[I64]
+      #|fn get(box : ApplyInt[Box]) -> Id[I64] {
       #|  box.value
       #|}
     ),
@@ -1426,9 +1426,9 @@ test "parse type aliases and F-omega type expressions" {
       #|
       #|type Id[A] = A
       #|
-      #|type ApplyInt[F : [Type] -> Type] = F[Int]
+      #|type ApplyInt[F : [Type] -> Type] = F[I64]
       #|
-      #|fn get(box : ApplyInt[Box]) -> Id[Int] {
+      #|fn get(box : ApplyInt[Box]) -> Id[I64] {
       #|  box.value
       #|}
     ),
@@ -1442,10 +1442,10 @@ test "parse explicit generic expression application" {
       #|fn[A] id(value : A) -> A {
       #|  value
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  {
-      #|    let id_int : (Int) -> Int = id[Int]
-      #|    id[Int](id_int(1))
+      #|    let id_int : (I64) -> I64 = id[I64]
+      #|    id[I64](id_int(1))
       #|  }
       #|}
     ),
@@ -1459,10 +1459,10 @@ test "parse explicit generic expression application" {
       #|  value
       #|}
       #|
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  {
-      #|    let id_int : (Int) -> Int = id[Int]
-      #|    id[Int](id_int(1))
+      #|    let id_int : (I64) -> I64 = id[I64]
+      #|    id[I64](id_int(1))
       #|  }
       #|}
     ),
@@ -1474,7 +1474,7 @@ test "parse braced effect generic arguments" {
   let file = expect_parse_ok(
     (
       #|effect Log {
-      #|  write(Int) -> Unit
+      #|  write(I64) -> Unit
       #|}
       #|effect Ops {
       #|  ping[E : Effect]() -> Unit
@@ -1494,10 +1494,10 @@ test "parse braced effect generic arguments" {
       #|fn pure() -> Unit {
       #|  ()
       #|}
-      #|fn use() -> Int ! Ops {
+      #|fn use() -> I64 ! Ops {
       #|  {
       #|    let ran : Unit = run[{}](pure)
-      #|    let box : Box[Int, {}] = Box[Int, {}]::{ value: 1 }
+      #|    let box : Box[I64, {}] = Box[I64, {}]::{ value: 1 }
       #|    let task : Task = Task::task[{ Log }]()
       #|    let pinged : Unit = Ops::ping![{}]()
       #|    box.value
@@ -1518,7 +1518,7 @@ test "parse braced effect generic arguments" {
       #|module Test
       #|
       #|effect Log {
-      #|  write(Int) -> Unit
+      #|  write(I64) -> Unit
       #|}
       #|
       #|effect Ops {
@@ -1545,10 +1545,10 @@ test "parse braced effect generic arguments" {
       #|  ()
       #|}
       #|
-      #|fn use() -> Int ! Ops {
+      #|fn use() -> I64 ! Ops {
       #|  {
       #|    let ran : Unit = run[{}](pure)
-      #|    let box : Box[Int, {}] = Box[Int, {}]::{ value: 1 }
+      #|    let box : Box[I64, {}] = Box[I64, {}]::{ value: 1 }
       #|    let task : Task = Task::task[{ Log }]()
       #|    let pinged : Unit = Ops::ping![{}]()
       #|    box.value
@@ -1574,7 +1574,7 @@ test "parse rejects empty explicit generic expression arguments" {
         #|fn[A] id(value : A) -> A {
         #|  value
         #|}
-        #|fn use() -> Int {
+        #|fn use() -> I64 {
         #|  id[](1)
         #|}
       ),
@@ -1590,12 +1590,12 @@ test "parse type alias with effect set body" {
   let file = expect_parse_ok(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|effect Log {
-      #|  write(Int) -> Unit
+      #|  write(I64) -> Unit
       #|}
-      #|type Answer : Type = Int
+      #|type Answer : Type = I64
       #|type Identity : [Type] -> Type = type[A] => A
       #|type UI : Effect = { Console, Log }
       #|type Task[E : Effect] : Effect = { UI, E }
@@ -1607,14 +1607,14 @@ test "parse type alias with effect set body" {
       #|module Test
       #|
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|
       #|effect Log {
-      #|  write(Int) -> Unit
+      #|  write(I64) -> Unit
       #|}
       #|
-      #|type Answer : Type = Int
+      #|type Answer : Type = I64
       #|
       #|type Identity : [Type] -> Type = type[A] => A
       #|
@@ -1629,17 +1629,17 @@ test "parse type alias with effect set body" {
 test "parse tuple syntax and format right-nested tuples flat" {
   let file = expect_parse_ok(
     (
-      #|type Pair = (Int, Bool)
-      #|type Triple = (Int, (Bool, String))
-      #|fn make() -> (Int, Bool, String) {
+      #|type Pair = (I64, Bool)
+      #|type Triple = (I64, (Bool, String))
+      #|fn make() -> (I64, Bool, String) {
       #|  (1, (true, "lane"))
       #|}
-      #|fn first(value : (Int, Bool, String)) -> Int {
+      #|fn first(value : (I64, Bool, String)) -> I64 {
       #|  match value {
       #|    (head, _, _) => head
       #|  }
       #|}
-      #|fn apply(f : ((Int, Bool)) -> Int, value : (Int, Bool)) -> Int {
+      #|fn apply(f : ((I64, Bool)) -> I64, value : (I64, Bool)) -> I64 {
       #|  f(value)
       #|}
     ),
@@ -1649,21 +1649,21 @@ test "parse tuple syntax and format right-nested tuples flat" {
     content=(
       #|module Test
       #|
-      #|type Pair = (Int, Bool)
+      #|type Pair = (I64, Bool)
       #|
-      #|type Triple = (Int, Bool, String)
+      #|type Triple = (I64, Bool, String)
       #|
-      #|fn make() -> (Int, Bool, String) {
+      #|fn make() -> (I64, Bool, String) {
       #|  (1, true, "lane")
       #|}
       #|
-      #|fn first(value : (Int, Bool, String)) -> Int {
+      #|fn first(value : (I64, Bool, String)) -> I64 {
       #|  match value {
       #|    (head, _, _) => head
       #|  }
       #|}
       #|
-      #|fn apply(f : ((Int, Bool)) -> Int, value : (Int, Bool)) -> Int {
+      #|fn apply(f : ((I64, Bool)) -> I64, value : (I64, Bool)) -> I64 {
       #|  f(value)
       #|}
     ),
@@ -1672,12 +1672,12 @@ test "parse tuple syntax and format right-nested tuples flat" {
 
 ///|
 test "tuple syntax rejects singleton tuples and bare function parameter types" {
-  assert_eq(parse_error_kinds("type Bad = (Int,)"), [MissingTupleItem])
-  assert_eq(parse_error_kinds("fn bad() -> Int { (1,) }"), [MissingTupleItem])
+  assert_eq(parse_error_kinds("type Bad = (I64,)"), [MissingTupleItem])
+  assert_eq(parse_error_kinds("fn bad() -> I64 { (1,) }"), [MissingTupleItem])
   assert_eq(
     parse_error_kinds(
       (
-        #|fn bad(value : Int) -> Int {
+        #|fn bad(value : I64) -> I64 {
         #|  match value {
         #|    (item,) => item
         #|  }
@@ -1687,7 +1687,7 @@ test "tuple syntax rejects singleton tuples and bare function parameter types" {
     [MissingTupleItem],
   )
   debug_inspect(
-    parse_errors("type Bad = Int -> Int"),
+    parse_errors("type Bad = I64 -> I64"),
     content=(
       #|[
       #|  {
@@ -1725,7 +1725,7 @@ test "tuple syntax rejects singleton tuples and bare function parameter types" {
 ///|
 test "parse rejects unknown kind names in every kind position" {
   let accepted = [
-    "type A : Banana = Int",
+    "type A : Banana = I64",
     "type A[T : Banana] = T",
     (
       #|struct S {
@@ -1733,13 +1733,13 @@ test "parse rejects unknown kind names in every kind position" {
       #|}
     ),
     "extern type A : Banana",
-    "type A : [Banana] -> Type = Int",
-    "type A : [Type] -> Banana = Int",
-    "type A : effect = Int",
+    "type A : [Banana] -> Type = I64",
+    "type A : [Type] -> Banana = I64",
+    "type A : effect = I64",
   ].filter(fn(source) { parse_errors(source).is_empty() })
   debug_inspect(accepted, content="[]")
   debug_inspect(
-    parse_error_kinds("type A : Banana = Int"),
+    parse_error_kinds("type A : Banana = I64"),
     content=(
       #|[
       #|  UnexpectedToken(
@@ -1758,15 +1758,15 @@ test "parse rejects unknown kind names in every kind position" {
 
 ///|
 test "parse rejects value block as type alias body" {
-  assert_false(parse_errors("type Bad = { let x : Int = 1 x }").is_empty())
+  assert_false(parse_errors("type Bad = { let x : I64 = 1 x }").is_empty())
 }
 
 ///|
 test "parse function literal and pipeline" {
   let file = expect_parse_ok(
     (
-      #|fn pipeline_literal(x : Int) -> Int {
-      #|  x |> fn(value : Int) {
+      #|fn pipeline_literal(x : I64) -> I64 {
+      #|  x |> fn(value : I64) {
       #|    value
       #|  }
       #|}
@@ -1777,9 +1777,9 @@ test "parse function literal and pipeline" {
     content=(
       #|module Test
       #|
-      #|fn pipeline_literal(x : Int) -> Int {
+      #|fn pipeline_literal(x : I64) -> I64 {
       #|  x
-      #|    |> fn(value : Int) {
+      #|    |> fn(value : I64) {
       #|      value
       #|    }
       #|}
@@ -1791,7 +1791,7 @@ test "parse function literal and pipeline" {
 test "parse else-if chain" {
   let file = expect_parse_ok(
     (
-      #|fn choose(first : Bool, second : Bool) -> Int {
+      #|fn choose(first : Bool, second : Bool) -> I64 {
       #|  if first {
       #|    1
       #|  } else if second {
@@ -1807,7 +1807,7 @@ test "parse else-if chain" {
     content=(
       #|module Test
       #|
-      #|fn choose(first : Bool, second : Bool) -> Int {
+      #|fn choose(first : Bool, second : Bool) -> I64 {
       #|  if first {
       #|    1
       #|  } else if second {
@@ -1834,9 +1834,9 @@ test "parse offered value definitions and contextual parameter syntax" {
       #|fn[A] op_equal(a : A, b : A, auto op : Equal[A]) -> Bool {
       #|  op.equal(a, b)
       #|}
-      #|offer int_equal_ops : Equal[Int] = Equal::{ equal: int_equal }
-      #|fn use(a : Int, b : Int) -> Bool {
-      #|  op_equal(a, b, op=int_equal_ops)
+      #|offer i64_equal_ops : Equal[I64] = Equal::{ equal: i64_equal }
+      #|fn use(a : I64, b : I64) -> Bool {
+      #|  op_equal(a, b, op=i64_equal_ops)
       #|}
     ),
   )
@@ -1858,10 +1858,10 @@ test "parse offered value definitions and contextual parameter syntax" {
       #|  op.equal(a, b)
       #|}
       #|
-      #|offer int_equal_ops : Equal[Int] = Equal::{ equal: int_equal }
+      #|offer i64_equal_ops : Equal[I64] = Equal::{ equal: i64_equal }
       #|
-      #|fn use(a : Int, b : Int) -> Bool {
-      #|  op_equal(a, b, op=int_equal_ops)
+      #|fn use(a : I64, b : I64) -> Bool {
+      #|  op_equal(a, b, op=i64_equal_ops)
       #|}
     ),
   )
@@ -1874,8 +1874,8 @@ test "parse offered function definitions" {
       #|pub offer fn[A] provide(value : A) -> A {
       #|  value
       #|}
-      #|fn outer() -> Int {
-      #|  offer fn local() -> Int {
+      #|fn outer() -> I64 {
+      #|  offer fn local() -> I64 {
       #|    42
       #|  }
       #|  local()
@@ -1891,8 +1891,8 @@ test "parse offered function definitions" {
       #|  value
       #|}
       #|
-      #|fn outer() -> Int {
-      #|  offer fn local() -> Int {
+      #|fn outer() -> I64 {
+      #|  offer fn local() -> I64 {
       #|    42
       #|  }
       #|  local()
@@ -1976,11 +1976,11 @@ test "parse qualified postfix forms inside expressions" {
       #|struct Box[A] {
       #|  value : A
       #|}
-      #|let boxed : Box[Int] = Box[Int]::{
-      #|  value: Console::choose![Int](1, 2)
+      #|let boxed : Box[I64] = Box[I64]::{
+      #|  value: Console::choose![I64](1, 2)
       #|}
-      #|fn use(box : Box[Int]) -> Option[Int] ! Console {
-      #|  Option::some[Int](Console::choose![Int](box.value, 0))
+      #|fn use(box : Box[I64]) -> Option[I64] ! Console {
+      #|  Option::some[I64](Console::choose![I64](box.value, 0))
       #|}
     ),
   )
@@ -2002,10 +2002,10 @@ test "parse qualified postfix forms inside expressions" {
       #|  value : A
       #|}
       #|
-      #|let boxed : Box[Int] = Box[Int]::{ value: Console::choose![Int](1, 2) }
+      #|let boxed : Box[I64] = Box[I64]::{ value: Console::choose![I64](1, 2) }
       #|
-      #|fn use(box : Box[Int]) -> Option[Int] ! Console {
-      #|  Option::some[Int](Console::choose![Int](box.value, 0))
+      #|fn use(box : Box[I64]) -> Option[I64] ! Console {
+      #|  Option::some[I64](Console::choose![I64](box.value, 0))
       #|}
     ),
   )
@@ -2035,10 +2035,10 @@ test "parse member forms with generic owner types" {
       #|    value
       #|  }
       #|}
-      #|fn use(box : Box[Int]) -> Option[Int] ! Coroutine[Log] {
-      #|  let copied : Box[Int] = Box[Int]::{ value: box.value }
+      #|fn use(box : Box[I64]) -> Option[I64] ! Coroutine[Log] {
+      #|  let copied : Box[I64] = Box[I64]::{ value: box.value }
       #|  let ignored : Unit = Coroutine[Log]::yield!()
-      #|  Option[Int]::some(copied.value)
+      #|  Option[I64]::some(copied.value)
       #|}
     ),
   )
@@ -2072,10 +2072,10 @@ test "parse member forms with generic owner types" {
       #|  }
       #|}
       #|
-      #|fn use(box : Box[Int]) -> Option[Int] ! Coroutine[Log] {
-      #|  let copied : Box[Int] = Box[Int]::{ value: box.value }
+      #|fn use(box : Box[I64]) -> Option[I64] ! Coroutine[Log] {
+      #|  let copied : Box[I64] = Box[I64]::{ value: box.value }
       #|  let ignored : Unit = Coroutine[Log]::yield!()
-      #|  Option[Int]::some(copied.value)
+      #|  Option[I64]::some(copied.value)
       #|}
     ),
   )
@@ -2089,10 +2089,10 @@ test "parse rejects expression-shaped member owner" {
         #|struct Box[A] {
         #|  value : A
         #|}
-        #|fn make() -> Box[Int] {
-        #|  Box[Int]::{ value: 1 }
+        #|fn make() -> Box[I64] {
+        #|  Box[I64]::{ value: 1 }
         #|}
-        #|let bad : Box[Int] = make()::{ value: 2 }
+        #|let bad : Box[I64] = make()::{ value: 2 }
       ),
     ),
     content=(
@@ -2183,8 +2183,8 @@ test "parse handler operation keeps exact operation token span" {
       #|effect Prompt {
       #|  choose[A](A, A) -> A
       #|}
-      #|fn handled() -> Int {
-      #|  handle Prompt::choose![Int](1, 2) with {
+      #|fn handled() -> I64 {
+      #|  handle Prompt::choose![I64](1, 2) with {
       #|    Prompt::choose[A](left, right, resume) => resume(left)
       #|  } final value { value }
       #|}
@@ -2233,9 +2233,9 @@ test "parse handler owner type arguments" {
       #|effect State[S] {
       #|  get() -> S
       #|}
-      #|fn good() -> Int ! State[Int] {
-      #|  handle State[Int]::get!() with {
-      #|    State[Int]::get(resume) => resume(0)
+      #|fn good() -> I64 ! State[I64] {
+      #|  handle State[I64]::get!() with {
+      #|    State[I64]::get(resume) => resume(0)
       #|  } final value {
       #|    value
       #|  }
@@ -2251,9 +2251,9 @@ test "parse handler owner type arguments" {
       #|  get() -> S
       #|}
       #|
-      #|fn good() -> Int ! State[Int] {
-      #|  handle State[Int]::get!() with {
-      #|    State[Int]::get(resume) => resume(0)
+      #|fn good() -> I64 ! State[I64] {
+      #|  handle State[I64]::get!() with {
+      #|    State[I64]::get(resume) => resume(0)
       #|  } final value {
       #|    value
       #|  }
@@ -2267,7 +2267,7 @@ test "parse rejects effect arguments as unqualified handler binders" {
   debug_inspect(
     parse_error_kinds(
       (
-        #|fn bad() -> Int {
+        #|fn bad() -> I64 {
         #|  handle 0 with {
         #|    ask[{}](resume) => resume(0)
         #|  } final value {
@@ -2286,7 +2286,7 @@ test "parse rejects effect arguments as unqualified handler binders" {
 test "parse unqualified handler operation type binders" {
   let file = expect_parse_ok(
     (
-      #|fn good() -> Int {
+      #|fn good() -> I64 {
       #|  handle 0 with {
       #|    ask[A](resume) => resume(0)
       #|  } final value {
@@ -2300,7 +2300,7 @@ test "parse unqualified handler operation type binders" {
     content=(
       #|module Test
       #|
-      #|fn good() -> Int {
+      #|fn good() -> I64 {
       #|  handle 0 with {
       #|    ask[A](resume) => resume(0)
       #|  } final value {
@@ -2344,7 +2344,7 @@ test "parse rejects empty enum and effect operation parameter headers" {
     ),
   )
   debug_inspect(
-    parse_error_kinds("effect Prompt { choose[](Int, Int) -> Int }"),
+    parse_error_kinds("effect Prompt { choose[](I64, I64) -> I64 }"),
     content=(
       #|[EmptyTypeParameterList]
     ),
@@ -2359,7 +2359,7 @@ test "parse rejects empty operation witness and handler binder lists" {
         #|effect Prompt {
         #|  choose[A](A, A) -> A
         #|}
-        #|fn bad() -> Int ! Prompt {
+        #|fn bad() -> I64 ! Prompt {
         #|  Prompt::choose![](1, 2)
         #|}
       ),
@@ -2374,8 +2374,8 @@ test "parse rejects empty operation witness and handler binder lists" {
         #|effect Prompt {
         #|  choose[A](A, A) -> A
         #|}
-        #|fn bad() -> Int {
-        #|  handle Prompt::choose![Int](1, 2) with {
+        #|fn bad() -> I64 {
+        #|  handle Prompt::choose![I64](1, 2) with {
         #|    Prompt::choose[](left, right, resume) => resume(left)
         #|  } final value {
         #|    value
@@ -2398,7 +2398,7 @@ test "parse rejects empty type application arguments" {
     ),
   )
   debug_inspect(
-    parse_error_kinds("type Bad = [](Int) -> Int"),
+    parse_error_kinds("type Bad = [](I64) -> I64"),
     content=(
       #|[EmptyTypeParameterList]
     ),
@@ -2416,9 +2416,9 @@ test "parse existential surface syntax" {
       #|enum Any {
       #|  hide[T](T)
       #|}
-      #|let h : Hide = Hide::{ T = Int, val: 5 }
-      #|let e : Any = Any::hide[Int](5)
-      #|fn use(h : Hide, e : Any) -> Int {
+      #|let h : Hide = Hide::{ T = I64, val: 5 }
+      #|let e : Any = Any::hide[I64](5)
+      #|fn use(h : Hide, e : Any) -> I64 {
       #|  match e {
       #|    Any::hide[T](value) => {
       #|      let Hide::{ _, val } = h
@@ -2442,11 +2442,11 @@ test "parse existential surface syntax" {
       #|  hide[T](T)
       #|}
       #|
-      #|let h : Hide = Hide::{ T = Int, val: 5 }
+      #|let h : Hide = Hide::{ T = I64, val: 5 }
       #|
-      #|let e : Any = Any::hide[Int](5)
+      #|let e : Any = Any::hide[I64](5)
       #|
-      #|fn use(h : Hide, e : Any) -> Int {
+      #|fn use(h : Hide, e : Any) -> I64 {
       #|  match e {
       #|    Any::hide[T](value) => {
       #|      let Hide::{ _, val } = h
@@ -2461,7 +2461,7 @@ test "parse existential surface syntax" {
 ///|
 test "parse rejects empty type alias parameter header" {
   debug_inspect(
-    parse_error_kinds("type Empty[] = Int"),
+    parse_error_kinds("type Empty[] = I64"),
     content=(
       #|[EmptyTypeParameterList]
     ),
@@ -2471,7 +2471,7 @@ test "parse rejects empty type alias parameter header" {
 ///|
 test "parse rejects multi-layer type alias parameter header" {
   debug_inspect(
-    parse_error_kinds("type Result[E][A] = Int"),
+    parse_error_kinds("type Result[E][A] = I64"),
     content=(
       #|[
       #|  UnexpectedToken(
@@ -2486,7 +2486,7 @@ test "parse rejects multi-layer type alias parameter header" {
 ///|
 test "parse rejects equals function body syntax" {
   debug_inspect(
-    parse_error_kinds("fn add(a : Int, b : Int) -> Int = a + b"),
+    parse_error_kinds("fn add(a : I64, b : I64) -> I64 = a + b"),
     content=(
       #|[
       #|  UnexpectedToken(
@@ -2566,7 +2566,7 @@ test "parse rejects payloadless qualified variant expression syntax without pare
     parse_errors(
       (
         #|enum Option[A] { none() some(A) }
-        #|let value : Option[Int] = Option::none
+        #|let value : Option[I64] = Option::none
       ),
     ).is_empty(),
   )
@@ -2578,7 +2578,7 @@ test "parse rejects payloadless qualified variant pattern syntax without parenth
     parse_errors(
       (
         #|enum Option[A] { none() some(A) }
-        #|fn qualified(value : Option[Int]) -> Int {
+        #|fn qualified(value : Option[I64]) -> I64 {
         #|  match value {
         #|    Option::none => 0
         #|    Option::some(x) => x
@@ -2597,7 +2597,7 @@ test "parse accepts empty qualified variant argument syntax" {
       #|  none()
       #|  some(A)
       #|}
-      #|let value : Option[Int] = Option::none()
+      #|let value : Option[I64] = Option::none()
     ),
   )
   inspect(
@@ -2610,7 +2610,7 @@ test "parse accepts empty qualified variant argument syntax" {
       #|  some(A)
       #|}
       #|
-      #|let value : Option[Int] = Option::none()
+      #|let value : Option[I64] = Option::none()
     ),
   )
 }
@@ -2637,6 +2637,6 @@ test "parse external host type and effect declarations" {
 
 ///|
 test "parse rejects external declaration bodies" {
-  assert_false(parse_errors("extern type Fd : Type = Int").is_empty())
+  assert_false(parse_errors("extern type Fd : Type = I64").is_empty())
   assert_false(parse_errors("extern type VectorOp : Effect {}").is_empty())
 }

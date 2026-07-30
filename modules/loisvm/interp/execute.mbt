@@ -153,10 +153,10 @@ fn ExecutionInstance::execute_instruction(
       self.release_for_slot(frame, slot, frame.value(slot))
       frame.consume_owner(slot)
     }
-    ConstInt(destination, value) => frame.write(destination, I64(value))
-    ConstS32(destination, value) => frame.write(destination, I32(value))
+    ConstI64(destination, value) => frame.write(destination, I64(value))
+    ConstI32(destination, value) => frame.write(destination, I32(value))
     ConstChar(destination, value) => frame.write(destination, I32(value))
-    ConstDouble(destination, bits) =>
+    ConstF64(destination, bits) =>
       frame.write(destination, F64(bits.reinterpret_as_double()))
     ConstBool(destination, value) =>
       frame.write(destination, I32(if value { 1 } else { 0 }))
@@ -190,9 +190,9 @@ fn ExecutionInstance::execute_instruction(
       frame.consume_owner(environment)
       frame.write(destination, I64(callable(function, reference)))
     }
-    ByteToInt(destination, source) =>
+    ByteToI64(destination, source) =>
       frame.write(destination, I64(frame.i32(source).to_int64()))
-    IntToByte(destination, source) =>
+    I64ToByte(destination, source) =>
       frame.write(destination, I32((frame.i64(source) & 255L).to_int()))
     ByteSequenceMake(destination, length, fill) =>
       self.byte_sequence_make(frame, destination, length, fill)
@@ -210,15 +210,15 @@ fn ExecutionInstance::execute_instruction(
       self.byte_sequence_slice(frame, destination, source, start, length)
     ByteSequenceIsValidUtf8(destination, source) =>
       self.byte_sequence_is_valid_utf8(frame, destination, source)
-    S32Add(destination, left, right) =>
+    I32Add(destination, left, right) =>
       frame.binary_i32(destination, left, right, fn(a, b) { a + b })
-    S32Sub(destination, left, right) =>
+    I32Sub(destination, left, right) =>
       frame.binary_i32(destination, left, right, fn(a, b) { a - b })
-    S32Mul(destination, left, right) =>
+    I32Mul(destination, left, right) =>
       frame.binary_i32(destination, left, right, fn(a, b) { a * b })
-    S32Neg(destination, source) =>
+    I32Neg(destination, source) =>
       frame.write(destination, I32(0 - frame.i32(source)))
-    S32Div(destination, left, right) => {
+    I32Div(destination, left, right) => {
       let dividend = frame.i32(left)
       let divisor = frame.i32(right)
       if divisor == 0 || (dividend == -2147483647 - 1 && divisor == -1) {
@@ -226,7 +226,7 @@ fn ExecutionInstance::execute_instruction(
       }
       frame.write(destination, I32(dividend / divisor))
     }
-    S32Rem(destination, left, right) => {
+    I32Rem(destination, left, right) => {
       let dividend = frame.i32(left)
       let divisor = frame.i32(right)
       if divisor == 0 {
@@ -239,23 +239,23 @@ fn ExecutionInstance::execute_instruction(
       }
       frame.write(destination, I32(value))
     }
-    S32Eq(destination, left, right) =>
+    I32Eq(destination, left, right) =>
       frame.compare_i32(destination, left, right, fn(a, b) { a == b })
-    S32Lt(destination, left, right) =>
+    I32Lt(destination, left, right) =>
       frame.compare_i32(destination, left, right, fn(a, b) { a < b })
-    S32ToInt(destination, source) =>
+    I32ToI64(destination, source) =>
       frame.write(destination, I64(frame.i32(source).to_int64()))
-    IntToS32(destination, source) =>
+    I64ToI32(destination, source) =>
       frame.write(destination, I32(frame.i64(source).to_int()))
-    IntAdd(destination, left, right) =>
+    I64Add(destination, left, right) =>
       frame.binary_i64(destination, left, right, fn(a, b) { a + b })
-    IntSub(destination, left, right) =>
+    I64Sub(destination, left, right) =>
       frame.binary_i64(destination, left, right, fn(a, b) { a - b })
-    IntMul(destination, left, right) =>
+    I64Mul(destination, left, right) =>
       frame.binary_i64(destination, left, right, fn(a, b) { a * b })
-    IntNeg(destination, source) =>
+    I64Neg(destination, source) =>
       frame.write(destination, I64(0L - frame.i64(source)))
-    IntDiv(destination, left, right) => {
+    I64Div(destination, left, right) => {
       let dividend = frame.i64(left)
       let divisor = frame.i64(right)
       if divisor == 0L ||
@@ -264,7 +264,7 @@ fn ExecutionInstance::execute_instruction(
       }
       frame.write(destination, I64(dividend / divisor))
     }
-    IntRem(destination, left, right) => {
+    I64Rem(destination, left, right) => {
       let dividend = frame.i64(left)
       let divisor = frame.i64(right)
       if divisor == 0L {
@@ -277,35 +277,35 @@ fn ExecutionInstance::execute_instruction(
       }
       frame.write(destination, I64(value))
     }
-    IntAnd(destination, left, right) =>
+    I64And(destination, left, right) =>
       frame.binary_i64(destination, left, right, fn(a, b) { a & b })
-    IntOr(destination, left, right) =>
+    I64Or(destination, left, right) =>
       frame.binary_i64(destination, left, right, fn(a, b) { a | b })
-    IntXor(destination, left, right) =>
+    I64Xor(destination, left, right) =>
       frame.binary_i64(destination, left, right, fn(a, b) { a ^ b })
-    IntNot(destination, source) =>
+    I64Not(destination, source) =>
       frame.write(destination, I64(frame.i64(source).lnot()))
-    IntShl(destination, left, right) =>
+    I64Shl(destination, left, right) =>
       frame.write(
         destination,
         I64(frame.i64(left) << (frame.i64(right).to_int() & 63)),
       )
-    IntShrS(destination, left, right) =>
+    I64ShrS(destination, left, right) =>
       frame.write(
         destination,
         I64(frame.i64(left) >> (frame.i64(right).to_int() & 63)),
       )
-    IntEq(destination, left, right) =>
+    I64Eq(destination, left, right) =>
       frame.compare_i64(destination, left, right, fn(a, b) { a == b })
-    IntNe(destination, left, right) =>
+    I64Ne(destination, left, right) =>
       frame.compare_i64(destination, left, right, fn(a, b) { a != b })
-    IntLt(destination, left, right) =>
+    I64Lt(destination, left, right) =>
       frame.compare_i64(destination, left, right, fn(a, b) { a < b })
-    IntLe(destination, left, right) =>
+    I64Le(destination, left, right) =>
       frame.compare_i64(destination, left, right, fn(a, b) { a <= b })
-    IntGt(destination, left, right) =>
+    I64Gt(destination, left, right) =>
       frame.compare_i64(destination, left, right, fn(a, b) { a > b })
-    IntGe(destination, left, right) =>
+    I64Ge(destination, left, right) =>
       frame.compare_i64(destination, left, right, fn(a, b) { a >= b })
     BoolNot(destination, source) =>
       frame.write(destination, I32(if frame.i32(source) == 0 { 1 } else { 0 }))
@@ -313,36 +313,36 @@ fn ExecutionInstance::execute_instruction(
       frame.compare_i32(destination, left, right, fn(a, b) { a == b })
     BoolNe(destination, left, right) =>
       frame.compare_i32(destination, left, right, fn(a, b) { a != b })
-    DoubleAdd(destination, left, right) =>
+    F64Add(destination, left, right) =>
       frame.binary_f64(destination, left, right, fn(a, b) { a + b })
-    DoubleSub(destination, left, right) =>
+    F64Sub(destination, left, right) =>
       frame.binary_f64(destination, left, right, fn(a, b) { a - b })
-    DoubleMul(destination, left, right) =>
+    F64Mul(destination, left, right) =>
       frame.binary_f64(destination, left, right, fn(a, b) { a * b })
-    DoubleDiv(destination, left, right) =>
+    F64Div(destination, left, right) =>
       frame.binary_f64(destination, left, right, fn(a, b) { a / b })
-    DoubleNeg(destination, source) =>
+    F64Neg(destination, source) =>
       frame.write(destination, F64(-frame.f64(source)))
-    DoubleEq(destination, left, right) =>
+    F64Eq(destination, left, right) =>
       frame.compare_f64(destination, left, right, fn(a, b) { a == b })
-    DoubleNe(destination, left, right) =>
+    F64Ne(destination, left, right) =>
       frame.compare_f64(destination, left, right, fn(a, b) { a != b })
-    DoubleLt(destination, left, right) =>
+    F64Lt(destination, left, right) =>
       frame.compare_f64(destination, left, right, fn(a, b) { a < b })
-    DoubleLe(destination, left, right) =>
+    F64Le(destination, left, right) =>
       frame.compare_f64(destination, left, right, fn(a, b) { a <= b })
-    DoubleGt(destination, left, right) =>
+    F64Gt(destination, left, right) =>
       frame.compare_f64(destination, left, right, fn(a, b) { a > b })
-    DoubleGe(destination, left, right) =>
+    F64Ge(destination, left, right) =>
       frame.compare_f64(destination, left, right, fn(a, b) { a >= b })
-    IntToDouble(destination, source) =>
+    I64ToF64(destination, source) =>
       frame.write(destination, F64(frame.i64(source).to_double()))
-    DoubleToInt(destination, source) => {
+    F64ToI64(destination, source) => {
       let value = frame.f64(source)
       if value != value ||
         value < -9223372036854775808.0 ||
         value >= 9223372036854775808.0 {
-        raise Trap(detail="invalid Double-to-Int conversion")
+        raise Trap(detail="invalid F64-to-I64 conversion")
       }
       frame.write(destination, I64(value.to_int64()))
     }

@@ -13,17 +13,17 @@ fn cps_test_plus_runtime(
           plus, "plus expects two arguments",
         )
       }
-      guard arguments[0].as_int() is Some(left) else {
+      guard arguments[0].as_i64() is Some(left) else {
         raise @buslane_interpreter.external_failure(
           plus, "plus expects an integer left argument",
         )
       }
-      guard arguments[1].as_int() is Some(right) else {
+      guard arguments[1].as_i64() is Some(right) else {
         raise @buslane_interpreter.external_failure(
           plus, "plus expects an integer right argument",
         )
       }
-      @buslane_interpreter.BuslaneRuntimeValue::int(left + right)
+      @buslane_interpreter.BuslaneRuntimeValue::i64(left + right)
     })
   })
   runtime
@@ -53,7 +53,7 @@ test "handler lowering preserves multi-shot resume execution" {
   let plus = metadata.define_value(
     "plus",
     External,
-    Function([Primitive(Int), Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64), Primitive(I64)], Primitive(I64), Empty),
   )
   let choice = metadata.define_value("choice", Local, Primitive(Bool))
   let match_binder = metadata.define_value(
@@ -61,12 +61,12 @@ test "handler lowering preserves multi-shot resume execution" {
     MatchBinder,
     Primitive(Bool),
   )
-  let result = metadata.define_value("result", Value, Primitive(Int))
-  let final_binder = metadata.define_value("result", Local, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
+  let final_binder = metadata.define_value("result", Local, Primitive(I64))
   let resume_binder = metadata.define_value(
     "resume",
     Parameter,
-    Function([Primitive(Bool)], Primitive(Int), Empty),
+    Function([Primitive(Bool)], Primitive(I64), Empty),
   )
   let source = @buslane.Program::{
     metadata,
@@ -86,25 +86,25 @@ test "handler lowering preserves multi-shot resume execution" {
             Match({
               scrutinee: Ref(choice),
               binder: match_binder,
-              result_type: Primitive(Int),
+              result_type: Primitive(I64),
               alternatives: [
                 {
                   alt_constructor: Literal(Bool(true)),
                   type_binders: [],
                   value_binders: [],
-                  body: Literal(Int(10L)),
+                  body: Literal(I64(10L)),
                 },
                 {
                   alt_constructor: Literal(Bool(false)),
                   type_binders: [],
                   value_binders: [],
-                  body: Literal(Int(1L)),
+                  body: Literal(I64(1L)),
                 },
               ],
             }),
           ),
           result_binder: final_binder,
-          result_type: Primitive(Int),
+          result_type: Primitive(I64),
           final_body: Ref(final_binder),
           handlers: [
             {
@@ -134,7 +134,7 @@ test "handler lowering preserves multi-shot resume execution" {
     ordinary,
     cps_test_plus_runtime(plus),
   )
-  assert_eq(evaluated.lookup(result).as_int(), Some(11L))
+  assert_eq(evaluated.lookup(result).as_i64(), Some(11L))
 }
 
 ///|
@@ -146,33 +146,33 @@ test "handler lowering relays residual effects through final clauses" {
     inner_effect,
     [],
     [],
-    Primitive(Int),
+    Primitive(I64),
   )
   let outer_effect = metadata.define_effect("Outer", [])
   let outer_operation = metadata.define_operation(
     "outer",
     outer_effect,
     [],
-    [Primitive(Int)],
-    Primitive(Int),
+    [Primitive(I64)],
+    Primitive(I64),
   )
-  let result = metadata.define_value("result", Value, Primitive(Int))
-  let inner_final = metadata.define_value("inner_result", Local, Primitive(Int))
-  let outer_final = metadata.define_value("outer_result", Local, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
+  let inner_final = metadata.define_value("inner_result", Local, Primitive(I64))
+  let outer_final = metadata.define_value("outer_result", Local, Primitive(I64))
   let outer_payload = metadata.define_value(
     "payload",
     Parameter,
-    Primitive(Int),
+    Primitive(I64),
   )
   let inner_resume = metadata.define_value(
     "inner_resume",
     Parameter,
-    Function([Primitive(Int)], Primitive(Int), Singleton(outer_effect, [])),
+    Function([Primitive(I64)], Primitive(I64), Singleton(outer_effect, [])),
   )
   let outer_resume = metadata.define_value(
     "outer_resume",
     Parameter,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let source = @buslane.Program::{
     metadata,
@@ -188,7 +188,7 @@ test "handler lowering relays residual effects through final clauses" {
               payloads: [],
             }),
             result_binder: inner_final,
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             final_body: Perform({
               operation: outer_operation,
               effect_arguments: [],
@@ -204,14 +204,14 @@ test "handler lowering relays residual effects through final clauses" {
                     type_binders: [],
                     payload_binders: [],
                     resume_binder: inner_resume,
-                    body: Call(Resume(inner_resume), [Literal(Int(41L))]),
+                    body: Call(Resume(inner_resume), [Literal(I64(41L))]),
                   },
                 ],
               },
             ],
           }),
           result_binder: outer_final,
-          result_type: Primitive(Int),
+          result_type: Primitive(I64),
           final_body: Ref(outer_final),
           handlers: [
             {
@@ -238,5 +238,5 @@ test "handler lowering relays residual effects through final clauses" {
     ordinary,
     BuslaneExternalRuntime(),
   )
-  assert_eq(evaluated.lookup(result).as_int(), Some(41L))
+  assert_eq(evaluated.lookup(result).as_i64(), Some(41L))
 }

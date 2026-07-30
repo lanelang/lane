@@ -31,16 +31,16 @@ test "generic nested closures preserve erased captures in both backends" {
   let captured = metadata.define_value("captured", Parameter, generic_type)
   let make = metadata.define_value("make", Function, make_type)
   let string_type = @buslane.Type::Primitive(String)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let string_callable_type = @buslane.Type::Function([], string_type, Empty)
-  let measure_type = @buslane.Type::Function([string_type], int_type, Empty)
+  let measure_type = @buslane.Type::Function([string_type], i64_type, Empty)
   let measure = metadata.define_value("measure", External, measure_type)
-  let observe_type = @buslane.Type::Function([int_type], unit_type, Empty)
+  let observe_type = @buslane.Type::Function([i64_type], unit_type, Empty)
   let observe = metadata.define_value("observe", External, observe_type)
   let closure = metadata.define_value("closure", Local, string_callable_type)
   let produced = metadata.define_value("produced", Local, string_type)
-  let measured = metadata.define_value("measured", Local, int_type)
+  let measured = metadata.define_value("measured", Local, i64_type)
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -96,13 +96,13 @@ test "generic nested closures preserve erased captures in both backends" {
           {
             value: measure,
             symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: Int },
+            signature: { parameters: [String], result: I64 },
             type_: measure_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [Int], result: Unit },
+            signature: { parameters: [I64], result: Unit },
             type_: observe_type,
           },
         ],
@@ -132,14 +132,14 @@ test "nominal values cross erased generic boundaries in both backends" {
   let identity_value = metadata.define_value("value", Parameter, generic_type)
   let identity = metadata.define_value("identity", Function, identity_type)
   let string_type = @buslane.Type::Primitive(String)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let option_string = @buslane.Type::Apply(Constructor(option), [
     TypeArgument(string_type),
   ])
-  let measure_type = @buslane.Type::Function([string_type], int_type, Empty)
+  let measure_type = @buslane.Type::Function([string_type], i64_type, Empty)
   let measure = metadata.define_value("measure", External, measure_type)
-  let observe_type = @buslane.Type::Function([int_type], unit_type, Empty)
+  let observe_type = @buslane.Type::Function([i64_type], unit_type, Empty)
   let observe = metadata.define_value("observe", External, observe_type)
   let apply_function = metadata.define_value(
     "function",
@@ -157,7 +157,7 @@ test "nominal values cross erased generic boundaries in both backends" {
   let roundtrip = metadata.define_value("roundtrip", Local, option_string)
   let match_binder = metadata.define_value("option", MatchBinder, option_string)
   let payload = metadata.define_value("payload", MatchBinder, string_type)
-  let measured = metadata.define_value("measured", Local, int_type)
+  let measured = metadata.define_value("measured", Local, i64_type)
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -235,13 +235,13 @@ test "nominal values cross erased generic boundaries in both backends" {
           {
             value: measure,
             symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: Int },
+            signature: { parameters: [String], result: I64 },
             type_: measure_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [Int], result: Unit },
+            signature: { parameters: [I64], result: Unit },
             type_: observe_type,
           },
         ],

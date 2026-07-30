@@ -6,7 +6,7 @@ fn sample_sources() -> (@source.SourceDatabase, @core.SourceId) {
       #|module Ops
       #|
       #|import Builtins.{
-      #|  int_add,
+      #|  i64_add,
       #|}
     ),
     path="ops.lane",
@@ -67,9 +67,9 @@ test "render multiline primary label and secondary label" {
       #|   |
       #| 3 | import Builtins.{
       #|   |        ^^^^^^^^^^ import starts here
-      #| 4 |   int_add,
+      #| 4 |   i64_add,
       #|   | ^^^^^^^^^^
-      #| 4 |   int_add,
+      #| 4 |   i64_add,
       #|   |   ------- imported value appears here
       #|   |
     ),

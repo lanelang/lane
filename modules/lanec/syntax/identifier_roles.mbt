@@ -222,8 +222,8 @@ fn collect_pattern_identifier_roles(
 ) -> Unit {
   match pattern {
     Wildcard(_)
-    | IntLiteral(_, ..)
-    | DoubleLiteral(_, ..)
+    | IntegerLiteral(_, ..)
+    | FloatingLiteral(_, ..)
     | StringLiteral(_, ..)
     | CharLiteral(_, ..)
     | BoolLiteral(_, ..) => ()
@@ -263,8 +263,8 @@ fn collect_expression_identifier_roles(
   slots : Array[SyntacticIdentifierSlot],
 ) -> Unit {
   match expression {
-    IntLiteral(_)
-    | DoubleLiteral(_)
+    IntegerLiteral(_)
+    | FloatingLiteral(_)
     | StringLiteral(_)
     | CharLiteral(_)
     | BoolLiteral(_)

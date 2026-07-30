@@ -57,17 +57,17 @@ test "VM CFG analyses describe a diamond and ignore unreachable dominance" {
       },
       {
         parameters: [],
-        instructions: [IntAdd({ value: 2 }, { value: 1 }, { value: 1 })],
+        instructions: [I64Add({ value: 2 }, { value: 1 }, { value: 1 })],
         terminator: Jump(flow_edge(3, [{ value: 2 }])),
       },
       {
         parameters: [],
-        instructions: [IntSub({ value: 3 }, { value: 1 }, { value: 1 })],
+        instructions: [I64Sub({ value: 3 }, { value: 1 }, { value: 1 })],
         terminator: Jump(flow_edge(3, [{ value: 3 }])),
       },
       {
         parameters: [{ value: 4 }],
-        instructions: [IntAdd({ value: 5 }, { value: 4 }, { value: 1 })],
+        instructions: [I64Add({ value: 5 }, { value: 4 }, { value: 1 })],
         terminator: Return(Some({ value: 5 })),
       },
       { parameters: [], instructions: [], terminator: Unreachable },
@@ -172,7 +172,7 @@ test "VM CFG analyses converge through a loop with block parameters" {
       },
       {
         parameters: [{ value: 3 }],
-        instructions: [IntAdd({ value: 4 }, { value: 3 }, { value: 2 })],
+        instructions: [I64Add({ value: 4 }, { value: 3 }, { value: 2 })],
         terminator: BranchBool(
           { value: 0 },
           flow_edge(1, [{ value: 4 }]),

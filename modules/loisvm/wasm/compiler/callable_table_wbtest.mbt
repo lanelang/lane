@@ -56,9 +56,9 @@ test "trivial functions omit frame liveness locals" {
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 0 }, 40L),
-          ConstInt({ value: 1 }, 2L),
-          IntAdd({ value: 2 }, { value: 0 }, { value: 1 }),
+          ConstI64({ value: 0 }, 40L),
+          ConstI64({ value: 1 }, 2L),
+          I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
         ],
         terminator: Return(None),
       },

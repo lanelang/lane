@@ -5,8 +5,8 @@ test "loader resolves all runtime imports atomically" {
     @runtime.RuntimeBinding::new(
       symbol="lane.test.identity",
       abi_major=1,
-      parameters=[Int],
-      result=Int,
+      parameters=[I64],
+      result=I64,
       invoke=fn(_context, arguments) {
         match arguments {
           [value] => value
@@ -29,8 +29,8 @@ test "loader resolves all runtime imports atomically" {
       BytecodeBody(body),
       RuntimeImport({
         abi_major: 1,
-        parameters: [Int],
-        result: Int,
+        parameters: [I64],
+        result: I64,
         symbol: "lane.test.identity",
       }),
     ],
@@ -51,8 +51,8 @@ test "loader resolves all runtime imports atomically" {
       symbol="lane.test.identity",
       abi_major=1,
       parameters=[Bool],
-      result=Int,
-      invoke=fn(_context, _arguments) { Int(0L) },
+      result=I64,
+      invoke=fn(_context, _arguments) { I64(0L) },
     ),
   )
   let wrong_result = @runtime.RuntimeRegistry::new()
@@ -60,7 +60,7 @@ test "loader resolves all runtime imports atomically" {
     @runtime.RuntimeBinding::new(
       symbol="lane.test.identity",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Bool,
       invoke=fn(_context, _arguments) { Bool(false) },
     ),
@@ -80,14 +80,14 @@ test "loader resolves all runtime imports atomically" {
       #|  Some(
       #|    ParameterKindsMismatch(
       #|      symbol="lane.test.identity",
-      #|      expected=[Int],
+      #|      expected=[I64],
       #|      actual=[Bool],
       #|    ),
       #|  ),
       #|  Some(
       #|    ResultKindMismatch(
       #|      symbol="lane.test.identity",
-      #|      expected=Int,
+      #|      expected=I64,
       #|      actual=Bool,
       #|    ),
       #|  ),

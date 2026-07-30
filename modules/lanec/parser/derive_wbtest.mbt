@@ -12,7 +12,7 @@ test "parse call-shaped derive expressions" {
 
 ///|
 test "derive is reserved for call-shaped derivation" {
-  let binding = parse_string("module Test\nlet derive : Int = 1")
+  let binding = parse_string("module Test\nlet derive : I64 = 1")
   assert_false(binding.parse_errors().is_empty())
   let missing_call = parse_string(
     "module Test\npub let point_equal : Equal[Point] = derive[Equal, Point]",

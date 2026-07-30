@@ -183,8 +183,8 @@ test "ByteSequence equality concatenation and slicing agree across backends" {
           ConstString({ value: 0 }, { value: 0 }),
           ConstString({ value: 1 }, { value: 1 }),
           ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-          ConstInt({ value: 3 }, 1L),
-          ConstInt({ value: 4 }, 4L),
+          ConstI64({ value: 3 }, 1L),
+          ConstI64({ value: 4 }, 4L),
           ByteSequenceSlice({ value: 5 }, { value: 2 }, { value: 3 }, {
             value: 4,
           }),
@@ -241,11 +241,11 @@ test "Byte conversions agree across interpreter and Wasm backends" {
     blocks.push({
       parameters: [],
       instructions: [
-        ConstInt({ value: 0 }, case.0),
-        IntToByte({ value: 1 }, { value: 0 }),
-        ByteToInt({ value: 2 }, { value: 1 }),
-        ConstInt({ value: 3 }, case.1),
-        IntEq({ value: 4 }, { value: 2 }, { value: 3 }),
+        ConstI64({ value: 0 }, case.0),
+        I64ToByte({ value: 1 }, { value: 0 }),
+        ByteToI64({ value: 2 }, { value: 1 }),
+        ConstI64({ value: 3 }, case.1),
+        I64Eq({ value: 4 }, { value: 2 }, { value: 3 }),
       ],
       terminator: BranchBool(
         { value: 4 },
@@ -275,11 +275,11 @@ test "Bytes zero length agrees across interpreter and Wasm backends" {
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 0 }, 0L),
-          IntToByte({ value: 1 }, { value: 0 }),
+          ConstI64({ value: 0 }, 0L),
+          I64ToByte({ value: 1 }, { value: 0 }),
           ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
           ByteSequenceLength({ value: 3 }, { value: 2 }),
-          IntEq({ value: 4 }, { value: 3 }, { value: 0 }),
+          I64Eq({ value: 4 }, { value: 3 }, { value: 0 }),
         ],
         terminator: BranchBool({ value: 4 }, edge(1), edge(2)),
       },
@@ -312,27 +312,27 @@ test "Bytes make fills every position across backends" {
         {
           parameters: [],
           instructions: [
-            ConstInt({ value: 0 }, 4L),
-            ConstInt({ value: 18 }, 255L),
-            IntToByte({ value: 1 }, { value: 18 }),
+            ConstI64({ value: 0 }, 4L),
+            ConstI64({ value: 18 }, 255L),
+            I64ToByte({ value: 1 }, { value: 18 }),
             ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
-            ConstInt({ value: 3 }, 0L),
-            ConstInt({ value: 4 }, 1L),
-            ConstInt({ value: 5 }, 2L),
-            ConstInt({ value: 6 }, 3L),
+            ConstI64({ value: 3 }, 0L),
+            ConstI64({ value: 4 }, 1L),
+            ConstI64({ value: 5 }, 2L),
+            ConstI64({ value: 6 }, 3L),
             ByteSequenceGet({ value: 7 }, { value: 2 }, { value: 3 }),
             ByteSequenceGet({ value: 8 }, { value: 2 }, { value: 4 }),
             ByteSequenceGet({ value: 9 }, { value: 2 }, { value: 5 }),
             ByteSequenceGet({ value: 10 }, { value: 2 }, { value: 6 }),
-            ByteToInt({ value: 11 }, { value: 7 }),
-            ByteToInt({ value: 12 }, { value: 8 }),
-            ByteToInt({ value: 13 }, { value: 9 }),
-            ByteToInt({ value: 14 }, { value: 10 }),
-            IntAdd({ value: 15 }, { value: 11 }, { value: 12 }),
-            IntAdd({ value: 16 }, { value: 13 }, { value: 14 }),
-            IntAdd({ value: 17 }, { value: 15 }, { value: 16 }),
-            ConstInt({ value: 18 }, 1020L),
-            IntEq({ value: 19 }, { value: 17 }, { value: 18 }),
+            ByteToI64({ value: 11 }, { value: 7 }),
+            ByteToI64({ value: 12 }, { value: 8 }),
+            ByteToI64({ value: 13 }, { value: 9 }),
+            ByteToI64({ value: 14 }, { value: 10 }),
+            I64Add({ value: 15 }, { value: 11 }, { value: 12 }),
+            I64Add({ value: 16 }, { value: 13 }, { value: 14 }),
+            I64Add({ value: 17 }, { value: 15 }, { value: 16 }),
+            ConstI64({ value: 18 }, 1020L),
+            I64Eq({ value: 19 }, { value: 17 }, { value: 18 }),
           ],
           terminator: BranchBool({ value: 19 }, edge(1), edge(2)),
         },
@@ -365,15 +365,15 @@ test "Bytes first middle and final updates agree across backends" {
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 0 }, 3L),
-          IntToByte({ value: 1 }, { value: 0 }),
+          ConstI64({ value: 0 }, 3L),
+          I64ToByte({ value: 1 }, { value: 0 }),
           ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
-          ConstInt({ value: 3 }, 0L),
-          ConstInt({ value: 4 }, 1L),
-          ConstInt({ value: 5 }, 2L),
-          IntToByte({ value: 6 }, { value: 3 }),
-          IntToByte({ value: 7 }, { value: 4 }),
-          IntToByte({ value: 8 }, { value: 5 }),
+          ConstI64({ value: 3 }, 0L),
+          ConstI64({ value: 4 }, 1L),
+          ConstI64({ value: 5 }, 2L),
+          I64ToByte({ value: 6 }, { value: 3 }),
+          I64ToByte({ value: 7 }, { value: 4 }),
+          I64ToByte({ value: 8 }, { value: 5 }),
           ByteSequenceSet({ value: 9 }, { value: 2 }, { value: 3 }, { value: 6 }),
           ByteSequenceSet({ value: 10 }, { value: 9 }, { value: 4 }, {
             value: 7,
@@ -384,28 +384,28 @@ test "Bytes first middle and final updates agree across backends" {
           ByteSequenceGet({ value: 12 }, { value: 11 }, { value: 3 }),
           ByteSequenceGet({ value: 13 }, { value: 11 }, { value: 4 }),
           ByteSequenceGet({ value: 14 }, { value: 11 }, { value: 5 }),
-          ByteToInt({ value: 15 }, { value: 12 }),
-          ByteToInt({ value: 16 }, { value: 13 }),
-          ByteToInt({ value: 17 }, { value: 14 }),
-          IntEq({ value: 18 }, { value: 15 }, { value: 3 }),
+          ByteToI64({ value: 15 }, { value: 12 }),
+          ByteToI64({ value: 16 }, { value: 13 }),
+          ByteToI64({ value: 17 }, { value: 14 }),
+          I64Eq({ value: 18 }, { value: 15 }, { value: 3 }),
         ],
         terminator: BranchBool({ value: 18 }, edge(1), edge(5)),
       },
       {
         parameters: [],
-        instructions: [IntEq({ value: 18 }, { value: 16 }, { value: 4 })],
+        instructions: [I64Eq({ value: 18 }, { value: 16 }, { value: 4 })],
         terminator: BranchBool({ value: 18 }, edge(2), edge(5)),
       },
       {
         parameters: [],
-        instructions: [IntEq({ value: 18 }, { value: 17 }, { value: 5 })],
+        instructions: [I64Eq({ value: 18 }, { value: 17 }, { value: 5 })],
         terminator: BranchBool({ value: 18 }, edge(3), edge(5)),
       },
       {
         parameters: [],
         instructions: [
           ByteSequenceLength({ value: 19 }, { value: 11 }),
-          IntEq({ value: 18 }, { value: 19 }, { value: 0 }),
+          I64Eq({ value: 18 }, { value: 19 }, { value: 0 }),
         ],
         terminator: BranchBool({ value: 18 }, edge(4), edge(5)),
       },
@@ -435,27 +435,27 @@ test "Bytes shared update preserves the retained alias across backends" {
         {
           parameters: [],
           instructions: [
-            ConstInt({ value: 0 }, 1L),
-            IntToByte({ value: 1 }, { value: 0 }),
+            ConstI64({ value: 0 }, 1L),
+            I64ToByte({ value: 1 }, { value: 0 }),
             ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
             RetainCopy({ value: 3 }, { value: 2 }),
-            ConstInt({ value: 4 }, 0L),
-            IntToByte({ value: 5 }, { value: 4 }),
+            ConstI64({ value: 4 }, 0L),
+            I64ToByte({ value: 5 }, { value: 4 }),
             ByteSequenceSet({ value: 6 }, { value: 2 }, { value: 4 }, {
               value: 5,
             }),
             ByteSequenceGet({ value: 7 }, { value: 3 }, { value: 4 }),
             ByteSequenceGet({ value: 8 }, { value: 6 }, { value: 4 }),
-            ByteToInt({ value: 9 }, { value: 7 }),
-            ByteToInt({ value: 10 }, { value: 8 }),
-            ConstInt({ value: 11 }, 1L),
-            IntEq({ value: 12 }, { value: 9 }, { value: 11 }),
+            ByteToI64({ value: 9 }, { value: 7 }),
+            ByteToI64({ value: 10 }, { value: 8 }),
+            ConstI64({ value: 11 }, 1L),
+            I64Eq({ value: 12 }, { value: 9 }, { value: 11 }),
           ],
           terminator: BranchBool({ value: 12 }, edge(1), edge(3)),
         },
         {
           parameters: [],
-          instructions: [IntEq({ value: 12 }, { value: 10 }, { value: 4 })],
+          instructions: [I64Eq({ value: 12 }, { value: 10 }, { value: 4 })],
           terminator: BranchBool({ value: 12 }, edge(2), edge(3)),
         },
         {
@@ -477,10 +477,10 @@ test "Bytes unique update reuses its allocation across backends" {
   let owned = wasm_bytes_owned_slot()
   assert_bytes_backends(
     wasm_bytes_single_block([i64, i32, owned, i64, owned], [
-      ConstInt({ value: 0 }, 1L),
-      IntToByte({ value: 1 }, { value: 0 }),
+      ConstI64({ value: 0 }, 1L),
+      I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
-      ConstInt({ value: 3 }, 0L),
+      ConstI64({ value: 3 }, 0L),
       ByteSequenceSet({ value: 4 }, { value: 2 }, { value: 3 }, { value: 1 }),
       Release({ value: 4 }),
     ]),
@@ -500,11 +500,11 @@ test "Bytes shared update needs a second allocation across backends" {
   let owned = wasm_bytes_owned_slot()
   assert_bytes_backends(
     wasm_bytes_single_block([i64, i32, owned, owned, i64, owned], [
-      ConstInt({ value: 0 }, 1L),
-      IntToByte({ value: 1 }, { value: 0 }),
+      ConstI64({ value: 0 }, 1L),
+      I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       RetainCopy({ value: 3 }, { value: 2 }),
-      ConstInt({ value: 4 }, 0L),
+      ConstI64({ value: 4 }, 0L),
       ByteSequenceSet({ value: 5 }, { value: 2 }, { value: 4 }, { value: 1 }),
     ]),
     LiveHeapLimit,
@@ -523,8 +523,8 @@ test "Bytes allocation exhaustion agrees across interpreter and Wasm backends" {
   let owned = wasm_bytes_owned_slot()
   assert_bytes_backends(
     wasm_bytes_single_block([i64, i32, owned], [
-      ConstInt({ value: 0 }, 1L),
-      IntToByte({ value: 1 }, { value: 0 }),
+      ConstI64({ value: 0 }, 1L),
+      I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
     ]),
     LiveHeapLimit,
@@ -543,8 +543,8 @@ test "Bytes allocation accounting follows the aligned object size" {
   let owned = wasm_bytes_owned_slot()
   let body = fn(length : Int64) {
     wasm_bytes_single_block([i64, i32, owned], [
-      ConstInt({ value: 0 }, length),
-      IntToByte({ value: 1 }, { value: 0 }),
+      ConstI64({ value: 0 }, length),
+      I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       Release({ value: 2 }),
     ])
@@ -565,8 +565,8 @@ test "large Bytes allocation is rejected before materialization across backends"
   let owned = wasm_bytes_owned_slot()
   assert_bytes_backends(
     wasm_bytes_single_block([i64, i32, owned], [
-      ConstInt({ value: 0 }, 2147483636L),
-      IntToByte({ value: 1 }, { value: 0 }),
+      ConstI64({ value: 0 }, 2147483636L),
+      I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
     ]),
     LiveHeapLimit,
@@ -585,8 +585,8 @@ test "Bytes invalid lengths and indices are fatal across backends" {
   let owned = wasm_bytes_owned_slot()
   let invalid_length_body = fn(length : Int64) {
     wasm_bytes_single_block([i64, i32, owned], [
-      ConstInt({ value: 0 }, length),
-      IntToByte({ value: 1 }, { value: 0 }),
+      ConstI64({ value: 0 }, length),
+      I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
     ])
   }
@@ -595,10 +595,10 @@ test "Bytes invalid lengths and indices are fatal across backends" {
   }
   let invalid_index_body = fn(length : Int64, index : Int64, update : Bool) {
     let instructions : Array[@bytecode.Instruction] = [
-      ConstInt({ value: 0 }, length),
-      IntToByte({ value: 1 }, { value: 0 }),
+      ConstI64({ value: 0 }, length),
+      I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
-      ConstInt({ value: 3 }, index),
+      ConstI64({ value: 3 }, index),
     ]
     if update {
       instructions.push(

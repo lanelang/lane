@@ -1,6 +1,6 @@
 ///|
-fn int_type() -> @buslane.Type {
-  Primitive(Int)
+fn i64_type() -> @buslane.Type {
+  Primitive(I64)
 }
 
 ///|
@@ -21,8 +21,8 @@ test "runtime reports unhandled operation" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
   let error = try {
     ignore(
@@ -31,7 +31,7 @@ test "runtime reports unhandled operation" {
           operation: print,
           effect_arguments: [],
           hidden_witnesses: [],
-          payloads: [Literal(Int(1L))],
+          payloads: [Literal(I64(1L))],
         }),
         BuslaneRuntimeEnvironment(),
         BuslaneExternalRuntime(),

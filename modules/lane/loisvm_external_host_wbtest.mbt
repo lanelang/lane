@@ -45,10 +45,10 @@ fn external_counter_registry(
           @loisvm_runtime.HostParameter::host_object(counters),
         ),
         @loisvm_runtime.HostParameters::one(
-          @loisvm_runtime.HostParameter::int(),
+          @loisvm_runtime.HostParameter::i64(),
         ),
       ),
-      result=@loisvm_runtime.HostResult::int(),
+      result=@loisvm_runtime.HostResult::i64(),
       invoke=(_context, arguments : (ExternalCounter, Int64)) => {
         if arguments.0.closed {
           raise Failure(message="counter is closed")
@@ -63,7 +63,7 @@ fn external_counter_registry(
       symbol="counter.observe",
       abi_major=1,
       parameters=@loisvm_runtime.HostParameters::one(
-        @loisvm_runtime.HostParameter::int(),
+        @loisvm_runtime.HostParameter::i64(),
       ),
       result=@loisvm_runtime.HostResult::unit(),
       invoke=fn(_context, value : Int64) { observed.push(value) },
@@ -139,14 +139,14 @@ test "external type source executes identically across production backends" {
       #|extern type Counter : Type
       #|pub extern type CounterIo : Effect
       #|let counter_new : () -> Counter ! CounterIo = extern("counter.new")
-      #|let counter_add : (Counter, Int) -> Int ! CounterIo = extern("counter.add")
-      #|let counter_observe : (Int) -> Unit ! CounterIo = extern("counter.observe")
+      #|let counter_add : (Counter, I64) -> I64 ! CounterIo = extern("counter.add")
+      #|let counter_observe : (I64) -> Unit ! CounterIo = extern("counter.observe")
       #|let counter_close : (Counter) -> Unit ! CounterIo = extern("counter.close")
       #|pub fn main() -> Unit ! CounterIo {
       #|  let counter : Counter = counter_new()
       #|  let alias : Counter = counter
-      #|  let first : Int = counter_add(counter, 1)
-      #|  let second : Int = counter_add(alias, 2)
+      #|  let first : I64 = counter_add(counter, 1)
+      #|  let second : I64 = counter_add(alias, 2)
       #|  let _first_observed : Unit = counter_observe(first)
       #|  let _second_observed : Unit = counter_observe(second)
       #|  counter_close(counter)
@@ -167,10 +167,10 @@ test "external type source executes identically across production backends" {
     content=(
       #|(
       #|  [
-      #|    ("counter.add", [Opaque, Int], Int),
+      #|    ("counter.add", [Opaque, I64], I64),
       #|    ("counter.new", [], Opaque),
       #|    ("counter.close", [Opaque], Unit),
-      #|    ("counter.observe", [Int], Unit),
+      #|    ("counter.observe", [I64], Unit),
       #|  ],
       #|  { result: Ok(()), observed: [1, 3], closed: 1, finalized: 1 },
       #|  { result: Ok(()), observed: [1, 3], closed: 1, finalized: 1 },

@@ -70,8 +70,8 @@ pub impl Debug for HostStringView with fn to_repr(self : HostStringView) -> Repr
 pub(all) enum HostValue {
   Unit
   Bool(Bool)
-  Int(Int64)
-  Double(Double)
+  I64(Int64)
+  F64(Double)
   BorrowedString(HostStringView)
   String(Bytes)
   BorrowedOpaque(BorrowedHostObject)

@@ -66,15 +66,15 @@ fn layout_rep_kind(layout : @bytecode.LayoutRecipe) -> Int {
   match layout {
     Unit => 1
     Bool => 2
-    Int => 3
-    Double => 4
+    I64 => 3
+    F64 => 4
     Callable => 5
     ByteSequence => 6
     Data(_) => 7
     Environment(_) => 8
     Reference => 9
     Byte => 10
-    S32 => 12
+    I32 => 12
     Char => 13
   }
 }
@@ -87,7 +87,7 @@ fn layout_fixed_size(
   host_objects_enabled : Bool,
 ) -> Int? {
   match layout {
-    Unit | Bool | Int | S32 | Char | Double | Callable | Byte => Some(0)
+    Unit | Bool | I64 | I32 | Char | F64 | Callable | Byte => Some(0)
     Reference => Some(if host_objects_enabled { 16 } else { 0 })
     ByteSequence => None
     Data(shape) | Environment(shape) => {
@@ -145,13 +145,13 @@ fn build_static_image(
     }
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | Int | S32 | Char | Double | Callable | Byte => 1
+        Unit | Bool | I64 | I32 | Char | F64 | Callable | Byte => 1
         ByteSequence | Data(_) | Environment(_) | Reference => 8
       },
     )
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | Int | S32 | Char | Double | Byte =>
+        Unit | Bool | I64 | I32 | Char | F64 | Byte =>
           helper_functions.noop_erased_table
         Callable => helper_functions.retain_callable_table
         ByteSequence | Data(_) | Environment(_) | Reference =>
@@ -160,7 +160,7 @@ fn build_static_image(
     )
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | Int | S32 | Char | Double | Byte =>
+        Unit | Bool | I64 | I32 | Char | F64 | Byte =>
           helper_functions.noop_erased_table
         Callable => helper_functions.release_callable_table
         ByteSequence | Data(_) | Environment(_) | Reference =>
@@ -175,10 +175,10 @@ fn build_static_image(
           helper_functions.destroy_host_object_table
         Unit
         | Bool
-        | Int
-        | S32
+        | I64
+        | I32
         | Char
-        | Double
+        | F64
         | Callable
         | ByteSequence
         | Byte

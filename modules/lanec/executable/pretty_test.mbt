@@ -1,13 +1,13 @@
 ///|
 test "executable pretty output emphasizes execution structure" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let string_type = @buslane.Type::Primitive(String)
   let println_type = @buslane.Type::Function([string_type], unit_type, Empty)
   let function_type = @buslane.Type::Function([], unit_type, Empty)
   let println = metadata.define_value("println", External, println_type)
-  let initialized = metadata.define_value("initialized", Local, int_type)
+  let initialized = metadata.define_value("initialized", Local, i64_type)
   let main = metadata.define_value("main", Function, function_type)
   let entry : @buslane_lowering.BuslaneEntry = {
     module_path_text: "Main",
@@ -21,7 +21,7 @@ test "executable pretty output emphasizes execution structure" {
       metadata,
       terms: [
         External(println),
-        Let(initialized, Literal(Int(42))),
+        Let(initialized, Literal(I64(42))),
         Let(
           main,
           Function({
@@ -44,7 +44,7 @@ test "executable pretty output emphasizes execution structure" {
       ],
     },
     entry,
-    initializers: [Value(initialized, Literal(Int(42)))],
+    initializers: [Value(initialized, Literal(I64(42)))],
     execution_roots: [Initializer(0), Entry(main)],
     effect_companions: [],
   }
@@ -72,7 +72,7 @@ test "executable pretty output emphasizes execution structure" {
       #|    buslane {
       #|      metadata {
       #|        external println#0 : (String) -> Unit
-      #|        local initialized#1 : Int
+      #|        local initialized#1 : I64
       #|        function main#2 : () -> Unit
       #|      }
       #|      external value#0

@@ -27,7 +27,7 @@ fn lifecycle_initializer() -> @bytecode.FunctionBody {
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 7 }, 42L),
+          ConstI64({ value: 7 }, 42L),
           InitGlobal({ value: 0 }, { value: 7 }),
           ConstString({ value: 0 }, { value: 0 }),
           ConstString({ value: 1 }, { value: 1 }),

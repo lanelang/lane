@@ -131,10 +131,10 @@ fn compatible_trivial_values(
 ///|
 fn instruction_is_scalar_constant(instruction : Instruction) -> Bool {
   match instruction {
-    ConstInt(_, _)
-    | ConstS32(_, _)
+    ConstI64(_, _)
+    | ConstI32(_, _)
     | ConstChar(_, _)
-    | ConstDouble(_, _)
+    | ConstF64(_, _)
     | ConstBool(_, _)
     | ConstLayout(_, _)
     | ConstFunction(_, _) => true
@@ -159,10 +159,10 @@ fn find_equivalent_constant(
 ///|
 fn scalar_constants_equal(left : Instruction, right : Instruction) -> Bool {
   match (left, right) {
-    (ConstInt(_, left), ConstInt(_, right)) => left == right
-    (ConstS32(_, left), ConstS32(_, right)) => left == right
+    (ConstI64(_, left), ConstI64(_, right)) => left == right
+    (ConstI32(_, left), ConstI32(_, right)) => left == right
     (ConstChar(_, left), ConstChar(_, right)) => left == right
-    (ConstDouble(_, left), ConstDouble(_, right)) => left == right
+    (ConstF64(_, left), ConstF64(_, right)) => left == right
     (ConstBool(_, left), ConstBool(_, right)) => left == right
     (ConstLayout(_, left), ConstLayout(_, right)) => left == right
     (ConstFunction(_, left), ConstFunction(_, right)) => left == right
@@ -209,7 +209,7 @@ fn find_int_constant(
   value : ValueId,
 ) -> Int64? {
   for instruction in instructions {
-    if instruction is ConstInt(destination, constant) && destination == value {
+    if instruction is ConstI64(destination, constant) && destination == value {
       return Some(constant)
     }
   }
@@ -248,52 +248,52 @@ fn remove_dead_scalar_instructions(body : FunctionBody) -> Array[Block] {
 fn instruction_is_dead_scalar_candidate(instruction : Instruction) -> Bool {
   match instruction {
     Copy(_, _)
-    | ConstInt(_, _)
-    | ConstS32(_, _)
+    | ConstI64(_, _)
+    | ConstI32(_, _)
     | ConstChar(_, _)
-    | ConstDouble(_, _)
+    | ConstF64(_, _)
     | ConstBool(_, _)
     | ConstLayout(_, _)
     | ConstFunction(_, _)
-    | S32Add(_, _, _)
-    | S32Sub(_, _, _)
-    | S32Mul(_, _, _)
-    | S32Neg(_, _)
-    | S32Eq(_, _, _)
-    | S32Lt(_, _, _)
-    | S32ToInt(_, _)
-    | IntToS32(_, _)
-    | IntAdd(_, _, _)
-    | IntSub(_, _, _)
-    | IntMul(_, _, _)
-    | IntNeg(_, _)
-    | IntAnd(_, _, _)
-    | IntOr(_, _, _)
-    | IntXor(_, _, _)
-    | IntNot(_, _)
-    | IntShl(_, _, _)
-    | IntShrS(_, _, _)
-    | IntEq(_, _, _)
-    | IntNe(_, _, _)
-    | IntLt(_, _, _)
-    | IntLe(_, _, _)
-    | IntGt(_, _, _)
-    | IntGe(_, _, _)
+    | I32Add(_, _, _)
+    | I32Sub(_, _, _)
+    | I32Mul(_, _, _)
+    | I32Neg(_, _)
+    | I32Eq(_, _, _)
+    | I32Lt(_, _, _)
+    | I32ToI64(_, _)
+    | I64ToI32(_, _)
+    | I64Add(_, _, _)
+    | I64Sub(_, _, _)
+    | I64Mul(_, _, _)
+    | I64Neg(_, _)
+    | I64And(_, _, _)
+    | I64Or(_, _, _)
+    | I64Xor(_, _, _)
+    | I64Not(_, _)
+    | I64Shl(_, _, _)
+    | I64ShrS(_, _, _)
+    | I64Eq(_, _, _)
+    | I64Ne(_, _, _)
+    | I64Lt(_, _, _)
+    | I64Le(_, _, _)
+    | I64Gt(_, _, _)
+    | I64Ge(_, _, _)
     | BoolNot(_, _)
     | BoolEq(_, _, _)
     | BoolNe(_, _, _)
-    | DoubleAdd(_, _, _)
-    | DoubleSub(_, _, _)
-    | DoubleMul(_, _, _)
-    | DoubleDiv(_, _, _)
-    | DoubleNeg(_, _)
-    | DoubleEq(_, _, _)
-    | DoubleNe(_, _, _)
-    | DoubleLt(_, _, _)
-    | DoubleLe(_, _, _)
-    | DoubleGt(_, _, _)
-    | DoubleGe(_, _, _)
-    | IntToDouble(_, _)
+    | F64Add(_, _, _)
+    | F64Sub(_, _, _)
+    | F64Mul(_, _, _)
+    | F64Div(_, _, _)
+    | F64Neg(_, _)
+    | F64Eq(_, _, _)
+    | F64Ne(_, _, _)
+    | F64Lt(_, _, _)
+    | F64Le(_, _, _)
+    | F64Gt(_, _, _)
+    | F64Ge(_, _, _)
+    | I64ToF64(_, _)
     | EraseI32(_, _)
     | UneraseI32(_, _)
     | EraseI64(_, _)
@@ -691,10 +691,10 @@ fn map_instruction_values(
     RetainCopy(destination, source) =>
       RetainCopy(transform(destination), transform(source))
     Release(value) => Release(transform(value))
-    ConstInt(destination, value) => ConstInt(transform(destination), value)
-    ConstS32(destination, value) => ConstS32(transform(destination), value)
+    ConstI64(destination, value) => ConstI64(transform(destination), value)
+    ConstI32(destination, value) => ConstI32(transform(destination), value)
     ConstChar(destination, value) => ConstChar(transform(destination), value)
-    ConstDouble(destination, bits) => ConstDouble(transform(destination), bits)
+    ConstF64(destination, bits) => ConstF64(transform(destination), bits)
     ConstBool(destination, value) => ConstBool(transform(destination), value)
     ConstLayout(destination, layout) =>
       ConstLayout(transform(destination), layout)
@@ -769,10 +769,10 @@ fn map_instruction_values(
       )
     MakeClosure(destination, function, environment) =>
       MakeClosure(transform(destination), function, transform(environment))
-    ByteToInt(destination, source) =>
-      ByteToInt(transform(destination), transform(source))
-    IntToByte(destination, source) =>
-      IntToByte(transform(destination), transform(source))
+    ByteToI64(destination, source) =>
+      ByteToI64(transform(destination), transform(source))
+    I64ToByte(destination, source) =>
+      I64ToByte(transform(destination), transform(source))
     ByteSequenceMake(destination, length, fill) =>
       ByteSequenceMake(
         transform(destination),
@@ -815,94 +815,94 @@ fn map_instruction_values(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(transform(destination), transform(source))
-    S32Add(destination, left, right) =>
-      S32Add(transform(destination), transform(left), transform(right))
-    S32Sub(destination, left, right) =>
-      S32Sub(transform(destination), transform(left), transform(right))
-    S32Mul(destination, left, right) =>
-      S32Mul(transform(destination), transform(left), transform(right))
-    S32Neg(destination, source) =>
-      S32Neg(transform(destination), transform(source))
-    S32Div(destination, left, right) =>
-      S32Div(transform(destination), transform(left), transform(right))
-    S32Rem(destination, left, right) =>
-      S32Rem(transform(destination), transform(left), transform(right))
-    S32Eq(destination, left, right) =>
-      S32Eq(transform(destination), transform(left), transform(right))
-    S32Lt(destination, left, right) =>
-      S32Lt(transform(destination), transform(left), transform(right))
-    S32ToInt(destination, source) =>
-      S32ToInt(transform(destination), transform(source))
-    IntToS32(destination, source) =>
-      IntToS32(transform(destination), transform(source))
-    IntAdd(destination, left, right) =>
-      IntAdd(transform(destination), transform(left), transform(right))
-    IntSub(destination, left, right) =>
-      IntSub(transform(destination), transform(left), transform(right))
-    IntMul(destination, left, right) =>
-      IntMul(transform(destination), transform(left), transform(right))
-    IntNeg(destination, source) =>
-      IntNeg(transform(destination), transform(source))
-    IntDiv(destination, left, right) =>
-      IntDiv(transform(destination), transform(left), transform(right))
-    IntRem(destination, left, right) =>
-      IntRem(transform(destination), transform(left), transform(right))
-    IntAnd(destination, left, right) =>
-      IntAnd(transform(destination), transform(left), transform(right))
-    IntOr(destination, left, right) =>
-      IntOr(transform(destination), transform(left), transform(right))
-    IntXor(destination, left, right) =>
-      IntXor(transform(destination), transform(left), transform(right))
-    IntNot(destination, source) =>
-      IntNot(transform(destination), transform(source))
-    IntShl(destination, left, right) =>
-      IntShl(transform(destination), transform(left), transform(right))
-    IntShrS(destination, left, right) =>
-      IntShrS(transform(destination), transform(left), transform(right))
-    IntEq(destination, left, right) =>
-      IntEq(transform(destination), transform(left), transform(right))
-    IntNe(destination, left, right) =>
-      IntNe(transform(destination), transform(left), transform(right))
-    IntLt(destination, left, right) =>
-      IntLt(transform(destination), transform(left), transform(right))
-    IntLe(destination, left, right) =>
-      IntLe(transform(destination), transform(left), transform(right))
-    IntGt(destination, left, right) =>
-      IntGt(transform(destination), transform(left), transform(right))
-    IntGe(destination, left, right) =>
-      IntGe(transform(destination), transform(left), transform(right))
+    I32Add(destination, left, right) =>
+      I32Add(transform(destination), transform(left), transform(right))
+    I32Sub(destination, left, right) =>
+      I32Sub(transform(destination), transform(left), transform(right))
+    I32Mul(destination, left, right) =>
+      I32Mul(transform(destination), transform(left), transform(right))
+    I32Neg(destination, source) =>
+      I32Neg(transform(destination), transform(source))
+    I32Div(destination, left, right) =>
+      I32Div(transform(destination), transform(left), transform(right))
+    I32Rem(destination, left, right) =>
+      I32Rem(transform(destination), transform(left), transform(right))
+    I32Eq(destination, left, right) =>
+      I32Eq(transform(destination), transform(left), transform(right))
+    I32Lt(destination, left, right) =>
+      I32Lt(transform(destination), transform(left), transform(right))
+    I32ToI64(destination, source) =>
+      I32ToI64(transform(destination), transform(source))
+    I64ToI32(destination, source) =>
+      I64ToI32(transform(destination), transform(source))
+    I64Add(destination, left, right) =>
+      I64Add(transform(destination), transform(left), transform(right))
+    I64Sub(destination, left, right) =>
+      I64Sub(transform(destination), transform(left), transform(right))
+    I64Mul(destination, left, right) =>
+      I64Mul(transform(destination), transform(left), transform(right))
+    I64Neg(destination, source) =>
+      I64Neg(transform(destination), transform(source))
+    I64Div(destination, left, right) =>
+      I64Div(transform(destination), transform(left), transform(right))
+    I64Rem(destination, left, right) =>
+      I64Rem(transform(destination), transform(left), transform(right))
+    I64And(destination, left, right) =>
+      I64And(transform(destination), transform(left), transform(right))
+    I64Or(destination, left, right) =>
+      I64Or(transform(destination), transform(left), transform(right))
+    I64Xor(destination, left, right) =>
+      I64Xor(transform(destination), transform(left), transform(right))
+    I64Not(destination, source) =>
+      I64Not(transform(destination), transform(source))
+    I64Shl(destination, left, right) =>
+      I64Shl(transform(destination), transform(left), transform(right))
+    I64ShrS(destination, left, right) =>
+      I64ShrS(transform(destination), transform(left), transform(right))
+    I64Eq(destination, left, right) =>
+      I64Eq(transform(destination), transform(left), transform(right))
+    I64Ne(destination, left, right) =>
+      I64Ne(transform(destination), transform(left), transform(right))
+    I64Lt(destination, left, right) =>
+      I64Lt(transform(destination), transform(left), transform(right))
+    I64Le(destination, left, right) =>
+      I64Le(transform(destination), transform(left), transform(right))
+    I64Gt(destination, left, right) =>
+      I64Gt(transform(destination), transform(left), transform(right))
+    I64Ge(destination, left, right) =>
+      I64Ge(transform(destination), transform(left), transform(right))
     BoolNot(destination, source) =>
       BoolNot(transform(destination), transform(source))
     BoolEq(destination, left, right) =>
       BoolEq(transform(destination), transform(left), transform(right))
     BoolNe(destination, left, right) =>
       BoolNe(transform(destination), transform(left), transform(right))
-    DoubleAdd(destination, left, right) =>
-      DoubleAdd(transform(destination), transform(left), transform(right))
-    DoubleSub(destination, left, right) =>
-      DoubleSub(transform(destination), transform(left), transform(right))
-    DoubleMul(destination, left, right) =>
-      DoubleMul(transform(destination), transform(left), transform(right))
-    DoubleDiv(destination, left, right) =>
-      DoubleDiv(transform(destination), transform(left), transform(right))
-    DoubleNeg(destination, source) =>
-      DoubleNeg(transform(destination), transform(source))
-    DoubleEq(destination, left, right) =>
-      DoubleEq(transform(destination), transform(left), transform(right))
-    DoubleNe(destination, left, right) =>
-      DoubleNe(transform(destination), transform(left), transform(right))
-    DoubleLt(destination, left, right) =>
-      DoubleLt(transform(destination), transform(left), transform(right))
-    DoubleLe(destination, left, right) =>
-      DoubleLe(transform(destination), transform(left), transform(right))
-    DoubleGt(destination, left, right) =>
-      DoubleGt(transform(destination), transform(left), transform(right))
-    DoubleGe(destination, left, right) =>
-      DoubleGe(transform(destination), transform(left), transform(right))
-    IntToDouble(destination, source) =>
-      IntToDouble(transform(destination), transform(source))
-    DoubleToInt(destination, source) =>
-      DoubleToInt(transform(destination), transform(source))
+    F64Add(destination, left, right) =>
+      F64Add(transform(destination), transform(left), transform(right))
+    F64Sub(destination, left, right) =>
+      F64Sub(transform(destination), transform(left), transform(right))
+    F64Mul(destination, left, right) =>
+      F64Mul(transform(destination), transform(left), transform(right))
+    F64Div(destination, left, right) =>
+      F64Div(transform(destination), transform(left), transform(right))
+    F64Neg(destination, source) =>
+      F64Neg(transform(destination), transform(source))
+    F64Eq(destination, left, right) =>
+      F64Eq(transform(destination), transform(left), transform(right))
+    F64Ne(destination, left, right) =>
+      F64Ne(transform(destination), transform(left), transform(right))
+    F64Lt(destination, left, right) =>
+      F64Lt(transform(destination), transform(left), transform(right))
+    F64Le(destination, left, right) =>
+      F64Le(transform(destination), transform(left), transform(right))
+    F64Gt(destination, left, right) =>
+      F64Gt(transform(destination), transform(left), transform(right))
+    F64Ge(destination, left, right) =>
+      F64Ge(transform(destination), transform(left), transform(right))
+    I64ToF64(destination, source) =>
+      I64ToF64(transform(destination), transform(source))
+    F64ToI64(destination, source) =>
+      F64ToI64(transform(destination), transform(source))
     EraseI32(destination, source) =>
       EraseI32(transform(destination), transform(source))
     UneraseI32(destination, source) =>

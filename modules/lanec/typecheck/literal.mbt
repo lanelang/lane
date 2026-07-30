@@ -1,46 +1,46 @@
 ///|
-fn SemanticChecker::check_int_literal(
+fn SemanticChecker::check_i64_literal(
   self : SemanticChecker,
   raw : String,
   loc : SourceSpan,
-) -> @checked.CheckedIntLiteral {
+) -> @checked.CheckedI64Literal {
   // Literal checking is semantic, not syntactic: the parser preserves source
-  // spelling, and the checker commits to Lane's current i64 `Int` domain.
-  if !is_decimal_int_literal(raw) {
-    return self.invalid_int_literal(raw, loc)
+  // spelling, and the checker commits to Lane's signed `I64` domain.
+  if !is_decimal_integer_literal(raw) {
+    return self.invalid_i64_literal(raw, loc)
   }
   try @string.parse_int64(raw, base=10) catch {
-    _ => self.invalid_int_literal(raw, loc)
+    _ => self.invalid_i64_literal(raw, loc)
   } noraise {
     value => { raw, value }
   }
 }
 
 ///|
-fn SemanticChecker::invalid_int_literal(
+fn SemanticChecker::invalid_i64_literal(
   self : SemanticChecker,
   raw : String,
   loc : SourceSpan,
-) -> @checked.CheckedIntLiteral {
-  self.diagnostics.push({ kind: InvalidIntLiteral(raw), loc })
+) -> @checked.CheckedI64Literal {
+  self.diagnostics.push({ kind: InvalidI64Literal(raw), loc })
   { raw, value: 0L }
 }
 
 ///|
-fn SemanticChecker::check_s32_literal(
+fn SemanticChecker::check_i32_literal(
   self : SemanticChecker,
   raw : String,
   loc : SourceSpan,
-) -> @checked.CheckedS32Literal {
-  if !is_decimal_int_literal(raw) {
-    return self.invalid_s32_literal(raw, loc)
+) -> @checked.CheckedI32Literal {
+  if !is_decimal_integer_literal(raw) {
+    return self.invalid_i32_literal(raw, loc)
   }
   try @string.parse_int64(raw, base=10) catch {
-    _ => self.invalid_s32_literal(raw, loc)
+    _ => self.invalid_i32_literal(raw, loc)
   } noraise {
     value =>
       if value < -2147483648L || value > 2147483647L {
-        self.invalid_s32_literal(raw, loc)
+        self.invalid_i32_literal(raw, loc)
       } else {
         { raw, value: value.to_int() }
       }
@@ -48,17 +48,17 @@ fn SemanticChecker::check_s32_literal(
 }
 
 ///|
-fn SemanticChecker::check_negated_s32_literal(
+fn SemanticChecker::check_negated_i32_literal(
   self : SemanticChecker,
   raw : String,
   loc : SourceSpan,
-) -> @checked.CheckedS32Literal {
+) -> @checked.CheckedI32Literal {
   try @string.parse_int64(raw, base=10) catch {
-    _ => self.invalid_s32_literal("-" + raw, loc)
+    _ => self.invalid_i32_literal("-" + raw, loc)
   } noraise {
     value =>
       if value > 2147483648L {
-        self.invalid_s32_literal("-" + raw, loc)
+        self.invalid_i32_literal("-" + raw, loc)
       } else {
         {
           raw: "-" + raw,
@@ -73,47 +73,47 @@ fn SemanticChecker::check_negated_s32_literal(
 }
 
 ///|
-fn SemanticChecker::invalid_s32_literal(
+fn SemanticChecker::invalid_i32_literal(
   self : SemanticChecker,
   raw : String,
   loc : SourceSpan,
-) -> @checked.CheckedS32Literal {
-  self.diagnostics.push({ kind: InvalidS32Literal(raw), loc })
+) -> @checked.CheckedI32Literal {
+  self.diagnostics.push({ kind: InvalidI32Literal(raw), loc })
   { raw, value: 0 }
 }
 
 ///|
-fn SemanticChecker::check_double_literal(
+fn SemanticChecker::check_f64_literal(
   self : SemanticChecker,
   raw : String,
   loc : SourceSpan,
-) -> @checked.CheckedDoubleLiteral {
+) -> @checked.CheckedF64Literal {
   let value = try @string.parse_double(raw) catch {
-    _ => return self.invalid_double_literal(raw, loc)
+    _ => return self.invalid_f64_literal(raw, loc)
   } noraise {
     value => value
   }
   if value.is_nan() || value.is_inf() {
-    return self.invalid_double_literal(raw, loc)
+    return self.invalid_f64_literal(raw, loc)
   }
-  if value == 0.0 && double_significand_has_nonzero_digit(raw) {
-    return self.invalid_double_literal(raw, loc)
+  if value == 0.0 && f64_significand_has_nonzero_digit(raw) {
+    return self.invalid_f64_literal(raw, loc)
   }
   { raw, value }
 }
 
 ///|
-fn SemanticChecker::invalid_double_literal(
+fn SemanticChecker::invalid_f64_literal(
   self : SemanticChecker,
   raw : String,
   loc : SourceSpan,
-) -> @checked.CheckedDoubleLiteral {
-  self.diagnostics.push({ kind: InvalidDoubleLiteral(raw), loc })
+) -> @checked.CheckedF64Literal {
+  self.diagnostics.push({ kind: InvalidF64Literal(raw), loc })
   { raw, value: 0.0 }
 }
 
 ///|
-fn double_significand_has_nonzero_digit(raw : String) -> Bool {
+fn f64_significand_has_nonzero_digit(raw : String) -> Bool {
   for view = raw.view() {
     match view {
       ['e' | 'E', ..] => break false
@@ -125,7 +125,7 @@ fn double_significand_has_nonzero_digit(raw : String) -> Bool {
 }
 
 ///|
-fn is_decimal_int_literal(raw : String) -> Bool {
+fn is_decimal_integer_literal(raw : String) -> Bool {
   let digits = match raw.view() {
     ['-', .. rest] => rest
     view => view
@@ -144,8 +144,8 @@ fn @desugar.DesugaredLiteral::type_(
   self : @desugar.DesugaredLiteral,
 ) -> @types.Type {
   match self {
-    Int(_) => Primitive(Int)
-    Double(_) => Primitive(Double)
+    Integer(_) => Primitive(I64)
+    Floating(_) => Primitive(F64)
     String(_) => Primitive(String)
     Char(_) => Primitive(Char)
     Bool(_) => Primitive(Bool)
@@ -160,8 +160,8 @@ fn SemanticChecker::checked_literal(
   loc : SourceSpan,
 ) -> @checked.CheckedLiteral {
   match literal {
-    Int(raw) => Int(self.check_int_literal(raw, loc))
-    Double(raw) => Double(self.check_double_literal(raw, loc))
+    Integer(raw) => I64(self.check_i64_literal(raw, loc))
+    Floating(raw) => F64(self.check_f64_literal(raw, loc))
     String(value) => String(value)
     Char(value) => Char(value)
     Bool(value) => Bool(value)

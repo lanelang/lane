@@ -13,7 +13,7 @@ fn token_values(source : String) -> Array[Token] {
 ///|
 test "tokenize keywords identifiers and literals" {
   let tokens = token_values(
-    "fn add(value : Int) -> Bool { handle true with final false }",
+    "fn add(value : I64) -> Bool { handle true with final false }",
   )
   debug_inspect(
     tokens,
@@ -24,7 +24,7 @@ test "tokenize keywords identifiers and literals" {
       #|  LPAREN,
       #|  IDENT("value"),
       #|  COLON,
-      #|  IDENT("Int"),
+      #|  IDENT("I64"),
       #|  RPAREN,
       #|  THIN_ARROW,
       #|  IDENT("Bool"),

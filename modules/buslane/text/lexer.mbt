@@ -63,8 +63,8 @@ fn tokens_from_string(
       tokens.push((STRING(value), ()))
       index = next
     } else if is_digit(byte) || byte == b'-' {
-      let (value, next, is_double) = read_number(input, index)
-      if is_double {
+      let (value, next, is_f64) = read_number(input, index)
+      if is_f64 {
         tokens.push((DOUBLE(value), ()))
       } else {
         tokens.push((INT(value), ()))
@@ -135,10 +135,10 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "Effect" => EFFECT_KIND
     "Unit" => UNIT_TYPE
     "Bool" => BOOL_TYPE
-    "Int" => INT_TYPE
-    "S32" => S32_TYPE
+    "I64" => I64_TYPE
+    "I32" => I32_TYPE
     "Char" => CHAR_TYPE
-    "Double" => DOUBLE_TYPE
+    "F64" => F64_TYPE
     "String" => STRING_TYPE
     "Byte" => BYTE_TYPE
     "Bytes" => BYTES_TYPE
@@ -171,10 +171,10 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "literal" => LITERAL_ALT
     "true" => TRUE
     "false" => FALSE
-    "int" => INT_LITERAL
-    "s32" => S32_LITERAL
+    "i64" => I64_LITERAL
+    "i32" => I32_LITERAL
     "char" => CHAR_LITERAL
-    "double" => DOUBLE_LITERAL
+    "f64" => F64_LITERAL
     "string" => STRING_LITERAL
     "unit" => UNIT_LITERAL
     _ => lexer_fail("unknown Buslane text keyword " + name)
@@ -279,16 +279,16 @@ fn read_number(
   while next < input.length() && is_digit(input[next]) {
     next = next + 1
   }
-  let mut is_double = false
+  let mut is_f64 = false
   if next < input.length() && input[next] == b'.' {
-    is_double = true
+    is_f64 = true
     next = next + 1
     while next < input.length() && is_digit(input[next]) {
       next = next + 1
     }
   }
   if next < input.length() && (input[next] == b'e' || input[next] == b'E') {
-    is_double = true
+    is_f64 = true
     next = next + 1
     if next < input.length() && (input[next] == b'+' || input[next] == b'-') {
       next = next + 1
@@ -303,7 +303,7 @@ fn read_number(
   let value = @utf8.decode(input[index:next]) catch {
     _ => lexer_fail("invalid utf8 number")
   }
-  (value, next, is_double)
+  (value, next, is_f64)
 }
 
 ///|

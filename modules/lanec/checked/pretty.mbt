@@ -462,9 +462,9 @@ fn parameter_prefix_doc(parameter : CheckedValueParameter) -> Document {
 ///|
 fn literal_doc(literal : CheckedLiteral) -> Document {
   match literal {
-    Int(literal) => text(literal.raw)
-    S32(literal) => text(literal.raw)
-    Double(literal) => text(literal.raw)
+    I64(literal) => text(literal.raw)
+    I32(literal) => text(literal.raw)
+    F64(literal) => text(literal.raw)
     String(value) => quoted_doc(value)
     Char(value) =>
       text("'") + text(value.unsafe_to_char().to_string()) + text("'")

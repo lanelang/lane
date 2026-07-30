@@ -348,9 +348,9 @@ fn BuslaneLowerer::lower_field(
 ///|
 fn lower_literal(literal : @checked.CheckedLiteral) -> @buslane.Literal {
   match literal {
-    Int(literal) => Int(literal.value)
-    S32(literal) => S32(literal.value)
-    Double(literal) => Double(literal.value)
+    I64(literal) => I64(literal.value)
+    I32(literal) => I32(literal.value)
+    F64(literal) => F64(literal.value)
     String(value) => String(value)
     Char(value) => Char(value)
     Bool(value) => Bool(value)
@@ -483,10 +483,10 @@ fn lower_primitive_type(
   primitive : @types.PrimitiveType,
 ) -> @buslane.PrimitiveType {
   match primitive {
-    Int => Int
-    S32 => S32
+    I64 => I64
+    I32 => I32
     Char => Char
-    Double => Double
+    F64 => F64
     Bool => Bool
     String => String
     Unit => Unit

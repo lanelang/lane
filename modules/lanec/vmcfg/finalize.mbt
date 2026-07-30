@@ -250,12 +250,11 @@ fn finalize_instruction(
       let consumed = consume_value(body, block, live, remaining, prefix, source)
       Release(value_to_slot(consumed))
     }
-    ConstInt(destination, value) => ConstInt(value_to_slot(destination), value)
-    ConstS32(destination, value) => ConstS32(value_to_slot(destination), value)
+    ConstI64(destination, value) => ConstI64(value_to_slot(destination), value)
+    ConstI32(destination, value) => ConstI32(value_to_slot(destination), value)
     ConstChar(destination, value) =>
       ConstChar(value_to_slot(destination), value)
-    ConstDouble(destination, bits) =>
-      ConstDouble(value_to_slot(destination), bits)
+    ConstF64(destination, bits) => ConstF64(value_to_slot(destination), bits)
     ConstBool(destination, value) =>
       ConstBool(value_to_slot(destination), value)
     ConstLayout(destination, layout) =>
@@ -377,13 +376,13 @@ fn finalize_instruction(
           consume_value(body, block, live, remaining, prefix, environment),
         ),
       )
-    ByteToInt(destination, source) =>
-      ByteToInt(
+    ByteToI64(destination, source) =>
+      ByteToI64(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    IntToByte(destination, source) =>
-      IntToByte(
+    I64ToByte(destination, source) =>
+      I64ToByte(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
@@ -441,165 +440,165 @@ fn finalize_instruction(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    S32Add(destination, left, right) =>
-      S32Add(
+    I32Add(destination, left, right) =>
+      I32Add(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    S32Sub(destination, left, right) =>
-      S32Sub(
+    I32Sub(destination, left, right) =>
+      I32Sub(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    S32Mul(destination, left, right) =>
-      S32Mul(
+    I32Mul(destination, left, right) =>
+      I32Mul(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    S32Neg(destination, source) =>
-      S32Neg(
+    I32Neg(destination, source) =>
+      I32Neg(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    S32Div(destination, left, right) =>
-      S32Div(
+    I32Div(destination, left, right) =>
+      I32Div(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    S32Rem(destination, left, right) =>
-      S32Rem(
+    I32Rem(destination, left, right) =>
+      I32Rem(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    S32Eq(destination, left, right) =>
-      S32Eq(
+    I32Eq(destination, left, right) =>
+      I32Eq(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    S32Lt(destination, left, right) =>
-      S32Lt(
+    I32Lt(destination, left, right) =>
+      I32Lt(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    S32ToInt(destination, source) =>
-      S32ToInt(
+    I32ToI64(destination, source) =>
+      I32ToI64(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    IntToS32(destination, source) =>
-      IntToS32(
+    I64ToI32(destination, source) =>
+      I64ToI32(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    IntAdd(destination, left, right) =>
-      IntAdd(
+    I64Add(destination, left, right) =>
+      I64Add(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntSub(destination, left, right) =>
-      IntSub(
+    I64Sub(destination, left, right) =>
+      I64Sub(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntMul(destination, left, right) =>
-      IntMul(
+    I64Mul(destination, left, right) =>
+      I64Mul(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntNeg(destination, source) =>
-      IntNeg(
+    I64Neg(destination, source) =>
+      I64Neg(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    IntDiv(destination, left, right) =>
-      IntDiv(
+    I64Div(destination, left, right) =>
+      I64Div(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntRem(destination, left, right) =>
-      IntRem(
+    I64Rem(destination, left, right) =>
+      I64Rem(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntAnd(destination, left, right) =>
-      IntAnd(
+    I64And(destination, left, right) =>
+      I64And(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntOr(destination, left, right) =>
-      IntOr(
+    I64Or(destination, left, right) =>
+      I64Or(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntXor(destination, left, right) =>
-      IntXor(
+    I64Xor(destination, left, right) =>
+      I64Xor(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntNot(destination, source) =>
-      IntNot(
+    I64Not(destination, source) =>
+      I64Not(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    IntShl(destination, left, right) =>
-      IntShl(
+    I64Shl(destination, left, right) =>
+      I64Shl(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntShrS(destination, left, right) =>
-      IntShrS(
+    I64ShrS(destination, left, right) =>
+      I64ShrS(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntEq(destination, left, right) =>
-      IntEq(
+    I64Eq(destination, left, right) =>
+      I64Eq(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntNe(destination, left, right) =>
-      IntNe(
+    I64Ne(destination, left, right) =>
+      I64Ne(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntLt(destination, left, right) =>
-      IntLt(
+    I64Lt(destination, left, right) =>
+      I64Lt(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntLe(destination, left, right) =>
-      IntLe(
+    I64Le(destination, left, right) =>
+      I64Le(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntGt(destination, left, right) =>
-      IntGt(
+    I64Gt(destination, left, right) =>
+      I64Gt(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntGe(destination, left, right) =>
-      IntGe(
+    I64Ge(destination, left, right) =>
+      I64Ge(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
@@ -621,78 +620,78 @@ fn finalize_instruction(
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    DoubleAdd(destination, left, right) =>
-      DoubleAdd(
+    F64Add(destination, left, right) =>
+      F64Add(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    DoubleSub(destination, left, right) =>
-      DoubleSub(
+    F64Sub(destination, left, right) =>
+      F64Sub(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    DoubleMul(destination, left, right) =>
-      DoubleMul(
+    F64Mul(destination, left, right) =>
+      F64Mul(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    DoubleDiv(destination, left, right) =>
-      DoubleDiv(
+    F64Div(destination, left, right) =>
+      F64Div(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    DoubleNeg(destination, source) =>
-      DoubleNeg(
+    F64Neg(destination, source) =>
+      F64Neg(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    DoubleEq(destination, left, right) =>
-      DoubleEq(
+    F64Eq(destination, left, right) =>
+      F64Eq(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    DoubleNe(destination, left, right) =>
-      DoubleNe(
+    F64Ne(destination, left, right) =>
+      F64Ne(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    DoubleLt(destination, left, right) =>
-      DoubleLt(
+    F64Lt(destination, left, right) =>
+      F64Lt(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    DoubleLe(destination, left, right) =>
-      DoubleLe(
+    F64Le(destination, left, right) =>
+      F64Le(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    DoubleGt(destination, left, right) =>
-      DoubleGt(
+    F64Gt(destination, left, right) =>
+      F64Gt(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    DoubleGe(destination, left, right) =>
-      DoubleGe(
+    F64Ge(destination, left, right) =>
+      F64Ge(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, left)),
         value_to_slot(borrow_value(remaining, right)),
       )
-    IntToDouble(destination, source) =>
-      IntToDouble(
+    I64ToF64(destination, source) =>
+      I64ToF64(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
-    DoubleToInt(destination, source) =>
-      DoubleToInt(
+    F64ToI64(destination, source) =>
+      F64ToI64(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
@@ -807,10 +806,10 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     Copy(destination, _)
     | Move(destination, _)
     | RetainCopy(destination, _)
-    | ConstInt(destination, _)
-    | ConstS32(destination, _)
+    | ConstI64(destination, _)
+    | ConstI32(destination, _)
     | ConstChar(destination, _)
-    | ConstDouble(destination, _)
+    | ConstF64(destination, _)
     | ConstBool(destination, _)
     | ConstLayout(destination, _)
     | ConstFunction(destination, _)
@@ -820,8 +819,8 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | LoadObjectWitness(destination, _, _, _)
     | MakeEnv(destination, _, _, _, _)
     | MakeClosure(destination, _, _)
-    | ByteToInt(destination, _)
-    | IntToByte(destination, _)
+    | ByteToI64(destination, _)
+    | I64ToByte(destination, _)
     | ByteSequenceMake(destination, _, _)
     | ByteSequenceLength(destination, _)
     | ByteSequenceGet(destination, _, _)
@@ -830,50 +829,50 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | ByteSequenceConcat(destination, _, _)
     | ByteSequenceSlice(destination, _, _, _)
     | ByteSequenceIsValidUtf8(destination, _)
-    | S32Add(destination, _, _)
-    | S32Sub(destination, _, _)
-    | S32Mul(destination, _, _)
-    | S32Neg(destination, _)
-    | S32Div(destination, _, _)
-    | S32Rem(destination, _, _)
-    | S32Eq(destination, _, _)
-    | S32Lt(destination, _, _)
-    | S32ToInt(destination, _)
-    | IntToS32(destination, _)
-    | IntAdd(destination, _, _)
-    | IntSub(destination, _, _)
-    | IntMul(destination, _, _)
-    | IntNeg(destination, _)
-    | IntDiv(destination, _, _)
-    | IntRem(destination, _, _)
-    | IntAnd(destination, _, _)
-    | IntOr(destination, _, _)
-    | IntXor(destination, _, _)
-    | IntNot(destination, _)
-    | IntShl(destination, _, _)
-    | IntShrS(destination, _, _)
-    | IntEq(destination, _, _)
-    | IntNe(destination, _, _)
-    | IntLt(destination, _, _)
-    | IntLe(destination, _, _)
-    | IntGt(destination, _, _)
-    | IntGe(destination, _, _)
+    | I32Add(destination, _, _)
+    | I32Sub(destination, _, _)
+    | I32Mul(destination, _, _)
+    | I32Neg(destination, _)
+    | I32Div(destination, _, _)
+    | I32Rem(destination, _, _)
+    | I32Eq(destination, _, _)
+    | I32Lt(destination, _, _)
+    | I32ToI64(destination, _)
+    | I64ToI32(destination, _)
+    | I64Add(destination, _, _)
+    | I64Sub(destination, _, _)
+    | I64Mul(destination, _, _)
+    | I64Neg(destination, _)
+    | I64Div(destination, _, _)
+    | I64Rem(destination, _, _)
+    | I64And(destination, _, _)
+    | I64Or(destination, _, _)
+    | I64Xor(destination, _, _)
+    | I64Not(destination, _)
+    | I64Shl(destination, _, _)
+    | I64ShrS(destination, _, _)
+    | I64Eq(destination, _, _)
+    | I64Ne(destination, _, _)
+    | I64Lt(destination, _, _)
+    | I64Le(destination, _, _)
+    | I64Gt(destination, _, _)
+    | I64Ge(destination, _, _)
     | BoolNot(destination, _)
     | BoolEq(destination, _, _)
     | BoolNe(destination, _, _)
-    | DoubleAdd(destination, _, _)
-    | DoubleSub(destination, _, _)
-    | DoubleMul(destination, _, _)
-    | DoubleDiv(destination, _, _)
-    | DoubleNeg(destination, _)
-    | DoubleEq(destination, _, _)
-    | DoubleNe(destination, _, _)
-    | DoubleLt(destination, _, _)
-    | DoubleLe(destination, _, _)
-    | DoubleGt(destination, _, _)
-    | DoubleGe(destination, _, _)
-    | IntToDouble(destination, _)
-    | DoubleToInt(destination, _)
+    | F64Add(destination, _, _)
+    | F64Sub(destination, _, _)
+    | F64Mul(destination, _, _)
+    | F64Div(destination, _, _)
+    | F64Neg(destination, _)
+    | F64Eq(destination, _, _)
+    | F64Ne(destination, _, _)
+    | F64Lt(destination, _, _)
+    | F64Le(destination, _, _)
+    | F64Gt(destination, _, _)
+    | F64Ge(destination, _, _)
+    | I64ToF64(destination, _)
+    | F64ToI64(destination, _)
     | EraseI32(destination, _)
     | UneraseI32(destination, _)
     | EraseI64(destination, _)

@@ -468,10 +468,10 @@ fn apply_buslane_kont(
 ///|
 fn evaluate_buslane_literal(literal : @buslane.Literal) -> BuslaneRuntimeValue {
   match literal {
-    Int(value) => BuslaneRuntimeValue::int(value)
-    S32(value) => BuslaneRuntimeValue::s32(value)
+    I64(value) => BuslaneRuntimeValue::i64(value)
+    I32(value) => BuslaneRuntimeValue::i32(value)
     Char(value) => BuslaneRuntimeValue::char(value)
-    Double(value) => BuslaneRuntimeValue::double(value)
+    F64(value) => BuslaneRuntimeValue::f64(value)
     Bool(value) => BuslaneRuntimeValue::bool(value)
     String(value) => BuslaneRuntimeValue::string(value)
     Unit => BuslaneRuntimeValue::unit()
@@ -904,14 +904,14 @@ fn buslane_literal_matches(
       } else {
         false
       }
-    Int(expected) =>
-      if value.kind is Int(actual) {
+    I64(expected) =>
+      if value.kind is I64(actual) {
         actual == expected
       } else {
         false
       }
-    S32(expected) =>
-      if value.kind is S32(actual) {
+    I32(expected) =>
+      if value.kind is I32(actual) {
         actual == expected
       } else {
         false
@@ -922,8 +922,8 @@ fn buslane_literal_matches(
       } else {
         false
       }
-    Double(expected) =>
-      if value.kind is Double(actual) {
+    F64(expected) =>
+      if value.kind is F64(actual) {
         actual == expected
       } else {
         false

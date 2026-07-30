@@ -6,22 +6,22 @@ test "handler elaboration replaces effect syntax with invoke and install" {
     "op",
     effect,
     [],
-    [Primitive(Int)],
-    Primitive(Int),
+    [Primitive(I64)],
+    Primitive(I64),
   )
-  let result = metadata.define_value("result", Value, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
   let result_binder = metadata.define_value(
     "result",
     MatchBinder,
-    Primitive(Int),
+    Primitive(I64),
   )
-  let payload = metadata.define_value("payload", Parameter, Primitive(Int))
+  let payload = metadata.define_value("payload", Parameter, Primitive(I64))
   let resume_value = metadata.define_value(
     "resume",
     Parameter,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
-  let resumed = metadata.define_value("resumed", Local, Primitive(Int))
+  let resumed = metadata.define_value("resumed", Local, Primitive(I64))
   let input = @buslane.Program::{
     metadata,
     terms: [
@@ -32,10 +32,10 @@ test "handler elaboration replaces effect syntax with invoke and install" {
             operation,
             effect_arguments: [],
             hidden_witnesses: [],
-            payloads: [Literal(Int(40L))],
+            payloads: [Literal(I64(40L))],
           }),
           result_binder,
-          result_type: Primitive(Int),
+          result_type: Primitive(I64),
           final_body: Ref(result_binder),
           handlers: [
             {
@@ -69,9 +69,9 @@ test "handler elaboration replaces effect syntax with invoke and install" {
             operation,
             effect_arguments: [],
             hidden_witnesses: [],
-            payloads: [Literal(Int(40L))],
+            payloads: [Literal(I64(40L))],
           }),
-          result_type: Primitive(Int),
+          result_type: Primitive(I64),
           dictionaries: [
             {
               handled_effect: Singleton(effect, []),
@@ -80,7 +80,7 @@ test "handler elaboration replaces effect syntax with invoke and install" {
                   operation,
                   callable: Monomorphic({
                     parameters: [payload, resume_value],
-                    result_type: Primitive(Int),
+                    result_type: Primitive(I64),
                     body: Let(
                       resumed,
                       Call(Ref(resume_value), [Ref(payload)]),
@@ -93,7 +93,7 @@ test "handler elaboration replaces effect syntax with invoke and install" {
           ],
           final_clause: {
             parameters: [result_binder],
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             body: Ref(result_binder),
           },
         }),
@@ -117,7 +117,7 @@ test "handler elaboration turns generic operation clauses into type lambdas" {
     Parameter(hidden),
   )
   let clause_type = metadata.define_type_parameter("C", Type)
-  let result = metadata.define_value("result", Value, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
   let result_binder = metadata.define_value(
     "result",
     MatchBinder,
@@ -131,7 +131,7 @@ test "handler elaboration turns generic operation clauses into type lambdas" {
   let resume_value = metadata.define_value(
     "resume",
     Parameter,
-    Function([Parameter(clause_type)], Primitive(Int), Empty),
+    Function([Parameter(clause_type)], Primitive(I64), Empty),
   )
   let input = @buslane.Program::{
     metadata,
@@ -139,20 +139,20 @@ test "handler elaboration turns generic operation clauses into type lambdas" {
       Let(
         result,
         Handle({
-          body: Literal(Int(0L)),
+          body: Literal(I64(0L)),
           result_binder,
-          result_type: Primitive(Int),
-          final_body: Literal(Int(0L)),
+          result_type: Primitive(I64),
+          final_body: Literal(I64(0L)),
           handlers: [
             {
-              handled_effect: Singleton(effect, [TypeArgument(Primitive(Int))]),
+              handled_effect: Singleton(effect, [TypeArgument(Primitive(I64))]),
               operations: [
                 {
                   operation,
                   type_binders: [clause_type],
                   payload_binders: [payload],
                   resume_binder: resume_value,
-                  body: Literal(Int(1L)),
+                  body: Literal(I64(1L)),
                 },
               ],
             },
@@ -169,8 +169,8 @@ test "handler elaboration turns generic operation clauses into type lambdas" {
     install.dictionaries[0].operations[0].callable,
     Polymorphic([clause_type], {
       parameters: [payload, resume_value],
-      result_type: Primitive(Int),
-      body: Literal(Int(1L)),
+      result_type: Primitive(I64),
+      body: Literal(I64(1L)),
     }),
   )
 }

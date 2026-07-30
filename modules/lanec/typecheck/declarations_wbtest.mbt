@@ -10,7 +10,7 @@ test "typecheck custom type declaration environment" {
       #|  some(A)
       #|}
       #|struct Uses {
-      #|  boxed : Box[Int]
+      #|  boxed : Box[I64]
       #|  option : Option[String]
       #|}
     ),
@@ -29,14 +29,14 @@ test "typecheck custom type declaration environment" {
       #|        some#1(tparam#1)
       #|      }
       #|      struct Uses#2 {
-      #|        boxed#1 : type#0[Int]
+      #|        boxed#1 : type#0[I64]
       #|        option#2 : type#1[String]
       #|      }
       #|    }
       #|    type_members {}
       #|    fields {
       #|      value#0 : tparam#0
-      #|      boxed#1 : type#0[Int]
+      #|      boxed#1 : type#0[I64]
       #|      option#2 : type#1[String]
       #|    }
       #|    variants {
@@ -56,7 +56,7 @@ test "typecheck preserves existential declaration metadata" {
     (
       #|struct HideF {
       #|  type F : [Type] -> Type
-      #|  val : F[Int]
+      #|  val : F[I64]
       #|}
       #|enum Packed {
       #|  hide[T](T)
@@ -71,7 +71,7 @@ test "typecheck preserves existential declaration metadata" {
       #|    types {
       #|      struct HideF#0 {
       #|        type F#0 : [Type] -> Type
-      #|        val#0 : tparam#0[Int]
+      #|        val#0 : tparam#0[I64]
       #|      }
       #|      enum Packed#1 {
       #|        hide#0[T#1 : Type](tparam#1)
@@ -81,7 +81,7 @@ test "typecheck preserves existential declaration metadata" {
       #|      type F#0 : [Type] -> Type
       #|    }
       #|    fields {
-      #|      val#0 : tparam#0[Int]
+      #|      val#0 : tparam#0[I64]
       #|    }
       #|    variants {
       #|      hide#0[T#1 : Type](tparam#1)
@@ -98,7 +98,7 @@ test "type expression checking requires lexical kind bindings" {
   let file = expect_parse_ok(
     (
       #|struct Apply[F : [Type] -> Type] {
-      #|  value : F[Int]
+      #|  value : F[I64]
       #|}
     ),
   )
@@ -217,7 +217,7 @@ test "typecheck rejects public effect alias exposing private effect" {
   let result = expect_checked_source_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|pub type UI = { Console }
     ),
@@ -236,9 +236,9 @@ test "typecheck locates private public-interface escapes at annotations" {
     (
       #|struct Secret {}
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|pub fn expose(value : Secret) -> Int ! Console {
+      #|pub fn expose(value : Secret) -> I64 ! Console {
       #|  Console::read!()
       #|}
     ),
@@ -275,8 +275,8 @@ fn module_interface_effect_signatures(
 test "typecheck distinguishes compiler intrinsics from extern bindings" {
   let result = expect_checked_source_result(
     (
-      #|let int_add : (Int, Int) -> Int = builtin("%i64_add")
-      #|let host_clock : () -> Int = extern("clock")
+      #|let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
+      #|let host_clock : () -> I64 = extern("clock")
       #|let host_println : (String) -> Unit ! Io = extern("println")
     ),
   )
@@ -297,7 +297,7 @@ test "typecheck distinguishes compiler intrinsics from extern bindings" {
     [pure_signature, io_signature],
     content=(
       #|[
-      #|  { parameters: [], result: Int },
+      #|  { parameters: [], result: I64 },
       #|  { parameters: [String], result: Unit },
       #|]
     ),
@@ -313,13 +313,13 @@ test "typecheck rejects unsupported extern ABI shapes" {
       #|  write(String) -> Unit
       #|}
       #|struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
-      #|let scalar : Int = extern("scalar")
+      #|let scalar : I64 = extern("scalar")
       #|let generic : [A](A) -> A = extern("generic")
-      #|let aggregate_parameter : (Box) -> Int = extern("aggregate_parameter")
+      #|let aggregate_parameter : (Box) -> I64 = extern("aggregate_parameter")
       #|let aggregate_result : () -> Box = extern("aggregate_result")
-      #|fn[E : Effect] open_effect() -> (Int) -> Int ! E {
+      #|fn[E : Effect] open_effect() -> (I64) -> I64 ! E {
       #|  extern("open_effect")
       #|}
       #|let algebraic_effect : () -> Unit ! Log = extern("algebraic_effect")
@@ -332,7 +332,7 @@ test "typecheck rejects unsupported extern ABI shapes" {
       #|  {
       #|    kind: InvalidExternType(
       #|      name="scalar",
-      #|      type_=Primitive(Int),
+      #|      type_=Primitive(I64),
       #|      restriction=FunctionRequired,
       #|    ),
       #|    loc: {
@@ -365,7 +365,7 @@ test "typecheck rejects unsupported extern ABI shapes" {
       #|  {
       #|    kind: InvalidExternType(
       #|      name="aggregate_parameter",
-      #|      type_=Function([Constructor({ index: 0 })], Primitive(Int), Empty),
+      #|      type_=Function([Constructor({ index: 0 })], Primitive(I64), Empty),
       #|      restriction=DirectParameterRequired(index=0),
       #|    ),
       #|    loc: {
@@ -395,7 +395,7 @@ test "typecheck rejects unsupported extern ABI shapes" {
       #|  {
       #|    kind: InvalidExternType(
       #|      name="open_effect",
-      #|      type_=Function([Primitive(Int)], Primitive(Int), Parameter({ index: 1 })),
+      #|      type_=Function([Primitive(I64)], Primitive(I64), Parameter({ index: 1 })),
       #|      restriction=ExternalEffectRowRequired,
       #|    ),
       #|    loc: {
@@ -432,12 +432,12 @@ test "invalid extern ABI produces checked error recovery" {
   let expression = expect_checked_let_initializer(
     (
       #|struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
-      #|let bad : (Box) -> Int = extern("bad")
+      #|let bad : (Box) -> I64 = extern("bad")
     ),
     "bad",
-    Function([Constructor({ index: 0 })], Primitive(Int), Empty),
+    Function([Constructor({ index: 0 })], Primitive(I64), Empty),
   )
   assert_true(expression is ErrorRecovery(..))
 }
@@ -449,8 +449,8 @@ test "typecheck accepts external types and closed external effect rows" {
       #|extern type Fd : Type
       #|extern type VectorOp[A : Type] : Effect
       #|type Handle = Fd
-      #|let open_fd : (String) -> Fd ! VectorOp[Int] = extern("fd.open")
-      #|let close_fd : (Handle) -> Unit ! { VectorOp[Int], Io } = extern("fd.close")
+      #|let open_fd : (String) -> Fd ! VectorOp[I64] = extern("fd.open")
+      #|let close_fd : (Handle) -> Unit ! { VectorOp[I64], Io } = extern("fd.close")
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
@@ -502,11 +502,11 @@ test "typecheck rejects parameterized external host types" {
 test "typecheck top level values and direct calls" {
   let result = expect_typecheck_result(
     (
-      #|fn id(value : Int) -> Int {
+      #|fn id(value : I64) -> I64 {
       #|  value
       #|}
-      #|let answer : Int = id(42)
-      #|fn use_answer() -> Int {
+      #|let answer : I64 = id(42)
+      #|fn use_answer() -> I64 {
       #|  answer
       #|}
     ),
@@ -522,9 +522,9 @@ test "typecheck top level values and direct calls" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn id#0 : (Int) -> Int
-      #|    fn use_answer#2 : () -> Int
-      #|    let answer#1 : Int
+      #|    fn id#0 : (I64) -> I64
+      #|    fn use_answer#2 : () -> I64
+      #|    let answer#1 : I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -536,15 +536,15 @@ test "typecheck top level values and direct calls" {
 test "typecheck top level functions recurse and values stay ordered" {
   let result = expect_typecheck_result(
     (
-      #|fn first(value : Int) -> Int {
+      #|fn first(value : I64) -> I64 {
       #|  second(value)
       #|}
-      #|let base : Int = 1
-      #|fn second(value : Int) -> Int {
+      #|let base : I64 = 1
+      #|fn second(value : I64) -> I64 {
       #|  first(value)
       #|}
-      #|let copied : Int = base
-      #|fn use() -> Int {
+      #|let copied : I64 = base
+      #|fn use() -> I64 {
       #|  copied
       #|}
     ),
@@ -560,11 +560,11 @@ test "typecheck top level functions recurse and values stay ordered" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn first#0 : (Int) -> Int
-      #|    fn second#2 : (Int) -> Int
-      #|    fn use#4 : () -> Int
-      #|    let base#1 : Int
-      #|    let copied#3 : Int
+      #|    fn first#0 : (I64) -> I64
+      #|    fn second#2 : (I64) -> I64
+      #|    fn use#4 : () -> I64
+      #|    let base#1 : I64
+      #|    let copied#3 : I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -576,8 +576,8 @@ test "typecheck top level functions recurse and values stay ordered" {
 test "typecheck reports forward top level value use" {
   let file = expect_parse_ok(
     (
-      #|let first : Int = second
-      #|let second : Int = 1
+      #|let first : I64 = second
+      #|let second : I64 = 1
     ),
   )
   let resolution = @resolve.resolve_source_file_result(file)
@@ -613,15 +613,15 @@ test "typecheck top level function bodies see later top level values" {
   let result = expect_typecheck_result(
     (
       #|struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
-      #|fn read_answer() -> Int {
+      #|fn read_answer() -> I64 {
       #|  answer
       #|}
-      #|fn read_box() -> Int {
+      #|fn read_box() -> I64 {
       #|  box.value
       #|}
-      #|let answer : Int = 42
+      #|let answer : I64 = 42
       #|let box : Box = Box::{ value: answer }
     ),
   )
@@ -632,19 +632,19 @@ test "typecheck top level function bodies see later top level values" {
       #|  checked_declarations {
       #|    types {
       #|      struct Box#0 {
-      #|        value#0 : Int
+      #|        value#0 : I64
       #|      }
       #|    }
       #|    type_members {}
       #|    fields {
-      #|      value#0 : Int
+      #|      value#0 : I64
       #|    }
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn read_answer#0 : () -> Int
-      #|    fn read_box#1 : () -> Int
-      #|    let answer#2 : Int
+      #|    fn read_answer#0 : () -> I64
+      #|    fn read_box#1 : () -> I64
+      #|    let answer#2 : I64
       #|    let box#3 : type#0
       #|  }
       #|  diagnostics {}

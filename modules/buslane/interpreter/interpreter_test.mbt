@@ -1,6 +1,6 @@
 ///|
-fn int_type() -> @buslane.Type {
-  Primitive(Int)
+fn i64_type() -> @buslane.Type {
+  Primitive(I64)
 }
 
 ///|
@@ -21,16 +21,16 @@ test "handler operation arm can directly produce a result" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
-  let result = metadata.define_value("value", Value, int_type())
-  let final_binder = metadata.define_value("value", Local, int_type())
-  let payload = metadata.define_value("value", Parameter, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
+  let final_binder = metadata.define_value("value", Local, i64_type())
+  let payload = metadata.define_value("value", Parameter, i64_type())
   let resume_binder = metadata.define_value(
     "value",
     Parameter,
-    Function([int_type()], int_type(), Empty),
+    Function([i64_type()], i64_type(), Empty),
   )
   let program = @buslane.Program::{
     metadata,
@@ -42,10 +42,10 @@ test "handler operation arm can directly produce a result" {
             operation: print,
             effect_arguments: [],
             hidden_witnesses: [],
-            payloads: [Literal(Int(41L))],
+            payloads: [Literal(I64(41L))],
           }),
           result_binder: final_binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           final_body: Ref(final_binder),
           handlers: [
             {
@@ -69,7 +69,9 @@ test "handler operation arm can directly produce a result" {
   let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 41",
+    content=(
+      #|i64 41
+    ),
   )
 }
 
@@ -82,30 +84,30 @@ test "nested handlers dispatch to the nearest matching operation" {
     "op",
     outer_effect,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
   let inner_operation = metadata.define_operation(
     "op",
     inner_effect,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
-  let result = metadata.define_value("value", Value, int_type())
-  let outer_final = metadata.define_value("value", Local, int_type())
-  let inner_final = metadata.define_value("value", Local, int_type())
-  let outer_payload = metadata.define_value("value", Parameter, int_type())
-  let inner_payload = metadata.define_value("value", Parameter, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
+  let outer_final = metadata.define_value("value", Local, i64_type())
+  let inner_final = metadata.define_value("value", Local, i64_type())
+  let outer_payload = metadata.define_value("value", Parameter, i64_type())
+  let inner_payload = metadata.define_value("value", Parameter, i64_type())
   let outer_resume = metadata.define_value(
     "value",
     Parameter,
-    Function([int_type()], int_type(), Empty),
+    Function([i64_type()], i64_type(), Empty),
   )
   let inner_resume = metadata.define_value(
     "value",
     Parameter,
-    Function([int_type()], int_type(), Singleton(outer_effect, [])),
+    Function([i64_type()], i64_type(), Singleton(outer_effect, [])),
   )
   let program = @buslane.Program::{
     metadata,
@@ -118,10 +120,10 @@ test "nested handlers dispatch to the nearest matching operation" {
               operation: inner_operation,
               effect_arguments: [],
               hidden_witnesses: [],
-              payloads: [Literal(Int(17L))],
+              payloads: [Literal(I64(17L))],
             }),
             result_binder: inner_final,
-            result_type: int_type(),
+            result_type: i64_type(),
             final_body: Ref(inner_final),
             handlers: [
               {
@@ -144,7 +146,7 @@ test "nested handlers dispatch to the nearest matching operation" {
             ],
           }),
           result_binder: outer_final,
-          result_type: int_type(),
+          result_type: i64_type(),
           final_body: Ref(outer_final),
           handlers: [
             {
@@ -168,7 +170,9 @@ test "nested handlers dispatch to the nearest matching operation" {
   let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 17",
+    content=(
+      #|i64 17
+    ),
   )
 }
 
@@ -180,17 +184,17 @@ test "resume reinstalls the same deep handler" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
-  let result = metadata.define_value("value", Value, int_type())
-  let first = metadata.define_value("value", Local, int_type())
-  let final_binder = metadata.define_value("value", Local, int_type())
-  let payload = metadata.define_value("value", Parameter, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
+  let first = metadata.define_value("value", Local, i64_type())
+  let final_binder = metadata.define_value("value", Local, i64_type())
+  let payload = metadata.define_value("value", Parameter, i64_type())
   let resume_binder = metadata.define_value(
     "value",
     Parameter,
-    Function([int_type()], int_type(), Empty),
+    Function([i64_type()], i64_type(), Empty),
   )
   let program = @buslane.Program::{
     metadata,
@@ -204,7 +208,7 @@ test "resume reinstalls the same deep handler" {
               operation: print,
               effect_arguments: [],
               hidden_witnesses: [],
-              payloads: [Literal(Int(1L))],
+              payloads: [Literal(I64(1L))],
             }),
             Perform({
               operation: print,
@@ -214,7 +218,7 @@ test "resume reinstalls the same deep handler" {
             }),
           ),
           result_binder: final_binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           final_body: Ref(final_binder),
           handlers: [
             {
@@ -238,7 +242,9 @@ test "resume reinstalls the same deep handler" {
   let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 1",
+    content=(
+      #|i64 1
+    ),
   )
 }
 
@@ -250,17 +256,17 @@ test "resume continuation is multi-shot" {
     "op",
     console,
     [],
-    [int_type()],
-    int_type(),
+    [i64_type()],
+    i64_type(),
   )
-  let result = metadata.define_value("value", Value, int_type())
-  let ignored = metadata.define_value("value", Local, int_type())
-  let final_binder = metadata.define_value("value", Local, int_type())
-  let payload = metadata.define_value("value", Parameter, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
+  let ignored = metadata.define_value("value", Local, i64_type())
+  let final_binder = metadata.define_value("value", Local, i64_type())
+  let payload = metadata.define_value("value", Parameter, i64_type())
   let resume_binder = metadata.define_value(
     "value",
     Parameter,
-    Function([int_type()], int_type(), Empty),
+    Function([i64_type()], i64_type(), Empty),
   )
   let program = @buslane.Program::{
     metadata,
@@ -272,10 +278,10 @@ test "resume continuation is multi-shot" {
             operation: print,
             effect_arguments: [],
             hidden_witnesses: [],
-            payloads: [Literal(Int(0L))],
+            payloads: [Literal(I64(0L))],
           }),
           result_binder: final_binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           final_body: Ref(final_binder),
           handlers: [
             {
@@ -288,8 +294,8 @@ test "resume continuation is multi-shot" {
                   resume_binder,
                   body: Let(
                     ignored,
-                    Call(Resume(resume_binder), [Literal(Int(1L))]),
-                    Call(Resume(resume_binder), [Literal(Int(2L))]),
+                    Call(Resume(resume_binder), [Literal(I64(1L))]),
+                    Call(Resume(resume_binder), [Literal(I64(2L))]),
                   ),
                 },
               ],
@@ -303,15 +309,17 @@ test "resume continuation is multi-shot" {
   let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 2",
+    content=(
+      #|i64 2
+    ),
   )
 }
 
 ///|
 test "external value reference stays opaque" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let external = metadata.define_value("value", External, int_type())
-  let result = metadata.define_value("value", Value, int_type())
+  let external = metadata.define_value("value", External, i64_type())
+  let result = metadata.define_value("value", Value, i64_type())
   let program = @buslane.Program::{
     metadata,
     terms: [External(external), Let(result, Ref(external))],
@@ -331,14 +339,14 @@ test "external callable call invokes resolved native function" {
   let external = metadata.define_value(
     "value",
     External,
-    Function([int_type()], int_type(), Empty),
+    Function([i64_type()], i64_type(), Empty),
   )
-  let result = metadata.define_value("value", Value, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
       External(external),
-      Let(result, Call(Ref(external), [Literal(Int(40L))])),
+      Let(result, Call(Ref(external), [Literal(I64(40L))])),
     ],
   }
   inspect(
@@ -346,8 +354,8 @@ test "external callable call invokes resolved native function" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    external value#0 : (Int) -> Int
-      #|    value value#1 : Int
+      #|    external value#0 : (I64) -> I64
+      #|    value value#1 : I64
       #|  }
       #|  external value#0
       #|  let value#1 = value#0(40)
@@ -361,16 +369,18 @@ test "external callable call invokes resolved native function" {
       abort("unexpected Buslane external")
     }
     BuslaneRuntimeValue::native_function(arguments => {
-      guard arguments.length() == 1 && arguments[0].as_int() == Some(40L) else {
+      guard arguments.length() == 1 && arguments[0].as_i64() == Some(40L) else {
         abort("unexpected Buslane external arguments")
       }
-      BuslaneRuntimeValue::int(42L)
+      BuslaneRuntimeValue::i64(42L)
     })
   })
   let evaluated = evaluate_buslane_program(program, runtime)
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 42",
+    content=(
+      #|i64 42
+    ),
   )
 }
 
@@ -378,7 +388,7 @@ test "external callable call invokes resolved native function" {
 test "pretty recursive closure environment stays finite" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let box_type = metadata.define_type("Type", [])
-  let function_type = @buslane.Type::Function([], int_type(), Empty)
+  let function_type = @buslane.Type::Function([], i64_type(), Empty)
   let box = metadata.define_data_constructor("Con", box_type, [], [
     function_type,
   ])
@@ -392,8 +402,8 @@ test "pretty recursive closure environment stays finite" {
           id: function,
           rhs: Function({
             parameters: [],
-            result_type: int_type(),
-            body: Literal(Int(1L)),
+            result_type: i64_type(),
+            body: Literal(I64(1L)),
           }),
         },
       ]),
@@ -422,10 +432,10 @@ test "pretty recursive closure environment stays finite" {
 ///|
 test "recursive group closures see later bindings from same group" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let function_type = @buslane.Type::Function([], int_type(), Empty)
+  let function_type = @buslane.Type::Function([], i64_type(), Empty)
   let first = metadata.define_value("value", Function, function_type)
   let second = metadata.define_value("value", Function, function_type)
-  let result = metadata.define_value("value", Value, int_type())
+  let result = metadata.define_value("value", Value, i64_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -434,7 +444,7 @@ test "recursive group closures see later bindings from same group" {
           id: first,
           rhs: Function({
             parameters: [],
-            result_type: int_type(),
+            result_type: i64_type(),
             body: Call(Ref(second), []),
           }),
         },
@@ -442,8 +452,8 @@ test "recursive group closures see later bindings from same group" {
           id: second,
           rhs: Function({
             parameters: [],
-            result_type: int_type(),
-            body: Literal(Int(42L)),
+            result_type: i64_type(),
+            body: Literal(I64(42L)),
           }),
         },
       ]),
@@ -454,21 +464,23 @@ test "recursive group closures see later bindings from same group" {
   let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 42",
+    content=(
+      #|i64 42
+    ),
   )
 }
 
 ///|
 test "closure capture ignores later child frame shadowing" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let first = metadata.define_value("value", Local, int_type())
+  let first = metadata.define_value("value", Local, i64_type())
   let captured = metadata.define_value(
     "value",
     Local,
-    Function([], int_type(), Empty),
+    Function([], i64_type(), Empty),
   )
-  let shadow = metadata.define_value("value", Local, int_type())
-  let result = metadata.define_value("value", Value, int_type())
+  let shadow = metadata.define_value("value", Local, i64_type())
+  let result = metadata.define_value("value", Value, i64_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -476,15 +488,15 @@ test "closure capture ignores later child frame shadowing" {
         result,
         Let(
           first,
-          Literal(Int(1L)),
+          Literal(I64(1L)),
           Let(
             captured,
             Function({
               parameters: [],
-              result_type: int_type(),
+              result_type: i64_type(),
               body: Ref(first),
             }),
-            Let(shadow, Literal(Int(2L)), Call(Ref(captured), [])),
+            Let(shadow, Literal(I64(2L)), Call(Ref(captured), [])),
           ),
         ),
       ),
@@ -494,7 +506,9 @@ test "closure capture ignores later child frame shadowing" {
   let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 1",
+    content=(
+      #|i64 1
+    ),
   )
 }
 
@@ -508,12 +522,12 @@ test "data constructor match selects matching alternative" {
     Parameter(parameter),
   ])
   let option_int = @buslane.Type::Apply(Constructor(option), [
-    TypeArgument(int_type()),
+    TypeArgument(i64_type()),
   ])
   let scrutinee = metadata.define_value("value", Value, option_int)
   let binder = metadata.define_value("value", MatchBinder, option_int)
-  let payload = metadata.define_value("value", MatchBinder, int_type())
-  let result = metadata.define_value("value", Value, int_type())
+  let payload = metadata.define_value("value", MatchBinder, i64_type())
+  let result = metadata.define_value("value", Value, i64_type())
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -521,9 +535,9 @@ test "data constructor match selects matching alternative" {
         scrutinee,
         Construct({
           data_constructor: some,
-          type_arguments: [TypeArgument(int_type())],
+          type_arguments: [TypeArgument(i64_type())],
           hidden_witnesses: [],
-          payloads: [Literal(Int(7L))],
+          payloads: [Literal(I64(7L))],
         }),
       ),
       Let(
@@ -531,13 +545,13 @@ test "data constructor match selects matching alternative" {
         Match({
           scrutinee: Ref(scrutinee),
           binder,
-          result_type: int_type(),
+          result_type: i64_type(),
           alternatives: [
             {
               alt_constructor: DataCon(none),
               type_binders: [],
               value_binders: [],
-              body: Literal(Int(0L)),
+              body: Literal(I64(0L)),
             },
             {
               alt_constructor: DataCon(some),
@@ -553,7 +567,7 @@ test "data constructor match selects matching alternative" {
   inspect(
     @prettyprinter.render(program.terms[1], width=100),
     content=(
-      #|let value#3 = match value#0 as value#1 -> Int {
+      #|let value#3 = match value#0 as value#1 -> I64 {
       #|  datacon#0() => 0
       #|  datacon#1(value#2) => value#2
       #|}
@@ -563,14 +577,16 @@ test "data constructor match selects matching alternative" {
   let evaluated = evaluate_buslane_program(program, BuslaneExternalRuntime())
   inspect(
     @prettyprinter.render(evaluated.lookup(result), width=80),
-    content="int 7",
+    content=(
+      #|i64 7
+    ),
   )
 }
 
 ///|
 test "evaluation rejects invalid program" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value("value", Value, int_type())
+  let value = metadata.define_value("value", Value, i64_type())
   let program = @buslane.Program::{
     metadata,
     terms: [Let(value, Literal(Bool(true)))],
@@ -580,7 +596,7 @@ test "evaluation rejects invalid program" {
     content=(
       #|verify_result {
       #|  type_mismatch {
-      #|    expected Int
+      #|    expected I64
       #|    actual Bool
       #|  }
       #|}
@@ -599,7 +615,7 @@ test "evaluation rejects invalid program" {
     content=(
       #|invalid_program {
       #|  type_mismatch {
-      #|    expected Int
+      #|    expected I64
       #|    actual Bool
       #|  }
       #|}

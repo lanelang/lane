@@ -2,15 +2,15 @@
 test "typecheck builds checked builtin from direct expected type" {
   let expression = expect_checked_let_initializer(
     (
-      #|let int_add : (Int, Int) -> Int = builtin("%i64_add")
+      #|let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
     ),
-    "int_add",
-    Function([Primitive(Int), Primitive(Int)], Primitive(Int), Empty),
+    "i64_add",
+    Function([Primitive(I64), Primitive(I64)], Primitive(I64), Empty),
   )
   inspect(
     @prettyprinter.render(expression),
     content=(
-      #|builtin("%i64_add") : (Int, Int) -> Int
+      #|builtin("%i64_add") : (I64, I64) -> I64
     ),
   )
 }
@@ -19,15 +19,15 @@ test "typecheck builds checked builtin from direct expected type" {
 test "typecheck builds checked builtin call from expected result" {
   let expression = expect_checked_let_initializer(
     (
-      #|let sum : Int = builtin("%i64_add")(1, 2)
+      #|let sum : I64 = builtin("%i64_add")(1, 2)
     ),
     "sum",
-    Primitive(Int),
+    Primitive(I64),
   )
   inspect(
     @prettyprinter.render(expression),
     content=(
-      #|builtin("%i64_add")(1, 2) : Int
+      #|builtin("%i64_add")(1, 2) : I64
     ),
   )
 }
@@ -44,13 +44,13 @@ test "typecheck builtin primitive operation fragment" {
       #|  op.add(a, b)
       #|}
       #|
-      #|fn int_add(a : Int, b : Int) -> Int {
+      #|fn i64_add(a : I64, b : I64) -> I64 {
       #|  builtin("%i64_add")(a, b)
       #|}
       #|
-      #|offer int_add_ops : Add[Int] = Add::{ add: int_add }
+      #|offer i64_add_ops : Add[I64] = Add::{ add: i64_add }
       #|
-      #|let sum : Int = op_add(1, 2)
+      #|let sum : I64 = op_add(1, 2)
     ),
   )
   debug_inspect(result.diagnostics, content="[]")
@@ -63,12 +63,12 @@ test "typecheck builtin primitive operation fragment" {
 test "typecheck parses checked int literal as i64 value" {
   let expression = expect_checked_let_initializer(
     (
-      #|let answer : Int = 042
+      #|let answer : I64 = 042
     ),
     "answer",
-    Primitive(Int),
+    Primitive(I64),
   )
-  guard expression is Literal(literal=Int(literal), ..) else {
+  guard expression is Literal(literal=I64(literal), ..) else {
     abort("expected checked int literal")
   }
   @test.assert_eq(literal.raw, "042")
@@ -79,13 +79,13 @@ test "typecheck parses checked int literal as i64 value" {
 test "typecheck reports out of range int literal" {
   let result = expect_typecheck_result(
     (
-      #|let bad : Int = 9223372036854775808
+      #|let bad : I64 = 9223372036854775808
     ),
   )
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[invalid_int_literal 9223372036854775808 @ 2:17-2:36]
+      #|[invalid_i64_literal 9223372036854775808 @ 2:17-2:36]
     ),
   )
 }
@@ -100,16 +100,16 @@ test "typecheck inserts contextual auto argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-      #|let answer : Int = 1 + 2
+      #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+      #|let answer : I64 = 1 + 2
     ),
     "answer",
-    Primitive(Int),
+    Primitive(I64),
   )
   inspect(
     @prettyprinter.render(expression, width=100),
     content=(
-      #|op_add#0[Int](1, 2, int_add_ops#1) : Int
+      #|op_add#0[I64](1, 2, i64_add_ops#1) : I64
     ),
   )
 }
@@ -124,16 +124,16 @@ test "typecheck accepts explicit named contextual argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let custom_add : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-      #|let answer : Int = op_add(1, 2, op=custom_add)
+      #|let custom_add : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+      #|let answer : I64 = op_add(1, 2, op=custom_add)
     ),
     "answer",
-    Primitive(Int),
+    Primitive(I64),
   )
   inspect(
     @prettyprinter.render(expression, width=100),
     content=(
-      #|op_add#0[Int](1, 2, custom_add#1) : Int
+      #|op_add#0[I64](1, 2, custom_add#1) : I64
     ),
   )
 }
@@ -148,16 +148,16 @@ test "typecheck offer value declaration supplies contextual argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-      #|let answer : Int = 1 + 2
+      #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+      #|let answer : I64 = 1 + 2
     ),
     "answer",
-    Primitive(Int),
+    Primitive(I64),
   )
   inspect(
     @prettyprinter.render(expression, width=100),
     content=(
-      #|op_add#0[Int](1, 2, int_add_ops#1) : Int
+      #|op_add#0[I64](1, 2, i64_add_ops#1) : I64
     ),
   )
 }
@@ -166,21 +166,21 @@ test "typecheck offer value declaration supplies contextual argument" {
 test "typecheck offered function supplies contextual argument" {
   let expression = expect_checked_let_initializer(
     (
-      #|fn call(auto provider : () -> Int) -> Int {
+      #|fn call(auto provider : () -> I64) -> I64 {
       #|  provider()
       #|}
-      #|offer fn provide() -> Int {
+      #|offer fn provide() -> I64 {
       #|  42
       #|}
-      #|let answer : Int = call()
+      #|let answer : I64 = call()
     ),
     "answer",
-    Primitive(Int),
+    Primitive(I64),
   )
   inspect(
     @prettyprinter.render(expression, width=100),
     content=(
-      #|call#0(provide#1) : Int
+      #|call#0(provide#1) : I64
     ),
   )
 }
@@ -189,14 +189,14 @@ test "typecheck offered function supplies contextual argument" {
 test "typecheck inner offered function shadows same-named outer offer" {
   let result = expect_typecheck_result(
     (
-      #|fn consume(auto provider : () -> Int) -> Int {
+      #|fn consume(auto provider : () -> I64) -> I64 {
       #|  provider()
       #|}
-      #|offer fn provider() -> Int {
+      #|offer fn provider() -> I64 {
       #|  1
       #|}
-      #|let answer : Int = {
-      #|  offer fn provider() -> Int {
+      #|let answer : I64 = {
+      #|  offer fn provider() -> I64 {
       #|    2
       #|  }
       #|  consume()
@@ -213,7 +213,7 @@ test "contextual offers do not share a fallback name" {
     contextual_offer(
       { index: 0 },
       "first",
-      Primitive(Int),
+      Primitive(I64),
       None,
       @basic.SourceSpan::dummy(),
     ),
@@ -239,14 +239,14 @@ test "contextual offers do not share a fallback name" {
 test "typecheck inner ordinary binding hides same-named outer offer" {
   let result = expect_typecheck_result(
     (
-      #|fn consume(auto provider : () -> Int) -> Int {
+      #|fn consume(auto provider : () -> I64) -> I64 {
       #|  provider()
       #|}
-      #|offer fn provider() -> Int {
+      #|offer fn provider() -> I64 {
       #|  1
       #|}
-      #|let answer : Int = {
-      #|  fn provider() -> Int {
+      #|let answer : I64 = {
+      #|  fn provider() -> I64 {
       #|    2
       #|  }
       #|  consume()
@@ -256,20 +256,20 @@ test "typecheck inner ordinary binding hides same-named outer offer" {
   guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
     abort(@prettyprinter.render(result.diagnostics, width=100))
   }
-  assert_eq(expected, Function([], Primitive(Int), Empty))
+  assert_eq(expected, Function([], Primitive(I64), Empty))
 }
 
 ///|
 test "typecheck applies offer shadowing before contextual type matching" {
   let result = expect_typecheck_result(
     (
-      #|fn consume(auto provider : () -> Int) -> Int {
+      #|fn consume(auto provider : () -> I64) -> I64 {
       #|  provider()
       #|}
-      #|offer fn provider() -> Int {
+      #|offer fn provider() -> I64 {
       #|  1
       #|}
-      #|let answer : Int = {
+      #|let answer : I64 = {
       #|  offer fn provider() -> Bool {
       #|    true
       #|  }
@@ -280,23 +280,23 @@ test "typecheck applies offer shadowing before contextual type matching" {
   guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
     abort(@prettyprinter.render(result.diagnostics, width=100))
   }
-  assert_eq(expected, Function([], Primitive(Int), Empty))
+  assert_eq(expected, Function([], Primitive(I64), Empty))
 }
 
 ///|
 test "typecheck restores outer offer after leaving lexical scope" {
   let result = expect_typecheck_result(
     (
-      #|fn consume_int(auto provider : () -> Int) -> Int {
+      #|fn consume_int(auto provider : () -> I64) -> I64 {
       #|  provider()
       #|}
       #|fn consume_bool(auto provider : () -> Bool) -> Bool {
       #|  provider()
       #|}
-      #|offer fn provider() -> Int {
+      #|offer fn provider() -> I64 {
       #|  1
       #|}
-      #|let answer : Int = {
+      #|let answer : I64 = {
       #|  let inner : Bool = {
       #|    offer fn provider() -> Bool {
       #|      true
@@ -314,21 +314,21 @@ test "typecheck restores outer offer after leaving lexical scope" {
 test "typecheck offered function follows recursive and ordered scopes" {
   let result = expect_typecheck_result(
     (
-      #|fn accept_top(auto provider : () -> Int) -> Unit {
+      #|fn accept_top(auto provider : () -> I64) -> Unit {
       #|  ()
       #|}
       #|fn before() -> Unit {
       #|  accept_top()
       #|}
-      #|offer fn provide() -> Int {
+      #|offer fn provide() -> I64 {
       #|  accept_top()
       #|  42
       #|}
-      #|fn accept_local(auto transform : (Int) -> Int) -> Unit {
+      #|fn accept_local(auto transform : (I64) -> I64) -> Unit {
       #|  ()
       #|}
-      #|let answer : Int = {
-      #|  offer fn local(value : Int) -> Int {
+      #|let answer : I64 = {
+      #|  offer fn local(value : I64) -> I64 {
       #|    accept_local()
       #|    value
       #|  }
@@ -344,32 +344,32 @@ test "typecheck offered function follows recursive and ordered scopes" {
 test "typecheck does not specialize a generic offered function" {
   let result = expect_typecheck_result(
     (
-      #|fn use_mono(auto transform : (Int) -> Int) -> Int {
+      #|fn use_mono(auto transform : (I64) -> I64) -> I64 {
       #|  transform(1)
       #|}
       #|offer fn[A] identity(value : A) -> A {
       #|  value
       #|}
-      #|let answer : Int = use_mono()
+      #|let answer : I64 = use_mono()
     ),
   )
   guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
     abort(@prettyprinter.render(result.diagnostics, width=100))
   }
-  assert_eq(expected, Function([Primitive(Int)], Primitive(Int), Empty))
+  assert_eq(expected, Function([Primitive(I64)], Primitive(I64), Empty))
 }
 
 ///|
 test "typecheck matches a generic offered function by its forall type" {
   let result = expect_typecheck_result(
     (
-      #|fn use_poly(auto transform : [A](A) -> A) -> Int {
-      #|  transform[Int](1)
+      #|fn use_poly(auto transform : [A](A) -> A) -> I64 {
+      #|  transform[I64](1)
       #|}
       #|offer fn[A] identity(value : A) -> A {
       #|  value
       #|}
-      #|let answer : Int = use_poly()
+      #|let answer : I64 = use_poly()
     ),
   )
   debug_inspect(result.diagnostics, content="[]")
@@ -388,8 +388,8 @@ test "typecheck auto offer parameter is visible in function body" {
       #|fn[A] twice(x : A, auto offer op : Add[A]) -> A {
       #|  x + x
       #|}
-      #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-      #|let answer : Int = twice(1)
+      #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+      #|let answer : I64 = twice(1)
     ),
   )
   inspect(
@@ -411,8 +411,8 @@ test "typecheck auto offer parameter is visible in function body" {
       #|  checked_values {
       #|    fn op_add#0 : forall [tparam#1 A : Type]. (tparam#1, tparam#1, type#0[tparam#1]) -> tparam#1
       #|    fn twice#1 : forall [tparam#2 A : Type]. (tparam#2, type#0[tparam#2]) -> tparam#2
-      #|    let int_add_ops#2 : type#0[Int]
-      #|    let answer#3 : Int
+      #|    let i64_add_ops#2 : type#0[I64]
+      #|    let answer#3 : I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -433,14 +433,14 @@ test "typecheck compare offer does not derive equal offer" {
       #|fn[A] op_equal(a : A, b : A, auto op : Equal[A]) -> Bool {
       #|  op.equal(a, b)
       #|}
-      #|offer int_compare_ops : Compare[Int] = Compare::{ equal_impl: Equal::{ equal: fn(a : Int, b : Int) -> Bool { builtin("%i64_equal")(a, b) } } }
+      #|offer i64_compare_ops : Compare[I64] = Compare::{ equal_impl: Equal::{ equal: fn(a : I64, b : I64) -> Bool { builtin("%i64_equal")(a, b) } } }
       #|let answer : Bool = 1 == 2
     ),
   )
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[missing_contextual_offer type#0[Int] @ 12:21-12:27]
+      #|[missing_contextual_offer type#0[I64] @ 12:21-12:27]
     ),
   )
 }
@@ -455,25 +455,25 @@ test "typecheck local offer value declaration supplies contextual argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let answer : Int = {
-      #|  offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
+      #|let answer : I64 = {
+      #|  offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
       #|  1 + 2
       #|}
     ),
     "answer",
-    Primitive(Int),
+    Primitive(I64),
   )
   inspect(
     @prettyprinter.render(expression, width=100),
     content=(
       #|{
-      #|  let int_add_ops#5 : type#0[Int] = type#0[Int]::{
-      #|    add#0: fn(a#6 : Int, b#7 : Int) -> Int {
+      #|  let i64_add_ops#5 : type#0[I64] = type#0[I64]::{
+      #|    add#0: fn(a#6 : I64, b#7 : I64) -> I64 {
       #|      builtin("%i64_add")(a#6, b#7)
       #|    }
       #|  }
-      #|  op_add#0[Int](1, 2, int_add_ops#5)
-      #|} : Int
+      #|  op_add#0[I64](1, 2, i64_add_ops#5)
+      #|} : I64
     ),
   )
 }
@@ -488,7 +488,7 @@ test "typecheck reports missing contextual offer" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let answer : Int = 1 + 2
+      #|let answer : I64 = 1 + 2
     ),
   )
   inspect(
@@ -509,10 +509,10 @@ test "typecheck reports missing contextual offer" {
       #|  }
       #|  checked_values {
       #|    fn op_add#0 : forall [tparam#1 A : Type]. (tparam#1, tparam#1, type#0[tparam#1]) -> tparam#1
-      #|    let answer#1 : Int
+      #|    let answer#1 : I64
       #|  }
       #|  diagnostics {
-      #|    missing_contextual_offer type#0[Int] @ 8:20-8:25
+      #|    missing_contextual_offer type#0[I64] @ 8:20-8:25
       #|  }
       #|}
     ),
@@ -529,9 +529,9 @@ test "typecheck reports ambiguous contextual offer" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|offer add_a : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-      #|offer add_b : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_sub")(a, b) } }
-      #|let answer : Int = 1 + 2
+      #|offer add_a : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+      #|offer add_b : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_sub")(a, b) } }
+      #|let answer : I64 = 1 + 2
     ),
   )
   inspect(
@@ -552,12 +552,12 @@ test "typecheck reports ambiguous contextual offer" {
       #|  }
       #|  checked_values {
       #|    fn op_add#0 : forall [tparam#1 A : Type]. (tparam#1, tparam#1, type#0[tparam#1]) -> tparam#1
-      #|    let add_a#1 : type#0[Int]
-      #|    let add_b#2 : type#0[Int]
-      #|    let answer#3 : Int
+      #|    let add_a#1 : type#0[I64]
+      #|    let add_b#2 : type#0[I64]
+      #|    let answer#3 : I64
       #|  }
       #|  diagnostics {
-      #|    ambiguous_contextual_offer type#0[Int] candidates=[add_a, add_b] @ 10:20-10:25
+      #|    ambiguous_contextual_offer type#0[I64] candidates=[add_a, add_b] @ 10:20-10:25
       #|  }
       #|}
     ),
@@ -571,10 +571,10 @@ test "typecheck reports non-trailing auto parameter" {
       #|struct Add[A] {
       #|  add : (A, A) -> A
       #|}
-      #|fn bad(a : Int, auto op : Add[Int], b : Int) -> Int {
+      #|fn bad(a : I64, auto op : Add[I64], b : I64) -> I64 {
       #|  a
       #|}
-      #|let answer : Int = bad(1, 2)
+      #|let answer : I64 = bad(1, 2)
     ),
   )
   inspect(
@@ -595,8 +595,8 @@ test "typecheck reports positional auto argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let custom : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-      #|let answer : Int = op_add(1, 2, custom)
+      #|let custom : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+      #|let answer : I64 = op_add(1, 2, custom)
     ),
   )
   inspect(
@@ -617,8 +617,8 @@ test "typecheck reports duplicate named contextual argument" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let custom : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-      #|let answer : Int = op_add(1, 2, op=custom, op=custom)
+      #|let custom : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+      #|let answer : I64 = op_add(1, 2, op=custom, op=custom)
     ),
   )
   inspect(
@@ -633,10 +633,10 @@ test "typecheck reports duplicate named contextual argument" {
 test "typecheck reports invalid named argument for ordinary call" {
   let result = expect_typecheck_result(
     (
-      #|fn id(value : Int) -> Int {
+      #|fn id(value : I64) -> I64 {
       #|  value
       #|}
-      #|let answer : Int = id(value=1)
+      #|let answer : I64 = id(value=1)
     ),
   )
   inspect(
@@ -651,10 +651,10 @@ test "typecheck reports invalid named argument for ordinary call" {
 test "typecheck local bindings are sequential and local functions see prior scope" {
   let result = expect_typecheck_result(
     (
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  {
       #|    let base = 1
-      #|    fn local(value : Int) -> Int {
+      #|    fn local(value : I64) -> I64 {
       #|      base
       #|    }
       #|    local(2)
@@ -673,7 +673,7 @@ test "typecheck local bindings are sequential and local functions see prior scop
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn use#0 : () -> Int
+      #|    fn use#0 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -685,9 +685,9 @@ test "typecheck local bindings are sequential and local functions see prior scop
 test "typecheck local function can call itself after declaration" {
   let result = expect_typecheck_result(
     (
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  {
-      #|    fn loop(value : Int) -> Int {
+      #|    fn loop(value : I64) -> I64 {
       #|      loop(value)
       #|    }
       #|    loop(1)
@@ -706,7 +706,7 @@ test "typecheck local function can call itself after declaration" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn use#0 : () -> Int
+      #|    fn use#0 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -718,10 +718,10 @@ test "typecheck local function can call itself after declaration" {
 test "typecheck reports local function forward reference" {
   let file = expect_parse_ok(
     (
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  {
       #|    let result = local(1)
-      #|    fn local(value : Int) -> Int {
+      #|    fn local(value : I64) -> I64 {
       #|      value
       #|    }
       #|    result
@@ -761,7 +761,7 @@ test "typecheck reports local function forward reference" {
 test "typecheck local generic function after declaration" {
   let result = expect_typecheck_result(
     (
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  {
       #|    fn[A] id(value : A) -> A {
       #|      value
@@ -782,7 +782,7 @@ test "typecheck local generic function after declaration" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn use#0 : () -> Int
+      #|    fn use#0 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -794,10 +794,10 @@ test "typecheck local generic function after declaration" {
 test "typecheck direct binary operator alias" {
   let result = expect_typecheck_result(
     (
-      #|fn op_add(a : Int, b : Int) -> Int {
+      #|fn op_add(a : I64, b : I64) -> I64 {
       #|  a
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  1 + 2
       #|}
     ),
@@ -813,8 +813,8 @@ test "typecheck direct binary operator alias" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn op_add#0 : (Int, Int) -> Int
-      #|    fn use#1 : () -> Int
+      #|    fn op_add#0 : (I64, I64) -> I64
+      #|    fn use#1 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -826,10 +826,10 @@ test "typecheck direct binary operator alias" {
 test "typecheck direct binary operator result mismatch" {
   let result = expect_typecheck_result(
     (
-      #|fn op_add(a : Int, b : Int) -> Bool {
+      #|fn op_add(a : I64, b : I64) -> Bool {
       #|  true
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  1 + 2
       #|}
     ),
@@ -837,7 +837,7 @@ test "typecheck direct binary operator result mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[type_mismatch expected=Int actual=Bool @ 6:3-6:8]
+      #|[type_mismatch expected=I64 actual=Bool @ 6:3-6:8]
     ),
   )
 }
@@ -846,10 +846,10 @@ test "typecheck direct binary operator result mismatch" {
 test "typecheck direct unary operator alias" {
   let result = expect_typecheck_result(
     (
-      #|fn op_neg(value : Int) -> Int {
+      #|fn op_neg(value : I64) -> I64 {
       #|  value
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  -1
       #|}
     ),
@@ -865,8 +865,8 @@ test "typecheck direct unary operator alias" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn op_neg#0 : (Int) -> Int
-      #|    fn use#1 : () -> Int
+      #|    fn op_neg#0 : (I64) -> I64
+      #|    fn use#1 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -878,10 +878,10 @@ test "typecheck direct unary operator alias" {
 test "typecheck function literal parameters from expected function type" {
   let result = expect_typecheck_result(
     (
-      #|fn apply(callback : (Int) -> Int) -> Int {
+      #|fn apply(callback : (I64) -> I64) -> I64 {
       #|  callback(1)
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  apply(fn(value) {
       #|    value
       #|  })
@@ -899,8 +899,8 @@ test "typecheck function literal parameters from expected function type" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn apply#0 : ((Int) -> Int) -> Int
-      #|    fn use#1 : () -> Int
+      #|    fn apply#0 : ((I64) -> I64) -> I64
+      #|    fn use#1 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -912,10 +912,10 @@ test "typecheck function literal parameters from expected function type" {
 test "typecheck checked function literal parameters from expected function type" {
   let result = expect_checked_source_result(
     (
-      #|let id : (Int) -> Int = fn(value) {
+      #|let id : (I64) -> I64 = fn(value) {
       #|  value
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  id(1)
       #|}
     ),
@@ -925,10 +925,10 @@ test "typecheck checked function literal parameters from expected function type"
     content=(
       #|checked_source_typecheck_result {
       #|  checked {
-      #|    let id#0 : (Int) -> Int = fn(value#2 : Int) -> Int {
+      #|    let id#0 : (I64) -> I64 = fn(value#2 : I64) -> I64 {
       #|      value#2
       #|    }
-      #|    fn use#1() -> Int {
+      #|    fn use#1() -> I64 {
       #|      id#0(1)
       #|    }
       #|  }
@@ -942,10 +942,10 @@ test "typecheck checked function literal parameters from expected function type"
 test "typecheck pipeline expression as first argument call" {
   let result = expect_typecheck_result(
     (
-      #|fn first(a : Int, b : Int) -> Int {
+      #|fn first(a : I64, b : I64) -> I64 {
       #|  a
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  1 |> first(2)
       #|}
     ),
@@ -961,8 +961,8 @@ test "typecheck pipeline expression as first argument call" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn first#0 : (Int, Int) -> Int
-      #|    fn use#1 : () -> Int
+      #|    fn first#0 : (I64, I64) -> I64
+      #|    fn use#1 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -974,8 +974,8 @@ test "typecheck pipeline expression as first argument call" {
 test "typecheck pipeline expression into function literal" {
   let result = expect_typecheck_result(
     (
-      #|fn use() -> Int {
-      #|  1 |> fn(value : Int) {
+      #|fn use() -> I64 {
+      #|  1 |> fn(value : I64) {
       #|    value
       #|  }
       #|}
@@ -992,7 +992,7 @@ test "typecheck pipeline expression into function literal" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn use#0 : () -> Int
+      #|    fn use#0 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -1007,7 +1007,7 @@ test "typecheck generic function literal parameters from expected forall type" {
       #|let id : [A](A) -> A = fn[A](value) {
       #|  value
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  id(1)
       #|}
     ),
@@ -1023,7 +1023,7 @@ test "typecheck generic function literal parameters from expected forall type" {
       #|    variants {}
       #|  }
       #|  checked_values {
-      #|    fn use#1 : () -> Int
+      #|    fn use#1 : () -> I64
       #|    let id#0 : forall [tparam#0 A : Type]. (tparam#0) -> tparam#0
       #|  }
       #|  diagnostics {}
@@ -1039,7 +1039,7 @@ test "typecheck checked generic function literal parameters from expected forall
       #|let id : [A](A) -> A = fn[A](value) {
       #|  value
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  id(1)
       #|}
     ),
@@ -1052,8 +1052,8 @@ test "typecheck checked generic function literal parameters from expected forall
       #|    let id#0 : forall [tparam#0 A : Type]. (tparam#0) -> tparam#0 = fn[A#1 : Type](value#2 : tparam#1) -> tparam#1 {
       #|      value#2
       #|    }
-      #|    fn use#1() -> Int {
-      #|      id#0[Int](1)
+      #|    fn use#1() -> I64 {
+      #|      id#0[I64](1)
       #|    }
       #|  }
       #|  diagnostics {}
@@ -1112,7 +1112,7 @@ test "typecheck reports generic function literal arity mismatch" {
 test "typecheck reports generic literal against non-generic function type" {
   let result = expect_typecheck_result(
     (
-      #|let id : (Int) -> Int = fn[A](value : A) -> A {
+      #|let id : (I64) -> I64 = fn[A](value : A) -> A {
       #|  value
       #|}
     ),
@@ -1132,7 +1132,7 @@ test "typecheck synthesizes direct generic call from argument type" {
       #|fn[A] id(value : A) -> A {
       #|  value
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  id(1)
       #|}
     ),
@@ -1149,7 +1149,7 @@ test "typecheck synthesizes direct generic call from argument type" {
       #|  }
       #|  checked_values {
       #|    fn id#0 : forall [tparam#0 A : Type]. (tparam#0) -> tparam#0
-      #|    fn use#1 : () -> Int
+      #|    fn use#1 : () -> I64
       #|  }
       #|  diagnostics {}
       #|}
@@ -1211,7 +1211,7 @@ test "typecheck elaborates an omitted else to a zero-width Unit branch" {
 test "typecheck rejects a value-producing if without else" {
   let result = expect_checked_source_result(
     (
-      #|fn choose(flag : Bool) -> Int {
+      #|fn choose(flag : Bool) -> I64 {
       #|  if flag {
       #|    1
       #|  }
@@ -1221,7 +1221,7 @@ test "typecheck rejects a value-producing if without else" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[else-omitting conditional requires Unit, found Int @ 4:5-4:6]
+      #|[else-omitting conditional requires Unit, found I64 @ 4:5-4:6]
     ),
   )
 }
@@ -1230,7 +1230,7 @@ test "typecheck rejects a value-producing if without else" {
 test "typecheck aggregates omitted-else mismatches across nested checking" {
   let result = expect_checked_source_result(
     (
-      #|fn choose(flag : Bool, branch : Bool) -> Int {
+      #|fn choose(flag : Bool, branch : Bool) -> I64 {
       #|  if flag {
       #|    match branch {
       #|      true => 1
@@ -1243,7 +1243,7 @@ test "typecheck aggregates omitted-else mismatches across nested checking" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[else-omitting conditional requires Unit, found Int @ 5:15-5:16]
+      #|[else-omitting conditional requires Unit, found I64 @ 5:15-5:16]
     ),
   )
 }
@@ -1252,7 +1252,7 @@ test "typecheck aggregates omitted-else mismatches across nested checking" {
 test "typecheck propagates an omitted-else mismatch through nested conditionals" {
   let result = expect_checked_source_result(
     (
-      #|fn choose(first : Bool, second : Bool) -> Int {
+      #|fn choose(first : Bool, second : Bool) -> I64 {
       #|  if first {
       #|    if second {
       #|      1
@@ -1264,7 +1264,7 @@ test "typecheck propagates an omitted-else mismatch through nested conditionals"
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[else-omitting conditional requires Unit, found Int @ 5:7-5:8]
+      #|[else-omitting conditional requires Unit, found I64 @ 5:7-5:8]
     ),
   )
 }
@@ -1273,7 +1273,7 @@ test "typecheck propagates an omitted-else mismatch through nested conditionals"
 test "typecheck reports the surrounding mismatch for a well-typed omitted else" {
   let result = expect_checked_source_result(
     (
-      #|fn choose(flag : Bool) -> Int {
+      #|fn choose(flag : Bool) -> I64 {
       #|  if flag {
       #|    ()
       #|  }
@@ -1283,7 +1283,7 @@ test "typecheck reports the surrounding mismatch for a well-typed omitted else" 
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[type_mismatch expected=Int actual=Unit @ 3:3-5:4]
+      #|[type_mismatch expected=I64 actual=Unit @ 3:3-5:4]
     ),
   )
 }
@@ -1313,9 +1313,9 @@ test "typecheck allows declarations between sequential unit expressions" {
       #|fn mark() -> Unit {
       #|  ()
       #|}
-      #|fn build() -> Int {
+      #|fn build() -> I64 {
       #|  mark();
-      #|  let answer : Int = 42
+      #|  let answer : I64 = 42
       #|  mark();
       #|  answer
       #|}
@@ -1335,13 +1335,13 @@ test "typecheck rejects non-unit sequential expressions across separators" {
   for
     source in [
       (
-        #|fn bad() -> Int {
+        #|fn bad() -> I64 {
         #|  1;
         #|  2
         #|}
       ),
       (
-        #|fn bad() -> Int {
+        #|fn bad() -> I64 {
         #|  1
         #|  2
         #|}
@@ -1353,7 +1353,7 @@ test "typecheck rejects non-unit sequential expressions across separators" {
       content=(
         #|[
         #|  {
-        #|    kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(Int)),
+        #|    kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(I64)),
         #|    loc: {
         #|      start_offset: 32,
         #|      end_offset: 33,

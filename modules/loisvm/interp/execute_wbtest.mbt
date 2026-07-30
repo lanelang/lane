@@ -188,12 +188,12 @@ test "engine traps discard the instance without ARC unwinding" {
     slots=[trivial_slot(I64), owned_ref, trivial_slot(F64), trivial_slot(I64)],
     result=Unit,
     instructions=[
-      ConstInt({ value: 0 }, 42L),
+      ConstI64({ value: 0 }, 42L),
       MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 1 }), [], [
         { value: 0 },
       ]),
-      ConstDouble({ value: 2 }, (0.0 / 0.0).reinterpret_as_int64()),
-      DoubleToInt({ value: 3 }, { value: 2 }),
+      ConstF64({ value: 2 }, (0.0 / 0.0).reinterpret_as_int64()),
+      F64ToI64({ value: 3 }, { value: 2 }),
     ],
     terminator=Return(None),
   )
@@ -221,7 +221,7 @@ test "engine traps discard the instance without ARC unwinding" {
   let instance = loaded.new_instance()
   assert_eq(
     instance.execute(),
-    Err(EngineTrap(detail="invalid Double-to-Int conversion")),
+    Err(EngineTrap(detail="invalid F64-to-I64 conversion")),
   )
   assert_true(instance.heap.live_bytes > 0)
   assert_false(instance.frames.is_empty())

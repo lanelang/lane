@@ -21,12 +21,27 @@ fn assert_type_equal(actual : Type, expected : Type) -> Unit {
 }
 
 ///|
+test "numeric primitive lookup uses the new source names exclusively" {
+  assert_eq(
+    [
+      PrimitiveType::from_name("I64"),
+      PrimitiveType::from_name("I32"),
+      PrimitiveType::from_name("F64"),
+      PrimitiveType::from_name("Int"),
+      PrimitiveType::from_name("S32"),
+      PrimitiveType::from_name("Double"),
+    ],
+    [Some(I64), Some(I32), Some(F64), None, None, None],
+  )
+}
+
+///|
 test "pretty prints checked type objects" {
   let (option, a, _) = test_symbols()
   let type_ = Forall(
     [a],
     Function(
-      [nominal_type(option, [Parameter(a.id)]), Primitive(Int)],
+      [nominal_type(option, [Parameter(a.id)]), Primitive(I64)],
       Parameter(a.id),
       Empty,
     ),
@@ -34,7 +49,7 @@ test "pretty prints checked type objects" {
   inspect(
     @prettyprinter.render(type_),
     content=(
-      #|forall [tparam#0 A : Type]. (type#0[tparam#0], Int) -> tparam#0
+      #|forall [tparam#0 A : Type]. (type#0[tparam#0], I64) -> tparam#0
     ),
   )
 }
@@ -50,12 +65,12 @@ test "pretty prints arrow kinds" {
 ///|
 test "substitutes free type parameters but not forall-bound parameters" {
   let (_, a, b) = test_symbols()
-  let substitution = TypeSubstitution::single(a.id, Primitive(Int))
+  let substitution = TypeSubstitution::single(a.id, Primitive(I64))
   let free = Type::Function([Parameter(a.id)], Parameter(b.id), Empty)
   let bound = Forall([a], Function([Parameter(a.id)], Parameter(b.id), Empty))
   inspect(
     @prettyprinter.render(free.substitute(substitution)),
-    content="(Int) -> tparam#1",
+    content="(I64) -> tparam#1",
   )
   inspect(
     @prettyprinter.render(bound.substitute(substitution)),

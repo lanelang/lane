@@ -23,14 +23,14 @@ fn invoke_runtime_binding(
         arguments.push(Bool(value != 0))
         value_index += 1
       }
-      Int => {
+      I64 => {
         guard values[value_index] is I64(value) else { raise TypeMismatch }
-        arguments.push(Int(value))
+        arguments.push(I64(value))
         value_index += 1
       }
-      Double => {
+      F64 => {
         guard values[value_index] is F64(value) else { raise TypeMismatch }
-        arguments.push(Double(value))
+        arguments.push(F64(value))
         value_index += 1
       }
       String => {
@@ -158,8 +158,8 @@ fn default_runtime_result(
   match kind {
     Unit => []
     Bool => [I32(0)]
-    Int => [I64(0L)]
-    Double => [F64(0.0)]
+    I64 => [I64(0L)]
+    F64 => [F64(0.0)]
     String => [I32(0)]
     Opaque => [I32(0)]
   }
@@ -178,8 +178,8 @@ fn host_result_to_wasm(
   match (kind, value) {
     (Unit, Unit) => []
     (Bool, Bool(value)) => [I32(if value { 1 } else { 0 })]
-    (Int, Int(value)) => [I64(value)]
-    (Double, Double(value)) => [F64(value)]
+    (I64, I64(value)) => [I64(value)]
+    (F64, F64(value)) => [F64(value)]
     (String, String(bytes)) => {
       ignore(
         @utf8.decode(bytes) catch {

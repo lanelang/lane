@@ -28,10 +28,10 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_global",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -39,7 +39,7 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
     ),
   )
   let initializer = wasm_global_body([wasm_global_slot(I64)], [
-    ConstInt({ value: 0 }, 42L),
+    ConstI64({ value: 0 }, 42L),
     InitGlobal({ value: 0 }, { value: 0 }),
   ])
   let entry = wasm_global_body([wasm_global_slot(I64)], [
@@ -54,7 +54,7 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
       BytecodeBody(entry),
       RuntimeImport({
         abi_major: 1,
-        parameters: [Int],
+        parameters: [I64],
         result: Unit,
         symbol: "lane.test.observe_global",
       }),
@@ -196,7 +196,7 @@ fn wasm_lifecycle_initializer() -> @bytecode.FunctionBody {
       wasm_global_slot(I64),
     ],
     [
-      ConstInt({ value: 7 }, 42L),
+      ConstI64({ value: 7 }, 42L),
       InitGlobal({ value: 0 }, { value: 7 }),
       ConstString({ value: 0 }, { value: 0 }),
       ConstString({ value: 1 }, { value: 1 }),
@@ -360,7 +360,7 @@ test "Wasm reports invalid instance-global initialization" {
   }
   let duplicate = make_image(
     wasm_global_body([trivial_i64], [
-      ConstInt({ value: 0 }, 1L),
+      ConstI64({ value: 0 }, 1L),
       InitGlobal({ value: 0 }, { value: 0 }),
       InitGlobal({ value: 0 }, { value: 0 }),
     ]),

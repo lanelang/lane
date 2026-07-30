@@ -111,10 +111,10 @@ fn token_label(token : Token) -> String {
     EFFECT_KIND => "Effect"
     UNIT_TYPE => "Unit"
     BOOL_TYPE => "Bool"
-    INT_TYPE => "Int"
-    S32_TYPE => "S32"
+    I64_TYPE => "I64"
+    I32_TYPE => "I32"
     CHAR_TYPE => "Char"
-    DOUBLE_TYPE => "Double"
+    F64_TYPE => "F64"
     STRING_TYPE => "String"
     BYTE_TYPE => "Byte"
     BYTES_TYPE => "Bytes"
@@ -148,10 +148,10 @@ fn token_label(token : Token) -> String {
     LITERAL_ALT => "literal"
     TRUE => "true"
     FALSE => "false"
-    INT_LITERAL => "int"
-    S32_LITERAL => "s32"
+    I64_LITERAL => "i64"
+    I32_LITERAL => "i32"
     CHAR_LITERAL => "char"
-    DOUBLE_LITERAL => "double"
+    F64_LITERAL => "f64"
     STRING_LITERAL => "string"
     UNIT_LITERAL => "unit"
     LBRACE => "{"
@@ -434,10 +434,10 @@ fn primitive_doc(primitive : @buslane.PrimitiveType) -> Document {
   match primitive {
     Unit => text("Unit")
     Bool => text("Bool")
-    Int => text("Int")
-    S32 => text("S32")
+    I64 => text("I64")
+    I32 => text("I32")
     Char => text("Char")
-    Double => text("Double")
+    F64 => text("F64")
     String => text("String")
     Byte => text("Byte")
     Bytes => text("Bytes")
@@ -602,10 +602,10 @@ fn literal_doc(literal : @buslane.Literal) -> Document {
   match literal {
     Unit => call_doc("unit", [])
     Bool(value) => text(if value { "true" } else { "false" })
-    Int(value) => call_doc("int", [text(value.to_string())])
-    S32(value) => call_doc("s32", [text(value.to_string())])
+    I64(value) => call_doc("i64", [text(value.to_string())])
+    I32(value) => call_doc("i32", [text(value.to_string())])
     Char(value) => call_doc("char", [text(value.to_string())])
-    Double(value) => call_doc("double", [text(value.to_string())])
+    F64(value) => call_doc("f64", [text(value.to_string())])
     String(value) => call_doc("string", [text(quote_string(value))])
   }
 }

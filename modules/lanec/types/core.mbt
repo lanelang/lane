@@ -1,8 +1,8 @@
 ///|
 pub(all) enum PrimitiveType {
-  Int
-  S32
-  Double
+  I64
+  I32
+  F64
   Bool
   String
   Char
@@ -13,15 +13,15 @@ pub(all) enum PrimitiveType {
 
 ///|
 pub fn PrimitiveType::all() -> Array[PrimitiveType] {
-  [Int, S32, Double, Bool, String, Char, Unit, Byte, Bytes]
+  [I64, I32, F64, Bool, String, Char, Unit, Byte, Bytes]
 }
 
 ///|
 pub fn PrimitiveType::name(self : PrimitiveType) -> String {
   match self {
-    Int => "Int"
-    S32 => "S32"
-    Double => "Double"
+    I64 => "I64"
+    I32 => "I32"
+    F64 => "F64"
     Bool => "Bool"
     String => "String"
     Char => "Char"

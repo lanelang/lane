@@ -3,19 +3,19 @@ test "typecheck accepts pure computation under an effect upper bound" {
   let result = expect_typecheck_result(
     (
       #|effect Read {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn pure() -> Int {
+      #|fn pure() -> I64 {
       #|  42
       #|}
-      #|fn declared() -> Int ! Read {
+      #|fn declared() -> I64 ! Read {
       #|  42
       #|}
-      #|fn consume(callback : () -> Int ! Read) -> Int ! Read {
+      #|fn consume(callback : () -> I64 ! Read) -> I64 ! Read {
       #|  callback()
       #|}
-      #|fn use() -> Int ! Read {
-      #|  let direct : () -> Int ! Read = pure
+      #|fn use() -> I64 ! Read {
+      #|  let direct : () -> I64 ! Read = pure
       #|  consume(direct)
       #|}
     ),
@@ -28,20 +28,20 @@ test "typecheck records function effect widening in checked expressions" {
   let expression = expect_checked_let_initializer(
     (
       #|effect Read {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn pure() -> Int {
+      #|fn pure() -> I64 {
       #|  42
       #|}
-      #|let widened : () -> Int ! Read = pure
+      #|let widened : () -> I64 ! Read = pure
     ),
     "widened",
-    Function([], Primitive(Int), Singleton({ index: 0 }, [])),
+    Function([], Primitive(I64), Singleton({ index: 0 }, [])),
   )
   assert_true(
     expression
     is FunctionEffectWiden(
-      value=Value(name="pure", type_=Function([], Primitive(Int), Empty), ..),
+      value=Value(name="pure", type_=Function([], Primitive(I64), Empty), ..),
       ..
     ),
   )
@@ -52,18 +52,18 @@ test "typecheck widens a narrower effect row" {
   let result = expect_typecheck_result(
     (
       #|effect Read {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|effect Write {
-      #|  write(Int) -> Unit
+      #|  write(I64) -> Unit
       #|}
-      #|fn read() -> Int ! Read {
+      #|fn read() -> I64 ! Read {
       #|  Read::read!()
       #|}
-      #|fn consume(callback : () -> Int ! { Read, Write }) -> Int ! { Read, Write } {
+      #|fn consume(callback : () -> I64 ! { Read, Write }) -> I64 ! { Read, Write } {
       #|  callback()
       #|}
-      #|fn use() -> Int ! { Read, Write } {
+      #|fn use() -> I64 ! { Read, Write } {
       #|  consume(read)
       #|}
     ),
@@ -129,25 +129,25 @@ test "generic effect inference accepts a narrower repeated constraint" {
   let result = expect_typecheck_result(
     (
       #|effect Read {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn effectful() -> Int ! Read {
+      #|fn effectful() -> I64 ! Read {
       #|  Read::read!()
       #|}
-      #|fn pure() -> Int {
+      #|fn pure() -> I64 {
       #|  42
       #|}
       #|fn[E : Effect] choose(
-      #|  first : () -> Int ! E,
-      #|  second : () -> Int ! E
-      #|) -> Int ! E {
-      #|  let _first : Int = first()
+      #|  first : () -> I64 ! E,
+      #|  second : () -> I64 ! E
+      #|) -> I64 ! E {
+      #|  let _first : I64 = first()
       #|  second()
       #|}
-      #|fn use() -> Int ! Read {
+      #|fn use() -> I64 ! Read {
       #|  choose(effectful, pure)
       #|}
-      #|fn use_reverse() -> Int ! Read {
+      #|fn use_reverse() -> I64 ! Read {
       #|  choose(pure, effectful)
       #|}
     ),
@@ -166,7 +166,7 @@ test "typecheck effect lower bounds and exact constraints are order independent"
       #|  write() -> Unit
       #|}
       #|struct Carrier[E : Effect] {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|fn callback() -> Unit ! Read {
       #|  Read::read!()
@@ -369,7 +369,7 @@ test "handler arm type binders retain their lexical kind" {
       #|  ask[A]() -> Unit
       #|}
       #|fn run() -> Unit {
-      #|  handle Prompt::ask![Int]() with {
+      #|  handle Prompt::ask![I64]() with {
       #|    Prompt::ask[T](resume) => {
       #|      let callback : () -> Unit ! T = fn () { () }
       #|      resume(())
@@ -577,8 +577,8 @@ test "typecheck accepts explicit effect operation generic witnesses and handler 
       #|effect Prompt {
       #|  choose[A](A, A) -> A
       #|}
-      #|fn program() -> Int {
-      #|  handle Prompt::choose![Int](40, 41) with {
+      #|fn program() -> I64 {
+      #|  handle Prompt::choose![I64](40, 41) with {
       #|    Prompt::choose[T](left, right, resume) => resume(left)
       #|  } final value {
       #|    value
@@ -594,9 +594,9 @@ test "typecheck accepts explicit effect operation generic witnesses and handler 
       #|    effect Prompt#0 {
       #|      choose#0[A#0 : Type](tparam#0, tparam#0) -> tparam#0
       #|    }
-      #|    fn program#0() -> Int {
+      #|    fn program#0() -> I64 {
       #|      {
-      #|        handle operation#0![Int](40, 41)
+      #|        handle operation#0![I64](40, 41)
       #|        with effect#0 {
       #|          operation#0[T#1 : Type](left#1, right#2, resume#3) => resume#3(left#1)
       #|        }
@@ -619,7 +619,7 @@ test "typecheck infers effect operation generic witnesses from payloads" {
       #|effect Prompt {
       #|  choose[A](A, A) -> A
       #|}
-      #|fn choose_int() -> Int ! Prompt {
+      #|fn choose_int() -> I64 ! Prompt {
       #|  Prompt::choose!(1, 2)
       #|}
     ),
@@ -632,8 +632,8 @@ test "typecheck infers effect operation generic witnesses from payloads" {
       #|    effect Prompt#0 {
       #|      choose#0[A#0 : Type](tparam#0, tparam#0) -> tparam#0
       #|    }
-      #|    fn choose_int#0() -> Int {
-      #|      operation#0![Int](1, 2)
+      #|    fn choose_int#0() -> I64 {
+      #|      operation#0![I64](1, 2)
       #|    }
       #|  }
       #|  diagnostics {}
@@ -653,13 +653,13 @@ test "typecheck elides unique generic effect and variant owners" {
       #|  suspend[A](((A) -> Unit ! E) -> Unit ! E) -> A
       #|}
       #|enum Step {
-      #|  done(Int)
+      #|  done(I64)
       #|  waiting[A](((A) -> Unit ! Schedule) -> Unit ! Schedule, (A) -> Step)
       #|}
       #|fn[A] ready(value : A) -> A ! Async[Schedule] {
       #|  suspend![A](fn (resume) { resume(value) })
       #|}
-      #|fn run_task(task : () -> Int ! Async[Schedule]) -> Step {
+      #|fn run_task(task : () -> I64 ! Async[Schedule]) -> Step {
       #|  handle task() with {
       #|    suspend[A](register, resume) => waiting[A](register, fn (value) { resume(value) })
       #|  } final value {
@@ -690,7 +690,7 @@ test "typecheck elides unique generic effect and variant owners" {
       #|      suspend#1[A#1 : Type](((tparam#1) -> Unit ! tparam#0) -> Unit ! tparam#0) -> tparam#1
       #|    }
       #|    enum Step#0 {
-      #|      done#0(Int)
+      #|      done#0(I64)
       #|      waiting#1[A#2 : Type](((tparam#2) -> Unit ! effect#0) -> Unit ! effect#0, (tparam#2) -> type#0)
       #|    }
       #|    fn[A#3 : Type] ready#0(value#3 : tparam#3) -> tparam#3 {
@@ -698,7 +698,7 @@ test "typecheck elides unique generic effect and variant owners" {
       #|        resume#4(value#3)
       #|      })
       #|    }
-      #|    fn run_task#1(task#5 : () -> Int ! effect#1[effect#0]) -> type#0 {
+      #|    fn run_task#1(task#5 : () -> I64 ! effect#1[effect#0]) -> type#0 {
       #|      {
       #|        handle task#5()
       #|        with effect#1[effect#0] {
@@ -739,7 +739,7 @@ test "typecheck accepts effect-kind generic witnesses for operations and variant
   let result = expect_checked_source_result(
     (
       #|effect Log {
-      #|  log(Int) -> Unit
+      #|  log(I64) -> Unit
       #|}
       #|effect Coroutine[E : Effect] {
       #|  yield() -> Unit
@@ -780,7 +780,7 @@ test "typecheck accepts effect-kind generic witnesses for operations and variant
       #|checked_source_typecheck_result {
       #|  checked {
       #|    effect Log#0 {
-      #|      log#0(Int) -> Unit
+      #|      log#0(I64) -> Unit
       #|    }
       #|    effect Coroutine#1[E#0 : Effect] {
       #|      yield#1 -> Unit
@@ -833,8 +833,8 @@ test "typecheck reports effect operation generic witness arity mismatch once" {
       #|effect Prompt {
       #|  choose[A](A, A) -> A
       #|}
-      #|fn bad() -> Int ! Prompt {
-      #|  Prompt::choose![Int, Bool](1, 2)
+      #|fn bad() -> I64 ! Prompt {
+      #|  Prompt::choose![I64, Bool](1, 2)
       #|}
     ),
   )
@@ -898,12 +898,12 @@ test "typecheck propagates effectful named function call" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn read_int() -> Int ! Console {
+      #|fn read_int() -> I64 ! Console {
       #|  Console::read!()
       #|}
-      #|fn caller() -> Int ! Console {
+      #|fn caller() -> I64 ! Console {
       #|  read_int()
       #|}
     ),
@@ -916,12 +916,12 @@ test "typecheck rejects effectful function call in pure function" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn read_int() -> Int ! Console {
+      #|fn read_int() -> I64 ! Console {
       #|  Console::read!()
       #|}
-      #|fn caller() -> Int {
+      #|fn caller() -> I64 {
       #|  read_int()
       #|}
     ),
@@ -939,12 +939,12 @@ test "typecheck handler removes effect propagated through function call" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn read_int() -> Int ! Console {
+      #|fn read_int() -> I64 ! Console {
       #|  Console::read!()
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle read_int() with {
       #|    Console::read(resume) => resume(41)
       #|  } final value {
@@ -961,9 +961,9 @@ test "typecheck propagates latent effect from function parameter call" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn call_read(f : () -> Int ! Console) -> Int ! Console {
+      #|fn call_read(f : () -> I64 ! Console) -> I64 ! Console {
       #|  f()
       #|}
     ),
@@ -988,7 +988,7 @@ test "typecheck checks operation payload type" {
     content=(
       #|[
       #|  {
-      #|    kind: TypeMismatch(expected=Primitive(String), actual=Primitive(Int)),
+      #|    kind: TypeMismatch(expected=Primitive(String), actual=Primitive(I64)),
       #|    loc: {
       #|      start_offset: 102,
       #|      end_offset: 103,
@@ -1044,11 +1044,11 @@ test "typecheck checks handler operation tables" {
       #|  right()
       #|}
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|  write(String) -> Unit
       #|  choose(Choice) -> Unit
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|    Console::write(message, resume2) => resume2(())
@@ -1070,11 +1070,11 @@ test "typecheck checks handler operation tables" {
       #|      right#1
       #|    }
       #|    effect Console#0 {
-      #|      read#0 -> Int
+      #|      read#0 -> I64
       #|      write#1(String) -> Unit
       #|      choose#2(type#0) -> Unit
       #|    }
-      #|    fn program#0() -> Int {
+      #|    fn program#0() -> I64 {
       #|      {
       #|        handle operation#0!()
       #|        with effect#0 {
@@ -1100,12 +1100,12 @@ test "typecheck assigns resume binder function type" {
   let type_ = expect_first_handler_resume_callee_type(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|effect State {
-      #|  get() -> Int
+      #|  get() -> I64
       #|}
-      #|fn program() -> Int ! State {
+      #|fn program() -> I64 ! State {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => resume(0)
       #|  } final value {
@@ -1117,7 +1117,7 @@ test "typecheck assigns resume binder function type" {
   inspect(
     @prettyprinter.render(type_, width=100),
     content=(
-      #|(Int) -> Int ! effect#1
+      #|(I64) -> I64 ! effect#1
     ),
   )
 }
@@ -1127,12 +1127,12 @@ test "typecheck resolves handler resume residual inside nested pure function" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => {
-      #|      let callback : (Int) -> Int = fn (value) {
+      #|      let callback : (I64) -> I64 = fn (value) {
       #|        resume(value)
       #|      }
       #|      callback(0)
@@ -1151,9 +1151,9 @@ test "typecheck rejects handler resume argument mismatch" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => resume("bad")
       #|  } final value {
@@ -1165,7 +1165,7 @@ test "typecheck rejects handler resume argument mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[type_mismatch expected=Int actual=String @ 7:37-7:42]
+      #|[type_mismatch expected=I64 actual=String @ 7:37-7:42]
     ),
   )
 }
@@ -1175,7 +1175,7 @@ test "typecheck rejects handler arm result mismatch" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|fn program() -> String {
       #|  handle Console::read!() with {
@@ -1189,7 +1189,7 @@ test "typecheck rejects handler arm result mismatch" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[type_mismatch expected=String actual=Int @ 7:30-7:31]
+      #|[type_mismatch expected=String actual=I64 @ 7:30-7:31]
     ),
   )
 }
@@ -1199,9 +1199,9 @@ test "typecheck removes handled effect from handler residual effect" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|  } final value {
@@ -1218,9 +1218,9 @@ test "typecheck rejects handler for absent closed effect" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle 0 with {
       #|    Console::read(resume) => 0
       #|  } final value {
@@ -1242,12 +1242,12 @@ test "typecheck preserves unhandled residual effect" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|effect State {
-      #|  get() -> Int
+      #|  get() -> I64
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|  } final value {
@@ -1269,12 +1269,12 @@ test "typecheck preserves handler arm direct effects" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|effect State {
-      #|  get() -> Int
+      #|  get() -> I64
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => State::get!()
       #|  } final value {
@@ -1296,22 +1296,22 @@ test "typecheck rechecks handler arms with final residual effect" {
   let result = expect_typecheck_result(
     (
       #|effect Prompt {
-      #|  ask() -> Int
+      #|  ask() -> I64
       #|}
       #|effect Log {
       #|  write() -> Unit
       #|}
       #|fn[E : Effect] compose(
-      #|  first : (Int) -> Int ! E,
-      #|  second : (Int) -> Int ! E
-      #|) -> Int ! E {
+      #|  first : (I64) -> I64 ! E,
+      #|  second : (I64) -> I64 ! E
+      #|) -> I64 ! E {
       #|  first(second(0))
       #|}
-      #|fn logged(value : Int) -> Int ! Log {
+      #|fn logged(value : I64) -> I64 ! Log {
       #|  let _written : Unit = Log::write!()
       #|  value
       #|}
-      #|fn run() -> Int ! Log {
+      #|fn run() -> I64 ! Log {
       #|  handle Prompt::ask!() with {
       #|    Prompt::ask(resume) => compose(resume, logged)
       #|  } final value {
@@ -1328,16 +1328,16 @@ test "typecheck measures effects around provisional handler generic evidence" {
   let result = expect_typecheck_result(
     (
       #|effect Prompt {
-      #|  ask() -> Int
+      #|  ask() -> I64
       #|}
       #|effect Log {
       #|  write() -> Unit
       #|}
-      #|fn[E : Effect] invoke(callback : (Int) -> Int ! E) -> Int ! { Log, E } {
+      #|fn[E : Effect] invoke(callback : (I64) -> I64 ! E) -> I64 ! { Log, E } {
       #|  let _written : Unit = Log::write!()
       #|  callback(0)
       #|}
-      #|fn run() -> Int ! Log {
+      #|fn run() -> I64 ! Log {
       #|  handle Prompt::ask!() with {
       #|    Prompt::ask(resume) => invoke(resume)
       #|  } final value {
@@ -1392,12 +1392,12 @@ test "typecheck rejects mixed handler effects" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|effect State {
-      #|  get() -> Int
+      #|  get() -> I64
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|    State::get(resume2) => 1
@@ -1420,9 +1420,9 @@ test "typecheck rejects duplicate handled effects" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|  } with {
@@ -1450,10 +1450,10 @@ test "typecheck rejects missing handler operation coverage" {
       #|  right()
       #|}
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|  choose(Choice) -> Unit
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|    Console::choose(Choice::left(), resume2) => resume2(())
@@ -1478,7 +1478,7 @@ test "typecheck rejects redundant handler operation arms" {
       #|effect Console {
       #|  write(String) -> Unit
       #|}
-      #|fn program() -> Int {
+      #|fn program() -> I64 {
       #|  handle Console::write!("hi") with {
       #|    Console::write(_, resume) => resume(())
       #|    Console::write(message, resume2) => resume2(())
@@ -1543,7 +1543,7 @@ test "typecheck does not let an effect alias shadow built-in Io" {
 test "typecheck rejects generic arguments on built-in Io" {
   let result = expect_typecheck_result(
     (
-      #|fn run(action : () -> Unit ! Io[Int]) -> Unit ! Io[Int] {
+      #|fn run(action : () -> Unit ! Io[I64]) -> Unit ! Io[I64] {
       #|  action()
       #|}
     ),
@@ -1564,14 +1564,14 @@ test "typecheck expands effect set alias in function annotations" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|effect Log {
       #|  write(String) -> Unit
       #|}
       #|type UI : Effect = { Console, Log }
       #|fn program() -> Unit ! UI {
-      #|  let ignored : Int = Console::read!()
+      #|  let ignored : I64 = Console::read!()
       #|  Log::write!("ok")
       #|}
     ),
@@ -1622,7 +1622,7 @@ test "typecheck normalizes expanded effect set alias" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|effect Log {
       #|  write(String) -> Unit
@@ -1630,7 +1630,7 @@ test "typecheck normalizes expanded effect set alias" {
       #|type Read = { Console }
       #|type UI = { Log, Read, Console }
       #|fn program() -> Unit ! UI {
-      #|  let ignored : Int = Console::read!()
+      #|  let ignored : I64 = Console::read!()
       #|  Log::write!("ok")
       #|}
     ),
@@ -1693,7 +1693,7 @@ test "typecheck reports effect alias cycle" {
 test "typecheck rejects type-kind alias in effect position" {
   let result = expect_typecheck_result(
     (
-      #|type Answer = Int
+      #|type Answer = I64
       #|fn program() -> Unit ! Answer {
       #|  ()
       #|}
@@ -1724,12 +1724,12 @@ test "typecheck validates explicit type alias result kinds" {
   let result = expect_typecheck_result(
     (
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|type Identity : [Type] -> Type = type[A] => A
       #|type WrongType : Type = { Console }
-      #|type WrongEffect : Effect = Int
-      #|type WrongConstructor : [Type] -> Type = Int
+      #|type WrongEffect : Effect = I64
+      #|type WrongConstructor : [Type] -> Type = I64
       #|type WrongValueType : Type = type[A] => A
     ),
   )
@@ -1794,7 +1794,7 @@ test "typecheck rejects type argument for effect alias parameter" {
       #|  yield() -> Unit
       #|}
       #|type Task[E : Effect] = { Coroutine, E }
-      #|fn program() -> Unit ! Task[Int] {
+      #|fn program() -> Unit ! Task[I64] {
       #|  ()
       #|}
     ),

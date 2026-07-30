@@ -1,14 +1,14 @@
 ///|
 test "core optimizer partially evaluates a known nonrecursive call" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
-  let helper_type = @buslane.Type::Function([int_type], int_type, Empty)
-  let parameter = metadata.define_value("value", Parameter, int_type)
+  let i64_type = @buslane.Type::Primitive(I64)
+  let helper_type = @buslane.Type::Function([i64_type], i64_type, Empty)
+  let parameter = metadata.define_value("value", Parameter, i64_type)
   let helper = metadata.define_value("helper", Function, helper_type)
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], int_type, Empty),
+    Function([], i64_type, Empty),
   )
   let program : @buslane.Program = {
     metadata,
@@ -17,7 +17,7 @@ test "core optimizer partially evaluates a known nonrecursive call" {
         helper,
         Function({
           parameters: [parameter],
-          result_type: int_type,
+          result_type: i64_type,
           body: Ref(parameter),
         }),
       ),
@@ -25,8 +25,8 @@ test "core optimizer partially evaluates a known nonrecursive call" {
         main,
         Function({
           parameters: [],
-          result_type: int_type,
-          body: Call(Ref(helper), [Literal(Int(42L))]),
+          result_type: i64_type,
+          body: Call(Ref(helper), [Literal(I64(42L))]),
         }),
       ),
     ],
@@ -44,8 +44,8 @@ test "core optimizer partially evaluates a known nonrecursive call" {
       #|      Function(
       #|        {
       #|          parameters: [],
-      #|          result_type: Primitive(Int),
-      #|          body: Literal(Int(42)),
+      #|          result_type: Primitive(I64),
+      #|          body: Literal(I64(42)),
       #|        },
       #|      ),
       #|    ),
@@ -59,7 +59,7 @@ test "core optimizer partially evaluates a known nonrecursive call" {
 ///|
 test "core optimizer partially evaluates a known generic call" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let type_parameter = metadata.define_type_parameter("A", Type)
   let parameter_type = @buslane.Type::Parameter(type_parameter)
   let identity_type = @buslane.Type::Forall(
@@ -71,7 +71,7 @@ test "core optimizer partially evaluates a known generic call" {
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], int_type, Empty),
+    Function([], i64_type, Empty),
   )
   let program : @buslane.Program = {
     metadata,
@@ -91,9 +91,9 @@ test "core optimizer partially evaluates a known generic call" {
         main,
         Function({
           parameters: [],
-          result_type: int_type,
-          body: Call(TypeApply(Ref(identity), [TypeArgument(int_type)]), [
-            Literal(Int(42L)),
+          result_type: i64_type,
+          body: Call(TypeApply(Ref(identity), [TypeArgument(i64_type)]), [
+            Literal(I64(42L)),
           ]),
         }),
       ),
@@ -112,8 +112,8 @@ test "core optimizer partially evaluates a known generic call" {
       #|      Function(
       #|        {
       #|          parameters: [],
-      #|          result_type: Primitive(Int),
-      #|          body: Literal(Int(42)),
+      #|          result_type: Primitive(I64),
+      #|          body: Literal(I64(42)),
       #|        },
       #|      ),
       #|    ),
@@ -214,8 +214,8 @@ test "core optimizer preserves distinct effects with different binder kinds" {
 ///|
 test "core optimizer devirtualizes a known dictionary projection" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
-  let operation_type = @buslane.Type::Function([int_type], int_type, Empty)
+  let i64_type = @buslane.Type::Primitive(I64)
+  let operation_type = @buslane.Type::Function([i64_type], i64_type, Empty)
   let dictionary_type_id = metadata.define_type("Dictionary", [])
   let dictionary_constructor = metadata.define_data_constructor(
     "dictionary",
@@ -227,7 +227,7 @@ test "core optimizer devirtualizes a known dictionary projection" {
   let implementation_parameter = metadata.define_value(
     "input",
     Parameter,
-    int_type,
+    i64_type,
   )
   let implementation = metadata.define_value(
     "implementation",
@@ -253,12 +253,12 @@ test "core optimizer devirtualizes a known dictionary projection" {
   let apply = metadata.define_value(
     "apply",
     Function,
-    Function([dictionary_type], int_type, Empty),
+    Function([dictionary_type], i64_type, Empty),
   )
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], int_type, Empty),
+    Function([], i64_type, Empty),
   )
   let program : @buslane.Program = {
     metadata,
@@ -267,8 +267,8 @@ test "core optimizer devirtualizes a known dictionary projection" {
         implementation,
         Function({
           parameters: [implementation_parameter],
-          result_type: int_type,
-          body: Literal(Int(42L)),
+          result_type: i64_type,
+          body: Literal(I64(42L)),
         }),
       ),
       Let(
@@ -284,17 +284,17 @@ test "core optimizer devirtualizes a known dictionary projection" {
         apply,
         Function({
           parameters: [dictionary_parameter],
-          result_type: int_type,
+          result_type: i64_type,
           body: Match({
             scrutinee: Ref(dictionary_parameter),
             binder: match_binder,
-            result_type: int_type,
+            result_type: i64_type,
             alternatives: [
               {
                 alt_constructor: DataCon(dictionary_constructor),
                 type_binders: [],
                 value_binders: [operation],
-                body: Call(Ref(operation), [Literal(Int(0L))]),
+                body: Call(Ref(operation), [Literal(I64(0L))]),
               },
             ],
           }),
@@ -304,7 +304,7 @@ test "core optimizer devirtualizes a known dictionary projection" {
         main,
         Function({
           parameters: [],
-          result_type: int_type,
+          result_type: i64_type,
           body: Call(Ref(apply), [Ref(dictionary)]),
         }),
       ),
@@ -323,8 +323,8 @@ test "core optimizer devirtualizes a known dictionary projection" {
       #|      Function(
       #|        {
       #|          parameters: [],
-      #|          result_type: Primitive(Int),
-      #|          body: Literal(Int(42)),
+      #|          result_type: Primitive(I64),
+      #|          body: Literal(I64(42)),
       #|        },
       #|      ),
       #|    ),
@@ -408,15 +408,15 @@ test "core optimizer does not unfold a recursive call through an alias" {
 ///|
 test "core optimizer keeps a known call when its body exceeds the size budget" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
-  let function_type = @buslane.Type::Function([int_type], int_type, Empty)
+  let i64_type = @buslane.Type::Primitive(I64)
+  let function_type = @buslane.Type::Function([i64_type], i64_type, Empty)
   let observe = metadata.define_value("observe", External, function_type)
-  let helper_parameter = metadata.define_value("value", Parameter, int_type)
+  let helper_parameter = metadata.define_value("value", Parameter, i64_type)
   let helper = metadata.define_value("helper", Function, function_type)
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], int_type, Empty),
+    Function([], i64_type, Empty),
   )
   let mut body = @buslane.Expr::Ref(helper_parameter)
   for _ in 0..<64 {
@@ -428,14 +428,14 @@ test "core optimizer keeps a known call when its body exceeds the size budget" {
       External(observe),
       Let(
         helper,
-        Function({ parameters: [helper_parameter], result_type: int_type, body }),
+        Function({ parameters: [helper_parameter], result_type: i64_type, body }),
       ),
       Let(
         main,
         Function({
           parameters: [],
-          result_type: int_type,
-          body: Call(Ref(helper), [Literal(Int(0L))]),
+          result_type: i64_type,
+          body: Call(Ref(helper), [Literal(I64(0L))]),
         }),
       ),
     ],
@@ -457,8 +457,8 @@ test "core optimizer keeps a known call when its body exceeds the size budget" {
       #|    Function(
       #|      {
       #|        parameters: [],
-      #|        result_type: Primitive(Int),
-      #|        body: Call(Ref({ index: 2 }), [Literal(Int(0))]),
+      #|        result_type: Primitive(I64),
+      #|        body: Call(Ref({ index: 2 }), [Literal(I64(0))]),
       #|      },
       #|    ),
       #|  ),
@@ -559,8 +559,8 @@ test "core optimizer does not unfold a mutually recursive SCC" {
 ///|
 test "core optimizer preserves an escaping callable while specializing its direct call" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
-  let function_type = @buslane.Type::Function([int_type], int_type, Empty)
+  let i64_type = @buslane.Type::Primitive(I64)
+  let function_type = @buslane.Type::Function([i64_type], i64_type, Empty)
   let holder_type_id = metadata.define_type("Holder", [])
   let holder_constructor = metadata.define_data_constructor(
     "holder",
@@ -569,13 +569,13 @@ test "core optimizer preserves an escaping callable while specializing its direc
     [function_type],
   )
   let holder_type = @buslane.Type::Constructor(holder_type_id)
-  let parameter = metadata.define_value("value", Parameter, int_type)
+  let parameter = metadata.define_value("value", Parameter, i64_type)
   let helper = metadata.define_value("helper", Function, function_type)
   let holder = metadata.define_value("holder", Value, holder_type)
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], int_type, Empty),
+    Function([], i64_type, Empty),
   )
   let program : @buslane.Program = {
     metadata,
@@ -584,7 +584,7 @@ test "core optimizer preserves an escaping callable while specializing its direc
         helper,
         Function({
           parameters: [parameter],
-          result_type: int_type,
+          result_type: i64_type,
           body: Ref(parameter),
         }),
       ),
@@ -601,8 +601,8 @@ test "core optimizer preserves an escaping callable while specializing its direc
         main,
         Function({
           parameters: [],
-          result_type: int_type,
-          body: Call(Ref(helper), [Literal(Int(42L))]),
+          result_type: i64_type,
+          body: Call(Ref(helper), [Literal(I64(42L))]),
         }),
       ),
     ],
@@ -620,7 +620,7 @@ test "core optimizer preserves an escaping callable while specializing its direc
       #|      Function(
       #|        {
       #|          parameters: [{ index: 0 }],
-      #|          result_type: Primitive(Int),
+      #|          result_type: Primitive(I64),
       #|          body: Ref({ index: 0 }),
       #|        },
       #|      ),
@@ -641,8 +641,8 @@ test "core optimizer preserves an escaping callable while specializing its direc
       #|      Function(
       #|        {
       #|          parameters: [],
-      #|          result_type: Primitive(Int),
-      #|          body: Literal(Int(42)),
+      #|          result_type: Primitive(I64),
+      #|          body: Literal(I64(42)),
       #|        },
       #|      ),
       #|    ),
@@ -656,8 +656,8 @@ test "core optimizer preserves an escaping callable while specializing its direc
 ///|
 test "core optimizer keeps dictionary projection behind a dynamic parameter" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
-  let operation_type = @buslane.Type::Function([int_type], int_type, Empty)
+  let i64_type = @buslane.Type::Primitive(I64)
+  let operation_type = @buslane.Type::Function([i64_type], i64_type, Empty)
   let dictionary_type_id = metadata.define_type("Dictionary", [])
   let dictionary_constructor = metadata.define_data_constructor(
     "dictionary",
@@ -684,7 +684,7 @@ test "core optimizer keeps dictionary projection behind a dynamic parameter" {
   let apply = metadata.define_value(
     "apply",
     Function,
-    Function([dictionary_type], int_type, Empty),
+    Function([dictionary_type], i64_type, Empty),
   )
   let consumer_parameter = metadata.define_value(
     "dictionary",
@@ -694,21 +694,21 @@ test "core optimizer keeps dictionary projection behind a dynamic parameter" {
   let consumer = metadata.define_value(
     "consumer",
     Function,
-    Function([dictionary_type], int_type, Empty),
+    Function([dictionary_type], i64_type, Empty),
   )
   let apply_body : @buslane.Expr = Function({
     parameters: [dictionary_parameter],
-    result_type: int_type,
+    result_type: i64_type,
     body: Match({
       scrutinee: Ref(dictionary_parameter),
       binder: match_binder,
-      result_type: int_type,
+      result_type: i64_type,
       alternatives: [
         {
           alt_constructor: DataCon(dictionary_constructor),
           type_binders: [],
           value_binders: [operation],
-          body: Call(Ref(operation), [Literal(Int(0L))]),
+          body: Call(Ref(operation), [Literal(I64(0L))]),
         },
       ],
     }),
@@ -721,7 +721,7 @@ test "core optimizer keeps dictionary projection behind a dynamic parameter" {
         consumer,
         Function({
           parameters: [consumer_parameter],
-          result_type: int_type,
+          result_type: i64_type,
           body: Call(Ref(apply), [Ref(consumer_parameter)]),
         }),
       ),
@@ -740,18 +740,18 @@ test "core optimizer keeps dictionary projection behind a dynamic parameter" {
       #|      Function(
       #|        {
       #|          parameters: [{ index: 0 }],
-      #|          result_type: Primitive(Int),
+      #|          result_type: Primitive(I64),
       #|          body: Match(
       #|            {
       #|              scrutinee: Ref({ index: 0 }),
       #|              binder: { index: 1 },
-      #|              result_type: Primitive(Int),
+      #|              result_type: Primitive(I64),
       #|              alternatives: [
       #|                {
       #|                  alt_constructor: DataCon({ index: 0 }),
       #|                  type_binders: [],
       #|                  value_binders: [{ index: 2 }],
-      #|                  body: Call(Ref({ index: 2 }), [Literal(Int(0))]),
+      #|                  body: Call(Ref({ index: 2 }), [Literal(I64(0))]),
       #|                },
       #|              ],
       #|            },
@@ -764,7 +764,7 @@ test "core optimizer keeps dictionary projection behind a dynamic parameter" {
       #|      Function(
       #|        {
       #|          parameters: [{ index: 4 }],
-      #|          result_type: Primitive(Int),
+      #|          result_type: Primitive(I64),
       #|          body: Call(Ref({ index: 3 }), [Ref({ index: 4 })]),
       #|        },
       #|      ),
@@ -779,8 +779,8 @@ test "core optimizer keeps dictionary projection behind a dynamic parameter" {
 ///|
 test "core optimizer materializes a top-level dictionary before devirtualizing it" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
-  let operation_type = @buslane.Type::Function([int_type], int_type, Empty)
+  let i64_type = @buslane.Type::Primitive(I64)
+  let operation_type = @buslane.Type::Function([i64_type], i64_type, Empty)
   let dictionary_type_id = metadata.define_type("Dictionary", [])
   let dictionary_constructor = metadata.define_data_constructor(
     "dictionary",
@@ -792,7 +792,7 @@ test "core optimizer materializes a top-level dictionary before devirtualizing i
   let implementation_parameter = metadata.define_value(
     "input",
     Parameter,
-    int_type,
+    i64_type,
   )
   let implementation = metadata.define_value(
     "implementation",
@@ -828,12 +828,12 @@ test "core optimizer materializes a top-level dictionary before devirtualizing i
   let apply = metadata.define_value(
     "apply",
     Function,
-    Function([dictionary_type], int_type, Empty),
+    Function([dictionary_type], i64_type, Empty),
   )
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], int_type, Empty),
+    Function([], i64_type, Empty),
   )
   let program : @buslane.Program = {
     metadata,
@@ -842,8 +842,8 @@ test "core optimizer materializes a top-level dictionary before devirtualizing i
         implementation,
         Function({
           parameters: [implementation_parameter],
-          result_type: int_type,
-          body: Literal(Int(42L)),
+          result_type: i64_type,
+          body: Literal(I64(42L)),
         }),
       ),
       Let(
@@ -864,17 +864,17 @@ test "core optimizer materializes a top-level dictionary before devirtualizing i
         apply,
         Function({
           parameters: [dictionary_parameter],
-          result_type: int_type,
+          result_type: i64_type,
           body: Match({
             scrutinee: Ref(dictionary_parameter),
             binder: match_binder,
-            result_type: int_type,
+            result_type: i64_type,
             alternatives: [
               {
                 alt_constructor: DataCon(dictionary_constructor),
                 type_binders: [],
                 value_binders: [operation],
-                body: Call(Ref(operation), [Literal(Int(0L))]),
+                body: Call(Ref(operation), [Literal(I64(0L))]),
               },
             ],
           }),
@@ -884,7 +884,7 @@ test "core optimizer materializes a top-level dictionary before devirtualizing i
         main,
         Function({
           parameters: [],
-          result_type: int_type,
+          result_type: i64_type,
           body: Call(Ref(apply), [Ref(dictionary)]),
         }),
       ),
@@ -903,8 +903,8 @@ test "core optimizer materializes a top-level dictionary before devirtualizing i
       #|      Function(
       #|        {
       #|          parameters: [],
-      #|          result_type: Primitive(Int),
-      #|          body: Literal(Int(42)),
+      #|          result_type: Primitive(I64),
+      #|          body: Literal(I64(42)),
       #|        },
       #|      ),
       #|    ),

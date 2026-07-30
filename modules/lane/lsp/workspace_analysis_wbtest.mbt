@@ -19,7 +19,7 @@ async test "workspace scan failure is reported without stopping message handling
       "textDocument/didOpen",
       open_params(
         "file://\{workspace}/Main.lane",
-        "module Main\n\npub let answer : Int = 42",
+        "module Main\n\npub let answer : I64 = 42",
       ),
     ),
   )
@@ -70,7 +70,7 @@ async test "workspace scan records a failed child and loads remaining sources" {
       "textDocument/didOpen",
       open_params(
         "file://\{main_path}",
-        "module Main\n\npub let answer : Int = 42",
+        "module Main\n\npub let answer : I64 = 42",
       ),
     ),
   )
@@ -79,7 +79,7 @@ async test "workspace scan records a failed child and loads remaining sources" {
   assert_eq(state.semantic_workspace.sources(), [
     {
       source_id: "file://.tmp-lsp-partial-workspace/Main.lane",
-      text: "module Main\n\npub let answer : Int = 42",
+      text: "module Main\n\npub let answer : I64 = 42",
     },
   ])
   json_inspect(opened.outgoing.map(fn(message) { message.to_json() }), content=[

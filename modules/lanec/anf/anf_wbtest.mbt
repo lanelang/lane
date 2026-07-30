@@ -1,13 +1,13 @@
 ///|
 test "lower buslane function call to ANF" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let result = metadata.define_value("value", Value, Primitive(Int))
+  let result = metadata.define_value("value", Value, Primitive(I64))
   let function = metadata.define_value(
     "value",
     Function,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
-  let parameter = metadata.define_value("value", Parameter, Primitive(Int))
+  let parameter = metadata.define_value("value", Parameter, Primitive(I64))
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -16,12 +16,12 @@ test "lower buslane function call to ANF" {
           id: function,
           rhs: Function({
             parameters: [parameter],
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             body: Ref(parameter),
           }),
         },
       ]),
-      Let(result, Call(Ref(function), [Literal(Int(42L))])),
+      Let(result, Call(Ref(function), [Literal(I64(42L))])),
     ],
   }
   inspect(
@@ -29,7 +29,7 @@ test "lower buslane function call to ANF" {
     content=(
       #|anf {
       #|  letrec {
-      #|    value#1 = fn(value#2) -> Int {
+      #|    value#1 = fn(value#2) -> I64 {
       #|      value#2
       #|    }
       #|  }
@@ -48,9 +48,9 @@ test "ANF binds a match before applying its continuation" {
   let consume = metadata.define_value(
     "consume",
     Function,
-    Function([Primitive(Bool)], Primitive(Int), Empty),
+    Function([Primitive(Bool)], Primitive(I64), Empty),
   )
-  let result = metadata.define_value("result", Value, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
   let binder = metadata.define_value("matched", MatchBinder, Primitive(Bool))
   let program = @buslane.Program::{
     metadata,
@@ -134,16 +134,16 @@ test "lower buslane handler and perform to ANF" {
     effect,
     [],
     [],
-    Primitive(Int),
+    Primitive(I64),
   )
-  let result = metadata.define_value("value", Value, Primitive(Int))
-  let result_binder = metadata.define_value("value", Local, Primitive(Int))
+  let result = metadata.define_value("value", Value, Primitive(I64))
+  let result_binder = metadata.define_value("value", Local, Primitive(I64))
   let resume_value = metadata.define_value(
     "value",
     Parameter,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
-  let first_resume = metadata.define_value("value", Local, Primitive(Int))
+  let first_resume = metadata.define_value("value", Local, Primitive(I64))
   let program = @buslane.Program::{
     metadata,
     terms: [
@@ -157,7 +157,7 @@ test "lower buslane handler and perform to ANF" {
             payloads: [],
           }),
           result_binder,
-          result_type: Primitive(Int),
+          result_type: Primitive(I64),
           final_body: Ref(result_binder),
           handlers: [
             {
@@ -170,7 +170,7 @@ test "lower buslane handler and perform to ANF" {
                   resume_binder: resume_value,
                   body: Let(
                     first_resume,
-                    Call(Ref(resume_value), [Literal(Int(1L))]),
+                    Call(Ref(resume_value), [Literal(I64(1L))]),
                     Call(Ref(resume_value), [Ref(first_resume)]),
                   ),
                 },
@@ -189,7 +189,7 @@ test "lower buslane handler and perform to ANF" {
       #|    let temp#3 = handle {
       #|      let temp#0 = perform operation#0()
       #|      temp#0
-      #|    } as value#1 -> Int {
+      #|    } as value#1 -> I64 {
       #|      effect#0 {
       #|        operation#0() resume value#2 => {
       #|          let temp#1 = value#2(1)

@@ -58,8 +58,8 @@ fn @bytecodec.ByteWriter::write_runtime_value_kind(
     match kind {
       Unit => 0x00
       Bool => 0x01
-      Int => 0x02
-      Double => 0x03
+      I64 => 0x02
+      F64 => 0x03
       String => 0x04
       Opaque => 0x05
     },
@@ -171,8 +171,8 @@ fn @bytecodec.ByteWriter::write_layout_recipe(
   match layout {
     Unit => self.write_u8(0x01)
     Bool => self.write_u8(0x02)
-    Int => self.write_u8(0x03)
-    Double => self.write_u8(0x04)
+    I64 => self.write_u8(0x03)
+    F64 => self.write_u8(0x04)
     Callable => self.write_u8(0x05)
     ByteSequence => self.write_u8(0x06)
     Data(shape) => {
@@ -185,7 +185,7 @@ fn @bytecodec.ByteWriter::write_layout_recipe(
     }
     Reference => self.write_u8(0x09)
     Byte => self.write_u8(0x0A)
-    S32 => self.write_u8(0x0C)
+    I32 => self.write_u8(0x0C)
     Char => self.write_u8(0x0D)
   }
 }
@@ -258,12 +258,12 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_u8(0x04)
       self.write_slot_id(slot)
     }
-    ConstInt(destination, value) => {
+    ConstI64(destination, value) => {
       self.write_u8(0x05)
       self.write_slot_id(destination)
       self.write_i64_le(value)
     }
-    ConstDouble(destination, bits) => {
+    ConstF64(destination, bits) => {
       self.write_u8(0x06)
       self.write_slot_id(destination)
       self.write_i64_le(bits)
@@ -353,41 +353,41 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_function_id(function)
       self.write_slot_id(environment)
     }
-    IntAdd(destination, left, right) =>
+    I64Add(destination, left, right) =>
       self.write_ternary_slots(0x19, destination, left, right)
-    IntSub(destination, left, right) =>
+    I64Sub(destination, left, right) =>
       self.write_ternary_slots(0x1A, destination, left, right)
-    IntMul(destination, left, right) =>
+    I64Mul(destination, left, right) =>
       self.write_ternary_slots(0x1B, destination, left, right)
-    IntNeg(destination, source) =>
+    I64Neg(destination, source) =>
       self.write_binary_slots(0x1C, destination, source)
-    IntDiv(destination, left, right) =>
+    I64Div(destination, left, right) =>
       self.write_ternary_slots(0x1D, destination, left, right)
-    IntRem(destination, left, right) =>
+    I64Rem(destination, left, right) =>
       self.write_ternary_slots(0x1E, destination, left, right)
-    IntAnd(destination, left, right) =>
+    I64And(destination, left, right) =>
       self.write_ternary_slots(0x1F, destination, left, right)
-    IntOr(destination, left, right) =>
+    I64Or(destination, left, right) =>
       self.write_ternary_slots(0x20, destination, left, right)
-    IntXor(destination, left, right) =>
+    I64Xor(destination, left, right) =>
       self.write_ternary_slots(0x21, destination, left, right)
-    IntNot(destination, source) =>
+    I64Not(destination, source) =>
       self.write_binary_slots(0x22, destination, source)
-    IntShl(destination, left, right) =>
+    I64Shl(destination, left, right) =>
       self.write_ternary_slots(0x23, destination, left, right)
-    IntShrS(destination, left, right) =>
+    I64ShrS(destination, left, right) =>
       self.write_ternary_slots(0x24, destination, left, right)
-    IntEq(destination, left, right) =>
+    I64Eq(destination, left, right) =>
       self.write_ternary_slots(0x25, destination, left, right)
-    IntNe(destination, left, right) =>
+    I64Ne(destination, left, right) =>
       self.write_ternary_slots(0x26, destination, left, right)
-    IntLt(destination, left, right) =>
+    I64Lt(destination, left, right) =>
       self.write_ternary_slots(0x27, destination, left, right)
-    IntLe(destination, left, right) =>
+    I64Le(destination, left, right) =>
       self.write_ternary_slots(0x28, destination, left, right)
-    IntGt(destination, left, right) =>
+    I64Gt(destination, left, right) =>
       self.write_ternary_slots(0x29, destination, left, right)
-    IntGe(destination, left, right) =>
+    I64Ge(destination, left, right) =>
       self.write_ternary_slots(0x2A, destination, left, right)
     BoolNot(destination, source) =>
       self.write_binary_slots(0x2B, destination, source)
@@ -395,31 +395,31 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_ternary_slots(0x2C, destination, left, right)
     BoolNe(destination, left, right) =>
       self.write_ternary_slots(0x2D, destination, left, right)
-    DoubleAdd(destination, left, right) =>
+    F64Add(destination, left, right) =>
       self.write_ternary_slots(0x2E, destination, left, right)
-    DoubleSub(destination, left, right) =>
+    F64Sub(destination, left, right) =>
       self.write_ternary_slots(0x2F, destination, left, right)
-    DoubleMul(destination, left, right) =>
+    F64Mul(destination, left, right) =>
       self.write_ternary_slots(0x30, destination, left, right)
-    DoubleDiv(destination, left, right) =>
+    F64Div(destination, left, right) =>
       self.write_ternary_slots(0x31, destination, left, right)
-    DoubleNeg(destination, source) =>
+    F64Neg(destination, source) =>
       self.write_binary_slots(0x32, destination, source)
-    DoubleEq(destination, left, right) =>
+    F64Eq(destination, left, right) =>
       self.write_ternary_slots(0x33, destination, left, right)
-    DoubleNe(destination, left, right) =>
+    F64Ne(destination, left, right) =>
       self.write_ternary_slots(0x34, destination, left, right)
-    DoubleLt(destination, left, right) =>
+    F64Lt(destination, left, right) =>
       self.write_ternary_slots(0x35, destination, left, right)
-    DoubleLe(destination, left, right) =>
+    F64Le(destination, left, right) =>
       self.write_ternary_slots(0x36, destination, left, right)
-    DoubleGt(destination, left, right) =>
+    F64Gt(destination, left, right) =>
       self.write_ternary_slots(0x37, destination, left, right)
-    DoubleGe(destination, left, right) =>
+    F64Ge(destination, left, right) =>
       self.write_ternary_slots(0x38, destination, left, right)
-    IntToDouble(destination, source) =>
+    I64ToF64(destination, source) =>
       self.write_binary_slots(0x39, destination, source)
-    DoubleToInt(destination, source) =>
+    F64ToI64(destination, source) =>
       self.write_binary_slots(0x3A, destination, source)
     EraseI32(destination, source) =>
       self.write_binary_slots(0x3B, destination, source)
@@ -458,9 +458,9 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_slot_id(destination)
       self.write_global_id(global)
     }
-    ByteToInt(destination, source) =>
+    ByteToI64(destination, source) =>
       self.write_binary_slots(0x46, destination, source)
-    IntToByte(destination, source) =>
+    I64ToByte(destination, source) =>
       self.write_binary_slots(0x47, destination, source)
     ByteSequenceMake(destination, length, fill) =>
       self.write_ternary_slots(0x48, destination, length, fill)
@@ -475,30 +475,30 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_slot_id(index)
       self.write_slot_id(value)
     }
-    ConstS32(destination, value) => {
+    ConstI32(destination, value) => {
       self.write_u8(0x4C)
       self.write_slot_id(destination)
       self.write_i32_le(value)
     }
-    S32Add(destination, left, right) =>
+    I32Add(destination, left, right) =>
       self.write_ternary_slots(0x4D, destination, left, right)
-    S32Sub(destination, left, right) =>
+    I32Sub(destination, left, right) =>
       self.write_ternary_slots(0x4E, destination, left, right)
-    S32Mul(destination, left, right) =>
+    I32Mul(destination, left, right) =>
       self.write_ternary_slots(0x4F, destination, left, right)
-    S32Neg(destination, source) =>
+    I32Neg(destination, source) =>
       self.write_binary_slots(0x50, destination, source)
-    S32Div(destination, left, right) =>
+    I32Div(destination, left, right) =>
       self.write_ternary_slots(0x51, destination, left, right)
-    S32Rem(destination, left, right) =>
+    I32Rem(destination, left, right) =>
       self.write_ternary_slots(0x52, destination, left, right)
-    S32Eq(destination, left, right) =>
+    I32Eq(destination, left, right) =>
       self.write_ternary_slots(0x53, destination, left, right)
-    S32Lt(destination, left, right) =>
+    I32Lt(destination, left, right) =>
       self.write_ternary_slots(0x54, destination, left, right)
-    S32ToInt(destination, source) =>
+    I32ToI64(destination, source) =>
       self.write_binary_slots(0x55, destination, source)
-    IntToS32(destination, source) =>
+    I64ToI32(destination, source) =>
       self.write_binary_slots(0x56, destination, source)
     ConstChar(destination, value) => {
       self.write_u8(0x57)

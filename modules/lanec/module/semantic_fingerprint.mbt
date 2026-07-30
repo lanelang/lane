@@ -338,14 +338,14 @@ fn CanonicalInterfaceEncoder::write_type(
       self.writer.write_u8(1)
       self.writer.write_u8(
         match primitive {
-          Int => 0
-          Double => 1
+          I64 => 0
+          F64 => 1
           Bool => 2
           String => 3
           Unit => 4
           Byte => 5
           Bytes => 6
-          S32 => 7
+          I32 => 7
           Char => 8
         },
       )

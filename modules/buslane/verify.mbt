@@ -1087,7 +1087,7 @@ fn VerifyContext::is_exhaustive(
     Primitive(Unit) => literals.contains(Unit)
     Primitive(Bool) =>
       literals.contains(Bool(true)) && literals.contains(Bool(false))
-    Primitive(Double) => false
+    Primitive(F64) => false
     type_ if decompose_nominal_type(type_) is Some((owner, _)) =>
       match self.program.metadata.type_info(owner) {
         Some(info) =>
@@ -1532,10 +1532,10 @@ fn Literal::type_(self : Literal) -> Type {
   match self {
     Unit => Primitive(Unit)
     Bool(_) => Primitive(Bool)
-    Int(_) => Primitive(Int)
-    S32(_) => Primitive(S32)
+    I64(_) => Primitive(I64)
+    I32(_) => Primitive(I32)
     Char(_) => Primitive(Char)
-    Double(_) => Primitive(Double)
+    F64(_) => Primitive(F64)
     String(_) => Primitive(String)
   }
 }

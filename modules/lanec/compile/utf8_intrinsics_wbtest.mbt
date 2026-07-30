@@ -4,14 +4,14 @@ test "module artifacts roundtrip every Char and UTF-8 intrinsic" {
     (
       #|module Main
       #|
-      #|pub let char_to_s32 : (Char) -> S32 = builtin("%char_to_s32")
-      #|pub let s32_to_char : (S32) -> Char = builtin("%s32_to_char")
+      #|pub let char_to_i32 : (Char) -> I32 = builtin("%char_to_i32")
+      #|pub let i32_to_char : (I32) -> Char = builtin("%i32_to_char")
       #|pub let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
       #|pub let bytes_is_valid_utf8 : (Bytes) -> Bool = builtin("%bytes_is_valid_utf8")
       #|pub let bytes_to_string : (Bytes) -> String = builtin("%bytes_to_string")
       #|pub let bytes_equal : (Bytes, Bytes) -> Bool = builtin("%bytes_equal")
       #|pub let bytes_concat : (Bytes, Bytes) -> Bytes = builtin("%bytes_concat")
-      #|pub let bytes_slice : (Bytes, Int, Int) -> Bytes = builtin("%bytes_slice")
+      #|pub let bytes_slice : (Bytes, I64, I64) -> Bytes = builtin("%bytes_slice")
     ),
     [],
   )
@@ -37,12 +37,12 @@ test "compiler erases representation-identical Char conversion" {
     (
       #|module Test
       #|
-      #|let char_to_s32 : (Char) -> S32 = builtin("%char_to_s32")
-      #|let s32_to_int : (S32) -> Int = builtin("%s32_to_int")
-      #|let observe : (Int) -> Unit ! Io = extern("lane.test.observe")
+      #|let char_to_i32 : (Char) -> I32 = builtin("%char_to_i32")
+      #|let i32_to_int : (I32) -> I64 = builtin("%i32_to_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
       #|
       #|pub fn answer() -> Unit ! Io {
-      #|  observe(s32_to_int(char_to_s32('😀')))
+      #|  observe(i32_to_int(char_to_i32('😀')))
       #|}
     ),
   )
@@ -66,7 +66,7 @@ test "compiler erases representation-identical Char conversion" {
       #|            parameters: [],
       #|            instructions: [
       #|              ConstChar({ value: 0 }, 128512),
-      #|              S32ToInt({ value: 1 }, { value: 0 }),
+      #|              I32ToI64({ value: 1 }, { value: 0 }),
       #|            ],
       #|            terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 1 }]),
       #|          },
@@ -76,7 +76,7 @@ test "compiler erases representation-identical Char conversion" {
       #|    RuntimeImport(
       #|      {
       #|        abi_major: 1,
-      #|        parameters: [Int],
+      #|        parameters: [I64],
       #|        result: Unit,
       #|        symbol: "lane.test.observe",
       #|      },

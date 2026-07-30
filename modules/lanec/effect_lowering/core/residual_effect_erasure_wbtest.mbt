@@ -98,7 +98,7 @@ test "residual effect erasure clears external effect rows at its boundary" {
   let vector_get = metadata.define_value(
     "vector_get",
     External,
-    Function([Primitive(Int)], Primitive(Int), Singleton(vector_op, [])),
+    Function([Primitive(I64)], Primitive(I64), Singleton(vector_op, [])),
   )
   let erased = erase_residual_effects({
     metadata,
@@ -112,7 +112,7 @@ test "residual effect erasure clears external effect rows at its boundary" {
     content=(
       #|(
       #|  Some(External),
-      #|  Some(Function([Primitive(Int)], Primitive(Int), Empty)),
+      #|  Some(Function([Primitive(I64)], Primitive(I64), Empty)),
       #|)
     ),
   )

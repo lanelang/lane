@@ -23,7 +23,7 @@ fn import_alias_library() -> String {
     #|module Basic.Long.Library
     #|
     #|pub struct Item {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
     #|pub enum Choice {
@@ -31,10 +31,10 @@ fn import_alias_library() -> String {
     #|}
     #|
     #|pub effect Read {
-    #|  read() -> Int
+    #|  read() -> I64
     #|}
     #|
-    #|pub fn answer() -> Int { 42 }
+    #|pub fn answer() -> I64 { 42 }
   )
 }
 
@@ -44,7 +44,7 @@ test "module alias qualifiers navigate to their source binder" {
     #|module Main
     #|import Basic.Long.Library as Lib
     #|
-    #|pub fn answer() -> Int { Lib.answer() }
+    #|pub fn answer() -> I64 { Lib.answer() }
     #|pub fn keep(value : Lib.Item) -> Lib.Item { value }
     #|pub fn choose() -> Lib.Choice { Lib.Choice::choose() }
     #|pub fn read() -> Unit ! Lib.Read { () }
@@ -136,7 +136,7 @@ test "qualified members keep their original definitions through an alias" {
     #|module Main
     #|import Basic.Long.Library as Lib
     #|
-    #|pub fn answer() -> Int { Lib.answer() }
+    #|pub fn answer() -> I64 { Lib.answer() }
     #|pub fn keep(value : Lib.Item) -> Lib.Item { value }
     #|pub fn choose() -> Lib.Choice { Lib.Choice::choose() }
   let snapshot = import_alias_snapshot(root, [
@@ -170,7 +170,7 @@ test "qualified type and effect aliases keep their original definitions" {
   let library =
     #|module Basic.Long.Library
     #|
-    #|pub type Number = Int
+    #|pub type Number = I64
     #|
     #|pub effect Read {
     #|  read() -> Unit
@@ -222,7 +222,7 @@ test "completion exposes an alias and completes its canonical interface" {
     #|module Main
     #|import Basic.Long.Library as Lib
     #|
-    #|pub fn use() -> Int { Lib.answer() }
+    #|pub fn use() -> I64 { Lib.answer() }
   let libraries : Array[@module_frontend.SourceInput] = [
     { source_id: "file:///Library.lane", text: import_alias_library() },
   ]
@@ -300,7 +300,7 @@ test "completion exposes an alias and completes its canonical interface" {
       #|    label: "answer",
       #|    kind: Function,
       #|    is_offered: false,
-      #|    detail: Some("answer : () -> Int"),
+      #|    detail: Some("answer : () -> I64"),
       #|    documentation: None,
       #|    insert_text: None,
       #|    replace: Some(
@@ -351,7 +351,7 @@ test "rejected current-module alias does not enter completion" {
     #|module Main
     #|import Basic.Long.Library as Main
     #|
-    #|pub fn use() -> Int { Main.answer() }
+    #|pub fn use() -> I64 { Main.answer() }
   let snapshot = import_alias_snapshot(root, [
     ("file:///Library.lane", import_alias_library()),
   ])
@@ -374,7 +374,7 @@ test "conflicting aliases do not enter completion in either import order" {
   let other =
     #|module Basic.Other
     #|
-    #|pub fn value() -> Int { 1 }
+    #|pub fn value() -> I64 { 1 }
   let libraries = [
     ("file:///Library.lane", import_alias_library()),
     ("file:///Other.lane", other),
@@ -422,13 +422,13 @@ test "completion excludes open and selective imports from module bindings" {
     #|import Basic.Long.Library.*
     #|import Basic.Other.{ value }
     #|
-    #|pub fn use() -> Int {
+    #|pub fn use() -> I64 {
     #|  Bas
     #|}
   let other =
     #|module Basic.Other
     #|
-    #|pub let value : Int = 1
+    #|pub let value : I64 = 1
   let entries = complete_test_source_inputs(
     { source_id: "file:///Main.lane", text: root },
     [
@@ -450,7 +450,7 @@ test "canonical tuple sugar marks every provider alias as used" {
     #|import Basic.Data.Tuple as First
     #|import Basic.Data.Tuple as Second
     #|
-    #|pub fn pair() -> (Int, Bool) { (1, true) }
+    #|pub fn pair() -> (I64, Bool) { (1, true) }
   let tuple =
     #|module Basic.Data.Tuple
     #|pub enum Tuple[A, B] {
@@ -470,7 +470,7 @@ test "unused import diagnostics name the local module alias" {
   let root =
     #|module Main
     #|import Basic.Long.Library as Lib
-    #|pub let answer : Int = 42
+    #|pub let answer : I64 = 42
   let snapshot = import_alias_snapshot(root, [
     ("file:///Library.lane", import_alias_library()),
   ])

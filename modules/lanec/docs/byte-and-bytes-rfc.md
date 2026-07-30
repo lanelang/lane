@@ -59,7 +59,7 @@ The first version does not provide:
 - `BoxedArray`;
 - `UnboxedArray` as a generic or nominal type;
 - Byte or Bytes literal syntax;
-- implicit conversion between `Byte` and `Int`;
+- implicit conversion between `Byte` and `I64`;
 - Byte arithmetic, comparison, or bitwise operators;
 - Bytes indexing or update syntax;
 - slice or parent-backed view values;
@@ -75,16 +75,16 @@ be added.
 
 ### Byte
 
-`Byte` is a primitive type of kind `Type`. It is not a nominal alias for `Int`.
+`Byte` is a primitive type of kind `Type`. It is not a nominal alias for `I64`.
 Its values are unsigned integers in the inclusive range `0..255`.
 
-`Byte` is globally available in the same way as `Int`, `Double`, `Bool`,
+`Byte` is globally available in the same way as `I64`, `F64`, `Bool`,
 `String`, and `Unit`. Type resolution recognizes the primitive before type
 parameters, nominal declarations, aliases, or imports. No import enables or
 changes Byte semantics.
 
 Lane adds no Byte literal. An integer literal such as `42` continues to have
-type `Int`, including when a surrounding expression expects `Byte`. There is
+type `I64`, including when a surrounding expression expects `Byte`. There is
 no implicit conversion in either direction.
 
 ### Bytes
@@ -113,12 +113,12 @@ syntax.
 
 | Builtin expression | Required expected type |
 | --- | --- |
-| `builtin("%byte_to_int")` | `(Byte) -> Int` |
-| `builtin("%int_to_byte")` | `(Int) -> Byte` |
+| `builtin("%byte_to_i64")` | `(Byte) -> I64` |
+| `builtin("%i64_to_byte")` | `(I64) -> Byte` |
 
-`%byte_to_int` zero-extends a Byte Value into `Int`.
+`%byte_to_i64` zero-extends a Byte Value into `I64`.
 
-`%int_to_byte` is total. It retains the low eight bits of the input, equivalently
+`%i64_to_byte` is total. It retains the low eight bits of the input, equivalently
 returning the canonical result modulo 256:
 
 | Input | Result |
@@ -134,10 +134,10 @@ returning the canonical result modulo 256:
 
 | Builtin expression | Required expected type |
 | --- | --- |
-| `builtin("%bytes_make")` | `(Int, Byte) -> Bytes` |
-| `builtin("%bytes_length")` | `(Bytes) -> Int` |
-| `builtin("%bytes_get")` | `(Bytes, Int) -> Byte` |
-| `builtin("%bytes_set")` | `(Bytes, Int, Byte) -> Bytes` |
+| `builtin("%bytes_make")` | `(I64, Byte) -> Bytes` |
+| `builtin("%bytes_length")` | `(Bytes) -> I64` |
+| `builtin("%bytes_get")` | `(Bytes, I64) -> Byte` |
+| `builtin("%bytes_set")` | `(Bytes, I64, Byte) -> Bytes` |
 
 The operations have these semantics:
 
@@ -164,7 +164,7 @@ The primitive layer is intentionally partial. Calls must satisfy these value-dom
 | `%bytes_get(bytes, index)` | `0 <= index < length(bytes)` |
 | `%bytes_set(bytes, index, _)` | `0 <= index < length(bytes)` |
 
-Violating a precondition is undefined Lane behavior. Interpreter and compiled backends retain defensive validation and may panic or trap, but source programs cannot rely on that behavior being evaluated or reported consistently. No operation clamps an index, wraps an index, or returns a default byte. `%int_to_byte` is total because truncation is its specified behavior.
+Violating a precondition is undefined Lane behavior. Interpreter and compiled backends retain defensive validation and may panic or trap, but source programs cannot rely on that behavior being evaluated or reported consistently. No operation clamps an index, wraps an index, or returns a default byte. `%i64_to_byte` is total because truncation is its specified behavior.
 
 Safe APIs are ordinary library code. A library checks the preconditions before invoking the primitive and may return `Option`, a nominal error type, or an effectful result without changing the compiler contract. Allocation or resource exhaustion for an otherwise valid request is a fatal runtime failure only when that allocation is actually executed. Effect-aware optimization may remove an unused empty-effect allocation, in which case no allocation or resource failure occurs.
 
@@ -176,7 +176,7 @@ Safe APIs are ordinary library code. A library checks the preconditions before i
 Buslane. Its scalar execution representation uses the existing `I32 + Trivial`
 slot class, while preserving the invariant that its value lies in `0..255`.
 
-This does not make `Byte` definitionally equal to `Int`; Lane `Int` uses its
+This does not make `Byte` definitionally equal to `I64`; Lane `I64` uses its
 existing signed 64-bit semantics and `I64 + Trivial` representation. The two
 types interact only through the explicit conversion builtins.
 
@@ -291,7 +291,7 @@ The physical mappings are:
 Generic erasure and unerasure must handle both types through ordinary layout
 witnesses. Byte uses a primitive trivial layout; Bytes uses an owned-reference
 layout whose destructor releases the Runtime Bytes Object. No generic-code
-special case may treat either type as `Int`, `String`, or a nominal value.
+special case may treat either type as `I64`, `String`, or a nominal value.
 
 ### Intrinsic lowering
 
@@ -300,8 +300,8 @@ remaining stringly named calls:
 
 | Operation | Destination | Inputs | Ownership |
 | --- | --- | --- | --- |
-| `ByteToInt` | `I64 + Trivial` | Byte `I32 + Trivial` | read |
-| `IntToByte` | `I32 + Trivial` | Int `I64 + Trivial` | read |
+| `ByteToI64` | `I64 + Trivial` | Byte `I32 + Trivial` | read |
+| `I64ToByte` | `I32 + Trivial` | I64 `I64 + Trivial` | read |
 | `BytesMake` | `I32 + OwnedRef` | length `I64`, fill `I32` | creates owner |
 | `BytesLength` | `I64 + Trivial` | Bytes `I32 + OwnedRef` | reads/borrows |
 | `BytesGet` | `I32 + Trivial` | Bytes `I32 + OwnedRef`, index `I64` | reads/borrows |
@@ -436,7 +436,7 @@ Implementation should proceed in vertical, testable steps:
    complete examples.
 
 Each step must remove exhaustiveness fallbacks exposed by the new primitive.
-The implementation must not route Byte through `Int` semantic cases or Bytes
+The implementation must not route Byte through `I64` semantic cases or Bytes
 through `String` semantic cases merely because their physical representations
 overlap.
 
@@ -445,7 +445,7 @@ overlap.
 ### Type and builtin contract
 
 - `Byte` and `Bytes` resolve without imports in every type position.
-- They remain distinct from `Int`, `String`, nominal types, and each other.
+- They remain distinct from `I64`, `String`, nominal types, and each other.
 - Every builtin accepts exactly its specified expected type.
 - Unknown builtin names and mismatched signatures retain ordinary diagnostics.
 - The external host ABI does not acquire Byte or Bytes accidentally.
@@ -453,7 +453,7 @@ overlap.
 ### Byte behavior
 
 - Conversion tests cover `0`, `1`, `255`, `256`, `257`, `-1`, `-255`, and
-  `Int` extrema.
+  `I64` extrema.
 - Round trips satisfy
   `byte_to_int(int_to_byte(value)) == canonical_modulo_256(value)`.
 - Byte survives function arguments/results, local bindings, fields, enum

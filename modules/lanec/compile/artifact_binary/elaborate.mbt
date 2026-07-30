@@ -102,11 +102,11 @@ fn @bytecodec.ByteReader::read_intrinsic(
     }
     [u8be(19), .. rest] => {
       self.update_view(rest)
-      ByteToInt
+      ByteToI64
     }
     [u8be(20), .. rest] => {
       self.update_view(rest)
-      IntToByte
+      I64ToByte
     }
     [u8be(21), .. rest] => {
       self.update_view(rest)
@@ -158,19 +158,19 @@ fn @bytecodec.ByteReader::read_intrinsic(
     }
     [u8be(33), .. rest] => {
       self.update_view(rest)
-      S32ToInt
+      I32ToI64
     }
     [u8be(34), .. rest] => {
       self.update_view(rest)
-      IntToS32
+      I64ToI32
     }
     [u8be(35), .. rest] => {
       self.update_view(rest)
-      CharToS32
+      CharToI32
     }
     [u8be(36), .. rest] => {
       self.update_view(rest)
-      S32ToChar
+      I32ToChar
     }
     [u8be(37), .. rest] => {
       self.update_view(rest)
@@ -235,11 +235,11 @@ fn @bytecodec.ByteReader::read_host_value_kind(
     }
     [u8be(2), .. rest] => {
       self.update_view(rest)
-      Int
+      I64
     }
     [u8be(3), .. rest] => {
       self.update_view(rest)
-      Double
+      F64
     }
     [u8be(4), .. rest] => {
       self.update_view(rest)

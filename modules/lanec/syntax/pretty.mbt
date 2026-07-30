@@ -1368,8 +1368,8 @@ fn Expr::render_with_precedence(
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> RenderedExpr {
   let rendered = match self {
-    IntLiteral(value, ..) => rendered_expr(10, text(value))
-    DoubleLiteral(value, ..) => rendered_expr(10, text(value))
+    IntegerLiteral(value, ..) => rendered_expr(10, text(value))
+    FloatingLiteral(value, ..) => rendered_expr(10, text(value))
     StringLiteral(value, ..) => rendered_expr(10, source_string(value))
     CharLiteral(value, ..) => rendered_expr(10, source_char(value))
     BoolLiteral(value, ..) => rendered_expr(10, text(value.to_string()))
@@ -2381,8 +2381,8 @@ fn Pattern::to_doc(
   let doc = match self {
     Wildcard(_) => text("_")
     Binding(name, ..) => text(name)
-    IntLiteral(value, ..) => text(value)
-    DoubleLiteral(value, ..) => text(value)
+    IntegerLiteral(value, ..) => text(value)
+    FloatingLiteral(value, ..) => text(value)
     StringLiteral(value, ..) => source_string(value)
     CharLiteral(value, ..) => source_char(value)
     BoolLiteral(value, ..) => text(value.to_string())

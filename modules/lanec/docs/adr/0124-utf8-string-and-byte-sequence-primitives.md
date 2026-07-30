@@ -2,9 +2,9 @@
 status: accepted
 ---
 
-# UTF-8 String, Char, S32, and the shared byte-sequence runtime
+# UTF-8 String, Char, I32, and the shared byte-sequence runtime
 
-Lane replaces its ASCII-only String model with always-valid UTF-8 text, adds `Char` as the Unicode scalar primitive, and adds `S32` as the ordinary signed 32-bit integer primitive. String and Bytes remain distinct semantic types but share one packed runtime ByteSequence representation. The compiler owns only a closed set of representation-dependent intrinsics; scalar text algorithms and user-facing validation remain ordinary Basic library code.
+Lane replaces its ASCII-only String model with always-valid UTF-8 text, adds `Char` as the Unicode scalar primitive, and adds `I32` as the ordinary signed 32-bit integer primitive. String and Bytes remain distinct semantic types but share one packed runtime ByteSequence representation. The compiler owns only a closed set of representation-dependent intrinsics; scalar text algorithms and user-facing validation remain ordinary Basic library code.
 
 This document is the complete review contract for the change. Implementation must not infer additional String syntax, Unicode behavior, implicit conversions, reflection, compiler-recognized library declarations, or mutable collection semantics beyond what is specified here.
 
@@ -14,34 +14,34 @@ This document is the complete review contract for the change. Implementation mus
 
 `Char` is a primitive value containing exactly one Unicode scalar value. It is not a one-character String, a Byte, a UTF-8 code unit, or an implicitly convertible integer.
 
-`S32` is a primitive signed two's-complement 32-bit integer with range `-2147483648..2147483647`. It is semantically distinct from `Int`; neither type implicitly converts to the other. Addition, subtraction, multiplication, and negation use 32-bit two's-complement wraparound. Signed division requires a nonzero divisor and a representable quotient, so `-2147483648 / -1` violates the primitive precondition. Signed remainder requires a nonzero divisor and yields zero for `-2147483648 % -1`. Equality and ordering compare signed values.
+`I32` is a primitive signed two's-complement 32-bit integer with range `-2147483648..2147483647`. It is semantically distinct from `I64`; neither type implicitly converts to the other. Addition, subtraction, multiplication, and negation use 32-bit two's-complement wraparound. Signed division requires a nonzero divisor and a representable quotient, so `-2147483648 / -1` violates the primitive precondition. Signed remainder requires a nonzero divisor and yields zero for `-2147483648 % -1`. Equality and ordering compare signed values.
 
 `Bytes` remains an immutable pure-value sequence of arbitrary Byte values. UTF-8 validity is never an invariant of Bytes.
 
-`String`, `Char`, and `S32` are globally available primitive types. Their ordinary library operations still follow normal module import and name-resolution rules.
+`String`, `Char`, and `I32` are globally available primitive types. Their ordinary library operations still follow normal module import and name-resolution rules.
 
-## Numeric literals and S32
+## Numeric literals and I32
 
-Lane retains one decimal integer-literal syntax. An integer literal is checked as `S32` when its expected type is `S32`; otherwise it defaults to `Int`. This is expected-type-directed literal elaboration, not an implicit conversion between `Int` and `S32`. Literal and unary-negation checking must admit the complete signed range of the selected type and produce a range diagnostic when the mathematical value is outside it.
+Lane retains one decimal integer-literal syntax. An integer literal is checked as `I32` when its expected type is `I32`; otherwise it defaults to `I64`. This is expected-type-directed literal elaboration, not an implicit conversion between `I64` and `I32`. Literal and unary-negation checking must admit the complete signed range of the selected type and produce a range diagnostic when the mathematical value is outside it.
 
-S32 literals participate in the existing literal-expression and literal-pattern rules. Syntax retains the authored decimal spelling, while checked and Buslane literals store the validated signed 32-bit value.
+I32 literals participate in the existing literal-expression and literal-pattern rules. Syntax retains the authored decimal spelling, while checked and Buslane literals store the validated signed 32-bit value.
 
-The closed S32 intrinsic family is:
+The closed I32 intrinsic family is:
 
 | Intrinsic | Type | Contract |
 | --- | --- | --- |
-| `%i32_add` | `(S32, S32) -> S32` | 32-bit wrapping addition |
-| `%i32_sub` | `(S32, S32) -> S32` | 32-bit wrapping subtraction |
-| `%i32_mul` | `(S32, S32) -> S32` | 32-bit wrapping multiplication |
-| `%i32_div` | `(S32, S32) -> S32` | Signed division requiring a nonzero divisor and representable quotient |
-| `%i32_rem` | `(S32, S32) -> S32` | Signed remainder requiring a nonzero divisor |
-| `%i32_neg` | `(S32) -> S32` | 32-bit wrapping negation |
-| `%i32_equal` | `(S32, S32) -> Bool` | Signed value equality |
-| `%i32_less` | `(S32, S32) -> Bool` | Signed ordering |
-| `%s32_to_int` | `(S32) -> Int` | Total sign extension |
-| `%int_to_s32` | `(Int) -> S32` | Total low-32-bit truncation interpreted as signed two's complement |
+| `%i32_add` | `(I32, I32) -> I32` | 32-bit wrapping addition |
+| `%i32_sub` | `(I32, I32) -> I32` | 32-bit wrapping subtraction |
+| `%i32_mul` | `(I32, I32) -> I32` | 32-bit wrapping multiplication |
+| `%i32_div` | `(I32, I32) -> I32` | Signed division requiring a nonzero divisor and representable quotient |
+| `%i32_rem` | `(I32, I32) -> I32` | Signed remainder requiring a nonzero divisor |
+| `%i32_neg` | `(I32) -> I32` | 32-bit wrapping negation |
+| `%i32_equal` | `(I32, I32) -> Bool` | Signed value equality |
+| `%i32_less` | `(I32, I32) -> Bool` | Signed ordering |
+| `%i32_to_i64` | `(I32) -> I64` | Total sign extension |
+| `%i64_to_i32` | `(I64) -> I32` | Total low-32-bit truncation interpreted as signed two's complement |
 
-`Basic.Data.S32` exposes the same ordinary arithmetic, equality, and comparison interfaces as Int, specialized to S32. The compiler does not recognize those declarations.
+`Basic.Data.I32` exposes the same ordinary arithmetic, equality, and comparison interfaces as I64, specialized to I32. The compiler does not recognize those declarations.
 
 ## String and Char literals
 
@@ -53,7 +53,7 @@ The lexer produces precise diagnostics for unterminated literals, unsupported es
 
 The semantic syntax value is the decoded scalar sequence, not the authored escape spelling. The formatter emits ordinary scalars directly as UTF-8, uses short escapes for NUL, line feed, carriage return, and tab, escapes backslash and the active delimiter, and emits remaining C0/C1 controls as uppercase `\u{HEX}` without redundant leading zeroes. Formatting never normalizes Unicode, but it may replace an authored Unicode escape with the direct scalar.
 
-Char literals participate in the same expression and pattern rules as existing scalar literals. Syntax, checked, and Buslane forms preserve the `Char` type. Runtime pattern comparison may use the shared `I32` representation without making Char and S32 definitionally equal.
+Char literals participate in the same expression and pattern rules as existing scalar literals. Syntax, checked, and Buslane forms preserve the `Char` type. Runtime pattern comparison may use the shared `I32` representation without making Char and I32 definitionally equal.
 
 ## Unicode semantics
 
@@ -75,28 +75,28 @@ The String, Char, and Bytes increment is exactly:
 
 | Intrinsic | Type | Contract |
 | --- | --- | --- |
-| `%char_to_s32` | `(Char) -> S32` | Total representation-preserving conversion |
-| `%s32_to_char` | `(S32) -> Char` | Requires a valid Unicode scalar value |
+| `%char_to_i32` | `(Char) -> I32` | Total representation-preserving conversion |
+| `%i32_to_char` | `(I32) -> Char` | Requires a valid Unicode scalar value |
 | `%string_to_bytes` | `(String) -> Bytes` | Total O(1) representation conversion |
 | `%bytes_is_valid_utf8` | `(Bytes) -> Bool` | Total UTF-8 validation |
 | `%bytes_to_string` | `(Bytes) -> String` | Requires valid UTF-8 and performs an O(1) representation conversion |
 | `%bytes_equal` | `(Bytes, Bytes) -> Bool` | Exact byte equality |
 | `%bytes_concat` | `(Bytes, Bytes) -> Bytes` | Exact-size concatenation |
-| `%bytes_slice` | `(Bytes, Int, Int) -> Bytes` | Requires a nonnegative in-bounds byte start and byte length |
+| `%bytes_slice` | `(Bytes, I64, I64) -> Bytes` | Requires a nonnegative in-bounds byte start and byte length |
 
-The existing Byte and Bytes primitives `%byte_to_int`, `%int_to_byte`, `%bytes_make`, `%bytes_length`, `%bytes_get`, and `%bytes_set` remain source-level intrinsics with their accepted contracts.
+The existing Byte and Bytes primitives `%byte_to_i64`, `%i64_to_byte`, `%bytes_make`, `%bytes_length`, `%bytes_get`, and `%bytes_set` remain source-level intrinsics with their accepted contracts.
 
 `%string_equal` is removed. The compiler does not add `%string_length`, `%string_concat`, `%string_slice`, `%string_scalar_at`, `%string_scalar_count`, `%char_equal`, `%char_less`, `%char_to_string`, a fold intrinsic, a String cursor intrinsic, or an iterator intrinsic.
 
-Char and S32 both use `I32 + Trivial`. `%char_to_s32` and `%s32_to_char` remain explicit typed calls through checked AST and Buslane, but compiler-intrinsic lowering erases them because their representations are identical. The erasure does not validate `%s32_to_char`; its caller must establish the scalar precondition.
+Char and I32 both use `I32 + Trivial`. `%char_to_i32` and `%i32_to_char` remain explicit typed calls through checked AST and Buslane, but compiler-intrinsic lowering erases them because their representations are identical. The erasure does not validate `%i32_to_char`; its caller must establish the scalar precondition.
 
-S32 uses `I32 + Trivial`, while Int uses `I64 + Trivial`. `%s32_to_int` sign-extends `I32` to `I64`, and `%int_to_s32` retains the low 32 bits. These conversions require explicit VM operations and are not representation-identical casts.
+I32 uses `I32 + Trivial`, while I64 uses `I64 + Trivial`. `%i32_to_i64` sign-extends `I32` to `I64`, and `%i64_to_i32` retains the low 32 bits. These conversions require explicit VM operations and are not representation-identical casts.
 
-Basic implements checked `Char.from_int` by validating the Int range and surrogate exclusion, then composing `%int_to_s32` with `%s32_to_char`. `Char.to_int` composes `%char_to_s32` with `%s32_to_int`.
+Basic implements checked `Char.from_i64` by validating the I64 range and surrogate exclusion, then composing `%i64_to_i32` with `%i32_to_char`. `Char.to_i64` composes `%char_to_i32` with `%i32_to_i64`.
 
 ## Basic library contract
 
-The initial `Basic.Data.Char` surface contains checked `from_int`, total `to_int`, `to_string`, and ordinary Equal and Compare offers. Char comparison is numeric Unicode scalar ordering.
+The initial `Basic.Data.Char` surface contains checked `from_i64`, total `to_i64`, `to_string`, and ordinary Equal and Compare offers. Char comparison is numeric Unicode scalar ordering.
 
 The initial `Basic.Data.String` surface contains `byte_length`, `scalar_count`, `is_empty`, `from_char`, `concat`, scalar-indexed `scalar_at` and `slice`, effect-polymorphic `foldl`, `encode_utf8`, and `decode_utf8`, plus ordinary Equal, Compare, Semigroup, and Monoid offers. The monoid identity is the empty String.
 
@@ -128,9 +128,9 @@ Only allocations that actually execute are subject to resource failure. A pure a
 
 ## Buslane, VM CFG, bytecode, and backends
 
-Buslane gains semantic `S32` and `Char` primitive types and literal cases. Their definitional equality remains distinct even though both lower to `I32 + Trivial`. VM CFG and bytecode gain `ConstS32` and `ConstChar`; the latter accepts only Unicode scalar values. Existing semantic constant operations such as `ConstBool` remain distinct, so bytecode validation does not lose their value invariants.
+Buslane gains semantic `I32` and `Char` primitive types and literal cases. Their definitional equality remains distinct even though both lower to `I32 + Trivial`. VM CFG and bytecode gain `ConstI32` and `ConstChar`; the latter accepts only Unicode scalar values. Existing semantic constant operations such as `ConstBool` remain distinct, so bytecode validation does not lose their value invariants.
 
-S32 arithmetic lowers to `S32Add`, `S32Sub`, `S32Mul`, `S32Div`, `S32Rem`, `S32Neg`, `S32Eq`, and `S32Lt` VM CFG and bytecode operations. `%s32_to_int` lowers to `S32ToInt`, which sign-extends `I32 -> I64`; `%int_to_s32` lowers to `IntToS32`, which wraps `I64 -> I32`. The interpreter and Wasm backend implement the same bit-level contract.
+I32 arithmetic lowers to `I32Add`, `I32Sub`, `I32Mul`, `I32Div`, `I32Rem`, `I32Neg`, `I32Eq`, and `I32Lt` VM CFG and bytecode operations. `%i32_to_i64` lowers to `I32ToI64`, which sign-extends `I32 -> I64`; `%i64_to_i32` lowers to `I64ToI32`, which wraps `I64 -> I32`. The interpreter and Wasm backend implement the same bit-level contract.
 
 LoisVM names the shared packed representation directly. `BytesMake`, `BytesLength`, `BytesGet`, and `BytesSet` become `ByteSequenceMake`, `ByteSequenceLength`, `ByteSequenceGet`, and `ByteSequenceSet`. The new representation operations are `ByteSequenceEqual`, `ByteSequenceConcat`, `ByteSequenceSlice`, and `ByteSequenceIsValidUtf8`.
 
@@ -138,7 +138,7 @@ LoisVM names the shared packed representation directly. `BytesMake`, `BytesLengt
 
 Every ByteSequence instruction defensively verifies the runtime layout and argument bounds needed for memory safety. Invalid bytecode or a violated intrinsic precondition must fail safely, but Lane programs cannot depend on a particular trap message or parity of undefined behavior between backends.
 
-The interpreter and Wasm backend must agree for every valid input on S32 arithmetic and conversion, Char conversion, UTF-8 validation, byte equality, concatenation, slicing, ownership transfer, copy-on-write, constant loading, and host String transport.
+The interpreter and Wasm backend must agree for every valid input on I32 arithmetic and conversion, Char conversion, UTF-8 validation, byte equality, concatenation, slicing, ownership transfer, copy-on-write, constant loading, and host String transport.
 
 ## Host ABI
 
@@ -146,11 +146,11 @@ A host function receives a Lane String as a borrowed pointer-length view of vali
 
 A host function declared to return String must provide valid UTF-8 bytes. The runtime validates and copies those bytes into an owned ByteSequence before returning to Lane. An invalid result violates the host binding contract and causes a fatal runtime failure. The runtime does not replace malformed sequences, return `Option`, or introduce a Lane effect.
 
-This decision does not add Char, S32, Byte, or Bytes to the host-value ABI. Host-value support for additional primitive types is a separate decision.
+This decision does not add Char, I32, Byte, or Bytes to the host-value ABI. Host-value support for additional primitive types is a separate decision.
 
 ## Primitive preconditions and user-visible failures
 
-Checked Basic wrappers establish recoverable input validation. Calling `%s32_to_char`, `%bytes_to_string`, `%bytes_slice`, or another preconditioned intrinsic with an invalid argument is undefined Lane behavior.
+Checked Basic wrappers establish recoverable input validation. Calling `%i32_to_char`, `%bytes_to_string`, `%bytes_slice`, or another preconditioned intrinsic with an invalid argument is undefined Lane behavior.
 
 Interpreter and compiled backends retain defensive checks so invalid bytecode and violated contracts cannot corrupt memory. They may panic, trap, or reject execution, but source code cannot rely on a specific failure detail.
 
@@ -174,9 +174,9 @@ The implementation is complete only when the following behaviors are covered by 
 
 - Direct ASCII, multibyte UTF-8, NUL, BMP, and supplementary-plane String and Char literals parse, typecheck, format idempotently, serialize, lower, and execute.
 - Valid short and Unicode escapes canonicalize as specified; malformed, empty, oversized, surrogate, out-of-range, multi-scalar Char, and removed `\xNN` forms produce precise diagnostics.
-- Integer literals default to Int, elaborate to S32 under an S32 expectation, cover both signed limits, and reject out-of-range values in expressions and patterns.
-- S32 arithmetic, comparison, wrapping, division, remainder, literal patterns, `S32 -> Int` sign extension, and `Int -> S32` truncation agree between interpreter and Wasm.
-- Char remains type-distinct from S32 and Int through checked AST, Buslane, generic substitution, artifacts, hover, completion display, and diagnostics; Char expressions and patterns execute through the I32 representation.
+- Integer literals default to I64, elaborate to I32 under an I32 expectation, cover both signed limits, and reject out-of-range values in expressions and patterns.
+- I32 arithmetic, comparison, wrapping, division, remainder, literal patterns, `I32 -> I64` sign extension, and `I64 -> I32` truncation agree between interpreter and Wasm.
+- Char remains type-distinct from I32 and I64 through checked AST, Buslane, generic substitution, artifacts, hover, completion display, and diagnostics; Char expressions and patterns execute through the I32 representation.
 - UTF-8 validation accepts every legal sequence class and rejects invalid continuation, truncation, overlong, surrogate, and above-maximum cases in both backends.
 - String equality, scalar count, scalar lookup, scalar slicing, fold order, lexicographic scalar comparison, and embedded NUL behavior are demonstrated with mixed-width text.
 - String/Bytes conversions reuse one runtime object, preserve ownership, and force copy-on-write when a converted Bytes value is updated while an alias remains observable.
@@ -189,8 +189,8 @@ The implementation is complete only when the following behaviors are covered by 
 ## Non-goals
 
 - Unicode normalization, case folding, locale collation, grapheme segmentation, display width, regex, and Unicode property tables
-- Implicit String/Bytes, Char/S32, S32/Int, or numeric-tower conversions
-- Runtime reflection or compiler-recognized String, Char, S32, codec, iterator, or collection declarations
+- Implicit String/Bytes, Char/I32, I32/I64, or numeric-tower conversions
+- Runtime reflection or compiler-recognized String, Char, I32, codec, iterator, or collection declarations
 - Public byte cursors, String cursors, views, capacity, builders, ropes, small-string optimization, or cached scalar indices
 - Lossy UTF-8 decoding or automatic replacement characters
 - New String operator syntax, interpolation syntax, raw strings, Byte literals, or Bytes literals
@@ -201,17 +201,17 @@ The implementation is complete only when the following behaviors are covered by 
 - Keeping ASCII String was rejected because it freezes the accidental equivalence of byte and character positions into the public text model.
 - Making String an alias of Bytes was rejected because arbitrary bytes do not satisfy the UTF-8 validity invariant.
 - Maintaining parallel String and Bytes runtime layouts or operations was rejected because both are exact packed byte sequences and the duplication had already diverged.
-- Representing Char as Int was rejected because it wastes width in stored values and erases the semantic type distinction. Char instead shares the I32 representation with S32.
-- Treating Char as S32 was rejected because numeric values and Unicode scalar values have different invariants and APIs even when their machine representation is identical.
-- Adding only an internal I32 carrier was rejected in favor of the ordinary public S32 primitive; the same representation is useful independently of text.
+- Representing Char as I64 was rejected because it wastes width in stored values and erases the semantic type distinction. Char instead shares the I32 representation with I32.
+- Treating Char as I32 was rejected because numeric values and Unicode scalar values have different invariants and APIs even when their machine representation is identical.
+- Adding only an internal I32 carrier was rejected in favor of the ordinary public I32 primitive; the same representation is useful independently of text.
 - Caching scalar count or indices in every ByteSequence was rejected because it penalizes arbitrary Bytes values and complicates the shared zero-copy representation.
 - Providing compiler-owned scalar traversal, normalization, search, or iterators was rejected because these operations can be ordinary effect-polymorphic library code over the closed representation primitives.
 
 ## Consequences
 
-- The compiler, Buslane, codecs, artifacts, VM CFG, bytecode, interpreter, Wasm backend, semantic tooling, formatter, and documentation gain explicit S32 and Char cases.
+- The compiler, Buslane, codecs, artifacts, VM CFG, bytecode, interpreter, Wasm backend, semantic tooling, formatter, and documentation gain explicit I32 and Char cases.
 - String and Bytes remain statically separate while sharing allocation, ARC, copying, equality, slicing, and COW machinery.
 - String byte length is O(1), while scalar operations are linear without an auxiliary index.
-- Char/S32 conversion is zero-cost after typed intrinsic lowering; S32/Int conversion performs an explicit width change.
+- Char/I32 conversion is zero-cost after typed intrinsic lowering; I32/I64 conversion performs an explicit width change.
 - Unicode behavior is deterministic and independent of locale or normalization tables.
 - Existing ASCII source assumptions, removed escapes, bytecode instruction names, schema versions, and compiled artifacts require coordinated migration.

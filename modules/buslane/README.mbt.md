@@ -45,7 +45,7 @@ test "build and verify a Buslane program" {
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], Primitive(Int), Empty),
+    Function([], Primitive(I64), Empty),
   )
   let program = Program::{
     metadata,
@@ -54,8 +54,8 @@ test "build and verify a Buslane program" {
         main,
         Function({
           parameters: [],
-          result_type: Primitive(Int),
-          body: Literal(Int(42L)),
+          result_type: Primitive(I64),
+          body: Literal(I64(42L)),
         }),
       ),
     ],
@@ -67,9 +67,9 @@ test "build and verify a Buslane program" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    function main#0 : () -> Int
+      #|    function main#0 : () -> I64
       #|  }
-      #|  let value#0 = fn() -> Int {
+      #|  let value#0 = fn() -> I64 {
       #|    42
       #|  }
       #|}
@@ -123,11 +123,11 @@ test "verify nominal construction and matching" {
     Parameter(element),
   ])
   let box_of_int = Type::Apply(Constructor(box_type), [
-    TypeArgument(Primitive(Int)),
+    TypeArgument(Primitive(I64)),
   ])
-  let result = metadata.define_value("result", Value, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
   let matched = metadata.define_value("matched", MatchBinder, box_of_int)
-  let payload = metadata.define_value("payload", Parameter, Primitive(Int))
+  let payload = metadata.define_value("payload", Parameter, Primitive(I64))
   let program = Program::{
     metadata,
     terms: [
@@ -136,12 +136,12 @@ test "verify nominal construction and matching" {
         Match({
           scrutinee: Construct({
             data_constructor: box,
-            type_arguments: [TypeArgument(Primitive(Int))],
+            type_arguments: [TypeArgument(Primitive(I64))],
             hidden_witnesses: [],
-            payloads: [Literal(Int(42L))],
+            payloads: [Literal(I64(42L))],
           }),
           binder: matched,
-          result_type: Primitive(Int),
+          result_type: Primitive(I64),
           alternatives: [
             {
               alt_constructor: DataCon(box),
@@ -211,7 +211,7 @@ Each definition receives a readable occurrence name and returns the correspondin
 
 Buslane types include:
 
-- primitive `Unit`, `Bool`, `Int`, `Double`, and `String` types;
+- primitive `Unit`, `Bool`, `I64`, `I32`, `F64`, `Byte`, `Bytes`, `Char`, and `String` types;
 - nominal constructors and kind-aware generic application;
 - type parameters and type-level lambdas;
 - n-ary function types with latent effects;
@@ -253,7 +253,7 @@ Call `verify_program` after constructing, parsing, or decoding a program and bef
 test "inspect verifier diagnostics" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let answer = metadata.define_value("answer", Value, Primitive(Bool))
-  let program = Program::{ metadata, terms: [Let(answer, Literal(Int(42L)))] }
+  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))] }
 
   inspect(
     @prettyprinter.render(verify_program(program), width=80),
@@ -261,7 +261,7 @@ test "inspect verifier diagnostics" {
       #|verify_result {
       #|  type_mismatch {
       #|    expected Bool
-      #|    actual Int
+      #|    actual I64
       #|  }
       #|}
     ),
@@ -298,8 +298,8 @@ Provides a canonical, round-trippable textual representation:
 ///|
 test "round-trip canonical Buslane text" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let answer = metadata.define_value("answer", Value, Primitive(Int))
-  let program = Program::{ metadata, terms: [Let(answer, Literal(Int(42L)))] }
+  let answer = metadata.define_value("answer", Value, Primitive(I64))
+  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))] }
   let source = @text.CanonicalTextWriter::CanonicalTextWriter().write_program(
     program,
   )
@@ -323,8 +323,8 @@ Provides the structured binary persistence boundary:
 ///|
 test "round-trip Buslane binary" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let answer = metadata.define_value("answer", Value, Primitive(Int))
-  let program = Program::{ metadata, terms: [Let(answer, Literal(Int(42L)))] }
+  let answer = metadata.define_value("answer", Value, Primitive(I64))
+  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))] }
 
   let decoded = @codec.decode_program(@codec.encode_program(program))
   assert_eq(decoded, program)
@@ -342,12 +342,12 @@ Provides a reference evaluator for verified Buslane semantics:
 ///|
 test "evaluate a Buslane value" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let answer = metadata.define_value("answer", Value, Primitive(Int))
-  let program = Program::{ metadata, terms: [Let(answer, Literal(Int(42L)))] }
+  let answer = metadata.define_value("answer", Value, Primitive(I64))
+  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))] }
   let runtime = @interpreter.BuslaneExternalRuntime::BuslaneExternalRuntime()
   let evaluated = @interpreter.evaluate_buslane_program(program, runtime)
 
-  debug_inspect(evaluated.lookup(answer).as_int(), content="Some(42)")
+  debug_inspect(evaluated.lookup(answer).as_i64(), content="Some(42)")
 }
 ```
 

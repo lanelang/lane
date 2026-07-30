@@ -31,26 +31,26 @@ pub fn HostParameter::bool() -> HostParameter[Bool] {
 }
 
 ///|
-pub fn HostParameter::int() -> HostParameter[Int64] {
+pub fn HostParameter::i64() -> HostParameter[Int64] {
   {
-    kind: Int,
+    kind: I64,
     decode: value => {
       match value {
-        Int(value) => value
-        _ => abort("typed host binding received a non-Int value")
+        I64(value) => value
+        _ => abort("typed host binding received a non-I64 value")
       }
     },
   }
 }
 
 ///|
-pub fn HostParameter::double() -> HostParameter[Double] {
+pub fn HostParameter::f64() -> HostParameter[Double] {
   {
-    kind: Double,
+    kind: F64,
     decode: value => {
       match value {
-        Double(value) => value
-        _ => abort("typed host binding received a non-Double value")
+        F64(value) => value
+        _ => abort("typed host binding received a non-F64 value")
       }
     },
   }
@@ -156,13 +156,13 @@ pub fn HostResult::bool() -> HostResult[Bool] {
 }
 
 ///|
-pub fn HostResult::int() -> HostResult[Int64] {
-  { kind: Int, encode: value => Int(value) }
+pub fn HostResult::i64() -> HostResult[Int64] {
+  { kind: I64, encode: value => I64(value) }
 }
 
 ///|
-pub fn HostResult::double() -> HostResult[Double] {
-  { kind: Double, encode: value => Double(value) }
+pub fn HostResult::f64() -> HostResult[Double] {
+  { kind: F64, encode: value => F64(value) }
 }
 
 ///|

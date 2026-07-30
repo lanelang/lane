@@ -30,8 +30,8 @@ fn test_host_value_kind(type_ : @buslane.Type) -> @abi.ValueKind {
   match type_ {
     Primitive(Unit) => Unit
     Primitive(Bool) => Bool
-    Primitive(Int) => Int
-    Primitive(Double) => Double
+    Primitive(I64) => I64
+    Primitive(F64) => F64
     Primitive(String) => String
     Constructor(_) => Opaque
     _ => abort("test runtime import must use a direct ABI type")
@@ -73,15 +73,15 @@ fn lower_test_executable_to_bytecode(
 ///|
 test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let add_type = test_function_type([int_type, int_type], int_type)
+  let add_type = test_function_type([i64_type, i64_type], i64_type)
   let add = metadata.define_value("%i64_add", External, add_type)
-  let parameter = metadata.define_value("value", Parameter, int_type)
-  let helper_type = test_function_type([int_type], int_type)
+  let parameter = metadata.define_value("value", Parameter, i64_type)
+  let helper_type = test_function_type([i64_type], i64_type)
   let helper = metadata.define_value("add_one", Function, helper_type)
-  let result = metadata.define_value("result", Local, int_type)
-  let matched = metadata.define_value("matched", MatchBinder, int_type)
+  let result = metadata.define_value("result", Local, i64_type)
+  let matched = metadata.define_value("matched", MatchBinder, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -92,8 +92,8 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
         helper,
         Function({
           parameters: [parameter],
-          result_type: int_type,
-          body: Call(Ref(add), [Ref(parameter), Literal(Int(1L))]),
+          result_type: i64_type,
+          body: Call(Ref(add), [Ref(parameter), Literal(I64(1L))]),
         }),
       ),
       Let(
@@ -103,7 +103,7 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
           result_type: unit_type,
           body: Let(
             result,
-            Call(Ref(helper), [Literal(Int(41L))]),
+            Call(Ref(helper), [Literal(I64(41L))]),
             Match({
               scrutinee: Ref(result),
               binder: matched,
@@ -140,7 +140,7 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
   }
   assert_true(
     contains_instruction(helper_body, instruction => {
-      instruction is IntAdd(_, _, _)
+      instruction is I64Add(_, _, _)
     }),
   )
   assert_true(
@@ -159,11 +159,11 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
 ///|
 test "runtime import origin wins over intrinsic-looking symbol" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let import_type = test_io_function_type([int_type, int_type], int_type)
+  let import_type = test_io_function_type([i64_type, i64_type], i64_type)
   let import_ = metadata.define_value("host_add", External, import_type)
-  let result = metadata.define_value("result", Local, int_type)
+  let result = metadata.define_value("result", Local, i64_type)
   let main_type = test_io_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -177,7 +177,7 @@ test "runtime import origin wins over intrinsic-looking symbol" {
           result_type: unit_type,
           body: Let(
             result,
-            Call(Ref(import_), [Literal(Int(20L)), Literal(Int(22L))]),
+            Call(Ref(import_), [Literal(I64(20L)), Literal(I64(22L))]),
             Literal(Unit),
           ),
         }),
@@ -211,8 +211,8 @@ test "runtime import origin wins over intrinsic-looking symbol" {
     content=(
       #|{
       #|  abi_major: 1,
-      #|  parameters: [Int, Int],
-      #|  result: Int,
+      #|  parameters: [I64, I64],
+      #|  result: I64,
       #|  symbol: "%i64_add",
       #|}
     ),
@@ -222,9 +222,9 @@ test "runtime import origin wins over intrinsic-looking symbol" {
 ///|
 test "scalar intrinsics materialize as deduplicated first-class wrappers" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let add_type = test_function_type([int_type, int_type], int_type)
+  let add_type = test_function_type([i64_type, i64_type], i64_type)
   let add = metadata.define_value("%i64_add", External, add_type)
   let callable = metadata.define_value("callable", Parameter, add_type)
   let other_callable = metadata.define_value(
@@ -232,16 +232,16 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
     Parameter,
     add_type,
   )
-  let left = metadata.define_value("left", Parameter, int_type)
-  let right = metadata.define_value("right", Parameter, int_type)
+  let left = metadata.define_value("left", Parameter, i64_type)
+  let right = metadata.define_value("right", Parameter, i64_type)
   let apply_type = test_function_type(
-    [add_type, add_type, int_type, int_type],
-    int_type,
+    [add_type, add_type, i64_type, i64_type],
+    i64_type,
   )
   let apply = metadata.define_value("apply", Function, apply_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
-  let result = metadata.define_value("result", Local, int_type)
+  let result = metadata.define_value("result", Local, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -253,7 +253,7 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
         apply,
         Function({
           parameters: [callable, other_callable, left, right],
-          result_type: int_type,
+          result_type: i64_type,
           body: Call(Ref(callable), [Ref(left), Ref(right)]),
         }),
       ),
@@ -267,8 +267,8 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
             Call(Ref(apply), [
               Ref(add),
               Ref(add),
-              Literal(Int(20L)),
-              Literal(Int(22L)),
+              Literal(I64(20L)),
+              Literal(I64(22L)),
             ]),
             Call(Ref(observe), [Ref(result)]),
           ),
@@ -312,7 +312,7 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
   )
   assert_true(
     contains_instruction(wrapper_body, instruction => {
-      instruction is IntAdd(_, _, _)
+      instruction is I64Add(_, _, _)
     }),
   )
   let mut observed = 0L
@@ -321,10 +321,10 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_intrinsic_value",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -385,18 +385,18 @@ test "effect forms fail before bytecode emission" {
 ///|
 test "lexical handlers and resume lower before LoisVM bytecode" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let effect = metadata.define_effect("Choose", [])
-  let operation = metadata.define_operation("choose", effect, [], [], int_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let operation = metadata.define_operation("choose", effect, [], [], i64_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
-  let selected = metadata.define_value("selected", Local, int_type)
+  let selected = metadata.define_value("selected", Local, i64_type)
   let handler_result = metadata.define_value("result", Local, unit_type)
   let resume_binder = metadata.define_value(
     "resume",
     Parameter,
-    Function([int_type], unit_type, Empty),
+    Function([i64_type], unit_type, Empty),
   )
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
@@ -432,7 +432,7 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
                     type_binders: [],
                     payload_binders: [],
                     resume_binder,
-                    body: Call(Resume(resume_binder), [Literal(Int(42L))]),
+                    body: Call(Resume(resume_binder), [Literal(I64(42L))]),
                   },
                 ],
               },
@@ -468,10 +468,10 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_handled_value",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -489,9 +489,9 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
 ///|
 test "primitive external functions become runtime imports" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
@@ -504,7 +504,7 @@ test "primitive external functions become runtime imports" {
         Function({
           parameters: [],
           result_type: unit_type,
-          body: Call(Ref(observe), [Literal(Int(42L))]),
+          body: Call(Ref(observe), [Literal(I64(42L))]),
         }),
       ),
     ],
@@ -535,7 +535,7 @@ test "primitive external functions become runtime imports" {
       RuntimeImport(
         {
           abi_major: 1,
-          parameters: [Int],
+          parameters: [I64],
           result: Unit,
           symbol: "lane.test.observe",
         }
@@ -549,10 +549,10 @@ test "primitive external functions become runtime imports" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -747,12 +747,12 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
 test "runtime imports with equal symbols and distinct kinds remain distinct" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
-  let int_import_type = test_io_function_type([Primitive(Int)], unit_type)
+  let i64_import_type = test_io_function_type([Primitive(I64)], unit_type)
   let bool_import_type = test_io_function_type([Primitive(Bool)], unit_type)
-  let int_import = metadata.define_value(
+  let i64_import = metadata.define_value(
     "observe_int",
     External,
-    int_import_type,
+    i64_import_type,
   )
   let bool_import = metadata.define_value(
     "observe_bool",
@@ -767,7 +767,7 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
       {
         metadata,
         terms: [
-          External(int_import),
+          External(i64_import),
           External(bool_import),
           Let(
             main,
@@ -776,7 +776,7 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
               result_type: unit_type,
               body: Let(
                 first,
-                Call(Ref(int_import), [Literal(Int(1L))]),
+                Call(Ref(i64_import), [Literal(I64(1L))]),
                 Call(Ref(bool_import), [Literal(Bool(true))]),
               ),
             }),
@@ -787,10 +787,10 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
         builtins: [],
         runtime_imports: [
           {
-            value: int_import,
+            value: i64_import,
             symbol: "lane.test.observe",
-            signature: test_host_signature(int_import_type),
-            type_: int_import_type,
+            signature: test_host_signature(i64_import_type),
+            type_: i64_import_type,
           },
           {
             value: bool_import,
@@ -822,7 +822,7 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
       #|  },
       #|  {
       #|    abi_major: 1,
-      #|    parameters: [Int],
+      #|    parameters: [I64],
       #|    result: Unit,
       #|    symbol: "lane.test.observe",
       #|  },
@@ -907,12 +907,12 @@ test "owned String arguments are transferred through VM CFG ARC insertion" {
 ///|
 test "Bool matches lower to explicit CFG branches" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let bool_type = @buslane.Type::Primitive(Bool)
   let read_type = test_function_type([], bool_type)
   let read = metadata.define_value("read", External, read_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let binder = metadata.define_value("condition", MatchBinder, bool_type)
   let main_type = test_function_type([], unit_type)
@@ -936,13 +936,13 @@ test "Bool matches lower to explicit CFG branches" {
                 alt_constructor: Literal(Bool(true)),
                 type_binders: [],
                 value_binders: [],
-                body: Call(Ref(observe), [Literal(Int(1L))]),
+                body: Call(Ref(observe), [Literal(I64(1L))]),
               },
               {
                 alt_constructor: Literal(Bool(false)),
                 type_binders: [],
                 value_binders: [],
-                body: Call(Ref(observe), [Literal(Int(2L))]),
+                body: Call(Ref(observe), [Literal(I64(2L))]),
               },
             ],
           }),
@@ -995,10 +995,10 @@ test "Bool matches lower to explicit CFG branches" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_branch",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -1016,17 +1016,17 @@ test "Bool matches lower to explicit CFG branches" {
 ///|
 test "non-generic data construction and matching lower through object shapes" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let option = metadata.define_type("OptionInt", [])
   let none = metadata.define_data_constructor("None", option, [], [])
-  let some = metadata.define_data_constructor("Some", option, [], [int_type])
+  let some = metadata.define_data_constructor("Some", option, [], [i64_type])
   let option_type = @buslane.Type::Constructor(option)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let scrutinee = metadata.define_value("scrutinee", Local, option_type)
   let binder = metadata.define_value("option", MatchBinder, option_type)
-  let payload = metadata.define_value("payload", MatchBinder, int_type)
+  let payload = metadata.define_value("payload", MatchBinder, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -1044,7 +1044,7 @@ test "non-generic data construction and matching lower through object shapes" {
               data_constructor: some,
               type_arguments: [],
               hidden_witnesses: [],
-              payloads: [Literal(Int(7L))],
+              payloads: [Literal(I64(7L))],
             }),
             Match({
               scrutinee: Ref(scrutinee),
@@ -1055,7 +1055,7 @@ test "non-generic data construction and matching lower through object shapes" {
                   alt_constructor: DataCon(none),
                   type_binders: [],
                   value_binders: [],
-                  body: Call(Ref(observe), [Literal(Int(0L))]),
+                  body: Call(Ref(observe), [Literal(I64(0L))]),
                 },
                 {
                   alt_constructor: DataCon(some),
@@ -1105,10 +1105,10 @@ test "non-generic data construction and matching lower through object shapes" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_data",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -1126,24 +1126,24 @@ test "non-generic data construction and matching lower through object shapes" {
 ///|
 test "capture-free functions lower as callable values for higher-order calls" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let add_type = test_function_type([int_type, int_type], int_type)
+  let add_type = test_function_type([i64_type, i64_type], i64_type)
   let add = metadata.define_value("%i64_add", External, add_type)
-  let increment_parameter = metadata.define_value("value", Parameter, int_type)
-  let increment_type = test_function_type([int_type], int_type)
+  let increment_parameter = metadata.define_value("value", Parameter, i64_type)
+  let increment_type = test_function_type([i64_type], i64_type)
   let increment = metadata.define_value("increment", Function, increment_type)
   let callable_parameter = metadata.define_value(
     "callable",
     Parameter,
     increment_type,
   )
-  let apply_parameter = metadata.define_value("value", Parameter, int_type)
-  let apply_type = test_function_type([increment_type, int_type], int_type)
+  let apply_parameter = metadata.define_value("value", Parameter, i64_type)
+  let apply_type = test_function_type([increment_type, i64_type], i64_type)
   let apply = metadata.define_value("apply", Function, apply_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
-  let result = metadata.define_value("result", Local, int_type)
+  let result = metadata.define_value("result", Local, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -1155,15 +1155,15 @@ test "capture-free functions lower as callable values for higher-order calls" {
         increment,
         Function({
           parameters: [increment_parameter],
-          result_type: int_type,
-          body: Call(Ref(add), [Ref(increment_parameter), Literal(Int(1L))]),
+          result_type: i64_type,
+          body: Call(Ref(add), [Ref(increment_parameter), Literal(I64(1L))]),
         }),
       ),
       Let(
         apply,
         Function({
           parameters: [callable_parameter, apply_parameter],
-          result_type: int_type,
+          result_type: i64_type,
           body: Call(Ref(callable_parameter), [Ref(apply_parameter)]),
         }),
       ),
@@ -1174,7 +1174,7 @@ test "capture-free functions lower as callable values for higher-order calls" {
           result_type: unit_type,
           body: Let(
             result,
-            Call(Ref(apply), [Ref(increment), Literal(Int(41L))]),
+            Call(Ref(apply), [Ref(increment), Literal(I64(41L))]),
             Call(Ref(observe), [Ref(result)]),
           ),
         }),
@@ -1218,10 +1218,10 @@ test "capture-free functions lower as callable values for higher-order calls" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_higher_order",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -1239,17 +1239,17 @@ test "capture-free functions lower as callable values for higher-order calls" {
 ///|
 test "nested functions lift with explicit reference-counted environments" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let add_type = test_function_type([int_type, int_type], int_type)
+  let add_type = test_function_type([i64_type, i64_type], i64_type)
   let add = metadata.define_value("%i64_add", External, add_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
-  let captured = metadata.define_value("captured", Local, int_type)
-  let parameter = metadata.define_value("argument", Parameter, int_type)
-  let closure_type = test_function_type([int_type], int_type)
+  let captured = metadata.define_value("captured", Local, i64_type)
+  let parameter = metadata.define_value("argument", Parameter, i64_type)
+  let closure_type = test_function_type([i64_type], i64_type)
   let closure = metadata.define_value("closure", Local, closure_type)
-  let result = metadata.define_value("result", Local, int_type)
+  let result = metadata.define_value("result", Local, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -1264,17 +1264,17 @@ test "nested functions lift with explicit reference-counted environments" {
           result_type: unit_type,
           body: Let(
             captured,
-            Call(Ref(add), [Literal(Int(40L)), Literal(Int(0L))]),
+            Call(Ref(add), [Literal(I64(40L)), Literal(I64(0L))]),
             Let(
               closure,
               Function({
                 parameters: [parameter],
-                result_type: int_type,
+                result_type: i64_type,
                 body: Call(Ref(add), [Ref(captured), Ref(parameter)]),
               }),
               Let(
                 result,
-                Call(Ref(closure), [Literal(Int(2L))]),
+                Call(Ref(closure), [Literal(I64(2L))]),
                 Call(Ref(observe), [Ref(result)]),
               ),
             ),
@@ -1331,10 +1331,10 @@ test "nested functions lift with explicit reference-counted environments" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_closure",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -1352,19 +1352,19 @@ test "nested functions lift with explicit reference-counted environments" {
 ///|
 test "local recursive functions share a cycle-free captured environment" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let bool_type = @buslane.Type::Primitive(Bool)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let sub_type = test_function_type([int_type, int_type], int_type)
+  let sub_type = test_function_type([i64_type, i64_type], i64_type)
   let sub = metadata.define_value("%i64_sub", External, sub_type)
-  let equal_type = test_function_type([int_type, int_type], bool_type)
+  let equal_type = test_function_type([i64_type, i64_type], bool_type)
   let equal = metadata.define_value("%i64_equal", External, equal_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
-  let captured = metadata.define_value("captured", Local, int_type)
-  let parameter = metadata.define_value("remaining", Parameter, int_type)
+  let captured = metadata.define_value("captured", Local, i64_type)
+  let parameter = metadata.define_value("remaining", Parameter, i64_type)
   let condition = metadata.define_value("done", MatchBinder, bool_type)
-  let recursive_type = test_function_type([int_type], unit_type)
+  let recursive_type = test_function_type([i64_type], unit_type)
   let recursive_function = metadata.define_value("loop", Local, recursive_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
@@ -1381,7 +1381,7 @@ test "local recursive functions share a cycle-free captured environment" {
           result_type: unit_type,
           body: Let(
             captured,
-            Call(Ref(sub), [Literal(Int(43L)), Literal(Int(1L))]),
+            Call(Ref(sub), [Literal(I64(43L)), Literal(I64(1L))]),
             LetRec(
               [
                 {
@@ -1392,7 +1392,7 @@ test "local recursive functions share a cycle-free captured environment" {
                     body: Match({
                       scrutinee: Call(Ref(equal), [
                         Ref(parameter),
-                        Literal(Int(0L)),
+                        Literal(I64(0L)),
                       ]),
                       binder: condition,
                       result_type: unit_type,
@@ -1408,7 +1408,7 @@ test "local recursive functions share a cycle-free captured environment" {
                           type_binders: [],
                           value_binders: [],
                           body: Call(Ref(recursive_function), [
-                            Call(Ref(sub), [Ref(parameter), Literal(Int(1L))]),
+                            Call(Ref(sub), [Ref(parameter), Literal(I64(1L))]),
                           ]),
                         },
                       ],
@@ -1416,7 +1416,7 @@ test "local recursive functions share a cycle-free captured environment" {
                   }),
                 },
               ],
-              Call(Ref(recursive_function), [Literal(Int(3L))]),
+              Call(Ref(recursive_function), [Literal(I64(3L))]),
             ),
           ),
         }),
@@ -1460,10 +1460,10 @@ test "local recursive functions share a cycle-free captured environment" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_recursive",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -1493,19 +1493,19 @@ test "generic identity calls cross explicit representation erasure bridges" {
     generic_value_type,
   )
   let identity = metadata.define_value("identity", Function, identity_type)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let apply_function = metadata.define_value(
     "function",
     Parameter,
     identity_type,
   )
-  let apply_value = metadata.define_value("argument", Parameter, int_type)
-  let apply_type = test_function_type([identity_type, int_type], int_type)
+  let apply_value = metadata.define_value("argument", Parameter, i64_type)
+  let apply_type = test_function_type([identity_type, i64_type], i64_type)
   let apply = metadata.define_value("apply", Function, apply_type)
-  let result = metadata.define_value("result", Local, int_type)
+  let result = metadata.define_value("result", Local, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -1527,8 +1527,8 @@ test "generic identity calls cross explicit representation erasure bridges" {
         apply,
         Function({
           parameters: [apply_function, apply_value],
-          result_type: int_type,
-          body: Call(TypeApply(Ref(apply_function), [TypeArgument(int_type)]), [
+          result_type: i64_type,
+          body: Call(TypeApply(Ref(apply_function), [TypeArgument(i64_type)]), [
             Ref(apply_value),
           ]),
         }),
@@ -1540,7 +1540,7 @@ test "generic identity calls cross explicit representation erasure bridges" {
           result_type: unit_type,
           body: Let(
             result,
-            Call(Ref(apply), [Ref(identity), Literal(Int(42L))]),
+            Call(Ref(apply), [Ref(identity), Literal(I64(42L))]),
             Call(Ref(observe), [Ref(result)]),
           ),
         }),
@@ -1595,10 +1595,10 @@ test "generic identity calls cross explicit representation erasure bridges" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_generic",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -1634,7 +1634,7 @@ test "generic calls adapt callable arguments and callable results" {
     passthrough_type,
   )
   let string_type = @buslane.Type::Primitive(String)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let string_callable_type = test_function_type([], string_type)
   let producer = metadata.define_value(
@@ -1642,13 +1642,13 @@ test "generic calls adapt callable arguments and callable results" {
     Function,
     string_callable_type,
   )
-  let measure_type = test_function_type([string_type], int_type)
+  let measure_type = test_function_type([string_type], i64_type)
   let measure = metadata.define_value("measure", External, measure_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let adapted = metadata.define_value("adapted", Local, string_callable_type)
   let produced = metadata.define_value("produced", Local, string_type)
-  let measured = metadata.define_value("measured", Local, int_type)
+  let measured = metadata.define_value("measured", Local, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -1731,10 +1731,10 @@ test "generic calls adapt callable arguments and callable results" {
       symbol="lane.test.generic_string_length",
       abi_major=1,
       parameters=[String],
-      result=Int,
+      result=I64,
       invoke=fn(_context, arguments) {
-        guard arguments is [BorrowedString(value)] else { return Int(-1L) }
-        Int(value.length().to_int64())
+        guard arguments is [BorrowedString(value)] else { return I64(-1L) }
+        I64(value.length().to_int64())
       },
     ),
   )
@@ -1742,10 +1742,10 @@ test "generic calls adapt callable arguments and callable results" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_generic_callable",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -1773,16 +1773,16 @@ test "generic nested closures capture erased values and layout witnesses" {
   let captured = metadata.define_value("captured", Parameter, generic_type)
   let make = metadata.define_value("make", Function, make_type)
   let string_type = @buslane.Type::Primitive(String)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let string_callable_type = test_function_type([], string_type)
-  let measure_type = test_function_type([string_type], int_type)
+  let measure_type = test_function_type([string_type], i64_type)
   let measure = metadata.define_value("measure", External, measure_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let closure = metadata.define_value("closure", Local, string_callable_type)
   let produced = metadata.define_value("produced", Local, string_type)
-  let measured = metadata.define_value("measured", Local, int_type)
+  let measured = metadata.define_value("measured", Local, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -1862,10 +1862,10 @@ test "generic nested closures capture erased values and layout witnesses" {
         symbol="lane.test.captured_string_length",
         abi_major=1,
         parameters=[String],
-        result=Int,
+        result=I64,
         invoke=fn(_context, arguments) {
-          guard arguments is [BorrowedString(value)] else { return Int(-1L) }
-          Int(value.length().to_int64())
+          guard arguments is [BorrowedString(value)] else { return I64(-1L) }
+          I64(value.length().to_int64())
         },
       ),
     )
@@ -1873,10 +1873,10 @@ test "generic nested closures capture erased values and layout witnesses" {
       @loisvm_runtime.RuntimeBinding::new(
         symbol="lane.test.observe_generic_capture",
         abi_major=1,
-        parameters=[Int],
+        parameters=[I64],
         result=Unit,
         invoke=fn(_context, arguments) {
-          if arguments is [Int(value)] {
+          if arguments is [I64(value)] {
             observed.push(value)
           }
           Unit
@@ -2006,16 +2006,16 @@ test "generic data stores layout witnesses beside erased payloads" {
   let some = metadata.define_data_constructor("Some", option, [], [
     Parameter(type_parameter),
   ])
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let option_int = @buslane.Type::Apply(Constructor(option), [
-    TypeArgument(int_type),
+    TypeArgument(i64_type),
   ])
   let unit_type = @buslane.Type::Primitive(Unit)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let scrutinee = metadata.define_value("scrutinee", Local, option_int)
   let binder = metadata.define_value("option", MatchBinder, option_int)
-  let payload = metadata.define_value("payload", MatchBinder, int_type)
+  let payload = metadata.define_value("payload", MatchBinder, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -2031,9 +2031,9 @@ test "generic data stores layout witnesses beside erased payloads" {
             scrutinee,
             Construct({
               data_constructor: some,
-              type_arguments: [TypeArgument(int_type)],
+              type_arguments: [TypeArgument(i64_type)],
               hidden_witnesses: [],
-              payloads: [Literal(Int(7L))],
+              payloads: [Literal(I64(7L))],
             }),
             Match({
               scrutinee: Ref(scrutinee),
@@ -2044,7 +2044,7 @@ test "generic data stores layout witnesses beside erased payloads" {
                   alt_constructor: DataCon(none),
                   type_binders: [],
                   value_binders: [],
-                  body: Call(Ref(observe), [Literal(Int(0L))]),
+                  body: Call(Ref(observe), [Literal(I64(0L))]),
                 },
                 {
                   alt_constructor: DataCon(some),
@@ -2107,10 +2107,10 @@ test "generic data stores layout witnesses beside erased payloads" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_generic_data",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -2137,8 +2137,8 @@ test "existential data opens hidden witnesses beside erased payloads" {
     Parameter(owner_parameter),
     Parameter(hidden),
   ])
-  let int_type = @buslane.Type::Primitive(Int)
-  let box_type = @buslane.Type::Apply(Constructor(box), [TypeArgument(int_type)])
+  let i64_type = @buslane.Type::Primitive(I64)
+  let box_type = @buslane.Type::Apply(Constructor(box), [TypeArgument(i64_type)])
   let unit_type = @buslane.Type::Primitive(Unit)
   let consume_type = @buslane.Type::Forall(
     [consumed],
@@ -2150,7 +2150,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
     Parameter(consumed),
   )
   let consume = metadata.define_value("consume", Function, consume_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let scrutinee = metadata.define_value("scrutinee", Local, box_type)
   let match_binder = metadata.define_value("box", MatchBinder, box_type)
@@ -2158,7 +2158,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
   let owner_payload = metadata.define_value(
     "owner_payload",
     MatchBinder,
-    int_type,
+    i64_type,
   )
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
@@ -2173,7 +2173,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
           Function({
             parameters: [consume_parameter],
             result_type: unit_type,
-            body: Call(Ref(observe), [Literal(Int(42L))]),
+            body: Call(Ref(observe), [Literal(I64(42L))]),
           }),
         ),
       ),
@@ -2186,9 +2186,9 @@ test "existential data opens hidden witnesses beside erased payloads" {
             scrutinee,
             Construct({
               data_constructor: pack,
-              type_arguments: [TypeArgument(int_type)],
-              hidden_witnesses: [TypeArgument(int_type)],
-              payloads: [Literal(Int(1L)), Literal(Int(7L))],
+              type_arguments: [TypeArgument(i64_type)],
+              hidden_witnesses: [TypeArgument(i64_type)],
+              payloads: [Literal(I64(1L)), Literal(I64(7L))],
             }),
             Match({
               scrutinee: Ref(scrutinee),
@@ -2264,10 +2264,10 @@ test "existential data opens hidden witnesses beside erased payloads" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_existential_payload",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -2291,13 +2291,13 @@ test "payload-free existential data still opens its hidden witness" {
   let token = metadata.define_type("Token", [])
   let make_token = metadata.define_data_constructor("Token", token, [hidden], [])
   let token_type = @buslane.Type::Constructor(token)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let probe_type = @buslane.Type::Forall(
     [probed],
     test_function_type([], unit_type),
   )
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let probe = metadata.define_value("probe", Function, probe_type)
   let scrutinee = metadata.define_value("scrutinee", Local, token_type)
@@ -2315,7 +2315,7 @@ test "payload-free existential data still opens its hidden witness" {
           Function({
             parameters: [],
             result_type: unit_type,
-            body: Call(Ref(observe), [Literal(Int(9L))]),
+            body: Call(Ref(observe), [Literal(I64(9L))]),
           }),
         ),
       ),
@@ -2329,7 +2329,7 @@ test "payload-free existential data still opens its hidden witness" {
             Construct({
               data_constructor: make_token,
               type_arguments: [],
-              hidden_witnesses: [TypeArgument(int_type)],
+              hidden_witnesses: [TypeArgument(i64_type)],
               payloads: [],
             }),
             Match({
@@ -2396,10 +2396,10 @@ test "payload-free existential data still opens its hidden witness" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_existential_witness",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -2500,13 +2500,13 @@ test "effect-kind existential binders remain fully erased" {
 test "natural Unit parameters and data fields occupy no runtime slots" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let packet = metadata.define_type("Packet", [])
   let packet_constructor = metadata.define_data_constructor(
     "Packet",
     packet,
     [],
-    [unit_type, int_type],
+    [unit_type, i64_type],
   )
   let packet_type = @buslane.Type::Constructor(packet)
   let unit_parameter = metadata.define_value("unit", Parameter, unit_type)
@@ -2517,10 +2517,10 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
     MatchBinder,
     unit_type,
   )
-  let int_payload = metadata.define_value("int_payload", MatchBinder, int_type)
-  let consume_type = test_function_type([unit_type, packet_type], int_type)
+  let i64_payload = metadata.define_value("i64_payload", MatchBinder, i64_type)
+  let consume_type = test_function_type([unit_type, packet_type], i64_type)
   let consume = metadata.define_value("consume", Function, consume_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
@@ -2532,17 +2532,17 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
         consume,
         Function({
           parameters: [unit_parameter, packet_parameter],
-          result_type: int_type,
+          result_type: i64_type,
           body: Match({
             scrutinee: Ref(packet_parameter),
             binder: match_binder,
-            result_type: int_type,
+            result_type: i64_type,
             alternatives: [
               {
                 alt_constructor: DataCon(packet_constructor),
                 type_binders: [],
-                value_binders: [unit_payload, int_payload],
-                body: Ref(int_payload),
+                value_binders: [unit_payload, i64_payload],
+                body: Ref(i64_payload),
               },
             ],
           }),
@@ -2560,7 +2560,7 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
                 data_constructor: packet_constructor,
                 type_arguments: [],
                 hidden_witnesses: [],
-                payloads: [Literal(Unit), Literal(Int(42L))],
+                payloads: [Literal(Unit), Literal(I64(42L))],
               }),
             ]),
           ]),
@@ -2602,10 +2602,10 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_unit_abi",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -2623,13 +2623,13 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
 ///|
 test "primitive literal matches lower to comparison decision chains" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let read_type = test_function_type([], int_type)
+  let read_type = test_function_type([], i64_type)
   let read = metadata.define_value("read", External, read_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
-  let binder = metadata.define_value("matched", MatchBinder, int_type)
+  let binder = metadata.define_value("matched", MatchBinder, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -2648,22 +2648,22 @@ test "primitive literal matches lower to comparison decision chains" {
             result_type: unit_type,
             alternatives: [
               {
-                alt_constructor: Literal(Int(1L)),
+                alt_constructor: Literal(I64(1L)),
                 type_binders: [],
                 value_binders: [],
-                body: Call(Ref(observe), [Literal(Int(1L))]),
+                body: Call(Ref(observe), [Literal(I64(1L))]),
               },
               {
-                alt_constructor: Literal(Int(2L)),
+                alt_constructor: Literal(I64(2L)),
                 type_binders: [],
                 value_binders: [],
-                body: Call(Ref(observe), [Literal(Int(2L))]),
+                body: Call(Ref(observe), [Literal(I64(2L))]),
               },
               {
                 alt_constructor: Default,
                 type_binders: [],
                 value_binders: [],
-                body: Call(Ref(observe), [Literal(Int(0L))]),
+                body: Call(Ref(observe), [Literal(I64(0L))]),
               },
             ],
           }),
@@ -2700,7 +2700,7 @@ test "primitive literal matches lower to comparison decision chains" {
     fail("expected main bytecode body")
   }
   assert_true(
-    contains_instruction(main_body, instruction => instruction is IntEq(_, _, _)),
+    contains_instruction(main_body, instruction => instruction is I64Eq(_, _, _)),
   )
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
@@ -2709,18 +2709,18 @@ test "primitive literal matches lower to comparison decision chains" {
       symbol="lane.test.read_literal_match",
       abi_major=1,
       parameters=[],
-      result=Int,
-      invoke=fn(_context, _arguments) { Int(2L) },
+      result=I64,
+      invoke=fn(_context, _arguments) { I64(2L) },
     ),
   )
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_literal_match",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -2750,10 +2750,10 @@ test "generic nested functions lower as type-applied callable values" {
     generic_type,
   )
   let identity = metadata.define_value("identity", Local, identity_type)
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let result = metadata.define_value("result", Local, int_type)
-  let observe_type = test_function_type([int_type], unit_type)
+  let result = metadata.define_value("result", Local, i64_type)
+  let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
@@ -2778,8 +2778,8 @@ test "generic nested functions lower as type-applied callable values" {
             ),
             Let(
               result,
-              Call(TypeApply(Ref(identity), [TypeArgument(int_type)]), [
-                Literal(Int(42L)),
+              Call(TypeApply(Ref(identity), [TypeArgument(i64_type)]), [
+                Literal(I64(42L)),
               ]),
               Call(Ref(observe), [Ref(result)]),
             ),
@@ -2821,10 +2821,10 @@ test "generic nested functions lower as type-applied callable values" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_nested_generic",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, arguments) {
-        if arguments is [Int(value)] {
+        if arguments is [I64(value)] {
           observed = value
         }
         Unit
@@ -2898,8 +2898,8 @@ test "callable adapters skip target parameters specialized to Unit" {
         [source_answer],
         Function(
           [
-            Primitive(Int),
-            Function([Primitive(Int)], Parameter(source_answer), Empty),
+            Primitive(I64),
+            Function([Primitive(I64)], Parameter(source_answer), Empty),
           ],
           Parameter(source_answer),
           Empty,
@@ -2909,9 +2909,9 @@ test "callable adapters skip target parameters specialized to Unit" {
         [target_answer],
         Function(
           [
-            Primitive(Int),
+            Primitive(I64),
             Parameter(empty_context),
-            Function([Primitive(Int)], Parameter(target_answer), Empty),
+            Function([Primitive(I64)], Parameter(target_answer), Empty),
           ],
           Parameter(target_answer),
           Empty,

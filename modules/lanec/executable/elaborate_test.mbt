@@ -47,18 +47,18 @@ test "whole-program elaboration preserves the selected entry" {
 ///|
 test "whole-program elaboration records ordered reachable initializer roots" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let int_type = @buslane.Type::Primitive(Int)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let producer_type = @buslane.Type::Function([int_type], int_type, Empty)
-  let observe_type = @buslane.Type::Function([int_type], unit_type, Io)
+  let producer_type = @buslane.Type::Function([i64_type], i64_type, Empty)
+  let observe_type = @buslane.Type::Function([i64_type], unit_type, Io)
   let function_type = @buslane.Type::Function([], unit_type, Io)
-  let first = metadata.define_value("first", Local, int_type)
-  let second = metadata.define_value("second", Local, int_type)
-  let unused = metadata.define_value("unused", Local, int_type)
+  let first = metadata.define_value("first", Local, i64_type)
+  let second = metadata.define_value("second", Local, i64_type)
+  let unused = metadata.define_value("unused", Local, i64_type)
   let producer_parameter = metadata.define_value(
     "producer_parameter",
     Parameter,
-    int_type,
+    i64_type,
   )
   let produce = metadata.define_value("produce", Function, producer_type)
   let observe = metadata.define_value("observe", External, observe_type)
@@ -69,14 +69,14 @@ test "whole-program elaboration records ordered reachable initializer roots" {
     program: {
       metadata,
       terms: [
-        Let(first, Literal(Int(1))),
+        Let(first, Literal(I64(1))),
         Let(second, Call(Ref(produce), [Ref(first)])),
-        Let(unused, Literal(Int(2))),
+        Let(unused, Literal(I64(2))),
         Let(
           produce,
           Function({
             parameters: [producer_parameter],
-            result_type: int_type,
+            result_type: i64_type,
             body: Ref(producer_parameter),
           }),
         ),
@@ -90,7 +90,7 @@ test "whole-program elaboration records ordered reachable initializer roots" {
         {
           value: observe,
           symbol: "observe",
-          signature: { parameters: [Int], result: Unit },
+          signature: { parameters: [I64], result: Unit },
           type_: observe_type,
         },
       ],
@@ -105,7 +105,7 @@ test "whole-program elaboration records ordered reachable initializer roots" {
     content=(
       #|(
       #|  [
-      #|    Value({ index: 0 }, Literal(Int(1))),
+      #|    Value({ index: 0 }, Literal(I64(1))),
       #|    Value({ index: 1 }, Ref({ index: 0 })),
       #|  ],
       #|  [Initializer(0), Initializer(1), Entry({ index: 6 })],

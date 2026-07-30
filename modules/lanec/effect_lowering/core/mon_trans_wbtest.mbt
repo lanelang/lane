@@ -3,7 +3,7 @@ fn test_program(
   metadata : @buslane.MetadataRegistry,
   expression : Expr,
 ) -> Program {
-  let result = metadata.define_value("result", Value, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
   { metadata, terms: [Let(result, expression)] }
 }
 
@@ -13,9 +13,9 @@ test "mon-trans keeps pure calls direct" {
   let callee = metadata.define_value(
     "callee",
     Value,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
-  let input = test_program(metadata, Call(Ref(callee), [Literal(Int(1L))]))
+  let input = test_program(metadata, Call(Ref(callee), [Literal(I64(1L))]))
   assert_eq(introduce_monadic_binds(input), Ok(input))
 }
 
@@ -33,7 +33,7 @@ test "mon-trans keeps Io calls direct" {
     Let(
       local_value,
       Call(Ref(println), [Literal(String("hello"))]),
-      Literal(Int(1L)),
+      Literal(I64(1L)),
     ),
   )
   assert_eq(introduce_monadic_binds(input), Ok(input))
@@ -82,10 +82,10 @@ test "mon effect classification separates Io from handled effects" {
 ///|
 test "mon-trans keeps pure sequencing direct" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let local_value = metadata.define_value("local", Local, Primitive(Int))
+  let local_value = metadata.define_value("local", Local, Primitive(I64))
   let input = test_program(
     metadata,
-    Let(local_value, Literal(Int(1L)), Ref(local_value)),
+    Let(local_value, Literal(I64(1L)), Ref(local_value)),
   )
   assert_eq(introduce_monadic_binds(input), Ok(input))
 }
@@ -97,14 +97,14 @@ test "mon-trans binds effectful calls before their continuation" {
   let effectful = metadata.define_value(
     "effectful",
     Value,
-    Function([], Primitive(Int), Singleton(effect, [])),
+    Function([], Primitive(I64), Singleton(effect, [])),
   )
   let pure = metadata.define_value(
     "pure",
     Value,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
-  let local_value = metadata.define_value("local", Local, Primitive(Int))
+  let local_value = metadata.define_value("local", Local, Primitive(I64))
   let input = test_program(
     metadata,
     Let(
@@ -131,17 +131,17 @@ test "mon-trans preserves effectful argument order" {
   let first = metadata.define_value(
     "first",
     Value,
-    Function([], Primitive(Int), Singleton(effect, [])),
+    Function([], Primitive(I64), Singleton(effect, [])),
   )
   let second = metadata.define_value(
     "second",
     Value,
-    Function([], Primitive(Int), Singleton(effect, [])),
+    Function([], Primitive(I64), Singleton(effect, [])),
   )
   let combine = metadata.define_value(
     "combine",
     Value,
-    Function([Primitive(Int), Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64), Primitive(I64)], Primitive(I64), Empty),
   )
   let output = introduce_monadic_binds(
     test_program(
@@ -172,14 +172,14 @@ test "mon-trans evaluates an effectful callee before its argument" {
     Value,
     Function(
       [],
-      Function([Primitive(Int)], Primitive(Int), Empty),
+      Function([Primitive(I64)], Primitive(I64), Empty),
       Singleton(effect, []),
     ),
   )
   let argument = metadata.define_value(
     "argument",
     Value,
-    Function([], Primitive(Int), Singleton(effect, [])),
+    Function([], Primitive(I64), Singleton(effect, [])),
   )
   let output = introduce_monadic_binds(
     test_program(
@@ -208,19 +208,19 @@ test "mon-trans shares one continuation after effectful match branches" {
   let effectful = metadata.define_value(
     "effectful",
     Value,
-    Function([], Primitive(Int), Singleton(effect, [])),
+    Function([], Primitive(I64), Singleton(effect, [])),
   )
   let pure = metadata.define_value(
     "pure",
     Value,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let match_binder = metadata.define_value(
     "match",
     MatchBinder,
     Primitive(Bool),
   )
-  let local_value = metadata.define_value("local", Local, Primitive(Int))
+  let local_value = metadata.define_value("local", Local, Primitive(I64))
   let input = test_program(
     metadata,
     Let(
@@ -228,7 +228,7 @@ test "mon-trans shares one continuation after effectful match branches" {
       Match({
         scrutinee: Literal(Bool(true)),
         binder: match_binder,
-        result_type: Primitive(Int),
+        result_type: Primitive(I64),
         alternatives: [
           {
             alt_constructor: Literal(Bool(true)),
@@ -240,7 +240,7 @@ test "mon-trans shares one continuation after effectful match branches" {
             alt_constructor: Default,
             type_binders: [],
             value_binders: [],
-            body: Literal(Int(0L)),
+            body: Literal(I64(0L)),
           },
         ],
       }),
@@ -269,22 +269,22 @@ test "mon-trans records open context adaptation" {
   let callee = metadata.define_value(
     "callee",
     Value,
-    Function([], Primitive(Int), Singleton(first_effect, [])),
+    Function([], Primitive(I64), Singleton(first_effect, [])),
   )
   let outer = metadata.define_value(
     "outer",
     Function,
     Function(
       [],
-      Primitive(Int),
+      Primitive(I64),
       Union([Singleton(first_effect, []), Singleton(second_effect, [])]),
     ),
   )
   let function = Function({
     parameters: [],
-    result_type: Primitive(Int),
+    result_type: Primitive(I64),
     body: Let(
-      metadata.define_value("local", Local, Primitive(Int)),
+      metadata.define_value("local", Local, Primitive(I64)),
       Call(Ref(callee), []),
       Invoke({
         operation: metadata.define_operation(
@@ -292,7 +292,7 @@ test "mon-trans records open context adaptation" {
           second_effect,
           [],
           [],
-          Primitive(Int),
+          Primitive(I64),
         ),
         effect_arguments: [],
         hidden_witnesses: [],
@@ -328,17 +328,17 @@ test "mon-trans binds calls with an abstract effect" {
   let callee = metadata.define_value(
     "callee",
     Value,
-    Function([], Primitive(Int), Parameter(effect_parameter)),
+    Function([], Primitive(I64), Parameter(effect_parameter)),
   )
   let outer = metadata.define_value(
     "outer",
     Function,
     Forall(
       [effect_parameter],
-      Function([], Primitive(Int), Parameter(effect_parameter)),
+      Function([], Primitive(I64), Parameter(effect_parameter)),
     ),
   )
-  let local_value = metadata.define_value("local", Local, Primitive(Int))
+  let local_value = metadata.define_value("local", Local, Primitive(I64))
   let output = introduce_monadic_binds({
     metadata,
     terms: [
@@ -349,7 +349,7 @@ test "mon-trans binds calls with an abstract effect" {
             [effect_parameter],
             Function({
               parameters: [],
-              result_type: Primitive(Int),
+              result_type: Primitive(I64),
               body: Let(local_value, Call(Ref(callee), []), Ref(local_value)),
             }),
           ),

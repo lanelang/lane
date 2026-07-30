@@ -33,18 +33,18 @@ test "program binary codec roundtrips core structures" {
   let body = metadata.define_value(
     "body",
     Parameter,
-    Function([], Primitive(Int), Singleton(async_effect, [EffectArgument(Io)])),
+    Function([], Primitive(I64), Singleton(async_effect, [EffectArgument(Io)])),
   )
   let resume_value = metadata.define_value(
     "resume",
     Parameter,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
-  let payload = metadata.define_value("payload", Local, Primitive(Int))
+  let payload = metadata.define_value("payload", Local, Primitive(I64))
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], Primitive(Int), Empty),
+    Function([], Primitive(I64), Empty),
   )
   let program : Program = {
     metadata,
@@ -53,12 +53,12 @@ test "program binary codec roundtrips core structures" {
         main,
         Function({
           parameters: [],
-          result_type: Primitive(Int),
+          result_type: Primitive(I64),
           body: Handle({
             body: Perform({
               operation: await_op,
               effect_arguments: [EffectArgument(Empty)],
-              hidden_witnesses: [TypeArgument(Primitive(Int))],
+              hidden_witnesses: [TypeArgument(Primitive(I64))],
               payloads: [
                 Function({
                   parameters: [payload],
@@ -68,7 +68,7 @@ test "program binary codec roundtrips core structures" {
               ],
             }),
             result_binder: payload,
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             final_body: Ref(payload),
             handlers: [
               {
@@ -79,7 +79,7 @@ test "program binary codec roundtrips core structures" {
                     type_binders: [type_param],
                     payload_binders: [body],
                     resume_binder: resume_value,
-                    body: Call(Resume(resume_value), [Literal(Int(42L))]),
+                    body: Call(Resume(resume_value), [Literal(I64(42L))]),
                   },
                 ],
               },
@@ -91,9 +91,9 @@ test "program binary codec roundtrips core structures" {
         payload,
         Construct({
           data_constructor: box_con,
-          type_arguments: [TypeArgument(Primitive(Int))],
-          hidden_witnesses: [TypeArgument(Primitive(Int))],
-          payloads: [Literal(Int(1L))],
+          type_arguments: [TypeArgument(Primitive(I64))],
+          hidden_witnesses: [TypeArgument(Primitive(I64))],
+          payloads: [Literal(I64(1L))],
         }),
       ),
     ],
@@ -192,12 +192,12 @@ test "program decoder rejects invalid top term tag" {
 }
 
 ///|
-test "program codec roundtrips S32 type and literal" {
+test "program codec roundtrips I32 type and literal" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let value = metadata.define_value("value", Value, Primitive(S32))
+  let value = metadata.define_value("value", Value, Primitive(I32))
   let program : Program = {
     metadata,
-    terms: [Let(value, Literal(S32(-2147483647 - 1)))],
+    terms: [Let(value, Literal(I32(-2147483647 - 1)))],
   }
   assert_eq(decode_program(encode_program(program)), program)
 }

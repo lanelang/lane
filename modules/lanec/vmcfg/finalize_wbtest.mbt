@@ -530,7 +530,7 @@ test "finalize rejects a borrowed function input used across blocks" {
       },
       {
         parameters: [],
-        instructions: [ConstInt({ value: 3 }, 0)],
+        instructions: [ConstI64({ value: 3 }, 0)],
         terminator: Return(Some({ value: 3 })),
       },
     ],

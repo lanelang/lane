@@ -865,8 +865,8 @@ fn SemanticIndex::collect_resolved_pattern(
         loc~,
       )
     Wildcard(_)
-    | IntLiteral(_)
-    | DoubleLiteral(_)
+    | IntegerLiteral(_)
+    | FloatingLiteral(_)
     | StringLiteral(_)
     | CharLiteral(_)
     | BoolLiteral(_) => ()

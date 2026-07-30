@@ -26,9 +26,9 @@ test "compile source records intrinsic and runtime import origins" {
   let result = compile_source(
     (
       #|module Test
-      #|pub let int_add : (Int, Int) -> Int = builtin("%i64_add")
-      #|let _host : (Int) -> Int = extern("lane.test.host")
-      #|let _private_value : Int = 1
+      #|pub let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
+      #|let _host : (I64) -> I64 = extern("lane.test.host")
+      #|let _private_value : I64 = 1
     ),
   )
   debug_inspect(result.diagnostics, content="[]")
@@ -43,7 +43,7 @@ test "compile source records intrinsic and runtime import origins" {
   )
   inspect(
     result.entries.map(fn(entry) { entry.name }).join(","),
-    content="int_add",
+    content="i64_add",
   )
   guard result.program is Some(_) else { abort("expected Buslane program") }
 }
@@ -54,12 +54,12 @@ test "compile verifies handler around effectful function call" {
     (
       #|module Test
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
-      #|fn read_int() -> Int ! Console {
+      #|fn read_int() -> I64 ! Console {
       #|  Console::read!()
       #|}
-      #|pub fn program() -> Int {
+      #|pub fn program() -> I64 {
       #|  handle read_int() with {
       #|    Console::read(resume) => resume(41)
       #|  } final value {
@@ -82,7 +82,7 @@ test "check reports unused local value binding as warning" {
   let result = check_source(
     (
       #|module Test
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  let used = 1
       #|  let unused = 2
       #|  let _ignored = 3
@@ -145,7 +145,7 @@ test "compile modules keeps artifacts when unused local warning exists" {
   let result = compile_modules(
     (
       #|module Test
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  let unused = 1
       #|  0
       #|}
@@ -207,7 +207,7 @@ test "selective import preserves an offered function" {
   let library = compile_modules(
     (
       #|module A
-      #|pub offer fn provide() -> Int {
+      #|pub offer fn provide() -> I64 {
       #|  42
       #|}
     ),
@@ -236,10 +236,10 @@ test "selective import preserves an offered function" {
     (
       #|module B
       #|import A.{ provide }
-      #|fn use(auto provider : () -> Int) -> Int {
+      #|fn use(auto provider : () -> I64) -> I64 {
       #|  provider()
       #|}
-      #|pub let answer : Int = use()
+      #|pub let answer : I64 = use()
     ),
     [interface],
   )
@@ -253,7 +253,7 @@ test "unused local offered function remains unused" {
     (
       #|module Test
       #|pub fn program() -> Unit {
-      #|  offer fn unused() -> Int {
+      #|  offer fn unused() -> I64 {
       #|    42
       #|  };
       #|  ()
@@ -272,12 +272,12 @@ test "check reports unused private top-level declarations as warnings" {
   let result = check_source(
     (
       #|module Test
-      #|fn dead_function() -> Int {
+      #|fn dead_function() -> I64 {
       #|  1
       #|}
-      #|let dead_value : Int = 2
+      #|let dead_value : I64 = 2
       #|struct DeadStruct {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|enum DeadEnum {
       #|  dead()
@@ -285,9 +285,9 @@ test "check reports unused private top-level declarations as warnings" {
       #|effect DeadEffect {
       #|  dead() -> Unit
       #|}
-      #|type DeadAlias = Int
+      #|type DeadAlias = I64
       #|type DeadEffects = { DeadEffect }
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  0
       #|}
     ),
@@ -588,27 +588,27 @@ test "check keeps reachable private top-level declarations quiet" {
     (
       #|module Test
       #|struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|enum Option {
       #|  some(Box)
       #|  none()
       #|}
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|type UI = { Console }
       #|type Task = { UI }
-      #|fn helper(value : Option) -> Int ! Task {
+      #|fn helper(value : Option) -> I64 ! Task {
       #|  match value {
       #|    some(box) => {
-      #|      let _read : Int = Console::read!()
+      #|      let _read : I64 = Console::read!()
       #|      box.value
       #|    }
       #|    none() => 0
       #|  }
       #|}
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  handle helper(Option::some(Box::{ value: 1 })) with {
       #|    Console::read(resume) => resume(41)
       #|  } final value {
@@ -974,7 +974,7 @@ test "check reports unused imports and opens as warnings" {
       #|import OpenLib.*
       #|import SelectiveLib.{ used, unused }
       #|
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  let _qualified = UsedQualified.value
       #|  let _open = open_value
       #|  used
@@ -983,24 +983,24 @@ test "check reports unused imports and opens as warnings" {
     [
       (
         #|module UsedQualified
-        #|pub let value : Int = 1
+        #|pub let value : I64 = 1
       ),
       (
         #|module UnusedQualified
-        #|pub let value : Int = 2
+        #|pub let value : I64 = 2
       ),
       (
         #|module UnusedOpen
-        #|pub let value : Int = 3
+        #|pub let value : I64 = 3
       ),
       (
         #|module OpenLib
-        #|pub let open_value : Int = 4
+        #|pub let open_value : I64 = 4
       ),
       (
         #|module SelectiveLib
-        #|pub let used : Int = 5
-        #|pub let unused : Int = 6
+        #|pub let used : I64 = 5
+        #|pub let unused : I64 = 6
       ),
     ],
   )
@@ -1038,7 +1038,7 @@ test "check reports payloadless variant without parentheses" {
       #|  none()
       #|  some(A)
       #|}
-      #|let value : Option[Int] = none
+      #|let value : Option[I64] = none
     ),
   )
   debug_inspect(
@@ -1055,12 +1055,12 @@ test "compile sources accepts explicit library modules" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
     ],
   )
@@ -1077,12 +1077,12 @@ test "compile sources exposes only root public entries" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
     ],
   )
@@ -1099,12 +1099,12 @@ test "compile sources accepts selective import with module dot syntax" {
     (
       #|module Main
       #|import Lib.{ value }
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
     ],
   )
@@ -1125,7 +1125,7 @@ fn contextual_import_test_library() -> String {
     #|pub fn[A] op_add(left : A, right : A, auto op : Add[A]) -> A {
     #|  op.add(left, right)
     #|}
-    #|pub offer int_add_ops : Add[Int] = Add::{ add: fn(left : Int, right : Int) -> Int { builtin("%i64_add")(left, right) } }
+    #|pub offer i64_add_ops : Add[I64] = Add::{ add: fn(left : I64, right : I64) -> I64 { builtin("%i64_add")(left, right) } }
   )
 }
 
@@ -1135,7 +1135,7 @@ test "selective import does not expose an unselected contextual offer" {
     (
       #|module Main
       #|import Ops.{ op_add }
-      #|pub let answer : Int = 1 + 1
+      #|pub let answer : I64 = 1 + 1
     ),
     [contextual_import_test_library()],
   )
@@ -1174,12 +1174,12 @@ test "selective import does not expose an unselected contextual offer" {
       #|            end_column: 29,
       #|          },
       #|        ),
-      #|        message: "no visible offer matches required type `Add[Int]`",
+      #|        message: "no visible offer matches required type `Add[I64]`",
       #|        style: Primary,
       #|      },
       #|    ],
       #|    notes: ["contextual arguments are inserted only from visible `offer` bindings with matching type"],
-      #|    helps: ["pass the argument explicitly or add a visible `offer` with type `Add[Int]`"],
+      #|    helps: ["pass the argument explicitly or add a visible `offer` with type `Add[I64]`"],
       #|    facts: [],
       #|    suggestions: [],
       #|  },
@@ -1194,7 +1194,7 @@ test "qualified import does not expose a contextual offer" {
     (
       #|module Main
       #|import Ops
-      #|pub let answer : Int = Ops.op_add(1, 1)
+      #|pub let answer : I64 = Ops.op_add(1, 1)
     ),
     [contextual_import_test_library()],
   )
@@ -1233,12 +1233,12 @@ test "qualified import does not expose a contextual offer" {
       #|            end_column: 40,
       #|          },
       #|        ),
-      #|        message: "no visible offer matches required type `Add[Int]`",
+      #|        message: "no visible offer matches required type `Add[I64]`",
       #|        style: Primary,
       #|      },
       #|    ],
       #|    notes: ["contextual arguments are inserted only from visible `offer` bindings with matching type"],
-      #|    helps: ["pass the argument explicitly or add a visible `offer` with type `Add[Int]`"],
+      #|    helps: ["pass the argument explicitly or add a visible `offer` with type `Add[I64]`"],
       #|    facts: [],
       #|    suggestions: [],
       #|  },
@@ -1253,7 +1253,7 @@ test "qualified offer can be passed as an explicit contextual argument" {
     (
       #|module Main
       #|import Ops
-      #|pub let answer : Int = Ops.op_add(1, 1, op=Ops.int_add_ops)
+      #|pub let answer : I64 = Ops.op_add(1, 1, op=Ops.i64_add_ops)
     ),
     [contextual_import_test_library()],
   )
@@ -1266,8 +1266,8 @@ test "selective import exposes an explicitly selected contextual offer" {
   let result = check_sources(
     (
       #|module Main
-      #|import Ops.{ op_add, int_add_ops }
-      #|pub let answer : Int = 1 + 1
+      #|import Ops.{ op_add, i64_add_ops }
+      #|pub let answer : I64 = 1 + 1
     ),
     [contextual_import_test_library()],
   )
@@ -1281,7 +1281,7 @@ test "open import exposes contextual offers" {
     (
       #|module Main
       #|import Ops.*
-      #|pub let answer : Int = 1 + 1
+      #|pub let answer : I64 = 1 + 1
     ),
     [contextual_import_test_library()],
   )
@@ -1295,16 +1295,16 @@ test "compile sources links only root reachable library modules" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
       (
         #|module Extra
-        #|pub let extra : (Int, Int) -> Int = builtin("%i64_add")
+        #|pub let extra : (I64, I64) -> I64 = builtin("%i64_add")
         #|pub let broken : Missing = 0
       ),
     ],
@@ -1323,7 +1323,7 @@ test "compile sources lower transitive public type dependencies" {
     (
       #|module Main
       #|import Facade.{ make_token, read_token }
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  read_token(make_token())
       #|}
     ),
@@ -1331,7 +1331,7 @@ test "compile sources lower transitive public type dependencies" {
       (
         #|module Types
         #|pub struct Token {
-        #|  value : Int
+        #|  value : I64
         #|}
       ),
       (
@@ -1340,7 +1340,7 @@ test "compile sources lower transitive public type dependencies" {
         #|pub fn make_token() -> Token {
         #|  Token::{ value: 42 }
         #|}
-        #|pub fn read_token(token : Token) -> Int {
+        #|pub fn read_token(token : Token) -> I64 {
         #|  token.value
         #|}
       ),
@@ -1368,7 +1368,7 @@ test "transitive public types do not become source-visible" {
       (
         #|module Types
         #|pub struct Token {
-        #|  value : Int
+        #|  value : I64
         #|}
       ),
       (
@@ -1402,13 +1402,13 @@ test "compile sources lower transitive public effect dependencies" {
       (
         #|module Effects
         #|pub effect Network {
-        #|  receive() -> Int
+        #|  receive() -> I64
         #|}
       ),
       (
         #|module Facade
         #|import Effects.{ Network }
-        #|pub fn action() -> Int ! Network {
+        #|pub fn action() -> I64 ! Network {
         #|  Network::receive!()
         #|}
       ),
@@ -1429,7 +1429,7 @@ test "transitive public dependencies add only required nominal imports" {
     (
       #|module Main
       #|import Facade.{ make_token, read_token }
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  read_token(make_token())
       #|}
     ),
@@ -1437,9 +1437,9 @@ test "transitive public dependencies add only required nominal imports" {
       (
         #|module Types
         #|pub struct Token {
-        #|  value : Int
+        #|  value : I64
         #|}
-        #|pub let unrelated : Int = 0
+        #|pub let unrelated : I64 = 0
       ),
       (
         #|module Facade
@@ -1447,7 +1447,7 @@ test "transitive public dependencies add only required nominal imports" {
         #|pub fn make_token() -> Token {
         #|  Token::{ value: 42 }
         #|}
-        #|pub fn read_token(token : Token) -> Int {
+        #|pub fn read_token(token : Token) -> I64 {
         #|  token.value
         #|}
       ),
@@ -1483,19 +1483,19 @@ test "source graph semantic catalogs do not pollute sibling interfaces" {
       #|module Main
       #|import Left
       #|import Right
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
     [
       (
         #|module Left
         #|pub struct Noise {
-        #|  value : Int
+        #|  value : I64
         #|}
       ),
       (
         #|module Right
         #|pub struct Box {
-        #|  value : Int
+        #|  value : I64
         #|}
       ),
     ],
@@ -1523,15 +1523,15 @@ test "compile modules returns separate module objects and interfaces" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
         #|pub struct Box {
-        #|  value : Int
+        #|  value : I64
         #|}
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
     ],
   )
@@ -1574,16 +1574,16 @@ test "link modules produces Buslane program from reachable module objects" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
       (
         #|module Extra
-        #|pub let extra : (Int, Int) -> Int = builtin("%i64_add")
+        #|pub let extra : (I64, I64) -> I64 = builtin("%i64_add")
       ),
     ],
   )
@@ -1607,8 +1607,8 @@ test "link modules produces Buslane program from reachable module objects" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    value value#0 : Int
-      #|    value answer#1 : Int
+      #|    value value#0 : I64
+      #|    value answer#1 : I64
       #|  }
       #|  let value#0 = 42
       #|  let value#1 = value#0
@@ -1627,7 +1627,7 @@ test "link modules remaps effect operations through one identity" {
     (
       #|module Main
       #|import Lib.*
-      #|pub fn program() -> Int {
+      #|pub fn program() -> I64 {
       #|  handle read_int() with {
       #|    Console::read(resume) => resume(42)
       #|  } final value {
@@ -1639,9 +1639,9 @@ test "link modules remaps effect operations through one identity" {
       (
         #|module Lib
         #|pub effect Console {
-        #|  read() -> Int
+        #|  read() -> I64
         #|}
-        #|pub fn read_int() -> Int ! Console {
+        #|pub fn read_int() -> I64 ! Console {
         #|  Console::read!()
         #|}
       ),
@@ -1821,7 +1821,7 @@ test "effect aliases export through interface artifacts" {
       #|module Main
       #|import Lib.*
       #|pub fn program() -> Unit ! UI {
-      #|  let ignored : Int = Console::read!()
+      #|  let ignored : I64 = Console::read!()
       #|  Log::write!("ok")
       #|}
     ),
@@ -1829,7 +1829,7 @@ test "effect aliases export through interface artifacts" {
       (
         #|module Lib
         #|pub effect Console {
-        #|  read() -> Int
+        #|  read() -> I64
         #|}
         #|pub effect Log {
         #|  write(String) -> Unit
@@ -1939,7 +1939,7 @@ test "effect aliases export through interface artifacts" {
       #|types:
       #|  (none)
       #|effects:
-      #|  pub effect Console { read() -> Int }
+      #|  pub effect Console { read() -> I64 }
       #|  pub effect Log { write(String) -> Unit }
       #|type aliases:
       #|  pub type UI : Effect = { Console, Log }
@@ -2051,7 +2051,7 @@ test "external flavors roundtrip through artifacts and linking" {
     (
       #|module Main
       #|import Lib.*
-      #|pub fn use(fd : Fd) -> Int ! VectorOp[Int] {
+      #|pub fn use(fd : Fd) -> I64 ! VectorOp[I64] {
       #|  read(fd)
       #|}
     ),
@@ -2060,7 +2060,7 @@ test "external flavors roundtrip through artifacts and linking" {
         #|module Lib
         #|pub extern type Fd : Type
         #|pub extern type VectorOp[A : Type] : Effect
-        #|pub let read : (Fd) -> Int ! VectorOp[Int] = extern("vector.read")
+        #|pub let read : (Fd) -> I64 ! VectorOp[I64] = extern("vector.read")
       ),
     ],
   )
@@ -2113,7 +2113,7 @@ test "external flavors roundtrip through artifacts and linking" {
       #|type aliases:
       #|  (none)
       #|values:
-      #|  pub let read : (Fd) -> Int ! VectorOp[Int]
+      #|  pub let read : (Fd) -> I64 ! VectorOp[I64]
       #|
     ),
   )
@@ -2143,7 +2143,7 @@ test "effect alias interface fingerprint tracks body changes" {
     (
       #|module Lib
       #|pub effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|pub effect Log {
       #|  write(String) -> Unit
@@ -2156,7 +2156,7 @@ test "effect alias interface fingerprint tracks body changes" {
     (
       #|module Lib
       #|pub effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|}
       #|pub effect Log {
       #|  write(String) -> Unit
@@ -2190,7 +2190,7 @@ test "interface fingerprint ignores imported symbol allocation history" {
     (
       #|module A
       #|pub struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub effect Signal {
       #|  emit() -> Unit
@@ -2208,7 +2208,7 @@ test "interface fingerprint ignores imported symbol allocation history" {
     (
       #|module Noise
       #|pub struct Marker {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub effect MarkerEffect {
       #|  mark() -> Unit
@@ -2228,7 +2228,7 @@ test "interface fingerprint ignores imported symbol allocation history" {
       #|module A
       #|import Noise.*
       #|pub struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub effect Signal {
       #|  emit() -> Unit
@@ -2281,7 +2281,7 @@ test "interface fingerprint ignores imported symbol allocation history" {
     (
       #|module C
       #|import B.*
-      #|pub let answer : Int = forwarded.value
+      #|pub let answer : I64 = forwarded.value
     ),
     [
       noise_interface,
@@ -2298,7 +2298,7 @@ test "interface artifact rejects unresolved canonical references" {
     (
       #|module Lib
       #|pub struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub let box : Box = Box::{ value: 42 }
     ),
@@ -2317,7 +2317,7 @@ test "interface artifact rejects unresolved canonical references" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = box.value
+      #|pub let answer : I64 = box.value
     ),
     [damaged],
   )
@@ -2402,7 +2402,7 @@ test "missing import with mismatched interface artifact reports candidates" {
   let provider = compile_modules(
     (
       #|module builtins
-      #|pub let read_int : Int = 0
+      #|pub let read_int : I64 = 0
     ),
     [],
   )
@@ -2417,7 +2417,7 @@ test "missing import with mismatched interface artifact reports candidates" {
     (
       #|module Main
       #|import Builtins.*
-      #|pub let answer : Int = read_int
+      #|pub let answer : I64 = read_int
     ),
     [provider_module.to_interface_artifact()],
   )
@@ -2488,7 +2488,7 @@ test "module artifact binary inspect renders human readable summaries" {
   let compiled = compile_modules(
     (
       #|module Main
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
     [],
   )
@@ -2533,7 +2533,7 @@ test "module artifact binary inspect renders human readable summaries" {
       #|type aliases:
       #|  (none)
       #|values:
-      #|  pub let answer : Int
+      #|  pub let answer : I64
       #|
     ),
   )
@@ -2553,7 +2553,7 @@ test "module artifact binary inspect renders human readable summaries" {
       #|exports:
       #|  value answer
       #|public entries:
-      #|  Main.answer : Int
+      #|  Main.answer : I64
       #|compiler intrinsics:
       #|  (none)
       #|runtime imports:
@@ -2561,7 +2561,7 @@ test "module artifact binary inspect renders human readable summaries" {
       #|buslane:
       #|  buslane {
       #|    metadata {
-      #|      value answer#0 : Int
+      #|      value answer#0 : I64
       #|    }
       #|    let value#0 = 42
       #|  }
@@ -2575,7 +2575,7 @@ test "duplicate imported top-level value from interface artifact reports artifac
   let lib_modules = compile_modules(
     (
       #|module Lib
-      #|pub let answer : Int = 1
+      #|pub let answer : I64 = 1
     ),
     [],
   )
@@ -2589,7 +2589,7 @@ test "duplicate imported top-level value from interface artifact reports artifac
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = 2
+      #|pub let answer : I64 = 2
     ),
     [lib_module.to_artifact().interface],
   )
@@ -2621,7 +2621,7 @@ test "compile module interface preserves public effects across artifact import" 
       #|  get() -> S
       #|  put(S) -> Unit
       #|}
-      #|pub let value : Int = 42
+      #|pub let value : I64 = 42
     ),
     [],
   )
@@ -2649,8 +2649,8 @@ test "compile module interface preserves public effects across artifact import" 
     (
       #|module Main
       #|import Lib.{State}
-      #|pub type IntState = { State[Int] }
-      #|pub let answer : Int = 42
+      #|pub type IntState = { State[I64] }
+      #|pub let answer : I64 = 42
     ),
     [lib_artifact.interface],
   )
@@ -2705,7 +2705,7 @@ test "module object binary rejects obsolete schema nine artifact" {
   let compiled = compile_modules(
     (
       #|module Main
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
     [],
   )
@@ -2738,12 +2738,12 @@ test "link module artifacts orders reachable modules by imports" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
     ],
   )
@@ -2773,8 +2773,8 @@ test "link module artifacts orders reachable modules by imports" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    value value#0 : Int
-      #|    value answer#1 : Int
+      #|    value value#0 : I64
+      #|    value answer#1 : I64
       #|  }
       #|  let value#0 = 42
       #|  let value#1 = value#0
@@ -2789,7 +2789,7 @@ test "compile module with interface artifact then link object artifacts" {
     (
       #|module Lib
       #|pub struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub let box : Box = Box::{ value: 42 }
     ),
@@ -2807,7 +2807,7 @@ test "compile module with interface artifact then link object artifacts" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = box.value
+      #|pub let answer : I64 = box.value
     ),
     [lib_artifact.interface],
   )
@@ -2843,7 +2843,7 @@ test "compile module freshens independently compiled interface symbols" {
     (
       #|module Left
       #|pub struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub let left : Box = Box::{ value: 1 }
     ),
@@ -2861,7 +2861,7 @@ test "compile module freshens independently compiled interface symbols" {
     (
       #|module Right
       #|pub struct Box {
-      #|  item : Int
+      #|  item : I64
       #|}
       #|pub let right : Box = Box::{ item: 2 }
     ),
@@ -2880,7 +2880,7 @@ test "compile module freshens independently compiled interface symbols" {
       #|module Main
       #|import Left.*
       #|import Right.*
-      #|pub fn answer() -> Int {
+      #|pub fn answer() -> I64 {
       #|  let _left = left.value
       #|  right.item
       #|}
@@ -2917,7 +2917,7 @@ test "compile module follows transitive interface dependencies without extra pol
     (
       #|module Extra
       #|pub struct Noise {
-      #|  value : Int
+      #|  value : I64
       #|}
     ),
     [],
@@ -2934,7 +2934,7 @@ test "compile module follows transitive interface dependencies without extra pol
     (
       #|module A
       #|pub struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub let box : Box = Box::{ value: 42 }
     ),
@@ -2968,7 +2968,7 @@ test "compile module follows transitive interface dependencies without extra pol
     (
       #|module C
       #|import B.*
-      #|pub let answer : Int = forwarded.value
+      #|pub let answer : I64 = forwarded.value
     ),
     [b_artifact.interface, a_artifact.interface],
   )
@@ -3002,7 +3002,7 @@ test "compile module reports missing transitive interface dependency" {
     (
       #|module A
       #|pub struct Box {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub let box : Box = Box::{ value: 42 }
     ),
@@ -3034,7 +3034,7 @@ test "compile module reports missing transitive interface dependency" {
     (
       #|module C
       #|import B.*
-      #|pub let answer : Int = forwarded.value
+      #|pub let answer : I64 = forwarded.value
     ),
     [b_artifact.interface],
   )
@@ -3051,7 +3051,7 @@ test "compile module rejects interface artifact name mismatch" {
   let lib_compiled = compile_modules(
     (
       #|module Lib
-      #|pub let value : Int = 42
+      #|pub let value : I64 = 42
     ),
     [],
   )
@@ -3086,7 +3086,7 @@ test "compile module rejects interface artifact name mismatch" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [damaged],
   )
@@ -3103,7 +3103,7 @@ test "compile module rejects stale interface artifact fingerprint" {
   let lib_compiled = compile_modules(
     (
       #|module Lib
-      #|pub let value : Int = 42
+      #|pub let value : I64 = 42
     ),
     [],
   )
@@ -3126,7 +3126,7 @@ test "compile module rejects stale interface artifact fingerprint" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [damaged],
   )
@@ -3143,7 +3143,7 @@ test "compile module rejects stale interface artifact module fingerprint" {
   let lib_compiled = compile_modules(
     (
       #|module Lib
-      #|pub let value : Int = 42
+      #|pub let value : I64 = 42
     ),
     [],
   )
@@ -3166,7 +3166,7 @@ test "compile module rejects stale interface artifact module fingerprint" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [damaged],
   )
@@ -3183,14 +3183,14 @@ test "module object fingerprint changes on implementation-only changes" {
   let first_compiled = compile_modules(
     (
       #|module Lib
-      #|pub let value : Int = 1
+      #|pub let value : I64 = 1
     ),
     [],
   )
   let second_compiled = compile_modules(
     (
       #|module Lib
-      #|pub let value : Int = 2
+      #|pub let value : I64 = 2
     ),
     [],
   )
@@ -3226,7 +3226,7 @@ test "link object artifacts rejects stale object fingerprint" {
   let compiled = compile_modules(
     (
       #|module Lib
-      #|pub let value : Int = 42
+      #|pub let value : I64 = 42
     ),
     [],
   )
@@ -3266,12 +3266,12 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
     ],
   )
@@ -3324,12 +3324,12 @@ test "link module artifacts rejects interface object name mismatch" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
     ],
   )
@@ -3376,12 +3376,12 @@ test "link module artifacts rejects stale imported reference fingerprint" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
     ],
   )
@@ -3460,12 +3460,12 @@ test "link module artifacts rejects missing exported object value" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
       ),
     ],
   )
@@ -3528,14 +3528,14 @@ test "link modules rejects compiled artifact import cycle" {
   let compiled_a = compile_modules(
     (
       #|module A
-      #|pub let a : Int = 1
+      #|pub let a : I64 = 1
     ),
     [],
   )
   let compiled_b = compile_modules(
     (
       #|module B
-      #|pub let b : Int = 2
+      #|pub let b : I64 = 2
     ),
     [],
   )
@@ -3582,7 +3582,7 @@ test "link modules rejects missing compiled artifact import" {
   let compiled = compile_modules(
     (
       #|module Main
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
     [],
   )
@@ -3613,12 +3613,12 @@ test "check sources does not expose private imported values" {
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = value
+      #|pub let answer : I64 = value
     ),
     [
       (
         #|module Lib
-        #|let value : Int = 42
+        #|let value : I64 = 42
       ),
     ],
   )
@@ -3642,7 +3642,7 @@ test "check sources does not expose private imported types" {
       (
         #|module Lib
         #|struct Hidden {
-        #|  value : Int
+        #|  value : I64
         #|}
       ),
     ],
@@ -3661,13 +3661,13 @@ test "check sources rejects private nominal type escape through public function"
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = leak().value
+      #|pub let answer : I64 = leak().value
     ),
     [
       (
         #|module Lib
         #|struct Hidden {
-        #|  value : Int
+        #|  value : I64
         #|}
         #|pub fn leak() -> Hidden {
         #|  Hidden::{ value: 42 }
@@ -3708,7 +3708,7 @@ test "check source rejects private nominal type escape through public let" {
     (
       #|module Test
       #|struct Hidden {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub let answer : Hidden = Hidden::{ value: 42 }
     ),
@@ -3727,7 +3727,7 @@ test "check source rejects private nominal type escape through public struct fie
     (
       #|module Test
       #|struct Hidden {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub struct Box {
       #|  hidden : Hidden
@@ -3748,7 +3748,7 @@ test "check source rejects private nominal type escape through public enum paylo
     (
       #|module Test
       #|struct Hidden {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub enum Box {
       #|  boxed(Hidden)
@@ -3769,7 +3769,7 @@ test "check source rejects private nominal type escape through public type alias
     (
       #|module Test
       #|struct Hidden {
-      #|  value : Int
+      #|  value : I64
       #|}
       #|pub type Exposed = Hidden
     ),
@@ -3788,13 +3788,13 @@ test "check sources exposes public imported nominal shape through public value" 
     (
       #|module Main
       #|import Lib.*
-      #|pub let answer : Int = point().x
+      #|pub let answer : I64 = point().x
     ),
     [
       (
         #|module Lib
         #|pub struct Point {
-        #|  x : Int
+        #|  x : I64
         #|}
         #|pub fn point() -> Point {
         #|  Point::{ x: 42 }
@@ -3811,7 +3811,7 @@ test "check sources rejects missing import" {
     (
       #|module Main
       #|import Missing
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
     [],
   )
@@ -3828,13 +3828,13 @@ test "check sources resolves module qualified value access" {
   let result = compile_sources(
     (
       #|module Main
-      #|import Core.Int
-      #|pub let answer : Int = Core.Int.id(42)
+      #|import Core.I64
+      #|pub let answer : I64 = Core.I64.id(42)
     ),
     [
       (
-        #|module Core.Int
-        #|pub fn id(value : Int) -> Int {
+        #|module Core.I64
+        #|pub fn id(value : I64) -> I64 {
         #|  value
         #|}
       ),
@@ -3853,16 +3853,16 @@ test "check sources does not import child module through parent module" {
     (
       #|module Main
       #|import Core
-      #|pub let answer : Int = Core.Int.id(42)
+      #|pub let answer : I64 = Core.I64.id(42)
     ),
     [
       (
         #|module Core
-        #|pub let marker : Int = 0
+        #|pub let marker : I64 = 0
       ),
       (
-        #|module Core.Int
-        #|pub fn id(value : Int) -> Int {
+        #|module Core.I64
+        #|pub fn id(value : I64) -> I64 {
         #|  value
         #|}
       ),
@@ -3871,7 +3871,7 @@ test "check sources does not import child module through parent module" {
   debug_inspect(
     result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
     content=(
-      #|["cannot find value `Core.Int.id`"]
+      #|["cannot find value `Core.I64.id`"]
     ),
   )
 }
@@ -3888,7 +3888,7 @@ test "check sources resolves module qualified nominal type access" {
       (
         #|module Lib
         #|pub struct Box {
-        #|  value : Int
+        #|  value : I64
         #|}
       ),
     ],
@@ -3911,7 +3911,7 @@ test "check sources resolves module qualified type alias access" {
     [
       (
         #|module Lib
-        #|pub type Answer = Int
+        #|pub type Answer = I64
       ),
     ],
   )
@@ -3933,14 +3933,14 @@ test "check sources preserves imported type alias owner identity" {
     [
       (
         #|module AliasA
-        #|pub type X = Int
-        #|pub let marker : Int = 0
+        #|pub type X = I64
+        #|pub let marker : I64 = 0
       ),
       (
         #|module AliasB
         #|import AliasA.{ marker }
         #|pub type X = Bool
-        #|pub let copied : Int = marker
+        #|pub let copied : I64 = marker
       ),
     ],
   )
@@ -3962,14 +3962,14 @@ test "check sources rejects values against the selected imported alias" {
     [
       (
         #|module AliasA
-        #|pub type X = Int
-        #|pub let marker : Int = 0
+        #|pub type X = I64
+        #|pub let marker : I64 = 0
       ),
       (
         #|module AliasB
         #|import AliasA.{ marker }
         #|pub type X = Bool
-        #|pub let copied : Int = marker
+        #|pub let copied : I64 = marker
       ),
     ],
   )
@@ -3988,14 +3988,14 @@ test "compile tuple and list sugar through fixed qualified providers" {
       #|module Main
       #|import Basic.Data.Tuple
       #|import Basic.Data.List
-      #|pub fn make() -> (Int, Bool, String) {
+      #|pub fn make() -> (I64, Bool, String) {
       #|  (1, true, "lane")
       #|}
-      #|pub fn first(value : (Int, Bool, String)) -> Int {
+      #|pub fn first(value : (I64, Bool, String)) -> I64 {
       #|  let (head, _, _) = value
       #|  head
       #|}
-      #|pub fn numbers() -> Basic.Data.List.List[Int] {
+      #|pub fn numbers() -> Basic.Data.List.List[I64] {
       #|  [1, 2, 3]
       #|}
     ),
@@ -4028,7 +4028,7 @@ test "tuple signatures use safe nominal artifact presentation" {
     (
       #|module Main
       #|import Basic.Data.Tuple
-      #|pub fn pair(value : (Int, Bool)) -> (Int, Bool) {
+      #|pub fn pair(value : (I64, Bool)) -> (I64, Bool) {
       #|  value
       #|}
     ),
@@ -4073,7 +4073,7 @@ test "tuple signatures use safe nominal artifact presentation" {
       #|type aliases:
       #|  (none)
       #|values:
-      #|  pub fn pair(value : Tuple[Int, Bool]) : (Tuple[Int, Bool]) -> Tuple[Int, Bool]
+      #|  pub fn pair(value : Tuple[I64, Bool]) : (Tuple[I64, Bool]) -> Tuple[I64, Bool]
       #|
     ),
   )
@@ -4085,7 +4085,7 @@ test "a sugar provider resolves its own fully qualified nominal expansion" {
     (
       #|module Main
       #|import Basic.Data.List.*
-      #|pub let number : List[Int] = singleton(1)
+      #|pub let number : List[I64] = singleton(1)
     ),
     [
       (
@@ -4109,7 +4109,7 @@ test "self-qualified namespace excludes imported declarations" {
     (
       #|module Main
       #|import Lib.{ Box }
-      #|pub let value : Main.Box[Int] = Main.Box::box(1)
+      #|pub let value : Main.Box[I64] = Main.Box::box(1)
     ),
     [
       (
@@ -4139,9 +4139,9 @@ test "self-qualified namespace includes local type declarations" {
       #|pub effect Ask[A] {
       #|  read() -> A
       #|}
-      #|pub let boxed : Main.Box[Int] = Main.Box::box(1)
-      #|pub fn value() -> Int ! Main.Ask[Int] {
-      #|  Main.Ask[Int]::read!()
+      #|pub let boxed : Main.Box[I64] = Main.Box::box(1)
+      #|pub fn value() -> I64 ! Main.Ask[I64] {
+      #|  Main.Ask[I64]::read!()
       #|}
     ),
   )
@@ -4154,7 +4154,7 @@ test "tuple ABI module cannot borrow declarations from an open import" {
     (
       #|module Main
       #|import Basic.Data.Tuple
-      #|pub let pair : (Int, Bool) = (1, true)
+      #|pub let pair : (I64, Bool) = (1, true)
     ),
     [
       (
@@ -4263,7 +4263,7 @@ test "tuple and list sugar do not use unqualified fallback providers" {
   let tuple_result = check_source(
     (
       #|module Main
-      #|pub let pair : (Int, Bool) = (1, true)
+      #|pub let pair : (I64, Bool) = (1, true)
     ),
   )
   debug_inspect(
@@ -4282,7 +4282,7 @@ test "tuple and list sugar do not use unqualified fallback providers" {
       #|  empty()
       #|  cons(A, LocalList[A])
       #|}
-      #|pub let numbers : LocalList[Int] = [1, 2]
+      #|pub let numbers : LocalList[I64] = [1, 2]
     ),
   )
   debug_inspect(
@@ -4428,7 +4428,7 @@ test "check sources resolves imported aliases in explicit generic arguments" {
     [
       (
         #|module AliasLib
-        #|pub type Number = Int
+        #|pub type Number = I64
       ),
     ],
   )
@@ -4453,7 +4453,7 @@ test "check sources preserves imported effect alias owner identity" {
         #|  fire() -> Unit
         #|}
         #|pub type Actions : Effect = { First }
-        #|pub let marker : Int = 0
+        #|pub let marker : I64 = 0
       ),
       (
         #|module AliasB
@@ -4463,7 +4463,7 @@ test "check sources preserves imported effect alias owner identity" {
         #|}
         #|pub type Actions : Effect = { Second }
         #|pub fn run() -> Unit ! Actions {
-        #|  let _marker : Int = marker
+        #|  let _marker : I64 = marker
         #|  Second::fire!()
         #|}
       ),
@@ -4479,10 +4479,10 @@ test "check sources resolves imported effect aliases in explicit arguments" {
     (
       #|module Main
       #|import AliasLib.{ ReadOnly, callback }
-      #|fn[E : Effect] consume(callback : () -> Int ! E) -> Int ! E {
+      #|fn[E : Effect] consume(callback : () -> I64 ! E) -> I64 ! E {
       #|  callback()
       #|}
-      #|pub fn use() -> Int ! ReadOnly {
+      #|pub fn use() -> I64 ! ReadOnly {
       #|  consume[ReadOnly](callback)
       #|}
     ),
@@ -4490,10 +4490,10 @@ test "check sources resolves imported effect aliases in explicit arguments" {
       (
         #|module AliasLib
         #|pub effect Read {
-        #|  read() -> Int
+        #|  read() -> I64
         #|}
         #|pub type ReadOnly : Effect = { Read }
-        #|pub fn callback() -> Int ! ReadOnly {
+        #|pub fn callback() -> I64 ! ReadOnly {
         #|  Read::read!()
         #|}
       ),
@@ -4509,7 +4509,7 @@ test "check sources resolves module qualified variant expressions and patterns" 
     (
       #|module Main
       #|import Lib
-      #|pub let answer : Int = match Lib.Option::some(42) {
+      #|pub let answer : I64 = match Lib.Option::some(42) {
       #|  Lib.Option::some(value) => value
       #|  Lib.Option::none() => 0
       #|}
@@ -4518,7 +4518,7 @@ test "check sources resolves module qualified variant expressions and patterns" 
       (
         #|module Lib
         #|pub enum Option {
-        #|  some(Int)
+        #|  some(I64)
         #|  none()
         #|}
       ),
@@ -4537,19 +4537,19 @@ test "check sources does not import child module qualified type through parent m
     (
       #|module Main
       #|import Core
-      #|pub fn consume(value : Core.Int.Box) -> Int {
+      #|pub fn consume(value : Core.I64.Box) -> I64 {
       #|  0
       #|}
     ),
     [
       (
         #|module Core
-        #|pub let marker : Int = 0
+        #|pub let marker : I64 = 0
       ),
       (
-        #|module Core.Int
+        #|module Core.I64
         #|pub struct Box {
-        #|  value : Int
+        #|  value : I64
         #|}
       ),
     ],
@@ -4557,7 +4557,7 @@ test "check sources does not import child module qualified type through parent m
   debug_inspect(
     result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
     content=(
-      #|["cannot find type `Core.Int.Box`"]
+      #|["cannot find type `Core.I64.Box`"]
     ),
   )
 }
@@ -4569,18 +4569,18 @@ test "check sources rejects ambiguous module qualified field chain" {
       #|module Main
       #|import core.int
       #|struct AddField {
-      #|  add : Int
+      #|  add : I64
       #|}
       #|struct CoreBox {
       #|  int : AddField
       #|}
       #|let core : CoreBox = CoreBox::{ int: AddField::{ add: 1 } }
-      #|pub let answer : Int = core.int.add
+      #|pub let answer : I64 = core.int.add
     ),
     [
       (
         #|module core.int
-        #|pub let add : Int = 42
+        #|pub let add : I64 = 42
       ),
     ],
   )
@@ -4597,12 +4597,12 @@ test "check sources rejects duplicate module input" {
   let result = check_sources(
     (
       #|module Main
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
     [
       (
         #|module Main
-        #|pub let value : Int = 1
+        #|pub let value : I64 = 1
       ),
     ],
   )
@@ -4622,7 +4622,7 @@ test "import reachable source inputs ignore unrelated parse diagnostics" {
       text: (
         #|module Main
         #|import Lib.*
-        #|pub let answer : Int = value
+        #|pub let answer : I64 = value
       ),
     },
     [
@@ -4630,7 +4630,7 @@ test "import reachable source inputs ignore unrelated parse diagnostics" {
         source_id: "file:///Lib.lane",
         text: (
           #|module Lib
-          #|pub let value : Int = 42
+          #|pub let value : I64 = 42
         ),
       },
       {
@@ -4663,7 +4663,7 @@ test "semantic workspace reports diagnostics from every workspace module" {
       text: (
         #|module Main
         #|import Lib.*
-        #|pub let answer : Int = value
+        #|pub let answer : I64 = value
       ),
     },
     [
@@ -4701,12 +4701,12 @@ test "check sources ignores unimported library errors" {
   let result = check_sources(
     (
       #|module Main
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
     [
       (
         #|module Extra
-        #|pub let extra : Int = missing
+        #|pub let extra : I64 = missing
       ),
     ],
   )
@@ -4721,18 +4721,18 @@ test "check sources ignores unimported library import cycles" {
   let result = check_sources(
     (
       #|module Main
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
     [
       (
         #|module ExtraA
         #|import ExtraB
-        #|pub let value : Int = 1
+        #|pub let value : I64 = 1
       ),
       (
         #|module ExtraB
         #|import ExtraA
-        #|pub let value : Int = 2
+        #|pub let value : I64 = 2
       ),
     ],
   )
@@ -4748,13 +4748,13 @@ test "check sources rejects import cycle" {
     (
       #|module Main
       #|import Lib
-      #|pub let answer : Int = 42
+      #|pub let answer : I64 = 42
     ),
     [
       (
         #|module Lib
         #|import Main
-        #|pub let value : Int = 1
+        #|pub let value : I64 = 1
       ),
     ],
   )
@@ -4774,9 +4774,9 @@ test "analysis resolves same-file definition and hover" {
       text: (
         #|module Main
         #|
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
         #|
-        #|pub let answer : Int = value
+        #|pub let answer : I64 = value
       ),
     },
     [],
@@ -4790,11 +4790,11 @@ test "analysis resolves same-file definition and hover" {
     None => abort("expected definition")
   }
   match result.hover_at("file:///Main.lane", 5, 24) {
-    Some(hover) => inspect(hover.contents, content="value : Int")
+    Some(hover) => inspect(hover.contents, content="value : I64")
     None => abort("expected hover")
   }
   match result.hover_at("file:///Main.lane", 3, 10) {
-    Some(hover) => inspect(hover.contents, content="value : Int")
+    Some(hover) => inspect(hover.contents, content="value : I64")
     None => abort("expected definition hover")
   }
   inspect(
@@ -4812,7 +4812,7 @@ test "analysis traverses explicit generic application" {
         #|module Main
         #|
         #|pub struct Box {
-        #|  value : Int
+        #|  value : I64
         #|}
         #|
         #|pub fn[A] id(value : A) -> A {
@@ -4858,8 +4858,8 @@ test "analysis keeps generic operation hover declaration detail" {
         #|  choose[A](A, A) -> A
         #|}
         #|
-        #|pub fn use() -> Int ! Prompt {
-        #|  Prompt::choose![Int](1, 2)
+        #|pub fn use() -> I64 ! Prompt {
+        #|  Prompt::choose![I64](1, 2)
         #|}
       ),
     },
@@ -4886,7 +4886,7 @@ test "analysis resolves cross-module definition by source identity" {
         #|
         #|import Lib.*
         #|
-        #|pub let answer : Int = value
+        #|pub let answer : I64 = value
       ),
     },
     [
@@ -4895,7 +4895,7 @@ test "analysis resolves cross-module definition by source identity" {
         text: (
           #|module Lib
           #|
-          #|pub let value : Int = 42
+          #|pub let value : I64 = 42
         ),
       },
     ],
@@ -4919,7 +4919,7 @@ test "analysis resolves types fields and variants" {
         #|module Main
         #|
         #|pub struct Point {
-        #|  x : Int
+        #|  x : I64
         #|}
         #|
         #|pub enum Option {
@@ -4929,7 +4929,7 @@ test "analysis resolves types fields and variants" {
         #|
         #|pub let point : Point = Point::{ x: 1 }
         #|
-        #|pub let field_value : Int = point.x
+        #|pub let field_value : I64 = point.x
         #|
         #|pub let wrapped : Option = some(point)
       ),
@@ -4966,7 +4966,7 @@ test "analysis resolves types fields and variants" {
     None => abort("expected field definition")
   }
   match result.hover_at("file:///Main.lane", 4, 3) {
-    Some(hover) => inspect(hover.contents, content="x : Int")
+    Some(hover) => inspect(hover.contents, content="x : I64")
     None => abort("expected field definition hover")
   }
   match result.definition_at("file:///Main.lane", 16, 29) {
@@ -4988,16 +4988,16 @@ test "analysis hovers handler binders with checked types" {
         #|module Main
         #|
         #|pub effect Console {
-        #|  read() -> Int
+        #|  read() -> I64
         #|}
         #|pub effect State {
-        #|  get() -> Int
+        #|  get() -> I64
         #|}
-        #|pub fn answer() -> Int ! State {
+        #|pub fn answer() -> I64 ! State {
         #|  handle Console::read!() with {
         #|    Console::read(resume) => resume(0)
         #|  } final value {
-        #|    let _state : Int = State::get!()
+        #|    let _state : I64 = State::get!()
         #|    value
         #|  }
         #|}
@@ -5008,16 +5008,16 @@ test "analysis hovers handler binders with checked types" {
   debug_inspect(result.diagnostics, content="[]")
   match result.hover_at("file:///Main.lane", 11, 20) {
     Some(hover) =>
-      inspect(hover.contents, content="resume : (Int) -> Int ! State")
+      inspect(hover.contents, content="resume : (I64) -> I64 ! State")
     None => abort("expected resume binder hover")
   }
   match result.hover_at("file:///Main.lane", 11, 31) {
     Some(hover) =>
-      inspect(hover.contents, content="resume : (Int) -> Int ! State")
+      inspect(hover.contents, content="resume : (I64) -> I64 ! State")
     None => abort("expected resume reference hover")
   }
   match result.hover_at("file:///Main.lane", 12, 12) {
-    Some(hover) => inspect(hover.contents, content="value : Int")
+    Some(hover) => inspect(hover.contents, content="value : I64")
     None => abort("expected final binder hover")
   }
 }
@@ -5031,10 +5031,10 @@ test "analysis narrows struct pattern type references" {
         #|module Main
         #|
         #|pub struct Point {
-        #|  x : Int
+        #|  x : I64
         #|}
         #|
-        #|pub fn get_x(point : Point) -> Int {
+        #|pub fn get_x(point : Point) -> I64 {
         #|  match point {
         #|    Point::{ x } => x
         #|  }
@@ -5062,11 +5062,11 @@ test "analysis keeps partial definitions when unrelated diagnostics exist" {
       text: (
         #|module Main
         #|
-        #|pub let value : Int = 42
+        #|pub let value : I64 = 42
         #|
-        #|pub let answer : Int = value
+        #|pub let answer : I64 = value
         #|
-        #|pub let bad : Int = missing
+        #|pub let bad : I64 = missing
       ),
     },
     [],
@@ -5094,7 +5094,7 @@ test "analysis produces type inlay hints for inferred binders" {
       text: (
         #|module Main
         #|
-        #|pub fn answer(seed : Int) -> Int {
+        #|pub fn answer(seed : I64) -> I64 {
         #|  let local = seed
         #|  match local {
         #|    value => value
@@ -5122,7 +5122,7 @@ test "analysis produces type inlay hints for inferred binders" {
       #|      },
       #|    },
       #|    kind: TypeHint,
-      #|    label: ": Int",
+      #|    label: ": I64",
       #|  },
       #|  {
       #|    location: {
@@ -5137,7 +5137,7 @@ test "analysis produces type inlay hints for inferred binders" {
       #|      },
       #|    },
       #|    kind: TypeHint,
-      #|    label: ": Int",
+      #|    label: ": I64",
       #|  },
       #|]
     ),
@@ -5157,7 +5157,7 @@ test "analysis renders user-facing type names in type inlay hints" {
         #|  none()
         #|}
         #|
-        #|pub fn answer(seed : Int) -> Int {
+        #|pub fn answer(seed : I64) -> I64 {
         #|  let boxed = some(seed)
         #|  seed
         #|}
@@ -5229,7 +5229,7 @@ test "analysis renders user-facing type names in type inlay hints" {
       #|      },
       #|    },
       #|    kind: TypeHint,
-      #|    label: ": Option[Int]",
+      #|    label: ": Option[I64]",
       #|  },
       #|]
     ),
@@ -5245,15 +5245,15 @@ test "analysis produces parameter name inlay hints for calls" {
         #|module Main
         #|
         #|pub enum Option {
-        #|  some(Int, Bool)
+        #|  some(I64, Bool)
         #|  none()
         #|}
         #|
-        #|pub fn choose(left : Int, right : Int) -> Int {
+        #|pub fn choose(left : I64, right : I64) -> I64 {
         #|  left
         #|}
         #|
-        #|pub fn answer(seed : Int) -> Int {
+        #|pub fn answer(seed : I64) -> I64 {
         #|  let local = choose(seed, 1)
         #|  match some(local, true) {
         #|    some(value, flag) => value
@@ -5368,7 +5368,7 @@ test "analysis produces parameter name inlay hints for calls" {
       #|      },
       #|    },
       #|    kind: TypeHint,
-      #|    label: ": Int",
+      #|    label: ": I64",
       #|  },
       #|  {
       #|    location: {
@@ -5413,7 +5413,7 @@ test "analysis produces parameter name inlay hints for calls" {
       #|      },
       #|    },
       #|    kind: TypeHint,
-      #|    label: ": Int",
+      #|    label: ": I64",
       #|  },
       #|  {
       #|    location: {
@@ -5448,7 +5448,7 @@ test "analysis does not synthesize constructor parameter hints from payload type
         #|  cons(A, List[A])
         #|}
         #|
-        #|pub fn answer(hd : Int, tl : List[Int]) -> List[Int] {
+        #|pub fn answer(hd : I64, tl : List[I64]) -> List[I64] {
         #|  List::cons(hd, tl)
         #|}
       ),
@@ -5467,19 +5467,19 @@ test "analysis keeps nested call parameter hints at distinct positions" {
       text: (
         #|module Main
         #|
-        #|pub fn append(left : Int, right : Int) -> Int {
+        #|pub fn append(left : I64, right : I64) -> I64 {
         #|  left
         #|}
         #|
-        #|pub fn apply(f : (Int) -> Int, value : Int) -> Int {
+        #|pub fn apply(f : (I64) -> I64, value : I64) -> I64 {
         #|  f(value)
         #|}
         #|
-        #|pub fn inc(value : Int) -> Int {
+        #|pub fn inc(value : I64) -> I64 {
         #|  value
         #|}
         #|
-        #|pub let answer : Int = append(1, apply(inc, 2))
+        #|pub let answer : I64 = append(1, apply(inc, 2))
       ),
     },
     [],
@@ -5543,14 +5543,14 @@ test "analysis anchors field argument parameter hint at argument start" {
         #|module Main
         #|
         #|pub struct Box {
-        #|  field : Int
+        #|  field : I64
         #|}
         #|
-        #|pub fn take(arg : Int) -> Int {
+        #|pub fn take(arg : I64) -> I64 {
         #|  arg
         #|}
         #|
-        #|pub fn answer(value : Box) -> Int {
+        #|pub fn answer(value : Box) -> I64 {
         #|  take(value.field)
         #|}
       ),
@@ -5590,11 +5590,11 @@ test "analysis skips parameter name inlay hints for source operators" {
       text: (
         #|module Main
         #|
-        #|pub fn op_add(left : Int, right : Int) -> Int {
+        #|pub fn op_add(left : I64, right : I64) -> I64 {
         #|  left
         #|}
         #|
-        #|pub fn answer(seed : Int) -> Int {
+        #|pub fn answer(seed : I64) -> I64 {
         #|  let local = seed + 1
         #|  local
         #|}
@@ -5666,7 +5666,7 @@ test "analysis skips parameter name inlay hints for source operators" {
       #|      },
       #|    },
       #|    kind: TypeHint,
-      #|    label: ": Int",
+      #|    label: ": I64",
       #|  },
       #|]
     ),
@@ -5689,9 +5689,9 @@ test "analysis produces implicit argument inlay hints for auto offers" {
         #|  op.add(a, b)
         #|}
         #|
-        #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
+        #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
         #|
-        #|pub fn answer(seed : Int) -> Int {
+        #|pub fn answer(seed : I64) -> I64 {
         #|  let local = seed + 1
         #|  local
         #|}
@@ -5717,7 +5717,7 @@ test "analysis produces implicit argument inlay hints for auto offers" {
       #|      },
       #|    },
       #|    kind: TypeHint,
-      #|    label: ": Int",
+      #|    label: ": I64",
       #|  },
       #|  {
       #|    location: {
@@ -5732,7 +5732,7 @@ test "analysis produces implicit argument inlay hints for auto offers" {
       #|      },
       #|    },
       #|    kind: ImplicitArgumentHint,
-      #|    label: ", op=int_add_ops",
+      #|    label: ", op=i64_add_ops",
       #|  },
       #|]
     ),
@@ -5763,10 +5763,10 @@ test "analysis combines implicit argument inlay hints at the call end" {
         #|  }
         #|}
         #|
-        #|offer int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-        #|offer int_eq_ops : Eq[Int] = Eq::{ eq: fn(a : Int, b : Int) -> Bool { builtin("%i64_equal")(a, b) } }
+        #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+        #|offer i64_eq_ops : Eq[I64] = Eq::{ eq: fn(a : I64, b : I64) -> Bool { builtin("%i64_equal")(a, b) } }
         #|
-        #|pub fn answer(seed : Int) -> Int {
+        #|pub fn answer(seed : I64) -> I64 {
         #|  let local = choose(seed, 1)
         #|  local
         #|}
@@ -5777,7 +5777,7 @@ test "analysis combines implicit argument inlay hints at the call end" {
   debug_inspect(result.diagnostics, content="[]")
   inspect(
     implicit_inlay_hint_labels(result.inlay_hints).join("\n"),
-    content=", op=int_add_ops, eq=int_eq_ops",
+    content=", op=i64_add_ops, eq=i64_eq_ops",
   )
 }
 
@@ -5790,16 +5790,16 @@ test "analysis omits the separator for an auto-only call" {
         #|module Main
         #|
         #|pub struct Default {
-        #|  value : Int
+        #|  value : I64
         #|}
         #|
-        #|pub fn use(auto impl : Default) -> Int {
+        #|pub fn use(auto impl : Default) -> I64 {
         #|  impl.value
         #|}
         #|
         #|offer default_impl : Default = Default::{ value: 1 }
         #|
-        #|pub fn answer() -> Int {
+        #|pub fn answer() -> I64 {
         #|  use()
         #|}
       ),
@@ -5828,10 +5828,10 @@ test "analysis does not mark explicit named auto arguments as implicit" {
         #|  op.add(a, b)
         #|}
         #|
-        #|let int_add_ops : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
+        #|let i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
         #|
-        #|pub fn answer(seed : Int) -> Int {
-        #|  let local = op_add(seed, 1, op=int_add_ops)
+        #|pub fn answer(seed : I64) -> I64 {
+        #|  let local = op_add(seed, 1, op=i64_add_ops)
         #|  local
         #|}
       ),
@@ -5856,7 +5856,7 @@ test "analysis does not mark explicit named auto arguments as implicit" {
       #|      },
       #|    },
       #|    kind: TypeHint,
-      #|    label: ": Int",
+      #|    label: ": I64",
       #|  },
       #|  {
       #|    location: {

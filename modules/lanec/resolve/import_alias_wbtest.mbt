@@ -31,7 +31,7 @@ fn import_alias_fixture() -> ImportAliasFixture {
         kind: Let,
         is_offered: false,
         name: "value",
-        type_: Primitive(Int),
+        type_: Primitive(I64),
         parameters: None,
         loc,
       },
@@ -62,7 +62,7 @@ fn import_alias_fixture() -> ImportAliasFixture {
             name: "cons",
             index: 1,
             type_parameters: [],
-            payload: [Primitive(Int), Constructor(list)],
+            payload: [Primitive(I64), Constructor(list)],
             loc,
           },
         ],
@@ -90,7 +90,7 @@ fn import_alias_fixture() -> ImportAliasFixture {
             name: "tuple",
             index: 0,
             type_parameters: [],
-            payload: [Primitive(Int), Primitive(Bool)],
+            payload: [Primitive(I64), Primitive(Bool)],
             loc,
           },
         ],
@@ -146,7 +146,7 @@ test "aliased qualified import replaces the canonical authored qualifier" {
     fixture,
     (
       #|import Lib as Short
-      #|fn read() -> Int { Short.value }
+      #|fn read() -> I64 { Short.value }
     ),
   )
   assert_eq(aliased.diagnostics, [])
@@ -162,7 +162,7 @@ test "aliased qualified import replaces the canonical authored qualifier" {
     import_alias_fixture(),
     (
       #|import Lib as Short
-      #|fn read() -> Int { Lib.value }
+      #|fn read() -> I64 { Lib.value }
     ),
   )
   inspect(
@@ -182,8 +182,8 @@ test "distinct aliases may bind the same imported module" {
     (
       #|import Lib as First
       #|import Lib as Second
-      #|fn first() -> Int { First.value }
-      #|fn second() -> Int { Second.value }
+      #|fn first() -> I64 { First.value }
+      #|fn second() -> I64 { Second.value }
     ),
   )
   assert_eq(result.diagnostics, [])
@@ -197,7 +197,7 @@ test "authored access marks only its local module binding" {
     (
       #|import Lib as First
       #|import Lib as Second
-      #|fn read() -> Int { First.value }
+      #|fn read() -> I64 { First.value }
     ),
   )
   assert_eq(result.diagnostics, [])
@@ -211,7 +211,7 @@ test "selective import does not conflict with a qualified module binding" {
     (
       #|import Lib
       #|import Lib.{ value }
-      #|fn read() -> Int { value }
+      #|fn read() -> I64 { value }
     ),
   )
   assert_eq(result.diagnostics, [])
@@ -243,7 +243,7 @@ test "open import does not conflict with a qualified module binding" {
     (
       #|import Lib
       #|import Lib.*
-      #|fn read() -> Int { Lib.value }
+      #|fn read() -> I64 { Lib.value }
     ),
   )
   assert_eq(result.diagnostics, [])
@@ -255,7 +255,7 @@ test "open import does not publish a lexical module binding" {
     import_alias_fixture(),
     (
       #|import Lib.*
-      #|fn read() -> Int { Lib.value }
+      #|fn read() -> I64 { Lib.value }
     ),
   )
   inspect(
@@ -273,7 +273,7 @@ test "selective import does not publish a lexical module binding" {
     import_alias_fixture(),
     (
       #|import Lib.{ value }
-      #|fn read() -> Int { Lib.value }
+      #|fn read() -> I64 { Lib.value }
     ),
   )
   inspect(
@@ -376,7 +376,7 @@ test "missing selective item does not discard a valid sibling" {
     import_alias_fixture(),
     (
       #|import Lib.{ value, missing }
-      #|fn read() -> Int { value }
+      #|fn read() -> I64 { value }
     ),
   )
   debug_inspect(
@@ -429,8 +429,8 @@ test "tuple sugar resolves canonically through an aliased import" {
     (
       #|import Basic.Data.Tuple as Pair
       #|fn authored() -> Pair.Tuple { Pair.Tuple::tuple(1, true) }
-      #|fn generated() -> (Int, Bool) { (1, true) }
-      #|fn destructure(value : Pair.Tuple) -> Int {
+      #|fn generated() -> (I64, Bool) { (1, true) }
+      #|fn destructure(value : Pair.Tuple) -> I64 {
       #|  match value {
       #|    Pair.Tuple::tuple(first, _) => first
       #|  }
@@ -484,7 +484,7 @@ test "tuple sugar does not change authored module lookup" {
     import_alias_fixture(),
     (
       #|import Basic.Data.Tuple as Pair
-      #|fn generated() -> (Int, Bool) { (1, true) }
+      #|fn generated() -> (I64, Bool) { (1, true) }
       #|fn authored(value : Basic.Data.Tuple.Tuple) -> Unit { () }
     ),
   )
@@ -514,7 +514,7 @@ test "module aliases do not rewrite longer path prefixes" {
     import_alias_fixture(),
     (
       #|import Lib as Short
-      #|fn read() -> Int { Short.Nested.value }
+      #|fn read() -> I64 { Short.Nested.value }
     ),
   )
   inspect(
@@ -534,7 +534,7 @@ test "module aliases coexist with type names and retain value ambiguity" {
       #|import Lib as Same
       #|struct Same {}
       #|fn typed(value : Same) -> Same { value }
-      #|fn ambiguous(Same : Int) -> Int { Same.value }
+      #|fn ambiguous(Same : I64) -> I64 { Same.value }
     ),
   )
   inspect(

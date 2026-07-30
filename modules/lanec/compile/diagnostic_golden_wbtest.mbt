@@ -55,7 +55,7 @@ test "golden unknown builtin diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|fn bad() -> Int {
+      #|fn bad() -> I64 {
       #|  {
       #|    let _ = builtin("%external_int")
       #|    1
@@ -76,7 +76,7 @@ test "golden builtin signature mismatch diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|let bad : (Int) -> Int = builtin("%i64_add")
+      #|let bad : (I64) -> I64 = builtin("%i64_add")
     ),
   )
   assert_diagnostic_headline(
@@ -113,7 +113,7 @@ test "golden unsupported extern type diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|let bad : Int = extern("host")
+      #|let bad : I64 = extern("host")
     ),
   )
   assert_diagnostic_headline(
@@ -129,7 +129,7 @@ test "golden function literal parameter diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|fn bad() -> Int {
+      #|fn bad() -> I64 {
       #|  {
       #|    let _f = fn (value) {
       #|      value
@@ -150,7 +150,7 @@ test "golden empty match missing expected type diagnostic is specific" {
   let diagnostic = first_check_diagnostic(
     (
       #|module Test
-      #|fn bad() -> Int {
+      #|fn bad() -> I64 {
       #|  {
       #|    let _ = match true {
       #|    }
@@ -172,7 +172,7 @@ test "golden unqualified variant pattern diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|fn bad(value : Int) -> Int {
+      #|fn bad(value : I64) -> I64 {
       #|  match value {
       #|    some(_) => 1
       #|  }
@@ -247,8 +247,8 @@ test "golden ambiguous effect row inference requests explicit arguments" {
       #|fn[A, B] consume(callback : () -> Unit ! { Mark[A], Mark[B] }) -> Unit {
       #|  ()
       #|}
-      #|fn callback() -> Unit ! { Mark[Int], Mark[Bool] } {
-      #|  let _first : Unit = Mark[Int]::mark!()
+      #|fn callback() -> Unit ! { Mark[I64], Mark[Bool] } {
+      #|  let _first : Unit = Mark[I64]::mark!()
       #|  Mark[Bool]::mark!()
       #|}
       #|fn use() -> Unit {
@@ -275,14 +275,14 @@ test "golden missing contextual offer diagnostic is specific" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  op_add(1, 2)
       #|}
     ),
   )
   assert_diagnostic_headline(diagnostic, "E3013", "missing contextual offer")
   assert_single_help(
-    diagnostic, "pass the argument explicitly or add a visible `offer` with type `Add[Int]`",
+    diagnostic, "pass the argument explicitly or add a visible `offer` with type `Add[I64]`",
   )
 }
 
@@ -297,11 +297,11 @@ test "golden ambiguous contextual offer diagnostic is specific" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let add_a : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_add")(a, b) } }
-      #|let add_b : Add[Int] = Add::{ add: fn(a : Int, b : Int) -> Int { builtin("%i64_sub")(a, b) } }
-      #|offer offer_a : Add[Int] = add_a
-      #|offer offer_b : Add[Int] = add_b
-      #|fn use() -> Int {
+      #|let add_a : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+      #|let add_b : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_sub")(a, b) } }
+      #|offer offer_a : Add[I64] = add_a
+      #|offer offer_b : Add[I64] = add_b
+      #|fn use() -> I64 {
       #|  op_add(1, 2)
       #|}
     ),
@@ -317,7 +317,7 @@ test "golden named compiler intrinsic argument uses ordinary call diagnostic" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|fn use() -> Int {
+      #|fn use() -> I64 {
       #|  builtin("%i64_add")(1, value=2)
       #|}
     ),
@@ -391,7 +391,7 @@ test "golden block sequence help qualifies Unit expressions" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|fn bad(x : Int) -> Int { x x }
+      #|fn bad(x : I64) -> I64 { x x }
     ),
   )
   debug_inspect(
@@ -446,7 +446,7 @@ test "golden resolver diagnostic renders span summary and guidance" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|pub let answer : Int = missing
+      #|pub let answer : I64 = missing
     ),
   )
   assert_diagnostic_headline(diagnostic, "E2001", "cannot find value `missing`")
@@ -507,7 +507,7 @@ test "golden missing selective import item diagnostic is specific" {
     [
       (
         #|module Lib
-        #|pub let value : Int = 1
+        #|pub let value : I64 = 1
       ),
     ],
   )
@@ -566,7 +566,7 @@ test "golden type diagnostic renders span summary and facts" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|pub let answer : Int = true
+      #|pub let answer : I64 = true
     ),
   )
   assert_diagnostic_headline(diagnostic, "E3006", "type mismatch")
@@ -604,7 +604,7 @@ test "golden type diagnostic renders span summary and facts" {
       #|          end_column: 28,
       #|        },
       #|      ),
-      #|      message: "expected `Int`, found `Bool`",
+      #|      message: "expected `I64`, found `Bool`",
       #|      style: Primary,
       #|    },
       #|  ],
@@ -623,8 +623,8 @@ test "golden struct diagnostic renders span summary and suggestion" {
     (
       #|module Test
       #|pub struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
       #|pub let p : Point = Point::{ x: 1 }
     ),
@@ -689,10 +689,10 @@ test "golden pattern diagnostic renders span summary and guidance" {
     (
       #|module Test
       #|enum Option {
-      #|  some(Int)
+      #|  some(I64)
       #|  none()
       #|}
-      #|pub fn value(option : Option) -> Int {
+      #|pub fn value(option : Option) -> I64 {
       #|  match option {
       #|    Option::some(value) => value
       #|  }
@@ -753,10 +753,10 @@ test "golden missing handler operation diagnostic uses its source name" {
     (
       #|module Test
       #|effect Console {
-      #|  read() -> Int
+      #|  read() -> I64
       #|  choose() -> Unit
       #|}
-      #|pub fn program() -> Int {
+      #|pub fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|  } final value {
@@ -778,7 +778,7 @@ test "golden imported handler operation diagnostic uses its source name" {
     (
       #|module Main
       #|import Effects.{ Console }
-      #|pub fn program() -> Int {
+      #|pub fn program() -> I64 {
       #|  handle Console::read!() with {
       #|    Console::read(resume) => 0
       #|  } final value {
@@ -790,7 +790,7 @@ test "golden imported handler operation diagnostic uses its source name" {
       (
         #|module Effects
         #|pub effect Console {
-        #|  read() -> Int
+        #|  read() -> I64
         #|  choose() -> Unit
         #|}
       ),
@@ -809,7 +809,7 @@ test "golden handler operation pattern diagnostic uses its source name" {
     (
       #|module Test
       #|effect Console {
-      #|  write(String, Int) -> Unit
+      #|  write(String, I64) -> Unit
       #|}
       #|pub fn program() -> Unit {
       #|  handle Console::write!("message", 1) with {
@@ -837,7 +837,7 @@ test "golden module input diagnostic renders span summary and input facts" {
     (
       #|module Main
       #|import Missing.*
-      #|pub let answer : Int = 1
+      #|pub let answer : I64 = 1
     ),
   )
   assert_diagnostic_headline(

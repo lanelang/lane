@@ -35,16 +35,16 @@ test "format comments after explicit item semicolons" {
     (
       #|module Test
       #|struct Pair {
-      #|left:Int; // trailing left
-      #|right:Int
+      #|left:I64; // trailing left
+      #|right:I64
       #|}
     ),
     (
       #|module Test
       #|
       #|struct Pair {
-      #|  left : Int // trailing left
-      #|  right : Int
+      #|  left : I64 // trailing left
+      #|  right : I64
       #|}
       #|
     ),
@@ -117,8 +117,8 @@ test "format trailing comments on newline shorthand struct fields" {
   assert_format(
     (
       #|module Test
-      #|struct Pair { left : Int; right : Int }
-      #|pub fn make(left : Int, right : Int) -> Pair {
+      #|struct Pair { left : I64; right : I64 }
+      #|pub fn make(left : I64, right : I64) -> Pair {
       #|Pair::{
       #|left // keep
       #|right
@@ -129,11 +129,11 @@ test "format trailing comments on newline shorthand struct fields" {
       #|module Test
       #|
       #|struct Pair {
-      #|  left : Int
-      #|  right : Int
+      #|  left : I64
+      #|  right : I64
       #|}
       #|
-      #|pub fn make(left : Int, right : Int) -> Pair {
+      #|pub fn make(left : I64, right : I64) -> Pair {
       #|  Pair::{
       #|    left // keep
       #|    right
@@ -225,9 +225,9 @@ test "format comma list separators canonically" {
     (
       #|module Test
       #|import Lib.{ alpha,beta }
-      #|struct Pair { left:Int; right:Int }
+      #|struct Pair { left:I64; right:I64 }
       #|pub let pair:Pair=Pair::{ left:20,right:22 }
-      #|pub fn sum(value:Pair)->Int {
+      #|pub fn sum(value:Pair)->I64 {
       #|match value { Pair::{ left,right } => left + right }
       #|}
     ),
@@ -237,13 +237,13 @@ test "format comma list separators canonically" {
       #|import Lib.{ alpha, beta }
       #|
       #|struct Pair {
-      #|  left : Int
-      #|  right : Int
+      #|  left : I64
+      #|  right : I64
       #|}
       #|
       #|pub let pair : Pair = Pair::{ left: 20, right: 22 }
       #|
-      #|pub fn sum(value : Pair) -> Int {
+      #|pub fn sum(value : Pair) -> I64 {
       #|  match value {
       #|    Pair::{ left, right } => left + right
       #|  }
@@ -288,10 +288,10 @@ test "format layout sequences mixed with local declarations" {
     (
       #|module Test
       #|fn mark()->Unit { () }
-      #|pub fn build()->Int {
+      #|pub fn build()->I64 {
       #|mark();
-      #|let answer:Int=42;
-      #|fn read()->Int { answer };
+      #|let answer:I64=42;
+      #|fn read()->I64 { answer };
       #|mark()
       #|read()
       #|}
@@ -303,10 +303,10 @@ test "format layout sequences mixed with local declarations" {
       #|  ()
       #|}
       #|
-      #|pub fn build() -> Int {
+      #|pub fn build() -> I64 {
       #|  mark()
-      #|  let answer : Int = 42
-      #|  fn read() -> Int {
+      #|  let answer : I64 = 42
+      #|  fn read() -> I64 {
       #|    answer
       #|  }
       #|  mark()

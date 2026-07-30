@@ -29,8 +29,8 @@ fn test_module_path(name : String) -> ModulePath {
 
 ///|
 test "pretty print source file" {
-  let int_type = test_type("Int")
-  let option_int_type = test_type("Option", arguments=[int_type])
+  let i64_type = test_type("I64")
+  let option_int_type = test_type("Option", arguments=[i64_type])
   let file = SourceFile::{
     module_path: test_module_path("Test"),
     imports: [],
@@ -44,13 +44,13 @@ test "pretty print source file" {
           Field({
             name: "x",
             name_loc: test_loc(),
-            type_: int_type,
+            type_: i64_type,
             loc: test_loc(),
           }),
           Field({
             name: "y",
             name_loc: test_loc(),
-            type_: int_type,
+            type_: i64_type,
             loc: test_loc(),
           }),
         ],
@@ -99,11 +99,11 @@ test "pretty print source file" {
             is_offered: false,
             name: "fallback",
             name_loc: test_loc(),
-            type_: int_type,
+            type_: i64_type,
             loc: test_loc(),
           },
         ],
-        return_type: int_type,
+        return_type: i64_type,
         effect: Empty(loc=test_loc()),
         body: Block(
           items=[],
@@ -150,8 +150,8 @@ test "pretty print source file" {
       #|module Test
       #|
       #|struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
       #|
       #|enum Option[A] {
@@ -159,7 +159,7 @@ test "pretty print source file" {
       #|  some(A)
       #|}
       #|
-      #|fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
+      #|fn unwrap_or(value : Option[I64], fallback : I64) -> I64 {
       #|  match value {
       #|    Option::none() => fallback
       #|    Option::some(x) => x
@@ -175,11 +175,11 @@ test "pretty print expression precedence" {
     operator=Mul,
     left=Binary(
       operator=Add,
-      left=IntLiteral("1", loc=test_loc()),
-      right=IntLiteral("2", loc=test_loc()),
+      left=IntegerLiteral("1", loc=test_loc()),
+      right=IntegerLiteral("2", loc=test_loc()),
       loc=test_loc(),
     ),
-    right=IntLiteral("3", loc=test_loc()),
+    right=IntegerLiteral("3", loc=test_loc()),
     loc=test_loc(),
   )
   inspect(@prettyprinter.render(expression), content="(1 + 2) * 3")
@@ -212,7 +212,7 @@ test "pretty print handler keeps with and final attached" {
               callee=Var("resume", loc=test_loc()),
               arguments=[
                 Positional(
-                  value=IntLiteral("42", loc=test_loc()),
+                  value=IntegerLiteral("42", loc=test_loc()),
                   loc=test_loc(),
                 ),
               ],

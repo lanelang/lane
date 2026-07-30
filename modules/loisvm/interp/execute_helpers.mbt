@@ -416,8 +416,8 @@ fn ExecutionInstance::to_host_value(
 ) -> @runtime.HostValue raise ExecutionFailure {
   match (kind, value) {
     (Bool, I32(value)) => Bool(value != 0)
-    (Int, I64(value)) => Int(value)
-    (Double, F64(value)) => Double(value)
+    (I64, I64(value)) => I64(value)
+    (F64, F64(value)) => F64(value)
     (String, I32(reference)) => {
       let bytes = self.heap.byte_sequence(reference)
       BorrowedString(
@@ -446,8 +446,8 @@ fn ExecutionInstance::from_host_value(
   match (kind, value) {
     (Unit, Unit) => None
     (Bool, Bool(value)) => Some(I32(if value { 1 } else { 0 }))
-    (Int, Int(value)) => Some(I64(value))
-    (Double, Double(value)) => Some(F64(value))
+    (I64, I64(value)) => Some(I64(value))
+    (F64, F64(value)) => Some(F64(value))
     (String, String(bytes)) => {
       ignore(
         @utf8.decode(bytes) catch {

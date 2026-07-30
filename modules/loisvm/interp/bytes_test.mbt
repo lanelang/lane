@@ -46,7 +46,7 @@ fn execute_bytes_test(
 }
 
 ///|
-test "Byte conversion uses the low eight bits for every signed Int range" {
+test "Byte conversion uses the low eight bits for every signed I64 range" {
   let i32 = bytes_test_trivial_slot(I32)
   let i64 = bytes_test_trivial_slot(I64)
   let cases : Array[(Int64, Int64)] = [
@@ -65,11 +65,11 @@ test "Byte conversion uses the low eight bits for every signed Int range" {
     blocks.push({
       parameters: [],
       instructions: [
-        ConstInt({ value: 0 }, case.0),
-        IntToByte({ value: 1 }, { value: 0 }),
-        ByteToInt({ value: 2 }, { value: 1 }),
-        ConstInt({ value: 3 }, case.1),
-        IntEq({ value: 4 }, { value: 2 }, { value: 3 }),
+        ConstI64({ value: 0 }, case.0),
+        I64ToByte({ value: 1 }, { value: 0 }),
+        ByteToI64({ value: 2 }, { value: 1 }),
+        ConstI64({ value: 3 }, case.1),
+        I64Eq({ value: 4 }, { value: 2 }, { value: 3 }),
       ],
       terminator: BranchBool(
         { value: 4 },
@@ -105,40 +105,40 @@ test "Byte conversion and shared Bytes update preserve value semantics" {
   let body = bytes_test_body(slots, [
     block(
       [
-        ConstInt({ value: 0 }, 511L),
-        IntToByte({ value: 1 }, { value: 0 }),
-        ByteToInt({ value: 2 }, { value: 1 }),
-        ConstInt({ value: 15 }, 255L),
-        IntEq({ value: 14 }, { value: 2 }, { value: 15 }),
+        ConstI64({ value: 0 }, 511L),
+        I64ToByte({ value: 1 }, { value: 0 }),
+        ByteToI64({ value: 2 }, { value: 1 }),
+        ConstI64({ value: 15 }, 255L),
+        I64Eq({ value: 14 }, { value: 2 }, { value: 15 }),
       ],
       BranchBool({ value: 14 }, edge(1), edge(5)),
     ),
     block(
       [
-        ConstInt({ value: 3 }, 2L),
+        ConstI64({ value: 3 }, 2L),
         ByteSequenceMake({ value: 4 }, { value: 3 }, { value: 1 }),
         ByteSequenceLength({ value: 16 }, { value: 4 }),
-        IntEq({ value: 14 }, { value: 16 }, { value: 3 }),
+        I64Eq({ value: 14 }, { value: 16 }, { value: 3 }),
       ],
       BranchBool({ value: 14 }, edge(2), edge(5)),
     ),
     block(
       [
         RetainCopy({ value: 5 }, { value: 4 }),
-        ConstInt({ value: 6 }, 1L),
-        ConstInt({ value: 7 }, 0L),
-        IntToByte({ value: 8 }, { value: 7 }),
+        ConstI64({ value: 6 }, 1L),
+        ConstI64({ value: 7 }, 0L),
+        I64ToByte({ value: 8 }, { value: 7 }),
         ByteSequenceSet({ value: 9 }, { value: 4 }, { value: 6 }, { value: 8 }),
         ByteSequenceGet({ value: 10 }, { value: 5 }, { value: 6 }),
         ByteSequenceGet({ value: 11 }, { value: 9 }, { value: 6 }),
-        ByteToInt({ value: 12 }, { value: 10 }),
-        ByteToInt({ value: 13 }, { value: 11 }),
-        IntEq({ value: 14 }, { value: 12 }, { value: 15 }),
+        ByteToI64({ value: 12 }, { value: 10 }),
+        ByteToI64({ value: 13 }, { value: 11 }),
+        I64Eq({ value: 14 }, { value: 12 }, { value: 15 }),
       ],
       BranchBool({ value: 14 }, edge(3), edge(5)),
     ),
     block(
-      [IntEq({ value: 14 }, { value: 13 }, { value: 7 })],
+      [I64Eq({ value: 14 }, { value: 13 }, { value: 7 })],
       BranchBool({ value: 14 }, edge(4), edge(5)),
     ),
     block([Release({ value: 5 }), Release({ value: 9 })], Return(None)),
@@ -158,16 +158,16 @@ test "unique Bytes update transfers the original owner" {
       {
         parameters: [],
         instructions: [
-          ConstInt({ value: 0 }, 1L),
-          ConstInt({ value: 1 }, 258L),
-          ConstInt({ value: 9 }, 0L),
-          IntToByte({ value: 2 }, { value: 1 }),
+          ConstI64({ value: 0 }, 1L),
+          ConstI64({ value: 1 }, 258L),
+          ConstI64({ value: 9 }, 0L),
+          I64ToByte({ value: 2 }, { value: 1 }),
           ByteSequenceMake({ value: 3 }, { value: 0 }, { value: 2 }),
           ByteSequenceSet({ value: 4 }, { value: 3 }, { value: 9 }, { value: 2 }),
           ByteSequenceGet({ value: 5 }, { value: 4 }, { value: 9 }),
-          ByteToInt({ value: 6 }, { value: 5 }),
-          ConstInt({ value: 7 }, 2L),
-          IntEq({ value: 8 }, { value: 6 }, { value: 7 }),
+          ByteToI64({ value: 6 }, { value: 5 }),
+          ConstI64({ value: 7 }, 2L),
+          I64Eq({ value: 8 }, { value: 6 }, { value: 7 }),
         ],
         terminator: BranchBool(
           { value: 8 },
@@ -195,8 +195,8 @@ test "Bytes primitives trap on invalid length and index" {
     {
       parameters: [],
       instructions: [
-        ConstInt({ value: 0 }, -1L),
-        IntToByte({ value: 1 }, { value: 0 }),
+        ConstI64({ value: 0 }, -1L),
+        I64ToByte({ value: 1 }, { value: 0 }),
         ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       ],
       terminator: Return(None),
@@ -208,10 +208,10 @@ test "Bytes primitives trap on invalid length and index" {
   )
   let invalid_index_body = fn(index : Int64, update : Bool) {
     let instructions : Array[@bytecode.Instruction] = [
-      ConstInt({ value: 0 }, 1L),
-      IntToByte({ value: 1 }, { value: 0 }),
+      ConstI64({ value: 0 }, 1L),
+      I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
-      ConstInt({ value: 3 }, index),
+      ConstI64({ value: 3 }, index),
     ]
     if update {
       instructions.push(
@@ -248,8 +248,8 @@ test "ByteSequence equality concatenation and slicing share one representation" 
           ConstString({ value: 0 }, { value: 0 }),
           ConstString({ value: 1 }, { value: 1 }),
           ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-          ConstInt({ value: 3 }, 1L),
-          ConstInt({ value: 4 }, 4L),
+          ConstI64({ value: 3 }, 1L),
+          ConstI64({ value: 4 }, 4L),
           ByteSequenceSlice({ value: 5 }, { value: 2 }, { value: 3 }, {
             value: 4,
           }),
@@ -335,8 +335,8 @@ test "Bytes layout preflight determines the large length limit" {
     {
       parameters: [],
       instructions: [
-        ConstInt({ value: 0 }, 2147483636L),
-        IntToByte({ value: 1 }, { value: 0 }),
+        ConstI64({ value: 0 }, 2147483636L),
+        I64ToByte({ value: 1 }, { value: 0 }),
         ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       ],
       terminator: Return(None),

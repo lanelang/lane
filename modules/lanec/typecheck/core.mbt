@@ -279,9 +279,9 @@ pub(all) enum TypeCheckDiagnosticKind {
   HiddenTypeEscape(type_~ : @types.Type)
   PrivateTypeEscape(name~ : String)
   PrivateEffectEscape(name~ : String)
-  InvalidIntLiteral(String)
-  InvalidS32Literal(String)
-  InvalidDoubleLiteral(String)
+  InvalidI64Literal(String)
+  InvalidI32Literal(String)
+  InvalidF64Literal(String)
   UnknownBuiltin(name~ : String)
   BuiltinSignatureMismatch(
     name~ : String,

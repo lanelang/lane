@@ -7,21 +7,21 @@ test "handler clauses use the outer dictionary for the same effect" {
     effect,
     [],
     [],
-    Primitive(Int),
+    Primitive(I64),
   )
-  let result = metadata.define_value("result", Value, Primitive(Int))
-  let inner_final = metadata.define_value("inner_result", Local, Primitive(Int))
-  let outer_final = metadata.define_value("outer_result", Local, Primitive(Int))
-  let clause_value = metadata.define_value("outer_value", Local, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
+  let inner_final = metadata.define_value("inner_result", Local, Primitive(I64))
+  let outer_final = metadata.define_value("outer_result", Local, Primitive(I64))
+  let clause_value = metadata.define_value("outer_value", Local, Primitive(I64))
   let inner_resume = metadata.define_value(
     "inner_resume",
     Parameter,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let outer_resume = metadata.define_value(
     "outer_resume",
     Parameter,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let source = @buslane.Program::{
     metadata,
@@ -37,7 +37,7 @@ test "handler clauses use the outer dictionary for the same effect" {
               payloads: [],
             }),
             result_binder: inner_final,
-            result_type: Primitive(Int),
+            result_type: Primitive(I64),
             final_body: Ref(inner_final),
             handlers: [
               {
@@ -64,7 +64,7 @@ test "handler clauses use the outer dictionary for the same effect" {
             ],
           }),
           result_binder: outer_final,
-          result_type: Primitive(Int),
+          result_type: Primitive(I64),
           final_body: Ref(outer_final),
           handlers: [
             {
@@ -75,7 +75,7 @@ test "handler clauses use the outer dictionary for the same effect" {
                   type_binders: [],
                   payload_binders: [],
                   resume_binder: outer_resume,
-                  body: Literal(Int(42L)),
+                  body: Literal(I64(42L)),
                 },
               ],
             },
@@ -91,7 +91,7 @@ test "handler clauses use the outer dictionary for the same effect" {
     ordinary,
     BuslaneExternalRuntime(),
   )
-  assert_eq(evaluated.lookup(result).as_int(), Some(42L))
+  assert_eq(evaluated.lookup(result).as_i64(), Some(42L))
 }
 
 ///|
@@ -108,9 +108,9 @@ test "handler lowering preserves generic operation clauses" {
     [Parameter(hidden), Parameter(element)],
     Parameter(hidden),
   )
-  let result = metadata.define_value("result", Value, Primitive(Int))
+  let result = metadata.define_value("result", Value, Primitive(I64))
   let selected = metadata.define_value("selected", Local, Primitive(String))
-  let final_binder = metadata.define_value("result", Local, Primitive(Int))
+  let final_binder = metadata.define_value("result", Local, Primitive(I64))
   let hidden_payload = metadata.define_value(
     "hidden_payload",
     Parameter,
@@ -119,12 +119,12 @@ test "handler lowering preserves generic operation clauses" {
   let element_payload = metadata.define_value(
     "element_payload",
     Parameter,
-    Primitive(Int),
+    Primitive(I64),
   )
   let resume_binder = metadata.define_value(
     "resume",
     Parameter,
-    Function([Parameter(clause_hidden)], Primitive(Int), Empty),
+    Function([Parameter(clause_hidden)], Primitive(I64), Empty),
   )
   let source = @buslane.Program::{
     metadata,
@@ -136,18 +136,18 @@ test "handler lowering preserves generic operation clauses" {
             selected,
             Perform({
               operation,
-              effect_arguments: [TypeArgument(Primitive(Int))],
+              effect_arguments: [TypeArgument(Primitive(I64))],
               hidden_witnesses: [TypeArgument(Primitive(String))],
-              payloads: [Literal(String("selected")), Literal(Int(1L))],
+              payloads: [Literal(String("selected")), Literal(I64(1L))],
             }),
-            Literal(Int(7L)),
+            Literal(I64(7L)),
           ),
           result_binder: final_binder,
-          result_type: Primitive(Int),
+          result_type: Primitive(I64),
           final_body: Ref(final_binder),
           handlers: [
             {
-              handled_effect: Singleton(effect, [TypeArgument(Primitive(Int))]),
+              handled_effect: Singleton(effect, [TypeArgument(Primitive(I64))]),
               operations: [
                 {
                   operation,
@@ -170,5 +170,5 @@ test "handler lowering preserves generic operation clauses" {
     ordinary,
     BuslaneExternalRuntime(),
   )
-  assert_eq(evaluated.lookup(result).as_int(), Some(7L))
+  assert_eq(evaluated.lookup(result).as_i64(), Some(7L))
 }

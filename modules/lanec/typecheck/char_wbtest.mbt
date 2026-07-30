@@ -16,14 +16,14 @@ test "typecheck accepts Unicode character literals and patterns" {
 }
 
 ///|
-test "type mismatch diagnostics preserve S32 and Char identity" {
-  let result = expect_typecheck_result("let invalid : S32 = '你'")
+test "type mismatch diagnostics preserve I32 and Char identity" {
+  let result = expect_typecheck_result("let invalid : I32 = '你'")
   debug_inspect(
     result.diagnostics,
     content=(
       #|[
       #|  {
-      #|    kind: TypeMismatch(expected=Primitive(S32), actual=Primitive(Char)),
+      #|    kind: TypeMismatch(expected=Primitive(I32), actual=Primitive(Char)),
       #|    loc: {
       #|      start_offset: 32,
       #|      end_offset: 35,

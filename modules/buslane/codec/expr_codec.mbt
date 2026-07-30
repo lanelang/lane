@@ -9,11 +9,11 @@ fn @bytecodec.ByteWriter::write_literal(
       self.write_u8(1)
       self.write_bool(value)
     }
-    Int(value) => {
+    I64(value) => {
       self.write_u8(2)
       self.write_i64_le(value)
     }
-    Double(value) => {
+    F64(value) => {
       self.write_u8(3)
       self.write_f64_le(value)
     }
@@ -21,7 +21,7 @@ fn @bytecodec.ByteWriter::write_literal(
       self.write_u8(4)
       self.write_string(value)
     }
-    S32(value) => {
+    I32(value) => {
       self.write_u8(5)
       self.write_i32_le(value)
     }
@@ -48,11 +48,11 @@ fn @bytecodec.ByteReader::read_literal(
     }
     [u8be(2), .. rest] => {
       self.update_view(rest)
-      Int(read_i64_le(self))
+      I64(read_i64_le(self))
     }
     [u8be(3), .. rest] => {
       self.update_view(rest)
-      Double(read_f64_le(self))
+      F64(read_f64_le(self))
     }
     [u8be(4), .. rest] => {
       self.update_view(rest)
@@ -60,7 +60,7 @@ fn @bytecodec.ByteReader::read_literal(
     }
     [u8be(5), .. rest] => {
       self.update_view(rest)
-      S32(read_i32_le(self))
+      I32(read_i32_le(self))
     }
     [u8be(6), .. rest] => {
       self.update_view(rest)

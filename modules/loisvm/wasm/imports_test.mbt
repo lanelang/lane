@@ -63,10 +63,10 @@ test "JIT and interpreter modes execute the same scalar import" {
       @loisvm_runtime.RuntimeBinding::new(
         symbol="lane.test.observe_mode",
         abi_major=1,
-        parameters=[Int],
+        parameters=[I64],
         result=Unit,
         invoke=fn(_context, arguments) {
-          if arguments is [Int(value)] {
+          if arguments is [I64(value)] {
             observed = value
           }
           Unit
@@ -74,13 +74,13 @@ test "JIT and interpreter modes execute the same scalar import" {
       ),
     )
     let body = import_test_body([import_test_slot(I64)], [
-      ConstInt({ value: 0 }, 42L),
+      ConstI64({ value: 0 }, 42L),
       CallDirect({ value: 2 }, None, [], [{ value: 0 }], None),
     ])
     let instance = loaded_instance(
       import_test_image(body, {
         abi_major: 1,
-        parameters: [Int],
+        parameters: [I64],
         result: Unit,
         symbol: "lane.test.observe_mode",
       }),
@@ -99,23 +99,23 @@ test "registry-backed scalar import uses its generated adapter" {
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.add_one",
       abi_major=1,
-      parameters=[Int],
-      result=Int,
+      parameters=[I64],
+      result=I64,
       invoke=fn(_context, arguments) {
-        guard arguments is [Int(value)] else { return Int(0L) }
-        Int(value + 1L)
+        guard arguments is [I64(value)] else { return I64(0L) }
+        I64(value + 1L)
       },
     ),
   )
   let body = import_test_body([import_test_slot(I64), import_test_slot(I64)], [
-    ConstInt({ value: 0 }, 41L),
+    ConstI64({ value: 0 }, 41L),
     CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
   ])
   let instance = loaded_instance(
     import_test_image(body, {
       abi_major: 1,
-      parameters: [Int],
-      result: Int,
+      parameters: [I64],
+      result: I64,
       symbol: "lane.test.add_one",
     }),
     registry,
@@ -469,7 +469,7 @@ test "Wasm loading rejects missing and incompatible bindings before compilation"
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.missing",
       abi_major=2,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, _arguments) { Unit },
     ),
@@ -491,7 +491,7 @@ test "Wasm loading rejects missing and incompatible bindings before compilation"
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.missing",
       abi_major=1,
-      parameters=[Int],
+      parameters=[I64],
       result=Unit,
       invoke=fn(_context, _arguments) { Unit },
     ),
@@ -503,7 +503,7 @@ test "Wasm loading rejects missing and incompatible bindings before compilation"
         error=ParameterKindsMismatch(
           symbol="lane.test.missing",
           expected=[],
-          actual=[Int]
+          actual=[I64]
         )
       )
     ),
@@ -514,8 +514,8 @@ test "Wasm loading rejects missing and incompatible bindings before compilation"
       symbol="lane.test.missing",
       abi_major=1,
       parameters=[],
-      result=Int,
-      invoke=fn(_context, _arguments) { Int(0L) },
+      result=I64,
+      invoke=fn(_context, _arguments) { I64(0L) },
     ),
   )
   assert_true(
@@ -525,7 +525,7 @@ test "Wasm loading rejects missing and incompatible bindings before compilation"
         error=ResultKindMismatch(
           symbol="lane.test.missing",
           expected=Unit,
-          actual=Int
+          actual=I64
         )
       )
     ),

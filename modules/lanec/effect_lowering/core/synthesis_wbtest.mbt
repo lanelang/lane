@@ -5,21 +5,21 @@ test "effect synthesis combines call evaluation and latent effects" {
   let pure_callee = metadata.define_value(
     "pure",
     Value,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let effectful_callee = metadata.define_value(
     "effectful",
     Value,
-    Function([Primitive(Int)], Primitive(Int), Singleton(effect, [])),
+    Function([Primitive(I64)], Primitive(I64), Singleton(effect, [])),
   )
   let program = Program::{ metadata, terms: [] }
   assert_eq(
-    synthesize_expr(program, Call(Ref(pure_callee), [Literal(Int(1L))])),
-    Ok({ type_: Primitive(Int), effect: Empty }),
+    synthesize_expr(program, Call(Ref(pure_callee), [Literal(I64(1L))])),
+    Ok({ type_: Primitive(I64), effect: Empty }),
   )
   assert_eq(
-    synthesize_expr(program, Call(Ref(effectful_callee), [Literal(Int(1L))])),
-    Ok({ type_: Primitive(Int), effect: Singleton(effect, []) }),
+    synthesize_expr(program, Call(Ref(effectful_callee), [Literal(I64(1L))])),
+    Ok({ type_: Primitive(I64), effect: Singleton(effect, []) }),
   )
 }
 
@@ -33,7 +33,7 @@ test "effect synthesis substitutes open effect applications" {
     Value,
     Forall(
       [effect_parameter],
-      Function([], Primitive(Int), Parameter(effect_parameter)),
+      Function([], Primitive(I64), Parameter(effect_parameter)),
     ),
   )
   let applied = TypeApply(Ref(callee), [EffectArgument(Singleton(effect, []))])
@@ -41,13 +41,13 @@ test "effect synthesis substitutes open effect applications" {
   assert_eq(
     synthesize_expr(program, applied),
     Ok({
-      type_: Function([], Primitive(Int), Singleton(effect, [])),
+      type_: Function([], Primitive(I64), Singleton(effect, [])),
       effect: Empty,
     }),
   )
   assert_eq(
     synthesize_expr(program, Call(applied, [])),
-    Ok({ type_: Primitive(Int), effect: Singleton(effect, []) }),
+    Ok({ type_: Primitive(I64), effect: Singleton(effect, []) }),
   )
 }
 
@@ -60,13 +60,13 @@ test "effect synthesis includes invoke payload effects" {
     "op",
     operation_effect,
     [],
-    [Primitive(Int)],
+    [Primitive(I64)],
     Primitive(Bool),
   )
   let payload = metadata.define_value(
     "payload",
     Value,
-    Function([], Primitive(Int), Singleton(payload_effect, [])),
+    Function([], Primitive(I64), Singleton(payload_effect, [])),
   )
   let program = Program::{ metadata, terms: [] }
   assert_eq(
@@ -99,20 +99,20 @@ test "effect synthesis removes installed effects and includes clause effects" {
     handled_effect,
     [],
     [],
-    Primitive(Int),
+    Primitive(I64),
   )
   let outer_operation = metadata.define_operation(
     "outer",
     outer_effect,
     [],
     [],
-    Primitive(Int),
+    Primitive(I64),
   )
-  let body_result = metadata.define_value("body", MatchBinder, Primitive(Int))
+  let body_result = metadata.define_value("body", MatchBinder, Primitive(I64))
   let resume_value = metadata.define_value(
     "resume",
     Parameter,
-    Function([Primitive(Int)], Primitive(Int), Empty),
+    Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let program = Program::{ metadata, terms: [] }
   let install = Install({
@@ -122,7 +122,7 @@ test "effect synthesis removes installed effects and includes clause effects" {
       hidden_witnesses: [],
       payloads: [],
     }),
-    result_type: Primitive(Int),
+    result_type: Primitive(I64),
     dictionaries: [
       {
         handled_effect: Singleton(handled_effect, []),
@@ -131,7 +131,7 @@ test "effect synthesis removes installed effects and includes clause effects" {
             operation: handled_operation,
             callable: Monomorphic({
               parameters: [resume_value],
-              result_type: Primitive(Int),
+              result_type: Primitive(I64),
               body: Invoke({
                 operation: outer_operation,
                 effect_arguments: [],
@@ -145,7 +145,7 @@ test "effect synthesis removes installed effects and includes clause effects" {
     ],
     final_clause: {
       parameters: [body_result],
-      result_type: Primitive(Int),
+      result_type: Primitive(I64),
       body: Invoke({
         operation: outer_operation,
         effect_arguments: [],
@@ -156,7 +156,7 @@ test "effect synthesis removes installed effects and includes clause effects" {
   })
   assert_eq(
     synthesize_expr(program, install),
-    Ok({ type_: Primitive(Int), effect: Singleton(outer_effect, []) }),
+    Ok({ type_: Primitive(I64), effect: Singleton(outer_effect, []) }),
   )
 }
 
@@ -169,7 +169,7 @@ test "effect synthesis rejects impossible trusted-core shapes" {
     Err(UnknownValue(missing)),
   )
   assert_eq(
-    synthesize_expr({ metadata, terms: [] }, Call(Literal(Int(1L)), [])),
-    Err(ExpectedFunction(Primitive(Int))),
+    synthesize_expr({ metadata, terms: [] }, Call(Literal(I64(1L)), [])),
+    Err(ExpectedFunction(Primitive(I64))),
   )
 }

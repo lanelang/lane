@@ -67,10 +67,10 @@ fn intrinsic_primitive_type(
   match kind {
     Unit => Unit
     Bool => Bool
-    Int => Int
-    S32 => S32
+    I64 => I64
+    I32 => I32
     Char => Char
-    Double => Double
+    F64 => F64
     String => String
     Byte => Byte
     Bytes => Bytes
@@ -154,8 +154,8 @@ fn SemanticChecker::extern_value_kind(
     ) {
     Primitive(Unit) => Some(Unit)
     Primitive(Bool) => Some(Bool)
-    Primitive(Int) => Some(Int)
-    Primitive(Double) => Some(Double)
+    Primitive(I64) => Some(I64)
+    Primitive(F64) => Some(F64)
     Primitive(String) => Some(String)
     Constructor(symbol) =>
       if self.declarations.checked_external_type(symbol) is Some(_) {

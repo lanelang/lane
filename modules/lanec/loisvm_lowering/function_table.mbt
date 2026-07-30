@@ -101,8 +101,8 @@ fn runtime_value_kind_rank(kind : @bytecode.RuntimeValueKind) -> Int {
   match kind {
     Unit => 0
     Bool => 1
-    Int => 2
-    Double => 3
+    I64 => 2
+    F64 => 3
     String => 4
     Opaque => 5
   }

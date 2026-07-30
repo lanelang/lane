@@ -128,8 +128,8 @@ fn Decoder::read_runtime_value_kind(
   match self.read_tag(expected="runtime value kind") {
     0x00 => Unit
     0x01 => Bool
-    0x02 => Int
-    0x03 => Double
+    0x02 => I64
+    0x03 => F64
     0x04 => String
     0x05 => Opaque
     tag => self.invalid_tag(offset~, domain="runtime value kind", tag~)
@@ -255,15 +255,15 @@ fn Decoder::read_layout_recipe(
   match self.read_tag(expected="layout recipe tag") {
     0x01 => Unit
     0x02 => Bool
-    0x03 => Int
-    0x04 => Double
+    0x03 => I64
+    0x04 => F64
     0x05 => Callable
     0x06 => ByteSequence
     0x07 => Data(self.read_object_shape_id())
     0x08 => Environment(self.read_object_shape_id())
     0x09 => Reference
     0x0A => Byte
-    0x0C => S32
+    0x0C => I32
     0x0D => Char
     tag => self.invalid_tag(offset~, domain="layout recipe", tag~)
   }
@@ -342,9 +342,8 @@ fn Decoder::read_instruction(
     0x03 => RetainCopy(self.read_slot_id(), self.read_slot_id())
     0x04 => Release(self.read_slot_id())
     0x05 =>
-      ConstInt(self.read_slot_id(), self.read_i64(expected="Int constant"))
-    0x06 =>
-      ConstDouble(self.read_slot_id(), self.read_i64(expected="Double bits"))
+      ConstI64(self.read_slot_id(), self.read_i64(expected="I64 constant"))
+    0x06 => ConstF64(self.read_slot_id(), self.read_i64(expected="F64 bits"))
     0x07 => ConstBool(self.read_slot_id(), self.read_bool())
     0x08 => ConstLayout(self.read_slot_id(), self.read_layout_id())
     0x09 => ConstFunction(self.read_slot_id(), self.read_function_id())
@@ -414,60 +413,54 @@ fn Decoder::read_instruction(
         self.read_slot_id(),
       )
     0x19 =>
-      IntAdd(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      I64Add(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x1A =>
-      IntSub(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      I64Sub(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x1B =>
-      IntMul(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x1C => IntNeg(self.read_slot_id(), self.read_slot_id())
+      I64Mul(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x1C => I64Neg(self.read_slot_id(), self.read_slot_id())
     0x1D =>
-      IntDiv(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      I64Div(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x1E =>
-      IntRem(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      I64Rem(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x1F =>
-      IntAnd(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x20 => IntOr(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      I64And(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x20 => I64Or(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x21 =>
-      IntXor(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x22 => IntNot(self.read_slot_id(), self.read_slot_id())
+      I64Xor(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x22 => I64Not(self.read_slot_id(), self.read_slot_id())
     0x23 =>
-      IntShl(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      I64Shl(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x24 =>
-      IntShrS(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x25 => IntEq(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x26 => IntNe(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x27 => IntLt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x28 => IntLe(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x29 => IntGt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x2A => IntGe(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      I64ShrS(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x25 => I64Eq(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x26 => I64Ne(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x27 => I64Lt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x28 => I64Le(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x29 => I64Gt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x2A => I64Ge(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x2B => BoolNot(self.read_slot_id(), self.read_slot_id())
     0x2C =>
       BoolEq(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x2D =>
       BoolNe(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x2E =>
-      DoubleAdd(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      F64Add(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x2F =>
-      DoubleSub(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      F64Sub(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x30 =>
-      DoubleMul(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      F64Mul(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x31 =>
-      DoubleDiv(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x32 => DoubleNeg(self.read_slot_id(), self.read_slot_id())
-    0x33 =>
-      DoubleEq(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x34 =>
-      DoubleNe(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x35 =>
-      DoubleLt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x36 =>
-      DoubleLe(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x37 =>
-      DoubleGt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x38 =>
-      DoubleGe(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x39 => IntToDouble(self.read_slot_id(), self.read_slot_id())
-    0x3A => DoubleToInt(self.read_slot_id(), self.read_slot_id())
+      F64Div(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x32 => F64Neg(self.read_slot_id(), self.read_slot_id())
+    0x33 => F64Eq(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x34 => F64Ne(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x35 => F64Lt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x36 => F64Le(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x37 => F64Gt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x38 => F64Ge(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x39 => I64ToF64(self.read_slot_id(), self.read_slot_id())
+    0x3A => F64ToI64(self.read_slot_id(), self.read_slot_id())
     0x3B => EraseI32(self.read_slot_id(), self.read_slot_id())
     0x3C => UneraseI32(self.read_slot_id(), self.read_slot_id())
     0x3D => EraseI64(self.read_slot_id(), self.read_slot_id())
@@ -485,8 +478,8 @@ fn Decoder::read_instruction(
       )
     0x44 => InitGlobal(self.read_global_id(), self.read_slot_id())
     0x45 => BorrowGlobal(self.read_slot_id(), self.read_global_id())
-    0x46 => ByteToInt(self.read_slot_id(), self.read_slot_id())
-    0x47 => IntToByte(self.read_slot_id(), self.read_slot_id())
+    0x46 => ByteToI64(self.read_slot_id(), self.read_slot_id())
+    0x47 => I64ToByte(self.read_slot_id(), self.read_slot_id())
     0x48 =>
       ByteSequenceMake(
         self.read_slot_id(),
@@ -508,22 +501,22 @@ fn Decoder::read_instruction(
         self.read_slot_id(),
       )
     0x4C =>
-      ConstS32(self.read_slot_id(), self.read_i32(expected="S32 constant"))
+      ConstI32(self.read_slot_id(), self.read_i32(expected="I32 constant"))
     0x4D =>
-      S32Add(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      I32Add(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x4E =>
-      S32Sub(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      I32Sub(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x4F =>
-      S32Mul(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x50 => S32Neg(self.read_slot_id(), self.read_slot_id())
+      I32Mul(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x50 => I32Neg(self.read_slot_id(), self.read_slot_id())
     0x51 =>
-      S32Div(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+      I32Div(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x52 =>
-      S32Rem(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x53 => S32Eq(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x54 => S32Lt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
-    0x55 => S32ToInt(self.read_slot_id(), self.read_slot_id())
-    0x56 => IntToS32(self.read_slot_id(), self.read_slot_id())
+      I32Rem(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x53 => I32Eq(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x54 => I32Lt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
+    0x55 => I32ToI64(self.read_slot_id(), self.read_slot_id())
+    0x56 => I64ToI32(self.read_slot_id(), self.read_slot_id())
     0x57 =>
       ConstChar(self.read_slot_id(), self.read_i32(expected="Char constant"))
     0x58 =>

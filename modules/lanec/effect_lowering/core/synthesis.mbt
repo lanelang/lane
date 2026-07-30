@@ -305,10 +305,10 @@ fn literal_type(literal : @buslane.Literal) -> @buslane.Type {
   match literal {
     Unit => Primitive(Unit)
     Bool(_) => Primitive(Bool)
-    Int(_) => Primitive(Int)
-    S32(_) => Primitive(S32)
+    I64(_) => Primitive(I64)
+    I32(_) => Primitive(I32)
     Char(_) => Primitive(Char)
-    Double(_) => Primitive(Double)
+    F64(_) => Primitive(F64)
     String(_) => Primitive(String)
   }
 }

@@ -1,8 +1,8 @@
 ///|
 fn Expr::for_each_child_expr(self : Expr, visit : (Expr) -> Unit) -> Unit {
   match self {
-    IntLiteral(_)
-    | DoubleLiteral(_)
+    IntegerLiteral(_)
+    | FloatingLiteral(_)
     | StringLiteral(_)
     | CharLiteral(_)
     | BoolLiteral(_)

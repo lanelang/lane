@@ -11,8 +11,8 @@ test "explicit derive checks through the canonical structural interface" {
       #|}
       #|
       #|pub struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
       #|
       #|pub struct Wrapper[T] {
@@ -21,7 +21,7 @@ test "explicit derive checks through the canonical structural interface" {
       #|
       #|pub fn point_equal(
       #|  deriver : Deriver[Equal],
-      #|  auto offer int_equal : Equal[Int]
+      #|  auto offer i64_equal : Equal[I64]
       #|) -> Equal[Point] {
       #|  derive[Equal, Point](deriver=deriver)
       #|}
@@ -51,11 +51,11 @@ test "derive rejects a malformed canonical structural interface" {
       #|import Basic.Trait.Derive.{ Deriver }
       #|
       #|pub struct Box[_T] {}
-      #|pub struct Point { value : Int }
+      #|pub struct Point { value : I64 }
       #|
       #|pub fn point_box(
       #|  deriver : Deriver[Box],
-      #|  auto offer int_box : Box[Int]
+      #|  auto offer i64_box : Box[I64]
       #|) -> Box[Point] {
       #|  derive[Box, Point](deriver=deriver)
       #|}
@@ -136,11 +136,11 @@ test "derive rejects hidden type members in canonical structs" {
         #|import Basic.Trait.Derive.{ Deriver }
         #|
         #|pub struct Box[_T] {}
-        #|pub struct Point { value : Int }
+        #|pub struct Point { value : I64 }
         #|
         #|pub fn point_box(
         #|  deriver : Deriver[Box],
-        #|  auto offer int_box : Box[Int]
+        #|  auto offer i64_box : Box[I64]
         #|) -> Box[Point] {
         #|  derive[Box, Point](deriver=deriver)
         #|}
@@ -243,20 +243,20 @@ test "derive uses a contextual deriver without importing its canonical module" {
       #|import Support.{ Box, derive_box }
       #|
       #|pub struct Point {
-      #|  x : Int
-      #|  y : Int
+      #|  x : I64
+      #|  y : I64
       #|}
       #|
       #|pub enum Choice {
       #|  none()
-      #|  one(Int)
-      #|  pair(Bool, Int)
+      #|  one(I64)
+      #|  pair(Bool, I64)
       #|}
       #|
       #|pub struct Empty {}
       #|pub enum Never {}
       #|
-      #|offer int_box : Box[Int] = Box::{}
+      #|offer i64_box : Box[I64] = Box::{}
       #|offer bool_box : Box[Bool] = Box::{}
       #|
       #|pub let point_box : Box[Point] = derive[Box, Point]()
@@ -299,10 +299,10 @@ test "nested derive adds its canonical compiler dependencies" {
       #|
       #|import Support.{ Box, derive_box }
       #|
-      #|pub struct Point { value : Int }
+      #|pub struct Point { value : I64 }
       #|
       #|pub fn point_box(
-      #|  auto offer int_box : Box[Int]
+      #|  auto offer i64_box : Box[I64]
       #|) -> Box[Point] {
       #|  derive[Box, Point]()
       #|}
@@ -326,7 +326,7 @@ test "derive metadata follows a normalized target through an imported alias" {
       #|import Alias.{ Position }
       #|import Support.{ Box, derive_box }
       #|
-      #|offer int_box : Box[Int] = Box[Int]::{}
+      #|offer i64_box : Box[I64] = Box[I64]::{}
       #|offer bool_box : Box[Bool] = Box[Bool]::{}
       #|pub let position_box : Box[Position[Bool]] = derive[Box, Position[Bool]]()
     ),
@@ -348,7 +348,7 @@ test "derive metadata follows a normalized target through an imported alias" {
         #|
         #|import Hidden.{ Pair }
         #|
-        #|pub type Position[A] = Pair[Int, A]
+        #|pub type Position[A] = Pair[I64, A]
       ),
     ],
   )
@@ -408,10 +408,10 @@ test "derive type arguments retain semantic navigation" {
     #|import Support.{ Box, derive_box }
     #|
     #|pub struct Pair {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub offer int_box : Box[Int] = Box[Int]::{}
+    #|pub offer i64_box : Box[I64] = Box[I64]::{}
     #|
     #|pub let pair_box : Box[Pair] = derive[Box, Pair]()
   guard workspace.replace_sources([
@@ -471,7 +471,7 @@ test "derive type arguments retain semantic navigation" {
       #|          end_column: 38,
       #|        },
       #|      },
-      #|      contents: "derive[Box, Pair]() : Box[Pair]\nderiver: derive_box : Deriver[Box]\nevidence:\n  Pair.value: int_box : Box[Int]\n// `C` must have kind `[Type] -> Type`.\n// `T` must normalize to a struct or enum application.\n// A bare generic type parameter cannot be used as `T` because its structure is unknown.\n// Omitting `deriver` selects one visible `Deriver[C]` offer.",
+      #|      contents: "derive[Box, Pair]() : Box[Pair]\nderiver: derive_box : Deriver[Box]\nevidence:\n  Pair.value: i64_box : Box[I64]\n// `C` must have kind `[Type] -> Type`.\n// `T` must normalize to a struct or enum application.\n// A bare generic type parameter cannot be used as `T` because its structure is unknown.\n// Omitting `deriver` selects one visible `Deriver[C]` offer.",
       #|    },
       #|  ),
       #|  [
@@ -506,10 +506,10 @@ test "explicit derive has hover without implicit navigation" {
     #|import Support.{ Box }
     #|
     #|pub struct Pair {
-    #|  value : Int
+    #|  value : I64
     #|}
     #|
-    #|pub offer int_box : Box[Int] = Box[Int]::{}
+    #|pub offer i64_box : Box[I64] = Box[I64]::{}
     #|
     #|pub fn explicit(deriver : Deriver[Box]) -> Box[Pair] {
     #|  derive[Box, Pair](deriver=deriver)
@@ -536,7 +536,7 @@ test "explicit derive has hover without implicit navigation" {
       #|derive[Box, Pair](deriver=...) : Box[Pair]
       #|deriver: explicit : Deriver[Box]
       #|evidence:
-      #|  Pair.value: int_box : Box[Int]
+      #|  Pair.value: i64_box : Box[I64]
       #|// `C` must have kind `[Type] -> Type`.
       #|// `T` must normalize to a struct or enum application.
       #|// A bare generic type parameter cannot be used as `T` because its structure is unknown.
@@ -592,12 +592,12 @@ test "derive groups ambiguous component evidence by required type" {
       #|pub struct Witness[_T] {}
       #|
       #|pub struct Pair {
-      #|  first : Int
-      #|  second : Int
+      #|  first : I64
+      #|  second : I64
       #|}
       #|
-      #|pub offer first_int : Witness[Int] = Witness[Int]::{}
-      #|pub offer second_int : Witness[Int] = Witness[Int]::{}
+      #|pub offer first_int : Witness[I64] = Witness[I64]::{}
+      #|pub offer second_int : Witness[I64] = Witness[I64]::{}
       #|
       #|pub fn ambiguous(
       #|  deriver : Deriver[Witness]
@@ -642,7 +642,7 @@ test "derive groups ambiguous component evidence by required type" {
       #|            end_column: 41,
       #|          },
       #|        ),
-      #|        message: "multiple contextual offers match `Witness[Int]`",
+      #|        message: "multiple contextual offers match `Witness[I64]`",
       #|        style: Primary,
       #|      },
       #|    ],
@@ -668,7 +668,7 @@ test "derive collects component evidence diagnostics after missing deriver" {
       #|pub struct Witness[_T] {}
       #|
       #|pub struct Pair {
-      #|  first : Int
+      #|  first : I64
       #|  second : Bool
       #|}
       #|
@@ -751,7 +751,7 @@ test "derive collects component evidence diagnostics after missing deriver" {
       #|            end_column: 63,
       #|          },
       #|        ),
-      #|        message: "no exact contextual offer is available for `Witness[Int]`",
+      #|        message: "no exact contextual offer is available for `Witness[I64]`",
       #|        style: Primary,
       #|      },
       #|    ],
