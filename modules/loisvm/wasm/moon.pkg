@@ -18,6 +18,7 @@ import {
 }
 
 import {
+  "Milky2018/loisvm/interp" @loisvm_interp,
   "Milky2018/wasmoon/wat",
 } for "test"
 

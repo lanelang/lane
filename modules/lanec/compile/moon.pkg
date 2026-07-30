@@ -1,4 +1,5 @@
 import {
+  "Milky2018/loisvm/bytecode",
   "Milky2018/lanec/analysis",
   "Milky2018/lanec/compile/artifact_core",
   "Milky2018/lanec/compile/artifact_binary",
