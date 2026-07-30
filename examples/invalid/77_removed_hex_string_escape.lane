@@ -1,0 +1,3 @@
+module Examples.Invalid.RemovedHexStringEscape
+
+pub let removed : String = "\x41"

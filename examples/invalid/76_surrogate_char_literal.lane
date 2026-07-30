@@ -1,0 +1,3 @@
+module Examples.Invalid.SurrogateCharLiteral
+
+pub let surrogate : Char = '\u{D800}'

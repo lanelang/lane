@@ -1683,6 +1683,42 @@
       }
     },
     {
+      "name": "invalid 75 S32 literal overflow",
+      "file": "examples/invalid/75_s32_literal_overflow.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3034]",
+          "invalid S32 literal `2147483648`",
+          "cannot be represented as a Lane `S32`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 76 surrogate Char literal",
+      "file": "examples/invalid/76_surrogate_char_literal.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1004]",
+          "invalid Unicode escape",
+          "surrogate code point"
+        ]
+      }
+    },
+    {
+      "name": "invalid 77 removed hex String escape",
+      "file": "examples/invalid/77_removed_hex_string_escape.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1003]",
+          "invalid literal escape",
+          "not a supported escape sequence"
+        ]
+      }
+    },
+    {
       "name": "invalid 69 generic offered function not specialized",
       "file": "examples/invalid/69_generic_offered_function_not_specialized.lane",
       "mode": "check-error",

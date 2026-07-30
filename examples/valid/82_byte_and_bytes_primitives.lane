@@ -1,38 +1,52 @@
 module Examples.Valid.ByteAndBytesPrimitives
 
-import Basic.Builtins.{ int_equal, int_neg }
+import Basic.Data.Byte as Byte
+import Basic.Data.Bytes as ByteSeq
+import Basic.Data.Int.{ int_impl_equal }
+import Basic.Eff.Bound.{ OutOfBound }
 import Test.Assert.{ Assert, execute_all_test }
 
-let byte_to_int : (Byte) -> Int = builtin("%byte_to_int")
+fn assert_in_bounds(action : () -> Unit ! { OutOfBound, Assert }) -> Unit ! Assert {
+  handle action() with {
+    out_of_min[R](_resume) => assert_true!(false)
+    out_of_max[R](_resume) => assert_true!(false)
+  } final _value {
+    ()
+  }
+}
 
-let int_to_byte : (Int) -> Byte = builtin("%int_to_byte")
-
-let bytes_make : (Int, Byte) -> Bytes = builtin("%bytes_make")
-
-let bytes_length : (Bytes) -> Int = builtin("%bytes_length")
-
-let bytes_get : (Bytes, Int) -> Byte = builtin("%bytes_get")
-
-let bytes_set : (Bytes, Int, Byte) -> Bytes = builtin("%bytes_set")
-
-fn[T] identity(value : T) -> T {
-  value
+fn[T] is_out_of_bounds(action : () -> T ! OutOfBound) -> Bool {
+  handle action() with {
+    out_of_min[R](_resume) => true
+    out_of_max[R](_resume) => true
+  } final _value {
+    false
+  }
 }
 
 fn test_byte_and_bytes_primitives() -> Unit ! Assert {
-  let fill = identity(int_to_byte(255))
-  let original = identity(bytes_make(3, fill))
-  let updated = bytes_set(original, 1, int_to_byte(0))
-  assert_true!(int_equal(byte_to_int(int_to_byte(511)), 255))
-  assert_true!(int_equal(byte_to_int(int_to_byte(int_neg(1))), 255))
-  assert_true!(int_equal(bytes_length(original), 3))
-  assert_true!(int_equal(byte_to_int(bytes_get(original, 0)), 255))
-  assert_true!(int_equal(byte_to_int(bytes_get(original, 1)), 255))
-  assert_true!(int_equal(byte_to_int(bytes_get(original, 2)), 255))
-  assert_true!(int_equal(bytes_length(updated), 3))
-  assert_true!(int_equal(byte_to_int(bytes_get(updated, 0)), 255))
-  assert_true!(int_equal(byte_to_int(bytes_get(updated, 1)), 0))
-  assert_true!(int_equal(byte_to_int(bytes_get(updated, 2)), 255))
+  assert_in_bounds(
+    fn() {
+      let original = ByteSeq.bytes_make(3, Byte.from_int(65))
+      let with_b = ByteSeq.bytes_set(original, 1, Byte.from_int(66))
+      let updated = ByteSeq.bytes_set(with_b, 2, Byte.from_int(67))
+      let prefix = ByteSeq.bytes_slice(updated, 0, 1)
+      let suffix = ByteSeq.bytes_slice(updated, 1, 2)
+      assert_eq!(Byte.to_int(Byte.from_int(511)), 255, int_impl_equal)
+      assert_eq!(ByteSeq.bytes_length(original), 3, int_impl_equal)
+      assert_eq!(Byte.to_int(ByteSeq.bytes_get(original, 1)), 65, int_impl_equal)
+      assert_true!(ByteSeq.bytes_equal(ByteSeq.bytes_concat(prefix, suffix), updated))
+      assert_true!(ByteSeq.is_valid_utf8(updated))
+    }
+  )
+  assert_true!(
+    is_out_of_bounds[Bytes](
+      fn() {
+        let bytes = ByteSeq.bytes_make(3, Byte.from_int(65))
+        ByteSeq.bytes_slice(bytes, 2, 2)
+      }
+    )
+  )
 }
 
 pub fn answer() -> Unit ! Io {
