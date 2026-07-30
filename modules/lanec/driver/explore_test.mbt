@@ -559,15 +559,15 @@ test "explore ignores malformed libraries unreachable from the root" {
       ),
     ],
   )
-  let compiled = @compile.compile_module_inputs(
-    request.root_source,
-    request.library_sources,
-  )
+  let compiled = @compile.compile_modules({
+    root: request.root_source,
+    libraries: request.library_sources,
+  })
   let report = explore(request)
   debug_inspect(
     (
-      compiled.modules is Some(_),
-      compiled.diagnostics,
+      compiled is Succeeded(_, _),
+      compiled.diagnostics(),
       report.status,
       report.diagnostics,
     ),

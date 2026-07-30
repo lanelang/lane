@@ -1,6 +1,6 @@
 ///|
 test "compile struct existential effect witnesses" {
-  let result = compile_source(
+  let result = compile_source_for_test(
     (
       #|module Test
       #|pub struct Task {

@@ -8,14 +8,14 @@ priv struct LaneSourceInput {
 ///|
 fn LaneSourceInput::to_compile_input(
   self : LaneSourceInput,
-) -> @module_frontend.SourceInput {
+) -> @compile.SourceInput {
   { source_id: self.source_id, text: self.text }
 }
 
 ///|
 fn LaneSourceInput::array_to_compile_inputs(
   inputs : Array[LaneSourceInput],
-) -> Array[@module_frontend.SourceInput] {
+) -> Array[@compile.SourceInput] {
   inputs.map(LaneSourceInput::to_compile_input)
 }
 
@@ -55,24 +55,22 @@ async fn write_binary_file(path : String, bytes : Bytes) -> Unit {
 ///|
 async fn write_module_interface_artifact(
   path : String,
-  module_ : @module_compile.CompiledModule,
+  module_ : @artifact.CompiledModuleArtifact,
 ) -> Unit {
   write_binary_file(
     path,
-    @artifact.module_interface_artifact_to_binary(
-      module_.to_interface_artifact(),
-    ),
+    @artifact.module_interface_artifact_to_binary(module_.interface),
   )
 }
 
 ///|
 async fn write_module_object_artifact(
   path : String,
-  module_ : @module_compile.CompiledModule,
+  module_ : @artifact.CompiledModuleArtifact,
 ) -> Unit {
   write_binary_file(
     path,
-    @artifact.module_object_artifact_to_binary(module_.to_object_artifact()),
+    @artifact.module_object_artifact_to_binary(module_.object),
   )
 }
 

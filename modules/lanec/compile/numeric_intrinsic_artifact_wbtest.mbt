@@ -1,6 +1,6 @@
 ///|
 test "module object preserves I64 and F64 conversion intrinsics" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module NumericConversions
       #|

@@ -5,14 +5,23 @@ priv struct ExploreStageBuilder {
 
 ///|
 pub fn list_entries(
-  root_source : @module_frontend.SourceInput,
-  library_sources : Array[@module_frontend.SourceInput],
+  root_source : @compile.SourceInput,
+  library_sources : Array[@compile.SourceInput],
 ) -> EntryReport {
-  let compiled = @compile.compile_source_inputs(root_source, library_sources)
-  {
-    schema_version: 1,
-    entries: compiled.entries.map(entry_summary),
-    diagnostics: compiled.diagnostics,
+  let compiled = @compile.compile({ root: root_source, libraries: library_sources })
+  match compiled {
+    Succeeded(program, warnings) =>
+      {
+        schema_version: 1,
+        entries: program.entries().map(entry_summary),
+        diagnostics: warnings.diagnostics(),
+      }
+    Failed(failure) =>
+      {
+        schema_version: 1,
+        entries: [],
+        diagnostics: failure.diagnostics(),
+      }
   }
 }
 
@@ -20,73 +29,59 @@ pub fn list_entries(
 pub fn explore(request : ExploreRequest) -> ExploreReport {
   let stages = ExploreStageBuilder::new()
   let mut root_module_path_text : String? = None
-  let compiled = @compile.compile_module_inputs_observed(
-    request.root_source,
-    request.library_sources,
+  let compiled = @compile.compile_modules_observed(
+    {
+      root: request.root_source,
+      libraries: request.library_sources,
+    },
     observed => {
       match observed {
-        Syntax(root) => {
-          root_module_path_text = Some(root.header.module_path_text)
-          stages.complete(
-            Syntax,
-            @prettyprinter.render(root.source, width=100),
-            [],
-          )
+        Syntax(snapshot) => {
+          root_module_path_text = Some(snapshot.module_path_text)
+          stages.complete(Syntax, snapshot.text, [])
         }
-        Module(module_path_text, observed) =>
-          if root_module_path_text == Some(module_path_text) {
-            match observed {
-              Resolved(source) =>
-                stages.complete(Resolved, render_resolved_code(source), [])
-              Checked(source) =>
-                stages.complete(Checked, render_checked_code(source), [])
-              BuslaneModule(program) =>
-                stages.complete(BuslaneModule, render_buslane_code(program), [])
-            }
+        Resolved(snapshot) =>
+          if root_module_path_text == Some(snapshot.module_path_text) {
+            stages.complete(Resolved, snapshot.text, [])
+          }
+        Checked(snapshot) =>
+          if root_module_path_text == Some(snapshot.module_path_text) {
+            stages.complete(Checked, snapshot.text, [])
+          }
+        BuslaneModule(snapshot) =>
+          if root_module_path_text == Some(snapshot.module_path_text) {
+            stages.complete(BuslaneModule, snapshot.text, [])
           }
       }
     },
   )
-  guard compiled.modules is Some(modules) else {
-    return failed_report(
-      request,
-      root_module_path_text,
-      None,
-      stages,
-      compiled.diagnostics,
-    )
+  let diagnostics = compiled.diagnostics()
+  let modules = match compiled {
+    Succeeded(modules, _) => modules
+    Failed(_) =>
+      return failed_report(
+        request,
+        root_module_path_text,
+        None,
+        stages,
+        diagnostics,
+      )
   }
-  let diagnostics = compiled.diagnostics.copy()
-  stages.attach_diagnostics(Checked, compiled.diagnostics)
-  guard @module_compile.find_compiled_module(
-      modules.modules,
-      modules.root_module_path_text,
-    )
-    is Some(_) else {
-    let error = exploration_error(
-      "compiler produced no root module", "the compilation result did not contain its declared root module",
-    )
-    diagnostics.push(error)
-    return failed_report(
-      request,
-      root_module_path_text,
-      None,
-      stages,
-      diagnostics,
-    )
-  }
+  stages.attach_diagnostics(Checked, diagnostics)
   let linked = @compile.link_modules(modules)
-  diagnostics.append(linked.diagnostics)
-  guard linked.program is Some(linked_program) else {
-    return failed_report(
-      request,
-      root_module_path_text,
-      None,
-      stages,
-      diagnostics,
-    )
+  diagnostics.append(linked.diagnostics())
+  let linked_program = match linked {
+    Succeeded(program, _) => program
+    Failed(_) =>
+      return failed_report(
+        request,
+        root_module_path_text,
+        None,
+        stages,
+        diagnostics,
+      )
   }
-  guard select_entry(linked_program.entries, request.entry) is Some(entry) else {
+  guard select_entry(linked_program.entries(), request.entry) is Some(entry) else {
     diagnostics.push(
       exploration_error(
         "entry `\{request.entry}` was not found or is ambiguous",
@@ -103,12 +98,12 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
   }
   stages.complete(
     BuslaneLinked,
-    render_buslane_code(linked_program.program),
-    linked.diagnostics,
+    linked_program.buslane_text(),
+    linked.diagnostics(),
   )
   let selected_entry = Some(entry_summary(entry))
   let executable = match
-    @executable.elaborate_observed(linked_program, entry, observed => {
+    linked_program.elaborate_entry_observed(entry, observed => {
       let observed = executable_stage(observed)
       stages.complete(observed.0, observed.1, [])
     }) {
@@ -333,20 +328,20 @@ fn executable_stage(
 }
 
 ///|
-fn entry_summary(entry : @buslane_lowering.BuslaneEntry) -> EntrySummary {
+fn entry_summary(entry : @compile.CompiledEntry) -> EntrySummary {
   {
-    module_path_text: entry.module_path_text,
-    name: entry.name,
-    type_text: @prettyprinter.render(entry.type_, width=100),
+    module_path_text: entry.module_path_text(),
+    name: entry.name(),
+    type_text: entry.type_text(),
   }
 }
 
 ///|
 fn select_entry(
-  entries : Array[@buslane_lowering.BuslaneEntry],
+  entries : Array[@compile.CompiledEntry],
   name : String,
-) -> @buslane_lowering.BuslaneEntry? {
-  let matched = entries.filter(entry => entry.name == name)
+) -> @compile.CompiledEntry? {
+  let matched = entries.filter(entry => entry.name() == name)
   if matched.length() == 1 {
     Some(matched[0])
   } else {

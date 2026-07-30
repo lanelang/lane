@@ -1,6 +1,6 @@
 ///|
 test "explicit derive checks through the canonical structural interface" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|
@@ -44,7 +44,7 @@ test "derive rejects a malformed canonical structural interface" {
     old="  field : [A](FieldInfo, C[A]) -> C[A]",
     new="  component : [A](FieldInfo, C[A]) -> C[A]",
   )
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|
@@ -129,7 +129,7 @@ test "derive rejects hidden type members in canonical structs" {
     let (name, old, new) = case
     let malformed_interface = derive_interface_source().replace(old~, new~)
     let malformed_iso = derive_iso_source().replace(old~, new~)
-    let result = compile_sources(
+    let result = compile_sources_for_test(
       (
         #|module Main
         #|
@@ -170,7 +170,7 @@ test "derive rejects a nonempty canonical void type" {
     old="pub enum Void {}",
     new="pub enum Void { inhabited() }",
   )
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|
@@ -236,7 +236,7 @@ test "derive rejects a nonempty canonical void type" {
 
 ///|
 test "derive uses a contextual deriver without importing its canonical module" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|
@@ -293,7 +293,7 @@ test "derive uses a contextual deriver without importing its canonical module" {
 
 ///|
 test "nested derive adds its canonical compiler dependencies" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|
@@ -319,7 +319,7 @@ test "nested derive adds its canonical compiler dependencies" {
 
 ///|
 test "derive metadata follows a normalized target through an imported alias" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|
@@ -370,7 +370,7 @@ test "derive metadata follows a normalized target through an imported alias" {
 
 ///|
 test "derive treats a closed existential nominal as ordinary component evidence" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|
@@ -583,7 +583,7 @@ test "invalid generic derive target retains explanatory hover" {
 
 ///|
 test "derive groups ambiguous component evidence by required type" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|
@@ -661,7 +661,7 @@ test "derive groups ambiguous component evidence by required type" {
 
 ///|
 test "derive collects component evidence diagnostics after missing deriver" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|

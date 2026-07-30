@@ -20,7 +20,7 @@ fn refingerprint_test_object(
 
 ///|
 fn compiled_test_object(source : String) -> @artifact.ModuleObjectArtifact {
-  let compiled = compile_modules(source, [])
+  let compiled = compile_modules_for_test(source, [])
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
@@ -289,7 +289,7 @@ test "object artifact validation rejects malformed side table references" {
 
 ///|
 test "object-only linking rejects an imported name missing from its provider" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.{ value }

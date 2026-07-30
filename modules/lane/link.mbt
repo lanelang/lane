@@ -9,35 +9,40 @@ async fn lane_link(
     Ok(objects) => objects
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let linked = @artifact.link_module_object_artifacts(object_artifacts)
-  if !linked.diagnostics.is_empty() {
+  let linked = @compile.link_module_objects(object_artifacts)
+  let diagnostics = linked.diagnostics()
+  if !diagnostics.is_empty() {
     return LaneCommandOutcome::compile_diagnostics(
-      linked.diagnostics,
+      diagnostics,
       CompilerDiagnosticSources(),
       false,
     )
   }
-  guard linked.program is Some(program) else {
-    internal_error("linker produced no program")
+  let program = match linked {
+    Succeeded(program, _) => program
+    Failed(_) => return internal_error("failed link had no errors")
   }
-  let entry = match find_public_entry(program.entries, entry_name) {
+  let entry = match find_public_entry(program.entries(), entry_name) {
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  match validate_executable_entry(entry, program.program.metadata) {
+  match validate_executable_entry(entry, program) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let executable = match elaborate_linked_executable(program, entry) {
+  let executable = match program.elaborate_entry(entry) {
     Ok(executable) => executable
-    Err(error) => return LaneCommandOutcome::user_error(error)
+    Err(error) =>
+      return LaneCommandOutcome::user_error(
+        ExecutionImageLowering(message="\{Repr(error)}"),
+      )
   }
   match write_linked_program_artifact(output, executable) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
   if verbose {
-    let linked_modules = program.module_path_texts.join(",")
+    let linked_modules = program.module_path_texts().join(",")
     println("linked program \{output}")
     println("linked modules \{linked_modules}")
     println("linked entry \{display_public_entry_name(entry_name)}")
@@ -46,8 +51,8 @@ async fn lane_link(
 }
 
 ///|
-fn display_entry(entry : @buslane_lowering.BuslaneEntry) -> String {
-  "\{entry.module_path_text}.\{entry.name}"
+fn display_entry(entry : @compile.CompiledEntry) -> String {
+  "\{entry.module_path_text()}.\{entry.name()}"
 }
 
 ///|

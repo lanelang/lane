@@ -1,11 +1,11 @@
 ///|
 fn compile_test_loisvm_image(source : String) -> @bytecode.BytecodeImage raise {
-  let compiled = compile_modules(source, [])
+  let compiled = compile_modules_for_test(source, [])
   assert_eq(compiled.diagnostics, [])
   guard compiled.modules is Some(modules) else {
     fail("expected compiled modules")
   }
-  let linked = link_modules(modules)
+  let linked = link_modules_for_test(modules)
   assert_eq(linked.diagnostics, [])
   guard linked.program is Some(program) else {
     fail("expected linked Buslane program")

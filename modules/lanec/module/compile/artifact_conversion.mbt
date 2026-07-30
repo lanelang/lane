@@ -3,7 +3,7 @@ pub fn CompiledModuleSet::to_artifact(
   self : CompiledModuleSet,
 ) -> @artifact.CompiledModuleSetArtifact {
   {
-    schema_version: 2,
+    schema_version: @artifact.compiled_module_set_artifact_schema_version,
     root_module_path_text: self.root_module_path_text,
     modules: self.modules.map(CompiledModule::to_artifact),
     reachable_module_path_texts: self.reachable_module_path_texts,
@@ -15,7 +15,7 @@ pub fn CompiledModule::to_artifact(
   self : CompiledModule,
 ) -> @artifact.CompiledModuleArtifact {
   {
-    schema_version: 2,
+    schema_version: @artifact.compiled_module_artifact_schema_version,
     interface: self.to_interface_artifact(),
     object: self.to_object_artifact(),
   }

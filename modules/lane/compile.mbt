@@ -22,22 +22,24 @@ async fn lane_compile(
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let diagnostic_sources = LaneSourceInput::diagnostic_sources(root, [])
-  let result = @compile.compile_module_input_with_interface_artifacts(
-    root.to_compile_input(),
-    imported_interfaces,
-  )
-  let failures = denied_diagnostics(result.diagnostics, false)
+  let result = @compile.compile_module_with_interfaces({
+    root: root.to_compile_input(),
+    interfaces: imported_interfaces,
+  })
+  let diagnostics = result.diagnostics()
+  let failures = denied_diagnostics(diagnostics, false)
   if !failures.is_empty() {
     return LaneCommandOutcome::compile_diagnostics(
-      result.diagnostics,
+      diagnostics,
       diagnostic_sources,
       false,
     )
   }
-  guard result.modules is Some(modules) else {
-    internal_error("compiler produced no compiled modules")
+  let modules = match result {
+    Succeeded(modules, _) => modules
+    Failed(_) => return internal_error("failed compilation had no errors")
   }
-  guard modules.modules.get(0) is Some(module_) else {
+  guard modules.artifact().modules.get(0) is Some(module_) else {
     internal_error("compiler produced no compiled module")
   }
   write_module_interface_artifact(interface_path, module_) catch {
@@ -57,9 +59,9 @@ async fn lane_compile(
     println("wrote interface \{interface_path}")
     println("wrote object \{object_path}")
   }
-  if !result.diagnostics.is_empty() {
+  if !diagnostics.is_empty() {
     LaneCommandOutcome::compile_diagnostics(
-      result.diagnostics,
+      diagnostics,
       diagnostic_sources,
       true,
     )

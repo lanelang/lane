@@ -67,11 +67,11 @@ enum CliError {
   RootLibraryInput(root~ : String, library~ : String)
   EntryNotFound(
     name~ : String,
-    entries~ : Array[@buslane_lowering.BuslaneEntry]
+    entries~ : Array[@compile.CompiledEntry]
   )
   EntryAmbiguous(
     name~ : String,
-    entries~ : Array[@buslane_lowering.BuslaneEntry]
+    entries~ : Array[@compile.CompiledEntry]
   )
   EntryNotExecutable(
     name~ : String,
@@ -447,7 +447,7 @@ fn CommandReport::render_header(self : CommandReport) -> String {
 
 ///|
 fn available_entries_text(
-  entries : Array[@buslane_lowering.BuslaneEntry],
+  entries : Array[@compile.CompiledEntry],
 ) -> String {
   let names = entries.map(display_entry)
   if names.is_empty() {

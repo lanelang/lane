@@ -23,20 +23,21 @@ async fn lane_check(
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let diagnostic_sources = LaneSourceInput::diagnostic_sources(root, libraries)
-  let result = @compile.check_source_inputs(
-    root.to_compile_input(),
-    LaneSourceInput::array_to_compile_inputs(libraries),
-  )
-  let failures = denied_diagnostics(result.diagnostics, deny)
+  let result = @compile.check({
+    root: root.to_compile_input(),
+    libraries: LaneSourceInput::array_to_compile_inputs(libraries),
+  })
+  let diagnostics = result.diagnostics()
+  let failures = denied_diagnostics(diagnostics, deny)
   if !failures.is_empty() {
     LaneCommandOutcome::compile_diagnostics(
-      result.diagnostics,
+      diagnostics,
       diagnostic_sources,
       false,
     )
-  } else if !result.diagnostics.is_empty() {
+  } else if !diagnostics.is_empty() {
     LaneCommandOutcome::compile_diagnostics(
-      result.diagnostics,
+      diagnostics,
       diagnostic_sources,
       true,
     )

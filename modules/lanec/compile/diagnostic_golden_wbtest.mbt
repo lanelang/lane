@@ -1,6 +1,6 @@
 ///|
 fn single_check_diagnostic(source : String) -> CompilerDiagnostic {
-  let result = check_source(source)
+  let result = check_source_for_test(source)
   guard result.diagnostics is [diagnostic] else {
     abort("\{Repr(result.diagnostics)}")
   }
@@ -9,7 +9,7 @@ fn single_check_diagnostic(source : String) -> CompilerDiagnostic {
 
 ///|
 fn first_check_diagnostic(source : String) -> CompilerDiagnostic {
-  let result = check_source(source)
+  let result = check_source_for_test(source)
   guard result.diagnostics is [diagnostic, ..] else {
     abort("expected at least one diagnostic")
   }
@@ -21,7 +21,7 @@ fn single_check_sources_diagnostic(
   root_source : String,
   library_sources : Array[String],
 ) -> CompilerDiagnostic {
-  let result = check_sources(root_source, library_sources)
+  let result = check_sources_for_test(root_source, library_sources)
   guard result.diagnostics is [diagnostic] else {
     abort("\{Repr(result.diagnostics)}")
   }

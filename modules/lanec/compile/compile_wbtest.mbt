@@ -23,7 +23,7 @@ fn test_executable_program(
 
 ///|
 test "compile source records intrinsic and runtime import origins" {
-  let result = compile_source(
+  let result = compile_source_for_test(
     (
       #|module Test
       #|pub let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
@@ -50,7 +50,7 @@ test "compile source records intrinsic and runtime import origins" {
 
 ///|
 test "compile verifies handler around effectful function call" {
-  let result = compile_source(
+  let result = compile_source_for_test(
     (
       #|module Test
       #|effect Console {
@@ -79,7 +79,7 @@ test "compile verifies handler around effectful function call" {
 
 ///|
 test "check reports unused local value binding as warning" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|pub fn answer() -> I64 {
@@ -142,7 +142,7 @@ test "check reports unused local value binding as warning" {
 
 ///|
 test "compile modules keeps artifacts when unused local warning exists" {
-  let result = compile_modules(
+  let result = compile_modules_for_test(
     (
       #|module Test
       #|pub fn answer() -> I64 {
@@ -204,7 +204,7 @@ test "compile modules keeps artifacts when unused local warning exists" {
 
 ///|
 test "selective import preserves an offered function" {
-  let library = compile_modules(
+  let library = compile_modules_for_test(
     (
       #|module A
       #|pub offer fn provide() -> I64 {
@@ -232,7 +232,7 @@ test "selective import preserves an offered function" {
     is [{ kind: Function, is_offered: true, name: "provide", .. }] else {
     abort("expected offered function interface metadata")
   }
-  let result = check_source_with_interface_artifacts(
+  let result = check_source_with_interfaces_for_test(
     (
       #|module B
       #|import A.{ provide }
@@ -249,7 +249,7 @@ test "selective import preserves an offered function" {
 
 ///|
 test "unused local offered function remains unused" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|pub fn program() -> Unit {
@@ -269,7 +269,7 @@ test "unused local offered function remains unused" {
 
 ///|
 test "check reports unused private top-level declarations as warnings" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|fn dead_function() -> I64 {
@@ -584,7 +584,7 @@ test "check reports unused private top-level declarations as warnings" {
 
 ///|
 test "check keeps reachable private top-level declarations quiet" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|struct Box {
@@ -623,7 +623,7 @@ test "check keeps reachable private top-level declarations quiet" {
 
 ///|
 test "check reports unused generic parameters as warnings" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|pub struct Box[A, B] {
@@ -936,7 +936,7 @@ test "check reports unused generic parameters as warnings" {
 
 ///|
 test "check keeps used generic parameters quiet" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|pub struct Box[A] {
@@ -965,7 +965,7 @@ test "check keeps used generic parameters quiet" {
 
 ///|
 test "check reports unused imports and opens as warnings" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import UsedQualified
@@ -1031,7 +1031,7 @@ test "check reports unused imports and opens as warnings" {
 
 ///|
 test "check reports payloadless variant without parentheses" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|enum Option[A] {
@@ -1051,7 +1051,7 @@ test "check reports payloadless variant without parentheses" {
 
 ///|
 test "compile sources accepts explicit library modules" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -1073,7 +1073,7 @@ test "compile sources accepts explicit library modules" {
 
 ///|
 test "compile sources exposes only root public entries" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -1095,7 +1095,7 @@ test "compile sources exposes only root public entries" {
 
 ///|
 test "compile sources accepts selective import with module dot syntax" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Lib.{ value }
@@ -1131,7 +1131,7 @@ fn contextual_import_test_library() -> String {
 
 ///|
 test "selective import does not expose an unselected contextual offer" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Ops.{ op_add }
@@ -1190,7 +1190,7 @@ test "selective import does not expose an unselected contextual offer" {
 
 ///|
 test "qualified import does not expose a contextual offer" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Ops
@@ -1249,7 +1249,7 @@ test "qualified import does not expose a contextual offer" {
 
 ///|
 test "qualified offer can be passed as an explicit contextual argument" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Ops
@@ -1263,7 +1263,7 @@ test "qualified offer can be passed as an explicit contextual argument" {
 
 ///|
 test "selective import exposes an explicitly selected contextual offer" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Ops.{ op_add, i64_add_ops }
@@ -1277,7 +1277,7 @@ test "selective import exposes an explicitly selected contextual offer" {
 
 ///|
 test "open import exposes contextual offers" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Ops.*
@@ -1291,7 +1291,7 @@ test "open import exposes contextual offers" {
 
 ///|
 test "compile sources links only root reachable library modules" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -1319,7 +1319,7 @@ test "compile sources links only root reachable library modules" {
 
 ///|
 test "compile sources lower transitive public type dependencies" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Facade.{ make_token, read_token }
@@ -1358,7 +1358,7 @@ test "compile sources lower transitive public type dependencies" {
 
 ///|
 test "transitive public types do not become source-visible" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Facade.{ make_token }
@@ -1390,7 +1390,7 @@ test "transitive public types do not become source-visible" {
 
 ///|
 test "compile sources lower transitive public effect dependencies" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Facade.{ action }
@@ -1425,7 +1425,7 @@ test "compile sources lower transitive public effect dependencies" {
 
 ///|
 test "transitive public dependencies add only required nominal imports" {
-  let result = compile_modules(
+  let result = compile_modules_for_test(
     (
       #|module Main
       #|import Facade.{ make_token, read_token }
@@ -1478,7 +1478,7 @@ test "transitive public dependencies add only required nominal imports" {
 
 ///|
 test "source graph semantic catalogs do not pollute sibling interfaces" {
-  let result = compile_modules(
+  let result = compile_modules_for_test(
     (
       #|module Main
       #|import Left
@@ -1519,7 +1519,7 @@ test "source graph semantic catalogs do not pollute sibling interfaces" {
 
 ///|
 test "compile modules returns separate module objects and interfaces" {
-  let result = compile_modules(
+  let result = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -1570,7 +1570,7 @@ test "compile modules returns separate module objects and interfaces" {
 
 ///|
 test "link modules produces Buslane program from reachable module objects" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -1591,7 +1591,7 @@ test "link modules produces Buslane program from reachable module objects" {
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  let linked = link_modules(modules)
+  let linked = link_modules_for_test(modules)
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
@@ -1623,7 +1623,7 @@ test "link modules produces Buslane program from reachable module objects" {
 
 ///|
 test "link modules remaps effect operations through one identity" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -1651,7 +1651,7 @@ test "link modules remaps effect operations through one identity" {
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  let linked = link_modules(modules)
+  let linked = link_modules_for_test(modules)
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
@@ -1666,7 +1666,7 @@ test "link modules remaps effect operations through one identity" {
 
 ///|
 test "link modules remaps data constructors through one identity" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -1686,7 +1686,7 @@ test "link modules remaps data constructors through one identity" {
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  let linked = link_modules(modules)
+  let linked = link_modules_for_test(modules)
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
@@ -1701,7 +1701,7 @@ test "link modules remaps data constructors through one identity" {
 
 ///|
 test "module artifacts roundtrip through binary, link, and bytecode" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -1816,7 +1816,7 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
 
 ///|
 test "effect aliases export through interface artifacts" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -1952,7 +1952,7 @@ test "effect aliases export through interface artifacts" {
 
 ///|
 test "built-in Io roundtrips through typed artifacts" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|pub let println : (String) -> Unit ! Io = extern("println")
@@ -2045,7 +2045,7 @@ test "built-in Io roundtrips through typed artifacts" {
 
 ///|
 test "external flavors roundtrip through artifacts and linking" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -2135,7 +2135,7 @@ test "external flavors roundtrip through artifacts and linking" {
 
 ///|
 test "effect alias interface fingerprint tracks body changes" {
-  let first_compiled = compile_modules(
+  let first_compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub effect Console {
@@ -2148,7 +2148,7 @@ test "effect alias interface fingerprint tracks body changes" {
     ),
     [],
   )
-  let second_compiled = compile_modules(
+  let second_compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub effect Console {
@@ -2182,7 +2182,7 @@ test "effect alias interface fingerprint tracks body changes" {
 
 ///|
 test "interface fingerprint ignores imported symbol allocation history" {
-  let plain_a = compile_modules(
+  let plain_a = compile_modules_for_test(
     (
       #|module A
       #|pub struct Box {
@@ -2200,7 +2200,7 @@ test "interface fingerprint ignores imported symbol allocation history" {
   guard plain_a_modules.modules.get(0) is Some(plain_a_module) else {
     abort("expected plain A module")
   }
-  let noise = compile_modules(
+  let noise = compile_modules_for_test(
     (
       #|module Noise
       #|pub struct Marker {
@@ -2219,7 +2219,7 @@ test "interface fingerprint ignores imported symbol allocation history" {
     abort("expected Noise module")
   }
   let noise_interface = noise_module.to_interface_artifact()
-  let shifted_a = compile_module_with_interface_artifacts(
+  let shifted_a = compile_module_with_interfaces_for_test(
     (
       #|module A
       #|import Noise.*
@@ -2238,7 +2238,7 @@ test "interface fingerprint ignores imported symbol allocation history" {
   guard shifted_a_modules.modules.get(0) is Some(shifted_a_module) else {
     abort("expected shifted A module")
   }
-  let plain_b = compile_module_with_interface_artifacts(
+  let plain_b = compile_module_with_interfaces_for_test(
     (
       #|module B
       #|import A.*
@@ -2253,7 +2253,7 @@ test "interface fingerprint ignores imported symbol allocation history" {
   guard plain_b_modules.modules.get(0) is Some(plain_b_module) else {
     abort("expected plain B module")
   }
-  let shifted_b = compile_module_with_interface_artifacts(
+  let shifted_b = compile_module_with_interfaces_for_test(
     (
       #|module B
       #|import A.*
@@ -2273,7 +2273,7 @@ test "interface fingerprint ignores imported symbol allocation history" {
     shifted_b_module.object.interface_fingerprint,
     content="true",
   )
-  let transitive = compile_module_with_interface_artifacts(
+  let transitive = compile_module_with_interfaces_for_test(
     (
       #|module C
       #|import B.*
@@ -2290,7 +2290,7 @@ test "interface fingerprint ignores imported symbol allocation history" {
 
 ///|
 test "interface artifact rejects unresolved canonical references" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub struct Box {
@@ -2309,7 +2309,7 @@ test "interface artifact rejects unresolved canonical references" {
     ..artifact,
     interface: { ..artifact.interface, type_references: [] },
   }
-  let result = compile_module_with_interface_artifacts(
+  let result = compile_module_with_interfaces_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -2325,7 +2325,7 @@ test "interface artifact rejects unresolved canonical references" {
 
 ///|
 test "module artifact binary rejects wrong kind" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|pub fn main() -> Unit {
@@ -2367,7 +2367,7 @@ test "module artifact binary rejects wrong kind" {
   } else {
     abort("expected invalid artifact magic")
   }
-  let linked = link_modules(modules)
+  let linked = link_modules_for_test(modules)
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
@@ -2391,7 +2391,7 @@ test "module artifact binary rejects wrong kind" {
 
 ///|
 test "missing import with mismatched interface artifact reports candidates" {
-  let provider = compile_modules(
+  let provider = compile_modules_for_test(
     (
       #|module builtins
       #|pub let read_int : I64 = 0
@@ -2405,7 +2405,7 @@ test "missing import with mismatched interface artifact reports candidates" {
   guard provider_modules.modules.get(0) is Some(provider_module) else {
     abort("expected provider module")
   }
-  let compiled = compile_module_with_interface_artifacts(
+  let compiled = compile_module_with_interfaces_for_test(
     (
       #|module Main
       #|import Builtins.*
@@ -2477,7 +2477,7 @@ test "missing import with mismatched interface artifact reports candidates" {
 
 ///|
 test "module artifact binary inspect renders human readable summaries" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|pub let answer : I64 = 42
@@ -2564,7 +2564,7 @@ test "module artifact binary inspect renders human readable summaries" {
 
 ///|
 test "duplicate imported top-level value from interface artifact reports artifact origin" {
-  let lib_modules = compile_modules(
+  let lib_modules = compile_modules_for_test(
     (
       #|module Lib
       #|pub let answer : I64 = 1
@@ -2577,7 +2577,7 @@ test "duplicate imported top-level value from interface artifact reports artifac
   guard modules.modules.get(0) is Some(lib_module) else {
     abort("expected compiled Lib module")
   }
-  let result = check_source_with_interface_artifacts(
+  let result = check_source_with_interfaces_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -2606,7 +2606,7 @@ test "duplicate imported top-level value from interface artifact reports artifac
 
 ///|
 test "compile module interface preserves public effects across artifact import" {
-  let lib_compiled = compile_modules(
+  let lib_compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub effect State[S] {
@@ -2637,7 +2637,7 @@ test "compile module interface preserves public effects across artifact import" 
     interface_effect_signatures(decoded.interface),
     content="State[1]{get/0->tparam#0,put/1->Unit}",
   )
-  let main_compiled = compile_module_with_interface_artifacts(
+  let main_compiled = compile_module_with_interfaces_for_test(
     (
       #|module Main
       #|import Lib.{State}
@@ -2694,7 +2694,7 @@ fn interface_alias_body_signature(
 
 ///|
 test "module binaries reject immediately preceding schema versions" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|pub let answer : I64 = 42
@@ -2744,7 +2744,7 @@ test "module binaries reject immediately preceding schema versions" {
 
 ///|
 test "link module artifacts orders reachable modules by imports" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -2795,7 +2795,7 @@ test "link module artifacts orders reachable modules by imports" {
 
 ///|
 test "compile module with interface artifact then link object artifacts" {
-  let lib_compiled = compile_modules(
+  let lib_compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub struct Box {
@@ -2813,7 +2813,7 @@ test "compile module with interface artifact then link object artifacts" {
     abort("expected Lib module")
   }
   let lib_artifact = lib_module.to_artifact()
-  let main_compiled = compile_module_with_interface_artifacts(
+  let main_compiled = compile_module_with_interfaces_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -2849,7 +2849,7 @@ test "compile module with interface artifact then link object artifacts" {
 
 ///|
 test "compile module freshens independently compiled interface symbols" {
-  let left_compiled = compile_modules(
+  let left_compiled = compile_modules_for_test(
     (
       #|module Left
       #|pub struct Box {
@@ -2867,7 +2867,7 @@ test "compile module freshens independently compiled interface symbols" {
     abort("expected Left module")
   }
   let left_artifact = left_module.to_artifact()
-  let right_compiled = compile_modules(
+  let right_compiled = compile_modules_for_test(
     (
       #|module Right
       #|pub struct Box {
@@ -2885,7 +2885,7 @@ test "compile module freshens independently compiled interface symbols" {
     abort("expected Right module")
   }
   let right_artifact = right_module.to_artifact()
-  let main_compiled = compile_module_with_interface_artifacts(
+  let main_compiled = compile_module_with_interfaces_for_test(
     (
       #|module Main
       #|import Left.*
@@ -2923,7 +2923,7 @@ test "compile module freshens independently compiled interface symbols" {
 
 ///|
 test "compile module follows transitive interface dependencies without extra pollution" {
-  let extra_compiled = compile_modules(
+  let extra_compiled = compile_modules_for_test(
     (
       #|module Extra
       #|pub struct Noise {
@@ -2940,7 +2940,7 @@ test "compile module follows transitive interface dependencies without extra pol
     abort("expected Extra module")
   }
   let extra_artifact = extra_module.to_artifact()
-  let a_compiled = compile_modules(
+  let a_compiled = compile_modules_for_test(
     (
       #|module A
       #|pub struct Box {
@@ -2958,7 +2958,7 @@ test "compile module follows transitive interface dependencies without extra pol
     abort("expected A module")
   }
   let a_artifact = a_module.to_artifact()
-  let b_compiled = compile_module_with_interface_artifacts(
+  let b_compiled = compile_module_with_interfaces_for_test(
     (
       #|module B
       #|import A.*
@@ -2974,7 +2974,7 @@ test "compile module follows transitive interface dependencies without extra pol
     abort("expected B module")
   }
   let b_artifact = b_module.to_artifact()
-  let c_compiled = compile_module_with_interface_artifacts(
+  let c_compiled = compile_module_with_interfaces_for_test(
     (
       #|module C
       #|import B.*
@@ -3008,7 +3008,7 @@ test "compile module follows transitive interface dependencies without extra pol
 
 ///|
 test "compile module reports missing transitive interface dependency" {
-  let a_compiled = compile_modules(
+  let a_compiled = compile_modules_for_test(
     (
       #|module A
       #|pub struct Box {
@@ -3025,7 +3025,7 @@ test "compile module reports missing transitive interface dependency" {
     abort("expected A module")
   }
   let a_artifact = a_module.to_artifact()
-  let b_compiled = compile_module_with_interface_artifacts(
+  let b_compiled = compile_module_with_interfaces_for_test(
     (
       #|module B
       #|import A.*
@@ -3040,7 +3040,7 @@ test "compile module reports missing transitive interface dependency" {
     abort("expected B module")
   }
   let b_artifact = b_module.to_artifact()
-  let c_compiled = compile_module_with_interface_artifacts(
+  let c_compiled = compile_module_with_interfaces_for_test(
     (
       #|module C
       #|import B.*
@@ -3058,7 +3058,7 @@ test "compile module reports missing transitive interface dependency" {
 
 ///|
 test "compile module rejects interface artifact name mismatch" {
-  let lib_compiled = compile_modules(
+  let lib_compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub let value : I64 = 42
@@ -3092,7 +3092,7 @@ test "compile module rejects interface artifact name mismatch" {
     module_fingerprint: lib_artifact.interface.module_fingerprint,
     imported_interface_fingerprints: lib_artifact.interface.imported_interface_fingerprints,
   }
-  let compiled = compile_module_with_interface_artifacts(
+  let compiled = compile_module_with_interfaces_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3110,7 +3110,7 @@ test "compile module rejects interface artifact name mismatch" {
 
 ///|
 test "compile module rejects stale interface artifact fingerprint" {
-  let lib_compiled = compile_modules(
+  let lib_compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub let value : I64 = 42
@@ -3132,7 +3132,7 @@ test "compile module rejects stale interface artifact fingerprint" {
     module_fingerprint: lib_artifact.interface.module_fingerprint,
     imported_interface_fingerprints: lib_artifact.interface.imported_interface_fingerprints,
   }
-  let compiled = compile_module_with_interface_artifacts(
+  let compiled = compile_module_with_interfaces_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3150,7 +3150,7 @@ test "compile module rejects stale interface artifact fingerprint" {
 
 ///|
 test "compile module rejects stale interface artifact module fingerprint" {
-  let lib_compiled = compile_modules(
+  let lib_compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub let value : I64 = 42
@@ -3172,7 +3172,7 @@ test "compile module rejects stale interface artifact module fingerprint" {
     module_fingerprint: { value: "stale" },
     imported_interface_fingerprints: lib_artifact.interface.imported_interface_fingerprints,
   }
-  let compiled = compile_module_with_interface_artifacts(
+  let compiled = compile_module_with_interfaces_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3190,14 +3190,14 @@ test "compile module rejects stale interface artifact module fingerprint" {
 
 ///|
 test "module object fingerprint changes on implementation-only changes" {
-  let first_compiled = compile_modules(
+  let first_compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub let value : I64 = 1
     ),
     [],
   )
-  let second_compiled = compile_modules(
+  let second_compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub let value : I64 = 2
@@ -3233,7 +3233,7 @@ test "module object fingerprint changes on implementation-only changes" {
 
 ///|
 test "link object artifacts rejects stale object fingerprint" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Lib
       #|pub let value : I64 = 42
@@ -3272,7 +3272,7 @@ test "link object artifacts rejects stale object fingerprint" {
 
 ///|
 test "link module artifacts rejects interface object fingerprint mismatch" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3330,7 +3330,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
 
 ///|
 test "link module artifacts rejects interface object name mismatch" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3382,7 +3382,7 @@ test "link module artifacts rejects interface object name mismatch" {
 
 ///|
 test "link module artifacts rejects stale imported reference fingerprint" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3461,7 +3461,7 @@ test "link module artifacts rejects stale imported reference fingerprint" {
 
 ///|
 test "link module artifacts rejects missing exported object value" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3530,14 +3530,14 @@ test "link module artifacts rejects missing exported object value" {
 
 ///|
 test "link modules rejects compiled artifact import cycle" {
-  let compiled_a = compile_modules(
+  let compiled_a = compile_modules_for_test(
     (
       #|module A
       #|pub let a : I64 = 1
     ),
     [],
   )
-  let compiled_b = compile_modules(
+  let compiled_b = compile_modules_for_test(
     (
       #|module B
       #|pub let b : I64 = 2
@@ -3584,7 +3584,7 @@ test "link modules rejects compiled artifact import cycle" {
 
 ///|
 test "link modules rejects missing compiled artifact import" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|pub let answer : I64 = 42
@@ -3614,7 +3614,7 @@ test "link modules rejects missing compiled artifact import" {
 
 ///|
 test "check sources does not expose private imported values" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3637,7 +3637,7 @@ test "check sources does not expose private imported values" {
 
 ///|
 test "check sources does not expose private imported types" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3662,7 +3662,7 @@ test "check sources does not expose private imported types" {
 
 ///|
 test "check sources rejects private nominal type escape through public function" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3709,7 +3709,7 @@ test "check sources rejects private nominal type escape through public function"
 
 ///|
 test "check source rejects private nominal type escape through public let" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|struct Hidden {
@@ -3728,7 +3728,7 @@ test "check source rejects private nominal type escape through public let" {
 
 ///|
 test "check source rejects private nominal type escape through public struct field" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|struct Hidden {
@@ -3749,7 +3749,7 @@ test "check source rejects private nominal type escape through public struct fie
 
 ///|
 test "check source rejects private nominal type escape through public enum payload" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|struct Hidden {
@@ -3770,7 +3770,7 @@ test "check source rejects private nominal type escape through public enum paylo
 
 ///|
 test "check source rejects private nominal type escape through public type alias" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Test
       #|struct Hidden {
@@ -3789,7 +3789,7 @@ test "check source rejects private nominal type escape through public type alias
 
 ///|
 test "check sources exposes public imported nominal shape through public value" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Lib.*
@@ -3812,7 +3812,7 @@ test "check sources exposes public imported nominal shape through public value" 
 
 ///|
 test "check sources rejects missing import" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Missing
@@ -3830,7 +3830,7 @@ test "check sources rejects missing import" {
 
 ///|
 test "check sources resolves module qualified value access" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Core.I64
@@ -3854,7 +3854,7 @@ test "check sources resolves module qualified value access" {
 
 ///|
 test "check sources does not import child module through parent module" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Core
@@ -3883,7 +3883,7 @@ test "check sources does not import child module through parent module" {
 
 ///|
 test "check sources resolves module qualified nominal type access" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Lib
@@ -3907,7 +3907,7 @@ test "check sources resolves module qualified nominal type access" {
 
 ///|
 test "check sources resolves module qualified type alias access" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Lib
@@ -3929,7 +3929,7 @@ test "check sources resolves module qualified type alias access" {
 
 ///|
 test "check sources preserves imported type alias owner identity" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import AliasB.{ X }
@@ -3958,7 +3958,7 @@ test "check sources preserves imported type alias owner identity" {
 
 ///|
 test "check sources rejects values against the selected imported alias" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import AliasB.{ X }
@@ -3988,7 +3988,7 @@ test "check sources rejects values against the selected imported alias" {
 
 ///|
 test "compile tuple and list sugar through fixed qualified providers" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Basic.Data.Tuple
@@ -4029,7 +4029,7 @@ test "compile tuple and list sugar through fixed qualified providers" {
 
 ///|
 test "tuple signatures use safe nominal artifact presentation" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|import Basic.Data.Tuple
@@ -4085,7 +4085,7 @@ test "tuple signatures use safe nominal artifact presentation" {
 
 ///|
 test "a sugar provider resolves its own fully qualified nominal expansion" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Basic.Data.List.*
@@ -4109,7 +4109,7 @@ test "a sugar provider resolves its own fully qualified nominal expansion" {
 
 ///|
 test "self-qualified namespace excludes imported declarations" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Lib.{ Box }
@@ -4134,7 +4134,7 @@ test "self-qualified namespace excludes imported declarations" {
 
 ///|
 test "self-qualified namespace includes local type declarations" {
-  let result = check_source(
+  let result = check_source_for_test(
     (
       #|module Main
       #|pub enum Box[A] {
@@ -4154,7 +4154,7 @@ test "self-qualified namespace includes local type declarations" {
 
 ///|
 test "tuple ABI module cannot borrow declarations from an open import" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Basic.Data.Tuple
@@ -4264,7 +4264,7 @@ test "tuple ABI module cannot borrow declarations from an open import" {
 
 ///|
 test "tuple and list sugar do not use unqualified fallback providers" {
-  let tuple_result = check_source(
+  let tuple_result = check_source_for_test(
     (
       #|module Main
       #|pub let pair : (I64, Bool) = (1, true)
@@ -4279,7 +4279,7 @@ test "tuple and list sugar do not use unqualified fallback providers" {
       #|]
     ),
   )
-  let list_result = check_source(
+  let list_result = check_source_for_test(
     (
       #|module Main
       #|enum LocalList[A] {
@@ -4385,7 +4385,7 @@ test "all import exposure forms provide canonical modules used by sugar" {
       "import Basic.Data.Tuple\nimport Basic.Data.List", "import Basic.Data.Tuple.*\nimport Basic.Data.List.*",
       "import Basic.Data.Tuple.{ Tuple }\nimport Basic.Data.List.{ List }",
     ] {
-    let result = check_sources(
+    let result = check_sources_for_test(
       "module Main\n" +
       imports +
       (
@@ -4418,7 +4418,7 @@ test "all import exposure forms provide canonical modules used by sugar" {
 
 ///|
 test "check sources resolves imported aliases in explicit generic arguments" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import AliasLib.{ Number }
@@ -4442,7 +4442,7 @@ test "check sources resolves imported aliases in explicit generic arguments" {
 
 ///|
 test "check sources preserves imported effect alias owner identity" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import AliasB.{ Actions, run }
@@ -4479,7 +4479,7 @@ test "check sources preserves imported effect alias owner identity" {
 
 ///|
 test "check sources resolves imported effect aliases in explicit arguments" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import AliasLib.{ ReadOnly, callback }
@@ -4509,7 +4509,7 @@ test "check sources resolves imported effect aliases in explicit arguments" {
 
 ///|
 test "check sources resolves module qualified variant expressions and patterns" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Lib
@@ -4537,7 +4537,7 @@ test "check sources resolves module qualified variant expressions and patterns" 
 
 ///|
 test "check sources does not import child module qualified type through parent module" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Core
@@ -4568,7 +4568,7 @@ test "check sources does not import child module qualified type through parent m
 
 ///|
 test "check sources rejects ambiguous module qualified field chain" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import core.int
@@ -4598,7 +4598,7 @@ test "check sources rejects ambiguous module qualified field chain" {
 
 ///|
 test "check sources rejects duplicate module input" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|pub let answer : I64 = 42
@@ -4702,7 +4702,7 @@ test "semantic workspace reports diagnostics from every workspace module" {
 
 ///|
 test "check sources ignores unimported library errors" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|pub let answer : I64 = 42
@@ -4722,7 +4722,7 @@ test "check sources ignores unimported library errors" {
 
 ///|
 test "check sources ignores unimported library import cycles" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|pub let answer : I64 = 42
@@ -4748,7 +4748,7 @@ test "check sources ignores unimported library import cycles" {
 
 ///|
 test "check sources rejects import cycle" {
-  let result = check_sources(
+  let result = check_sources_for_test(
     (
       #|module Main
       #|import Lib

@@ -103,8 +103,8 @@ pub(all) struct ExploreStages {
 
 ///|
 pub(all) struct ExploreRequest {
-  root_source : @module_frontend.SourceInput
-  library_sources : Array[@module_frontend.SourceInput]
+  root_source : @compile.SourceInput
+  library_sources : Array[@compile.SourceInput]
   entry : String
 } derive(Debug, Eq)
 

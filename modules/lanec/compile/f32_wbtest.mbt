@@ -109,7 +109,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
 
 ///|
 test "F32 module interface and object artifacts roundtrip" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Test
       #|

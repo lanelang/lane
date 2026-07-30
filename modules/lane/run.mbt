@@ -36,41 +36,41 @@ async fn lane_run(
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let diagnostic_sources = LaneSourceInput::diagnostic_sources(root, libraries)
-  let result = @compile.compile_source_inputs(
-    root.to_compile_input(),
-    LaneSourceInput::array_to_compile_inputs(libraries),
-  )
-  let failures = denied_diagnostics(result.diagnostics, false)
+  let result = @compile.compile({
+    root: root.to_compile_input(),
+    libraries: LaneSourceInput::array_to_compile_inputs(libraries),
+  })
+  let diagnostics = result.diagnostics()
+  let failures = denied_diagnostics(diagnostics, false)
   if !failures.is_empty() {
     return LaneCommandOutcome::compile_diagnostics(
-      result.diagnostics,
+      diagnostics,
       diagnostic_sources,
       false,
     )
   }
-  guard result.program is Some(program) else {
-    internal_error("compiler produced no Buslane program")
+  let program = match result {
+    Succeeded(program, _) => program
+    Failed(_) => return internal_error("failed compilation had no errors")
   }
-  if !result.diagnostics.is_empty() {
-    print_diagnostics_with_sources(result.diagnostics, diagnostic_sources)
+  if !diagnostics.is_empty() {
+    print_diagnostics_with_sources(diagnostics, diagnostic_sources)
   }
-  let entry = match find_entry(result.entries, entry) {
+  let entry = match find_entry(program.entries(), entry) {
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_entry(program, result.externals, entry, no_jit~)
+  execute_entry(program, entry, no_jit~)
 }
 
 ///|
 fn execute_entry(
-  program : @buslane.Program,
-  externals : @buslane_lowering.BuslaneExternalMap,
-  entry : @buslane_lowering.BuslaneEntry,
+  program : @compile.CompiledProgram,
+  entry : @compile.CompiledEntry,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
   execute_entry_with_output(
     program,
-    externals,
     entry,
     line => println(line),
     no_jit~,
@@ -79,42 +79,27 @@ fn execute_entry(
 
 ///|
 fn execute_entry_with_output(
-  program : @buslane.Program,
-  externals : @buslane_lowering.BuslaneExternalMap,
-  entry : @buslane_lowering.BuslaneEntry,
+  program : @compile.CompiledProgram,
+  entry : @compile.CompiledEntry,
   write_line : (String) -> Unit,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
-  match validate_executable_entry(entry, program.metadata) {
+  match validate_executable_entry(entry, program) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let linked : @module_link.LinkedProgram = {
-    module_path_texts: [],
-    program,
-    externals,
-    entries: [entry],
-  }
-  let executable = match elaborate_linked_executable(linked, entry) {
+  let executable = match program.elaborate_entry(entry) {
     Ok(executable) => executable
-    Err(error) => return LaneCommandOutcome::user_error(error)
+    Err(error) =>
+      return LaneCommandOutcome::user_error(
+        ExecutionImageLowering(message="\{Repr(error)}"),
+      )
   }
   let image = match lower_executable_image(executable) {
     Ok(image) => image
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
   execute_loisvm_image_with_output(image, write_line, no_jit~)
-}
-
-///|
-fn elaborate_linked_executable(
-  linked : @module_link.LinkedProgram,
-  entry : @buslane_lowering.BuslaneEntry,
-) -> Result[@executable.ExecutableProgram, CliError] {
-  match @executable.elaborate(linked, entry) {
-    Ok(executable) => Ok(executable)
-    Err(error) => Err(ExecutionImageLowering(message="\{Repr(error)}"))
-  }
 }
 
 ///|
@@ -129,14 +114,15 @@ fn lower_executable_image(
 
 ///|
 fn validate_executable_entry(
-  entry : @buslane_lowering.BuslaneEntry,
-  metadata : @buslane.MetadataRegistry,
+  entry : @compile.CompiledEntry,
+  program : @compile.CompiledProgram,
 ) -> Result[Unit, CliError] {
-  guard entry.type_ is Function(parameters, result, effect) else {
+  let type_ = entry.type_()
+  guard type_ is Function(parameters, result, _) else {
     return Err(
       EntryNotExecutable(
         name=display_entry(entry),
-        type_=entry.type_,
+        type_~,
         reason=EntryIsNotFunction,
       ),
     )
@@ -145,7 +131,7 @@ fn validate_executable_entry(
     return Err(
       EntryNotExecutable(
         name=display_entry(entry),
-        type_=entry.type_,
+        type_~,
         reason=EntryHasParameters(count=parameters.length()),
       ),
     )
@@ -154,17 +140,20 @@ fn validate_executable_entry(
     return Err(
       EntryNotExecutable(
         name=display_entry(entry),
-        type_=entry.type_,
+        type_~,
         reason=EntryReturnsNonUnit(result~),
       ),
     )
   }
-  if !@executable.entry_effect_is_executable(metadata, effect) {
+  if !program.entry_effect_is_executable(entry) {
     return Err(
       EntryNotExecutable(
         name=display_entry(entry),
-        type_=entry.type_,
-        reason=EntryHasUnsupportedEffects(effect~),
+        type_~,
+        reason=EntryHasUnsupportedEffects(effect=match type_ {
+          Function(_, _, effect) => effect
+          _ => abort("function entry lost its effect")
+        }),
       ),
     )
   }
@@ -225,10 +214,10 @@ fn command_loisvm_runtime(
 
 ///|
 fn find_entry(
-  entries : Array[@buslane_lowering.BuslaneEntry],
+  entries : Array[@compile.CompiledEntry],
   name : String,
-) -> Result[@buslane_lowering.BuslaneEntry, CliError] {
-  let matched = entries.filter(entry => entry.name == name)
+) -> Result[@compile.CompiledEntry, CliError] {
+  let matched = entries.filter(entry => entry.name() == name)
   match matched.length() {
     1 => Ok(matched[0])
     0 => Err(EntryNotFound(name~, entries~))
@@ -238,12 +227,12 @@ fn find_entry(
 
 ///|
 fn find_public_entry(
-  entries : Array[@buslane_lowering.BuslaneEntry],
+  entries : Array[@compile.CompiledEntry],
   name : PublicEntryName,
-) -> Result[@buslane_lowering.BuslaneEntry, CliError] {
+) -> Result[@compile.CompiledEntry, CliError] {
   let matched = entries.filter(fn(entry) {
-    entry.module_path_text == name.module_path_text &&
-    entry.name == name.value_name
+    entry.module_path_text() == name.module_path_text &&
+    entry.name() == name.value_name
   })
   let display_name = display_public_entry_name(name)
   match matched.length() {

@@ -1,6 +1,6 @@
 ///|
 test "module artifacts roundtrip every Char and UTF-8 intrinsic" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Main
       #|
@@ -92,7 +92,7 @@ test "compiler erases representation-identical Char conversion" {
 
 ///|
 test "artifact decoders reject pre UTF-8 schema versions" {
-  let compiled = compile_modules(
+  let compiled = compile_modules_for_test(
     (
       #|module Test
       #|pub fn answer() -> Unit {

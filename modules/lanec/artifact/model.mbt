@@ -20,6 +20,12 @@ pub let module_object_artifact_schema_version = 16
 pub let linked_program_artifact_schema_version = 8
 
 ///|
+pub let compiled_module_artifact_schema_version = 2
+
+///|
+pub let compiled_module_set_artifact_schema_version = 2
+
+///|
 pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
@@ -163,14 +169,14 @@ fn ModuleObjectArtifact::validate(
 fn CompiledModuleSetArtifact::validate_schema(
   self : CompiledModuleSetArtifact,
 ) -> CompilerDiagnostic? {
-  if self.schema_version != 2 {
+  if self.schema_version != compiled_module_set_artifact_schema_version {
     return Some(
       artifact_diagnostic(UnsupportedModuleArtifactSchema(None), None),
     )
   }
   for module_ in self.modules {
     let module_path_text = module_.interface.module_path_text
-    if module_.schema_version != 2 {
+    if module_.schema_version != compiled_module_artifact_schema_version {
       return Some(
         artifact_diagnostic(
           UnsupportedModuleArtifactSchema(Some(module_path_text)),

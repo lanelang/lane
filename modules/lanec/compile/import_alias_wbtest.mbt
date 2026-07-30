@@ -1,6 +1,6 @@
 ///|
 test "compiled aliases retain canonical interface and object identities" {
-  let result = compile_modules(
+  let result = compile_modules_for_test(
     (
       #|module Main
       #|import Types as T
@@ -47,7 +47,7 @@ test "compiled aliases retain canonical interface and object identities" {
 
 ///|
 test "tuple sugar compiles through an aliased canonical provider" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Basic.Data.Tuple as Pair
@@ -71,7 +71,7 @@ test "tuple sugar compiles through an aliased canonical provider" {
 
 ///|
 test "list sugar compiles through an aliased canonical provider" {
-  let result = compile_sources(
+  let result = compile_sources_for_test(
     (
       #|module Main
       #|import Basic.Data.List as Seq

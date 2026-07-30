@@ -1,5 +1,5 @@
 ///|
-pub fn write_compilation_fingerprint(
+fn write_compilation_fingerprint(
   writer : @bytecodec.ByteWriter,
   fingerprint : CompilationFingerprint,
 ) -> Unit {
@@ -7,7 +7,7 @@ pub fn write_compilation_fingerprint(
 }
 
 ///|
-pub fn write_imported_interface_fingerprints(
+fn write_imported_interface_fingerprints(
   writer : @bytecodec.ByteWriter,
   fingerprints : Array[ImportedInterfaceFingerprint],
 ) -> Unit {
@@ -19,7 +19,7 @@ pub fn write_imported_interface_fingerprints(
 }
 
 ///|
-pub fn write_buslane_program_section(
+fn write_buslane_program_section(
   writer : @bytecodec.ByteWriter,
   program : @buslane.Program,
 ) -> Unit {
@@ -27,7 +27,7 @@ pub fn write_buslane_program_section(
 }
 
 ///|
-pub fn write_buslane_type(
+fn write_buslane_type(
   writer : @bytecodec.ByteWriter,
   type_ : @buslane.Type,
 ) -> Unit {
@@ -35,7 +35,7 @@ pub fn write_buslane_type(
 }
 
 ///|
-pub fn write_buslane_value_id(
+fn write_buslane_value_id(
   writer : @bytecodec.ByteWriter,
   id : @buslane.ValueId,
 ) -> Unit {
@@ -43,7 +43,7 @@ pub fn write_buslane_value_id(
 }
 
 ///|
-pub fn write_buslane_type_id(
+fn write_buslane_type_id(
   writer : @bytecodec.ByteWriter,
   id : @buslane.TypeId,
 ) -> Unit {
@@ -51,7 +51,7 @@ pub fn write_buslane_type_id(
 }
 
 ///|
-pub fn write_buslane_data_con_id(
+fn write_buslane_data_con_id(
   writer : @bytecodec.ByteWriter,
   id : @buslane.DataConId,
 ) -> Unit {
@@ -59,7 +59,7 @@ pub fn write_buslane_data_con_id(
 }
 
 ///|
-pub fn write_buslane_effect_id(
+fn write_buslane_effect_id(
   writer : @bytecodec.ByteWriter,
   id : @buslane.EffectId,
 ) -> Unit {
@@ -67,7 +67,7 @@ pub fn write_buslane_effect_id(
 }
 
 ///|
-pub fn write_buslane_operation_id(
+fn write_buslane_operation_id(
   writer : @bytecodec.ByteWriter,
   id : @buslane.OperationId,
 ) -> Unit {
@@ -75,7 +75,7 @@ pub fn write_buslane_operation_id(
 }
 
 ///|
-pub fn write_externals(
+fn write_externals(
   writer : @bytecodec.ByteWriter,
   externals : @buslane_lowering.BuslaneExternalMap,
 ) -> Unit {
@@ -194,7 +194,7 @@ fn write_host_value_kind(
 }
 
 ///|
-pub fn write_entries(
+fn write_entries(
   writer : @bytecodec.ByteWriter,
   entries : Array[@buslane_lowering.BuslaneEntry],
 ) -> Unit {
@@ -205,7 +205,7 @@ pub fn write_entries(
 }
 
 ///|
-pub fn write_entry(
+fn write_entry(
   writer : @bytecodec.ByteWriter,
   entry : @buslane_lowering.BuslaneEntry,
 ) -> Unit {
@@ -216,7 +216,7 @@ pub fn write_entry(
 }
 
 ///|
-pub fn write_module_reference(
+fn write_module_reference(
   writer : @bytecodec.ByteWriter,
   reference : @buslane_lowering.BuslaneModuleReference,
 ) -> Unit {
@@ -249,7 +249,7 @@ pub fn write_module_reference(
 }
 
 ///|
-pub fn write_exports(
+fn write_exports(
   writer : @bytecodec.ByteWriter,
   exports : Array[@buslane_lowering.BuslaneModuleExport],
 ) -> Unit {
@@ -261,7 +261,7 @@ pub fn write_exports(
 }
 
 ///|
-pub fn write_imports(
+fn write_imports(
   writer : @bytecodec.ByteWriter,
   imports : Array[ModuleImportedReference],
 ) -> Unit {

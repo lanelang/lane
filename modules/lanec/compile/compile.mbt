@@ -1,279 +1,168 @@
 ///|
-pub(all) struct CheckResult {
-  source : @checked.CheckedSourceFile?
-  diagnostics : Array[CompilerDiagnostic]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct CompileResult {
-  program : @buslane.Program?
-  externals : @buslane_lowering.BuslaneExternalMap
-  entries : Array[@buslane_lowering.BuslaneEntry]
-  diagnostics : Array[CompilerDiagnostic]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct CompileModulesResult {
-  modules : @module_compile.CompiledModuleSet?
-  diagnostics : Array[CompilerDiagnostic]
-} derive(Debug, Eq)
-
-///|
-pub(all) enum SourceCompilationStage {
-  Syntax(@module_frontend.ParsedModuleInput)
-  Module(String, @module_compile.ModuleCompileStage)
-}
-
-///|
-/// Checks one Lane source module.
-pub fn check_source(source : String) -> CheckResult {
-  check_sources(source, [])
-}
-
-///|
-/// Checks a root Lane source module against explicitly supplied library modules.
-pub fn check_sources(
-  root_source : String,
-  library_sources : Array[String],
-) -> CheckResult {
-  let library_inputs : Array[@module_frontend.SourceInput] = []
-  for index, source in library_sources {
-    library_inputs.push({ source_id: "<library:\{index}>", text: source })
-  }
-  check_source_inputs(
-    { source_id: "<root>", text: root_source },
-    library_inputs,
-  )
-}
-
-///|
-/// Checks a root Lane source module against explicitly supplied library modules.
-pub fn check_source_inputs(
-  root_source : @module_frontend.SourceInput,
-  library_sources : Array[@module_frontend.SourceInput],
-) -> CheckResult {
-  match compile_module_set_from_source_inputs(root_source, library_sources) {
-    Ok(modules) =>
-      match
-        @module_compile.find_compiled_module(
-          modules.modules,
-          modules.root_module_path_text,
-        ) {
-        Some(root) =>
-          {
-            source: Some(root.object.checked),
-            diagnostics: modules.diagnostics,
-          }
-        None =>
-          {
-            source: None,
-            diagnostics: [@module_compile.no_root_source_module_diagnostic()],
-          }
-      }
-    Err(diagnostics) => { source: None, diagnostics }
-  }
-}
-
-///|
-/// Checks one Lane source module against already compiled module interfaces.
-pub fn check_source_with_interface_artifacts(
-  root_source : String,
-  interfaces : Array[@artifact.ModuleInterfaceArtifact],
-) -> CheckResult {
-  check_source_input_with_interface_artifacts(
-    { source_id: "<root>", text: root_source },
-    interfaces,
-  )
-}
-
-///|
-/// Checks one Lane source module against already compiled module interfaces.
-pub fn check_source_input_with_interface_artifacts(
-  root_source : @module_frontend.SourceInput,
-  interfaces : Array[@artifact.ModuleInterfaceArtifact],
-) -> CheckResult {
-  match
-    @module_compile.compile_module_from_interface_artifacts(
-      root_source, interfaces,
-    ) {
-    Ok(modules) =>
-      match
-        @module_compile.find_compiled_module(
-          modules.modules,
-          modules.root_module_path_text,
-        ) {
-        Some(root) =>
-          {
-            source: Some(root.object.checked),
-            diagnostics: modules.diagnostics,
-          }
-        None =>
-          {
-            source: None,
-            diagnostics: [@module_compile.no_root_source_module_diagnostic()],
-          }
-      }
-    Err(diagnostics) => { source: None, diagnostics }
-  }
-}
-
-///|
-/// Compiles source modules into separate module artifacts without linking them.
-pub fn compile_modules(
-  root_source : String,
-  library_sources : Array[String],
-) -> CompileModulesResult {
-  let library_inputs : Array[@module_frontend.SourceInput] = []
-  for index, source in library_sources {
-    library_inputs.push({ source_id: "<library:\{index}>", text: source })
-  }
-  compile_module_inputs(
-    { source_id: "<root>", text: root_source },
-    library_inputs,
-  )
-}
-
-///|
-/// Compiles source modules into separate module artifacts without linking them.
-pub fn compile_module_inputs(
-  root_source : @module_frontend.SourceInput,
-  library_sources : Array[@module_frontend.SourceInput],
-) -> CompileModulesResult {
-  compile_module_inputs_observed(root_source, library_sources, _ => ())
-}
-
-///|
-pub fn compile_module_inputs_observed(
-  root_source : @module_frontend.SourceInput,
-  library_sources : Array[@module_frontend.SourceInput],
-  observe : (SourceCompilationStage) -> Unit,
-) -> CompileModulesResult {
-  match
-    compile_module_set_from_source_inputs_observed(
-      root_source, library_sources, observe,
-    ) {
-    Ok(modules) => { modules: Some(modules), diagnostics: modules.diagnostics }
-    Err(diagnostics) => { modules: None, diagnostics }
-  }
-}
-
-///|
-/// Compiles one Lane source module against already compiled module interfaces.
-pub fn compile_module_with_interface_artifacts(
-  root_source : String,
-  interfaces : Array[@artifact.ModuleInterfaceArtifact],
-) -> CompileModulesResult {
-  compile_module_input_with_interface_artifacts(
-    { source_id: "<root>", text: root_source },
-    interfaces,
-  )
-}
-
-///|
-/// Compiles one Lane source module against already compiled module interfaces.
-pub fn compile_module_input_with_interface_artifacts(
-  root_source : @module_frontend.SourceInput,
-  interfaces : Array[@artifact.ModuleInterfaceArtifact],
-) -> CompileModulesResult {
-  match
-    @module_compile.compile_module_from_interface_artifacts(
-      root_source, interfaces,
-    ) {
-    Ok(modules) => { modules: Some(modules), diagnostics: modules.diagnostics }
-    Err(diagnostics) => { modules: None, diagnostics }
-  }
-}
-
-///|
-/// Links a compiled module set into a Buslane program.
-pub fn link_modules(
-  modules : @module_compile.CompiledModuleSet,
-) -> @module_link.LinkResult {
-  @module_compile.link_compiled_module_set(modules)
-}
-
-///|
-/// Compiles one Lane source module into Buslane plus compiler-owned side tables
-/// needed by tools and runtimes.
-pub fn compile_source(source : String) -> CompileResult {
-  compile_sources(source, [])
-}
-
-///|
-/// Compiles a root Lane source module against explicitly supplied library
-/// modules.
-pub fn compile_sources(
-  root_source : String,
-  library_sources : Array[String],
-) -> CompileResult {
-  let library_inputs : Array[@module_frontend.SourceInput] = []
-  for index, source in library_sources {
-    library_inputs.push({ source_id: "<library:\{index}>", text: source })
-  }
-  compile_source_inputs(
-    { source_id: "<root>", text: root_source },
-    library_inputs,
-  )
-}
-
-///|
-/// Compiles a root Lane source module against explicitly supplied library
-/// modules.
-pub fn compile_source_inputs(
-  root_source : @module_frontend.SourceInput,
-  library_sources : Array[@module_frontend.SourceInput],
-) -> CompileResult {
-  match compile_module_set_from_source_inputs(root_source, library_sources) {
-    Ok(modules) => {
-      let linked = @module_compile.link_compiled_module_set(modules)
-      match linked.program {
-        Some(program) =>
-          {
-            program: Some(program.program),
-            externals: program.externals,
-            entries: program.entries,
-            diagnostics: linked.diagnostics,
-          }
-        None =>
-          {
-            program: None,
-            externals: { builtins: [], runtime_imports: [] },
-            entries: [],
-            diagnostics: linked.diagnostics,
-          }
-      }
-    }
-    Err(diagnostics) =>
-      {
-        program: None,
-        externals: { builtins: [], runtime_imports: [] },
-        entries: [],
-        diagnostics,
-      }
-  }
-}
-
-///|
-fn compile_module_set_from_source_inputs(
-  root_source : @module_frontend.SourceInput,
-  library_sources : Array[@module_frontend.SourceInput],
-) -> Result[@module_compile.CompiledModuleSet, Array[CompilerDiagnostic]] {
-  compile_module_set_from_source_inputs_observed(root_source, library_sources, _ => {
-    ()
+/// Checks one in-memory Lane source module.
+pub fn check_source(source : String) -> CompilationOutcome[CheckedModule] {
+  check({
+    root: { source_id: "<root>", text: source },
+    libraries: [],
   })
 }
 
 ///|
-fn compile_module_set_from_source_inputs_observed(
-  root_source : @module_frontend.SourceInput,
-  library_sources : Array[@module_frontend.SourceInput],
+/// Checks a source set without linking it.
+pub fn check(
+  request : CompilationRequest,
+) -> CompilationOutcome[CheckedModule] {
+  match compile_module_set(request, _ => ()) {
+    Ok(modules) =>
+      match
+        @module_compile.find_compiled_module(
+          modules.modules,
+          modules.root_module_path_text,
+        ) {
+        Some(root) =>
+          compilation_succeeded(
+            { source: root.object.checked },
+            modules.diagnostics,
+          )
+        None =>
+          compilation_failed([
+            @module_compile.no_root_source_module_diagnostic(),
+          ])
+      }
+    Err(diagnostics) => compilation_failed(diagnostics)
+  }
+}
+
+///|
+/// Checks one source module against persisted module interfaces.
+pub fn check_with_interfaces(
+  request : InterfaceCompilationRequest,
+) -> CompilationOutcome[CheckedModule] {
+  match
+    @module_compile.compile_module_from_interface_artifacts(
+      request.root.to_frontend(),
+      request.interfaces,
+    ) {
+    Ok(modules) =>
+      match
+        @module_compile.find_compiled_module(
+          modules.modules,
+          modules.root_module_path_text,
+        ) {
+        Some(root) =>
+          compilation_succeeded(
+            { source: root.object.checked },
+            modules.diagnostics,
+          )
+        None =>
+          compilation_failed([
+            @module_compile.no_root_source_module_diagnostic(),
+          ])
+      }
+    Err(diagnostics) => compilation_failed(diagnostics)
+  }
+}
+
+///|
+/// Compiles one in-memory Lane source module through linking.
+pub fn compile_source(source : String) -> CompilationOutcome[CompiledProgram] {
+  compile({
+    root: { source_id: "<root>", text: source },
+    libraries: [],
+  })
+}
+
+///|
+/// Compiles and links a source set.
+pub fn compile(
+  request : CompilationRequest,
+) -> CompilationOutcome[CompiledProgram] {
+  match compile_module_set(request, _ => ()) {
+    Ok(modules) => linked_outcome(@module_compile.link_compiled_module_set(modules))
+    Err(diagnostics) => compilation_failed(diagnostics)
+  }
+}
+
+///|
+/// Compiles a source set into separate modules without linking it.
+pub fn compile_modules(
+  request : CompilationRequest,
+) -> CompilationOutcome[CompiledModules] {
+  compile_modules_observed(request, _ => ())
+}
+
+///|
+/// Compiles modules while reporting stable, rendered stage snapshots.
+pub fn compile_modules_observed(
+  request : CompilationRequest,
+  observe : (SourceCompilationStage) -> Unit,
+) -> CompilationOutcome[CompiledModules] {
+  match compile_module_set(request, observe) {
+    Ok(modules) =>
+      compilation_succeeded({ modules, }, modules.diagnostics)
+    Err(diagnostics) => compilation_failed(diagnostics)
+  }
+}
+
+///|
+/// Compiles one source module against persisted module interfaces.
+pub fn compile_module_with_interfaces(
+  request : InterfaceCompilationRequest,
+) -> CompilationOutcome[CompiledModules] {
+  match
+    @module_compile.compile_module_from_interface_artifacts(
+      request.root.to_frontend(),
+      request.interfaces,
+    ) {
+    Ok(modules) =>
+      compilation_succeeded({ modules, }, modules.diagnostics)
+    Err(diagnostics) => compilation_failed(diagnostics)
+  }
+}
+
+///|
+/// Links modules produced by this facade.
+pub fn link_modules(
+  modules : CompiledModules,
+) -> CompilationOutcome[CompiledProgram] {
+  linked_outcome(@module_compile.link_compiled_module_set(modules.modules))
+}
+
+///|
+/// Validates and links persisted module object artifacts.
+pub fn link_module_objects(
+  objects : Array[@artifact.ModuleObjectArtifact],
+) -> CompilationOutcome[CompiledProgram] {
+  linked_outcome(@artifact.link_module_object_artifacts(objects))
+}
+
+///|
+fn linked_outcome(
+  linked : @module_link.LinkResult,
+) -> CompilationOutcome[CompiledProgram] {
+  match linked.program {
+    Some(program) =>
+      compilation_succeeded({ linked: program }, linked.diagnostics)
+    None => compilation_failed(linked.diagnostics)
+  }
+}
+
+///|
+fn compile_module_set(
+  request : CompilationRequest,
   observe : (SourceCompilationStage) -> Unit,
 ) -> Result[@module_compile.CompiledModuleSet, Array[CompilerDiagnostic]] {
   match
     @module_frontend.parse_import_reachable_module_input_set_from_inputs_observed(
-      root_source,
-      library_sources,
-      root => observe(Syntax(root)),
+      request.root.to_frontend(),
+      request.libraries.map(SourceInput::to_frontend),
+      root =>
+        observe(
+          Syntax({
+            module_path_text: root.header.module_path_text,
+            text: @prettyprinter.render(root.source, width=100),
+          }),
+        ),
     ) {
     Err(diagnostics) => Err(diagnostics)
     Ok(inputs) =>
@@ -283,7 +172,33 @@ fn compile_module_set_from_source_inputs_observed(
           @module_compile.compile_module_graph_observed(graph, (
             module_path_text,
             stage,
-          ) => observe(Module(module_path_text, stage)))
+          ) => {
+            let snapshot = match stage {
+              Resolved(source) =>
+                SourceCompilationStage::Resolved({
+                  module_path_text,
+                  text: render_resolved_source(source, 100),
+                })
+              Checked(source) =>
+                Checked({
+                  module_path_text,
+                  text: render_checked_source(source, 100),
+                })
+              BuslaneModule(program) =>
+                BuslaneModule({
+                  module_path_text,
+                  text: render_buslane_program(program, 100),
+                })
+            }
+            observe(snapshot)
+          })
       }
   }
+}
+
+///|
+fn SourceInput::to_frontend(
+  self : SourceInput,
+) -> @module_frontend.SourceInput {
+  { source_id: self.source_id, text: self.text }
 }
