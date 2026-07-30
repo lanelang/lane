@@ -111,6 +111,47 @@ fn pad_to(writer : @bytecodec.ByteWriter, alignment : Int) -> Unit {
 }
 
 ///|
+fn instruction_requires_byte_sequence_layout(
+  instruction : @bytecode.Instruction,
+) -> Bool {
+  match instruction {
+    ConstString(_, _)
+    | ByteSequenceMake(_, _, _)
+    | ByteSequenceLength(_, _)
+    | ByteSequenceGet(_, _, _)
+    | ByteSequenceSet(_, _, _, _)
+    | ByteSequenceEqual(_, _, _)
+    | ByteSequenceConcat(_, _, _)
+    | ByteSequenceSlice(_, _, _, _)
+    | ByteSequenceIsValidUtf8(_, _) => true
+    _ => false
+  }
+}
+
+///|
+fn image_requires_byte_sequence_layout(image : @bytecode.BytecodeImage) -> Bool {
+  if !image.constants.is_empty() {
+    return true
+  }
+  for function in image.functions {
+    match function {
+      RuntimeImport(import_) =>
+        if import_.result == String ||
+          import_.parameters.any(parameter => parameter == String) {
+          return true
+        }
+      BytecodeBody(body) =>
+        for block in body.blocks {
+          if block.instructions.any(instruction_requires_byte_sequence_layout) {
+            return true
+          }
+        }
+    }
+  }
+  false
+}
+
+///|
 fn build_static_image(
   image : @bytecode.BytecodeImage,
   helper_functions : HelperFunctions,
@@ -189,7 +230,7 @@ fn build_static_image(
     )
     writer.write_u32_le_int(0)
   }
-  if !image.constants.is_empty() && byte_sequence_layout_id == 0 {
+  if image_requires_byte_sequence_layout(image) && byte_sequence_layout_id == 0 {
     raise MissingByteSequenceLayout
   }
   let constant_refs : Array[Int] = []

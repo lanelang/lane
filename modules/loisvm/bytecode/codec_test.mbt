@@ -692,6 +692,53 @@ test "decoder accepts UTF-8 constants and rejects malformed UTF-8" {
 }
 
 ///|
+test "decoder rejects invalid Char constants" {
+  let results = []
+  for value in [-1, 0xD800, 0xDFFF, 0x110000] {
+    let image = {
+      ..minimal_image(),
+      functions: [
+        BytecodeBody(
+          minimal_body(instructions=[ConstChar({ value: 0 }, value)]),
+        ),
+      ],
+    }
+    results.push(parse_bytecode_image_binary(bytecode_image_to_binary(image)))
+  }
+  debug_inspect(
+    results,
+    content=(
+      #|[
+      #|  Err(
+      #|    MalformedEncoding(
+      #|      offset=51,
+      #|      detail="Char constant -1 is not a Unicode scalar value",
+      #|    ),
+      #|  ),
+      #|  Err(
+      #|    MalformedEncoding(
+      #|      offset=51,
+      #|      detail="Char constant 55296 is not a Unicode scalar value",
+      #|    ),
+      #|  ),
+      #|  Err(
+      #|    MalformedEncoding(
+      #|      offset=51,
+      #|      detail="Char constant 57343 is not a Unicode scalar value",
+      #|    ),
+      #|  ),
+      #|  Err(
+      #|    MalformedEncoding(
+      #|      offset=51,
+      #|      detail="Char constant 1114112 is not a Unicode scalar value",
+      #|    ),
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "decoder rejects illegal slot metadata" {
   let illegal_body = {
     ..minimal_body(),

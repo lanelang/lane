@@ -523,6 +523,27 @@ test "static image materializes layout descriptors and immortal strings" {
 }
 
 ///|
+test "ByteSequence instructions require the shared layout" {
+  let entry = body(slots=[owned_slot(I32, OwnedRef), trivial_slot(I64)], instructions=[
+    ByteSequenceLength({ value: 1 }, { value: 0 }),
+  ])
+  let error = match
+    compile({
+      entry: { value: 1 },
+      initializer: None,
+      globals: [],
+      functions: [BytecodeBody(entry)],
+      layouts: [],
+      object_shapes: [],
+      constants: [],
+    }) {
+    Err(error) => error
+    Ok(_) => fail("expected missing ByteSequence layout")
+  }
+  assert_eq(error, MissingByteSequenceLayout)
+}
+
+///|
 test "fieldless data construction reuses an immortal static singleton" {
   let owned_ref = owned_slot(I32, OwnedRef)
   let entry = body(slots=[owned_ref], instructions=[

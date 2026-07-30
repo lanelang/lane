@@ -389,6 +389,7 @@ pub(all) enum VerifyDiagnosticKind {
   DefaultAlternativeNotLast
   DuplicateAlternative
   NonExhaustiveMatch
+  InvalidCharLiteral(Int)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for VerifyDiagnosticKind
 

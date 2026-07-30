@@ -514,6 +514,7 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
     DefaultAlternativeNotLast => text("default_alternative_not_last")
     DuplicateAlternative => text("duplicate_alternative")
     NonExhaustiveMatch => text("non_exhaustive_match")
+    InvalidCharLiteral(value) => text("invalid_char_literal \{value}")
   }
 }
 

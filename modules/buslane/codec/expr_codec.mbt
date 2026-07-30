@@ -68,7 +68,12 @@ fn @bytecodec.ByteReader::read_literal(
     }
     [u8be(6), .. rest] => {
       self.update_view(rest)
-      Char(read_i32_le(self))
+      let value_offset = self.offset()
+      let value = read_i32_le(self)
+      guard value.to_char() is Some(scalar) else {
+        raise InvalidUnicodeScalar(offset=value_offset, value~)
+      }
+      Char(scalar.to_int())
     }
     [u8be(7), .. rest] => {
       self.update_view(rest)

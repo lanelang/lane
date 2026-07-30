@@ -1237,38 +1237,38 @@ fn yy_action_41(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 294|    "i64" "(" INT ")" { I64(@string.parse_int64($3, base=10) catch { _ => 0L }) }
+// 294|    "i64" "(" INT ")" { validated_literal(parse_i64_literal($3)) }
 fn yy_action_42(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Literal({();  I64(@string.parse_int64(_dollar3, base=10) catch { _ => 0L }) })
+  YYObj_Literal({();  validated_literal(parse_i64_literal(_dollar3)) })
 }
 
 // file:///./parser.mbty
-// 295|    "i32" "(" INT ")" { I32(@string.parse_int($3, base=10) catch { _ => 0 }) }
+// 295|    "i32" "(" INT ")" { validated_literal(parse_i32_literal($3)) }
 fn yy_action_43(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Literal({();  I32(@string.parse_int(_dollar3, base=10) catch { _ => 0 }) })
+  YYObj_Literal({();  validated_literal(parse_i32_literal(_dollar3)) })
 }
 
 // file:///./parser.mbty
-// 296|    "char" "(" INT ")" { Char(@string.parse_int($3, base=10) catch { _ => 0 }) }
+// 296|    "char" "(" INT ")" { validated_literal(parse_char_literal($3)) }
 fn yy_action_44(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Literal({();  Char(@string.parse_int(_dollar3, base=10) catch { _ => 0 }) })
+  YYObj_Literal({();  validated_literal(parse_char_literal(_dollar3)) })
 }
 
 // file:///./parser.mbty
-// 297|    "f32" "(" DOUBLE ")" { F32(Float::from_double(@string.parse_double($3) catch { _ => 0.0 })) }
+// 297|    "f32" "(" DOUBLE ")" { validated_literal(parse_f32_literal($3)) }
 fn yy_action_45(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Literal({();  F32(Float::from_double(@string.parse_double(_dollar3) catch { _ => 0.0 })) })
+  YYObj_Literal({();  validated_literal(parse_f32_literal(_dollar3)) })
 }
 
 // file:///./parser.mbty
-// 298|    "f64" "(" DOUBLE ")" { F64(@string.parse_double($3) catch { _ => 0.0 }) }
+// 298|    "f64" "(" DOUBLE ")" { validated_literal(parse_f64_literal($3)) }
 fn yy_action_46(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Literal({();  F64(@string.parse_double(_dollar3) catch { _ => 0.0 }) })
+  YYObj_Literal({();  validated_literal(parse_f64_literal(_dollar3)) })
 }
 
 // file:///./parser.mbty

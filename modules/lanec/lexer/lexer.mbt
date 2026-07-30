@@ -421,10 +421,14 @@ fn lex_quoted_literal(
         Some(TooManyDigits)
       } else if !hexadecimal {
         Some(NonHexadecimal)
-      } else if value > 0x10FFFF {
-        Some(OutOfRange)
-      } else if value >= 0xD800 && value <= 0xDFFF {
-        Some(Surrogate)
+      } else if value.to_char() is None {
+        Some(
+          if value >= 0xD800 && value <= 0xDFFF {
+            Surrogate
+          } else {
+            OutOfRange
+          },
+        )
       } else {
         None
       }

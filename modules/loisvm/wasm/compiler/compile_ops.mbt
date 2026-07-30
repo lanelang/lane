@@ -299,6 +299,8 @@ fn compile_instruction(
     ByteSequenceLength(destination, source) =>
       [
         LocalGet(slot_local(parameter_count, source)),
+        Call(runtime_functions.require_byte_sequence_layout),
+        LocalGet(slot_local(parameter_count, source)),
         I32Load(0, 2, 8L),
         I64ExtendI32U,
         LocalSet(slot_local(parameter_count, destination)),

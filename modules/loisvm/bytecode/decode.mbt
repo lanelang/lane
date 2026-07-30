@@ -521,8 +521,18 @@ fn Decoder::read_instruction(
     0x54 => I32Lt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x55 => I32ToI64(self.read_slot_id(), self.read_slot_id())
     0x56 => I64ToI32(self.read_slot_id(), self.read_slot_id())
-    0x57 =>
-      ConstChar(self.read_slot_id(), self.read_i32(expected="Char constant"))
+    0x57 => {
+      let destination = self.read_slot_id()
+      let value_offset = self.offset()
+      let value = self.read_i32(expected="Char constant")
+      guard value.to_char() is Some(scalar) else {
+        self.fail_at(
+          value_offset,
+          "Char constant \{value} is not a Unicode scalar value",
+        )
+      }
+      ConstChar(destination, scalar.to_int())
+    }
     0x58 =>
       ByteSequenceEqual(
         self.read_slot_id(),

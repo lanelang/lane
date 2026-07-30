@@ -27,7 +27,7 @@ fn helper_function_indices(
   shape_count : Int,
   runtime_wasm_base : Int,
 ) -> HelperFunctions {
-  let wasm_base = runtime_wasm_base + 14
+  let wasm_base = runtime_wasm_base + runtime_function_count
   let table_base = lane_function_count + 1
   {
     count: 8 + shape_count,

@@ -35,6 +35,10 @@ pub fn parse_program_text(text : String) -> Result[@buslane.Program, String] {
   let tokens = tokens_from_string(text) catch {
     BuslaneTextLexerError(message) => return Err(message)
   }
+  match validate_literal_tokens(tokens) {
+    Err(message) => return Err(message)
+    Ok(_) => ()
+  }
   let yacc_tokens = tokens.map(fn(item) {
     let (token, loc) = item
     (token, loc, loc)

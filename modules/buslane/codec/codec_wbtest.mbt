@@ -223,3 +223,37 @@ test "program codec roundtrips Char type and literal" {
   }
   assert_eq(decode_program(encode_program(program)), program)
 }
+
+///|
+test "program decoder rejects invalid Char literals" {
+  let errors : Array[BuslaneDecodeError] = []
+  for value in [-1, 0xD800, 0xDFFF, 0x110000] {
+    let metadata = MetadataRegistry::MetadataRegistry()
+    let target = metadata.define_value("target", Value, Primitive(Char))
+    let program : Program = {
+      metadata,
+      terms: [Let(target, Literal(Char(value)))],
+    }
+    let error = try {
+      ignore(decode_program(encode_program(program)))
+      None
+    } catch {
+      error => Some(error)
+    }
+    match error {
+      Some(error) => errors.push(error)
+      None => fail("expected invalid Unicode scalar")
+    }
+  }
+  debug_inspect(
+    errors,
+    content=(
+      #|[
+      #|  InvalidUnicodeScalar(offset=61, value=-1),
+      #|  InvalidUnicodeScalar(offset=61, value=55296),
+      #|  InvalidUnicodeScalar(offset=61, value=57343),
+      #|  InvalidUnicodeScalar(offset=61, value=1114112),
+      #|]
+    ),
+  )
+}

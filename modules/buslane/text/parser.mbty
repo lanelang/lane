@@ -291,11 +291,11 @@ literal -> Literal
   : "unit" "(" ")" { Unit }
   | TRUE { Bool(true) }
   | FALSE { Bool(false) }
-  | "i64" "(" INT ")" { I64(@string.parse_int64($3, base=10) catch { _ => 0L }) }
-  | "i32" "(" INT ")" { I32(@string.parse_int($3, base=10) catch { _ => 0 }) }
-  | "char" "(" INT ")" { Char(@string.parse_int($3, base=10) catch { _ => 0 }) }
-  | "f32" "(" DOUBLE ")" { F32(Float::from_double(@string.parse_double($3) catch { _ => 0.0 })) }
-  | "f64" "(" DOUBLE ")" { F64(@string.parse_double($3) catch { _ => 0.0 }) }
+  | "i64" "(" INT ")" { validated_literal(parse_i64_literal($3)) }
+  | "i32" "(" INT ")" { validated_literal(parse_i32_literal($3)) }
+  | "char" "(" INT ")" { validated_literal(parse_char_literal($3)) }
+  | "f32" "(" DOUBLE ")" { validated_literal(parse_f32_literal($3)) }
+  | "f64" "(" DOUBLE ")" { validated_literal(parse_f64_literal($3)) }
   | "string" "(" STRING ")" { String($3) }
   ;
 

@@ -210,6 +210,34 @@ test "buslane text roundtrips Char primitive and literal" {
 }
 
 ///|
+test "buslane text rejects invalid numeric and Char literals" {
+  let program_with_literal = fn(literal : String) {
+    "buslane { metadata {} let value#0 = \{literal}; }"
+  }
+  debug_inspect(
+    [
+      for
+        literal in [
+          "i64(9223372036854775808)", "i32(2147483648)", "f32(3.5e38)", "f64(1e999999)",
+          "char(-1)", "char(55296)", "char(57343)", "char(1114112)",
+        ] => parse_program_text(program_with_literal(literal))
+    ],
+    content=(
+      #|[
+      #|  Err("invalid i64 literal `9223372036854775808`"),
+      #|  Err("invalid i32 literal `2147483648`"),
+      #|  Err("invalid f32 literal `3.5e38`"),
+      #|  Err("invalid f64 literal `1e999999`"),
+      #|  Err("Char literal `-1` is not a Unicode scalar value"),
+      #|  Err("Char literal `55296` is not a Unicode scalar value"),
+      #|  Err("Char literal `57343` is not a Unicode scalar value"),
+      #|  Err("Char literal `1114112` is not a Unicode scalar value"),
+      #|]
+    ),
+  )
+}
+
+///|
 test "buslane text roundtrips Byte and Bytes primitives" {
   let type_ : @buslane.Type = Function(
     [Primitive(Byte)],

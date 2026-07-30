@@ -60,7 +60,7 @@ fn classify_bytes_execution(
   match result {
     Ok(_) => Completed
     Err(ExecutionResourceLimit(kind=LiveHeapBytes)) => LiveHeapLimit
-    Err(EngineTrap(detail=_)) => Fatal
+    Err(EngineTrap(detail=_)) | Err(InternalRuntimeFailure(detail=_)) => Fatal
     Err(error) => fail("unexpected execution result: \{Repr(error)}")
   }
 }
@@ -102,7 +102,14 @@ fn execute_bytes_backends(
   config? : @loisvm_runtime.ExecutionConfig = @loisvm_runtime.ExecutionConfig::defaults(),
   constants? : Array[Bytes] = [],
 ) -> BytesBackendOutcomes raise {
-  let image = wasm_bytes_image(body, constants~)
+  execute_bytes_image_backends(wasm_bytes_image(body, constants~), config~)
+}
+
+///|
+fn execute_bytes_image_backends(
+  image : @bytecode.BytecodeImage,
+  config? : @loisvm_runtime.ExecutionConfig = @loisvm_runtime.ExecutionConfig::defaults(),
+) -> BytesBackendOutcomes raise {
   {
     direct_interpreter: execute_bytes_direct(image, config),
     wasm_interpreter: execute_bytes_wasm(image, config, Interpreter),
@@ -121,6 +128,33 @@ fn assert_bytes_backends(
     direct_interpreter: expected,
     wasm_interpreter: expected,
     wasm_jit: expected,
+  })
+}
+
+///|
+test "ByteSequence operations reject objects with another layout across backends" {
+  let body = wasm_bytes_single_block(
+    [wasm_bytes_owned_slot(), wasm_bytes_trivial_slot(I64)],
+    [
+      MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 2 }), [], []),
+      ByteSequenceLength({ value: 1 }, { value: 0 }),
+    ],
+  )
+  let image : @bytecode.BytecodeImage = {
+    entry: { value: 1 },
+    initializer: None,
+    globals: [],
+    functions: [BytecodeBody(body)],
+    layouts: [ByteSequence, Data({ value: 0 })],
+    object_shapes: [
+      Data({ constructor_tag: 7, stored_witness_count: 0, members: [] }),
+    ],
+    constants: [],
+  }
+  assert_eq(execute_bytes_image_backends(image), {
+    direct_interpreter: Fatal,
+    wasm_interpreter: Fatal,
+    wasm_jit: Fatal,
   })
 }
 
@@ -208,6 +242,184 @@ test "ByteSequence equality concatenation and slicing agree across backends" {
       Bytes::from_array([b'c', b'd', b'e']),
       Bytes::from_array([b'b', b'c', b'd', b'e']),
     ],
+  )
+}
+
+///|
+test "erased String to Bytes aliases preserve copy-on-write across backends" {
+  let i32 = wasm_bytes_trivial_slot(I32)
+  let i64 = wasm_bytes_trivial_slot(I64)
+  let owned = wasm_bytes_owned_slot()
+  assert_bytes_backends(
+    wasm_bytes_body([owned, owned, i64, i32, owned, owned, i32, owned, i32], [
+      {
+        parameters: [],
+        instructions: [
+          ConstString({ value: 0 }, { value: 0 }),
+          RetainCopy({ value: 1 }, { value: 0 }),
+          ConstI64({ value: 2 }, 0L),
+          I64ToByte({ value: 3 }, { value: 2 }),
+          ByteSequenceSet({ value: 4 }, { value: 1 }, { value: 2 }, { value: 3 }),
+          ConstString({ value: 5 }, { value: 1 }),
+          ByteSequenceEqual({ value: 6 }, { value: 4 }, { value: 5 }),
+        ],
+        terminator: BranchBool(
+          { value: 6 },
+          { target: { value: 1 }, arguments: [] },
+          { target: { value: 3 }, arguments: [] },
+        ),
+      },
+      {
+        parameters: [],
+        instructions: [
+          ConstString({ value: 7 }, { value: 0 }),
+          ByteSequenceEqual({ value: 8 }, { value: 0 }, { value: 7 }),
+        ],
+        terminator: BranchBool(
+          { value: 8 },
+          { target: { value: 2 }, arguments: [] },
+          { target: { value: 3 }, arguments: [] },
+        ),
+      },
+      {
+        parameters: [],
+        instructions: [
+          Release({ value: 0 }),
+          Release({ value: 4 }),
+          Release({ value: 5 }),
+          Release({ value: 7 }),
+        ],
+        terminator: Return(None),
+      },
+      { parameters: [], instructions: [], terminator: Unreachable },
+    ]),
+    Completed,
+    constants=[b"A", b"\x00"],
+  )
+}
+
+///|
+test "ByteSequence empty and full slices agree across backends" {
+  let i32 = wasm_bytes_trivial_slot(I32)
+  let i64 = wasm_bytes_trivial_slot(I64)
+  let owned = wasm_bytes_owned_slot()
+  assert_bytes_backends(
+    wasm_bytes_body(
+      [
+        owned, owned, i64, i64, owned, owned, i32, owned, i64, i64, owned, owned,
+        i32,
+      ],
+      [
+        {
+          parameters: [],
+          instructions: [
+            ConstString({ value: 0 }, { value: 0 }),
+            RetainCopy({ value: 1 }, { value: 0 }),
+            ConstI64({ value: 2 }, 0L),
+            ConstI64({ value: 3 }, 3L),
+            ByteSequenceSlice({ value: 4 }, { value: 1 }, { value: 2 }, {
+              value: 3,
+            }),
+            ConstString({ value: 5 }, { value: 0 }),
+            ByteSequenceEqual({ value: 6 }, { value: 4 }, { value: 5 }),
+          ],
+          terminator: BranchBool(
+            { value: 6 },
+            { target: { value: 1 }, arguments: [] },
+            { target: { value: 3 }, arguments: [] },
+          ),
+        },
+        {
+          parameters: [],
+          instructions: [
+            RetainCopy({ value: 7 }, { value: 0 }),
+            ConstI64({ value: 8 }, 3L),
+            ConstI64({ value: 9 }, 0L),
+            ByteSequenceSlice({ value: 10 }, { value: 7 }, { value: 8 }, {
+              value: 9,
+            }),
+            ConstString({ value: 11 }, { value: 1 }),
+            ByteSequenceEqual({ value: 12 }, { value: 10 }, { value: 11 }),
+          ],
+          terminator: BranchBool(
+            { value: 12 },
+            { target: { value: 2 }, arguments: [] },
+            { target: { value: 3 }, arguments: [] },
+          ),
+        },
+        {
+          parameters: [],
+          instructions: [
+            Release({ value: 0 }),
+            Release({ value: 4 }),
+            Release({ value: 5 }),
+            Release({ value: 10 }),
+            Release({ value: 11 }),
+          ],
+          terminator: Return(None),
+        },
+        { parameters: [], instructions: [], terminator: Unreachable },
+      ],
+    ),
+    Completed,
+    constants=[b"abc", b""],
+  )
+}
+
+///|
+test "ByteSequence slice overflow and addressability failures agree across backends" {
+  let i64 = wasm_bytes_trivial_slot(I64)
+  let owned = wasm_bytes_owned_slot()
+  for
+    case in [
+      (-1L, 0L),
+      (0L, -1L),
+      (9223372036854775807L, 1L),
+      (4294967296L, 0L),
+      (3L, 1L),
+    ] {
+    assert_bytes_backends(
+      wasm_bytes_single_block([owned, i64, i64, owned], [
+        ConstString({ value: 0 }, { value: 0 }),
+        ConstI64({ value: 1 }, case.0),
+        ConstI64({ value: 2 }, case.1),
+        ByteSequenceSlice({ value: 3 }, { value: 0 }, { value: 1 }, { value: 2 }),
+      ]),
+      Fatal,
+      constants=[b"abc"],
+    )
+  }
+}
+
+///|
+test "ByteSequence concat and slice resource failures agree across backends" {
+  let i64 = wasm_bytes_trivial_slot(I64)
+  let owned = wasm_bytes_owned_slot()
+  let config : @loisvm_runtime.ExecutionConfig = {
+    max_call_depth: None,
+    max_live_heap_bytes: Some(15),
+    max_host_objects: None,
+  }
+  assert_bytes_backends(
+    wasm_bytes_single_block([owned, owned, owned], [
+      ConstString({ value: 0 }, { value: 0 }),
+      ConstString({ value: 1 }, { value: 1 }),
+      ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
+    ]),
+    LiveHeapLimit,
+    config~,
+    constants=[b"a", b"b"],
+  )
+  assert_bytes_backends(
+    wasm_bytes_single_block([owned, i64, i64, owned], [
+      ConstString({ value: 0 }, { value: 0 }),
+      ConstI64({ value: 1 }, 0L),
+      ConstI64({ value: 2 }, 1L),
+      ByteSequenceSlice({ value: 3 }, { value: 0 }, { value: 1 }, { value: 2 }),
+    ]),
+    LiveHeapLimit,
+    config~,
+    constants=[b"ab"],
   )
 }
 
@@ -576,6 +788,30 @@ test "large Bytes allocation is rejected before materialization across backends"
       max_host_objects: None,
     },
   )
+}
+
+///|
+test "unaddressable Bytes allocation is safely rejected across backends" {
+  let i32 = wasm_bytes_trivial_slot(I32)
+  let i64 = wasm_bytes_trivial_slot(I64)
+  let owned = wasm_bytes_owned_slot()
+  let outcomes = execute_bytes_backends(
+    wasm_bytes_single_block([i64, i32, owned], [
+      ConstI64({ value: 0 }, 4294967295L),
+      I64ToByte({ value: 1 }, { value: 0 }),
+      ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
+    ]),
+    config={
+      max_call_depth: None,
+      max_live_heap_bytes: Some(15),
+      max_host_objects: None,
+    },
+  )
+  assert_eq(outcomes, {
+    direct_interpreter: LiveHeapLimit,
+    wasm_interpreter: Fatal,
+    wasm_jit: Fatal,
+  })
 }
 
 ///|

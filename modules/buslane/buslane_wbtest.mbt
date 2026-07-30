@@ -41,6 +41,21 @@ fn assert_effect_equal(
 }
 
 ///|
+test "verify buslane rejects invalid Char literals" {
+  for value in [-1, 0xD800, 0xDFFF, 0x110000] {
+    let metadata = MetadataRegistry::MetadataRegistry()
+    let target = metadata.define_value("target", Value, Primitive(Char))
+    let program : Program = {
+      metadata,
+      terms: [Let(target, Literal(Char(value)))],
+    }
+    assert_eq(verify_program(program), {
+      diagnostics: [{ kind: InvalidCharLiteral(value) }],
+    })
+  }
+}
+
+///|
 test "buslane metadata owns nominal data shape" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let option_param = metadata.define_type_parameter("T", Type)

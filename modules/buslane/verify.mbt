@@ -24,6 +24,7 @@ pub(all) enum VerifyDiagnosticKind {
   DefaultAlternativeNotLast
   DuplicateAlternative
   NonExhaustiveMatch
+  InvalidCharLiteral(Int)
 } derive(Debug, Eq)
 
 ///|
@@ -339,7 +340,10 @@ fn VerifyContext::synthesize_expr(
 ) -> ExpressionFacts {
   match expr {
     Ref(id) => self.synthesize_ref(id, value_scope)
-    Literal(literal) => pure_expr(literal.type_())
+    Literal(literal) => {
+      self.verify_literal(literal)
+      pure_expr(literal.type_())
+    }
     Function(function) =>
       self.synthesize_function(function, value_scope, type_scope)
     Call(callee, arguments) =>
@@ -944,6 +948,7 @@ fn VerifyContext::verify_alternative(
   match alternative.alt_constructor {
     Default => ()
     Literal(literal) => {
+      self.verify_literal(literal)
       let literal_type = literal.type_()
       if !self.program.metadata.types_definitionally_equal(
           literal_type, scrutinee_type,
@@ -1524,6 +1529,16 @@ fn effect_terms(metadata : MetadataRegistry, effect : Effect) -> Array[Effect] {
     Empty => []
     Union(effects) => effects
     effect => [effect]
+  }
+}
+
+///|
+fn VerifyContext::verify_literal(
+  self : VerifyContext,
+  literal : Literal,
+) -> Unit {
+  if literal is Char(value) && value.to_char() is None {
+    self.report(InvalidCharLiteral(value))
   }
 }
 

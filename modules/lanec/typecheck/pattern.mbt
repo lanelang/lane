@@ -228,20 +228,14 @@ fn SemanticChecker::check_pattern(
       Binding(name~, symbol~, type_=expected, loc~)
     }
     IntegerLiteral(raw, loc~) => {
-      let (literal, literal_type) = if expected ==
-        @types.Type::Primitive(@types.PrimitiveType::I32) {
-        (
-          @checked.CheckedLiteral::I32(self.check_i32_literal(raw, loc)),
-          @types.Type::Primitive(@types.PrimitiveType::I32),
-        )
+      let (literal, literal_type) : (@checked.CheckedLiteral, @types.Type) = if expected ==
+        Primitive(I32) {
+        (I32(self.check_i32_literal(raw, loc)), Primitive(I32))
       } else {
-        (
-          @checked.CheckedLiteral::I64(self.check_i64_literal(raw, loc)),
-          @types.Type::Primitive(@types.PrimitiveType::I64),
-        )
+        (I64(self.check_i64_literal(raw, loc)), Primitive(I64))
       }
       self.expect_type(expected, literal_type, loc)
-      @checked.CheckedPattern::Literal(literal~, type_=expected, loc~)
+      Literal(literal~, type_=expected, loc~)
     }
     FloatingLiteral(raw, loc~) => {
       let checked : (@checked.CheckedLiteral, @types.Type) = if expected ==

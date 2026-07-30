@@ -6,6 +6,7 @@ pub suberror BuslaneDecodeError {
   ByteError(@bytecodec.ByteDecodeError)
   UnsupportedCodecVersion(version~ : Int)
   InvalidTag(offset~ : Int, domain~ : String, tag~ : Int)
+  InvalidUnicodeScalar(offset~ : Int, value~ : Int)
 } derive(Debug, Eq)
 
 ///|
