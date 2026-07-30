@@ -1,4 +1,33 @@
 ///|
+using @compiler_diag {
+  type CompilerDiagnostic,
+  compiler_diagnostic,
+  compiler_primary_labels,
+}
+
+///|
+fn artifact_report(
+  title : String,
+  span : @basic.SourceSpan?,
+  code~ : String,
+  label~ : String,
+  note~ : String,
+  help~ : String,
+) -> CompilerDiagnostic {
+  compiler_diagnostic(
+    title,
+    span~,
+    severity=Error,
+    code=Some(code),
+    labels=compiler_primary_labels(span, label),
+    notes=[note],
+    helps=[help],
+    facts=[],
+    suggestions=[],
+  )
+}
+
+///|
 priv enum ArtifactDiagnosticKind {
   DuplicateModuleInterfaceArtifact(String)
   UnsupportedModuleInterfaceArtifactSchema(String)
@@ -42,7 +71,7 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
 ) -> CompilerDiagnostic {
   match diagnostic_.kind {
     DuplicateModuleInterfaceArtifact(module_) =>
-      compile_report(
+      artifact_report(
         "duplicate interface artifact for `\{module_}`",
         diagnostic_.span,
         code="E4100",
@@ -51,7 +80,7 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         help="remove the duplicate `--interface` input",
       )
     UnsupportedModuleInterfaceArtifactSchema(module_) =>
-      compile_report(
+      artifact_report(
         "unsupported module interface artifact schema",
         diagnostic_.span,
         code="E4101",
@@ -60,7 +89,7 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         help="recompile the provider module with the current `lane compile`",
       )
     InvalidModuleInterfaceArtifact(module_path_text~, reason~) =>
-      compile_report(
+      artifact_report(
         "invalid module interface artifact",
         diagnostic_.span,
         code="E4102",
@@ -69,7 +98,7 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         help="recompile the provider module and pass the fresh `.lmi` file",
       )
     DuplicateModuleObjectArtifact(module_) =>
-      compile_report(
+      artifact_report(
         "duplicate object artifact for `\{module_}`",
         diagnostic_.span,
         code="E4200",
@@ -78,7 +107,7 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         help="remove the duplicate `.lmo` input",
       )
     UnsupportedModuleObjectArtifactSchema(schema~, module_path_text~) =>
-      compile_report(
+      artifact_report(
         "unsupported module object artifact schema",
         diagnostic_.span,
         code="E4201",
@@ -87,7 +116,7 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         help="recompile the module with the current `lane compile`",
       )
     InvalidModuleObjectArtifact(module_path_text~, reason~) =>
-      compile_report(
+      artifact_report(
         "invalid module object artifact",
         diagnostic_.span,
         code="E4202",
@@ -96,7 +125,7 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         help="recompile the module and pass the fresh `.lmo` file",
       )
     UnsupportedModuleArtifactSchema(module_) =>
-      compile_report(
+      artifact_report(
         "unsupported compiled module artifact schema",
         diagnostic_.span,
         code="E4301",
@@ -105,7 +134,7 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         help="recompile all modules with the current compiler",
       )
     InvalidModuleArtifact(module_path_text~, reason~) =>
-      compile_report(
+      artifact_report(
         "invalid compiled module artifact",
         diagnostic_.span,
         code="E4302",
@@ -114,7 +143,7 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         help="recompile the module instead of mixing old interface and object files",
       )
     ArtifactImportedInterfaceFingerprintMismatch(importer~, imported~) =>
-      compile_report(
+      artifact_report(
         "stale imported interface",
         diagnostic_.span,
         code="E4103",

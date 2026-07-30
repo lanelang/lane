@@ -3,7 +3,7 @@ package "Milky2018/lanec/module/link"
 
 import {
   "Milky2018/buslane",
-  "Milky2018/lanec/compile/artifact_core",
+  "Milky2018/lanec/artifact/model",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module",
@@ -21,16 +21,16 @@ pub fn link_reachable_modules(Array[LinkModuleObject], String) -> LinkResult
 pub(all) struct LinkModuleObject {
   module_path_text : String
   interface : @module.ModuleInterface?
-  interface_fingerprint : @artifact_core.CompilationFingerprint
+  interface_fingerprint : @model.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
-  imports : Array[@artifact_core.ModuleImportedReference]
-  fingerprint : @artifact_core.CompilationFingerprint
+  imports : Array[@model.ModuleImportedReference]
+  fingerprint : @model.CompilationFingerprint
   object_fingerprint_valid : Bool
-  imported_interface_fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint]
+  imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LinkResult {

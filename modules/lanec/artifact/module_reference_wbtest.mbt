@@ -10,7 +10,7 @@ test "module references roundtrip every closed variant" {
   ]
   let writer = @bytecodec.ByteWriter::new()
   for reference in references {
-    @artifact_core.write_module_reference(writer, reference)
+    write_module_reference(writer, reference)
   }
   let reader = @bytecodec.ByteReader::from_bytes(writer.to_bytes())
   let decoded = []

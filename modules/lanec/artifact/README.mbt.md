@@ -1,0 +1,9 @@
+# Lane Artifact Boundary
+
+`Milky2018/lanec/artifact` is the sole public owner of persisted Lane artifact schemas, fingerprints, semantic validation, inspection, binary encoding and decoding, and adapters from validated artifacts to the module linker.
+
+Compiler and CLI callers import this package instead of compiler orchestration packages or codec implementation paths. `lanec/module/compile` produces complete in-memory modules and converts them into the artifact types owned here; `lanec/module/link` consumes link objects and remains independent of persisted encoding and execution targets.
+
+The subordinate `Milky2018/lanec/artifact/model` package contains only the three immutable value types shared with the linker: `CompilationFingerprint`, `ImportedInterfaceFingerprint`, and `ModuleImportedReference`. It exists to keep the dependency graph acyclic and is not a separate artifact API for compiler or CLI callers.
+
+Schema versions change only when their corresponding persisted representation changes. Decode entry points reject incompatible schemas, validation entry points reject inconsistent semantic contents, and inspection renders only validated model fields without becoming an alternate decoder.

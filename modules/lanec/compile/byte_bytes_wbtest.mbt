@@ -15,8 +15,7 @@ fn compile_test_loisvm_image(source : String) -> @bytecode.BytecodeImage raise {
     Ok(executable) => executable
     Err(error) => fail("executable elaboration failed: \{Repr(error)}")
   }
-  let artifact = match
-    @artifact_binary.executable_to_loisvm_artifact(executable) {
+  let artifact = match @artifact.executable_to_loisvm_artifact(executable) {
     Ok(artifact) => artifact
     Err(error) => fail("LoisVM lowering failed: \{Repr(error)}")
   }

@@ -88,20 +88,6 @@ test "struct sequencing temporaries stay outside the semantic index" {
   }
   assert_eq(snapshot.inlay_hints_in_range("file:///Main.lane", 1, 0, 11, 0), [])
   assert_eq(snapshot.hover_at("file:///Main.lane", 9, 19), None)
-  let index = cached_semantic_module(snapshot, "file:///Main.lane").index
-  let generated = index.registry.define_generated_local(
-    "_generated",
-    @basic.SourceSpan::dummy(),
-  )
-  index.collect_checked_expr_types(
-    Value(
-      name="_generated",
-      symbol=generated,
-      type_=Primitive(I64),
-      loc=@basic.SourceSpan::dummy(),
-    ),
-  )
-  assert_eq(index.used_import_symbols, [])
 }
 
 ///|

@@ -3,6 +3,7 @@ package "Milky2018/lanec/compile"
 
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/artifact",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
@@ -14,21 +15,21 @@ import {
 // Values
 pub fn check_source(String) -> CheckResult
 
-pub fn check_source_input_with_interface_artifacts(@frontend.SourceInput, Array[@Milky2018/lanec/module/compile.ModuleInterfaceArtifact]) -> CheckResult
+pub fn check_source_input_with_interface_artifacts(@frontend.SourceInput, Array[@artifact.ModuleInterfaceArtifact]) -> CheckResult
 
 pub fn check_source_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]) -> CheckResult
 
-pub fn check_source_with_interface_artifacts(String, Array[@Milky2018/lanec/module/compile.ModuleInterfaceArtifact]) -> CheckResult
+pub fn check_source_with_interface_artifacts(String, Array[@artifact.ModuleInterfaceArtifact]) -> CheckResult
 
 pub fn check_sources(String, Array[String]) -> CheckResult
 
-pub fn compile_module_input_with_interface_artifacts(@frontend.SourceInput, Array[@Milky2018/lanec/module/compile.ModuleInterfaceArtifact]) -> CompileModulesResult
+pub fn compile_module_input_with_interface_artifacts(@frontend.SourceInput, Array[@artifact.ModuleInterfaceArtifact]) -> CompileModulesResult
 
 pub fn compile_module_inputs(@frontend.SourceInput, Array[@frontend.SourceInput]) -> CompileModulesResult
 
 pub fn compile_module_inputs_observed(@frontend.SourceInput, Array[@frontend.SourceInput], (SourceCompilationStage) -> Unit) -> CompileModulesResult
 
-pub fn compile_module_with_interface_artifacts(String, Array[@Milky2018/lanec/module/compile.ModuleInterfaceArtifact]) -> CompileModulesResult
+pub fn compile_module_with_interface_artifacts(String, Array[@artifact.ModuleInterfaceArtifact]) -> CompileModulesResult
 
 pub fn compile_modules(String, Array[String]) -> CompileModulesResult
 

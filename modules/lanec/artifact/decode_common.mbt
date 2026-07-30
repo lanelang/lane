@@ -28,15 +28,15 @@ fn @bytecodec.ByteReader::read_source_span(
 ///|
 fn @bytecodec.ByteReader::read_compilation_fingerprint(
   self : @bytecodec.ByteReader,
-) -> @artifact_core.CompilationFingerprint raise {
+) -> @artifact_model.CompilationFingerprint raise {
   { value: self.read_string() }
 }
 
 ///|
 fn @bytecodec.ByteReader::read_imported_interface_fingerprints(
   self : @bytecodec.ByteReader,
-) -> Array[@artifact_core.ImportedInterfaceFingerprint] raise {
-  let fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint] = []
+) -> Array[@artifact_model.ImportedInterfaceFingerprint] raise {
+  let fingerprints : Array[@artifact_model.ImportedInterfaceFingerprint] = []
   for _ in 0..<self.read_u32_le_int() {
     fingerprints.push({
       module_path_text: self.read_string(),

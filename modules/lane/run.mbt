@@ -121,7 +121,7 @@ fn elaborate_linked_executable(
 fn lower_executable_image(
   executable : @executable.ExecutableProgram,
 ) -> Result[@loisvm_bytecode.BytecodeImage, CliError] {
-  match @artifact_binary.lower_executable_to_loisvm_bytecode(executable) {
+  match @artifact.lower_executable_to_loisvm_bytecode(executable) {
     Ok(image) => Ok(image)
     Err(error) => Err(ExecutionImageLowering(message="\{Repr(error)}"))
   }

@@ -198,7 +198,7 @@ fn validate_export_reference(
 ///|
 fn validate_import_reference(
   object : LinkModuleObject,
-  import_ : @artifact_core.ModuleImportedReference,
+  import_ : @artifact_model.ModuleImportedReference,
 ) -> Array[CompilerDiagnostic] {
   validate_reference_identity(object, import_.name, import_.reference, "import")
 }

@@ -44,7 +44,7 @@ fn lower_checked_modules(
 
 ///|
 fn imported_interfaces_from_checked_modules(
-  imported : Array[@artifact_core.ImportedInterfaceFingerprint],
+  imported : Array[@artifact.ImportedInterfaceFingerprint],
   modules : Array[CheckedModule],
 ) -> @module_interface.ImportedEnvironment {
   let interfaces = []
@@ -60,7 +60,7 @@ fn imported_interfaces_from_checked_modules(
 fn compiled_module_from_lowered(
   module_ : CheckedModule,
   lowered : @buslane_lowering.BuslaneModuleObject,
-  imports : Array[@artifact_core.ModuleImportedReference],
+  imports : Array[@artifact.ModuleImportedReference],
 ) -> CompiledModule {
   let object : ModuleObject = {
     module_path_text: module_.module_path_text,
@@ -73,7 +73,7 @@ fn compiled_module_from_lowered(
     exports: lowered.exports,
     imports,
     fingerprint: module_.fingerprint,
-    object_fingerprint: module_object_fingerprint(
+    object_fingerprint: @artifact.module_object_fingerprint(
       module_.fingerprint,
       module_.interface_fingerprint,
       lowered.metadata,
@@ -93,7 +93,7 @@ fn compiled_module_from_lowered(
 fn compiled_module_from_lowered_interfaces(
   module_ : CheckedModule,
   lowered : @buslane_lowering.BuslaneModuleObject,
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> CompiledModule {
   let imports = module_imported_references_from_interface_artifacts(
     lowered.imports,
@@ -108,7 +108,7 @@ fn module_imported_references_from_lowered(
   imports : Array[@buslane_lowering.BuslaneModuleImport],
   imported_modules : Array[CheckedModule],
   module_path_text : String,
-) -> Array[@artifact_core.ModuleImportedReference] {
+) -> Array[@artifact.ModuleImportedReference] {
   imports.map(fn(item) {
     let fingerprint = match
       find_checked_module(imported_modules, item.module_path_text) {
@@ -130,9 +130,9 @@ fn module_imported_references_from_lowered(
 ///|
 fn module_imported_references_from_interface_artifacts(
   imports : Array[@buslane_lowering.BuslaneModuleImport],
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
   module_path_text : String,
-) -> Array[@artifact_core.ModuleImportedReference] {
+) -> Array[@artifact.ModuleImportedReference] {
   imports.map(fn(item) {
     let fingerprint = match
       find_module_interface_artifact(interfaces, item.module_path_text) {

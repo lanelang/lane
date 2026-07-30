@@ -1,7 +1,7 @@
 ///|
-fn imported_environment_fingerprints(
+pub fn imported_environment_fingerprints(
   imported : @module_interface.ImportedEnvironment,
-) -> Array[@artifact_core.ImportedInterfaceFingerprint] {
+) -> Array[@artifact_model.ImportedInterfaceFingerprint] {
   imported.modules.map(fn(interface) {
     {
       module_path_text: interface.module_path,
@@ -13,8 +13,8 @@ fn imported_environment_fingerprints(
 ///|
 pub fn module_fingerprint(
   interface : @module_interface.ModuleInterface,
-  imported : Array[@artifact_core.ImportedInterfaceFingerprint],
-) -> @artifact_core.CompilationFingerprint {
+  imported : Array[@artifact_model.ImportedInterfaceFingerprint],
+) -> @artifact_model.CompilationFingerprint {
   module_fingerprint_from_interface_fingerprint(
     interface_fingerprint(interface),
     imported,
@@ -23,29 +23,29 @@ pub fn module_fingerprint(
 
 ///|
 fn module_fingerprint_from_interface_fingerprint(
-  interface_fingerprint : @artifact_core.CompilationFingerprint,
-  imported : Array[@artifact_core.ImportedInterfaceFingerprint],
-) -> @artifact_core.CompilationFingerprint {
+  interface_fingerprint : @artifact_model.CompilationFingerprint,
+  imported : Array[@artifact_model.ImportedInterfaceFingerprint],
+) -> @artifact_model.CompilationFingerprint {
   let writer = @bytecodec.ByteWriter::new()
-  @artifact_core.write_compilation_fingerprint(writer, interface_fingerprint)
-  @artifact_core.write_imported_interface_fingerprints(writer, imported)
+  write_compilation_fingerprint(writer, interface_fingerprint)
+  write_imported_interface_fingerprints(writer, imported)
   fingerprint_hash_bytes("lane-module-fingerprint-v2", writer.to_bytes())
 }
 
 ///|
 pub fn module_object_fingerprint(
-  module_fingerprint : @artifact_core.CompilationFingerprint,
-  interface_fingerprint : @artifact_core.CompilationFingerprint,
+  module_fingerprint : @artifact_model.CompilationFingerprint,
+  interface_fingerprint : @artifact_model.CompilationFingerprint,
   metadata : @buslane.MetadataRegistry,
   terms : Array[@buslane.TopTerm],
   externals : @buslane_lowering.BuslaneExternalMap,
   entries : Array[@buslane_lowering.BuslaneEntry],
   exports : Array[@buslane_lowering.BuslaneModuleExport],
-  imports : Array[@artifact_core.ModuleImportedReference],
+  imports : Array[@artifact_model.ModuleImportedReference],
   imported_interface_fingerprints : Array[
-    @artifact_core.ImportedInterfaceFingerprint,
+    @artifact_model.ImportedInterfaceFingerprint,
   ],
-) -> @artifact_core.CompilationFingerprint {
+) -> @artifact_model.CompilationFingerprint {
   fingerprint_hash_bytes(
     "lane-object-fingerprint-v3",
     module_object_fingerprint_payload_bytes(
@@ -57,36 +57,34 @@ pub fn module_object_fingerprint(
 
 ///|
 fn module_object_fingerprint_payload_bytes(
-  module_fingerprint : @artifact_core.CompilationFingerprint,
-  interface_fingerprint : @artifact_core.CompilationFingerprint,
+  module_fingerprint : @artifact_model.CompilationFingerprint,
+  interface_fingerprint : @artifact_model.CompilationFingerprint,
   metadata : @buslane.MetadataRegistry,
   terms : Array[@buslane.TopTerm],
   externals : @buslane_lowering.BuslaneExternalMap,
   entries : Array[@buslane_lowering.BuslaneEntry],
   exports : Array[@buslane_lowering.BuslaneModuleExport],
-  imports : Array[@artifact_core.ModuleImportedReference],
+  imports : Array[@artifact_model.ModuleImportedReference],
   imported_interface_fingerprints : Array[
-    @artifact_core.ImportedInterfaceFingerprint,
+    @artifact_model.ImportedInterfaceFingerprint,
   ],
 ) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
-  @artifact_core.write_compilation_fingerprint(writer, module_fingerprint)
-  @artifact_core.write_compilation_fingerprint(writer, interface_fingerprint)
-  @artifact_core.write_buslane_program_section(writer, { metadata, terms })
-  @artifact_core.write_externals(writer, externals)
-  @artifact_core.write_entries(writer, entries)
-  @artifact_core.write_exports(writer, exports)
-  @artifact_core.write_imports(writer, imports)
-  @artifact_core.write_imported_interface_fingerprints(
-    writer, imported_interface_fingerprints,
-  )
+  write_compilation_fingerprint(writer, module_fingerprint)
+  write_compilation_fingerprint(writer, interface_fingerprint)
+  write_buslane_program_section(writer, { metadata, terms })
+  write_externals(writer, externals)
+  write_entries(writer, entries)
+  write_exports(writer, exports)
+  write_imports(writer, imports)
+  write_imported_interface_fingerprints(writer, imported_interface_fingerprints)
   writer.to_bytes()
 }
 
 ///|
 pub fn interface_fingerprint(
   interface : @module_interface.ModuleInterface,
-) -> @artifact_core.CompilationFingerprint {
+) -> @artifact_model.CompilationFingerprint {
   match interface_fingerprint_result(interface) {
     Ok(fingerprint) => fingerprint
     Err(message) => abort("invalid module interface: " + message)
@@ -96,7 +94,7 @@ pub fn interface_fingerprint(
 ///|
 fn interface_fingerprint_result(
   interface : @module_interface.ModuleInterface,
-) -> Result[@artifact_core.CompilationFingerprint, String] {
+) -> Result[@artifact_model.CompilationFingerprint, String] {
   match interface.semantic_fingerprint_result() {
     Ok(fingerprint) => Ok({ value: fingerprint.value })
     Err(message) => Err(message)
@@ -107,7 +105,7 @@ fn interface_fingerprint_result(
 fn fingerprint_hash_bytes(
   tag : String,
   payload : Bytes,
-) -> @artifact_core.CompilationFingerprint {
+) -> @artifact_model.CompilationFingerprint {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_string(tag)
   writer.write_raw_bytes(payload)

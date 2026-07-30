@@ -45,7 +45,6 @@ fn SemanticIndex::enrich_checked_derive(
         "",
         ["deriver=\{selection.name}"],
       )
-      self.collect_checked_expr_types(selection.value)
     }
   }
   let evidence_lines = []
@@ -54,7 +53,6 @@ fn SemanticIndex::enrich_checked_derive(
     evidence_lines.push(
       "  \{evidence.path}: \{selection.name} : \{display.type_text(evidence.required_type)}",
     )
-    self.collect_checked_expr_types(selection.value)
   })
   if !evidence_lines.is_empty() {
     lines.push("evidence:")

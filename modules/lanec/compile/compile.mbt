@@ -78,7 +78,7 @@ pub fn check_source_inputs(
 /// Checks one Lane source module against already compiled module interfaces.
 pub fn check_source_with_interface_artifacts(
   root_source : String,
-  interfaces : Array[@module_compile.ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> CheckResult {
   check_source_input_with_interface_artifacts(
     { source_id: "<root>", text: root_source },
@@ -90,7 +90,7 @@ pub fn check_source_with_interface_artifacts(
 /// Checks one Lane source module against already compiled module interfaces.
 pub fn check_source_input_with_interface_artifacts(
   root_source : @module_frontend.SourceInput,
-  interfaces : Array[@module_compile.ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> CheckResult {
   match
     @module_compile.compile_module_from_interface_artifacts(
@@ -161,7 +161,7 @@ pub fn compile_module_inputs_observed(
 /// Compiles one Lane source module against already compiled module interfaces.
 pub fn compile_module_with_interface_artifacts(
   root_source : String,
-  interfaces : Array[@module_compile.ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> CompileModulesResult {
   compile_module_input_with_interface_artifacts(
     { source_id: "<root>", text: root_source },
@@ -173,7 +173,7 @@ pub fn compile_module_with_interface_artifacts(
 /// Compiles one Lane source module against already compiled module interfaces.
 pub fn compile_module_input_with_interface_artifacts(
   root_source : @module_frontend.SourceInput,
-  interfaces : Array[@module_compile.ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> CompileModulesResult {
   match
     @module_compile.compile_module_from_interface_artifacts(

@@ -13,11 +13,10 @@ test "module object preserves I64 and F64 conversion intrinsics" {
   guard compiled.modules is Some(modules) && modules.modules is [module_] else {
     abort("expected one compiled module")
   }
-  let binary = @artifact_binary.module_object_artifact_to_binary(
+  let binary = @artifact.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   )
-  let decoded = match
-    @artifact_binary.parse_module_object_artifact_binary(binary) {
+  let decoded = match @artifact.parse_module_object_artifact_binary(binary) {
     Ok(decoded) => decoded
     Err(message) => abort(message)
   }

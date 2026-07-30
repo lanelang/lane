@@ -1,15 +1,15 @@
 ///|
 priv struct OrderedInterfaceArtifactsResult {
-  interfaces : Array[ModuleInterfaceArtifact]
+  interfaces : Array[@artifact.ModuleInterfaceArtifact]
   diagnostics : Array[CompilerDiagnostic]
 }
 
 ///|
 fn reachable_interface_artifacts(
   header : @module_frontend.ModuleHeader,
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> OrderedInterfaceArtifactsResult {
-  let diagnostics = validate_interface_artifacts(interfaces)
+  let diagnostics = @artifact.validate_module_interface_artifacts(interfaces)
   if !diagnostics.is_empty() {
     return { interfaces: [], diagnostics }
   }
@@ -33,108 +33,15 @@ fn reachable_interface_artifacts(
 }
 
 ///|
-fn validate_interface_artifacts(
-  interfaces : Array[ModuleInterfaceArtifact],
-) -> Array[CompilerDiagnostic] {
-  let diagnostics = []
-  for interface in interfaces {
-    match interface.validate() {
-      Some(diagnostic) => diagnostics.push(diagnostic)
-      None => ()
-    }
-  }
-  for index in 0..<interfaces.length() {
-    for other_index in (index + 1)..<interfaces.length() {
-      if interfaces[index].module_path_text ==
-        interfaces[other_index].module_path_text {
-        diagnostics.push(
-          artifact_diagnostic(
-            DuplicateModuleInterfaceArtifact(interfaces[index].module_path_text),
-            None,
-          ),
-        )
-      }
-    }
-  }
-  diagnostics
-}
-
-///|
-fn ModuleInterfaceArtifact::validate(
-  self : ModuleInterfaceArtifact,
-) -> CompilerDiagnostic? {
-  if self.schema_version != module_interface_artifact_schema_version {
-    return Some(
-      artifact_diagnostic(
-        UnsupportedModuleInterfaceArtifactSchema(self.module_path_text),
-        None,
-      ),
-    )
-  }
-  if self.interface.module_path != self.module_path_text {
-    return Some(
-      artifact_diagnostic(
-        InvalidModuleInterfaceArtifact(
-          module_path_text=self.module_path_text,
-          reason="name mismatch",
-        ),
-        None,
-      ),
-    )
-  }
-  let actual_interface_fingerprint = match
-    interface_fingerprint_result(self.interface) {
-    Ok(fingerprint) => fingerprint
-    Err(reason) =>
-      return Some(
-        artifact_diagnostic(
-          InvalidModuleInterfaceArtifact(
-            module_path_text=self.module_path_text,
-            reason~,
-          ),
-          None,
-        ),
-      )
-  }
-  if self.interface_fingerprint != actual_interface_fingerprint {
-    return Some(
-      artifact_diagnostic(
-        InvalidModuleInterfaceArtifact(
-          module_path_text=self.module_path_text,
-          reason="fingerprint mismatch",
-        ),
-        None,
-      ),
-    )
-  }
-  let fingerprint = module_fingerprint_from_interface_fingerprint(
-    actual_interface_fingerprint,
-    self.imported_interface_fingerprints,
-  )
-  if self.module_fingerprint != fingerprint {
-    return Some(
-      artifact_diagnostic(
-        InvalidModuleInterfaceArtifact(
-          module_path_text=self.module_path_text,
-          reason="module fingerprint mismatch",
-        ),
-        None,
-      ),
-    )
-  }
-  None
-}
-
-///|
 fn visit_interface_artifact(
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
   module_path_text : String,
   span : @basic.SourceSpan?,
-  expected_fingerprint : @artifact_core.CompilationFingerprint?,
+  expected_fingerprint : @artifact.CompilationFingerprint?,
   importer_path_text : String,
   visiting : Array[String],
   visited : Array[String],
-  ordered : Array[ModuleInterfaceArtifact],
+  ordered : Array[@artifact.ModuleInterfaceArtifact],
   diagnostics : Array[CompilerDiagnostic],
 ) -> Unit {
   if visited.contains(module_path_text) {
@@ -161,17 +68,13 @@ fn visit_interface_artifact(
     return
   }
   match expected_fingerprint {
-    Some(fingerprint) if interface_fingerprint(interface.interface) !=
-      fingerprint =>
-      diagnostics.push(
-        artifact_diagnostic(
-          ArtifactImportedInterfaceFingerprintMismatch(
-            importer=importer_path_text,
-            imported=module_path_text,
-          ),
-          None,
-        ),
-      )
+    Some(fingerprint) =>
+      if interface.imported_fingerprint_diagnostic(
+          importer_path_text, fingerprint,
+        )
+        is Some(diagnostic) {
+        diagnostics.push(diagnostic)
+      }
     _ => ()
   }
   visiting.push(module_path_text)
@@ -195,9 +98,9 @@ fn visit_interface_artifact(
 
 ///|
 fn find_module_interface_artifact(
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
   module_path_text : String,
-) -> ModuleInterfaceArtifact? {
+) -> @artifact.ModuleInterfaceArtifact? {
   for interface in interfaces {
     if interface.module_path_text == module_path_text {
       return Some(interface)
@@ -208,7 +111,7 @@ fn find_module_interface_artifact(
 
 ///|
 fn interface_candidates(
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> Array[String] {
   interfaces.map(fn(interface) { interface.module_path_text })
 }
@@ -216,15 +119,15 @@ fn interface_candidates(
 ///|
 fn imported_interface_fingerprints_from_artifacts(
   header : @module_frontend.ModuleHeader,
-  interfaces : Array[ModuleInterfaceArtifact],
-) -> Array[@artifact_core.ImportedInterfaceFingerprint] {
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
+) -> Array[@artifact.ImportedInterfaceFingerprint] {
   let fingerprints = []
   for import_ in header.imports {
     if find_module_interface_artifact(interfaces, import_.module_path_text)
       is Some(interface) {
-      fingerprints.push(@artifact_core.ImportedInterfaceFingerprint::{
+      fingerprints.push(@artifact.ImportedInterfaceFingerprint::{
         module_path_text: interface.module_path_text,
-        fingerprint: interface_fingerprint(interface.interface),
+        fingerprint: @artifact.interface_fingerprint(interface.interface),
       })
     }
   }
@@ -234,8 +137,8 @@ fn imported_interface_fingerprints_from_artifacts(
 ///|
 fn CheckedModule::with_imported_interface_fingerprints(
   self : CheckedModule,
-  imported : Array[@artifact_core.ImportedInterfaceFingerprint],
+  imported : Array[@artifact.ImportedInterfaceFingerprint],
 ) -> CheckedModule {
-  let fingerprint = module_fingerprint(self.interface, imported)
+  let fingerprint = @artifact.module_fingerprint(self.interface, imported)
   { ..self, fingerprint, imported_interface_fingerprints: imported }
 }

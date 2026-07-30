@@ -411,8 +411,8 @@ fn @bytecodec.ByteReader::read_exports(
 ///|
 fn @bytecodec.ByteReader::read_imports(
   self : @bytecodec.ByteReader,
-) -> Array[@artifact_core.ModuleImportedReference] raise {
-  let imports : Array[@artifact_core.ModuleImportedReference] = []
+) -> Array[@artifact_model.ModuleImportedReference] raise {
+  let imports : Array[@artifact_model.ModuleImportedReference] = []
   for _ in 0..<self.read_u32_le_int() {
     imports.push({
       module_path_text: self.read_string(),

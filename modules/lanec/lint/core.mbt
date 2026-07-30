@@ -148,16 +148,14 @@ pub fn checked_semantic_warning_diagnostics(
   collector.collect_source(source)
   collector.collect_checked_source(checked)
   let diagnostics = collector
-  .unused_private_top_level_declarations()
-  .map(unused_private_top_level_declaration_diagnostic)
+    .unused_private_top_level_declarations()
+    .map(unused_private_top_level_declaration_diagnostic)
   diagnostics.append(
-    collector.unused_generic_parameters().map(
-      unused_generic_parameter_diagnostic,
-    ),
+    collector
+    .unused_generic_parameters()
+    .map(unused_generic_parameter_diagnostic),
   )
-  diagnostics.append(
-    collector.unused_import_exposure_diagnostics(source),
-  )
+  diagnostics.append(collector.unused_import_exposure_diagnostics(source))
   diagnostics
 }
 
@@ -211,11 +209,10 @@ fn LintCollector::collect_checked_declaration(
   declaration : @checked.CheckedTopLevelDeclaration,
 ) -> Unit {
   match declaration {
-    Struct(declaration) => {
+    Struct(declaration) =>
       for field in declaration.fields {
         self.collect_checked_type(field.type_)
       }
-    }
     Enum(declaration) =>
       for variant in declaration.variants {
         for payload in variant.payload {
@@ -283,8 +280,7 @@ fn LintCollector::collect_checked_expr_types(
     | If(type_~, ..)
     | Match(type_~, ..)
     | Call(type_~, ..)
-    | FunctionEffectWiden(type_~, ..) =>
-      self.collect_checked_type(type_)
+    | FunctionEffectWiden(type_~, ..) => self.collect_checked_type(type_)
     Field(field~, type_~, ..) => {
       if self.registry.field_metadata(field) is Some(metadata) {
         self.add_top_level_reference(TopLevelType(metadata.owner))
@@ -480,65 +476,72 @@ fn LintCollector::add_top_level_declaration(
   declaration : @resolve.ResolvedTopLevelDeclaration,
 ) -> Unit {
   let fact = match declaration {
-    Struct(declaration) => {
-      symbol: TopLevelType(declaration.symbol),
-      name: declaration.name,
-      kind: StructDeclaration,
-      is_public: declaration.is_public,
-      name_loc: declaration.name_loc,
-      loc: declaration.loc,
-    }
-    Enum(declaration) => {
-      symbol: TopLevelType(declaration.symbol),
-      name: declaration.name,
-      kind: EnumDeclaration,
-      is_public: declaration.is_public,
-      name_loc: declaration.name_loc,
-      loc: declaration.loc,
-    }
-    ExternalType(declaration) => {
-      symbol: TopLevelType(declaration.symbol),
-      name: declaration.name,
-      kind: ExternalTypeDeclaration,
-      is_public: declaration.is_public,
-      name_loc: declaration.name_loc,
-      loc: declaration.loc,
-    }
-    Effect(declaration) => {
-      symbol: TopLevelEffect(declaration.symbol),
-      name: declaration.name,
-      kind: EffectDeclaration,
-      is_public: declaration.is_public,
-      name_loc: declaration.name_loc,
-      loc: declaration.loc,
-    }
-    TypeAlias(declaration) => {
-      symbol: TopLevelAlias(declaration.symbol),
-      name: declaration.name,
-      kind: match declaration.body {
-        TypeBody(_) => TypeAliasDeclaration
-        EffectBody(_) => EffectAliasDeclaration
-      },
-      is_public: declaration.is_public,
-      name_loc: declaration.name_loc,
-      loc: declaration.loc,
-    }
-    Function(declaration) => {
-      symbol: TopLevelValue(declaration.symbol),
-      name: declaration.name,
-      kind: FunctionDeclaration,
-      is_public: declaration.is_public,
-      name_loc: declaration.name_loc,
-      loc: declaration.loc,
-    }
-    Let(declaration) => {
-      symbol: TopLevelValue(declaration.symbol),
-      name: declaration.name,
-      kind: ValueDeclaration,
-      is_public: declaration.is_public,
-      name_loc: declaration.name_loc,
-      loc: declaration.loc,
-    }
+    Struct(declaration) =>
+      {
+        symbol: TopLevelType(declaration.symbol),
+        name: declaration.name,
+        kind: StructDeclaration,
+        is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
+        loc: declaration.loc,
+      }
+    Enum(declaration) =>
+      {
+        symbol: TopLevelType(declaration.symbol),
+        name: declaration.name,
+        kind: EnumDeclaration,
+        is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
+        loc: declaration.loc,
+      }
+    ExternalType(declaration) =>
+      {
+        symbol: TopLevelType(declaration.symbol),
+        name: declaration.name,
+        kind: ExternalTypeDeclaration,
+        is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
+        loc: declaration.loc,
+      }
+    Effect(declaration) =>
+      {
+        symbol: TopLevelEffect(declaration.symbol),
+        name: declaration.name,
+        kind: EffectDeclaration,
+        is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
+        loc: declaration.loc,
+      }
+    TypeAlias(declaration) =>
+      {
+        symbol: TopLevelAlias(declaration.symbol),
+        name: declaration.name,
+        kind: match declaration.body {
+          TypeBody(_) => TypeAliasDeclaration
+          EffectBody(_) => EffectAliasDeclaration
+        },
+        is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
+        loc: declaration.loc,
+      }
+    Function(declaration) =>
+      {
+        symbol: TopLevelValue(declaration.symbol),
+        name: declaration.name,
+        kind: FunctionDeclaration,
+        is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
+        loc: declaration.loc,
+      }
+    Let(declaration) =>
+      {
+        symbol: TopLevelValue(declaration.symbol),
+        name: declaration.name,
+        kind: ValueDeclaration,
+        is_public: declaration.is_public,
+        name_loc: declaration.name_loc,
+        loc: declaration.loc,
+      }
   }
   self.top_level_declarations.push(fact)
 }
@@ -568,8 +571,7 @@ fn LintCollector::collect_declaration(
       self.add_generic_parameters(declaration.type_parameters)
       for struct_member in declaration.members {
         match struct_member {
-          TypeMember(type_member) =>
-            self.add_generic_parameters([type_member.type_parameter])
+          TypeMember(_) => ()
           Field(field) => self.collect_type(field.type_)
         }
       }
@@ -585,16 +587,17 @@ fn LintCollector::collect_declaration(
     }
     ExternalType(declaration) =>
       self.add_generic_parameters(declaration.type_parameters)
-    Effect(declaration) => {
-      self.add_generic_parameters(declaration.type_parameters)
-      for operation in declaration.operations {
-        self.add_generic_parameters(operation.type_parameters)
-        for payload in operation.payload {
-          self.collect_type(payload)
+    Effect(declaration) =>
+      if declaration.flavor is Algebraic {
+        self.add_generic_parameters(declaration.type_parameters)
+        for operation in declaration.operations {
+          self.add_generic_parameters(operation.type_parameters)
+          for payload in operation.payload {
+            self.collect_type(payload)
+          }
+          self.collect_type(operation.result)
         }
-        self.collect_type(operation.result)
       }
-    }
     TypeAlias(declaration) => {
       self.add_generic_parameters(declaration.type_parameters)
       match declaration.body {
@@ -764,8 +767,7 @@ fn LintCollector::collect_expr_symbols(
 ) -> Unit {
   match expr {
     Var(reference~, ..) => self.collect_value_reference(reference)
-    QualifiedVariant(reference~, ..) |
-    UnqualifiedVariant(reference~, ..) =>
+    QualifiedVariant(reference~, ..) | UnqualifiedVariant(reference~, ..) =>
       self.collect_variant_reference(reference)
     StructLiteral(fields~, reference~, ..) => {
       self.collect_type_reference(reference)
@@ -837,8 +839,7 @@ fn LintCollector::collect_type(
     Primitive(_) => ()
     Constructor(symbol~, ..) =>
       self.add_top_level_reference(TopLevelType(symbol))
-    Alias(symbol~, ..) =>
-      self.add_top_level_reference(TopLevelAlias(symbol))
+    Alias(symbol~, ..) => self.add_top_level_reference(TopLevelAlias(symbol))
     Apply(callee~, arguments~, ..) => {
       self.collect_type(callee)
       for argument in arguments {
@@ -849,8 +850,7 @@ fn LintCollector::collect_type(
       self.add_generic_parameters(parameters)
       self.collect_type(body)
     }
-    Parameter(symbol~, ..) =>
-      self.generic_parameter_references.push(symbol)
+    Parameter(symbol~, ..) => self.generic_parameter_references.push(symbol)
     Function(type_parameters~, parameters~, result~, effect~, ..) => {
       self.add_generic_parameters(type_parameters)
       for parameter in parameters {
@@ -883,8 +883,7 @@ fn LintCollector::collect_effect(
         self.collect_generic_argument(argument)
       }
     }
-    Parameter(symbol~, ..) =>
-      self.generic_parameter_references.push(symbol)
+    Parameter(symbol~, ..) => self.generic_parameter_references.push(symbol)
     Alias(symbol~, arguments~, ..) => {
       self.add_top_level_reference(TopLevelAlias(symbol))
       for argument in arguments {
@@ -973,8 +972,7 @@ fn LintCollector::collect_operation_name(
       self.collect_effect(owner)
       self.collect_operation_reference(reference)
     }
-    Unqualified(reference~, ..) =>
-      self.collect_operation_reference(reference)
+    Unqualified(reference~, ..) => self.collect_operation_reference(reference)
   }
 }
 

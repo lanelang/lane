@@ -149,7 +149,7 @@ fn BuslaneLinker::seed_imports(
 ///|
 fn find_linked_export(
   exports : Array[LinkedModuleExport],
-  imported : @artifact_core.ModuleImportedReference,
+  imported : @artifact_model.ModuleImportedReference,
 ) -> LinkedModuleExport? {
   for item in exports {
     if item.module_path_text == imported.module_path_text &&

@@ -22,9 +22,8 @@ test "module artifacts roundtrip every Char and UTF-8 intrinsic" {
   guard modules.to_artifact().modules is [module_] else {
     fail("expected one module artifact")
   }
-  let binary = @artifact_binary.module_object_artifact_to_binary(module_.object)
-  let decoded = match
-    @artifact_binary.parse_module_object_artifact_binary(binary) {
+  let binary = @artifact.module_object_artifact_to_binary(module_.object)
+  let decoded = match @artifact.parse_module_object_artifact_binary(binary) {
     Ok(object) => object
     Err(message) => fail(message)
   }
@@ -118,20 +117,20 @@ test "artifact decoders reject pre UTF-8 schema versions" {
   )
   assert_eq(
     (
-      @artifact_binary.parse_module_interface_artifact_binary(
-        @artifact_binary.module_interface_artifact_to_binary({
+      @artifact.parse_module_interface_artifact_binary(
+        @artifact.module_interface_artifact_to_binary({
           ..interface,
           schema_version: 9,
         }),
       ),
-      @artifact_binary.parse_module_object_artifact_binary(
-        @artifact_binary.module_object_artifact_to_binary({
+      @artifact.parse_module_object_artifact_binary(
+        @artifact.module_object_artifact_to_binary({
           ..object,
           schema_version: 12,
         }),
       ),
-      @artifact_binary.parse_linked_program_artifact_binary(
-        @artifact_binary.linked_program_artifact_to_binary({
+      @artifact.parse_linked_program_artifact_binary(
+        @artifact.linked_program_artifact_to_binary({
           schema_version: 6,
           bytecode,
         }),

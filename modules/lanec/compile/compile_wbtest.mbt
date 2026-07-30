@@ -220,11 +220,11 @@ test "selective import preserves an offered function" {
     is Some(module_) else {
     abort("expected module A")
   }
-  let binary = @artifact_binary.module_interface_artifact_to_binary(
+  let binary = @artifact.module_interface_artifact_to_binary(
     module_.to_interface_artifact(),
   )
   let interface = match
-    @artifact_binary.parse_module_interface_artifact_binary(binary) {
+    @artifact.parse_module_interface_artifact_binary(binary) {
     Ok(interface) => interface
     Err(message) => abort(message)
   }
@@ -1724,21 +1724,21 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
     abort("expected compiled modules")
   }
   let artifact = modules.to_artifact()
-  let decoded_modules : Array[@module_compile.CompiledModuleArtifact] = []
+  let decoded_modules : Array[@artifact.CompiledModuleArtifact] = []
   for module_ in artifact.modules {
-    let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
+    let interface_binary = @artifact.module_interface_artifact_to_binary(
       module_.interface,
     )
-    let object_binary = @artifact_binary.module_object_artifact_to_binary(
+    let object_binary = @artifact.module_object_artifact_to_binary(
       module_.object,
     )
     let interface = match
-      @artifact_binary.parse_module_interface_artifact_binary(interface_binary) {
+      @artifact.parse_module_interface_artifact_binary(interface_binary) {
       Ok(interface) => interface
       Err(message) => abort(message)
     }
     let object = match
-      @artifact_binary.parse_module_object_artifact_binary(object_binary) {
+      @artifact.parse_module_object_artifact_binary(object_binary) {
       Ok(object) => object
       Err(message) => abort(message)
     }
@@ -1748,7 +1748,7 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
       object,
     })
   }
-  let linked = @module_compile.link_module_artifacts({
+  let linked = @artifact.link_module_artifacts({
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: decoded_modules,
@@ -1769,7 +1769,7 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   )
   let executable = test_executable_program(program)
   let linked_artifact = match
-    @artifact_binary.executable_to_loisvm_artifact(executable) {
+    @artifact.executable_to_loisvm_artifact(executable) {
     Ok(artifact) => artifact
     Err(error) => abort("unexpected LoisVM lowering error: \{Repr(error)}")
   }
@@ -1794,19 +1794,19 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
       #|]
     ),
   )
-  let linked_binary = @artifact_binary.linked_program_artifact_to_binary(
+  let linked_binary = @artifact.linked_program_artifact_to_binary(
     linked_artifact,
   )
   inspect(byte_prefix_text(linked_binary, 8), content="76,65,78,69,65,82,84,0")
   let linked_decoded = match
-    @artifact_binary.parse_linked_program_artifact_binary(linked_binary) {
+    @artifact.parse_linked_program_artifact_binary(linked_binary) {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
   assert_eq(linked_decoded, linked_artifact)
   assert_eq(
     linked_decoded.schema_version,
-    @module_compile.linked_program_artifact_schema_version,
+    @artifact.linked_program_artifact_schema_version,
   )
   inspect(
     @prettyprinter.render(@buslane.verify_program(program.program), width=100),
@@ -1902,11 +1902,11 @@ test "effect aliases export through interface artifacts" {
       #|}
     ),
   )
-  let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
+  let interface_binary = @artifact.module_interface_artifact_to_binary(
     lib_artifact.interface,
   )
   let decoded_binary = match
-    @artifact_binary.parse_module_interface_artifact_binary(interface_binary) {
+    @artifact.parse_module_interface_artifact_binary(interface_binary) {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
@@ -1921,7 +1921,7 @@ test "effect aliases export through interface artifacts" {
     ),
   )
   let inspect_text = match
-    @artifact_binary.artifact_binary_to_inspect_text(interface_binary) {
+    @artifact.artifact_binary_to_inspect_text(interface_binary) {
     Ok(text) => text
     Err(message) => abort(message)
   }
@@ -1968,19 +1968,17 @@ test "built-in Io roundtrips through typed artifacts" {
   }
   let artifacts = modules.to_artifact()
   let module_ = artifacts.modules[0]
-  let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
+  let interface_binary = @artifact.module_interface_artifact_to_binary(
     module_.interface,
   )
   let decoded_interface = match
-    @artifact_binary.parse_module_interface_artifact_binary(interface_binary) {
+    @artifact.parse_module_interface_artifact_binary(interface_binary) {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
-  let object_binary = @artifact_binary.module_object_artifact_to_binary(
-    module_.object,
-  )
+  let object_binary = @artifact.module_object_artifact_to_binary(module_.object)
   let decoded_object = match
-    @artifact_binary.parse_module_object_artifact_binary(object_binary) {
+    @artifact.parse_module_object_artifact_binary(object_binary) {
     Ok(artifact) => artifact
     Err(message) => abort(message)
   }
@@ -1997,7 +1995,7 @@ test "built-in Io roundtrips through typed artifacts" {
     ),
   )
   let object_text = match
-    @artifact_binary.artifact_binary_to_inspect_text(object_binary) {
+    @artifact.artifact_binary_to_inspect_text(object_binary) {
     Ok(text) => text
     Err(message) => abort(message)
   }
@@ -2072,26 +2070,24 @@ test "external flavors roundtrip through artifacts and linking" {
   guard find_artifact_module(artifact.modules, "Lib") is Some(lib) else {
     abort("expected Lib artifact")
   }
-  let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
+  let interface_binary = @artifact.module_interface_artifact_to_binary(
     lib.interface,
   )
   let decoded_interface = match
-    @artifact_binary.parse_module_interface_artifact_binary(interface_binary) {
+    @artifact.parse_module_interface_artifact_binary(interface_binary) {
     Ok(interface) => interface
     Err(message) => abort(message)
   }
-  let object_binary = @artifact_binary.module_object_artifact_to_binary(
-    lib.object,
-  )
+  let object_binary = @artifact.module_object_artifact_to_binary(lib.object)
   let decoded_object = match
-    @artifact_binary.parse_module_object_artifact_binary(object_binary) {
+    @artifact.parse_module_object_artifact_binary(object_binary) {
     Ok(object) => object
     Err(message) => abort(message)
   }
   assert_eq(decoded_interface, lib.interface)
   assert_eq(decoded_object, lib.object)
   let interface_text = match
-    @artifact_binary.artifact_binary_to_inspect_text(interface_binary) {
+    @artifact.artifact_binary_to_inspect_text(interface_binary) {
     Ok(text) => text
     Err(message) => abort(message)
   }
@@ -2117,7 +2113,7 @@ test "external flavors roundtrip through artifacts and linking" {
       #|
     ),
   )
-  let linked = @module_compile.link_module_artifacts(artifact)
+  let linked = @artifact.link_module_artifacts(artifact)
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
     abort("expected linked program")
@@ -2309,7 +2305,7 @@ test "interface artifact rejects unresolved canonical references" {
     abort("expected Lib module")
   }
   let artifact = module_.to_interface_artifact()
-  let damaged : @module_compile.ModuleInterfaceArtifact = {
+  let damaged : @artifact.ModuleInterfaceArtifact = {
     ..artifact,
     interface: { ..artifact.interface, type_references: [] },
   }
@@ -2345,11 +2341,11 @@ test "module artifact binary rejects wrong kind" {
   guard modules.modules.get(0) is Some(module_) else {
     abort("expected compiled module")
   }
-  let object_binary = @artifact_binary.module_object_artifact_to_binary(
+  let object_binary = @artifact.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   )
   inspect(byte_prefix_text(object_binary, 8), content="76,65,78,69,65,82,84,0")
-  if @artifact_binary.parse_module_interface_artifact_binary(object_binary)
+  if @artifact.parse_module_interface_artifact_binary(object_binary)
     is Err(message) {
     inspect(
       message,
@@ -2360,7 +2356,7 @@ test "module artifact binary rejects wrong kind" {
   }
   let invalid_magic = object_binary.to_array()
   invalid_magic[0] = b'X'
-  if @artifact_binary.parse_module_object_artifact_binary(
+  if @artifact.parse_module_object_artifact_binary(
       Bytes::from_array(invalid_magic),
     )
     is Err(message) {
@@ -2377,16 +2373,12 @@ test "module artifact binary rejects wrong kind" {
     abort("expected linked program")
   }
   let artifact = match
-    @artifact_binary.executable_to_loisvm_artifact(
-      test_executable_program(program),
-    ) {
+    @artifact.executable_to_loisvm_artifact(test_executable_program(program)) {
     Ok(artifact) => artifact
     Err(error) => abort("unexpected LoisVM lowering error: \{Repr(error)}")
   }
-  let program_binary = @artifact_binary.linked_program_artifact_to_binary(
-    artifact,
-  )
-  if @artifact_binary.parse_module_object_artifact_binary(program_binary)
+  let program_binary = @artifact.linked_program_artifact_to_binary(artifact)
+  if @artifact.parse_module_object_artifact_binary(program_binary)
     is Err(message) {
     inspect(
       message,
@@ -2499,19 +2491,19 @@ test "module artifact binary inspect renders human readable summaries" {
   guard modules.modules.get(0) is Some(module_) else {
     abort("expected compiled module")
   }
-  let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
+  let interface_binary = @artifact.module_interface_artifact_to_binary(
     module_.to_interface_artifact(),
   )
-  let object_binary = @artifact_binary.module_object_artifact_to_binary(
+  let object_binary = @artifact.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   )
   let interface_text = match
-    @artifact_binary.artifact_binary_to_inspect_text(interface_binary) {
+    @artifact.artifact_binary_to_inspect_text(interface_binary) {
     Ok(text) => text
     Err(message) => abort(message)
   }
   let object_text = match
-    @artifact_binary.artifact_binary_to_inspect_text(object_binary) {
+    @artifact.artifact_binary_to_inspect_text(object_binary) {
     Ok(text) => text
     Err(message) => abort(message)
   }
@@ -2633,11 +2625,11 @@ test "compile module interface preserves public effects across artifact import" 
     abort("expected Lib module")
   }
   let lib_artifact = lib_module.to_artifact()
-  let interface_binary = @artifact_binary.module_interface_artifact_to_binary(
+  let interface_binary = @artifact.module_interface_artifact_to_binary(
     lib_artifact.interface,
   )
   let decoded = match
-    @artifact_binary.parse_module_interface_artifact_binary(interface_binary) {
+    @artifact.parse_module_interface_artifact_binary(interface_binary) {
     Ok(interface) => interface
     Err(message) => abort(message)
   }
@@ -2716,14 +2708,14 @@ test "module binaries reject immediately preceding schema versions" {
   guard modules.modules.get(0) is Some(module_) else {
     abort("expected compiled module")
   }
-  let interface_bytes = @artifact_binary.module_interface_artifact_to_binary(
+  let interface_bytes = @artifact.module_interface_artifact_to_binary(
     module_.to_interface_artifact(),
   ).to_array()
   interface_bytes[14] = b'\x0A'
   interface_bytes[15] = b'\x00'
   interface_bytes[16] = b'\x00'
   interface_bytes[17] = b'\x00'
-  let object_bytes = @artifact_binary.module_object_artifact_to_binary(
+  let object_bytes = @artifact.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   ).to_array()
   object_bytes[14] = b'\x0F'
@@ -2732,14 +2724,14 @@ test "module binaries reject immediately preceding schema versions" {
   object_bytes[17] = b'\x00'
   let messages = []
   match
-    @artifact_binary.parse_module_interface_artifact_binary(
+    @artifact.parse_module_interface_artifact_binary(
       Bytes::from_array(interface_bytes),
     ) {
     Err(message) => messages.push(message)
     Ok(_) => fail("expected old interface schema failure")
   }
   match
-    @artifact_binary.parse_module_object_artifact_binary(
+    @artifact.parse_module_object_artifact_binary(
       Bytes::from_array(object_bytes),
     ) {
     Err(message) => messages.push(message)
@@ -2776,7 +2768,7 @@ test "link module artifacts orders reachable modules by imports" {
   guard find_artifact_module(artifact.modules, "Lib") is Some(lib) else {
     abort("expected Lib artifact")
   }
-  let linked = @module_compile.link_module_artifacts({
+  let linked = @artifact.link_module_artifacts({
     schema_version: artifact.schema_version,
     root_module_path_text: "Main",
     modules: [main, lib],
@@ -2837,7 +2829,7 @@ test "compile module with interface artifact then link object artifacts" {
     abort("expected Main module")
   }
   let main_artifact = main_module.to_artifact()
-  let linked = @module_compile.link_module_object_artifacts([
+  let linked = @artifact.link_module_object_artifacts([
     lib_artifact.object,
     main_artifact.object,
   ])
@@ -2913,7 +2905,7 @@ test "compile module freshens independently compiled interface symbols" {
     abort("expected Main module")
   }
   let main_artifact = main_module.to_artifact()
-  let linked = @module_compile.link_module_artifacts({
+  let linked = @artifact.link_module_artifacts({
     schema_version: 2,
     root_module_path_text: "Main",
     modules: [left_artifact, right_artifact, main_artifact],
@@ -2998,7 +2990,7 @@ test "compile module follows transitive interface dependencies without extra pol
     abort("expected C module")
   }
   let c_artifact = c_module.to_artifact()
-  let linked = @module_compile.link_module_artifacts({
+  let linked = @artifact.link_module_artifacts({
     schema_version: 2,
     root_module_path_text: "C",
     modules: [c_artifact, b_artifact, a_artifact],
@@ -3092,7 +3084,7 @@ test "compile module rejects interface artifact name mismatch" {
     values: interface.values,
     optimization_hints: interface.optimization_hints,
   }
-  let damaged : @module_compile.ModuleInterfaceArtifact = {
+  let damaged : @artifact.ModuleInterfaceArtifact = {
     schema_version: lib_artifact.interface.schema_version,
     module_path_text: lib_artifact.interface.module_path_text,
     interface: damaged_interface,
@@ -3132,7 +3124,7 @@ test "compile module rejects stale interface artifact fingerprint" {
     abort("expected Lib module")
   }
   let lib_artifact = lib_module.to_artifact()
-  let damaged : @module_compile.ModuleInterfaceArtifact = {
+  let damaged : @artifact.ModuleInterfaceArtifact = {
     schema_version: lib_artifact.interface.schema_version,
     module_path_text: lib_artifact.interface.module_path_text,
     interface: lib_artifact.interface.interface,
@@ -3172,7 +3164,7 @@ test "compile module rejects stale interface artifact module fingerprint" {
     abort("expected Lib module")
   }
   let lib_artifact = lib_module.to_artifact()
-  let damaged : @module_compile.ModuleInterfaceArtifact = {
+  let damaged : @artifact.ModuleInterfaceArtifact = {
     schema_version: lib_artifact.interface.schema_version,
     module_path_text: lib_artifact.interface.module_path_text,
     interface: lib_artifact.interface.interface,
@@ -3255,7 +3247,7 @@ test "link object artifacts rejects stale object fingerprint" {
     abort("expected module")
   }
   let object = module_.to_object_artifact()
-  let damaged : @module_compile.ModuleObjectArtifact = {
+  let damaged : @artifact.ModuleObjectArtifact = {
     schema_version: object.schema_version,
     module_path_text: object.module_path_text,
     interface_fingerprint: object.interface_fingerprint,
@@ -3269,7 +3261,7 @@ test "link object artifacts rejects stale object fingerprint" {
     object_fingerprint: { value: "stale" },
     imported_interface_fingerprints: object.imported_interface_fingerprints,
   }
-  let linked = @module_compile.link_module_object_artifacts([damaged])
+  let linked = @artifact.link_module_object_artifacts([damaged])
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
     content=(
@@ -3299,7 +3291,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
   let artifact = modules.to_artifact()
   let damaged = artifact.modules.map(fn(module_) {
     if module_.interface.module_path_text == "Lib" {
-      let object : @module_compile.ModuleObjectArtifact = {
+      let object : @artifact.ModuleObjectArtifact = {
         schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
         interface_fingerprint: module_.object.interface_fingerprint,
@@ -3313,7 +3305,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
         object_fingerprint: module_.object.object_fingerprint,
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
-      @module_compile.CompiledModuleArtifact::{
+      @artifact.CompiledModuleArtifact::{
         schema_version: module_.schema_version,
         interface: module_.interface,
         object,
@@ -3322,7 +3314,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
       module_
     }
   })
-  let linked = @module_compile.link_module_artifacts({
+  let linked = @artifact.link_module_artifacts({
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged,
@@ -3357,7 +3349,7 @@ test "link module artifacts rejects interface object name mismatch" {
   let artifact = modules.to_artifact()
   let damaged = artifact.modules.map(fn(module_) {
     if module_.interface.module_path_text == "Lib" {
-      let interface : @module_compile.ModuleInterfaceArtifact = {
+      let interface : @artifact.ModuleInterfaceArtifact = {
         schema_version: module_.interface.schema_version,
         module_path_text: "Other",
         interface: module_.interface.interface,
@@ -3365,7 +3357,7 @@ test "link module artifacts rejects interface object name mismatch" {
         module_fingerprint: module_.interface.module_fingerprint,
         imported_interface_fingerprints: module_.interface.imported_interface_fingerprints,
       }
-      @module_compile.CompiledModuleArtifact::{
+      @artifact.CompiledModuleArtifact::{
         schema_version: module_.schema_version,
         interface,
         object: module_.object,
@@ -3374,7 +3366,7 @@ test "link module artifacts rejects interface object name mismatch" {
       module_
     }
   })
-  let linked = @module_compile.link_module_artifacts({
+  let linked = @artifact.link_module_artifacts({
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged,
@@ -3409,7 +3401,7 @@ test "link module artifacts rejects stale imported reference fingerprint" {
   let artifact = modules.to_artifact()
   let damaged_modules = artifact.modules.map(fn(module_) {
     if module_.object.module_path_text == "Main" {
-      let imports : Array[@artifact_core.ModuleImportedReference] = module_.object.imports.map(fn(
+      let imports : Array[@artifact.ModuleImportedReference] = module_.object.imports.map(fn(
           imported,
         ) {
           {
@@ -3420,7 +3412,7 @@ test "link module artifacts rejects stale imported reference fingerprint" {
           }
         },
       )
-      let object : @module_compile.ModuleObjectArtifact = {
+      let object : @artifact.ModuleObjectArtifact = {
         schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
         interface_fingerprint: module_.object.interface_fingerprint,
@@ -3431,7 +3423,7 @@ test "link module artifacts rejects stale imported reference fingerprint" {
         exports: module_.object.exports,
         imports,
         module_fingerprint: module_.object.module_fingerprint,
-        object_fingerprint: @module_compile.module_object_fingerprint(
+        object_fingerprint: @artifact.module_object_fingerprint(
           module_.object.module_fingerprint,
           module_.object.interface_fingerprint,
           module_.object.metadata,
@@ -3444,7 +3436,7 @@ test "link module artifacts rejects stale imported reference fingerprint" {
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
-      @module_compile.CompiledModuleArtifact::{
+      @artifact.CompiledModuleArtifact::{
         schema_version: module_.schema_version,
         interface: module_.interface,
         object,
@@ -3453,7 +3445,7 @@ test "link module artifacts rejects stale imported reference fingerprint" {
       module_
     }
   })
-  let linked = @module_compile.link_module_artifacts({
+  let linked = @artifact.link_module_artifacts({
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged_modules,
@@ -3489,7 +3481,7 @@ test "link module artifacts rejects missing exported object value" {
   let damaged_modules = artifact.modules.map(fn(module_) {
     if module_.object.module_path_text == "Lib" {
       let exports = []
-      let object : @module_compile.ModuleObjectArtifact = {
+      let object : @artifact.ModuleObjectArtifact = {
         schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
         interface_fingerprint: module_.object.interface_fingerprint,
@@ -3500,7 +3492,7 @@ test "link module artifacts rejects missing exported object value" {
         exports,
         imports: module_.object.imports,
         module_fingerprint: module_.object.module_fingerprint,
-        object_fingerprint: @module_compile.module_object_fingerprint(
+        object_fingerprint: @artifact.module_object_fingerprint(
           module_.object.module_fingerprint,
           module_.object.interface_fingerprint,
           module_.object.metadata,
@@ -3513,7 +3505,7 @@ test "link module artifacts rejects missing exported object value" {
         ),
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
-      @module_compile.CompiledModuleArtifact::{
+      @artifact.CompiledModuleArtifact::{
         schema_version: module_.schema_version,
         interface: module_.interface,
         object,
@@ -3522,7 +3514,7 @@ test "link module artifacts rejects missing exported object value" {
       module_
     }
   })
-  let linked = @module_compile.link_module_artifacts({
+  let linked = @artifact.link_module_artifacts({
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged_modules,
@@ -3567,7 +3559,7 @@ test "link modules rejects compiled artifact import cycle" {
   let module_a = artifact_with_imported_interfaces(module_a, [
     {
       module_path_text: "B",
-      fingerprint: @module_compile.interface_fingerprint(module_b.interface),
+      fingerprint: @artifact.interface_fingerprint(module_b.interface),
     },
   ])
   let module_b = artifact_with_imported_interfaces(module_b, [
@@ -3576,7 +3568,7 @@ test "link modules rejects compiled artifact import cycle" {
       fingerprint: module_a.interface.interface_fingerprint,
     },
   ])
-  let linked = @module_compile.link_module_artifacts({
+  let linked = @artifact.link_module_artifacts({
     schema_version: 2,
     root_module_path_text: "A",
     modules: [module_a, module_b],
@@ -3606,7 +3598,7 @@ test "link modules rejects missing compiled artifact import" {
   let module_ = artifact_with_imported_interfaces(module_, [
     { module_path_text: "Missing", fingerprint: { value: "missing" } },
   ])
-  let linked = @module_compile.link_module_artifacts({
+  let linked = @artifact.link_module_artifacts({
     schema_version: 2,
     root_module_path_text: "Main",
     modules: [module_],
@@ -4060,11 +4052,10 @@ test "tuple signatures use safe nominal artifact presentation" {
     is Some(module_) else {
     abort("expected compiled Main module")
   }
-  let binary = @artifact_binary.module_interface_artifact_to_binary(
+  let binary = @artifact.module_interface_artifact_to_binary(
     module_.to_interface_artifact(),
   )
-  let inspect_text = match
-    @artifact_binary.artifact_binary_to_inspect_text(binary) {
+  let inspect_text = match @artifact.artifact_binary_to_inspect_text(binary) {
     Ok(text) => text
     Err(message) => abort(message)
   }
@@ -5908,9 +5899,9 @@ test "analysis does not mark explicit named auto arguments as implicit" {
 
 ///|
 fn find_artifact_module(
-  modules : Array[@module_compile.CompiledModuleArtifact],
+  modules : Array[@artifact.CompiledModuleArtifact],
   module_path_text : String,
-) -> @module_compile.CompiledModuleArtifact? {
+) -> @artifact.CompiledModuleArtifact? {
   for module_ in modules {
     if module_.interface.module_path_text == module_path_text {
       return Some(module_)
@@ -5998,22 +5989,22 @@ fn entry_display_name(entry : @buslane_lowering.BuslaneEntry) -> String {
 ///|
 fn artifact_with_imported_interfaces(
   module_ : @module_compile.CompiledModule,
-  imported : Array[@artifact_core.ImportedInterfaceFingerprint],
-) -> @module_compile.CompiledModuleArtifact {
+  imported : Array[@artifact.ImportedInterfaceFingerprint],
+) -> @artifact.CompiledModuleArtifact {
   let artifact = module_.to_artifact()
-  let module_fingerprint = @module_compile.module_fingerprint(
+  let module_fingerprint = @artifact.module_fingerprint(
     module_.interface,
     imported,
   )
-  let interface : @module_compile.ModuleInterfaceArtifact = {
+  let interface : @artifact.ModuleInterfaceArtifact = {
     ..artifact.interface,
     module_fingerprint,
     imported_interface_fingerprints: imported,
   }
-  let object : @module_compile.ModuleObjectArtifact = {
+  let object : @artifact.ModuleObjectArtifact = {
     ..artifact.object,
     module_fingerprint,
-    object_fingerprint: @module_compile.module_object_fingerprint(
+    object_fingerprint: @artifact.module_object_fingerprint(
       module_fingerprint,
       artifact.object.interface_fingerprint,
       artifact.object.metadata,

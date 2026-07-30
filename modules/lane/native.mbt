@@ -59,7 +59,7 @@ async fn write_module_interface_artifact(
 ) -> Unit {
   write_binary_file(
     path,
-    @artifact_binary.module_interface_artifact_to_binary(
+    @artifact.module_interface_artifact_to_binary(
       module_.to_interface_artifact(),
     ),
   )
@@ -72,20 +72,18 @@ async fn write_module_object_artifact(
 ) -> Unit {
   write_binary_file(
     path,
-    @artifact_binary.module_object_artifact_to_binary(
-      module_.to_object_artifact(),
-    ),
+    @artifact.module_object_artifact_to_binary(module_.to_object_artifact()),
   )
 }
 
 ///|
 async fn read_module_interface_artifact(
   path : String,
-) -> Result[@module_compile.ModuleInterfaceArtifact, CliError] {
+) -> Result[@artifact.ModuleInterfaceArtifact, CliError] {
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
-  match @artifact_binary.parse_module_interface_artifact_binary(bytes) {
+  match @artifact.parse_module_interface_artifact_binary(bytes) {
     Ok(artifact) => Ok(artifact)
     Err(message) =>
       Err(ArtifactLoad(path~, kind="module interface artifact", message~))
@@ -95,11 +93,11 @@ async fn read_module_interface_artifact(
 ///|
 async fn read_module_object_artifact(
   path : String,
-) -> Result[@module_compile.ModuleObjectArtifact, CliError] {
+) -> Result[@artifact.ModuleObjectArtifact, CliError] {
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
-  match @artifact_binary.parse_module_object_artifact_binary(bytes) {
+  match @artifact.parse_module_object_artifact_binary(bytes) {
     Ok(artifact) => Ok(artifact)
     Err(message) =>
       Err(ArtifactLoad(path~, kind="module object artifact", message~))
@@ -115,7 +113,7 @@ async fn write_linked_program_artifact(
     Ok(image) => image
     Err(error) => return Err(error)
   }
-  let bytes = @artifact_binary.loisvm_linked_program_to_binary(image)
+  let bytes = @artifact.loisvm_linked_program_to_binary(image)
   write_binary_file(path, bytes) catch {
     error => return Err(CliError::file_io(Write, path, "\{error}"))
   }
@@ -129,7 +127,7 @@ async fn read_linked_program_artifact(
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
-  match @artifact_binary.parse_loisvm_linked_program_binary(bytes) {
+  match @artifact.parse_loisvm_linked_program_binary(bytes) {
     Ok(image) => Ok(image)
     Err(message) =>
       Err(
@@ -141,7 +139,7 @@ async fn read_linked_program_artifact(
 ///|
 async fn read_module_object_artifacts(
   object_paths : Array[String],
-) -> Result[Array[@module_compile.ModuleObjectArtifact], CliError] {
+) -> Result[Array[@artifact.ModuleObjectArtifact], CliError] {
   let objects = []
   for path in object_paths {
     let artifact = match read_module_object_artifact(path) {
@@ -162,9 +160,9 @@ async fn read_module_object_artifacts(
 
 ///|
 fn find_object_artifact(
-  objects : Array[@module_compile.ModuleObjectArtifact],
+  objects : Array[@artifact.ModuleObjectArtifact],
   module_path_text : String,
-) -> @module_compile.ModuleObjectArtifact? {
+) -> @artifact.ModuleObjectArtifact? {
   for object in objects {
     if object.module_path_text == module_path_text {
       return Some(object)
@@ -176,7 +174,7 @@ fn find_object_artifact(
 ///|
 async fn read_module_interface_artifacts(
   interfaces : Array[String],
-) -> Result[Array[@module_compile.ModuleInterfaceArtifact], CliError] {
+) -> Result[Array[@artifact.ModuleInterfaceArtifact], CliError] {
   let artifacts = []
   for interface in interfaces {
     let artifact = match read_module_interface_artifact(interface) {

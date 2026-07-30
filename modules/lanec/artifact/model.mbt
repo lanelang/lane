@@ -3,10 +3,10 @@ pub(all) struct ModuleInterfaceArtifact {
   schema_version : Int
   module_path_text : String
   interface : @module_interface.ModuleInterface
-  interface_fingerprint : @artifact_core.CompilationFingerprint
-  module_fingerprint : @artifact_core.CompilationFingerprint
+  interface_fingerprint : @artifact_model.CompilationFingerprint
+  module_fingerprint : @artifact_model.CompilationFingerprint
   imported_interface_fingerprints : Array[
-    @artifact_core.ImportedInterfaceFingerprint,
+    @artifact_model.ImportedInterfaceFingerprint,
   ]
 } derive(Debug, Eq)
 
@@ -23,17 +23,17 @@ pub let linked_program_artifact_schema_version = 8
 pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
-  interface_fingerprint : @artifact_core.CompilationFingerprint
+  interface_fingerprint : @artifact_model.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
-  imports : Array[@artifact_core.ModuleImportedReference]
-  module_fingerprint : @artifact_core.CompilationFingerprint
-  object_fingerprint : @artifact_core.CompilationFingerprint
+  imports : Array[@artifact_model.ModuleImportedReference]
+  module_fingerprint : @artifact_model.CompilationFingerprint
+  object_fingerprint : @artifact_model.CompilationFingerprint
   imported_interface_fingerprints : Array[
-    @artifact_core.ImportedInterfaceFingerprint,
+    @artifact_model.ImportedInterfaceFingerprint,
   ]
 } derive(Debug, Eq)
 
@@ -57,73 +57,6 @@ pub(all) struct CompiledModuleSetArtifact {
   modules : Array[CompiledModuleArtifact]
   reachable_module_path_texts : Array[String]
 } derive(Debug, Eq)
-
-///|
-pub fn CompiledModuleSet::to_artifact(
-  self : CompiledModuleSet,
-) -> CompiledModuleSetArtifact {
-  {
-    schema_version: 2,
-    root_module_path_text: self.root_module_path_text,
-    modules: self.modules.map(CompiledModule::to_artifact),
-    reachable_module_path_texts: self.reachable_module_path_texts,
-  }
-}
-
-///|
-pub fn CompiledModule::to_artifact(
-  self : CompiledModule,
-) -> CompiledModuleArtifact {
-  {
-    schema_version: 2,
-    interface: self.to_interface_artifact(),
-    object: self.to_object_artifact(),
-  }
-}
-
-///|
-pub fn CompiledModule::to_interface_artifact(
-  self : CompiledModule,
-) -> ModuleInterfaceArtifact {
-  let object = self.object
-  let interface = self.artifact_interface()
-  {
-    schema_version: module_interface_artifact_schema_version,
-    module_path_text: object.module_path_text,
-    interface,
-    interface_fingerprint: interface_fingerprint(interface),
-    module_fingerprint: object.fingerprint,
-    imported_interface_fingerprints: object.imported_interface_fingerprints,
-  }
-}
-
-///|
-fn CompiledModule::artifact_interface(
-  self : CompiledModule,
-) -> @module_interface.ModuleInterface {
-  { ..self.interface, source_id: None }
-}
-
-///|
-pub fn CompiledModule::to_object_artifact(
-  self : CompiledModule,
-) -> ModuleObjectArtifact {
-  let object = self.object
-  {
-    schema_version: module_object_artifact_schema_version,
-    module_path_text: object.module_path_text,
-    interface_fingerprint: object.interface_fingerprint,
-    metadata: object.metadata,
-    terms: object.terms,
-    externals: object.externals,
-    entries: object.entries,
-    exports: object.exports,
-    imports: object.imports,
-    module_fingerprint: object.fingerprint,
-    object_fingerprint: object.object_fingerprint,
-    imported_interface_fingerprints: object.imported_interface_fingerprints,
-  }
-}
 
 ///|
 pub fn link_module_object_artifacts(
@@ -245,7 +178,7 @@ fn CompiledModuleSetArtifact::validate_schema(
         ),
       )
     }
-    if module_.interface.validate() is Some(diagnostic) {
+    if module_.interface.validation_diagnostic() is Some(diagnostic) {
       return Some(diagnostic)
     }
     if module_.object.module_path_text != module_path_text {

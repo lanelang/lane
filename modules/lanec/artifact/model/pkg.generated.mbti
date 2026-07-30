@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/artifact/model"
+
+import {
+  "Milky2018/lanec/elaborate/buslane_lowering",
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct CompilationFingerprint {
+  value : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ImportedInterfaceFingerprint {
+  module_path_text : String
+  fingerprint : CompilationFingerprint
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleImportedReference {
+  module_path_text : String
+  name : String
+  fingerprint : CompilationFingerprint
+  reference : @buslane_lowering.BuslaneModuleReference
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
+

@@ -2,17 +2,17 @@
 pub(all) struct ModuleObject {
   module_path_text : String
   checked : @checked.CheckedSourceFile
-  interface_fingerprint : @artifact_core.CompilationFingerprint
+  interface_fingerprint : @artifact.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
-  imports : Array[@artifact_core.ModuleImportedReference]
-  fingerprint : @artifact_core.CompilationFingerprint
-  object_fingerprint : @artifact_core.CompilationFingerprint
+  imports : Array[@artifact.ModuleImportedReference]
+  fingerprint : @artifact.CompilationFingerprint
+  object_fingerprint : @artifact.CompilationFingerprint
   imported_interface_fingerprints : Array[
-    @artifact_core.ImportedInterfaceFingerprint,
+    @artifact.ImportedInterfaceFingerprint,
   ]
 } derive(Debug, Eq)
 
@@ -39,7 +39,7 @@ fn CompiledModule::to_link_object(
     imports: object.imports,
     fingerprint: object.fingerprint,
     object_fingerprint_valid: object.object_fingerprint ==
-    module_object_fingerprint(
+    @artifact.module_object_fingerprint(
       object.fingerprint,
       object.interface_fingerprint,
       object.metadata,
@@ -137,7 +137,7 @@ fn check_module_graph(
 ///|
 pub fn compile_module_from_interface_artifacts(
   root_source : @module_frontend.SourceInput,
-  interfaces : Array[ModuleInterfaceArtifact],
+  interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
   let parsed = @module_frontend.parse_module_inputs(root_source, [])
   if !parsed.diagnostics.is_empty() {

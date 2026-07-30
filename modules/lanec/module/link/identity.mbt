@@ -63,14 +63,14 @@ priv struct RemappedModuleObject {
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
-  fingerprint : @artifact_core.CompilationFingerprint
+  fingerprint : @artifact_model.CompilationFingerprint
 }
 
 ///|
 priv struct LinkedModuleExport {
   module_path_text : String
   name : String
-  fingerprint : @artifact_core.CompilationFingerprint
+  fingerprint : @artifact_model.CompilationFingerprint
   reference : @buslane_lowering.BuslaneModuleReference
 }
 

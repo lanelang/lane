@@ -32,7 +32,7 @@ priv struct InterfaceSymbolFreshener {
 ///|
 fn freshen_module_interface_artifacts(
   registry : @symbol.SymbolRegistry,
-  artifacts : Array[ModuleInterfaceArtifact],
+  artifacts : Array[@artifact.ModuleInterfaceArtifact],
 ) -> @module_interface.ImportedEnvironment {
   let environment = InterfaceFresheningEnvironment::{
     registry,

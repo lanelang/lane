@@ -1,10 +1,10 @@
 ///|
 fn refingerprint_test_object(
-  object : @module_compile.ModuleObjectArtifact,
-) -> @module_compile.ModuleObjectArtifact {
+  object : @artifact.ModuleObjectArtifact,
+) -> @artifact.ModuleObjectArtifact {
   {
     ..object,
-    object_fingerprint: @module_compile.module_object_fingerprint(
+    object_fingerprint: @artifact.module_object_fingerprint(
       object.module_fingerprint,
       object.interface_fingerprint,
       object.metadata,
@@ -19,9 +19,7 @@ fn refingerprint_test_object(
 }
 
 ///|
-fn compiled_test_object(
-  source : String,
-) -> @module_compile.ModuleObjectArtifact {
+fn compiled_test_object(source : String) -> @artifact.ModuleObjectArtifact {
   let compiled = compile_modules(source, [])
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
@@ -100,7 +98,7 @@ test "object artifact validation rejects every unknown Buslane identity namespac
   terms.push(External(unknown_value))
   let malformed = refingerprint_test_object({ ..object, metadata, terms })
   debug_inspect(
-    @module_compile.link_module_object_artifacts([malformed]),
+    @artifact.link_module_object_artifacts([malformed]),
     content=(
       #|{
       #|  program: None,
@@ -218,7 +216,7 @@ test "object artifact validation rejects malformed side table references" {
     exports,
   })
   debug_inspect(
-    @module_compile.link_module_object_artifacts([malformed]),
+    @artifact.link_module_object_artifacts([malformed]),
     content=(
       #|{
       #|  program: None,
@@ -314,7 +312,7 @@ test "object-only linking rejects an imported name missing from its provider" {
     }
   }
   debug_inspect(
-    @module_compile.link_module_object_artifacts(objects),
+    @artifact.link_module_object_artifacts(objects),
     content=(
       #|{
       #|  program: None,

@@ -11,16 +11,10 @@ pub fn lower_executable_to_loisvm_bytecode(
 ///|
 pub fn executable_to_loisvm_artifact(
   program : @executable.ExecutableProgram,
-) -> Result[
-  @module_compile.LinkedProgramArtifact,
-  @loisvm_lowering.LoisvmLoweringError,
-] {
+) -> Result[LinkedProgramArtifact, @loisvm_lowering.LoisvmLoweringError] {
   match lower_executable_to_loisvm_bytecode(program) {
     Ok(bytecode) =>
-      Ok({
-        schema_version: @module_compile.linked_program_artifact_schema_version,
-        bytecode,
-      })
+      Ok({ schema_version: linked_program_artifact_schema_version, bytecode })
     Err(error) => Err(error)
   }
 }
@@ -40,7 +34,7 @@ pub fn loisvm_linked_program_to_binary(
   image : @loisvm_bytecode.BytecodeImage,
 ) -> Bytes {
   linked_program_artifact_to_binary({
-    schema_version: @module_compile.linked_program_artifact_schema_version,
+    schema_version: linked_program_artifact_schema_version,
     bytecode: image,
   })
 }

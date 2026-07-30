@@ -1,0 +1,152 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/artifact"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/bytecodec",
+  "Milky2018/lanec/artifact/model",
+  "Milky2018/lanec/diagnostic",
+  "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/executable",
+  "Milky2018/lanec/loisvm_lowering",
+  "Milky2018/lanec/module",
+  "Milky2018/lanec/module/link",
+  "Milky2018/loisvm/bytecode",
+  "moonbit-community/prettyprinter",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn artifact_binary_to_inspect_text(Bytes) -> Result[String, String]
+
+pub fn executable_to_loisvm_artifact(@executable.ExecutableProgram) -> Result[LinkedProgramArtifact, @loisvm_lowering.LoisvmLoweringError]
+
+pub fn executable_to_loisvm_binary(@executable.ExecutableProgram) -> Result[Bytes, @loisvm_lowering.LoisvmLoweringError]
+
+pub fn imported_environment_fingerprints(@module.ImportedEnvironment) -> Array[@model.ImportedInterfaceFingerprint]
+
+pub fn interface_fingerprint(@module.ModuleInterface) -> @model.CompilationFingerprint
+
+pub fn link_module_artifacts(CompiledModuleSetArtifact) -> @link.LinkResult
+
+pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> @link.LinkResult
+
+pub let linked_program_artifact_schema_version : Int
+
+pub fn linked_program_artifact_to_binary(LinkedProgramArtifact) -> Bytes
+
+pub fn loisvm_linked_program_to_binary(@bytecode.BytecodeImage) -> Bytes
+
+pub fn lower_executable_to_loisvm_bytecode(@executable.ExecutableProgram) -> Result[@bytecode.BytecodeImage, @loisvm_lowering.LoisvmLoweringError]
+
+pub fn module_fingerprint(@module.ModuleInterface, Array[@model.ImportedInterfaceFingerprint]) -> @model.CompilationFingerprint
+
+pub let module_interface_artifact_schema_version : Int
+
+pub fn module_interface_artifact_to_binary(ModuleInterfaceArtifact) -> Bytes
+
+pub let module_object_artifact_schema_version : Int
+
+pub fn module_object_artifact_to_binary(ModuleObjectArtifact) -> Bytes
+
+pub fn module_object_fingerprint(@model.CompilationFingerprint, @model.CompilationFingerprint, @buslane.MetadataRegistry, Array[@buslane.TopTerm], @buslane_lowering.BuslaneExternalMap, Array[@buslane_lowering.BuslaneEntry], Array[@buslane_lowering.BuslaneModuleExport], Array[@model.ModuleImportedReference], Array[@model.ImportedInterfaceFingerprint]) -> @model.CompilationFingerprint
+
+pub fn parse_linked_program_artifact_binary(Bytes) -> Result[LinkedProgramArtifact, String]
+
+pub fn parse_loisvm_linked_program_binary(Bytes) -> Result[@bytecode.BytecodeImage, String]
+
+pub fn parse_module_interface_artifact_binary(Bytes) -> Result[ModuleInterfaceArtifact, String]
+
+pub fn parse_module_object_artifact_binary(Bytes) -> Result[ModuleObjectArtifact, String]
+
+pub fn validate_module_interface_artifacts(Array[ModuleInterfaceArtifact]) -> Array[@diagnostic.CompilerDiagnostic]
+
+pub fn write_buslane_data_con_id(@bytecodec.ByteWriter, @buslane.DataConId) -> Unit
+
+pub fn write_buslane_effect_id(@bytecodec.ByteWriter, @buslane.EffectId) -> Unit
+
+pub fn write_buslane_operation_id(@bytecodec.ByteWriter, @buslane.OperationId) -> Unit
+
+pub fn write_buslane_program_section(@bytecodec.ByteWriter, @buslane.Program) -> Unit
+
+pub fn write_buslane_type(@bytecodec.ByteWriter, @buslane.Type) -> Unit
+
+pub fn write_buslane_type_id(@bytecodec.ByteWriter, @buslane.TypeId) -> Unit
+
+pub fn write_buslane_value_id(@bytecodec.ByteWriter, @buslane.ValueId) -> Unit
+
+pub fn write_compilation_fingerprint(@bytecodec.ByteWriter, @model.CompilationFingerprint) -> Unit
+
+pub fn write_entries(@bytecodec.ByteWriter, Array[@buslane_lowering.BuslaneEntry]) -> Unit
+
+pub fn write_entry(@bytecodec.ByteWriter, @buslane_lowering.BuslaneEntry) -> Unit
+
+pub fn write_exports(@bytecodec.ByteWriter, Array[@buslane_lowering.BuslaneModuleExport]) -> Unit
+
+pub fn write_externals(@bytecodec.ByteWriter, @buslane_lowering.BuslaneExternalMap) -> Unit
+
+pub fn write_imported_interface_fingerprints(@bytecodec.ByteWriter, Array[@model.ImportedInterfaceFingerprint]) -> Unit
+
+pub fn write_imports(@bytecodec.ByteWriter, Array[@model.ModuleImportedReference]) -> Unit
+
+pub fn write_module_reference(@bytecodec.ByteWriter, @buslane_lowering.BuslaneModuleReference) -> Unit
+
+// Errors
+type ArtifactBinaryDecodeError derive(@debug.Debug)
+
+// Types and methods
+pub(all) struct CompiledModuleArtifact {
+  schema_version : Int
+  interface : ModuleInterfaceArtifact
+  object : ModuleObjectArtifact
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CompiledModuleSetArtifact {
+  schema_version : Int
+  root_module_path_text : String
+  modules : Array[CompiledModuleArtifact]
+  reachable_module_path_texts : Array[String]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LinkedProgramArtifact {
+  schema_version : Int
+  bytecode : @bytecode.BytecodeImage
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for LinkedProgramArtifact
+
+pub(all) struct ModuleInterfaceArtifact {
+  schema_version : Int
+  module_path_text : String
+  interface : @module.ModuleInterface
+  interface_fingerprint : @model.CompilationFingerprint
+  module_fingerprint : @model.CompilationFingerprint
+  imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
+} derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceArtifact::imported_fingerprint_diagnostic(Self, String, @model.CompilationFingerprint) -> @diagnostic.CompilerDiagnostic?
+pub impl @prettyprinter.Pretty for ModuleInterfaceArtifact
+
+pub(all) struct ModuleObjectArtifact {
+  schema_version : Int
+  module_path_text : String
+  interface_fingerprint : @model.CompilationFingerprint
+  metadata : @buslane.MetadataRegistry
+  terms : Array[@buslane.TopTerm]
+  externals : @buslane_lowering.BuslaneExternalMap
+  entries : Array[@buslane_lowering.BuslaneEntry]
+  exports : Array[@buslane_lowering.BuslaneModuleExport]
+  imports : Array[@model.ModuleImportedReference]
+  module_fingerprint : @model.CompilationFingerprint
+  object_fingerprint : @model.CompilationFingerprint
+  imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ModuleObjectArtifact
+
+// Type aliases
+pub using @model {type CompilationFingerprint}
+
+pub using @model {type ImportedInterfaceFingerprint}
+
+pub using @model {type ModuleImportedReference}
+
+// Traits
+

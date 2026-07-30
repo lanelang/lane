@@ -2,17 +2,17 @@
 pub(all) struct LinkModuleObject {
   module_path_text : String
   interface : @module_interface.ModuleInterface?
-  interface_fingerprint : @artifact_core.CompilationFingerprint
+  interface_fingerprint : @artifact_model.CompilationFingerprint
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
-  imports : Array[@artifact_core.ModuleImportedReference]
-  fingerprint : @artifact_core.CompilationFingerprint
+  imports : Array[@artifact_model.ModuleImportedReference]
+  fingerprint : @artifact_model.CompilationFingerprint
   object_fingerprint_valid : Bool
   imported_interface_fingerprints : Array[
-    @artifact_core.ImportedInterfaceFingerprint,
+    @artifact_model.ImportedInterfaceFingerprint,
   ]
 } derive(Debug, Eq)
 

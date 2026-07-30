@@ -84,9 +84,9 @@ fn artifact_header_doc(
   kind : String,
   schema_version : Int,
   module_path_text : String,
-  interface_fingerprint : @artifact_core.CompilationFingerprint,
-  module_fingerprint : @artifact_core.CompilationFingerprint,
-  object_fingerprint : @artifact_core.CompilationFingerprint?,
+  interface_fingerprint : @artifact_model.CompilationFingerprint,
+  module_fingerprint : @artifact_model.CompilationFingerprint,
+  object_fingerprint : @artifact_model.CompilationFingerprint?,
 ) -> Document {
   let fields = [
     text("Lane \{kind} artifact"),
@@ -103,7 +103,7 @@ fn artifact_header_doc(
 
 ///|
 fn imported_fingerprints_doc(
-  fingerprints : Array[@artifact_core.ImportedInterfaceFingerprint],
+  fingerprints : Array[@artifact_model.ImportedInterfaceFingerprint],
 ) -> Document {
   section_doc(
     "imported interfaces:",
@@ -743,7 +743,7 @@ fn buslane_kind_text(kind : @buslane.Kind) -> String {
 
 ///|
 fn import_reference_text(
-  import_ : @artifact_core.ModuleImportedReference,
+  import_ : @artifact_model.ModuleImportedReference,
 ) -> String {
   "\{module_reference_kind_text(import_.reference)} \{import_.module_path_text}::\{import_.name}"
 }

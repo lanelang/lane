@@ -6,7 +6,7 @@ async fn lane_inspect(artifact : String) -> LaneCommandOutcome {
         CliError::file_io(Inspect, artifact, "\{error}"),
       )
   }
-  match @artifact_binary.artifact_binary_to_inspect_text(bytes) {
+  match @artifact.artifact_binary_to_inspect_text(bytes) {
     Ok(text) => {
       @stdio.stdout.write(text)
       Succeeded

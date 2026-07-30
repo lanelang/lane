@@ -129,15 +129,15 @@ test "F32 module interface and object artifacts roundtrip" {
   }
   let artifact = module_.to_artifact()
   let interface = match
-    @artifact_binary.parse_module_interface_artifact_binary(
-      @artifact_binary.module_interface_artifact_to_binary(artifact.interface),
+    @artifact.parse_module_interface_artifact_binary(
+      @artifact.module_interface_artifact_to_binary(artifact.interface),
     ) {
     Ok(value) => value
     Err(message) => fail(message)
   }
   let object = match
-    @artifact_binary.parse_module_object_artifact_binary(
-      @artifact_binary.module_object_artifact_to_binary(artifact.object),
+    @artifact.parse_module_object_artifact_binary(
+      @artifact.module_object_artifact_to_binary(artifact.object),
     ) {
     Ok(value) => value
     Err(message) => fail(message)

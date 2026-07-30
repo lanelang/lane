@@ -1,5 +1,5 @@
 ///|
-using @compiler_diag { type CompilerDiagnostic }
+using @compiler_diag {type CompilerDiagnostic}
 
 ///|
 fn resolve_diagnostic(

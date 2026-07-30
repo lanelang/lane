@@ -63,56 +63,6 @@ priv struct SemanticMemberFact {
 }
 
 ///|
-priv enum GenericParameterKind {
-  GenericTypeParameter
-  GenericEffectParameter
-}
-
-///|
-priv struct GenericParameterFact {
-  symbol : @symbol.TypeParameterId
-  name : String
-  kind : GenericParameterKind
-  loc : @basic.SourceSpan
-}
-
-///|
-priv enum TopLevelSymbol {
-  TopLevelValue(@symbol.ValueSymbolId)
-  TopLevelType(@symbol.TypeSymbolId)
-  TopLevelEffect(@symbol.EffectSymbolId)
-  TopLevelAlias(@symbol.TypeAliasSymbolId)
-} derive(Eq)
-
-///|
-priv enum TopLevelDeclarationKind {
-  ValueDeclaration
-  FunctionDeclaration
-  StructDeclaration
-  EnumDeclaration
-  ExternalTypeDeclaration
-  EffectDeclaration
-  TypeAliasDeclaration
-  EffectAliasDeclaration
-}
-
-///|
-priv struct TopLevelDeclarationFact {
-  symbol : TopLevelSymbol
-  name : String
-  kind : TopLevelDeclarationKind
-  is_public : Bool
-  name_loc : @basic.SourceSpan
-  loc : @basic.SourceSpan
-}
-
-///|
-priv struct TopLevelReferenceFact {
-  from : TopLevelSymbol
-  to : TopLevelSymbol
-}
-
-///|
 priv struct ParameterHintSignature {
   symbol : AnalysisSymbol
   parameters : Array[ParameterHintParameter]
@@ -141,18 +91,12 @@ priv struct SemanticIndex {
   bindings : Array[SemanticBindingFact]
   members : Array[SemanticMemberFact]
   annotated_values : Array[@symbol.ValueSymbolId]
-  generic_parameters : Array[GenericParameterFact]
-  generic_parameter_references : Array[@symbol.TypeParameterId]
   module_bindings : Map[Int, SemanticModuleBindingFact]
-  used_import_symbols : Array[@resolve.ResolvedImportSymbol]
-  top_level_declarations : Array[TopLevelDeclarationFact]
-  top_level_references : Array[TopLevelReferenceFact]
   definitions : Array[DefinitionEntry]
   references : Array[ReferenceEntry]
   hovers : Array[HoverEntry]
   inlay_hints : Array[InlayHintEntry]
   parameter_signatures : Array[ParameterHintSignature]
-  mut current_top_level : TopLevelSymbol?
 }
 
 ///|
@@ -174,23 +118,14 @@ fn SemanticIndex::from_sources(
     bindings: [],
     members: [],
     annotated_values: [],
-    generic_parameters: [],
-    generic_parameter_references: [],
     module_bindings,
-    used_import_symbols: [],
-    top_level_declarations: [],
-    top_level_references: [],
     definitions: [],
     references: [],
     hovers: [],
     inlay_hints: [],
     parameter_signatures: [],
-    current_top_level: None,
   }
   index.add_module_bindings(resolved.module_binding_references)
-  for declaration in resolved.declarations {
-    index.add_top_level_declaration(declaration)
-  }
   for declaration in resolved.declarations {
     index.collect_resolved_declaration(declaration)
   }
@@ -255,32 +190,6 @@ fn semantic_module_binding_facts(
 }
 
 ///|
-fn SemanticIndex::unused_private_top_level_declarations(
-  self : SemanticIndex,
-) -> Array[TopLevelDeclarationFact] {
-  let reachable = []
-  for declaration in self.top_level_declarations {
-    if declaration.is_public {
-      self.mark_top_level_reachable(declaration.symbol, reachable)
-    }
-  }
-  let unused = self.top_level_declarations.filter(fn(declaration) {
-    !declaration.is_public &&
-    !declaration.name.has_prefix("_") &&
-    !reachable.contains(declaration.symbol)
-  })
-  unused.sort_by(fn(left, right) {
-    let by_start = left.loc.start_offset - right.loc.start_offset
-    if by_start != 0 {
-      by_start
-    } else {
-      left.loc.end_offset - right.loc.end_offset
-    }
-  })
-  unused
-}
-
-///|
 fn SemanticIndex::owner_members(
   self : SemanticIndex,
   owner : String,
@@ -302,103 +211,6 @@ fn SemanticIndex::fields_for_type(
   self.members.filter(fn(fact) {
     fact.kind is FieldMemberKind && fact.owner_type == Some(owner)
   })
-}
-
-///|
-fn SemanticIndex::mark_top_level_reachable(
-  self : SemanticIndex,
-  symbol : TopLevelSymbol,
-  reachable : Array[TopLevelSymbol],
-) -> Unit {
-  if reachable.contains(symbol) {
-    return
-  }
-  reachable.push(symbol)
-  for reference in self.top_level_references {
-    if reference.from == symbol {
-      self.mark_top_level_reachable(reference.to, reachable)
-    }
-  }
-}
-
-///|
-fn SemanticIndex::with_top_level(
-  self : SemanticIndex,
-  symbol : TopLevelSymbol,
-  collect : (SemanticIndex) -> Unit,
-) -> Unit {
-  let previous = self.current_top_level
-  self.current_top_level = Some(symbol)
-  collect(self)
-  self.current_top_level = previous
-}
-
-///|
-fn SemanticIndex::add_top_level_reference(
-  self : SemanticIndex,
-  target : TopLevelSymbol,
-) -> Unit {
-  if self.current_top_level is Some(from) &&
-    self.top_level_declarations.any(fn(declaration) {
-      declaration.symbol == target
-    }) {
-    self.top_level_references.push({ from, to: target })
-  }
-}
-
-///|
-fn SemanticIndex::unused_generic_parameters(
-  self : SemanticIndex,
-) -> Array[GenericParameterFact] {
-  let unused = self.generic_parameters.filter(fn(parameter) {
-    !parameter.name.has_prefix("_") &&
-    !self.generic_parameter_references.contains(parameter.symbol)
-  })
-  unused.sort_by(fn(left, right) {
-    let by_start = left.loc.start_offset - right.loc.start_offset
-    if by_start != 0 {
-      by_start
-    } else {
-      left.loc.end_offset - right.loc.end_offset
-    }
-  })
-  unused
-}
-
-///|
-fn SemanticIndex::unused_import_exposures(
-  self : SemanticIndex,
-  source : @resolve.ResolvedSourceFile,
-) -> Array[@resolve.ResolvedImportExposure] {
-  let used_exposure_ids = []
-  for use_ in source.import_uses {
-    add_unique_int(used_exposure_ids, use_.exposure_id)
-  }
-  for exposure_symbol in source.import_symbols {
-    if self.used_import_symbols.contains(exposure_symbol.symbol) {
-      add_unique_int(used_exposure_ids, exposure_symbol.exposure_id)
-    }
-  }
-  source.import_exposures.filter(fn(exposure) {
-    !used_exposure_ids.contains(exposure.id)
-  })
-}
-
-///|
-fn add_unique_int(values : Array[Int], value : Int) -> Unit {
-  if !values.contains(value) {
-    values.push(value)
-  }
-}
-
-///|
-fn SemanticIndex::use_import_symbol(
-  self : SemanticIndex,
-  symbol : @resolve.ResolvedImportSymbol,
-) -> Unit {
-  if !self.used_import_symbols.contains(symbol) {
-    self.used_import_symbols.push(symbol)
-  }
 }
 
 ///|
@@ -456,26 +268,4 @@ fn SemanticIndex::receiver_type(
     }
   }
   None
-}
-
-///|
-fn GenericParameterKind::text(self : GenericParameterKind) -> String {
-  match self {
-    GenericTypeParameter => "type parameter"
-    GenericEffectParameter => "effect parameter"
-  }
-}
-
-///|
-fn TopLevelDeclarationKind::text(self : TopLevelDeclarationKind) -> String {
-  match self {
-    ValueDeclaration => "value"
-    FunctionDeclaration => "function"
-    StructDeclaration => "struct"
-    EnumDeclaration => "enum"
-    ExternalTypeDeclaration => "external type"
-    EffectDeclaration => "effect"
-    TypeAliasDeclaration => "type alias"
-    EffectAliasDeclaration => "effect alias"
-  }
 }

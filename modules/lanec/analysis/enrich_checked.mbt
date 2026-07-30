@@ -55,17 +55,7 @@ fn SemanticIndex::enrich_checked_declaration(
   declaration : @checked.CheckedTopLevelDeclaration,
   display : @typecheck.TypeDisplayContext,
 ) -> Unit {
-  let symbol = match declaration {
-    Struct(declaration) => TopLevelType(declaration.symbol)
-    Enum(declaration) => TopLevelType(declaration.symbol)
-    ExternalType(declaration) => TopLevelType(declaration.symbol)
-    Effect(declaration) => TopLevelEffect(declaration.symbol)
-    Function(declaration) => TopLevelValue(declaration.symbol)
-    Let(declaration) => TopLevelValue(declaration.symbol)
-  }
-  self.with_top_level(symbol, fn(index) {
-    index.enrich_checked_declaration_body(declaration, display)
-  })
+  self.enrich_checked_declaration_body(declaration, display)
 }
 
 ///|
@@ -175,32 +165,7 @@ fn SemanticIndex::enrich_checked_declaration_body(
   display : @typecheck.TypeDisplayContext,
 ) -> Unit {
   match declaration {
-    Struct(declaration) =>
-      for field in declaration.fields {
-        self.collect_checked_type(field.type_)
-      }
-    Enum(declaration) =>
-      for variant in declaration.variants {
-        for payload in variant.payload {
-          self.collect_checked_type(payload)
-        }
-      }
-    ExternalType(_) => ()
-    Effect(declaration) =>
-      for operation in declaration.operations {
-        for payload in operation.payload {
-          self.collect_checked_type(payload)
-        }
-        self.collect_checked_type(operation.result)
-      }
-    Function(declaration) => {
-      for parameter in declaration.parameters {
-        self.collect_checked_type(parameter.type_)
-      }
-      self.collect_checked_type(declaration.return_type)
-      self.collect_checked_type(declaration.type_)
-      self.enrich_checked_expr(declaration.body, display)
-    }
+    Function(declaration) => self.enrich_checked_expr(declaration.body, display)
     Let(declaration) => {
       if !self.annotated_values.contains(declaration.symbol) {
         self.add_type_inlay_hint(
@@ -209,9 +174,9 @@ fn SemanticIndex::enrich_checked_declaration_body(
           declaration.type_,
         )
       }
-      self.collect_checked_type(declaration.type_)
       self.enrich_checked_expr(declaration.initializer, display)
     }
+    Struct(_) | Enum(_) | ExternalType(_) | Effect(_) => ()
   }
 }
 
@@ -266,7 +231,6 @@ fn SemanticIndex::enrich_checked_local_item(
           declaration.type_,
         )
       }
-      self.collect_checked_type(declaration.type_)
       self.enrich_checked_expr(declaration.initializer, display)
     }
     PatternLet(declaration) => {
@@ -284,10 +248,7 @@ fn SemanticIndex::enrich_checked_local_item(
       self.enrich_checked_type_parameters(declaration.type_parameters, display)
       for parameter in declaration.parameters {
         self.enrich_checked_parameter(parameter, display)
-        self.collect_checked_type(parameter.type_)
       }
-      self.collect_checked_type(declaration.return_type)
-      self.collect_checked_type(declaration.type_)
       self.enrich_checked_expr(declaration.body, display)
     }
   }
@@ -299,7 +260,6 @@ fn SemanticIndex::enrich_checked_expr(
   expr : @checked.CheckedExpr,
   display : @typecheck.TypeDisplayContext,
 ) -> Unit {
-  self.collect_checked_expr_types(expr)
   match expr {
     Value(name~, symbol~, type_~, loc~) =>
       if required_value_metadata(self.registry, symbol).provenance is Authored {
@@ -431,7 +391,6 @@ fn SemanticIndex::enrich_checked_pattern(
   pattern : @checked.CheckedPattern,
   display : @typecheck.TypeDisplayContext,
 ) -> Unit {
-  self.collect_checked_pattern_types(pattern)
   match pattern {
     Binding(symbol~, name~, type_~, ..) => {
       self.enrich_binding(
@@ -474,189 +433,5 @@ fn SemanticIndex::enrich_checked_pattern(
       }
     }
     Wildcard(_) | Literal(_) => ()
-  }
-}
-
-///|
-fn SemanticIndex::collect_checked_expr_types(
-  self : SemanticIndex,
-  expr : @checked.CheckedExpr,
-) -> Unit {
-  match expr {
-    Literal(type_~, ..)
-    | CompilerIntrinsic(type_~, ..)
-    | ExternBinding(type_~, ..)
-    | ErrorRecovery(type_~, ..)
-    | Block(type_~, ..)
-    | If(type_~, ..)
-    | Match(type_~, ..)
-    | Call(type_~, ..) => self.collect_checked_type(type_)
-    FunctionEffectWiden(type_~, ..) => self.collect_checked_type(type_)
-    Field(field~, type_~, ..) => {
-      if self.registry.field_metadata(field) is Some(metadata) {
-        self.add_top_level_reference(TopLevelType(metadata.owner))
-      }
-      self.collect_checked_type(type_)
-    }
-    Value(symbol~, type_~, ..) => {
-      if required_value_metadata(self.registry, symbol).provenance is Authored {
-        self.use_import_symbol(ValueSymbol(symbol))
-        self.add_top_level_reference(TopLevelValue(symbol))
-      }
-      self.collect_checked_type(type_)
-    }
-    FunctionLiteral(parameters~, return_type~, type_~, ..) => {
-      for parameter in parameters {
-        self.collect_checked_type(parameter.type_)
-      }
-      self.collect_checked_type(return_type)
-      self.collect_checked_type(type_)
-    }
-    GenericApplication(arguments~, type_~, ..) => {
-      for argument in arguments {
-        self.collect_checked_generic_argument(argument)
-      }
-      self.collect_checked_type(type_)
-    }
-    Derive(plan~, type_~, ..) => {
-      self.collect_checked_type(plan.capability)
-      self.collect_checked_type(plan.target)
-      self.collect_checked_type(plan.shape.representation())
-      plan.shape.for_each_evidence(fn(evidence) {
-        self.collect_checked_type(evidence.required_type)
-      })
-      self.collect_checked_type(type_)
-    }
-    OperationCall(operation~, generic_witnesses~, effect~, type_~, ..) => {
-      if self.registry.operation_metadata(operation) is Some(metadata) {
-        self.add_top_level_reference(TopLevelEffect(metadata.owner))
-      }
-      for witness in generic_witnesses {
-        self.collect_checked_generic_argument(witness)
-      }
-      self.collect_checked_effect(effect)
-      self.collect_checked_type(type_)
-    }
-    Handler(handlers~, final_branch~, type_~, ..) => {
-      for handler in handlers {
-        self.collect_checked_effect(handler.handled_effect)
-        for arm in handler.operations {
-          if self.registry.operation_metadata(arm.operation) is Some(metadata) {
-            self.add_top_level_reference(TopLevelEffect(metadata.owner))
-          }
-          for payload_type in arm.payload_types {
-            self.collect_checked_type(payload_type)
-          }
-          self.collect_checked_type(arm.resume_type)
-        }
-      }
-      self.collect_checked_type(final_branch.binder_type)
-      self.collect_checked_type(type_)
-    }
-    StructLiteral(symbol~, generic_arguments~, type_witnesses~, type_~, ..) => {
-      self.add_top_level_reference(TopLevelType(symbol))
-      for argument in generic_arguments {
-        self.collect_checked_generic_argument(argument)
-      }
-      for witness in type_witnesses {
-        self.collect_checked_generic_argument(witness.argument)
-      }
-      self.collect_checked_type(type_)
-    }
-    Variant(symbol~, generic_arguments~, type_~, ..) => {
-      if self.registry.variant_metadata(symbol) is Some(metadata) {
-        self.add_top_level_reference(TopLevelType(metadata.owner))
-      }
-      for argument in generic_arguments {
-        self.collect_checked_generic_argument(argument)
-      }
-      self.collect_checked_type(type_)
-    }
-  }
-}
-
-///|
-fn SemanticIndex::collect_checked_pattern_types(
-  self : SemanticIndex,
-  pattern : @checked.CheckedPattern,
-) -> Unit {
-  match pattern {
-    Wildcard(type_~, ..) | Binding(type_~, ..) | Literal(type_~, ..) =>
-      self.collect_checked_type(type_)
-    Variant(symbol~, generic_arguments~, type_~, ..) => {
-      if self.registry.variant_metadata(symbol) is Some(metadata) {
-        self.add_top_level_reference(TopLevelType(metadata.owner))
-      }
-      for argument in generic_arguments {
-        self.collect_checked_generic_argument(argument)
-      }
-      self.collect_checked_type(type_)
-    }
-    Struct(symbol~, type_~, ..) => {
-      self.add_top_level_reference(TopLevelType(symbol))
-      self.collect_checked_type(type_)
-    }
-  }
-}
-
-///|
-fn SemanticIndex::collect_checked_type(
-  self : SemanticIndex,
-  type_ : @types.Type,
-) -> Unit {
-  match type_ {
-    Constructor(symbol) => {
-      self.use_import_symbol(TypeSymbol(symbol))
-      self.add_top_level_reference(TopLevelType(symbol))
-    }
-    Error | Primitive(_) => ()
-    Apply(callee, arguments) => {
-      self.collect_checked_type(callee)
-      for argument in arguments {
-        self.collect_checked_generic_argument(argument)
-      }
-    }
-    TypeLambda(_, body) | Forall(_, body) => self.collect_checked_type(body)
-    Parameter(symbol) => self.generic_parameter_references.push(symbol)
-    Function(parameters, result, effect) => {
-      for parameter in parameters {
-        self.collect_checked_type(parameter)
-      }
-      self.collect_checked_type(result)
-      self.collect_checked_effect(effect)
-    }
-  }
-}
-
-///|
-fn SemanticIndex::collect_checked_effect(
-  self : SemanticIndex,
-  effect : @types.Effect,
-) -> Unit {
-  match effect {
-    Empty | Io => ()
-    Singleton(symbol, arguments) => {
-      self.use_import_symbol(EffectSymbol(symbol))
-      self.add_top_level_reference(TopLevelEffect(symbol))
-      for argument in arguments {
-        self.collect_checked_generic_argument(argument)
-      }
-    }
-    Parameter(symbol) => self.generic_parameter_references.push(symbol)
-    Union(effects) =>
-      for effect in effects {
-        self.collect_checked_effect(effect)
-      }
-  }
-}
-
-///|
-fn SemanticIndex::collect_checked_generic_argument(
-  self : SemanticIndex,
-  argument : @types.GenericArgument,
-) -> Unit {
-  match argument {
-    TypeArgument(type_) => self.collect_checked_type(type_)
-    EffectArgument(effect) => self.collect_checked_effect(effect)
   }
 }

@@ -3,10 +3,10 @@ priv struct CheckedModule {
   module_path_text : String
   checked : @checked.CheckedSourceFile
   interface : @module_interface.ModuleInterface
-  interface_fingerprint : @artifact_core.CompilationFingerprint
-  fingerprint : @artifact_core.CompilationFingerprint
+  interface_fingerprint : @artifact.CompilationFingerprint
+  fingerprint : @artifact.CompilationFingerprint
   imported_interface_fingerprints : Array[
-    @artifact_core.ImportedInterfaceFingerprint,
+    @artifact.ImportedInterfaceFingerprint,
   ]
   exported_symbols : @symbol.SymbolMetadataArena
   diagnostics : Array[CompilerDiagnostic]
@@ -152,9 +152,13 @@ fn compile_one_module(
         diagnostic.with_source_id(input.source_id)
       })
       let interface = { ..interface, source_id: Some(input.source_id) }
-      let imported_fingerprints = imported_environment_fingerprints(direct)
-      let interface_fingerprint = interface_fingerprint(interface)
-      let fingerprint = module_fingerprint(interface, imported_fingerprints)
+      let imported_fingerprints = @artifact.imported_environment_fingerprints(
+        direct,
+      )
+      let interface_fingerprint = @artifact.interface_fingerprint(interface)
+      let fingerprint = @artifact.module_fingerprint(
+        interface, imported_fingerprints,
+      )
       Ok({
         module_path_text: input.header.module_path_text,
         checked,

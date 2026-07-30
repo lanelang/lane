@@ -1,8 +1,8 @@
 import {
   "Milky2018/buslane",
   "Milky2018/diagnostic/render" @diag_render,
+  "Milky2018/lanec/artifact",
   "Milky2018/lanec/compile",
-  "Milky2018/lanec/compile/artifact_binary",
   "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/executable",

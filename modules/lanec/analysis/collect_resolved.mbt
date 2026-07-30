@@ -30,99 +30,6 @@ fn SemanticIndex::add_member(
 }
 
 ///|
-fn SemanticIndex::add_top_level_declaration(
-  self : SemanticIndex,
-  declaration : @resolve.ResolvedTopLevelDeclaration,
-) -> Unit {
-  match declaration {
-    Struct(declaration) =>
-      self.top_level_declarations.push({
-        symbol: TopLevelType(declaration.symbol),
-        name: declaration.name,
-        kind: StructDeclaration,
-        is_public: declaration.is_public,
-        name_loc: declaration.name_loc,
-        loc: declaration.loc,
-      })
-    Enum(declaration) =>
-      self.top_level_declarations.push({
-        symbol: TopLevelType(declaration.symbol),
-        name: declaration.name,
-        kind: EnumDeclaration,
-        is_public: declaration.is_public,
-        name_loc: declaration.name_loc,
-        loc: declaration.loc,
-      })
-    ExternalType(declaration) =>
-      self.top_level_declarations.push({
-        symbol: TopLevelType(declaration.symbol),
-        name: declaration.name,
-        kind: ExternalTypeDeclaration,
-        is_public: declaration.is_public,
-        name_loc: declaration.name_loc,
-        loc: declaration.loc,
-      })
-    Effect(declaration) =>
-      self.top_level_declarations.push({
-        symbol: TopLevelEffect(declaration.symbol),
-        name: declaration.name,
-        kind: EffectDeclaration,
-        is_public: declaration.is_public,
-        name_loc: declaration.name_loc,
-        loc: declaration.loc,
-      })
-    TypeAlias(declaration) =>
-      self.top_level_declarations.push({
-        symbol: TopLevelAlias(declaration.symbol),
-        name: declaration.name,
-        kind: match declaration.body {
-          TypeBody(_) => TypeAliasDeclaration
-          EffectBody(_) => EffectAliasDeclaration
-        },
-        is_public: declaration.is_public,
-        name_loc: declaration.name_loc,
-        loc: declaration.loc,
-      })
-    Function(declaration) => {
-      self.top_level_declarations.push({
-        symbol: TopLevelValue(declaration.symbol),
-        name: declaration.name,
-        kind: FunctionDeclaration,
-        is_public: declaration.is_public,
-        name_loc: declaration.name_loc,
-        loc: declaration.loc,
-      })
-      self.add_parameter_signature(declaration.symbol, declaration.parameters)
-    }
-    Let(declaration) =>
-      self.top_level_declarations.push({
-        symbol: TopLevelValue(declaration.symbol),
-        name: declaration.name,
-        kind: ValueDeclaration,
-        is_public: declaration.is_public,
-        name_loc: declaration.name_loc,
-        loc: declaration.loc,
-      })
-  }
-}
-
-///|
-fn SemanticIndex::top_level_symbol(
-  _self : SemanticIndex,
-  declaration : @resolve.ResolvedTopLevelDeclaration,
-) -> TopLevelSymbol? {
-  match declaration {
-    Struct(declaration) => Some(TopLevelType(declaration.symbol))
-    Enum(declaration) => Some(TopLevelType(declaration.symbol))
-    ExternalType(declaration) => Some(TopLevelType(declaration.symbol))
-    Effect(declaration) => Some(TopLevelEffect(declaration.symbol))
-    TypeAlias(declaration) => Some(TopLevelAlias(declaration.symbol))
-    Function(declaration) => Some(TopLevelValue(declaration.symbol))
-    Let(declaration) => Some(TopLevelValue(declaration.symbol))
-  }
-}
-
-///|
 fn SemanticIndex::add_binding(
   self : SemanticIndex,
   identity : SemanticBindingIdentity,
@@ -161,13 +68,7 @@ fn SemanticIndex::collect_resolved_declaration(
   self : SemanticIndex,
   declaration : @resolve.ResolvedTopLevelDeclaration,
 ) -> Unit {
-  match self.top_level_symbol(declaration) {
-    Some(symbol) =>
-      self.with_top_level(symbol, fn(index) {
-        index.collect_resolved_declaration_body(declaration)
-      })
-    None => self.collect_resolved_declaration_body(declaration)
-  }
+  self.collect_resolved_declaration_body(declaration)
 }
 
 ///|
@@ -329,6 +230,7 @@ fn SemanticIndex::collect_resolved_declaration_body(
       }
     }
     Function(declaration) => {
+      self.add_parameter_signature(declaration.symbol, declaration.parameters)
       self.add_binding(
         ValueBinding(declaration.symbol),
         declaration.name,
@@ -390,26 +292,7 @@ fn SemanticIndex::add_resolved_type_parameters(
   parameters : Array[@resolve.ResolvedTypeParameter],
   visibility : SemanticBindingVisibility,
 ) -> Unit {
-  self.add_generic_parameters(parameters)
   self.add_completion_type_parameters(parameters, visibility)
-}
-
-///|
-fn SemanticIndex::add_generic_parameters(
-  self : SemanticIndex,
-  parameters : Array[@resolve.ResolvedTypeParameter],
-) -> Unit {
-  for parameter in parameters {
-    self.generic_parameters.push({
-      symbol: parameter.symbol,
-      name: parameter.name,
-      kind: match parameter.kind {
-        Some(Effect(_)) => GenericEffectParameter
-        _ => GenericTypeParameter
-      },
-      loc: parameter.name_loc,
-    })
-  }
 }
 
 ///|
@@ -659,15 +542,12 @@ fn SemanticIndex::collect_resolved_expr_symbols(
   expr : @resolve.ResolvedExpr,
 ) -> Unit {
   match expr {
-    Var(name~, reference~, loc~) => {
-      self.collect_resolved_value_reference(reference)
+    Var(name~, reference~, loc~) =>
       if !self.has_checked_source && reference is Symbol(symbol) {
         self.add_reference(Value(symbol), loc, Some(name))
       }
-    }
     QualifiedVariant(reference~, variant_loc~, ..)
-    | UnqualifiedVariant(reference~, variant_loc~, ..) => {
-      self.collect_resolved_variant_reference(reference)
+    | UnqualifiedVariant(reference~, variant_loc~, ..) =>
       if !self.has_checked_source && reference is Symbol(symbol) {
         self.add_reference(
           Variant(symbol),
@@ -675,11 +555,9 @@ fn SemanticIndex::collect_resolved_expr_symbols(
           self.definition_detail(Variant(symbol)),
         )
       }
-    }
     StructLiteral(fields~, ..) =>
       for field in fields {
         if field is Value(name~, value~, punned_reference=Some(reference), loc~) {
-          self.collect_resolved_value_reference(reference)
           if !self.has_checked_source && reference is Symbol(symbol) {
             let span = match value {
               Some(value) => value.loc()
@@ -704,18 +582,14 @@ fn SemanticIndex::collect_resolved_expr_symbols(
           }
         }
       }
-    Field(reference~, name~, loc~, ..) => {
-      self.collect_resolved_field_reference(reference)
+    Field(reference~, name~, loc~, ..) =>
       if !self.has_checked_source && reference is Symbol(symbol) {
         self.add_reference(Field(symbol), loc, Some(name))
       }
-    }
-    Unary(target~, loc~, ..) | Binary(target~, loc~, ..) => {
-      self.collect_resolved_value_reference(target.reference)
+    Unary(target~, loc~, ..) | Binary(target~, loc~, ..) =>
       if !self.has_checked_source && target.reference is Symbol(symbol) {
         self.add_reference(Value(symbol), loc, None)
       }
-    }
     Derive(source~, ..) =>
       self.upsert_hover(source.keyword_loc, unresolved_derive_hover())
     _ => ()
@@ -743,79 +617,13 @@ fn SemanticIndex::add_resolved_operation_reference(
 }
 
 ///|
-fn SemanticIndex::collect_resolved_value_reference(
-  self : SemanticIndex,
-  reference : @resolve.ResolvedValueReference,
-) -> Unit {
-  if reference is Symbol(symbol) {
-    self.add_top_level_reference(TopLevelValue(symbol))
-  }
-}
-
-///|
-fn SemanticIndex::collect_resolved_field_reference(
-  self : SemanticIndex,
-  reference : @resolve.ResolvedFieldReference,
-) -> Unit {
-  if reference is Symbol(symbol) {
-    if self.registry.field_metadata(symbol) is Some(metadata) {
-      self.add_top_level_reference(TopLevelType(metadata.owner))
-    }
-  }
-}
-
-///|
-fn SemanticIndex::collect_resolved_variant_reference(
-  self : SemanticIndex,
-  reference : @resolve.ResolvedVariantReference,
-) -> Unit {
-  match reference {
-    Symbol(symbol) =>
-      if self.registry.variant_metadata(symbol) is Some(metadata) {
-        self.add_top_level_reference(TopLevelType(metadata.owner))
-      }
-    Ambiguous(candidates~, ..) =>
-      for candidate in candidates {
-        if self.registry.variant_metadata(candidate) is Some(metadata) {
-          self.add_top_level_reference(TopLevelType(metadata.owner))
-        }
-      }
-    Unresolved(_) | UnresolvedUnqualified(_) => ()
-  }
-}
-
-///|
 fn SemanticIndex::collect_resolved_operation_name(
   self : SemanticIndex,
   name : @resolve.ResolvedEffectOperationName,
 ) -> Unit {
   match name {
-    Qualified(owner~, reference~, ..) => {
-      self.collect_resolved_effect(owner)
-      self.collect_resolved_operation_reference(reference)
-    }
-    Unqualified(reference~, ..) =>
-      self.collect_resolved_operation_reference(reference)
-  }
-}
-
-///|
-fn SemanticIndex::collect_resolved_operation_reference(
-  self : SemanticIndex,
-  reference : @resolve.ResolvedOperationReference,
-) -> Unit {
-  match reference {
-    Symbol(symbol) =>
-      if self.registry.operation_metadata(symbol) is Some(metadata) {
-        self.add_top_level_reference(TopLevelEffect(metadata.owner))
-      }
-    Ambiguous(candidates~, ..) =>
-      for candidate in candidates {
-        if self.registry.operation_metadata(candidate) is Some(metadata) {
-          self.add_top_level_reference(TopLevelEffect(metadata.owner))
-        }
-      }
-    Unresolved(_) => ()
+    Qualified(owner~, ..) => self.collect_resolved_effect(owner)
+    Unqualified(_) => ()
   }
 }
 
@@ -828,7 +636,6 @@ fn SemanticIndex::collect_resolved_pattern(
   match pattern {
     QualifiedVariant(type_binders~, reference~, arguments~, variant_loc~, ..) => {
       self.add_resolved_type_parameters(type_binders, visibility)
-      self.collect_resolved_variant_reference(reference)
       if !self.has_checked_source && reference is Symbol(symbol) {
         self.add_reference(
           Variant(symbol),
@@ -880,34 +687,24 @@ fn SemanticIndex::collect_resolved_type(
 ) -> Unit {
   match type_ {
     Primitive(_) => ()
-    Constructor(symbol~, name~, loc~) => {
+    Constructor(symbol~, name~, loc~) =>
       self.add_reference(Type(symbol), loc, Some("type \{name.display_text()}"))
-      self.add_top_level_reference(TopLevelType(symbol))
-    }
-    Alias(symbol~, name~, loc~, ..) => {
-      self.add_top_level_reference(TopLevelAlias(symbol))
+    Alias(symbol~, name~, loc~, ..) =>
       self.add_reference(
         TypeAlias(symbol),
         loc,
         Some("type alias \{name.display_text()}"),
       )
-    }
     Apply(callee~, arguments~, ..) => {
       self.collect_resolved_type(callee)
       for argument in arguments {
         self.collect_resolved_generic_argument(argument)
       }
     }
-    TypeLambda(parameters~, body~, ..) => {
-      self.add_generic_parameters(parameters)
-      self.collect_resolved_type(body)
-    }
-    Parameter(symbol~, name~, loc~) => {
-      self.generic_parameter_references.push(symbol)
+    TypeLambda(body~, ..) => self.collect_resolved_type(body)
+    Parameter(symbol~, name~, loc~) =>
       self.add_reference(TypeParameter(symbol), loc, Some("type \{name}"))
-    }
-    Function(type_parameters~, parameters~, result~, effect~, ..) => {
-      self.add_generic_parameters(type_parameters)
+    Function(parameters~, result~, effect~, ..) => {
       for parameter in parameters {
         self.collect_resolved_type(parameter)
       }
@@ -938,17 +735,13 @@ fn SemanticIndex::collect_resolved_effect(
         loc,
         Some("effect \{name.display_text()}"),
       )
-      self.add_top_level_reference(TopLevelEffect(symbol))
       for argument in arguments {
         self.collect_resolved_generic_argument(argument)
       }
     }
-    Parameter(symbol~, name~, loc~) => {
-      self.generic_parameter_references.push(symbol)
+    Parameter(symbol~, name~, loc~) =>
       self.add_reference(TypeParameter(symbol), loc, Some("effect \{name}"))
-    }
     Alias(symbol~, name~, arguments~, loc~, ..) => {
-      self.add_top_level_reference(TopLevelAlias(symbol))
       self.add_reference(
         TypeAlias(symbol),
         loc,

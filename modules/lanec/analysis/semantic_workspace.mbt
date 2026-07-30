@@ -706,9 +706,7 @@ fn build_cached_semantic_module(
         resolved.source,
         source,
         input.text,
-      ).map(fn(diagnostic) {
-        diagnostic.with_source_id(input.source_id)
-      }),
+      ).map(fn(diagnostic) { diagnostic.with_source_id(input.source_id) }),
     )
   }
   {

@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/lint"
+
+import {
+  "Milky2018/lanec/checked",
+  "Milky2018/lanec/diagnostic",
+  "Milky2018/lanec/resolve",
+  "Milky2018/lanec/symbol",
+}
+
+// Values
+pub fn checked_semantic_warning_diagnostics(@resolve.ResolvedSourceFile, @checked.CheckedSourceFile, String) -> Array[@diagnostic.CompilerDiagnostic]
+
+pub fn checked_unused_local_value_binding_diagnostics(@checked.CheckedSourceFile, @symbol.SymbolRegistry, String) -> Array[@diagnostic.CompilerDiagnostic]
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+
