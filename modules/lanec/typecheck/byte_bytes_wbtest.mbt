@@ -10,7 +10,7 @@ test "typecheck accepts the complete Byte and Bytes builtin contract" {
       #|let bytes_set : (Bytes, Int, Byte) -> Bytes = builtin("%bytes_set")
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
+  assert_eq(result.diagnostics, [])
   assert_true(result.source is Some(_))
 }
 

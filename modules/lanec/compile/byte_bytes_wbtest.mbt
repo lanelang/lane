@@ -1,19 +1,4 @@
 ///|
-fn byte_bytes_instruction_name(
-  instruction : @loisvm_bytecode.Instruction,
-) -> String? {
-  match instruction {
-    ByteToInt(_, _) => Some("byte_to_int")
-    IntToByte(_, _) => Some("int_to_byte")
-    BytesMake(_, _, _) => Some("bytes_make")
-    BytesLength(_, _) => Some("bytes_length")
-    BytesGet(_, _, _) => Some("bytes_get")
-    BytesSet(_, _, _, _) => Some("bytes_set")
-    _ => None
-  }
-}
-
-///|
 test "compiler preserves Byte and Bytes through executable lowering" {
   let compiled = compile_modules(
     (
@@ -60,19 +45,48 @@ test "compiler preserves Byte and Bytes through executable lowering" {
     Ok(artifact) => artifact
     Err(error) => fail("LoisVM lowering failed: \{Repr(error)}")
   }
-  let instructions : Array[String] = []
+  let instructions : Array[@loisvm_bytecode.Instruction] = []
   for function in artifact.bytecode.functions {
     if function is BytecodeBody(body) {
       for block in body.blocks {
-        instructions.append(
-          block.instructions.filter_map(byte_bytes_instruction_name),
-        )
+        instructions.append(block.instructions)
       }
     }
   }
   assert_eq(instructions, [
-    "int_to_byte", "bytes_make", "int_to_byte", "bytes_set", "bytes_length", "bytes_get",
-    "byte_to_int",
+    ConstInt({ value: 0 }, 255L),
+    IntToByte({ value: 1 }, { value: 0 }),
+    ConstLayout({ value: 2 }, { value: 1 }),
+    EraseI32({ value: 4 }, { value: 1 }),
+    CallDirect(
+      { value: 1 },
+      None,
+      [{ value: 2 }],
+      [{ value: 4 }],
+      Some({ value: 6 }),
+    ),
+    UneraseI32({ value: 1 }, { value: 6 }),
+    ConstInt({ value: 0 }, 2L),
+    BytesMake({ value: 7 }, { value: 0 }, { value: 1 }),
+    ConstLayout({ value: 1 }, { value: 2 }),
+    EraseI32({ value: 9 }, { value: 7 }),
+    CallDirect(
+      { value: 1 },
+      None,
+      [{ value: 1 }],
+      [{ value: 9 }],
+      Some({ value: 11 }),
+    ),
+    UneraseI32({ value: 12 }, { value: 11 }),
+    ConstInt({ value: 0 }, 0L),
+    IntToByte({ value: 1 }, { value: 0 }),
+    ConstInt({ value: 0 }, 1L),
+    BytesSet({ value: 13 }, { value: 12 }, { value: 0 }, { value: 1 }),
+    BytesLength({ value: 14 }, { value: 13 }),
+    CallDirect({ value: 3 }, None, [], [{ value: 14 }], None),
+    BytesGet({ value: 1 }, { value: 13 }, { value: 0 }),
+    ByteToInt({ value: 0 }, { value: 1 }),
+    Release({ value: 13 }),
   ])
   assert_eq(
     artifact.bytecode.layouts.filter(layout => layout is Byte || layout is Bytes),
