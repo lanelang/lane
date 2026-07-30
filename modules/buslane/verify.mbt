@@ -48,9 +48,82 @@ priv struct TypeScope {
 }
 
 ///|
-priv struct SynthesizedExpr {
-  type_ : Type
-  effect : Effect
+pub(all) struct ExpressionFacts {
+  priv type_ : Type
+  priv effect : Effect
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ExpressionFactsQuery {
+  priv program : Program
+  priv values : Array[ValueId]
+  priv type_parameters : Array[TypeParameterId]
+}
+
+///|
+pub fn ExpressionFacts::type_(self : ExpressionFacts) -> Type {
+  self.type_
+}
+
+///|
+pub fn ExpressionFacts::effect(self : ExpressionFacts) -> Effect {
+  self.effect
+}
+
+///|
+pub fn ExpressionFactsQuery::new(program : Program) -> ExpressionFactsQuery {
+  let values : Array[ValueId] = []
+  for index in 0..<program.metadata.values.length() {
+    values.push(ValueId::{ index, })
+  }
+  let type_parameters : Array[TypeParameterId] = []
+  for index in 0..<program.metadata.type_parameters.length() {
+    type_parameters.push(TypeParameterId::{ index, })
+  }
+  { program, values, type_parameters }
+}
+
+///|
+pub fn ExpressionFactsQuery::synthesize(
+  self : ExpressionFactsQuery,
+  expression : Expr,
+) -> Result[ExpressionFacts, VerifyResult] {
+  let context = VerifyContext::{ program: self.program, diagnostics: [] }
+  let facts = context.synthesize_expr(expression, { values: self.values }, {
+    parameters: self.type_parameters,
+  })
+  let blockers = context.diagnostics.filter(diagnostic => {
+    diagnostic.blocks_expression_facts()
+  })
+  if blockers.is_empty() {
+    Ok(facts)
+  } else {
+    Err({ diagnostics: blockers })
+  }
+}
+
+///|
+fn VerifyDiagnostic::blocks_expression_facts(self : VerifyDiagnostic) -> Bool {
+  !self.kind.is_type_compatibility_diagnostic()
+}
+
+///|
+fn VerifyDiagnosticKind::is_type_compatibility_diagnostic(
+  self : VerifyDiagnosticKind,
+) -> Bool {
+  self is TypeMismatch(_)
+}
+
+///|
+pub fn ExpressionFactsQuery::has_empty_effect(
+  self : ExpressionFactsQuery,
+  expression : Expr,
+) -> Result[Bool, VerifyResult] {
+  self
+  .synthesize(expression)
+  .map(facts => {
+    self.program.metadata.effects_definitionally_equal(facts.effect, Empty)
+  })
 }
 
 ///|
@@ -263,7 +336,7 @@ fn VerifyContext::synthesize_expr(
   expr : Expr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   match expr {
     Ref(id) => self.synthesize_ref(id, value_scope)
     Literal(literal) => pure_expr(literal.type_())
@@ -294,7 +367,7 @@ fn VerifyContext::synthesize_ref(
   self : VerifyContext,
   id : ValueId,
   scope : ValueScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   guard self.program.metadata.value_info(id) is Some(info) else {
     self.report(UnknownValue(id))
     return pure_expr(Primitive(Unit))
@@ -311,7 +384,7 @@ fn VerifyContext::synthesize_function(
   function : FunctionExpr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   let parameters : Array[Type] = []
   let body_scope = value_scope.copy()
   for parameter in function.parameters {
@@ -339,7 +412,7 @@ fn VerifyContext::synthesize_call(
   arguments : Array[Expr],
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   let callee_result = self.synthesize_expr(callee, value_scope, type_scope)
   guard callee_result.type_
     is Function(parameter_types, result_type, latent_effect) else {
@@ -379,7 +452,7 @@ fn VerifyContext::synthesize_type_lambda(
   body : Expr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   let body_scope = type_scope.copy()
   for parameter in parameters {
     self.require_type_parameter(parameter)
@@ -402,7 +475,7 @@ fn VerifyContext::synthesize_type_apply(
   arguments : Array[GenericArgument],
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   let callee_result = self.synthesize_expr(callee, value_scope, type_scope)
   guard callee_result.type_ is Forall(parameters, body) else {
     self.report(NotForall(callee_result.type_))
@@ -426,7 +499,7 @@ fn VerifyContext::synthesize_construct(
   construct : ConstructExpr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   guard self.program.metadata.data_constructor_info(construct.data_constructor)
     is Some(info) else {
     self.report(UnknownDataConstructor(construct.data_constructor))
@@ -495,7 +568,7 @@ fn VerifyContext::synthesize_perform(
   perform : PerformExpr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   guard self.program.metadata.operation_info(perform.operation) is Some(info) else {
     self.report(UnknownOperation(perform.operation))
     return pure_expr(Primitive(Unit))
@@ -564,7 +637,7 @@ fn VerifyContext::synthesize_handle(
   handle : HandleExpr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   let body_result = self.synthesize_expr(handle.body, value_scope, type_scope)
   let handled_effects = handle.handlers.map(fn(table) { table.handled_effect })
   let residual_body_effect = self.remove_handled_effects(
@@ -753,7 +826,7 @@ fn VerifyContext::synthesize_let(
   body : Expr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   guard self.program.metadata.value_info(id) is Some(info) else {
     self.report(UnknownValue(id))
     return self.synthesize_expr(body, value_scope, type_scope)
@@ -784,7 +857,7 @@ fn VerifyContext::synthesize_letrec(
   body : Expr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   let body_scope = value_scope.copy()
   for binding in bindings {
     body_scope.values.push(binding.id)
@@ -817,7 +890,7 @@ fn VerifyContext::synthesize_match(
   match_ : MatchExpr,
   value_scope : ValueScope,
   type_scope : TypeScope,
-) -> SynthesizedExpr {
+) -> ExpressionFacts {
   let scrutinee_result = self.synthesize_expr(
     match_.scrutinee,
     value_scope,
@@ -1386,7 +1459,7 @@ fn TypeScope::copy(self : TypeScope) -> TypeScope {
 }
 
 ///|
-fn pure_expr(type_ : Type) -> SynthesizedExpr {
+fn pure_expr(type_ : Type) -> ExpressionFacts {
   { type_, effect: Empty }
 }
 

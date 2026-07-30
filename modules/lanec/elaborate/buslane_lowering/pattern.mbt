@@ -21,13 +21,17 @@ fn BuslaneLowerer::lower_pattern_decision(
   }
   let constructors = self.lower_first_column_signatures(rows)
   if constructors.is_empty() {
-    return self.lower_pattern_decision(
+    let body = self.lower_pattern_decision(
       buslane_expr_tail(scrutinees),
       buslane_value_tail(binders),
       self.lower_default_rows(rows, binder),
       lower_type_tail(types),
       result_type,
     )
+    return match scrutinee {
+      Ref(value) if value == binder => body
+      _ => Let(binder, scrutinee, body)
+    }
   }
   let alternatives = constructors.map(fn(signature) {
     self.lower_constructor_decision_alternative(

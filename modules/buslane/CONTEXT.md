@@ -38,6 +38,10 @@ _Avoid_: occurrence name, pretty text, source span, namespace-local text suffix
 The pure checker that validates Buslane metadata, scope, and expression typing.
 _Avoid_: Lane source typechecker, parser validation
 
+**Buslane Expression Facts**:
+The type and effect synthesized for a Buslane expression from its program metadata. Type-compatibility diagnostics do not invalidate already synthesized facts; structural failures that require sentinel facts do. Verification and effect-aware optimization share this semantic query rather than maintaining parallel expression classifications.
+_Avoid_: optimizer purity taxonomy, duplicated type field, structural effect equality
+
 **Buslane Interpreter**:
 The reference evaluator for Buslane programs.
 _Avoid_: source interpreter, bytecode VM
@@ -137,6 +141,7 @@ _Avoid_: artifact text parser, compiler artifact writer, inspect renderer
 
 - `lanec` lowers checked Lane source into the **Buslane Core Language**.
 - `buslane` does not depend on Lane parser, resolver, or source diagnostics.
+- **Buslane Expression Facts** are synthesized by the verifier-owned typing relation and reused by effect-aware optimization.
 - A Buslane program may serve the **Canonical Core Artifact Role**, but Buslane
   itself does not own module interfaces, module objects, linked artifacts, bytecode caches, or
   execution image policy.

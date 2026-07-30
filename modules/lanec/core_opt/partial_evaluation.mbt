@@ -19,6 +19,7 @@ priv struct KnownCall {
 ///|
 priv struct PartialEvaluator {
   program : @buslane.Program
+  facts : @buslane.ExpressionFactsQuery
   analysis : InterproceduralAnalysis
   expansions : Array[Int]
   mut remaining_expansions : Int
@@ -39,6 +40,7 @@ fn partially_evaluate_program(
     }
     let evaluator : PartialEvaluator = {
       program: current,
+      facts: @buslane.ExpressionFactsQuery::new(current),
       analysis: analyze_interprocedural(current, entry, roots),
       expansions,
       remaining_expansions,
@@ -216,12 +218,14 @@ fn PartialEvaluator::try_inline_known_call(
   }
   let reduced = simplify_expr(
     self.program,
+    self.facts,
     self.analysis.core,
     substitutions,
     cloned.body,
   )
   let speculative : PartialEvaluator = {
     program: self.program,
+    facts: self.facts,
     analysis: self.analysis,
     expansions: self.expansions.copy(),
     remaining_expansions: self.remaining_expansions - 1,

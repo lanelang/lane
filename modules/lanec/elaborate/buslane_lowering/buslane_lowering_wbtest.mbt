@@ -447,6 +447,26 @@ fn first_checked_handler_expr_for_elaborate_test(
 }
 
 ///|
+test "irrefutable pattern lowering preserves an effectful initializer" {
+  let result = elaborate_buslane_source(
+    (
+      #|effect Observe {
+      #|  observe() -> Unit
+      #|}
+      #|
+      #|fn run() -> Unit ! Observe {
+      #|  let _ : Unit = Observe::observe!()
+      #|  ()
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    fail("expected Buslane lowering to succeed")
+  }
+  assert_eq(BuslaneLoweringShape::from_program(program).performs, 1)
+}
+
+///|
 test "pre-buslane lowering contract covers source-only forms and witnesses" {
   let result = elaborate_buslane_source(
     (

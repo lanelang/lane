@@ -111,6 +111,19 @@ pub(all) enum Expr {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Expr
 
+pub(all) struct ExpressionFacts {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ExpressionFacts::effect(Self) -> Effect
+pub fn ExpressionFacts::type_(Self) -> Type
+
+pub(all) struct ExpressionFactsQuery {
+  // private fields
+}
+pub fn ExpressionFactsQuery::has_empty_effect(Self, Expr) -> Result[Bool, VerifyResult]
+pub fn ExpressionFactsQuery::new(Program) -> Self
+pub fn ExpressionFactsQuery::synthesize(Self, Expr) -> Result[ExpressionFacts, VerifyResult]
+
 pub(all) struct FunctionExpr {
   parameters : Array[ValueId]
   result_type : Type

@@ -35,10 +35,7 @@ Byte parameters, locals, and results.
 | `builtin("%bytes_get")` | `(Bytes, Int) -> Byte` |
 | `builtin("%bytes_set")` | `(Bytes, Int, Byte) -> Bytes` |
 
-`%bytes_make` initializes every element with the supplied Byte Value.
-Construction with a negative length and indexing outside
-`0 <= index < length` panic. The builtin contract does not depend on a nominal
-`Option` type; recoverable bounds checking belongs in ordinary library APIs.
+`%bytes_make` initializes every element with the supplied Byte Value. Its caller must provide a nonnegative length, and `%bytes_get` and `%bytes_set` require `0 <= index < length`. Violating these builtin preconditions is undefined Lane behavior; execution backends retain defensive checks so invalid bytecode cannot corrupt runtime memory. The builtin contract does not depend on a nominal `Option` type; ordinary library wrappers establish the preconditions and expose recoverable bounds checking.
 
 A runtime Bytes Value is one owned ARC reference to an object containing its
 logical length and exactly that many packed one-byte elements. The first
@@ -64,6 +61,4 @@ borrowing are outside this decision.
 - Adding the new primitive and bytecode tags follows the current-format
   versioning policy: affected schemas advance and old formats are rejected
   rather than decoded through compatibility branches.
-- Allocation and bounds failures are fatal runtime failures, consistent with
-  other primitive operations that cannot return a library-defined recovery
-  type.
+- Allocation or resource exhaustion for an otherwise valid request remains a fatal runtime failure. Invalid length and index arguments violate the primitive preconditions and have undefined Lane behavior.

@@ -142,6 +142,44 @@ test "core optimizer removes dead pure lets but preserves effectful calls" {
 }
 
 ///|
+test "core optimizer removes an unused empty-effect call" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let pure_function_type = @buslane.Type::Function([], unit_type, Empty)
+  let pure = metadata.define_value("pure", External, pure_function_type)
+  let dead = metadata.define_value("dead", Local, unit_type)
+  let main = metadata.define_value("main", Function, pure_function_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      External(pure),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Let(dead, Call(Ref(pure), []), Literal(Unit)),
+        }),
+      ),
+    ],
+  }
+  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+    fail("expected core optimization to succeed")
+  }
+  debug_inspect(
+    optimized.terms,
+    content=(
+      #|[
+      #|  Let(
+      #|    { index: 2 },
+      #|    Function({ parameters: [], result_type: Primitive(Unit), body: Literal(Unit) }),
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "core optimizer reduces trivial beta calls and known constructor matches" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let int_type = @buslane.Type::Primitive(Int)

@@ -1,27 +1,11 @@
 ///|
-fn expression_is_pure(
-  program : @buslane.Program,
+fn expression_has_empty_effect(
+  facts : @buslane.ExpressionFactsQuery,
   expression : @buslane.Expr,
 ) -> Bool {
-  match expression {
-    Ref(_) | Literal(_) | Function(_) => true
-    Call(_, _) => false
-    TypeLambda(_, body) | TypeApply(body, _) =>
-      expression_is_pure(program, body)
-    Construct(construct) =>
-      construct.payloads.all(payload => expression_is_pure(program, payload))
-    Let(_, initializer, body) =>
-      expression_is_pure(program, initializer) &&
-      expression_is_pure(program, body)
-    LetRec(bindings, body) =>
-      bindings.all(binding => expression_is_pure(program, binding.rhs)) &&
-      expression_is_pure(program, body)
-    Match(match_) =>
-      expression_is_pure(program, match_.scrutinee) &&
-      match_.alternatives.all(alternative => {
-        expression_is_pure(program, alternative.body)
-      })
-    Perform(_) | Handle(_) | Resume(_) => false
+  match facts.has_empty_effect(expression) {
+    Ok(result) => result
+    Err(_) => abort("core optimizer requires a verified Buslane expression")
   }
 }
 
