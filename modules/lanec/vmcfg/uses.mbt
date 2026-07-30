@@ -108,6 +108,7 @@ fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
     | MakeClosure(_, _, source) => [source]
     ConstInt(_, _)
     | ConstS32(_, _)
+    | ConstChar(_, _)
     | ConstDouble(_, _)
     | ConstBool(_, _)
     | ConstLayout(_, _)

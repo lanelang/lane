@@ -722,6 +722,7 @@ fn buslane_primitive_text(primitive : @buslane.PrimitiveType) -> String {
     Bool => "Bool"
     Int => "Int"
     S32 => "S32"
+    Char => "Char"
     Double => "Double"
     String => "String"
     Byte => "Byte"

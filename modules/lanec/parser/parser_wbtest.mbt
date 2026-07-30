@@ -25,6 +25,203 @@ fn parse_error_kinds(source : String) -> Array[ParseErrorKind] {
 }
 
 ///|
+test "parse character literals in expressions and patterns" {
+  let file = expect_parse_ok(
+    (
+      #|fn classify(value : Char) -> Char {
+      #|  match value {
+      #|    '你' => '\u{1F600}'
+      #|    _ => 'x'
+      #|  }
+      #|}
+    ),
+  )
+  debug_inspect(
+    file.declarations,
+    content=(
+      #|[
+      #|  Function(
+      #|    {
+      #|      is_public: false,
+      #|      is_offered: false,
+      #|      type_parameters: [],
+      #|      name: "classify",
+      #|      name_loc: {
+      #|        start_offset: 15,
+      #|        end_offset: 23,
+      #|        start_line: 2,
+      #|        start_column: 4,
+      #|        end_line: 2,
+      #|        end_column: 12,
+      #|      },
+      #|      parameters: [
+      #|        {
+      #|          is_auto: false,
+      #|          is_offered: false,
+      #|          name: "value",
+      #|          name_loc: {
+      #|            start_offset: 24,
+      #|            end_offset: 29,
+      #|            start_line: 2,
+      #|            start_column: 13,
+      #|            end_line: 2,
+      #|            end_column: 18,
+      #|          },
+      #|          type_: Name(
+      #|            name="Char",
+      #|            loc={
+      #|              start_offset: 32,
+      #|              end_offset: 36,
+      #|              start_line: 2,
+      #|              start_column: 21,
+      #|              end_line: 2,
+      #|              end_column: 25,
+      #|            },
+      #|          ),
+      #|          loc: {
+      #|            start_offset: 24,
+      #|            end_offset: 36,
+      #|            start_line: 2,
+      #|            start_column: 13,
+      #|            end_line: 2,
+      #|            end_column: 25,
+      #|          },
+      #|        },
+      #|      ],
+      #|      return_type: Name(
+      #|        name="Char",
+      #|        loc={
+      #|          start_offset: 41,
+      #|          end_offset: 45,
+      #|          start_line: 2,
+      #|          start_column: 30,
+      #|          end_line: 2,
+      #|          end_column: 34,
+      #|        },
+      #|      ),
+      #|      effect: Empty(
+      #|        loc={
+      #|          start_offset: 41,
+      #|          end_offset: 45,
+      #|          start_line: 2,
+      #|          start_column: 30,
+      #|          end_line: 2,
+      #|          end_column: 34,
+      #|        },
+      #|      ),
+      #|      body: Block(
+      #|        items=[],
+      #|        result=Match(
+      #|          scrutinee=Var(
+      #|            "value",
+      #|            loc={
+      #|              start_offset: 56,
+      #|              end_offset: 61,
+      #|              start_line: 3,
+      #|              start_column: 9,
+      #|              end_line: 3,
+      #|              end_column: 14,
+      #|            },
+      #|          ),
+      #|          arms=[
+      #|            {
+      #|              pattern: CharLiteral(
+      #|                20320,
+      #|                loc={
+      #|                  start_offset: 68,
+      #|                  end_offset: 71,
+      #|                  start_line: 4,
+      #|                  start_column: 5,
+      #|                  end_line: 4,
+      #|                  end_column: 8,
+      #|                },
+      #|              ),
+      #|              body: CharLiteral(
+      #|                128512,
+      #|                loc={
+      #|                  start_offset: 75,
+      #|                  end_offset: 86,
+      #|                  start_line: 4,
+      #|                  start_column: 12,
+      #|                  end_line: 4,
+      #|                  end_column: 23,
+      #|                },
+      #|              ),
+      #|              loc: {
+      #|                start_offset: 68,
+      #|                end_offset: 86,
+      #|                start_line: 4,
+      #|                start_column: 5,
+      #|                end_line: 4,
+      #|                end_column: 23,
+      #|              },
+      #|            },
+      #|            {
+      #|              pattern: Wildcard(
+      #|                {
+      #|                  start_offset: 91,
+      #|                  end_offset: 92,
+      #|                  start_line: 5,
+      #|                  start_column: 5,
+      #|                  end_line: 5,
+      #|                  end_column: 6,
+      #|                },
+      #|              ),
+      #|              body: CharLiteral(
+      #|                120,
+      #|                loc={
+      #|                  start_offset: 96,
+      #|                  end_offset: 99,
+      #|                  start_line: 5,
+      #|                  start_column: 10,
+      #|                  end_line: 5,
+      #|                  end_column: 13,
+      #|                },
+      #|              ),
+      #|              loc: {
+      #|                start_offset: 91,
+      #|                end_offset: 99,
+      #|                start_line: 5,
+      #|                start_column: 5,
+      #|                end_line: 5,
+      #|                end_column: 13,
+      #|              },
+      #|            },
+      #|          ],
+      #|          loc={
+      #|            start_offset: 50,
+      #|            end_offset: 103,
+      #|            start_line: 3,
+      #|            start_column: 3,
+      #|            end_line: 6,
+      #|            end_column: 4,
+      #|          },
+      #|        ),
+      #|        loc={
+      #|          start_offset: 46,
+      #|          end_offset: 105,
+      #|          start_line: 2,
+      #|          start_column: 35,
+      #|          end_line: 7,
+      #|          end_column: 2,
+      #|        },
+      #|      ),
+      #|      loc: {
+      #|        start_offset: 12,
+      #|        end_offset: 105,
+      #|        start_line: 2,
+      #|        start_column: 1,
+      #|        end_line: 7,
+      #|        end_column: 2,
+      #|      },
+      #|    },
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "parse aliased qualified import with binder spans" {
   let file = expect_parse_ok("import Basic.Data.List as List")
   guard file.imports
@@ -729,6 +926,7 @@ test "parse rejects repeated item separators" {
       #|        { label: "integer literal" },
       #|        { label: "double literal" },
       #|        { label: "string literal" },
+      #|        { label: "character literal" },
       #|        { label: "identifier" },
       #|        { label: "`false`" },
       #|        { label: "`true`" },

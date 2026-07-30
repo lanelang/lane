@@ -133,6 +133,7 @@ fn instruction_is_scalar_constant(instruction : Instruction) -> Bool {
   match instruction {
     ConstInt(_, _)
     | ConstS32(_, _)
+    | ConstChar(_, _)
     | ConstDouble(_, _)
     | ConstBool(_, _)
     | ConstLayout(_, _)
@@ -160,6 +161,7 @@ fn scalar_constants_equal(left : Instruction, right : Instruction) -> Bool {
   match (left, right) {
     (ConstInt(_, left), ConstInt(_, right)) => left == right
     (ConstS32(_, left), ConstS32(_, right)) => left == right
+    (ConstChar(_, left), ConstChar(_, right)) => left == right
     (ConstDouble(_, left), ConstDouble(_, right)) => left == right
     (ConstBool(_, left), ConstBool(_, right)) => left == right
     (ConstLayout(_, left), ConstLayout(_, right)) => left == right
@@ -248,6 +250,7 @@ fn instruction_is_dead_scalar_candidate(instruction : Instruction) -> Bool {
     Copy(_, _)
     | ConstInt(_, _)
     | ConstS32(_, _)
+    | ConstChar(_, _)
     | ConstDouble(_, _)
     | ConstBool(_, _)
     | ConstLayout(_, _)
@@ -690,6 +693,7 @@ fn map_instruction_values(
     Release(value) => Release(transform(value))
     ConstInt(destination, value) => ConstInt(transform(destination), value)
     ConstS32(destination, value) => ConstS32(transform(destination), value)
+    ConstChar(destination, value) => ConstChar(transform(destination), value)
     ConstDouble(destination, bits) => ConstDouble(transform(destination), bits)
     ConstBool(destination, value) => ConstBool(transform(destination), value)
     ConstLayout(destination, layout) =>

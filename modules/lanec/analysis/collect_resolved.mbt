@@ -868,6 +868,7 @@ fn SemanticIndex::collect_resolved_pattern(
     | IntLiteral(_)
     | DoubleLiteral(_)
     | StringLiteral(_)
+    | CharLiteral(_)
     | BoolLiteral(_) => ()
   }
 }

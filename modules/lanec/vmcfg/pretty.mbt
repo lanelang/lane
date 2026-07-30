@@ -124,6 +124,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "const_int \{render_value(destination)}, \{value}"
     ConstS32(destination, value) =>
       "const_s32 \{render_value(destination)}, \{value}"
+    ConstChar(destination, value) =>
+      "const_char \{render_value(destination)}, \{value}"
     ConstDouble(destination, bits) =>
       "const_double \{render_value(destination)}, bits=\{bits}"
     ConstBool(destination, value) =>
@@ -486,6 +488,7 @@ fn render_layout_recipe(recipe : @bytecode.LayoutRecipe) -> String {
     Bool => "bool"
     Int => "int"
     S32 => "s32"
+    Char => "char"
     Double => "double"
     Callable => "callable"
     String => "string"

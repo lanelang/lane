@@ -155,6 +155,7 @@ fn ExecutionInstance::execute_instruction(
     }
     ConstInt(destination, value) => frame.write(destination, I64(value))
     ConstS32(destination, value) => frame.write(destination, I32(value))
+    ConstChar(destination, value) => frame.write(destination, I32(value))
     ConstDouble(destination, bits) =>
       frame.write(destination, F64(bits.reinterpret_as_double()))
     ConstBool(destination, value) =>

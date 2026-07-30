@@ -73,6 +73,7 @@ pub impl @prettyprinter.Pretty for PrimitiveType with fn pretty(
     Bool => text("Bool")
     Int => text("Int")
     S32 => text("S32")
+    Char => text("Char")
     Double => text("Double")
     String => text("String")
     Byte => text("Byte")
@@ -136,6 +137,7 @@ pub impl @prettyprinter.Pretty for Literal with fn pretty(literal : Literal) {
     Bool(value) => text(value.to_string())
     Int(value) => text(value.to_string())
     S32(value) => text(value.to_string())
+    Char(value) => text(value.to_string())
     Double(value) => text(value.to_string())
     String(value) => quoted(value)
   }

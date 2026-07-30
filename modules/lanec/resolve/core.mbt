@@ -535,6 +535,7 @@ pub(all) enum ResolvedExpr {
   IntLiteral(String, loc~ : SourceSpan)
   DoubleLiteral(String, loc~ : SourceSpan)
   StringLiteral(String, loc~ : SourceSpan)
+  CharLiteral(Int, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
   UnitLiteral(loc~ : SourceSpan)
   Var(name~ : String, reference~ : ResolvedValueReference, loc~ : SourceSpan)
@@ -649,6 +650,7 @@ pub(all) enum ResolvedPattern {
   IntLiteral(String, loc~ : SourceSpan)
   DoubleLiteral(String, loc~ : SourceSpan)
   StringLiteral(String, loc~ : SourceSpan)
+  CharLiteral(Int, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
   QualifiedVariant(
     type_name~ : ResolvedNominalName,

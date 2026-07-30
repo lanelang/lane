@@ -3,6 +3,7 @@ pub(all) enum Token {
   INT(String)
   DOUBLE(String)
   STRING(String)
+  CHAR(Int)
   IDENT(String)
   RESERVED(String)
   EOF
@@ -70,9 +71,21 @@ pub(all) enum Token {
 pub(all) enum LexicalError {
   IllegalCharacter(String)
   UnterminatedString
-  InvalidStringEscape(String)
-  InvalidHexEscape(String)
-  NonAsciiStringCharacter
+  UnterminatedChar
+  InvalidLiteralEscape(String)
+  InvalidUnicodeEscape(String, UnicodeEscapeError)
+  EmptyCharLiteral
+  MultipleCharLiteral
+} derive(Debug, Eq)
+
+///|
+pub(all) enum UnicodeEscapeError {
+  MissingBraces
+  Empty
+  TooManyDigits
+  NonHexadecimal
+  OutOfRange
+  Surrogate
 } derive(Debug, Eq)
 
 ///|

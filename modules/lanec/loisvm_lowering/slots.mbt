@@ -79,7 +79,7 @@ fn slot_metadata(
         ownership: Trivial,
         erased_companion: None,
       }
-    Primitive(S32) =>
+    Primitive(S32) | Primitive(Char) =>
       {
         representation: I32,
         cleanup: Trivial,
@@ -167,6 +167,7 @@ fn result_representation(
     Primitive(Unit) => Unit
     Primitive(Bool)
     | Primitive(S32)
+    | Primitive(Char)
     | Primitive(String)
     | Primitive(Byte)
     | Primitive(Bytes)

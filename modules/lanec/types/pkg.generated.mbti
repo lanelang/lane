@@ -59,6 +59,7 @@ pub(all) enum PrimitiveType {
   Double
   Bool
   String
+  Char
   Unit
   Byte
   Bytes

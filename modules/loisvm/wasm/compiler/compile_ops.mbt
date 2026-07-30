@@ -84,6 +84,8 @@ fn compile_instruction(
       [I64Const(value), LocalSet(slot_local(parameter_count, destination))]
     ConstS32(destination, value) =>
       [I32Const(value), LocalSet(slot_local(parameter_count, destination))]
+    ConstChar(destination, value) =>
+      [I32Const(value), LocalSet(slot_local(parameter_count, destination))]
     ConstDouble(destination, bits) =>
       [
         F64Const(bits.reinterpret_as_double()),

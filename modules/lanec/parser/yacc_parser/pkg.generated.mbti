@@ -25,6 +25,7 @@ pub(all) enum Token {
   INT(String)
   DOUBLE(String)
   STRING(String)
+  CHAR(Int)
   IDENT(String)
   RESERVED(String)
   EOF
@@ -104,6 +105,7 @@ pub(all) enum TokenKind {
   TK_INT
   TK_DOUBLE
   TK_STRING
+  TK_CHAR
   TK_IDENT
   TK_RESERVED
   TK_EOF

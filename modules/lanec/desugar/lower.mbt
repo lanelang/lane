@@ -159,6 +159,7 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
     IntLiteral(value, loc~) => Literal(literal=Int(value), loc~)
     DoubleLiteral(value, loc~) => Literal(literal=Double(value), loc~)
     StringLiteral(value, loc~) => Literal(literal=String(value), loc~)
+    CharLiteral(value, loc~) => Literal(literal=Char(value), loc~)
     BoolLiteral(value, loc~) => Literal(literal=Bool(value), loc~)
     UnitLiteral(loc~) => Literal(literal=Unit, loc~)
     Var(name~, reference~, loc~) => Var(name~, reference~, loc~)

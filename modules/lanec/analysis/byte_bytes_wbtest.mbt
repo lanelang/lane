@@ -59,6 +59,7 @@ test "type-space completion includes every primitive type" {
       ("S32", Type, Some("primitive type S32")),
       ("Bool", Type, Some("primitive type Bool")),
       ("Byte", Type, Some("primitive type Byte")),
+      ("Char", Type, Some("primitive type Char")),
       ("Unit", Type, Some("primitive type Unit")),
       ("Bytes", Type, Some("primitive type Bytes")),
       ("Double", Type, Some("primitive type Double")),

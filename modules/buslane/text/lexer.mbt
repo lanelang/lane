@@ -137,6 +137,7 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "Bool" => BOOL_TYPE
     "Int" => INT_TYPE
     "S32" => S32_TYPE
+    "Char" => CHAR_TYPE
     "Double" => DOUBLE_TYPE
     "String" => STRING_TYPE
     "Byte" => BYTE_TYPE
@@ -172,6 +173,7 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "false" => FALSE
     "int" => INT_LITERAL
     "s32" => S32_LITERAL
+    "char" => CHAR_LITERAL
     "double" => DOUBLE_LITERAL
     "string" => STRING_LITERAL
     "unit" => UNIT_LITERAL

@@ -5,7 +5,49 @@ fn keyword(value : String) -> Document {
 
 ///|
 fn source_string(value : String) -> Document {
-  text(value.escape())
+  text(source_quoted_literal(value, '"'))
+}
+
+///|
+fn source_char(value : Int) -> Document {
+  text(source_quoted_literal(value.unsafe_to_char().to_string(), '\''))
+}
+
+///|
+fn source_quoted_literal(value : String, delimiter : Char) -> String {
+  let output = StringBuilder::new()
+  output.write_char(delimiter)
+  for character in value {
+    let scalar = character.to_int()
+    match character {
+      '\u{0}' => output.write_string("\\0")
+      '\n' => output.write_string("\\n")
+      '\r' => output.write_string("\\r")
+      '\t' => output.write_string("\\t")
+      '\\' => output.write_string("\\\\")
+      _ if character == delimiter => {
+        output.write_char('\\')
+        output.write_char(delimiter)
+      }
+      _ if scalar <= 0x1F || (scalar >= 0x7F && scalar <= 0x9F) => {
+        output.write_string("\\u{")
+        write_uppercase_hex(output, scalar)
+        output.write_char('}')
+      }
+      _ => output.write_char(character)
+    }
+  }
+  output.write_char(delimiter)
+  output.to_string()
+}
+
+///|
+fn write_uppercase_hex(output : StringBuilder, value : Int) -> Unit {
+  if value >= 16 {
+    write_uppercase_hex(output, value / 16)
+  }
+  let digits = "0123456789ABCDEF"
+  output.write_char(digits[value % 16].to_int().unsafe_to_char())
 }
 
 ///|

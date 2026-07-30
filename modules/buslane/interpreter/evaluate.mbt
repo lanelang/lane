@@ -470,6 +470,7 @@ fn evaluate_buslane_literal(literal : @buslane.Literal) -> BuslaneRuntimeValue {
   match literal {
     Int(value) => BuslaneRuntimeValue::int(value)
     S32(value) => BuslaneRuntimeValue::s32(value)
+    Char(value) => BuslaneRuntimeValue::char(value)
     Double(value) => BuslaneRuntimeValue::double(value)
     Bool(value) => BuslaneRuntimeValue::bool(value)
     String(value) => BuslaneRuntimeValue::string(value)
@@ -911,6 +912,12 @@ fn buslane_literal_matches(
       }
     S32(expected) =>
       if value.kind is S32(actual) {
+        actual == expected
+      } else {
+        false
+      }
+    Char(expected) =>
+      if value.kind is Char(actual) {
         actual == expected
       } else {
         false

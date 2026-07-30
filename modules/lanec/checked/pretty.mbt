@@ -466,6 +466,8 @@ fn literal_doc(literal : CheckedLiteral) -> Document {
     S32(literal) => text(literal.raw)
     Double(literal) => text(literal.raw)
     String(value) => quoted_doc(value)
+    Char(value) =>
+      text("'") + text(value.unsafe_to_char().to_string()) + text("'")
     Bool(value) => text(value.to_string())
     Unit => text("()")
   }

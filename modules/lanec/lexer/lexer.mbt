@@ -228,8 +228,51 @@ fn lex_token(
     }
     (re"^\"", after=rest) => {
       let start = env.calc_offset(input, base~)
-      let (rest, repr) = lex_string(rest, base~, env~, start~)
-      env.add_token(STRING(repr), start~, end=env.calc_offset(rest, base~))
+      let (rest, value) = lex_quoted_literal(
+        rest,
+        base~,
+        env~,
+        start~,
+        delimiter='"',
+        kind=StringLiteralKind,
+      )
+      env.add_token(
+        STRING(value.text),
+        start~,
+        end=env.calc_offset(rest, base~),
+      )
+      rest
+    }
+    (re"^'", after=rest) => {
+      let start = env.calc_offset(input, base~)
+      let (rest, value) = lex_quoted_literal(
+        rest,
+        base~,
+        env~,
+        start~,
+        delimiter='\'',
+        kind=CharLiteralKind,
+      )
+      if value.valid {
+        if value.scalar_count == 0 {
+          env.add_error(
+            EmptyCharLiteral,
+            start~,
+            end=env.calc_offset(rest, base~),
+          )
+        } else if value.scalar_count > 1 {
+          env.add_error(
+            MultipleCharLiteral,
+            start~,
+            end=env.calc_offset(rest, base~),
+          )
+        }
+      }
+      env.add_token(
+        CHAR(value.first_scalar.unwrap_or(0)),
+        start~,
+        end=env.calc_offset(rest, base~),
+      )
       rest
     }
     (re"^[(]", after=rest) => add_simple_token(LPAREN, input, rest, base~, env~)
@@ -305,82 +348,202 @@ fn starts_with_non_whitespace(input : StringView) -> Bool {
 }
 
 ///|
-fn lex_string(
+priv enum QuotedLiteralKind {
+  StringLiteralKind
+  CharLiteralKind
+}
+
+///|
+priv struct QuotedLiteralValue {
+  text : String
+  scalar_count : Int
+  first_scalar : Int?
+  valid : Bool
+}
+
+///|
+fn lex_quoted_literal(
   input : StringView,
   base~ : StringView,
   env~ : LexEnv,
   start~ : Int,
-) -> (StringView, String) {
+  delimiter~ : Char,
+  kind~ : QuotedLiteralKind,
+) -> (StringView, QuotedLiteralValue) {
   let buf = StringBuilder::new()
-  fn process(input : StringView) -> StringView {
-    lexscan input with longest {
-      (re"^\"", after=rest) => rest
-      (re"^\\[\\\"nrt]" as raw, after=rest) => {
-        buf.write_string(raw.to_owned())
-        process(rest)
+  let mut scalar_count = 0
+  let mut first_scalar : Int? = None
+  let mut valid = true
+
+  fn append_scalar(value : Int) -> Unit {
+    if first_scalar is None {
+      first_scalar = Some(value)
+    }
+    scalar_count += 1
+    buf.write_char(value.unsafe_to_char())
+  }
+
+  fn unterminated(input : StringView) -> StringView {
+    env.add_error(
+      match kind {
+        StringLiteralKind => UnterminatedString
+        CharLiteralKind => UnterminatedChar
+      },
+      start~,
+      end=env.calc_offset(input, base~),
+    )
+    valid = false
+    input
+  }
+
+  fn process_unicode_escape(
+    input : StringView,
+    escape_start : Int,
+  ) -> StringView {
+    guard input is ['{', .. rest] else {
+      env.add_error(
+        InvalidUnicodeEscape("\\u", MissingBraces),
+        start=escape_start,
+        end=env.calc_offset(input, base~),
+      )
+      valid = false
+      return input
+    }
+    let digits = StringBuilder::new()
+    let mut digit_count = 0
+    let mut value = 0
+    let mut hexadecimal = true
+    fn finish(input : StringView) -> StringView {
+      let raw = digits.to_string()
+      let error = if digit_count == 0 {
+        Some(Empty)
+      } else if digit_count > 6 {
+        Some(TooManyDigits)
+      } else if !hexadecimal {
+        Some(NonHexadecimal)
+      } else if value > 0x10FFFF {
+        Some(OutOfRange)
+      } else if value >= 0xD800 && value <= 0xDFFF {
+        Some(Surrogate)
+      } else {
+        None
       }
-      (re"^\\x([0-6][0-9a-fA-F]|7[0-7])" as raw, after=rest) => {
-        buf.write_string(raw.to_owned())
-        process(rest)
-      }
-      (re"^\\x[0-9a-fA-F]{2}" as raw, after=rest) => {
-        env.add_error(
-          InvalidHexEscape(raw.to_owned()),
-          start=env.calc_offset(input, base~),
-          end=env.calc_offset(rest, base~),
-        )
-        buf.write_string(raw.to_owned())
-        process(rest)
-      }
-      (re"^\\." as raw, after=rest) => {
-        env.add_error(
-          InvalidStringEscape(raw.to_owned()),
-          start=env.calc_offset(input, base~),
-          end=env.calc_offset(rest, base~),
-        )
-        buf.write_string(raw.to_owned())
-        process(rest)
-      }
-      (re"^[\x20-\x21\x23-\x5B\x5D-\x7E]+" as raw, after=rest) => {
-        buf.write_string(raw.to_owned())
-        process(rest)
-      }
-      (re"^(\r\n|\r|\n)", after=_) => {
-        env.add_error(
-          UnterminatedString,
-          start~,
-          end=env.calc_offset(input, base~),
-        )
-        input
-      }
-      re"^$" => {
-        env.add_error(
-          UnterminatedString,
-          start~,
-          end=env.calc_offset(input, base~),
-        )
-        input
-      }
-      (re"^." as raw, after=rest) => {
-        if raw.to_int() > 127 {
+      match error {
+        Some(reason) => {
           env.add_error(
-            NonAsciiStringCharacter,
-            start=env.calc_offset(input, base~),
-            end=env.calc_offset(rest, base~),
+            InvalidUnicodeEscape(raw, reason),
+            start=escape_start,
+            end=env.calc_offset(input, base~),
           )
-        } else {
-          env.add_error(
-            UnterminatedString,
-            start=env.calc_offset(input, base~),
-            end=env.calc_offset(rest, base~),
-          )
+          valid = false
         }
-        process(rest)
+        None => append_scalar(value)
       }
-      _ => panic()
+      input
+    }
+    fn scan(input : StringView) -> StringView {
+      match input {
+        ['}', .. rest] => finish(rest)
+        ['\r' | '\n', ..] | [] => {
+          env.add_error(
+            InvalidUnicodeEscape(digits.to_string(), MissingBraces),
+            start=escape_start,
+            end=env.calc_offset(input, base~),
+          )
+          valid = false
+          input
+        }
+        [character, ..] if character == delimiter => {
+          env.add_error(
+            InvalidUnicodeEscape(digits.to_string(), MissingBraces),
+            start=escape_start,
+            end=env.calc_offset(input, base~),
+          )
+          valid = false
+          input
+        }
+        [character, .. rest] => {
+          digits.write_char(character)
+          digit_count += 1
+          match hexadecimal_digit_value(character) {
+            Some(digit) if hexadecimal => value = value * 16 + digit
+            Some(_) => ()
+            None => hexadecimal = false
+          }
+          scan(rest)
+        }
+      }
+    }
+    scan(rest)
+  }
+
+  fn process(input : StringView) -> StringView {
+    match input {
+      [] | ['\r' | '\n', ..] => unterminated(input)
+      [character, .. rest] =>
+        if character == delimiter {
+          rest
+        } else if character == '\\' {
+          let escape_start = env.calc_offset(input, base~)
+          match rest {
+            [] | ['\r' | '\n', ..] => unterminated(rest)
+            [escaped, .. after_escape] =>
+              if escaped == delimiter {
+                append_scalar(escaped.to_int())
+                process(after_escape)
+              } else {
+                match escaped {
+                  '\\' => {
+                    append_scalar('\\'.to_int())
+                    process(after_escape)
+                  }
+                  'n' => {
+                    append_scalar('\n'.to_int())
+                    process(after_escape)
+                  }
+                  'r' => {
+                    append_scalar('\r'.to_int())
+                    process(after_escape)
+                  }
+                  't' => {
+                    append_scalar('\t'.to_int())
+                    process(after_escape)
+                  }
+                  '0' => {
+                    append_scalar(0)
+                    process(after_escape)
+                  }
+                  'u' =>
+                    process(process_unicode_escape(after_escape, escape_start))
+                  _ => {
+                    env.add_error(
+                      InvalidLiteralEscape("\\" + escaped.to_string()),
+                      start=escape_start,
+                      end=env.calc_offset(after_escape, base~),
+                    )
+                    valid = false
+                    process(after_escape)
+                  }
+                }
+              }
+          }
+        } else {
+          append_scalar(character.to_int())
+          process(rest)
+        }
     }
   }
 
   let rest = process(input)
-  (rest, buf.to_string())
+  (rest, { text: buf.to_string(), scalar_count, first_scalar, valid })
+}
+
+///|
+fn hexadecimal_digit_value(character : Char) -> Int? {
+  match character {
+    '0'..='9' => Some(character.to_int() - '0'.to_int())
+    'a'..='f' => Some(character.to_int() - 'a'.to_int() + 10)
+    'A'..='F' => Some(character.to_int() - 'A'.to_int() + 10)
+    _ => None
+  }
 }

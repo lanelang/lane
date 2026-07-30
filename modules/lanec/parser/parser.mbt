@@ -212,6 +212,7 @@ fn token_label(token : @yacc_parser.Token) -> String {
     INT(_) => "integer literal"
     DOUBLE(_) => "double literal"
     STRING(_) => "string literal"
+    CHAR(_) => "character literal"
     IDENT(value) => "identifier `\{value}`"
     RESERVED(value) => "reserved word `\{value}`"
     EOF => "end of file"
@@ -293,6 +294,7 @@ fn token_kind_label(kind : @yacc_parser.TokenKind) -> String {
     TK_INT => "integer literal"
     TK_DOUBLE => "double literal"
     TK_STRING => "string literal"
+    TK_CHAR => "character literal"
     TK_IDENT => "identifier"
     TK_RESERVED => "reserved word"
     TK_EOF => "end of file"
@@ -374,6 +376,7 @@ fn @lexer.Token::to_yacc_token(self : @lexer.Token) -> @yacc_parser.Token {
     INT(value) => INT(value)
     DOUBLE(value) => DOUBLE(value)
     STRING(value) => STRING(value)
+    CHAR(value) => CHAR(value)
     IDENT(value) => IDENT(value)
     RESERVED(value) => RESERVED(value)
     EOF => EOF

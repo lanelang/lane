@@ -51,6 +51,7 @@ pub(all) enum Instruction {
   Release(ValueId)
   ConstInt(ValueId, Int64)
   ConstS32(ValueId, Int)
+  ConstChar(ValueId, Int)
   ConstDouble(ValueId, Int64)
   ConstBool(ValueId, Bool)
   ConstLayout(ValueId, @bytecode.LayoutId)

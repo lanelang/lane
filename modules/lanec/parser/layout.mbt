@@ -159,8 +159,14 @@ fn pop_layout_delimiter(
 ///|
 fn layout_token_role(token : @lexer.Token) -> LayoutTokenRole {
   match token {
-    INT(_) | DOUBLE(_) | STRING(_) | IDENT(_) | FALSE | TRUE | UNDERSCORE =>
-      { ends_item: true, starts_item: true }
+    INT(_)
+    | DOUBLE(_)
+    | STRING(_)
+    | CHAR(_)
+    | IDENT(_)
+    | FALSE
+    | TRUE
+    | UNDERSCORE => { ends_item: true, starts_item: true }
     RPAREN | RBRACE | RBRACKET => { ends_item: true, starts_item: false }
     KIND_TYPE | KIND_EFFECT | DOTSTAR => { ends_item: true, starts_item: false }
     RESERVED(_)

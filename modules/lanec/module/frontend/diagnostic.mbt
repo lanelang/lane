@@ -235,9 +235,11 @@ fn lex_error_code(error : @lexer.LexicalError) -> String {
   match error {
     IllegalCharacter(_) => "E1000"
     UnterminatedString => "E1002"
-    InvalidStringEscape(_) => "E1003"
-    InvalidHexEscape(_) => "E1004"
-    NonAsciiStringCharacter => "E1005"
+    InvalidLiteralEscape(_) => "E1003"
+    InvalidUnicodeEscape(_, _) => "E1004"
+    UnterminatedChar => "E1005"
+    EmptyCharLiteral => "E1006"
+    MultipleCharLiteral => "E1007"
   }
 }
 
@@ -246,9 +248,11 @@ fn lex_error_title(error : @lexer.LexicalError) -> String {
   match error {
     IllegalCharacter(_) => "illegal character in source"
     UnterminatedString => "unterminated string literal"
-    InvalidStringEscape(_) => "invalid string escape"
-    InvalidHexEscape(_) => "invalid hexadecimal escape"
-    NonAsciiStringCharacter => "non-ASCII character in string literal"
+    UnterminatedChar => "unterminated character literal"
+    InvalidLiteralEscape(_) => "invalid literal escape"
+    InvalidUnicodeEscape(_, _) => "invalid Unicode escape"
+    EmptyCharLiteral => "empty character literal"
+    MultipleCharLiteral => "character literal has multiple scalars"
   }
 }
 
@@ -257,21 +261,22 @@ fn lex_error_label(error : @lexer.LexicalError) -> String {
   match error {
     IllegalCharacter(value) => "`\{value}` is not valid Lane syntax"
     UnterminatedString => "this string literal is never closed"
-    InvalidStringEscape(value) =>
+    UnterminatedChar => "this character literal is never closed"
+    InvalidLiteralEscape(value) =>
       "`\{value}` is not a supported escape sequence"
-    InvalidHexEscape(value) => "`\{value}` is not a valid hexadecimal escape"
-    NonAsciiStringCharacter =>
-      "Lane string literals currently accept ASCII characters only"
+    InvalidUnicodeEscape(value, reason) =>
+      "`\{value}` is not a valid Unicode escape: \{unicode_escape_reason(reason)}"
+    EmptyCharLiteral => "a character literal must contain one Unicode scalar"
+    MultipleCharLiteral =>
+      "a character literal must contain exactly one Unicode scalar"
   }
 }
 
 ///|
 fn lex_error_notes(error : @lexer.LexicalError) -> Array[String] {
   match error {
-    NonAsciiStringCharacter =>
-      [
-        "the lexer rejects non-ASCII bytes inside string literals in the current language version",
-      ]
+    InvalidUnicodeEscape(_, Surrogate) =>
+      ["Unicode surrogate code points are not Unicode scalar values"]
     _ => []
   }
 }
@@ -282,12 +287,27 @@ fn lex_error_helps(error : @lexer.LexicalError) -> Array[String] {
     IllegalCharacter(_) =>
       ["remove this character or replace it with a valid Lane token"]
     UnterminatedString => ["add a closing `\"` before the end of the line"]
-    InvalidStringEscape(_) =>
-      ["use a supported escape such as `\\n`, `\\t`, `\\\"`, or `\\\\`"]
-    InvalidHexEscape(_) =>
-      ["write hexadecimal escapes with exactly two hexadecimal digits"]
-    NonAsciiStringCharacter =>
-      ["replace the character with ASCII text or an explicit supported escape"]
+    UnterminatedChar => ["add a closing `'` before the end of the line"]
+    InvalidLiteralEscape(_) =>
+      [
+        "use `\\n`, `\\r`, `\\t`, `\\0`, `\\\\`, a delimiter escape, or `\\u{HEX}`",
+      ]
+    InvalidUnicodeEscape(_, _) =>
+      ["write one through six hexadecimal digits for a Unicode scalar value"]
+    EmptyCharLiteral | MultipleCharLiteral =>
+      ["write exactly one direct or escaped Unicode scalar"]
+  }
+}
+
+///|
+fn unicode_escape_reason(error : @lexer.UnicodeEscapeError) -> String {
+  match error {
+    MissingBraces => "expected braces after `\\u`"
+    Empty => "the braces contain no digits"
+    TooManyDigits => "more than six hexadecimal digits were provided"
+    NonHexadecimal => "the braces contain a non-hexadecimal digit"
+    OutOfRange => "the value exceeds U+10FFFF"
+    Surrogate => "the value is a surrogate code point"
   }
 }
 

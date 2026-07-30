@@ -20,6 +20,7 @@ fn FunctionLowerer::lower_match(
         Primitive(Bool) => self.lower_bool_match(match_, condition, scrutinee)
         Primitive(Int)
         | Primitive(S32)
+        | Primitive(Char)
         | Primitive(Double)
         | Primitive(String) =>
           self.lower_literal_match(match_, condition, scrutinee_type, scrutinee)
@@ -171,6 +172,7 @@ fn FunctionLowerer::emit_literal_equality(
   let instruction : @vmcfg.Instruction = match scrutinee_type {
     Primitive(Int) => IntEq(condition, scrutinee, expected)
     Primitive(S32) => S32Eq(condition, scrutinee, expected)
+    Primitive(Char) => S32Eq(condition, scrutinee, expected)
     Primitive(Double) => DoubleEq(condition, scrutinee, expected)
     Primitive(String) => StringEq(condition, scrutinee, expected)
     _ =>

@@ -186,6 +186,7 @@ pub(all) enum CheckedLiteral {
   S32(CheckedS32Literal)
   Double(CheckedDoubleLiteral)
   String(String)
+  Char(Int)
   Bool(Bool)
   Unit
 } derive(Debug, Eq)

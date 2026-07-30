@@ -352,6 +352,7 @@ fn lower_literal(literal : @checked.CheckedLiteral) -> @buslane.Literal {
     S32(literal) => S32(literal.value)
     Double(literal) => Double(literal.value)
     String(value) => String(value)
+    Char(value) => Char(value)
     Bool(value) => Bool(value)
     Unit => Unit
   }
@@ -484,6 +485,7 @@ fn lower_primitive_type(
   match primitive {
     Int => Int
     S32 => S32
+    Char => Char
     Double => Double
     Bool => Bool
     String => String

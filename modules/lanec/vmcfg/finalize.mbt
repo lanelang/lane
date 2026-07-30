@@ -252,6 +252,8 @@ fn finalize_instruction(
     }
     ConstInt(destination, value) => ConstInt(value_to_slot(destination), value)
     ConstS32(destination, value) => ConstS32(value_to_slot(destination), value)
+    ConstChar(destination, value) =>
+      ConstChar(value_to_slot(destination), value)
     ConstDouble(destination, bits) =>
       ConstDouble(value_to_slot(destination), bits)
     ConstBool(destination, value) =>
@@ -803,6 +805,7 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | RetainCopy(destination, _)
     | ConstInt(destination, _)
     | ConstS32(destination, _)
+    | ConstChar(destination, _)
     | ConstDouble(destination, _)
     | ConstBool(destination, _)
     | ConstLayout(destination, _)

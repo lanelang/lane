@@ -693,6 +693,7 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
     IntLiteral(value, ..) => text(value)
     DoubleLiteral(value, ..) => text(value)
     StringLiteral(value, ..) => text("\"") + text(value) + text("\"")
+    CharLiteral(value, ..) => text("'") + text(value.to_string()) + text("'")
     BoolLiteral(value, ..) => text(value.to_string())
     UnitLiteral(..) => text("()")
     Var(name~, reference~, ..) =>
@@ -837,6 +838,7 @@ pub impl @prettyprinter.Pretty for ResolvedPattern with fn pretty(
     IntLiteral(value, ..) => text(value)
     DoubleLiteral(value, ..) => text(value)
     StringLiteral(value, ..) => text("\"") + text(value) + text("\"")
+    CharLiteral(value, ..) => text("'") + text(value.to_string()) + text("'")
     BoolLiteral(value, ..) => text(value.to_string())
     QualifiedVariant(
       type_name~,

@@ -4,6 +4,7 @@ fn Expr::for_each_child_expr(self : Expr, visit : (Expr) -> Unit) -> Unit {
     IntLiteral(_)
     | DoubleLiteral(_)
     | StringLiteral(_)
+    | CharLiteral(_)
     | BoolLiteral(_)
     | UnitLiteral(_)
     | Var(_)

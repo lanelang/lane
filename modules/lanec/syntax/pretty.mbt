@@ -1371,6 +1371,7 @@ fn Expr::render_with_precedence(
     IntLiteral(value, ..) => rendered_expr(10, text(value))
     DoubleLiteral(value, ..) => rendered_expr(10, text(value))
     StringLiteral(value, ..) => rendered_expr(10, source_string(value))
+    CharLiteral(value, ..) => rendered_expr(10, source_char(value))
     BoolLiteral(value, ..) => rendered_expr(10, text(value.to_string()))
     UnitLiteral(..) => rendered_expr(10, text("()"))
     Var(name, ..) => rendered_expr(10, text(name))
@@ -2383,6 +2384,7 @@ fn Pattern::to_doc(
     IntLiteral(value, ..) => text(value)
     DoubleLiteral(value, ..) => text(value)
     StringLiteral(value, ..) => source_string(value)
+    CharLiteral(value, ..) => source_char(value)
     BoolLiteral(value, ..) => text(value.to_string())
     QualifiedVariant(owner~, variant~, type_binders~, arguments~, loc~, ..) => {
       let binders_doc = if type_binders.is_empty() {

@@ -12,6 +12,7 @@ fn @syntax.Expr::resolve_expr(
     IntLiteral(value, loc~) => IntLiteral(value, loc~)
     DoubleLiteral(value, loc~) => DoubleLiteral(value, loc~)
     StringLiteral(value, loc~) => StringLiteral(value, loc~)
+    CharLiteral(value, loc~) => CharLiteral(value, loc~)
     BoolLiteral(value, loc~) => BoolLiteral(value, loc~)
     UnitLiteral(loc~) => UnitLiteral(loc~)
     Var(name, loc~) =>

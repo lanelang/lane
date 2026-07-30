@@ -30,6 +30,29 @@ fn canonical_syntax(source : String) -> String {
 }
 
 ///|
+test "format Unicode strings and character literals canonically" {
+  assert_format(
+    (
+      #|module Test
+      #|fn literal(value:Char)->String {
+      #|  match value { '\u{4f60}' => "\u{1F600}\u{0}\u{7f}" ; _ => "你" }
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|fn literal(value : Char) -> String {
+      #|  match value {
+      #|    '你' => "😀\0\u{7F}"
+      #|    _ => "你"
+      #|  }
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves comments around an import alias" {
   assert_format(
     (

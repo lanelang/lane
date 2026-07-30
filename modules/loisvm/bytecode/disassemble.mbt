@@ -138,6 +138,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "const_int \{render_slot(destination)}, \{value}"
     ConstS32(destination, value) =>
       "const_s32 \{render_slot(destination)}, \{value}"
+    ConstChar(destination, value) =>
+      "const_char \{render_slot(destination)}, \{value}"
     ConstDouble(destination, bits) =>
       "const_double \{render_slot(destination)}, bits=\{bits}"
     ConstBool(destination, value) =>
@@ -479,6 +481,7 @@ fn render_layout_recipe(recipe : LayoutRecipe) -> String {
     Bool => "bool"
     Int => "int"
     S32 => "s32"
+    Char => "char"
     Double => "double"
     Callable => "callable"
     String => "string"

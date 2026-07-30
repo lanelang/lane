@@ -77,6 +77,7 @@ fn layout_rep_kind(layout : @bytecode.LayoutRecipe) -> Int {
     Byte => 10
     Bytes => 11
     S32 => 12
+    Char => 13
   }
 }
 
@@ -88,7 +89,7 @@ fn layout_fixed_size(
   host_objects_enabled : Bool,
 ) -> Int? {
   match layout {
-    Unit | Bool | Int | S32 | Double | Callable | Byte => Some(0)
+    Unit | Bool | Int | S32 | Char | Double | Callable | Byte => Some(0)
     Reference => Some(if host_objects_enabled { 16 } else { 0 })
     String | Bytes => None
     Data(shape) | Environment(shape) => {
@@ -150,13 +151,13 @@ fn build_static_image(
     }
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | Int | S32 | Double | Callable | Byte => 1
+        Unit | Bool | Int | S32 | Char | Double | Callable | Byte => 1
         String | Bytes | Data(_) | Environment(_) | Reference => 8
       },
     )
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | Int | S32 | Double | Byte =>
+        Unit | Bool | Int | S32 | Char | Double | Byte =>
           helper_functions.noop_erased_table
         Callable => helper_functions.retain_callable_table
         String | Bytes | Data(_) | Environment(_) | Reference =>
@@ -165,7 +166,7 @@ fn build_static_image(
     )
     writer.write_u32_le_int(
       match layout {
-        Unit | Bool | Int | S32 | Double | Byte =>
+        Unit | Bool | Int | S32 | Char | Double | Byte =>
           helper_functions.noop_erased_table
         Callable => helper_functions.release_callable_table
         String | Bytes | Data(_) | Environment(_) | Reference =>
@@ -182,6 +183,7 @@ fn build_static_image(
         | Bool
         | Int
         | S32
+        | Char
         | Double
         | Callable
         | String

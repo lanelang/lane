@@ -309,6 +309,7 @@ pub(all) enum Expr {
   IntLiteral(String, loc~ : SourceSpan)
   DoubleLiteral(String, loc~ : SourceSpan)
   StringLiteral(String, loc~ : SourceSpan)
+  CharLiteral(Int, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
   UnitLiteral(loc~ : SourceSpan)
   Var(String, loc~ : SourceSpan)
@@ -388,6 +389,7 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     IntLiteral(_, loc~)
     | DoubleLiteral(_, loc~)
     | StringLiteral(_, loc~)
+    | CharLiteral(_, loc~)
     | BoolLiteral(_, loc~)
     | UnitLiteral(loc~)
     | Var(_, loc~)
@@ -505,6 +507,7 @@ pub(all) enum Pattern {
   IntLiteral(String, loc~ : SourceSpan)
   DoubleLiteral(String, loc~ : SourceSpan)
   StringLiteral(String, loc~ : SourceSpan)
+  CharLiteral(Int, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
   QualifiedVariant(
     owner~ : Type,
@@ -534,6 +537,7 @@ pub fn Pattern::loc(self : Pattern) -> SourceSpan {
     | IntLiteral(_, loc~)
     | DoubleLiteral(_, loc~)
     | StringLiteral(_, loc~)
+    | CharLiteral(_, loc~)
     | BoolLiteral(_, loc~)
     | QualifiedVariant(loc~, ..)
     | UnqualifiedVariant(loc~, ..)

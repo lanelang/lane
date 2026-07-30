@@ -187,6 +187,7 @@ fn @bytecodec.ByteWriter::write_layout_recipe(
     Byte => self.write_u8(0x0A)
     Bytes => self.write_u8(0x0B)
     S32 => self.write_u8(0x0C)
+    Char => self.write_u8(0x0D)
   }
 }
 
@@ -513,6 +514,11 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_binary_slots(0x55, destination, source)
     IntToS32(destination, source) =>
       self.write_binary_slots(0x56, destination, source)
+    ConstChar(destination, value) => {
+      self.write_u8(0x57)
+      self.write_slot_id(destination)
+      self.write_i32_le(value)
+    }
   }
 }
 

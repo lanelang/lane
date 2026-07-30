@@ -1,0 +1,36 @@
+///|
+test "lower Unicode character literals and patterns to Buslane" {
+  let result = elaborate_buslane_source(
+    (
+      #|fn classify(value : Char) -> Int {
+      #|  match value {
+      #|    '\u{4F60}' => 1
+      #|    _ => 0
+      #|  }
+      #|}
+    ),
+  )
+  inspect(
+    @prettyprinter.render(result, width=100),
+    content=(
+      #|buslane_elaborate_result {
+      #|  buslane {
+      #|    metadata {
+      #|      function classify#0 : (Char) -> Int
+      #|      parameter value#1 : Char
+      #|      match_binder scrutinee#2 : Char
+      #|    }
+      #|    letrec {
+      #|      value#0 = fn(value#1) -> Int {
+      #|        match value#1 as value#2 -> Int {
+      #|          20320 => 1
+      #|          _ => 0
+      #|        }
+      #|      }
+      #|    }
+      #|  }
+      #|  diagnostics {}
+      #|}
+    ),
+  )
+}

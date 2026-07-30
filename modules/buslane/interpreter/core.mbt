@@ -2,6 +2,7 @@
 enum BuslaneRuntimeValueKind {
   Int(Int64)
   S32(Int)
+  Char(Int)
   Double(Double)
   Bool(Bool)
   String(String)
@@ -105,6 +106,12 @@ pub fn BuslaneRuntimeValue::s32(value : Int) -> BuslaneRuntimeValue {
 }
 
 ///|
+/// Creates a character Buslane runtime value.
+pub fn BuslaneRuntimeValue::char(value : Int) -> BuslaneRuntimeValue {
+  { kind: Char(value) }
+}
+
+///|
 /// Creates a double Buslane runtime value.
 pub fn BuslaneRuntimeValue::double(value : Double) -> BuslaneRuntimeValue {
   { kind: Double(value) }
@@ -142,6 +149,15 @@ pub fn BuslaneRuntimeValue::as_int(self : BuslaneRuntimeValue) -> Int64? {
 pub fn BuslaneRuntimeValue::as_s32(self : BuslaneRuntimeValue) -> Int? {
   match self.kind {
     S32(value) => Some(value)
+    _ => None
+  }
+}
+
+///|
+/// Returns this runtime value as a character scalar when it is a character.
+pub fn BuslaneRuntimeValue::as_char(self : BuslaneRuntimeValue) -> Int? {
+  match self.kind {
+    Char(value) => Some(value)
     _ => None
   }
 }

@@ -60,7 +60,7 @@ Every `SlotId` has one immutable `SlotMetadata` entry. The representation fixes 
 
 | Representation | Runtime contents |
 | --- | --- |
-| `I32` | Lane `S32`, Boolean and Byte values, layout witnesses, object references, String references, Bytes references, and other 32-bit runtime values |
+| `I32` | Lane `S32`, `Char`, Boolean and Byte values, layout witnesses, object references, String references, Bytes references, and other 32-bit runtime values |
 | `I64` | Lane `Int`, packed callable values, and erased payloads |
 | `F64` | Lane `Double` |
 
@@ -83,7 +83,7 @@ Instruction operands use the following conventions:
 
 ## Object and layout model
 
-`LayoutRecipe` describes a runtime layout. `S32` is the trivial signed 32-bit integer layout, `Byte` is the trivial scalar-byte layout, and `Bytes` is the owned packed-byte-sequence layout. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot.
+`LayoutRecipe` describes a runtime layout. `S32` is the trivial signed 32-bit integer layout, `Char` is the trivial Unicode-scalar layout, `Byte` is the trivial scalar-byte layout, and `Bytes` is the owned packed-byte-sequence layout. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot.
 
 A `DataShape` stores a constructor tag, stored layout witnesses, and ordered field schemas. An `EnvironmentShape` stores layout witnesses and ordered capture schemas. A `MemberSchema` fixes the member representation and cleanup; an `OwnedErased` member must name the stored-witness ordinal used for its cleanup.
 
@@ -97,7 +97,7 @@ Environments, callable values, and user arguments are transferred into calls. La
 
 ## Instruction encoding
 
-Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstS32` uses a little-endian signed 32-bit payload; `ConstInt` and `ConstDouble` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements.
+Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstS32` and `ConstChar` use little-endian 32-bit payloads; `ConstInt` and `ConstDouble` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements.
 
 The constructor spelling is the public MoonBit API. The lowercase spelling shown in descriptions is the human-readable disassembly name.
 
@@ -116,6 +116,7 @@ The constructor spelling is the public MoonBit API. The lowercase spelling shown
 | `0x09` | `ConstFunction(destination, function)` | `const_function`; creates a capture-free callable for the function-table entry in an `I64 + OwnedCallable` destination. |
 | `0x0A` | `ConstString(destination, constant)` | `const_string`; creates an owning String reference for the ASCII constant-pool entry in an `I32 + OwnedRef` destination. |
 | `0x4C` | `ConstS32(destination, value)` | `const_s32`; writes the signed 32-bit integer to an `I32 + Trivial` destination. |
+| `0x57` | `ConstChar(destination, value)` | `const_char`; writes the Unicode scalar value to an `I32 + Trivial` destination. |
 
 ### Calls and closures
 

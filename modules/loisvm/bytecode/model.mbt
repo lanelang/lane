@@ -101,6 +101,7 @@ pub(all) enum LayoutRecipe {
   Bool
   Int
   S32
+  Char
   Double
   Callable
   String
@@ -163,6 +164,7 @@ pub(all) enum Instruction {
   Release(SlotId)
   ConstInt(SlotId, Int64)
   ConstS32(SlotId, Int)
+  ConstChar(SlotId, Int)
   ConstDouble(SlotId, Int64)
   ConstBool(SlotId, Bool)
   ConstLayout(SlotId, LayoutId)

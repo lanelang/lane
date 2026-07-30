@@ -114,6 +114,7 @@ pub(all) enum DesugaredLiteral {
   Int(String)
   Double(String)
   String(String)
+  Char(Int)
   Bool(Bool)
   Unit
 } derive(Debug, Eq)

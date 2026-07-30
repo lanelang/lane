@@ -252,25 +252,32 @@ test "block comment markers are ordinary tokens" {
 }
 
 ///|
-test "preserve ascii string escape representation" {
-  let tokens = token_values("\"a\\n\\x41\"")
-  debug_inspect(
-    tokens,
-    content=(
-      #|[STRING("a\\n\\x41"), EOF]
+test "decode Unicode string and character literals" {
+  assert_eq(
+    token_values(
+      "\"A你好😀\\n\\u{41}\" 'A' '你' '\\u{1F600}' '\\0' '\\'' \"\\\"\"",
     ),
+    [
+      STRING("A你好😀\nA"),
+      CHAR(0x41),
+      CHAR(0x4F60),
+      CHAR(0x1F600),
+      CHAR(0),
+      CHAR(0x27),
+      STRING("\""),
+      EOF,
+    ],
   )
 }
 
 ///|
-test "reject invalid string escape" {
-  let result = tokens_from_string("\"\\q\"")
+test "reject unsupported literal escape" {
   debug_inspect(
-    result.errors,
+    tokens_from_string("\"\\q\" '\\x41'").errors,
     content=(
       #|[
       #|  {
-      #|    error: InvalidStringEscape("\\q"),
+      #|    error: InvalidLiteralEscape("\\q"),
       #|    span: {
       #|      start_offset: 1,
       #|      end_offset: 3,
@@ -280,27 +287,15 @@ test "reject invalid string escape" {
       #|      end_column: 4,
       #|    },
       #|  },
-      #|]
-    ),
-  )
-}
-
-///|
-test "reject out of range hex string escape" {
-  let result = tokens_from_string("\"\\x78\"")
-  debug_inspect(
-    result.errors,
-    content=(
-      #|[
       #|  {
-      #|    error: InvalidHexEscape("\\x78"),
+      #|    error: InvalidLiteralEscape("\\x"),
       #|    span: {
-      #|      start_offset: 1,
-      #|      end_offset: 5,
+      #|      start_offset: 6,
+      #|      end_offset: 8,
       #|      start_line: 1,
-      #|      start_column: 2,
+      #|      start_column: 7,
       #|      end_line: 1,
-      #|      end_column: 6,
+      #|      end_column: 9,
       #|    },
       #|  },
       #|]
@@ -309,32 +304,121 @@ test "reject out of range hex string escape" {
 }
 
 ///|
-test "reject non ascii string content" {
-  let result = tokens_from_string("\"你好\"")
+test "reject malformed Unicode escapes" {
   debug_inspect(
-    result.errors,
+    tokens_from_string(
+      "\"\\u\" \"\\u{}\" \"\\u{1234567}\" \"\\u{12Q}\" \"\\u{110000}\" \"\\u{D800}\"",
+    ).errors,
     content=(
       #|[
       #|  {
-      #|    error: NonAsciiStringCharacter,
+      #|    error: InvalidUnicodeEscape("\\u", MissingBraces),
       #|    span: {
       #|      start_offset: 1,
-      #|      end_offset: 2,
+      #|      end_offset: 3,
       #|      start_line: 1,
       #|      start_column: 2,
+      #|      end_line: 1,
+      #|      end_column: 4,
+      #|    },
+      #|  },
+      #|  {
+      #|    error: InvalidUnicodeEscape("", Empty),
+      #|    span: {
+      #|      start_offset: 6,
+      #|      end_offset: 10,
+      #|      start_line: 1,
+      #|      start_column: 7,
+      #|      end_line: 1,
+      #|      end_column: 11,
+      #|    },
+      #|  },
+      #|  {
+      #|    error: InvalidUnicodeEscape("1234567", TooManyDigits),
+      #|    span: {
+      #|      start_offset: 13,
+      #|      end_offset: 24,
+      #|      start_line: 1,
+      #|      start_column: 14,
+      #|      end_line: 1,
+      #|      end_column: 25,
+      #|    },
+      #|  },
+      #|  {
+      #|    error: InvalidUnicodeEscape("12Q", NonHexadecimal),
+      #|    span: {
+      #|      start_offset: 27,
+      #|      end_offset: 34,
+      #|      start_line: 1,
+      #|      start_column: 28,
+      #|      end_line: 1,
+      #|      end_column: 35,
+      #|    },
+      #|  },
+      #|  {
+      #|    error: InvalidUnicodeEscape("110000", OutOfRange),
+      #|    span: {
+      #|      start_offset: 37,
+      #|      end_offset: 47,
+      #|      start_line: 1,
+      #|      start_column: 38,
+      #|      end_line: 1,
+      #|      end_column: 48,
+      #|    },
+      #|  },
+      #|  {
+      #|    error: InvalidUnicodeEscape("D800", Surrogate),
+      #|    span: {
+      #|      start_offset: 50,
+      #|      end_offset: 58,
+      #|      start_line: 1,
+      #|      start_column: 51,
+      #|      end_line: 1,
+      #|      end_column: 59,
+      #|    },
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "reject invalid character literal cardinality" {
+  debug_inspect(
+    tokens_from_string("'' 'ab' '").errors,
+    content=(
+      #|[
+      #|  {
+      #|    error: EmptyCharLiteral,
+      #|    span: {
+      #|      start_offset: 0,
+      #|      end_offset: 2,
+      #|      start_line: 1,
+      #|      start_column: 1,
       #|      end_line: 1,
       #|      end_column: 3,
       #|    },
       #|  },
       #|  {
-      #|    error: NonAsciiStringCharacter,
+      #|    error: MultipleCharLiteral,
       #|    span: {
-      #|      start_offset: 2,
-      #|      end_offset: 3,
+      #|      start_offset: 3,
+      #|      end_offset: 7,
       #|      start_line: 1,
-      #|      start_column: 3,
+      #|      start_column: 4,
       #|      end_line: 1,
-      #|      end_column: 4,
+      #|      end_column: 8,
+      #|    },
+      #|  },
+      #|  {
+      #|    error: UnterminatedChar,
+      #|    span: {
+      #|      start_offset: 8,
+      #|      end_offset: 9,
+      #|      start_line: 1,
+      #|      start_column: 9,
+      #|      end_line: 1,
+      #|      end_column: 10,
       #|    },
       #|  },
       #|]

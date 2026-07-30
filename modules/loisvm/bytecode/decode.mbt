@@ -265,6 +265,7 @@ fn Decoder::read_layout_recipe(
     0x0A => Byte
     0x0B => Bytes
     0x0C => S32
+    0x0D => Char
     tag => self.invalid_tag(offset~, domain="layout recipe", tag~)
   }
 }
@@ -532,6 +533,8 @@ fn Decoder::read_instruction(
     0x54 => S32Lt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x55 => S32ToInt(self.read_slot_id(), self.read_slot_id())
     0x56 => IntToS32(self.read_slot_id(), self.read_slot_id())
+    0x57 =>
+      ConstChar(self.read_slot_id(), self.read_i32(expected="Char constant"))
     tag => self.invalid_tag(offset~, domain="instruction", tag~)
   }
 }

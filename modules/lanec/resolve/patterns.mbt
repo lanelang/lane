@@ -18,6 +18,7 @@ fn @syntax.Pattern::resolve_pattern(
     IntLiteral(value, loc~) => IntLiteral(value, loc~)
     DoubleLiteral(value, loc~) => DoubleLiteral(value, loc~)
     StringLiteral(value, loc~) => StringLiteral(value, loc~)
+    CharLiteral(value, loc~) => CharLiteral(value, loc~)
     BoolLiteral(value, loc~) => BoolLiteral(value, loc~)
     QualifiedVariant(
       owner~,

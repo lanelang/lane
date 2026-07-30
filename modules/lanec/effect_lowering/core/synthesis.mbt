@@ -307,6 +307,7 @@ fn literal_type(literal : @buslane.Literal) -> @buslane.Type {
     Bool(_) => Primitive(Bool)
     Int(_) => Primitive(Int)
     S32(_) => Primitive(S32)
+    Char(_) => Primitive(Char)
     Double(_) => Primitive(Double)
     String(_) => Primitive(String)
   }

@@ -201,3 +201,14 @@ test "program codec roundtrips S32 type and literal" {
   }
   assert_eq(decode_program(encode_program(program)), program)
 }
+
+///|
+test "program codec roundtrips Char type and literal" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let value = metadata.define_value("value", Value, Primitive(Char))
+  let program : Program = {
+    metadata,
+    terms: [Let(value, Literal(Char(0x1F600)))],
+  }
+  assert_eq(decode_program(encode_program(program)), program)
+}

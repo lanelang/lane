@@ -147,6 +147,7 @@ fn @desugar.DesugaredLiteral::type_(
     Int(_) => Primitive(Int)
     Double(_) => Primitive(Double)
     String(_) => Primitive(String)
+    Char(_) => Primitive(Char)
     Bool(_) => Primitive(Bool)
     Unit => Primitive(Unit)
   }
@@ -162,6 +163,7 @@ fn SemanticChecker::checked_literal(
     Int(raw) => Int(self.check_int_literal(raw, loc))
     Double(raw) => Double(self.check_double_literal(raw, loc))
     String(value) => String(value)
+    Char(value) => Char(value)
     Bool(value) => Bool(value)
     Unit => Unit
   }

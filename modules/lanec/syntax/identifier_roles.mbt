@@ -225,6 +225,7 @@ fn collect_pattern_identifier_roles(
     | IntLiteral(_, ..)
     | DoubleLiteral(_, ..)
     | StringLiteral(_, ..)
+    | CharLiteral(_, ..)
     | BoolLiteral(_, ..) => ()
     Binding(_, loc~) =>
       push_syntactic_identifier_role(slots, loc, PatternIdentifier)
@@ -265,6 +266,7 @@ fn collect_expression_identifier_roles(
     IntLiteral(_)
     | DoubleLiteral(_)
     | StringLiteral(_)
+    | CharLiteral(_)
     | BoolLiteral(_)
     | UnitLiteral(_)
     | Builtin(_)
