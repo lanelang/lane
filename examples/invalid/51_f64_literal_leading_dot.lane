@@ -1,0 +1,3 @@
+module Examples.Invalid.F64LiteralLeadingDot
+
+pub let bad : F64 = .5

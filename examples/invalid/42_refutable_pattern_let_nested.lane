@@ -6,14 +6,14 @@ enum Option[A] {
 }
 
 struct Box {
-  value : Option[Int]
+  value : Option[I64]
 }
 
-fn bad(box : Box) -> Int {
+fn bad(box : Box) -> I64 {
   {
     let Box::{ value: some(x) } = box
     x
   }
 }
 
-let value : Int = bad(Box::{ value: Option::none() })
+let value : I64 = bad(Box::{ value: Option::none() })

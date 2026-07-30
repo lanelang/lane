@@ -5,8 +5,8 @@ import Basic.Trait.Derive.{ Deriver }
 struct Witness[_T] {}
 
 struct Pair {
-  first : Int
-  second : Int
+  first : I64
+  second : I64
 }
 
 fn missing_component_evidence(deriver : Deriver[Witness]) -> Witness[Pair] {

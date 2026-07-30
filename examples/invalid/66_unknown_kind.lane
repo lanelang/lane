@@ -2,4 +2,4 @@
 
 module Examples.Invalid.UnknownKind
 
-type A : Banana = Int
+type A : Banana = I64

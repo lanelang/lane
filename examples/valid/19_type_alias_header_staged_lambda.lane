@@ -4,7 +4,7 @@
 module Examples.Valid19
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Io.{ println }
 
 pub struct Box[A] {
@@ -13,13 +13,13 @@ pub struct Box[A] {
 
 pub type Mapper[F : [Type] -> Type] = type[A] => F[A]
 
-pub type BoxInt = Mapper[Box][Int]
+pub type BoxI64 = Mapper[Box][I64]
 
-pub fn get(box : BoxInt) -> Int {
+pub fn get(box : BoxI64) -> I64 {
   box.value
 }
 
-pub let staged_value : Int = get(Box::{ value: 42 })
+pub let staged_value : I64 = get(Box::{ value: 42 })
 
 pub fn answer() -> Unit ! Io {
   if staged_value == 42 {

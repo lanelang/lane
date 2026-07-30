@@ -5,11 +5,11 @@ enum Option[A] {
   some(A)
 }
 
-fn bad(value : Option[Int]) -> Int {
+fn bad(value : Option[I64]) -> I64 {
   {
     let some(x) = value
     x
   }
 }
 
-let value : Int = bad(Option::none())
+let value : I64 = bad(Option::none())

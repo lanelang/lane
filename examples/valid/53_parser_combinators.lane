@@ -2,11 +2,11 @@ module Examples.Valid.ParserCombinators
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.List.{ List }
 
 enum Token {
-  int(Int)
+  i64(I64)
   plus()
 }
 
@@ -60,13 +60,13 @@ fn[A] or_else(left : Parser[A], right : Parser[A]) -> Parser[A] {
   }
 }
 
-fn integer() -> Parser[Int] {
-  Parser[Int]::{
+fn integer() -> Parser[I64] {
+  Parser[I64]::{
     run: fn(input) {
       match input {
         cons(token, rest) =>
           match token {
-            int(value) => parsed(value, rest)
+            i64(value) => parsed(value, rest)
             plus() => failed()
           }
         empty() => failed()
@@ -82,7 +82,7 @@ fn plus_token() -> Parser[Unit] {
         cons(token, rest) =>
           match token {
             plus() => parsed((), rest)
-            int(_value) => failed()
+            i64(_value) => failed()
           }
         empty() => failed()
       }
@@ -90,7 +90,7 @@ fn plus_token() -> Parser[Unit] {
   }
 }
 
-fn parse_tail(accumulator : Int, input : List[Token]) -> ParseResult[Int] {
+fn parse_tail(accumulator : I64, input : List[Token]) -> ParseResult[I64] {
   match plus_token().run(input) {
     parsed(_unit, after_plus) =>
       match integer().run(after_plus) {
@@ -101,11 +101,11 @@ fn parse_tail(accumulator : Int, input : List[Token]) -> ParseResult[Int] {
   }
 }
 
-fn expression() -> Parser[Int] {
+fn expression() -> Parser[I64] {
   flat_map(
     integer(),
     fn(first) {
-      Parser[Int]::{
+      Parser[I64]::{
         run: fn(input) {
           parse_tail(first, input)
         }
@@ -114,7 +114,7 @@ fn expression() -> Parser[Int] {
   )
 }
 
-fn zero_or_integer() -> Parser[Int] {
+fn zero_or_integer() -> Parser[I64] {
   or_else(integer(), pure(0))
 }
 
@@ -126,7 +126,7 @@ fn[A] complete(parser : Parser[A], input : List[Token]) -> ParseResult[A] {
   }
 }
 
-fn parsed_value(result : ParseResult[Int]) -> Int {
+fn parsed_value(result : ParseResult[I64]) -> I64 {
   match result {
     parsed(value, empty()) => value
     parsed(_value, cons(_head, _tail)) => 0
@@ -134,13 +134,13 @@ fn parsed_value(result : ParseResult[Int]) -> Int {
   }
 }
 
-let expression_tokens : List[Token] = [int(10), plus(), int(20), plus(), int(12)]
+let expression_tokens : List[Token] = [i64(10), plus(), i64(20), plus(), i64(12)]
 
-let expression_result : Int = parsed_value(complete(expression(), expression_tokens))
+let expression_result : I64 = parsed_value(complete(expression(), expression_tokens))
 
-let fallback_result : Int = parsed_value(complete(zero_or_integer(), []))
+let fallback_result : I64 = parsed_value(complete(zero_or_integer(), []))
 
-let mapped_result : Int = parsed_value(
+let mapped_result : I64 = parsed_value(
   complete(
     map(
       integer(),
@@ -148,7 +148,7 @@ let mapped_result : Int = parsed_value(
         value + 1
       }
     ),
-    [int(41)]
+    [i64(41)]
   )
 )
 

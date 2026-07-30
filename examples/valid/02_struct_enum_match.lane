@@ -3,11 +3,11 @@ module Examples.Valid02
 import Basic.Io.{ println }
 import Basic.Ops.*
 import Basic.Data.Bool.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 pub struct Point {
-  x : Int
-  y : Int
+  x : I64
+  y : I64
 }
 
 pub enum Option[A] {
@@ -15,14 +15,14 @@ pub enum Option[A] {
   some(A)
 }
 
-pub fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
+pub fn unwrap_or(value : Option[I64], fallback : I64) -> I64 {
   match value {
     none() => fallback
     some(x) => x
   }
 }
 
-pub fn sum_point(point : Point) -> Int {
+pub fn sum_point(point : Point) -> I64 {
   match point {
     Point::{ x, y } => x + y
   }
@@ -30,7 +30,7 @@ pub fn sum_point(point : Point) -> Int {
 
 pub let origin : Point = Point::{ x: 0, y: 0 }
 
-pub let chosen : Option[Int] = some(1)
+pub let chosen : Option[I64] = some(1)
 
 pub fn answer() -> Unit ! Io {
   if sum_point(origin) == 0 && unwrap_or(chosen, 0) == 1 {

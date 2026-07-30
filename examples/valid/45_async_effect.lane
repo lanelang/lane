@@ -2,7 +2,7 @@ module Examples.Valid.AsyncEffect
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 effect Async[E : Effect] {
   suspend[A](((A) -> Unit ! E) -> Unit ! E) -> A
@@ -13,7 +13,7 @@ effect Schedule {
 }
 
 enum Step {
-  done(Int)
+  done(I64)
   waiting[A](((A) -> Unit ! Schedule) -> Unit ! Schedule, (A) -> Step)
 }
 
@@ -25,7 +25,7 @@ fn[A] ready(value : A) -> A ! Async[Schedule] {
   )
 }
 
-fn run_task(task : () -> Int ! Async[Schedule]) -> Step {
+fn run_task(task : () -> I64 ! Async[Schedule]) -> Step {
   handle task() with {
     suspend[A](register, resume) => waiting[A](
       register,
@@ -54,14 +54,14 @@ fn[A] run_registration(
   }
 }
 
-fn run_loop(step : Step) -> Int {
+fn run_loop(step : Step) -> I64 {
   match step {
     done(value) => value
     waiting[A](register, resume) => run_loop(run_registration[A](register, resume))
   }
 }
 
-fn program() -> Int ! Async[Schedule] {
+fn program() -> I64 ! Async[Schedule] {
   let first = ready(20)
   let flag = ready(true)
   if flag {
@@ -71,7 +71,7 @@ fn program() -> Int ! Async[Schedule] {
   }
 }
 
-pub let async_result : Int = run_loop(run_task(program))
+pub let async_result : I64 = run_loop(run_task(program))
 
 pub fn answer() -> Unit ! Io {
   if async_result == 42 {

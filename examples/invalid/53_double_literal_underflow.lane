@@ -1,3 +1,0 @@
-module Examples.Invalid.DoubleLiteralUnderflow
-
-pub let bad : Double = 1e-4000

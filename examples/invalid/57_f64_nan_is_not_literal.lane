@@ -1,0 +1,3 @@
+module Examples.Invalid.F64NanIsNotLiteral
+
+pub let bad : F64 = nan

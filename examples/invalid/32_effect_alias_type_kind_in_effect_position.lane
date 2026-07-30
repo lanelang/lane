@@ -1,6 +1,6 @@
 module Examples.Invalid.EffectAliasTypeKindInEffectPosition
 
-type Answer = Int
+type Answer = I64
 
 fn bad() -> Unit ! Answer {
   ()

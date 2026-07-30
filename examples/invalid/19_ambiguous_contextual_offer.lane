@@ -2,13 +2,13 @@
 module Examples.Invalid19
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Trait.Num.{ Add }
 
-pub fn custom_add(a : Int, b : Int) -> Int {
+pub fn custom_add(a : I64, b : I64) -> I64 {
   a
 }
 
-pub offer custom_impl_add : Add[Int] = Add::{ add: custom_add }
+pub offer custom_impl_add : Add[I64] = Add::{ add: custom_add }
 
-pub let chosen : Int = 1 + 2
+pub let chosen : I64 = 1 + 2

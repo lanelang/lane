@@ -1,15 +1,15 @@
-module Examples.Valid.DoubleSpecialConstants
+module Examples.Valid.F64SpecialConstants
 
-import Basic.Builtins.{ double_inf, double_nan, double_ninf }
+import Basic.Builtins.{ f64_inf, f64_nan, f64_ninf }
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Double.*
+import Basic.Data.F64.*
 
 pub fn answer() -> Unit ! Io {
-  if double_inf > 1.0 {
-    if double_ninf < 0.0 {
-      if double_nan != double_nan {
-        println("double constants ok")
+  if f64_inf > 1.0 {
+    if f64_ninf < 0.0 {
+      if f64_nan != f64_nan {
+        println("f64 constants ok")
       } else {
         println("nan equality failed")
       }

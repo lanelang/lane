@@ -2,7 +2,7 @@ module Examples.Valid.CoroutineScheduler
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 effect Coroutine[E : Effect] {
   yield() -> Unit
@@ -10,7 +10,7 @@ effect Coroutine[E : Effect] {
 }
 
 effect Log {
-  log(Int) -> Unit
+  log(I64) -> Unit
 }
 
 enum Task[E : Effect] {
@@ -38,7 +38,7 @@ struct Scheduler[E : Effect] {
 
 struct RunResult {
   scheduler : Scheduler[Log]
-  checksum : Int
+  checksum : I64
 }
 
 fn[A, E : Effect] spawn(body : () -> A ! { Coroutine[E], E }) -> Unit ! Coroutine[E] {
@@ -49,7 +49,7 @@ fn[E : Effect] yield() -> Unit ! Coroutine[E] {
   Coroutine[E]::yield!()
 }
 
-fn log(event : Int) -> Unit ! Log {
+fn log(event : I64) -> Unit ! Log {
   Log::log!(event)
 }
 
@@ -109,13 +109,13 @@ fn[E : Effect] run_step(step : Step[E], scheduler : Scheduler[E]) -> Scheduler[E
   }
 }
 
-fn collect_logs(scheduler : Scheduler[Log]) -> (Int) -> RunResult {
+fn collect_logs(scheduler : Scheduler[Log]) -> (I64) -> RunResult {
   handle run_queue(scheduler) with {
-    Log::log(event, resume) => fn(checksum : Int) -> RunResult {
+    Log::log(event, resume) => fn(checksum : I64) -> RunResult {
       resume(())(checksum * 100 + event)
     }
   } final scheduler {
-    fn(checksum : Int) -> RunResult {
+    fn(checksum : I64) -> RunResult {
       RunResult::{ scheduler, checksum }
     }
   }
@@ -128,7 +128,7 @@ fn child() -> Bool ! { Coroutine[Log], Log } {
   true
 }
 
-fn parent() -> Int ! { Coroutine[Log], Log } {
+fn parent() -> I64 ! { Coroutine[Log], Log } {
   let _parent_started : Unit = log(11)
   let _child_spawned : Unit = spawn(child)
   let _parent_after_spawn : Unit = log(12)
@@ -143,7 +143,7 @@ let result : RunResult =
       queue: Queue[Log]::node(
         Runnable[Log]::runnable(
           fn() {
-            run_task(Task[Log]::task[Int](parent))
+            run_task(Task[Log]::task[I64](parent))
           }
         ),
         Queue[Log]::empty()
@@ -151,7 +151,7 @@ let result : RunResult =
     }
   )(0)
 
-pub let schedule_checksum : Int = result.checksum
+pub let schedule_checksum : I64 = result.checksum
 
 pub fn answer() -> Unit ! Io {
   if schedule_checksum == 1112211322 {

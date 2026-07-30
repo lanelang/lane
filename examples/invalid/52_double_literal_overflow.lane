@@ -1,3 +1,0 @@
-module Examples.Invalid.DoubleLiteralOverflow
-
-pub let bad : Double = 1e309

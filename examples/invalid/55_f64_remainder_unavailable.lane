@@ -1,0 +1,5 @@
+module Examples.Invalid.F64RemainderUnavailable
+
+import Basic.Ops.*
+
+pub let bad : F64 = 1.0 % 2.0

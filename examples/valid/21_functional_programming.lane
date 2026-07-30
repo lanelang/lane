@@ -2,7 +2,7 @@ module Examples.Valid21
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 pub enum Option[A] {
   none()
@@ -123,7 +123,7 @@ pub fn[A] reverse(list : List[A]) -> List[A] {
   }
 }
 
-pub fn[A] index(list : List[A], position : Int) -> Option[A] {
+pub fn[A] index(list : List[A], position : I64) -> Option[A] {
   if position < 0 {
     Option::none()
   } else {
@@ -139,7 +139,7 @@ pub fn[A] index(list : List[A], position : Int) -> Option[A] {
   }
 }
 
-pub fn elem(list : List[Int], needle : Int) -> Bool {
+pub fn elem(list : List[I64], needle : I64) -> Bool {
   match list {
     nil() => false
     cons(head, tail) =>
@@ -151,7 +151,7 @@ pub fn elem(list : List[Int], needle : Int) -> Bool {
   }
 }
 
-pub fn found_score(found : Bool) -> Int {
+pub fn found_score(found : Bool) -> I64 {
   if found {
     40
   } else {
@@ -159,7 +159,7 @@ pub fn found_score(found : Bool) -> Int {
   }
 }
 
-pub fn increment(x : Int) -> Int {
+pub fn increment(x : I64) -> I64 {
   x + 1
 }
 
@@ -167,34 +167,34 @@ pub fn[A] singleton(x : A) -> List[A] {
   cons(x, List::nil())
 }
 
-pub fn singleton_int(x : Int) -> List[Int] {
+pub fn singleton_i64(x : I64) -> List[I64] {
   singleton(x)
 }
 
-pub fn identity_int(x : Int) -> Int {
+pub fn identity_i64(x : I64) -> I64 {
   x
 }
 
-pub fn option_identity(x : Int) -> Option[Int] {
-  option_mappable.map(identity_int, some(x))
+pub fn option_identity(x : I64) -> Option[I64] {
+  option_mappable.map(identity_i64, some(x))
 }
 
-pub let numbers : List[Int] = cons(1, cons(2, cons(3, List::nil())))
+pub let numbers : List[I64] = cons(1, cons(2, cons(3, List::nil())))
 
-pub let incremented_numbers : List[Int] = list_mappable.map(increment, numbers)
+pub let incremented_numbers : List[I64] = list_mappable.map(increment, numbers)
 
-pub let flattened_numbers : List[Int] =
-  list_flat_mappable.flat_map(singleton_int, incremented_numbers)
+pub let flattened_numbers : List[I64] =
+  list_flat_mappable.flat_map(singleton_i64, incremented_numbers)
 
-pub let applied_numbers : List[Int] =
-  list_applicative.apply(cons(identity_int, List::nil()), flattened_numbers)
+pub let applied_numbers : List[I64] =
+  list_applicative.apply(cons(identity_i64, List::nil()), flattened_numbers)
 
-pub let selected_number : Option[Int] =
+pub let selected_number : Option[I64] =
   option_flat_mappable.flat_map(option_identity, index(reverse(applied_numbers), 2))
 
-pub let selected_value : Option[Int] = option_applicative.apply(some(identity_int), selected_number)
+pub let selected_value : Option[I64] = option_applicative.apply(some(identity_i64), selected_number)
 
-pub let final_score : Int = unwrap_or(selected_value, 0) + found_score(elem(numbers, 3))
+pub let final_score : I64 = unwrap_or(selected_value, 0) + found_score(elem(numbers, 3))
 
 pub fn answer() -> Unit ! Io {
   if final_score == 42 {

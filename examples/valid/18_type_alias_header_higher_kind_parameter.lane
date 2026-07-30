@@ -4,20 +4,20 @@
 module Examples.Valid18
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Io.{ println }
 
 pub struct Box[A] {
   value : A
 }
 
-pub type ApplyInt[F : [Type] -> Type] = F[Int]
+pub type ApplyI64[F : [Type] -> Type] = F[I64]
 
-pub fn get(box : ApplyInt[Box]) -> Int {
+pub fn get(box : ApplyI64[Box]) -> I64 {
   box.value
 }
 
-pub let higher_kind_value : Int = get(Box::{ value: 42 })
+pub let higher_kind_value : I64 = get(Box::{ value: 42 })
 
 pub fn answer() -> Unit ! Io {
   if higher_kind_value == 42 {

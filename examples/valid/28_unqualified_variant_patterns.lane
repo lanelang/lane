@@ -1,31 +1,31 @@
 module Examples.Valid.UnqualifiedVariantPatterns
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 import Basic.Io.{ println }
 
 enum Left {
-  same(Int)
+  same(I64)
 }
 
 enum Right {
   same(Bool)
 }
 
-fn read_left(value : Left) -> Int {
+fn read_left(value : Left) -> I64 {
   match value {
     same(x) => x
   }
 }
 
-fn read_right(value : Right) -> Int {
+fn read_right(value : Right) -> I64 {
   match value {
     same(_) => 1
   }
 }
 
-pub let left_payload : Int = read_left(Left::same(42))
+pub let left_payload : I64 = read_left(Left::same(42))
 
 pub fn answer() -> Unit ! Io {
   if left_payload == 42 && read_right(Right::same(true)) == 1 {

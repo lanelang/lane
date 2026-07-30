@@ -1,7 +1,7 @@
 module Examples.Invalid.ExplicitGenericFunctionKind
 
 effect Log {
-  log(Int) -> Unit
+  log(I64) -> Unit
 }
 
 fn[E : Effect] run(action : () -> Unit ! E) -> Unit ! E {
@@ -12,4 +12,4 @@ fn logged() -> Unit ! Log {
   Log::log!(1)
 }
 
-let value : Unit = run[Int](logged)
+let value : Unit = run[I64](logged)

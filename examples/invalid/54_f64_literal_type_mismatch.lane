@@ -1,0 +1,5 @@
+module Examples.Invalid.F64LiteralTypeMismatch
+
+pub let bad_f64 : F64 = 1
+
+pub let bad_i64 : I64 = 1.0

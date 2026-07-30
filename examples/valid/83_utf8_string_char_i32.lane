@@ -1,11 +1,11 @@
-module Examples.Valid.Utf8StringCharS32
+module Examples.Valid.Utf8StringCharI32
 
 import Basic.Data.Bytes as ByteSeq
 import Basic.Data.Char as Char
 import Basic.Data.Option.{ Option }
-import Basic.Data.S32 as S32
+import Basic.Data.I32 as I32
 import Basic.Data.String as String
-import Basic.Data.Int.{ int_impl_equal }
+import Basic.Data.I64.{ i64_impl_equal }
 import Basic.Eff.Bound.{ OutOfBound }
 import Test.Assert.{ Assert, execute_all_test }
 
@@ -49,15 +49,15 @@ fn[T] is_none(value : Option[T]) -> Bool {
   }
 }
 
-fn test_utf8_string_char_s32() -> Unit ! Assert {
+fn test_utf8_string_char_i32() -> Unit ! Assert {
   let text = "Aé中😀\0"
   let encoded = String.encode_utf8(text)
-  let maximum : S32 = 2147483647
-  let one : S32 = 1
-  let add = S32.s32_impl_add
+  let maximum : I32 = 2147483647
+  let one : I32 = 1
+  let add = I32.i32_impl_add
   let minimum = add.add(maximum, one)
-  assert_eq!(String.byte_length(text), 11, int_impl_equal)
-  assert_eq!(String.scalar_count(text), 5, int_impl_equal)
+  assert_eq!(String.byte_length(text), 11, i64_impl_equal)
+  assert_eq!(String.scalar_count(text), 5, i64_impl_equal)
   assert_true!(ByteSeq.is_valid_utf8(encoded))
   assert_some_string(String.decode_utf8(encoded), text)
   assert_in_bounds(
@@ -75,13 +75,13 @@ fn test_utf8_string_char_s32() -> Unit ! Assert {
     }
   )
   assert_true!(string_equal(folded, text))
-  assert_some_char(Char.from_int(128512), '😀')
-  assert_true!(is_none(Char.from_int(55296)))
-  assert_eq!(Char.to_int('😀'), 128512, int_impl_equal)
-  assert_eq!(S32.to_int(minimum), S32.to_int(S32.from_int(2147483648)), int_impl_equal)
+  assert_some_char(Char.from_i64(128512), '😀')
+  assert_true!(is_none(Char.from_i64(55296)))
+  assert_eq!(Char.to_i64('😀'), 128512, i64_impl_equal)
+  assert_eq!(I32.to_i64(minimum), I32.to_i64(I32.from_i64(2147483648)), i64_impl_equal)
 }
 
 pub fn answer() -> Unit ! Io {
-  test_utf8_string_char_s32
+  test_utf8_string_char_i32
     |> execute_all_test()
 }

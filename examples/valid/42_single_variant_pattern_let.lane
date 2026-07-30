@@ -1,7 +1,7 @@
 module Examples.Valid.SingleVariantPatternLet
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Io.{ println }
 
 pub enum Id[A] {
@@ -12,7 +12,7 @@ pub enum Packed {
   hide[T](T)
 }
 
-pub fn unwrap(value : Id[Int]) -> Int {
+pub fn unwrap(value : Id[I64]) -> I64 {
   {
     let id(x) = value
     x
@@ -26,16 +26,16 @@ pub fn repack(p : Packed) -> Packed {
   }
 }
 
-pub let wrapped_int : Id[Int] = Id::id(42)
+pub let wrapped_i64 : Id[I64] = Id::id(42)
 
-pub let unwrapped_int : Int = unwrap(wrapped_int)
+pub let unwrapped_i64 : I64 = unwrap(wrapped_i64)
 
-pub let packed_int : Packed = Packed::hide[Int](42)
+pub let packed_i64 : Packed = Packed::hide[I64](42)
 
-pub let repacked_int : Packed = repack(packed_int)
+pub let repacked_i64 : Packed = repack(packed_i64)
 
 pub fn answer() -> Unit ! Io {
-  if unwrapped_int == 42 {
+  if unwrapped_i64 == 42 {
     println("pattern-let=42")
   } else {
     println("bad:pattern-let")

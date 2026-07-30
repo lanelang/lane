@@ -1,0 +1,3 @@
+module Examples.Invalid.F64LiteralOverflow
+
+pub let bad : F64 = 1e309

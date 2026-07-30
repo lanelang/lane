@@ -6,4 +6,4 @@ pub enum Option[A] {
   some(A)
 }
 
-pub let value : Option[Int] = Option::none
+pub let value : Option[I64] = Option::none

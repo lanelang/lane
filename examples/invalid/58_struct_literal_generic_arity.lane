@@ -5,4 +5,4 @@ struct PairBox[A, B] {
   right : B
 }
 
-let value : PairBox[Int, Bool] = PairBox[Int]::{ left: 1, right: true }
+let value : PairBox[I64, Bool] = PairBox[I64]::{ left: 1, right: true }

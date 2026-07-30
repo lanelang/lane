@@ -4,4 +4,4 @@ fn[A] id(value : A) -> A {
   value
 }
 
-let value : Int = id[](1)
+let value : I64 = id[](1)

@@ -2,21 +2,21 @@ module Examples.Valid06
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 
-pub fn add_three(a : Int, b : Int, c : Int) -> Int {
+pub fn add_three(a : I64, b : I64, c : I64) -> I64 {
   a + b + c
 }
 
-pub fn pipeline_call(x : Int) -> Int {
+pub fn pipeline_call(x : I64) -> I64 {
   x
     |> add_three(1, 2)
 }
 
-pub fn pipeline_literal(x : Int) -> Int {
+pub fn pipeline_literal(x : I64) -> I64 {
   x
-    |> fn(value : Int) {
+    |> fn(value : I64) {
       value + 1
     }
 }

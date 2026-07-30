@@ -1,4 +1,0 @@
-module Examples.Invalid.DoubleLiteralMissingFractionDigits
-
-pub let bad : Double = 1.
-

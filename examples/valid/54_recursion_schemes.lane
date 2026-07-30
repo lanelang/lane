@@ -2,14 +2,14 @@ module Examples.Valid.RecursionSchemes
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 enum Fix[F : [Type] -> Type] {
   roll(F[Fix[F]])
 }
 
 enum ExprF[A] {
-  lit(Int)
+  lit(I64)
   add(A, A)
   mul(A, A)
 }
@@ -41,7 +41,7 @@ fn[F : [Type] -> Type, A] cata(functor : Functor[F], algebra : (F[A]) -> A, term
   }
 }
 
-fn literal(value : Int) -> Fix[ExprF] {
+fn literal(value : I64) -> Fix[ExprF] {
   roll(lit(value))
 }
 
@@ -53,7 +53,7 @@ fn mul_expr(left : Fix[ExprF], right : Fix[ExprF]) -> Fix[ExprF] {
   roll(mul(left, right))
 }
 
-fn eval(layer : ExprF[Int]) -> Int {
+fn eval(layer : ExprF[I64]) -> I64 {
   match layer {
     lit(value) => value
     add(left, right) => left + right
@@ -61,7 +61,7 @@ fn eval(layer : ExprF[Int]) -> Int {
   }
 }
 
-fn size(layer : ExprF[Int]) -> Int {
+fn size(layer : ExprF[I64]) -> I64 {
   match layer {
     lit(_value) => 1
     add(left, right) => 1 + left + right
@@ -71,9 +71,9 @@ fn size(layer : ExprF[Int]) -> Int {
 
 let program : Fix[ExprF] = add_expr(mul_expr(literal(6), literal(7)), literal(0))
 
-let program_value : Int = cata(expr_functor, eval, program)
+let program_value : I64 = cata(expr_functor, eval, program)
 
-let program_size : Int = cata(expr_functor, size, program)
+let program_size : I64 = cata(expr_functor, size, program)
 
 pub fn answer() -> Unit ! Io {
   if program_value == 42 {

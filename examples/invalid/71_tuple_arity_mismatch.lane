@@ -2,4 +2,4 @@ module Examples.Invalid.TupleArityMismatch
 
 import Basic.Data.Tuple
 
-pub let pair : (Int, Bool, String) = (42, true)
+pub let pair : (I64, Bool, String) = (42, true)

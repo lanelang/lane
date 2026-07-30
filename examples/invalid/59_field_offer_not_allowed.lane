@@ -2,6 +2,6 @@
 module Examples.Invalid59
 
 struct Box {
-  offer value : Int
+  offer value : I64
 }
 

@@ -12,9 +12,9 @@ pub fn repack(p : Packed) -> Packed {
   }
 }
 
-pub let packed_int : Packed = Packed::hide[Int](42)
+pub let packed_i64 : Packed = Packed::hide[I64](42)
 
-pub let repacked_int : Packed = repack(packed_int)
+pub let repacked_i64 : Packed = repack(packed_i64)
 
 pub fn answer() -> Unit ! Io {
   println("existential enum packed")

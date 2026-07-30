@@ -1,0 +1,3 @@
+module Examples.Invalid.F64InfIsNotLiteral
+
+pub let bad : F64 = inf

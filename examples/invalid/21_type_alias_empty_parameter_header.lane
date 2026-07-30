@@ -2,6 +2,6 @@
 
 module Examples.Invalid21
 
-pub type Empty[] = Int
+pub type Empty[] = I64
 
-pub let bad : Int = 42
+pub let bad : I64 = 42

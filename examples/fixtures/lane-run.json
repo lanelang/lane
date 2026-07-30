@@ -438,30 +438,30 @@
       }
     },
     {
-      "name": "50 double literals",
-      "file": "examples/valid/50_double_literals.lane",
+      "name": "50 f64 literals",
+      "file": "examples/valid/50_f64_literals.lane",
       "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "double literals ok"
+        "equals": "f64 literals ok"
       }
     },
     {
-      "name": "51 double operations",
-      "file": "examples/valid/51_double_operations.lane",
+      "name": "51 f64 operations",
+      "file": "examples/valid/51_f64_operations.lane",
       "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "double operations ok"
+        "equals": "f64 operations ok"
       }
     },
     {
-      "name": "52 double special constants",
-      "file": "examples/valid/52_double_special_constants.lane",
+      "name": "52 f64 special constants",
+      "file": "examples/valid/52_f64_special_constants.lane",
       "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "double constants ok"
+        "equals": "f64 constants ok"
       }
     },
     {
@@ -625,7 +625,7 @@
       "expect": {
         "contains": [
           "error[E3006]",
-          "expected `Unit`, found `Int`",
+          "expected `Unit`, found `I64`",
           "change the expression type or adjust the annotation/expected type"
         ]
       }
@@ -745,7 +745,7 @@
         "contains": [
           "error[E3007]",
           "value is not callable",
-          "`Int` is not a function type"
+          "`I64` is not a function type"
         ]
       }
     },
@@ -794,8 +794,8 @@
         "contains": [
           "error[E3013]",
           "ambiguous contextual offer",
-          "candidate `custom_impl_add` has type `Add[Int]`",
-          "candidate `int_impl_add` has type `Add[Int]`",
+          "candidate `custom_impl_add` has type `Add[I64]`",
+          "candidate `i64_impl_add` has type `Add[I64]`",
           "pass the argument explicitly or keep only one matching visible offer"
         ]
       }
@@ -866,7 +866,7 @@
         "contains": [
           "error[E3016]",
           "`if` without `else` must produce `Unit`",
-          "this branch produces `Int`",
+          "this branch produces `I64`",
           "add an `else` branch if this conditional should produce a value"
         ]
       }
@@ -1047,7 +1047,7 @@
           "error[E3011]",
           "generic arguments require a generic value",
           "these explicit generic arguments require a value with `forall` type",
-          "`plain` has type `(Int) -> Int`"
+          "`plain` has type `(I64) -> I64`"
         ]
       }
     },
@@ -1059,7 +1059,7 @@
         "contains": [
           "error[E3205]",
           "refutable pattern in `let` binding",
-          "this pattern may fail for some `Option[Int]` values",
+          "this pattern may fail for some `Option[I64]` values",
           "`let` pattern bindings must be irrefutable because there is no fallback branch",
           "use a `match` expression when the pattern can fail"
         ]
@@ -1073,7 +1073,7 @@
         "contains": [
           "error[E3205]",
           "refutable pattern in `let` binding",
-          "this pattern may fail for some `Option[Int]` values",
+          "this pattern may fail for some `Option[I64]` values",
           "replace the refutable nested pattern with a binder and match it later"
         ]
       }
@@ -1170,8 +1170,8 @@
       }
     },
     {
-      "name": "invalid 50 double literal missing fraction digits",
-      "file": "examples/invalid/50_double_literal_missing_fraction_digits.lane",
+      "name": "invalid 50 f64 literal missing fraction digits",
+      "file": "examples/invalid/50_f64_literal_missing_fraction_digits.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
@@ -1182,8 +1182,8 @@
       }
     },
     {
-      "name": "invalid 51 double literal leading dot",
-      "file": "examples/invalid/51_double_literal_leading_dot.lane",
+      "name": "invalid 51 f64 literal leading dot",
+      "file": "examples/invalid/51_f64_literal_leading_dot.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
@@ -1194,57 +1194,57 @@
       }
     },
     {
-      "name": "invalid 52 double literal overflow",
-      "file": "examples/invalid/52_double_literal_overflow.lane",
+      "name": "invalid 52 f64 literal overflow",
+      "file": "examples/invalid/52_f64_literal_overflow.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
           "error[E3025]",
-          "invalid double literal `1e309`",
+          "invalid F64 literal `1e309`",
           "finite IEEE 754 binary64"
         ]
       }
     },
     {
-      "name": "invalid 53 double literal underflow",
-      "file": "examples/invalid/53_double_literal_underflow.lane",
+      "name": "invalid 53 f64 literal underflow",
+      "file": "examples/invalid/53_f64_literal_underflow.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
           "error[E3025]",
-          "invalid double literal `1e-4000`",
+          "invalid F64 literal `1e-4000`",
           "finite IEEE 754 binary64"
         ]
       }
     },
     {
-      "name": "invalid 54 double literal type mismatch",
-      "file": "examples/invalid/54_double_literal_type_mismatch.lane",
+      "name": "invalid 54 f64 literal type mismatch",
+      "file": "examples/invalid/54_f64_literal_type_mismatch.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
           "error[E3006]",
-          "expected `Double`, found `Int`",
+          "expected `F64`, found `I64`",
           "error[E3006]",
-          "expected `Int`, found `Double`"
+          "expected `I64`, found `F64`"
         ]
       }
     },
     {
-      "name": "invalid 55 double remainder unavailable",
-      "file": "examples/invalid/55_double_remainder_unavailable.lane",
+      "name": "invalid 55 f64 remainder unavailable",
+      "file": "examples/invalid/55_f64_remainder_unavailable.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
           "error[E3013]",
           "missing contextual offer",
-          "Rem[Double]"
+          "Rem[F64]"
         ]
       }
     },
     {
-      "name": "invalid 56 double inf is not literal",
-      "file": "examples/invalid/56_double_inf_is_not_literal.lane",
+      "name": "invalid 56 f64 inf is not literal",
+      "file": "examples/invalid/56_f64_inf_is_not_literal.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
@@ -1254,8 +1254,8 @@
       }
     },
     {
-      "name": "invalid 57 double nan is not literal",
-      "file": "examples/invalid/57_double_nan_is_not_literal.lane",
+      "name": "invalid 57 f64 nan is not literal",
+      "file": "examples/invalid/57_f64_nan_is_not_literal.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
@@ -1298,8 +1298,8 @@
         "contains": [
           "error[E3013]",
           "missing contextual offer",
-          "no visible offer matches required type `Equal[Int]`",
-          "add a visible `offer` with type `Equal[Int]`"
+          "no visible offer matches required type `Equal[I64]`",
+          "add a visible `offer` with type `Equal[I64]`"
         ]
       }
     },
@@ -1407,7 +1407,7 @@
       "expect": {
         "contains": [
           "error[E3006]",
-          "expected `Unit`, found `Int`",
+          "expected `Unit`, found `I64`",
           "change the expression type or adjust the annotation/expected type"
         ]
       }
@@ -1615,8 +1615,8 @@
       }
     },
     {
-      "name": "83 UTF-8 String Char and S32",
-      "file": "examples/valid/83_utf8_string_char_s32.lane",
+      "name": "83 UTF-8 String Char and I32",
+      "file": "examples/valid/83_utf8_string_char_i32.lane",
       "mode": "run",
       "entry": "answer",
       "expect": {
@@ -1683,14 +1683,14 @@
       }
     },
     {
-      "name": "invalid 75 S32 literal overflow",
-      "file": "examples/invalid/75_s32_literal_overflow.lane",
+      "name": "invalid 75 I32 literal overflow",
+      "file": "examples/invalid/75_i32_literal_overflow.lane",
       "mode": "check-error",
       "expect": {
         "contains": [
           "error[E3034]",
-          "invalid S32 literal `2147483648`",
-          "cannot be represented as a Lane `S32`"
+          "invalid I32 literal `2147483648`",
+          "cannot be represented as a Lane `I32`"
         ]
       }
     },
@@ -1726,7 +1726,7 @@
         "contains": [
           "error[E3013]",
           "missing contextual offer",
-          "no visible offer matches required type `(Int) -> Int`"
+          "no visible offer matches required type `(I64) -> I64`"
         ]
       }
     }

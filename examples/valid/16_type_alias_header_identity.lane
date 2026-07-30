@@ -4,12 +4,12 @@
 module Examples.Valid16
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Io.{ println }
 
 pub type Id[A] = A
 
-pub let identity_value : Id[Int] = 42
+pub let identity_value : Id[I64] = 42
 
 pub fn answer() -> Unit ! Io {
   if identity_value == 42 {

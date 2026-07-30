@@ -6,7 +6,7 @@ enum Option[A] {
   some(A)
 }
 
-pub fn bad(value : Option[Option[Int]]) -> Int {
+pub fn bad(value : Option[Option[I64]]) -> I64 {
   match value {
     none() => 0
     some(none()) => 1

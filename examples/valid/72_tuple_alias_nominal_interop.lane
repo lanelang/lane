@@ -3,7 +3,7 @@ module Examples.Valid.TupleAliasNominalInterop
 import Basic.Data.Tuple.*
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 
 type Pair[A, B] = (A, B)
@@ -13,8 +13,8 @@ fn[A, B] as_nominal(value : Pair[A, B]) -> Tuple[A, B] {
 }
 
 pub fn answer() -> Unit ! Io {
-  let explicit : Tuple[Int, Bool] = tuple(42, true)
-  let pair : Pair[Int, Bool] = as_nominal(explicit)
+  let explicit : Tuple[I64, Bool] = tuple(42, true)
+  let pair : Pair[I64, Bool] = as_nominal(explicit)
   let (number, enabled) = pair
   if enabled && number == 42 {
     println("tuple alias nominal interop=42")

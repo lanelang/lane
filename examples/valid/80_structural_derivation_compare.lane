@@ -9,19 +9,19 @@ import Basic.Trait.Equal.{ Equal }
 import Basic.Trait.Iso.{ Iso }
 import Basic.Ops.*
 import Basic.Data.Bool.*
-import Basic.Data.Int.{ int_impl_compare }
+import Basic.Data.I64.{ i64_impl_compare }
 
 struct Box[T] {
   value : T
 }
 
 struct Point {
-  x : Int
-  y : Int
+  x : I64
+  y : I64
 }
 
 struct Tree {
-  value : Int
+  value : I64
   children : List[Tree]
 }
 
@@ -210,13 +210,13 @@ let list_compare_lift : Lift[Compare, List] = Lift::{
   }
 }
 
-fn build_int_list_compare() -> Compare[List[Int]] {
-  offer recursive_list_compare : Compare[List[Int]] = recursive_compare.defer(
+fn build_i64_list_compare() -> Compare[List[I64]] {
+  offer recursive_list_compare : Compare[List[I64]] = recursive_compare.defer(
     fn() {
-      build_int_list_compare()
+      build_i64_list_compare()
     }
   )
-  derive[Compare, List[Int]]()
+  derive[Compare, List[I64]]()
 }
 
 fn build_tree_compare() -> Compare[Tree] {
@@ -229,15 +229,15 @@ fn build_tree_compare() -> Compare[Tree] {
   derive[Compare, Tree]()
 }
 
-let box_compare : Compare[Box[Int]] = derive[Compare, Box[Int]]()
+let box_compare : Compare[Box[I64]] = derive[Compare, Box[I64]]()
 
-let list_compare : Compare[List[Int]] = build_int_list_compare()
+let list_compare : Compare[List[I64]] = build_i64_list_compare()
 
 let point_compare : Compare[Point] = derive[Compare, Point]()
 
 let tree_compare : Compare[Tree] = build_tree_compare()
 
-fn leaf(value : Int) -> Tree {
+fn leaf(value : I64) -> Tree {
   Tree::{ value, children: [] }
 }
 

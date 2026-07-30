@@ -1,7 +1,7 @@
 module Examples.Warnings.UnusedImportsAndOpens
 
 import Basic.Builtins
-import Basic.Builtins.{ double_nan }
+import Basic.Builtins.{ f64_nan }
 import Basic.Ops.*
 import Basic.Io.{ println }
 

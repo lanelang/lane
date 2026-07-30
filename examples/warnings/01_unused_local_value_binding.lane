@@ -1,6 +1,6 @@
 module Examples.Warnings.UnusedLocalValueBinding
 
-pub fn answer() -> Int {
+pub fn answer() -> I64 {
   let used = 1
   let unused = 2
   let _ignored = 3

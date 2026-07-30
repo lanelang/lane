@@ -1,18 +1,18 @@
 module Examples.Valid10
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Io.{ println }
 
 pub struct UserId {
-  value : Int
+  value : I64
 }
 
 pub struct OrderId {
-  value : Int
+  value : I64
 }
 
-pub fn user_value(id : UserId) -> Int {
+pub fn user_value(id : UserId) -> I64 {
   id.value
 }
 

@@ -1,33 +1,33 @@
 module Examples.Valid61
 
-pub offer fn offered_identity(value : Int) -> Int {
+pub offer fn offered_identity(value : I64) -> I64 {
   accept_identity()
   value
 }
 
-fn accept_identity(auto _transform : (Int) -> Int) -> Unit {
+fn accept_identity(auto _transform : (I64) -> I64) -> Unit {
   ()
 }
 
-fn obtain(auto provider : () -> Int) -> Int {
+fn obtain(auto provider : () -> I64) -> I64 {
   provider()
 }
 
-pub fn local_answer() -> Int {
-  offer fn provide() -> Int {
+pub fn local_answer() -> I64 {
+  offer fn provide() -> I64 {
     42
   }
   obtain()
 }
 
-fn use_polymorphic(auto transform : [A](A) -> A) -> Int {
-  transform[Int](42)
+fn use_polymorphic(auto transform : [A](A) -> A) -> I64 {
+  transform[I64](42)
 }
 
 offer fn[A] identity(value : A) -> A {
   value
 }
 
-pub let top_level_answer : Int = offered_identity(42)
+pub let top_level_answer : I64 = offered_identity(42)
 
-pub let polymorphic_answer : Int = use_polymorphic()
+pub let polymorphic_answer : I64 = use_polymorphic()

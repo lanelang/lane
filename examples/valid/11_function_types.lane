@@ -1,11 +1,11 @@
 module Examples.Valid11
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 import Basic.Io.{ println }
 
-pub fn apply(value : Int, f : (Int) -> Int) -> Int {
+pub fn apply(value : I64, f : (I64) -> I64) -> I64 {
   f(value)
 }
 
@@ -13,7 +13,7 @@ fn[A] apply_generic(value : A, f : (A) -> A) -> A {
   f(value)
 }
 
-pub let id_int : (Int) -> Int = fn(value) {
+pub let id_i64 : (I64) -> I64 = fn(value) {
   value
 }
 
@@ -22,7 +22,7 @@ pub let id_poly : [A](A) -> A = fn[A](value) {
 }
 
 pub fn answer() -> Unit ! Io {
-  if apply(42, id_int) == 42 && apply_generic(42, id_int) == 42 {
+  if apply(42, id_i64) == 42 && apply_generic(42, id_i64) == 42 {
     println("apply=42")
   } else {
     println("bad:apply=42")

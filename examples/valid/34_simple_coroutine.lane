@@ -2,20 +2,20 @@ module Examples.Valid.SimpleCoroutine
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 effect Coroutine {
-  yield(Int) -> Int
+  yield(I64) -> I64
 }
 
 pub enum CoroutineStep {
-  done(Int)
-  yielded(Int, (Int) -> CoroutineStep)
+  done(I64)
+  yielded(I64, (I64) -> CoroutineStep)
 }
 
-fn worker() -> Int ! Coroutine {
-  let first : Int = Coroutine::yield!(1)
-  let second : Int = Coroutine::yield!(first + 10)
+fn worker() -> I64 ! Coroutine {
+  let first : I64 = Coroutine::yield!(1)
+  let second : I64 = Coroutine::yield!(first + 10)
   second + 100
 }
 
@@ -23,7 +23,7 @@ fn start() -> CoroutineStep {
   handle worker() with {
     Coroutine::yield(value, resume) => yielded(
       value,
-      fn(input : Int) -> CoroutineStep {
+      fn(input : I64) -> CoroutineStep {
         resume(input)
       }
     )
@@ -32,14 +32,14 @@ fn start() -> CoroutineStep {
   }
 }
 
-fn drive(step : CoroutineStep) -> Int {
+fn drive(step : CoroutineStep) -> I64 {
   match step {
     done(value) => value
     yielded(value, resume) => value + drive(resume(value * 2))
   }
 }
 
-pub let coroutine_total : Int = drive(start())
+pub let coroutine_total : I64 = drive(start())
 
 pub fn answer() -> Unit ! Io {
   if coroutine_total == 137 {

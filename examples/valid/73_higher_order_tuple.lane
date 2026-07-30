@@ -4,16 +4,16 @@ import Basic.Data.Tuple
 import Basic.Io.{ println }
 import Basic.Ops.*
 import Basic.Data.Bool.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
-fn apply_transforms(transforms : ((Int) -> Int, (Bool) -> Bool)) -> (Int, Bool) {
-  let (transform_int, transform_bool) = transforms
-  let result = (transform_int(41), transform_bool(false))
+fn apply_transforms(transforms : ((I64) -> I64, (Bool) -> Bool)) -> (I64, Bool) {
+  let (transform_i64, transform_bool) = transforms
+  let result = (transform_i64(41), transform_bool(false))
   result
 }
 
 pub fn answer() -> Unit ! Io {
-  let transforms : ((Int) -> Int, (Bool) -> Bool) =
+  let transforms : ((I64) -> I64, (Bool) -> Bool) =
     (
       fn(value) {
         value + 1

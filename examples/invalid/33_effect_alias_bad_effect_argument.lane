@@ -6,6 +6,6 @@ effect Coroutine {
 
 type Task[E : Effect] = { Coroutine, E }
 
-fn bad() -> Unit ! Task[Int] {
+fn bad() -> Unit ! Task[I64] {
   ()
 }

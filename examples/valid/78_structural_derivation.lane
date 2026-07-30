@@ -8,7 +8,7 @@ import Basic.Trait.Iso.{ Iso }
 import Basic.Ops.*
 import Basic.Data.Bool.*
 import Basic.Data.String.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 struct RoundTrip[T] {
   type_name : String
@@ -97,8 +97,8 @@ fn selected_deriver() -> Deriver[RoundTrip] ! Io {
   derive_round_trip
 }
 
-offer int_round_trip : RoundTrip[Int] = RoundTrip::{
-  type_name: "Int",
+offer i64_round_trip : RoundTrip[I64] = RoundTrip::{
+  type_name: "I64",
   component_name: "",
   run: fn(value) {
     value
@@ -114,23 +114,23 @@ offer bool_round_trip : RoundTrip[Bool] = RoundTrip::{
 }
 
 struct Point {
-  x : Int
-  y : Int
+  x : I64
+  y : I64
 }
 
 type Position = Point
 
 enum Choice {
   none()
-  one(Int)
-  pair(Bool, Int)
+  one(I64)
+  pair(Bool, I64)
 }
 
 let point_round_trip : RoundTrip[Position] = derive[RoundTrip, Position]()
 
 let choice_round_trip : RoundTrip[Choice] = derive[RoundTrip, Choice]()
 
-let tuple_round_trip : RoundTrip[(Int, Bool)] = derive[RoundTrip, (Int, Bool)]()
+let tuple_round_trip : RoundTrip[(I64, Bool)] = derive[RoundTrip, (I64, Bool)]()
 
 pub fn answer() -> Unit ! Io {
   let point = point_round_trip.run(Point::{ x: 40, y: 2 })

@@ -1,11 +1,11 @@
 module Examples.Valid.ElseIfChain
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 import Basic.Io.{ println }
 
-pub fn choose(first : Bool, second : Bool) -> Int {
+pub fn choose(first : Bool, second : Bool) -> I64 {
   if first {
     1
   } else if second {
@@ -15,11 +15,11 @@ pub fn choose(first : Bool, second : Bool) -> Int {
   }
 }
 
-pub let first : Int = choose(true, false)
+pub let first : I64 = choose(true, false)
 
-pub let second : Int = choose(false, true)
+pub let second : I64 = choose(false, true)
 
-pub let fallback : Int = choose(false, false)
+pub let fallback : I64 = choose(false, false)
 
 pub fn answer() -> Unit ! Io {
   if first == 1 && second == 2 && fallback == 3 {

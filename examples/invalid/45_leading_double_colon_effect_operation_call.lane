@@ -1,9 +1,9 @@
 module Examples.Invalid45
 
 effect Console {
-  read() -> Int
+  read() -> I64
 }
 
-fn answer() -> Int ! Console {
+fn answer() -> I64 ! Console {
   ::read!()
 }

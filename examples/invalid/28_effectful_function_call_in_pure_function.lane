@@ -2,13 +2,13 @@
 module Examples.Invalid.EffectfulFunctionCallInPureFunction
 
 effect Console {
-  read() -> Int
+  read() -> I64
 }
 
-fn read_int() -> Int ! Console {
+fn read_i64() -> I64 ! Console {
   Console::read!()
 }
 
-pub fn bad() -> Int {
-  read_int()
+pub fn bad() -> I64 {
+  read_i64()
 }

@@ -2,19 +2,19 @@ module Examples.Valid.ListLiteral
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.List.*
 
-fn sum(list : List[Int]) -> Int {
+fn sum(list : List[I64]) -> I64 {
   match list {
     empty() => 0
     cons(head, tail) => head + sum(tail)
   }
 }
 
-pub let numbers : List[Int] = [1, 2, 3, 4]
+pub let numbers : List[I64] = [1, 2, 3, 4]
 
-pub let empty_numbers : List[Int] = []
+pub let empty_numbers : List[I64] = []
 
 pub fn answer() -> Unit ! Io {
   if sum(numbers) == 10 {

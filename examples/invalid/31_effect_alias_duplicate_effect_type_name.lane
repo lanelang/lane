@@ -1,9 +1,9 @@
 module Examples.Invalid.EffectAliasDuplicateEffectTypeName
 
 effect IO {
-  read() -> Int
+  read() -> I64
 }
 
 type IO = { IO }
 
-pub let bad : Int = 42
+pub let bad : I64 = 42

@@ -2,7 +2,7 @@ module Examples.Valid.ByteAndBytesPrimitives
 
 import Basic.Data.Byte as Byte
 import Basic.Data.Bytes as ByteSeq
-import Basic.Data.Int.{ int_impl_equal }
+import Basic.Data.I64.{ i64_impl_equal }
 import Basic.Eff.Bound.{ OutOfBound }
 import Test.Assert.{ Assert, execute_all_test }
 
@@ -27,14 +27,14 @@ fn[T] is_out_of_bounds(action : () -> T ! OutOfBound) -> Bool {
 fn test_byte_and_bytes_primitives() -> Unit ! Assert {
   assert_in_bounds(
     fn() {
-      let original = ByteSeq.bytes_make(3, Byte.from_int(65))
-      let with_b = ByteSeq.bytes_set(original, 1, Byte.from_int(66))
-      let updated = ByteSeq.bytes_set(with_b, 2, Byte.from_int(67))
+      let original = ByteSeq.bytes_make(3, Byte.from_i64(65))
+      let with_b = ByteSeq.bytes_set(original, 1, Byte.from_i64(66))
+      let updated = ByteSeq.bytes_set(with_b, 2, Byte.from_i64(67))
       let prefix = ByteSeq.bytes_slice(updated, 0, 1)
       let suffix = ByteSeq.bytes_slice(updated, 1, 2)
-      assert_eq!(Byte.to_int(Byte.from_int(511)), 255, int_impl_equal)
-      assert_eq!(ByteSeq.bytes_length(original), 3, int_impl_equal)
-      assert_eq!(Byte.to_int(ByteSeq.bytes_get(original, 1)), 65, int_impl_equal)
+      assert_eq!(Byte.to_i64(Byte.from_i64(511)), 255, i64_impl_equal)
+      assert_eq!(ByteSeq.bytes_length(original), 3, i64_impl_equal)
+      assert_eq!(Byte.to_i64(ByteSeq.bytes_get(original, 1)), 65, i64_impl_equal)
       assert_true!(ByteSeq.bytes_equal(ByteSeq.bytes_concat(prefix, suffix), updated))
       assert_true!(ByteSeq.is_valid_utf8(updated))
     }
@@ -42,7 +42,7 @@ fn test_byte_and_bytes_primitives() -> Unit ! Assert {
   assert_true!(
     is_out_of_bounds[Bytes](
       fn() {
-        let bytes = ByteSeq.bytes_make(3, Byte.from_int(65))
+        let bytes = ByteSeq.bytes_make(3, Byte.from_i64(65))
         ByteSeq.bytes_slice(bytes, 2, 2)
       }
     )

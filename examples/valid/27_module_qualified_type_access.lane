@@ -2,13 +2,13 @@ module Examples.Valid.ModuleQualifiedTypeAccess
 
 import Basic.Trait.Num
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Io.{ println }
 import Basic.Builtins
 
-let local_impl_add : Basic.Trait.Num.Add[Int] = Basic.Trait.Num.Add::{ add: Basic.Builtins.int_add }
+let local_impl_add : Basic.Trait.Num.Add[I64] = Basic.Trait.Num.Add::{ add: Basic.Builtins.i64_add }
 
-pub let sum_value : Int = local_impl_add.add(20, 22)
+pub let sum_value : I64 = local_impl_add.add(20, 22)
 
 pub fn answer() -> Unit ! Io {
   if sum_value == 42 {

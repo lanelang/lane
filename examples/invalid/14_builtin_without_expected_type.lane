@@ -1,7 +1,7 @@
 // invalid: builtin names must belong to the compiler-owned intrinsic table
 module Examples.Invalid14
 
-pub fn bad() -> Int {
+pub fn bad() -> I64 {
   let x = builtin("%anything")
   x
 }

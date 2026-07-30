@@ -4,9 +4,9 @@ import Basic.Data.List.*
 import Basic.Data.Tuple
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
-fn sum_pairs(values : List[(Int, Int)]) -> Int {
+fn sum_pairs(values : List[(I64, I64)]) -> I64 {
   match values {
     empty() => 0
     cons((left, right), tail) => left + right + sum_pairs(tail)
@@ -14,7 +14,7 @@ fn sum_pairs(values : List[(Int, Int)]) -> Int {
 }
 
 pub fn answer() -> Unit ! Io {
-  let pairs : List[(Int, Int)] = [(1, 2), (3, 4), (10, 22)]
+  let pairs : List[(I64, I64)] = [(1, 2), (3, 4), (10, 22)]
   if sum_pairs(pairs) == 42 {
     println("list of tuples=42")
   } else {

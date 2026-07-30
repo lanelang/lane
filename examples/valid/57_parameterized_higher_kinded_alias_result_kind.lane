@@ -5,7 +5,7 @@ module Examples.Valid.ParameterizedHigherKindedAliasResultKind
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 pub struct Box[A] {
   value : A
@@ -13,9 +13,9 @@ pub struct Box[A] {
 
 pub type Mapper[F : [Type] -> Type] : [Type] -> Type = type[A] => F[A]
 
-pub type BoxInt = Mapper[Box][Int]
+pub type BoxI64 = Mapper[Box][I64]
 
-pub let boxed : BoxInt = Box::{ value: 42 }
+pub let boxed : BoxI64 = Box::{ value: 42 }
 
 pub fn answer() -> Unit ! Io {
   if boxed.value == 42 {

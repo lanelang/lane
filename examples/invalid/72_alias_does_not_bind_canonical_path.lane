@@ -3,6 +3,6 @@ module Examples.Invalid.AliasDoesNotBindCanonicalPath
 
 import Basic.Data.Option as Maybe
 
-fn invalid() -> Basic.Data.Option.Option[Int] {
+fn invalid() -> Basic.Data.Option.Option[I64] {
   Maybe.Option::some(42)
 }

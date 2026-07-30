@@ -14,9 +14,9 @@ pub fn repack(h : Hide) -> Hide {
   }
 }
 
-pub let packed_int : Hide = Hide::{ T = Int, val: 42 }
+pub let packed_i64 : Hide = Hide::{ T = I64, val: 42 }
 
-pub let repacked_int : Hide = repack(packed_int)
+pub let repacked_i64 : Hide = repack(packed_i64)
 
 pub fn answer() -> Unit ! Io {
   println("existential struct packed")

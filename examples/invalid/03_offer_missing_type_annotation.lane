@@ -4,5 +4,5 @@ module Examples.Invalid03
 pub offer constants = Constants::{ value: 42 }
 
 pub struct Constants {
-  value : Int
+  value : I64
 }

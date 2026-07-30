@@ -4,7 +4,7 @@ import Basic.Data.Tuple
 import Basic.Io.{ println }
 import Basic.Ops.*
 import Basic.Data.String.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 
 fn[A, B] swap(value : (A, B)) -> (B, A) {

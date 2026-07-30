@@ -5,11 +5,11 @@ import Basic.Data.Tuple as Pair
 import Basic.Eff.Read as Reader
 import Basic.Io as Console
 
-fn demand() -> Int ! Reader.Read[Int] {
-  Reader.Read[Int]::read!()
+fn demand() -> I64 ! Reader.Read[I64] {
+  Reader.Read[I64]::read!()
 }
 
-fn selected() -> Maybe.Option[(Int, Bool)] {
+fn selected() -> Maybe.Option[(I64, Bool)] {
   Maybe.Option::some((42, true))
 }
 

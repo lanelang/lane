@@ -2,18 +2,18 @@ module Examples.Valid.PipelineEffectHandlers
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 effect Ask {
-  read() -> Int
+  read() -> I64
 }
 
 effect Log {
-  write(Int) -> Unit
+  write(I64) -> Unit
 }
 
-fn program() -> Int ! { Ask, Log } {
-  let value : Int = Ask::read!()
+fn program() -> I64 ! { Ask, Log } {
+  let value : I64 = Ask::read!()
   let _written : Unit = Log::write!(value + 1)
   value + 2
 }
@@ -38,7 +38,7 @@ fn[A, E : Effect] handle_log(task : () -> A ! { Log, E }) -> () -> A ! E {
   }
 }
 
-pub let handled_value : Int =
+pub let handled_value : I64 =
   (program
     |> handle_ask
     |> handle_log)()

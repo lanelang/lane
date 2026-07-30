@@ -3,12 +3,12 @@
 module Examples.Valid17
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Io.{ println }
 
 pub type Left[A, _B] = A
 
-pub let left_value : Left[Int, Bool] = 42
+pub let left_value : Left[I64, Bool] = 42
 
 pub fn answer() -> Unit ! Io {
   if left_value == 42 {

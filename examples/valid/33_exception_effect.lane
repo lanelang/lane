@@ -1,18 +1,18 @@
 module Examples.Valid.ExceptionEffect
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Io.{ println }
 
 effect Exception {
-  raise(Int) -> Int
+  raise(I64) -> I64
 }
 
-fn fail_with_answer() -> Int ! Exception {
+fn fail_with_answer() -> I64 ! Exception {
   Exception::raise!(42)
 }
 
-pub let handled_value : Int = {
+pub let handled_value : I64 = {
   handle fail_with_answer() with {
     Exception::raise(code, _resume) => code
   } final value {

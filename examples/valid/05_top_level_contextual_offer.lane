@@ -2,18 +2,18 @@ module Examples.Valid05
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Trait.Num.{ Add }
 
-pub fn custom_add(a : Int, _b : Int) -> Int {
+pub fn custom_add(a : I64, _b : I64) -> I64 {
   a
 }
 
-pub offer custom_impl_add : Add[Int] = Add::{ add: custom_add }
+pub offer custom_impl_add : Add[I64] = Add::{ add: custom_add }
 
-pub let chosen : Int = op_add(1, 2, op=custom_impl_add)
+pub let chosen : I64 = op_add(1, 2, op=custom_impl_add)
 
-pub fn use_offered_add() -> Int {
+pub fn use_offered_add() -> I64 {
   chosen
 }
 

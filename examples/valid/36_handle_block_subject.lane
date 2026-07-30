@@ -2,15 +2,15 @@ module Examples.Valid.HandleBlockSubject
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 effect Console {
-  read() -> Int
+  read() -> I64
 }
 
-pub let handled_value : Int = {
+pub let handled_value : I64 = {
   handle {
-    let base : Int = 40
+    let base : I64 = 40
     base + Console::read!()
   } with {
     Console::read(resume) => resume(2)

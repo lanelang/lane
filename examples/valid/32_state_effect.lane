@@ -2,34 +2,34 @@ module Examples.Valid.StateEffect
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 pub struct StateResult {
-  value : Int
-  state : Int
+  value : I64
+  state : I64
 }
 
 effect State {
-  get() -> Int
-  put(Int) -> Unit
+  get() -> I64
+  put(I64) -> Unit
 }
 
-fn tick() -> Int ! State {
-  let current : Int = State::get!()
+fn tick() -> I64 ! State {
+  let current : I64 = State::get!()
   let _updated : Unit = State::put!(current + 1)
   State::get!()
 }
 
-fn run_tick() -> (Int) -> StateResult {
+fn run_tick() -> (I64) -> StateResult {
   handle tick() with {
-    State::get(resume) => fn(state : Int) -> StateResult {
+    State::get(resume) => fn(state : I64) -> StateResult {
       resume(state)(state)
     }
-    State::put(next, resume) => fn(_state : Int) -> StateResult {
+    State::put(next, resume) => fn(_state : I64) -> StateResult {
       resume(())(next)
     }
   } final value {
-    fn(state : Int) -> StateResult {
+    fn(state : I64) -> StateResult {
       StateResult::{ value, state }
     }
   }
@@ -37,7 +37,7 @@ fn run_tick() -> (Int) -> StateResult {
 
 pub let result : StateResult = run_tick()(41)
 
-pub let state_value : Int = result.value
+pub let state_value : I64 = result.value
 
 pub fn answer() -> Unit ! Io {
   if state_value == 42 {

@@ -1,7 +1,7 @@
 module Examples.Valid.NestedPatternExhaustiveness
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 import Basic.Io.{ println }
 
@@ -14,7 +14,7 @@ pub struct Box[A] {
   value : A
 }
 
-pub fn flatten(value : Option[Option[Int]]) -> Int {
+pub fn flatten(value : Option[Option[I64]]) -> I64 {
   match value {
     none() => 0
     some(none()) => 1
@@ -22,14 +22,14 @@ pub fn flatten(value : Option[Option[Int]]) -> Int {
   }
 }
 
-pub fn boxed(value : Box[Option[Int]]) -> Int {
+pub fn boxed(value : Box[Option[I64]]) -> I64 {
   match value {
     Box::{ value: none() } => 0
     Box::{ value: some(x) } => x
   }
 }
 
-pub let flattened_value : Int = flatten(some(some(42)))
+pub let flattened_value : I64 = flatten(some(some(42)))
 
 pub fn answer() -> Unit ! Io {
   if flattened_value == 42 && boxed(Box::{ value: some(42) }) == 42 {

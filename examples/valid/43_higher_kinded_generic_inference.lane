@@ -2,14 +2,14 @@ module Examples.Valid43
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 enum Option[A] {
   none()
   some(A)
 }
 
-fn[F : [Type] -> Type] consume_int(_value : F[Int]) -> Int {
+fn[F : [Type] -> Type] consume_i64(_value : F[I64]) -> I64 {
   1
 }
 
@@ -17,9 +17,9 @@ fn[F : [Type] -> Type, A] choose(_value : F[A], fallback : A) -> A {
   fallback
 }
 
-let inferred_constructor : Int = consume_int(Option::some(0))
+let inferred_constructor : I64 = consume_i64(Option::some(0))
 
-let inferred_constructor_and_value : Int = choose(Option::some(1), 41)
+let inferred_constructor_and_value : I64 = choose(Option::some(1), 41)
 
 pub fn answer() -> Unit ! Io {
   if inferred_constructor + inferred_constructor_and_value == 42 {

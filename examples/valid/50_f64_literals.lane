@@ -1,0 +1,33 @@
+module Examples.Valid.F64Literals
+
+import Basic.Io.{ println }
+
+fn classify(value : F64) -> I64 {
+  match value {
+    1.0 => 1
+    1e3 => 2
+    5e-324 => 3
+    _ => 0
+  }
+}
+
+pub let decimal : F64 = 1.0
+
+pub let exponent : F64 = 1e3
+
+pub let subnormal : F64 = 5e-324
+
+pub fn answer() -> Unit ! Io {
+  match classify(decimal) {
+    1 =>
+      match classify(exponent) {
+        2 =>
+          match classify(subnormal) {
+            3 => println("f64 literals ok")
+            _ => println("f64 subnormal failed")
+          }
+        _ => println("f64 exponent failed")
+      }
+    _ => println("f64 decimal failed")
+  }
+}

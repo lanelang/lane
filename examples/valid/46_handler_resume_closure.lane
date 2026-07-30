@@ -2,16 +2,16 @@ module Examples.Valid.HandlerResumeClosure
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 effect Console {
-  read() -> Int
+  read() -> I64
 }
 
-fn program() -> Int {
+fn program() -> I64 {
   handle Console::read!() with {
     Console::read(resume) => {
-      let callback : (Int) -> Int = fn(value) {
+      let callback : (I64) -> I64 = fn(value) {
         resume(value)
       }
       callback(42)

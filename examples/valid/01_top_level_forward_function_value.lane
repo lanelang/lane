@@ -1,14 +1,14 @@
 module Examples.Valid01
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Io.{ println }
 
-pub fn read_stored_value() -> Int {
+pub fn read_stored_value() -> I64 {
   stored_value
 }
 
-pub let stored_value : Int = 42
+pub let stored_value : I64 = 42
 
 pub fn answer() -> Unit ! Io {
   if read_stored_value() == 42 {

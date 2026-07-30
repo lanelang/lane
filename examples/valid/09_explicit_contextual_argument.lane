@@ -2,15 +2,15 @@ module Examples.Valid09
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Trait.Num.{ Add }
 
-pub fn weird_add(a : Int, _b : Int) -> Int {
+pub fn weird_add(a : I64, _b : I64) -> I64 {
   a
 }
 
-pub fn use_weird_add(a : Int, b : Int) -> Int {
-  let weird_impl_add : Add[Int] = Add::{ add: weird_add }
+pub fn use_weird_add(a : I64, b : I64) -> I64 {
+  let weird_impl_add : Add[I64] = Add::{ add: weird_add }
   op_add(a, b, op=weird_impl_add)
 }
 

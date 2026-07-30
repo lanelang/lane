@@ -1,7 +1,7 @@
 // invalid: a non-final sequential expression must have type Unit
 module Examples.Invalid67
 
-pub fn bad() -> Int {
+pub fn bad() -> I64 {
   1
   2
 }

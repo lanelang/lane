@@ -1,9 +1,9 @@
 // invalid: local named functions are sequential and cannot be called before declaration
 module Examples.Invalid12
 
-pub fn bad(value : Int) -> Int {
-  let result : Int = helper(value)
-  fn helper(x : Int) -> Int {
+pub fn bad(value : I64) -> I64 {
+  let result : I64 = helper(value)
+  fn helper(x : I64) -> I64 {
     x
   }
   result

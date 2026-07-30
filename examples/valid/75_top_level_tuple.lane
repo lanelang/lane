@@ -3,10 +3,10 @@ module Examples.Valid.TopLevelTuple
 import Basic.Data.Tuple
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 
-pub let answer_pair : (Int, Bool) = (42, true)
+pub let answer_pair : (I64, Bool) = (42, true)
 
 pub fn answer() -> Unit ! Io {
   let (number, enabled) = answer_pair

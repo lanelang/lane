@@ -5,12 +5,12 @@ effect Prompt {
   choose[A](A, A) -> A
 }
 
-fn choose_int() -> Int ! Prompt {
-  choose![Int](1, 2)
+fn choose_i64() -> I64 ! Prompt {
+  choose![I64](1, 2)
 }
 
-fn answer() -> Int {
-  handle choose_int() with {
+fn answer() -> I64 {
+  handle choose_i64() with {
     choose(left, _right, resume) => resume(left)
   } final value {
     value

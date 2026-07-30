@@ -5,7 +5,7 @@ module Examples.Valid15
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 pub struct Box[A] {
   value : A
@@ -13,13 +13,13 @@ pub struct Box[A] {
 
 pub type Id[A] = A
 
-pub type ApplyInt[F : [Type] -> Type] = F[Int]
+pub type ApplyI64[F : [Type] -> Type] = F[I64]
 
-pub fn get(box : ApplyInt[Box]) -> Id[Int] {
+pub fn get(box : ApplyI64[Box]) -> Id[I64] {
   box.value
 }
 
-pub let aliased_value : Id[Int] = get(Box::{ value: 42 })
+pub let aliased_value : Id[I64] = get(Box::{ value: 42 })
 
 pub fn answer() -> Unit ! Io {
   if aliased_value == 42 {

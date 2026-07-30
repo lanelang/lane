@@ -1,6 +1,6 @@
 // invalid: top-level let initializers follow ordered value scope
 module Examples.Invalid02
 
-pub let y : Int = x
+pub let y : I64 = x
 
-pub let x : Int = 1
+pub let x : I64 = 1

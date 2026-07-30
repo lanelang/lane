@@ -6,7 +6,7 @@ pub enum Option[A] {
   some(A)
 }
 
-pub fn unwrap_or(value : Option[Int], fallback : Int) -> Int {
+pub fn unwrap_or(value : Option[I64], fallback : I64) -> I64 {
   match value {
     ::none() => fallback
     some(x) => x

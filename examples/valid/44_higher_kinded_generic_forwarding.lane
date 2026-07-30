@@ -2,25 +2,25 @@ module Examples.Valid44
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 struct Box[A] {
   value : A
 }
 
-fn[F : [Type] -> Type] consume_int(_value : F[Int]) -> Int {
+fn[F : [Type] -> Type] consume_i64(_value : F[I64]) -> I64 {
   42
 }
 
-fn[F : [Type] -> Type] forward(value : F[Int]) -> Int {
-  consume_int(value)
+fn[F : [Type] -> Type] forward(value : F[I64]) -> I64 {
+  consume_i64(value)
 }
 
-fn run_box(value : Box[Int]) -> Int {
+fn run_box(value : Box[I64]) -> I64 {
   forward(value)
 }
 
-let forwarded : Int = run_box(Box::{ value: 1 })
+let forwarded : I64 = run_box(Box::{ value: 1 })
 
 pub fn answer() -> Unit ! Io {
   if forwarded == 42 {

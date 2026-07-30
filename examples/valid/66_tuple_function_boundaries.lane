@@ -3,17 +3,17 @@ module Examples.Valid.TupleFunctionBoundaries
 import Basic.Data.Tuple
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
-fn apply_tuple(callee : ((Int, Bool)) -> Int, value : (Int, Bool)) -> Int {
+fn apply_tuple(callee : ((I64, Bool)) -> I64, value : (I64, Bool)) -> I64 {
   callee(value)
 }
 
-fn apply_two(callee : (Int, Bool) -> Int, number : Int, enabled : Bool) -> Int {
+fn apply_two(callee : (I64, Bool) -> I64, number : I64, enabled : Bool) -> I64 {
   callee(number, enabled)
 }
 
-fn read_tuple(value : (Int, Bool)) -> Int {
+fn read_tuple(value : (I64, Bool)) -> I64 {
   let (number, enabled) = value
   if enabled {
     number
@@ -22,7 +22,7 @@ fn read_tuple(value : (Int, Bool)) -> Int {
   }
 }
 
-fn read_two(number : Int, enabled : Bool) -> Int {
+fn read_two(number : I64, enabled : Bool) -> I64 {
   if enabled {
     number
   } else {

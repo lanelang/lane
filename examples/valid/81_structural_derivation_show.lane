@@ -1,6 +1,6 @@
 module Examples.Valid.StructuralDerivationShow
 
-import Basic.Builtins.{ int_equal }
+import Basic.Builtins.{ i64_equal }
 import Basic.Data.List.*
 import Basic.Data.Void.{ Void, absurd }
 import Basic.Io.{ println }
@@ -16,12 +16,12 @@ struct Box[T] {
 }
 
 struct Point {
-  x : Int
-  y : Int
+  x : I64
+  y : I64
 }
 
 struct Tree {
-  value : Int
+  value : I64
   children : List[Tree]
 }
 
@@ -99,20 +99,20 @@ offer derive_show : Deriver[Show] = Deriver::{
   }
 }
 
-offer int_show : Show[Int] = Show::{
+offer i64_show : Show[I64] = Show::{
   show: fn(value) {
-    if int_equal(value, 0) {
+    if i64_equal(value, 0) {
       println("0")
-    } else if int_equal(value, 1) {
+    } else if i64_equal(value, 1) {
       println("1")
-    } else if int_equal(value, 2) {
+    } else if i64_equal(value, 2) {
       println("2")
-    } else if int_equal(value, 3) {
+    } else if i64_equal(value, 3) {
       println("3")
-    } else if int_equal(value, 4) {
+    } else if i64_equal(value, 4) {
       println("4")
     } else {
-      println("Int")
+      println("I64")
     }
   }
 }
@@ -149,13 +149,13 @@ let list_show_lift : Lift[Show, List] = Lift::{
   }
 }
 
-fn build_int_list_show() -> Show[List[Int]] {
-  offer recursive_list_show : Show[List[Int]] = recursive_show.defer(
+fn build_i64_list_show() -> Show[List[I64]] {
+  offer recursive_list_show : Show[List[I64]] = recursive_show.defer(
     fn() {
-      build_int_list_show()
+      build_i64_list_show()
     }
   )
-  derive[Show, List[Int]]()
+  derive[Show, List[I64]]()
 }
 
 fn build_tree_show() -> Show[Tree] {
@@ -168,15 +168,15 @@ fn build_tree_show() -> Show[Tree] {
   derive[Show, Tree]()
 }
 
-let box_show : Show[Box[Int]] = derive[Show, Box[Int]]()
+let box_show : Show[Box[I64]] = derive[Show, Box[I64]]()
 
-let list_show : Show[List[Int]] = build_int_list_show()
+let list_show : Show[List[I64]] = build_i64_list_show()
 
 let point_show : Show[Point] = derive[Show, Point]()
 
 let tree_show : Show[Tree] = build_tree_show()
 
-fn leaf(value : Int) -> Tree {
+fn leaf(value : I64) -> Tree {
   Tree::{ value, children: [] }
 }
 

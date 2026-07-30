@@ -1,7 +1,7 @@
 // invalid: every non-final expression in a block must have type Unit
 module Examples.Invalid05
 
-pub fn bad() -> Int {
+pub fn bad() -> I64 {
   1
   2
 }

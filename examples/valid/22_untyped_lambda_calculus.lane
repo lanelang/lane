@@ -2,7 +2,7 @@ module Examples.Valid22
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 pub enum Option[A] {
   none()
@@ -10,12 +10,12 @@ pub enum Option[A] {
 }
 
 pub enum Term {
-  var(Int)
+  var(I64)
   lam(Term)
   app(Term, Term)
 }
 
-pub fn shift_from(cutoff : Int, delta : Int, term : Term) -> Term {
+pub fn shift_from(cutoff : I64, delta : I64, term : Term) -> Term {
   match term {
     var(index) =>
       if index < cutoff {
@@ -31,11 +31,11 @@ pub fn shift_from(cutoff : Int, delta : Int, term : Term) -> Term {
   }
 }
 
-pub fn shift(delta : Int, term : Term) -> Term {
+pub fn shift(delta : I64, term : Term) -> Term {
   shift_from(0, delta, term)
 }
 
-pub fn subst(index : Int, replacement : Term, term : Term) -> Term {
+pub fn subst(index : I64, replacement : Term, term : Term) -> Term {
   match term {
     var(variable) =>
       if variable == index {
@@ -79,7 +79,7 @@ pub fn step(term : Term) -> Option[Term] {
   }
 }
 
-pub fn normalize(limit : Int, term : Term) -> Term {
+pub fn normalize(limit : I64, term : Term) -> Term {
   if limit == 0 {
     term
   } else {
@@ -90,7 +90,7 @@ pub fn normalize(limit : Int, term : Term) -> Term {
   }
 }
 
-pub fn term_size(term : Term) -> Int {
+pub fn term_size(term : Term) -> I64 {
   match term {
     var(_) => 1
     lam(body) => 1 + term_size(body)
@@ -115,7 +115,7 @@ pub let applied_identity : Term = app(identity, identity)
 
 pub let normal_identity : Term = normalize(8, applied_identity)
 
-pub let normalized_size : Int = if is_identity(normal_identity) {
+pub let normalized_size : I64 = if is_identity(normal_identity) {
   40 + term_size(normal_identity)
 } else {
   0

@@ -2,6 +2,6 @@
 
 module Examples.Invalid22
 
-pub type Result[E][A] = Int
+pub type Result[E][A] = I64
 
-pub let bad : Int = 42
+pub let bad : I64 = 42

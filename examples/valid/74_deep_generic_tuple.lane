@@ -5,7 +5,7 @@ import Basic.Io.{ println }
 import Basic.Ops.*
 import Basic.Data.String.*
 import Basic.Data.Bool.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 fn[A] identity(value : A) -> A {
   value

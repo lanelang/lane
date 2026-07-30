@@ -3,11 +3,11 @@ module Examples.Valid.TupleSelectiveImport
 import Basic.Data.Tuple.{ Tuple }
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 
 pub fn answer() -> Unit ! Io {
-  let pair : (Int, Bool) = (42, true)
+  let pair : (I64, Bool) = (42, true)
   let (number, enabled) = pair
   if enabled && number == 42 {
     println("tuple selective import=42")

@@ -3,6 +3,6 @@
 
 module Examples.Invalid23
 
-pub type ApplyInt[F] = F[Int]
+pub type ApplyI64[F] = F[I64]
 
-pub let bad : ApplyInt[Int] = 42
+pub let bad : ApplyI64[I64] = 42

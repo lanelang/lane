@@ -2,9 +2,9 @@
 module Examples.Invalid15
 
 pub struct UserId {
-  value : Int
+  value : I64
 }
 
-pub fn bad(id : UserId) -> Int {
+pub fn bad(id : UserId) -> I64 {
   id.value()
 }

@@ -8,19 +8,19 @@ import Basic.Trait.Equal.{ Equal }
 import Basic.Trait.Iso.{ Iso }
 import Basic.Ops.*
 import Basic.Data.Bool.*
-import Basic.Data.Int.{ int_impl_equal }
+import Basic.Data.I64.{ i64_impl_equal }
 
 struct Box[T] {
   value : T
 }
 
 struct Point {
-  x : Int
-  y : Int
+  x : I64
+  y : I64
 }
 
 struct Tree {
-  value : Int
+  value : I64
   children : List[Tree]
 }
 
@@ -110,13 +110,13 @@ let list_equal_lift : Lift[Equal, List] = Lift::{
   }
 }
 
-fn build_int_list_equal() -> Equal[List[Int]] {
-  offer recursive_list_equal : Equal[List[Int]] = recursive_equal.defer(
+fn build_i64_list_equal() -> Equal[List[I64]] {
+  offer recursive_list_equal : Equal[List[I64]] = recursive_equal.defer(
     fn() {
-      build_int_list_equal()
+      build_i64_list_equal()
     }
   )
-  derive[Equal, List[Int]]()
+  derive[Equal, List[I64]]()
 }
 
 fn build_tree_equal() -> Equal[Tree] {
@@ -129,15 +129,15 @@ fn build_tree_equal() -> Equal[Tree] {
   derive[Equal, Tree]()
 }
 
-let box_equal : Equal[Box[Int]] = derive[Equal, Box[Int]]()
+let box_equal : Equal[Box[I64]] = derive[Equal, Box[I64]]()
 
-let list_equal : Equal[List[Int]] = build_int_list_equal()
+let list_equal : Equal[List[I64]] = build_i64_list_equal()
 
 let point_equal : Equal[Point] = derive[Equal, Point]()
 
 let tree_equal : Equal[Tree] = build_tree_equal()
 
-fn leaf(value : Int) -> Tree {
+fn leaf(value : I64) -> Tree {
   Tree::{ value, children: [] }
 }
 

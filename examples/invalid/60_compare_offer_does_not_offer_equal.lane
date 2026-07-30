@@ -1,4 +1,4 @@
-// invalid: offering Compare[Int] does not derive an Equal[Int] contextual offer
+// invalid: offering Compare[I64] does not derive an Equal[I64] contextual offer
 module Examples.Invalid60
 
 struct Equal[T] {
@@ -14,13 +14,13 @@ fn[T] op_equal(a : T, b : T, auto op : Equal[T]) -> Bool {
   op.equal(a, b)
 }
 
-offer int_impl_compare : Compare[Int] = Compare::{
+offer i64_impl_compare : Compare[I64] = Compare::{
   equal_impl: Equal::{
-    equal: fn(a : Int, b : Int) -> Bool {
+    equal: fn(a : I64, b : I64) -> Bool {
       builtin("%i64_equal")(a, b)
     }
   },
-  less: fn(a : Int, b : Int) -> Bool {
+  less: fn(a : I64, b : I64) -> Bool {
     builtin("%i64_less")(a, b)
   }
 }

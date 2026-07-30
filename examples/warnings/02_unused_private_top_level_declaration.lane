@@ -1,13 +1,13 @@
 module Examples.Warnings.UnusedPrivateTopLevelDeclaration
 
-fn dead_function() -> Int {
+fn dead_function() -> I64 {
   1
 }
 
-let dead_value : Int = 2
+let dead_value : I64 = 2
 
 struct DeadStruct {
-  value : Int
+  value : I64
 }
 
 enum DeadEnum {
@@ -18,10 +18,10 @@ effect DeadEffect {
   dead() -> Unit
 }
 
-type DeadAlias = Int
+type DeadAlias = I64
 
 type DeadEffects = { DeadEffect }
 
-pub fn answer() -> Int {
+pub fn answer() -> I64 {
   0
 }

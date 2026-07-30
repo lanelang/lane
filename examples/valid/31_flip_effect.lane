@@ -2,7 +2,7 @@ module Examples.Valid.FlipEffect
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 
 pub enum BoolList {
@@ -17,14 +17,14 @@ pub fn append(left : BoolList, right : BoolList) -> BoolList {
   }
 }
 
-pub fn length(list : BoolList) -> Int {
+pub fn length(list : BoolList) -> I64 {
   match list {
     nil() => 0
     cons(_, tail) => 1 + length(tail)
   }
 }
 
-pub fn count_true(list : BoolList) -> Int {
+pub fn count_true(list : BoolList) -> I64 {
   match list {
     nil() => 0
     cons(head, tail) =>
@@ -54,7 +54,7 @@ pub let choices : BoolList = {
   }
 }
 
-pub let choice_score : Int = count_true(choices) * 10 + length(choices)
+pub let choice_score : I64 = count_true(choices) * 10 + length(choices)
 
 pub fn answer() -> Unit ! Io {
   if choice_score == 34 {

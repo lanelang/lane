@@ -5,7 +5,7 @@ pub enum Packed {
   hide[T](T)
 }
 
-pub fn bad(p : Packed) -> Int {
+pub fn bad(p : Packed) -> I64 {
   match p {
     Packed::hide[T](value) => value
   }

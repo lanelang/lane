@@ -1,23 +1,23 @@
 module Examples.Valid.EffectfulFunctionCalls
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Io.{ println }
 
 effect Console {
-  read() -> Int
+  read() -> I64
 }
 
-fn read_int() -> Int ! Console {
+fn read_i64() -> I64 ! Console {
   Console::read!()
 }
 
-fn call_read(f : () -> Int ! Console) -> Int ! Console {
+fn call_read(f : () -> I64 ! Console) -> I64 ! Console {
   f()
 }
 
-pub let handled_value : Int = {
-  handle call_read(read_int) with {
+pub let handled_value : I64 = {
+  handle call_read(read_i64) with {
     Console::read(resume) => resume(42)
   } final value {
     value

@@ -1,7 +1,7 @@
 module Examples.Valid03
 
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 import Basic.Io.{ println }
 
@@ -13,15 +13,15 @@ fn[A] choose(cond : Bool, left : A, right : A) -> A {
   }
 }
 
-pub fn use_local_id(value : Int) -> Int {
+pub fn use_local_id(value : I64) -> I64 {
   let id = fn[A](x : A) {
     x
   }
   id(value)
 }
 
-pub fn check_expected_function() -> Int {
-  let f : (Int) -> Int = fn(x) {
+pub fn check_expected_function() -> I64 {
+  let f : (I64) -> I64 = fn(x) {
     x
   }
   f(1)

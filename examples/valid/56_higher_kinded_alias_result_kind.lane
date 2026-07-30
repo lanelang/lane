@@ -5,7 +5,7 @@ module Examples.Valid.HigherKindedAliasResultKind
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 pub struct Box[A] {
   value : A
@@ -15,11 +15,11 @@ pub type Identity : [Type] -> Type = type[A] => A
 
 pub type Boxed : [Type] -> Type = type[A] => Box[A]
 
-pub type BoxInt = Boxed[Int]
+pub type BoxI64 = Boxed[I64]
 
-pub let value : Identity[Int] = 40
+pub let value : Identity[I64] = 40
 
-pub let boxed : BoxInt = Box::{ value: value + 2 }
+pub let boxed : BoxI64 = Box::{ value: value + 2 }
 
 pub fn answer() -> Unit ! Io {
   if boxed.value == 42 {

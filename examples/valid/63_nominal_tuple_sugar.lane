@@ -4,10 +4,10 @@ import Basic.Data.Tuple
 import Basic.Io.{ println }
 import Basic.Ops.*
 import Basic.Data.String.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 import Basic.Data.Bool.*
 
-fn reorder(value : (Int, Bool, String)) -> (Bool, String, Int) {
+fn reorder(value : (I64, Bool, String)) -> (Bool, String, I64) {
   let (number, flag, text) = value
   let reordered = (flag, text, number)
   reordered

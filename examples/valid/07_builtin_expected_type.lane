@@ -2,9 +2,9 @@ module Examples.Valid07
 
 import Basic.Io.{ println }
 
-pub let host_int : () -> Int = extern("%host_int")
+pub let host_i64 : () -> I64 = extern("%host_i64")
 
-pub let host_value : () -> Int = extern("%host_value")
+pub let host_value : () -> I64 = extern("%host_value")
 
 pub fn answer() -> Unit ! Io {
   println("extern bindings typed")

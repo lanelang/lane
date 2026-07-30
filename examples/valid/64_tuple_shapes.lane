@@ -3,9 +3,9 @@ module Examples.Valid.TupleShapes
 import Basic.Data.Tuple
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
-fn flat_score(value : (Int, Bool, String)) -> Int {
+fn flat_score(value : (I64, Bool, String)) -> I64 {
   let (number, enabled, _label) = value
   if enabled {
     number
@@ -14,7 +14,7 @@ fn flat_score(value : (Int, Bool, String)) -> Int {
   }
 }
 
-fn left_nested_score(value : ((Int, Bool), String)) -> Int {
+fn left_nested_score(value : ((I64, Bool), String)) -> I64 {
   let ((number, enabled), _label) = value
   if enabled {
     number

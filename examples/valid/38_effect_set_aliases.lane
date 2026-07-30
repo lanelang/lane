@@ -2,31 +2,31 @@ module Examples.Valid.EffectSetAliases
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 effect Console {
-  read() -> Int
+  read() -> I64
 }
 
 effect Log {
-  write(Int) -> Unit
+  write(I64) -> Unit
 }
 
 type UI : Effect = { Console, Log }
 
 type Task[E : Effect] : Effect = { Console, E }
 
-fn read_and_log() -> Int ! UI {
-  let value : Int = Console::read!()
+fn read_and_log() -> I64 ! UI {
+  let value : I64 = Console::read!()
   let _ignored : Unit = Log::write!(value)
   value
 }
 
-fn task_read() -> Int ! Task[Log] {
+fn task_read() -> I64 ! Task[Log] {
   read_and_log()
 }
 
-pub let handled_value : Int = {
+pub let handled_value : I64 = {
   handle {
     handle task_read() with {
       Console::read(resume) => resume(40)

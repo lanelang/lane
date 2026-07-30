@@ -2,16 +2,16 @@ module Examples.Valid23
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 pub struct Stlc[R : [Type] -> Type] {
-  int_lit : (Int) -> R[Int]
+  i64_lit : (I64) -> R[I64]
   bool_lit : (Bool) -> R[Bool]
-  add : (R[Int], R[Int]) -> R[Int]
-  eq_int : (R[Int], R[Int]) -> R[Bool]
-  if_int : (R[Bool], R[Int], R[Int]) -> R[Int]
-  lam_int : ((R[Int]) -> R[Int]) -> R[(Int) -> Int]
-  app_int : (R[(Int) -> Int], R[Int]) -> R[Int]
+  add : (R[I64], R[I64]) -> R[I64]
+  eq_i64 : (R[I64], R[I64]) -> R[Bool]
+  if_i64 : (R[Bool], R[I64], R[I64]) -> R[I64]
+  lam_i64 : ((R[I64]) -> R[I64]) -> R[(I64) -> I64]
+  app_i64 : (R[(I64) -> I64], R[I64]) -> R[I64]
 }
 
 pub struct Eval[A] {
@@ -19,10 +19,10 @@ pub struct Eval[A] {
 }
 
 pub struct Size[_A] {
-  size : Int
+  size : I64
 }
 
-pub fn eval_int_lit(value : Int) -> Eval[Int] {
+pub fn eval_i64_lit(value : I64) -> Eval[I64] {
   Eval::{ value }
 }
 
@@ -30,19 +30,19 @@ pub fn eval_bool_lit(value : Bool) -> Eval[Bool] {
   Eval::{ value }
 }
 
-pub fn eval_add(left : Eval[Int], right : Eval[Int]) -> Eval[Int] {
+pub fn eval_add(left : Eval[I64], right : Eval[I64]) -> Eval[I64] {
   Eval::{ value: left.value + right.value }
 }
 
-pub fn eval_eq_int(left : Eval[Int], right : Eval[Int]) -> Eval[Bool] {
+pub fn eval_eq_i64(left : Eval[I64], right : Eval[I64]) -> Eval[Bool] {
   Eval::{ value: left.value == right.value }
 }
 
-pub fn eval_if_int(
+pub fn eval_if_i64(
   condition : Eval[Bool],
-  then_branch : Eval[Int],
-  else_branch : Eval[Int]
-) -> Eval[Int] {
+  then_branch : Eval[I64],
+  else_branch : Eval[I64]
+) -> Eval[I64] {
   if condition.value {
     then_branch
   } else {
@@ -50,19 +50,19 @@ pub fn eval_if_int(
   }
 }
 
-pub fn eval_lam_int(body : (Eval[Int]) -> Eval[Int]) -> Eval[(Int) -> Int] {
+pub fn eval_lam_i64(body : (Eval[I64]) -> Eval[I64]) -> Eval[(I64) -> I64] {
   Eval::{
-    value: fn(input : Int) {
+    value: fn(input : I64) {
       body(Eval::{ value: input }).value
     }
   }
 }
 
-pub fn eval_app_int(function : Eval[(Int) -> Int], argument : Eval[Int]) -> Eval[Int] {
+pub fn eval_app_i64(function : Eval[(I64) -> I64], argument : Eval[I64]) -> Eval[I64] {
   Eval::{ value: function.value(argument.value) }
 }
 
-pub fn size_int_lit(_value : Int) -> Size[Int] {
+pub fn size_i64_lit(_value : I64) -> Size[I64] {
   Size::{ size: 1 }
 }
 
@@ -70,68 +70,68 @@ pub fn size_bool_lit(_value : Bool) -> Size[Bool] {
   Size::{ size: 1 }
 }
 
-pub fn size_add(left : Size[Int], right : Size[Int]) -> Size[Int] {
+pub fn size_add(left : Size[I64], right : Size[I64]) -> Size[I64] {
   Size::{ size: 1 + left.size + right.size }
 }
 
-pub fn size_eq_int(left : Size[Int], right : Size[Int]) -> Size[Bool] {
+pub fn size_eq_i64(left : Size[I64], right : Size[I64]) -> Size[Bool] {
   Size::{ size: 1 + left.size + right.size }
 }
 
-pub fn size_if_int(
+pub fn size_if_i64(
   condition : Size[Bool],
-  then_branch : Size[Int],
-  else_branch : Size[Int]
-) -> Size[Int] {
+  then_branch : Size[I64],
+  else_branch : Size[I64]
+) -> Size[I64] {
   Size::{ size: 1 + condition.size + then_branch.size + else_branch.size }
 }
 
-pub fn size_lam_int(body : (Size[Int]) -> Size[Int]) -> Size[(Int) -> Int] {
+pub fn size_lam_i64(body : (Size[I64]) -> Size[I64]) -> Size[(I64) -> I64] {
   let body_size = body(Size::{ size: 1 })
   Size::{ size: 1 + body_size.size }
 }
 
-pub fn size_app_int(function : Size[(Int) -> Int], argument : Size[Int]) -> Size[Int] {
+pub fn size_app_i64(function : Size[(I64) -> I64], argument : Size[I64]) -> Size[I64] {
   Size::{ size: 1 + function.size + argument.size }
 }
 
 pub let eval_stlc : Stlc[Eval] = Stlc::{
-  int_lit: eval_int_lit,
+  i64_lit: eval_i64_lit,
   bool_lit: eval_bool_lit,
   add: eval_add,
-  eq_int: eval_eq_int,
-  if_int: eval_if_int,
-  lam_int: eval_lam_int,
-  app_int: eval_app_int
+  eq_i64: eval_eq_i64,
+  if_i64: eval_if_i64,
+  lam_i64: eval_lam_i64,
+  app_i64: eval_app_i64
 }
 
 pub let size_stlc : Stlc[Size] = Stlc::{
-  int_lit: size_int_lit,
+  i64_lit: size_i64_lit,
   bool_lit: size_bool_lit,
   add: size_add,
-  eq_int: size_eq_int,
-  if_int: size_if_int,
-  lam_int: size_lam_int,
-  app_int: size_app_int
+  eq_i64: size_eq_i64,
+  if_i64: size_if_i64,
+  lam_i64: size_lam_i64,
+  app_i64: size_app_i64
 }
 
-pub fn[R : [Type] -> Type] object_program(stlc : Stlc[R]) -> R[Int] {
-  let inc : R[(Int) -> Int] = stlc.lam_int(
+pub fn[R : [Type] -> Type] object_program(stlc : Stlc[R]) -> R[I64] {
+  let inc : R[(I64) -> I64] = stlc.lam_i64(
     fn(x) {
-      stlc.add(x, stlc.int_lit(1))
+      stlc.add(x, stlc.i64_lit(1))
     }
   )
-  let result : R[Int] = stlc.app_int(inc, stlc.int_lit(41))
-  stlc.if_int(stlc.eq_int(result, stlc.int_lit(42)), result, stlc.int_lit(0))
+  let result : R[I64] = stlc.app_i64(inc, stlc.i64_lit(41))
+  stlc.if_i64(stlc.eq_i64(result, stlc.i64_lit(42)), result, stlc.i64_lit(0))
 }
 
-pub let evaluated : Eval[Int] = object_program(eval_stlc)
+pub let evaluated : Eval[I64] = object_program(eval_stlc)
 
-pub let measured : Size[Int] = object_program(size_stlc)
+pub let measured : Size[I64] = object_program(size_stlc)
 
-pub let measured_size : Int = measured.size
+pub let measured_size : I64 = measured.size
 
-pub let evaluated_value : Int = evaluated.value
+pub let evaluated_value : I64 = evaluated.value
 
 pub fn answer() -> Unit ! Io {
   if evaluated_value == 42 {

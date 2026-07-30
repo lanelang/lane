@@ -5,7 +5,7 @@ enum Option[T] {
   none()
 }
 
-let x : Option[Int] = some(1)
+let x : Option[I64] = some(1)
 
 fn[T, R] map_option(val : Option[T], f : (T) -> R) -> Option[R] {
   match val {

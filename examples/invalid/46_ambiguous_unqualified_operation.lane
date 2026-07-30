@@ -2,13 +2,13 @@
 module Examples.Invalid46
 
 effect Left {
-  read() -> Int
+  read() -> I64
 }
 
 effect Right {
-  read() -> Int
+  read() -> I64
 }
 
-fn answer() -> Int ! { Left, Right } {
+fn answer() -> I64 ! { Left, Right } {
   read!()
 }

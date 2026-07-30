@@ -6,7 +6,7 @@ import Basic.Io.{ println }
 
 pub type Shadow[_A] = type[A] => A
 
-pub type BoolAlias = Shadow[Int][Bool]
+pub type BoolAlias = Shadow[I64][Bool]
 
 pub let shadowed_value : BoolAlias = true
 

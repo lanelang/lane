@@ -1,4 +1,0 @@
-module Examples.Invalid.DoubleLiteralLeadingDot
-
-pub let bad : Double = .5
-

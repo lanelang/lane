@@ -3,10 +3,10 @@ module Examples.Valid04
 import Basic.Io.{ println }
 import Basic.Ops.*
 import Basic.Data.Bool.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
-pub fn factorial(n : Int) -> Int {
-  fn loop(x : Int, acc : Int) -> Int {
+pub fn factorial(n : I64) -> I64 {
+  fn loop(x : I64, acc : I64) -> I64 {
     if x == 0 {
       acc
     } else {
@@ -16,7 +16,7 @@ pub fn factorial(n : Int) -> Int {
   loop(n, 1)
 }
 
-pub fn shadow_value(x : Int) -> Int {
+pub fn shadow_value(x : I64) -> I64 {
   let x = x + 1
   let x = x + 1
   x

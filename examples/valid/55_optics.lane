@@ -2,7 +2,7 @@ module Examples.Valid.Optics
 
 import Basic.Io.{ println }
 import Basic.Ops.*
-import Basic.Data.Int.*
+import Basic.Data.I64.*
 
 struct Lens[S, A] {
   get : (S) -> A
@@ -26,13 +26,13 @@ fn[S, A] over(lens : Lens[S, A], transform : (A) -> A, source : S) -> S {
 }
 
 struct Pool {
-  size : Int
-  timeout : Int
+  size : I64
+  timeout : I64
 }
 
 struct Database {
   pool : Pool
-  replicas : Int
+  replicas : I64
 }
 
 struct Config {
@@ -62,7 +62,7 @@ fn lens_database_pool() -> Lens[Database, Pool] {
   }
 }
 
-fn lens_pool_size() -> Lens[Pool, Int] {
+fn lens_pool_size() -> Lens[Pool, I64] {
   Lens::{
     get: fn(pool) {
       pool.size
@@ -73,7 +73,7 @@ fn lens_pool_size() -> Lens[Pool, Int] {
   }
 }
 
-fn lens_pool_timeout() -> Lens[Pool, Int] {
+fn lens_pool_timeout() -> Lens[Pool, I64] {
   Lens::{
     get: fn(pool) {
       pool.timeout
@@ -88,11 +88,11 @@ fn lens_config_pool() -> Lens[Config, Pool] {
   compose(lens_config_database(), lens_database_pool())
 }
 
-fn lens_config_pool_size() -> Lens[Config, Int] {
+fn lens_config_pool_size() -> Lens[Config, I64] {
   compose(lens_config_pool(), lens_pool_size())
 }
 
-fn lens_config_pool_timeout() -> Lens[Config, Int] {
+fn lens_config_pool_timeout() -> Lens[Config, I64] {
   compose(lens_config_pool(), lens_pool_timeout())
 }
 

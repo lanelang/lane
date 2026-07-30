@@ -1,4 +1,4 @@
 // invalid: tuple syntax requires at least two items
 module Examples.Invalid16
 
-pub let value : (Int,) = (1,)
+pub let value : (I64,) = (1,)

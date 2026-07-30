@@ -4,12 +4,12 @@ enum Pair[A, B] {
   pair(A, B)
 }
 
-fn[F : [Type] -> Type] consume_int(_value : F[Int]) -> Int {
+fn[F : [Type] -> Type] consume_i64(_value : F[I64]) -> I64 {
   0
 }
 
-fn bad(value : Pair[Int, Bool]) -> Int {
-  consume_int(value)
+fn bad(value : Pair[I64, Bool]) -> I64 {
+  consume_i64(value)
 }
 
-let value : Int = bad(Pair::pair(1, true))
+let value : I64 = bad(Pair::pair(1, true))
