@@ -506,7 +506,6 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|  ],
       #|  constants: [],
       #|}
-
     ),
   )
 }

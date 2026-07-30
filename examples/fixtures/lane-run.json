@@ -1606,6 +1606,15 @@
       }
     },
     {
+      "name": "82 Byte and Bytes primitives",
+      "file": "examples/valid/82_byte_and_bytes_primitives.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": ""
+      }
+    },
+    {
       "name": "invalid 70 tuple without import",
       "file": "examples/invalid/70_tuple_without_import.lane",
       "mode": "check-error",

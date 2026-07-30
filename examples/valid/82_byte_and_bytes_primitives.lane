@@ -1,5 +1,8 @@
 module Examples.Valid.ByteAndBytesPrimitives
 
+import Basic.Builtins.{ int_equal, int_neg }
+import Test.Assert.{ Assert, execute_all_test }
+
 let byte_to_int : (Byte) -> Int = builtin("%byte_to_int")
 
 let int_to_byte : (Int) -> Byte = builtin("%int_to_byte")
@@ -16,11 +19,23 @@ fn[T] identity(value : T) -> T {
   value
 }
 
-pub fn answer() -> Unit {
+fn test_byte_and_bytes_primitives() -> Unit ! Assert {
   let fill = identity(int_to_byte(255))
-  let original = identity(bytes_make(2, fill))
+  let original = identity(bytes_make(3, fill))
   let updated = bytes_set(original, 1, int_to_byte(0))
-  let _ : Int = bytes_length(updated)
-  let _ : Int = byte_to_int(bytes_get(updated, 1))
-  ()
+  assert_true!(int_equal(byte_to_int(int_to_byte(511)), 255))
+  assert_true!(int_equal(byte_to_int(int_to_byte(int_neg(1))), 255))
+  assert_true!(int_equal(bytes_length(original), 3))
+  assert_true!(int_equal(byte_to_int(bytes_get(original, 0)), 255))
+  assert_true!(int_equal(byte_to_int(bytes_get(original, 1)), 255))
+  assert_true!(int_equal(byte_to_int(bytes_get(original, 2)), 255))
+  assert_true!(int_equal(bytes_length(updated), 3))
+  assert_true!(int_equal(byte_to_int(bytes_get(updated, 0)), 255))
+  assert_true!(int_equal(byte_to_int(bytes_get(updated, 1)), 0))
+  assert_true!(int_equal(byte_to_int(bytes_get(updated, 2)), 255))
+}
+
+pub fn answer() -> Unit ! Io {
+  test_byte_and_bytes_primitives
+    |> execute_all_test()
 }
