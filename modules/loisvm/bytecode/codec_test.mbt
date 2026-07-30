@@ -607,14 +607,29 @@ test "global count beyond host Int is a resource limit" {
 }
 
 ///|
-test "decoder rejects non-ASCII constants and illegal slot metadata" {
-  let non_ascii = {
+test "decoder accepts UTF-8 constants and rejects malformed UTF-8" {
+  let utf8 = { ..minimal_image(), constants: [@utf8.encode("中\u{0}🙂")] }
+  assert_eq(
+    parse_bytecode_image_binary(bytecode_image_to_binary(utf8)),
+    Ok(utf8),
+  )
+  let malformed_utf8 = {
     ..minimal_image(),
     constants: [Bytes::from_array([b'\xFF'])],
   }
-  assert_true(
-    parse_bytecode_image_binary(bytecode_image_to_binary(non_ascii)) is Err(_),
+  assert_eq(
+    parse_bytecode_image_binary(bytecode_image_to_binary(malformed_utf8)),
+    Err(
+      MalformedEncoding(
+        offset=71,
+        detail="String constant must contain valid UTF-8",
+      ),
+    ),
   )
+}
+
+///|
+test "decoder rejects illegal slot metadata" {
   let illegal_body = {
     ..minimal_body(),
     slots: [
@@ -625,8 +640,15 @@ test "decoder rejects non-ASCII constants and illegal slot metadata" {
     ..minimal_image(),
     functions: [BytecodeBody(illegal_body)],
   }
-  assert_true(
-    parse_bytecode_image_binary(bytecode_image_to_binary(illegal_image))
-    is Err(_),
+  debug_inspect(
+    parse_bytecode_image_binary(bytecode_image_to_binary(illegal_image)),
+    content=(
+      #|Err(
+      #|  MalformedEncoding(
+      #|    offset=0,
+      #|    detail="illegal slot representation and cleanup combination",
+      #|  ),
+      #|)
+    ),
   )
 }

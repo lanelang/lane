@@ -16,7 +16,6 @@ pub(all) suberror LoisvmLoweringError {
   )
   InvalidTypeApplication(detail~ : String)
   UnsupportedIntrinsic(name~ : String)
-  NonAsciiString(value~ : String)
   UnterminatedBlock(block~ : Int)
   EffectLoweringError(@effect_lowering_core.SynthesisError)
   VmcfgFinalizeError(@vmcfg.FinalizeError)

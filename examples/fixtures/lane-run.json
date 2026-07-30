@@ -1615,6 +1615,15 @@
       }
     },
     {
+      "name": "83 UTF-8 String Char and S32",
+      "file": "examples/valid/83_utf8_string_char_s32.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": ""
+      }
+    },
+    {
       "name": "invalid 70 tuple without import",
       "file": "examples/invalid/70_tuple_without_import.lane",
       "mode": "check-error",

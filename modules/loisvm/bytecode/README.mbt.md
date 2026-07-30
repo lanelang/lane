@@ -6,7 +6,7 @@ LoisVM bytecode is trusted compiler output rather than a sandbox format. The dec
 
 ## Image model
 
-A `BytecodeImage` contains one unified function table, an optional instance initializer, an instance-global table, layout recipes, object shapes, and an ASCII constant pool. `FunctionId` and `LayoutId` are nonzero one-based identifiers; `GlobalId`, `BlockId`, `SlotId`, `ConstantId`, and `ObjectShapeId` are zero-based dense table indices.
+A `BytecodeImage` contains one unified function table, an optional instance initializer, an instance-global table, layout recipes, object shapes, and a valid UTF-8 String constant pool. `FunctionId` and `LayoutId` are nonzero one-based identifiers; `GlobalId`, `BlockId`, `SlotId`, `ConstantId`, and `ObjectShapeId` are zero-based dense table indices.
 
 Each `FunctionEntry` is either a `BytecodeBody` or a `RuntimeImport`. The selected `entry` and optional `initializer` must name no-context, witness-free, zero-argument bytecode bodies returning `Unit`. A nonempty global table requires an initializer, and the initializer must initialize every global exactly once before the selected entry begins.
 
@@ -114,7 +114,7 @@ The constructor spelling is the public MoonBit API. The lowercase spelling shown
 | `0x07` | `ConstBool(destination, value)` | `const_bool`; writes canonical `0` or `1` to an `I32 + Trivial` destination. |
 | `0x08` | `ConstLayout(destination, layout)` | `const_layout`; writes the nonzero `LayoutId` value to an `I32 + Trivial` destination. |
 | `0x09` | `ConstFunction(destination, function)` | `const_function`; creates a capture-free callable for the function-table entry in an `I64 + OwnedCallable` destination. |
-| `0x0A` | `ConstString(destination, constant)` | `const_string`; creates an owning String reference for the ASCII constant-pool entry in an `I32 + OwnedRef` destination. |
+| `0x0A` | `ConstString(destination, constant)` | `const_string`; creates an owning String reference for the valid UTF-8 constant-pool entry in an `I32 + OwnedRef` destination. |
 | `0x4C` | `ConstS32(destination, value)` | `const_s32`; writes the signed 32-bit integer to an `I32 + Trivial` destination. |
 | `0x57` | `ConstChar(destination, value)` | `const_char`; writes the Unicode scalar value to an `I32 + Trivial` destination. |
 
@@ -287,7 +287,7 @@ Before publishing or executing an image, a producer must ensure:
 - object shapes, layout recipes, stored witness ordinals, and projection schemas agree;
 - integer, conversion, String slicing, initialization, and `Unreachable` preconditions are respected;
 - entry and initializer signatures satisfy the root-function contract;
-- all constants and runtime-import symbols contain ASCII bytes;
+- every String constant contains valid UTF-8, while runtime-import symbols remain nonempty ASCII without NUL;
 - the image is encoded and decoded by the matching LoisVM implementation.
 
 Use `bytecode_image_to_disassembly` for human inspection and `bytecode_image_to_binary` plus `parse_bytecode_image_binary` for persistence. The binary format has no independent compatibility version; compatibility belongs to the enclosing Lane linked-program artifact.

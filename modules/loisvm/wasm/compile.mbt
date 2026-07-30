@@ -8,7 +8,7 @@ pub(all) suberror WasmCompileError {
     expected~ : Int,
     actual~ : Int
   )
-  MissingStringLayout
+  MissingByteSequenceLayout
   ValidationFailure(detail~ : String)
 } derive(Debug, Eq)
 
@@ -44,7 +44,7 @@ fn import_compile_error(error : @compiler.WasmCompileError) -> WasmCompileError 
       InvalidBlockTarget(function_id~, target~)
     InvalidEdgeArity(function_id~, target~, expected~, actual~) =>
       InvalidEdgeArity(function_id~, target~, expected~, actual~)
-    MissingStringLayout => MissingStringLayout
+    MissingByteSequenceLayout => MissingByteSequenceLayout
     ValidationFailure(detail~) => ValidationFailure(detail~)
   }
 }

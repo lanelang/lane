@@ -55,8 +55,7 @@ primitive cases such as `Double`.
 _Avoid_: Lane type object, typed unboxed slot, Buslane interpreter value
 
 **Image Constant Pool**:
-The single image-wide table of deduplicated ASCII String constants referenced
-through zero-based `ConstantId` values.
+The single image-wide table of deduplicated valid UTF-8 String constants referenced through zero-based `ConstantId` values.
 _Avoid_: per-function constant table, function table, debug metadata
 
 **Unified Function Table**:
@@ -136,7 +135,7 @@ _Avoid_: source type argument, owned metadata, dynamic typecase
 
 **Object Shape**:
 The zero-based canonical member schema whose Data variant includes constructor tag and fields and whose Environment variant includes captures without a tag, with stored-witness ordinals but no raw offsets or alignment fields.
-_Avoid_: runtime LayoutId, raw offset list, variable-size String layout
+_Avoid_: runtime LayoutId, raw offset list, source-specific object layout
 
 **Layout Operand**:
 The five-byte operand selecting Immediate `0x01` with nonzero LayoutId or Witness `0x02` with a trivial `I32` witness SlotId.

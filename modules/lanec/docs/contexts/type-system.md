@@ -190,7 +190,7 @@ A globally unique Buslane identity for a type parameter introduced by a forall o
 _Avoid_: source generic parameter name, de Bruijn index, compiler-front-end type variable
 
 **Primitive Type**:
-A built-in type provided by the language core: `Int`, `Bool`, `String`, or `Unit`.
+A built-in type provided by the language core: `Int`, `S32`, `Double`, `Bool`, `Byte`, `Char`, `String`, `Bytes`, or `Unit`.
 _Avoid_: Basic library type, numeric tower
 
 **Primitive Literal**:
@@ -201,13 +201,13 @@ _Avoid_: enum variant, nominal constructor
 A Buslane integer literal stored as a signed 64-bit value.
 _Avoid_: decimal source spelling, arbitrary precision literal
 
-**ASCII String**:
-An immutable sequence of ASCII bytes.
-_Avoid_: Unicode string, UTF-16 string
+**UTF-8 String**:
+An immutable sequence of Unicode scalar values represented by canonical valid UTF-8 bytes.
+_Avoid_: ASCII-only string, arbitrary bytes, UTF-16 code units
 
 **Normalized String Literal**:
-A Buslane string literal stored as an ASCII byte sequence rather than source spelling.
-_Avoid_: escaped source spelling, Unicode string literal
+A Buslane string literal stored as its decoded Unicode scalar sequence rather than source spelling.
+_Avoid_: escaped source spelling, raw encoded bytes
 
 **Nominal Type**:
 A type whose identity comes from its declaration name rather than from having the same structure as another type.
@@ -385,11 +385,11 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - Type constructors are **Type-Level Expressions**, not value-level values.
 - Value parameter types, return types, fields, payloads, let annotations, contextual offers, and Buslane value metadata require **Value-Level Types**.
 - A bare non-nullary nominal constructor is a valid **Type-Level Expression** but produces a **Kind Mismatch** in a **Value-Level Type** position.
-- Lane v1 has four **Primitive Types**: `Int`, `Bool`, `String`, and `Unit`.
+- Lane has nine **Primitive Types**: `Int`, `S32`, `Double`, `Bool`, `Byte`, `Char`, `String`, `Bytes`, and `Unit`.
 - **Primitive Literals** are not nominal data constructors.
 - Buslane stores primitive literals as normalized values rather than source spelling.
 - A **Normalized Int Literal** is a signed 64-bit value.
-- A **Normalized String Literal** is an ASCII byte sequence.
+- A **Normalized String Literal** is an exact Unicode scalar sequence encoded as valid UTF-8 at the runtime boundary.
 - **Enum Types** and **Struct Types** create **Nominal Types**.
 - A generic struct or enum uses **Generic Type Definition** syntax and is used with **Generic Type Application** syntax.
 - Structs and enums keep a **Nominal Type Parameter Header**; type alias parameter headers are pure sugar for **Type-Level Lambdas**.

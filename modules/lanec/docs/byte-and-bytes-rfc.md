@@ -4,6 +4,8 @@ Status: Accepted
 
 Decision summary: [ADR 0123](adr/0123-byte-and-bytes-primitives.md)
 
+The semantic Byte and Bytes design in this RFC remains active, while its separate runtime Bytes layout and `Bytes*` instruction names are superseded by ADR 0124's shared ByteSequence representation.
+
 ## Summary
 
 Lane will add two globally available primitive types:

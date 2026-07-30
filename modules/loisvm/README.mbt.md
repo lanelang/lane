@@ -190,7 +190,7 @@ Bindings declare their full direct-value signature through `RuntimeBinding`:
 - `String`
 - `Opaque`, represented to bindings as borrowed or owned Host Objects
 
-String parameters arrive as `BorrowedString(HostStringView)` and are valid only for the duration of the call. Copy them with `to_string()` or `to_bytes()` if the host needs an owned value. String results use `HostValue::String`. V1 Strings and bytecode constants are ASCII.
+String parameters arrive as `BorrowedString(HostStringView)` and are valid only for the duration of the call. The view contains pointer-length UTF-8 bytes, permits embedded NUL, and is not NUL-terminated. Copy it with `to_string()` or `to_bytes()` if the host needs an owned value. Low-level String results use `HostValue::String(Bytes)` and must contain valid UTF-8; typed bindings use `HostResult::string()` to encode an ordinary host String. Both backends copy and validate result bytes before publishing a Lane String.
 
 Use `RuntimeBinding::typed`, `HostParameters`, `HostParameter`, and `HostResult` to register typed host functions without manually indexing erased argument arrays. A `HostObjectStore[T]` owns the typed host values for one fixed runtime capability. `HostParameter::host_object(store)` resolves an `Opaque` parameter through that store, while `HostResult::host_object(store, finalizer~)` creates an independently owned result whose finalizer runs when Lane releases its final wrapper.
 

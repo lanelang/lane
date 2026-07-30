@@ -33,7 +33,6 @@ pub(all) suberror LoisvmLoweringError {
   InvalidDataPayloadCount(data_constructor~ : @buslane.DataConId, expected~ : Int, actual~ : Int)
   InvalidTypeApplication(detail~ : String)
   UnsupportedIntrinsic(name~ : String)
-  NonAsciiString(value~ : String)
   UnterminatedBlock(block~ : Int)
   EffectLoweringError(@core.SynthesisError)
   VmcfgFinalizeError(@vmcfg.FinalizeError)

@@ -2,13 +2,8 @@
 fn ImageLowerer::intern_string(
   self : ImageLowerer,
   value : String,
-) -> @bytecode.ConstantId raise LoisvmLoweringError {
+) -> @bytecode.ConstantId {
   let bytes = @utf8.encode(value)
-  for byte in bytes {
-    if byte.to_int() > 0x7F {
-      raise NonAsciiString(value~)
-    }
-  }
   for index, existing in self.constants {
     if existing == bytes {
       return { value: index }

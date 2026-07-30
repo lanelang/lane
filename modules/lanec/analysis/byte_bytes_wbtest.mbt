@@ -67,3 +67,159 @@ test "type-space completion includes every primitive type" {
     ],
   )
 }
+
+///|
+test "semantic analysis preserves S32 and Char identity" {
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      {
+        source_id: "file:///Main.lane",
+        text: (
+          #|module Main
+          #|
+          #|pub fn convert(value : S32) -> Char {
+          #|  match value {
+          #|    _ => '你'
+          #|  }
+          #|}
+        ),
+      },
+    ])
+    is Some(snapshot) else {
+    fail("expected semantic snapshot")
+  }
+  debug_inspect(
+    snapshot.analysis(),
+    content=(
+      #|{
+      #|  diagnostics: [],
+      #|  definitions: [
+      #|    {
+      #|      symbol: Value({ index: 0 }),
+      #|      location: {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 20,
+      #|          end_offset: 27,
+      #|          start_line: 3,
+      #|          start_column: 8,
+      #|          end_line: 3,
+      #|          end_column: 15,
+      #|        },
+      #|      },
+      #|      label: "convert",
+      #|      detail: "convert : (S32) -> Char",
+      #|    },
+      #|    {
+      #|      symbol: Value({ index: 1 }),
+      #|      location: {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 28,
+      #|          end_offset: 33,
+      #|          start_line: 3,
+      #|          start_column: 16,
+      #|          end_line: 3,
+      #|          end_column: 21,
+      #|        },
+      #|      },
+      #|      label: "value",
+      #|      detail: "value : S32",
+      #|    },
+      #|  ],
+      #|  references: [
+      #|    {
+      #|      location: {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 59,
+      #|          end_offset: 64,
+      #|          start_line: 4,
+      #|          start_column: 9,
+      #|          end_line: 4,
+      #|          end_column: 14,
+      #|        },
+      #|      },
+      #|      symbol: Value({ index: 1 }),
+      #|      hover: Some("value : S32"),
+      #|    },
+      #|  ],
+      #|  hovers: [
+      #|    {
+      #|      location: {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 20,
+      #|          end_offset: 27,
+      #|          start_line: 3,
+      #|          start_column: 8,
+      #|          end_line: 3,
+      #|          end_column: 15,
+      #|        },
+      #|      },
+      #|      contents: "convert : (S32) -> Char",
+      #|    },
+      #|    {
+      #|      location: {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 28,
+      #|          end_offset: 33,
+      #|          start_line: 3,
+      #|          start_column: 16,
+      #|          end_line: 3,
+      #|          end_column: 21,
+      #|        },
+      #|      },
+      #|      contents: "value : S32",
+      #|    },
+      #|    {
+      #|      location: {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 59,
+      #|          end_offset: 64,
+      #|          start_line: 4,
+      #|          start_column: 9,
+      #|          end_line: 4,
+      #|          end_column: 14,
+      #|        },
+      #|      },
+      #|      contents: "value : S32",
+      #|    },
+      #|  ],
+      #|  semantic_tokens: [
+      #|    {
+      #|      location: {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 28,
+      #|          end_offset: 33,
+      #|          start_line: 3,
+      #|          start_column: 16,
+      #|          end_line: 3,
+      #|          end_column: 21,
+      #|        },
+      #|      },
+      #|      kind: ParameterToken,
+      #|    },
+      #|    {
+      #|      location: {
+      #|        source_id: "file:///Main.lane",
+      #|        span: {
+      #|          start_offset: 59,
+      #|          end_offset: 64,
+      #|          start_line: 4,
+      #|          start_column: 9,
+      #|          end_line: 4,
+      #|          end_column: 14,
+      #|        },
+      #|      },
+      #|      kind: ParameterToken,
+      #|    },
+      #|  ],
+      #|  inlay_hints: [],
+      #|}
+    ),
+  )
+}

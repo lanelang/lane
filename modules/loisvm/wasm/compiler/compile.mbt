@@ -8,7 +8,7 @@ pub(all) suberror WasmCompileError {
     expected~ : Int,
     actual~ : Int
   )
-  MissingStringLayout
+  MissingByteSequenceLayout
   ValidationFailure(detail~ : String)
 } derive(Debug, Eq)
 

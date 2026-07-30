@@ -54,7 +54,7 @@ fn decode_bytecode_image(
   for _index in 0..<constant_count {
     let offset = decoder.offset()
     let constant = decoder.read_bytes(expected="String constant")
-    validate_ascii_bytes(constant, offset=offset + 4, what="String constant")
+    validate_utf8_bytes(constant, offset=offset + 4, what="String constant")
     constants.push(constant)
   }
   decoder.expect_end(what="bytecode section")
@@ -910,6 +910,23 @@ fn validate_ascii_bytes(
       )
     }
   }
+}
+
+///|
+fn validate_utf8_bytes(
+  bytes : Bytes,
+  offset~ : Int,
+  what~ : String,
+) -> Unit raise BytecodeDecodeError {
+  ignore(
+    @utf8.decode(bytes) catch {
+      _ =>
+        raise MalformedEncoding(
+          offset~,
+          detail="\{what} must contain valid UTF-8",
+        )
+    },
+  )
 }
 
 ///|

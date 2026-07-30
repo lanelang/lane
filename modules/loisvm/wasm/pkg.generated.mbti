@@ -17,7 +17,7 @@ pub(all) suberror WasmCompileError {
   UnsupportedInstruction(function_id~ : Int, instruction~ : String)
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(function_id~ : Int, target~ : Int, expected~ : Int, actual~ : Int)
-  MissingStringLayout
+  MissingByteSequenceLayout
   ValidationFailure(detail~ : String)
 } derive(Eq, @debug.Debug)
 

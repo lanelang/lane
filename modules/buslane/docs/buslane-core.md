@@ -215,13 +215,13 @@ Literal =
   Unit
   Bool(Bool)
   Int(Int64)
-  String(AsciiBytes)
+  S32(Int)
+  Char(Int)
+  Double(Double)
+  String(String)
 ```
 
-Literals store normalized primitive values rather than source spelling. Strings
-are semantically ASCII byte sequences. An implementation may initially use a
-host string representation if construction or verification preserves the ASCII
-invariant.
+Literals store normalized primitive values rather than source spelling. String values are exact Unicode scalar sequences and lower to validated UTF-8 bytes; Char values are Unicode scalar values; S32 values are signed 32-bit integers.
 
 ## Top-Level Terms
 

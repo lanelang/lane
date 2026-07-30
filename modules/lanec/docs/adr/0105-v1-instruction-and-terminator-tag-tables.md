@@ -1,5 +1,7 @@
 # V1 instruction and terminator tag tables
 
+The String-specific opcodes in this historical v1 table are superseded by ADR 0124's shared ByteSequence instructions and the corresponding schema-version change.
+
 LoisVM v1 assigns one explicit opcode to every portable instruction. The instruction namespace is:
 
 | Tag | Instruction | Tag | Instruction |

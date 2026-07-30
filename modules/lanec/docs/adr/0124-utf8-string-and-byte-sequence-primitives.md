@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # UTF-8 String, Char, S32, and the shared byte-sequence runtime

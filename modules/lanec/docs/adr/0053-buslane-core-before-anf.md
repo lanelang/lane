@@ -1,5 +1,7 @@
 # Buslane Core Language before ANF
 
+The ASCII String literal constraint in this ADR is superseded by ADR 0124's valid UTF-8 String contract.
+
 Lane2 separates its semantic core language from administrative normal form.
 Buslane is the typed expression-tree Core Language produced after Checked Source
 elaboration. ANF is a later normalized IR that introduces atom/RHS/binding

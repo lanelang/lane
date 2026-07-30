@@ -1,0 +1,49 @@
+module Examples.Valid.Utf8StringCharS32
+
+import Basic.Builtins.{ int_equal }
+import Test.Assert.{ Assert, execute_all_test }
+
+let char_to_s32 : (Char) -> S32 = builtin("%char_to_s32")
+
+let s32_to_char : (S32) -> Char = builtin("%s32_to_char")
+
+let s32_equal : (S32, S32) -> Bool = builtin("%i32_equal")
+
+let s32_to_int : (S32) -> Int = builtin("%s32_to_int")
+
+let int_to_s32 : (Int) -> S32 = builtin("%int_to_s32")
+
+let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
+
+let bytes_is_valid_utf8 : (Bytes) -> Bool = builtin("%bytes_is_valid_utf8")
+
+let bytes_to_string : (Bytes) -> String = builtin("%bytes_to_string")
+
+let bytes_equal : (Bytes, Bytes) -> Bool = builtin("%bytes_equal")
+
+let bytes_concat : (Bytes, Bytes) -> Bytes = builtin("%bytes_concat")
+
+let bytes_slice : (Bytes, Int, Int) -> Bytes = builtin("%bytes_slice")
+
+let bytes_length : (Bytes) -> Int = builtin("%bytes_length")
+
+fn test_utf8_string_char_s32() -> Unit ! Assert {
+  let text = "中\0😀"
+  let encoded = string_to_bytes(text)
+  let decoded = bytes_to_string(encoded)
+  let first = bytes_slice(encoded, 0, 3)
+  let rest = bytes_slice(encoded, 3, 5)
+  assert_true!(int_equal(bytes_length(encoded), 8))
+  assert_true!(bytes_is_valid_utf8(encoded))
+  assert_true!(bytes_equal(string_to_bytes(decoded), encoded))
+  assert_true!(bytes_equal(first, string_to_bytes("中")))
+  assert_true!(bytes_equal(bytes_concat(first, rest), encoded))
+  assert_true!(int_equal(s32_to_int(char_to_s32('😀')), 128512))
+  assert_true!(s32_equal(char_to_s32(s32_to_char(char_to_s32('你'))), char_to_s32('你')))
+  assert_true!(int_equal(s32_to_int(int_to_s32(2147483648)), -2147483648))
+}
+
+pub fn answer() -> Unit ! Io {
+  test_utf8_string_char_s32
+    |> execute_all_test()
+}

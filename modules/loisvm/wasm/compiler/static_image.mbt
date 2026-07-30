@@ -188,7 +188,7 @@ fn build_static_image(
     writer.write_u32_le_int(0)
   }
   if !image.constants.is_empty() && byte_sequence_layout_id == 0 {
-    raise MissingStringLayout
+    raise MissingByteSequenceLayout
   }
   let constant_refs : Array[Int] = []
   for constant in image.constants {

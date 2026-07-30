@@ -1,5 +1,7 @@
 # Wasm linear-memory ARC heap
 
+The String-specific ASCII layout in this ADR is superseded by ADR 0124's shared ByteSequence layout for semantic String and Bytes values.
+
 Lane's Wasm compiled tier targets the wasm32 linear-memory model and does not use Wasm GC. Dynamic Lane Strings, data objects, closures, closure environments, and continuation closures are allocated in a Lane-owned heap inside WebAssembly linear memory. Lane defines their object layouts, allocation protocol, non-atomic strong reference counts, destruction behavior, and recursive release of owned fields.
 
 Memory64 is outside Lane v1. Every Lane heap reference is a 32-bit offset into wasm32 linear memory, and one instance cannot address a Lane heap beyond that address space.

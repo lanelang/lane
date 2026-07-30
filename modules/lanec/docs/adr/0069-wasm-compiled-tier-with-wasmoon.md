@@ -1,5 +1,7 @@
 # Wasm compiled tier with Wasmoon
 
+The ASCII String transport assumption in this ADR is superseded by ADR 0124's valid UTF-8 ByteSequence and host ABI contract.
+
 Lane uses WebAssembly, rather than MilkIR, as the compiled representation below LoisVM bytecode. The compiled pipeline is `linked Buslane/core -> LoisVM bytecode -> WebAssembly module -> WebAssembly engine`. LoisVM bytecode remains the common executable input: `loisvm/interp` executes it directly, while the Wasm backend decodes the same trusted image and lowers it to WebAssembly. The backend does not bypass bytecode by consuming compiler-private Buslane, ANF, or VM CFG representations.
 
 Milky2018/wasmoon is Lane's default WebAssembly execution engine. Wasmoon is project-controlled and may be extended alongside Lane, including its interpreter, JIT, runtime integration, and supported WebAssembly capabilities. Lane's Wasm design therefore need not be limited by the current feature floor or rollout schedule of unrelated WebAssembly engines.
