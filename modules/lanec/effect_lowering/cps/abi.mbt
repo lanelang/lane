@@ -270,12 +270,15 @@ fn lower_cps_direct_expr(
           schema, program, callee, arguments, source_result,
         )
       }
+      let lowered_callee = lower_cps_direct_expr(
+        schema, program, callee, current_answer,
+      )
       lower_cps_direct_call(
         schema.metadata,
-        lower_cps_direct_expr(schema, program, callee, current_answer),
-        arguments.map(argument => {
-          lower_cps_direct_expr(schema, program, argument, current_answer)
-        }),
+        lowered_callee,
+        lower_cps_call_arguments(
+          schema, program, arguments, lowered_callee, current_answer,
+        ),
         schema.rewrite_type(source_result),
         empty_callee_context_count(program.metadata, callee) +
         empty_result_context_count(program.metadata, callee),
@@ -363,10 +366,24 @@ fn lower_cps_effectful_result_call(
   guard source_result is Function(parameter_types, result_type, latent_effect) else {
     raise ExpectedFunction(source_result)
   }
+  let answer_parameter = schema.metadata.define_type_parameter("%answer", Type)
+  let answer_type = @buslane.Type::Parameter(answer_parameter)
+  let lowered_callee = lower_cps_direct_expr(
+    schema,
+    program,
+    callee,
+    Some(answer_type),
+  )
   let bindings : Array[(@buslane.ValueId, Expr)] = []
   let lowered_arguments : Array[Expr] = []
-  for argument in arguments {
-    let lowered = lower_cps_direct_expr(schema, program, argument, None)
+  for
+    lowered in lower_cps_call_arguments(
+      schema,
+      program,
+      arguments,
+      lowered_callee,
+      None,
+    ) {
     match lowered {
       Ref(_) | Literal(_) => lowered_arguments.push(lowered)
       _ => {
@@ -380,8 +397,6 @@ fn lower_cps_effectful_result_call(
       }
     }
   }
-  let answer_parameter = schema.metadata.define_type_parameter("%answer", Type)
-  let answer_type = @buslane.Type::Parameter(answer_parameter)
   let context_parameters = schema
     .context_argument_types(latent_effect, answer_type)
     .map(type_ => schema.metadata.define_value("%context", Parameter, type_))
@@ -398,10 +413,7 @@ fn lower_cps_effectful_result_call(
     Parameter,
     Function([rewritten_result], answer_type, Empty),
   )
-  let produced : Expr = Call(
-    lower_cps_direct_expr(schema, program, callee, Some(answer_type)),
-    lowered_arguments,
-  )
+  let produced : Expr = Call(lowered_callee, lowered_arguments)
   let expanded : Expr = TypeLambda(
     [answer_parameter],
     Function({

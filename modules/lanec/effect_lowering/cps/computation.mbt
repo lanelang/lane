@@ -83,9 +83,13 @@ fn lower_cps_monadic_call(
   let call = Expr::Call(
     transformed_callee,
     selected.values +
-    arguments.map(argument => {
-      lower_cps_direct_expr(schema, program, argument, Some(answer_type))
-    }) +
+    lower_cps_call_arguments(
+      schema,
+      program,
+      arguments,
+      transformed_callee,
+      Some(answer_type),
+    ) +
     [continuation],
   )
   if (
