@@ -39,6 +39,18 @@ pub struct Heap {
 }
 
 ///|
+priv struct HeapAllocationReservation {
+  layout : @bytecode.LayoutId
+  size : Int64
+}
+
+///|
+priv struct BytesAllocationReservation {
+  allocation : HeapAllocationReservation
+  length : Int
+}
+
+///|
 fn Heap::new(
   image : @bytecode.BytecodeImage,
   runtime : @runtime.ExecutionRuntime,
@@ -60,7 +72,7 @@ fn Heap::new(
         ref_count: 0,
         layout,
         payload: String(bytes),
-        size: byte_sequence_allocation_size(bytes.length()),
+        size: host_byte_sequence_allocation_size(bytes.length()),
         immortal: true,
       }),
     )
@@ -80,7 +92,7 @@ fn Heap::new(
           ref_count: 0,
           layout,
           payload: Data({ value: shape_index }, [], []),
-          size: object_allocation_size(shape).to_int64(),
+          size: object_allocation_size(shape),
           immortal: true,
         }),
       )
@@ -113,7 +125,7 @@ fn Heap::allocate_host_object(
   self.allocate(
     layout=self.reference_layout(),
     payload=HostObject(handle),
-    size=host_object_allocation_size().to_int64(),
+    size=host_object_allocation_size(),
   )
 }
 
@@ -125,20 +137,49 @@ fn Heap::allocate_string(
   self.allocate(
     layout=self.string_layout(),
     payload=String(bytes),
-    size=byte_sequence_allocation_size(bytes.length()),
+    size=host_byte_sequence_allocation_size(bytes.length()),
   )
 }
 
 ///|
-fn Heap::allocate_bytes(
+fn Heap::allocate_filled_bytes(
   self : Heap,
-  length : Int,
-  materialize : () -> Array[Byte],
+  length : Int64,
+  fill : Byte,
 ) -> Int raise ExecutionFailure {
-  let layout = self.bytes_layout()
-  let size = byte_sequence_allocation_size(length)
-  self.check_allocation_capacity(size)
-  self.publish_allocation(layout~, payload=BytesObject(materialize()), size~)
+  let reservation = self.reserve_bytes_allocation(length)
+  let bytes = Array::make(reservation.length, fill)
+  self.publish_allocation(reservation.allocation, BytesObject(bytes))
+}
+
+///|
+fn Heap::allocate_updated_bytes(
+  self : Heap,
+  source : Array[Byte],
+  index : Int,
+  value : Byte,
+) -> Int raise ExecutionFailure {
+  let reservation = self.reserve_bytes_allocation(source.length().to_int64())
+  let bytes = source.copy()
+  bytes[index] = value
+  self.publish_allocation(reservation.allocation, BytesObject(bytes))
+}
+
+///|
+fn Heap::reserve_bytes_allocation(
+  self : Heap,
+  length : Int64,
+) -> BytesAllocationReservation raise ExecutionFailure {
+  let size = match checked_byte_sequence_allocation_size(length) {
+    Some(size) => size
+    None => raise Trap(detail="Bytes length is out of range")
+  }
+  let allocation = self.reserve_allocation(self.bytes_layout(), size)
+  let host_length = length.to_int()
+  if host_length < 0 || host_length.to_int64() != length {
+    raise Trap(detail="Bytes length is out of range")
+  }
+  { allocation, length: host_length }
 }
 
 ///|
@@ -155,7 +196,7 @@ fn Heap::allocate_data(
     self.object(reference).layout == layout {
     return reference
   }
-  let size = object_allocation_size(self.image.object_shapes[shape.value]).to_int64()
+  let size = object_allocation_size(self.image.object_shapes[shape.value])
   self.allocate(layout~, payload=Data(shape, witnesses, fields), size~)
 }
 
@@ -167,7 +208,7 @@ fn Heap::allocate_environment(
   witnesses : Array[@bytecode.LayoutId],
   captures : Array[VMValue],
 ) -> Int raise ExecutionFailure {
-  let size = object_allocation_size(self.image.object_shapes[shape.value]).to_int64()
+  let size = object_allocation_size(self.image.object_shapes[shape.value])
   self.allocate(layout~, payload=Environment(shape, witnesses, captures), size~)
 }
 
@@ -178,8 +219,18 @@ fn Heap::allocate(
   payload~ : ObjectPayload,
   size~ : Int64,
 ) -> Int raise ExecutionFailure {
+  let reservation = self.reserve_allocation(layout, size)
+  self.publish_allocation(reservation, payload)
+}
+
+///|
+fn Heap::reserve_allocation(
+  self : Heap,
+  layout : @bytecode.LayoutId,
+  size : Int64,
+) -> HeapAllocationReservation raise ExecutionFailure {
   self.check_allocation_capacity(size)
-  self.publish_allocation(layout~, payload~, size~)
+  { layout, size }
 }
 
 ///|
@@ -198,15 +249,20 @@ fn Heap::check_allocation_capacity(
 ///|
 fn Heap::publish_allocation(
   self : Heap,
-  layout~ : @bytecode.LayoutId,
-  payload~ : ObjectPayload,
-  size~ : Int64,
+  reservation : HeapAllocationReservation,
+  payload : ObjectPayload,
 ) -> Int {
   let reference = self.objects.length()
   self.objects.push(
-    Some({ ref_count: 1, layout, payload, size, immortal: false }),
+    Some({
+      ref_count: 1,
+      layout: reservation.layout,
+      payload,
+      size: reservation.size,
+      immortal: false,
+    }),
   )
-  self.live_bytes += size
+  self.live_bytes += reservation.size
   reference
 }
 
@@ -477,32 +533,52 @@ fn callable_environment(value : Int64) -> Int {
 }
 
 ///|
-fn host_object_allocation_size() -> Int {
-  16
+fn host_object_allocation_size() -> Int64 {
+  16L
 }
 
 ///|
-fn byte_sequence_allocation_size(length : Int) -> Int64 {
+fn checked_byte_sequence_allocation_size(length : Int64) -> Int64? {
+  if length < 0L {
+    return None
+  }
+  let unaligned = length + 12L
+  if unaligned < length {
+    return None
+  }
+  let padded = unaligned + 7L
+  if padded < unaligned {
+    return None
+  }
+  Some(padded / 8L * 8L)
+}
+
+///|
+fn host_byte_sequence_allocation_size(length : Int) -> Int64 {
   let unaligned = 12L + length.to_int64()
   (unaligned + 7L) / 8L * 8L
 }
 
 ///|
-fn object_allocation_size(shape : @bytecode.ObjectShape) -> Int {
+fn object_allocation_size(shape : @bytecode.ObjectShape) -> Int64 {
   let (initial_offset, members) = match shape {
-    Data(data) => (12 + data.stored_witness_count * 4, data.members)
+    Data(data) =>
+      (12L + data.stored_witness_count.to_int64() * 4L, data.members)
     Environment(environment) =>
-      (8 + environment.stored_witness_count * 4, environment.members)
+      (
+        8L + environment.stored_witness_count.to_int64() * 4L,
+        environment.members,
+      )
   }
   let mut offset = initial_offset
   for schema in members {
     let (size, alignment) = match schema.representation {
-      I32 => (4, 4)
-      I64 | F64 => (8, 8)
+      I32 => (4L, 4L)
+      I64 | F64 => (8L, 8L)
     }
     offset = align_up(offset, alignment) + size
   }
-  align_up(offset, 8)
+  align_up(offset, 8L)
 }
 
 ///|
@@ -543,6 +619,6 @@ fn find_shape_layout(
 }
 
 ///|
-fn align_up(value : Int, alignment : Int) -> Int {
+fn align_up(value : Int64, alignment : Int64) -> Int64 {
   (value + alignment - 1) / alignment * alignment
 }

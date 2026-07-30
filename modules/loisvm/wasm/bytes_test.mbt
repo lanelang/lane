@@ -391,7 +391,7 @@ test "large Bytes allocation is rejected before materialization across backends"
   let owned = wasm_bytes_owned_slot()
   assert_bytes_backends(
     wasm_bytes_single_block([i64, i32, owned], [
-      ConstInt({ value: 0 }, 2147483635L),
+      ConstInt({ value: 0 }, 2147483636L),
       IntToByte({ value: 1 }, { value: 0 }),
       BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
     ]),

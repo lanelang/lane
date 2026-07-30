@@ -26,6 +26,7 @@ fn bytes_test_body(
 ///|
 fn execute_bytes_test(
   body : @bytecode.FunctionBody,
+  config? : @runtime.ExecutionConfig = @runtime.ExecutionConfig::defaults(),
 ) -> Result[Unit, @runtime.ExecutionError] raise {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
@@ -40,7 +41,7 @@ fn execute_bytes_test(
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  loaded.new_instance().execute()
+  loaded.new_instance(config~).execute()
 }
 
 ///|
@@ -228,4 +229,30 @@ test "Bytes primitives trap on invalid length and index" {
       Err(EngineTrap(detail="Bytes index is out of bounds")),
     )
   }
+}
+
+///|
+test "Bytes layout preflight determines the large length limit" {
+  let i32 = bytes_test_trivial_slot(I32)
+  let i64 = bytes_test_trivial_slot(I64)
+  let owned = bytes_test_owned_slot()
+  let body = bytes_test_body([i64, i32, owned], [
+    {
+      parameters: [],
+      instructions: [
+        ConstInt({ value: 0 }, 2147483636L),
+        IntToByte({ value: 1 }, { value: 0 }),
+        BytesMake({ value: 2 }, { value: 0 }, { value: 1 }),
+      ],
+      terminator: Return(None),
+    },
+  ])
+  assert_eq(
+    execute_bytes_test(body, config={
+      max_call_depth: None,
+      max_live_heap_bytes: Some(15),
+      max_host_objects: None,
+    }),
+    Err(ExecutionResourceLimit(kind=LiveHeapBytes)),
+  )
 }

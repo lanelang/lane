@@ -1,6 +1,14 @@
 ///|
-test "byte sequence allocation size stays exact at maximum Bytes length" {
-  assert_eq(byte_sequence_allocation_size(2147483635), 2147483648L)
+test "byte sequence allocation size uses checked Int64 arithmetic" {
+  assert_eq(
+    [
+      checked_byte_sequence_allocation_size(-1L),
+      checked_byte_sequence_allocation_size(2147483635L),
+      checked_byte_sequence_allocation_size(2147483636L),
+      checked_byte_sequence_allocation_size(9223372036854775807L),
+    ],
+    [None, Some(2147483648L), Some(2147483648L), None],
+  )
 }
 
 ///|
@@ -15,17 +23,38 @@ test "Bytes heap capacity is checked before payload materialization" {
     constants: [],
   }
   let heap = Heap::new(image, @runtime.ExecutionRuntime::new(), Some(15))
-  let materialized = Ref(false)
   let result : Result[Int, Unit] = try
-    heap.allocate_bytes(2147483635, () => {
-      materialized.val = true
-      []
-    })
+    heap.allocate_filled_bytes(2147483636L, b'\x00')
   catch {
     ResourceLimit(LiveHeapBytes) => Err(())
     _ => fail("unexpected allocation failure")
   } noraise {
     reference => Ok(reference)
   }
-  assert_eq((result, materialized.val, heap.live_bytes), (Err(()), false, 0L))
+  assert_eq((result, heap.live_bytes), (Err(()), 0L))
+}
+
+///|
+test "Bytes heap capacity is checked before shared payload copying" {
+  let image : @bytecode.BytecodeImage = {
+    entry: { value: 1 },
+    initializer: None,
+    globals: [],
+    functions: [],
+    layouts: [Bytes],
+    object_shapes: [],
+    constants: [],
+  }
+  let heap = Heap::new(image, @runtime.ExecutionRuntime::new(), Some(16))
+  let reference = heap.allocate_filled_bytes(1L, b'\x01')
+  let source = heap.bytes_array(reference)
+  let result : Result[Int, Unit] = try
+    heap.allocate_updated_bytes(source, 0, b'\x02')
+  catch {
+    ResourceLimit(LiveHeapBytes) => Err(())
+    _ => fail("unexpected allocation failure")
+  } noraise {
+    result => Ok(result)
+  }
+  assert_eq((result, source, heap.live_bytes), (Err(()), [b'\x01'], 16L))
 }
