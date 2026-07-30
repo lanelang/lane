@@ -74,11 +74,11 @@ pub fn ExpressionFacts::effect(self : ExpressionFacts) -> Effect {
 pub fn ExpressionFactsQuery::new(program : Program) -> ExpressionFactsQuery {
   let values : Array[ValueId] = []
   for index in 0..<program.metadata.values.length() {
-    values.push(ValueId::{ index, })
+    values.push({ index, })
   }
   let type_parameters : Array[TypeParameterId] = []
   for index in 0..<program.metadata.type_parameters.length() {
-    type_parameters.push(TypeParameterId::{ index, })
+    type_parameters.push({ index, })
   }
   { program, values, type_parameters }
 }
