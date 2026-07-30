@@ -2,10 +2,11 @@
 
 - [ ] enum, struct, effect operation use `auto` argument
 - [ ] more `to_string` builtins
-- [ ] all readme.md should not be manually newlines 
+- [x] all readme.md should not be manually newlines 
 - [x] `derive` should be considered by `lane lsp`, type inlay, argument inlay and so on
 - [x] inlay: if there is only one argument and it is `auto`, it will still be a inlayed comma
 - [ ] recovered parsing 
 - [ ] C ABI and binary executable with libc
 - [ ] command `make-exe`, `make-wasm`
-- [ ] 
+- [ ] goto-def not working for import types
+- [ ] multi-threading
