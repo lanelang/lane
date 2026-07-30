@@ -211,7 +211,7 @@ Each definition receives a readable occurrence name and returns the correspondin
 
 Buslane types include:
 
-- primitive `Unit`, `Bool`, `I64`, `I32`, `F64`, `Byte`, `Bytes`, `Char`, and `String` types;
+- primitive `Unit`, `Bool`, `I64`, `I32`, `F64`, `F32`, `Byte`, `Bytes`, `Char`, and `String` types;
 - nominal constructors and kind-aware generic application;
 - type parameters and type-level lambdas;
 - n-ary function types with latent effects;
@@ -313,7 +313,7 @@ test "round-trip canonical Buslane text" {
 }
 ```
 
-`write_type` and `parse_type_text` provide the same boundary for standalone Buslane types. Canonical text preserves semantic distinctions and stable identities; it is suitable for fixtures, debugging artifacts, and interoperability tests.
+`write_type` and `parse_type_text` provide the same boundary for standalone Buslane types. Canonical text preserves semantic distinctions and stable identities; F32 and F64 literals use fixed-width hexadecimal IEEE bit patterns so signed zero, infinities, subnormals, and NaN payloads round-trip exactly. It is suitable for fixtures, debugging artifacts, and interoperability tests.
 
 ### `Milky2018/buslane/codec`
 

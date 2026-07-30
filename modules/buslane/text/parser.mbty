@@ -9,7 +9,7 @@
 %start buslane_type
 
 %token<String> INT
-%token<String> DOUBLE
+%token<String> FLOAT_BITS
 %token<String> STRING
 %token<Int> TYPE_ID
 %token<Int> TPARAM_ID
@@ -294,8 +294,8 @@ literal -> Literal
   | "i64" "(" INT ")" { validated_literal(parse_i64_literal($3)) }
   | "i32" "(" INT ")" { validated_literal(parse_i32_literal($3)) }
   | "char" "(" INT ")" { validated_literal(parse_char_literal($3)) }
-  | "f32" "(" DOUBLE ")" { validated_literal(parse_f32_literal($3)) }
-  | "f64" "(" DOUBLE ")" { validated_literal(parse_f64_literal($3)) }
+  | "f32" "(" FLOAT_BITS ")" { validated_literal(parse_f32_bits($3)) }
+  | "f64" "(" FLOAT_BITS ")" { validated_literal(parse_f64_bits($3)) }
   | "string" "(" STRING ")" { String($3) }
   ;
 

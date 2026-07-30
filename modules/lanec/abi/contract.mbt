@@ -78,6 +78,8 @@ pub(all) enum Intrinsic {
   F32Inf
   F32NegativeInf
   F32Nan
+  I64ToF64
+  F64ToI64
   I64ToF32
   F32ToI64
   F32ToF64
@@ -139,6 +141,8 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
     "%f32_inf" => Some(F32Inf)
     "%f32_ninf" => Some(F32NegativeInf)
     "%f32_nan" => Some(F32Nan)
+    "%i64_to_f64" => Some(I64ToF64)
+    "%f64_to_i64" => Some(F64ToI64)
     "%i64_to_f32" => Some(I64ToF32)
     "%f32_to_i64" => Some(F32ToI64)
     "%f32_to_f64" => Some(F32ToF64)
@@ -202,6 +206,8 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
     F32Inf => "%f32_inf"
     F32NegativeInf => "%f32_ninf"
     F32Nan => "%f32_nan"
+    I64ToF64 => "%i64_to_f64"
+    F64ToI64 => "%f64_to_i64"
     I64ToF32 => "%i64_to_f32"
     F32ToI64 => "%f32_to_i64"
     F32ToF64 => "%f32_to_f64"
@@ -246,6 +252,8 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
     F32Neg => Function(parameters=[F32], result=F32)
     F32Equal | F32Less => Function(parameters=[F32, F32], result=Bool)
     F32Inf | F32NegativeInf | F32Nan => Value(F32)
+    I64ToF64 => Function(parameters=[I64], result=F64)
+    F64ToI64 => Function(parameters=[F64], result=I64)
     I64ToF32 => Function(parameters=[I64], result=F32)
     F32ToI64 => Function(parameters=[F32], result=I64)
     F32ToF64 => Function(parameters=[F32], result=F64)

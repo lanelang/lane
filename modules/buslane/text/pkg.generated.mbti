@@ -31,7 +31,7 @@ pub fn CanonicalTextWriter::write_type(Self, @buslane.Type) -> String
 
 pub(all) enum Token {
   INT(String)
-  DOUBLE(String)
+  FLOAT_BITS(String)
   STRING(String)
   TYPE_ID(Int)
   TPARAM_ID(Int)
@@ -126,7 +126,7 @@ pub fn Token::kind(Self) -> TokenKind
 
 pub(all) enum TokenKind {
   TK_INT
-  TK_DOUBLE
+  TK_FLOAT_BITS
   TK_STRING
   TK_TYPE_ID
   TK_TPARAM_ID

@@ -87,7 +87,7 @@ fn token_label(token : Token) -> String {
     EFFECT_ID(index) => "effect#\{index}"
     OPERATION_ID(index) => "operation#\{index}"
     INT(value) => value
-    DOUBLE(value) => value
+    FLOAT_BITS(value) => value
     STRING(_) => "string"
     EOF => "eof"
     BUSLANE => "buslane"
@@ -612,8 +612,20 @@ fn literal_doc(literal : @buslane.Literal) -> Document {
     I64(value) => call_doc("i64", [text(value.to_string())])
     I32(value) => call_doc("i32", [text(value.to_string())])
     Char(value) => call_doc("char", [text(value.to_string())])
-    F64(value) => call_doc("f64", [text(value.to_string())])
-    F32(value) => call_doc("f32", [text(value.to_string())])
+    F64(value) =>
+      call_doc("f64", [
+        text(
+          "0x" +
+          value.reinterpret_as_uint64().to_string(radix=16).pad_start(16, '0'),
+        ),
+      ])
+    F32(value) =>
+      call_doc("f32", [
+        text(
+          "0x" +
+          value.reinterpret_as_uint().to_string(radix=16).pad_start(8, '0'),
+        ),
+      ])
     String(value) => call_doc("string", [text(quote_string(value))])
   }
 }

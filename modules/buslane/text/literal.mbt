@@ -34,28 +34,25 @@ fn parse_char_literal(text : String) -> Result[@buslane.Literal, String] {
 }
 
 ///|
-fn parse_f32_literal(text : String) -> Result[@buslane.Literal, String] {
-  let parsed = @string.parse_double(text) catch {
-    _ => return Err("invalid f32 literal `\{text}`")
+fn parse_f32_bits(text : String) -> Result[@buslane.Literal, String] {
+  if text.length() != 10 {
+    return Err("invalid f32 bit pattern `\{text}`")
   }
-  let value = Float::from_double(parsed)
-  if parsed.is_nan() || parsed.is_inf() || value.is_nan() || value.is_inf() {
-    Err("invalid f32 literal `\{text}`")
-  } else {
-    Ok(F32(value))
+  let bits = @string.parse_uint(text, base=0) catch {
+    _ => return Err("invalid f32 bit pattern `\{text}`")
   }
+  Ok(F32(Float::reinterpret_from_uint(bits)))
 }
 
 ///|
-fn parse_f64_literal(text : String) -> Result[@buslane.Literal, String] {
-  let value = @string.parse_double(text) catch {
-    _ => return Err("invalid f64 literal `\{text}`")
+fn parse_f64_bits(text : String) -> Result[@buslane.Literal, String] {
+  if text.length() != 18 {
+    return Err("invalid f64 bit pattern `\{text}`")
   }
-  if value.is_nan() || value.is_inf() {
-    Err("invalid f64 literal `\{text}`")
-  } else {
-    Ok(F64(value))
+  let bits = @string.parse_uint64(text, base=0) catch {
+    _ => return Err("invalid f64 bit pattern `\{text}`")
   }
+  Ok(F64(bits.reinterpret_as_double()))
 }
 
 ///|
@@ -78,8 +75,8 @@ fn validate_literal_tokens(
       (I64_LITERAL, INT(text)) => Some(parse_i64_literal(text))
       (I32_LITERAL, INT(text)) => Some(parse_i32_literal(text))
       (CHAR_LITERAL, INT(text)) => Some(parse_char_literal(text))
-      (F32_LITERAL, DOUBLE(text)) => Some(parse_f32_literal(text))
-      (F64_LITERAL, DOUBLE(text)) => Some(parse_f64_literal(text))
+      (F32_LITERAL, FLOAT_BITS(text)) => Some(parse_f32_bits(text))
+      (F64_LITERAL, FLOAT_BITS(text)) => Some(parse_f64_bits(text))
       _ => None
     }
     if result is Some(Err(message)) {

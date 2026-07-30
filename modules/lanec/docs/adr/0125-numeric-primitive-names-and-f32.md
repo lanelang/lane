@@ -26,9 +26,9 @@ The complete compiler-owned numeric intrinsic surface is:
 
 | Family | Intrinsics | Type and contract |
 | --- | --- | --- |
-| I64 arithmetic | `%i64_add`, `%i64_sub`, `%i64_mul`, `%i64_div`, `%i64_rem` | `(I64, I64) -> I64`; add/sub/mul wrap in two's-complement, division and remainder require their ordinary signed preconditions |
-| I64 unary and comparison | `%i64_neg`, `%i64_equal`, `%i64_less` | `(I64) -> I64` or `(I64, I64) -> Bool`; negation wraps and ordering is signed |
-| I32 arithmetic | `%i32_add`, `%i32_sub`, `%i32_mul`, `%i32_div`, `%i32_rem` | `(I32, I32) -> I32`; the same contract at 32 bits |
+| I64 arithmetic | `%i64_add`, `%i64_sub`, `%i64_mul`, `%i64_div`, `%i64_rem` | `(I64, I64) -> I64`; overflow in add/sub/mul is undefined behavior, and division and remainder require their ordinary signed preconditions |
+| I64 unary and comparison | `%i64_neg`, `%i64_equal`, `%i64_less` | `(I64) -> I64` or `(I64, I64) -> Bool`; negating the minimum I64 is undefined behavior, and ordering is signed |
+| I32 arithmetic | `%i32_add`, `%i32_sub`, `%i32_mul`, `%i32_div`, `%i32_rem` | `(I32, I32) -> I32`; add/sub/mul wrap at 32 bits, and division and remainder require their ordinary signed preconditions |
 | I32 unary and comparison | `%i32_neg`, `%i32_equal`, `%i32_less` | `(I32) -> I32` or `(I32, I32) -> Bool`; negation wraps and ordering is signed |
 | F64 arithmetic | `%f64_add`, `%f64_sub`, `%f64_mul`, `%f64_div`, `%f64_neg` | IEEE 754 binary64 operations |
 | F64 comparison | `%f64_equal`, `%f64_less` | `(F64, F64) -> Bool` with IEEE equality and ordering |
@@ -52,6 +52,8 @@ Arithmetic uses the target IEEE width rather than widening F32 operations throug
 
 `%f32_to_f64` is exact. `%f64_to_f32`, `%i64_to_f32`, and F32 arithmetic may produce signed zero or infinity according to IEEE rounding; only source-literal elaboration applies the additional finite-nonzero underflow and overflow diagnostics.
 
+Buslane canonical text writes F64 and F32 literals as fixed-width lowercase hexadecimal IEEE bit patterns: `f64(0x0000000000000000)` and `f32(0x00000000)`. This representation round-trips signed zero, infinities, subnormals, and every NaN payload exactly. Human-oriented Buslane Pretty output remains decimal and is not a persistence format.
+
 ## Semantic and runtime representation
 
 Buslane represents I64, I32, F64, and F32 primitive types and literals independently. LoisVM uses `I64 + Trivial`, `I32 + Trivial`, `F64 + Trivial`, and `F32 + Trivial`, with dedicated arithmetic, comparison, conversion, constant, layout, host-ABI, and representation-erasure cases. F32 values are never widened to F64 merely to cross a compiler, artifact, runtime, or host boundary.
@@ -60,16 +62,17 @@ Generic representation erasure stores the raw 32 bits of F32 in the low half of 
 
 ## Persistence
 
-The migration is one current-format boundary. Buslane codec version 5, module interface schema 11, module object schema 14, and linked program schema 8 contain the complete renamed numeric model and F32 cases. Their decoders reject versions 4, 10, 13, and 7 respectively; there is no compatibility alias or migration decoder for the removed numeric identities.
+The current persisted formats are Buslane codec version 5, module interface schema 11, module object schema 15, and linked program schema 8. Module object schema 15 adds the I64/F64 conversion intrinsic tags to the numeric model introduced by schema 14. Their decoders reject versions 4, 10, 14, and 7 respectively; there is no compatibility alias or migration decoder for the removed numeric identities.
 
 The stable new tags within those current formats are:
 
-| Domain | F32 encoding |
+| Domain | Numeric migration encoding |
 | --- | --- |
 | Buslane primitive type | tag `9` |
 | Buslane literal | tag `7` followed by the binary32 payload |
 | Lane artifact primitive type | tag `9` |
 | Lane artifact intrinsic | tags `43` through `56` for the ordered F32 operation, constant, and conversion cases |
+| Lane artifact I64/F64 conversion intrinsics | tags `57` and `58` for `%i64_to_f64` and `%f64_to_i64` |
 | Lane artifact host value kind | tag `6` |
 | LoisVM runtime import value kind | tag `0x06` |
 | LoisVM slot representation | tag `0x04` |
@@ -85,4 +88,4 @@ The language-independent LoisVM host ABI represents an F32 parameter or result a
 
 ## Compatibility
 
-This ADR supersedes the numeric terminology, conversion names, and superseded persistence-version statements in ADRs 0029, 0046, 0053, 0062, 0068, 0071, 0072, 0074, 0075, 0079, 0081, 0083, 0085, 0086, 0091, 0092, 0093, 0097, 0098, 0099, 0101, 0105, 0121, 0123, and 0124. Those documents continue to own their other decisions.
+This ADR supersedes the numeric terminology, conversion names, canonical floating-text representation, and superseded persistence-version statements in ADRs 0029, 0046, 0053, 0062, 0068, 0071, 0072, 0074, 0075, 0079, 0081, 0083, 0085, 0086, 0091, 0092, 0093, 0097, 0098, 0099, 0101, 0105, 0121, 0123, and 0124. Those documents continue to own their other decisions.

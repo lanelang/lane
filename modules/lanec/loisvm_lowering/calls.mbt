@@ -490,6 +490,8 @@ fn FunctionLowerer::lower_intrinsic(
     (F32ToI64, [source]) => F32ToI64(destination, source)
     (F32ToF64, [source]) => F32ToF64(destination, source)
     (F64ToF32, [source]) => F64ToF32(destination, source)
+    (I64ToF64, [source]) => I64ToF64(destination, source)
+    (F64ToI64, [source]) => F64ToI64(destination, source)
     (F64Add, [left, right]) => F64Add(destination, left, right)
     (F64Sub, [left, right]) => F64Sub(destination, left, right)
     (F64Mul, [left, right]) => F64Mul(destination, left, right)

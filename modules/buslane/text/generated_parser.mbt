@@ -1,7 +1,7 @@
 
 pub(all) enum Token {
   INT(String)
-  DOUBLE(String)
+  FLOAT_BITS(String)
   STRING(String)
   TYPE_ID(Int)
   TPARAM_ID(Int)
@@ -96,7 +96,7 @@ pub(all) enum Token {
 pub fn Token::kind(self : Token) -> TokenKind {
   match self {
     INT(_) => TK_INT
-    DOUBLE(_) => TK_DOUBLE
+    FLOAT_BITS(_) => TK_FLOAT_BITS
     STRING(_) => TK_STRING
     TYPE_ID(_) => TK_TYPE_ID
     TPARAM_ID(_) => TK_TPARAM_ID
@@ -191,7 +191,7 @@ pub fn Token::kind(self : Token) -> TokenKind {
 
 pub(all) enum TokenKind {
   TK_INT
-  TK_DOUBLE
+  TK_FLOAT_BITS
   TK_STRING
   TK_TYPE_ID
   TK_TPARAM_ID
@@ -287,7 +287,7 @@ pub impl Show for TokenKind with fn output(self, logger) {
   logger.write_string(
     match self {
       TK_INT => "INT"
-      TK_DOUBLE => "DOUBLE"
+      TK_FLOAT_BITS => "FLOAT_BITS"
       TK_STRING => "STRING"
       TK_TYPE_ID => "TYPE_ID"
       TK_TPARAM_ID => "TPARAM_ID"
@@ -384,7 +384,7 @@ pub impl Show for TokenKind with fn output(self, logger) {
 pub impl Debug for TokenKind with fn to_repr(self) {
     match self {
       TK_INT => Repr("INT")
-      TK_DOUBLE => Repr("DOUBLE")
+      TK_FLOAT_BITS => Repr("FLOAT_BITS")
       TK_STRING => Repr("STRING")
       TK_TYPE_ID => Repr("TYPE_ID")
       TK_TPARAM_ID => Repr("TPARAM_ID")
@@ -668,7 +668,7 @@ priv enum YYDecision {
 
 priv enum YYSymbol {
   T_INT
-  T_DOUBLE
+  T_FLOAT_BITS
   T_STRING
   T_TYPE_ID
   T_TPARAM_ID
@@ -1258,17 +1258,17 @@ fn yy_action_44(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 297|    "f32" "(" DOUBLE ")" { validated_literal(parse_f32_literal($3)) }
+// 297|    "f32" "(" FLOAT_BITS ")" { validated_literal(parse_f32_bits($3)) }
 fn yy_action_45(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Literal({();  validated_literal(parse_f32_literal(_dollar3)) })
+  YYObj_Literal({();  validated_literal(parse_f32_bits(_dollar3)) })
 }
 
 // file:///./parser.mbty
-// 298|    "f64" "(" DOUBLE ")" { validated_literal(parse_f64_literal($3)) }
+// 298|    "f64" "(" FLOAT_BITS ")" { validated_literal(parse_f64_bits($3)) }
 fn yy_action_46(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
-  YYObj_Literal({();  validated_literal(parse_f64_literal(_dollar3)) })
+  YYObj_Literal({();  validated_literal(parse_f64_bits(_dollar3)) })
 }
 
 // file:///./parser.mbty
@@ -1956,7 +1956,7 @@ fn yy_action_137(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 fn yy_input(token : Token, _start_pos : SourceSpan, _end_pos : SourceSpan) -> (YYSymbol, YYObj) {
   match token {
     INT(data) => (T_INT, YYObj_String(data))
-    DOUBLE(data) => (T_DOUBLE, YYObj_String(data))
+    FLOAT_BITS(data) => (T_FLOAT_BITS, YYObj_String(data))
     STRING(data) => (T_STRING, YYObj_String(data))
     TYPE_ID(data) => (T_TYPE_ID, YYObj_Int(data))
     TPARAM_ID(data) => (T_TPARAM_ID, YYObj_Int(data))
@@ -3817,7 +3817,7 @@ fn yy_state_239(_lookahead : YYSymbol) -> YYDecision {
 
 fn yy_state_240(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_DOUBLE => Shift(yy_state_241)
+    T_FLOAT_BITS => Shift(yy_state_241)
     _ => Error
   }
 }
@@ -3842,7 +3842,7 @@ fn yy_state_243(_lookahead : YYSymbol) -> YYDecision {
 
 fn yy_state_244(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_DOUBLE => Shift(yy_state_245)
+    T_FLOAT_BITS => Shift(yy_state_245)
     _ => Error
   }
 }
@@ -5568,7 +5568,7 @@ fn error(stack : @list.List[YYState], token : Token?, loc : (SourceSpan, SourceS
     }
     go(stack)
   }
-  for term in ([(T_INT, TK_INT), (T_DOUBLE, TK_DOUBLE), (T_STRING, TK_STRING), (T_TYPE_ID, TK_TYPE_ID), (T_TPARAM_ID, TK_TPARAM_ID), (T_VALUE_ID, TK_VALUE_ID), (T_DATACON_ID, TK_DATACON_ID), (T_EFFECT_ID, TK_EFFECT_ID), (T_OPERATION_ID, TK_OPERATION_ID), (T_EOF, TK_EOF), (T_BUSLANE, TK_BUSLANE), (T_METADATA, TK_METADATA), (T_TYPE, TK_TYPE), (T_TYPE_PARAMETER, TK_TYPE_PARAMETER), (T_VALUE, TK_VALUE), (T_DATACON, TK_DATACON), (T_EFFECT_DECL, TK_EFFECT_DECL), (T_OPERATION, TK_OPERATION), (T_NAME, TK_NAME), (T_UNIQUE, TK_UNIQUE), (T_PARAMETERS, TK_PARAMETERS), (T_CONSTRUCTORS, TK_CONSTRUCTORS), (T_OPERATIONS, TK_OPERATIONS), (T_OWNER, TK_OWNER), (T_HIDDEN, TK_HIDDEN), (T_PAYLOAD, TK_PAYLOAD), (T_RESULT, TK_RESULT), (T_FUNCTION_KIND, TK_FUNCTION_KIND), (T_PARAMETER_KIND, TK_PARAMETER_KIND), (T_LOCAL_KIND, TK_LOCAL_KIND), (T_MATCH_BINDER_KIND, TK_MATCH_BINDER_KIND), (T_TYPE_KIND, TK_TYPE_KIND), (T_EFFECT_KIND, TK_EFFECT_KIND), (T_UNIT_TYPE, TK_UNIT_TYPE), (T_BOOL_TYPE, TK_BOOL_TYPE), (T_I64_TYPE, TK_I64_TYPE), (T_I32_TYPE, TK_I32_TYPE), (T_CHAR_TYPE, TK_CHAR_TYPE), (T_F32_TYPE, TK_F32_TYPE), (T_F64_TYPE, TK_F64_TYPE), (T_STRING_TYPE, TK_STRING_TYPE), (T_BYTE_TYPE, TK_BYTE_TYPE), (T_BYTES_TYPE, TK_BYTES_TYPE), (T_KIND_FN, TK_KIND_FN), (T_EMPTY_EFFECT, TK_EMPTY_EFFECT), (T_IO_EFFECT, TK_IO_EFFECT), (T_EFFECT_SINGLETON, TK_EFFECT_SINGLETON), (T_EFFECT_UNION, TK_EFFECT_UNION), (T_APPLY, TK_APPLY), (T_TYPE_FN, TK_TYPE_FN), (T_FN_TYPE, TK_FN_TYPE), (T_FORALL, TK_FORALL), (T_LET, TK_LET), (T_LETREC, TK_LETREC), (T_EXTERNAL, TK_EXTERNAL), (T_FN, TK_FN), (T_CALL, TK_CALL), (T_PERFORM, TK_PERFORM), (T_HANDLE, TK_HANDLE), (T_RESUME, TK_RESUME), (T_HANDLER, TK_HANDLER), (T_OP_ALT, TK_OP_ALT), (T_FINAL, TK_FINAL), (T_TYPE_APPLY, TK_TYPE_APPLY), (T_CONSTRUCT, TK_CONSTRUCT), (T_LET_IN, TK_LET_IN), (T_LETREC_IN, TK_LETREC_IN), (T_MATCH, TK_MATCH), (T_ALT, TK_ALT), (T_DEFAULT, TK_DEFAULT), (T_LITERAL_ALT, TK_LITERAL_ALT), (T_TRUE, TK_TRUE), (T_FALSE, TK_FALSE), (T_I64_LITERAL, TK_I64_LITERAL), (T_I32_LITERAL, TK_I32_LITERAL), (T_CHAR_LITERAL, TK_CHAR_LITERAL), (T_F32_LITERAL, TK_F32_LITERAL), (T_F64_LITERAL, TK_F64_LITERAL), (T_STRING_LITERAL, TK_STRING_LITERAL), (T_UNIT_LITERAL, TK_UNIT_LITERAL), (T_LBRACE, TK_LBRACE), (T_RBRACE, TK_RBRACE), (T_LBRACKET, TK_LBRACKET), (T_RBRACKET, TK_RBRACKET), (T_LPAREN, TK_LPAREN), (T_RPAREN, TK_RPAREN), (T_COMMA, TK_COMMA), (T_COLON, TK_COLON), (T_SEMI, TK_SEMI), (T_EQUAL, TK_EQUAL), (T_FAT_ARROW, TK_FAT_ARROW)] : Array[(YYSymbol, TokenKind)]) {
+  for term in ([(T_INT, TK_INT), (T_FLOAT_BITS, TK_FLOAT_BITS), (T_STRING, TK_STRING), (T_TYPE_ID, TK_TYPE_ID), (T_TPARAM_ID, TK_TPARAM_ID), (T_VALUE_ID, TK_VALUE_ID), (T_DATACON_ID, TK_DATACON_ID), (T_EFFECT_ID, TK_EFFECT_ID), (T_OPERATION_ID, TK_OPERATION_ID), (T_EOF, TK_EOF), (T_BUSLANE, TK_BUSLANE), (T_METADATA, TK_METADATA), (T_TYPE, TK_TYPE), (T_TYPE_PARAMETER, TK_TYPE_PARAMETER), (T_VALUE, TK_VALUE), (T_DATACON, TK_DATACON), (T_EFFECT_DECL, TK_EFFECT_DECL), (T_OPERATION, TK_OPERATION), (T_NAME, TK_NAME), (T_UNIQUE, TK_UNIQUE), (T_PARAMETERS, TK_PARAMETERS), (T_CONSTRUCTORS, TK_CONSTRUCTORS), (T_OPERATIONS, TK_OPERATIONS), (T_OWNER, TK_OWNER), (T_HIDDEN, TK_HIDDEN), (T_PAYLOAD, TK_PAYLOAD), (T_RESULT, TK_RESULT), (T_FUNCTION_KIND, TK_FUNCTION_KIND), (T_PARAMETER_KIND, TK_PARAMETER_KIND), (T_LOCAL_KIND, TK_LOCAL_KIND), (T_MATCH_BINDER_KIND, TK_MATCH_BINDER_KIND), (T_TYPE_KIND, TK_TYPE_KIND), (T_EFFECT_KIND, TK_EFFECT_KIND), (T_UNIT_TYPE, TK_UNIT_TYPE), (T_BOOL_TYPE, TK_BOOL_TYPE), (T_I64_TYPE, TK_I64_TYPE), (T_I32_TYPE, TK_I32_TYPE), (T_CHAR_TYPE, TK_CHAR_TYPE), (T_F32_TYPE, TK_F32_TYPE), (T_F64_TYPE, TK_F64_TYPE), (T_STRING_TYPE, TK_STRING_TYPE), (T_BYTE_TYPE, TK_BYTE_TYPE), (T_BYTES_TYPE, TK_BYTES_TYPE), (T_KIND_FN, TK_KIND_FN), (T_EMPTY_EFFECT, TK_EMPTY_EFFECT), (T_IO_EFFECT, TK_IO_EFFECT), (T_EFFECT_SINGLETON, TK_EFFECT_SINGLETON), (T_EFFECT_UNION, TK_EFFECT_UNION), (T_APPLY, TK_APPLY), (T_TYPE_FN, TK_TYPE_FN), (T_FN_TYPE, TK_FN_TYPE), (T_FORALL, TK_FORALL), (T_LET, TK_LET), (T_LETREC, TK_LETREC), (T_EXTERNAL, TK_EXTERNAL), (T_FN, TK_FN), (T_CALL, TK_CALL), (T_PERFORM, TK_PERFORM), (T_HANDLE, TK_HANDLE), (T_RESUME, TK_RESUME), (T_HANDLER, TK_HANDLER), (T_OP_ALT, TK_OP_ALT), (T_FINAL, TK_FINAL), (T_TYPE_APPLY, TK_TYPE_APPLY), (T_CONSTRUCT, TK_CONSTRUCT), (T_LET_IN, TK_LET_IN), (T_LETREC_IN, TK_LETREC_IN), (T_MATCH, TK_MATCH), (T_ALT, TK_ALT), (T_DEFAULT, TK_DEFAULT), (T_LITERAL_ALT, TK_LITERAL_ALT), (T_TRUE, TK_TRUE), (T_FALSE, TK_FALSE), (T_I64_LITERAL, TK_I64_LITERAL), (T_I32_LITERAL, TK_I32_LITERAL), (T_CHAR_LITERAL, TK_CHAR_LITERAL), (T_F32_LITERAL, TK_F32_LITERAL), (T_F64_LITERAL, TK_F64_LITERAL), (T_STRING_LITERAL, TK_STRING_LITERAL), (T_UNIT_LITERAL, TK_UNIT_LITERAL), (T_LBRACE, TK_LBRACE), (T_RBRACE, TK_RBRACE), (T_LBRACKET, TK_LBRACKET), (T_RBRACKET, TK_RBRACKET), (T_LPAREN, TK_LPAREN), (T_RPAREN, TK_RPAREN), (T_COMMA, TK_COMMA), (T_COLON, TK_COLON), (T_SEMI, TK_SEMI), (T_EQUAL, TK_EQUAL), (T_FAT_ARROW, TK_FAT_ARROW)] : Array[(YYSymbol, TokenKind)]) {
     try_add(term.0, term.1)
   }
   match token {

@@ -144,7 +144,7 @@ test "buslane text roundtrips F64 primitive and literal" {
       #|  metadata {
       #|    value value#0 name "value" unique 0 value : F64;
       #|  }
-      #|  let value#0 = f64(1.25);
+      #|  let value#0 = f64(0x3ff4000000000000);
       #|}
     ),
   )
@@ -218,7 +218,7 @@ test "buslane text rejects invalid numeric and Char literals" {
     [
       for
         literal in [
-          "i64(9223372036854775808)", "i32(2147483648)", "f32(3.5e38)", "f64(1e999999)",
+          "i64(9223372036854775808)", "i32(2147483648)", "f32(0x000000000)", "f64(0x00000000000000000)",
           "char(-1)", "char(55296)", "char(57343)", "char(1114112)",
         ] => parse_program_text(program_with_literal(literal))
     ],
@@ -226,8 +226,8 @@ test "buslane text rejects invalid numeric and Char literals" {
       #|[
       #|  Err("invalid i64 literal `9223372036854775808`"),
       #|  Err("invalid i32 literal `2147483648`"),
-      #|  Err("invalid f32 literal `3.5e38`"),
-      #|  Err("invalid f64 literal `1e999999`"),
+      #|  Err("invalid f32 bit pattern `0x000000000`"),
+      #|  Err("invalid f64 bit pattern `0x00000000000000000`"),
       #|  Err("Char literal `-1` is not a Unicode scalar value"),
       #|  Err("Char literal `55296` is not a Unicode scalar value"),
       #|  Err("Char literal `57343` is not a Unicode scalar value"),

@@ -62,13 +62,13 @@ fn tokens_from_string(
       let (value, next) = read_string_literal(input, index + 1)
       tokens.push((STRING(value), ()))
       index = next
+    } else if starts_with(input, index, "0x") || starts_with(input, index, "0X") {
+      let (value, next) = read_float_bits(input, index)
+      tokens.push((FLOAT_BITS(value), ()))
+      index = next
     } else if is_digit(byte) || byte == b'-' {
-      let (value, next, is_f64) = read_number(input, index)
-      if is_f64 {
-        tokens.push((DOUBLE(value), ()))
-      } else {
-        tokens.push((INT(value), ()))
-      }
+      let (value, next) = read_integer(input, index)
+      tokens.push((INT(value), ()))
       index = next
     } else if starts_with(input, index, "type#") {
       let (id, next) = read_prefixed_id(input, index, "type#")
@@ -194,6 +194,13 @@ fn is_digit(byte : Byte) -> Bool {
 }
 
 ///|
+fn is_hex_digit(byte : Byte) -> Bool {
+  is_digit(byte) ||
+  (byte >= b'a' && byte <= b'f') ||
+  (byte >= b'A' && byte <= b'F')
+}
+
+///|
 fn is_name_start(byte : Byte) -> Bool {
   (byte >= b'a' && byte <= b'z') ||
   (byte >= b'A' && byte <= b'Z') ||
@@ -269,10 +276,10 @@ fn read_name(
 }
 
 ///|
-fn read_number(
+fn read_integer(
   input : Bytes,
   index : Int,
-) -> (String, Int, Bool) raise BuslaneTextLexerError {
+) -> (String, Int) raise BuslaneTextLexerError {
   let mut next = index
   if input[next] == b'-' {
     next = next + 1
@@ -281,31 +288,32 @@ fn read_number(
   while next < input.length() && is_digit(input[next]) {
     next = next + 1
   }
-  let mut is_f64 = false
-  if next < input.length() && input[next] == b'.' {
-    is_f64 = true
-    next = next + 1
-    while next < input.length() && is_digit(input[next]) {
-      next = next + 1
-    }
-  }
-  if next < input.length() && (input[next] == b'e' || input[next] == b'E') {
-    is_f64 = true
-    next = next + 1
-    if next < input.length() && (input[next] == b'+' || input[next] == b'-') {
-      next = next + 1
-    }
-    while next < input.length() && is_digit(input[next]) {
-      next = next + 1
-    }
-  }
   if next == start {
-    lexer_fail("expected number")
+    lexer_fail("expected integer")
   }
   let value = @utf8.decode(input[index:next]) catch {
-    _ => lexer_fail("invalid utf8 number")
+    _ => lexer_fail("invalid utf8 integer")
   }
-  (value, next, is_f64)
+  (value, next)
+}
+
+///|
+fn read_float_bits(
+  input : Bytes,
+  index : Int,
+) -> (String, Int) raise BuslaneTextLexerError {
+  let mut next = index + 2
+  let start = next
+  while next < input.length() && is_hex_digit(input[next]) {
+    next = next + 1
+  }
+  if next == start {
+    lexer_fail("expected hexadecimal float bits")
+  }
+  let value = @utf8.decode(input[index:next]) catch {
+    _ => lexer_fail("invalid utf8 float bits")
+  }
+  (value, next)
 }
 
 ///|

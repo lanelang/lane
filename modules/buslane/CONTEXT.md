@@ -125,12 +125,12 @@ The effect set attached to a Buslane function type.
 _Avoid_: operation set, inferred capability
 
 **Canonical F64 Text**:
-A stable decimal text representation of a Buslane `F64` literal that parses back to the same binary64 value.
-_Avoid_: original source spelling, lossy display formatting, locale-dependent float text
+A fixed-width lowercase hexadecimal representation of the raw bits of a Buslane `F64` literal.
+_Avoid_: original source spelling, decimal Pretty output, locale-dependent float text
 
 **Canonical F32 Text**:
-A stable decimal text representation of a Buslane `F32` literal that parses back to the same binary32 value.
-_Avoid_: binary64 formatting, lossy display formatting, locale-dependent float text
+A fixed-width lowercase hexadecimal representation of the raw bits of a Buslane `F32` literal.
+_Avoid_: binary64 formatting, decimal Pretty output, locale-dependent float text
 
 **Canonical Core Artifact Role**:
 The role Buslane programs play in compiler module objects and the in-memory linked core as the semantic payload used before executable lowering.

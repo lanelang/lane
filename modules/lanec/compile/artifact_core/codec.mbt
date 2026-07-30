@@ -157,6 +157,8 @@ fn write_intrinsic(
       F32ToI64 => 54
       F32ToF64 => 55
       F64ToF32 => 56
+      I64ToF64 => 57
+      F64ToI64 => 58
     },
   )
 }

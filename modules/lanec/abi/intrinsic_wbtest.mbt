@@ -47,3 +47,23 @@ test "UTF-8 and Char intrinsics have one exact name and signature" {
     ],
   )
 }
+
+///|
+test "I64 and F64 conversion intrinsics have exact names and signatures" {
+  assert_eq(
+    (
+      [Intrinsic::from_name("%i64_to_f64"), Intrinsic::from_name("%f64_to_i64")],
+      [
+        (I64ToF64.name(), I64ToF64.signature()),
+        (F64ToI64.name(), F64ToI64.signature()),
+      ],
+    ),
+    (
+      [Some(I64ToF64), Some(F64ToI64)],
+      [
+        ("%i64_to_f64", Function(parameters=[I64], result=F64)),
+        ("%f64_to_i64", Function(parameters=[F64], result=I64)),
+      ],
+    ),
+  )
+}
