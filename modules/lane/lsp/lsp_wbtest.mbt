@@ -949,12 +949,15 @@ test "lsp diagnostics convert text offsets before transport" {
       #|pub let answer : I64 = 1
     ),
   }
-  let result = @compile.check_source_inputs(input, [])
+  let result = @compile.check({
+    root: { source_id: input.source_id, text: input.text },
+    libraries: [],
+  })
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(
-    result.diagnostics.map(fn(diagnostic) {
-      compile_diagnostic_json(diagnostic, sources)
-    }),
+    result
+    .diagnostics()
+    .map(fn(diagnostic) { compile_diagnostic_json(diagnostic, sources) }),
     content=[
       {
         "severity": 1,
@@ -1007,10 +1010,13 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
       #|pub let x : I64 = 1 + true
     ),
   }
-  let result = @compile.check_source_inputs(input, [])
-  let diagnostics = result.diagnostics.filter(fn(diagnostic) {
-    diagnostic.code == Some("E3006")
+  let result = @compile.check({
+    root: { source_id: input.source_id, text: input.text },
+    libraries: [],
   })
+  let diagnostics = result
+    .diagnostics()
+    .filter(fn(diagnostic) { diagnostic.code == Some("E3006") })
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(
     diagnostics.map(fn(diagnostic) {
@@ -1051,12 +1057,15 @@ test "lsp diagnostics transport unused local warnings" {
       #|}
     ),
   }
-  let result = @compile.check_source_inputs(input, [])
+  let result = @compile.check({
+    root: { source_id: input.source_id, text: input.text },
+    libraries: [],
+  })
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(
-    result.diagnostics.map(fn(diagnostic) {
-      compile_diagnostic_json(diagnostic, sources)
-    }),
+    result
+    .diagnostics()
+    .map(fn(diagnostic) { compile_diagnostic_json(diagnostic, sources) }),
     content=[
       {
         "severity": 2,
@@ -1083,12 +1092,15 @@ test "lsp duplicate top-level value diagnostic points at names" {
       #|let answer : I64 = 2
     ),
   }
-  let result = @compile.check_source_inputs(input, [])
+  let result = @compile.check({
+    root: { source_id: input.source_id, text: input.text },
+    libraries: [],
+  })
   let sources = compiler_diagnostic_sources_from_inputs([input])
   json_inspect(
-    result.diagnostics.map(fn(diagnostic) {
-      compile_diagnostic_json(diagnostic, sources)
-    }),
+    result
+    .diagnostics()
+    .map(fn(diagnostic) { compile_diagnostic_json(diagnostic, sources) }),
     content=[
       {
         "severity": 1,
@@ -1139,12 +1151,15 @@ test "lsp duplicate imported top-level value diagnostic points across sources" {
       #|pub let answer : I64 = 1
     ),
   }
-  let result = @compile.check_source_inputs(main, [lib])
+  let result = @compile.check({
+    root: { source_id: main.source_id, text: main.text },
+    libraries: [{ source_id: lib.source_id, text: lib.text }],
+  })
   let sources = compiler_diagnostic_sources_from_inputs([main, lib])
   json_inspect(
-    result.diagnostics.map(fn(diagnostic) {
-      compile_diagnostic_json(diagnostic, sources)
-    }),
+    result
+    .diagnostics()
+    .map(fn(diagnostic) { compile_diagnostic_json(diagnostic, sources) }),
     content=[
       {
         "severity": 1,

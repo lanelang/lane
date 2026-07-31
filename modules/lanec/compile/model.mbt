@@ -95,9 +95,7 @@ pub fn CompiledModules::artifact(
 }
 
 ///|
-pub fn CompiledModules::root_module_path_text(
-  self : CompiledModules,
-) -> String {
+pub fn CompiledModules::root_module_path_text(self : CompiledModules) -> String {
   self.modules.root_module_path_text
 }
 
@@ -117,9 +115,7 @@ pub struct CompiledEntry {
 } derive(Debug, Eq)
 
 ///|
-pub fn CompiledProgram::entries(
-  self : CompiledProgram,
-) -> Array[CompiledEntry] {
+pub fn CompiledProgram::entries(self : CompiledProgram) -> Array[CompiledEntry] {
   self.linked.entries.map(entry => { entry, })
 }
 

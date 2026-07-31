@@ -33,6 +33,7 @@ impl @prettyprinter.Pretty for AnfCode with fn pretty(code : AnfCode) {
   separate(hardline, code.terms.map(term => term.pretty()))
 }
 
+///|
 fn render_buslane_code(program : @buslane.Program) -> String {
   @prettyprinter.render(BuslaneCode::{ terms: program.terms }, width=100)
 }

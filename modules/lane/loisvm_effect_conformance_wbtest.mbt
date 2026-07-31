@@ -10,22 +10,19 @@ fn effect_conformance_basic_io() -> String {
 fn compile_effect_conformance_image(
   source : String,
 ) -> @loisvm_bytecode.BytecodeImage raise {
-  let result = @compile.compile_sources(source, [effect_conformance_basic_io()])
-  if !result.diagnostics.is_empty() {
-    fail("effect conformance compilation failed: \{Repr(result.diagnostics)}")
+  let result = compile_program_for_test(source, [effect_conformance_basic_io()])
+  if !result.diagnostics().is_empty() {
+    fail("effect conformance compilation failed: \{Repr(result.diagnostics())}")
   }
-  guard result.program is Some(program) else {
-    fail("effect conformance source produced no program")
-  }
-  guard find_entry(result.entries, "main") is Ok(entry) else {
+  let program = successful_compilation(result)
+  guard find_entry(program.entries(), "main") is Ok(entry) else {
     fail("effect conformance source produced no main entry")
   }
-  match
-    @loisvm_lowering.lower_linked_program_to_bytecode(
-      program,
-      result.externals,
-      entry,
-    ) {
+  let executable = match program.elaborate_entry(entry) {
+    Ok(executable) => executable
+    Err(error) => fail("effect conformance elaboration failed: \{Repr(error)}")
+  }
+  match lower_executable_image(executable) {
     Ok(image) => image
     Err(error) => fail("effect conformance lowering failed: \{Repr(error)}")
   }

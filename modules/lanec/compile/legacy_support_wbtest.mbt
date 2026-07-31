@@ -28,7 +28,9 @@ fn check_sources_for_test(
   root_source : String,
   library_sources : Array[String],
 ) -> TestCheckResult {
-  test_check_result(check(test_compilation_request(root_source, library_sources)))
+  test_check_result(
+    check(test_compilation_request(root_source, library_sources)),
+  )
 }
 
 ///|
@@ -51,8 +53,7 @@ fn test_check_result(
   match outcome {
     Succeeded(module_, warnings) =>
       { source: Some(module_.source), diagnostics: warnings.diagnostics() }
-    Failed(failure) =>
-      { source: None, diagnostics: failure.diagnostics() }
+    Failed(failure) => { source: None, diagnostics: failure.diagnostics() }
   }
 }
 
@@ -86,8 +87,7 @@ fn test_compile_modules_result(
   match outcome {
     Succeeded(modules, warnings) =>
       { modules: Some(modules.modules), diagnostics: warnings.diagnostics() }
-    Failed(failure) =>
-      { modules: None, diagnostics: failure.diagnostics() }
+    Failed(failure) => { modules: None, diagnostics: failure.diagnostics() }
   }
 }
 
@@ -143,7 +143,8 @@ fn test_compilation_request(
   {
     root: { source_id: "<root>", text: root_source },
     libraries: library_sources.mapi((index, source) => {
-      { source_id: "<library:\{index}>", text: source }
+      source_id: "<library:\{index}>",
+      text: source,
     }),
   }
 }

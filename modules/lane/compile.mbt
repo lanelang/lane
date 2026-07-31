@@ -30,9 +30,7 @@ async fn lane_compile(
   let failures = denied_diagnostics(diagnostics, false)
   if !failures.is_empty() {
     return LaneCommandOutcome::compile_diagnostics(
-      diagnostics,
-      diagnostic_sources,
-      false,
+      diagnostics, diagnostic_sources, false,
     )
   }
   let modules = match result {
@@ -61,9 +59,7 @@ async fn lane_compile(
   }
   if !diagnostics.is_empty() {
     LaneCommandOutcome::compile_diagnostics(
-      diagnostics,
-      diagnostic_sources,
-      true,
+      diagnostics, diagnostic_sources, true,
     )
   } else {
     Succeeded

@@ -91,10 +91,7 @@ fn parse_explore_request(
 ///|
 fn parse_entry_request(
   request_text : String,
-) -> Result[
-  (@module_frontend.SourceInput, Array[@module_frontend.SourceInput]),
-  String,
-] {
+) -> Result[(@compile.SourceInput, Array[@compile.SourceInput]), String] {
   let json = @json.parse(request_text) catch {
     _ => return Err("expected JSON request")
   }
@@ -104,10 +101,7 @@ fn parse_entry_request(
 ///|
 fn parse_source_set(
   json : Json,
-) -> Result[
-  (@module_frontend.SourceInput, Array[@module_frontend.SourceInput]),
-  String,
-] {
+) -> Result[(@compile.SourceInput, Array[@compile.SourceInput]), String] {
   guard json is { "root": root_json, "libraries": Array(library_jsons), .. } else {
     return Err("expected `root` and `libraries` fields in the request object")
   }
@@ -126,9 +120,7 @@ fn parse_source_set(
 }
 
 ///|
-fn parse_source_input(
-  json : Json,
-) -> Result[@module_frontend.SourceInput, String] {
+fn parse_source_input(json : Json) -> Result[@compile.SourceInput, String] {
   match json {
     { "sourceId": String(source_id), "text": String(text), .. } =>
       if source_id.is_empty() {

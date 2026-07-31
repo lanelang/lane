@@ -292,37 +292,34 @@ async test "native module artifacts are binary and readable" {
   let program_path = "\{workspace}/Main.lbp"
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
-  let compiled = @compile.compile_module_with_interface_artifacts(
-    (
-      #|module Main
-      #|pub let message : String = "hello"
-      #|pub fn main() -> Unit {
-      #|  ()
-      #|}
-    ),
-    [],
-  )
-  guard compiled.modules is Some(modules) else {
-    cleanup_library_fixture(workspace)
-    abort("expected compiled modules")
-  }
-  guard modules.modules.get(0) is Some(module_) else {
+  let compiled = @compile.compile_module_with_interfaces({
+    root: {
+      source_id: "<root>",
+      text: (
+        #|module Main
+        #|pub let message : String = "hello"
+        #|pub fn main() -> Unit {
+        #|  ()
+        #|}
+      ),
+    },
+    interfaces: [],
+  })
+  let modules = successful_compilation(compiled)
+  guard modules.artifact().modules.get(0) is Some(module_) else {
     cleanup_library_fixture(workspace)
     abort("expected compiled module")
   }
   write_module_interface_artifact(interface_path, module_)
   write_module_object_artifact(object_path, module_)
   let linked = @compile.link_modules(modules)
-  debug_inspect(linked.diagnostics, content="[]")
-  guard linked.program is Some(program) else {
-    cleanup_library_fixture(workspace)
-    abort("expected linked program")
-  }
-  guard find_entry(program.entries, "main") is Ok(main_entry) else {
+  debug_inspect(linked.diagnostics(), content="[]")
+  let program = successful_compilation(linked)
+  guard find_entry(program.entries(), "main") is Ok(main_entry) else {
     cleanup_library_fixture(workspace)
     abort("expected main entry")
   }
-  let executable = match @executable.elaborate(program, main_entry) {
+  let executable = match program.elaborate_entry(main_entry) {
     Ok(executable) => executable
     Err(error) => {
       cleanup_library_fixture(workspace)
@@ -610,12 +607,12 @@ test "run rejects public value entries" {
       #|let _hidden : I64 = 1
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
-  guard result.program is Some(program) else { abort("expected program") }
-  let entry = find_entry(result.entries, "answer")
+  debug_inspect(result.diagnostics(), content="[]")
+  let program = successful_compilation(result)
+  let entry = find_entry(program.entries(), "answer")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry, program.metadata),
+    validate_executable_entry(entry, program),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -636,12 +633,12 @@ test "run rejects functions with parameters" {
       #|pub fn id(x : I64) -> I64 { x }
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
-  guard result.program is Some(program) else { abort("expected program") }
-  let entry = find_entry(result.entries, "id")
+  debug_inspect(result.diagnostics(), content="[]")
+  let program = successful_compilation(result)
+  let entry = find_entry(program.entries(), "id")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry, program.metadata),
+    validate_executable_entry(entry, program),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -664,11 +661,11 @@ test "run executes pure unit function entries without rendering Unit" {
       #|}
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
-  guard result.program is Some(program) else { abort("expected program") }
-  let entry = find_entry(result.entries, "main")
+  debug_inspect(result.diagnostics(), content="[]")
+  let program = successful_compilation(result)
+  let entry = find_entry(program.entries(), "main")
   guard entry is Ok(entry) else { abort("expected entry") }
-  let outcome = execute_entry(program, result.externals, entry)
+  let outcome = execute_entry(program, entry)
   guard outcome is Succeeded else { abort("expected run entry to succeed") }
 }
 
@@ -677,7 +674,7 @@ test "run accepts built-in Io through an explicit Basic extern" {
   let basic_io =
     #|module Basic.Io
     #|pub let println : (String) -> Unit ! Io = extern("println")
-  let result = @compile.compile_sources(
+  let result = compile_program_for_test(
     (
       #|module Test
       #|import Basic.Io.*
@@ -688,18 +685,13 @@ test "run accepts built-in Io through an explicit Basic extern" {
     ),
     [basic_io],
   )
-  debug_inspect(result.diagnostics, content="[]")
-  guard result.program is Some(program) else { abort("expected program") }
-  let entry = find_entry(result.entries, "main")
+  debug_inspect(result.diagnostics(), content="[]")
+  let program = successful_compilation(result)
+  let entry = find_entry(program.entries(), "main")
   guard entry is Ok(entry) else { abort("expected entry") }
-  debug_inspect(
-    validate_executable_entry(entry, program.metadata),
-    content="Ok(())",
-  )
+  debug_inspect(validate_executable_entry(entry, program), content="Ok(())")
   let output : Array[String] = []
-  guard execute_entry_with_output(program, result.externals, entry, line => {
-      output.push(line)
-    })
+  guard execute_entry_with_output(program, entry, line => output.push(line))
     is Succeeded else {
     abort("expected run entry to succeed through LoisVM")
   }
@@ -711,7 +703,7 @@ test "run lowers lexical handlers before runtime effects" {
   let basic_io =
     #|module Basic.Io
     #|pub let println : (String) -> Unit ! Io = extern("println")
-  let result = @compile.compile_sources(
+  let result = compile_program_for_test(
     (
       #|module Test
       #|import Basic.Io.*
@@ -732,14 +724,12 @@ test "run lowers lexical handlers before runtime effects" {
     ),
     [basic_io],
   )
-  debug_inspect(result.diagnostics, content="[]")
-  guard result.program is Some(program) else { abort("expected program") }
-  let entry = find_entry(result.entries, "main")
+  debug_inspect(result.diagnostics(), content="[]")
+  let program = successful_compilation(result)
+  let entry = find_entry(program.entries(), "main")
   guard entry is Ok(entry) else { abort("expected entry") }
   let output : Array[String] = []
-  guard execute_entry_with_output(program, result.externals, entry, line => {
-      output.push(line)
-    })
+  guard execute_entry_with_output(program, entry, line => output.push(line))
     is Succeeded else {
     abort("expected handled entry to succeed through LoisVM")
   }
@@ -759,12 +749,12 @@ test "run rejects residual algebraic entry effects" {
       #|}
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
-  guard result.program is Some(program) else { abort("expected program") }
-  let entry = find_entry(result.entries, "main")
+  debug_inspect(result.diagnostics(), content="[]")
+  let program = successful_compilation(result)
+  let entry = find_entry(program.entries(), "main")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry, program.metadata),
+    validate_executable_entry(entry, program),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -775,7 +765,7 @@ test "run rejects residual algebraic entry effects" {
       #|)
     ),
   )
-  guard validate_executable_entry(entry, program.metadata) is Err(error) else {
+  guard validate_executable_entry(entry, program) is Err(error) else {
     abort("expected unsupported effect diagnostic")
   }
   inspect(
@@ -801,7 +791,8 @@ test "missing entry error lists available public entries" {
       #|pub let answer : I64 = 42
     ),
   )
-  guard find_entry(result.entries, "main") is Err(error) else {
+  let program = successful_compilation(result)
+  guard find_entry(program.entries(), "main") is Err(error) else {
     abort("expected missing entry")
   }
   debug_inspect(
@@ -811,10 +802,12 @@ test "missing entry error lists available public entries" {
       #|  name="main",
       #|  entries=[
       #|    {
-      #|      module_path_text: "Test",
-      #|      name: "answer",
-      #|      value: { index: 0 },
-      #|      type_: Primitive(I64),
+      #|      entry: {
+      #|        module_path_text: "Test",
+      #|        name: "answer",
+      #|        value: { index: 0 },
+      #|        type_: Primitive(I64),
+      #|      },
       #|    },
       #|  ],
       #|)
@@ -839,7 +832,8 @@ test "ambiguous entry error lists available public entries" {
       #|pub let answer : I64 = 42
     ),
   )
-  let entry = result.entries[0]
+  let program = successful_compilation(result)
+  let entry = program.entries()[0]
   guard find_entry([entry, entry], "answer") is Err(error) else {
     abort("expected ambiguous entry")
   }
@@ -913,10 +907,11 @@ test "compile diagnostics render source snippets" {
     path: Some("ops.lane"),
     text: source,
   }
-  let result = @compile.check_source_inputs(root.to_compile_input(), [])
+  let result = @compile.check({ root: root.to_compile_input(), libraries: [] })
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
-    result.diagnostics
+    result
+    .diagnostics()
     .map(fn(diagnostic) { render_compile_diagnostic(diagnostic, sources) })
     .join("\n---\n"),
     content=(
@@ -947,10 +942,11 @@ test "compile warnings render source snippets" {
     path: Some("unused.lane"),
     text: source,
   }
-  let result = @compile.check_source_inputs(root.to_compile_input(), [])
+  let result = @compile.check({ root: root.to_compile_input(), libraries: [] })
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
-    result.diagnostics
+    result
+    .diagnostics()
     .map(fn(diagnostic) { render_compile_diagnostic(diagnostic, sources) })
     .join("\n---\n"),
     content=(
@@ -979,10 +975,11 @@ test "compile diagnostics convert text offsets before rendering" {
     path: Some("unicode.lane"),
     text: source,
   }
-  let result = @compile.check_source_inputs(root.to_compile_input(), [])
+  let result = @compile.check({ root: root.to_compile_input(), libraries: [] })
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
-    result.diagnostics
+    result
+    .diagnostics()
     .map(fn(diagnostic) { render_compile_diagnostic(diagnostic, sources) })
     .join("\n---\n"),
     content=(
@@ -1014,10 +1011,11 @@ test "semantic diagnostics render source snippets" {
     path: Some("point.lane"),
     text: source,
   }
-  let result = @compile.check_source_inputs(root.to_compile_input(), [])
+  let result = @compile.check({ root: root.to_compile_input(), libraries: [] })
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
-    result.diagnostics
+    result
+    .diagnostics()
     .map(fn(diagnostic) { render_compile_diagnostic(diagnostic, sources) })
     .join("\n---\n"),
     content=(

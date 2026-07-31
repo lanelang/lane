@@ -8,7 +8,10 @@ pub fn list_entries(
   root_source : @compile.SourceInput,
   library_sources : Array[@compile.SourceInput],
 ) -> EntryReport {
-  let compiled = @compile.compile({ root: root_source, libraries: library_sources })
+  let compiled = @compile.compile({
+    root: root_source,
+    libraries: library_sources,
+  })
   match compiled {
     Succeeded(program, warnings) =>
       {
@@ -17,11 +20,7 @@ pub fn list_entries(
         diagnostics: warnings.diagnostics(),
       }
     Failed(failure) =>
-      {
-        schema_version: 1,
-        entries: [],
-        diagnostics: failure.diagnostics(),
-      }
+      { schema_version: 1, entries: [], diagnostics: failure.diagnostics() }
   }
 }
 
@@ -30,10 +29,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
   let stages = ExploreStageBuilder::new()
   let mut root_module_path_text : String? = None
   let compiled = @compile.compile_modules_observed(
-    {
-      root: request.root_source,
-      libraries: request.library_sources,
-    },
+    { root: request.root_source, libraries: request.library_sources },
     observed => {
       match observed {
         Syntax(snapshot) => {

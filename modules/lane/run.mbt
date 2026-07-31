@@ -44,9 +44,7 @@ async fn lane_run(
   let failures = denied_diagnostics(diagnostics, false)
   if !failures.is_empty() {
     return LaneCommandOutcome::compile_diagnostics(
-      diagnostics,
-      diagnostic_sources,
-      false,
+      diagnostics, diagnostic_sources, false,
     )
   }
   let program = match result {
@@ -69,12 +67,7 @@ fn execute_entry(
   entry : @compile.CompiledEntry,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
-  execute_entry_with_output(
-    program,
-    entry,
-    line => println(line),
-    no_jit~,
-  )
+  execute_entry_with_output(program, entry, line => println(line), no_jit~)
 }
 
 ///|
@@ -150,10 +143,12 @@ fn validate_executable_entry(
       EntryNotExecutable(
         name=display_entry(entry),
         type_~,
-        reason=EntryHasUnsupportedEffects(effect=match type_ {
-          Function(_, _, effect) => effect
-          _ => abort("function entry lost its effect")
-        }),
+        reason=EntryHasUnsupportedEffects(
+          effect=match type_ {
+            Function(_, _, effect) => effect
+            _ => abort("function entry lost its effect")
+          },
+        ),
       ),
     )
   }

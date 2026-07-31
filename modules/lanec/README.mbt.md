@@ -58,7 +58,6 @@ The root `Milky2018/lanec` package intentionally exports no API. Import the focu
 import {
   "Milky2018/lanec/compile",
   "Milky2018/lanec/driver",
-  "Milky2018/lanec/module/frontend",
 }
 ```
 
@@ -81,8 +80,8 @@ test "check a Lane source file" {
     ),
   )
 
-  assert_true(result.source is Some(_))
-  assert_true(result.diagnostics.is_empty())
+  assert_true(result is Succeeded(_, _))
+  assert_eq(result.diagnostics(), [])
 }
 ```
 
@@ -93,7 +92,7 @@ Compiler APIs never discover files implicitly. A host supplies one root `SourceI
 ```mbt check
 ///|
 test "compile a multi-module Lane source set" {
-  let root : @frontend.SourceInput = {
+  let root : @compile.SourceInput = {
     source_id: "main.lane",
     text: (
       #|module Main
@@ -106,7 +105,7 @@ test "compile a multi-module Lane source set" {
       #|}
     ),
   }
-  let library : @frontend.SourceInput = {
+  let library : @compile.SourceInput = {
     source_id: "library.lane",
     text: (
       #|module Library
@@ -114,19 +113,21 @@ test "compile a multi-module Lane source set" {
       #|pub let answer : I64 = 42
     ),
   }
-  let result = @compile.compile_source_inputs(root, [library])
+  let result = @compile.compile({ root, libraries: [library] })
+  guard result is Succeeded(program, warnings) else {
+    fail("expected compilation to succeed")
+  }
 
-  assert_true(result.program is Some(_))
-  assert_true(result.diagnostics.is_empty())
+  assert_eq(warnings.diagnostics(), [])
   assert_true(
-    result.entries.any(entry => {
-      entry.module_path_text == "Main" && entry.name == "main"
-    }),
+    program
+    .entries()
+    .any(entry => entry.module_path_text() == "Main" && entry.name() == "main"),
   )
 }
 ```
 
-`CompileResult` contains the linked Buslane program, the external binding model required by later lowering, exported entries, and all compiler diagnostics. Use the module-oriented APIs when you need reusable interface and object artifacts instead of a directly linked program.
+`CompilationOutcome` distinguishes successful values plus warnings from failed compilations plus errors. Use the module-oriented APIs when you need reusable interface and object artifacts instead of a directly linked program.
 
 ### Enumerate explorer entries
 
@@ -135,7 +136,7 @@ test "compile a multi-module Lane source set" {
 ```mbt check
 ///|
 test "enumerate exported compiler entries" {
-  let root : @frontend.SourceInput = {
+  let root : @compile.SourceInput = {
     source_id: "main.lane",
     text: (
       #|module Main

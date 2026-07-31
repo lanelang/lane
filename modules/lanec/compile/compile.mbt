@@ -1,17 +1,12 @@
 ///|
 /// Checks one in-memory Lane source module.
 pub fn check_source(source : String) -> CompilationOutcome[CheckedModule] {
-  check({
-    root: { source_id: "<root>", text: source },
-    libraries: [],
-  })
+  check({ root: { source_id: "<root>", text: source }, libraries: [] })
 }
 
 ///|
 /// Checks a source set without linking it.
-pub fn check(
-  request : CompilationRequest,
-) -> CompilationOutcome[CheckedModule] {
+pub fn check(request : CompilationRequest) -> CompilationOutcome[CheckedModule] {
   match compile_module_set(request, _ => ()) {
     Ok(modules) =>
       match
@@ -66,10 +61,7 @@ pub fn check_with_interfaces(
 ///|
 /// Compiles one in-memory Lane source module through linking.
 pub fn compile_source(source : String) -> CompilationOutcome[CompiledProgram] {
-  compile({
-    root: { source_id: "<root>", text: source },
-    libraries: [],
-  })
+  compile({ root: { source_id: "<root>", text: source }, libraries: [] })
 }
 
 ///|
@@ -78,7 +70,8 @@ pub fn compile(
   request : CompilationRequest,
 ) -> CompilationOutcome[CompiledProgram] {
   match compile_module_set(request, _ => ()) {
-    Ok(modules) => linked_outcome(@module_compile.link_compiled_module_set(modules))
+    Ok(modules) =>
+      linked_outcome(@module_compile.link_compiled_module_set(modules))
     Err(diagnostics) => compilation_failed(diagnostics)
   }
 }
@@ -98,8 +91,7 @@ pub fn compile_modules_observed(
   observe : (SourceCompilationStage) -> Unit,
 ) -> CompilationOutcome[CompiledModules] {
   match compile_module_set(request, observe) {
-    Ok(modules) =>
-      compilation_succeeded({ modules, }, modules.diagnostics)
+    Ok(modules) => compilation_succeeded({ modules, }, modules.diagnostics)
     Err(diagnostics) => compilation_failed(diagnostics)
   }
 }
@@ -114,8 +106,7 @@ pub fn compile_module_with_interfaces(
       request.root.to_frontend(),
       request.interfaces,
     ) {
-    Ok(modules) =>
-      compilation_succeeded({ modules, }, modules.diagnostics)
+    Ok(modules) => compilation_succeeded({ modules, }, modules.diagnostics)
     Err(diagnostics) => compilation_failed(diagnostics)
   }
 }
@@ -156,13 +147,14 @@ fn compile_module_set(
     @module_frontend.parse_import_reachable_module_input_set_from_inputs_observed(
       request.root.to_frontend(),
       request.libraries.map(SourceInput::to_frontend),
-      root =>
+      root => {
         observe(
           Syntax({
             module_path_text: root.header.module_path_text,
             text: @prettyprinter.render(root.source, width=100),
           }),
-        ),
+        )
+      },
     ) {
     Err(diagnostics) => Err(diagnostics)
     Ok(inputs) =>
@@ -197,8 +189,6 @@ fn compile_module_set(
 }
 
 ///|
-fn SourceInput::to_frontend(
-  self : SourceInput,
-) -> @module_frontend.SourceInput {
+fn SourceInput::to_frontend(self : SourceInput) -> @module_frontend.SourceInput {
   { source_id: self.source_id, text: self.text }
 }

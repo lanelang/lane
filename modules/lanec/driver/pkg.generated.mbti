@@ -2,15 +2,15 @@
 package "Milky2018/lanec/driver"
 
 import {
+  "Milky2018/lanec/compile",
   "Milky2018/lanec/diagnostic",
-  "Milky2018/lanec/module/frontend",
   "moonbitlang/core/debug",
 }
 
 // Values
 pub fn explore(ExploreRequest) -> ExploreReport
 
-pub fn list_entries(@frontend.SourceInput, Array[@frontend.SourceInput]) -> EntryReport
+pub fn list_entries(@compile.SourceInput, Array[@compile.SourceInput]) -> EntryReport
 
 // Errors
 
@@ -43,8 +43,8 @@ pub(all) struct ExploreReport {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ExploreRequest {
-  root_source : @frontend.SourceInput
-  library_sources : Array[@frontend.SourceInput]
+  root_source : @compile.SourceInput
+  library_sources : Array[@compile.SourceInput]
   entry : String
 } derive(Eq, @debug.Debug)
 

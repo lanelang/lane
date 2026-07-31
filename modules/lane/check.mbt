@@ -31,15 +31,11 @@ async fn lane_check(
   let failures = denied_diagnostics(diagnostics, deny)
   if !failures.is_empty() {
     LaneCommandOutcome::compile_diagnostics(
-      diagnostics,
-      diagnostic_sources,
-      false,
+      diagnostics, diagnostic_sources, false,
     )
   } else if !diagnostics.is_empty() {
     LaneCommandOutcome::compile_diagnostics(
-      diagnostics,
-      diagnostic_sources,
-      true,
+      diagnostics, diagnostic_sources, true,
     )
   } else {
     Succeeded

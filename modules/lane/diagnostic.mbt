@@ -65,14 +65,8 @@ enum CliError {
   ExecutionFailed(message~ : String)
   DuplicateObjectArtifact(module_path_text~ : String)
   RootLibraryInput(root~ : String, library~ : String)
-  EntryNotFound(
-    name~ : String,
-    entries~ : Array[@compile.CompiledEntry]
-  )
-  EntryAmbiguous(
-    name~ : String,
-    entries~ : Array[@compile.CompiledEntry]
-  )
+  EntryNotFound(name~ : String, entries~ : Array[@compile.CompiledEntry])
+  EntryAmbiguous(name~ : String, entries~ : Array[@compile.CompiledEntry])
   EntryNotExecutable(
     name~ : String,
     type_~ : @buslane.Type,
@@ -446,9 +440,7 @@ fn CommandReport::render_header(self : CommandReport) -> String {
 }
 
 ///|
-fn available_entries_text(
-  entries : Array[@compile.CompiledEntry],
-) -> String {
+fn available_entries_text(entries : Array[@compile.CompiledEntry]) -> String {
   let names = entries.map(display_entry)
   if names.is_empty() {
     "(none)"
