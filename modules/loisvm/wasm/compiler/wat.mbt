@@ -492,6 +492,8 @@ fn write_instruction(
       write_memory_instruction(builder, "f64.load", memory, align, offset, 3)
     I32Load8U(memory, align, offset) =>
       write_memory_instruction(builder, "i32.load8_u", memory, align, offset, 0)
+    I32Store8(memory, align, offset) =>
+      write_memory_instruction(builder, "i32.store8", memory, align, offset, 0)
     I32Store(memory, align, offset) =>
       write_memory_instruction(builder, "i32.store", memory, align, offset, 2)
     I64Store(memory, align, offset) =>
@@ -562,13 +564,18 @@ fn write_instruction(
     F64Mul => builder.write_string("f64.mul")
     F64Div => builder.write_string("f64.div")
     I32WrapI64 => builder.write_string("i32.wrap_i64")
+    I64ExtendI32S => builder.write_string("i64.extend_i32_s")
     I64ExtendI32U => builder.write_string("i64.extend_i32_u")
     I64TruncF64S => builder.write_string("i64.trunc_f64_s")
     F64ConvertI64S => builder.write_string("f64.convert_i64_s")
     I64ReinterpretF64 => builder.write_string("i64.reinterpret_f64")
     F64ReinterpretI64 => builder.write_string("f64.reinterpret_i64")
+    // An unhandled instruction must break the text rather than disappear from
+    // it. Rendering one as a comment kept the output parseable while silently
+    // describing a different module than the one that runs, which is worse than
+    // producing nothing: readers and tools both believed it.
     unsupported => {
-      builder.write_string("(; unsupported ")
+      builder.write_string("unsupported.instruction (; ")
       builder.write_string(Repr(unsupported).to_string())
       builder.write_string(" ;)")
     }
