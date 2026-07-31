@@ -119,8 +119,12 @@ The part of an **Imported Environment** a **Compilation Unit** imports by name, 
 _Avoid_: reachable interface closure, whole module graph, link-time symbol table
 
 **Reachable Interface Closure**:
-The part of an **Imported Environment** transitively reachable from a **Direct Import Environment** through **Module Interface** type and effect references, against which declarations are resolved.
-_Avoid_: direct import environment, source import graph, link-time dependency set
+The part of an **Imported Environment** transitively reachable from a **Direct Import Environment** through the **Modules** each **Module Interface** references in its own content, against which declarations are resolved.
+_Avoid_: direct import environment, source import graph, implementation closure
+
+**Implementation Closure**:
+The **Compiled Modules** a **Linked Program** requires, transitively closed over imported references rather than over interface content.
+_Avoid_: reachable interface closure, single compilation unit, public interface surface
 
 **Module Interface**:
 The compiler-readable interface artifact for a compiled **Module**, including its exported type, value, and offer surface plus downstream compilation metadata such as **Optimization Hints**.
@@ -491,6 +495,9 @@ _Avoid_: VS Code extension, compiler front end
 - A **Compilation Unit** may be checked against an **Imported Environment**.
 - An **Imported Environment** is made of **Module Interfaces**.
 - A **Direct Import Environment** decides which names a **Compilation Unit** may write; a **Reachable Interface Closure** decides which declarations those names resolve to.
+- A **Module Interface** references exactly the **Modules** that own the symbols its own content mentions; a **Module** used only inside another **Module**'s implementation is absent from that set.
+- Compiling one **Compilation Unit** requires its **Reachable Interface Closure**; linking requires the wider **Implementation Closure**, so `compile` accepts inputs that `link` would reject as incomplete.
+- Each **Module Interface** in a **Reachable Interface Closure** is validated against the **Imported Interface Fingerprint** its importer recorded; modules outside that closure are validated when the **Implementation Closure** is linked.
 - A **Reachable Interface Closure** hides values and **Optimization Hints** from **Module Interfaces** outside the **Direct Import Environment**.
 - Every consumer of an **Imported Environment**, including source-set compilation, separate compilation, semantic analysis, and Buslane lowering, applies the same **Direct Import Environment** and **Reachable Interface Closure** split.
 - `lanec` core compiles one **Compilation Unit** without recursively resolving imports.

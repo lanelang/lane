@@ -78,12 +78,18 @@ fn visit_interface_artifact(
     _ => ()
   }
   visiting.push(module_path_text)
-  for imported in interface.imported_interface_fingerprints {
+  // Recursion follows the **Reachable Interface Closure**, not every module the
+  // importer happened to compile against. A module used only inside another
+  // module's implementation never reaches a consumer's declarations, so
+  // demanding its interface would push an implementation detail onto callers.
+  // The wider set is still required by `link`, which validates the same
+  // fingerprints over the **Implementation Closure**.
+  for dependency in interface.interface.dependency_module_paths() {
     visit_interface_artifact(
       interfaces,
-      imported.module_path_text,
+      dependency,
       None,
-      Some(imported.fingerprint),
+      interface.imported_interface_fingerprint(dependency),
       module_path_text,
       visiting,
       visited,

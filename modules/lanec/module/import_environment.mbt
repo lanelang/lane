@@ -30,13 +30,15 @@ pub(all) struct ModuleImportEnvironments {
 /// does not provide; callers that must diagnose missing imports compare the
 /// resulting length against the requested path count.
 ///
-/// `available` is the transitive closure over interface type and effect
-/// references, in depth-first discovery order from the direct imports. That
-/// ordering depends only on the module and the interfaces it reaches, so it
-/// does not vary with the order a driver happens to hold its pool in. Closing
-/// over interface references rather than over a source-level import graph keeps
-/// the rule usable by source-set compilation, separate compilation from
-/// interface artifacts, and the semantic workspace alike.
+/// `available` is the **Reachable Interface Closure**: the transitive closure
+/// over what each interface's content references, in depth-first discovery
+/// order from the direct imports. A module reached only through another
+/// module's implementation, and never named in its public surface, does not
+/// appear. That ordering depends only on the module and the interfaces it
+/// reaches, so it does not vary with the order a driver happens to hold its
+/// pool in. Closing over interface content rather than over a source-level
+/// import graph keeps the rule usable by source-set compilation, separate
+/// compilation from interface artifacts, and the semantic workspace alike.
 pub fn ModuleImportEnvironments::from_pool(
   direct_module_paths : Array[String],
   pool : ImportedEnvironment,
@@ -56,10 +58,6 @@ pub fn ModuleImportEnvironments::from_pool(
 
 ///|
 /// Appends the interface named by `module_path` and everything it reaches.
-///
-/// `type_references` and `effect_references` already accumulate transitively
-/// while an interface is built, but recursing keeps the closure correct for
-/// interfaces produced by an older or partial pipeline.
 fn collect_reachable_interfaces(
   module_path : String,
   pool : ImportedEnvironment,
@@ -70,11 +68,8 @@ fn collect_reachable_interfaces(
   }
   guard pool.find(module_path) is Some(interface) else { return }
   collected.push(interface)
-  for reference in interface.type_references {
-    collect_reachable_interfaces(reference.module_path, pool, collected)
-  }
-  for reference in interface.effect_references {
-    collect_reachable_interfaces(reference.module_path, pool, collected)
+  for dependency in interface.dependency_module_paths() {
+    collect_reachable_interfaces(dependency, pool, collected)
   }
 }
 

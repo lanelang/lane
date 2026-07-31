@@ -4,9 +4,7 @@ fn BuslaneLowerer::seed_imported_dependency_headers(
   interface : @module_interface.ModuleInterface,
   available : @module_interface.ImportedEnvironment,
 ) -> Result[Unit, BuslaneLoweringError] {
-  let type_symbols : Array[@symbol.TypeSymbolId] = []
-  let effect_symbols : Array[@symbol.EffectSymbolId] = []
-  collect_interface_dependency_symbols(interface, type_symbols, effect_symbols)
+  let { types: type_symbols, effects: effect_symbols } = interface.dependency_symbols()
   for symbol in type_symbols {
     if self.registry.find_type(symbol) is Some(_) {
       continue
@@ -63,9 +61,7 @@ fn BuslaneLowerer::seed_imported_type_dependency(
   guard available.find(module_path) is Some(interface) else {
     return Err(MissingTypeDependency(module_path, interface_type_name(type_)))
   }
-  let type_symbols : Array[@symbol.TypeSymbolId] = []
-  let effect_symbols : Array[@symbol.EffectSymbolId] = []
-  collect_interface_type_dependency_symbols(type_, type_symbols, effect_symbols)
+  let { types: type_symbols, effects: effect_symbols } = type_.dependency_symbols()
   for symbol in type_symbols {
     if self.registry.find_type(symbol) is Some(_) {
       continue
@@ -226,146 +222,9 @@ fn collect_structural_derive_target_symbols(
 }
 
 ///|
-fn collect_interface_dependency_symbols(
-  interface : @module_interface.ModuleInterface,
-  type_symbols : Array[@symbol.TypeSymbolId],
-  effect_symbols : Array[@symbol.EffectSymbolId],
-) -> Unit {
-  for type_ in interface.types {
-    collect_interface_type_dependency_symbols(
-      type_, type_symbols, effect_symbols,
-    )
-  }
-  for effect in interface.effects {
-    for operation in effect.operations {
-      for payload in operation.payload {
-        collect_type_dependency_symbols(payload, type_symbols, effect_symbols)
-      }
-      collect_type_dependency_symbols(
-        operation.result,
-        type_symbols,
-        effect_symbols,
-      )
-    }
-  }
-  for type_alias in interface.type_aliases {
-    match type_alias.body {
-      TypeBody(type_) =>
-        collect_type_dependency_symbols(type_, type_symbols, effect_symbols)
-      EffectBody(effect) =>
-        collect_effect_dependency_symbols(effect, type_symbols, effect_symbols)
-    }
-  }
-  for value in interface.values {
-    collect_type_dependency_symbols(value.type_, type_symbols, effect_symbols)
-  }
-}
-
-///|
-fn collect_interface_type_dependency_symbols(
-  type_ : @module_interface.ModuleInterfaceType,
-  type_symbols : Array[@symbol.TypeSymbolId],
-  effect_symbols : Array[@symbol.EffectSymbolId],
-) -> Unit {
-  match type_ {
-    Struct(declaration) =>
-      for field in declaration.fields {
-        collect_type_dependency_symbols(
-          field.type_,
-          type_symbols,
-          effect_symbols,
-        )
-      }
-    Enum(declaration) =>
-      for variant in declaration.variants {
-        for payload in variant.payload {
-          collect_type_dependency_symbols(payload, type_symbols, effect_symbols)
-        }
-      }
-    External(_) => ()
-  }
-}
-
-///|
-fn collect_type_dependency_symbols(
-  type_ : @types.Type,
-  type_symbols : Array[@symbol.TypeSymbolId],
-  effect_symbols : Array[@symbol.EffectSymbolId],
-) -> Unit {
-  match type_ {
-    Error | Primitive(_) | Parameter(_) => ()
-    Constructor(symbol) => append_type_symbol(type_symbols, symbol)
-    Apply(callee, arguments) => {
-      collect_type_dependency_symbols(callee, type_symbols, effect_symbols)
-      for argument in arguments {
-        collect_generic_dependency_symbols(
-          argument, type_symbols, effect_symbols,
-        )
-      }
-    }
-    TypeLambda(_, body) | Forall(_, body) =>
-      collect_type_dependency_symbols(body, type_symbols, effect_symbols)
-    Function(parameters, result, effect) => {
-      for parameter in parameters {
-        collect_type_dependency_symbols(parameter, type_symbols, effect_symbols)
-      }
-      collect_type_dependency_symbols(result, type_symbols, effect_symbols)
-      collect_effect_dependency_symbols(effect, type_symbols, effect_symbols)
-    }
-  }
-}
-
-///|
-fn collect_effect_dependency_symbols(
-  effect : @types.Effect,
-  type_symbols : Array[@symbol.TypeSymbolId],
-  effect_symbols : Array[@symbol.EffectSymbolId],
-) -> Unit {
-  match effect {
-    Empty | Io | Parameter(_) => ()
-    Singleton(symbol, arguments) => {
-      append_effect_symbol(effect_symbols, symbol)
-      for argument in arguments {
-        collect_generic_dependency_symbols(
-          argument, type_symbols, effect_symbols,
-        )
-      }
-    }
-    Union(effects) =>
-      for nested in effects {
-        collect_effect_dependency_symbols(nested, type_symbols, effect_symbols)
-      }
-  }
-}
-
-///|
-fn collect_generic_dependency_symbols(
-  argument : @types.GenericArgument,
-  type_symbols : Array[@symbol.TypeSymbolId],
-  effect_symbols : Array[@symbol.EffectSymbolId],
-) -> Unit {
-  match argument {
-    TypeArgument(type_) =>
-      collect_type_dependency_symbols(type_, type_symbols, effect_symbols)
-    EffectArgument(effect) =>
-      collect_effect_dependency_symbols(effect, type_symbols, effect_symbols)
-  }
-}
-
-///|
 fn append_type_symbol(
   symbols : Array[@symbol.TypeSymbolId],
   symbol : @symbol.TypeSymbolId,
-) -> Unit {
-  if !symbols.contains(symbol) {
-    symbols.push(symbol)
-  }
-}
-
-///|
-fn append_effect_symbol(
-  symbols : Array[@symbol.EffectSymbolId],
-  symbol : @symbol.EffectSymbolId,
 ) -> Unit {
   if !symbols.contains(symbol) {
     symbols.push(symbol)

@@ -96,6 +96,7 @@ pub(all) struct ModuleInterfaceArtifact {
   imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
 pub fn ModuleInterfaceArtifact::imported_fingerprint_diagnostic(Self, String, @model.CompilationFingerprint) -> @diagnostic.CompilerDiagnostic?
+pub fn ModuleInterfaceArtifact::imported_interface_fingerprint(Self, String) -> @model.CompilationFingerprint?
 pub impl @prettyprinter.Pretty for ModuleInterfaceArtifact
 
 pub(all) struct ModuleObjectArtifact {

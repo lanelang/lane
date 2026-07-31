@@ -92,6 +92,26 @@ fn ModuleInterfaceArtifact::validation_diagnostic(
 }
 
 ///|
+/// The interface fingerprint this artifact was compiled against for one module.
+///
+/// A consumer needs only the modules this artifact's content references, but it
+/// still checks each of those against the fingerprint recorded here, so
+/// narrowing which modules are required never narrows how strictly the required
+/// ones are validated. Returns `None` for a module this artifact did not import
+/// directly, which leaves the fingerprint check to `link`.
+pub fn ModuleInterfaceArtifact::imported_interface_fingerprint(
+  self : ModuleInterfaceArtifact,
+  module_path_text : String,
+) -> CompilationFingerprint? {
+  for imported in self.imported_interface_fingerprints {
+    if imported.module_path_text == module_path_text {
+      return Some(imported.fingerprint)
+    }
+  }
+  None
+}
+
+///|
 pub fn ModuleInterfaceArtifact::imported_fingerprint_diagnostic(
   self : ModuleInterfaceArtifact,
   importer : String,

@@ -15,11 +15,15 @@ fn SemanticChecker::module_interface(
   let effects = checked_source.declarations.filter_map(fn(declaration) {
     interface_effect_entry(declaration)
   })
-  let interface : @module_interface.ModuleInterface = {
+  // References name the owner of every symbol the surface mentions, so the
+  // surface has to exist before they can be resolved. Recording owners for
+  // anything else would make the interface describe modules it does not depend
+  // on, and would force consumers to supply them.
+  let surface : @module_interface.ModuleInterface = {
     module_path,
     source_id: None,
-    type_references: self.interface_type_references(module_path, types),
-    effect_references: self.interface_effect_references(module_path, effects),
+    type_references: [],
+    effect_references: [],
     types,
     effects,
     type_aliases: self.interface_type_aliases(),
@@ -28,44 +32,48 @@ fn SemanticChecker::module_interface(
     }),
     optimization_hints: [],
   }
+  let dependencies = surface.dependency_symbols()
+  let interface : @module_interface.ModuleInterface = {
+    ..surface,
+    type_references: self.interface_type_references(
+      module_path,
+      surface.types,
+      dependencies,
+    ),
+    effect_references: self.interface_effect_references(
+      module_path,
+      surface.effects,
+      dependencies,
+    ),
+  }
   self.check_public_interface(interface)
   interface
 }
 
 ///|
+/// Names the owner of every nominal type the interface surface mentions.
+///
+/// Locally declared types own themselves. Anything else is resolved through the
+/// imported environment's own reference tables, which by induction name the
+/// owner of every symbol that can reach this surface.
 fn SemanticChecker::interface_type_references(
   self : SemanticChecker,
   module_path : String,
   types : Array[@module_interface.ModuleInterfaceType],
+  dependencies : @module_interface.InterfaceDependencySymbols,
 ) -> Array[@module_interface.ModuleInterfaceTypeReference] {
   let references = []
   for type_ in types {
-    match type_ {
-      Struct(declaration) =>
-        append_interface_type_reference(
-          references,
-          declaration.symbol,
-          module_path,
-          declaration.name,
-        )
-      Enum(declaration) =>
-        append_interface_type_reference(
-          references,
-          declaration.symbol,
-          module_path,
-          declaration.name,
-        )
-      External(declaration) =>
-        append_interface_type_reference(
-          references,
-          declaration.symbol,
-          module_path,
-          declaration.name,
-        )
+    let (symbol, name) = match type_ {
+      Struct(declaration) => (declaration.symbol, declaration.name)
+      Enum(declaration) => (declaration.symbol, declaration.name)
+      External(declaration) => (declaration.symbol, declaration.name)
     }
+    append_interface_type_reference(references, symbol, module_path, name)
   }
-  for imported in self.imported_environment.modules {
-    for reference in imported.type_references {
+  for symbol in dependencies.types {
+    if find_imported_type_reference(self.imported_environment, symbol)
+      is Some(reference) {
       append_interface_type_reference(
         references,
         reference.symbol,
@@ -75,6 +83,21 @@ fn SemanticChecker::interface_type_references(
     }
   }
   references
+}
+
+///|
+fn find_imported_type_reference(
+  imported : @module_interface.ImportedEnvironment,
+  symbol : TypeSymbolId,
+) -> @module_interface.ModuleInterfaceTypeReference? {
+  for interface in imported.modules {
+    for reference in interface.type_references {
+      if reference.symbol == symbol {
+        return Some(reference)
+      }
+    }
+  }
+  None
 }
 
 ///|
@@ -93,10 +116,12 @@ fn append_interface_type_reference(
 }
 
 ///|
+/// Names the owner of every effect the interface surface mentions.
 fn SemanticChecker::interface_effect_references(
   self : SemanticChecker,
   module_path : String,
   effects : Array[@module_interface.ModuleInterfaceEffect],
+  dependencies : @module_interface.InterfaceDependencySymbols,
 ) -> Array[@module_interface.ModuleInterfaceEffectReference] {
   let references = []
   for effect in effects {
@@ -107,8 +132,9 @@ fn SemanticChecker::interface_effect_references(
       effect.name,
     )
   }
-  for imported in self.imported_environment.modules {
-    for reference in imported.effect_references {
+  for symbol in dependencies.effects {
+    if find_imported_effect_reference(self.imported_environment, symbol)
+      is Some(reference) {
       append_interface_effect_reference(
         references,
         reference.symbol,
@@ -118,6 +144,21 @@ fn SemanticChecker::interface_effect_references(
     }
   }
   references
+}
+
+///|
+fn find_imported_effect_reference(
+  imported : @module_interface.ImportedEnvironment,
+  symbol : EffectSymbolId,
+) -> @module_interface.ModuleInterfaceEffectReference? {
+  for interface in imported.modules {
+    for reference in interface.effect_references {
+      if reference.symbol == symbol {
+        return Some(reference)
+      }
+    }
+  }
+  None
 }
 
 ///|
