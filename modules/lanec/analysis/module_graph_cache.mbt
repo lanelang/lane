@@ -93,20 +93,23 @@ fn CachedModuleGraph::transitive_dependents_of_slot(
   self : CachedModuleGraph,
   slot : Int,
 ) -> Array[Int] {
-  let collected : Array[Int] = []
+  let collected = []
+  self.collect_dependent_slots(slot, collected)
+  collected
+}
+
+///|
+fn CachedModuleGraph::collect_dependent_slots(
+  self : CachedModuleGraph,
+  slot : Int,
+  collected : Array[Int],
+) -> Unit {
   for dependent in self.dependents_of_slot(slot) {
     if !collected.contains(dependent) {
       collected.push(dependent)
+      self.collect_dependent_slots(dependent, collected)
     }
   }
-  for index = 0; index < collected.length(); index = index + 1 {
-    for dependent in self.dependents_of_slot(collected[index]) {
-      if !collected.contains(dependent) {
-        collected.push(dependent)
-      }
-    }
-  }
-  collected
 }
 
 ///|

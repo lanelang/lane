@@ -31,13 +31,12 @@ pub(all) struct ModuleImportEnvironments {
 /// resulting length against the requested path count.
 ///
 /// `available` is the transitive closure over interface type and effect
-/// references, ordered by discovery: direct imports in import order, then
-/// references in the order the interfaces declare them. That ordering depends
-/// only on the module and the interfaces it reaches, so it does not vary with
-/// the order a driver happens to hold its pool in. Closing over interface
-/// references rather than over a source-level import graph keeps the rule
-/// usable by source-set compilation, separate compilation from interface
-/// artifacts, and the semantic workspace alike.
+/// references, in depth-first discovery order from the direct imports. That
+/// ordering depends only on the module and the interfaces it reaches, so it
+/// does not vary with the order a driver happens to hold its pool in. Closing
+/// over interface references rather than over a source-level import graph keeps
+/// the rule usable by source-set compilation, separate compilation from
+/// interface artifacts, and the semantic workspace alike.
 pub fn ModuleImportEnvironments::from_pool(
   direct_module_paths : Array[String],
   pool : ImportedEnvironment,
@@ -48,29 +47,35 @@ pub fn ModuleImportEnvironments::from_pool(
       direct.push(interface)
     }
   }
-  let reachable : Array[String] = []
-  for interface in direct {
-    push_unique_module_path(reachable, interface.module_path)
-  }
-  // `type_references` and `effect_references` already accumulate transitively
-  // during interface construction, but a worklist keeps the rule correct even
-  // for interfaces produced by an older or partial pipeline.
-  for index = 0; index < reachable.length(); index = index + 1 {
-    guard pool.find(reachable[index]) is Some(interface) else { continue }
-    for reference in interface.type_references {
-      push_unique_module_path(reachable, reference.module_path)
-    }
-    for reference in interface.effect_references {
-      push_unique_module_path(reachable, reference.module_path)
-    }
-  }
   let available = []
-  for module_path in reachable {
-    if pool.find(module_path) is Some(interface) {
-      available.push(interface)
-    }
+  for interface in direct {
+    collect_reachable_interfaces(interface.module_path, pool, available)
   }
   { direct: { modules: direct }, available: { modules: available } }
+}
+
+///|
+/// Appends the interface named by `module_path` and everything it reaches.
+///
+/// `type_references` and `effect_references` already accumulate transitively
+/// while an interface is built, but recursing keeps the closure correct for
+/// interfaces produced by an older or partial pipeline.
+fn collect_reachable_interfaces(
+  module_path : String,
+  pool : ImportedEnvironment,
+  collected : Array[ModuleInterface],
+) -> Unit {
+  if collected.any(interface => interface.module_path == module_path) {
+    return
+  }
+  guard pool.find(module_path) is Some(interface) else { return }
+  collected.push(interface)
+  for reference in interface.type_references {
+    collect_reachable_interfaces(reference.module_path, pool, collected)
+  }
+  for reference in interface.effect_references {
+    collect_reachable_interfaces(reference.module_path, pool, collected)
+  }
 }
 
 ///|
@@ -90,12 +95,5 @@ pub fn ModuleImportEnvironments::typecheck_environment(
         { ..interface, values: [], optimization_hints: [] }
       }
     }),
-  }
-}
-
-///|
-fn push_unique_module_path(paths : Array[String], module_path : String) -> Unit {
-  if !paths.contains(module_path) {
-    paths.push(module_path)
   }
 }
