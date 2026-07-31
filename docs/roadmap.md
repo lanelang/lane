@@ -14,3 +14,5 @@
 - [ ] type families?
 - [ ] build system
 - [ ] overflow should not be UB
+- [x] `-2147483648` should not require `op_neg`
+- [ ] 
