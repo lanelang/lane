@@ -9,6 +9,7 @@ priv struct ResidualComputationSchema {
 ///|
 priv struct ResidualFrame {
   answer_parameter : @buslane.TypeParameterId
+  residual_parameter : @buslane.TypeParameterId
   answer_type : @buslane.Type
   context_parameters : Array[@buslane.ValueId]
   environment : CpsEnvironment
@@ -44,22 +45,33 @@ fn build_residual_computation_schema(
       type_: rewritten_result,
     }
   } else {
+    // A residual computation is a CPS'd callable like any other, so it carries
+    // the same binders: callers instantiate the residual it runs under rather
+    // than being handed one fixed at the install site.
     let answer_parameter = schema.metadata.define_type_parameter(
       "%residual_answer",
       Type,
     )
+    let residual_parameter = schema.metadata.define_type_parameter(
+      "%residual",
+      Effect,
+      flavor=External,
+    )
     let answer_type = @buslane.Type::Parameter(answer_parameter)
+    let frame_residual = schema.metadata.canonicalize_effect(
+      Union([residual_effect, Parameter(residual_parameter)]),
+    )
     {
       effect: canonical,
       residual_effect,
       result_type: rewritten_result,
       type_: Forall(
-        [answer_parameter],
+        [answer_parameter, residual_parameter],
         Function(
-          schema.context_argument_types(canonical, answer_type) +
-          [Function([rewritten_result], answer_type, residual_effect)],
+          schema.context_argument_types(canonical, answer_type, frame_residual) +
+          [Function([rewritten_result], answer_type, frame_residual)],
           answer_type,
-          residual_effect,
+          frame_residual,
         ),
       ),
     }
@@ -75,14 +87,22 @@ fn ResidualComputationSchema::fresh_frame(
     "%residual_answer",
     Type,
   )
+  let residual_parameter = schema.metadata.define_type_parameter(
+    "%residual",
+    Effect,
+    flavor=External,
+  )
   let answer_type = @buslane.Type::Parameter(answer_parameter)
+  let frame_residual = schema.metadata.canonicalize_effect(
+    Union([self.residual_effect, Parameter(residual_parameter)]),
+  )
   let context_parameters = []
   let bindings = []
   for term in effect_terms(schema.metadata, self.effect) {
     let parameter = schema.metadata.define_value(
       "%residual_context",
       Parameter,
-      schema.context_term_type(term, answer_type, self.residual_effect),
+      schema.context_term_type(term, answer_type, frame_residual),
     )
     context_parameters.push(parameter)
     bindings.push({ term, value: Ref(parameter) })
@@ -90,16 +110,18 @@ fn ResidualComputationSchema::fresh_frame(
   let continuation = schema.metadata.define_value(
     "%residual_continuation",
     Parameter,
-    Function([self.result_type], answer_type, self.residual_effect),
+    Function([self.result_type], answer_type, frame_residual),
   )
   {
     answer_parameter,
+    residual_parameter,
     answer_type,
     context_parameters,
     environment: {
       effect: schema.metadata.canonicalize_effect(
         Union([self.effect, self.residual_effect]),
       ),
+      residual: frame_residual,
       bindings,
     },
     continuation,
@@ -109,7 +131,7 @@ fn ResidualComputationSchema::fresh_frame(
 ///|
 fn ResidualFrame::wrap(self : ResidualFrame, body : Expr) -> Expr {
   TypeLambda(
-    [self.answer_parameter],
+    [self.answer_parameter, self.residual_parameter],
     Function({
       parameters: self.context_parameters + [self.continuation],
       result_type: self.answer_type,
@@ -145,7 +167,7 @@ fn ResidualComputationSchema::run(
     Call(continuation, [computation])
   } else {
     Call(
-      TypeApply(computation, [TypeArgument(answer_type)]),
+      TypeApply(computation, environment.answer(answer_type).arguments()),
       effect_terms(metadata, self.effect).map(term => {
         find_cps_context(metadata, environment, term)
       }) +

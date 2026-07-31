@@ -73,12 +73,20 @@ fn lower_cps_monadic_call(
   force_open : Bool,
 ) -> Expr raise SynthesisError {
   let requirements = cps_call_context_requirements(program.metadata, callee)
+  let answer = environment.answer(answer_type)
   let selected = select_cps_contexts(
-    schema, requirements, environment, answer_type,
+    schema,
+    requirements,
+    environment,
+    answer_type,
+    answer.residual,
   )
+  // The callee is instantiated at the caller's residual. Source typing makes
+  // the callee's own residual a subeffect of it, so the union in the callee's
+  // type collapses back to exactly this.
   let transformed_callee = Expr::TypeApply(
-    lower_cps_type_apply_chain(schema, program, callee, answer_type),
-    [TypeArgument(answer_type)],
+    lower_cps_type_apply_chain(schema, program, callee, answer),
+    answer.arguments(),
   )
   let call = Expr::Call(
     transformed_callee,
@@ -88,7 +96,7 @@ fn lower_cps_monadic_call(
       program,
       arguments,
       transformed_callee,
-      Some(answer_type),
+      Some(answer),
     ) +
     [continuation],
   )
@@ -128,7 +136,7 @@ fn lower_cps_monadic_match(
       schema,
       program,
       match_.scrutinee,
-      Some(answer_type),
+      Some(environment.answer(answer_type)),
     ),
     binder: match_.binder,
     result_type: answer_type,

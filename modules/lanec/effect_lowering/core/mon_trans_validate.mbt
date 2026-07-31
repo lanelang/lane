@@ -163,7 +163,12 @@ fn validate_mon_trans_generic_argument(
 ) -> Unit raise SynthesisError {
   match argument {
     TypeArgument(type_) => validate_mon_trans_type(metadata, type_)
-    EffectArgument(effect) => raise ResidualEffectArgument(effect)
+    // Selective CPS instantiates the residual a callable runs under. Any other
+    // effect argument is one it should have turned into a dictionary.
+    EffectArgument(effect) =>
+      if is_mon_effect(metadata, effect) {
+        raise ResidualEffectArgument(effect)
+      }
   }
 }
 
@@ -172,7 +177,8 @@ fn validate_mon_trans_type_parameter(
   metadata : @buslane.MetadataRegistry,
   parameter : @buslane.TypeParameterId,
 ) -> Unit raise SynthesisError {
-  if metadata.type_parameter_info(parameter) is Some({ kind: Effect, .. }) {
+  if metadata.type_parameter_info(parameter)
+    is Some({ kind: Effect, flavor: Algebraic, .. }) {
     raise ResidualEffectParameter(parameter)
   }
 }

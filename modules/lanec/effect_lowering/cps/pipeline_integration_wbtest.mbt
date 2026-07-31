@@ -85,7 +85,7 @@ test "open-resolve preserves ordered abstract context arguments" {
         {
           rhs: TypeLambda(
             [_],
-            TypeLambda([answer], Function(transformed_function))
+            TypeLambda([answer, residual], Function(transformed_function))
           ),
           ..,
         },
@@ -112,13 +112,21 @@ test "open-resolve preserves ordered abstract context arguments" {
   assert_eq(marked_target, target_effect)
   guard marked_call
     is Call(
-      TypeApply(Ref(marked_action), [TypeArgument(Parameter(marked_answer))]),
+      TypeApply(
+        Ref(marked_action),
+        [
+          TypeArgument(Parameter(marked_answer)),
+          EffectArgument(marked_residual),
+        ]
+      ),
       [Ref(marked_abstract), Ref(marked_first), marked_continuation]
     ) else {
     abort("expected explicitly selected source contexts")
   }
   assert_eq(marked_action, action)
   assert_eq(marked_answer, answer)
+  // The callee runs under whatever residual the caller was instantiated at.
+  assert_eq(marked_residual, Parameter(residual))
   assert_eq(marked_abstract, abstract_context)
   assert_eq(marked_first, first_context)
   assert_eq(
@@ -132,7 +140,7 @@ test "open-resolve preserves ordered abstract context arguments" {
         {
           rhs: TypeLambda(
             [_],
-            TypeLambda([_], Function({ body: resolved_call, .. }))
+            TypeLambda([_, _], Function({ body: resolved_call, .. }))
           ),
           ..,
         },

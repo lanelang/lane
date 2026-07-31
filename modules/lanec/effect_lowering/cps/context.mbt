@@ -17,10 +17,10 @@ priv struct SelectedContexts {
 }
 
 ///|
-fn generated_cps_answer_type(
+fn generated_cps_answer(
   metadata : @buslane.MetadataRegistry,
   expression : Expr,
-) -> @buslane.Type? raise SynthesisError {
+) -> CpsAnswer? raise SynthesisError {
   let argument_groups = []
   let base = collect_cps_type_applications(expression, argument_groups)
   if argument_groups.is_empty() {
@@ -40,14 +40,20 @@ fn generated_cps_answer_type(
   if arguments.length() <= parameters.length() {
     return None
   }
+  // Arguments past the source binders are the ones this pass added: the answer
+  // type and the residual it instantiated the callable at.
+  let mut answer_type = None
+  let mut residual = None
   let mut index = arguments.length()
   while index > parameters.length() {
     index -= 1
-    if arguments[index] is TypeArgument(answer) {
-      return Some(answer)
+    match arguments[index] {
+      TypeArgument(answer) if answer_type is None => answer_type = Some(answer)
+      EffectArgument(effect) if residual is None => residual = Some(effect)
+      _ => ()
     }
   }
-  None
+  answer_type.map(type_ => { type_, residual: residual.unwrap_or(Empty) })
 }
 
 ///|
@@ -55,7 +61,7 @@ fn lower_cps_type_apply_chain(
   schema : DictionaryCpsSchema,
   program : Program,
   expression : Expr,
-  answer_type : @buslane.Type,
+  answer : CpsAnswer,
 ) -> Expr raise SynthesisError {
   let argument_groups = []
   let base = collect_cps_type_applications(expression, argument_groups)
@@ -73,12 +79,7 @@ fn lower_cps_type_apply_chain(
   if argument_count < parameters.length() {
     raise ArityMismatch(expected=parameters.length(), actual=argument_count)
   }
-  let mut result = lower_cps_direct_expr(
-    schema,
-    program,
-    base,
-    Some(answer_type),
-  )
+  let mut result = lower_cps_direct_expr(schema, program, base, Some(answer))
   let mut parameter_index = 0
   for group in argument_groups {
     let rewritten_arguments = []
@@ -89,13 +90,13 @@ fn lower_cps_type_apply_chain(
             schema,
             parameters[parameter_index],
             argument,
-            answer_type,
+            answer,
           ),
         )
         parameter_index += 1
       } else {
         rewritten_arguments.push(
-          rewrite_cps_expression_argument(schema, argument, Some(answer_type)),
+          rewrite_cps_expression_argument(schema, argument, Some(answer)),
         )
       }
     }
@@ -109,17 +110,21 @@ fn rewrite_cps_application_argument(
   schema : DictionaryCpsSchema,
   parameter : @buslane.TypeParameterId,
   argument : @buslane.GenericArgument,
-  answer_type : @buslane.Type,
+  answer : CpsAnswer,
 ) -> @buslane.GenericArgument raise SynthesisError {
   guard schema.metadata.type_parameter_info(parameter) is Some(info) else {
     return schema.rewrite_generic_argument(argument)
   }
   match (info.kind, argument) {
     (Effect, EffectArgument(effect)) =>
-      TypeArgument(schema.packed_context_type(effect, answer_type))
+      TypeArgument(
+        schema.packed_context_type(effect, answer.type_, answer.residual),
+      )
     (_, TypeArgument(type_)) => TypeArgument(schema.rewrite_type(type_))
     (_, EffectArgument(effect)) =>
-      TypeArgument(schema.packed_context_type(effect, answer_type))
+      TypeArgument(
+        schema.packed_context_type(effect, answer.type_, answer.residual),
+      )
   }
 }
 
@@ -127,14 +132,16 @@ fn rewrite_cps_application_argument(
 fn rewrite_cps_expression_argument(
   schema : DictionaryCpsSchema,
   argument : @buslane.GenericArgument,
-  current_answer : @buslane.Type?,
+  current_answer : CpsAnswer?,
 ) -> @buslane.GenericArgument raise SynthesisError {
   match argument {
     TypeArgument(type_) => TypeArgument(schema.rewrite_type(type_))
-    EffectArgument(effect) =>
+    EffectArgument(effect) => {
+      let answer = answer_or_unit(current_answer)
       TypeArgument(
-        schema.packed_context_type(effect, answer_or_unit(current_answer)),
+        schema.packed_context_type(effect, answer.type_, answer.residual),
       )
+    }
   }
 }
 
@@ -242,6 +249,7 @@ fn select_cps_contexts(
   requirements : Array[ContextRequirement],
   environment : CpsEnvironment,
   answer_type : @buslane.Type,
+  residual_effect : @buslane.Effect,
 ) -> SelectedContexts raise SynthesisError {
   let values = []
   let mut adapted = false
@@ -250,7 +258,9 @@ fn select_cps_contexts(
       Direct(term) =>
         values.push(find_cps_context(schema.metadata, environment, term))
       Packed(effect) => {
-        let packed = pack_cps_context(schema, environment, effect, answer_type)
+        let packed = pack_cps_context(
+          schema, environment, effect, answer_type, residual_effect,
+        )
         values.push(packed.0)
         adapted = adapted || packed.1
       }
@@ -279,6 +289,7 @@ fn pack_cps_context(
   environment : CpsEnvironment,
   effect : @buslane.Effect,
   answer_type : @buslane.Type,
+  residual_effect : @buslane.Effect,
 ) -> (Expr, Bool) raise SynthesisError {
   let terms = effect_terms(
     schema.metadata,
@@ -304,11 +315,7 @@ fn pack_cps_context(
           data_constructor,
           type_arguments: terms.map(term => {
             TypeArgument(
-              schema.context_term_type(
-                term,
-                answer_type,
-                residual_effect_part(schema.metadata, effect),
-              ),
+              schema.context_term_type(term, answer_type, residual_effect),
             )
           }),
           hidden_witnesses: [],
@@ -321,9 +328,9 @@ fn pack_cps_context(
 }
 
 ///|
-fn answer_or_unit(answer : @buslane.Type?) -> @buslane.Type {
+fn answer_or_unit(answer : CpsAnswer?) -> CpsAnswer {
   match answer {
     Some(answer) => answer
-    None => Primitive(Unit)
+    None => { type_: Primitive(Unit), residual: Empty }
   }
 }

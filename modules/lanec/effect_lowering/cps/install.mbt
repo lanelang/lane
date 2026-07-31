@@ -24,7 +24,11 @@ fn lower_cps_direct_install(
     schema,
     program,
     install,
-    { effect: facts.effect, bindings: [] },
+    {
+      effect: facts.effect,
+      residual: residual_effect_part(program.metadata, facts.effect),
+      bindings: [],
+    },
     result_type,
     Function({ parameters: [result], result_type, body: Ref(result) }),
   )
@@ -56,6 +60,7 @@ fn lower_cps_install(
     effect: program.metadata.canonicalize_effect(
       Union([residual.effect, residual.residual_effect]),
     ),
+    residual: residual.residual_effect,
     bindings: relay.bindings,
   }
   let handlers = build_handler_dictionary_plan(
@@ -68,10 +73,14 @@ fn lower_cps_install(
     residual,
     relay_environment,
   )
+  // The handled expression runs under the install's residual, not its own: the
+  // arms and the final branch it hands control to are the handler's, and their
+  // effects are what the dictionary it receives performs.
   let inner_environment = CpsEnvironment::{
     effect: program.metadata.canonicalize_effect(
       Union([body_facts.effect, residual.residual_effect]),
     ),
+    residual: residual.residual_effect,
     bindings: handlers.bindings + relay.bindings,
   }
   let body = lower_cps_with_continuation(
@@ -309,7 +318,7 @@ fn ResidualFrame::wrap_with_parameter(
   body : Expr,
 ) -> Expr {
   TypeLambda(
-    [self.answer_parameter],
+    [self.answer_parameter, self.residual_parameter],
     Function({
       parameters: self.context_parameters + [parameter, self.continuation],
       result_type: self.answer_type,

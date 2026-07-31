@@ -154,11 +154,13 @@ test "selective CPS preserves Io on mixed callable and continuation types" {
     ],
   })
   guard output.metadata.value_info(main).unwrap().type_
-    is Forall([answer], Function([_, continuation], result, Io)) else {
+    is Forall([answer, residual], Function([_, continuation], result, latent)) else {
     abort("expected mixed CPS callable type")
   }
+  let row = @buslane.Effect::Union([Io, Parameter(residual)])
+  assert_eq(latent, row)
   assert_eq(result, Parameter(answer))
-  assert_eq(continuation, Function([Primitive(Unit)], Parameter(answer), Io))
+  assert_eq(continuation, Function([Primitive(Unit)], Parameter(answer), row))
   assert_cps_ordinary_output(output)
   debug_inspect(
     output.terms[1],
@@ -168,11 +170,11 @@ test "selective CPS preserves Io on mixed callable and continuation types" {
       #|    {
       #|      id: { index: 1 },
       #|      rhs: TypeLambda(
-      #|        [{ index: 1 }],
+      #|        [{ index: 2 }, { index: 3 }],
       #|        Function(
       #|          {
       #|            parameters: [{ index: 3 }, { index: 4 }],
-      #|            result_type: Parameter({ index: 1 }),
+      #|            result_type: Parameter({ index: 2 }),
       #|            body: Let(
       #|              { index: 2 },
       #|              Call(Ref({ index: 0 }), [Literal(String("before"))]),
@@ -180,10 +182,10 @@ test "selective CPS preserves Io on mixed callable and continuation types" {
       #|                {
       #|                  scrutinee: Ref({ index: 3 }),
       #|                  binder: { index: 5 },
-      #|                  result_type: Parameter({ index: 1 }),
+      #|                  result_type: Parameter({ index: 2 }),
       #|                  alternatives: [
       #|                    {
-      #|                      alt_constructor: DataCon({ index: 1 }),
+      #|                      alt_constructor: DataCon({ index: 0 }),
       #|                      type_binders: [],
       #|                      value_binders: [{ index: 6 }],
       #|                      body: Call(Ref({ index: 6 }), [Ref({ index: 4 })]),
@@ -225,7 +227,10 @@ test "direct calls bridge Unit-specialized CPS callables" {
   )
   guard bridged
     is Call(
-      TypeApply(Ref(callee), [TypeArgument(Primitive(I64))]),
+      TypeApply(
+        Ref(callee),
+        [TypeArgument(Primitive(I64)), EffectArgument(Empty)]
+      ),
       [Literal(Unit), Function(identity)]
     ) else {
     abort("expected direct CPS bridge")
@@ -268,7 +273,9 @@ test "selective CPS rewrites monadic function and tail call ABI" {
     ],
   })
   guard output.terms[1]
-    is LetRec([{ rhs: TypeLambda([answer], Function(transformed)), .. }]) else {
+    is LetRec(
+      [{ rhs: TypeLambda([answer, residual], Function(transformed)), .. }]
+    ) else {
     abort("expected CPS function")
   }
   guard transformed.parameters is [context, transformed_input, continuation] else {
@@ -277,27 +284,38 @@ test "selective CPS rewrites monadic function and tail call ABI" {
   assert_eq(transformed_input, input)
   assert_eq(transformed.result_type, Parameter(answer))
   guard metadata.value_info(outer).unwrap().type_
-    is Forall([metadata_answer], Function(_, metadata_result, Empty)) else {
+    is Forall(
+      [metadata_answer, metadata_residual],
+      Function(_, metadata_result, metadata_latent)
+    ) else {
     abort("expected synchronized CPS metadata")
   }
   assert_eq(metadata_answer, answer)
+  assert_eq(metadata_residual, residual)
   assert_eq(metadata_result, Parameter(answer))
+  assert_eq(metadata_latent, Parameter(residual))
   assert_eq(
     transformed.body,
-    Call(TypeApply(Ref(callee), [TypeArgument(Parameter(answer))]), [
-      Ref(context),
-      Ref(input),
-      Ref(continuation),
-    ]),
+    Call(
+      TypeApply(Ref(callee), [
+        TypeArgument(Parameter(answer)),
+        EffectArgument(Parameter(residual)),
+      ]),
+      [Ref(context), Ref(input), Ref(continuation)],
+    ),
   )
   guard metadata.value_info(context).unwrap().type_
-    is Apply(Constructor(_), [TypeArgument(context_answer)]) else {
+    is Apply(
+      Constructor(_),
+      [TypeArgument(context_answer), EffectArgument(context_residual)]
+    ) else {
     abort("expected typed dictionary context")
   }
   assert_eq(context_answer, Parameter(answer))
+  assert_eq(context_residual, Parameter(residual))
   assert_eq(
     metadata.value_info(continuation).unwrap().type_,
-    Function([Primitive(I64)], Parameter(answer), Empty),
+    Function([Primitive(I64)], Parameter(answer), Parameter(residual)),
   )
   assert_cps_ordinary_output(output)
 }
@@ -349,7 +367,12 @@ test "selective CPS synchronizes local generic callable metadata" {
             rhs: Function(
               {
                 body: LetRec(
-                  [{ rhs: TypeLambda([answer], Function(local_cps)), .. }],
+                  [
+                    {
+                      rhs: TypeLambda([answer, residual], Function(local_cps)),
+                      ..,
+                    },
+                  ],
                   _
                 ),
                 ..,
@@ -365,13 +388,13 @@ test "selective CPS synchronizes local generic callable metadata" {
   assert_eq(
     metadata.value_info(local_function).unwrap().type_,
     Forall(
-      [answer],
+      [answer, residual],
       Function(
         local_cps.parameters.map(parameter => {
           metadata.value_info(parameter).unwrap().type_
         }),
         Parameter(answer),
-        Empty,
+        Parameter(residual),
       ),
     ),
   )
@@ -407,19 +430,20 @@ test "direct CPS lowering commits local binding metadata" {
     ),
     None,
   )
-  guard lowered is Let(_, TypeLambda([answer], Function(transformed)), _) else {
+  guard lowered
+    is Let(_, TypeLambda([answer, residual], Function(transformed)), _) else {
     abort("expected a local CPS callable")
   }
   assert_eq(
     metadata.value_info(local_function).unwrap().type_,
     Forall(
-      [answer],
+      [answer, residual],
       Function(
         transformed.parameters.map(parameter => {
           metadata.value_info(parameter).unwrap().type_
         }),
         Parameter(answer),
-        Empty,
+        Parameter(residual),
       ),
     ),
   )
@@ -493,7 +517,9 @@ test "selective CPS composes an explicit bind continuation" {
     ],
   })
   guard output.terms[2]
-    is LetRec([{ rhs: TypeLambda([answer], Function(transformed)), .. }]) else {
+    is LetRec(
+      [{ rhs: TypeLambda([answer, residual], Function(transformed)), .. }]
+    ) else {
     abort("expected CPS function")
   }
   guard transformed.parameters is [context, outer_continuation] else {
@@ -501,13 +527,17 @@ test "selective CPS composes an explicit bind continuation" {
   }
   guard transformed.body
     is Call(
-      TypeApply(Ref(callee), [TypeArgument(call_answer)]),
+      TypeApply(
+        Ref(callee),
+        [TypeArgument(call_answer), EffectArgument(call_residual)]
+      ),
       [Ref(call_context), Function(next)]
     ) else {
     abort("expected CPS call with local continuation")
   }
   assert_eq(callee, effectful)
   assert_eq(call_answer, Parameter(answer))
+  assert_eq(call_residual, Parameter(residual))
   assert_eq(call_context, context)
   guard next.parameters is [binder] else { abort("expected bind parameter") }
   assert_eq(next.result_type, Parameter(answer))
@@ -562,7 +592,7 @@ test "selective CPS replaces effect polymorphism with companions" {
         {
           rhs: TypeLambda(
             [companion],
-            TypeLambda([answer], Function(transformed))
+            TypeLambda([answer, residual], Function(transformed))
           ),
           ..,
         },
@@ -580,6 +610,7 @@ test "selective CPS replaces effect polymorphism with companions" {
     Call(
       TypeApply(TypeApply(Ref(callee), [TypeArgument(Parameter(companion))]), [
         TypeArgument(Parameter(answer)),
+        EffectArgument(Parameter(residual)),
       ]),
       [Ref(context), Ref(continuation)],
     ),
@@ -615,7 +646,9 @@ test "selective CPS calls a first-class effectful callable" {
     ],
   })
   guard output.terms[0]
-    is LetRec([{ rhs: TypeLambda([answer], Function(transformed)), .. }]) else {
+    is LetRec(
+      [{ rhs: TypeLambda([answer, residual], Function(transformed)), .. }]
+    ) else {
     abort("expected CPS apply function")
   }
   guard transformed.parameters is [context, transformed_action, continuation] else {
@@ -624,22 +657,30 @@ test "selective CPS calls a first-class effectful callable" {
   assert_eq(transformed_action, action)
   assert_eq(
     transformed.body,
-    Call(TypeApply(Ref(action), [TypeArgument(Parameter(answer))]), [
-      Ref(context),
-      Ref(continuation),
-    ]),
+    Call(
+      TypeApply(Ref(action), [
+        TypeArgument(Parameter(answer)),
+        EffectArgument(Parameter(residual)),
+      ]),
+      [Ref(context), Ref(continuation)],
+    ),
   )
   guard metadata.value_info(action).unwrap().type_
     is Forall(
-      [action_answer],
-      Function([_, action_continuation], action_result, Empty)
+      [action_answer, action_residual],
+      Function([_, action_continuation], action_result, action_latent)
     ) else {
     abort("expected first-class CPS callable type")
   }
   assert_eq(action_result, Parameter(action_answer))
+  assert_eq(action_latent, Parameter(action_residual))
   assert_eq(
     action_continuation,
-    Function([Primitive(I64)], Parameter(action_answer), Empty),
+    Function(
+      [Primitive(I64)],
+      Parameter(action_answer),
+      Parameter(action_residual),
+    ),
   )
   assert_cps_ordinary_output(output)
 }
@@ -691,7 +732,7 @@ test "selective CPS preserves effectful argument evaluation order" {
     ],
   })
   guard output.terms[3]
-    is LetRec([{ rhs: TypeLambda([answer], Function(transformed)), .. }]) else {
+    is LetRec([{ rhs: TypeLambda([answer, _], Function(transformed)), .. }]) else {
     abort("expected CPS outer function")
   }
   guard transformed.parameters is [context, outer_continuation] else {
@@ -798,7 +839,7 @@ test "selective CPS shares one continuation after monadic match branches" {
     ],
   })
   guard output.terms[2]
-    is LetRec([{ rhs: TypeLambda([answer], Function(transformed)), .. }]) else {
+    is LetRec([{ rhs: TypeLambda([answer, _], Function(transformed)), .. }]) else {
     abort("expected CPS function")
   }
   guard transformed.body is Match(transformed_match) else {
@@ -858,7 +899,7 @@ test "selective CPS selects a generic operation dictionary field" {
     ],
   })
   guard output.terms[0]
-    is LetRec([{ rhs: TypeLambda([answer], Function(transformed)), .. }]) else {
+    is LetRec([{ rhs: TypeLambda([answer, _], Function(transformed)), .. }]) else {
     abort("expected CPS function")
   }
   guard transformed.parameters is [_, continuation] else {

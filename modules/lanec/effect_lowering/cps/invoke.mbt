@@ -22,10 +22,8 @@ fn lower_cps_invoke(
     environment,
     term,
   )
-  let residual_effect = residual_effect_part(
-    program.metadata,
-    environment.effect,
-  )
+  let answer = environment.answer(answer_type)
+  let residual_effect = answer.residual
   let dictionary_type = schema.context_term_type(
     term, answer_type, residual_effect,
   )
@@ -52,7 +50,7 @@ fn lower_cps_invoke(
     TypeApply(
       field,
       invoke.hidden_witnesses.map(argument => {
-        rewrite_cps_expression_argument(schema, argument, Some(answer_type))
+        rewrite_cps_expression_argument(schema, argument, Some(answer))
       }),
     )
   }
@@ -68,7 +66,7 @@ fn lower_cps_invoke(
         body: Call(
           callee,
           invoke.payloads.map(payload => {
-            lower_cps_direct_expr(schema, program, payload, Some(answer_type))
+            lower_cps_direct_expr(schema, program, payload, Some(answer))
           }) +
           [continuation],
         ),

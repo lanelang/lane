@@ -690,3 +690,129 @@ test "effect lowering agrees for generic resumptions with layout witnesses" {
     ["selected"],
   )
 }
+
+// A `handle` in statement position is a dead binding whose initialiser is the
+// whole installation. Deleting it is only sound when nothing it would have run
+// has an effect, and after selective CPS the handler's arms live inside a
+// dictionary the installed call receives. These pin each source of residual
+// effect separately, so a regression cannot hide behind another one covering it.
+
+///|
+test "statement-position handle runs an arm that performs Io" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|effect Probe {
+      #|  ping() -> Unit
+      #|}
+      #|fn body() -> Unit ! Probe {
+      #|  Probe::ping!()
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  handle body() with {
+      #|    Probe::ping(resume) => {
+      #|      println("arm")
+      #|      resume(())
+      #|    }
+      #|  } final _value {
+      #|    ()
+      #|  }
+      #|  println("after")
+      #|}
+    ),
+    ["arm", "after"],
+  )
+}
+
+///|
+test "statement-position handle runs a final branch that performs Io" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|effect Probe {
+      #|  ping() -> Unit
+      #|}
+      #|fn body() -> Unit ! Probe {
+      #|  Probe::ping!()
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  handle body() with {
+      #|    Probe::ping(resume) => resume(())
+      #|  } final _value {
+      #|    println("final")
+      #|  }
+      #|  println("after")
+      #|}
+    ),
+    ["final", "after"],
+  )
+}
+
+///|
+test "statement-position handle runs a handled expression that performs Io" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|effect Probe {
+      #|  ping() -> Unit
+      #|}
+      #|fn body() -> Unit ! { Probe, Io } {
+      #|  println("subject")
+      #|  Probe::ping!()
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  handle body() with {
+      #|    Probe::ping(resume) => resume(())
+      #|  } final _value {
+      #|    ()
+      #|  }
+      #|  println("after")
+      #|}
+    ),
+    ["subject", "after"],
+  )
+}
+
+///|
+test "statement-position handle installed inside an arm still runs" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|effect Probe {
+      #|  ping() -> Unit
+      #|}
+      #|effect Inner {
+      #|  tick() -> Unit
+      #|}
+      #|fn body() -> Unit ! Probe {
+      #|  Probe::ping!()
+      #|}
+      #|fn inner_body() -> Unit ! Inner {
+      #|  Inner::tick!()
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  handle body() with {
+      #|    Probe::ping(resume) => {
+      #|      handle inner_body() with {
+      #|        Inner::tick(inner_resume) => {
+      #|          println("inner-arm")
+      #|          inner_resume(())
+      #|        }
+      #|      } final _inner {
+      #|        ()
+      #|      }
+      #|      resume(())
+      #|    }
+      #|  } final _value {
+      #|    ()
+      #|  }
+      #|  println("after")
+      #|}
+    ),
+    ["inner-arm", "after"],
+  )
+}

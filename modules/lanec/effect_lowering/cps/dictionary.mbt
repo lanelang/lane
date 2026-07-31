@@ -13,7 +13,7 @@ fn instantiate_dictionary(
   answer_type : @buslane.Type,
   residual_effect : @buslane.Effect,
 ) -> DictionaryInstance raise SynthesisError {
-  let header = schema.dictionary(effect, residual_effect)
+  let header = schema.dictionary(effect)
   guard schema.metadata.type_info(header.type_id) is Some(dictionary) else {
     raise UnknownType(header.type_id)
   }
@@ -24,10 +24,11 @@ fn instantiate_dictionary(
     is Some(data_info) else {
     raise UnknownDataConstructor(data_constructor)
   }
+  let answer = CpsAnswer::{ type_: answer_type, residual: residual_effect }
   let type_arguments = arguments.map(argument => {
-      rewrite_cps_expression_argument(schema, argument, Some(answer_type))
+      rewrite_cps_expression_argument(schema, argument, Some(answer))
     }) +
-    [TypeArgument(answer_type)]
+    answer.arguments()
   let substitution = @buslane.TypeSubstitution::TypeSubstitution()
   for index in 0..<dictionary.parameters.length() {
     substitution.insert_argument(

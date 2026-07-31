@@ -417,8 +417,12 @@ The compiler-IR effect term for an intrinsically identified built-in effect such
 _Avoid_: reserved EffectId, synthetic effect declaration, module-qualified nominal effect
 
 **Answer-Type CPS**:
-The selective transformation of a function whose latent effect satisfies the **Monadic Effect Predicate** from `(args) -> A ! E` to the conceptual shape `[Answer](context, args, (A) -> Answer ! R) -> Answer ! R`, where `R` is the **Non-Monadic Residual Effect**; functions whose effects do not satisfy the predicate remain direct style even when they are non-pure.
+The selective transformation of a function whose latent effect satisfies the **Monadic Effect Predicate** from `(args) -> A ! E` to the conceptual shape `[Answer, Residual](context, args, (A) -> Answer ! R) -> Answer ! R`, where `R` is the function's own **Non-Monadic Residual Effect** joined with the **Installed Residual Parameter**; functions whose effects do not satisfy the predicate remain direct style even when they are non-pure.
 _Avoid_: whole-program CPS, VM stack capture, yielding side channel
+
+**Installed Residual Parameter**:
+The **Effect Row Variable** an Answer-Type CPS callable binds beside its answer type, standing for what the dictionary and continuation it is handed perform. A call site instantiates it with the residual it is itself running under, so a handler arm's effects reach the row of every call the handled expression makes. It has External **Effect Flavor**, which is what distinguishes it from a source effect parameter the transformation still has to discharge into a dictionary.
+_Avoid_: per-residual dictionary specialization, source effect parameter, whole-program monomorphization
 
 **Effect Lowering Core Package**:
 The `lanec/effect_lowering/core` package that owns the shared effect-lowering IR, synthesis and error semantics, and the complete non-CPS effect-erasure pipeline; all compiler consumers depend on this package directly.
@@ -618,6 +622,12 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   exposed. An extern call with observable host behavior must therefore carry an
   appropriate non-empty **External Effect**; unresolved call identity alone is
   not an effect barrier.
+- What makes the rule above sound is that selective CPS keeps effect rows an
+  over-approximation of what running a term performs. A CPS'd call performs
+  whatever the dictionary and continuation it is handed perform, so its callee
+  binds an **Installed Residual Parameter** and the call site instantiates it.
+  Fixing a dictionary's residual per install site instead would make the row of
+  a call using that dictionary silently understate the handler's effects.
 - **Core Partial Evaluation** specializes small known direct calls with atomic
   arguments, including generic calls and structurally known operation
   dictionaries. It is selected by Core shape rather than source symbols.

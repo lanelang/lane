@@ -1,6 +1,7 @@
 ///|
 priv struct DirectToCpsCallable {
   answer_parameter : @buslane.TypeParameterId
+  residual_parameter : @buslane.TypeParameterId
   parameters : Array[@buslane.Type]
   value_parameter_start : Int
   value_parameter_count : Int
@@ -12,7 +13,7 @@ fn lower_cps_call_arguments(
   program : Program,
   arguments : Array[Expr],
   target_callee : Expr,
-  current_answer : @buslane.Type?,
+  current_answer : CpsAnswer?,
 ) -> Array[Expr] raise SynthesisError {
   let lowered = arguments.map(argument => {
     lower_cps_direct_expr(schema, program, argument, current_answer)
@@ -43,7 +44,7 @@ fn cps_value_parameter_types(
     Function(parameters, result, _) =>
       call_value_parameter_slice(parameters, result, value_parameter_count)
     Forall(
-      [answer_parameter],
+      [answer_parameter, _],
       Function(parameters, Parameter(result_parameter), _)
     ) if answer_parameter == result_parameter =>
       call_value_parameter_slice(
@@ -112,7 +113,7 @@ fn adapt_direct_argument_to_cps(
     source,
     argument,
     TypeLambda(
-      [callable.answer_parameter],
+      [callable.answer_parameter, callable.residual_parameter],
       Function({
         parameters,
         result_type: Parameter(callable.answer_parameter),
@@ -133,7 +134,7 @@ fn direct_to_cps_callable(
   }
   guard target_parameter_type
     is Forall(
-      [answer_parameter],
+      [answer_parameter, residual_parameter],
       Function(parameters, Parameter(result_parameter), residual_effect)
     ) &&
     answer_parameter == result_parameter else {
@@ -157,8 +158,11 @@ fn direct_to_cps_callable(
     metadata.effects_definitionally_equal(continuation_effect, residual_effect) else {
     return None
   }
+  // The adapter body calls the wrapped function and then the continuation, so
+  // its row is the union of the two. It matches the shape being adapted to
+  // exactly when the wrapped function stays inside the target's residual.
   if !metadata.types_definitionally_equal(actual_result, continuation_input) ||
-    !metadata.effects_definitionally_equal(actual_effect, residual_effect) {
+    !metadata.effect_is_subeffect_of(actual_effect, residual_effect) {
     return None
   }
   for index in 0..<actual_parameters.length() {
@@ -171,6 +175,7 @@ fn direct_to_cps_callable(
   }
   Some({
     answer_parameter,
+    residual_parameter,
     parameters,
     value_parameter_start,
     value_parameter_count: actual_parameters.length(),

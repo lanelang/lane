@@ -13,16 +13,25 @@ test "dictionary schema follows operation order and CPS field types" {
     Primitive(Unit),
   )
   let schema = build_dictionary_cps_schema_or_raise(metadata)
-  let dictionary = schema.dictionary(effect, Empty)
+  let dictionary = schema.dictionary(effect)
   let dictionary_info = metadata.type_info(dictionary.type_id).unwrap()
   assert_eq(dictionary_info.constructors.length(), 1)
-  assert_eq(dictionary_info.parameters, [element, dictionary.answer_parameter])
+  assert_eq(dictionary_info.parameters, [
+    element,
+    dictionary.answer_parameter,
+    dictionary.residual_parameter,
+  ])
   let answer = @buslane.Type::Parameter(dictionary.answer_parameter)
+  let residual = @buslane.Effect::Parameter(dictionary.residual_parameter)
   let data_constructor = dictionary_info.constructors[0]
   let fields = metadata.data_constructor_info(data_constructor).unwrap().payload_types
   assert_eq(
     fields[0],
-    Function([Function([Parameter(element)], answer, Empty)], answer, Empty),
+    Function(
+      [Function([Parameter(element)], answer, residual)],
+      answer,
+      residual,
+    ),
   )
   assert_eq(
     fields[1],
@@ -32,10 +41,10 @@ test "dictionary schema follows operation order and CPS field types" {
         [
           Parameter(hidden),
           Parameter(element),
-          Function([Primitive(Unit)], answer, Empty),
+          Function([Primitive(Unit)], answer, residual),
         ],
         answer,
-        Empty,
+        residual,
       ),
     ),
   )
@@ -85,7 +94,8 @@ test "type planning shares one generated schema" {
     schema.rewrite_type(Function([], Primitive(I64), Singleton(effect, []))),
   ]
   assert_eq(planned[0], pure_type)
-  guard planned[1] is Forall([_], Function(_, _, Empty)) else {
+  guard planned[1] is Forall([_, residual], Function(_, _, Parameter(latent))) &&
+    residual == latent else {
     abort("expected planned CPS type")
   }
   assert_eq(metadata.effect_info(effect).unwrap().operations, [])
@@ -98,19 +108,20 @@ test "context types cover empty singleton and ordered unions" {
   let second_effect = metadata.define_effect("Second", [])
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   let answer : @buslane.Type = Primitive(I64)
-  assert_eq(schema.packed_context_type(Empty, answer), Primitive(Unit))
+  assert_eq(schema.packed_context_type(Empty, answer, Empty), Primitive(Unit))
   let first_type = schema.context_term_type(
     Singleton(first_effect, []),
     answer,
     Empty,
   )
   assert_eq(
-    schema.packed_context_type(Singleton(first_effect, []), answer),
+    schema.packed_context_type(Singleton(first_effect, []), answer, Empty),
     first_type,
   )
   let packed = schema.packed_context_type(
     Union([Singleton(first_effect, []), Singleton(second_effect, [])]),
     answer,
+    Empty,
   )
   guard packed is Apply(Constructor(pack_type), arguments) else {
     abort("expected context pack")
@@ -158,15 +169,23 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
   )
   guard mixed
     is Forall(
-      [mixed_answer],
-      Function([_, Primitive(String), mixed_continuation], mixed_result, Io)
+      [mixed_answer, mixed_residual],
+      Function(
+        [_, Primitive(String), mixed_continuation],
+        mixed_result,
+        mixed_latent
+      )
     ) else {
     abort("expected mixed effect CPS type")
   }
+  // The function performs `Io` itself and propagates whatever its dictionary
+  // and continuation perform, so its row is both.
+  let mixed_row = @buslane.Effect::Union([Io, Parameter(mixed_residual)])
+  assert_eq(mixed_latent, mixed_row)
   assert_eq(mixed_result, Parameter(mixed_answer))
   assert_eq(
     mixed_continuation,
-    Function([Primitive(Unit)], Parameter(mixed_answer), Io),
+    Function([Primitive(Unit)], Parameter(mixed_answer), mixed_row),
   )
   let rewritten = schema.rewrite_type(
     Forall(
@@ -182,11 +201,11 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
     is Forall(
       [outer_companion],
       Forall(
-        [answer],
+        [answer, residual],
         Function(
           [outer_context, nested_callable, continuation],
           rewritten_answer,
-          Empty
+          outer_latent
         )
       )
     ) else {
@@ -195,18 +214,31 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
   assert_eq(outer_companion, companion)
   assert_eq(outer_context, Parameter(companion))
   assert_eq(rewritten_answer, Parameter(answer))
-  assert_eq(continuation, Function([Primitive(I64)], Parameter(answer), Empty))
+  assert_eq(outer_latent, Parameter(residual))
+  assert_eq(
+    continuation,
+    Function([Primitive(I64)], Parameter(answer), Parameter(residual)),
+  )
   guard nested_callable
     is Forall(
-      [nested_answer],
-      Function([nested_context, nested_continuation], nested_result, Empty)
+      [nested_answer, nested_residual],
+      Function(
+        [nested_context, nested_continuation],
+        nested_result,
+        nested_latent
+      )
     ) else {
     abort("expected nested callable CPS type")
   }
   assert_eq(nested_context, Parameter(companion))
   assert_eq(nested_result, Parameter(nested_answer))
+  assert_eq(nested_latent, Parameter(nested_residual))
   assert_eq(
     nested_continuation,
-    Function([Primitive(I64)], Parameter(nested_answer), Empty),
+    Function(
+      [Primitive(I64)],
+      Parameter(nested_answer),
+      Parameter(nested_residual),
+    ),
   )
 }

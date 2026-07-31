@@ -7,7 +7,32 @@ priv struct CpsContextBinding {
 ///|
 priv struct CpsEnvironment {
   effect : @buslane.Effect
+  residual : @buslane.Effect
   bindings : Array[CpsContextBinding]
+}
+
+///|
+/// What a CPS'd callable is instantiated at: the answer type and the residual
+/// its dictionary and continuation run under.
+///
+/// The two travel together because a dictionary type mentions both, so a site
+/// that knows one without the other cannot name the type it is handling.
+priv struct CpsAnswer {
+  type_ : @buslane.Type
+  residual : @buslane.Effect
+}
+
+///|
+fn CpsAnswer::arguments(self : CpsAnswer) -> Array[@buslane.GenericArgument] {
+  [TypeArgument(self.type_), EffectArgument(self.residual)]
+}
+
+///|
+fn CpsEnvironment::answer(
+  self : CpsEnvironment,
+  answer_type : @buslane.Type,
+) -> CpsAnswer {
+  { type_: answer_type, residual: self.residual }
 }
 
 ///|
@@ -90,7 +115,7 @@ fn lower_cps_binding_initializer(
   program : Program,
   id : @buslane.ValueId,
   initializer : Expr,
-  current_answer : @buslane.Type?,
+  current_answer : CpsAnswer?,
 ) -> Expr raise SynthesisError {
   let lowered = match initializer {
     Function(_) | TypeLambda(_, _) =>
@@ -173,7 +198,6 @@ fn lower_cps_function(
     Some(Function(_, _, effect)) => effect
     _ => body_facts.effect
   }
-  let residual_effect = residual_effect_part(program.metadata, latent_effect)
   let result_type = schema.rewrite_type(function.result_type)
   if !is_mon_effect(program.metadata, latent_effect) {
     Function({
@@ -182,14 +206,31 @@ fn lower_cps_function(
       body: lower_cps_direct_expr(schema, program, function.body, None),
     })
   } else {
-    let answer_parameter = match expected_cps_type {
+    let (answer_parameter, residual_parameter) = match expected_cps_type {
       Some(
-        Forall([answer_parameter], Function(_, Parameter(result_parameter), _))
-      ) if answer_parameter == result_parameter => answer_parameter
+        Forall(
+          [answer_parameter, residual_parameter],
+          Function(_, Parameter(result_parameter), _)
+        )
+      ) if answer_parameter == result_parameter =>
+        (answer_parameter, residual_parameter)
       Some(type_) => raise ExpectedForall(type_)
-      None => schema.metadata.define_type_parameter("%answer", Type)
+      None =>
+        (
+          schema.metadata.define_type_parameter("%answer", Type),
+          schema.metadata.define_type_parameter(
+            "%residual",
+            Effect,
+            flavor=External,
+          ),
+        )
     }
     let answer_type = @buslane.Type::Parameter(answer_parameter)
+    let residual_effect = cps_residual_effect(
+      program.metadata,
+      latent_effect,
+      Parameter(residual_parameter),
+    )
     let context_terms = effect_terms(
       program.metadata,
       mon_effect_part(program.metadata, latent_effect),
@@ -210,9 +251,13 @@ fn lower_cps_function(
       Parameter,
       Function([result_type], answer_type, residual_effect),
     )
-    let environment = CpsEnvironment::{ effect: latent_effect, bindings }
+    let environment = CpsEnvironment::{
+      effect: latent_effect,
+      residual: residual_effect,
+      bindings,
+    }
     TypeLambda(
-      [answer_parameter],
+      [answer_parameter, residual_parameter],
       Function({
         parameters: context_parameters + function.parameters + [continuation],
         result_type: answer_type,
@@ -234,7 +279,7 @@ fn lower_cps_direct_expr(
   schema : DictionaryCpsSchema,
   program : Program,
   expression : Expr,
-  current_answer : @buslane.Type?,
+  current_answer : CpsAnswer?,
 ) -> Expr raise SynthesisError {
   match expression {
     Ref(_) | Literal(_) => expression
@@ -246,7 +291,7 @@ fn lower_cps_direct_expr(
         lower_cps_direct_expr(schema, program, body, current_answer),
       )
     Call(callee, arguments) => {
-      if generated_cps_answer_type(program.metadata, callee) is Some(answer) {
+      if generated_cps_answer(program.metadata, callee) is Some(answer) {
         return Call(
           lower_cps_type_apply_chain(schema, program, callee, answer),
           arguments.map(argument => {
@@ -367,12 +412,23 @@ fn lower_cps_effectful_result_call(
     raise ExpectedFunction(source_result)
   }
   let answer_parameter = schema.metadata.define_type_parameter("%answer", Type)
+  let residual_parameter = schema.metadata.define_type_parameter(
+    "%residual",
+    Effect,
+    flavor=External,
+  )
   let answer_type = @buslane.Type::Parameter(answer_parameter)
+  let residual_effect = cps_residual_effect(
+    program.metadata,
+    latent_effect,
+    Parameter(residual_parameter),
+  )
+  let answer = CpsAnswer::{ type_: answer_type, residual: residual_effect }
   let lowered_callee = lower_cps_direct_expr(
     schema,
     program,
     callee,
-    Some(answer_type),
+    Some(answer),
   )
   let bindings : Array[(@buslane.ValueId, Expr)] = []
   let lowered_arguments : Array[Expr] = []
@@ -398,7 +454,7 @@ fn lower_cps_effectful_result_call(
     }
   }
   let context_parameters = schema
-    .context_argument_types(latent_effect, answer_type)
+    .context_argument_types(latent_effect, answer_type, residual_effect)
     .map(type_ => schema.metadata.define_value("%context", Parameter, type_))
   let value_parameters = parameter_types.map(type_ => {
     schema.metadata.define_value(
@@ -411,16 +467,16 @@ fn lower_cps_effectful_result_call(
   let continuation = schema.metadata.define_value(
     "%continuation",
     Parameter,
-    Function([rewritten_result], answer_type, Empty),
+    Function([rewritten_result], answer_type, residual_effect),
   )
   let produced : Expr = Call(lowered_callee, lowered_arguments)
   let expanded : Expr = TypeLambda(
-    [answer_parameter],
+    [answer_parameter, residual_parameter],
     Function({
       parameters: context_parameters + value_parameters + [continuation],
       result_type: answer_type,
       body: Call(
-        TypeApply(produced, [TypeArgument(answer_type)]),
+        TypeApply(produced, answer.arguments()),
         context_parameters.map(parameter => Ref(parameter)) +
         value_parameters.map(parameter => Ref(parameter)) +
         [Ref(continuation)],
@@ -451,9 +507,14 @@ fn lower_cps_direct_call(
   match callee_type {
     Function(_, _, _) => Call(callee, arguments)
     Forall(
-      [answer_parameter],
-      Function(parameters, Parameter(result_parameter), Empty)
-    ) if answer_parameter == result_parameter => {
+      [answer_parameter, residual_parameter],
+      Function(
+        parameters,
+        Parameter(result_parameter),
+        Parameter(latent_residual)
+      )
+    ) if answer_parameter == result_parameter &&
+      residual_parameter == latent_residual => {
       let non_context_count = arguments.length() + 1
       if parameters.length() < non_context_count {
         raise ArityMismatch(
@@ -469,10 +530,15 @@ fn lower_cps_direct_call(
       }
       guard parameters.last()
         is Some(
-          Function([continuation_input], Parameter(continuation_result), Empty)
+          Function(
+            [continuation_input],
+            Parameter(continuation_result),
+            Parameter(continuation_residual)
+          )
         ) &&
         continuation_input == result_type &&
-        continuation_result == answer_parameter else {
+        continuation_result == answer_parameter &&
+        continuation_residual == residual_parameter else {
         raise ExpectedFunction(callee_type)
       }
       build_empty_context_direct_call(
@@ -508,7 +574,13 @@ fn build_empty_context_direct_call(
       body: Ref(continuation_parameter),
     }),
   )
-  Call(TypeApply(callee, [TypeArgument(result_type)]), call_arguments)
+  // Reaching here means every context the callee wants is absent, so the
+  // identity continuation this hands it performs nothing and the callee is
+  // instantiated at the empty residual.
+  Call(
+    TypeApply(callee, [TypeArgument(result_type), EffectArgument(Empty)]),
+    call_arguments,
+  )
 }
 
 ///|
@@ -622,7 +694,7 @@ fn lower_cps_with_continuation(
           program,
           id,
           initializer,
-          Some(answer_type),
+          Some(environment.answer(answer_type)),
         )
         Let(
           id,
@@ -670,13 +742,13 @@ fn lower_cps_with_continuation(
       )
     }
     Call(callee, arguments) => {
-      if generated_cps_answer_type(program.metadata, callee) is Some(_) {
+      if generated_cps_answer(program.metadata, callee) is Some(_) {
         return Call(continuation, [
           lower_cps_direct_expr(
             schema,
             program,
             Call(callee, arguments),
-            Some(answer_type),
+            Some(environment.answer(answer_type)),
           ),
         ])
       }
@@ -693,7 +765,7 @@ fn lower_cps_with_continuation(
             schema,
             program,
             Call(callee, arguments),
-            Some(answer_type),
+            Some(environment.answer(answer_type)),
           ),
         ])
       } else {
@@ -707,7 +779,12 @@ fn lower_cps_with_continuation(
       let facts = synthesize_expr_or_raise(program.metadata, expression)
       if !is_mon_effect(program.metadata, facts.effect) {
         Call(continuation, [
-          lower_cps_direct_expr(schema, program, expression, Some(answer_type)),
+          lower_cps_direct_expr(
+            schema,
+            program,
+            expression,
+            Some(environment.answer(answer_type)),
+          ),
         ])
       } else {
         lower_cps_monadic_match(
@@ -759,7 +836,12 @@ fn lower_cps_with_continuation(
     | TypeApply(_, _)
     | Construct(_) =>
       Call(continuation, [
-        lower_cps_direct_expr(schema, program, expression, Some(answer_type)),
+        lower_cps_direct_expr(
+          schema,
+          program,
+          expression,
+          Some(environment.answer(answer_type)),
+        ),
       ])
   }
 }
