@@ -74,12 +74,6 @@ pub(all) struct BuslaneModuleObjectSet {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct BuslaneLoweringImports {
-  direct : @module_interface.ImportedEnvironment
-  available : @module_interface.ImportedEnvironment
-} derive(Debug, Eq)
-
-///|
 pub(all) suberror BuslaneLoweringError {
   MissingTypeReference(@symbol.TypeSymbolId)
   MissingEffectReference(@symbol.EffectSymbolId)

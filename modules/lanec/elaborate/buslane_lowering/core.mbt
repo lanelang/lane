@@ -109,7 +109,7 @@ pub fn lower_checked_source_files_to_buslane_objects(
 ///|
 pub fn lower_checked_source_file_to_buslane_object_with_imports(
   source : @checked.CheckedSourceFile,
-  imported : BuslaneLoweringImports,
+  imported : @module_interface.ModuleImportEnvironments,
 ) -> Result[BuslaneModuleObject, BuslaneLoweringError] {
   let lowerer = BuslaneLowerer::BuslaneLowerer()
   match lowerer.seed_imported_interfaces(imported) {

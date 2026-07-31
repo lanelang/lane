@@ -9,7 +9,7 @@ priv struct CachedModuleInterface {
 priv struct CachedSemanticModule {
   input : @module_frontend.ParsedModuleInput
   completion_source : CompletionSource
-  imported : @module_interface.ImportedEnvironment
+  imports : @module_interface.ModuleImportEnvironments
   index : SemanticIndex
   diagnostics : Array[CompilerDiagnostic]
   semantic_tokens : Array[SemanticTokenEntry]
@@ -420,8 +420,8 @@ fn SemanticWorkspace::rebuild_all_modules(
   let mut definition_locations = SymbolLocationIndex::empty()
   for index, input in graph_modules {
     let module_path = input.header.module_path_text
-    let imported = imported_environment(input.header, next_cache)
-    if imported.modules.length() != input.header.imports.length() {
+    let imports = module_import_environments(input.header, next_cache)
+    if imports.direct.modules.length() != input.header.imports.length() {
       continue
     }
     let previous = self.module_cache.get(module_path)
@@ -429,16 +429,19 @@ fn SemanticWorkspace::rebuild_all_modules(
       Some(cached) => !same_module_input(cached.input, input)
       None => true
     }
-    let imports_changed = input.header.imports.any(fn(import_) {
-      changed_interfaces.contains(import_.module_path_text)
+    // Reuse depends on the whole reachable closure, not only direct imports: a
+    // change to a transitively reached interface can change the nominal shapes
+    // this module resolves field, variant, and operation names against.
+    let imports_changed = imports.available.modules.any(fn(interface) {
+      changed_interfaces.contains(interface.module_path)
     })
     let module_ = match previous {
       Some(cached) if !input_changed && !imports_changed => cached
       _ => {
         let rebuilt = build_cached_semantic_module(
           input,
-          imported,
-          imported_symbol_metadata(input.header, next_cache),
+          imports,
+          imported_symbol_metadata(imports, next_cache),
           self.allocator,
           previous,
         )
@@ -504,12 +507,12 @@ fn SemanticWorkspace::rebuild_dirty_modules(
       continue
     }
     guard parsed.module_ is Some(input) else { continue }
-    let imported = imported_environment(input.header, self.module_cache)
+    let imports = module_import_environments(input.header, self.module_cache)
     let previous_definitions = match modules.get(index) {
       Some(Available(module_)) => module_.index.definitions
       _ => []
     }
-    if imported.modules.length() != input.header.imports.length() {
+    if imports.direct.modules.length() != input.header.imports.length() {
       self.module_cache.remove(module_path)
       modules = modules.set(index, Missing)
       definition_locations = definition_locations.replace_definitions(
@@ -521,8 +524,8 @@ fn SemanticWorkspace::rebuild_dirty_modules(
     let previous = self.module_cache.get(module_path)
     let rebuilt = build_cached_semantic_module(
       input,
-      imported,
-      imported_symbol_metadata(input.header, self.module_cache),
+      imports,
+      imported_symbol_metadata(imports, self.module_cache),
       self.allocator,
       previous,
     )
@@ -535,7 +538,7 @@ fn SemanticWorkspace::rebuild_dirty_modules(
     )
     if module_.presentation_fingerprint() !=
       cached_presentation_fingerprint(previous) {
-      for dependent_slot in graph.dependents_of_slot(index) {
+      for dependent_slot in graph.transitive_dependents_of_slot(index) {
         if dependent_slot > index {
           dirty_slots[dependent_slot] = true
         }
@@ -548,33 +551,45 @@ fn SemanticWorkspace::rebuild_dirty_modules(
 }
 
 ///|
-fn imported_environment(
+/// Builds the import environments one cached module compiles against.
+///
+/// The workspace offers every module it has successfully checked as the pool;
+/// `ModuleImportEnvironments` owns the rule that decides which of those a
+/// module may name and which it may only look declarations up in.
+fn module_import_environments(
   header : @module_frontend.ModuleHeader,
   modules : Map[String, CachedSemanticModule],
-) -> @module_interface.ImportedEnvironment {
-  let imported = []
-  for import_ in header.imports {
-    if modules.get(import_.module_path_text) is Some(cached) &&
-      cached.last_successful_interface is Some(interface) {
-      imported.push({
+) -> @module_interface.ModuleImportEnvironments {
+  let pool = []
+  for _, cached in modules {
+    if cached.last_successful_interface is Some(interface) {
+      pool.push({
         ..interface.interface,
         source_id: Some(cached.input.source_id),
       })
     }
   }
-  { modules: imported }
+  @module_interface.ModuleImportEnvironments::from_pool(
+    header.imports.map(fn(import_) { import_.module_path_text }),
+    { modules: pool },
+  )
 }
 
 ///|
+/// Symbol metadata arenas for every interface in `environments.available`.
+///
+/// This follows the same closure as type checking: a module that resolves a
+/// declaration owned by a transitively reachable interface also needs that
+/// interface's symbol metadata to display and navigate it.
 fn imported_symbol_metadata(
-  header : @module_frontend.ModuleHeader,
+  environments : @module_interface.ModuleImportEnvironments,
   modules : Map[String, CachedSemanticModule],
 ) -> Array[@symbol.SymbolMetadataArena] {
   let imported = []
-  for import_ in header.imports {
-    if modules.get(import_.module_path_text) is Some(cached) &&
-      cached.last_successful_interface is Some(interface) {
-      imported.push(interface.symbols)
+  for interface in environments.available.modules {
+    if modules.get(interface.module_path) is Some(cached) &&
+      cached.last_successful_interface is Some(cached_interface) {
+      imported.push(cached_interface.symbols)
     }
   }
   imported
@@ -635,7 +650,7 @@ fn SemanticWorkspace::snapshot_from_current_state(
 ///|
 fn build_cached_semantic_module(
   input : @module_frontend.ParsedModuleInput,
-  imported : @module_interface.ImportedEnvironment,
+  imports : @module_interface.ModuleImportEnvironments,
   imported_symbols : Array[@symbol.SymbolMetadataArena],
   allocator : @symbol.SymbolIdentityAllocator,
   previous : CachedSemanticModule?,
@@ -647,7 +662,7 @@ fn build_cached_semantic_module(
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,
     registry,
-    imported,
+    imports.direct,
     previous_declarations~,
   )
   let display = @typecheck.TypeDisplayContext::from_registry(registry)
@@ -658,7 +673,7 @@ fn build_cached_semantic_module(
     Some(
       @typecheck.typecheck_checked_source_file_with_imported_environment(
         resolved.source,
-        imported,
+        imports.typecheck_environment(),
       ),
     )
   } else {
@@ -712,7 +727,7 @@ fn build_cached_semantic_module(
   {
     input,
     completion_source: CompletionSource::from_input(input),
-    imported,
+    imports,
     index,
     diagnostics,
     semantic_tokens: build_semantic_tokens(

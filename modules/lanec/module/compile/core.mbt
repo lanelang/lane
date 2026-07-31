@@ -107,13 +107,12 @@ fn check_module_graph(
   let checked_modules : Array[CheckedModule] = []
   let diagnostics : Array[CompilerDiagnostic] = []
   for input in graph.modules {
-    let direct = imported_interfaces(input.header, checked_modules)
-    let available = imported_interface_closure(
+    let environments = @module_interface.ModuleImportEnvironments::from_pool(
       input.header.imports.map(fn(import_) { import_.module_path_text }),
-      checked_modules,
+      checked_module_interfaces(checked_modules),
     )
     let registry = allocator.registry(imports=visible_symbols)
-    match compile_one_module(input, registry, direct, available, observe) {
+    match compile_one_module(input, registry, environments, observe) {
       Ok(compiled) => {
         observe(input.header.module_path_text, Checked(compiled.checked))
         checked_modules.push(compiled)
@@ -164,8 +163,11 @@ pub fn compile_module_from_interface_artifacts(
     registry,
     ordered_interfaces.interfaces,
   )
-  let direct = direct_imported_interfaces(input.header, imported)
-  match compile_one_module(input, registry, direct, imported, (_, _) => ()) {
+  let environments = @module_interface.ModuleImportEnvironments::from_pool(
+    input.header.imports.map(fn(import_) { import_.module_path_text }),
+    imported,
+  )
+  match compile_one_module(input, registry, environments, (_, _) => ()) {
     Err(diagnostics) => Err(diagnostics)
     Ok(success) => {
       let imported_fingerprints = imported_interface_fingerprints_from_artifacts(
@@ -178,7 +180,7 @@ pub fn compile_module_from_interface_artifacts(
       let lowered = match
         @buslane_lowering.lower_checked_source_file_to_buslane_object_with_imports(
           module_.checked,
-          { direct, available: imported },
+          environments,
         ) {
         Ok(lowered) => lowered
         Err(error) =>

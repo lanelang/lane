@@ -301,6 +301,7 @@ graph TD
   ISS_273["ISS-273: Enforce compiler quality gates in CI"]
   ISS_274["ISS-274: Document public compiler seam contracts"]
   ISS_275["ISS-275: Implement the documented Explore Protocol v1"]
+  ISS_276["ISS-276: Give module import environments a single owner"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

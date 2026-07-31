@@ -472,7 +472,9 @@ fn imported_interface_for_owner(
 ) -> @module_interface.ModuleInterface? {
   for _, binding in module_.index.module_bindings {
     if binding.name == owner {
-      return module_.imported.find(binding.module_path)
+      // Module-qualified completion offers only what the module bound by name,
+      // so this stays on the direct environment.
+      return module_.imports.direct.find(binding.module_path)
     }
   }
   None
@@ -791,7 +793,9 @@ fn CompletionIndex::add_imported_fields_for_type(
   symbol : @symbol.TypeSymbolId,
   display : @typecheck.TypeDisplayContext,
 ) -> Unit {
-  for interface in module_.imported.modules {
+  // Fields are owner-visible members, so they are offered for any type the
+  // module can reach, not only for types it imported by name.
+  for interface in module_.imports.available.modules {
     for type_ in interface.types {
       match type_ {
         Struct(struct_) if struct_.symbol == symbol =>

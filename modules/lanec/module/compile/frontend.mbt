@@ -21,95 +21,20 @@ priv struct CheckedModuleSet {
 }
 
 ///|
-fn imported_interfaces(
-  header : @module_frontend.ModuleHeader,
+fn checked_module_interfaces(
   modules : Array[CheckedModule],
 ) -> @module_interface.ImportedEnvironment {
-  let imported = []
-  for import_ in header.imports {
-    if find_checked_module(modules, import_.module_path_text) is Some(module_) {
-      imported.push(module_.interface)
-    }
-  }
-  { modules: imported }
-}
-
-///|
-fn imported_interface_closure(
-  roots : Array[String],
-  modules : Array[CheckedModule],
-) -> @module_interface.ImportedEnvironment {
-  let included : Array[String] = []
-  for root in roots {
-    collect_imported_interface_paths(root, modules, included)
-  }
-  {
-    modules: modules
-    .filter(fn(module_) { included.contains(module_.module_path_text) })
-    .map(fn(module_) { module_.interface }),
-  }
-}
-
-///|
-fn collect_imported_interface_paths(
-  module_path : String,
-  modules : Array[CheckedModule],
-  included : Array[String],
-) -> Unit {
-  if included.contains(module_path) {
-    return
-  }
-  guard find_checked_module(modules, module_path) is Some(module_) else {
-    return
-  }
-  for imported in module_.imported_interface_fingerprints {
-    collect_imported_interface_paths(
-      imported.module_path_text,
-      modules,
-      included,
-    )
-  }
-  included.push(module_path)
-}
-
-///|
-fn direct_imported_interfaces(
-  header : @module_frontend.ModuleHeader,
-  available : @module_interface.ImportedEnvironment,
-) -> @module_interface.ImportedEnvironment {
-  let imported = []
-  for import_ in header.imports {
-    if available.find(import_.module_path_text) is Some(interface) {
-      imported.push(interface)
-    }
-  }
-  { modules: imported }
-}
-
-///|
-fn typecheck_imported_interfaces(
-  direct : @module_interface.ImportedEnvironment,
-  available : @module_interface.ImportedEnvironment,
-) -> @module_interface.ImportedEnvironment {
-  {
-    modules: available.modules.map(fn(interface) {
-      if direct.find(interface.module_path) is Some(_) {
-        interface
-      } else {
-        { ..interface, values: [], optimization_hints: [] }
-      }
-    }),
-  }
+  { modules: modules.map(fn(module_) { module_.interface }) }
 }
 
 ///|
 fn compile_one_module(
   input : @module_frontend.ParsedModuleInput,
   registry : @symbol.SymbolRegistry,
-  direct : @module_interface.ImportedEnvironment,
-  available : @module_interface.ImportedEnvironment,
+  environments : @module_interface.ModuleImportEnvironments,
   observe : (String, ModuleCompileStage) -> Unit,
 ) -> Result[CheckedModule, Array[CompilerDiagnostic]] {
+  let direct = environments.direct
   let display = @typecheck.TypeDisplayContext::from_registry(registry)
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,
@@ -123,10 +48,9 @@ fn compile_one_module(
     return Err(resolve_diagnostics)
   }
   observe(input.header.module_path_text, Resolved(resolved.source))
-  let imported = typecheck_imported_interfaces(direct, available)
   let checked = @typecheck.typecheck_checked_source_file_with_imported_environment(
     resolved.source,
-    imported,
+    environments.typecheck_environment(),
   )
   let typecheck_diagnostics = checked.diagnostics.map(fn(diagnostic) {
     typecheck_diagnostic(diagnostic, display).with_source_id(input.source_id)

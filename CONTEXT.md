@@ -114,6 +114,14 @@ _Avoid_: project, module graph, linked program
 The externally supplied module interfaces visible while compiling one **Compilation Unit**.
 _Avoid_: concatenated source, prelude text, linker output
 
+**Direct Import Environment**:
+The part of an **Imported Environment** a **Compilation Unit** imports by name, which alone contributes importable declarations, **Module Bindings**, and **Visible Offers**.
+_Avoid_: reachable interface closure, whole module graph, link-time symbol table
+
+**Reachable Interface Closure**:
+The part of an **Imported Environment** transitively reachable from a **Direct Import Environment** through **Module Interface** type and effect references, against which declarations are resolved.
+_Avoid_: direct import environment, source import graph, link-time dependency set
+
 **Module Interface**:
 The compiler-readable interface artifact for a compiled **Module**, including its exported type, value, and offer surface plus downstream compilation metadata such as **Optimization Hints**.
 _Avoid_: checked source body, private declarations, source AST
@@ -482,6 +490,9 @@ _Avoid_: VS Code extension, compiler front end
 - Source locations carry **Source Identity**.
 - A **Compilation Unit** may be checked against an **Imported Environment**.
 - An **Imported Environment** is made of **Module Interfaces**.
+- A **Direct Import Environment** decides which names a **Compilation Unit** may write; a **Reachable Interface Closure** decides which declarations those names resolve to.
+- A **Reachable Interface Closure** hides values and **Optimization Hints** from **Module Interfaces** outside the **Direct Import Environment**.
+- Every consumer of an **Imported Environment**, including source-set compilation, separate compilation, semantic analysis, and Buslane lowering, applies the same **Direct Import Environment** and **Reachable Interface Closure** split.
 - `lanec` core compiles one **Compilation Unit** without recursively resolving imports.
 - CLI and **Build Workflows** construct the **Imported Environment** before calling `lanec`.
 - A **Module Interface** is consumed during downstream compilation.
@@ -592,6 +603,7 @@ _Avoid_: VS Code extension, compiler front end
 - Declarations are module-private unless they are **Exported Declarations**.
 - A **Visibility Modifier** applies only to top-level declarations.
 - Type members, fields, and variants are **Owner-Visible Members**.
+- **Owner-Visible Members** stay usable through the **Reachable Interface Closure**; projecting a field or matching an unqualified variant does not require importing the **Module** that declares the type, while naming that type does.
 - A **Module Interface** includes each **Exported Nominal Shape**.
 - Public type aliases are **Transparent Exports**.
 - Public signatures only mention **Interface-Visible Types**.

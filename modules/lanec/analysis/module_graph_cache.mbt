@@ -82,6 +82,34 @@ fn CachedModuleGraph::dependents_of_slot(
 }
 
 ///|
+/// Slots of every module whose analysis can observe a change to `slot`.
+///
+/// Reverse dependency is transitive rather than direct because an interface
+/// exposes nominal shapes owned by the modules it imports. A module that
+/// projects an owner-visible member of a transitively reachable type depends on
+/// the declaring module even though the interface between them may be
+/// unchanged, so stopping at direct importers would leave stale shapes cached.
+fn CachedModuleGraph::transitive_dependents_of_slot(
+  self : CachedModuleGraph,
+  slot : Int,
+) -> Array[Int] {
+  let collected : Array[Int] = []
+  for dependent in self.dependents_of_slot(slot) {
+    if !collected.contains(dependent) {
+      collected.push(dependent)
+    }
+  }
+  for index = 0; index < collected.length(); index = index + 1 {
+    for dependent in self.dependents_of_slot(collected[index]) {
+      if !collected.contains(dependent) {
+        collected.push(dependent)
+      }
+    }
+  }
+  collected
+}
+
+///|
 fn cached_module_graph_input_header(
   module_ : @module_frontend.ParsedModuleInput,
 ) -> CachedModuleGraphInputHeader {

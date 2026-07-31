@@ -1,7 +1,7 @@
 ///|
 fn BuslaneLowerer::seed_imported_interfaces(
   self : BuslaneLowerer,
-  imported : BuslaneLoweringImports,
+  imported : @module_interface.ModuleImportEnvironments,
 ) -> Result[Unit, BuslaneLoweringError] {
   for interface in imported.direct.modules {
     for type_ in interface.types {
@@ -116,6 +116,14 @@ fn interface_type_name(type_ : @module_interface.ModuleInterfaceType) -> String 
 }
 
 ///|
+/// Seeds every constructor of a directly imported type.
+///
+/// A direct import can name the type, so building a value of it is reachable
+/// and its data constructors become link edges. Types reached only through the
+/// interface closure get the narrower
+/// `seed_unimported_owner_visible_members` treatment instead.
+///
+/// Seeding is idempotent: a type reached both ways is defined once.
 fn BuslaneLowerer::seed_imported_type_constructors(
   self : BuslaneLowerer,
   module_path_text : String,
@@ -123,6 +131,14 @@ fn BuslaneLowerer::seed_imported_type_constructors(
 ) -> Unit {
   match type_ {
     Struct(declaration) => {
+      if self.registry.find_struct_constructor(declaration.symbol) is Some(_) {
+        for field in declaration.fields {
+          self.seed_imported_field_selector(
+            module_path_text, declaration, field,
+          )
+        }
+        return
+      }
       let owner = self.type_id(declaration.symbol)
       let hidden_type_parameters = declaration.type_members.map(fn(
         type_member,
@@ -153,35 +169,46 @@ fn BuslaneLowerer::seed_imported_type_constructors(
         self.seed_imported_field_selector(module_path_text, declaration, field)
       }
     }
-    Enum(declaration) => {
-      let owner = self.type_id(declaration.symbol)
-      for variant in declaration.variants {
-        let hidden_type_parameters = variant.type_parameters.map(fn(parameter) {
-          self.define_type_parameter(parameter)
-        })
-        let payload_types = variant.payload.map(fn(type_) {
-          self.lower_type(type_)
-        })
-        let data_constructor = self.metadata.define_data_constructor(
-          variant.name,
-          owner,
-          hidden_type_parameters,
-          payload_types,
-        )
-        ignore(
-          self.registry.register_data_constructor(
-            variant.symbol,
-            data_constructor,
-          ),
-        )
-        self.imports.push({
-          module_path_text,
-          name: variant.name,
-          reference: DataConstructor(data_constructor),
-        })
-      }
-    }
+    Enum(declaration) =>
+      self.seed_imported_variant_constructors(module_path_text, declaration)
     External(_) => ()
+  }
+}
+
+///|
+/// Seeds the data constructors of an imported enum.
+///
+/// Variants are owner-visible members reachable through unqualified patterns,
+/// so this runs for enums reached through the interface closure as well as for
+/// directly imported ones.
+fn BuslaneLowerer::seed_imported_variant_constructors(
+  self : BuslaneLowerer,
+  module_path_text : String,
+  declaration : @module_interface.ModuleInterfaceEnum,
+) -> Unit {
+  let owner = self.type_id(declaration.symbol)
+  for variant in declaration.variants {
+    if self.registry.find_data_constructor(variant.symbol) is Some(_) {
+      continue
+    }
+    let hidden_type_parameters = variant.type_parameters.map(fn(parameter) {
+      self.define_type_parameter(parameter)
+    })
+    let payload_types = variant.payload.map(fn(type_) { self.lower_type(type_) })
+    let data_constructor = self.metadata.define_data_constructor(
+      variant.name,
+      owner,
+      hidden_type_parameters,
+      payload_types,
+    )
+    ignore(
+      self.registry.register_data_constructor(variant.symbol, data_constructor),
+    )
+    self.imports.push({
+      module_path_text,
+      name: variant.name,
+      reference: DataConstructor(data_constructor),
+    })
   }
 }
 

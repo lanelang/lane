@@ -5,20 +5,16 @@ fn lower_checked_modules(
 ) -> Result[Array[CompiledModule], CompilerDiagnostic] {
   let lowered_modules : Array[CompiledModule] = []
   for module_ in modules {
-    let direct = imported_interfaces_from_checked_modules(
-      module_.imported_interface_fingerprints,
-      modules,
-    )
-    let available = imported_interface_closure(
+    let environments = @module_interface.ModuleImportEnvironments::from_pool(
       module_.imported_interface_fingerprints.map(fn(imported) {
         imported.module_path_text
       }),
-      modules,
+      checked_module_interfaces(modules),
     )
     let lowered = match
       @buslane_lowering.lower_checked_source_file_to_buslane_object_with_imports(
         module_.checked,
-        { direct, available },
+        environments,
       ) {
       Ok(lowered) => lowered
       Err(error) =>
@@ -40,20 +36,6 @@ fn lower_checked_modules(
     lowered_modules.push(compiled)
   }
   Ok(lowered_modules)
-}
-
-///|
-fn imported_interfaces_from_checked_modules(
-  imported : Array[@artifact.ImportedInterfaceFingerprint],
-  modules : Array[CheckedModule],
-) -> @module_interface.ImportedEnvironment {
-  let interfaces = []
-  for item in imported {
-    if find_checked_module(modules, item.module_path_text) is Some(module_) {
-      interfaces.push(module_.interface)
-    }
-  }
-  { modules: interfaces }
 }
 
 ///|

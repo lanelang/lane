@@ -108,12 +108,33 @@ fn BuslaneLowerer::seed_imported_type_dependency(
     }
     self.seed_imported_effect_header(reference.module_path, effect)
   }
-  if type_ is Struct(declaration) {
-    for field in declaration.fields {
-      self.seed_imported_field_selector(module_path, declaration, field)
-    }
-  }
+  self.seed_unimported_owner_visible_members(module_path, type_)
   Ok(())
+}
+
+///|
+/// Seeds the members of a type reached through the interface closure that stay
+/// usable without importing the module that declares it.
+///
+/// Field projection and unqualified variant patterns both reach owner-visible
+/// members of a type the current module never imported, so field selectors and
+/// variant data constructors must exist. Building a value names the type
+/// itself, which requires an import, so a struct's data constructor is left to
+/// the direct-import path and does not become a link edge here.
+fn BuslaneLowerer::seed_unimported_owner_visible_members(
+  self : BuslaneLowerer,
+  module_path_text : String,
+  type_ : @module_interface.ModuleInterfaceType,
+) -> Unit {
+  match type_ {
+    Struct(declaration) =>
+      for field in declaration.fields {
+        self.seed_imported_field_selector(module_path_text, declaration, field)
+      }
+    Enum(declaration) =>
+      self.seed_imported_variant_constructors(module_path_text, declaration)
+    External(_) => ()
+  }
 }
 
 ///|

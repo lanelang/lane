@@ -13,7 +13,7 @@ import {
 // Values
 pub fn lower_checked_source_file_to_buslane(@checked.CheckedSourceFile) -> @buslane.Program
 
-pub fn lower_checked_source_file_to_buslane_object_with_imports(@checked.CheckedSourceFile, BuslaneLoweringImports) -> Result[BuslaneModuleObject, BuslaneLoweringError]
+pub fn lower_checked_source_file_to_buslane_object_with_imports(@checked.CheckedSourceFile, @module.ModuleImportEnvironments) -> Result[BuslaneModuleObject, BuslaneLoweringError]
 
 pub fn lower_checked_source_file_to_buslane_result(@checked.CheckedSourceFile) -> BuslaneLowerResult
 
@@ -52,11 +52,6 @@ pub(all) struct BuslaneLowerResult {
   program : @buslane.Program
   externals : BuslaneExternalMap
   entries : Array[BuslaneEntry]
-} derive(Eq, @debug.Debug)
-
-pub(all) struct BuslaneLoweringImports {
-  direct : @module.ImportedEnvironment
-  available : @module.ImportedEnvironment
 } derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneModuleExport {

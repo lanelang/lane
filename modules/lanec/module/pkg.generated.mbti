@@ -21,6 +21,13 @@ pub(all) struct ImportedEnvironment {
 pub fn ImportedEnvironment::ImportedEnvironment() -> Self
 pub fn ImportedEnvironment::find(Self, String) -> ModuleInterface?
 
+pub(all) struct ModuleImportEnvironments {
+  direct : ImportedEnvironment
+  available : ImportedEnvironment
+} derive(Eq, @debug.Debug)
+pub fn ModuleImportEnvironments::from_pool(Array[String], ImportedEnvironment) -> Self
+pub fn ModuleImportEnvironments::typecheck_environment(Self) -> ImportedEnvironment
+
 pub(all) struct ModuleInterface {
   module_path : String
   source_id : String?
