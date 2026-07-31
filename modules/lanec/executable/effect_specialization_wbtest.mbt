@@ -331,3 +331,60 @@ test "handler residual effects specialize before answer-type CPS" {
     Some(Function([unit_type], unit_type, concrete_residual)),
   )
 }
+
+///|
+/// Specializing an effect-generic data type has to reach the declarations that
+/// name it, not only the expressions that build it. A monomorphic definition
+/// and a retained data constructor both keep their declared types while their
+/// bodies are rewritten around them.
+test "effect specialization rewrites retained declarations that name a specialized type" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  let log = metadata.define_effect("Log", [])
+  let box = metadata.define_type("Box", [effect_parameter])
+  let make_box = metadata.define_data_constructor("box", box, [], [
+    Primitive(I64),
+  ])
+  let boxed : @buslane.Type = Apply(Constructor(box), [
+    EffectArgument(Singleton(log, [])),
+  ])
+  let holder = metadata.define_type("Holder", [])
+  let make_holder = metadata.define_data_constructor("holder", holder, [], [
+    boxed,
+  ])
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], Constructor(holder), Empty),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: Constructor(holder),
+          body: Construct({
+            data_constructor: make_holder,
+            type_arguments: [],
+            hidden_witnesses: [],
+            payloads: [
+              Construct({
+                data_constructor: make_box,
+                type_arguments: [EffectArgument(Singleton(log, []))],
+                hidden_witnesses: [],
+                payloads: [Literal(I64(1L))],
+              }),
+            ],
+          }),
+        }),
+      ),
+    ],
+  }
+  let specialized = specialize_reachable_effects(program, entry)
+  let result = @buslane.verify_program(specialized)
+  if !result.is_ok() {
+    fail("specialized program did not verify: \{Repr(result)}")
+  }
+}

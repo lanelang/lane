@@ -208,9 +208,12 @@ fn specialize_reachable_effects(
             specializer.find_definition(id) is None ||
             specializer.is_runtime_polymorphic_definition(id)
           ) {
-          terms.push(
-            Let(id, specializer.rewrite_expr(rhs, specializer.root_scope())),
+          let rewritten = specializer.rewrite_expr(
+            rhs,
+            specializer.root_scope(),
           )
+          specializer.specialize_retained_value_type(id)
+          terms.push(Let(id, rewritten))
         }
       LetRec(bindings) => {
         let rewritten : Array[@buslane.RecursiveBinding] = []
@@ -220,13 +223,12 @@ fn specialize_reachable_effects(
               specializer.find_definition(binding.id) is None ||
               specializer.is_runtime_polymorphic_definition(binding.id)
             ) {
-            rewritten.push({
-              id: binding.id,
-              rhs: specializer.rewrite_expr(
-                binding.rhs,
-                specializer.root_scope(),
-              ),
-            })
+            let rhs = specializer.rewrite_expr(
+              binding.rhs,
+              specializer.root_scope(),
+            )
+            specializer.specialize_retained_value_type(binding.id)
+            rewritten.push({ id: binding.id, rhs })
           }
         }
         if !rewritten.is_empty() {
@@ -235,6 +237,7 @@ fn specialize_reachable_effects(
       }
       External(id) =>
         if specializer.is_reachable(id) {
+          specializer.specialize_retained_value_type(id)
           terms.push(External(id))
         }
     }
@@ -257,6 +260,7 @@ fn specialize_reachable_effects(
   if !specialized_bindings.is_empty() {
     terms.push(LetRec(specialized_bindings))
   }
+  specializer.specialize_retained_declarations()
   { metadata: program.metadata, terms }
 }
 
@@ -900,6 +904,75 @@ fn EffectSpecializer::specialize_type_scheme(
   } else {
     Forall(retained, specialized)
   }
+}
+
+///|
+/// Rewrites the declarations the pass keeps in place.
+///
+/// A data constructor or operation whose owner carries no effect parameters is
+/// never copied, but its payloads can still name a type that was. Runs after
+/// every instance has been requested, so each specialized target already exists.
+///
+/// Owners that do carry effect parameters are skipped: their declarations
+/// mention those parameters, and a copy of them exists per instance already.
+fn EffectSpecializer::specialize_retained_declarations(
+  self : EffectSpecializer,
+) -> Unit raise ExecutableElaborationError {
+  for index in 0..<self.program.metadata.data_constructors.length() {
+    let info = self.program.metadata.data_constructors[index]
+    guard self.program.metadata.type_info(info.owner) is Some(owner) else {
+      continue
+    }
+    if owner.parameters.any(parameter => {
+        type_parameter_is_effect(self.program.metadata, parameter)
+      }) {
+      continue
+    }
+    self.program.metadata.data_constructors[index] = {
+      ..info,
+      payload_types: info.payload_types.map(type_ => {
+        self.specialize_type(type_, [])
+      }),
+    }
+  }
+  for index in 0..<self.program.metadata.operations.length() {
+    let info = self.program.metadata.operations[index]
+    guard self.program.metadata.effect_info(info.owner) is Some(owner) else {
+      continue
+    }
+    if owner.parameters.any(parameter => {
+        type_parameter_is_effect(self.program.metadata, parameter)
+      }) {
+      continue
+    }
+    self.program.metadata.operations[index] = {
+      ..info,
+      payload_types: info.payload_types.map(type_ => {
+        self.specialize_type(type_, [])
+      }),
+      result_type: self.specialize_type(info.result_type, []),
+    }
+  }
+}
+
+///|
+/// Rewrites the declared type of a binding the pass keeps in place.
+///
+/// A definition that carries no effect parameters of its own is not copied, but
+/// its type can still name an effect-generic data type that was. Rewriting only
+/// the body would leave the declaration describing the source type while every
+/// expression around it builds the specialized one.
+fn EffectSpecializer::specialize_retained_value_type(
+  self : EffectSpecializer,
+  id : @buslane.ValueId,
+) -> Unit raise ExecutableElaborationError {
+  guard self.program.metadata.value_info(id) is Some(info) else {
+    raise UnsupportedEffectSpecialization(
+      detail="a retained definition is missing metadata",
+    )
+  }
+  let specialized = self.specialize_type(info.type_, [])
+  self.program.metadata.values[id.index] = { ..info, type_: specialized }
 }
 
 ///|
