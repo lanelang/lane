@@ -1,0 +1,35 @@
+// Valid: negation merges with an immediately nested integer literal, so the
+// signed minimum of each width is writable even though its magnitude is not
+// itself a value of that type.
+
+module Examples.Valid.I64SignedMinimum
+
+import Basic.Data.I64.*
+import Basic.Ops.*
+import Test.Assert.{ Assert, execute_all_test }
+
+pub let signed_minimum : I64 = -9223372036854775808
+
+pub let signed_maximum : I64 = 9223372036854775807
+
+fn is_signed_minimum(value : I64) -> Bool {
+  match value {
+    -9223372036854775808 => true
+    _ => false
+  }
+}
+
+fn test_i64_signed_minimum() -> Unit ! Assert {
+  // Adding the maximum pins the minimum to -2^63: no other negative value,
+  // including the I32 minimum, satisfies this.
+  assert_eq!(signed_minimum + signed_maximum, -1, i64_impl_equal)
+  assert_true!(signed_minimum < 0)
+  assert_true!(is_signed_minimum(signed_minimum))
+  assert_false!(is_signed_minimum(signed_minimum + 1))
+  assert_eq!(-42 + 42, 0, i64_impl_equal)
+}
+
+pub fn answer() -> Unit ! Io {
+  test_i64_signed_minimum
+    |> execute_all_test()
+}

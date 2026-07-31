@@ -235,11 +235,25 @@ fn SemanticChecker::check_checked_expr_with_expectation(
         ),
         expectation.type_,
       ).with_expectation_match(MatchesExpectation)
+    // Negation merges with an immediately nested integer literal so that the
+    // signed minimum of each width is writable. Its magnitude is not itself a
+    // value of that type, so checking the operand alone and negating afterwards
+    // would reject `-2147483648` and `-9223372036854775808`.
     Unary(operator=Neg, operand=Literal(literal=Integer(raw), ..), loc~, ..) if expectation.type_ ==
       Primitive(I32) =>
       checked_expression(
         Literal(
           literal=I32(self.check_negated_i32_literal(raw, loc)),
+          type_=expectation.type_,
+          loc~,
+        ),
+        expectation.type_,
+      ).with_expectation_match(MatchesExpectation)
+    Unary(operator=Neg, operand=Literal(literal=Integer(raw), ..), loc~, ..) if expectation.type_ ==
+      Primitive(I64) =>
+      checked_expression(
+        Literal(
+          literal=I64(self.check_negated_i64_literal(raw, loc)),
           type_=expectation.type_,
           loc~,
         ),

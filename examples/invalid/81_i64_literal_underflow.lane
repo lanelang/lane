@@ -1,0 +1,5 @@
+module Examples.Invalid.I64LiteralUnderflow
+
+import Basic.Ops.*
+
+pub let too_small : I64 = -9223372036854775809

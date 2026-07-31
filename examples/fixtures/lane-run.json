@@ -1633,6 +1633,15 @@
       }
     },
     {
+      "name": "85 I64 signed minimum",
+      "file": "examples/valid/85_i64_signed_minimum.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": ""
+      }
+    },
+    {
       "name": "invalid 70 tuple without import",
       "file": "examples/invalid/70_tuple_without_import.lane",
       "mode": "check-error",
@@ -1772,6 +1781,18 @@
           "error[E3013]",
           "missing contextual offer",
           "no visible offer matches required type `(I64) -> I64`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 81 I64 literal underflow",
+      "file": "examples/invalid/81_i64_literal_underflow.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3009]",
+          "invalid I64 literal `-9223372036854775809`",
+          "cannot be represented as a Lane `I64`"
         ]
       }
     }

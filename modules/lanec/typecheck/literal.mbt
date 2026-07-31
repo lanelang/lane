@@ -27,6 +27,42 @@ fn SemanticChecker::invalid_i64_literal(
 }
 
 ///|
+/// Checks an integer literal that appears immediately under unary negation in
+/// an `I64` context.
+///
+/// The magnitude is parsed on its own rather than as part of the negated
+/// spelling, because `9223372036854775808` is not an `I64` value even though
+/// `-9223372036854775808` is. Checking the operand first and negating after
+/// would reject the minimum value, which the language spec requires to be
+/// writable.
+fn SemanticChecker::check_negated_i64_literal(
+  self : SemanticChecker,
+  raw : String,
+  loc : SourceSpan,
+) -> @checked.CheckedI64Literal {
+  if !is_decimal_integer_literal(raw) {
+    return self.invalid_i64_literal("-" + raw, loc)
+  }
+  try @string.parse_uint64(raw, base=10) catch {
+    _ => self.invalid_i64_literal("-" + raw, loc)
+  } noraise {
+    magnitude =>
+      if magnitude > 9223372036854775808UL {
+        self.invalid_i64_literal("-" + raw, loc)
+      } else {
+        {
+          raw: "-" + raw,
+          value: if magnitude == 9223372036854775808UL {
+            -9223372036854775807L - 1L
+          } else {
+            0L - magnitude.reinterpret_as_int64()
+          },
+        }
+      }
+  }
+}
+
+///|
 fn SemanticChecker::check_i32_literal(
   self : SemanticChecker,
   raw : String,
