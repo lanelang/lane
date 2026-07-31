@@ -7,7 +7,7 @@ import Basic.Data.I32 as I32
 import Basic.Data.String as String
 import Basic.Data.I64.{ i64_impl_equal }
 import Basic.Eff.Bound.{ OutOfBound }
-import Test.Assert.{ Assert, execute_all_test }
+import Test.Assert.{ Assert, execute_all_tests }
 
 fn assert_in_bounds(action : () -> Unit ! { OutOfBound, Assert }) -> Unit ! Assert {
   handle action() with {
@@ -83,5 +83,5 @@ fn test_utf8_string_char_i32() -> Unit ! Assert {
 
 pub fn answer() -> Unit ! Io {
   test_utf8_string_char_i32
-    |> execute_all_test()
+    |> execute_all_tests()
 }

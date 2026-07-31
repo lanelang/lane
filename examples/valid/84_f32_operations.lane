@@ -3,7 +3,7 @@ module Examples.Valid.F32Operations
 import Basic.Data.F32.*
 import Basic.Data.I64.{ i64_impl_equal }
 import Basic.Ops.*
-import Test.Assert.{ Assert, execute_all_test }
+import Test.Assert.{ Assert, execute_all_tests }
 
 fn test_f32_operations() -> Unit ! Assert {
   let one_and_half : F32 = 1.5
@@ -26,5 +26,5 @@ fn test_f32_operations() -> Unit ! Assert {
 
 pub fn answer() -> Unit ! Io {
   test_f32_operations
-    |> execute_all_test()
+    |> execute_all_tests()
 }

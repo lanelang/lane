@@ -4,7 +4,7 @@ import Basic.Data.Byte as Byte
 import Basic.Data.Bytes as ByteSeq
 import Basic.Data.I64.{ i64_impl_equal }
 import Basic.Eff.Bound.{ OutOfBound }
-import Test.Assert.{ Assert, execute_all_test }
+import Test.Assert.{ Assert, execute_all_tests }
 
 fn assert_in_bounds(action : () -> Unit ! { OutOfBound, Assert }) -> Unit ! Assert {
   handle action() with {
@@ -51,5 +51,5 @@ fn test_byte_and_bytes_primitives() -> Unit ! Assert {
 
 pub fn answer() -> Unit ! Io {
   test_byte_and_bytes_primitives
-    |> execute_all_test()
+    |> execute_all_tests()
 }
