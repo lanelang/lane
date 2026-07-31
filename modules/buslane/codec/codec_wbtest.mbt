@@ -110,25 +110,25 @@ test "program binary codec roundtrips core structures" {
 }
 
 ///|
-test "program codec writes schema version 5" {
+test "program codec writes schema version 6" {
   let bytes = encode_program({ metadata: MetadataRegistry(), terms: [] })
   guard bytes is [i32le(version), ..] else {
     fail("expected Buslane codec version prefix")
   }
-  assert_eq(version, 5)
+  assert_eq(version, 6)
 }
 
 ///|
-test "program decoder rejects schema version 4 at the version boundary" {
+test "program decoder rejects schema version 5 at the version boundary" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(4)
+  writer.write_u32_le_int(5)
   let error = try {
     ignore(decode_program(writer.to_bytes()))
     None
   } catch {
     error => Some(error)
   }
-  assert_eq(error, Some(UnsupportedCodecVersion(version=4)))
+  assert_eq(error, Some(UnsupportedCodecVersion(version=5)))
 }
 
 ///|
@@ -167,7 +167,7 @@ test "program decoder rejects trailing bytes" {
 ///|
 test "program decoder rejects invalid top term tag" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(5) // codec version
+  writer.write_u32_le_int(6) // codec version
   writer.write_u32_le_int(0) // metadata next_unique
   writer.write_u32_le_int(0) // types
   writer.write_u32_le_int(0) // type parameters

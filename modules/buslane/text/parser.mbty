@@ -129,7 +129,10 @@ metadata_declaration -> MetadataDeclaration
   }
   | "external" "type" type_id buslane_type_name "parameters" type_parameter_id_list "constructors" data_con_id_list ";" { TypeInfoDecl($3, { name: $4, flavor: External, parameters: $6, constructors: $8 }) }
   | "type_parameter" type_parameter_id buslane_type_parameter_name ":" kind ";" {
-    TypeParameterInfoDecl($2, { name: $3, kind: $5 })
+    TypeParameterInfoDecl($2, { name: $3, kind: $5, flavor: Algebraic })
+  }
+  | "external" "type_parameter" type_parameter_id buslane_type_parameter_name ":" kind ";" {
+    TypeParameterInfoDecl($3, { name: $4, kind: $6, flavor: External })
   }
   | "value" value_id buslane_value_name value_kind ":" type ";" {
     ValueInfoDecl($2, { name: $3, kind: $4, type_: $6 })

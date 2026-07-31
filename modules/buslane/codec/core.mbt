@@ -1,5 +1,5 @@
 ///|
-let buslane_codec_version = 5
+let buslane_codec_version = 6
 
 ///|
 pub suberror BuslaneDecodeError {
@@ -113,6 +113,7 @@ fn @bytecodec.ByteWriter::write_type_parameter_infos(
   for item in items {
     self.write_buslane_name(item.name)
     self.write_kind(item.kind)
+    self.write_effect_flavor(item.flavor)
   }
 }
 
@@ -122,7 +123,11 @@ fn @bytecodec.ByteReader::read_type_parameter_infos(
 ) -> Array[TypeParameterInfo] raise BuslaneDecodeError {
   let items : Array[TypeParameterInfo] = []
   for _ in 0..<read_u32_le(self) {
-    items.push({ name: self.read_buslane_name(), kind: self.read_kind() })
+    items.push({
+      name: self.read_buslane_name(),
+      kind: self.read_kind(),
+      flavor: self.read_effect_flavor(),
+    })
   }
   items
 }

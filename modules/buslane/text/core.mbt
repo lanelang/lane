@@ -2,6 +2,7 @@
 using @prettyprinter {
   type Document,
   char,
+  empty,
   hardline,
   nest,
   render,
@@ -212,6 +213,7 @@ fn metadata_doc(metadata : @buslane.MetadataRegistry) -> Document {
   for index in 0..<metadata.type_parameters.length() {
     let info = metadata.type_parameters[index]
     docs.push(
+      type_parameter_flavor_doc(info.flavor) +
       text("type_parameter") +
       space +
       type_parameter_id_doc({ index, }) +
@@ -352,6 +354,14 @@ fn canonical_block(docs : Array[Document]) -> Document {
     text("{") + hardline + text("}")
   } else {
     text("{") + nest(hardline + separate(hardline, docs)) + hardline + text("}")
+  }
+}
+
+///|
+fn type_parameter_flavor_doc(flavor : @buslane.EffectFlavor) -> Document {
+  match flavor {
+    Algebraic => empty
+    External => text("external") + space
   }
 }
 

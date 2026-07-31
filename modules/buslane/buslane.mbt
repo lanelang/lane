@@ -140,9 +140,15 @@ pub(all) struct TypeInfo {
 } derive(Debug, Eq)
 
 ///|
+/// An `Effect`-kind parameter carries the same flavor an effect declaration
+/// does, saying what the rows it ranges over may contain. `Algebraic` admits
+/// any row; `External` admits only residual ones, so a consumer that must
+/// eliminate algebraic effects can tell the two apart. The field is inert for
+/// parameters of other kinds.
 pub(all) struct TypeParameterInfo {
   name : BuslaneName
   kind : Kind
+  flavor : EffectFlavor
 } derive(Debug, Eq)
 
 ///|
@@ -341,11 +347,13 @@ pub fn MetadataRegistry::define_type_parameter(
   self : MetadataRegistry,
   occurrence : String,
   kind : Kind,
+  flavor? : EffectFlavor = Algebraic,
 ) -> TypeParameterId {
   let id = TypeParameterId::{ index: self.type_parameters.length() }
   self.type_parameters.push({
     name: self.fresh_name(TypeParameterName, occurrence),
     kind,
+    flavor,
   })
   id
 }

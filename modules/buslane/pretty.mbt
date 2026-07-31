@@ -175,6 +175,7 @@ pub impl @prettyprinter.Pretty for TypeInfo with fn pretty(info : TypeInfo) {
 pub impl @prettyprinter.Pretty for TypeParameterInfo with fn pretty(
   info : TypeParameterInfo,
 ) {
+  type_parameter_flavor_prefix(info) +
   text("type_parameter") +
   space +
   info.name.pretty() +
@@ -628,6 +629,7 @@ fn type_parameter_declaration(
   _id : TypeParameterId,
   info : TypeParameterInfo,
 ) -> Document {
+  type_parameter_flavor_prefix(info) +
   text("type_parameter") +
   space +
   info.name.pretty() +
@@ -738,4 +740,12 @@ fn braced_block(docs : Array[Document]) -> Document {
 ///|
 fn quoted(value : String) -> Document {
   text("\"") + text(value) + text("\"")
+}
+
+///|
+fn type_parameter_flavor_prefix(info : TypeParameterInfo) -> Document {
+  match info.flavor {
+    Algebraic => empty
+    External => text("external") + space
+  }
 }

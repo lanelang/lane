@@ -84,6 +84,13 @@ A type-level effect variable used to preserve unknown residual effects through
 effect-polymorphic functions and handlers.
 _Avoid_: singleton effect, operation identity, runtime value
 
+**Effect Row Variable Flavor**:
+The **Effect Flavor** carried by an **Effect Row Variable**, saying what the rows
+it ranges over may contain: Algebraic admits any row, External admits only rows
+of External Effects. A consumer that must eliminate algebraic effects reads the
+flavor to tell a variable it still has to discharge from one it may keep.
+_Avoid_: naming convention, binder position, pipeline phase
+
 **Canonical Effect**:
 The metadata-registry-normalized representation of an effect set used for
 equality, removal, and unification. Binder kinds participate in canonical
@@ -186,6 +193,9 @@ _Avoid_: artifact text parser, compiler artifact writer, inspect renderer
 - **Effect Row Variables** have **Effect Kind**.
 - **Effect Row Variables** are type-level parameters, not a separate runtime
   identity family.
+- An **Effect Row Variable** carries an **Effect Row Variable Flavor**, the same
+  classification an effect declaration carries; Buslane records it rather than
+  leaving consumers to infer it from where the binder sits.
 - An **Effect Operation** is not a Buslane value and does not enter the value
   context.
 - Buslane represents existential enum lowering through data-constructor

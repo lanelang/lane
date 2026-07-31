@@ -197,7 +197,7 @@ pub fn MetadataRegistry::define_data_constructor(Self, String, TypeId, Array[Typ
 pub fn MetadataRegistry::define_effect(Self, String, Array[TypeParameterId], flavor? : EffectFlavor) -> EffectId
 pub fn MetadataRegistry::define_operation(Self, String, EffectId, Array[TypeParameterId], Array[Type], Type) -> OperationId
 pub fn MetadataRegistry::define_type(Self, String, Array[TypeParameterId], flavor? : TypeFlavor) -> TypeId
-pub fn MetadataRegistry::define_type_parameter(Self, String, Kind) -> TypeParameterId
+pub fn MetadataRegistry::define_type_parameter(Self, String, Kind, flavor? : EffectFlavor) -> TypeParameterId
 pub fn MetadataRegistry::define_value(Self, String, ValueKind, Type) -> ValueId
 pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
 pub fn MetadataRegistry::effect_is_subeffect_of(Self, Effect, Effect) -> Bool
@@ -322,6 +322,7 @@ pub impl @prettyprinter.Pretty for TypeParameterId
 pub(all) struct TypeParameterInfo {
   name : BuslaneName
   kind : Kind
+  flavor : EffectFlavor
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for TypeParameterInfo
 
