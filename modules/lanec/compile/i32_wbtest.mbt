@@ -5,7 +5,6 @@ test "compiler preserves I32 literal and arithmetic through executable lowering"
       #|module Test
       #|
       #|let add : (I32, I32) -> I32 = builtin("%i32_add")
-      #|let op_neg : (I32) -> I32 = builtin("%i32_neg")
       #|let to_int : (I32) -> I64 = builtin("%i32_to_i64")
       #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
       #|

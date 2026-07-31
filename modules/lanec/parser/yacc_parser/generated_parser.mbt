@@ -3236,14 +3236,14 @@ fn yy_action_222(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 
 // file:///./parser.mbty
 // 652|    "-" unary_expression %prec UNARY {
-// 653|    Unary(operator=Neg, operand=$2, loc=span($sloc))
+// 653|    negated_expression($2, span($sloc))
 // 654|  }
 fn yy_action_223(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Expr(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_Expr({(); 
-    Unary(operator=Neg, operand=_dollar2, loc=span((_symbol_start_pos, _end_pos)))
+    negated_expression(_dollar2, span((_symbol_start_pos, _end_pos)))
   })
 }
 

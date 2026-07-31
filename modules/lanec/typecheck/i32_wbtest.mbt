@@ -7,7 +7,6 @@ test "typecheck accepts the complete I32 builtin contract" {
       #|let mul : (I32, I32) -> I32 = builtin("%i32_mul")
       #|let div : (I32, I32) -> I32 = builtin("%i32_div")
       #|let rem : (I32, I32) -> I32 = builtin("%i32_rem")
-      #|let op_neg : (I32) -> I32 = builtin("%i32_neg")
       #|let equal : (I32, I32) -> Bool = builtin("%i32_equal")
       #|let less : (I32, I32) -> Bool = builtin("%i32_less")
       #|let to_int : (I32) -> I64 = builtin("%i32_to_i64")
@@ -30,7 +29,6 @@ test "typecheck accepts the complete I32 builtin contract" {
 test "typecheck rejects an I32 literal below the signed range" {
   let result = expect_typecheck_result(
     (
-      #|let op_neg : (I32) -> I32 = builtin("%i32_neg")
       #|let invalid : I32 = -2147483649
     ),
   )

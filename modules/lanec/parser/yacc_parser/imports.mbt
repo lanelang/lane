@@ -181,6 +181,34 @@ fn local_let_item(
 }
 
 ///|
+/// Builds the expression for a prefix `-`.
+///
+/// A sign directly in front of a numeric literal belongs to that literal's
+/// spelling, exactly as it does in pattern position. Folding it here keeps one
+/// surface rule for both positions and leaves later stages with a single shape
+/// to reason about: no `Unary` node ever wraps a bare numeric literal, so name
+/// resolution never looks up `op_neg` for one and literal checking always sees
+/// the value it must represent. Without the fold, `-9223372036854775808` would
+/// be unwritable, since its magnitude alone is not an `I64`.
+///
+/// An already-signed literal is not folded again: `- -1` negates the literal
+/// `-1` and stays an ordinary operator application.
+fn negated_expression(operand : Expr, loc : SourceSpan) -> Expr {
+  match operand {
+    IntegerLiteral(raw, ..) if !is_signed_literal(raw) =>
+      IntegerLiteral("-" + raw, loc~)
+    FloatingLiteral(raw, ..) if !is_signed_literal(raw) =>
+      FloatingLiteral("-" + raw, loc~)
+    _ => Unary(operator=Neg, operand~, loc~)
+  }
+}
+
+///|
+fn is_signed_literal(raw : String) -> Bool {
+  raw.view() is ['-', ..]
+}
+
+///|
 fn effect_or_empty(effect : EffectTerm?, result : Type) -> EffectTerm {
   match effect {
     Some(effect) => effect

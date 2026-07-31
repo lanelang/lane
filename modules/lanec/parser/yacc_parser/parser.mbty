@@ -650,7 +650,7 @@ expression -> Expr
 
 unary_expression -> Expr
   : "-" unary_expression %prec UNARY {
-    Unary(operator=Neg, operand=$2, loc=span($sloc))
+    negated_expression($2, span($sloc))
   }
   | "!" unary_expression %prec UNARY {
     Unary(operator=Not, operand=$2, loc=span($sloc))

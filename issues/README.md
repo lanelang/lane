@@ -303,6 +303,7 @@ graph TD
   ISS_275["ISS-275: Implement the documented Explore Protocol v1"]
   ISS_276["ISS-276: Give module import environments a single owner"]
   ISS_277["ISS-277: Accept the I64 signed minimum as a negated literal"]
+  ISS_278["ISS-278: Fold a prefix sign into the numeric literal it precedes"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
