@@ -28,4 +28,5 @@ pub(all) suberror ExecutableElaborationError {
   UnsupportedEffectSpecialization(detail~ : String)
   CoreOptimizationError(@core_opt.CoreOptimizeError)
   EffectLoweringError(@effect_lowering_core.SynthesisError)
+  UnverifiedProgram(stage~ : String, result~ : @buslane.VerifyResult)
 } derive(Debug, Eq)

@@ -72,6 +72,7 @@ fn lower_effects(
   entry : @buslane.ValueId,
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> LoweredEffects raise ExecutableElaborationError {
+  require_verified("effect-lowering input", program)
   let elaborated = @effect_lowering_core.elaborate_handlers(program)
   observe(HandlersElaborated(elaborated))
   let bound = unwrap_effect_lowering(
@@ -200,5 +201,22 @@ fn top_level_type_is_callable(type_ : @buslane.Type) -> Bool {
     Function(_, _, _) => true
     Forall(_, body) | TypeLambda(_, body) => top_level_type_is_callable(body)
     _ => false
+  }
+}
+
+///|
+/// Rejects a program the Buslane verifier does not accept.
+///
+/// Effect lowering assumes its input is well typed, and every later stage
+/// assumes the same of what it produces. Nothing checked either until now,
+/// which is how a representation that lied about effects survived long enough
+/// to delete a handler installation.
+fn require_verified(
+  stage : String,
+  program : @buslane.Program,
+) -> Unit raise ExecutableElaborationError {
+  let result = @buslane.verify_program(program)
+  if !result.is_ok() {
+    raise UnverifiedProgram(stage~, result~)
   }
 }

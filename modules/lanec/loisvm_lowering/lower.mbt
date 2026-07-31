@@ -166,6 +166,10 @@ fn executable_elaboration_error(
     CoreOptimizationError(error) =>
       UnsupportedExpression(detail="core optimization failed: \{Repr(error)}")
     EffectLoweringError(error) => EffectLoweringError(error)
+    UnverifiedProgram(stage~, result~) =>
+      UnsupportedExpression(
+        detail="the \{stage} program does not verify: \{Repr(result)}",
+      )
   }
 }
 
