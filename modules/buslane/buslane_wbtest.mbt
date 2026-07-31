@@ -1171,3 +1171,109 @@ test "verify buslane reports structural errors" {
     ),
   )
 }
+
+// `type_is_consumable_as` decides whether a value fits a position, not whether
+// two types denote the same thing. It widens only by residual terms, because an
+// Algebraic Effect changes how a callable is lowered.
+
+///|
+test "consumable types widen a latent effect by residual terms" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let external = metadata.define_effect("Fd", [], flavor=External)
+  let pure_ = Type::Function([], i64_type(), Empty)
+  let io = Type::Function([], i64_type(), Io)
+  let both = Type::Function(
+    [],
+    i64_type(),
+    Union([Io, Singleton(external, [])]),
+  )
+  assert_true(metadata.type_is_consumable_as(pure_, io))
+  assert_true(metadata.type_is_consumable_as(pure_, both))
+  assert_true(metadata.type_is_consumable_as(io, both))
+  assert_false(metadata.type_is_consumable_as(io, pure_))
+  assert_false(metadata.type_is_consumable_as(both, io))
+}
+
+///|
+test "consumable types refuse to widen by an algebraic effect" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let read = metadata.define_effect("Read", [])
+  let pure_ = Type::Function([], i64_type(), Empty)
+  let algebraic = Type::Function([], i64_type(), Singleton(read, []))
+  assert_false(metadata.type_is_consumable_as(pure_, algebraic))
+  assert_false(metadata.type_is_consumable_as(algebraic, pure_))
+}
+
+///|
+test "consumable types classify effect row variables by flavor" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let algebraic_row = metadata.define_type_parameter("E", Effect)
+  let residual_row = metadata.define_type_parameter(
+    "R",
+    Effect,
+    flavor=External,
+  )
+  let pure_ = Type::Function([], i64_type(), Empty)
+  let over_algebraic = Type::Function([], i64_type(), Parameter(algebraic_row))
+  let over_residual = Type::Function([], i64_type(), Parameter(residual_row))
+  assert_true(metadata.type_is_consumable_as(pure_, over_residual))
+  assert_false(metadata.type_is_consumable_as(pure_, over_algebraic))
+}
+
+///|
+test "consumable types invert the direction under a parameter" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let pure_ = Type::Function([], i64_type(), Empty)
+  let io = Type::Function([], i64_type(), Io)
+  // A consumer that will be handed a pure callback cannot take one that only
+  // accepts callbacks allowed to perform `Io`, and the reverse is fine.
+  assert_true(
+    metadata.type_is_consumable_as(
+      Function([io], i64_type(), Empty),
+      Function([pure_], i64_type(), Empty),
+    ),
+  )
+  assert_false(
+    metadata.type_is_consumable_as(
+      Function([pure_], i64_type(), Empty),
+      Function([io], i64_type(), Empty),
+    ),
+  )
+}
+
+///|
+test "consumable types keep type arguments invariant" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let parameter = metadata.define_type_parameter("A", Type)
+  let box = metadata.define_type("Box", [parameter])
+  let pure_ = Type::Function([], i64_type(), Empty)
+  let io = Type::Function([], i64_type(), Io)
+  assert_false(
+    metadata.type_is_consumable_as(
+      Apply(Constructor(box), [TypeArgument(pure_)]),
+      Apply(Constructor(box), [TypeArgument(io)]),
+    ),
+  )
+}
+
+///|
+test "consumable types rename binders under contravariance" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let left = metadata.define_type_parameter("A", Type)
+  let right = metadata.define_type_parameter("B", Type)
+  // Alpha-equivalent, and the equivalence has to survive the direction flip a
+  // contravariant parameter introduces.
+  let with_binder = fn(parameter) {
+    Type::Forall(
+      [parameter],
+      Function(
+        [Function([Parameter(parameter)], i64_type(), Empty)],
+        i64_type(),
+        Empty,
+      ),
+    )
+  }
+  assert_true(
+    metadata.type_is_consumable_as(with_binder(left), with_binder(right)),
+  )
+}

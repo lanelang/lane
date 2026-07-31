@@ -302,6 +302,13 @@ fn VerifyContext::verify_top_letrec(
 }
 
 ///|
+/// Checks an expression against the type its consumer requires.
+///
+/// This asks whether the value may be used there, not whether the two types
+/// denote the same thing, so a function that performs less than its position
+/// allows is accepted. Dictionary-passing CPS depends on it: a handler's final
+/// branch may be pure while the callable it is handed to declares the
+/// installation's residual, and no term can bridge that gap by construction.
 fn VerifyContext::check_expr(
   self : VerifyContext,
   expr : Expr,
@@ -310,7 +317,7 @@ fn VerifyContext::check_expr(
   type_scope : TypeScope,
 ) -> Effect {
   let actual = self.synthesize_expr(expr, value_scope, type_scope)
-  if !self.program.metadata.types_definitionally_equal(expected, actual.type_) {
+  if !self.program.metadata.type_is_consumable_as(actual.type_, expected) {
     self.report(TypeMismatch(expected~, actual=actual.type_))
   }
   actual.effect

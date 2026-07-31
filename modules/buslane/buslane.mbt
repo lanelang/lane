@@ -537,6 +537,133 @@ pub fn MetadataRegistry::types_definitionally_equal(
 }
 
 ///|
+/// Returns whether an effect term denotes a handleable effect.
+///
+/// Algebraic terms are the ones a consumer may still have to eliminate; `Io`,
+/// External Effects, and row variables that range only over them are already
+/// residual. An unknown identity is treated as algebraic, since assuming less
+/// would let an unresolved reference pass a check it should not.
+pub fn MetadataRegistry::effect_term_is_algebraic(
+  self : MetadataRegistry,
+  term : Effect,
+) -> Bool {
+  match term {
+    Empty | Io => false
+    Singleton(effect, _) =>
+      self
+      .effect_info(effect)
+      .map_or(true, fn(info) { info.flavor is Algebraic })
+    Parameter(parameter) =>
+      self
+      .type_parameter_info(parameter)
+      .map_or(true, fn(info) { info.flavor is Algebraic })
+    Union(terms) => terms.any(fn(term) { self.effect_term_is_algebraic(term) })
+  }
+}
+
+///|
+/// Returns whether a value of type `actual` may be consumed where `expected` is
+/// required.
+///
+/// Unlike definitional equality this is directed, because a consumer that
+/// allows for a latent effect is not harmed by a value that performs less. It
+/// widens only by residual terms: an Algebraic Effect changes how a callable is
+/// lowered, so relabelling a callable to claim one would be a different value,
+/// not the same one seen through a weaker type. Parameters are contravariant,
+/// so the direction flips under them, and type arguments stay invariant since a
+/// constructor's variance in its own parameters is not knowable here.
+///
+/// Definitional equality remains the relation for deciding whether two types
+/// denote the same thing; this one decides whether a value fits a position.
+pub fn MetadataRegistry::type_is_consumable_as(
+  self : MetadataRegistry,
+  actual : Type,
+  expected : Type,
+) -> Bool {
+  self.consumable_with(
+    self.definitional_equality_context(),
+    actual.normalize(),
+    expected.normalize(),
+  )
+}
+
+///|
+fn MetadataRegistry::consumable_with(
+  self : MetadataRegistry,
+  context : AlphaContext,
+  actual : Type,
+  expected : Type,
+) -> Bool {
+  match (actual, expected) {
+    (
+      Function(actual_parameters, actual_result, actual_effect),
+      Function(expected_parameters, expected_result, expected_effect),
+    ) => {
+      if actual_parameters.length() != expected_parameters.length() {
+        return false
+      }
+      for index in 0..<actual_parameters.length() {
+        // Contravariant: the value is handed arguments the consumer chooses, so
+        // it must accept everything the consumer may pass.
+        if !self.consumable_with(
+            context.flip(),
+            expected_parameters[index],
+            actual_parameters[index],
+          ) {
+          return false
+        }
+      }
+      self.consumable_with(context, actual_result, expected_result) &&
+      self.effect_is_consumable_with(context, actual_effect, expected_effect)
+    }
+    (
+      Forall(actual_parameters, actual_body),
+      Forall(expected_parameters, expected_body),
+    ) =>
+      match context.with_binders(actual_parameters, expected_parameters) {
+        Some(next) => self.consumable_with(next, actual_body, expected_body)
+        None => false
+      }
+    (
+      TypeLambda(actual_parameters, actual_body),
+      TypeLambda(expected_parameters, expected_body),
+    ) =>
+      match context.with_binders(actual_parameters, expected_parameters) {
+        Some(next) => self.consumable_with(next, actual_body, expected_body)
+        None => false
+      }
+    _ => alpha_equal_with(context, actual, expected)
+  }
+}
+
+///|
+fn MetadataRegistry::effect_is_consumable_with(
+  self : MetadataRegistry,
+  context : AlphaContext,
+  actual : Effect,
+  expected : Effect,
+) -> Bool {
+  let actual_terms = canonical_effect_terms(context, actual)
+  let expected_terms = canonical_effect_terms(context, expected)
+  for actual_term in actual_terms {
+    if !expected_terms.any(fn(expected_term) {
+        alpha_equal_effect_term_with(context, actual_term, expected_term)
+      }) {
+      return false
+    }
+  }
+  for expected_term in expected_terms {
+    if self.effect_term_is_algebraic(expected_term) &&
+      !actual_terms.any(fn(actual_term) {
+        alpha_equal_effect_term_with(context, actual_term, expected_term)
+      }) {
+      return false
+    }
+  }
+  true
+}
+
+///|
 /// Returns whether two Buslane effects are definitionally equal.
 pub fn MetadataRegistry::effects_definitionally_equal(
   self : MetadataRegistry,
@@ -600,6 +727,21 @@ priv struct AlphaBinding {
 priv struct AlphaContext {
   bindings : Array[AlphaBinding]
   binders_compatible : (TypeParameterId, TypeParameterId) -> Bool
+}
+
+///|
+/// Swaps the sides of every recorded binding.
+///
+/// Alpha bindings are oriented, so a relation that recurses with its arguments
+/// exchanged — as contravariance requires — has to exchange the context with
+/// them, or a renamed binder stops matching its counterpart.
+fn AlphaContext::flip(self : AlphaContext) -> AlphaContext {
+  {
+    ..self,
+    bindings: self.bindings.map(fn(binding) {
+      { left: binding.right, right: binding.left }
+    }),
+  }
 }
 
 ///|
