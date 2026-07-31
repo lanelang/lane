@@ -90,7 +90,7 @@ fn BuslaneLowerer::lower_function_literal_value(
   )
   let id = self.define_fresh_value(
     "function_literal",
-    Function,
+    Local,
     self.lower_type(type_),
   )
   LetRec([{ id, rhs }], Ref(id))
@@ -112,7 +112,7 @@ fn BuslaneLowerer::lower_function_effect_widen(
   )
   let wrapper = self.define_fresh_value(
     "effect_adapter",
-    Function,
+    Local,
     self.lower_type(target_type),
   )
   let lowered_parameters = parameters.map(fn(parameter) {

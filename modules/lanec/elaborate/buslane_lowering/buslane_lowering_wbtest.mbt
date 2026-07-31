@@ -1352,3 +1352,23 @@ test "elaborate existential enum repack into verifiable buslane" {
 }
 
 ///|
+/// A function literal inside a generic function keeps the enclosing generic's
+/// type parameters in its type, so it cannot be bound with a value kind that
+/// asserts a closed metadata type.
+test "buslane lowering verifies a function literal inside a generic function" {
+  let result = elaborate_buslane_source(
+    (
+      #|pub fn[A] pick(left : A, right : A) -> A {
+      #|  let chooser : (A, A) -> A = fn(first : A, _second : A) { first }
+      #|  chooser(left, right)
+      #|}
+    ),
+  )
+  guard result.program is Some(program) else {
+    abort("expected a lowered program")
+  }
+  let verified = @buslane.verify_program(program)
+  if !verified.is_ok() {
+    fail("lowered module did not verify: \{Repr(verified)}")
+  }
+}
