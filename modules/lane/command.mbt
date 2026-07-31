@@ -54,7 +54,13 @@ fn lane_command_spec() -> Command {
     subcommands=[
       Command(
         "check",
-        about="Check a single Lane source file.",
+        about=(
+          $|Check a single Lane source file.
+          $|
+          $|Examples:
+          $|  lane check Main.lane
+          $|  lane check --lib-dir lib Main.lane
+        ),
         options=[lib_option(), lib_dir_option()],
         flags=[
           no_basic_flag(),
@@ -64,58 +70,117 @@ fn lane_command_spec() -> Command {
             about="Treat warnings as check failures.",
           ),
         ],
-        positionals=[required_positional_arg("file")],
+        positionals=[source_positional_arg()],
       ),
       Command(
         "run",
-        about="Run a selected top-level entry from a single Lane source file.",
+        about=(
+          $|Run a selected top-level entry from a single Lane source file.
+          $|
+          $|The target names the entry after the file, as FILE:ENTRY.
+          $|
+          $|Examples:
+          $|  lane run Main.lane:main
+          $|  lane run --lib-dir lib Main.lane:main
+        ),
         options=[lib_option(), lib_dir_option()],
         flags=[no_basic_flag(), no_jit_flag()],
-        positionals=[required_positional_arg("target")],
+        positionals=[run_target_positional_arg()],
       ),
       Command(
         "explore",
-        about="Write an HTML report for every curated compiler stage.",
+        about=(
+          $|Write an HTML report for every curated compiler stage.
+          $|
+          $|Example:
+          $|  lane explore -o report.html Main.lane:main
+        ),
         options=[lib_option(), lib_dir_option(), output_option()],
         flags=[no_basic_flag()],
-        positionals=[required_positional_arg("target")],
+        positionals=[run_target_positional_arg()],
       ),
       Command(
         "compile",
-        about="Compile one Lane source file into module interface/object artifacts.",
+        about=(
+          $|Compile one Lane source file into module interface/object artifacts.
+          $|
+          $|Example:
+          $|  lane compile -I Main.lmi -o Main.lmo Main.lane
+        ),
         options=[
           interface_option(),
           interface_output_option(),
           object_output_option(),
         ],
         flags=[verbose_flag()],
-        positionals=[required_positional_arg("file")],
+        positionals=[source_positional_arg()],
       ),
-      Command("inspect", about="Dump a compiled Lane module artifact.", positionals=[
-        required_positional_arg("artifact"),
-      ]),
+      Command(
+        "inspect",
+        about=(
+          $|Dump a compiled Lane module artifact.
+          $|
+          $|Examples:
+          $|  lane inspect Main.lmi
+          $|  lane inspect program.lbp
+        ),
+        positionals=[artifact_positional_arg("artifact", "Artifact to dump.")],
+      ),
       Command(
         "link",
-        about="Link compiled Lane module object artifacts.",
+        about=(
+          $|Link compiled Lane module object artifacts.
+          $|
+          $|Every module the program reaches must be passed, including ones
+          $|used only inside another module's implementation.
+          $|
+          $|Example:
+          $|  lane link --entry Main.main -o program.lbp Main.lmo Lib.lmo
+        ),
         options=[link_entry_option(), output_option()],
         flags=[verbose_flag()],
-        positionals=[PositionArg("objects", num_args=ValueRange(lower=1))],
+        positionals=[
+          PositionArg(
+            "objects",
+            num_args=ValueRange(lower=1),
+            about="Module object artifacts to link.",
+          ),
+        ],
       ),
       Command(
         "runobj",
-        about="Run a linked Lane program artifact.",
+        about=(
+          $|Run a linked Lane program artifact.
+          $|
+          $|Example:
+          $|  lane runobj program.lbp
+        ),
         flags=[no_jit_flag()],
-        positionals=[required_positional_arg("program")],
+        positionals=[
+          artifact_positional_arg("program", "Linked program artifact to run."),
+        ],
       ),
       Command(
         "exec",
-        about="Compatibility alias for `lane runobj`.",
+        about=(
+          $|Compatibility alias for `lane runobj`.
+          $|
+          $|Example:
+          $|  lane exec program.lbp
+        ),
         flags=[no_jit_flag()],
-        positionals=[required_positional_arg("program")],
+        positionals=[
+          artifact_positional_arg("program", "Linked program artifact to run."),
+        ],
       ),
       Command(
         "fmt",
-        about="Format Lane source files.",
+        about=(
+          $|Format Lane source files.
+          $|
+          $|Example:
+          $|  lane fmt Main.lane
+        ),
         flags=[
           FlagArg(
             "check",
@@ -123,7 +188,13 @@ fn lane_command_spec() -> Command {
             about="Report files that are not formatted without writing them.",
           ),
         ],
-        positionals=[PositionArg("files", num_args=ValueRange(lower=1))],
+        positionals=[
+          PositionArg(
+            "files",
+            num_args=ValueRange(lower=1),
+            about="Lane source files to format.",
+          ),
+        ],
       ),
       Command("lsp", about="Run the Lane language server.", flags=[
         FlagArg(
@@ -292,8 +363,29 @@ fn parse_public_entry_name(name : String) -> Result[PublicEntryName, Unit] {
 }
 
 ///|
-fn required_positional_arg(name : String) -> @argparse.PositionArg {
-  PositionArg(name, num_args=ValueRange(lower=1, upper=1))
+fn source_positional_arg() -> @argparse.PositionArg {
+  PositionArg(
+    "file",
+    num_args=ValueRange(lower=1, upper=1),
+    about="Lane source file to read.",
+  )
+}
+
+///|
+fn run_target_positional_arg() -> @argparse.PositionArg {
+  PositionArg(
+    "target",
+    num_args=ValueRange(lower=1, upper=1),
+    about="Source file and entry to select, as FILE:ENTRY.",
+  )
+}
+
+///|
+fn artifact_positional_arg(
+  name : String,
+  about : String,
+) -> @argparse.PositionArg {
+  PositionArg(name, num_args=ValueRange(lower=1, upper=1), about~)
 }
 
 ///|
@@ -341,7 +433,7 @@ fn interface_option() -> @argparse.OptionArg {
     short='i',
     long="interface",
     action=Append,
-    about="Compiled Lane module interface artifact to import.",
+    about="Module interface artifact to import, conventionally `.lmi`.",
   )
 }
 
@@ -351,7 +443,7 @@ fn interface_output_option() -> @argparse.OptionArg {
     "interface-output",
     short='I',
     long="interface-output",
-    about="Write module interface artifact to this path.",
+    about="Write the module interface artifact here, conventionally `.lmi`.",
   )
 }
 
@@ -361,13 +453,18 @@ fn object_output_option() -> @argparse.OptionArg {
     "object-output",
     short='o',
     long="object-output",
-    about="Write module object artifact to this path.",
+    about="Write the module object artifact here, conventionally `.lmo`.",
   )
 }
 
 ///|
 fn output_option() -> @argparse.OptionArg {
-  OptionArg("output", short='o', long="output", about="Write output artifact.")
+  OptionArg(
+    "output",
+    short='o',
+    long="output",
+    about="Write the output artifact here; `lane link` writes `.lbp`.",
+  )
 }
 
 ///|
