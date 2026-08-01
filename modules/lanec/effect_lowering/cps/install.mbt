@@ -233,7 +233,7 @@ fn lower_handler_operation_clause(
   let resume_value = build_handler_resume_value(
     schema, program, unhandled, operation_result, direct_resume,
   )
-  commit_cps_binding_type(schema.metadata, source_resume, resume_value)
+  validate_cps_binding_type(schema.metadata, source_resume, resume_value)
   let clause_body = lower_cps_with_continuation(
     schema,
     program,

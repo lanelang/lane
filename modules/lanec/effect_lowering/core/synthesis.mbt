@@ -27,6 +27,11 @@ pub(all) suberror SynthesisError {
   ConcreteOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
   ResidualOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
   UnsupportedTopLevelEffect(@buslane.Effect)
+  BindingTypeMismatch(
+    value~ : @buslane.ValueId,
+    expected~ : @buslane.Type,
+    actual~ : @buslane.Type
+  )
 } derive(Debug, Eq)
 
 ///|

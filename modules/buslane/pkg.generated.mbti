@@ -399,6 +399,7 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind
 pub struct VerifyResult {
   diagnostics : Array[VerifyDiagnostic]
 } derive(Eq, @debug.Debug)
+pub fn VerifyResult::diagnostics(Self) -> Array[VerifyDiagnostic]
 pub fn VerifyResult::is_ok(Self) -> Bool
 pub impl @prettyprinter.Pretty for VerifyResult
 

@@ -64,17 +64,13 @@ pub fn rewrite_selective_cps_abis_with_companions(
 fn rewrite_selective_cps_abis_or_raise(
   program : Program,
 ) -> SelectiveCpsRewrite raise SynthesisError {
-  let counts = CpsSourceCounts::{
-    data_constructors: program.metadata.data_constructors.length(),
-    values: program.metadata.values.length(),
-  }
   let source = Program::{
     metadata: program.metadata.snapshot(),
     terms: program.terms,
   }
   let declarations = @effect_lowering_core.collect_program_declarations(source)
   let schema = build_dictionary_cps_schema_or_raise(program.metadata)
-  rewrite_cps_source_metadata(schema, counts, declarations)
+  rewrite_cps_source_metadata(schema, declarations)
   let terms = source.terms.map(term => lower_cps_top_term(schema, source, term))
   let output = Program::{ metadata: program.metadata, terms }
   validate_mon_trans_output_or_raise(output)
@@ -128,7 +124,7 @@ fn lower_cps_binding_initializer(
       )
     _ => lower_cps_direct_expr(schema, program, initializer, current_answer)
   }
-  commit_cps_binding_type(schema.metadata, id, lowered)
+  validate_cps_binding_type(schema.metadata, id, lowered)
   lowered
 }
 
@@ -148,7 +144,7 @@ fn lower_cps_recursive_bindings(
       Some(value_type(schema.metadata, binding.id)),
     ),
   })
-  commit_cps_recursive_binding_types(schema.metadata, lowered)
+  validate_cps_recursive_binding_types(schema.metadata, lowered)
   lowered
 }
 

@@ -1,10 +1,4 @@
 ///|
-priv struct CpsSourceCounts {
-  data_constructors : Int
-  values : Int
-}
-
-///|
 /// Rewrites the declarations this pass is responsible for.
 ///
 /// Only the ones the program mentions. A declaration effect specialization made
@@ -14,27 +8,20 @@ priv struct CpsSourceCounts {
 /// `TypeInfo` needs the companion form.
 fn rewrite_cps_source_metadata(
   schema : DictionaryCpsSchema,
-  counts : CpsSourceCounts,
   declarations : @effect_lowering_core.ProgramDeclarations,
 ) -> Unit raise SynthesisError {
-  for index in 0..<counts.data_constructors {
-    if !declarations.contains_data_constructor({ index, }) {
-      continue
-    }
-    let info = schema.metadata.data_constructors[index]
-    schema.metadata.data_constructors[index] = {
+  for data_constructor in declarations.data_constructor_ids() {
+    let info = schema.metadata.data_constructors[data_constructor.index]
+    schema.metadata.data_constructors[data_constructor.index] = {
       name: info.name,
       owner: info.owner,
       hidden_type_parameters: info.hidden_type_parameters,
       payload_types: info.payload_types.map(type_ => schema.rewrite_type(type_)),
     }
   }
-  for index in 0..<counts.values {
-    if !declarations.contains_value({ index, }) {
-      continue
-    }
-    let info = schema.metadata.values[index]
-    schema.metadata.values[index] = {
+  for value in declarations.value_ids() {
+    let info = schema.metadata.values[value.index]
+    schema.metadata.values[value.index] = {
       name: info.name,
       kind: info.kind,
       type_: schema.rewrite_type(info.type_),
@@ -43,39 +30,24 @@ fn rewrite_cps_source_metadata(
 }
 
 ///|
-fn commit_cps_binding_type(
+fn validate_cps_binding_type(
   metadata : @buslane.MetadataRegistry,
   id : @buslane.ValueId,
   initializer : Expr,
 ) -> Unit raise SynthesisError {
-  store_cps_value_type(
-    metadata,
-    id,
-    synthesize_expr_or_raise(metadata, initializer).type_,
-  )
+  guard metadata.value_info(id) is Some(info) else { raise UnknownValue(id) }
+  let actual = synthesize_expr_or_raise(metadata, initializer).type_
+  if !metadata.type_is_consumable_as(actual, info.type_) {
+    raise BindingTypeMismatch(value=id, expected=info.type_, actual~)
+  }
 }
 
 ///|
-fn commit_cps_recursive_binding_types(
+fn validate_cps_recursive_binding_types(
   metadata : @buslane.MetadataRegistry,
   bindings : Array[RecursiveBinding],
 ) -> Unit raise SynthesisError {
-  let types = bindings.map(binding => {
-    synthesize_expr_or_raise(metadata, binding.rhs).type_
-  })
-  for index in 0..<bindings.length() {
-    store_cps_value_type(metadata, bindings[index].id, types[index])
+  for binding in bindings {
+    validate_cps_binding_type(metadata, binding.id, binding.rhs)
   }
-}
-
-///|
-fn store_cps_value_type(
-  metadata : @buslane.MetadataRegistry,
-  value : @buslane.ValueId,
-  type_ : @buslane.Type,
-) -> Unit raise SynthesisError {
-  guard metadata.values.get(value.index) is Some(info) else {
-    raise UnknownValue(value)
-  }
-  metadata.values[value.index] = { ..info, type_, }
 }

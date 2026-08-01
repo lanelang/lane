@@ -402,7 +402,7 @@ test "selective CPS synchronizes local generic callable metadata" {
 }
 
 ///|
-test "direct CPS lowering commits local binding metadata" {
+test "direct CPS lowering uses precommitted local binding metadata" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])
   let latent : @buslane.Effect = Singleton(effect, [])
@@ -430,14 +430,9 @@ test "direct CPS lowering commits local binding metadata" {
       Let(entry, Function({ parameters: [], result_type: local_type, body })),
     ],
   }
-  let counts = CpsSourceCounts::{
-    data_constructors: metadata.data_constructors.length(),
-    values: metadata.values.length(),
-  }
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   rewrite_cps_source_metadata(
     schema,
-    counts,
     @effect_lowering_core.collect_program_declarations(source),
   )
   let lowered = lower_cps_direct_expr(schema, source, body, None)
@@ -461,15 +456,31 @@ test "direct CPS lowering commits local binding metadata" {
 }
 
 ///|
-test "recursive CPS metadata commit is atomic" {
+test "CPS binding validation accepts a narrower residual effect" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let expected : @buslane.Type = Function([], Primitive(Unit), Io)
+  let binding = metadata.define_value("binding", Local, expected)
+  validate_cps_binding_type(
+    metadata,
+    binding,
+    Function({
+      parameters: [],
+      result_type: Primitive(Unit),
+      body: Literal(Unit),
+    }),
+  )
+  assert_eq(metadata.value_info(binding).unwrap().type_, expected)
+}
+
+///|
+test "CPS binding validation preserves declaration metadata" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let first = metadata.define_value("first", Local, Primitive(I64))
   let second = metadata.define_value("second", Local, Primitive(I64))
-  let missing = @buslane.ValueId::{ index: 2 }
   let result : Result[Unit, SynthesisError] = try {
-    commit_cps_recursive_binding_types(metadata, [
+    validate_cps_recursive_binding_types(metadata, [
       { id: first, rhs: Literal(Bool(true)) },
-      { id: second, rhs: Ref(missing) },
+      { id: second, rhs: Literal(I64(1L)) },
     ])
     Ok(())
   } catch {
@@ -481,7 +492,17 @@ test "recursive CPS metadata commit is atomic" {
       metadata.value_info(first).unwrap().type_,
       metadata.value_info(second).unwrap().type_,
     ),
-    (Err(UnknownValue(missing)), Primitive(I64), Primitive(I64)),
+    (
+      Err(
+        BindingTypeMismatch(
+          value=first,
+          expected=Primitive(I64),
+          actual=Primitive(Bool),
+        ),
+      ),
+      Primitive(I64),
+      Primitive(I64),
+    ),
   )
 }
 

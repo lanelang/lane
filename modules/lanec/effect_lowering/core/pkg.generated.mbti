@@ -67,6 +67,7 @@ pub(all) suberror SynthesisError {
   ConcreteOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
   ResidualOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
   UnsupportedTopLevelEffect(@buslane.Effect)
+  BindingTypeMismatch(value~ : @buslane.ValueId, expected~ : @buslane.Type, actual~ : @buslane.Type)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -169,8 +170,8 @@ pub impl @prettyprinter.Pretty for Program
 pub(all) struct ProgramDeclarations {
   // private fields
 }
-pub fn ProgramDeclarations::contains_data_constructor(Self, @buslane.DataConId) -> Bool
-pub fn ProgramDeclarations::contains_value(Self, @buslane.ValueId) -> Bool
+pub fn ProgramDeclarations::data_constructor_ids(Self) -> Array[@buslane.DataConId]
+pub fn ProgramDeclarations::value_ids(Self) -> Array[@buslane.ValueId]
 
 pub(all) struct RecursiveBinding {
   id : @buslane.ValueId

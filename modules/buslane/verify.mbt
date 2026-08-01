@@ -143,6 +143,14 @@ pub fn VerifyResult::is_ok(self : VerifyResult) -> Bool {
 }
 
 ///|
+/// Returns the verification diagnostics in report order.
+pub fn VerifyResult::diagnostics(
+  self : VerifyResult,
+) -> Array[VerifyDiagnostic] {
+  self.diagnostics.copy()
+}
+
+///|
 fn VerifyContext::report(
   self : VerifyContext,
   kind : VerifyDiagnosticKind,

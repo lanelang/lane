@@ -390,10 +390,10 @@ test "effect specialization rewrites retained declarations that name a specializ
 }
 
 ///|
-/// A definition effect specialization replaces keeps its metadata, and that
-/// metadata stays legal Buslane. Selective CPS must leave it alone rather than
-/// rewrite the types under it while its binders stay as they were.
-test "selective CPS leaves a replaced generic declaration alone" {
+/// A definition effect specialization replaces keeps its complete metadata.
+/// Selective CPS and monadic lift must leave that declaration alone rather than
+/// rewrite any nested type or effect while its binders stay as they were.
+test "monadic lift preserves a replaced generic declaration's metadata" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let log = metadata.define_effect("Log", [])
@@ -402,14 +402,11 @@ test "selective CPS leaves a replaced generic declaration alone" {
     Primitive(Unit),
     Parameter(effect_parameter),
   )
-  let generic = metadata.define_value(
-    "generic",
-    Function,
-    Forall(
-      [effect_parameter],
-      Function([task_type], Primitive(Unit), Parameter(effect_parameter)),
-    ),
+  let generic_type : @buslane.Type = Forall(
+    [effect_parameter],
+    Function([task_type], Primitive(Unit), Parameter(effect_parameter)),
   )
+  let generic = metadata.define_value("generic", Function, generic_type)
   let task = metadata.define_value("task", Parameter, task_type)
   let logging = metadata.define_value(
     "logging",
@@ -456,47 +453,25 @@ test "selective CPS leaves a replaced generic declaration alone" {
   guard metadata.value_info(generic) is Some(_) else {
     fail("expected the replaced definition to keep its metadata")
   }
-  let lowered = lower_effects(specialized, entry, _stage => ())
-  // Residual-effect erasure empties its rows like everything else, which keeps
-  // it legal. What must not happen is CPS rewriting the types under it and
-  // leaving the binder that scopes them behind.
-  guard metadata.value_info(generic) is Some(after) else {
-    fail("expected the replaced definition to still have metadata")
+  let mut lifted_generic_type = None
+  let mut lifted_verification = None
+  let lowered = lower_effects(specialized, entry, stage => {
+    if stage is MonadicContinuationsLifted(lifted) {
+      lifted_generic_type = lifted.metadata
+        .value_info(generic)
+        .map(info => info.type_)
+      lifted_verification = Some(@buslane.verify_program(lifted))
+    }
+  })
+  assert_eq(lifted_generic_type, Some(generic_type))
+  guard lifted_verification is Some(verified_lifted) else {
+    fail("expected to verify the monadic-lift boundary")
   }
-  guard after.type_ is Forall([bound], body) else {
-    fail("expected the replaced definition to stay quantified")
+  if !verified_lifted.is_ok() {
+    fail("monadic-lift program did not verify: \{Repr(verified_lifted)}")
   }
-  assert_false(mentions_other_parameter(body, bound))
   let verified = @buslane.verify_program(lowered.program)
   if !verified.is_ok() {
     fail("lowered program did not verify: \{Repr(verified)}")
-  }
-}
-
-///|
-fn mentions_other_parameter(
-  type_ : @buslane.Type,
-  bound : @buslane.TypeParameterId,
-) -> Bool {
-  match type_ {
-    Primitive(_) | Constructor(_) => false
-    Parameter(parameter) => parameter != bound
-    Apply(callee, arguments) =>
-      mentions_other_parameter(callee, bound) ||
-      arguments
-      .iter()
-      .any(fn(argument) {
-        match argument {
-          TypeArgument(inner) => mentions_other_parameter(inner, bound)
-          EffectArgument(_) => false
-        }
-      })
-    TypeLambda(_, body) | Forall(_, body) =>
-      mentions_other_parameter(body, bound)
-    Function(parameters, result, _) =>
-      parameters
-      .iter()
-      .any(fn(parameter) { mentions_other_parameter(parameter, bound) }) ||
-      mentions_other_parameter(result, bound)
   }
 }

@@ -9,32 +9,34 @@
 ///|
 /// The declarations a program mentions.
 pub(all) struct ProgramDeclarations {
-  priv values : Array[Bool]
-  priv data_constructors : Array[Bool]
+  priv value_ids : Array[@buslane.ValueId]
+  priv data_constructor_ids : Array[@buslane.DataConId]
+  priv seen_values : Array[Bool]
+  priv seen_data_constructors : Array[Bool]
 }
 
 ///|
-pub fn ProgramDeclarations::contains_value(
+pub fn ProgramDeclarations::value_ids(
   self : ProgramDeclarations,
-  value : @buslane.ValueId,
-) -> Bool {
-  self.values.get(value.index).unwrap_or(false)
+) -> Array[@buslane.ValueId] {
+  self.value_ids.copy()
 }
 
 ///|
-pub fn ProgramDeclarations::contains_data_constructor(
+pub fn ProgramDeclarations::data_constructor_ids(
   self : ProgramDeclarations,
-  data_constructor : @buslane.DataConId,
-) -> Bool {
-  self.data_constructors.get(data_constructor.index).unwrap_or(false)
+) -> Array[@buslane.DataConId] {
+  self.data_constructor_ids.copy()
 }
 
 ///|
 /// Collects every value and data constructor the program's terms name.
 pub fn collect_program_declarations(program : Program) -> ProgramDeclarations {
   let declarations = ProgramDeclarations::{
-    values: Array::make(program.metadata.values.length(), false),
-    data_constructors: Array::make(
+    value_ids: [],
+    data_constructor_ids: [],
+    seen_values: Array::make(program.metadata.values.length(), false),
+    seen_data_constructors: Array::make(
       program.metadata.data_constructors.length(),
       false,
     ),
@@ -61,8 +63,11 @@ fn ProgramDeclarations::mark_value(
   self : ProgramDeclarations,
   value : @buslane.ValueId,
 ) -> Unit {
-  if value.index >= 0 && value.index < self.values.length() {
-    self.values[value.index] = true
+  if value.index >= 0 &&
+    value.index < self.seen_values.length() &&
+    !self.seen_values[value.index] {
+    self.seen_values[value.index] = true
+    self.value_ids.push(value)
   }
 }
 
@@ -72,8 +77,10 @@ fn ProgramDeclarations::mark_data_constructor(
   data_constructor : @buslane.DataConId,
 ) -> Unit {
   if data_constructor.index >= 0 &&
-    data_constructor.index < self.data_constructors.length() {
-    self.data_constructors[data_constructor.index] = true
+    data_constructor.index < self.seen_data_constructors.length() &&
+    !self.seen_data_constructors[data_constructor.index] {
+    self.seen_data_constructors[data_constructor.index] = true
+    self.data_constructor_ids.push(data_constructor)
   }
 }
 
