@@ -1,25 +1,26 @@
 ///|
 priv struct CpsSourceCounts {
-  types : Int
   data_constructors : Int
   values : Int
 }
 
 ///|
+/// Rewrites the declarations this pass is responsible for.
+///
+/// Only the ones the program mentions. A declaration effect specialization made
+/// dead is legal Buslane already and stays legal by being left alone; rewriting
+/// the types under it while its binders stay as they were is what would make it
+/// illegal. Type declarations are untouched either way, since nothing in a
+/// `TypeInfo` needs the companion form.
 fn rewrite_cps_source_metadata(
   schema : DictionaryCpsSchema,
   counts : CpsSourceCounts,
+  declarations : @effect_lowering_core.ProgramDeclarations,
 ) -> Unit raise SynthesisError {
-  for index in 0..<counts.types {
-    let info = schema.metadata.types[index]
-    schema.metadata.types[index] = {
-      name: info.name,
-      flavor: info.flavor,
-      parameters: info.parameters,
-      constructors: info.constructors,
-    }
-  }
   for index in 0..<counts.data_constructors {
+    if !declarations.contains_data_constructor({ index, }) {
+      continue
+    }
     let info = schema.metadata.data_constructors[index]
     schema.metadata.data_constructors[index] = {
       name: info.name,
@@ -29,6 +30,9 @@ fn rewrite_cps_source_metadata(
     }
   }
   for index in 0..<counts.values {
+    if !declarations.contains_value({ index, }) {
+      continue
+    }
     let info = schema.metadata.values[index]
     schema.metadata.values[index] = {
       name: info.name,

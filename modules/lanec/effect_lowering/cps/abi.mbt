@@ -65,7 +65,6 @@ fn rewrite_selective_cps_abis_or_raise(
   program : Program,
 ) -> SelectiveCpsRewrite raise SynthesisError {
   let counts = CpsSourceCounts::{
-    types: program.metadata.types.length(),
     data_constructors: program.metadata.data_constructors.length(),
     values: program.metadata.values.length(),
   }
@@ -73,8 +72,9 @@ fn rewrite_selective_cps_abis_or_raise(
     metadata: program.metadata.snapshot(),
     terms: program.terms,
   }
+  let declarations = @effect_lowering_core.collect_program_declarations(source)
   let schema = build_dictionary_cps_schema_or_raise(program.metadata)
-  rewrite_cps_source_metadata(schema, counts)
+  rewrite_cps_source_metadata(schema, counts, declarations)
   let terms = source.terms.map(term => lower_cps_top_term(schema, source, term))
   let output = Program::{ metadata: program.metadata, terms }
   validate_mon_trans_output_or_raise(output)

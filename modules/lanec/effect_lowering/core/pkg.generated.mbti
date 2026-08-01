@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub fn collect_program_declarations(Program) -> ProgramDeclarations
+
 pub fn effect_has_parameter(@buslane.Effect) -> Bool
 
 pub fn effect_terms(@buslane.MetadataRegistry, @buslane.Effect) -> Array[@buslane.Effect]
@@ -163,6 +165,12 @@ pub(all) struct Program {
   terms : Array[TopTerm]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Program
+
+pub(all) struct ProgramDeclarations {
+  // private fields
+}
+pub fn ProgramDeclarations::contains_data_constructor(Self, @buslane.DataConId) -> Bool
+pub fn ProgramDeclarations::contains_value(Self, @buslane.ValueId) -> Bool
 
 pub(all) struct RecursiveBinding {
   id : @buslane.ValueId

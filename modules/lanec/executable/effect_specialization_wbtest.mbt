@@ -388,3 +388,115 @@ test "effect specialization rewrites retained declarations that name a specializ
     fail("specialized program did not verify: \{Repr(result)}")
   }
 }
+
+///|
+/// A definition effect specialization replaces keeps its metadata, and that
+/// metadata stays legal Buslane. Selective CPS must leave it alone rather than
+/// rewrite the types under it while its binders stay as they were.
+test "selective CPS leaves a replaced generic declaration alone" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  let log = metadata.define_effect("Log", [])
+  let task_type : @buslane.Type = Function(
+    [],
+    Primitive(Unit),
+    Parameter(effect_parameter),
+  )
+  let generic = metadata.define_value(
+    "generic",
+    Function,
+    Forall(
+      [effect_parameter],
+      Function([task_type], Primitive(Unit), Parameter(effect_parameter)),
+    ),
+  )
+  let task = metadata.define_value("task", Parameter, task_type)
+  let logging = metadata.define_value(
+    "logging",
+    External,
+    Function([], Primitive(Unit), Singleton(log, [])),
+  )
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], Primitive(Unit), Singleton(log, [])),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      External(logging),
+      LetRec([
+        {
+          id: generic,
+          rhs: TypeLambda(
+            [effect_parameter],
+            Function({
+              parameters: [task],
+              result_type: Primitive(Unit),
+              body: Call(Ref(task), []),
+            }),
+          ),
+        },
+      ]),
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Call(
+            TypeApply(Ref(generic), [EffectArgument(Singleton(log, []))]),
+            [Ref(logging)],
+          ),
+        }),
+      ),
+    ],
+  }
+  let specialized = specialize_reachable_effects(program, entry)
+  // The generic original is no longer a term but is still in the registry.
+  guard metadata.value_info(generic) is Some(_) else {
+    fail("expected the replaced definition to keep its metadata")
+  }
+  let lowered = lower_effects(specialized, entry, _stage => ())
+  // Residual-effect erasure empties its rows like everything else, which keeps
+  // it legal. What must not happen is CPS rewriting the types under it and
+  // leaving the binder that scopes them behind.
+  guard metadata.value_info(generic) is Some(after) else {
+    fail("expected the replaced definition to still have metadata")
+  }
+  guard after.type_ is Forall([bound], body) else {
+    fail("expected the replaced definition to stay quantified")
+  }
+  assert_false(mentions_other_parameter(body, bound))
+  let verified = @buslane.verify_program(lowered.program)
+  if !verified.is_ok() {
+    fail("lowered program did not verify: \{Repr(verified)}")
+  }
+}
+
+///|
+fn mentions_other_parameter(
+  type_ : @buslane.Type,
+  bound : @buslane.TypeParameterId,
+) -> Bool {
+  match type_ {
+    Primitive(_) | Constructor(_) => false
+    Parameter(parameter) => parameter != bound
+    Apply(callee, arguments) =>
+      mentions_other_parameter(callee, bound) ||
+      arguments
+      .iter()
+      .any(fn(argument) {
+        match argument {
+          TypeArgument(inner) => mentions_other_parameter(inner, bound)
+          EffectArgument(_) => false
+        }
+      })
+    TypeLambda(_, body) | Forall(_, body) =>
+      mentions_other_parameter(body, bound)
+    Function(parameters, result, _) =>
+      parameters
+      .iter()
+      .any(fn(parameter) { mentions_other_parameter(parameter, bound) }) ||
+      mentions_other_parameter(result, bound)
+  }
+}

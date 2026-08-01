@@ -408,28 +408,39 @@ test "direct CPS lowering commits local binding metadata" {
   let latent : @buslane.Effect = Singleton(effect, [])
   let local_type : @buslane.Type = Function([], Primitive(I64), latent)
   let local_function = metadata.define_value("local", Local, local_type)
-  let source = Program::{ metadata: metadata.snapshot(), terms: [] }
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], local_type, Empty),
+  )
+  let body : Expr = Let(
+    local_function,
+    Function({
+      parameters: [],
+      result_type: Primitive(I64),
+      body: Literal(I64(1L)),
+    }),
+    Ref(local_function),
+  )
+  // The declarations this pass rewrites are the ones the program mentions, so
+  // the expression under test has to be in the program it is lowered against.
+  let source = Program::{
+    metadata: metadata.snapshot(),
+    terms: [
+      Let(entry, Function({ parameters: [], result_type: local_type, body })),
+    ],
+  }
   let counts = CpsSourceCounts::{
-    types: metadata.types.length(),
     data_constructors: metadata.data_constructors.length(),
     values: metadata.values.length(),
   }
   let schema = build_dictionary_cps_schema_or_raise(metadata)
-  rewrite_cps_source_metadata(schema, counts)
-  let lowered = lower_cps_direct_expr(
+  rewrite_cps_source_metadata(
     schema,
-    source,
-    Let(
-      local_function,
-      Function({
-        parameters: [],
-        result_type: Primitive(I64),
-        body: Literal(I64(1L)),
-      }),
-      Ref(local_function),
-    ),
-    None,
+    counts,
+    @effect_lowering_core.collect_program_declarations(source),
   )
+  let lowered = lower_cps_direct_expr(schema, source, body, None)
   guard lowered
     is Let(_, TypeLambda([answer, residual], Function(transformed)), _) else {
     abort("expected a local CPS callable")

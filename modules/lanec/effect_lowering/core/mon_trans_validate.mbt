@@ -8,15 +8,29 @@ pub fn validate_mon_trans_output(
 }
 
 ///|
+// This asks whether a declaration has been through the phase, which the Buslane
+// verifier's question — whether it is legal — deliberately does not. Only what
+// the phase was responsible for can answer it, so the walk covers the
+// declarations the program mentions rather than the whole registry. A
+// declaration effect specialization made dead is checked by the verifier like
+// any other and is not expected to be in post-CPS form.
 fn validate_mon_trans_output_or_raise(
   program : Program,
 ) -> Unit raise SynthesisError {
-  for info in program.metadata.values {
-    validate_mon_trans_type(program.metadata, info.type_)
+  let declarations = collect_program_declarations(program)
+  for index in 0..<program.metadata.values.length() {
+    if declarations.contains_value({ index, }) {
+      validate_mon_trans_type(
+        program.metadata,
+        program.metadata.values[index].type_,
+      )
+    }
   }
-  for info in program.metadata.data_constructors {
-    for type_ in info.payload_types {
-      validate_mon_trans_type(program.metadata, type_)
+  for index in 0..<program.metadata.data_constructors.length() {
+    if declarations.contains_data_constructor({ index, }) {
+      for type_ in program.metadata.data_constructors[index].payload_types {
+        validate_mon_trans_type(program.metadata, type_)
+      }
     }
   }
   for term in program.terms {
