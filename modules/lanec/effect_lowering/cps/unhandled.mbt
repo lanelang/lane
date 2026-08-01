@@ -1,5 +1,5 @@
 ///|
-priv struct ResidualComputationSchema {
+priv struct UnhandledComputationSchema {
   effect : @buslane.Effect
   residual_effect : @buslane.Effect
   result_type : @buslane.Type
@@ -7,7 +7,7 @@ priv struct ResidualComputationSchema {
 }
 
 ///|
-priv struct ResidualFrame {
+priv struct UnhandledFrame {
   answer_parameter : @buslane.TypeParameterId
   residual_parameter : @buslane.TypeParameterId
   answer_type : @buslane.Type
@@ -23,17 +23,17 @@ priv struct CpsValueInitializer {
 }
 
 ///|
-priv struct ResidualRelayPlan {
+priv struct RelayPlan {
   bindings : Array[CpsContextBinding]
   initializers : Array[CpsValueInitializer]
 }
 
 ///|
-fn build_residual_computation_schema(
+fn build_unhandled_computation_schema(
   schema : DictionaryCpsSchema,
   effect : @buslane.Effect,
   result_type : @buslane.Type,
-) -> ResidualComputationSchema raise SynthesisError {
+) -> UnhandledComputationSchema raise SynthesisError {
   let canonical = mon_effect_part(schema.metadata, effect)
   let residual_effect = residual_effect_part(schema.metadata, effect)
   let rewritten_result = schema.rewrite_type(result_type)
@@ -45,15 +45,15 @@ fn build_residual_computation_schema(
       type_: rewritten_result,
     }
   } else {
-    // A residual computation is a CPS'd callable like any other, so it carries
-    // the same binders: callers instantiate the residual it runs under rather
+    // A unhandled computation is a CPS'd callable like any other, so it carries
+    // the same binders: callers instantiate the unhandled it runs under rather
     // than being handed one fixed at the install site.
     let answer_parameter = schema.metadata.define_type_parameter(
-      "%residual_answer",
+      "%unhandled_answer",
       Type,
     )
     let residual_parameter = schema.metadata.define_type_parameter(
-      "%residual",
+      "%unhandled",
       Effect,
       flavor=External,
     )
@@ -79,16 +79,16 @@ fn build_residual_computation_schema(
 }
 
 ///|
-fn ResidualComputationSchema::fresh_frame(
-  self : ResidualComputationSchema,
+fn UnhandledComputationSchema::fresh_frame(
+  self : UnhandledComputationSchema,
   schema : DictionaryCpsSchema,
-) -> ResidualFrame raise SynthesisError {
+) -> UnhandledFrame raise SynthesisError {
   let answer_parameter = schema.metadata.define_type_parameter(
-    "%residual_answer",
+    "%unhandled_answer",
     Type,
   )
   let residual_parameter = schema.metadata.define_type_parameter(
-    "%residual",
+    "%unhandled",
     Effect,
     flavor=External,
   )
@@ -100,7 +100,7 @@ fn ResidualComputationSchema::fresh_frame(
   let bindings = []
   for term in effect_terms(schema.metadata, self.effect) {
     let parameter = schema.metadata.define_value(
-      "%residual_context",
+      "%unhandled_context",
       Parameter,
       schema.context_term_type(term, answer_type, frame_residual),
     )
@@ -108,7 +108,7 @@ fn ResidualComputationSchema::fresh_frame(
     bindings.push({ term, value: Ref(parameter) })
   }
   let continuation = schema.metadata.define_value(
-    "%residual_continuation",
+    "%unhandled_continuation",
     Parameter,
     Function([self.result_type], answer_type, frame_residual),
   )
@@ -129,7 +129,7 @@ fn ResidualComputationSchema::fresh_frame(
 }
 
 ///|
-fn ResidualFrame::wrap(self : ResidualFrame, body : Expr) -> Expr {
+fn UnhandledFrame::wrap(self : UnhandledFrame, body : Expr) -> Expr {
   TypeLambda(
     [self.answer_parameter, self.residual_parameter],
     Function({
@@ -141,8 +141,8 @@ fn ResidualFrame::wrap(self : ResidualFrame, body : Expr) -> Expr {
 }
 
 ///|
-fn ResidualComputationSchema::pure(
-  self : ResidualComputationSchema,
+fn UnhandledComputationSchema::pure(
+  self : UnhandledComputationSchema,
   schema : DictionaryCpsSchema,
   value : Expr,
 ) -> Expr raise SynthesisError {
@@ -155,8 +155,8 @@ fn ResidualComputationSchema::pure(
 }
 
 ///|
-fn ResidualComputationSchema::run(
-  self : ResidualComputationSchema,
+fn UnhandledComputationSchema::run(
+  self : UnhandledComputationSchema,
   metadata : @buslane.MetadataRegistry,
   computation : Expr,
   environment : CpsEnvironment,
@@ -177,28 +177,28 @@ fn ResidualComputationSchema::run(
 }
 
 ///|
-fn build_residual_relay_bindings(
+fn build_relay_bindings(
   schema : DictionaryCpsSchema,
   program : Program,
-  residual : ResidualComputationSchema,
+  unhandled : UnhandledComputationSchema,
   outer_environment : CpsEnvironment,
-) -> ResidualRelayPlan raise SynthesisError {
+) -> RelayPlan raise SynthesisError {
   let bindings = []
   let initializers = []
-  for term in effect_terms(schema.metadata, residual.effect) {
+  for term in effect_terms(schema.metadata, unhandled.effect) {
     match term {
       Io => ()
       Singleton(effect, arguments) => {
         let value = build_concrete_relay_dictionary(
-          schema, program, residual, effect, arguments,
+          schema, program, unhandled, effect, arguments,
         )
         let id = schema.metadata.define_value(
           "%relay_dictionary",
           Local,
           schema.context_term_type(
             term,
-            residual.type_,
-            residual.residual_effect,
+            unhandled.type_,
+            unhandled.residual_effect,
           ),
         )
         bindings.push({ term, value: Ref(id) })
@@ -209,7 +209,7 @@ fn build_residual_relay_bindings(
           term,
           value: find_cps_context(schema.metadata, outer_environment, term),
         })
-      Empty | Union(_) => abort("canonical residual effect term expected")
+      Empty | Union(_) => abort("canonical unhandled effect term expected")
     }
   }
   { bindings, initializers }
@@ -219,7 +219,7 @@ fn build_residual_relay_bindings(
 fn build_concrete_relay_dictionary(
   schema : DictionaryCpsSchema,
   program : Program,
-  residual : ResidualComputationSchema,
+  unhandled : UnhandledComputationSchema,
   effect : @buslane.EffectId,
   arguments : Array[@buslane.GenericArgument],
 ) -> Expr raise SynthesisError {
@@ -230,16 +230,16 @@ fn build_concrete_relay_dictionary(
     schema,
     effect,
     arguments,
-    residual.type_,
-    residual.residual_effect,
+    unhandled.type_,
+    unhandled.residual_effect,
   )
   let fields = []
   for index in 0..<effect_info.operations.length() {
     fields.push(
-      build_residual_relay_field(
+      build_relay_field(
         schema,
         program,
-        residual,
+        unhandled,
         Singleton(effect, arguments),
         effect_info.operations[index],
         instance.field_types[index],
@@ -255,10 +255,10 @@ fn build_concrete_relay_dictionary(
 }
 
 ///|
-fn build_residual_relay_field(
+fn build_relay_field(
   schema : DictionaryCpsSchema,
   program : Program,
-  residual : ResidualComputationSchema,
+  unhandled : UnhandledComputationSchema,
   term : @buslane.Effect,
   operation : @buslane.OperationId,
   field_type : @buslane.Type,
@@ -270,7 +270,7 @@ fn build_residual_relay_field(
   guard function_type is Function(parameter_types, result_type, function_effect) &&
     schema.metadata.effects_definitionally_equal(
       function_effect,
-      residual.residual_effect,
+      unhandled.residual_effect,
     ) else {
     raise ExpectedFunction(function_type)
   }
@@ -284,15 +284,15 @@ fn build_residual_relay_field(
     is Some(Function([operation_result], resume_result, resume_effect)) &&
     schema.metadata.effects_definitionally_equal(
       resume_effect,
-      residual.residual_effect,
+      unhandled.residual_effect,
     ) else {
     raise ExpectedFunction(parameter_types.last().unwrap())
   }
-  if !schema.metadata.types_definitionally_equal(resume_result, residual.type_) ||
-    !schema.metadata.types_definitionally_equal(result_type, residual.type_) {
+  if !schema.metadata.types_definitionally_equal(resume_result, unhandled.type_) ||
+    !schema.metadata.types_definitionally_equal(result_type, unhandled.type_) {
     raise ExpectedFunction(function_type)
   }
-  let frame = residual.fresh_frame(schema)
+  let frame = unhandled.fresh_frame(schema)
   let operation_result_parameter = schema.metadata.define_value(
     "%relay_result",
     Parameter,
@@ -304,7 +304,7 @@ fn build_residual_relay_field(
   let resume_continuation = Expr::Function({
     parameters: [operation_result_parameter],
     result_type: frame.answer_type,
-    body: residual.run(
+    body: unhandled.run(
       schema.metadata,
       resumed,
       frame.environment,
@@ -336,7 +336,7 @@ fn build_residual_relay_field(
   )
   let function = Expr::Function({
     parameters,
-    result_type: residual.type_,
+    result_type: unhandled.type_,
     body: frame.wrap(field_body),
   })
   if type_binders.is_empty() {

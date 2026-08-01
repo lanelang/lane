@@ -420,6 +420,10 @@ _Avoid_: reserved EffectId, synthetic effect declaration, module-qualified nomin
 The selective transformation of a function whose latent effect satisfies the **Monadic Effect Predicate** from `(args) -> A ! E` to the conceptual shape `[Answer, Residual](context, args, (A) -> Answer ! R) -> Answer ! R`, where `R` is the function's own **Non-Monadic Residual Effect** joined with the **Installed Residual Parameter**; functions whose effects do not satisfy the predicate remain direct style even when they are non-pure.
 _Avoid_: whole-program CPS, VM stack capture, yielding side channel
 
+**Unhandled Computation**:
+The still-monadic computation an installation produces when the effects it does not handle escape to an enclosing handler. Selective CPS gives it the same shape as any other CPS'd callable, so a handler's `resume` needs no special case at a call site. Named apart from **Non-Monadic Residual Effect** deliberately: the two are opposite halves of the same row.
+_Avoid_: residual computation, handled expression, resume closure
+
 **Installed Residual Parameter**:
 The **Effect Row Variable** an Answer-Type CPS callable binds beside its answer type, standing for what the dictionary and continuation it is handed perform. A call site instantiates it with the residual it is itself running under, so a handler arm's effects reach the row of every call the handled expression makes. It has External **Effect Flavor**, which is what distinguishes it from a source effect parameter the transformation still has to discharge into a dictionary.
 _Avoid_: per-residual dictionary specialization, source effect parameter, whole-program monomorphization

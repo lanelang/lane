@@ -719,7 +719,7 @@ fn lower_cps_with_continuation(
           ),
         )
       } else {
-        lower_cps_residual_bind(
+        lower_cps_monadic_let(
           schema, program, expression, environment, answer_type, continuation,
         )
       }

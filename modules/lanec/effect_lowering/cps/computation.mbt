@@ -37,7 +37,7 @@ fn lower_cps_computation(
             true,
           )
         _ =>
-          lower_cps_residual_computation(
+          lower_cps_bind_computation(
             schema, program, computation, answer_type, continuation, binder,
           )
       }
@@ -160,7 +160,7 @@ fn lower_cps_monadic_match(
 }
 
 ///|
-fn lower_cps_residual_bind(
+fn lower_cps_monadic_let(
   schema : DictionaryCpsSchema,
   program : Program,
   expression : Expr,
@@ -170,11 +170,11 @@ fn lower_cps_residual_bind(
 ) -> Expr raise SynthesisError {
   let facts = synthesize_expr_or_raise(program.metadata, expression)
   let binder = schema.metadata.define_value(
-    "%residual",
+    "%bind_result",
     Parameter,
     schema.rewrite_type(facts.type_),
   )
-  lower_cps_residual_computation(
+  lower_cps_bind_computation(
     schema,
     program,
     expression,
@@ -196,7 +196,7 @@ fn lower_cps_residual_bind(
 }
 
 ///|
-fn lower_cps_residual_computation(
+fn lower_cps_bind_computation(
   schema : DictionaryCpsSchema,
   program : Program,
   computation : Expr,
@@ -209,7 +209,7 @@ fn lower_cps_residual_computation(
   )
   let parameter = match binder {
     Some(parameter) => parameter
-    None => schema.metadata.define_value("%residual", Parameter, value_type)
+    None => schema.metadata.define_value("%bind_result", Parameter, value_type)
   }
   Bind({
     computation,

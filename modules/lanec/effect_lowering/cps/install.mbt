@@ -48,39 +48,39 @@ fn lower_cps_install(
     program.metadata,
     Install(install),
   )
-  let residual = build_residual_computation_schema(
+  let unhandled = build_unhandled_computation_schema(
     schema,
     install_facts.effect,
     install.result_type,
   )
-  let relay = build_residual_relay_bindings(
-    schema, program, residual, outer_environment,
+  let relay = build_relay_bindings(
+    schema, program, unhandled, outer_environment,
   )
   let relay_environment = CpsEnvironment::{
     effect: program.metadata.canonicalize_effect(
-      Union([residual.effect, residual.residual_effect]),
+      Union([unhandled.effect, unhandled.residual_effect]),
     ),
-    residual: residual.residual_effect,
+    residual: unhandled.residual_effect,
     bindings: relay.bindings,
   }
   let handlers = build_handler_dictionary_plan(
-    schema, program, install, residual, relay_environment,
+    schema, program, install, unhandled, relay_environment,
   )
   let final_continuation = lower_handler_final_clause(
     schema,
     program,
     install.final_clause,
-    residual,
+    unhandled,
     relay_environment,
   )
-  // The handled expression runs under the install's residual, not its own: the
+  // The handled expression runs under the install's unhandled, not its own: the
   // arms and the final branch it hands control to are the handler's, and their
   // effects are what the dictionary it receives performs.
   let inner_environment = CpsEnvironment::{
     effect: program.metadata.canonicalize_effect(
-      Union([body_facts.effect, residual.residual_effect]),
+      Union([body_facts.effect, unhandled.residual_effect]),
     ),
-    residual: residual.residual_effect,
+    residual: unhandled.residual_effect,
     bindings: handlers.bindings + relay.bindings,
   }
   let body = lower_cps_with_continuation(
@@ -88,7 +88,7 @@ fn lower_cps_install(
     program,
     install.body,
     inner_environment,
-    residual.type_,
+    unhandled.type_,
     final_continuation,
   )
   let scoped = wrap_cps_initializers(
@@ -96,7 +96,7 @@ fn lower_cps_install(
     0,
     body,
   )
-  residual.run(
+  unhandled.run(
     schema.metadata,
     scoped,
     outer_environment,
@@ -110,7 +110,7 @@ fn build_handler_dictionary_plan(
   schema : DictionaryCpsSchema,
   program : Program,
   install : InstallExpr,
-  residual : ResidualComputationSchema,
+  unhandled : UnhandledComputationSchema,
   relay_environment : CpsEnvironment,
 ) -> HandlerDictionaryPlan raise SynthesisError {
   let bindings = []
@@ -126,8 +126,8 @@ fn build_handler_dictionary_plan(
       schema,
       effect,
       arguments,
-      residual.type_,
-      residual.residual_effect,
+      unhandled.type_,
+      unhandled.residual_effect,
     )
     let fields = []
     for index in 0..<effect_info.operations.length() {
@@ -139,7 +139,7 @@ fn build_handler_dictionary_plan(
           program,
           clause,
           instance.field_types[index],
-          residual,
+          unhandled,
           relay_environment,
         ),
       )
@@ -155,8 +155,8 @@ fn build_handler_dictionary_plan(
       Local,
       schema.context_term_type(
         dictionary.handled_effect,
-        residual.type_,
-        residual.residual_effect,
+        unhandled.type_,
+        unhandled.residual_effect,
       ),
     )
     bindings.push({ term: dictionary.handled_effect, value: Ref(id) })
@@ -184,7 +184,7 @@ fn lower_handler_operation_clause(
   program : Program,
   clause : OperationClause,
   field_type : @buslane.Type,
-  residual : ResidualComputationSchema,
+  unhandled : UnhandledComputationSchema,
   relay_environment : CpsEnvironment,
 ) -> Expr raise SynthesisError {
   let (source_type_binders, source_function) = match clause.callable {
@@ -198,11 +198,11 @@ fn lower_handler_operation_clause(
   guard function_type is Function(parameter_types, result_type, function_effect) &&
     schema.metadata.effects_definitionally_equal(
       function_effect,
-      residual.residual_effect,
+      unhandled.residual_effect,
     ) else {
     raise ExpectedFunction(function_type)
   }
-  if !schema.metadata.types_definitionally_equal(result_type, residual.type_) {
+  if !schema.metadata.types_definitionally_equal(result_type, unhandled.type_) {
     raise ExpectedFunction(function_type)
   }
   let source_parameters = source_function.parameters.copy()
@@ -217,11 +217,11 @@ fn lower_handler_operation_clause(
     is Function([operation_result], direct_result, resume_effect) &&
     schema.metadata.effects_definitionally_equal(
       resume_effect,
-      residual.residual_effect,
+      unhandled.residual_effect,
     ) else {
     raise ExpectedFunction(direct_resume_type)
   }
-  if !schema.metadata.types_definitionally_equal(direct_result, residual.type_) {
+  if !schema.metadata.types_definitionally_equal(direct_result, unhandled.type_) {
     raise ExpectedFunction(direct_resume_type)
   }
   let direct_resume = schema.metadata.define_value(
@@ -229,9 +229,9 @@ fn lower_handler_operation_clause(
     Parameter,
     direct_resume_type,
   )
-  set_source_resume_effect(program.metadata, source_resume, residual.effect)
+  set_source_resume_effect(program.metadata, source_resume, unhandled.effect)
   let resume_value = build_handler_resume_value(
-    schema, program, residual, operation_result, direct_resume,
+    schema, program, unhandled, operation_result, direct_resume,
   )
   commit_cps_binding_type(schema.metadata, source_resume, resume_value)
   let clause_body = lower_cps_with_continuation(
@@ -239,13 +239,13 @@ fn lower_handler_operation_clause(
     program,
     source_function.body,
     relay_environment,
-    residual.type_,
-    build_residual_result_continuation(schema, residual),
+    unhandled.type_,
+    build_unhandled_result_continuation(schema, unhandled),
   )
   source_parameters.push(direct_resume)
   let function = Expr::Function({
     parameters: source_parameters,
-    result_type: residual.type_,
+    result_type: unhandled.type_,
     body: Let(source_resume, resume_value, clause_body),
   })
   if type_binders.is_empty() {
@@ -280,7 +280,7 @@ fn instantiate_clause_field_type(
 fn build_handler_resume_value(
   schema : DictionaryCpsSchema,
   program : Program,
-  residual : ResidualComputationSchema,
+  unhandled : UnhandledComputationSchema,
   operation_result : @buslane.Type,
   direct_resume : @buslane.ValueId,
 ) -> Expr raise SynthesisError {
@@ -290,17 +290,17 @@ fn build_handler_resume_value(
     operation_result,
   )
   let resumed = Expr::Call(Ref(direct_resume), [Ref(parameter)])
-  if program.metadata.effects_definitionally_equal(residual.effect, Empty) {
+  if program.metadata.effects_definitionally_equal(unhandled.effect, Empty) {
     Function({
       parameters: [parameter],
-      result_type: residual.result_type,
+      result_type: unhandled.result_type,
       body: resumed,
     })
   } else {
-    let frame = residual.fresh_frame(schema)
+    let frame = unhandled.fresh_frame(schema)
     frame.wrap_with_parameter(
       parameter,
-      residual.run(
+      unhandled.run(
         schema.metadata,
         resumed,
         frame.environment,
@@ -312,8 +312,8 @@ fn build_handler_resume_value(
 }
 
 ///|
-fn ResidualFrame::wrap_with_parameter(
-  self : ResidualFrame,
+fn UnhandledFrame::wrap_with_parameter(
+  self : UnhandledFrame,
   parameter : @buslane.ValueId,
   body : Expr,
 ) -> Expr {
@@ -328,19 +328,19 @@ fn ResidualFrame::wrap_with_parameter(
 }
 
 ///|
-fn build_residual_result_continuation(
+fn build_unhandled_result_continuation(
   schema : DictionaryCpsSchema,
-  residual : ResidualComputationSchema,
+  unhandled : UnhandledComputationSchema,
 ) -> Expr raise SynthesisError {
   let result = schema.metadata.define_value(
     "%handler_result",
     Parameter,
-    residual.result_type,
+    unhandled.result_type,
   )
   Function({
     parameters: [result],
-    result_type: residual.type_,
-    body: residual.pure(schema, Ref(result)),
+    result_type: unhandled.type_,
+    body: unhandled.pure(schema, Ref(result)),
   })
 }
 
@@ -349,20 +349,20 @@ fn lower_handler_final_clause(
   schema : DictionaryCpsSchema,
   program : Program,
   final_clause : FunctionExpr,
-  residual : ResidualComputationSchema,
+  unhandled : UnhandledComputationSchema,
   relay_environment : CpsEnvironment,
 ) -> Expr raise SynthesisError {
   require_arity(1, final_clause.parameters.length())
   Function({
     parameters: final_clause.parameters,
-    result_type: residual.type_,
+    result_type: unhandled.type_,
     body: lower_cps_with_continuation(
       schema,
       program,
       final_clause.body,
       relay_environment,
-      residual.type_,
-      build_residual_result_continuation(schema, residual),
+      unhandled.type_,
+      build_unhandled_result_continuation(schema, unhandled),
     ),
   })
 }
