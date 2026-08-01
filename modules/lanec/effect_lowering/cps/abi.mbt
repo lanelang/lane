@@ -396,7 +396,15 @@ fn lower_cps_direct_expr(
         }),
       })
     Install(install) => lower_cps_direct_install(schema, program, install)
-    Bind(_) | OpenContext(_) => expression
+    // Both mark a monadic computation, so the function around them is CPS'd and
+    // they are reached through `lower_cps_with_continuation`. Arriving here
+    // means something upstream is wrong, and passing the subtree through
+    // unlowered would turn that into wrong output.
+    Bind(bind) =>
+      raise MissingEffectContext(
+        synthesize_expr_or_raise(program.metadata, bind.computation).effect,
+      )
+    OpenContext(open) => raise MissingEffectContext(open.source_effect)
   }
 }
 
@@ -438,7 +446,7 @@ fn lower_cps_effectful_result_call(
       program,
       arguments,
       lowered_callee,
-      None,
+      Some(answer),
     ) {
     match lowered {
       Ref(_) | Literal(_) => lowered_arguments.push(lowered)
@@ -556,7 +564,14 @@ fn build_empty_context_direct_call(
   arguments : Array[Expr],
   result_type : @buslane.Type,
   context_count : Int,
-) -> Expr {
+) -> Expr raise SynthesisError {
+  // The continuation this hands the callee is the identity, which performs
+  // nothing, so the callee has to be one that accepts a pure continuation.
+  let callee_type = synthesize_expr_or_raise(metadata, callee).type_
+  if callee_type is Forall([_, residual_parameter], Function(_, _, latent)) &&
+    !(latent is Parameter(bound) && bound == residual_parameter) {
+    raise ExpectedFunction(callee_type)
+  }
   let continuation_parameter = metadata.define_value(
     "%direct_result",
     Parameter,

@@ -1,11 +1,17 @@
 ///|
+/// Whether an expression is known to perform nothing.
+///
+/// An expression the facts query cannot synthesize is treated as performing
+/// something. The optimizer only ever uses this to decide whether removing a
+/// computation is safe, so the unknown case has a safe answer, and answering it
+/// beats aborting a compilation over a defect somewhere upstream.
 fn expression_has_empty_effect(
   facts : @buslane.ExpressionFactsQuery,
   expression : @buslane.Expr,
 ) -> Bool {
   match facts.has_empty_effect(expression) {
     Ok(result) => result
-    Err(_) => abort("core optimizer requires a verified Buslane expression")
+    Err(_) => false
   }
 }
 
