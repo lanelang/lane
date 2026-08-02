@@ -78,7 +78,7 @@ fn define_effect_companions(
         source,
         companion: metadata.define_type_parameter(
           info.name.occurrence + "%context",
-          Type,
+          Function([Type, Effect], Type),
         ),
       })
     }
@@ -321,30 +321,74 @@ fn DictionaryCpsSchema::context_term_type(
       let dictionary = self.dictionary(effect)
       Apply(
         Constructor(dictionary.type_id),
-        arguments.map(argument => {
-          self.rewrite_context_argument(argument, answer_type, residual_effect)
-        }) +
+        arguments.map(argument => self.rewrite_context_argument(argument)) +
         [TypeArgument(answer_type), EffectArgument(residual_effect)],
       )
     }
-    Parameter(parameter) => Parameter(self.companion_parameter(parameter))
+    Parameter(parameter) =>
+      self.companion_context_type(
+        self.companion_parameter(parameter),
+        answer_type,
+        residual_effect,
+      )
     Empty | Union(_) => abort("canonical effect term expected")
   }
+}
+
+///|
+/// The dictionary a companion stands for, at one answer and residual.
+///
+/// A companion is a type-level function because an operation payload that is
+/// itself a CPS'd callable binds a different answer and residual from the
+/// dictionary holding that payload.
+fn DictionaryCpsSchema::companion_context_type(
+  self : DictionaryCpsSchema,
+  companion : @buslane.TypeParameterId,
+  answer_type : @buslane.Type,
+  residual_effect : @buslane.Effect,
+) -> @buslane.Type {
+  ignore(self)
+  Apply(Parameter(companion), [
+    TypeArgument(answer_type),
+    EffectArgument(residual_effect),
+  ])
+}
+
+///|
+/// The packed context supplied for an effect, abstracted over the answer and
+/// residual at each use of its companion.
+fn DictionaryCpsSchema::companion_context_argument(
+  self : DictionaryCpsSchema,
+  effect : @buslane.Effect,
+) -> @buslane.Type raise SynthesisError {
+  let answer_parameter = self.metadata.define_type_parameter(
+    "%companion_answer",
+    Type,
+  )
+  let residual_parameter = self.metadata.define_type_parameter(
+    "%companion_residual",
+    Effect,
+    flavor=External,
+  )
+  TypeLambda(
+    [answer_parameter, residual_parameter],
+    self.packed_context_type(
+      effect,
+      Parameter(answer_parameter),
+      Parameter(residual_parameter),
+    ),
+  )
 }
 
 ///|
 fn DictionaryCpsSchema::rewrite_context_argument(
   self : DictionaryCpsSchema,
   argument : @buslane.GenericArgument,
-  answer_type : @buslane.Type,
-  residual_effect : @buslane.Effect,
 ) -> @buslane.GenericArgument raise SynthesisError {
   match argument {
     TypeArgument(type_) => TypeArgument(self.rewrite_type(type_))
     EffectArgument(effect) =>
-      TypeArgument(
-        self.packed_context_type(effect, answer_type, residual_effect),
-      )
+      TypeArgument(self.companion_context_argument(effect))
   }
 }
 

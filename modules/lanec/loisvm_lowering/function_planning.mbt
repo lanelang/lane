@@ -64,11 +64,11 @@ fn ImageLowerer::add_instance_global(
     Some(info) => info.type_
     None => raise MissingValueMetadata(value~)
   }
-  if type_ == Primitive(Unit) {
+  if self.runtime_type(type_) is Concrete(Primitive(Unit)) {
     self.globals.push({ value, lowered: UnitValue })
     return
   }
-  let metadata = slot_metadata(type_)
+  let metadata = self.slot_metadata(type_)
   let global : @bytecode.GlobalId = { value: self.instance_globals.length() }
   self.instance_globals.push({
     representation: metadata.representation,
@@ -383,7 +383,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
       witnesses: [],
       user_parameters: parameter_slots,
     },
-    result: result_representation(result_type),
+    result: self.result_representation(result_type),
     blocks: [
       {
         parameters: [],

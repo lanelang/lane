@@ -269,7 +269,7 @@ fn FunctionLowerer::bind_data_alternative(
       let payload_type = apply_type_substitution(
         formal_type, branch_substitutions,
       )
-      let stored = if formal_type is Parameter(_) {
+      let stored = if self.image.runtime_type(formal_type) is Erased(_) {
         let witness = self.fresh_metadata(layout_witness_metadata())
         let erased = self.fresh_erased_slot(witness, Borrowed)
         self.emit(
@@ -281,7 +281,8 @@ fn FunctionLowerer::bind_data_alternative(
           ),
         )
         Slot(erased, formal_type)
-      } else if formal_type == Primitive(Unit) {
+      } else if self.image.runtime_type(formal_type)
+        is Concrete(Primitive(Unit)) {
         Unit
       } else {
         let destination = self.fresh_borrowed_slot(formal_type)

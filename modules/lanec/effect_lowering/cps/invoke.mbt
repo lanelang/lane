@@ -50,7 +50,7 @@ fn lower_cps_invoke(
     TypeApply(
       field,
       invoke.hidden_witnesses.map(argument => {
-        rewrite_cps_expression_argument(schema, argument, Some(answer))
+        rewrite_cps_expression_argument(schema, argument)
       }),
     )
   }

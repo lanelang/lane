@@ -26,7 +26,7 @@ fn instantiate_dictionary(
   }
   let answer = CpsAnswer::{ type_: answer_type, residual: residual_effect }
   let type_arguments = arguments.map(argument => {
-      rewrite_cps_expression_argument(schema, argument, Some(answer))
+      rewrite_cps_expression_argument(schema, argument)
     }) +
     answer.arguments()
   let substitution = @buslane.TypeSubstitution::TypeSubstitution()

@@ -43,8 +43,9 @@ fn FunctionLowerer::layout_witness(
   self : FunctionLowerer,
   type_ : @buslane.Type,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  if type_ is Parameter(parameter) {
-    return self.find_witness(parameter)
+  let type_ = match self.image.layout_runtime_type(type_) {
+    Erased(parameter) => return self.find_witness(parameter)
+    Concrete(type_) => type_
   }
   let recipe : @bytecode.LayoutRecipe = match type_ {
     Primitive(Unit) => Unit
@@ -77,39 +78,50 @@ fn FunctionLowerer::erase_value(
   let destination = self.fresh_erased_slot(witness, Owned)
   let materialized = self.materialize_local(value)
   let type_ = local_value_type(materialized).unwrap_or(type_)
-  match (materialized, type_) {
-    (Unit, Primitive(Unit)) => self.emit(EraseUnit(destination))
-    (
-      Slot(source, _),
-      Primitive(Bool)
-      | Primitive(I32)
-      | Primitive(Char)
-      | Primitive(String)
-      | Primitive(Byte)
-      | Primitive(Bytes)
-      | Constructor(_)
-      | Apply(_, _),
-    ) => self.emit(EraseI32(destination, source))
-    (Slot(source, _), Primitive(I64)) =>
-      self.emit(EraseI64(destination, source))
-    (Slot(source, _), Primitive(F32)) =>
-      self.emit(EraseF32(destination, source))
-    (Slot(source, _), Function(_, _, _) | Forall(_, _)) => {
-      let (canonical_type, bindings) = self.canonical_callable_type(type_)
-      guard self.make_callable_adapter(source, type_, canonical_type, bindings)
-        is Slot(adapted, _) else {
-        abort("callable adapter was not materialized")
+  match self.image.runtime_type(type_) {
+    Erased(_) => {
+      guard materialized is Slot(source, _) else {
+        raise InvalidTypeApplication(
+          detail="generic argument representation does not match its type",
+        )
       }
-      self.emit(EraseI64(destination, adapted))
-    }
-    (Slot(source, _), Primitive(F64)) =>
-      self.emit(EraseF64(destination, source))
-    (Slot(source, Parameter(_)), Parameter(_)) =>
       self.emit(Move(destination, source))
-    _ =>
-      raise InvalidTypeApplication(
-        detail="generic argument representation does not match its type",
-      )
+    }
+    Concrete(type_) =>
+      match (materialized, type_) {
+        (Unit, Primitive(Unit)) => self.emit(EraseUnit(destination))
+        (
+          Slot(source, _),
+          Primitive(Bool)
+          | Primitive(I32)
+          | Primitive(Char)
+          | Primitive(String)
+          | Primitive(Byte)
+          | Primitive(Bytes)
+          | Constructor(_)
+          | Apply(_, _),
+        ) => self.emit(EraseI32(destination, source))
+        (Slot(source, _), Primitive(I64)) =>
+          self.emit(EraseI64(destination, source))
+        (Slot(source, _), Primitive(F32)) =>
+          self.emit(EraseF32(destination, source))
+        (Slot(source, _), Function(_, _, _) | Forall(_, _)) => {
+          let (canonical_type, bindings) = self.canonical_callable_type(type_)
+          guard self.make_callable_adapter(
+              source, type_, canonical_type, bindings,
+            )
+            is Slot(adapted, _) else {
+            abort("callable adapter was not materialized")
+          }
+          self.emit(EraseI64(destination, adapted))
+        }
+        (Slot(source, _), Primitive(F64)) =>
+          self.emit(EraseF64(destination, source))
+        _ =>
+          raise InvalidTypeApplication(
+            detail="generic argument representation does not match its type",
+          )
+      }
   }
   destination
 }
@@ -120,46 +132,53 @@ fn FunctionLowerer::unerase_value(
   source : @vmcfg.ValueId,
   type_ : @buslane.Type,
 ) -> LocalValue raise LoisvmLoweringError {
-  match type_ {
-    Primitive(Unit) => {
-      self.emit(UneraseUnit(source))
-      Unit
-    }
-    Primitive(Bool)
-    | Primitive(I32)
-    | Primitive(Char)
-    | Primitive(String)
-    | Primitive(Byte)
-    | Primitive(Bytes)
-    | Constructor(_)
-    | Apply(_, _) => {
-      let destination = self.fresh_slot(type_)
-      self.emit(UneraseI32(destination, source))
-      Slot(destination, type_)
-    }
-    Primitive(I64) => {
-      let destination = self.fresh_slot(type_)
-      self.emit(UneraseI64(destination, source))
-      Slot(destination, type_)
-    }
-    Primitive(F32) => {
-      let destination = self.fresh_slot(type_)
-      self.emit(UneraseF32(destination, source))
-      Slot(destination, type_)
-    }
-    Function(_, _, _) | Forall(_, _) => {
-      let (canonical_type, bindings) = self.canonical_callable_type(type_)
-      let canonical = self.fresh_slot(canonical_type)
-      self.emit(UneraseI64(canonical, source))
-      self.make_callable_adapter(canonical, canonical_type, type_, bindings)
-    }
-    Primitive(F64) => {
-      let destination = self.fresh_slot(type_)
-      self.emit(UneraseF64(destination, source))
-      Slot(destination, type_)
-    }
-    Parameter(_) => Slot(source, type_)
-    _ => raise UnsupportedType(type_~)
+  match self.image.runtime_type(type_) {
+    Erased(_) => Slot(source, type_)
+    Concrete(runtime_type) =>
+      match runtime_type {
+        Primitive(Unit) => {
+          self.emit(UneraseUnit(source))
+          Unit
+        }
+        Primitive(Bool)
+        | Primitive(I32)
+        | Primitive(Char)
+        | Primitive(String)
+        | Primitive(Byte)
+        | Primitive(Bytes)
+        | Constructor(_)
+        | Apply(_, _) => {
+          let destination = self.fresh_slot(runtime_type)
+          self.emit(UneraseI32(destination, source))
+          Slot(destination, type_)
+        }
+        Primitive(I64) => {
+          let destination = self.fresh_slot(runtime_type)
+          self.emit(UneraseI64(destination, source))
+          Slot(destination, type_)
+        }
+        Primitive(F32) => {
+          let destination = self.fresh_slot(runtime_type)
+          self.emit(UneraseF32(destination, source))
+          Slot(destination, type_)
+        }
+        Function(_, _, _) | Forall(_, _) => {
+          let (canonical_type, bindings) = self.canonical_callable_type(
+            runtime_type,
+          )
+          let canonical = self.fresh_slot(canonical_type)
+          self.emit(UneraseI64(canonical, source))
+          self.make_callable_adapter(
+            canonical, canonical_type, runtime_type, bindings,
+          )
+        }
+        Primitive(F64) => {
+          let destination = self.fresh_slot(runtime_type)
+          self.emit(UneraseF64(destination, source))
+          Slot(destination, type_)
+        }
+        _ => raise UnsupportedType(type_=runtime_type)
+      }
   }
 }
 

@@ -39,8 +39,10 @@ fn ImageLowerer::lower_function_body(
     }
     for capture in captures {
       if capture.member_index is Some(member_index) {
-        let (destination, witness_destination) = if capture.type_
-          is Parameter(_) {
+        let (destination, witness_destination) = if self.runtime_type(
+            capture.type_,
+          )
+          is Erased(_) {
           let witness = lowerer.fresh_metadata(layout_witness_metadata())
           (lowerer.fresh_erased_slot(witness, Borrowed), Some(witness))
         } else {
@@ -75,7 +77,7 @@ fn ImageLowerer::lower_function_body(
   let parameter_slots : Array[@vmcfg.ValueId] = []
   for index, parameter in function.parameters {
     let type_ = parameter_types[index]
-    if type_ == Primitive(Unit) {
+    if self.runtime_type(type_) is Concrete(Primitive(Unit)) {
       lowerer.bindings.push({ value: parameter, lowered: Unit })
     } else {
       let slot = lowerer.fresh_slot(type_)
@@ -120,7 +122,7 @@ fn ImageLowerer::lower_function_body(
       witnesses: input_witnesses,
       user_parameters: parameter_slots,
     },
-    result: result_representation(result_type),
+    result: self.result_representation(result_type),
     blocks,
   }
 }
@@ -224,7 +226,9 @@ fn ImageLowerer::requires_layout_witness(
 ) -> Bool {
   match self.metadata.type_parameter_info(parameter) {
     Some({ kind: Type, .. }) => true
-    _ => false
+    Some({ kind: Function(_, Type), .. }) =>
+      self.effect_source(parameter) is Some(_)
+    _ => parameter.index < 0
   }
 }
 

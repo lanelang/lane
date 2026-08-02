@@ -192,7 +192,8 @@ fn FunctionLowerer::prepare_captures(
         guard self.materialize_local(captured) is Slot(slot, type_) else {
           abort("captured value was not materialized")
         }
-        let (metadata, witness_ordinal) = if type_ is Parameter(parameter) {
+        let (metadata, witness_ordinal) = if self.image.runtime_type(type_)
+          is Erased(parameter) {
           let ordinal = type_parameter_ordinal(captured_parameters, parameter)
           guard ordinal is Some(_) else {
             raise InvalidTypeApplication(
@@ -209,7 +210,7 @@ fn FunctionLowerer::prepare_captures(
             ordinal,
           )
         } else {
-          (slot_metadata(type_), None)
+          (self.image.slot_metadata(type_), None)
         }
         let member_index = members.length()
         members.push({

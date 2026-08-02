@@ -632,20 +632,48 @@ test "selective CPS replaces effect polymorphism with companions" {
     ) else {
     abort("expected companion and answer type parameters")
   }
-  assert_eq(metadata.type_parameter_info(companion).unwrap().kind, Type)
+  assert_eq(
+    metadata.type_parameter_info(companion).unwrap().kind,
+    Function([Type, Effect], Type),
+  )
   guard transformed.parameters is [context, continuation] else {
     abort("expected abstract context parameter")
   }
-  assert_eq(metadata.value_info(context).unwrap().type_, Parameter(companion))
   assert_eq(
-    transformed.body,
-    Call(
-      TypeApply(TypeApply(Ref(callee), [TypeArgument(Parameter(companion))]), [
-        TypeArgument(Parameter(answer)),
-        EffectArgument(Parameter(residual)),
-      ]),
-      [Ref(context), Ref(continuation)],
-    ),
+    metadata.value_info(context).unwrap().type_,
+    Apply(Parameter(companion), [
+      TypeArgument(Parameter(answer)),
+      EffectArgument(Parameter(residual)),
+    ]),
+  )
+  guard transformed.body
+    is Call(
+      TypeApply(
+        TypeApply(
+          Ref(actual_callee),
+          [
+            TypeArgument(
+              TypeLambda([companion_answer, companion_residual], supplied)
+            ),
+          ]
+        ),
+        [TypeArgument(call_answer), EffectArgument(call_residual)]
+      ),
+      [Ref(actual_context), Ref(actual_continuation)]
+    ) else {
+    abort("expected polymorphic companion argument")
+  }
+  assert_eq(actual_callee, callee)
+  assert_eq(call_answer, Parameter(answer))
+  assert_eq(call_residual, Parameter(residual))
+  assert_eq(actual_context, context)
+  assert_eq(actual_continuation, continuation)
+  assert_eq(
+    supplied,
+    Apply(Parameter(companion), [
+      TypeArgument(Parameter(companion_answer)),
+      EffectArgument(Parameter(companion_residual)),
+    ]),
   )
   assert_cps_ordinary_output(output)
 }

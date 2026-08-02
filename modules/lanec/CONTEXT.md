@@ -365,8 +365,8 @@ An ordered compiler-private ordinary value argument carrying either one concrete
 _Avoid_: global evidence vector, LoisVM hidden ABI field, runtime handler lookup
 
 **Effect Context Companion**:
-The compiler-generated kind-Type parameter and value parameter paired with one kind-Effect parameter so polymorphic code can forward an opaque effect context without runtime operation tags or heterogeneous lookup.
-_Avoid_: source type parameter, layout witness, universal operation table
+The compiler-generated type-level function parameter of kind `[Type, Effect] -> Type` paired with one kind-Effect parameter. Each use applies it to the Answer-Type CPS answer and residual in scope there, while an instantiation supplies a type lambda that produces the packed context at any such pair. This lets an enclosing dictionary and a nested CPS callable share one companion without forcing them to share answer or residual binders.
+_Avoid_: one fixed dictionary type, source type parameter, layout witness, universal operation table
 
 **Monadic Effect Predicate**:
 The conservative classification used by `mon-trans` that holds when an effect row has an open tail or contains any handled operation. Every handled operation is potentially multi-shot, so the predicate does not analyze or infer resume counts. It determines whether monadic translation is required, independently of whether the computation is pure or otherwise observable.

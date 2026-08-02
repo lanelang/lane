@@ -144,7 +144,7 @@ fn FunctionLowerer::lower_generic_direct_call(
     }
   }
   let actual_result = apply_type_substitution(formal_result, substitutions)
-  if formal_result is Parameter(parameter) {
+  if self.image.runtime_type(formal_result) is Erased(parameter) {
     let witness = self.adapter_witness(parameter, substitutions)
     let erased_result = self.fresh_erased_slot(witness, Owned)
     self.emit(
@@ -206,7 +206,7 @@ fn FunctionLowerer::lower_generic_value_call(
     }
   }
   let actual_result = apply_type_substitution(formal_result, substitutions)
-  if formal_result is Parameter(parameter) {
+  if self.image.runtime_type(formal_result) is Erased(parameter) {
     let witness = self.adapter_witness(parameter, substitutions)
     let erased_result = self.fresh_erased_slot(witness, Owned)
     self.emit(

@@ -143,10 +143,11 @@ fn FunctionLowerer::canonical_callable_value_type(
   bound : Array[@buslane.TypeParameterId],
   bindings : @buslane.TypeSubstitution,
 ) -> @buslane.Type {
-  if type_ == Primitive(Unit) {
+  if self.image.runtime_type(type_) is Concrete(Primitive(Unit)) {
     return type_
   }
-  if type_ is Parameter(parameter) && bound.contains(parameter) {
+  if self.image.runtime_type(type_) is Erased(parameter) &&
+    bound.contains(parameter) {
     return type_
   }
   let parameter = self.image.fresh_synthetic_parameter()
@@ -282,6 +283,28 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
   substitutions : @buslane.TypeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
   let source_type = local_value_type(value).unwrap_or(source_type)
+  let source_runtime = self.image.runtime_type(source_type)
+  let target_runtime = self.image.runtime_type(target_type)
+  match (source_runtime, target_runtime) {
+    (Concrete(Primitive(Unit)), Concrete(Primitive(Unit))) => return Unit
+    (Erased(_), Erased(_)) => {
+      guard value is Slot(slot, _) else {
+        raise InvalidTypeApplication(detail="erased value is not materialized")
+      }
+      return Slot(slot, target_type)
+    }
+    (_, Erased(_)) => {
+      let witness = self.layout_witness(source_type)
+      return Slot(self.erase_value(value, source_type, witness), target_type)
+    }
+    (Erased(_), _) => {
+      guard value is Slot(slot, _) else {
+        raise InvalidTypeApplication(detail="erased value is not materialized")
+      }
+      return self.unerase_value(slot, target_type)
+    }
+    _ => ()
+  }
   if self.image.metadata.types_definitionally_equal(source_type, target_type) {
     return match value {
       Unit => Unit
@@ -290,29 +313,6 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
     }
   }
   match (source_type, target_type) {
-    (Primitive(Unit), Primitive(Unit)) => Unit
-    (Parameter(_), Parameter(_)) =>
-      match value {
-        Slot(slot, _) => Slot(slot, target_type)
-        _ =>
-          raise InvalidTypeApplication(
-            detail="erased value is not materialized",
-          )
-      }
-    (_, Parameter(parameter)) => {
-      let witness = if source_type is Parameter(_) {
-        self.adapter_witness(parameter, substitutions)
-      } else {
-        self.layout_witness(source_type)
-      }
-      Slot(self.erase_value(value, source_type, witness), target_type)
-    }
-    (Parameter(_), _) => {
-      guard value is Slot(slot, _) else {
-        raise InvalidTypeApplication(detail="erased value is not materialized")
-      }
-      self.unerase_value(slot, target_type)
-    }
     (Function(_, _, _) | Forall(_, _), Function(_, _, _) | Forall(_, _)) => {
       guard self.materialize_local(value) is Slot(source, _) else {
         raise InvalidTypeApplication(
@@ -327,8 +327,8 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
       guard value is Slot(slot, _) else {
         raise InvalidTypeApplication(detail="adapted value is not materialized")
       }
-      let source_metadata = slot_metadata(source_type)
-      let target_metadata = slot_metadata(target_type)
+      let source_metadata = self.image.slot_metadata(source_type)
+      let target_metadata = self.image.slot_metadata(target_type)
       if source_metadata.representation != target_metadata.representation ||
         source_metadata.cleanup != target_metadata.cleanup {
         raise InvalidTypeApplication(
@@ -414,7 +414,7 @@ fn ImageLowerer::lower_callable_adapter(
   let target_parameters : Array[LocalValue] = []
   let user_parameter_slots = []
   for type_ in target_parameter_types {
-    if type_ == Primitive(Unit) {
+    if self.runtime_type(type_) is Concrete(Primitive(Unit)) {
       target_parameters.push(Unit)
     } else {
       let slot = lowerer.fresh_slot(type_)
@@ -479,7 +479,7 @@ fn ImageLowerer::lower_callable_adapter(
       witnesses: input_witnesses,
       user_parameters: user_parameter_slots,
     },
-    result: result_representation(target_result_type),
+    result: self.result_representation(target_result_type),
     blocks: [
       {
         parameters: [],

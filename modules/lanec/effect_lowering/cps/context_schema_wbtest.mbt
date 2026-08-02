@@ -53,14 +53,17 @@ test "dictionary schema follows operation order and CPS field types" {
 }
 
 ///|
-test "effect parameters receive one stable ordinary companion" {
+test "effect parameters receive one stable higher-kinded companion" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   let first = schema.companion_parameter(effect_parameter)
   let second = schema.companion_parameter(effect_parameter)
   assert_eq(first, second)
-  assert_eq(metadata.type_parameter_info(first).unwrap().kind, Type)
+  assert_eq(
+    metadata.type_parameter_info(first).unwrap().kind,
+    Function([Type, Effect], Type),
+  )
   assert_true(first != effect_parameter)
 }
 
@@ -76,7 +79,10 @@ test "selective CPS exposes effect companion identities" {
     abort("expected one effect companion binding")
   }
   assert_eq(source, effect_parameter)
-  assert_eq(metadata.type_parameter_info(companion).unwrap().kind, Type)
+  assert_eq(
+    metadata.type_parameter_info(companion).unwrap().kind,
+    Function([Type, Effect], Type),
+  )
 }
 
 ///|
@@ -212,7 +218,13 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
     abort("expected nested selective CPS type")
   }
   assert_eq(outer_companion, companion)
-  assert_eq(outer_context, Parameter(companion))
+  assert_eq(
+    outer_context,
+    Apply(Parameter(companion), [
+      TypeArgument(Parameter(answer)),
+      EffectArgument(Parameter(residual)),
+    ]),
+  )
   assert_eq(rewritten_answer, Parameter(answer))
   assert_eq(outer_latent, Parameter(residual))
   assert_eq(
@@ -230,7 +242,14 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
     ) else {
     abort("expected nested callable CPS type")
   }
-  assert_eq(nested_context, Parameter(companion))
+  assert_eq(
+    nested_context,
+    Apply(Parameter(companion), [
+      TypeArgument(Parameter(nested_answer)),
+      EffectArgument(Parameter(nested_residual)),
+    ]),
+  )
+  assert_true(outer_context != nested_context)
   assert_eq(nested_result, Parameter(nested_answer))
   assert_eq(nested_latent, Parameter(nested_residual))
   assert_eq(

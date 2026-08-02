@@ -1,8 +1,20 @@
 ///|
-test "example 37 lifted snapshot has only known companion mismatches" {
-  guard compile_source(example_37_regression_source())
-    is Succeeded(compiled, warnings) else {
-    abort("expected example 37 regression source to compile")
+test "example 37 lifted snapshot verifies" {
+  assert_eq(lifted_diagnostics(example_37_regression_source()), [])
+}
+
+///|
+test "example 45 lifted snapshot verifies" {
+  assert_eq(lifted_diagnostics(example_45_regression_source()), [])
+}
+
+///|
+fn lifted_diagnostics(
+  source : String,
+) -> Array[@buslane.VerifyDiagnostic] raise {
+  let result = compile_source(source)
+  guard result is Succeeded(compiled, warnings) else {
+    abort("expected regression source to compile: \{Repr(result)}")
   }
   assert_eq(warnings.diagnostics(), [])
   guard compiled.entries() is [entry] else {
@@ -20,15 +32,7 @@ test "example 37 lifted snapshot has only known companion mismatches" {
   guard lifted_verification is Some(verification) else {
     abort("expected to observe the monadic-lift boundary")
   }
-  let diagnostics = verification.diagnostics()
-  assert_false(
-    diagnostics.any(diagnostic => diagnostic.kind is UnknownTypeParameter(_)),
-  )
-  let type_mismatches = diagnostics.filter(diagnostic => {
-    diagnostic.kind is TypeMismatch(_)
-  })
-  assert_eq(type_mismatches.length(), 2)
-  assert_eq(diagnostics.length(), 2)
+  verification.diagnostics()
 }
 
 ///|
@@ -171,6 +175,56 @@ fn example_37_regression_source() -> String {
     #|        )
     #|      }
     #|    )
+    #|  ()
+    #|}
+  )
+}
+
+///|
+fn example_45_regression_source() -> String {
+  (
+    #|module Test
+    #|
+    #|effect Async[E : Effect] {
+    #|  suspend[A](((A) -> Unit ! E) -> Unit ! E) -> A
+    #|}
+    #|
+    #|effect Schedule {
+    #|  enqueue(Unit) -> Unit
+    #|}
+    #|
+    #|enum Step {
+    #|  done()
+    #|  waiting[A](((A) -> Unit ! Schedule) -> Unit ! Schedule, (A) -> Step)
+    #|}
+    #|
+    #|fn[A] ready(value : A) -> A ! Async[Schedule] {
+    #|  Async[Schedule]::suspend![A](
+    #|    fn(resume) {
+    #|      resume(value)
+    #|    }
+    #|  )
+    #|}
+    #|
+    #|fn run_task(task : () -> Unit ! Async[Schedule]) -> Step {
+    #|  handle task() with {
+    #|    Async[Schedule]::suspend[A](register, resume) => Step::waiting[A](
+    #|      register,
+    #|      fn(value) {
+    #|        resume(value)
+    #|      }
+    #|    )
+    #|  } final _value {
+    #|    Step::done()
+    #|  }
+    #|}
+    #|
+    #|pub fn answer() -> Unit {
+    #|  let _step : Step = run_task(
+    #|    fn() {
+    #|      ready(())
+    #|    }
+    #|  )
     #|  ()
     #|}
   )

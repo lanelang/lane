@@ -205,7 +205,7 @@ fn ImageLowerer::data_shape(
   )
   let members : Array[@bytecode.MemberSchema] = []
   for payload_type in info.payload_types {
-    if payload_type is Parameter(parameter) {
+    if self.runtime_type(payload_type) is Erased(parameter) {
       guard type_parameter_ordinal(witness_parameters, parameter)
         is Some(witness_ordinal) else {
         raise UnsupportedGenericData(data_constructor~)
@@ -215,10 +215,10 @@ fn ImageLowerer::data_shape(
         cleanup: OwnedErased,
         witness_ordinal: Some(witness_ordinal),
       })
-    } else if payload_type == Primitive(Unit) {
+    } else if self.runtime_type(payload_type) is Concrete(Primitive(Unit)) {
       ()
     } else {
-      let metadata = slot_metadata(payload_type)
+      let metadata = self.slot_metadata(payload_type)
       members.push({
         representation: metadata.representation,
         cleanup: metadata.cleanup,

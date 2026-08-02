@@ -90,13 +90,12 @@ fn lower_cps_type_apply_chain(
             schema,
             parameters[parameter_index],
             argument,
-            answer,
           ),
         )
         parameter_index += 1
       } else {
         rewritten_arguments.push(
-          rewrite_cps_expression_argument(schema, argument, Some(answer)),
+          rewrite_cps_expression_argument(schema, argument),
         )
       }
     }
@@ -110,21 +109,14 @@ fn rewrite_cps_application_argument(
   schema : DictionaryCpsSchema,
   parameter : @buslane.TypeParameterId,
   argument : @buslane.GenericArgument,
-  answer : CpsAnswer,
 ) -> @buslane.GenericArgument raise SynthesisError {
   guard schema.metadata.type_parameter_info(parameter) is Some(info) else {
     return schema.rewrite_generic_argument(argument)
   }
   match (info.kind, argument) {
-    (Effect, EffectArgument(effect)) =>
-      TypeArgument(
-        schema.packed_context_type(effect, answer.type_, answer.residual),
-      )
     (_, TypeArgument(type_)) => TypeArgument(schema.rewrite_type(type_))
     (_, EffectArgument(effect)) =>
-      TypeArgument(
-        schema.packed_context_type(effect, answer.type_, answer.residual),
-      )
+      TypeArgument(schema.companion_context_argument(effect))
   }
 }
 
@@ -132,16 +124,11 @@ fn rewrite_cps_application_argument(
 fn rewrite_cps_expression_argument(
   schema : DictionaryCpsSchema,
   argument : @buslane.GenericArgument,
-  current_answer : CpsAnswer?,
 ) -> @buslane.GenericArgument raise SynthesisError {
   match argument {
     TypeArgument(type_) => TypeArgument(schema.rewrite_type(type_))
-    EffectArgument(effect) => {
-      let answer = answer_or_unit(current_answer)
-      TypeArgument(
-        schema.packed_context_type(effect, answer.type_, answer.residual),
-      )
-    }
+    EffectArgument(effect) =>
+      TypeArgument(schema.companion_context_argument(effect))
   }
 }
 
