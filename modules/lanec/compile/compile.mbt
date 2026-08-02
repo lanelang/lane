@@ -1,12 +1,19 @@
 ///|
 /// Checks one in-memory Lane source module.
-pub fn check_source(source : String) -> CompilationOutcome[CheckedModule] {
+pub fn check_source(source : String) -> CompilationOutcome[Unit] {
   check({ root: { source_id: "<root>", text: source }, libraries: [] })
 }
 
 ///|
 /// Checks a source set without linking it.
-pub fn check(request : CompilationRequest) -> CompilationOutcome[CheckedModule] {
+pub fn check(request : CompilationRequest) -> CompilationOutcome[Unit] {
+  discard_checked_source(check_request(request))
+}
+
+///|
+fn check_request(
+  request : CompilationRequest,
+) -> CompilationOutcome[@checked.CheckedSourceFile] {
   match compile_module_set(request, _ => ()) {
     Ok(modules) =>
       match
@@ -15,10 +22,7 @@ pub fn check(request : CompilationRequest) -> CompilationOutcome[CheckedModule] 
           modules.root_module_path_text,
         ) {
         Some(root) =>
-          compilation_succeeded(
-            { source: root.object.checked },
-            modules.diagnostics,
-          )
+          compilation_succeeded(root.object.checked, modules.diagnostics)
         None =>
           compilation_failed([
             @module_compile.no_root_source_module_diagnostic(),
@@ -32,7 +36,14 @@ pub fn check(request : CompilationRequest) -> CompilationOutcome[CheckedModule] 
 /// Checks one source module against persisted module interfaces.
 pub fn check_with_interfaces(
   request : InterfaceCompilationRequest,
-) -> CompilationOutcome[CheckedModule] {
+) -> CompilationOutcome[Unit] {
+  discard_checked_source(check_interface_request(request))
+}
+
+///|
+fn check_interface_request(
+  request : InterfaceCompilationRequest,
+) -> CompilationOutcome[@checked.CheckedSourceFile] {
   match
     @module_compile.compile_module_from_interface_artifacts(
       request.root.to_frontend(),
@@ -45,16 +56,23 @@ pub fn check_with_interfaces(
           modules.root_module_path_text,
         ) {
         Some(root) =>
-          compilation_succeeded(
-            { source: root.object.checked },
-            modules.diagnostics,
-          )
+          compilation_succeeded(root.object.checked, modules.diagnostics)
         None =>
           compilation_failed([
             @module_compile.no_root_source_module_diagnostic(),
           ])
       }
     Err(diagnostics) => compilation_failed(diagnostics)
+  }
+}
+
+///|
+fn discard_checked_source(
+  outcome : CompilationOutcome[@checked.CheckedSourceFile],
+) -> CompilationOutcome[Unit] {
+  match outcome {
+    Succeeded(_, warnings) => Succeeded((), warnings)
+    Failed(failure) => Failed(failure)
   }
 }
 

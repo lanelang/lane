@@ -20,7 +20,9 @@ priv struct TestCompileResult {
 
 ///|
 fn check_source_for_test(source : String) -> TestCheckResult {
-  test_check_result(check_source(source))
+  test_check_result(
+    check_request({ root: { source_id: "<root>", text: source }, libraries: [] }),
+  )
 }
 
 ///|
@@ -29,7 +31,7 @@ fn check_sources_for_test(
   library_sources : Array[String],
 ) -> TestCheckResult {
   test_check_result(
-    check(test_compilation_request(root_source, library_sources)),
+    check_request(test_compilation_request(root_source, library_sources)),
   )
 }
 
@@ -39,7 +41,7 @@ fn check_source_with_interfaces_for_test(
   interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> TestCheckResult {
   test_check_result(
-    check_with_interfaces({
+    check_interface_request({
       root: { source_id: "<root>", text: root_source },
       interfaces,
     }),
@@ -48,11 +50,11 @@ fn check_source_with_interfaces_for_test(
 
 ///|
 fn test_check_result(
-  outcome : CompilationOutcome[CheckedModule],
+  outcome : CompilationOutcome[@checked.CheckedSourceFile],
 ) -> TestCheckResult {
   match outcome {
     Succeeded(module_, warnings) =>
-      { source: Some(module_.source), diagnostics: warnings.diagnostics() }
+      { source: Some(module_), diagnostics: warnings.diagnostics() }
     Failed(failure) => { source: None, diagnostics: failure.diagnostics() }
   }
 }

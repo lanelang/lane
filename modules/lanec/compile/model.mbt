@@ -18,12 +18,12 @@ pub(all) struct InterfaceCompilationRequest {
 
 ///|
 pub struct CompilationWarnings {
-  diagnostics : Array[CompilerDiagnostic]
+  priv diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
 ///|
 pub struct CompilationFailure {
-  diagnostics : Array[CompilerDiagnostic]
+  priv diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
 ///|
@@ -78,13 +78,8 @@ fn[T] compilation_failed(
 }
 
 ///|
-pub struct CheckedModule {
-  source : @checked.CheckedSourceFile
-} derive(Debug, Eq)
-
-///|
 pub struct CompiledModules {
-  modules : @module_compile.CompiledModuleSet
+  priv modules : @module_compile.CompiledModuleSet
 } derive(Debug, Eq)
 
 ///|
@@ -106,12 +101,12 @@ pub fn CompiledModules::module_count(self : CompiledModules) -> Int {
 
 ///|
 pub struct CompiledProgram {
-  linked : @module_link.LinkedProgram
+  priv linked : @module_link.LinkedProgram
 } derive(Debug, Eq)
 
 ///|
 pub struct CompiledEntry {
-  entry : @buslane_lowering.BuslaneEntry
+  priv entry : @buslane_lowering.BuslaneEntry
 } derive(Debug, Eq)
 
 ///|
