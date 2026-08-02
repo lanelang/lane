@@ -325,33 +325,15 @@ fn DictionaryCpsSchema::context_term_type(
         [TypeArgument(answer_type), EffectArgument(residual_effect)],
       )
     }
-    Parameter(parameter) =>
-      self.companion_context_type(
-        self.companion_parameter(parameter),
-        answer_type,
-        residual_effect,
-      )
+    Parameter(parameter) => {
+      let companion = self.companion_parameter(parameter)
+      Apply(Parameter(companion), [
+        TypeArgument(answer_type),
+        EffectArgument(residual_effect),
+      ])
+    }
     Empty | Union(_) => abort("canonical effect term expected")
   }
-}
-
-///|
-/// The dictionary a companion stands for, at one answer and residual.
-///
-/// A companion is a type-level function because an operation payload that is
-/// itself a CPS'd callable binds a different answer and residual from the
-/// dictionary holding that payload.
-fn DictionaryCpsSchema::companion_context_type(
-  self : DictionaryCpsSchema,
-  companion : @buslane.TypeParameterId,
-  answer_type : @buslane.Type,
-  residual_effect : @buslane.Effect,
-) -> @buslane.Type {
-  ignore(self)
-  Apply(Parameter(companion), [
-    TypeArgument(answer_type),
-    EffectArgument(residual_effect),
-  ])
 }
 
 ///|
