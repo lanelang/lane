@@ -352,16 +352,6 @@ fn type_substitution_type_argument(
 }
 
 ///|
-fn type_substitution_effect_argument(
-  substitution : @buslane.TypeSubstitution,
-  parameter : @buslane.TypeParameterId,
-) -> @buslane.Effect? raise LoisvmLoweringError {
-  substitution.effect_argument(parameter) catch {
-    error => raise type_substitution_error(error)
-  }
-}
-
-///|
 fn type_substitution_error(
   error : @buslane.TypeSubstitutionError,
 ) -> LoisvmLoweringError {

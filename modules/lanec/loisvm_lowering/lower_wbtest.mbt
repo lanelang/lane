@@ -72,6 +72,42 @@ fn lower_test_executable_to_bytecode(
 }
 
 ///|
+fn test_image_lowerer(
+  metadata : @buslane.MetadataRegistry,
+  effect_companions : Array[@effect_lowering_cps.EffectCompanionBinding],
+) -> ImageLowerer {
+  {
+    metadata,
+    externals: { builtins: [], runtime_imports: [] },
+    globals: [],
+    instance_globals: [],
+    plans: [],
+    constants: [],
+    layouts: [],
+    object_shapes: [],
+    intrinsic_wrappers: [],
+    callable_adapters: [],
+    effect_companions,
+    next_synthetic_parameter: -1,
+  }
+}
+
+///|
+fn test_function_lowerer(image : ImageLowerer) -> FunctionLowerer {
+  {
+    image,
+    values: [],
+    blocks: [{ parameters: [], instructions: [], terminator: None }],
+    current_block: 0,
+    bindings: [],
+    temps: [],
+    environment: None,
+    witnesses: [],
+    substitutions: TypeSubstitution(),
+  }
+}
+
+///|
 test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)
@@ -2856,39 +2892,135 @@ test "function type parts collect every nested forall layer" {
 }
 
 ///|
-test "effect companion layouts follow packed algebraic contexts" {
+test "adapter witness does not infer layout from a source effect" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let handled = metadata.define_effect("Handled", [])
-  let external = metadata.define_effect("External", [], flavor=External)
-  let residual = metadata.define_type_parameter(
-    "Residual",
-    Effect,
-    flavor=External,
+  let source = metadata.define_type_parameter("E", Effect)
+  let companion = metadata.define_type_parameter(
+    "E%context",
+    Function([Type, Effect], Type),
   )
-  assert_eq(effect_context_layout_recipe(metadata, Empty), Unit)
-  assert_eq(effect_context_layout_recipe(metadata, Io), Unit)
-  assert_eq(
-    effect_context_layout_recipe(metadata, Singleton(external, [])),
-    Unit,
+  let image = test_image_lowerer(metadata, [{ source, companion }])
+  let lowerer = test_function_lowerer(image)
+  let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  substitutions.insert_effect(source, Io)
+  try lowerer.adapter_witness(companion, substitutions) catch {
+    InvalidTypeApplication(detail~) =>
+      assert_eq(
+        detail,
+        "missing in-scope layout witness for \{Repr(companion)}",
+      )
+    error => fail("unexpected lowering error: \{Repr(error)}")
+  } noraise {
+    _ => fail("expected missing companion layout witness")
+  }
+}
+
+///|
+test "concrete companion substitution determines its layout witness" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let source = metadata.define_type_parameter("E", Effect)
+  let companion = metadata.define_type_parameter(
+    "E%context",
+    Function([Type, Effect], Type),
   )
-  assert_eq(effect_context_layout_recipe(metadata, Parameter(residual)), Unit)
+  let answer = metadata.define_type_parameter("Answer", Type)
+  let residual = metadata.define_type_parameter("Residual", Effect)
+  let image = test_image_lowerer(metadata, [{ source, companion }])
+  let lowerer = test_function_lowerer(image)
+  let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  substitutions.insert(
+    companion,
+    TypeLambda([answer, residual], Primitive(Unit)),
+  )
+  let witness = lowerer.adapter_witness(companion, substitutions)
+  guard lowerer.blocks[0].instructions is [ConstLayout(actual, layout)] else {
+    fail("expected a concrete companion layout")
+  }
+  assert_eq(actual, witness)
+  assert_eq(image.layouts[layout.value - 1], Unit)
+}
+
+///|
+test "forwarded companion substitution reuses the outer layout witness" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let formal_source = metadata.define_type_parameter("FormalE", Effect)
+  let formal_companion = metadata.define_type_parameter(
+    "FormalE%context",
+    Function([Type, Effect], Type),
+  )
+  let actual_source = metadata.define_type_parameter("ActualE", Effect)
+  let actual_companion = metadata.define_type_parameter(
+    "ActualE%context",
+    Function([Type, Effect], Type),
+  )
+  let image = test_image_lowerer(metadata, [
+    { source: formal_source, companion: formal_companion },
+    { source: actual_source, companion: actual_companion },
+  ])
+  let lowerer = test_function_lowerer(image)
+  let outer_witness : @vmcfg.ValueId = { value: 17 }
+  lowerer.witnesses.push({ parameter: actual_companion, value: outer_witness })
+  let substitutions = lowerer.call_type_substitution([formal_companion], [
+    TypeArgument(Parameter(actual_companion)),
+  ])
   assert_eq(
-    effect_context_layout_recipe(
-      metadata,
-      Union([Io, Singleton(external, []), Parameter(residual)]),
+    substitutions.type_argument(formal_companion),
+    Some(Parameter(actual_companion)),
+  )
+  assert_eq(
+    substitutions.effect_argument(formal_source),
+    Some(Parameter(actual_source)),
+  )
+  assert_eq(
+    lowerer.adapter_witness(formal_companion, substitutions),
+    outer_witness,
+  )
+  assert_true(lowerer.blocks[0].instructions.is_empty())
+}
+
+///|
+test "callable adapters capture an in-scope companion witness" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let source = metadata.define_type_parameter("E", Effect)
+  let companion = metadata.define_type_parameter(
+    "E%context",
+    Function([Type, Effect], Type),
+  )
+  let image = test_image_lowerer(metadata, [{ source, companion }])
+  let lowerer = test_function_lowerer(image)
+  let captured_witness : @vmcfg.ValueId = { value: 23 }
+  lowerer.witnesses.push({ parameter: companion, value: captured_witness })
+  let companion_type : @buslane.Type = Apply(Parameter(companion), [
+    TypeArgument(Primitive(I64)),
+    EffectArgument(Parameter(source)),
+  ])
+  let source_type : @buslane.Type = Function(
+    [companion_type],
+    Primitive(Unit),
+    Empty,
+  )
+  let target_type : @buslane.Type = Function(
+    [Primitive(I64)],
+    Primitive(Unit),
+    Empty,
+  )
+  let callable = lowerer.fresh_slot(source_type)
+  ignore(
+    lowerer.make_callable_adapter(
+      callable,
+      source_type,
+      target_type,
+      TypeSubstitution(),
     ),
-    Unit,
   )
-  assert_eq(
-    effect_context_layout_recipe(metadata, Singleton(handled, [])),
-    Reference,
-  )
-  assert_eq(
-    effect_context_layout_recipe(
-      metadata,
-      Union([Io, Singleton(external, []), Singleton(handled, [])]),
-    ),
-    Reference,
+  assert_eq(image.callable_adapters[0].captured_parameters, [companion])
+  assert_true(
+    lowerer.blocks[0].instructions.any(instruction => {
+      match instruction {
+        MakeEnv(_, _, _, witnesses, _) => witnesses == [captured_witness]
+        _ => false
+      }
+    }),
   )
 }
 

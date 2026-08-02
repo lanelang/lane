@@ -164,11 +164,6 @@ fn FunctionLowerer::adapter_witness(
   if type_substitution_type_argument(substitutions, parameter) is Some(type_) {
     return self.layout_witness(type_)
   }
-  if self.image.effect_source(parameter) is Some(source) {
-    if type_substitution_effect_argument(substitutions, source) is Some(effect) {
-      return self.effect_context_witness(effect)
-    }
-  }
   self.find_witness(parameter)
 }
 

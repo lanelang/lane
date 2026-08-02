@@ -232,6 +232,8 @@ fn ImageLowerer::layout_runtime_type(
   type_ : @buslane.Type,
 ) -> RuntimeType {
   match normalize_runtime_type(type_) {
+    Parameter(companion) if self.effect_source(companion) is Some(_) =>
+      Erased(companion)
     TypeLambda(_, body) => self.layout_runtime_type(body)
     type_ => self.runtime_type(type_)
   }

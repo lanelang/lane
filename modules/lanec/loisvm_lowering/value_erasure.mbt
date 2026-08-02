@@ -14,31 +14,6 @@ fn FunctionLowerer::find_witness(
 }
 
 ///|
-fn FunctionLowerer::effect_context_witness(
-  self : FunctionLowerer,
-  effect : @buslane.Effect,
-) -> @vmcfg.ValueId {
-  let layout = self.image.intern_layout(
-    effect_context_layout_recipe(self.image.metadata, effect),
-  )
-  let witness = self.fresh_metadata(layout_witness_metadata())
-  self.emit(ConstLayout(witness, layout))
-  witness
-}
-
-///|
-fn effect_context_layout_recipe(
-  metadata : @buslane.MetadataRegistry,
-  effect : @buslane.Effect,
-) -> @bytecode.LayoutRecipe {
-  if @effect_lowering_core.is_mon_effect(metadata, effect) {
-    Reference
-  } else {
-    Unit
-  }
-}
-
-///|
 fn FunctionLowerer::layout_witness(
   self : FunctionLowerer,
   type_ : @buslane.Type,
