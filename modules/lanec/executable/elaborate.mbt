@@ -43,6 +43,7 @@ fn elaborate_or_raise(
   let externals = linked.externals
   let entry = selected_entry
   let program = specialize_reachable_effects(program, entry.value)
+  require_verified("effect specialization", program)
   observe(EffectSpecialized(program))
   let lowered = lower_effects(program, entry.value, observe)
   let program = lowered.program
@@ -72,7 +73,6 @@ fn lower_effects(
   entry : @buslane.ValueId,
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> LoweredEffects raise ExecutableElaborationError {
-  require_verified("effect-lowering input", program)
   let elaborated = @effect_lowering_core.elaborate_handlers(program)
   observe(HandlersElaborated(elaborated))
   let bound = unwrap_effect_lowering(
@@ -90,6 +90,7 @@ fn lower_effects(
   let lifted = unwrap_effect_lowering(
     @effect_lowering_core.lift_monadic_continuations(resolved),
   )
+  require_verified("monadic-lift", lifted)
   observe(MonadicContinuationsLifted(lifted))
   let initializer_roots = collect_reachable_initializer_roots(lifted, entry)
   let optimized = match
@@ -97,8 +98,10 @@ fn lower_effects(
     Ok(program) => program
     Err(error) => raise CoreOptimizationError(error)
   }
+  require_verified("core optimization", optimized)
   observe(CoreOptimized(optimized))
   let erased = @effect_lowering_core.erase_residual_effects(optimized)
+  require_verified("residual-effect erasure", erased)
   observe(EffectsErased(erased))
   { program: erased, effect_companions: transformed.effect_companions }
 }

@@ -229,6 +229,54 @@ test "whole-program elaboration accepts a closed external effect entry" {
 }
 
 ///|
+test "whole-program elaboration rejects unverified effect specialization before observation" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let char_type = @buslane.Type::Primitive(Char)
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let consume_type = @buslane.Type::Function([char_type], unit_type, Empty)
+  let main_type = @buslane.Type::Function([], unit_type, Empty)
+  let invalid = metadata.define_value("invalid", Value, char_type)
+  let parameter = metadata.define_value("parameter", Parameter, char_type)
+  let consume = metadata.define_value("consume", Function, consume_type)
+  let main = metadata.define_value("main", Function, main_type)
+  let entry = executable_test_entry("main", main, main_type)
+  let linked : @module_link.LinkedProgram = {
+    module_path_texts: ["Main"],
+    program: {
+      metadata,
+      terms: [
+        Let(invalid, Literal(Char(-1))),
+        Let(
+          consume,
+          Function({
+            parameters: [parameter],
+            result_type: unit_type,
+            body: Literal(Unit),
+          }),
+        ),
+        Let(main, pure_function(unit_type, Call(Ref(consume), [Ref(invalid)]))),
+      ],
+    },
+    externals: { builtins: [], runtime_imports: [] },
+    entries: [entry],
+  }
+  let observed = []
+  let result = elaborate_observed(linked, entry, stage => observed.push(stage))
+  assert_eq(observed.length(), 0)
+  debug_inspect(
+    result,
+    content=(
+      #|Err(
+      #|  UnverifiedProgram(
+      #|    stage="effect specialization",
+      #|    result={ diagnostics: [{ kind: InvalidCharLiteral(-1) }] },
+      #|  ),
+      #|)
+    ),
+  )
+}
+
+///|
 test "whole-program elaboration rejects an algebraic entry effect" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
