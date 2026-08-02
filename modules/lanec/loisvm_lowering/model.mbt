@@ -61,6 +61,7 @@ priv struct IntrinsicWrapperPlan {
 }
 
 ///|
+#warnings("-unused_value")
 priv struct CallableAdapterPlan {
   function : @bytecode.FunctionId
   source_type : @buslane.Type
@@ -69,7 +70,7 @@ priv struct CallableAdapterPlan {
   substitutions : @buslane.TypeSubstitution
   captured_parameters : Array[@buslane.TypeParameterId]
   environment_shape : @bytecode.ObjectShapeId
-}
+} derive(Debug)
 
 ///|
 priv struct CanonicalRuntimeImport {
