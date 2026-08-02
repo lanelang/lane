@@ -30,7 +30,7 @@ fn ImageLowerer::callable_adapter(
     source_type,
     target_type,
     source_parameter_targets,
-    substitutions: substitutions.overlay(TypeSubstitution()),
+    substitutions,
     captured_parameters,
     environment_shape,
   }
@@ -211,8 +211,9 @@ fn FunctionLowerer::make_callable_adapter(
 ///|
 /// Align source parameters with target ABI parameters after substitution.
 /// Only a target that classifies as Unit may be skipped; every other pair must
-/// be definitionally equal. The returned substitution retains forall binder
-/// alignment for adapters nested inside this one.
+/// be definitionally equal. The returned substitution is final: alignment
+/// creates it, the adapter plan takes ownership, and subsequent lowering only
+/// reads it.
 fn ImageLowerer::align_callable_parameters(
   self : ImageLowerer,
   source_type : @buslane.Type,

@@ -3023,17 +3023,20 @@ test "forwarded companion substitution reuses the outer layout witness" {
 }
 
 ///|
-test "callable adapters capture an in-scope companion witness" {
+test "callable adapter owns its final substitution" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let source = metadata.define_type_parameter("E", Effect)
   let companion = metadata.define_type_parameter(
     "E%context",
     Function([Type, Effect], Type),
   )
+  let companion_answer = metadata.define_type_parameter("Answer", Type)
+  let companion_residual = metadata.define_type_parameter("Residual", Effect)
+  let dictionary_type : @buslane.Type = Constructor(
+    metadata.define_type("Dictionary", []),
+  )
   let image = test_image_lowerer(metadata, [{ source, companion }])
   let lowerer = test_function_lowerer(image)
-  let captured_witness : @vmcfg.ValueId = { value: 23 }
-  lowerer.witnesses.push({ parameter: companion, value: captured_witness })
   let companion_type : @buslane.Type = Apply(Parameter(companion), [
     TypeArgument(Primitive(I64)),
     EffectArgument(Parameter(source)),
@@ -3044,30 +3047,35 @@ test "callable adapters capture an in-scope companion witness" {
     Empty,
   )
   let target_type : @buslane.Type = Function(
-    [companion_type, Primitive(Unit)],
+    [dictionary_type, Primitive(Unit)],
     Primitive(Unit),
     Empty,
+  )
+  let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  substitutions.insert(
+    companion,
+    TypeLambda([companion_answer, companion_residual], dictionary_type),
   )
   let callable = lowerer.fresh_slot(source_type)
   ignore(
     lowerer.make_callable_adapter(
-      callable,
-      source_type,
-      target_type,
-      TypeSubstitution(),
+      callable, source_type, target_type, substitutions,
     ),
   )
+  guard image.callable_adapters is [plan] else {
+    fail("expected one callable adapter plan")
+  }
+  let body = image.lower_callable_adapter(plan)
   debug_inspect(
     (
-      captured_witness,
       image.layouts,
       image.callable_adapters,
       lowerer.blocks[0].instructions,
+      body.blocks,
     ),
     content=(
       #|(
-      #|  { value: 23 },
-      #|  [Environment({ value: 0 })],
+      #|  [Reference, Environment({ value: 0 })],
       #|  [
       #|    {
       #|      function: { value: 1 },
@@ -3085,34 +3093,50 @@ test "callable adapters capture an in-scope companion witness" {
       #|        Empty,
       #|      ),
       #|      target_type: Function(
-      #|        [
-      #|          Apply(
-      #|            Parameter({ index: 1 }),
-      #|            [
-      #|              TypeArgument(Primitive(I64)),
-      #|              EffectArgument(Parameter({ index: 0 })),
-      #|            ],
-      #|          ),
-      #|          Primitive(Unit),
-      #|        ],
+      #|        [Constructor({ index: 0 }), Primitive(Unit)],
       #|        Primitive(Unit),
       #|        Empty,
       #|      ),
       #|      source_parameter_targets: [0],
-      #|      substitutions: { entries: [] },
+      #|      substitutions: {
+      #|        entries: [
+      #|          {
+      #|            parameter: { index: 1 },
+      #|            replacement: TypeArgument(TypeLambda([{ index: 2 }, { index: 3 }], Constructor({ index: 0 }))),
+      #|          },
+      #|        ],
+      #|      },
       #|      captured_parameters: [{ index: 1 }],
       #|      environment_shape: { value: 0 },
       #|    },
       #|  ],
       #|  [
+      #|    ConstLayout({ value: 1 }, { value: 1 }),
       #|    MakeEnv(
-      #|      { value: 1 },
+      #|      { value: 2 },
       #|      { value: 0 },
-      #|      Immediate({ value: 1 }),
-      #|      [{ value: 23 }],
+      #|      Immediate({ value: 2 }),
+      #|      [{ value: 1 }],
       #|      [{ value: 0 }],
       #|    ),
-      #|    MakeClosure({ value: 2 }, { value: 1 }, { value: 1 }),
+      #|    MakeClosure({ value: 3 }, { value: 1 }, { value: 2 }),
+      #|  ],
+      #|  [
+      #|    {
+      #|      parameters: [],
+      #|      instructions: [
+      #|        LoadObjectWitness({ value: 1 }, { value: 0 }, { value: 0 }, 0),
+      #|        BorrowCapture(
+      #|          { value: 0 },
+      #|          { value: 0 },
+      #|          0,
+      #|          { value_destination: { value: 2 }, witness_destination: None },
+      #|        ),
+      #|        ConstLayout({ value: 4 }, { value: 1 }),
+      #|        EraseI32({ value: 5 }, { value: 3 }),
+      #|      ],
+      #|      terminator: TailCallValue({ value: 2 }, [], [{ value: 5 }]),
+      #|    },
       #|  ],
       #|)
     ),
