@@ -1,0 +1,46 @@
+module Examples.Valid.NestedEffectCompanionForwarding
+
+import Basic.Io.{ println }
+
+effect Forward[E : Effect] {
+  request(() -> Unit ! E) -> Unit
+}
+
+effect Log {
+  write() -> Unit
+}
+
+fn[E : Effect] request(action : () -> Unit ! E) -> Unit ! Forward[E] {
+  Forward[E]::request!(action)
+}
+
+fn[E : Effect] nested(action : () -> Unit ! E) -> Unit ! Forward[E] {
+  let invoke : () -> Unit ! Forward[E] = fn() {
+    request(action)
+  }
+  invoke()
+}
+
+pub fn answer() -> Unit ! Io {
+  handle {
+    handle nested[Log](
+      fn() {
+        Log::write!()
+      }
+    ) with {
+      Forward[Log]::request(action, resume) => {
+        action()
+        resume(())
+      }
+    } final _value {
+      ()
+    }
+  } with {
+    Log::write(resume) => {
+      println("forwarded")
+      resume(())
+    }
+  } final _value {
+    ()
+  }
+}

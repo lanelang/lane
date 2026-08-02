@@ -1642,6 +1642,33 @@
       }
     },
     {
+      "name": "86 nested callback effect inference",
+      "file": "examples/valid/86_nested_callback_effect_inference.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "inferred\ninferred"
+      }
+    },
+    {
+      "name": "87 nested effect companion forwarding",
+      "file": "examples/valid/87_nested_effect_companion_forwarding.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "forwarded"
+      }
+    },
+    {
+      "name": "88 statement handle branch effects",
+      "file": "examples/valid/88_statement_handle_branch_effects.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "arm\nfinal\nafter"
+      }
+    },
+    {
       "name": "invalid 70 tuple without import",
       "file": "examples/invalid/70_tuple_without_import.lane",
       "mode": "check-error",
@@ -1793,6 +1820,30 @@
           "error[E3009]",
           "invalid I64 literal `-9223372036854775809`",
           "cannot be represented as a Lane `I64`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 82 unground nested callback effect",
+      "file": "examples/invalid/82_unground_nested_callback_effect.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3010]",
+          "cannot infer generic arguments for `run_all`",
+          "local context did not determine generic parameter(s) `A`, `E`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 83 recursive handler residual effect",
+      "file": "examples/invalid/83_recursive_handler_residual_effect.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3206]",
+          "recursive handler residual effect",
+          "the handler residual effect occurs inside"
         ]
       }
     }

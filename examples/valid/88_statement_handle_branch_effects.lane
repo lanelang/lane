@@ -1,0 +1,23 @@
+module Examples.Valid.StatementHandleBranchEffects
+
+import Basic.Io.{ println }
+
+effect Probe {
+  ping() -> Unit
+}
+
+fn body() -> Unit ! Probe {
+  Probe::ping!()
+}
+
+pub fn answer() -> Unit ! Io {
+  handle body() with {
+    Probe::ping(resume) => {
+      println("arm")
+      resume(())
+    }
+  } final _value {
+    println("final")
+  }
+  println("after")
+}

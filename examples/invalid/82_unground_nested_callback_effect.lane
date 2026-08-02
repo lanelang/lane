@@ -1,0 +1,18 @@
+// invalid: effect inference cannot invent an unground callback parameter/result type
+module Examples.Invalid.UngroundNestedCallbackEffect
+
+import Basic.Data.List.{ List }
+
+fn[A, E : Effect] run_all(_actions : List[(A) -> A ! E]) -> Unit {
+  ()
+}
+
+pub fn bad() -> Unit {
+  run_all(
+    [
+      fn(value) {
+        value
+      }
+    ]
+  )
+}

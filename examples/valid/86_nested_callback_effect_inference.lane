@@ -1,0 +1,46 @@
+module Examples.Valid.NestedCallbackEffectInference
+
+import Basic.Io.{ println }
+
+effect Signal {
+  emit() -> Unit
+}
+
+enum Batch[A] {
+  one(A)
+  pair(A, A)
+}
+
+fn[E : Effect] run_all(actions : Batch[() -> Unit ! E]) -> Unit ! E {
+  match actions {
+    one(action) => action()
+    pair(first, second) => {
+      first()
+      second()
+    }
+  }
+}
+
+fn program() -> Unit ! Signal {
+  run_all(
+    Batch::pair(
+      fn() {
+        Signal::emit!()
+      },
+      fn() {
+        Signal::emit!()
+      }
+    )
+  )
+}
+
+pub fn answer() -> Unit ! Io {
+  handle program() with {
+    Signal::emit(resume) => {
+      println("inferred")
+      resume(())
+    }
+  } final _value {
+    ()
+  }
+}

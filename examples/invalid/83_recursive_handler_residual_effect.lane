@@ -1,0 +1,22 @@
+// invalid: a handler residual effect cannot occur inside itself
+module Examples.Invalid.RecursiveHandlerResidualEffect
+
+effect Prompt {
+  ask() -> Unit
+}
+
+effect Wrap[_E : Effect] {
+  touch() -> Unit
+}
+
+fn[E : Effect] wrap(callback : (Unit) -> Unit ! E) -> Unit ! Wrap[{ E }] {
+  ()
+}
+
+pub fn bad() -> Unit {
+  handle Prompt::ask!() with {
+    Prompt::ask(resume) => wrap(resume)
+  } final value {
+    value
+  }
+}
