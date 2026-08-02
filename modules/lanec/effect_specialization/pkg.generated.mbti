@@ -1,0 +1,21 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/effect_specialization"
+
+import {
+  "Milky2018/buslane",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn specialize(@buslane.Program, @buslane.ValueId) -> @buslane.Program raise SpecializationError
+
+// Errors
+pub(all) suberror SpecializationError {
+  Unsupported(detail~ : String)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

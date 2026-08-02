@@ -42,7 +42,9 @@ fn elaborate_or_raise(
   let program = linked.program
   let externals = linked.externals
   let entry = selected_entry
-  let program = specialize_reachable_effects(program, entry.value)
+  let program = @effect_specialization.specialize(program, entry.value) catch {
+    Unsupported(detail~) => raise UnsupportedEffectSpecialization(detail~)
+  }
   require_verified("effect specialization", program)
   observe(EffectSpecialized(program))
   let lowered = lower_effects(program, entry.value, observe)

@@ -1,0 +1,736 @@
+///|
+/// Immutable source-demand planning for effect specialization.
+priv enum SpecializationDefinitionSite {
+  TopLevel(@buslane.ValueId)
+  Local(owner~ : @buslane.ValueId, value~ : @buslane.ValueId)
+} derive(Debug, Eq)
+
+///|
+fn SpecializationDefinitionSite::value(
+  self : SpecializationDefinitionSite,
+) -> @buslane.ValueId {
+  match self {
+    TopLevel(value) | Local(value~, ..) => value
+  }
+}
+
+///|
+priv struct PlannedDefinition {
+  site : SpecializationDefinitionSite
+  captured_effect_parameters : Array[@buslane.TypeParameterId]
+  effect_parameters : Array[@buslane.TypeParameterId]
+  rhs : @buslane.Expr
+}
+
+///|
+priv enum CallableSpecializationDemand {
+  RetainGeneric(
+    SpecializationDefinitionSite,
+    Array[EffectSpecializationBinding]
+  )
+  Specialize(
+    SpecializationDefinitionSite,
+    ambient_bindings~ : Array[EffectSpecializationBinding],
+    instance_bindings~ : Array[EffectSpecializationBinding]
+  )
+} derive(Debug, Eq)
+
+///|
+priv struct DataInstanceDemand {
+  source : @buslane.TypeId
+  bindings : Array[EffectSpecializationBinding]
+  constructors : Array[@buslane.DataConId]
+} derive(Debug, Eq)
+
+///|
+#warnings("-unused_value")
+priv struct SpecializationPlan {
+  callable_demands : Array[CallableSpecializationDemand]
+  data_demands : Array[DataInstanceDemand]
+} derive(Debug, Eq)
+
+///|
+fn SpecializationPlan::retains(
+  self : SpecializationPlan,
+  metadata : @buslane.MetadataRegistry,
+  site : SpecializationDefinitionSite,
+  ambient_bindings : Array[EffectSpecializationBinding],
+) -> Bool {
+  self.callable_demands.any(demand => {
+    match demand {
+      RetainGeneric(candidate, candidate_ambient) =>
+        candidate == site &&
+        specialization_bindings_equal(
+          metadata, candidate_ambient, ambient_bindings,
+        )
+      _ => false
+    }
+  })
+}
+
+///|
+priv struct PlannedDefinitionVisit {
+  site : SpecializationDefinitionSite
+  bindings : Array[EffectSpecializationBinding]
+}
+
+///|
+priv struct SpecializationPlanner {
+  program : @buslane.Program
+  definitions : Array[PlannedDefinition]
+  visits : Array[PlannedDefinitionVisit]
+  plan : SpecializationPlan
+}
+
+///|
+#warnings("-unused_value")
+fn plan_effect_specializations(
+  program : @buslane.Program,
+  entry : @buslane.ValueId,
+) -> SpecializationPlan raise SpecializationError {
+  let definitions = collect_plannable_definitions(program)
+  plan_effect_specializations_with_definitions(program, entry, definitions)
+}
+
+///|
+fn plan_effect_specializations_with_definitions(
+  program : @buslane.Program,
+  entry : @buslane.ValueId,
+  definitions : Array[PlannedDefinition],
+) -> SpecializationPlan raise SpecializationError {
+  let planner = SpecializationPlanner::{
+    program,
+    definitions,
+    visits: [],
+    plan: { callable_demands: [], data_demands: [] },
+  }
+  guard planner.find_definition(entry) is Some(entry_definition) else {
+    return planner.plan
+  }
+  planner.enqueue_visit(entry_definition.site, [])
+  let mut index = 0
+  while index < planner.visits.length() {
+    let visit = planner.visits[index]
+    if planner.find_definition(visit.site.value()) is Some(definition) {
+      try {
+        planner.visit_value_type(definition.site.value(), visit.bindings)
+        planner.visit_expr(definition.rhs, visit.bindings)
+      } catch {
+        Unsupported(detail~) => {
+          let name = match
+            program.metadata.value_info(definition.site.value()) {
+            Some(info) => info.name.occurrence
+            None => "<unknown>"
+          }
+          raise Unsupported(
+            detail="while planning `\{name}` with \{Repr(visit.bindings)}: \{detail}",
+          )
+        }
+      }
+    }
+    index += 1
+  }
+  planner.plan
+}
+
+///|
+fn collect_plannable_definitions(
+  program : @buslane.Program,
+) -> Array[PlannedDefinition] {
+  let definitions = []
+  for term in program.terms {
+    match term {
+      Let(id, rhs) => {
+        let definition = planned_definition(
+          program.metadata,
+          TopLevel(id),
+          [],
+          rhs,
+        )
+        definitions.push(definition)
+        collect_nested_definitions(
+          program.metadata,
+          rhs,
+          id,
+          definition.effect_parameters,
+          definitions,
+        )
+      }
+      LetRec(bindings) =>
+        for binding in bindings {
+          let definition = planned_definition(
+            program.metadata,
+            TopLevel(binding.id),
+            [],
+            binding.rhs,
+          )
+          definitions.push(definition)
+          collect_nested_definitions(
+            program.metadata,
+            binding.rhs,
+            binding.id,
+            definition.effect_parameters,
+            definitions,
+          )
+        }
+      External(_) => ()
+    }
+  }
+  definitions
+}
+
+///|
+fn planned_definition(
+  metadata : @buslane.MetadataRegistry,
+  site : SpecializationDefinitionSite,
+  captured_effect_parameters : Array[@buslane.TypeParameterId],
+  rhs : @buslane.Expr,
+) -> PlannedDefinition {
+  {
+    site,
+    captured_effect_parameters,
+    effect_parameters: match effect_scheme_parameters(metadata, site.value()) {
+      Some(parameters) => parameters
+      None => []
+    },
+    rhs,
+  }
+}
+
+///|
+fn collect_nested_definitions(
+  metadata : @buslane.MetadataRegistry,
+  expression : @buslane.Expr,
+  owner : @buslane.ValueId,
+  captured_effect_parameters : Array[@buslane.TypeParameterId],
+  definitions : Array[PlannedDefinition],
+) -> Unit {
+  match expression {
+    Ref(_) | Literal(_) | Resume(_) => ()
+    Function(function) =>
+      collect_nested_definitions(
+        metadata,
+        function.body,
+        owner,
+        captured_effect_parameters,
+        definitions,
+      )
+    Call(callee, arguments) => {
+      collect_nested_definitions(
+        metadata, callee, owner, captured_effect_parameters, definitions,
+      )
+      for argument in arguments {
+        collect_nested_definitions(
+          metadata, argument, owner, captured_effect_parameters, definitions,
+        )
+      }
+    }
+    TypeLambda(_, body) =>
+      collect_nested_definitions(
+        metadata, body, owner, captured_effect_parameters, definitions,
+      )
+    TypeApply(callee, _) =>
+      collect_nested_definitions(
+        metadata, callee, owner, captured_effect_parameters, definitions,
+      )
+    Construct(construct) =>
+      for payload in construct.payloads {
+        collect_nested_definitions(
+          metadata, payload, owner, captured_effect_parameters, definitions,
+        )
+      }
+    Let(id, initializer, body) => {
+      let site = SpecializationDefinitionSite::Local(owner~, value=id)
+      let definition = planned_definition(
+        metadata, site, captured_effect_parameters, initializer,
+      )
+      definitions.push(definition)
+      let nested_effect_parameters = captured_effect_parameters.copy()
+      nested_effect_parameters.append(definition.effect_parameters)
+      collect_nested_definitions(
+        metadata, initializer, id, nested_effect_parameters, definitions,
+      )
+      collect_nested_definitions(
+        metadata, body, owner, captured_effect_parameters, definitions,
+      )
+    }
+    LetRec(bindings, body) => {
+      for binding in bindings {
+        let site = SpecializationDefinitionSite::Local(owner~, value=binding.id)
+        let definition = planned_definition(
+          metadata,
+          site,
+          captured_effect_parameters,
+          binding.rhs,
+        )
+        definitions.push(definition)
+        let nested_effect_parameters = captured_effect_parameters.copy()
+        nested_effect_parameters.append(definition.effect_parameters)
+        collect_nested_definitions(
+          metadata,
+          binding.rhs,
+          binding.id,
+          nested_effect_parameters,
+          definitions,
+        )
+      }
+      collect_nested_definitions(
+        metadata, body, owner, captured_effect_parameters, definitions,
+      )
+    }
+    Match(match_) => {
+      collect_nested_definitions(
+        metadata,
+        match_.scrutinee,
+        owner,
+        captured_effect_parameters,
+        definitions,
+      )
+      for alternative in match_.alternatives {
+        collect_nested_definitions(
+          metadata,
+          alternative.body,
+          owner,
+          captured_effect_parameters,
+          definitions,
+        )
+      }
+    }
+    Perform(perform) =>
+      for payload in perform.payloads {
+        collect_nested_definitions(
+          metadata, payload, owner, captured_effect_parameters, definitions,
+        )
+      }
+    Handle(handle) => {
+      collect_nested_definitions(
+        metadata,
+        handle.body,
+        owner,
+        captured_effect_parameters,
+        definitions,
+      )
+      collect_nested_definitions(
+        metadata,
+        handle.final_body,
+        owner,
+        captured_effect_parameters,
+        definitions,
+      )
+      for table in handle.handlers {
+        for operation in table.operations {
+          collect_nested_definitions(
+            metadata,
+            operation.body,
+            owner,
+            captured_effect_parameters,
+            definitions,
+          )
+        }
+      }
+    }
+  }
+}
+
+///|
+fn SpecializationPlanner::find_definition(
+  self : SpecializationPlanner,
+  id : @buslane.ValueId,
+) -> PlannedDefinition? {
+  for definition in self.definitions {
+    if definition.site.value() == id {
+      return Some(definition)
+    }
+  }
+  None
+}
+
+///|
+fn SpecializationPlanner::enqueue_visit(
+  self : SpecializationPlanner,
+  site : SpecializationDefinitionSite,
+  bindings : Array[EffectSpecializationBinding],
+) -> Unit {
+  if self.visits.any(visit => {
+      visit.site == site &&
+      specialization_bindings_equal(
+        self.program.metadata,
+        visit.bindings,
+        bindings,
+      )
+    }) {
+    return
+  }
+  self.visits.push({ site, bindings })
+}
+
+///|
+fn SpecializationPlanner::add_demand(
+  self : SpecializationPlanner,
+  demand : CallableSpecializationDemand,
+) -> Unit {
+  if self.plan.callable_demands.any(existing => {
+      callable_demands_equal(self.program.metadata, existing, demand)
+    }) {
+    return
+  }
+  self.plan.callable_demands.push(demand)
+}
+
+///|
+fn SpecializationPlanner::add_data_demand(
+  self : SpecializationPlanner,
+  demand : DataInstanceDemand,
+) -> Bool {
+  if self.plan.data_demands.any(existing => {
+      existing.source == demand.source &&
+      specialization_bindings_equal(
+        self.program.metadata,
+        existing.bindings,
+        demand.bindings,
+      )
+    }) {
+    return false
+  }
+  self.plan.data_demands.push(demand)
+  true
+}
+
+///|
+fn callable_demands_equal(
+  metadata : @buslane.MetadataRegistry,
+  left : CallableSpecializationDemand,
+  right : CallableSpecializationDemand,
+) -> Bool {
+  match (left, right) {
+    (
+      RetainGeneric(left_site, left_ambient),
+      RetainGeneric(right_site, right_ambient),
+    ) =>
+      left_site == right_site &&
+      specialization_bindings_equal(metadata, left_ambient, right_ambient)
+    (
+      Specialize(
+        left_site,
+        ambient_bindings=left_ambient,
+        instance_bindings=left_instance
+      ),
+      Specialize(
+        right_site,
+        ambient_bindings=right_ambient,
+        instance_bindings=right_instance
+      ),
+    ) =>
+      left_site == right_site &&
+      specialization_bindings_equal(metadata, left_ambient, right_ambient) &&
+      specialization_bindings_equal(metadata, left_instance, right_instance)
+    _ => false
+  }
+}
+
+///|
+fn SpecializationPlanner::record_generic_use(
+  self : SpecializationPlanner,
+  definition : PlannedDefinition,
+  arguments : Array[@buslane.GenericArgument],
+  enclosing_bindings : Array[EffectSpecializationBinding],
+) -> Unit raise SpecializationError {
+  let classified = classify_effect_generic_use(
+    self.program.metadata,
+    definition.effect_parameters,
+    arguments,
+  )
+  let ambient_bindings = enclosing_bindings.filter(binding => {
+    definition.captured_effect_parameters.contains(binding.parameter)
+  })
+  match classified.mode {
+    Incomplete | Symbolic => {
+      self.add_demand(RetainGeneric(definition.site, ambient_bindings))
+      self.enqueue_visit(definition.site, ambient_bindings)
+    }
+    Concrete(instance_bindings) => {
+      self.add_demand(
+        Specialize(definition.site, ambient_bindings~, instance_bindings~),
+      )
+      let bindings = ambient_bindings.copy()
+      bindings.append(instance_bindings)
+      self.enqueue_visit(definition.site, bindings)
+    }
+  }
+}
+
+///|
+fn SpecializationPlanner::visit_reference(
+  self : SpecializationPlanner,
+  id : @buslane.ValueId,
+  ambient_bindings : Array[EffectSpecializationBinding],
+) -> Unit raise SpecializationError {
+  guard self.find_definition(id) is Some(definition) else { return }
+  if definition.effect_parameters.is_empty() {
+    self.enqueue_visit(
+      definition.site,
+      ambient_bindings.filter(binding => {
+        definition.captured_effect_parameters.contains(binding.parameter)
+      }),
+    )
+  } else {
+    self.record_generic_use(definition, [], ambient_bindings)
+  }
+}
+
+///|
+fn SpecializationPlanner::visit_value_type(
+  self : SpecializationPlanner,
+  value : @buslane.ValueId,
+  ambient_bindings : Array[EffectSpecializationBinding],
+) -> Unit raise SpecializationError {
+  guard self.program.metadata.value_info(value) is Some(info) else { return }
+  let mut body = info.type_
+  while body is Forall(_, next) {
+    body = next
+  }
+  self.visit_type(body, ambient_bindings)
+}
+
+///|
+fn SpecializationPlanner::visit_argument(
+  self : SpecializationPlanner,
+  argument : @buslane.GenericArgument,
+) -> Unit raise SpecializationError {
+  match argument {
+    TypeArgument(type_) => self.visit_type(type_, [])
+    EffectArgument(effect) => self.visit_effect(effect, [])
+  }
+}
+
+///|
+fn SpecializationPlanner::visit_effect(
+  self : SpecializationPlanner,
+  effect : @buslane.Effect,
+  ambient_bindings : Array[EffectSpecializationBinding],
+) -> Unit raise SpecializationError {
+  let effect = raw_substitute_specialized_effect(effect, ambient_bindings)
+  match effect {
+    Empty | Io | Parameter(_) => ()
+    Singleton(_, arguments) =>
+      for argument in arguments {
+        self.visit_argument(argument)
+      }
+    Union(effects) =>
+      for effect_term in effects {
+        self.visit_effect(effect_term, [])
+      }
+  }
+}
+
+///|
+fn SpecializationPlanner::visit_type(
+  self : SpecializationPlanner,
+  type_ : @buslane.Type,
+  ambient_bindings : Array[EffectSpecializationBinding],
+) -> Unit raise SpecializationError {
+  let type_ = raw_substitute_specialized_type(type_, ambient_bindings).normalize()
+  match type_ {
+    Primitive(_) | Parameter(_) | Constructor(_) => ()
+    Apply(Constructor(source), arguments) => {
+      guard self.program.metadata.type_info(source) is Some(info) else {
+        for argument in arguments {
+          self.visit_argument(argument)
+        }
+        return
+      }
+      if info.parameters.any(parameter => {
+          type_parameter_is_effect(self.program.metadata, parameter)
+        }) {
+        self.record_data_application(source, arguments)
+      }
+      for argument in arguments {
+        self.visit_argument(argument)
+      }
+    }
+    Apply(callee, arguments) => {
+      self.visit_type(callee, [])
+      for argument in arguments {
+        self.visit_argument(argument)
+      }
+    }
+    TypeLambda(_, body) | Forall(_, body) => self.visit_type(body, [])
+    Function(parameters, result, effect) => {
+      for parameter in parameters {
+        self.visit_type(parameter, [])
+      }
+      self.visit_type(result, [])
+      self.visit_effect(effect, [])
+    }
+  }
+}
+
+///|
+fn SpecializationPlanner::record_data_application(
+  self : SpecializationPlanner,
+  source : @buslane.TypeId,
+  arguments : Array[@buslane.GenericArgument],
+) -> Unit raise SpecializationError {
+  let bindings = data_instance_bindings(
+    self.program.metadata,
+    source,
+    arguments,
+  )
+  guard self.program.metadata.type_info(source) is Some(info) else {
+    raise Unsupported(detail="effect-parameterized data metadata is missing")
+  }
+  if self.add_data_demand({ source, bindings, constructors: info.constructors }) {
+    for data_constructor in info.constructors {
+      guard self.program.metadata.data_constructor_info(data_constructor)
+        is Some(constructor_info) else {
+        raise Unsupported(
+          detail="an effect-parameterized data constructor is missing metadata",
+        )
+      }
+      for payload_type in constructor_info.payload_types {
+        self.visit_type(payload_type, bindings)
+      }
+    }
+  }
+}
+
+///|
+fn SpecializationPlanner::visit_expr(
+  self : SpecializationPlanner,
+  expression : @buslane.Expr,
+  ambient_bindings : Array[EffectSpecializationBinding],
+) -> Unit raise SpecializationError {
+  match expression {
+    Ref(id) => self.visit_reference(id, ambient_bindings)
+    Literal(_) | Resume(_) => ()
+    Function(function) => {
+      for parameter in function.parameters {
+        self.visit_value_type(parameter, ambient_bindings)
+      }
+      self.visit_type(function.result_type, ambient_bindings)
+      self.visit_expr(function.body, ambient_bindings)
+    }
+    Call(callee, arguments) => {
+      self.visit_expr(callee, ambient_bindings)
+      for argument in arguments {
+        self.visit_expr(argument, ambient_bindings)
+      }
+    }
+    TypeLambda(_, body) => self.visit_expr(body, ambient_bindings)
+    TypeApply(_, _) => {
+      let groups = []
+      let base = collect_type_application_groups(expression, groups)
+      if base is Ref(source) &&
+        self.find_definition(source) is Some(definition) &&
+        !definition.effect_parameters.is_empty() {
+        let arguments = []
+        for group in groups {
+          for argument in group {
+            let substituted = raw_substitute_specialized_argument(
+              argument, ambient_bindings,
+            )
+            arguments.push(substituted)
+            self.visit_argument(substituted)
+          }
+        }
+        self.record_generic_use(definition, arguments, ambient_bindings)
+      } else {
+        self.visit_expr(base, ambient_bindings)
+      }
+    }
+    Construct(construct) => {
+      let arguments = construct.type_arguments.map(argument => {
+        raw_substitute_specialized_argument(argument, ambient_bindings)
+      })
+      if self.program.metadata.data_constructor_info(construct.data_constructor)
+        is Some(info) &&
+        self.program.metadata.type_info(info.owner) is Some(owner) &&
+        owner.parameters.any(parameter => {
+          type_parameter_is_effect(self.program.metadata, parameter)
+        }) {
+        self.record_data_application(info.owner, arguments)
+      }
+      for argument in arguments {
+        self.visit_argument(argument)
+      }
+      for witness in construct.hidden_witnesses {
+        self.visit_argument(
+          raw_substitute_specialized_argument(witness, ambient_bindings),
+        )
+      }
+      for payload in construct.payloads {
+        self.visit_expr(payload, ambient_bindings)
+      }
+    }
+    Let(id, _, body) => {
+      self.visit_value_type(id, ambient_bindings)
+      if self.find_definition(id) is Some(definition) &&
+        definition.effect_parameters.is_empty() {
+        self.enqueue_visit(
+          definition.site,
+          ambient_bindings.filter(binding => {
+            definition.captured_effect_parameters.contains(binding.parameter)
+          }),
+        )
+      }
+      self.visit_expr(body, ambient_bindings)
+    }
+    LetRec(bindings, body) => {
+      for binding in bindings {
+        self.visit_value_type(binding.id, ambient_bindings)
+        if self.find_definition(binding.id) is Some(definition) &&
+          definition.effect_parameters.is_empty() {
+          self.enqueue_visit(
+            definition.site,
+            ambient_bindings.filter(binding => {
+              definition.captured_effect_parameters.contains(binding.parameter)
+            }),
+          )
+        }
+      }
+      self.visit_expr(body, ambient_bindings)
+    }
+    Match(match_) => {
+      self.visit_value_type(match_.binder, ambient_bindings)
+      self.visit_type(match_.result_type, ambient_bindings)
+      self.visit_expr(match_.scrutinee, ambient_bindings)
+      for alternative in match_.alternatives {
+        for binder in alternative.value_binders {
+          self.visit_value_type(binder, ambient_bindings)
+        }
+        self.visit_expr(alternative.body, ambient_bindings)
+      }
+    }
+    Perform(perform) => {
+      for argument in perform.effect_arguments {
+        self.visit_argument(
+          raw_substitute_specialized_argument(argument, ambient_bindings),
+        )
+      }
+      for witness in perform.hidden_witnesses {
+        self.visit_argument(
+          raw_substitute_specialized_argument(witness, ambient_bindings),
+        )
+      }
+      for payload in perform.payloads {
+        self.visit_expr(payload, ambient_bindings)
+      }
+    }
+    Handle(handle) => {
+      self.visit_value_type(handle.result_binder, ambient_bindings)
+      self.visit_type(handle.result_type, ambient_bindings)
+      self.visit_expr(handle.body, ambient_bindings)
+      self.visit_expr(handle.final_body, ambient_bindings)
+      for table in handle.handlers {
+        self.visit_effect(table.handled_effect, ambient_bindings)
+        for operation in table.operations {
+          for binder in operation.payload_binders {
+            self.visit_value_type(binder, ambient_bindings)
+          }
+          self.visit_value_type(operation.resume_binder, ambient_bindings)
+          self.visit_expr(operation.body, ambient_bindings)
+        }
+      }
+    }
+  }
+}

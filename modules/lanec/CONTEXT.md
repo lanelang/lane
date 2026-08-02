@@ -368,6 +368,18 @@ _Avoid_: global evidence vector, LoisVM hidden ABI field, runtime handler lookup
 The compiler-generated type-level function parameter of kind `[Type, Effect] -> Type` that forms the runtime-bearing half of a source effect parameter's CPS representation. The other half is a compiler-generated External Effect parameter carrying only the source effect's non-algebraic residual projection. Each context use applies the type-level function to the Answer-Type CPS answer and complete residual in scope there, while an instantiation supplies both a type lambda that produces the packed context and the corresponding residual effect. This lets an enclosing dictionary and a nested CPS callable share one context abstraction without forcing them to share answer or local residual binders, and prevents runtime layout from being inferred from static effect syntax.
 _Avoid_: one fixed dictionary type, source type parameter, layout witness, universal operation table
 
+**Effect Specialization Demand**:
+A canonical request attached to one reachable source definition site after applying the lexical effect substitution at a use. A symbolic or incomplete use requests retention of the generic definition; a concrete use requests one instance keyed by definitionally canonical effect bindings. The two demands may coexist for the same source definition.
+_Avoid_: definition-global runtime-polymorphic flag, raw call syntax, optimizer specialization candidate
+
+**Effect Specialization Plan**:
+The immutable, read-only fixed point of reachable callable and nominal-data Effect Specialization Demands computed before target metadata is allocated. Allocation consumes the plan exactly once, and expression rewriting may only look up its allocated identities; neither phase may add a demand.
+_Avoid_: rewrite-time instance discovery, metadata-mutating analysis, forwarding-edge closure
+
+**Effect Specialization Definition Site**:
+The stable identity of a top-level definition or a local definition paired with its lexical owner. A local demand records only bindings for effect parameters visible where that definition was declared, preventing a sibling callable's own instance parameters from being mistaken for captured ambient bindings.
+_Avoid_: bare local ValueId without owner, dynamic call stack, source-text location
+
 **Monadic Effect Predicate**:
 The conservative classification used by `mon-trans` that holds when an effect row has an open tail or contains any handled operation. Every handled operation is potentially multi-shot, so the predicate does not analyze or infer resume counts. It determines whether monadic translation is required, independently of whether the computation is pure or otherwise observable.
 _Avoid_: nonempty-effect test, `Io` special case, optimizer purity test, resume-count analysis
@@ -612,6 +624,22 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
 - **Core Occurrence Analysis** runs after link-time entry validation and before
   final executable artifact emission, while optimization still has access to
   type, effect, entry, and root metadata.
+- **Reachable Effect Specialization** is owned by the
+  `lanec/effect_specialization` package. It first classifies substituted uses,
+  computes an immutable **Effect Specialization Plan**, allocates every planned
+  target declaration, and then mechanically rewrites the reachable program.
+- Effect-specialization planning is read-only. Allocation is the sole owner of
+  specialized callable, type, and constructor metadata; lowered bodies may
+  validate and consume those declarations but cannot replace them or discover
+  additional instances.
+- A source callable may be retained generically and also receive concrete
+  clones. Dead symbolic uses contribute no demand, and concrete use sites do
+  not lose specialization merely because another use forwards an effect
+  parameter.
+- Source-effect substitution establishes static definition equivalence only.
+  Runtime representation is selected from the normalized companion type or an
+  explicit in-scope layout witness, never from `Empty`, `Io`, an algebraic row,
+  or any other source-effect syntax.
 - **Effect-Aware Core Optimization** is the `lanec/core_opt` phase after
   monadic continuation lifting and before residual effect erasure. It owns
   optimizer pass order and fixpoint mechanics, receives the selected entry and

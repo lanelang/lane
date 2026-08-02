@@ -326,6 +326,15 @@ graph TD
   ISS_294["ISS-294: Unify CPS callable declarations and implementations around one shape"]
   ISS_295["ISS-295: Keep CPS declaration metadata single-owned"]
   ISS_296["ISS-296: Implement pure generic Array values"]
+  ISS_297["ISS-297: Rebuild effect specialization as a planned compiler phase"]
+  ISS_298["ISS-298: Lock the effect-specialization semantic contract with regressions"]
+  ISS_299["ISS-299: Classify generic uses after effect substitution"]
+  ISS_300["ISS-300: Plan callable specialization demands to a fixed point"]
+  ISS_301["ISS-301: Extend specialization planning through lexical recursion"]
+  ISS_302["ISS-302: Plan effect-parameterized nominal data instances"]
+  ISS_303["ISS-303: Separate specialization allocation from mechanical rewriting"]
+  ISS_304["ISS-304: Extract effect specialization behind a deep package boundary"]
+  ISS_305["ISS-305: Validate specialization equivalence and retire legacy policy"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -595,6 +604,21 @@ graph TD
   ISS_292 --> ISS_284
   ISS_293 --> ISS_284
   ISS_284 --> ISS_288
+  ISS_298 --> ISS_297
+  ISS_299 --> ISS_297
+  ISS_300 --> ISS_297
+  ISS_301 --> ISS_297
+  ISS_302 --> ISS_297
+  ISS_303 --> ISS_297
+  ISS_304 --> ISS_297
+  ISS_305 --> ISS_297
+  ISS_298 --> ISS_299
+  ISS_299 --> ISS_300
+  ISS_300 --> ISS_301
+  ISS_301 --> ISS_302
+  ISS_302 --> ISS_303
+  ISS_303 --> ISS_304
+  ISS_304 --> ISS_305
 ```
 
 ## Warnings

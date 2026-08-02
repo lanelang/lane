@@ -1,11 +1,12 @@
 ///|
+/// White-box tests for planning, allocation, and mechanical rewriting.
 test "effect rewrite child scopes isolate shadowed value bindings" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
   let source = metadata.define_value("source", Local, unit_type)
   let parent_target = metadata.define_value("parent", Local, unit_type)
   let child_target = metadata.define_value("child", Local, unit_type)
-  let parent = EffectRewriteScope::new([])
+  let parent = EffectRewriteScope::new(source, [])
   parent.bind_value(source, parent_target)
   let child = parent.enter_scope()
   child.bind_value(source, child_target)
@@ -64,7 +65,7 @@ test "reachable local effect-generic functions specialize in lexical scope" {
       ),
     ],
   }
-  let specialized = specialize_reachable_effects(program, entry)
+  let specialized = specialize(program, entry)
   guard specialized.terms is [Let(_, Function({ body, .. }))] &&
     body is Let(captured_target, Literal(Unit), nested) &&
     nested
@@ -81,18 +82,6 @@ test "reachable local effect-generic functions specialize in lexical scope" {
   assert_eq(
     specialized.metadata.value_info(target).map(info => info.type_),
     Some(Function([], unit_type, Singleton(log_effect, []))),
-  )
-}
-
-///|
-test "effect parameter detection traverses singleton arguments" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let outer_effect = metadata.define_effect("Outer", [])
-  let effect_parameter = metadata.define_type_parameter("E", Effect)
-  assert_true(
-    effect_contains_parameter(
-      Singleton(outer_effect, [EffectArgument(Parameter(effect_parameter))]),
-    ),
   )
 }
 
@@ -140,7 +129,7 @@ test "reachable effect applications create concrete callable instances" {
       ]),
     ],
   }
-  let specialized = specialize_reachable_effects(program, entry)
+  let specialized = specialize(program, entry)
   guard specialized.terms is [LetRec(entry_bindings), LetRec([instance])] else {
     abort("expected one retained entry and one specialized callable")
   }
@@ -238,7 +227,7 @@ test "runtime polymorphism propagates through symbolic effect forwarding" {
       ]),
     ],
   }
-  let specialized = specialize_reachable_effects(program, entry)
+  let specialized = specialize(program, entry)
   assert_eq(@buslane.verify_program(specialized).diagnostics, [])
   guard specialized.terms is [LetRec(bindings)] else {
     abort("expected every symbolic forwarding definition to be retained")
@@ -292,7 +281,7 @@ test "unreachable bare references do not retain effect-polymorphic definitions" 
       ]),
     ],
   }
-  let specialized = specialize_reachable_effects(program, entry)
+  let specialized = specialize(program, entry)
   guard specialized.terms is [LetRec([entry_binding]), LetRec([instance])] else {
     abort("expected dead references to leave one concrete specialization")
   }
@@ -396,7 +385,7 @@ test "handler residual effects specialize before answer-type CPS" {
       ]),
     ],
   }
-  let specialized = specialize_reachable_effects(program, entry)
+  let specialized = specialize(program, entry)
   guard specialized.terms is [LetRec(_), LetRec([instance])] &&
     instance.rhs is Function(function) &&
     function.body is Handle(handle) &&
@@ -430,16 +419,28 @@ test "effect specialization rewrites retained declarations that name a specializ
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let log = metadata.define_effect("Log", [])
+  let trace = metadata.define_effect("Trace", [])
   let box = metadata.define_type("Box", [effect_parameter])
   let make_box = metadata.define_data_constructor("box", box, [], [
     Primitive(I64),
   ])
+  let concrete_effect = @buslane.Effect::Union([
+    Singleton(log, []),
+    Singleton(trace, []),
+  ])
+  let reversed_effect = @buslane.Effect::Union([
+    Singleton(trace, []),
+    Singleton(log, []),
+  ])
   let boxed : @buslane.Type = Apply(Constructor(box), [
-    EffectArgument(Singleton(log, [])),
+    EffectArgument(concrete_effect),
+  ])
+  let reversed_boxed : @buslane.Type = Apply(Constructor(box), [
+    EffectArgument(reversed_effect),
   ])
   let holder = metadata.define_type("Holder", [])
   let make_holder = metadata.define_data_constructor("holder", holder, [], [
-    boxed,
+    boxed, reversed_boxed,
   ])
   let entry = metadata.define_value(
     "entry",
@@ -461,9 +462,15 @@ test "effect specialization rewrites retained declarations that name a specializ
             payloads: [
               Construct({
                 data_constructor: make_box,
-                type_arguments: [EffectArgument(Singleton(log, []))],
+                type_arguments: [EffectArgument(concrete_effect)],
                 hidden_witnesses: [],
                 payloads: [Literal(I64(1L))],
+              }),
+              Construct({
+                data_constructor: make_box,
+                type_arguments: [EffectArgument(reversed_effect)],
+                hidden_witnesses: [],
+                payloads: [Literal(I64(2L))],
               }),
             ],
           }),
@@ -471,96 +478,30 @@ test "effect specialization rewrites retained declarations that name a specializ
       ),
     ],
   }
-  let specialized = specialize_reachable_effects(program, entry)
+  assert_eq(plan_effect_specializations(program, entry), {
+    callable_demands: [],
+    data_demands: [
+      {
+        source: box,
+        bindings: [
+          {
+            parameter: effect_parameter,
+            argument: EffectArgument(
+              metadata.canonicalize_effect(concrete_effect),
+            ),
+          },
+        ],
+        constructors: [make_box],
+      },
+    ],
+  })
+  let source_type_count = metadata.types.length()
+  let source_constructor_count = metadata.data_constructors.length()
+  let specialized = specialize(program, entry)
+  assert_eq(metadata.types.length(), source_type_count + 1)
+  assert_eq(metadata.data_constructors.length(), source_constructor_count + 1)
   let result = @buslane.verify_program(specialized)
   if !result.is_ok() {
     fail("specialized program did not verify: \{Repr(result)}")
-  }
-}
-
-///|
-/// A definition effect specialization replaces keeps its complete metadata.
-/// Selective CPS and monadic lift must leave that declaration alone rather than
-/// rewrite any nested type or effect while its binders stay as they were.
-test "monadic lift preserves a replaced generic declaration's metadata" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let effect_parameter = metadata.define_type_parameter("E", Effect)
-  let log = metadata.define_effect("Log", [])
-  let task_type : @buslane.Type = Function(
-    [],
-    Primitive(Unit),
-    Parameter(effect_parameter),
-  )
-  let generic_type : @buslane.Type = Forall(
-    [effect_parameter],
-    Function([task_type], Primitive(Unit), Parameter(effect_parameter)),
-  )
-  let generic = metadata.define_value("generic", Function, generic_type)
-  let task = metadata.define_value("task", Parameter, task_type)
-  let logging = metadata.define_value(
-    "logging",
-    External,
-    Function([], Primitive(Unit), Singleton(log, [])),
-  )
-  let entry = metadata.define_value(
-    "entry",
-    Function,
-    Function([], Primitive(Unit), Singleton(log, [])),
-  )
-  let program = @buslane.Program::{
-    metadata,
-    terms: [
-      External(logging),
-      LetRec([
-        {
-          id: generic,
-          rhs: TypeLambda(
-            [effect_parameter],
-            Function({
-              parameters: [task],
-              result_type: Primitive(Unit),
-              body: Call(Ref(task), []),
-            }),
-          ),
-        },
-      ]),
-      Let(
-        entry,
-        Function({
-          parameters: [],
-          result_type: Primitive(Unit),
-          body: Call(
-            TypeApply(Ref(generic), [EffectArgument(Singleton(log, []))]),
-            [Ref(logging)],
-          ),
-        }),
-      ),
-    ],
-  }
-  let specialized = specialize_reachable_effects(program, entry)
-  // The generic original is no longer a term but is still in the registry.
-  guard metadata.value_info(generic) is Some(_) else {
-    fail("expected the replaced definition to keep its metadata")
-  }
-  let mut lifted_generic_type = None
-  let mut lifted_verification = None
-  let lowered = lower_effects(specialized, entry, stage => {
-    if stage is MonadicContinuationsLifted(lifted) {
-      lifted_generic_type = lifted.metadata
-        .value_info(generic)
-        .map(info => info.type_)
-      lifted_verification = Some(@buslane.verify_program(lifted))
-    }
-  })
-  assert_eq(lifted_generic_type, Some(generic_type))
-  guard lifted_verification is Some(verified_lifted) else {
-    fail("expected to verify the monadic-lift boundary")
-  }
-  if !verified_lifted.is_ok() {
-    fail("monadic-lift program did not verify: \{Repr(verified_lifted)}")
-  }
-  let verified = @buslane.verify_program(lowered.program)
-  if !verified.is_ok() {
-    fail("lowered program did not verify: \{Repr(verified)}")
   }
 }

@@ -51,7 +51,7 @@ fn lifted_fixture_diagnostics(
     }
   })
   guard elaborated is Ok(_) else {
-    abort("expected executable elaboration to complete")
+    abort("expected executable elaboration to complete: \{Repr(elaborated)}")
   }
   guard lifted_verification is Some(verification) else {
     abort("expected to observe the monadic-lift boundary")
