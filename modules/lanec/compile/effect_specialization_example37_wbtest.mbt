@@ -1,24 +1,33 @@
 ///|
 test "real example 37 lifted snapshot verifies" {
   assert_eq(
-    lifted_fixture_diagnostics("examples/valid/37_coroutine_scheduler.lane"),
+    lifted_fixture_diagnostics(
+      "../..", "examples/valid/37_coroutine_scheduler.lane",
+    ),
     [],
   )
 }
 
 ///|
 test "real example 45 lifted snapshot verifies" {
-  assert_eq(lifted_fixture_diagnostics("examples/valid/45_async_effect.lane"), [])
+  assert_eq(
+    lifted_fixture_diagnostics("../..", "examples/valid/45_async_effect.lane"),
+    [],
+  )
 }
 
 ///|
 fn lifted_fixture_diagnostics(
+  repository_root : String,
   fixture_path : String,
 ) -> Array[@buslane.VerifyDiagnostic] raise {
   let result = compile({
     root: {
       source_id: fixture_path,
-      text: read_repository_fixture(fixture_path),
+      text: @fs.read_file_to_string(
+        "\{repository_root}/\{fixture_path}",
+        encoding="utf8",
+      ),
     },
     libraries: effect_example_test_libraries(),
   })
@@ -48,13 +57,6 @@ fn lifted_fixture_diagnostics(
     abort("expected to observe the monadic-lift boundary")
   }
   verification.diagnostics()
-}
-
-///|
-fn read_repository_fixture(path : String) -> String raise {
-  @fs.read_file_to_string(path, encoding="utf8") catch {
-    _ => @fs.read_file_to_string("../../\{path}", encoding="utf8")
-  }
 }
 
 ///|
