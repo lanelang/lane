@@ -66,6 +66,7 @@ priv struct CallableAdapterPlan {
   source_type : @buslane.Type
   target_type : @buslane.Type
   source_parameter_targets : Array[Int]
+  substitutions : @buslane.TypeSubstitution
   captured_parameters : Array[@buslane.TypeParameterId]
   environment_shape : @bytecode.ObjectShapeId
 }

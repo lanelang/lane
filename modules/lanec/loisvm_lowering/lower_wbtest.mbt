@@ -15,6 +15,26 @@ fn test_io_function_type(
 }
 
 ///|
+fn test_generic_callable_type(
+  answer : @buslane.TypeParameterId,
+  parameters : Array[@buslane.Type],
+) -> @buslane.Type {
+  Forall([answer], Function(parameters, Parameter(answer), Empty))
+}
+
+///|
+fn test_companion_application(
+  companion : @buslane.TypeParameterId,
+  answer : @buslane.TypeParameterId,
+  residual : @buslane.Effect,
+) -> @buslane.Type {
+  Apply(Parameter(companion), [
+    TypeArgument(Parameter(answer)),
+    EffectArgument(residual),
+  ])
+}
+
+///|
 fn test_host_signature(type_ : @buslane.Type) -> @abi.HostSignature {
   guard type_ is Function(parameters, result, _) else {
     abort("test runtime import must be a function")
@@ -113,6 +133,7 @@ struct CallableAdapterObservation {
   source_type : @buslane.Type
   target_type : @buslane.Type
   source_parameter_targets : Array[Int]
+  substitutions : @buslane.TypeSubstitution
   captured_parameters : Array[@buslane.TypeParameterId]
   environment_shape : @bytecode.ObjectShapeId
 } derive(Debug)
@@ -126,6 +147,7 @@ fn callable_adapter_observations(
     source_type: adapter.source_type,
     target_type: adapter.target_type,
     source_parameter_targets: adapter.source_parameter_targets,
+    substitutions: adapter.substitutions,
     captured_parameters: adapter.captured_parameters,
     environment_shape: adapter.environment_shape,
   })
@@ -2983,6 +3005,8 @@ test "forwarded companion substitution reuses the outer layout witness" {
     "ActualE%context",
     Function([Type, Effect], Type),
   )
+  let source_answer = metadata.define_type_parameter("SourceAnswer", Type)
+  let target_answer = metadata.define_type_parameter("TargetAnswer", Type)
   let image = test_image_lowerer(metadata, [
     { source: formal_source, companion: formal_companion },
     { source: actual_source, companion: actual_companion },
@@ -3001,6 +3025,22 @@ test "forwarded companion substitution reuses the outer layout witness" {
     substitutions.effect_argument(formal_source),
     Some(Parameter(actual_source)),
   )
+  let source_context = test_companion_application(
+    actual_companion,
+    source_answer,
+    Parameter(actual_source),
+  )
+  let target_context = test_companion_application(
+    formal_companion,
+    target_answer,
+    Parameter(formal_source),
+  )
+  let (targets, _) = image.align_callable_parameters(
+    test_generic_callable_type(source_answer, [source_context]),
+    test_generic_callable_type(target_answer, [target_context]),
+    substitutions,
+  )
+  assert_eq(targets, [0])
   assert_eq(
     lowerer.adapter_witness(formal_companion, substitutions),
     outer_witness,
@@ -3030,7 +3070,7 @@ test "callable adapters capture an in-scope companion witness" {
     Empty,
   )
   let target_type : @buslane.Type = Function(
-    [Primitive(I64)],
+    [companion_type, Primitive(Unit)],
     Primitive(Unit),
     Empty,
   )
@@ -3070,8 +3110,22 @@ test "callable adapters capture an in-scope companion witness" {
       #|        Primitive(Unit),
       #|        Empty,
       #|      ),
-      #|      target_type: Function([Primitive(I64)], Primitive(Unit), Empty),
+      #|      target_type: Function(
+      #|        [
+      #|          Apply(
+      #|            Parameter({ index: 1 }),
+      #|            [
+      #|              TypeArgument(Primitive(I64)),
+      #|              EffectArgument(Parameter({ index: 0 })),
+      #|            ],
+      #|          ),
+      #|          Primitive(Unit),
+      #|        ],
+      #|        Primitive(Unit),
+      #|        Empty,
+      #|      ),
       #|      source_parameter_targets: [0],
+      #|      substitutions: { entries: [] },
       #|      captured_parameters: [{ index: 1 }],
       #|      environment_shape: { value: 0 },
       #|    },
@@ -3105,39 +3159,100 @@ test "local value types override substituted formal types during adaptation" {
 }
 
 ///|
-test "callable adapters skip target parameters specialized to Unit" {
-  let source_answer : @buslane.TypeParameterId = { index: 120 }
-  let target_answer : @buslane.TypeParameterId = { index: 121 }
-  let empty_context : @buslane.TypeParameterId = { index: 122 }
-  let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
-  substitutions.insert(empty_context, Primitive(Unit))
-  assert_eq(
-    callable_parameter_targets(
-      Forall(
-        [source_answer],
-        Function(
-          [
-            Primitive(I64),
-            Function([Primitive(I64)], Parameter(source_answer), Empty),
-          ],
-          Parameter(source_answer),
-          Empty,
-        ),
-      ),
-      Forall(
-        [target_answer],
-        Function(
-          [
-            Primitive(I64),
-            Parameter(empty_context),
-            Function([Primitive(I64)], Parameter(target_answer), Empty),
-          ],
-          Parameter(target_answer),
-          Empty,
-        ),
-      ),
-      substitutions,
-    ),
-    [0, 2],
+test "callable adapter alignment beta-reduces effect companions" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let source_answer = metadata.define_type_parameter("SourceAnswer", Type)
+  let target_answer = metadata.define_type_parameter("TargetAnswer", Type)
+  let companion = metadata.define_type_parameter(
+    "E%context",
+    Function([Type, Effect], Type),
   )
+  let companion_answer = metadata.define_type_parameter("Answer", Type)
+  let companion_residual = metadata.define_type_parameter("Residual", Effect)
+  let external = metadata.define_effect("External", [], flavor=External)
+  let algebraic = metadata.define_effect("Algebraic", [])
+  let dictionary_type : @buslane.Type = Constructor(
+    metadata.define_type("Dictionary", []),
+  )
+  let other_dictionary_type : @buslane.Type = Constructor(
+    metadata.define_type("OtherDictionary", []),
+  )
+  let image = test_image_lowerer(metadata, [])
+  let source_continuation : @buslane.Type = Function(
+    [Primitive(I64)],
+    Parameter(source_answer),
+    Empty,
+  )
+  let target_continuation : @buslane.Type = Function(
+    [Primitive(I64)],
+    Parameter(target_answer),
+    Empty,
+  )
+  let source_without_context = test_generic_callable_type(source_answer, [
+    Primitive(I64),
+    source_continuation,
+  ])
+  let source_with_context = test_generic_callable_type(source_answer, [
+    Primitive(I64),
+    dictionary_type,
+    source_continuation,
+  ])
+  let cases : Array[(@buslane.Effect, @buslane.Type, @buslane.Type, Array[Int])] = [
+    (Empty, Primitive(Unit), source_without_context, [0, 2]),
+    (Io, Primitive(Unit), source_without_context, [0, 2]),
+    (Singleton(external, []), Primitive(Unit), source_without_context, [0, 2]),
+    (Singleton(algebraic, []), dictionary_type, source_with_context, [0, 1, 2]),
+    (
+      Union([Io, Singleton(algebraic, [])]),
+      dictionary_type,
+      source_with_context,
+      [0, 1, 2],
+    ),
+  ]
+  for case in cases {
+    let (effect, companion_body, source_type, expected_targets) = case
+    let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+    substitutions.insert(
+      companion,
+      TypeLambda([companion_answer, companion_residual], companion_body),
+    )
+    let target_type = test_generic_callable_type(target_answer, [
+      Primitive(I64),
+      test_companion_application(companion, target_answer, effect),
+      target_continuation,
+    ])
+    let (targets, _) = image.align_callable_parameters(
+      source_type, target_type, substitutions,
+    ) catch {
+      error => fail("companion did not align: \{Repr(effect)}: \{Repr(error)}")
+    }
+    assert_eq(targets, expected_targets)
+  }
+  let mismatched_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  mismatched_substitutions.insert(
+    companion,
+    TypeLambda([companion_answer, companion_residual], other_dictionary_type),
+  )
+  let mismatched_target = test_generic_callable_type(target_answer, [
+    Primitive(I64),
+    test_companion_application(
+      companion,
+      target_answer,
+      Singleton(algebraic, []),
+    ),
+    target_continuation,
+  ])
+  try
+    image.align_callable_parameters(
+      source_with_context, mismatched_target, mismatched_substitutions,
+    )
+  catch {
+    InvalidTypeApplication(detail~) =>
+      assert_eq(
+        detail, "callable adapter source parameter 1/3 does not align with target parameter 1/3",
+      )
+    error => fail("unexpected lowering error: \{Repr(error)}")
+  } noraise {
+    _ => fail("expected different reference types not to align")
+  }
 }
