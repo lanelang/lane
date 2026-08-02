@@ -172,3 +172,100 @@ test "effectful callback through nested mappable implementation preserves its re
   )
   assert_eq(actual, expected_i64_execution_matrix(42L, 1))
 }
+
+///|
+test "type-lambda mappable instance beta-reduces callback parameter types" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|type Identity : [Type] -> Type = type[T] => T
+      #|
+      #|struct Mappable[M : [Type] -> Type] {
+      #|  map : [T, R, Eff : Effect](M[T], (T) -> R ! Eff) -> M[R] ! Eff
+      #|}
+      #|
+      #|fn[T, R, Eff : Effect] identity_map(
+      #|  value : Identity[T],
+      #|  callback : (T) -> R ! Eff
+      #|) -> Identity[R] ! Eff {
+      #|  callback(value)
+      #|}
+      #|
+      #|let identity_mappable : Mappable[Identity] = Mappable::{
+      #|  map: identity_map
+      #|}
+      #|
+      #|fn keep_bool(value : Bool) -> Bool {
+      #|  value
+      #|}
+      #|
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  let mapped = identity_mappable.map[Bool, Bool, {}](true, keep_bool)
+      #|  match mapped {
+      #|    true => observe(42)
+      #|    false => observe(0)
+      #|  }
+      #|}
+    ),
+  )
+  assert_eq(actual, expected_i64_execution_matrix(42L, 0))
+}
+
+///|
+test "partially applied type-lambda mappable verifies inline implementation" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|enum Result[T, E] {
+      #|  ok(T)
+      #|  error(E)
+      #|}
+      #|
+      #|type PartialResult[E] : [Type] -> Type = type[T] => Result[T, E]
+      #|
+      #|struct Mappable[M : [Type] -> Type] {
+      #|  map : [T, R, Eff : Effect](M[T], (T) -> R ! Eff) -> M[R] ! Eff
+      #|}
+      #|
+      #|let partial_result_mappable : Mappable[PartialResult[String]] = Mappable::{
+      #|  map: fn[T, R, Eff : Effect](
+      #|    value : PartialResult[String][T],
+      #|    callback : (T) -> R ! Eff
+      #|  ) -> PartialResult[String][R] ! Eff {
+      #|    match value {
+      #|      Result::ok(inner) => {
+      #|        let result : Result[R, String] = Result::ok(callback(inner))
+      #|        result
+      #|      }
+      #|      Result::error(error) => {
+      #|        let result : Result[R, String] = Result::error(error)
+      #|        result
+      #|      }
+      #|    }
+      #|  }
+      #|}
+      #|
+      #|fn keep_bool(value : Bool) -> Bool {
+      #|  value
+      #|}
+      #|
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  let mapped = partial_result_mappable.map[Bool, Bool, {}](
+      #|    Result::ok(true),
+      #|    keep_bool
+      #|  )
+      #|  match mapped {
+      #|    Result::ok(true) => observe(42)
+      #|    _ => observe(0)
+      #|  }
+      #|}
+    ),
+  )
+  assert_eq(actual, expected_i64_execution_matrix(42L, 0))
+}

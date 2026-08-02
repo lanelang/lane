@@ -1146,7 +1146,11 @@ fn GenericArgument::substitute_with_bound(
 }
 
 ///|
-fn Type::normalize(self : Type) -> Type {
+/// Returns the full beta-normal form of a Buslane type.
+///
+/// Type lambdas remain first-class type functions; only saturated applications
+/// are reduced, using capture-avoiding substitution.
+pub fn Type::normalize(self : Type) -> Type {
   self.normalize_with_fuel(1024)
 }
 

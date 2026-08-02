@@ -353,7 +353,7 @@ fn VerifyContext::synthesize_expr(
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> ExpressionFacts {
-  match expr {
+  let facts = match expr {
     Ref(id) => self.synthesize_ref(id, value_scope)
     Literal(literal) => {
       self.verify_literal(literal)
@@ -379,6 +379,7 @@ fn VerifyContext::synthesize_expr(
     Handle(handle) => self.synthesize_handle(handle, value_scope, type_scope)
     Resume(id) => self.synthesize_ref(id, value_scope)
   }
+  { type_: facts.type_.normalize(), effect: facts.effect }
 }
 
 ///|

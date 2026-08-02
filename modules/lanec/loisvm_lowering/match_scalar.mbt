@@ -15,7 +15,9 @@ fn FunctionLowerer::lower_match(
       }
       self.lower_irrefutable_match(match_, scrutinee, alternative)
     }
-    Slot(condition, scrutinee_type) =>
+    Slot(condition, scrutinee_type) => {
+      let scrutinee_type = scrutinee_type.normalize()
+      let scrutinee = LocalValue::Slot(condition, scrutinee_type)
       match scrutinee_type {
         Primitive(Bool) => self.lower_bool_match(match_, condition, scrutinee)
         Primitive(I64)
@@ -45,6 +47,7 @@ fn FunctionLowerer::lower_match(
         _ =>
           raise UnsupportedExpression(detail="unsupported match scrutinee type")
       }
+    }
     Global(_)
     | RecursiveFunction(_, _, _)
     | TypeApplied(_, _)

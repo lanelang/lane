@@ -212,7 +212,7 @@ fn ImageLowerer::runtime_type(
   self : ImageLowerer,
   type_ : @buslane.Type,
 ) -> RuntimeType {
-  let type_ = normalize_runtime_type(type_)
+  let type_ = type_.normalize()
   match type_ {
     Parameter(parameter) if parameter.index < 0 => Erased(parameter)
     Parameter(parameter) =>
@@ -231,32 +231,11 @@ fn ImageLowerer::layout_runtime_type(
   self : ImageLowerer,
   type_ : @buslane.Type,
 ) -> RuntimeType {
-  match normalize_runtime_type(type_) {
+  match type_.normalize() {
     Parameter(companion) if self.effect_source(companion) is Some(_) =>
       Erased(companion)
     TypeLambda(_, body) => self.layout_runtime_type(body)
     type_ => self.runtime_type(type_)
-  }
-}
-
-///|
-fn normalize_runtime_type(type_ : @buslane.Type) -> @buslane.Type {
-  match type_ {
-    Apply(callee, arguments) => {
-      let callee = normalize_runtime_type(callee)
-      match callee {
-        TypeLambda(parameters, body) if parameters.length() ==
-          arguments.length() => {
-          let substitution = @buslane.TypeSubstitution::TypeSubstitution()
-          for index, parameter in parameters {
-            substitution.insert_argument(parameter, arguments[index])
-          }
-          normalize_runtime_type(body.substitute(substitution))
-        }
-        _ => Apply(callee, arguments)
-      }
-    }
-    _ => type_
   }
 }
 

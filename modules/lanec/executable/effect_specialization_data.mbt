@@ -14,6 +14,7 @@ fn EffectSpecializer::specialize_substituted_type(
   self : EffectSpecializer,
   type_ : @buslane.Type,
 ) -> @buslane.Type raise ExecutableElaborationError {
+  let type_ = type_.normalize()
   match type_ {
     Primitive(_) | Parameter(_) => type_
     Constructor(id) => {
