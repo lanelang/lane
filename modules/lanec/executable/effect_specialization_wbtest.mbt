@@ -158,6 +158,95 @@ test "reachable effect applications create concrete callable instances" {
 }
 
 ///|
+test "runtime polymorphism propagates through symbolic effect forwarding" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let leaf_effect = metadata.define_type_parameter("LeafEff", Effect)
+  let middle_effect = metadata.define_type_parameter("MiddleEff", Effect)
+  let outer_effect = metadata.define_type_parameter("OuterEff", Effect)
+  let leaf_type = @buslane.Type::Forall(
+    [leaf_effect],
+    Function([], unit_type, Parameter(leaf_effect)),
+  )
+  let middle_type = @buslane.Type::Forall(
+    [middle_effect],
+    Function([], unit_type, Parameter(middle_effect)),
+  )
+  let outer_type = @buslane.Type::Forall(
+    [outer_effect],
+    Function([], unit_type, Parameter(outer_effect)),
+  )
+  let leaf = metadata.define_value("leaf", Function, leaf_type)
+  let middle = metadata.define_value("middle", Function, middle_type)
+  let outer = metadata.define_value("outer", Function, outer_type)
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], outer_type, Empty),
+  )
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: leaf,
+          rhs: TypeLambda(
+            [leaf_effect],
+            Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Literal(Unit),
+            }),
+          ),
+        },
+        {
+          id: middle,
+          rhs: TypeLambda(
+            [middle_effect],
+            Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Call(
+                TypeApply(Ref(leaf), [EffectArgument(Parameter(middle_effect))]),
+                [],
+              ),
+            }),
+          ),
+        },
+        {
+          id: outer,
+          rhs: TypeLambda(
+            [outer_effect],
+            Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Call(
+                TypeApply(Ref(middle), [EffectArgument(Parameter(outer_effect))]),
+                [],
+              ),
+            }),
+          ),
+        },
+        {
+          id: entry,
+          rhs: Function({
+            parameters: [],
+            result_type: outer_type,
+            body: Ref(outer),
+          }),
+        },
+      ]),
+    ],
+  }
+  let specialized = specialize_reachable_effects(program, entry)
+  assert_eq(@buslane.verify_program(specialized).diagnostics, [])
+  guard specialized.terms is [LetRec(bindings)] else {
+    abort("expected every symbolic forwarding definition to be retained")
+  }
+  assert_eq(bindings.map(binding => binding.id), [leaf, middle, outer, entry])
+}
+
+///|
 test "unreachable bare references do not retain effect-polymorphic definitions" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)

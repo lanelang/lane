@@ -178,6 +178,7 @@ priv struct EffectSpecializer {
   instances : Array[EffectSpecializationInstance]
   data_instances : Array[EffectDataInstance]
   occurrence : @occurrence.OccurrenceSummary
+  runtime_polymorphic : Array[Bool]
 }
 
 ///|
@@ -187,12 +188,16 @@ fn specialize_reachable_effects(
 ) -> @buslane.Program raise ExecutableElaborationError {
   let occurrence = @occurrence.analyze({ program, entry, roots: [] })
   let definitions = collect_effect_generic_definitions(program)
+  let runtime_polymorphic = collect_runtime_polymorphic_definitions(
+    program, occurrence,
+  )
   let specializer = EffectSpecializer::{
     program,
     definitions,
     instances: [],
     data_instances: [],
     occurrence,
+    runtime_polymorphic,
   }
   if specializer.find_definition(entry) is Some(_) {
     raise UnsupportedEffectSpecialization(
@@ -387,8 +392,8 @@ fn EffectSpecializer::is_runtime_polymorphic_definition(
   self : EffectSpecializer,
   id : @buslane.ValueId,
 ) -> Bool {
-  match self.occurrence.facts.get(id.index) {
-    Some(fact) => fact.has_incomplete_type_application
+  match self.runtime_polymorphic.get(id.index) {
+    Some(retained) => retained
     None => false
   }
 }

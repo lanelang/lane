@@ -269,3 +269,61 @@ test "partially applied type-lambda mappable verifies inline implementation" {
   )
   assert_eq(actual, expected_i64_execution_matrix(42L, 0))
 }
+
+///|
+test "higher-kinded mappable factory forwards its callback effect" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|enum Result[T, E] {
+      #|  ok(T)
+      #|  error(E)
+      #|}
+      #|
+      #|type PartialResult[E] : [Type] -> Type = type[T] => Result[T, E]
+      #|
+      #|struct Mappable[M : [Type] -> Type] {
+      #|  map : [T, R, Eff : Effect](M[T], (T) -> R ! Eff) -> M[R] ! Eff
+      #|}
+      #|
+      #|fn[T, E, R, Eff : Effect] map(
+      #|  result : Result[T, E],
+      #|  callback : (T) -> R ! Eff
+      #|) -> Result[R, E] ! Eff {
+      #|  match result {
+      #|    Result::ok(value) => Result::ok(callback(value))
+      #|    Result::error(error) => Result::error(error)
+      #|  }
+      #|}
+      #|
+      #|fn[E] partial_result_impl_map() -> Mappable[PartialResult[E]] {
+      #|  Mappable::{
+      #|    map: fn[T, R, Eff : Effect](res, callback) {
+      #|      map[T, E, R, Eff](res, callback)
+      #|    }
+      #|  }
+      #|}
+      #|
+      #|let record_callback : () -> Unit ! Io = extern("lane.test.callback")
+      #|
+      #|fn increment(value : I64) -> I64 ! Io {
+      #|  record_callback()
+      #|  builtin("%i64_add")(value, 1)
+      #|}
+      #|
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  let mappable = partial_result_impl_map[String]()
+      #|  let input : Result[I64, String] = Result::ok(41)
+      #|  let mapped = mappable.map[I64, I64, { Io }](input, increment)
+      #|  match mapped {
+      #|    Result::ok(value) => observe(value)
+      #|    Result::error(_) => observe(0)
+      #|  }
+      #|}
+    ),
+  )
+  assert_eq(actual, expected_i64_execution_matrix(42L, 1))
+}
