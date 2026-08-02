@@ -108,6 +108,30 @@ fn test_function_lowerer(image : ImageLowerer) -> FunctionLowerer {
 }
 
 ///|
+struct CallableAdapterObservation {
+  function : @bytecode.FunctionId
+  source_type : @buslane.Type
+  target_type : @buslane.Type
+  source_parameter_targets : Array[Int]
+  captured_parameters : Array[@buslane.TypeParameterId]
+  environment_shape : @bytecode.ObjectShapeId
+} derive(Debug)
+
+///|
+fn callable_adapter_observations(
+  adapters : Array[CallableAdapterPlan],
+) -> Array[CallableAdapterObservation] {
+  adapters.map(adapter => {
+    function: adapter.function,
+    source_type: adapter.source_type,
+    target_type: adapter.target_type,
+    source_parameter_targets: adapter.source_parameter_targets,
+    captured_parameters: adapter.captured_parameters,
+    environment_shape: adapter.environment_shape,
+  })
+}
+
+///|
 test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)
@@ -2933,11 +2957,17 @@ test "concrete companion substitution determines its layout witness" {
     TypeLambda([answer, residual], Primitive(Unit)),
   )
   let witness = lowerer.adapter_witness(companion, substitutions)
-  guard lowerer.blocks[0].instructions is [ConstLayout(actual, layout)] else {
-    fail("expected a concrete companion layout")
-  }
-  assert_eq(actual, witness)
-  assert_eq(image.layouts[layout.value - 1], Unit)
+  debug_inspect(
+    (
+      witness,
+      image.layouts,
+      callable_adapter_observations(image.callable_adapters),
+      lowerer.blocks[0].instructions,
+    ),
+    content=(
+      #|({ value: 0 }, [Unit], [], [ConstLayout({ value: 0 }, { value: 1 })])
+    ),
+  )
 }
 
 ///|
@@ -3013,14 +3043,51 @@ test "callable adapters capture an in-scope companion witness" {
       TypeSubstitution(),
     ),
   )
-  assert_eq(image.callable_adapters[0].captured_parameters, [companion])
-  assert_true(
-    lowerer.blocks[0].instructions.any(instruction => {
-      match instruction {
-        MakeEnv(_, _, _, witnesses, _) => witnesses == [captured_witness]
-        _ => false
-      }
-    }),
+  debug_inspect(
+    (
+      captured_witness,
+      image.layouts,
+      callable_adapter_observations(image.callable_adapters),
+      lowerer.blocks[0].instructions,
+    ),
+    content=(
+      #|(
+      #|  { value: 23 },
+      #|  [Environment({ value: 0 })],
+      #|  [
+      #|    {
+      #|      function: { value: 1 },
+      #|      source_type: Function(
+      #|        [
+      #|          Apply(
+      #|            Parameter({ index: 1 }),
+      #|            [
+      #|              TypeArgument(Primitive(I64)),
+      #|              EffectArgument(Parameter({ index: 0 })),
+      #|            ],
+      #|          ),
+      #|        ],
+      #|        Primitive(Unit),
+      #|        Empty,
+      #|      ),
+      #|      target_type: Function([Primitive(I64)], Primitive(Unit), Empty),
+      #|      source_parameter_targets: [0],
+      #|      captured_parameters: [{ index: 1 }],
+      #|      environment_shape: { value: 0 },
+      #|    },
+      #|  ],
+      #|  [
+      #|    MakeEnv(
+      #|      { value: 1 },
+      #|      { value: 0 },
+      #|      Immediate({ value: 1 }),
+      #|      [{ value: 23 }],
+      #|      [{ value: 0 }],
+      #|    ),
+      #|    MakeClosure({ value: 2 }, { value: 1 }, { value: 1 }),
+      #|  ],
+      #|)
+    ),
   )
 }
 
