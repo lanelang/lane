@@ -1,24 +1,39 @@
 ///|
-test "example 37 lifted snapshot verifies" {
-  assert_eq(lifted_diagnostics(example_37_regression_source()), [])
+test "real example 37 lifted snapshot verifies" {
+  assert_eq(
+    lifted_fixture_diagnostics("examples/valid/37_coroutine_scheduler.lane"),
+    [],
+  )
 }
 
 ///|
-test "example 45 lifted snapshot verifies" {
-  assert_eq(lifted_diagnostics(example_45_regression_source()), [])
+test "real example 45 lifted snapshot verifies" {
+  assert_eq(lifted_fixture_diagnostics("examples/valid/45_async_effect.lane"), [])
 }
 
 ///|
-fn lifted_diagnostics(
-  source : String,
+fn lifted_fixture_diagnostics(
+  fixture_path : String,
 ) -> Array[@buslane.VerifyDiagnostic] raise {
-  let result = compile_source(source)
+  let result = compile({
+    root: {
+      source_id: fixture_path,
+      text: read_repository_fixture(fixture_path),
+    },
+    libraries: effect_example_test_libraries(),
+  })
   guard result is Succeeded(compiled, warnings) else {
-    abort("expected regression source to compile: \{Repr(result)}")
+    abort("expected fixture to compile: \{Repr(result)}")
   }
   assert_eq(warnings.diagnostics(), [])
-  guard compiled.entries() is [entry] else {
-    abort("expected one executable entry")
+  let mut answer_entry = None
+  for entry in compiled.entries() {
+    if entry.name() == "answer" {
+      answer_entry = Some(entry)
+    }
+  }
+  guard answer_entry is Some(entry) else {
+    abort("expected fixture to expose answer")
   }
   let mut lifted_verification = None
   let elaborated = compiled.elaborate_entry_observed(entry, stage => {
@@ -36,196 +51,95 @@ fn lifted_diagnostics(
 }
 
 ///|
-fn example_37_regression_source() -> String {
-  (
-    #|module Test
-    #|
-    #|effect Coroutine[E : Effect] {
-    #|  yield() -> Unit
-    #|  spawn[A](() -> A ! { Coroutine[E], E }) -> Unit
-    #|}
-    #|
-    #|effect Log {
-    #|  log(Unit) -> Unit
-    #|}
-    #|
-    #|enum Task[E : Effect] {
-    #|  task[A](() -> A ! { Coroutine[E], E })
-    #|}
-    #|
-    #|enum Runnable[E : Effect] {
-    #|  runnable(() -> Step[E] ! E)
-    #|}
-    #|
-    #|enum Queue[E : Effect] {
-    #|  empty()
-    #|  node(Runnable[E], Queue[E])
-    #|}
-    #|
-    #|enum Step[E : Effect] {
-    #|  done()
-    #|  yielded(() -> Step[E] ! E)
-    #|  spawned[A](() -> A ! { Coroutine[E], E }, () -> Step[E] ! E)
-    #|}
-    #|
-    #|struct Scheduler[E : Effect] {
-    #|  queue : Queue[E]
-    #|}
-    #|
-    #|fn[A, E : Effect] spawn(body : () -> A ! { Coroutine[E], E }) -> Unit ! Coroutine[E] {
-    #|  Coroutine[E]::spawn![A](body)
-    #|}
-    #|
-    #|fn[E : Effect] yield() -> Unit ! Coroutine[E] {
-    #|  Coroutine[E]::yield!()
-    #|}
-    #|
-    #|fn log() -> Unit ! Log {
-    #|  Log::log!(())
-    #|}
-    #|
-    #|fn[E : Effect] enqueue(queue : Queue[E], item : Runnable[E]) -> Queue[E] {
-    #|  match queue {
-    #|    empty() => Queue[E]::node(item, Queue[E]::empty())
-    #|    node(head, tail) => Queue[E]::node(head, enqueue(tail, item))
-    #|  }
-    #|}
-    #|
-    #|fn[E : Effect] run_task(task_value : Task[E]) -> Step[E] ! E {
-    #|  match task_value {
-    #|    task[A](body) =>
-    #|      handle body() with {
-    #|        Coroutine[E]::yield(resume) => Step[E]::yielded(
-    #|          fn() -> Step[E] ! E {
-    #|            resume(())
-    #|          }
-    #|        )
-    #|        Coroutine[E]::spawn[B](body, resume) => Step[E]::spawned[B](
-    #|          body,
-    #|          fn() -> Step[E] ! E {
-    #|            resume(())
-    #|          }
-    #|        )
-    #|      } final _value {
-    #|        Step[E]::done()
-    #|      }
-    #|  }
-    #|}
-    #|
-    #|fn[E : Effect] run_queue(scheduler : Scheduler[E]) -> Scheduler[E] ! E {
-    #|  match scheduler.queue {
-    #|    empty() => scheduler
-    #|    node(runnable_step, rest) =>
-    #|      match runnable_step {
-    #|        runnable(run) => run_step(run(), Scheduler[E]::{ queue: rest })
-    #|      }
-    #|  }
-    #|}
-    #|
-    #|fn[E : Effect] run_step(step : Step[E], scheduler : Scheduler[E]) -> Scheduler[E] ! E {
-    #|  match step {
-    #|    done() => run_queue(scheduler)
-    #|    yielded(resume) => run_queue(
-    #|      Scheduler[E]::{ queue: enqueue(scheduler.queue, Runnable[E]::runnable(resume)) }
-    #|    )
-    #|    spawned[A](body, resume) => {
-    #|      let child : Runnable[E] =
-    #|        Runnable[E]::runnable(
-    #|          fn() -> Step[E] ! E {
-    #|            run_task(Task[E]::task[A](body))
-    #|          }
-    #|        )
-    #|      run_step(resume(), Scheduler[E]::{ queue: enqueue(scheduler.queue, child) })
-    #|    }
-    #|  }
-    #|}
-    #|
-    #|fn collect_logs(scheduler : Scheduler[Log]) -> Scheduler[Log] {
-    #|  handle run_queue(scheduler) with {
-    #|    Log::log(_event, resume) => resume(())
-    #|  } final scheduler {
-    #|    scheduler
-    #|  }
-    #|}
-    #|
-    #|fn child() -> Unit ! { Coroutine[Log], Log } {
-    #|  let _child_started : Unit = log()
-    #|  let _child_yielded : Unit = yield[Log]()
-    #|  log()
-    #|}
-    #|
-    #|fn parent() -> Unit ! { Coroutine[Log], Log } {
-    #|  let _parent_started : Unit = log()
-    #|  let _child_spawned : Unit = spawn(child)
-    #|  let _parent_yielded : Unit = yield[Log]()
-    #|  log()
-    #|}
-    #|
-    #|pub fn answer() -> Unit {
-    #|  let _scheduler : Scheduler[Log] =
-    #|    collect_logs(
-    #|      Scheduler[Log]::{
-    #|        queue: Queue[Log]::node(
-    #|          Runnable[Log]::runnable(
-    #|            fn() {
-    #|              run_task(Task[Log]::task[Unit](parent))
-    #|            }
-    #|          ),
-    #|          Queue[Log]::empty()
-    #|        )
-    #|      }
-    #|    )
-    #|  ()
-    #|}
-  )
+fn read_repository_fixture(path : String) -> String raise {
+  @fs.read_file_to_string(path, encoding="utf8") catch {
+    _ => @fs.read_file_to_string("../../\{path}", encoding="utf8")
+  }
 }
 
 ///|
-fn example_45_regression_source() -> String {
-  (
-    #|module Test
-    #|
-    #|effect Async[E : Effect] {
-    #|  suspend[A](((A) -> Unit ! E) -> Unit ! E) -> A
-    #|}
-    #|
-    #|effect Schedule {
-    #|  enqueue(Unit) -> Unit
-    #|}
-    #|
-    #|enum Step {
-    #|  done()
-    #|  waiting[A](((A) -> Unit ! Schedule) -> Unit ! Schedule, (A) -> Step)
-    #|}
-    #|
-    #|fn[A] ready(value : A) -> A ! Async[Schedule] {
-    #|  Async[Schedule]::suspend![A](
-    #|    fn(resume) {
-    #|      resume(value)
-    #|    }
-    #|  )
-    #|}
-    #|
-    #|fn run_task(task : () -> Unit ! Async[Schedule]) -> Step {
-    #|  handle task() with {
-    #|    Async[Schedule]::suspend[A](register, resume) => Step::waiting[A](
-    #|      register,
-    #|      fn(value) {
-    #|        resume(value)
-    #|      }
-    #|    )
-    #|  } final _value {
-    #|    Step::done()
-    #|  }
-    #|}
-    #|
-    #|pub fn answer() -> Unit {
-    #|  let _step : Step = run_task(
-    #|    fn() {
-    #|      ready(())
-    #|    }
-    #|  )
-    #|  ()
-    #|}
-  )
+fn effect_example_test_libraries() -> Array[SourceInput] {
+  [
+    {
+      source_id: "<basic-io>",
+      text: (
+        #|module Basic.Io
+        #|
+        #|pub let println : (String) -> Unit ! Io = extern("println")
+      ),
+    },
+    {
+      source_id: "<basic-trait-num>",
+      text: (
+        #|module Basic.Trait.Num
+        #|
+        #|pub struct Add[T] {
+        #|  add : (T, T) -> T
+        #|}
+        #|
+        #|pub struct Mul[T] {
+        #|  mul : (T, T) -> T
+        #|}
+      ),
+    },
+    {
+      source_id: "<basic-trait-equal>",
+      text: (
+        #|module Basic.Trait.Equal
+        #|
+        #|pub struct Equal[T] {
+        #|  equal : (T, T) -> Bool
+        #|}
+      ),
+    },
+    {
+      source_id: "<basic-builtins>",
+      text: (
+        #|module Basic.Builtins
+        #|
+        #|pub let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
+        #|
+        #|pub let i64_mul : (I64, I64) -> I64 = builtin("%i64_mul")
+        #|
+        #|pub let i64_equal : (I64, I64) -> Bool = builtin("%i64_equal")
+      ),
+    },
+    {
+      source_id: "<basic-data-i64>",
+      text: (
+        #|module Basic.Data.I64
+        #|
+        #|import Basic.Trait.Num.{ Add, Mul }
+        #|import Basic.Trait.Equal.{ Equal }
+        #|import Basic.Builtins.{ i64_add, i64_mul, i64_equal }
+        #|
+        #|pub offer i64_impl_add : Add[I64] = Add::{ add: i64_add }
+        #|
+        #|pub offer i64_impl_mul : Mul[I64] = Mul::{ mul: i64_mul }
+        #|
+        #|pub offer i64_impl_equal : Equal[I64] = Equal::{ equal: i64_equal }
+      ),
+    },
+    {
+      source_id: "<basic-ops>",
+      text: (
+        #|module Basic.Ops
+        #|
+        #|import Basic.Trait.Num.{ Add, Mul }
+        #|import Basic.Trait.Equal.{ Equal }
+        #|
+        #|pub fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
+        #|  op.add(a, b)
+        #|}
+        #|
+        #|pub fn[T] op_mul(a : T, b : T, auto op : Mul[T]) -> T {
+        #|  op.mul(a, b)
+        #|}
+        #|
+        #|pub fn[T] op_equal(a : T, b : T, auto op : Equal[T]) -> Bool {
+        #|  op.equal(a, b)
+        #|}
+      ),
+    },
+  ]
 }
