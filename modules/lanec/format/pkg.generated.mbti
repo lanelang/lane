@@ -23,4 +23,3 @@ pub(all) struct FormatOptions {
 // Type aliases
 
 // Traits
-

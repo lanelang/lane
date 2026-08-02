@@ -76,4 +76,3 @@ pub type BuslaneNativeFunction = (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeV
 pub type BuslaneRuntimeEffectHandler = (Array[BuslaneRuntimeValue]) -> BuslaneRuntimeValue raise BuslaneRuntimeError
 
 // Traits
-

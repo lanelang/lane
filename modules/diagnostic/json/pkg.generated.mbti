@@ -27,4 +27,3 @@ pub fn text_edit_to_json(@core.TextEdit) -> Json
 // Type aliases
 
 // Traits
-

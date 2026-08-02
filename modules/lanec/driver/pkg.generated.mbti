@@ -143,4 +143,3 @@ pub fn ExploreTextFormat::name(Self) -> String
 // Type aliases
 
 // Traits
-

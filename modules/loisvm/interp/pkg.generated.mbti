@@ -83,4 +83,3 @@ pub enum VMValue {
 pub using @runtime {type RuntimeImportResolutionError as LoadError}
 
 // Traits
-

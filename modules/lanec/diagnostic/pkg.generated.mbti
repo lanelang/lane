@@ -112,4 +112,3 @@ pub fn DiagnosticContext::DiagnosticContext(source_id? : String) -> Self
 pub(open) trait ToCompilerDiagnostic {
   fn to_compiler_diagnostic(Self, DiagnosticContext) -> CompilerDiagnostic
 }
-

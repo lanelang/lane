@@ -311,4 +311,3 @@ pub fn TypeDisplayContext::type_text(Self, @types.Type) -> String
 // Type aliases
 
 // Traits
-

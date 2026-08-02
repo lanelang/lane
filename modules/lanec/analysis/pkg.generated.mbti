@@ -139,4 +139,3 @@ pub fn SemanticWorkspace::upsert_source(Self, @frontend.SourceInput) -> Semantic
 // Type aliases
 
 // Traits
-

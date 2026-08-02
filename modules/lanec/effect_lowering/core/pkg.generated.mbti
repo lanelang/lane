@@ -188,4 +188,3 @@ pub impl @prettyprinter.Pretty for TopTerm
 // Type aliases
 
 // Traits
-

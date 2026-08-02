@@ -406,4 +406,3 @@ pub impl @prettyprinter.Pretty for VerifyResult
 // Type aliases
 
 // Traits
-

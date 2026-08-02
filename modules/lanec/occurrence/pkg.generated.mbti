@@ -40,4 +40,3 @@ pub(all) struct ValueOccurrenceFact {
 // Type aliases
 
 // Traits
-

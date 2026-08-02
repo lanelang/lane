@@ -67,4 +67,3 @@ pub(all) struct TokenSummary {
 // Type aliases
 
 // Traits
-

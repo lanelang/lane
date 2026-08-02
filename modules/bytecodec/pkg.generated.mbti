@@ -63,4 +63,3 @@ pub fn ByteWriter::write_u8(Self, Int) -> Unit
 // Type aliases
 
 // Traits
-

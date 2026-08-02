@@ -15,4 +15,3 @@ pub fn diagnostic_render_config() -> @render.RenderConfig
 // Type aliases
 
 // Traits
-

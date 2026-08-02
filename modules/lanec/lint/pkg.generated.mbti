@@ -20,4 +20,3 @@ pub fn checked_unused_local_value_binding_diagnostics(@checked.CheckedSourceFile
 // Type aliases
 
 // Traits
-

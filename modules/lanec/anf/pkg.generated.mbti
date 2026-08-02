@@ -136,4 +136,3 @@ pub impl @prettyprinter.Pretty for AnfTopTerm
 // Type aliases
 
 // Traits
-

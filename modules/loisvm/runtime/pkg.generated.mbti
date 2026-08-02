@@ -149,4 +149,3 @@ pub type RuntimeFunction = (RuntimeContext, Array[HostValue]) -> HostValue raise
 pub using @bytecode {type RuntimeValueKind}
 
 // Traits
-

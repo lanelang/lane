@@ -18,4 +18,3 @@ pub fn suggestions_to_code_actions_json(@core.Diagnostic, @source.SourceDatabase
 // Type aliases
 
 // Traits
-
