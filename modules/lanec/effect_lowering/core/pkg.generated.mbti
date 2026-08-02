@@ -44,6 +44,8 @@ pub fn validate_open_resolve_output(Program) -> Result[Unit, SynthesisError]
 
 pub fn value_type(@buslane.MetadataRegistry, @buslane.ValueId) -> @buslane.Type raise SynthesisError
 
+pub fn verify_program(Program) -> Result[@buslane.VerifyResult, SynthesisError]
+
 // Errors
 pub(all) suberror SynthesisError {
   UnknownValue(@buslane.ValueId)

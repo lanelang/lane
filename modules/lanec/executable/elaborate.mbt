@@ -74,18 +74,22 @@ fn lower_effects(
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> LoweredEffects raise ExecutableElaborationError {
   let elaborated = @effect_lowering_core.elaborate_handlers(program)
+  require_extended_verified("handler elaboration", elaborated)
   observe(HandlersElaborated(elaborated))
   let bound = unwrap_effect_lowering(
     @effect_lowering_core.introduce_monadic_binds(elaborated),
   )
+  require_extended_verified("monadic transformation", bound)
   observe(MonadicTransformed(bound))
   let transformed = unwrap_effect_lowering(
     @effect_lowering_cps.rewrite_selective_cps_abis_with_companions(bound),
   )
+  require_extended_verified("selective CPS", transformed.program)
   observe(SelectiveCpsRewritten(transformed.program))
   let resolved = unwrap_effect_lowering(
     @effect_lowering_core.resolve_open_contexts(transformed.program),
   )
+  require_extended_verified("open-context resolution", resolved)
   observe(OpenContextsResolved(resolved))
   let lifted = unwrap_effect_lowering(
     @effect_lowering_core.lift_monadic_continuations(resolved),
@@ -219,6 +223,19 @@ fn require_verified(
   program : @buslane.Program,
 ) -> Unit raise ExecutableElaborationError {
   let result = @buslane.verify_program(program)
+  if !result.is_ok() {
+    raise UnverifiedProgram(stage~, result~)
+  }
+}
+
+///|
+fn require_extended_verified(
+  stage : String,
+  program : @effect_lowering_core.Program,
+) -> Unit raise ExecutableElaborationError {
+  let result = unwrap_effect_lowering(
+    @effect_lowering_core.verify_program(program),
+  )
   if !result.is_ok() {
     raise UnverifiedProgram(stage~, result~)
   }
