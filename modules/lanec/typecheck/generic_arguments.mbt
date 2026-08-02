@@ -1201,6 +1201,68 @@ fn SemanticChecker::measure_ground_function_literal_effect_for_generic_arguments
 }
 
 ///|
+/// Collects only latent-effect evidence from function literals reached through
+/// resolved nominal variant payloads. Ordinary type evidence still comes only
+/// from arguments that synthesize independently; this bounded walk starts after
+/// those constraints have grounded each callback's parameter and result types.
+fn SemanticChecker::collect_function_literal_effect_evidence(
+  self : SemanticChecker,
+  inference : GenericArgumentInference,
+  scope : TypeScope,
+  template : @types.Type,
+  argument : @desugar.DesugaredExpr,
+) -> Bool {
+  let instantiated = template.substitute(inference.exact_substitution())
+  if argument is FunctionLiteral(..) {
+    guard template is Function(_, _, template_effect) &&
+      instantiated is Function(parameters, result, _) else {
+      return true
+    }
+    return match
+      self.measure_ground_function_literal_effect_for_generic_arguments(
+        inference, scope, argument, parameters, result,
+      ) {
+      Some(actual_effect) =>
+        inference.collect_effect_upper_bound(template_effect, actual_effect)
+      None => true
+    }
+  }
+  guard argument is VariantCall(reference=Symbol(symbol), arguments~, ..) else {
+    return true
+  }
+  let nominal = instantiated.decompose_nominal() catch {
+    error => {
+      inference.record_computation_error(error)
+      return false
+    }
+  }
+  guard nominal is Some((owner, owner_arguments)) &&
+    self.source.symbols.variant_metadata(symbol) is Some(metadata) &&
+    metadata.owner == owner &&
+    self.declarations.checked_enum(owner) is Some(declaration) &&
+    declaration.variant(symbol) is Some(variant) &&
+    variant.type_parameters.is_empty() &&
+    variant.payload.length() == arguments.length() else {
+    return true
+  }
+  let substitution = variant_type_substitution(
+    declaration.type_parameters,
+    owner_arguments,
+  )
+  for index in 0..<variant.payload.length() {
+    if !self.collect_function_literal_effect_evidence(
+        inference,
+        scope,
+        variant.payload[index].substitute(substitution),
+        arguments[index],
+      ) {
+      return false
+    }
+  }
+  true
+}
+
+///|
 fn SemanticChecker::try_synthesize_checked_expr_type_silently(
   self : SemanticChecker,
   scope : TypeScope,
@@ -1354,18 +1416,17 @@ fn SemanticChecker::infer_application_generic_arguments(
     }
   }
   for index in 0..<count {
-    let template = evidence.parameter_templates[index]
-    guard template is Function(_, _, template_effect) else { continue }
-    let instantiated = template.substitute(inference.exact_substitution())
-    guard instantiated is Function(parameters, result, _) else { continue }
-    let argument = evidence.argument_expressions[index]
-    if self.measure_ground_function_literal_effect_for_generic_arguments(
-        inference, scope, argument, parameters, result,
-      )
-      is Some(actual_effect) &&
-      !inference.collect_effect_upper_bound(template_effect, actual_effect) {
+    if argument_types[index] is None &&
+      !self.collect_function_literal_effect_evidence(
+        inference,
+        scope,
+        evidence.parameter_templates[index],
+        evidence.argument_expressions[index],
+      ) {
       inference_failed = true
-      inference.set_failure_loc_if_missing(argument.loc())
+      inference.set_failure_loc_if_missing(
+        evidence.argument_expressions[index].loc(),
+      )
     }
   }
   if inference.computation_error is Some(error) {

@@ -22,6 +22,11 @@ constraints. Local inference chooses their canonical union, so argument order
 does not affect the inferred row. Effect parameters in invariant generic
 argument positions continue to require exact row matching.
 
+The same function-effect lower bound may be measured from a ground function
+literal reached through resolved nominal constructor payloads. This is
+expected-type propagation through adjacent payload expressions, not covariance
+of the enclosing nominal type; ordinary type arguments remain invariant.
+
 When an already-typed function value is widened, Checked AST records
 `FunctionEffectWiden`. Buslane lowering evaluates the original value once and
 constructs an adapter with the target function type. Selective CPS lowering

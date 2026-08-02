@@ -4028,6 +4028,72 @@ test "compile tuple and list sugar through fixed qualified providers" {
 }
 
 ///|
+test "generic effect inference reaches function literals inside list sugar" {
+  let result = check_sources_for_test(
+    (
+      #|module Main
+      #|import Basic.Data.List.{ List }
+      #|pub effect Read {
+      #|  read() -> Unit
+      #|}
+      #|pub effect Write {
+      #|  write() -> Unit
+      #|}
+      #|fn[E : Effect] run_all(_tests : List[() -> Unit ! E]) -> Unit ! E {
+      #|  ()
+      #|}
+      #|pub fn pure_use() -> Unit {
+      #|  run_all([fn() { () }])
+      #|}
+      #|pub fn read_use() -> Unit ! Read {
+      #|  run_all([fn() { Read::read!() }])
+      #|}
+      #|pub fn joined_use() -> Unit ! { Read, Write } {
+      #|  run_all([fn() { Read::read!() }, fn() { Write::write!() }])
+      #|}
+    ),
+    [
+      (
+        #|module Basic.Data.List
+        #|pub enum List[A] {
+        #|  empty()
+        #|  cons(A, List[A])
+        #|}
+      ),
+    ],
+  )
+  debug_inspect(result.diagnostics, content="[]")
+}
+
+///|
+test "nested function literal does not infer an unground callback shape" {
+  let diagnostic = single_check_sources_diagnostic(
+    (
+      #|module Main
+      #|import Basic.Data.List.{ List }
+      #|fn[A, E : Effect] run_all(_tests : List[(A) -> A ! E]) -> Unit {
+      #|  ()
+      #|}
+      #|pub fn use() -> Unit {
+      #|  run_all([fn(value) { value }])
+      #|}
+    ),
+    [
+      (
+        #|module Basic.Data.List
+        #|pub enum List[A] {
+        #|  empty()
+        #|  cons(A, List[A])
+        #|}
+      ),
+    ],
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3010", "cannot infer generic arguments for `run_all`",
+  )
+}
+
+///|
 test "tuple signatures use safe nominal artifact presentation" {
   let compiled = compile_modules_for_test(
     (

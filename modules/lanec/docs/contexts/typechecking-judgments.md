@@ -100,6 +100,14 @@ rule does not infer callback parameter or result types from annotations or the
 body, decompose `Forall` arguments, backtrack effect rows, or enable polymorphic
 recursion.
 
+When an adjacent call argument cannot synthesize because it is a resolved
+nominal variant construction containing such literals, effect-only evidence may
+follow the expected nominal owner type into its declared payloads. Every step
+substitutes the already-known owner arguments into one adjacent payload type.
+This walk neither collects ordinary type evidence nor infers variant-level hidden
+witnesses; a function literal still contributes only after its parameter and
+result types are ground.
+
 If a generic parameter cannot be inferred from those local facts, the checker
 reports a missing generic argument rather than keeping an unsolved variable.
 

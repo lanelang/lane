@@ -325,7 +325,7 @@ graph TD
   ISS_287["ISS-287: Close four gaps in selective CPS lowering"]
   ISS_288["ISS-288: Check the extended effect-lowering IR between its stages"]
   ISS_289["ISS-289: Report an unusable core-optimizer input instead of aborting"]
-  ISS_290["ISS-290: Effect-argument inference did not reproduce as reported"]
+  ISS_290["ISS-290: Infer callback effects through nominal constructor payloads"]
   ISS_291["ISS-291: Give the three meanings of 'residual" distinct names"]
   ISS_292["ISS-292: Confine selective CPS to the declarations it produces"]
   ISS_293["ISS-293: An effect parameter's companion cannot stand for one dictionary type"]
