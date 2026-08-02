@@ -21,10 +21,12 @@ fn rewrite_cps_source_metadata(
   }
   for value in declarations.value_ids() {
     let info = schema.metadata.values[value.index]
+    let (target_type, callable_shape) = schema.rewrite_value_type(info.type_)
+    schema.callable_shapes[value.index] = callable_shape
     schema.metadata.values[value.index] = {
       name: info.name,
       kind: info.kind,
-      type_: schema.rewrite_type(info.type_),
+      type_: target_type,
     }
   }
 }

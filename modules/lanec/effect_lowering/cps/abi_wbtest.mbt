@@ -502,6 +502,100 @@ test "direct CPS lowering uses precommitted local binding metadata" {
 }
 
 ///|
+test "expected and synthesized CPS callables use one ABI shape" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect = metadata.define_effect("Effect", [])
+  let operation = metadata.define_operation(
+    "perform",
+    effect,
+    [],
+    [],
+    Primitive(I64),
+  )
+  let latent : @buslane.Effect = Singleton(effect, [])
+  let callable_type : @buslane.Type = Function([], Primitive(I64), latent)
+  let choose = metadata.define_value(
+    "choose",
+    External,
+    Function([callable_type, callable_type], Primitive(Unit), Empty),
+  )
+  let declared = metadata.define_value("declared", Local, callable_type)
+  let result = metadata.define_value("result", Value, Primitive(Unit))
+  let function = FunctionExpr::{
+    parameters: [],
+    result_type: Primitive(I64),
+    body: Invoke({
+      operation,
+      effect_arguments: [],
+      hidden_witnesses: [],
+      payloads: [],
+    }),
+  }
+  let output = rewrite_test_program({
+    metadata,
+    terms: [
+      External(choose),
+      LetRec([{ id: declared, rhs: Function(function) }]),
+      Let(result, Call(Ref(choose), [Ref(declared), Function(function)])),
+    ],
+  })
+  guard output.terms[2] is Let(_, Call(_, [_, synthesized])) else {
+    abort("expected inline callable argument")
+  }
+  let declared_type = metadata.value_info(declared).unwrap().type_
+  let synthesized_type = synthesize_expr_or_raise(metadata, synthesized).type_
+  assert_true(
+    metadata.types_definitionally_equal(declared_type, synthesized_type),
+  )
+  assert_cps_ordinary_output(output)
+}
+
+///|
+test "callable shape divergence reports the originating binding" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect = metadata.define_effect("Effect", [])
+  let latent : @buslane.Effect = Singleton(effect, [])
+  let callable_type : @buslane.Type = Function([], Primitive(I64), latent)
+  let binding = metadata.define_value("binding", Local, callable_type)
+  let initializer : Expr = Function({
+    parameters: [],
+    result_type: Primitive(I64),
+    body: Literal(I64(1L)),
+  })
+  let source = Program::{
+    metadata: metadata.snapshot(),
+    terms: [LetRec([{ id: binding, rhs: initializer }])],
+  }
+  let schema = build_dictionary_cps_schema_or_raise(metadata)
+  rewrite_cps_source_metadata(
+    schema,
+    @effect_lowering_core.collect_program_declarations(source),
+  )
+  let planned_type = metadata.value_info(binding).unwrap().type_
+  let info = metadata.values[binding.index]
+  metadata.values[binding.index] = {
+    name: info.name,
+    kind: info.kind,
+    type_: Primitive(Bool),
+  }
+  let result : Result[Expr, SynthesisError] = Ok(
+    lower_cps_binding_initializer(schema, source, binding, initializer, None),
+  ) catch {
+    error => Err(error)
+  }
+  assert_eq(
+    result,
+    Err(
+      BindingTypeMismatch(
+        value=binding,
+        expected=Primitive(Bool),
+        actual=planned_type,
+      ),
+    ),
+  )
+}
+
+///|
 test "CPS binding validation accepts a narrower residual effect" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let expected : @buslane.Type = Function([], Primitive(Unit), Io)

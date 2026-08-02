@@ -36,6 +36,7 @@ priv struct DictionaryCpsSchema {
   companions : Array[EffectCompanionBinding]
   dictionaries : Array[DictionaryHeader]
   context_packs : Array[ContextPackSchema]
+  callable_shapes : Array[CpsCallableShape?]
 }
 
 ///|
@@ -53,6 +54,7 @@ fn build_dictionary_cps_schema_or_raise(
     companions,
     dictionaries: headers,
     context_packs: [],
+    callable_shapes: Array::make(metadata.values.length(), None),
   }
   for header in headers {
     let field_types = define_operation_field_types(schema, header)
@@ -273,50 +275,7 @@ fn DictionaryCpsSchema::rewrite_type(
         self.rewrite_cps_parameters(parameters),
         self.rewrite_type(body),
       )
-    Function(parameters, result, effect) => {
-      let rewritten_parameters = parameters.map(parameter => {
-        self.rewrite_type(parameter)
-      })
-      let rewritten_result = self.rewrite_type(result)
-      if !is_mon_effect(self.metadata, effect) {
-        Function(
-          rewritten_parameters,
-          rewritten_result,
-          residual_effect_part(self.metadata, effect),
-        )
-      } else {
-        let answer_parameter = self.metadata.define_type_parameter(
-          "%answer",
-          Type,
-        )
-        let residual_parameter = self.metadata.define_type_parameter(
-          "%residual",
-          Effect,
-          flavor=External,
-        )
-        let answer_type = @buslane.Type::Parameter(answer_parameter)
-        let residual_effect = self.cps_residual_effect(
-          effect,
-          Parameter(residual_parameter),
-        )
-        let context_types = self.context_argument_types(
-          effect, answer_type, residual_effect,
-        )
-        let continuation_type = @buslane.Type::Function(
-          [rewritten_result],
-          answer_type,
-          residual_effect,
-        )
-        Forall(
-          [answer_parameter, residual_parameter],
-          Function(
-            context_types + rewritten_parameters + [continuation_type],
-            answer_type,
-            residual_effect,
-          ),
-        )
-      }
-    }
+    Function(_, _, _) => self.plan_callable_shape(type_).target_type
     Forall(parameters, body) =>
       Forall(self.rewrite_cps_parameters(parameters), self.rewrite_type(body))
   }
