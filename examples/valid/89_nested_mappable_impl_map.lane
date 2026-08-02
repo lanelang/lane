@@ -1,0 +1,49 @@
+module Examples.Valid.NestedMappableImplMap
+
+import Basic.Io.{ println }
+import Basic.Ops.*
+import Basic.Data.I64.*
+
+enum Box[T] {
+  box(T)
+}
+
+struct Mappable[M : [Type] -> Type] {
+  map : [T, R, E : Effect](M[T], (T) -> R ! E) -> M[R] ! E
+}
+
+struct Applicative[M : [Type] -> Type] {
+  mappable_impl : Mappable[M]
+}
+
+fn[M : [Type] -> Type, T, R, E : Effect] map(
+  applicative_impl : Applicative[M],
+  value : M[T],
+  callback : (T) -> R ! E
+) -> M[R] ! E {
+  applicative_impl.mappable_impl.map(value, callback)
+}
+
+fn[T, R, E : Effect] box_map(box : Box[T], callback : (T) -> R ! E) -> Box[R] ! E {
+  match box {
+    box(value) => Box::box(callback(value))
+  }
+}
+
+fn increment_with_output(value : I64) -> I64 ! Io {
+  println("mapped")
+  value + 1
+}
+
+pub fn answer() -> Unit ! Io {
+  let applicative : Applicative[Box] = Applicative::{ mappable_impl: Mappable::{ map: box_map } }
+  let mapped = map(applicative, Box::box(41), increment_with_output)
+  match mapped {
+    box(value) =>
+      if value == 42 {
+        println("42")
+      } else {
+        println("bad")
+      }
+  }
+}

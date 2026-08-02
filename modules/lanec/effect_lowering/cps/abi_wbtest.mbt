@@ -208,12 +208,28 @@ test "selective CPS preserves Io on mixed callable and continuation types" {
 test "direct calls bridge Unit-specialized CPS callables" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let answer = metadata.define_type_parameter("Answer", Type)
+  let residual = metadata.define_type_parameter(
+    "Residual",
+    Effect,
+    flavor=External,
+  )
+  let context_answer = metadata.define_type_parameter("ContextAnswer", Type)
+  let context_residual = metadata.define_type_parameter(
+    "ContextResidual",
+    Effect,
+    flavor=External,
+  )
+  let row = @buslane.Effect::Union([Io, Parameter(residual)])
+  let context_type = @buslane.Type::Apply(
+    TypeLambda([context_answer, context_residual], Primitive(Unit)),
+    [TypeArgument(Parameter(answer)), EffectArgument(row)],
+  )
   let encoded_type = @buslane.Type::Forall(
-    [answer],
+    [answer, residual],
     Function(
-      [Primitive(Unit), Function([Primitive(I64)], Parameter(answer), Empty)],
+      [context_type, Function([Primitive(I64)], Parameter(answer), row)],
       Parameter(answer),
-      Empty,
+      row,
     ),
   )
   let encoded = metadata.define_value("encoded", External, encoded_type)
@@ -223,7 +239,6 @@ test "direct calls bridge Unit-specialized CPS callables" {
     Ref(encoded),
     [],
     Primitive(I64),
-    1,
   )
   guard bridged
     is Call(
@@ -238,6 +253,37 @@ test "direct calls bridge Unit-specialized CPS callables" {
   assert_eq(callee, encoded)
   assert_eq(identity.result_type, Primitive(I64))
   assert_eq(identity.body, Ref(identity.parameters[0]))
+  assert_eq(synthesize_expr_or_raise(program.metadata, bridged).effect, Io)
+}
+
+///|
+test "direct calls do not omit represented CPS contexts" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let answer = metadata.define_type_parameter("Answer", Type)
+  let residual = metadata.define_type_parameter(
+    "Residual",
+    Effect,
+    flavor=External,
+  )
+  let dictionary = metadata.define_type("Dictionary", [])
+  let encoded_type = @buslane.Type::Forall(
+    [answer, residual],
+    Function(
+      [
+        Constructor(dictionary),
+        Function([Primitive(I64)], Parameter(answer), Parameter(residual)),
+      ],
+      Parameter(answer),
+      Parameter(residual),
+    ),
+  )
+  let encoded = metadata.define_value("encoded", External, encoded_type)
+  try lower_cps_direct_call(metadata, Ref(encoded), [], Primitive(I64)) catch {
+    ExpectedFunction(actual) => assert_eq(actual, encoded_type)
+    error => fail("unexpected synthesis error: \{Repr(error)}")
+  } noraise {
+    _ => fail("expected represented context rejection")
+  }
 }
 
 ///|
@@ -623,7 +669,7 @@ test "selective CPS replaces effect polymorphism with companions" {
       [
         {
           rhs: TypeLambda(
-            [companion],
+            [companion, effect_residual],
             TypeLambda([answer, residual], Function(transformed))
           ),
           ..,
@@ -636,6 +682,11 @@ test "selective CPS replaces effect polymorphism with companions" {
     metadata.type_parameter_info(companion).unwrap().kind,
     Function([Type, Effect], Type),
   )
+  assert_eq(metadata.type_parameter_info(effect_residual).unwrap().kind, Effect)
+  let row = @buslane.Effect::Union([
+    Parameter(effect_residual),
+    Parameter(residual),
+  ])
   guard transformed.parameters is [context, continuation] else {
     abort("expected abstract context parameter")
   }
@@ -643,7 +694,7 @@ test "selective CPS replaces effect polymorphism with companions" {
     metadata.value_info(context).unwrap().type_,
     Apply(Parameter(companion), [
       TypeArgument(Parameter(answer)),
-      EffectArgument(Parameter(residual)),
+      EffectArgument(row),
     ]),
   )
   guard transformed.body
@@ -652,9 +703,8 @@ test "selective CPS replaces effect polymorphism with companions" {
         TypeApply(
           Ref(actual_callee),
           [
-            TypeArgument(
-              TypeLambda([companion_answer, companion_residual], supplied)
-            ),
+            TypeArgument(Parameter(forwarded_companion)),
+            EffectArgument(Parameter(forwarded_residual)),
           ]
         ),
         [TypeArgument(call_answer), EffectArgument(call_residual)]
@@ -664,17 +714,12 @@ test "selective CPS replaces effect polymorphism with companions" {
     abort("expected polymorphic companion argument")
   }
   assert_eq(actual_callee, callee)
+  assert_eq(forwarded_companion, companion)
+  assert_eq(forwarded_residual, effect_residual)
   assert_eq(call_answer, Parameter(answer))
-  assert_eq(call_residual, Parameter(residual))
+  assert_eq(call_residual, row)
   assert_eq(actual_context, context)
   assert_eq(actual_continuation, continuation)
-  assert_eq(
-    supplied,
-    Apply(Parameter(companion), [
-      TypeArgument(Parameter(companion_answer)),
-      EffectArgument(Parameter(companion_residual)),
-    ]),
-  )
   assert_cps_ordinary_output(output)
 }
 

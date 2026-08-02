@@ -18,6 +18,7 @@ pub fn rewrite_selective_cps_abis_with_companions(@core.Program) -> Result[Selec
 pub(all) struct EffectCompanionBinding {
   source : @buslane.TypeParameterId
   companion : @buslane.TypeParameterId
+  residual : @buslane.TypeParameterId
 } derive(Eq, @debug.Debug)
 
 pub(all) struct SelectiveCpsRewrite {

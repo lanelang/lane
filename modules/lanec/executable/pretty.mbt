@@ -120,7 +120,11 @@ fn executable_companions_doc(
       space +
       text("=>") +
       space +
-      companion.companion.pretty()
+      companion.companion.pretty() +
+      space +
+      text("+") +
+      space +
+      companion.residual.pretty()
     }),
   )
 }

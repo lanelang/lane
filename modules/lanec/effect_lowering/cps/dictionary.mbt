@@ -24,10 +24,14 @@ fn instantiate_dictionary(
     is Some(data_info) else {
     raise UnknownDataConstructor(data_constructor)
   }
+  guard schema.metadata.effect_info(effect) is Some(effect_info) else {
+    raise UnknownEffect(effect)
+  }
   let answer = CpsAnswer::{ type_: answer_type, residual: residual_effect }
-  let type_arguments = arguments.map(argument => {
-      rewrite_cps_expression_argument(schema, argument)
-    }) +
+  let type_arguments = schema.rewrite_cps_application_argument_list(
+      effect_info.parameters,
+      arguments,
+    ) +
     answer.arguments()
   let substitution = @buslane.TypeSubstitution::TypeSubstitution()
   for index in 0..<dictionary.parameters.length() {

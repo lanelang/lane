@@ -365,7 +365,7 @@ An ordered compiler-private ordinary value argument carrying either one concrete
 _Avoid_: global evidence vector, LoisVM hidden ABI field, runtime handler lookup
 
 **Effect Context Companion**:
-The compiler-generated type-level function parameter of kind `[Type, Effect] -> Type` paired with one kind-Effect parameter. Each use applies it to the Answer-Type CPS answer and residual in scope there, while an instantiation supplies a type lambda that produces the packed context at any such pair. This lets an enclosing dictionary and a nested CPS callable share one companion without forcing them to share answer or residual binders.
+The compiler-generated type-level function parameter of kind `[Type, Effect] -> Type` that forms the runtime-bearing half of a source effect parameter's CPS representation. The other half is a compiler-generated External Effect parameter carrying only the source effect's non-algebraic residual projection. Each context use applies the type-level function to the Answer-Type CPS answer and complete residual in scope there, while an instantiation supplies both a type lambda that produces the packed context and the corresponding residual effect. This lets an enclosing dictionary and a nested CPS callable share one context abstraction without forcing them to share answer or local residual binders, and prevents runtime layout from being inferred from static effect syntax.
 _Avoid_: one fixed dictionary type, source type parameter, layout witness, universal operation table
 
 **Monadic Effect Predicate**:

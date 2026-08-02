@@ -98,7 +98,7 @@ fn adapt_direct_argument_to_cps(
   }
   let source = schema.metadata.define_value(
     "%direct_cps_source",
-    Value,
+    Local,
     actual_type,
   )
   let parameters = callable.parameters.map(type_ => {

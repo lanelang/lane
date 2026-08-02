@@ -85,9 +85,8 @@ fn lower_cps_type_apply_chain(
     let rewritten_arguments = []
     for argument in group {
       if parameter_index < parameters.length() {
-        rewritten_arguments.push(
-          rewrite_cps_application_argument(
-            schema,
+        rewritten_arguments.append(
+          schema.rewrite_cps_application_arguments(
             parameters[parameter_index],
             argument,
           ),
@@ -105,30 +104,13 @@ fn lower_cps_type_apply_chain(
 }
 
 ///|
-fn rewrite_cps_application_argument(
-  schema : DictionaryCpsSchema,
-  parameter : @buslane.TypeParameterId,
-  argument : @buslane.GenericArgument,
-) -> @buslane.GenericArgument raise SynthesisError {
-  guard schema.metadata.type_parameter_info(parameter) is Some(info) else {
-    return schema.rewrite_generic_argument(argument)
-  }
-  match (info.kind, argument) {
-    (_, TypeArgument(type_)) => TypeArgument(schema.rewrite_type(type_))
-    (_, EffectArgument(effect)) =>
-      TypeArgument(schema.companion_context_argument(effect))
-  }
-}
-
-///|
 fn rewrite_cps_expression_argument(
   schema : DictionaryCpsSchema,
   argument : @buslane.GenericArgument,
 ) -> @buslane.GenericArgument raise SynthesisError {
   match argument {
     TypeArgument(type_) => TypeArgument(schema.rewrite_type(type_))
-    EffectArgument(effect) =>
-      TypeArgument(schema.companion_context_argument(effect))
+    EffectArgument(effect) => EffectArgument(effect)
   }
 }
 

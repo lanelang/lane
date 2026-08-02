@@ -2919,7 +2919,14 @@ test "adapter witness does not infer layout from a source effect" {
     "E%context",
     Function([Type, Effect], Type),
   )
-  let image = test_image_lowerer(metadata, [{ source, companion }])
+  let source_residual = metadata.define_type_parameter(
+    "E%residual",
+    Effect,
+    flavor=External,
+  )
+  let image = test_image_lowerer(metadata, [
+    { source, companion, residual: source_residual },
+  ])
   let lowerer = test_function_lowerer(image)
   let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
   substitutions.insert_effect(source, Io)
@@ -2943,9 +2950,16 @@ test "concrete companion substitution determines its layout witness" {
     "E%context",
     Function([Type, Effect], Type),
   )
+  let source_residual = metadata.define_type_parameter(
+    "E%residual",
+    Effect,
+    flavor=External,
+  )
   let answer = metadata.define_type_parameter("Answer", Type)
   let residual = metadata.define_type_parameter("Residual", Effect)
-  let image = test_image_lowerer(metadata, [{ source, companion }])
+  let image = test_image_lowerer(metadata, [
+    { source, companion, residual: source_residual },
+  ])
   let lowerer = test_function_lowerer(image)
   let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
   substitutions.insert(
@@ -2979,18 +2993,40 @@ test "forwarded companion substitution reuses the outer layout witness" {
     "ActualE%context",
     Function([Type, Effect], Type),
   )
+  let formal_residual = metadata.define_type_parameter(
+    "FormalE%residual",
+    Effect,
+    flavor=External,
+  )
+  let actual_residual = metadata.define_type_parameter(
+    "ActualE%residual",
+    Effect,
+    flavor=External,
+  )
   let source_answer = metadata.define_type_parameter("SourceAnswer", Type)
   let target_answer = metadata.define_type_parameter("TargetAnswer", Type)
   let image = test_image_lowerer(metadata, [
-    { source: formal_source, companion: formal_companion },
-    { source: actual_source, companion: actual_companion },
+    {
+      source: formal_source,
+      companion: formal_companion,
+      residual: formal_residual,
+    },
+    {
+      source: actual_source,
+      companion: actual_companion,
+      residual: actual_residual,
+    },
   ])
   let lowerer = test_function_lowerer(image)
   let outer_witness : @vmcfg.ValueId = { value: 17 }
   lowerer.witnesses.push({ parameter: actual_companion, value: outer_witness })
-  let substitutions = lowerer.call_type_substitution([formal_companion], [
-    TypeArgument(Parameter(actual_companion)),
-  ])
+  let substitutions = lowerer.call_type_substitution(
+    [formal_companion, formal_residual],
+    [
+      TypeArgument(Parameter(actual_companion)),
+      EffectArgument(Parameter(actual_residual)),
+    ],
+  )
   assert_eq(
     substitutions.type_argument(formal_companion),
     Some(Parameter(actual_companion)),
@@ -2999,15 +3035,19 @@ test "forwarded companion substitution reuses the outer layout witness" {
     substitutions.effect_argument(formal_source),
     Some(Parameter(actual_source)),
   )
+  assert_eq(
+    substitutions.effect_argument(formal_residual),
+    Some(Parameter(actual_residual)),
+  )
   let source_context = test_companion_application(
     actual_companion,
     source_answer,
-    Parameter(actual_source),
+    Parameter(actual_residual),
   )
   let target_context = test_companion_application(
     formal_companion,
     target_answer,
-    Parameter(formal_source),
+    Parameter(formal_residual),
   )
   let (targets, _) = image.align_callable_parameters(
     test_generic_callable_type(source_answer, [source_context]),
@@ -3030,16 +3070,23 @@ test "callable adapter owns its final substitution" {
     "E%context",
     Function([Type, Effect], Type),
   )
+  let source_residual = metadata.define_type_parameter(
+    "E%residual",
+    Effect,
+    flavor=External,
+  )
   let companion_answer = metadata.define_type_parameter("Answer", Type)
   let companion_residual = metadata.define_type_parameter("Residual", Effect)
   let dictionary_type : @buslane.Type = Constructor(
     metadata.define_type("Dictionary", []),
   )
-  let image = test_image_lowerer(metadata, [{ source, companion }])
+  let image = test_image_lowerer(metadata, [
+    { source, companion, residual: source_residual },
+  ])
   let lowerer = test_function_lowerer(image)
   let companion_type : @buslane.Type = Apply(Parameter(companion), [
     TypeArgument(Primitive(I64)),
-    EffectArgument(Parameter(source)),
+    EffectArgument(Parameter(source_residual)),
   ])
   let source_type : @buslane.Type = Function(
     [companion_type],
@@ -3085,7 +3132,7 @@ test "callable adapter owns its final substitution" {
       #|            Parameter({ index: 1 }),
       #|            [
       #|              TypeArgument(Primitive(I64)),
-      #|              EffectArgument(Parameter({ index: 0 })),
+      #|              EffectArgument(Parameter({ index: 2 })),
       #|            ],
       #|          ),
       #|        ],
@@ -3102,7 +3149,7 @@ test "callable adapter owns its final substitution" {
       #|        entries: [
       #|          {
       #|            parameter: { index: 1 },
-      #|            replacement: TypeArgument(TypeLambda([{ index: 2 }, { index: 3 }], Constructor({ index: 0 }))),
+      #|            replacement: TypeArgument(TypeLambda([{ index: 3 }, { index: 4 }], Constructor({ index: 0 }))),
       #|          },
       #|        ],
       #|      },

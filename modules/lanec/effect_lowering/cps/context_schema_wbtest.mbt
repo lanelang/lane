@@ -59,12 +59,21 @@ test "effect parameters receive one stable higher-kinded companion" {
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   let first = schema.companion_parameter(effect_parameter)
   let second = schema.companion_parameter(effect_parameter)
+  let first_residual = schema.residual_parameter(effect_parameter)
+  let second_residual = schema.residual_parameter(effect_parameter)
   assert_eq(first, second)
+  assert_eq(first_residual, second_residual)
   assert_eq(
     metadata.type_parameter_info(first).unwrap().kind,
     Function([Type, Effect], Type),
   )
   assert_true(first != effect_parameter)
+  assert_true(first_residual != effect_parameter)
+  assert_eq(metadata.type_parameter_info(first_residual).unwrap().kind, Effect)
+  assert_eq(
+    metadata.type_parameter_info(first_residual).unwrap().flavor,
+    External,
+  )
 }
 
 ///|
@@ -75,7 +84,7 @@ test "selective CPS exposes effect companion identities" {
     metadata,
     terms: [],
   }).unwrap()
-  guard result.effect_companions is [{ source, companion }] else {
+  guard result.effect_companions is [{ source, companion, residual }] else {
     abort("expected one effect companion binding")
   }
   assert_eq(source, effect_parameter)
@@ -83,6 +92,62 @@ test "selective CPS exposes effect companion identities" {
     metadata.type_parameter_info(companion).unwrap().kind,
     Function([Type, Effect], Type),
   )
+  assert_eq(metadata.type_parameter_info(residual).unwrap().kind, Effect)
+  assert_eq(metadata.type_parameter_info(residual).unwrap().flavor, External)
+}
+
+///|
+test "effect application carries context and residual projections independently" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  let handled = metadata.define_effect("Handled", [])
+  let external = metadata.define_effect("External", [], flavor=External)
+  let schema = build_dictionary_cps_schema_or_raise(metadata)
+  let companion = schema.companion_parameter(effect_parameter)
+  let residual = schema.residual_parameter(effect_parameter)
+  let rewrite = effect => {
+    schema.rewrite_cps_application_arguments(
+      effect_parameter,
+      EffectArgument(effect),
+    )
+  }
+  assert_true(
+    rewrite(Empty)
+    is [
+      TypeArgument(TypeLambda([_, _], Primitive(Unit))),
+      EffectArgument(Empty),
+    ],
+  )
+  assert_true(
+    rewrite(Io)
+    is [TypeArgument(TypeLambda([_, _], Primitive(Unit))), EffectArgument(Io)],
+  )
+  assert_true(
+    rewrite(Singleton(external, []))
+    is [
+      TypeArgument(TypeLambda([_, _], Primitive(Unit))),
+      EffectArgument(Singleton(actual_external, [])),
+    ] &&
+    actual_external == external,
+  )
+  assert_true(
+    rewrite(Singleton(handled, []))
+    is [
+      TypeArgument(TypeLambda([_, _], Apply(Constructor(_), _))),
+      EffectArgument(Empty),
+    ],
+  )
+  assert_true(
+    rewrite(Union([Singleton(handled, []), Io]))
+    is [
+      TypeArgument(TypeLambda([_, _], Apply(Constructor(_), _))),
+      EffectArgument(Io),
+    ],
+  )
+  assert_eq(rewrite(Parameter(effect_parameter)), [
+    TypeArgument(Parameter(companion)),
+    EffectArgument(Parameter(residual)),
+  ])
 }
 
 ///|
@@ -152,6 +217,7 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   let companion = schema.companion_parameter(effect_parameter)
+  let effect_residual = schema.residual_parameter(effect_parameter)
   assert_eq(
     schema.rewrite_type(Function([Primitive(I64)], Primitive(I64), Empty)),
     Function([Primitive(I64)], Primitive(I64), Empty),
@@ -205,7 +271,7 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
   )
   guard rewritten
     is Forall(
-      [outer_companion],
+      [outer_companion, outer_effect_residual],
       Forall(
         [answer, residual],
         Function(
@@ -218,18 +284,23 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
     abort("expected nested selective CPS type")
   }
   assert_eq(outer_companion, companion)
+  assert_eq(outer_effect_residual, effect_residual)
+  let outer_row = @buslane.Effect::Union([
+    Parameter(effect_residual),
+    Parameter(residual),
+  ])
   assert_eq(
     outer_context,
     Apply(Parameter(companion), [
       TypeArgument(Parameter(answer)),
-      EffectArgument(Parameter(residual)),
+      EffectArgument(outer_row),
     ]),
   )
   assert_eq(rewritten_answer, Parameter(answer))
-  assert_eq(outer_latent, Parameter(residual))
+  assert_eq(outer_latent, outer_row)
   assert_eq(
     continuation,
-    Function([Primitive(I64)], Parameter(answer), Parameter(residual)),
+    Function([Primitive(I64)], Parameter(answer), outer_row),
   )
   guard nested_callable
     is Forall(
@@ -242,22 +313,22 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
     ) else {
     abort("expected nested callable CPS type")
   }
+  let nested_row = @buslane.Effect::Union([
+    Parameter(effect_residual),
+    Parameter(nested_residual),
+  ])
   assert_eq(
     nested_context,
     Apply(Parameter(companion), [
       TypeArgument(Parameter(nested_answer)),
-      EffectArgument(Parameter(nested_residual)),
+      EffectArgument(nested_row),
     ]),
   )
   assert_true(outer_context != nested_context)
   assert_eq(nested_result, Parameter(nested_answer))
-  assert_eq(nested_latent, Parameter(nested_residual))
+  assert_eq(nested_latent, nested_row)
   assert_eq(
     nested_continuation,
-    Function(
-      [Primitive(I64)],
-      Parameter(nested_answer),
-      Parameter(nested_residual),
-    ),
+    Function([Primitive(I64)], Parameter(nested_answer), nested_row),
   )
 }

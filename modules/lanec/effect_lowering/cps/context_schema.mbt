@@ -2,15 +2,19 @@
 pub(all) struct EffectCompanionBinding {
   source : @buslane.TypeParameterId
   companion : @buslane.TypeParameterId
+  residual : @buslane.TypeParameterId
 } derive(Debug, Eq)
 
-// A CPS'd function does not perform the residual effects its dictionary and
-// continuation perform; it only propagates them. Its type says so: every
-// dictionary is parameterised over the residual its operations run under, and
-// every CPS'd callable binds that residual alongside its answer type. The
-// alternative, one dictionary per concrete residual, forces one CPS form of a
-// function per residual it is ever installed under, which no separately
-// compiled definition can know.
+// A source effect parameter becomes two independent CPS facts: a context type
+// function, which alone determines runtime representation, and an external
+// residual-effect projection, which remains purely static. A CPS'd function
+// does not perform the residual effects its dictionary and continuation
+// perform; it only propagates them. Its type says so: every dictionary is
+// parameterised over the residual its operations run under, and every CPS'd
+// callable binds that residual alongside its answer type. The alternative, one
+// dictionary per concrete residual, forces one CPS form of a function per
+// residual it is ever installed under, which no separately compiled definition
+// can know.
 
 ///|
 priv struct DictionaryHeader {
@@ -80,6 +84,11 @@ fn define_effect_companions(
           info.name.occurrence + "%context",
           Function([Type, Effect], Type),
         ),
+        residual: metadata.define_type_parameter(
+          info.name.occurrence + "%residual",
+          Effect,
+          flavor=External,
+        ),
       })
     }
   }
@@ -95,9 +104,7 @@ fn define_dictionary_header(
   guard metadata.effect_info(effect) is Some(info) else {
     raise UnknownEffect(effect)
   }
-  let parameters = info.parameters.map(parameter => {
-    companion_parameter(companions, parameter)
-  })
+  let parameters = rewrite_cps_parameters(companions, info.parameters)
   let answer_parameter = metadata.define_type_parameter(
     info.name.occurrence + "%answer",
     Type,
@@ -143,9 +150,9 @@ fn define_operation_field_types(
       answer_type,
       residual_effect,
     )
-    let hidden_parameters = operation_info.hidden_type_parameters.map(parameter => {
-      schema.companion_parameter(parameter)
-    })
+    let hidden_parameters = schema.rewrite_cps_parameters(
+      operation_info.hidden_type_parameters,
+    )
     fields.push(
       if hidden_parameters.is_empty() {
         callable
@@ -166,16 +173,73 @@ fn DictionaryCpsSchema::companion_parameter(
 }
 
 ///|
+fn DictionaryCpsSchema::residual_parameter(
+  self : DictionaryCpsSchema,
+  source : @buslane.TypeParameterId,
+) -> @buslane.TypeParameterId {
+  residual_parameter(self.companions, source)
+}
+
+///|
+fn DictionaryCpsSchema::rewrite_cps_parameters(
+  self : DictionaryCpsSchema,
+  parameters : Array[@buslane.TypeParameterId],
+) -> Array[@buslane.TypeParameterId] {
+  rewrite_cps_parameters(self.companions, parameters)
+}
+
+///|
+fn rewrite_cps_parameters(
+  companions : Array[EffectCompanionBinding],
+  parameters : Array[@buslane.TypeParameterId],
+) -> Array[@buslane.TypeParameterId] {
+  let rewritten = []
+  for parameter in parameters {
+    match effect_companion(companions, parameter) {
+      Some(binding) => {
+        // Effect binders become two independent CPS facts.
+        rewritten.push(binding.companion)
+        rewritten.push(binding.residual)
+      }
+      None => rewritten.push(parameter)
+    }
+  }
+  rewritten
+}
+
+///|
 fn companion_parameter(
   companions : Array[EffectCompanionBinding],
   source : @buslane.TypeParameterId,
 ) -> @buslane.TypeParameterId {
+  match effect_companion(companions, source) {
+    Some(entry) => entry.companion
+    None => source
+  }
+}
+
+///|
+fn residual_parameter(
+  companions : Array[EffectCompanionBinding],
+  source : @buslane.TypeParameterId,
+) -> @buslane.TypeParameterId {
+  match effect_companion(companions, source) {
+    Some(entry) => entry.residual
+    None => source
+  }
+}
+
+///|
+fn effect_companion(
+  companions : Array[EffectCompanionBinding],
+  source : @buslane.TypeParameterId,
+) -> EffectCompanionBinding? {
   for entry in companions {
     if entry.source == source {
-      return entry.companion
+      return Some(entry)
     }
   }
-  source
+  None
 }
 
 ///|
@@ -206,7 +270,7 @@ fn DictionaryCpsSchema::rewrite_type(
       )
     TypeLambda(parameters, body) =>
       TypeLambda(
-        parameters.map(parameter => self.companion_parameter(parameter)),
+        self.rewrite_cps_parameters(parameters),
         self.rewrite_type(body),
       )
     Function(parameters, result, effect) => {
@@ -231,8 +295,7 @@ fn DictionaryCpsSchema::rewrite_type(
           flavor=External,
         )
         let answer_type = @buslane.Type::Parameter(answer_parameter)
-        let residual_effect = cps_residual_effect(
-          self.metadata,
+        let residual_effect = self.cps_residual_effect(
           effect,
           Parameter(residual_parameter),
         )
@@ -255,10 +318,7 @@ fn DictionaryCpsSchema::rewrite_type(
       }
     }
     Forall(parameters, body) =>
-      Forall(
-        parameters.map(parameter => self.companion_parameter(parameter)),
-        self.rewrite_type(body),
-      )
+      Forall(self.rewrite_cps_parameters(parameters), self.rewrite_type(body))
   }
 }
 
@@ -271,6 +331,50 @@ fn DictionaryCpsSchema::rewrite_generic_argument(
     TypeArgument(type_) => TypeArgument(self.rewrite_type(type_))
     EffectArgument(effect) => EffectArgument(effect)
   }
+}
+
+///|
+fn DictionaryCpsSchema::rewrite_cps_application_arguments(
+  self : DictionaryCpsSchema,
+  parameter : @buslane.TypeParameterId,
+  argument : @buslane.GenericArgument,
+) -> Array[@buslane.GenericArgument] raise SynthesisError {
+  guard self.metadata.type_parameter_info(parameter) is Some(info) else {
+    return [self.rewrite_generic_argument(argument)]
+  }
+  match (effect_companion(self.companions, parameter), info.kind, argument) {
+    (Some(_), Effect, EffectArgument(Parameter(source))) =>
+      [
+        // Forward both facts from the enclosing scope. In particular, keep the
+        // existing companion parameter so its explicit layout witness follows it.
+        TypeArgument(Parameter(self.companion_parameter(source))),
+        EffectArgument(Parameter(self.residual_parameter(source))),
+      ]
+    (Some(_), Effect, EffectArgument(effect)) =>
+      [
+        // Concrete and composite effects define the two facts independently;
+        // neither can be reconstructed from the other.
+        TypeArgument(self.companion_context_argument(effect)),
+        EffectArgument(self.source_residual_effect(effect)),
+      ]
+    (_, _, TypeArgument(type_)) => [TypeArgument(self.rewrite_type(type_))]
+    (_, _, EffectArgument(effect)) => [EffectArgument(effect)]
+  }
+}
+
+///|
+fn DictionaryCpsSchema::rewrite_cps_application_argument_list(
+  self : DictionaryCpsSchema,
+  parameters : Array[@buslane.TypeParameterId],
+  arguments : Array[@buslane.GenericArgument],
+) -> Array[@buslane.GenericArgument] raise SynthesisError {
+  let rewritten = []
+  for index, argument in arguments {
+    rewritten.append(
+      self.rewrite_cps_application_arguments(parameters[index], argument),
+    )
+  }
+  rewritten
 }
 
 ///|
@@ -319,9 +423,12 @@ fn DictionaryCpsSchema::context_term_type(
     Io => abort("Io has no effect dictionary")
     Singleton(effect, arguments) => {
       let dictionary = self.dictionary(effect)
+      guard self.metadata.effect_info(effect) is Some(info) else {
+        raise UnknownEffect(effect)
+      }
       Apply(
         Constructor(dictionary.type_id),
-        arguments.map(argument => self.rewrite_context_argument(argument)) +
+        self.rewrite_cps_application_argument_list(info.parameters, arguments) +
         [TypeArgument(answer_type), EffectArgument(residual_effect)],
       )
     }
@@ -363,18 +470,6 @@ fn DictionaryCpsSchema::companion_context_argument(
 }
 
 ///|
-fn DictionaryCpsSchema::rewrite_context_argument(
-  self : DictionaryCpsSchema,
-  argument : @buslane.GenericArgument,
-) -> @buslane.GenericArgument raise SynthesisError {
-  match argument {
-    TypeArgument(type_) => TypeArgument(self.rewrite_type(type_))
-    EffectArgument(effect) =>
-      TypeArgument(self.companion_context_argument(effect))
-  }
-}
-
-///|
 /// The residual a CPS'd callable runs under: what the source function performs
 /// itself, plus whatever the dictionary and continuation it is handed perform.
 ///
@@ -382,14 +477,42 @@ fn DictionaryCpsSchema::rewrite_context_argument(
 /// function's own residual in the type means the union collapses back to the
 /// caller's residual, because source typing already makes a callee's residual a
 /// subeffect of its caller's.
-fn cps_residual_effect(
-  metadata : @buslane.MetadataRegistry,
+fn DictionaryCpsSchema::cps_residual_effect(
+  self : DictionaryCpsSchema,
   effect : @buslane.Effect,
   parameter : @buslane.Effect,
-) -> @buslane.Effect {
-  metadata.canonicalize_effect(
-    Union([residual_effect_part(metadata, effect), parameter]),
+) -> @buslane.Effect raise SynthesisError {
+  self.metadata.canonicalize_effect(
+    Union([self.source_residual_effect(effect), parameter]),
   )
+}
+
+///|
+fn DictionaryCpsSchema::source_residual_effect(
+  self : DictionaryCpsSchema,
+  effect : @buslane.Effect,
+) -> @buslane.Effect raise SynthesisError {
+  match effect {
+    Empty | Io => effect
+    Parameter(parameter) => Parameter(self.residual_parameter(parameter))
+    Singleton(effect, arguments) => {
+      guard self.metadata.effect_info(effect) is Some(info) else {
+        raise UnknownEffect(effect)
+      }
+      if info.flavor is Algebraic {
+        Empty
+      } else {
+        Singleton(
+          effect,
+          arguments.map(argument => self.rewrite_generic_argument(argument)),
+        )
+      }
+    }
+    Union(effects) =>
+      self.metadata.canonicalize_effect(
+        Union(effects.map(effect => self.source_residual_effect(effect))),
+      )
+  }
 }
 
 ///|

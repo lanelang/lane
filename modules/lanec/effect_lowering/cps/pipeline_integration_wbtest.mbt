@@ -84,7 +84,7 @@ test "open-resolve preserves ordered abstract context arguments" {
       [
         {
           rhs: TypeLambda(
-            [_],
+            [companion, effect_residual],
             TypeLambda([answer, residual], Function(transformed_function))
           ),
           ..,
@@ -125,10 +125,22 @@ test "open-resolve preserves ordered abstract context arguments" {
   }
   assert_eq(marked_action, action)
   assert_eq(marked_answer, answer)
-  // The callee runs under whatever residual the caller was instantiated at.
-  assert_eq(marked_residual, Parameter(residual))
+  let row = @buslane.Effect::Union([
+    Parameter(effect_residual),
+    Parameter(residual),
+  ])
+  // The callee retains the source effect parameter's external projection and
+  // also runs under whatever local residual the caller was instantiated at.
+  assert_eq(marked_residual, row)
   assert_eq(marked_abstract, abstract_context)
   assert_eq(marked_first, first_context)
+  assert_eq(
+    transformed.metadata.value_info(abstract_context).unwrap().type_,
+    Apply(Parameter(companion), [
+      TypeArgument(Parameter(answer)),
+      EffectArgument(row),
+    ]),
+  )
   assert_eq(
     validate_open_resolve_output(transformed),
     Err(ResidualOpenContext(source=source_effect, target=target_effect)),
@@ -139,7 +151,7 @@ test "open-resolve preserves ordered abstract context arguments" {
       [
         {
           rhs: TypeLambda(
-            [_],
+            [_, _],
             TypeLambda([_, _], Function({ body: resolved_call, .. }))
           ),
           ..,

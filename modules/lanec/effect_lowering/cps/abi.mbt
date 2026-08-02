@@ -167,7 +167,7 @@ fn lower_cps_recursable(
         _ => None
       }
       TypeLambda(
-        parameters.map(parameter => schema.companion_parameter(parameter)),
+        schema.rewrite_cps_parameters(parameters),
         lower_cps_recursable(
           schema, program, body, expected_body, expected_cps_body,
         ),
@@ -222,8 +222,7 @@ fn lower_cps_function(
         )
     }
     let answer_type = @buslane.Type::Parameter(answer_parameter)
-    let residual_effect = cps_residual_effect(
-      program.metadata,
+    let residual_effect = schema.cps_residual_effect(
       latent_effect,
       Parameter(residual_parameter),
     )
@@ -283,7 +282,7 @@ fn lower_cps_direct_expr(
       lower_cps_function(schema, program, function, None, None)
     TypeLambda(parameters, body) =>
       TypeLambda(
-        parameters.map(parameter => schema.companion_parameter(parameter)),
+        schema.rewrite_cps_parameters(parameters),
         lower_cps_direct_expr(schema, program, body, current_answer),
       )
     Call(callee, arguments) => {
@@ -321,8 +320,6 @@ fn lower_cps_direct_expr(
           schema, program, arguments, lowered_callee, current_answer,
         ),
         schema.rewrite_type(source_result),
-        empty_callee_context_count(program.metadata, callee) +
-        empty_result_context_count(program.metadata, callee),
       )
     }
     TypeApply(_, _) =>
@@ -422,8 +419,7 @@ fn lower_cps_effectful_result_call(
     flavor=External,
   )
   let answer_type = @buslane.Type::Parameter(answer_parameter)
-  let residual_effect = cps_residual_effect(
-    program.metadata,
+  let residual_effect = schema.cps_residual_effect(
     latent_effect,
     Parameter(residual_parameter),
   )
@@ -500,25 +496,22 @@ fn lower_cps_direct_call(
   callee : Expr,
   arguments : Array[Expr],
   result_type : @buslane.Type,
-  empty_context_count : Int,
 ) -> Expr raise SynthesisError {
-  if empty_context_count > 0 {
-    return build_empty_context_direct_call(
-      metadata, callee, arguments, result_type, empty_context_count,
-    )
-  }
   let callee_type = synthesize_expr_or_raise(metadata, callee).type_
   match callee_type {
     Function(_, _, _) => Call(callee, arguments)
     Forall(
       [answer_parameter, residual_parameter],
-      Function(
-        parameters,
-        Parameter(result_parameter),
-        Parameter(latent_residual)
-      )
-    ) if answer_parameter == result_parameter &&
-      residual_parameter == latent_residual => {
+      Function(parameters, Parameter(result_parameter), latent_effect)
+    ) if answer_parameter == result_parameter => {
+      guard metadata.type_parameter_info(residual_parameter) is Some(info) &&
+        info.kind is Effect &&
+        info.flavor is External &&
+        effect_terms(metadata, latent_effect).any(term => {
+          term is Parameter(bound) && bound == residual_parameter
+        }) else {
+        raise ExpectedFunction(callee_type)
+      }
       let non_context_count = arguments.length() + 1
       if parameters.length() < non_context_count {
         raise ArityMismatch(
@@ -528,7 +521,10 @@ fn lower_cps_direct_call(
       }
       let context_count = parameters.length() - non_context_count
       for index in 0..<context_count {
-        if parameters[index] != Primitive(Unit) {
+        if !metadata.types_definitionally_equal(
+            parameters[index],
+            Primitive(Unit),
+          ) {
           raise ExpectedFunction(callee_type)
         }
       }
@@ -537,12 +533,14 @@ fn lower_cps_direct_call(
           Function(
             [continuation_input],
             Parameter(continuation_result),
-            Parameter(continuation_residual)
+            continuation_effect
           )
         ) &&
-        continuation_input == result_type &&
+        metadata.types_definitionally_equal(continuation_input, result_type) &&
         continuation_result == answer_parameter &&
-        continuation_residual == residual_parameter else {
+        metadata.effects_definitionally_equal(
+          continuation_effect, latent_effect,
+        ) else {
         raise ExpectedFunction(callee_type)
       }
       build_empty_context_direct_call(
@@ -560,14 +558,9 @@ fn build_empty_context_direct_call(
   arguments : Array[Expr],
   result_type : @buslane.Type,
   context_count : Int,
-) -> Expr raise SynthesisError {
-  // The continuation this hands the callee is the identity, which performs
-  // nothing, so the callee has to be one that accepts a pure continuation.
-  let callee_type = synthesize_expr_or_raise(metadata, callee).type_
-  if callee_type is Forall([_, residual_parameter], Function(_, _, latent)) &&
-    !(latent is Parameter(bound) && bound == residual_parameter) {
-    raise ExpectedFunction(callee_type)
-  }
+) -> Expr {
+  // The local residual is empty because the identity continuation performs
+  // nothing. Any residual owned by the source callable stays in its CPS type.
   let continuation_parameter = metadata.define_value(
     "%direct_result",
     Parameter,
@@ -592,96 +585,6 @@ fn build_empty_context_direct_call(
     TypeApply(callee, [TypeArgument(result_type), EffectArgument(Empty)]),
     call_arguments,
   )
-}
-
-///|
-fn empty_result_context_count(
-  metadata : @buslane.MetadataRegistry,
-  expression : Expr,
-) -> Int raise SynthesisError {
-  guard expression is Call(callee, _) else { return 0 }
-  let argument_groups = []
-  let base = collect_cps_type_applications(callee, argument_groups)
-  let parameters = []
-  let terminal_type = collect_cps_forall_parameters(
-    synthesize_expr_or_raise(metadata, base).type_,
-    parameters,
-  )
-  let arguments = []
-  for group in argument_groups {
-    arguments.append(group)
-  }
-  if arguments.length() < parameters.length() {
-    raise ArityMismatch(expected=parameters.length(), actual=arguments.length())
-  }
-  guard terminal_type is Function(_, result_type, _) else { return 0 }
-  guard source_callable_effect(result_type) is Some(result_effect) else {
-    return 0
-  }
-  applied_empty_context_count(metadata, parameters, arguments, result_effect)
-}
-
-///|
-fn empty_callee_context_count(
-  metadata : @buslane.MetadataRegistry,
-  expression : Expr,
-) -> Int raise SynthesisError {
-  let argument_groups = []
-  let base = collect_cps_type_applications(expression, argument_groups)
-  let parameters = []
-  let terminal_type = collect_cps_forall_parameters(
-    synthesize_expr_or_raise(metadata, base).type_,
-    parameters,
-  )
-  let arguments = []
-  for group in argument_groups {
-    arguments.append(group)
-  }
-  if arguments.length() < parameters.length() {
-    raise ArityMismatch(expected=parameters.length(), actual=arguments.length())
-  }
-  guard terminal_type is Function(_, _, latent_effect) else { return 0 }
-  applied_empty_context_count(metadata, parameters, arguments, latent_effect)
-}
-
-///|
-fn applied_empty_context_count(
-  metadata : @buslane.MetadataRegistry,
-  parameters : Array[@buslane.TypeParameterId],
-  arguments : Array[@buslane.GenericArgument],
-  effect : @buslane.Effect,
-) -> Int {
-  let mut count = 0
-  for term in effect_terms(metadata, effect) {
-    if term is Parameter(parameter) &&
-      applied_empty_effect_argument(parameters, arguments, parameter) {
-      count += 1
-    }
-  }
-  count
-}
-
-///|
-fn source_callable_effect(type_ : @buslane.Type) -> @buslane.Effect? {
-  match type_ {
-    Forall(_, body) => source_callable_effect(body)
-    Function(_, _, effect) => Some(effect)
-    _ => None
-  }
-}
-
-///|
-fn applied_empty_effect_argument(
-  parameters : Array[@buslane.TypeParameterId],
-  arguments : Array[@buslane.GenericArgument],
-  parameter : @buslane.TypeParameterId,
-) -> Bool {
-  for index in 0..<parameters.length() {
-    if parameters[index] == parameter {
-      return arguments[index] is EffectArgument(Empty)
-    }
-  }
-  false
 }
 
 ///|

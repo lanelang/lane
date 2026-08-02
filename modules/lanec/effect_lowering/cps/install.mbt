@@ -191,9 +191,7 @@ fn lower_handler_operation_clause(
     Monomorphic(function) => ([], function)
     Polymorphic(parameters, function) => (parameters, function)
   }
-  let type_binders = source_type_binders.map(parameter => {
-    schema.companion_parameter(parameter)
-  })
+  let type_binders = schema.rewrite_cps_parameters(source_type_binders)
   let function_type = instantiate_clause_field_type(field_type, type_binders)
   guard function_type is Function(parameter_types, result_type, function_effect) &&
     schema.metadata.effects_definitionally_equal(

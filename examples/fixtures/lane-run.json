@@ -1669,6 +1669,15 @@
       }
     },
     {
+      "name": "89 nested mappable implementation map",
+      "file": "examples/valid/89_nested_mappable_impl_map.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "mapped\n42"
+      }
+    },
+    {
       "name": "invalid 70 tuple without import",
       "file": "examples/invalid/70_tuple_without_import.lane",
       "mode": "check-error",
