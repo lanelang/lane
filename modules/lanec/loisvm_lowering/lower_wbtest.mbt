@@ -2856,18 +2856,37 @@ test "function type parts collect every nested forall layer" {
 }
 
 ///|
-test "concrete effect contexts use erased Unit or reference layouts" {
+test "effect companion layouts follow packed algebraic contexts" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let effect : @buslane.EffectId = { index: 3 }
+  let handled = metadata.define_effect("Handled", [])
+  let external = metadata.define_effect("External", [], flavor=External)
+  let residual = metadata.define_type_parameter(
+    "Residual",
+    Effect,
+    flavor=External,
+  )
   assert_eq(effect_context_layout_recipe(metadata, Empty), Unit)
+  assert_eq(effect_context_layout_recipe(metadata, Io), Unit)
   assert_eq(
-    effect_context_layout_recipe(metadata, Singleton(effect, [])),
+    effect_context_layout_recipe(metadata, Singleton(external, [])),
+    Unit,
+  )
+  assert_eq(effect_context_layout_recipe(metadata, Parameter(residual)), Unit)
+  assert_eq(
+    effect_context_layout_recipe(
+      metadata,
+      Union([Io, Singleton(external, []), Parameter(residual)]),
+    ),
+    Unit,
+  )
+  assert_eq(
+    effect_context_layout_recipe(metadata, Singleton(handled, [])),
     Reference,
   )
   assert_eq(
     effect_context_layout_recipe(
       metadata,
-      Union([Empty, Singleton(effect, [])]),
+      Union([Io, Singleton(external, []), Singleton(handled, [])]),
     ),
     Reference,
   )

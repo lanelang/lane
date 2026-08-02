@@ -31,10 +31,10 @@ fn effect_context_layout_recipe(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
 ) -> @bytecode.LayoutRecipe {
-  if metadata.effects_definitionally_equal(effect, Empty) {
-    Unit
-  } else {
+  if @effect_lowering_core.is_mon_effect(metadata, effect) {
     Reference
+  } else {
+    Unit
   }
 }
 
