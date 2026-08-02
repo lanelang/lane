@@ -241,15 +241,8 @@ fn SemanticChecker::variant_pattern_is_irrefutable(
   self : SemanticChecker,
   symbol : VariantSymbolId,
 ) -> Bool {
-  guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
-    return false
-  }
-  guard self.declarations.checked_enum(metadata.owner) is Some(declaration) else {
-    return false
-  }
-  guard declaration.variants.length() == 1 else { return false }
-  guard declaration.variants.get(0) is Some(variant) else { return false }
-  variant.symbol == symbol
+  guard self.checked_variant(symbol) is Ok(identity) else { return false }
+  identity.enum_declaration.variants.length() == 1
 }
 
 ///|
@@ -400,33 +393,30 @@ fn SemanticChecker::check_variant_symbol_pattern(
   // Variant patterns are nominal. The variant symbol determines the owner enum,
   // and the expected enum application supplies the generic arguments used to
   // substitute payload types.
-  guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
-    self.diagnostics.push({
-      kind: VariantReferenceFailure(
-        label="unknown variant " + type_name.display_text() + "::" + variant,
-      ),
-      loc,
-    })
-    return Wildcard(type_=Error, loc~)
+  let identity = match self.checked_variant(symbol) {
+    Ok(identity) => identity
+    Err(MissingCheckedVariantOwner) => {
+      self.diagnostics.push({
+        kind: VariantReferenceFailure(
+          label="unknown variant owner " + type_name.display_text(),
+        ),
+        loc,
+      })
+      return Wildcard(type_=Error, loc~)
+    }
+    Err(MissingCheckedVariant) => {
+      self.diagnostics.push({
+        kind: VariantReferenceFailure(
+          label="unknown variant " + type_name.display_text() + "::" + variant,
+        ),
+        loc,
+      })
+      return Wildcard(type_=Error, loc~)
+    }
   }
-  guard self.declarations.checked_enum(metadata.owner) is Some(declaration) else {
-    self.diagnostics.push({
-      kind: VariantReferenceFailure(
-        label="unknown variant owner " + type_name.display_text(),
-      ),
-      loc,
-    })
-    return Wildcard(type_=Error, loc~)
-  }
-  guard declaration.variant(symbol) is Some(variant_declaration) else {
-    self.diagnostics.push({
-      kind: VariantReferenceFailure(
-        label="unknown variant " + type_name.display_text() + "::" + variant,
-      ),
-      loc,
-    })
-    return Wildcard(type_=Error, loc~)
-  }
+  let owner = identity.owner
+  let declaration = identity.enum_declaration
+  let variant_declaration = identity.variant_declaration
   let generic_arguments = match
     decompose_nominal_or_report(
       self.diagnostics,
@@ -434,7 +424,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
       loc,
       context="variant pattern type",
     ) {
-    Nominal(owner, arguments) if owner == metadata.owner => arguments
+    Nominal(actual_owner, arguments) if actual_owner == owner => arguments
     ComputationFailed => return Wildcard(type_=Error, loc~)
     _ =>
       if expected is Error {
@@ -443,7 +433,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
         self.expect_type(
           expected,
           @types.nominal_type(
-            metadata.owner,
+            owner,
             declaration.type_parameters.map(fn(parameter) {
               Parameter(parameter.id)
             }),

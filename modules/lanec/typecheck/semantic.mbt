@@ -13,6 +13,40 @@ priv struct SemanticChecker {
 }
 
 ///|
+priv struct CheckedVariantIdentity {
+  owner : TypeSymbolId
+  enum_declaration : CheckedEnumDeclaration
+  variant_declaration : CheckedVariantDeclaration
+}
+
+///|
+priv enum CheckedVariantLookupFailure {
+  MissingCheckedVariant
+  MissingCheckedVariantOwner
+}
+
+///|
+fn SemanticChecker::checked_variant(
+  self : SemanticChecker,
+  symbol : VariantSymbolId,
+) -> Result[CheckedVariantIdentity, CheckedVariantLookupFailure] {
+  guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
+    return Err(MissingCheckedVariant)
+  }
+  guard self.declarations.checked_enum(metadata.owner) is Some(declaration) else {
+    return Err(MissingCheckedVariantOwner)
+  }
+  guard declaration.variant(symbol) is Some(variant) else {
+    return Err(MissingCheckedVariant)
+  }
+  Ok({
+    owner: metadata.owner,
+    enum_declaration: declaration,
+    variant_declaration: variant,
+  })
+}
+
+///|
 /// Checks a resolved source file and returns checked declarations, values, and diagnostics.
 pub fn typecheck_source_file(
   source : @resolve.ResolvedSourceFile,

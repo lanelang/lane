@@ -157,36 +157,35 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   // Variant construction has two generic layers: owner arguments for the enum
   // type, and variant-level hidden witnesses. Owner arguments may also use the
   // expected result type; hidden witnesses are inferred from payloads only.
-  guard self.source.symbols.variant_metadata(symbol) is Some(metadata) else {
-    self.diagnostics.push({
-      kind: VariantReferenceFailure(label="unknown variant " + display_name),
-      loc,
-    })
-    return checked_expression_none_reported(Error)
+  let identity = match self.checked_variant(symbol) {
+    Ok(identity) => identity
+    Err(MissingCheckedVariantOwner) => {
+      self.diagnostics.push({
+        kind: VariantReferenceFailure(
+          label="unknown variant owner " + display_name,
+        ),
+        loc,
+      })
+      return checked_expression_none_reported(Error)
+    }
+    Err(MissingCheckedVariant) => {
+      self.diagnostics.push({
+        kind: VariantReferenceFailure(label="unknown variant " + display_name),
+        loc,
+      })
+      return checked_expression_none_reported(Error)
+    }
   }
-  guard self.declarations.checked_enum(metadata.owner) is Some(declaration) else {
-    self.diagnostics.push({
-      kind: VariantReferenceFailure(
-        label="unknown variant owner " + display_name,
-      ),
-      loc,
-    })
-    return checked_expression_none_reported(Error)
-  }
-  guard declaration.variant(symbol) is Some(variant_declaration) else {
-    self.diagnostics.push({
-      kind: VariantReferenceFailure(label="unknown variant " + display_name),
-      loc,
-    })
-    return checked_expression_none_reported(Error)
-  }
+  let owner = identity.owner
+  let declaration = identity.enum_declaration
+  let variant_declaration = identity.variant_declaration
   let explicit_generic_arguments = if explicit_generic_arguments.is_empty() {
     []
   } else {
     check_type_arity(
       self.source.symbols,
       self.diagnostics,
-      metadata.owner,
+      owner,
       display_name,
       explicit_generic_arguments.length(),
       loc,
@@ -203,7 +202,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
   if variant_declaration.payload.length() != arguments.length() {
     self.report_application_arity("variant arity", loc)
     return checked_expression_none_reported(
-      @types.nominal_type_generic(metadata.owner, explicit_generic_arguments),
+      @types.nominal_type_generic(owner, explicit_generic_arguments),
     )
   }
   let generic_arguments = if explicit_generic_arguments.is_empty() &&
@@ -252,7 +251,7 @@ fn SemanticChecker::synthesize_checked_variant_symbol(
     }
     effects.push(checked.effect)
   }
-  let type_ = @types.nominal_type_generic(metadata.owner, generic_arguments)
+  let type_ = @types.nominal_type_generic(owner, generic_arguments)
   if complete {
     checked_expression_with_effect(
       Variant(

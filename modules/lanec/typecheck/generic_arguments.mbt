@@ -1237,14 +1237,14 @@ fn SemanticChecker::collect_function_literal_effect_evidence(
     }
   }
   guard nominal is Some((owner, owner_arguments)) &&
-    self.source.symbols.variant_metadata(symbol) is Some(metadata) &&
-    metadata.owner == owner &&
-    self.declarations.checked_enum(owner) is Some(declaration) &&
-    declaration.variant(symbol) is Some(variant) &&
-    variant.type_parameters.is_empty() &&
-    variant.payload.length() == arguments.length() else {
+    self.checked_variant(symbol) is Ok(identity) &&
+    identity.owner == owner &&
+    identity.variant_declaration.type_parameters.is_empty() &&
+    identity.variant_declaration.payload.length() == arguments.length() else {
     return true
   }
+  let declaration = identity.enum_declaration
+  let variant = identity.variant_declaration
   let substitution = variant_type_substitution(
     declaration.type_parameters,
     owner_arguments,
