@@ -61,6 +61,20 @@ fn contextualize_planner_error(
 }
 
 ///|
+fn normalize_specialization_input_type(
+  type_ : @buslane.Type,
+) -> @buslane.Type raise SpecializationError {
+  type_.normalize() catch {
+    error =>
+      raise InvalidInputMetadata(
+        specialization_error_context(
+          "Buslane type normalization failed: \{Repr(error)}",
+        ),
+      )
+  }
+}
+
+///|
 /// Failures owned by source-effect specialization.
 ///
 /// Only `UnsupportedProgram` describes an ordinary source-program limitation.

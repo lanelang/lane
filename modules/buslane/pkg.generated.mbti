@@ -10,6 +10,11 @@ import {
 pub fn verify_program(Program) -> VerifyResult
 
 // Errors
+pub(all) suberror TypeNormalizationError {
+  BetaReductionLimitExceeded(limit~ : Int)
+  InvalidBetaSubstitution(TypeSubstitutionError)
+} derive(Eq, @debug.Debug)
+
 pub(all) suberror TypeSubstitutionError {
   ArgumentCountMismatch(expected~ : Int, actual~ : Int)
   MissingParameterMetadata(parameter~ : TypeParameterId)
@@ -72,6 +77,7 @@ pub(all) enum Effect {
   Parameter(TypeParameterId)
   Union(Array[Effect])
 } derive(Eq, @debug.Debug)
+pub fn Effect::normalize(Self) -> Self raise TypeNormalizationError
 pub fn Effect::substitute(Self, TypeSubstitution) -> Self
 pub fn Effect::try_substitute(Self, TypeSubstitution) -> Self raise TypeSubstitutionError
 pub impl @prettyprinter.Pretty for Effect
@@ -135,7 +141,7 @@ pub(all) enum GenericArgument {
   TypeArgument(Type)
   EffectArgument(Effect)
 } derive(Eq, @debug.Debug)
-pub fn GenericArgument::normalize(Self) -> Self
+pub fn GenericArgument::normalize(Self) -> Self raise TypeNormalizationError
 pub fn GenericArgument::try_substitute(Self, TypeSubstitution) -> Self raise TypeSubstitutionError
 pub impl @prettyprinter.Pretty for GenericArgument
 
@@ -294,7 +300,7 @@ pub(all) enum Type {
   Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
 } derive(Eq, @debug.Debug)
-pub fn Type::normalize(Self) -> Self
+pub fn Type::normalize(Self) -> Self raise TypeNormalizationError
 pub fn Type::substitute(Self, TypeSubstitution) -> Self
 pub fn Type::try_substitute(Self, TypeSubstitution) -> Self raise TypeSubstitutionError
 pub impl @prettyprinter.Pretty for Type
@@ -381,6 +387,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownEffect(EffectId)
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
+  TypeNormalizationFailure(TypeNormalizationError)
   TypeMismatch(expected~ : Type, actual~ : Type)
   EffectMismatch(expected~ : Effect, actual~ : Effect)
   NotFunction(Type)

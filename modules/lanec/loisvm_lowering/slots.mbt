@@ -211,8 +211,10 @@ priv enum RuntimeType {
 fn ImageLowerer::runtime_type(
   self : ImageLowerer,
   type_ : @buslane.Type,
-) -> RuntimeType {
-  let type_ = type_.normalize()
+) -> RuntimeType raise LoisvmLoweringError {
+  let type_ = type_.normalize() catch {
+    error => raise TypeNormalizationCompilerDefect(error)
+  }
   match type_ {
     Parameter(parameter) if parameter.index < 0 => Erased(parameter)
     Parameter(parameter) =>
@@ -230,8 +232,11 @@ fn ImageLowerer::runtime_type(
 fn ImageLowerer::layout_runtime_type(
   self : ImageLowerer,
   type_ : @buslane.Type,
-) -> RuntimeType {
-  match type_.normalize() {
+) -> RuntimeType raise LoisvmLoweringError {
+  let type_ = type_.normalize() catch {
+    error => raise TypeNormalizationCompilerDefect(error)
+  }
+  match type_ {
     Parameter(companion) if self.effect_source(companion) is Some(_) =>
       Erased(companion)
     TypeLambda(_, body) => self.layout_runtime_type(body)

@@ -145,7 +145,7 @@ fn FunctionLowerer::canonical_callable_value_type(
   type_ : @buslane.Type,
   bound : Array[@buslane.TypeParameterId],
   bindings : @buslane.TypeSubstitution,
-) -> @buslane.Type {
+) -> @buslane.Type raise LoisvmLoweringError {
   if self.image.runtime_type(type_) is Concrete(Primitive(Unit)) {
     return type_
   }

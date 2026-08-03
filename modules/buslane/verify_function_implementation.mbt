@@ -40,8 +40,8 @@ fn VerifyContext::function_implementation_matches(
 ) -> Bool {
   self.function_implementation_matches_with(
     self.program.metadata.definitional_equality_context(),
-    implementation.normalize(),
-    declaration.normalize(),
+    self.normalize_type(implementation),
+    self.normalize_type(declaration),
   )
 }
 

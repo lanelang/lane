@@ -12,6 +12,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownEffect(EffectId)
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
+  TypeNormalizationFailure(TypeNormalizationError)
   TypeMismatch(expected~ : Type, actual~ : Type)
   EffectMismatch(expected~ : Effect, actual~ : Effect)
   NotFunction(Type)
@@ -123,7 +124,10 @@ pub fn ExpressionFactsQuery::has_empty_effect(
   self
   .synthesize(expression)
   .map(facts => {
-    self.program.metadata.effects_definitionally_equal(facts.effect, Empty)
+    try! self.program.metadata.effects_definitionally_equal_checked(
+      facts.effect,
+      Empty,
+    )
   })
 }
 
@@ -156,6 +160,87 @@ fn VerifyContext::report(
   kind : VerifyDiagnosticKind,
 ) -> Unit {
   self.diagnostics.push({ kind, })
+}
+
+///|
+fn VerifyContext::report_normalization_failure(
+  self : VerifyContext,
+  error : TypeNormalizationError,
+) -> Unit {
+  let kind = VerifyDiagnosticKind::TypeNormalizationFailure(error)
+  if !self.diagnostics.any(diagnostic => diagnostic.kind == kind) {
+    self.report(kind)
+  }
+}
+
+///|
+fn[T] VerifyContext::recover_normalization_failure(
+  self : VerifyContext,
+  fallback : T,
+  compute : () -> T raise TypeNormalizationError,
+) -> T {
+  compute() catch {
+    error => {
+      self.report_normalization_failure(error)
+      fallback
+    }
+  }
+}
+
+///|
+fn VerifyContext::normalize_type(self : VerifyContext, type_ : Type) -> Type {
+  self.recover_normalization_failure(type_, () => type_.normalize())
+}
+
+///|
+fn VerifyContext::normalize_effect(
+  self : VerifyContext,
+  effect : Effect,
+) -> Effect {
+  self.recover_normalization_failure(effect, () => effect.normalize())
+}
+
+///|
+fn VerifyContext::types_definitionally_equal(
+  self : VerifyContext,
+  left : Type,
+  right : Type,
+) -> Bool {
+  self.recover_normalization_failure(false, () => {
+    self.program.metadata.types_definitionally_equal_checked(left, right)
+  })
+}
+
+///|
+fn VerifyContext::type_is_consumable_as(
+  self : VerifyContext,
+  actual : Type,
+  expected : Type,
+) -> Bool {
+  self.recover_normalization_failure(false, () => {
+    self.program.metadata.type_is_consumable_as_checked(actual, expected)
+  })
+}
+
+///|
+fn VerifyContext::effects_definitionally_equal(
+  self : VerifyContext,
+  left : Effect,
+  right : Effect,
+) -> Bool {
+  self.recover_normalization_failure(false, () => {
+    self.program.metadata.effects_definitionally_equal_checked(left, right)
+  })
+}
+
+///|
+fn VerifyContext::canonicalize_effect(
+  self : VerifyContext,
+  effect : Effect,
+) -> Effect {
+  self.recover_normalization_failure(effect, () => {
+    self.program.metadata.canonicalize_effect_checked(effect)
+  })
 }
 
 ///|
@@ -325,7 +410,7 @@ fn VerifyContext::check_expr(
   type_scope : TypeScope,
 ) -> Effect {
   let actual = self.synthesize_expr(expr, value_scope, type_scope)
-  if !self.program.metadata.type_is_consumable_as(actual.type_, expected) {
+  if !self.type_is_consumable_as(actual.type_, expected) {
     self.report(TypeMismatch(expected~, actual=actual.type_))
   }
   actual.effect
@@ -379,7 +464,10 @@ fn VerifyContext::synthesize_expr(
     Handle(handle) => self.synthesize_handle(handle, value_scope, type_scope)
     Resume(id) => self.synthesize_ref(id, value_scope)
   }
-  { type_: facts.type_.normalize(), effect: facts.effect }
+  {
+    type_: self.normalize_type(facts.type_),
+    effect: self.normalize_effect(facts.effect),
+  }
 }
 
 ///|
@@ -449,7 +537,7 @@ fn VerifyContext::synthesize_call(
     )
     return {
       type_: result_type,
-      effect: effect_union(self.program.metadata, effects + [latent_effect]),
+      effect: self.effect_union(effects + [latent_effect]),
     }
   }
   for index in 0..<arguments.length() {
@@ -462,7 +550,7 @@ fn VerifyContext::synthesize_call(
     effects.push(argument_effect)
   }
   effects.push(latent_effect)
-  { type_: result_type, effect: effect_union(self.program.metadata, effects) }
+  { type_: result_type, effect: self.effect_union(effects) }
 }
 
 ///|
@@ -479,10 +567,7 @@ fn VerifyContext::synthesize_type_lambda(
     body_scope.parameters.push(parameter)
   }
   let body_result = self.synthesize_expr(body, value_scope, body_scope)
-  if !self.program.metadata.effects_definitionally_equal(
-      body_result.effect,
-      Empty,
-    ) {
+  if !self.effects_definitionally_equal(body_result.effect, Empty) {
     self.report(EffectMismatch(expected=Empty, actual=body_result.effect))
   }
   pure_expr(Forall(parameters, body_result.type_))
@@ -578,7 +663,7 @@ fn VerifyContext::synthesize_construct(
   }
   {
     type_: nominal_type(info.owner, construct.type_arguments),
-    effect: effect_union(self.program.metadata, effects),
+    effect: self.effect_union(effects),
   }
 }
 
@@ -647,7 +732,7 @@ fn VerifyContext::synthesize_perform(
   effects.push(Singleton(info.owner, perform.effect_arguments))
   {
     type_: info.result_type.substitute(substitution),
-    effect: effect_union(self.program.metadata, effects),
+    effect: self.effect_union(effects),
   }
 }
 
@@ -668,15 +753,9 @@ fn VerifyContext::synthesize_handle(
   guard self.program.metadata.value_info(handle.result_binder)
     is Some(result_info) else {
     self.report(UnknownValue(handle.result_binder))
-    return {
-      type_: handle.result_type,
-      effect: effect_union(self.program.metadata, effects),
-    }
+    return { type_: handle.result_type, effect: self.effect_union(effects) }
   }
-  if !self.program.metadata.types_definitionally_equal(
-      result_info.type_,
-      body_result.type_,
-    ) {
+  if !self.types_definitionally_equal(result_info.type_, body_result.type_) {
     self.report(
       TypeMismatch(expected=body_result.type_, actual=result_info.type_),
     )
@@ -711,10 +790,7 @@ fn VerifyContext::synthesize_handle(
       effects.push(arm_effect)
     }
   }
-  {
-    type_: handle.result_type,
-    effect: effect_union(self.program.metadata, effects),
-  }
+  { type_: handle.result_type, effect: self.effect_union(effects) }
 }
 
 ///|
@@ -790,10 +866,7 @@ fn VerifyContext::verify_operation_alternative(
       continue
     }
     let expected = info.payload_types[index].substitute(substitution)
-    if !self.program.metadata.types_definitionally_equal(
-        binder_info.type_,
-        expected,
-      ) {
+    if !self.types_definitionally_equal(binder_info.type_, expected) {
       self.report(TypeMismatch(expected~, actual=binder_info.type_))
     }
     arm_scope.values.push(binder)
@@ -827,13 +900,10 @@ fn VerifyContext::verify_resume_binder(
   }
   if parameters.length() != 1 {
     self.report(ArityMismatch(expected=1, actual=parameters.length()))
-  } else if !self.program.metadata.types_definitionally_equal(
-      parameters[0],
-      parameter,
-    ) {
+  } else if !self.types_definitionally_equal(parameters[0], parameter) {
     self.report(TypeMismatch(expected=parameter, actual=parameters[0]))
   }
-  if !self.program.metadata.types_definitionally_equal(actual_result, result) {
+  if !self.types_definitionally_equal(actual_result, result) {
     self.report(TypeMismatch(expected=result, actual=actual_result))
   }
 }
@@ -863,10 +933,7 @@ fn VerifyContext::synthesize_let(
   let body_result = self.synthesize_expr(body, body_scope, type_scope)
   {
     type_: body_result.type_,
-    effect: effect_union(self.program.metadata, [
-      initializer_effect,
-      body_result.effect,
-    ]),
+    effect: self.effect_union([initializer_effect, body_result.effect]),
   }
 }
 
@@ -897,7 +964,7 @@ fn VerifyContext::synthesize_letrec(
       body_scope,
       type_scope,
     )
-    if !self.program.metadata.effects_definitionally_equal(rhs_effect, Empty) {
+    if !self.effects_definitionally_equal(rhs_effect, Empty) {
       self.report(EffectMismatch(expected=Empty, actual=rhs_effect))
     }
   }
@@ -920,10 +987,7 @@ fn VerifyContext::synthesize_match(
     self.report(UnknownValue(match_.binder))
     return pure_expr(match_.result_type)
   }
-  if !self.program.metadata.types_definitionally_equal(
-      binder_info.type_,
-      scrutinee_result.type_,
-    ) {
+  if !self.types_definitionally_equal(binder_info.type_, scrutinee_result.type_) {
     self.report(
       TypeMismatch(expected=scrutinee_result.type_, actual=binder_info.type_),
     )
@@ -940,10 +1004,7 @@ fn VerifyContext::synthesize_match(
     )
     effects.push(alternative_effect)
   }
-  {
-    type_: match_.result_type,
-    effect: effect_union(self.program.metadata, effects),
-  }
+  { type_: match_.result_type, effect: self.effect_union(effects) }
 }
 
 ///|
@@ -966,9 +1027,7 @@ fn VerifyContext::verify_alternative(
     Literal(literal) => {
       self.verify_literal(literal)
       let literal_type = literal.type_()
-      if !self.program.metadata.types_definitionally_equal(
-          literal_type, scrutinee_type,
-        ) {
+      if !self.types_definitionally_equal(literal_type, scrutinee_type) {
         self.report(TypeMismatch(expected=scrutinee_type, actual=literal_type))
       }
     }
@@ -1047,10 +1106,7 @@ fn VerifyContext::verify_data_alternative(
       continue
     }
     let expected = info.payload_types[index].substitute(substitution)
-    if !self.program.metadata.types_definitionally_equal(
-        binder_info.type_,
-        expected,
-      ) {
+    if !self.types_definitionally_equal(binder_info.type_, expected) {
       self.report(TypeMismatch(expected~, actual=binder_info.type_))
     }
     body_scope.values.push(binder)
@@ -1485,8 +1541,11 @@ fn pure_expr(type_ : Type) -> ExpressionFacts {
 }
 
 ///|
-fn effect_union(metadata : MetadataRegistry, effects : Array[Effect]) -> Effect {
-  metadata.canonicalize_effect(Union(effects))
+fn VerifyContext::effect_union(
+  self : VerifyContext,
+  effects : Array[Effect],
+) -> Effect {
+  self.canonicalize_effect(Union(effects))
 }
 
 ///|
@@ -1495,7 +1554,7 @@ fn VerifyContext::require_effect_equals(
   expected : Effect,
   actual : Effect,
 ) -> Unit {
-  if !self.program.metadata.effects_definitionally_equal(actual, expected) {
+  if !self.effects_definitionally_equal(actual, expected) {
     self.report(EffectMismatch(expected~, actual~))
   }
 }
@@ -1508,7 +1567,7 @@ fn VerifyContext::remove_handled_effects(
 ) -> Effect {
   let residual : Array[Effect] = []
   let mut has_open_row = false
-  let effect_terms = effect_terms(self.program.metadata, effect)
+  let effect_terms = self.effect_terms(effect)
   for term in effect_terms {
     match term {
       Parameter(_) => {
@@ -1517,9 +1576,7 @@ fn VerifyContext::remove_handled_effects(
       }
       _ =>
         if !handled.any(fn(handled_effect) {
-            self.program.metadata.effects_definitionally_equal(
-              term, handled_effect,
-            )
+            self.effects_definitionally_equal(term, handled_effect)
           }) {
           residual.push(term)
         }
@@ -1528,20 +1585,21 @@ fn VerifyContext::remove_handled_effects(
   if !has_open_row {
     for handled_effect in handled {
       if !effect_terms.any(fn(term) {
-          self.program.metadata.effects_definitionally_equal(
-            term, handled_effect,
-          )
+          self.effects_definitionally_equal(term, handled_effect)
         }) {
         self.report(EffectMismatch(expected=handled_effect, actual=effect))
       }
     }
   }
-  effect_union(self.program.metadata, residual)
+  self.effect_union(residual)
 }
 
 ///|
-fn effect_terms(metadata : MetadataRegistry, effect : Effect) -> Array[Effect] {
-  match metadata.canonicalize_effect(effect) {
+fn VerifyContext::effect_terms(
+  self : VerifyContext,
+  effect : Effect,
+) -> Array[Effect] {
+  match self.canonicalize_effect(effect) {
     Empty => []
     Union(effects) => effects
     effect => [effect]

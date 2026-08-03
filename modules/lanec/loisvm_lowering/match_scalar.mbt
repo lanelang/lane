@@ -16,7 +16,9 @@ fn FunctionLowerer::lower_match(
       self.lower_irrefutable_match(match_, scrutinee, alternative)
     }
     Slot(condition, scrutinee_type) => {
-      let scrutinee_type = scrutinee_type.normalize()
+      let scrutinee_type = scrutinee_type.normalize() catch {
+        error => raise TypeNormalizationCompilerDefect(error)
+      }
       let scrutinee = LocalValue::Slot(condition, scrutinee_type)
       match scrutinee_type {
         Primitive(Bool) => self.lower_bool_match(match_, condition, scrutinee)

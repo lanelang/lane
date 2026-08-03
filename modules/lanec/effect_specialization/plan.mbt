@@ -635,7 +635,9 @@ fn SpecializationPlanner::visit_type(
   type_ : @buslane.Type,
   ambient_bindings : Array[EffectSpecializationBinding],
 ) -> Unit raise SpecializationError {
-  let type_ = raw_substitute_specialized_type(type_, ambient_bindings).normalize()
+  let type_ = normalize_specialization_input_type(
+    raw_substitute_specialized_type(type_, ambient_bindings),
+  )
   match type_ {
     Primitive(_) | Parameter(_) | Constructor(_) => ()
     Apply(Constructor(source), arguments) => {

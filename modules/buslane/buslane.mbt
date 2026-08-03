@@ -529,6 +529,15 @@ pub fn MetadataRegistry::types_definitionally_equal(
   left : Type,
   right : Type,
 ) -> Bool {
+  try! self.types_definitionally_equal_checked(left, right)
+}
+
+///|
+fn MetadataRegistry::types_definitionally_equal_checked(
+  self : MetadataRegistry,
+  left : Type,
+  right : Type,
+) -> Bool raise TypeNormalizationError {
   alpha_equal_with(
     self.definitional_equality_context(),
     left.normalize(),
@@ -580,6 +589,15 @@ pub fn MetadataRegistry::type_is_consumable_as(
   actual : Type,
   expected : Type,
 ) -> Bool {
+  try! self.type_is_consumable_as_checked(actual, expected)
+}
+
+///|
+fn MetadataRegistry::type_is_consumable_as_checked(
+  self : MetadataRegistry,
+  actual : Type,
+  expected : Type,
+) -> Bool raise TypeNormalizationError {
   self.consumable_with(
     self.definitional_equality_context(),
     actual.normalize(),
@@ -670,7 +688,20 @@ pub fn MetadataRegistry::effects_definitionally_equal(
   left : Effect,
   right : Effect,
 ) -> Bool {
-  alpha_equal_effect_with(self.definitional_equality_context(), left, right)
+  try! self.effects_definitionally_equal_checked(left, right)
+}
+
+///|
+fn MetadataRegistry::effects_definitionally_equal_checked(
+  self : MetadataRegistry,
+  left : Effect,
+  right : Effect,
+) -> Bool raise TypeNormalizationError {
+  alpha_equal_effect_with(
+    self.definitional_equality_context(),
+    left.normalize(),
+    right.normalize(),
+  )
 }
 
 ///|
@@ -680,7 +711,20 @@ pub fn MetadataRegistry::effect_is_subeffect_of(
   lower : Effect,
   upper : Effect,
 ) -> Bool {
-  effect_is_subeffect_with(self.definitional_equality_context(), lower, upper)
+  try! self.effect_is_subeffect_of_checked(lower, upper)
+}
+
+///|
+fn MetadataRegistry::effect_is_subeffect_of_checked(
+  self : MetadataRegistry,
+  lower : Effect,
+  upper : Effect,
+) -> Bool raise TypeNormalizationError {
+  effect_is_subeffect_with(
+    self.definitional_equality_context(),
+    lower.normalize(),
+    upper.normalize(),
+  )
 }
 
 ///|
@@ -689,7 +733,18 @@ pub fn MetadataRegistry::canonicalize_effect(
   self : MetadataRegistry,
   effect : Effect,
 ) -> Effect {
-  canonicalize_effect_with(self.definitional_equality_context(), effect)
+  try! self.canonicalize_effect_checked(effect)
+}
+
+///|
+fn MetadataRegistry::canonicalize_effect_checked(
+  self : MetadataRegistry,
+  effect : Effect,
+) -> Effect raise TypeNormalizationError {
+  canonicalize_effect_with(
+    self.definitional_equality_context(),
+    effect.normalize(),
+  )
 }
 
 ///|
@@ -832,13 +887,8 @@ fn collect_effect_terms(
   match effect {
     Empty => ()
     Io => push_unique_effect_term(context, terms, Io)
-    Singleton(id, arguments) => {
-      let term = Singleton(
-        id,
-        arguments.map(fn(argument) { argument.normalize() }),
-      )
-      push_unique_effect_term(context, terms, term)
-    }
+    Singleton(id, arguments) =>
+      push_unique_effect_term(context, terms, Singleton(id, arguments))
     Parameter(_) => push_unique_effect_term(context, terms, effect)
     Union(effects) =>
       for nested in effects {
@@ -977,6 +1027,31 @@ pub(all) suberror TypeSubstitutionError {
 } derive(Debug, Eq)
 
 ///|
+/// Controlled failures while computing a Buslane type's beta-normal form.
+pub(all) suberror TypeNormalizationError {
+  BetaReductionLimitExceeded(limit~ : Int)
+  InvalidBetaSubstitution(TypeSubstitutionError)
+} derive(Debug, Eq)
+
+///|
+const TYPE_NORMALIZATION_BETA_LIMIT : Int = 1024
+
+///|
+priv struct TypeNormalizationBudget {
+  mut remaining : Int
+}
+
+///|
+fn TypeNormalizationBudget::consume_beta(
+  self : TypeNormalizationBudget,
+) -> Unit raise TypeNormalizationError {
+  if self.remaining <= 0 {
+    raise BetaReductionLimitExceeded(limit=TYPE_NORMALIZATION_BETA_LIMIT)
+  }
+  self.remaining -= 1
+}
+
+///|
 pub fn TypeSubstitution::TypeSubstitution() -> TypeSubstitution {
   { entries: [] }
 }
@@ -1108,18 +1183,21 @@ fn TypeSubstitution::lookup_effect(
 }
 
 ///|
-pub fn GenericArgument::normalize(self : GenericArgument) -> GenericArgument {
-  self.normalize_with_fuel(1024)
+pub fn GenericArgument::normalize(
+  self : GenericArgument,
+) -> GenericArgument raise TypeNormalizationError {
+  self.normalize_with_budget({ remaining: TYPE_NORMALIZATION_BETA_LIMIT })
 }
 
 ///|
-fn GenericArgument::normalize_with_fuel(
+fn GenericArgument::normalize_with_budget(
   self : GenericArgument,
-  fuel : Int,
-) -> GenericArgument {
+  budget : TypeNormalizationBudget,
+) -> GenericArgument raise TypeNormalizationError {
   match self {
-    TypeArgument(type_) => TypeArgument(type_.normalize_with_fuel(fuel))
-    EffectArgument(effect) => EffectArgument(effect.normalize_with_fuel(fuel))
+    TypeArgument(type_) => TypeArgument(type_.normalize_with_budget(budget))
+    EffectArgument(effect) =>
+      EffectArgument(effect.normalize_with_budget(budget))
   }
 }
 
@@ -1149,22 +1227,32 @@ fn GenericArgument::substitute_with_bound(
 /// Returns the full beta-normal form of a Buslane type.
 ///
 /// Type lambdas remain first-class type functions; only saturated applications
-/// are reduced, using capture-avoiding substitution.
-pub fn Type::normalize(self : Type) -> Type {
-  self.normalize_with_fuel(1024)
+/// are reduced, using capture-avoiding substitution. Ordinary structural
+/// descent does not consume the beta-reduction budget.
+///
+/// Raises `TypeNormalizationError` when beta reduction does not converge within
+/// the compiler safeguard or when a malformed application cannot be reduced.
+pub fn Type::normalize(self : Type) -> Type raise TypeNormalizationError {
+  self.normalize_with_budget({ remaining: TYPE_NORMALIZATION_BETA_LIMIT })
 }
 
 ///|
-fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
-  if fuel <= 0 {
-    abort("Buslane type normalization fuel exhausted")
-  }
+/// Returns the full beta-normal form of a Buslane effect's generic arguments.
+pub fn Effect::normalize(self : Effect) -> Effect raise TypeNormalizationError {
+  self.normalize_with_budget({ remaining: TYPE_NORMALIZATION_BETA_LIMIT })
+}
+
+///|
+fn Type::normalize_with_budget(
+  self : Type,
+  budget : TypeNormalizationBudget,
+) -> Type raise TypeNormalizationError {
   match self {
     Primitive(_) | Parameter(_) | Constructor(_) => self
     Apply(callee, arguments) => {
-      let normalized_callee = callee.normalize_with_fuel(fuel - 1)
-      let normalized_arguments = arguments.map(fn(argument) {
-        argument.normalize_with_fuel(fuel - 1)
+      let normalized_callee = callee.normalize_with_budget(budget)
+      let normalized_arguments = arguments.map(argument => {
+        argument.normalize_with_budget(budget)
       })
       match normalized_callee {
         TypeLambda(parameters, body) =>
@@ -1178,38 +1266,42 @@ fn Type::normalize_with_fuel(self : Type, fuel : Int) -> Type {
                 normalized_arguments[index],
               )
             }
-            body.substitute(substitution).normalize_with_fuel(fuel - 1)
+            budget.consume_beta()
+            let reduced = body.try_substitute(substitution) catch {
+              error => raise InvalidBetaSubstitution(error)
+            }
+            reduced.normalize_with_budget(budget)
           }
         _ => Apply(normalized_callee, normalized_arguments)
       }
     }
     TypeLambda(parameters, body) =>
-      TypeLambda(parameters, body.normalize_with_fuel(fuel - 1))
+      TypeLambda(parameters, body.normalize_with_budget(budget))
     Function(parameters, result, effect) =>
       Function(
-        parameters.map(fn(parameter) { parameter.normalize_with_fuel(fuel - 1) }),
-        result.normalize_with_fuel(fuel - 1),
-        effect.normalize_with_fuel(fuel - 1),
+        parameters.map(parameter => parameter.normalize_with_budget(budget)),
+        result.normalize_with_budget(budget),
+        effect.normalize_with_budget(budget),
       )
     Forall(parameters, body) =>
-      Forall(parameters, body.normalize_with_fuel(fuel - 1))
+      Forall(parameters, body.normalize_with_budget(budget))
   }
 }
 
 ///|
-fn Effect::normalize_with_fuel(self : Effect, fuel : Int) -> Effect {
-  if fuel <= 0 {
-    abort("Buslane effect normalization fuel exhausted")
-  }
+fn Effect::normalize_with_budget(
+  self : Effect,
+  budget : TypeNormalizationBudget,
+) -> Effect raise TypeNormalizationError {
   match self {
     Empty | Io | Parameter(_) => self
     Singleton(id, arguments) =>
       Singleton(
         id,
-        arguments.map(fn(argument) { argument.normalize_with_fuel(fuel - 1) }),
+        arguments.map(argument => argument.normalize_with_budget(budget)),
       )
     Union(effects) =>
-      Union(effects.map(fn(effect) { effect.normalize_with_fuel(fuel - 1) }))
+      Union(effects.map(effect => effect.normalize_with_budget(budget)))
   }
 }
 

@@ -15,7 +15,7 @@ fn EffectSpecializer::specialize_substituted_type(
   self : EffectSpecializer,
   type_ : @buslane.Type,
 ) -> @buslane.Type raise SpecializationError {
-  let type_ = type_.normalize()
+  let type_ = normalize_specialization_input_type(type_)
   match type_ {
     Primitive(_) | Parameter(_) => type_
     Constructor(id) => {

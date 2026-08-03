@@ -86,7 +86,7 @@ The semantic normalization strategy that recursively expands transparent type al
 _Avoid_: weak-head-only type normalization, user-visible fuel semantics
 
 **Type Normalization Fuel**:
-An implementation safeguard against compiler bugs or accidental nontermination during full type normalization.
+An implementation safeguard that counts beta reductions during full type normalization. Ordinary structural descent does not consume the budget; exhaustion is a checked compiler diagnostic, not a process abort or a user-visible language recursion limit.
 _Avoid_: language recursion limit, user program error
 
 **Type-Level Lambda Kind**:

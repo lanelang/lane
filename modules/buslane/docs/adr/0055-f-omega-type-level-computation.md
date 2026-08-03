@@ -29,9 +29,11 @@ well-formed kind. Aliases are transparent, top-level only, order-independent,
 and acyclic; dependency analysis uses free alias references after desugaring.
 
 Definitional type equality uses transparent alias expansion plus full
-beta-normalization. Eta equality is not part of this decision. Normalization
-fuel is an implementation safeguard; exhausting it indicates an internal
-compiler bug rather than a user-facing type error.
+beta-normalization. Eta equality is not part of this decision. The
+normalization safeguard counts beta reductions, not ordinary structural
+descent, so finite inert structure has no arbitrary depth limit. Exhausting the
+beta-reduction budget produces a checked normalization failure; the Buslane
+verifier reports that failure as a blocking diagnostic rather than aborting.
 
 Buslane is upgraded with the F-omega constructs required to preserve
 higher-kinded polymorphic values: higher kinds, type-level lambdas, and
