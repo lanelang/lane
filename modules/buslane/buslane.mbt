@@ -764,6 +764,17 @@ fn AlphaContext::flip(self : AlphaContext) -> AlphaContext {
 }
 
 ///|
+/// Views the context from one side alone: the cross-side bindings are dropped
+/// while binder compatibility stays.
+///
+/// Whether two terms of a single row are the same term is a question about
+/// that row only; letting the oriented cross-side bindings participate makes a
+/// term unequal to itself and the resulting equality intransitive.
+fn AlphaContext::same_side(self : AlphaContext) -> AlphaContext {
+  { ..self, bindings: [] }
+}
+
+///|
 fn AlphaContext::with_binders(
   self : AlphaContext,
   left : Array[TypeParameterId],
@@ -838,7 +849,7 @@ fn canonical_effect_terms(
   effect : Effect,
 ) -> Array[Effect] {
   let terms : Array[Effect] = []
-  collect_effect_terms(context, effect, terms)
+  collect_effect_terms(context.same_side(), effect, terms)
   terms
 }
 
@@ -958,12 +969,15 @@ fn generic_argument_alpha_equal_with(
 }
 
 ///|
+/// Resolves a parameter pair against the innermost binding that mentions
+/// either id. A rebound id belongs to its nearest enclosing binder — the same
+/// reading substitution's bound-list enforces — so the scan runs inside-out.
 fn alpha_equal_parameter(
   bindings : Array[AlphaBinding],
   left : TypeParameterId,
   right : TypeParameterId,
 ) -> Bool {
-  for binding in bindings {
+  for binding in bindings.rev_iter() {
     if binding.left == left || binding.right == right {
       return binding.left == left && binding.right == right
     }

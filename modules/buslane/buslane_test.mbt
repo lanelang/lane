@@ -1278,3 +1278,62 @@ test "consumable types rename binders under contravariance" {
     metadata.type_is_consumable_as(with_binder(left), with_binder(right)),
   )
 }
+
+///|
+test "definitional equality dedupes a row without the cross-side bindings" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let x = metadata.define_type_parameter("X", Effect)
+  let y = metadata.define_type_parameter("Y", Effect)
+  let doubled : Type = Forall(
+    [x],
+    Function([], Primitive(Unit), Union([Parameter(x), Parameter(x)])),
+  )
+  let single : Type = Forall([x], Function([], Primitive(Unit), Parameter(x)))
+  let renamed : Type = Forall([y], Function([], Primitive(Unit), Parameter(y)))
+  assert_true(metadata.types_definitionally_equal(doubled, single))
+  assert_true(metadata.types_definitionally_equal(single, renamed))
+  assert_true(metadata.types_definitionally_equal(doubled, renamed))
+}
+
+///|
+test "alpha equality gives a rebound id to its innermost binder" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let x = metadata.define_type_parameter("X", Effect)
+  let a = metadata.define_type_parameter("A", Effect)
+  let b = metadata.define_type_parameter("B", Effect)
+  let shadowed : Type = Forall(
+    [x],
+    Forall([x], Function([], Primitive(Unit), Parameter(x))),
+  )
+  let inner : Type = Forall(
+    [a],
+    Forall([b], Function([], Primitive(Unit), Parameter(b))),
+  )
+  let outer : Type = Forall(
+    [a],
+    Forall([b], Function([], Primitive(Unit), Parameter(a))),
+  )
+  assert_true(metadata.types_definitionally_equal(shadowed, inner))
+  assert_false(metadata.types_definitionally_equal(shadowed, outer))
+}
+
+///|
+test "substitution and alpha equality agree on shadowed binders" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let x = metadata.define_type_parameter("X", Effect)
+  let y = metadata.define_type_parameter("Y", Effect)
+  // Beta reduction hands `Io` to `x`, but the occurrence below belongs to the
+  // inner rebinding of `x`: substitution must leave it alone, and equality
+  // must then read it as the inner binder too.
+  let applied : Type = Apply(
+    TypeLambda([x], Forall([x], Function([], Primitive(Unit), Parameter(x)))),
+    [EffectArgument(Io)],
+  )
+  let untouched : Type = Forall(
+    [y],
+    Function([], Primitive(Unit), Parameter(y)),
+  )
+  let captured : Type = Forall([y], Function([], Primitive(Unit), Io))
+  assert_true(metadata.types_definitionally_equal(applied, untouched))
+  assert_false(metadata.types_definitionally_equal(applied, captured))
+}
