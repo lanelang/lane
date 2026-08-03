@@ -354,8 +354,8 @@ test "external callable call invokes resolved native function" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    external value#0 : (I64) -> I64
-      #|    value value#1 : I64
+      #|    value value#0 = "value"#0 external : (I64) -> I64;
+      #|    value value#1 = "value"#1 value : I64;
       #|  }
       #|  external value#0
       #|  let value#1 = value#0(40)

@@ -76,11 +76,10 @@ test "buslane metadata owns nominal data shape" {
     @prettyprinter.render(metadata, width=100),
     content=(
       #|metadata {
-      #|  type Type#1[tparam#0] {
-      #|    Con#2()
-      #|    Con#3(tparam#0)
-      #|  }
-      #|  type_parameter T#0 : Type
+      #|  type type#0 = "Type"#1[tparam#0] {datacon#0, datacon#1};
+      #|  type_parameter tparam#0 = "T"#0 : Type;
+      #|  datacon datacon#0 = "Con"#2() : type#0;
+      #|  datacon datacon#1 = "Con"#3(tparam#0) : type#0;
       #|}
     ),
   )
@@ -140,12 +139,11 @@ test "buslane metadata owns effect operation shape" {
     @prettyprinter.render(metadata, width=100),
     content=(
       #|metadata {
-      #|  type_parameter T#0 : Type
-      #|  type_parameter E#1 : Effect
-      #|  effect Effect#2[tparam#0] {
-      #|    op#3() -> tparam#0
-      #|    op#4(tparam#0) -> Unit
-      #|  }
+      #|  type_parameter tparam#0 = "T"#0 : Type;
+      #|  type_parameter tparam#1 = "E"#1 : Effect;
+      #|  effect effect#0 = "Effect"#2[tparam#0] {operation#0, operation#1};
+      #|  operation operation#0 = "op"#3() -> tparam#0 : effect#0;
+      #|  operation operation#1 = "op"#4(tparam#0) -> Unit : effect#0;
       #|}
     ),
   )
@@ -854,9 +852,9 @@ test "pretty buslane expression tree core" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    value value#0 : I64
-      #|    function value#1 : (I64) -> I64
-      #|    parameter value#2 : I64
+      #|    value value#0 = "value"#0 value : I64;
+      #|    value value#1 = "value"#1 function : (I64) -> I64;
+      #|    value value#2 = "value"#2 parameter : I64;
       #|  }
       #|  letrec {
       #|    value#1 = fn(value#2) -> I64 {

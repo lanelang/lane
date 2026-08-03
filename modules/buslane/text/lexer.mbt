@@ -55,6 +55,20 @@ fn tokens_from_string(
       input[index + 1] == b'>' {
       tokens.push((FAT_ARROW, ()))
       index = index + 2
+    } else if byte == b'-' &&
+      index + 1 < input.length() &&
+      input[index + 1] == b'>' {
+      tokens.push((ARROW, ()))
+      index = index + 2
+    } else if byte == b'!' {
+      tokens.push((BANG, ()))
+      index = index + 1
+    } else if byte == b'.' {
+      tokens.push((DOT, ()))
+      index = index + 1
+    } else if byte == b'#' {
+      tokens.push((HASH, ()))
+      index = index + 1
     } else if byte == b'=' {
       tokens.push((EQUAL, ()))
       index = index + 1
@@ -117,15 +131,6 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "datacon" => DATACON
     "effect" => EFFECT_DECL
     "operation" => OPERATION
-    "name" => NAME
-    "unique" => UNIQUE
-    "parameters" => PARAMETERS
-    "constructors" => CONSTRUCTORS
-    "operations" => OPERATIONS
-    "owner" => OWNER
-    "hidden" => HIDDEN
-    "payload" => PAYLOAD
-    "result" => RESULT
     "function" => FUNCTION_KIND
     "external" => EXTERNAL
     "parameter" => PARAMETER_KIND
@@ -143,42 +148,25 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "String" => STRING_TYPE
     "Byte" => BYTE_TYPE
     "Bytes" => BYTES_TYPE
-    "kind_fn" => KIND_FN
-    "empty_effect" => EMPTY_EFFECT
-    "io_effect" => IO_EFFECT
-    "effect_singleton" => EFFECT_SINGLETON
-    "effect_union" => EFFECT_UNION
-    "apply" => APPLY
-    "type_fn" => TYPE_FN
-    "fn_type" => FN_TYPE
     "forall" => FORALL
+    "in" => IN
+    "as" => AS
+    "final" => FINAL
+    "Io" => IO
+    "_" => UNDERSCORE
     "let" => LET
     "letrec" => LETREC
     "fn" => FN
-    "call" => CALL
     "perform" => PERFORM
     "handle" => HANDLE
     "resume" => RESUME
-    "handler" => HANDLER
-    "op_alt" => OP_ALT
-    "final" => FINAL
-    "type_apply" => TYPE_APPLY
-    "construct" => CONSTRUCT
-    "let_in" => LET_IN
-    "letrec_in" => LETREC_IN
     "match" => MATCH
-    "alt" => ALT
-    "default" => DEFAULT
-    "literal" => LITERAL_ALT
     "true" => TRUE
     "false" => FALSE
-    "i64" => I64_LITERAL
     "i32" => I32_LITERAL
     "char" => CHAR_LITERAL
     "f32" => F32_LITERAL
     "f64" => F64_LITERAL
-    "string" => STRING_LITERAL
-    "unit" => UNIT_LITERAL
     _ => lexer_fail("unknown Buslane text keyword " + name)
   }
 }

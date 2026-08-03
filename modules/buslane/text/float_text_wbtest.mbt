@@ -45,9 +45,9 @@ fn roundtrip_float_literal(
 test "canonical Buslane float text uses fixed-width hexadecimal bits" {
   assert_eq(
     (
-      @prettyprinter.render(literal_doc(F64(42.0)), width=100),
+      @prettyprinter.render(@buslane.Literal::pretty(F64(42.0)), width=100),
       @prettyprinter.render(
-        literal_doc(F32(Float::reinterpret_from_uint(0xFFC00042U))),
+        @buslane.Literal::pretty(F32(Float::reinterpret_from_uint(0xFFC00042U))),
         width=100,
       ),
     ),

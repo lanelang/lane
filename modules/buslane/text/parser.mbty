@@ -26,15 +26,6 @@
 %token DATACON "datacon"
 %token EFFECT_DECL "effect"
 %token OPERATION "operation"
-%token NAME "name"
-%token UNIQUE "unique"
-%token PARAMETERS "parameters"
-%token CONSTRUCTORS "constructors"
-%token OPERATIONS "operations"
-%token OWNER "owner"
-%token HIDDEN "hidden"
-%token PAYLOAD "payload"
-%token RESULT "result"
 %token FUNCTION_KIND "function"
 %token PARAMETER_KIND "parameter"
 %token LOCAL_KIND "local"
@@ -51,43 +42,26 @@
 %token STRING_TYPE "String"
 %token BYTE_TYPE "Byte"
 %token BYTES_TYPE "Bytes"
-%token KIND_FN "kind_fn"
-%token EMPTY_EFFECT "empty_effect"
-%token IO_EFFECT "io_effect"
-%token EFFECT_SINGLETON "effect_singleton"
-%token EFFECT_UNION "effect_union"
-%token APPLY "apply"
-%token TYPE_FN "type_fn"
-%token FN_TYPE "fn_type"
+%token IO "Io"
 %token FORALL "forall"
+%token IN "in"
+%token AS "as"
+%token FINAL "final"
+%token UNDERSCORE "_"
 %token LET "let"
 %token LETREC "letrec"
 %token EXTERNAL "external"
 %token FN "fn"
-%token CALL "call"
 %token PERFORM "perform"
 %token HANDLE "handle"
 %token RESUME "resume"
-%token HANDLER "handler"
-%token OP_ALT "op_alt"
-%token FINAL "final"
-%token TYPE_APPLY "type_apply"
-%token CONSTRUCT "construct"
-%token LET_IN "let_in"
-%token LETREC_IN "letrec_in"
 %token MATCH "match"
-%token ALT "alt"
-%token DEFAULT "default"
-%token LITERAL_ALT "literal"
 %token TRUE "true"
 %token FALSE "false"
-%token I64_LITERAL "i64"
 %token I32_LITERAL "i32"
 %token CHAR_LITERAL "char"
 %token F32_LITERAL "f32"
 %token F64_LITERAL "f64"
-%token STRING_LITERAL "string"
-%token UNIT_LITERAL "unit"
 %token LBRACE "{"
 %token RBRACE "}"
 %token LBRACKET "["
@@ -99,6 +73,10 @@
 %token SEMI ";"
 %token EQUAL "="
 %token FAT_ARROW "=>"
+%token ARROW "->"
+%token BANG "!"
+%token DOT "."
+%token HASH "#"
 
 %%
 
@@ -124,59 +102,62 @@ metadata_declarations -> Array[MetadataDeclaration]
   ;
 
 metadata_declaration -> MetadataDeclaration
-  : "type" type_id buslane_type_name "parameters" type_parameter_id_list "constructors" data_con_id_list ";" {
-    TypeInfoDecl($2, { name: $3, flavor: Data, parameters: $5, constructors: $7 })
+  : external_marker "type" type_id "=" buslane_name type_parameter_ids data_con_ids ";" {
+    TypeInfoDecl($3, {
+      name: parsed_name(TypeName, $5.occurrence, $5.unique),
+      flavor: if $1 { External } else { Data },
+      parameters: $6,
+      constructors: $7,
+    })
   }
-  | "external" "type" type_id buslane_type_name "parameters" type_parameter_id_list "constructors" data_con_id_list ";" { TypeInfoDecl($3, { name: $4, flavor: External, parameters: $6, constructors: $8 }) }
-  | "type_parameter" type_parameter_id buslane_type_parameter_name ":" kind ";" {
-    TypeParameterInfoDecl($2, { name: $3, kind: $5, flavor: Algebraic })
+  | external_marker "type_parameter" type_parameter_id "=" buslane_name ":" kind ";" {
+    TypeParameterInfoDecl($3, {
+      name: parsed_name(TypeParameterName, $5.occurrence, $5.unique),
+      kind: $7,
+      flavor: if $1 { External } else { Algebraic },
+    })
   }
-  | "external" "type_parameter" type_parameter_id buslane_type_parameter_name ":" kind ";" {
-    TypeParameterInfoDecl($3, { name: $4, kind: $6, flavor: External })
+  | "datacon" data_con_id "=" buslane_name type_parameter_ids "(" type_list ")" ":" type_id ";" {
+    DataConInfoDecl($2, {
+      name: parsed_name(DataConstructorName, $4.occurrence, $4.unique),
+      owner: $10,
+      hidden_type_parameters: $5,
+      payload_types: $7,
+    })
   }
-  | "value" value_id buslane_value_name value_kind ":" type ";" {
-    ValueInfoDecl($2, { name: $3, kind: $4, type_: $6 })
+  | "value" value_id "=" buslane_name value_kind ":" type ";" {
+    ValueInfoDecl($2, {
+      name: parsed_name(ValueName, $4.occurrence, $4.unique),
+      kind: $5,
+      type_: $7,
+    })
   }
-  | "datacon" data_con_id buslane_data_constructor_name "owner" type_id "hidden" type_parameter_id_list "payload" type_list ";" {
-    DataConInfoDecl($2, { name: $3, owner: $5, hidden_type_parameters: $7, payload_types: $9 })
+  | external_marker "effect" effect_id "=" buslane_name type_parameter_ids operation_ids ";" {
+    EffectInfoDecl($3, {
+      name: parsed_name(EffectName, $5.occurrence, $5.unique),
+      flavor: if $1 { External } else { Algebraic },
+      parameters: $6,
+      operations: $7,
+    })
   }
-  | "effect" effect_id buslane_effect_name "parameters" type_parameter_id_list "operations" operation_id_list ";" {
-    EffectInfoDecl($2, { name: $3, flavor: Algebraic, parameters: $5, operations: $7 })
-  }
-  | "external" "effect" effect_id buslane_effect_name "parameters" type_parameter_id_list "operations" operation_id_list ";" { EffectInfoDecl($3, { name: $4, flavor: External, parameters: $6, operations: $8 }) }
-  | "operation" operation_id buslane_operation_name "owner" effect_id "hidden" type_parameter_id_list "payload" type_list "result" type ";" {
-    OperationInfoDecl($2, { name: $3, owner: $5, hidden_type_parameters: $7, payload_types: $9, result_type: $11 })
+  | "operation" operation_id "=" buslane_name type_parameter_ids "(" type_list ")" "->" type ":" effect_id ";" {
+    OperationInfoDecl($2, {
+      name: parsed_name(OperationName, $4.occurrence, $4.unique),
+      owner: $12,
+      hidden_type_parameters: $5,
+      payload_types: $7,
+      result_type: $10,
+    })
   }
   ;
 
-buslane_type_name -> BuslaneName
-  : buslane_name { parsed_name(TypeName, $1.occurrence, $1.unique) }
-  ;
-
-buslane_type_parameter_name -> BuslaneName
-  : buslane_name { parsed_name(TypeParameterName, $1.occurrence, $1.unique) }
-  ;
-
-buslane_value_name -> BuslaneName
-  : buslane_name { parsed_name(ValueName, $1.occurrence, $1.unique) }
-  ;
-
-buslane_data_constructor_name -> BuslaneName
-  : buslane_name { parsed_name(DataConstructorName, $1.occurrence, $1.unique) }
-  ;
-
-buslane_effect_name -> BuslaneName
-  : buslane_name { parsed_name(EffectName, $1.occurrence, $1.unique) }
-  ;
-
-buslane_operation_name -> BuslaneName
-  : buslane_name { parsed_name(OperationName, $1.occurrence, $1.unique) }
+external_marker -> Bool
+  : { false }
+  | "external" { true }
   ;
 
 buslane_name -> ParsedBuslaneName
-  : "name" STRING "unique" INT {
-    { occurrence: $2, unique: parse_text_int($4) }
-  }
+  : STRING "#" INT { { occurrence: $1, unique: parse_text_int($3) } }
   ;
 
 top_terms -> Array[TopTerm]
@@ -185,9 +166,9 @@ top_terms -> Array[TopTerm]
   ;
 
 top_term -> TopTerm
-  : "let" value_id "=" expr ";" { Let($2, $4) }
+  : "let" value_id "=" expr { Let($2, $4) }
   | "letrec" "{" recursive_bindings "}" { LetRec($3) }
-  | "external" value_id ";" { External($2) }
+  | "external" value_id { External($2) }
   ;
 
 recursive_bindings -> Array[RecursiveBinding]
@@ -196,53 +177,64 @@ recursive_bindings -> Array[RecursiveBinding]
   ;
 
 recursive_binding -> RecursiveBinding
-  : value_id "=" expr ";" { { id: $1, rhs: $3 } }
+  : value_id "=" expr { { id: $1, rhs: $3 } }
   ;
 
 expr -> Expr
+  : postfix_expr { $1 }
+  | "let" value_id "=" expr "in" expr { Let($2, $4, $6) }
+  | "letrec" "{" recursive_bindings "}" "in" expr { LetRec($3, $6) }
+
+  ;
+
+postfix_expr -> Expr
+  : atom_expr { $1 }
+  | postfix_expr "(" expr_list ")" { Call($1, $3) }
+  | postfix_expr "[" non_empty_generic_arguments "]" { TypeApply($1, $3) }
+  ;
+
+atom_expr -> Expr
   : value_id { Ref($1) }
   | literal { Literal($1) }
-  | "fn" "(" value_id_list "," type ")" "{" expr "}" {
-    Function({ parameters: $3, result_type: $5, body: $8 })
-  }
-  | "call" "(" expr "," expr_list ")" { Call($3, $5) }
-  | "perform" "(" operation_id "," generic_argument_list "," generic_argument_list "," expr_list ")" {
-    Perform({
-      operation: $3,
-      effect_arguments: $5,
-      hidden_witnesses: $7,
-      payloads: $9,
-    })
-  }
-  | "resume" "(" value_id ")" { Resume($3) }
-  | "type_fn" "(" type_parameter_id_list ")" "{" expr "}" {
-    TypeLambda($3, $6)
-  }
-  | "type_apply" "(" expr "," generic_argument_list ")" { TypeApply($3, $5) }
-  | "construct" "(" data_con_id "," generic_argument_list "," generic_argument_list "," expr_list ")" {
+  | data_con_id argument_group "(" expr_list ")" {
     Construct({
-      data_constructor: $3,
-      type_arguments: $5,
-      hidden_witnesses: $7,
-      payloads: $9,
+      data_constructor: $1,
+      type_arguments: $2.0,
+      hidden_witnesses: $2.1,
+      payloads: $4,
     })
   }
-  | "let_in" "(" value_id "," expr "," expr ")" { Let($3, $5, $7) }
-  | "letrec_in" "(" "{" recursive_bindings "}" "," expr ")" {
-    LetRec($4, $7)
+  | "resume" value_id { Resume($2) }
+  | "perform" operation_id argument_group "(" expr_list ")" {
+    Perform({
+      operation: $2,
+      effect_arguments: $3.0,
+      hidden_witnesses: $3.1,
+      payloads: $5,
+    })
   }
-  | "match" "(" expr "," value_id "," type ")" "{" alternatives "}" {
-    Match({ scrutinee: $3, binder: $5, result_type: $7, alternatives: $10 })
+  | "fn" "(" value_id_list ")" "->" type "{" expr "}" {
+    Function({ parameters: $3, result_type: $6, body: $8 })
   }
-  | "handle" "(" expr "," value_id "," type "," expr ")" "{" handler_tables "}" {
+  | "fn" "[" non_empty_type_parameter_ids "]" "{" expr "}" { TypeLambda($3, $6) }
+  | "match" expr "as" value_id "->" type "{" alternatives "}" {
+    Match({ scrutinee: $2, binder: $4, result_type: $6, alternatives: $8 })
+  }
+  | "handle" expr "as" value_id "->" type "{" handler_tables "final" "=>" expr "}" {
     Handle({
-      body: $3,
-      result_binder: $5,
-      result_type: $7,
-      final_body: $9,
-      handlers: $12,
+      body: $2,
+      result_binder: $4,
+      result_type: $6,
+      final_body: $11,
+      handlers: $8,
     })
   }
+  ;
+
+argument_group -> (Array[GenericArgument], Array[GenericArgument])
+  : { ([], []) }
+  | "[" generic_arguments "]" { ($2, []) }
+  | "[" generic_arguments ";" generic_arguments "]" { ($2, $4) }
   ;
 
 handler_tables -> Array[HandlerTable]
@@ -251,8 +243,8 @@ handler_tables -> Array[HandlerTable]
   ;
 
 handler_table -> HandlerTable
-  : "handler" "(" effect ")" "{" operation_alternatives "}" {
-    { handled_effect: $3, operations: $6 }
+  : effect "{" operation_alternatives "}" {
+    { handled_effect: $1, operations: $3 }
   }
   ;
 
@@ -262,13 +254,13 @@ operation_alternatives -> Array[OperationAlternative]
   ;
 
 operation_alternative -> OperationAlternative
-  : "op_alt" "(" operation_id "," type_parameter_id_list "," value_id_list "," value_id ")" "=>" expr ";" {
+  : operation_id type_parameter_ids "(" value_id_list ")" "resume" value_id "=>" expr {
     {
-      operation: $3,
-      type_binders: $5,
-      payload_binders: $7,
-      resume_binder: $9,
-      body: $12,
+      operation: $1,
+      type_binders: $2,
+      payload_binders: $4,
+      resume_binder: $7,
+      body: $9,
     }
   }
   ;
@@ -279,52 +271,80 @@ alternatives -> Array[Alternative]
   ;
 
 alternative -> Alternative
-  : "alt" "(" alt_con "," type_parameter_id_list "," value_id_list ")" "=>" expr ";" {
-    { alt_constructor: $3, type_binders: $5, value_binders: $7, body: $10 }
+  : "_" "=>" expr {
+    { alt_constructor: Default, type_binders: [], value_binders: [], body: $3 }
+  }
+  | literal "=>" expr {
+    {
+      alt_constructor: Literal($1),
+      type_binders: [],
+      value_binders: [],
+      body: $3,
+    }
+  }
+  | data_con_id type_parameter_ids "(" value_id_list ")" "=>" expr {
+    {
+      alt_constructor: DataCon($1),
+      type_binders: $2,
+      value_binders: $4,
+      body: $7,
+    }
   }
   ;
 
-alt_con -> AltCon
-  : "default" { Default }
-  | "literal" "(" literal ")" { Literal($3) }
-  | "datacon" "(" data_con_id ")" { DataCon($3) }
-  ;
-
 literal -> Literal
-  : "unit" "(" ")" { Unit }
+  : "(" ")" { Unit }
   | TRUE { Bool(true) }
   | FALSE { Bool(false) }
-  | "i64" "(" INT ")" { validated_literal(parse_i64_literal($3)) }
+  | INT { validated_literal(parse_i64_literal($1)) }
   | "i32" "(" INT ")" { validated_literal(parse_i32_literal($3)) }
   | "char" "(" INT ")" { validated_literal(parse_char_literal($3)) }
   | "f32" "(" FLOAT_BITS ")" { validated_literal(parse_f32_bits($3)) }
   | "f64" "(" FLOAT_BITS ")" { validated_literal(parse_f64_bits($3)) }
-  | "string" "(" STRING ")" { String($3) }
+  | STRING { String($1) }
   ;
 
 kind -> Kind
   : "Type" { Type }
   | "Effect" { Effect }
-  | "kind_fn" "(" kind_list "," kind ")" { Function($3, $5) }
+  | "[" kind_list "]" "->" kind { Function($2, $5) }
   ;
 
 type -> Type
+  : arrow_type { $1 }
+  | "forall" "[" non_empty_type_parameter_ids "]" "." type { Forall($3, $6) }
+  | "type" "[" non_empty_type_parameter_ids "]" "=>" type { TypeLambda($3, $6) }
+  ;
+
+arrow_type -> Type
+  : applied_type { $1 }
+  | paren_types "->" applied_type { Function($1, $3, Empty) }
+  | paren_types "->" applied_type "!" effect { Function($1, $3, $5) }
+  ;
+
+paren_types -> Array[Type]
+  : "(" type_list ")" { $2 }
+  ;
+
+applied_type -> Type
+  : atom_type { $1 }
+  | applied_type "[" non_empty_generic_arguments "]" { Apply($1, $3) }
+  ;
+
+atom_type -> Type
   : primitive_type { Primitive($1) }
   | type_parameter_id { Parameter($1) }
   | type_id { Constructor($1) }
-  | "apply" "(" type "," generic_argument_list ")" { Apply($3, $5) }
-  | "type_fn" "(" type_parameter_id_list "," type ")" { TypeLambda($3, $5) }
-  | "fn_type" "(" type_list "," type ")" { Function($3, $5, Empty) }
-  | "fn_type" "(" type_list "," type "," effect ")" { Function($3, $5, $7) }
-  | "forall" "(" type_parameter_id_list "," type ")" { Forall($3, $5) }
+  | paren_types { parenthesized_type($1) }
   ;
 
 effect -> Effect
-  : "empty_effect" "(" ")" { Empty }
-  | "io_effect" "(" ")" { Io }
+  : "{" "}" { Empty }
+  | "Io" { Io }
   | type_parameter_id { Parameter($1) }
-  | "effect_singleton" "(" effect_id "," generic_argument_list ")" { Singleton($3, $5) }
-  | "effect_union" "(" effect_list ")" { Union($3) }
+  | effect_id { Singleton($1, []) }
+  | effect_id "[" non_empty_generic_arguments "]" { Singleton($1, $3) }
+  | "{" non_empty_effect_list "}" { Union($2) }
   ;
 
 primitive_type -> PrimitiveType
@@ -349,9 +369,24 @@ value_kind -> ValueKind
   | "match_binder" { MatchBinder }
   ;
 
+generic_argument -> GenericArgument
+  : type { TypeArgument($1) }
+  | "!" effect { EffectArgument($2) }
+  ;
+
+generic_arguments -> Array[GenericArgument]
+  : { [] }
+  | non_empty_generic_arguments { $1 }
+  ;
+
+non_empty_generic_arguments -> Array[GenericArgument]
+  : generic_argument { [ $1 ] }
+  | non_empty_generic_arguments "," generic_argument { comma_push($1, $3) }
+  ;
+
 kind_list -> Array[Kind]
-  : "[" "]" { [] }
-  | "[" non_empty_kind_list "]" { $2 }
+  : { [] }
+  | non_empty_kind_list { $1 }
   ;
 
 non_empty_kind_list -> Array[Kind]
@@ -360,33 +395,13 @@ non_empty_kind_list -> Array[Kind]
   ;
 
 type_list -> Array[Type]
-  : "[" "]" { [] }
-  | "[" non_empty_type_list "]" { $2 }
+  : { [] }
+  | non_empty_type_list { $1 }
   ;
 
 non_empty_type_list -> Array[Type]
   : type { [ $1 ] }
   | non_empty_type_list "," type { comma_push($1, $3) }
-  ;
-
-generic_argument -> GenericArgument
-  : "type" "(" type ")" { TypeArgument($3) }
-  | "effect" "(" effect ")" { EffectArgument($3) }
-  ;
-
-generic_argument_list -> Array[GenericArgument]
-  : "[" "]" { [] }
-  | "[" non_empty_generic_argument_list "]" { $2 }
-  ;
-
-non_empty_generic_argument_list -> Array[GenericArgument]
-  : generic_argument { [ $1 ] }
-  | non_empty_generic_argument_list "," generic_argument { comma_push($1, $3) }
-  ;
-
-effect_list -> Array[Effect]
-  : "[" "]" { [] }
-  | "[" non_empty_effect_list "]" { $2 }
   ;
 
 non_empty_effect_list -> Array[Effect]
@@ -395,8 +410,8 @@ non_empty_effect_list -> Array[Effect]
   ;
 
 expr_list -> Array[Expr]
-  : "[" "]" { [] }
-  | "[" non_empty_expr_list "]" { $2 }
+  : { [] }
+  | non_empty_expr_list { $1 }
   ;
 
 non_empty_expr_list -> Array[Expr]
@@ -404,19 +419,19 @@ non_empty_expr_list -> Array[Expr]
   | non_empty_expr_list "," expr { comma_push($1, $3) }
   ;
 
-type_parameter_id_list -> Array[TypeParameterId]
-  : "[" "]" { [] }
-  | "[" non_empty_type_parameter_id_list "]" { $2 }
+type_parameter_ids -> Array[TypeParameterId]
+  : { [] }
+  | "[" non_empty_type_parameter_ids "]" { $2 }
   ;
 
-non_empty_type_parameter_id_list -> Array[TypeParameterId]
+non_empty_type_parameter_ids -> Array[TypeParameterId]
   : type_parameter_id { [ $1 ] }
-  | non_empty_type_parameter_id_list "," type_parameter_id { comma_push($1, $3) }
+  | non_empty_type_parameter_ids "," type_parameter_id { comma_push($1, $3) }
   ;
 
 value_id_list -> Array[ValueId]
-  : "[" "]" { [] }
-  | "[" non_empty_value_id_list "]" { $2 }
+  : { [] }
+  | non_empty_value_id_list { $1 }
   ;
 
 non_empty_value_id_list -> Array[ValueId]
@@ -424,24 +439,24 @@ non_empty_value_id_list -> Array[ValueId]
   | non_empty_value_id_list "," value_id { comma_push($1, $3) }
   ;
 
-data_con_id_list -> Array[DataConId]
-  : "[" "]" { [] }
-  | "[" non_empty_data_con_id_list "]" { $2 }
+data_con_ids -> Array[DataConId]
+  : "{" "}" { [] }
+  | "{" non_empty_data_con_ids "}" { $2 }
   ;
 
-non_empty_data_con_id_list -> Array[DataConId]
+non_empty_data_con_ids -> Array[DataConId]
   : data_con_id { [ $1 ] }
-  | non_empty_data_con_id_list "," data_con_id { comma_push($1, $3) }
+  | non_empty_data_con_ids "," data_con_id { comma_push($1, $3) }
   ;
 
-operation_id_list -> Array[OperationId]
-  : "[" "]" { [] }
-  | "[" non_empty_operation_id_list "]" { $2 }
+operation_ids -> Array[OperationId]
+  : "{" "}" { [] }
+  | "{" non_empty_operation_ids "}" { $2 }
   ;
 
-non_empty_operation_id_list -> Array[OperationId]
+non_empty_operation_ids -> Array[OperationId]
   : operation_id { [ $1 ] }
-  | non_empty_operation_id_list "," operation_id { comma_push($1, $3) }
+  | non_empty_operation_ids "," operation_id { comma_push($1, $3) }
   ;
 
 type_id -> TypeId

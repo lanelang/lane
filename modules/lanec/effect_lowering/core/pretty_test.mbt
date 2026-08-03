@@ -65,15 +65,14 @@ test "effect lowering pretty prints handler elaboration" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    type_parameter A#0 : Type
-      #|    type_parameter B#2 : Type
-      #|    value result#4 : I64
-      #|    parameter payload#5 : I64
-      #|    parameter resume#6 : (I64) -> I64
-      #|    parameter final_value#7 : I64
-      #|    effect Console#1[tparam#0] {
-      #|      read#3[tparam#1](tparam#1) -> tparam#1
-      #|    }
+      #|    type_parameter tparam#0 = "A"#0 : Type;
+      #|    type_parameter tparam#1 = "B"#2 : Type;
+      #|    value value#0 = "result"#4 value : I64;
+      #|    value value#1 = "payload"#5 parameter : I64;
+      #|    value value#2 = "resume"#6 parameter : (I64) -> I64;
+      #|    value value#3 = "final_value"#7 parameter : I64;
+      #|    effect effect#0 = "Console"#1[tparam#0] {operation#0};
+      #|    operation operation#0 = "read"#3[tparam#1](tparam#1) -> tparam#1 : effect#0;
       #|  }
       #|  let value#0 = install invoke operation#0[I64; I64](40) -> I64 {
       #|    effect#0[I64] {
@@ -134,11 +133,11 @@ test "effect lowering pretty prints monadic context adaptation" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    type_parameter E#0 : Effect
-      #|    value callee#2 : () -> I64 ! tparam#0
-      #|    value result#3 : I64
-      #|    parameter %bind#4 : I64
-      #|    effect Handled#1 {}
+      #|    type_parameter tparam#0 = "E"#0 : Effect;
+      #|    value value#0 = "callee"#2 value : () -> I64 ! tparam#0;
+      #|    value value#1 = "result"#3 value : I64;
+      #|    value value#2 = "%bind"#4 parameter : I64;
+      #|    effect effect#0 = "Handled"#1 {};
       #|  }
       #|  external value#0
       #|  let value#1 = bind value#2 <- open_context tparam#0 => {tparam#0, effect#0} {

@@ -44,10 +44,13 @@ pub impl @prettyprinter.Pretty for OperationId with fn pretty(id : OperationId) 
 }
 
 ///|
+/// An occurrence is quoted because it is arbitrary text — generated binders
+/// use characters no identifier syntax admits — and the unique follows it, so
+/// the pair is one lexable token sequence rather than a bare word.
 pub impl @prettyprinter.Pretty for BuslaneName with fn pretty(
   name : BuslaneName,
 ) {
-  text("\{name.occurrence}#\{name.unique.value}")
+  quoted(name.occurrence) + text("#\{name.unique.value}")
 }
 
 ///|
@@ -122,27 +125,49 @@ pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
 }
 
 ///|
+/// An argument is a type unless prefixed with `!`, which marks an effect. A
+/// bare type parameter is the one spelling that could mean either, so the
+/// marker goes on the effect side rather than on both.
 pub impl @prettyprinter.Pretty for GenericArgument with fn pretty(
   argument : GenericArgument,
 ) {
   match argument {
     TypeArgument(type_) => type_.pretty()
-    EffectArgument(effect) => effect.pretty()
+    EffectArgument(effect) => text("!") + effect.pretty()
   }
 }
 
 ///|
+/// A literal carries its type wherever the spelling would otherwise be
+/// ambiguous: a bare integer is `I64`, and the rest name themselves. Floats
+/// use their exact bit pattern so one spelling round-trips every value,
+/// including signed zero, infinities, and NaN payloads.
 pub impl @prettyprinter.Pretty for Literal with fn pretty(literal : Literal) {
   match literal {
     Unit => text("()")
     Bool(value) => text(value.to_string())
     I64(value) => text(value.to_string())
-    I32(value) => text(value.to_string())
-    Char(value) => text(value.to_string())
-    F64(value) => text(value.to_string())
-    F32(value) => text(value.to_string())
+    I32(value) => call_doc("i32", [text(value.to_string())])
+    Char(value) => call_doc("char", [text(value.to_string())])
+    F64(value) => call_doc("f64", [text(f64_bits_text(value))])
+    F32(value) => call_doc("f32", [text(f32_bits_text(value))])
     String(value) => quoted(value)
   }
+}
+
+///|
+fn call_doc(name : String, arguments : Array[Document]) -> Document {
+  text(name) + parenthesized_inline(arguments)
+}
+
+///|
+fn f64_bits_text(value : Double) -> String {
+  "0x" + value.reinterpret_as_uint64().to_string(radix=16).pad_start(16, '0')
+}
+
+///|
+fn f32_bits_text(value : Float) -> String {
+  "0x" + value.reinterpret_as_uint().to_string(radix=16).pad_start(8, '0')
 }
 
 ///|
@@ -159,11 +184,8 @@ pub impl @prettyprinter.Pretty for ValueKind with fn pretty(kind : ValueKind) {
 
 ///|
 pub impl @prettyprinter.Pretty for TypeInfo with fn pretty(info : TypeInfo) {
-  (if info.flavor is External {
-    text("external") + space + text("type")
-  } else {
-    text("type")
-  }) +
+  external_prefix(info.flavor is External) +
+  text("type") +
   space +
   info.name.pretty() +
   type_parameters_doc(info.parameters) +
@@ -175,7 +197,7 @@ pub impl @prettyprinter.Pretty for TypeInfo with fn pretty(info : TypeInfo) {
 pub impl @prettyprinter.Pretty for TypeParameterInfo with fn pretty(
   info : TypeParameterInfo,
 ) {
-  type_parameter_flavor_prefix(info) +
+  external_prefix(info.flavor is External) +
   text("type_parameter") +
   space +
   info.name.pretty() +
@@ -213,11 +235,8 @@ pub impl @prettyprinter.Pretty for DataConInfo with fn pretty(
 
 ///|
 pub impl @prettyprinter.Pretty for EffectInfo with fn pretty(info : EffectInfo) {
-  (if info.flavor is External {
-    text("external") + space + text("effect")
-  } else {
-    text("effect")
-  }) +
+  external_prefix(info.flavor is External) +
+  text("effect") +
   space +
   info.name.pretty() +
   type_parameters_doc(info.parameters) +
@@ -616,16 +635,24 @@ fn generic_arguments_doc(arguments : Array[GenericArgument]) -> Document {
 }
 
 ///|
+/// A function-typed result is parenthesized so a latent effect always attaches
+/// to exactly one arrow: `(A) -> (B) -> C ! E` would otherwise not say which
+/// arrow performs `E`.
 fn function_type_doc(
   parameters : Array[Type],
   result : Type,
   effect : Effect,
 ) -> Document {
+  let result_doc = if result is Function(_, _, _) {
+    surround(char('('), char(')'), result.pretty())
+  } else {
+    result.pretty()
+  }
   let base = parenthesized_inline(parameters.map(Type::pretty)) +
     space +
     text("->") +
     space +
-    result.pretty()
+    result_doc
   match effect {
     Empty => base
     _ => base + space + text("!") + space + effect.pretty()
@@ -663,124 +690,134 @@ fn type_and_witness_arguments_doc(
 }
 
 ///|
+/// Every metadata entity is declared once, flat and identity-complete: its id,
+/// its `name#unique`, and its shape. Nesting a data constructor inside its
+/// owner would read better but cannot round-trip, since an entity may legally
+/// exist without its owner listing it.
 fn metadata_declarations(metadata : MetadataRegistry) -> Array[Document] {
   let declarations : Array[Document] = []
-  for index in 0..<metadata.types.length() {
-    declarations.push(
-      type_declaration(metadata, { index, }, metadata.types[index]),
-    )
+  for index, info in metadata.types {
+    declarations.push(type_declaration({ index, }, info))
   }
-  for index in 0..<metadata.type_parameters.length() {
-    declarations.push(
-      type_parameter_declaration({ index, }, metadata.type_parameters[index]),
-    )
+  for index, info in metadata.type_parameters {
+    declarations.push(type_parameter_declaration({ index, }, info))
   }
-  for index in 0..<metadata.values.length() {
-    declarations.push(value_declaration({ index, }, metadata.values[index]))
+  for index, info in metadata.data_constructors {
+    declarations.push(data_constructor_declaration({ index, }, info))
   }
-  for index in 0..<metadata.effects.length() {
-    declarations.push(
-      effect_declaration(metadata, { index, }, metadata.effects[index]),
-    )
+  for index, info in metadata.values {
+    declarations.push(value_declaration({ index, }, info))
+  }
+  for index, info in metadata.effects {
+    declarations.push(effect_declaration({ index, }, info))
+  }
+  for index, info in metadata.operations {
+    declarations.push(operation_declaration({ index, }, info))
   }
   declarations
 }
 
 ///|
-fn type_declaration(
-  metadata : MetadataRegistry,
-  _id : TypeId,
-  info : TypeInfo,
+fn declaration_head(
+  keyword : String,
+  flavor_prefix : Document,
+  id : Document,
+  name : BuslaneName,
 ) -> Document {
-  (if info.flavor is External {
-    text("external") + space + text("type")
-  } else {
-    text("type")
-  }) +
+  flavor_prefix +
+  text(keyword) +
   space +
-  info.name.pretty() +
+  id +
+  space +
+  text("=") +
+  space +
+  name.pretty()
+}
+
+///|
+fn type_declaration(id : TypeId, info : TypeInfo) -> Document {
+  declaration_head(
+    "type",
+    external_prefix(info.flavor is External),
+    id.pretty(),
+    info.name,
+  ) +
   type_parameters_doc(info.parameters) +
   space +
-  braced_block(
-    info.constructors.map(fn(data_constructor) {
-      match metadata.data_constructor_info(data_constructor) {
-        Some(info) => data_constructor_declaration(data_constructor, info)
-        None => data_constructor.pretty()
-      }
-    }),
-  )
+  braced_inline(info.constructors.map(DataConId::pretty)) +
+  text(";")
 }
 
 ///|
 fn type_parameter_declaration(
-  _id : TypeParameterId,
+  id : TypeParameterId,
   info : TypeParameterInfo,
 ) -> Document {
-  type_parameter_flavor_prefix(info) +
-  text("type_parameter") +
-  space +
-  info.name.pretty() +
+  declaration_head(
+    "type_parameter",
+    external_prefix(info.flavor is External),
+    id.pretty(),
+    info.name,
+  ) +
   space +
   text(":") +
   space +
-  info.kind.pretty()
+  info.kind.pretty() +
+  text(";")
 }
 
 ///|
-fn value_declaration(_id : ValueId, info : ValueInfo) -> Document {
+fn value_declaration(id : ValueId, info : ValueInfo) -> Document {
+  declaration_head("value", empty, id.pretty(), info.name) +
+  space +
   info.kind.pretty() +
   space +
-  info.name.pretty() +
+  text(":") +
+  space +
+  info.type_.pretty() +
+  text(";")
+}
+
+///|
+fn data_constructor_declaration(id : DataConId, info : DataConInfo) -> Document {
+  declaration_head("datacon", empty, id.pretty(), info.name) +
+  type_parameters_doc(info.hidden_type_parameters) +
+  parenthesized_inline(info.payload_types.map(Type::pretty)) +
   space +
   text(":") +
   space +
-  info.type_.pretty()
+  info.owner.pretty() +
+  text(";")
 }
 
 ///|
-fn data_constructor_declaration(
-  _id : DataConId,
-  info : DataConInfo,
-) -> Document {
-  info.name.pretty() +
-  type_parameters_doc(info.hidden_type_parameters) +
-  parenthesized_inline(info.payload_types.map(Type::pretty))
-}
-
-///|
-fn effect_declaration(
-  metadata : MetadataRegistry,
-  _id : EffectId,
-  info : EffectInfo,
-) -> Document {
-  (if info.flavor is External {
-    text("external") + space + text("effect")
-  } else {
-    text("effect")
-  }) +
-  space +
-  info.name.pretty() +
+fn effect_declaration(id : EffectId, info : EffectInfo) -> Document {
+  declaration_head(
+    "effect",
+    external_prefix(info.flavor is External),
+    id.pretty(),
+    info.name,
+  ) +
   type_parameters_doc(info.parameters) +
   space +
-  braced_block(
-    info.operations.map(fn(operation) {
-      match metadata.operation_info(operation) {
-        Some(info) => operation_declaration(operation, info)
-        None => operation.pretty()
-      }
-    }),
-  )
+  braced_inline(info.operations.map(OperationId::pretty)) +
+  text(";")
 }
 
 ///|
-fn operation_declaration(_id : OperationId, info : OperationInfo) -> Document {
-  info.name.pretty() +
+fn operation_declaration(id : OperationId, info : OperationInfo) -> Document {
+  declaration_head("operation", empty, id.pretty(), info.name) +
   type_parameters_doc(info.hidden_type_parameters) +
   parenthesized_inline(info.payload_types.map(Type::pretty)) +
   space +
   text("->") +
   space +
-  info.result_type.pretty()
+  info.result_type.pretty() +
+  space +
+  text(":") +
+  space +
+  info.owner.pretty() +
+  text(";")
 }
 
 ///|
@@ -830,9 +867,12 @@ fn quoted(value : String) -> Document {
 }
 
 ///|
-fn type_parameter_flavor_prefix(info : TypeParameterInfo) -> Document {
-  match info.flavor {
-    Algebraic => empty
-    External => text("external") + space
+/// The one place the `external` keyword is spelled. Type and effect flavors
+/// are separate enums, so callers pass the predicate rather than the value.
+fn external_prefix(is_external : Bool) -> Document {
+  if is_external {
+    text("external") + space
+  } else {
+    empty
   }
 }

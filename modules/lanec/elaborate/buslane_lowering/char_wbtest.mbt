@@ -16,14 +16,14 @@ test "lower Unicode character literals and patterns to Buslane" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      function classify#0 : (Char) -> I64
-      #|      parameter value#1 : Char
-      #|      match_binder scrutinee#2 : Char
+      #|      value value#0 = "classify"#0 function : (Char) -> I64;
+      #|      value value#1 = "value"#1 parameter : Char;
+      #|      value value#2 = "scrutinee"#2 match_binder : Char;
       #|    }
       #|    letrec {
       #|      value#0 = fn(value#1) -> I64 {
       #|        match value#1 as value#2 -> I64 {
-      #|          20320 => 1
+      #|          char(20320) => 1
       #|          _ => 0
       #|        }
       #|      }

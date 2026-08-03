@@ -644,9 +644,9 @@ test "elaborate resolved source into buslane core" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      function identity#0 : (I64) -> I64
-      #|      value answer#1 : I64
-      #|      parameter x#2 : I64
+      #|      value value#0 = "identity"#0 function : (I64) -> I64;
+      #|      value value#1 = "answer"#1 value : I64;
+      #|      value value#2 = "x"#2 parameter : I64;
       #|    }
       #|    letrec {
       #|      value#0 = fn(value#2) -> I64 {
@@ -813,12 +813,11 @@ test "elaborate lowers effect metadata into buslane metadata" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      type_parameter S#0 : Type
-      #|      value answer#4 : I64
-      #|      effect State#1[tparam#0] {
-      #|        get#2() -> tparam#0
-      #|        put#3(tparam#0) -> Unit
-      #|      }
+      #|      type_parameter tparam#0 = "S"#0 : Type;
+      #|      value value#0 = "answer"#4 value : I64;
+      #|      effect effect#0 = "State"#1[tparam#0] {operation#0, operation#1};
+      #|      operation operation#0 = "get"#2() -> tparam#0 : effect#0;
+      #|      operation operation#1 = "put"#3(tparam#0) -> Unit : effect#0;
       #|    }
       #|    let value#0 = 1
       #|  }
@@ -858,14 +857,13 @@ test "elaborate lowers latent effects into buslane function types" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      type_parameter E#3 : Effect
-      #|      function run_console#2 : (() -> I64 ! effect#0) -> I64 ! effect#0
-      #|      function run_row#4 : forall [tparam#0]. (() -> Unit ! tparam#0) -> Unit ! tparam#0
-      #|      parameter f#5 : () -> I64 ! effect#0
-      #|      parameter f#6 : () -> Unit ! tparam#0
-      #|      effect Console#0 {
-      #|        read#1() -> I64
-      #|      }
+      #|      type_parameter tparam#0 = "E"#3 : Effect;
+      #|      value value#0 = "run_console"#2 function : (() -> I64 ! effect#0) -> I64 ! effect#0;
+      #|      value value#1 = "run_row"#4 function : forall [tparam#0]. (() -> Unit ! tparam#0) -> Unit ! tparam#0;
+      #|      value value#2 = "f"#5 parameter : () -> I64 ! effect#0;
+      #|      value value#3 = "f"#6 parameter : () -> Unit ! tparam#0;
+      #|      effect effect#0 = "Console"#0 {operation#0};
+      #|      operation operation#0 = "read"#1() -> I64 : effect#0;
       #|    }
       #|    letrec {
       #|      value#0 = fn(value#2) -> I64 {
@@ -917,15 +915,13 @@ test "elaborate lowers operation calls into buslane perform" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      type_parameter S#1 : Type
-      #|      function write_hello#5 : () -> Unit ! effect#0
-      #|      function read_int#6 : () -> I64 ! effect#1[I64]
-      #|      effect Console#0 {
-      #|        write#3(String) -> Unit
-      #|      }
-      #|      effect State#2[tparam#0] {
-      #|        get#4() -> tparam#0
-      #|      }
+      #|      type_parameter tparam#0 = "S"#1 : Type;
+      #|      value value#0 = "write_hello"#5 function : () -> Unit ! effect#0;
+      #|      value value#1 = "read_int"#6 function : () -> I64 ! effect#1[I64];
+      #|      effect effect#0 = "Console"#0 {operation#0};
+      #|      effect effect#1 = "State"#2[tparam#0] {operation#1};
+      #|      operation operation#0 = "write"#3(String) -> Unit : effect#0;
+      #|      operation operation#1 = "get"#4() -> tparam#0 : effect#1;
       #|    }
       #|    letrec {
       #|      value#0 = fn() -> Unit {
@@ -974,13 +970,12 @@ test "elaborate lowers handlers into buslane handler tables" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
-      #|      function program#2 : () -> I64
-      #|      match_binder value#3 : I64
-      #|      parameter payload#4 : Bool
-      #|      parameter resume#5 : (I64) -> I64
-      #|      effect Console#0 {
-      #|        choose#1(Bool) -> I64
-      #|      }
+      #|      value value#0 = "program"#2 function : () -> I64;
+      #|      value value#1 = "value"#3 match_binder : I64;
+      #|      value value#2 = "payload"#4 parameter : Bool;
+      #|      value value#3 = "resume"#5 parameter : (I64) -> I64;
+      #|      effect effect#0 = "Console"#0 {operation#0};
+      #|      operation operation#0 = "choose"#1(Bool) -> I64 : effect#0;
       #|    }
       #|    letrec {
       #|      value#0 = fn() -> I64 {
@@ -1224,10 +1219,10 @@ test "elaborate sequential unit expressions in source order" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    function mark#0 : (I64) -> Unit
-      #|    function run#1 : () -> Unit
-      #|    parameter value#2 : I64
-      #|    local sequence#3 : Unit
+      #|    value value#0 = "mark"#0 function : (I64) -> Unit;
+      #|    value value#1 = "run"#1 function : () -> Unit;
+      #|    value value#2 = "value"#2 parameter : I64;
+      #|    value value#3 = "sequence"#3 local : Unit;
       #|  }
       #|  letrec {
       #|    value#0 = fn(value#2) -> Unit {

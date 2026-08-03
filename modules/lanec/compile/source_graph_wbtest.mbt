@@ -601,8 +601,8 @@ test "link modules produces Buslane program from reachable module objects" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    value value#0 : I64
-      #|    value answer#1 : I64
+      #|    value value#0 = "value"#0 value : I64;
+      #|    value value#1 = "answer"#1 value : I64;
       #|  }
       #|  let value#0 = 42
       #|  let value#1 = value#0

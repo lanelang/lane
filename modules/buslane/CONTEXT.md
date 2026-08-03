@@ -189,8 +189,12 @@ _Avoid_: artifact text parser, compiler artifact writer, inspect renderer
   pretty printing.
 - Buslane text is a readable canonical core-language representation; it may use
   compact syntax, but must preserve Buslane-specific semantic distinctions.
-- Buslane display output and canonical text should share one core-language syntax
-  strategy rather than defining separate expression languages.
+- Buslane display output and canonical text are one language, not two syntax
+  strategies: the `Pretty` implementations own every construct's spelling and
+  the canonical writer renders through them, so what a diagnostic prints is
+  what the parser accepts. Declarations are flat and identity-complete for
+  that reason — an entity may legally exist without its owner listing it, and
+  nesting it inside its owner would not round-trip.
 - Buslane text should follow the GHC Core style: readable names for core
   references, internal identities for disambiguation and semantics.
 - A **Buslane Name** improves readability and text-level references, while a

@@ -17,7 +17,7 @@ It is used by the Lane compiler, but the module does not depend on Lane syntax, 
 - Explicit functions, type abstraction and application, nominal construction, matching, algebraic operations, handlers, and resumptions
 - Built-in `Io` effect plus user-defined parameterized effects
 - Pure verifier for metadata, scope, kind, type, effect, arity, and match invariants
-- Pretty-printing for diagnostics and snapshots
+- One text language for diagnostics, snapshots, and round-trip
 - Round-trippable canonical text representation
 - Versioned structured binary codec
 - Reference interpreter with external-value and runtime-operation integration
@@ -67,7 +67,7 @@ test "build and verify a Buslane program" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    function main#0 : () -> I64
+      #|    value value#0 = "main"#0 function : () -> I64;
       #|  }
       #|  let value#0 = fn() -> I64 {
       #|    42
@@ -364,7 +364,7 @@ A producer is responsible for preserving these boundaries:
 3. Expand transparent source aliases and lower source-only constructs before the Buslane boundary.
 4. Preserve polymorphism, nominal hidden witnesses, latent effects, handlers, and resumptions explicitly.
 5. Run `verify_program` before publishing a Buslane artifact or beginning executable lowering.
-6. Treat pretty output as diagnostic text, canonical text as the readable round-trip format, and the binary codec as the persistence format.
+6. Pretty output and canonical text are one language: what a diagnostic prints is what `parse_program_text` accepts, so a rendered program can be pasted into a fixture. The binary codec remains the persistence format.
 
 Buslane deliberately does not own source modules, import resolution, compiler symbol tables, source spans, artifact linking policy, ANF scheduling, ownership analysis, bytecode, or backend execution images.
 

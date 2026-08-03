@@ -71,9 +71,9 @@ test "executable pretty output emphasizes execution structure" {
       #|  program {
       #|    buslane {
       #|      metadata {
-      #|        external println#0 : (String) -> Unit
-      #|        local initialized#1 : I64
-      #|        function main#2 : () -> Unit
+      #|        value value#0 = "println"#0 external : (String) -> Unit;
+      #|        value value#1 = "initialized"#1 local : I64;
+      #|        value value#2 = "main"#2 function : () -> Unit;
       #|      }
       #|      external value#0
       #|      let value#1 = 42

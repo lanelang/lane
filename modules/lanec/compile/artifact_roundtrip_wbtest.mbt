@@ -335,10 +335,10 @@ test "built-in Io roundtrips through typed artifacts" {
       #|buslane:
       #|  buslane {
       #|    metadata {
-      #|      value println#0 : (String) -> Unit ! Io
-      #|      function run#1 : (() -> Unit ! Io) -> Unit ! Io
-      #|      parameter action#2 : () -> Unit ! Io
-      #|      external println#3 : (String) -> Unit ! Io
+      #|      value value#0 = "println"#0 value : (String) -> Unit ! Io;
+      #|      value value#1 = "run"#1 function : (() -> Unit ! Io) -> Unit ! Io;
+      #|      value value#2 = "action"#2 parameter : () -> Unit ! Io;
+      #|      value value#3 = "println"#3 external : (String) -> Unit ! Io;
       #|    }
       #|    external value#3
       #|    letrec {
@@ -863,7 +863,7 @@ test "module artifact binary inspect renders human readable summaries" {
       #|buslane:
       #|  buslane {
       #|    metadata {
-      #|      value answer#0 : I64
+      #|      value value#0 = "answer"#0 value : I64;
       #|    }
       #|    let value#0 = 42
       #|  }
@@ -1093,8 +1093,8 @@ test "link module artifacts orders reachable modules by imports" {
     content=(
       #|buslane {
       #|  metadata {
-      #|    value value#0 : I64
-      #|    value answer#1 : I64
+      #|    value value#0 = "value"#0 value : I64;
+      #|    value value#1 = "answer"#1 value : I64;
       #|  }
       #|  let value#0 = 42
       #|  let value#1 = value#0
