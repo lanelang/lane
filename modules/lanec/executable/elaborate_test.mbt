@@ -269,7 +269,14 @@ test "whole-program elaboration rejects unverified effect specialization before 
       #|Err(
       #|  UnverifiedProgram(
       #|    stage="effect specialization",
-      #|    result={ diagnostics: [{ kind: InvalidCharLiteral(-1) }] },
+      #|    result={
+      #|      diagnostics: [
+      #|        {
+      #|          kind: InvalidCharLiteral(-1),
+      #|          provenance: [TopTerm({ index: 0 }), Expression(Literal)],
+      #|        },
+      #|      ],
+      #|    },
       #|  ),
       #|)
     ),

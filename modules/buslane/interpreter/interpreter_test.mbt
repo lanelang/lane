@@ -598,7 +598,7 @@ test "evaluation rejects invalid program" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  }
+      #|  } at term value#0
       #|}
     ),
   )
@@ -617,7 +617,7 @@ test "evaluation rejects invalid program" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  }
+      #|  } at term value#0
       #|}
     ),
   )

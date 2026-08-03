@@ -1,7 +1,72 @@
 ///|
+/// A diagnostic and the path the verifier was on when it found it.
+///
+/// Buslane has no source spans, so provenance is the structural path instead:
+/// outermost first, from the declaration or metadata entity under check down
+/// to the expression form that reported. Without it a report names an id and
+/// leaves the reader to search the program for whatever produced it.
 pub(all) struct VerifyDiagnostic {
   kind : VerifyDiagnosticKind
+  provenance : Array[VerifyFrame]
 } derive(Debug, Eq)
+
+///|
+/// One step of a diagnostic's path, mirroring the verifier's own phases.
+pub(all) enum VerifyFrame {
+  Metadata(MetadataAnchor)
+  TopTerm(ValueId)
+  Expression(ExprLabel)
+} derive(Debug, Eq)
+
+///|
+/// The metadata entity whose declaration is being verified.
+pub(all) enum MetadataAnchor {
+  Type(TypeId)
+  DataConstructor(DataConId)
+  Effect(EffectId)
+  Operation(OperationId)
+  Value(ValueId)
+} derive(Debug, Eq)
+
+///|
+/// An expression's form, with the identity it names when it names one.
+///
+/// This is a total function of `Expr`, so a new expression form is a
+/// compile error here rather than a silently unlabelled path step.
+pub(all) enum ExprLabel {
+  Ref(ValueId)
+  Literal
+  Function
+  Call
+  TypeLambda
+  TypeApply
+  Construct(DataConId)
+  Let(ValueId)
+  LetRec
+  Match
+  Perform(OperationId)
+  Handle
+  Resume(ValueId)
+} derive(Debug, Eq)
+
+///|
+fn Expr::label(self : Expr) -> ExprLabel {
+  match self {
+    Ref(id) => Ref(id)
+    Literal(_) => Literal
+    Function(_) => Function
+    Call(_, _) => Call
+    TypeLambda(_, _) => TypeLambda
+    TypeApply(_, _) => TypeApply
+    Construct(construct) => Construct(construct.data_constructor)
+    Let(id, _, _) => Let(id)
+    LetRec(_, _) => LetRec
+    Match(_) => Match
+    Perform(perform) => Perform(perform.operation)
+    Handle(_) => Handle
+    Resume(id) => Resume(id)
+  }
+}
 
 ///|
 pub(all) enum VerifyDiagnosticKind {
@@ -12,6 +77,8 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownEffect(EffectId)
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
+  ExpectedTypeArgument(Effect)
+  ExpectedEffectArgument(Type)
   InvalidBinderKind(value~ : ValueId, actual~ : ValueKind)
   EffectFlavorMismatch(parameter~ : TypeParameterId, argument~ : Effect)
   TypeNormalizationFailure(TypeNormalizationError)
@@ -40,6 +107,10 @@ pub struct VerifyResult {
 priv struct VerifyContext {
   program : Program
   diagnostics : Array[VerifyDiagnostic]
+  // The path currently being verified. Frames are pushed where the verifier
+  // descends and copied only when a diagnostic is reported, so the clean path
+  // pays a push and a pop per node and nothing else.
+  frames : Array[VerifyFrame]
 }
 
 ///|
@@ -100,7 +171,11 @@ pub fn ExpressionFactsQuery::synthesize(
   self : ExpressionFactsQuery,
   expression : Expr,
 ) -> Result[ExpressionFacts, VerifyResult] {
-  let context = VerifyContext::{ program: self.program, diagnostics: [] }
+  let context = VerifyContext::{
+    program: self.program,
+    diagnostics: [],
+    frames: [],
+  }
   let facts = context.synthesize_expr(
     expression,
     { values: self.values, deferred: [] },
@@ -144,7 +219,11 @@ pub fn ExpressionFactsQuery::has_empty_effect(
         self.program.metadata.effects_definitionally_equal(facts.effect, Empty),
       ) catch {
         error =>
-          Err({ diagnostics: [{ kind: TypeNormalizationFailure(error) }] })
+          Err({
+            diagnostics: [
+              { kind: TypeNormalizationFailure(error), provenance: [] },
+            ],
+          })
       }
   }
 }
@@ -152,7 +231,7 @@ pub fn ExpressionFactsQuery::has_empty_effect(
 ///|
 /// Verifies a complete Buslane program.
 pub fn verify_program(program : Program) -> VerifyResult {
-  let context = VerifyContext::{ program, diagnostics: [] }
+  let context = VerifyContext::{ program, diagnostics: [], frames: [] }
   context.verify_metadata()
   context.verify_terms()
   { diagnostics: context.diagnostics }
@@ -177,7 +256,23 @@ fn VerifyContext::report(
   self : VerifyContext,
   kind : VerifyDiagnosticKind,
 ) -> Unit {
-  self.diagnostics.push({ kind, })
+  self.diagnostics.push({ kind, provenance: self.frames.copy() })
+}
+
+///|
+/// Runs `verify` with `frame` on the path.
+///
+/// Descent is where frames belong, so every diagnostic reported underneath
+/// carries the step without any reporting site knowing about provenance.
+fn[T] VerifyContext::within(
+  self : VerifyContext,
+  frame : VerifyFrame,
+  verify : () -> T,
+) -> T {
+  self.frames.push(frame)
+  let result = verify()
+  ignore(self.frames.pop())
+  result
 }
 
 ///|
@@ -283,63 +378,87 @@ fn VerifyContext::canonicalize_effect(
 
 ///|
 fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
-  for type_info in self.program.metadata.types {
-    for parameter in type_info.parameters {
-      self.require_type_parameter(parameter)
-    }
-    for data_constructor in type_info.constructors {
-      self.require_data_constructor(data_constructor)
-    }
+  for index, type_info in self.program.metadata.types {
+    self.within(Metadata(Type({ index, })), () => {
+      for parameter in type_info.parameters {
+        self.require_type_parameter(parameter)
+      }
+      for data_constructor in type_info.constructors {
+        self.require_data_constructor(data_constructor)
+      }
+    })
   }
-  for value in self.program.metadata.values {
+  for index, value in self.program.metadata.values {
     if value.kind.has_closed_metadata_type() {
-      self.verify_value_type(value.type_, { parameters: [] })
+      self.within(Metadata(Value({ index, })), () => {
+        self.verify_value_type(value.type_, { parameters: [] })
+      })
     }
   }
-  for data_constructor in self.program.metadata.data_constructors {
-    self.require_type(data_constructor.owner)
-    let scope = TypeScope::{
-      parameters: data_constructor.hidden_type_parameters.copy(),
-    }
-    guard self.program.metadata.type_info(data_constructor.owner) is Some(owner) else {
-      continue
-    }
+  for index, data_constructor in self.program.metadata.data_constructors {
+    self.within(Metadata(DataConstructor({ index, })), () => {
+      self.verify_data_constructor_metadata(data_constructor)
+    })
+  }
+  for index, effect in self.program.metadata.effects {
+    self.within(Metadata(Effect({ index, })), () => {
+      for parameter in effect.parameters {
+        self.require_type_parameter(parameter)
+      }
+      for operation in effect.operations {
+        self.require_operation(operation)
+      }
+    })
+  }
+  for index, operation in self.program.metadata.operations {
+    self.within(Metadata(Operation({ index, })), () => {
+      self.verify_operation_metadata(operation)
+    })
+  }
+}
+
+///|
+fn VerifyContext::verify_data_constructor_metadata(
+  self : VerifyContext,
+  data_constructor : DataConInfo,
+) -> Unit {
+  self.require_type(data_constructor.owner)
+  let scope = TypeScope::{
+    parameters: data_constructor.hidden_type_parameters.copy(),
+  }
+  guard self.program.metadata.type_info(data_constructor.owner) is Some(owner) else {
+    return
+  }
+  for parameter in owner.parameters {
+    scope.parameters.push(parameter)
+  }
+  for parameter in data_constructor.hidden_type_parameters {
+    self.require_type_parameter(parameter)
+  }
+  for payload_type in data_constructor.payload_types {
+    self.verify_value_type(payload_type, scope)
+  }
+}
+
+///|
+fn VerifyContext::verify_operation_metadata(
+  self : VerifyContext,
+  operation : OperationInfo,
+) -> Unit {
+  self.require_effect(operation.owner)
+  let scope = TypeScope::{ parameters: operation.hidden_type_parameters.copy() }
+  if self.program.metadata.effect_info(operation.owner) is Some(owner) {
     for parameter in owner.parameters {
       scope.parameters.push(parameter)
     }
-    for parameter in data_constructor.hidden_type_parameters {
-      self.require_type_parameter(parameter)
-    }
-    for payload_type in data_constructor.payload_types {
-      self.verify_value_type(payload_type, scope)
-    }
   }
-  for effect in self.program.metadata.effects {
-    for parameter in effect.parameters {
-      self.require_type_parameter(parameter)
-    }
-    for operation in effect.operations {
-      self.require_operation(operation)
-    }
+  for parameter in operation.hidden_type_parameters {
+    self.require_type_parameter(parameter)
   }
-  for operation in self.program.metadata.operations {
-    self.require_effect(operation.owner)
-    let scope = TypeScope::{
-      parameters: operation.hidden_type_parameters.copy(),
-    }
-    if self.program.metadata.effect_info(operation.owner) is Some(owner) {
-      for parameter in owner.parameters {
-        scope.parameters.push(parameter)
-      }
-    }
-    for parameter in operation.hidden_type_parameters {
-      self.require_type_parameter(parameter)
-    }
-    for payload_type in operation.payload_types {
-      self.verify_value_type(payload_type, scope)
-    }
-    self.verify_value_type(operation.result_type, scope)
+  for payload_type in operation.payload_types {
+    self.verify_value_type(payload_type, scope)
   }
+  self.verify_value_type(operation.result_type, scope)
 }
 
 ///|
@@ -410,15 +529,22 @@ fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
     }
     let scope = ValueScope::{ values: bound.copy(), deferred: deferred.copy() }
     match term {
-      External(id) => self.verify_external(id)
-      Let(id, initializer) => self.verify_top_let(id, initializer, scope)
+      External(id) => self.within(TopTerm(id), () => self.verify_external(id))
+      Let(id, initializer) =>
+        self.within(TopTerm(id), () => {
+          self.verify_top_let(id, initializer, scope)
+        })
       LetRec(bindings) => {
         // A recursive group's closures are installed before any of its right
         // sides run, so the group sees itself.
         for id in introduced {
           scope.values.push(id)
         }
-        self.verify_top_letrec(bindings, scope)
+        for binding in bindings {
+          self.within(TopTerm(binding.id), () => {
+            self.verify_top_letrec_binding(binding, scope)
+          })
+        }
       }
     }
     for id in introduced {
@@ -479,31 +605,29 @@ fn VerifyContext::verify_top_let(
 }
 
 ///|
-fn VerifyContext::verify_top_letrec(
+fn VerifyContext::verify_top_letrec_binding(
   self : VerifyContext,
-  bindings : Array[RecursiveBinding],
+  binding : RecursiveBinding,
   scope : ValueScope,
 ) -> Unit {
-  for binding in bindings {
-    if !binding.rhs.is_direct_function_implementation() {
-      self.report(InvalidLetRecRhs(binding.id))
-    }
-    guard self.program.metadata.value_info(binding.id) is Some(info) else {
-      self.report(UnknownValue(binding.id))
-      continue
-    }
-    if !info.kind.has_closed_metadata_type() {
-      self.report(InvalidBinderKind(value=binding.id, actual=info.kind))
-    }
-    let effect = self.check_binding_initializer(
-      FunctionBinding,
-      binding.rhs,
-      info.type_,
-      scope,
-      { parameters: [] },
-    )
-    self.require_effect_equals(Empty, effect)
+  if !binding.rhs.is_direct_function_implementation() {
+    self.report(InvalidLetRecRhs(binding.id))
   }
+  guard self.program.metadata.value_info(binding.id) is Some(info) else {
+    self.report(UnknownValue(binding.id))
+    return
+  }
+  if !info.kind.has_closed_metadata_type() {
+    self.report(InvalidBinderKind(value=binding.id, actual=info.kind))
+  }
+  let effect = self.check_binding_initializer(
+    FunctionBinding,
+    binding.rhs,
+    info.type_,
+    scope,
+    { parameters: [] },
+  )
+  self.require_effect_equals(Empty, effect)
 }
 
 ///|
@@ -550,32 +674,34 @@ fn VerifyContext::synthesize_expr(
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> ExpressionFacts {
-  let facts = match expr {
-    Ref(id) => self.synthesize_ref(id, value_scope)
-    Literal(literal) => {
-      self.verify_literal(literal)
-      pure_expr(literal.type_())
+  let facts = self.within(Expression(expr.label()), () => {
+    match expr {
+      Ref(id) => self.synthesize_ref(id, value_scope)
+      Literal(literal) => {
+        self.verify_literal(literal)
+        pure_expr(literal.type_())
+      }
+      Function(function) =>
+        self.synthesize_function(function, value_scope, type_scope)
+      Call(callee, arguments) =>
+        self.synthesize_call(callee, arguments, value_scope, type_scope)
+      TypeLambda(parameters, body) =>
+        self.synthesize_type_lambda(parameters, body, value_scope, type_scope)
+      TypeApply(callee, arguments) =>
+        self.synthesize_type_apply(callee, arguments, value_scope, type_scope)
+      Construct(construct) =>
+        self.synthesize_construct(construct, value_scope, type_scope)
+      Let(id, initializer, body) =>
+        self.synthesize_let(id, initializer, body, value_scope, type_scope)
+      LetRec(bindings, body) =>
+        self.synthesize_letrec(bindings, body, value_scope, type_scope)
+      Match(match_) => self.synthesize_match(match_, value_scope, type_scope)
+      Perform(perform) =>
+        self.synthesize_perform(perform, value_scope, type_scope)
+      Handle(handle) => self.synthesize_handle(handle, value_scope, type_scope)
+      Resume(id) => self.synthesize_ref(id, value_scope)
     }
-    Function(function) =>
-      self.synthesize_function(function, value_scope, type_scope)
-    Call(callee, arguments) =>
-      self.synthesize_call(callee, arguments, value_scope, type_scope)
-    TypeLambda(parameters, body) =>
-      self.synthesize_type_lambda(parameters, body, value_scope, type_scope)
-    TypeApply(callee, arguments) =>
-      self.synthesize_type_apply(callee, arguments, value_scope, type_scope)
-    Construct(construct) =>
-      self.synthesize_construct(construct, value_scope, type_scope)
-    Let(id, initializer, body) =>
-      self.synthesize_let(id, initializer, body, value_scope, type_scope)
-    LetRec(bindings, body) =>
-      self.synthesize_letrec(bindings, body, value_scope, type_scope)
-    Match(match_) => self.synthesize_match(match_, value_scope, type_scope)
-    Perform(perform) =>
-      self.synthesize_perform(perform, value_scope, type_scope)
-    Handle(handle) => self.synthesize_handle(handle, value_scope, type_scope)
-    Resume(id) => self.synthesize_ref(id, value_scope)
-  }
+  })
   {
     type_: self.normalize_type(facts.type_),
     effect: self.normalize_effect(facts.effect),
@@ -1293,7 +1419,6 @@ fn VerifyContext::is_exhaustive(
     Primitive(Unit) => literals.contains(Unit)
     Primitive(Bool) =>
       literals.contains(Bool(true)) && literals.contains(Bool(false))
-    Primitive(F64) => false
     type_ if decompose_nominal_type(type_) is Some((owner, _)) =>
       match self.program.metadata.type_info(owner) {
         Some(info) =>
@@ -1302,6 +1427,8 @@ fn VerifyContext::is_exhaustive(
           })
         None => false
       }
+    // Every other scrutinee has more values than a match can enumerate, so
+    // only a default alternative makes it exhaustive.
     _ => false
   }
 }
@@ -1349,15 +1476,24 @@ fn VerifyContext::verify_generic_argument_kind(
   match argument {
     TypeArgument(type_) => {
       let actual = self.synthesize_type_kind(type_, scope)
-      if expected == Effect {
-        self.require_kind(expected, Type)
+      // A type argument cannot inhabit an effect row position whatever its
+      // kind, so the mismatch is one of category. Reporting it as a kind
+      // mismatch would have to name a kind the argument does not have.
+      if expected is Effect {
+        self.report(ExpectedEffectArgument(type_))
+        false
       } else {
         self.require_kind(expected, actual)
       }
     }
     EffectArgument(effect) => {
       self.verify_effect(effect, scope)
-      self.require_kind(expected, Effect)
+      if expected is Effect {
+        true
+      } else {
+        self.report(ExpectedTypeArgument(effect))
+        false
+      }
     }
   }
 }

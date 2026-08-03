@@ -171,7 +171,7 @@ fn executable_elaboration_error(
     EffectLoweringError(error) => EffectLoweringError(error)
     UnverifiedProgram(stage~, result~) =>
       UnsupportedExpression(
-        detail="the \{stage} program does not verify: \{Repr(result)}",
+        detail="the \{stage} program does not verify: \{@prettyprinter.render(result, width=100)}",
       )
   }
 }

@@ -3,6 +3,7 @@ import {
   "Milky2018/lanec/abi",
   "Milky2018/lanec/anf",
   "Milky2018/lanec/executable",
+  "moonbit-community/prettyprinter",
   "Milky2018/lanec/effect_lowering/core" @effect_lowering_core,
   "Milky2018/lanec/effect_lowering/cps" @effect_lowering_cps,
   "Milky2018/lanec/elaborate/buslane_lowering",

@@ -13,7 +13,14 @@ test "extended stage verification retains the producer boundary" {
         content=(
           #|UnverifiedProgram(
           #|  stage="handler elaboration",
-          #|  result={ diagnostics: [{ kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(I64)) }] },
+          #|  result={
+          #|    diagnostics: [
+          #|      {
+          #|        kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(I64)),
+          #|        provenance: [TopTerm({ index: 0 })],
+          #|      },
+          #|    ],
+          #|  },
           #|)
         ),
       )

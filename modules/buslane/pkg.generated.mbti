@@ -118,6 +118,23 @@ pub(all) enum Expr {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Expr
 
+pub(all) enum ExprLabel {
+  Ref(ValueId)
+  Literal
+  Function
+  Call
+  TypeLambda
+  TypeApply
+  Construct(DataConId)
+  Let(ValueId)
+  LetRec
+  Match
+  Perform(OperationId)
+  Handle
+  Resume(ValueId)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ExprLabel
+
 pub(all) struct ExpressionFacts {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -187,6 +204,15 @@ pub(all) struct MatchExpr {
   alternatives : Array[Alternative]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for MatchExpr
+
+pub(all) enum MetadataAnchor {
+  Type(TypeId)
+  DataConstructor(DataConId)
+  Effect(EffectId)
+  Operation(OperationId)
+  Value(ValueId)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for MetadataAnchor
 
 pub(all) struct MetadataRegistry {
   mut next_unique : Int
@@ -377,6 +403,7 @@ pub impl @prettyprinter.Pretty for ValueKind
 
 pub(all) struct VerifyDiagnostic {
   kind : VerifyDiagnosticKind
+  provenance : Array[VerifyFrame]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for VerifyDiagnostic
 
@@ -388,6 +415,8 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownEffect(EffectId)
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
+  ExpectedTypeArgument(Effect)
+  ExpectedEffectArgument(Type)
   InvalidBinderKind(value~ : ValueId, actual~ : ValueKind)
   EffectFlavorMismatch(parameter~ : TypeParameterId, argument~ : Effect)
   TypeNormalizationFailure(TypeNormalizationError)
@@ -407,6 +436,13 @@ pub(all) enum VerifyDiagnosticKind {
   InvalidCharLiteral(Int)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for VerifyDiagnosticKind
+
+pub(all) enum VerifyFrame {
+  Metadata(MetadataAnchor)
+  TopTerm(ValueId)
+  Expression(ExprLabel)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for VerifyFrame
 
 pub struct VerifyResult {
   diagnostics : Array[VerifyDiagnostic]

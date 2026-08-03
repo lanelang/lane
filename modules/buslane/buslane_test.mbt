@@ -1,4 +1,11 @@
 ///|
+/// Which errors a program produces, for tests whose subject is the rule
+/// rather than the path the verifier took to reach it.
+fn diagnostic_kinds(result : VerifyResult) -> Array[VerifyDiagnosticKind] {
+  result.diagnostics().map(diagnostic => diagnostic.kind)
+}
+
+///|
 fn i64_type() -> Type {
   Primitive(I64)
 }
@@ -51,7 +58,7 @@ test "verify buslane rejects invalid Char literals" {
     }
     assert_eq(
       @prettyprinter.render(verify_program(program), width=100),
-      "verify_result {\n  invalid_char_literal \{value}\n}",
+      "verify_result {\n  invalid_char_literal \{value} at term value#0 / literal\n}",
     )
   }
 }
@@ -436,16 +443,16 @@ test "verify buslane reports malformed effect terms" {
     @prettyprinter.render(verify_program(program), width=100),
     content=(
       #|verify_result {
-      #|  unknown_effect effect#9
+      #|  unknown_effect effect#9 at value value#0
       #|  kind_mismatch {
       #|    expected Effect
       #|    actual Type
-      #|  }
-      #|  unknown_operation operation#8
+      #|  } at value value#0
+      #|  unknown_operation operation#8 at term value#1 / perform operation#8
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  }
+      #|  } at term value#1
       #|}
     ),
   )
@@ -484,7 +491,7 @@ test "verify buslane reports unhandled perform effect" {
       #|  effect_mismatch {
       #|    expected {}
       #|    actual effect#0
-      #|  }
+      #|  } at term value#0
       #|}
     ),
   )
@@ -687,15 +694,15 @@ test "verify buslane reports invalid perform payload and resume types" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  }
+      #|  } at term value#0 / handle / perform operation#0
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  }
+      #|  } at term value#0 / handle
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  }
+      #|  } at term value#0 / handle
       #|}
     ),
   )
@@ -734,11 +741,11 @@ test "verify buslane reports perform payload arity mismatch" {
       #|  arity_mismatch {
       #|    expected 1
       #|    actual 0
-      #|  }
+      #|  } at term value#0 / perform operation#0
       #|  effect_mismatch {
       #|    expected {}
       #|    actual effect#0
-      #|  }
+      #|  } at term value#0
       #|}
     ),
   )
@@ -798,19 +805,19 @@ test "verify buslane reports operation ownership and resume arity errors" {
       #|  effect_mismatch {
       #|    expected effect#1
       #|    actual {}
-      #|  }
+      #|  } at term value#0 / handle
       #|  effect_mismatch {
       #|    expected effect#1
       #|    actual effect#0
-      #|  }
+      #|  } at term value#0 / handle
       #|  arity_mismatch {
       #|    expected 1
       #|    actual 0
-      #|  }
+      #|  } at term value#0 / handle
       #|  arity_mismatch {
       #|    expected 1
       #|    actual 0
-      #|  }
+      #|  } at term value#0 / handle
       #|}
     ),
   )
@@ -1042,14 +1049,24 @@ test "verify buslane skips kind-invalid substitution bindings" {
     content=(
       #|{
       #|  diagnostics: [
-      #|    { kind: KindMismatch(expected=Type, actual=Effect) },
-      #|    { kind: TypeMismatch(expected=Primitive(I64), actual=Parameter({ index: 0 })) },
-      #|    { kind: KindMismatch(expected=Effect, actual=Type) },
+      #|    {
+      #|      kind: ExpectedTypeArgument(Empty),
+      #|      provenance: [TopTerm({ index: 2 }), Expression(TypeApply)],
+      #|    },
+      #|    {
+      #|      kind: TypeMismatch(expected=Primitive(I64), actual=Parameter({ index: 0 })),
+      #|      provenance: [TopTerm({ index: 2 })],
+      #|    },
+      #|    {
+      #|      kind: ExpectedEffectArgument(Primitive(I64)),
+      #|      provenance: [TopTerm({ index: 3 }), Expression(TypeApply)],
+      #|    },
       #|    {
       #|      kind: TypeMismatch(
       #|        expected=Function([], Primitive(I64), Empty),
       #|        actual=Function([], Primitive(I64), Parameter({ index: 1 })),
       #|      ),
+      #|      provenance: [TopTerm({ index: 3 })],
       #|    },
       #|  ],
       #|}
@@ -1076,7 +1093,7 @@ test "verify buslane rejects effect widening through ordinary value binding" {
       #|  type_mismatch {
       #|    expected () -> I64 ! effect#0
       #|    actual () -> I64
-      #|  }
+      #|  } at term value#1
       #|}
     ),
   )
@@ -1162,12 +1179,12 @@ test "verify buslane reports structural errors" {
     @prettyprinter.render(verify_program(program), width=100),
     content=(
       #|verify_result {
-      #|  not_function I64
+      #|  not_function I64 at term value#0 / call
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  }
-      #|  non_exhaustive_match
+      #|  } at term value#0
+      #|  non_exhaustive_match at term value#0 / match
       #|}
     ),
   )
@@ -1382,12 +1399,8 @@ test "type application that would capture fails verification" {
     TypeLambda([y], TypeApply(Ref(g), [TypeArgument(Parameter(y))])),
   )
   guard result is Err(verify) else { abort("expected capture rejection") }
-  assert_eq(verify.diagnostics(), [
-    {
-      kind: TypeSubstitutionFailure(
-        CapturedTypeParameter(parameter=x, binder=y),
-      ),
-    },
+  assert_eq(diagnostic_kinds(verify), [
+    TypeSubstitutionFailure(CapturedTypeParameter(parameter=x, binder=y)),
   ])
 }
 
@@ -1413,12 +1426,8 @@ test "construct payload instantiation that would capture fails verification" {
     }),
   )
   guard result is Err(verify) else { abort("expected capture rejection") }
-  assert_eq(verify.diagnostics(), [
-    {
-      kind: TypeSubstitutionFailure(
-        CapturedTypeParameter(parameter=element, binder=y),
-      ),
-    },
+  assert_eq(diagnostic_kinds(verify), [
+    TypeSubstitutionFailure(CapturedTypeParameter(parameter=element, binder=y)),
   ])
 }
 
@@ -1448,12 +1457,8 @@ test "perform instantiation that would capture fails verification" {
     }),
   )
   guard result is Err(verify) else { abort("expected capture rejection") }
-  assert_eq(verify.diagnostics(), [
-    {
-      kind: TypeSubstitutionFailure(
-        CapturedTypeParameter(parameter=element, binder=y),
-      ),
-    },
+  assert_eq(diagnostic_kinds(verify), [
+    TypeSubstitutionFailure(CapturedTypeParameter(parameter=element, binder=y)),
   ])
 }
 
@@ -1529,12 +1534,8 @@ test "handler alternative instantiation that would capture fails verification" {
     }),
   )
   guard result is Err(verify) else { abort("expected capture rejection") }
-  assert_eq(verify.diagnostics(), [
-    {
-      kind: TypeSubstitutionFailure(
-        CapturedTypeParameter(parameter=hidden, binder=w),
-      ),
-    },
+  assert_eq(diagnostic_kinds(verify), [
+    TypeSubstitutionFailure(CapturedTypeParameter(parameter=hidden, binder=w)),
   ])
 }
 
@@ -1575,13 +1576,8 @@ test "type application enforces an external row variable's flavor" {
     TypeApply(Ref(g), [EffectArgument(Singleton(algebraic, []))]),
   )
   guard rejected is Err(verify) else { abort("expected a flavor diagnostic") }
-  assert_eq(verify.diagnostics(), [
-    {
-      kind: EffectFlavorMismatch(
-        parameter=row,
-        argument=Singleton(algebraic, []),
-      ),
-    },
+  assert_eq(diagnostic_kinds(verify), [
+    EffectFlavorMismatch(parameter=row, argument=Singleton(algebraic, [])),
   ])
   for
     admitted in (
@@ -1669,13 +1665,11 @@ test "a handler over a purely external row must name its handled effect" {
   guard query.synthesize(handle_over(external_body)) is Err(verify) else {
     abort("expected a handler diagnostic over the external row")
   }
-  assert_eq(verify.diagnostics(), [
-    {
-      kind: EffectMismatch(
-        expected=Singleton(algebraic, []),
-        actual=Parameter(external_row),
-      ),
-    },
+  assert_eq(diagnostic_kinds(verify), [
+    EffectMismatch(
+      expected=Singleton(algebraic, []),
+      actual=Parameter(external_row),
+    ),
   ])
   assert_true(query.synthesize(handle_over(algebraic_body)) is Ok(_))
 }
@@ -1695,14 +1689,12 @@ test "declared types enforce constructor parameter flavors" {
     Value,
     Apply(Constructor(dictionary), [EffectArgument(Singleton(algebraic, []))]),
   )
-  let diagnostics = verify_program({ metadata, terms: [] }).diagnostics()
+  let diagnostics = diagnostic_kinds(verify_program({ metadata, terms: [] }))
   assert_eq(diagnostics, [
-    {
-      kind: EffectFlavorMismatch(
-        parameter=residual_row,
-        argument=Singleton(algebraic, []),
-      ),
-    },
+    EffectFlavorMismatch(
+      parameter=residual_row,
+      argument=Singleton(algebraic, []),
+    ),
   ])
 }
 
@@ -1736,9 +1728,9 @@ test "binding sites verify binder types in their own scope" {
   }
   // The local's declared type and the function's parameter both name an id
   // that does not exist; equality alone would never ask.
-  assert_eq(verify_program(program).diagnostics(), [
-    { kind: UnknownTypeParameter(bogus) },
-    { kind: UnknownTypeParameter(bogus) },
+  assert_eq(diagnostic_kinds(verify_program(program)), [
+    UnknownTypeParameter(bogus),
+    UnknownTypeParameter(bogus),
   ])
 }
 
@@ -1751,8 +1743,8 @@ test "binding sites reject closed declaration kinds" {
     metadata,
     terms: [Let(main, Let(external, Literal(I64(1)), Literal(Unit)))],
   }
-  assert_eq(verify_program(program).diagnostics(), [
-    { kind: InvalidBinderKind(value=external, actual=External) },
+  assert_eq(diagnostic_kinds(verify_program(program)), [
+    InvalidBinderKind(value=external, actual=External),
   ])
 }
 
@@ -1764,8 +1756,8 @@ test "a top-level binding keeps a closed declaration kind" {
     metadata,
     terms: [Let(binder_kind, Literal(I64(1)))],
   }
-  assert_eq(verify_program(program).diagnostics(), [
-    { kind: InvalidBinderKind(value=binder_kind, actual=Local) },
+  assert_eq(diagnostic_kinds(verify_program(program)), [
+    InvalidBinderKind(value=binder_kind, actual=Local),
   ])
 }
 
@@ -1816,12 +1808,17 @@ test "top-level scope grows term by term" {
   // Both initializers are evaluated where they stand, so neither may reach a
   // binding the interpreter has not established yet.
   assert_eq(
-    verify_program({ metadata, terms: [Let(a, Ref(a))] }).diagnostics(),
-    [{ kind: UnknownValue(a) }],
+    diagnostic_kinds(verify_program({ metadata, terms: [Let(a, Ref(a))] })),
+    [UnknownValue(a)],
   )
   assert_eq(
-    verify_program({ metadata, terms: [Let(a, Ref(b)), Let(b, Literal(Unit))] }).diagnostics(),
-    [{ kind: UnknownValue(b) }],
+    diagnostic_kinds(
+      verify_program({
+        metadata,
+        terms: [Let(a, Ref(b)), Let(b, Literal(Unit))],
+      }),
+    ),
+    [UnknownValue(b)],
   )
   assert_eq(
     verify_program({ metadata, terms: [Let(b, Literal(Unit)), Let(a, Ref(b))] }).diagnostics(),
@@ -1873,4 +1870,82 @@ test "a recursive group is in scope for its own right sides" {
     }).diagnostics(),
     [],
   )
+}
+
+///|
+test "a diagnostic carries the path the verifier took to reach it" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let missing : ValueId = { index: 9999 }
+  let inner = metadata.define_value("inner", Local, Primitive(I64))
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], Primitive(I64), Empty),
+  )
+  let program : Program = {
+    metadata,
+    terms: [
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: Primitive(I64),
+          body: Let(inner, Ref(missing), Ref(inner)),
+        }),
+      ),
+    ],
+  }
+  // Outermost first: the term, then each expression form on the way down.
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  unknown_value value#9999 at term value#1 / fn / let value#0 / ref value#9999
+      #|  type_mismatch {
+      #|    expected I64
+      #|    actual Unit
+      #|  } at term value#1 / fn / let value#0
+      #|}
+    ),
+  )
+}
+
+///|
+test "metadata diagnostics name the entity under check" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let missing : TypeParameterId = { index: 9999 }
+  let owner = metadata.define_type("Box", [])
+  let _constructor = metadata.define_data_constructor("Box", owner, [], [
+    Parameter(missing),
+  ])
+  inspect(
+    @prettyprinter.render(verify_program({ metadata, terms: [] }), width=100),
+    content=(
+      #|verify_result {
+      #|  unknown_type_parameter tparam#9999 at data_constructor datacon#0
+      #|}
+    ),
+  )
+}
+
+///|
+test "a type argument in an effect position is a category mismatch" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let row = metadata.define_type_parameter("E", Effect)
+  let callable = metadata.define_value(
+    "callable",
+    Value,
+    Forall([row], Function([], Primitive(Unit), Parameter(row))),
+  )
+  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  // Reporting a kind mismatch here would have to name a kind the argument
+  // does not have: its kind may well be Effect, and it is still the wrong
+  // category of argument.
+  guard query.synthesize(
+      TypeApply(Ref(callable), [TypeArgument(Parameter(row))]),
+    )
+    is Err(verify) else {
+    abort("expected a category diagnostic")
+  }
+  assert_eq(diagnostic_kinds(verify), [ExpectedEffectArgument(Parameter(row))])
 }

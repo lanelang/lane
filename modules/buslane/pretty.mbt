@@ -465,7 +465,72 @@ pub impl @prettyprinter.Pretty for VerifyResult with fn pretty(
 pub impl @prettyprinter.Pretty for VerifyDiagnostic with fn pretty(
   diagnostic : VerifyDiagnostic,
 ) {
-  diagnostic.kind.pretty()
+  if diagnostic.provenance.is_empty() {
+    diagnostic.kind.pretty()
+  } else {
+    diagnostic.kind.pretty() +
+    space +
+    text("at") +
+    space +
+    provenance_doc(diagnostic.provenance)
+  }
+}
+
+///|
+/// Renders a diagnostic's path outermost first, so a report reads as the
+/// route the verifier took to reach it.
+fn provenance_doc(frames : Array[VerifyFrame]) -> Document {
+  let mut doc = empty
+  for index, frame in frames {
+    if index > 0 {
+      doc = doc + space + text("/") + space
+    }
+    doc = doc + frame.pretty()
+  }
+  doc
+}
+
+///|
+pub impl @prettyprinter.Pretty for VerifyFrame with fn pretty(
+  frame : VerifyFrame,
+) {
+  match frame {
+    Metadata(anchor) => anchor.pretty()
+    TopTerm(id) => text("term") + space + id.pretty()
+    Expression(label) => label.pretty()
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for MetadataAnchor with fn pretty(
+  anchor : MetadataAnchor,
+) {
+  match anchor {
+    Type(id) => text("type") + space + id.pretty()
+    DataConstructor(id) => text("data_constructor") + space + id.pretty()
+    Effect(id) => text("effect") + space + id.pretty()
+    Operation(id) => text("operation") + space + id.pretty()
+    Value(id) => text("value") + space + id.pretty()
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for ExprLabel with fn pretty(label : ExprLabel) {
+  match label {
+    Ref(id) => text("ref") + space + id.pretty()
+    Literal => text("literal")
+    Function => text("fn")
+    Call => text("call")
+    TypeLambda => text("type_lambda")
+    TypeApply => text("type_apply")
+    Construct(id) => text("construct") + space + id.pretty()
+    Let(id) => text("let") + space + id.pretty()
+    LetRec => text("letrec")
+    Match => text("match")
+    Perform(id) => text("perform") + space + id.pretty()
+    Handle => text("handle")
+    Resume(id) => text("resume") + space + id.pretty()
+  }
 }
 
 ///|
@@ -502,6 +567,10 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
         text("parameter ") + parameter.pretty(),
         text("argument ") + argument.pretty(),
       ])
+    ExpectedTypeArgument(effect) =>
+      text("expected_type_argument") + space + effect.pretty()
+    ExpectedEffectArgument(type_) =>
+      text("expected_effect_argument") + space + type_.pretty()
     TypeNormalizationFailure(error) =>
       text("type_normalization_failure") + space + text("\{Repr(error)}")
     TypeSubstitutionFailure(error) =>

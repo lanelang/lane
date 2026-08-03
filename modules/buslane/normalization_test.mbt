@@ -144,7 +144,16 @@ test "empty-effect query returns a runaway beta diagnostic" {
   debug_inspect(
     query.has_empty_effect(Call(Ref(callable), [])),
     content=(
-      #|Err({ diagnostics: [{ kind: TypeNormalizationFailure(BetaReductionLimitExceeded(limit=1024)) }] })
+      #|Err(
+      #|  {
+      #|    diagnostics: [
+      #|      {
+      #|        kind: TypeNormalizationFailure(BetaReductionLimitExceeded(limit=1024)),
+      #|        provenance: [Expression(Call)],
+      #|      },
+      #|    ],
+      #|  },
+      #|)
     ),
   )
 }
@@ -159,11 +168,11 @@ test "program verifier diagnoses runaway type normalization" {
     metadata,
     terms: [Let(value, Literal(Unit))],
   })
-  assert_eq(result.diagnostics(), [
-    { kind: KindMismatch(expected=Function([], Type), actual=Type) },
-    { kind: KindMismatch(expected=Function([], Type), actual=Type) },
-    { kind: KindMismatch(expected=Type, actual=Function([Type], Type)) },
-    { kind: TypeNormalizationFailure(BetaReductionLimitExceeded(limit=1024)) },
-    { kind: TypeMismatch(expected=type_, actual=Primitive(Unit)) },
+  assert_eq(result.diagnostics().map(diagnostic => diagnostic.kind), [
+    KindMismatch(expected=Function([], Type), actual=Type),
+    KindMismatch(expected=Function([], Type), actual=Type),
+    KindMismatch(expected=Type, actual=Function([Type], Type)),
+    TypeNormalizationFailure(BetaReductionLimitExceeded(limit=1024)),
+    TypeMismatch(expected=type_, actual=Primitive(Unit)),
   ])
 }

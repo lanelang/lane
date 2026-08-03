@@ -42,7 +42,20 @@ test "extended verifier checks Invoke payload types" {
       ),
     ),
     content=(
-      #|Ok({ diagnostics: [{ kind: TypeMismatch(expected=Primitive(I64), actual=Primitive(Unit)) }] })
+      #|Ok(
+      #|  {
+      #|    diagnostics: [
+      #|      {
+      #|        kind: TypeMismatch(expected=Primitive(I64), actual=Primitive(Unit)),
+      #|        provenance: [
+      #|          TopTerm({ index: 0 }),
+      #|          Expression(Function),
+      #|          Expression(Perform({ index: 0 })),
+      #|        ],
+      #|      },
+      #|    ],
+      #|  },
+      #|)
     ),
   )
 }
@@ -69,7 +82,16 @@ test "extended verifier checks Bind computation and continuation alignment" {
       ),
     ),
     content=(
-      #|Ok({ diagnostics: [{ kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(I64)) }] })
+      #|Ok(
+      #|  {
+      #|    diagnostics: [
+      #|      {
+      #|        kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(I64)),
+      #|        provenance: [TopTerm({ index: 1 }), Expression(Function), Expression(Call)],
+      #|      },
+      #|    ],
+      #|  },
+      #|)
     ),
   )
 }
@@ -101,7 +123,16 @@ test "extended verifier checks Install final-clause input" {
       ),
     ),
     content=(
-      #|Ok({ diagnostics: [{ kind: TypeMismatch(expected=Primitive(I64), actual=Primitive(Unit)) }] })
+      #|Ok(
+      #|  {
+      #|    diagnostics: [
+      #|      {
+      #|        kind: TypeMismatch(expected=Primitive(I64), actual=Primitive(Unit)),
+      #|        provenance: [TopTerm({ index: 1 }), Expression(Function), Expression(Handle)],
+      #|      },
+      #|    ],
+      #|  },
+      #|)
     ),
   )
 }
@@ -146,7 +177,16 @@ test "extended verifier checks match alternative type binders" {
       ),
     ),
     content=(
-      #|Ok({ diagnostics: [{ kind: KindMismatch(expected=Type, actual=Effect) }] })
+      #|Ok(
+      #|  {
+      #|    diagnostics: [
+      #|      {
+      #|        kind: KindMismatch(expected=Type, actual=Effect),
+      #|        provenance: [TopTerm({ index: 1 }), Expression(Function), Expression(Match)],
+      #|      },
+      #|    ],
+      #|  },
+      #|)
     ),
   )
 }
@@ -187,10 +227,48 @@ test "extended verifier checks OpenContext effect scope and inclusion" {
       #|Ok(
       #|  {
       #|    diagnostics: [
-      #|      { kind: UnknownTypeParameter({ index: 1 }) },
-      #|      { kind: UnknownTypeParameter({ index: 1 }) },
-      #|      { kind: UnknownTypeParameter({ index: 1 }) },
-      #|      { kind: UnknownTypeParameter({ index: 1 }) },
+      #|      {
+      #|        kind: UnknownTypeParameter({ index: 1 }),
+      #|        provenance: [
+      #|          TopTerm({ index: 0 }),
+      #|          Expression(TypeLambda),
+      #|          Expression(Function),
+      #|          Expression(Let({ index: 4 })),
+      #|          Expression(Let({ index: 2 })),
+      #|        ],
+      #|      },
+      #|      {
+      #|        kind: UnknownTypeParameter({ index: 1 }),
+      #|        provenance: [
+      #|          TopTerm({ index: 0 }),
+      #|          Expression(TypeLambda),
+      #|          Expression(Function),
+      #|          Expression(Let({ index: 4 })),
+      #|          Expression(Let({ index: 2 })),
+      #|        ],
+      #|      },
+      #|      {
+      #|        kind: UnknownTypeParameter({ index: 1 }),
+      #|        provenance: [
+      #|          TopTerm({ index: 0 }),
+      #|          Expression(TypeLambda),
+      #|          Expression(Function),
+      #|          Expression(Let({ index: 4 })),
+      #|          Expression(Let({ index: 2 })),
+      #|          Expression(Function),
+      #|        ],
+      #|      },
+      #|      {
+      #|        kind: UnknownTypeParameter({ index: 1 }),
+      #|        provenance: [
+      #|          TopTerm({ index: 0 }),
+      #|          Expression(TypeLambda),
+      #|          Expression(Function),
+      #|          Expression(Let({ index: 4 })),
+      #|          Expression(Let({ index: 2 })),
+      #|          Expression(Function),
+      #|        ],
+      #|      },
       #|    ],
       #|  },
       #|)
