@@ -90,6 +90,216 @@ test "generic use classification follows substituted canonical effects" {
 }
 
 ///|
+test "phantom generic type arguments contribute nominal data demands" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let box_effect = metadata.define_type_parameter("BoxEff", Effect)
+  let box = metadata.define_type("Box", [box_effect])
+  let make_box = metadata.define_data_constructor("box", box, [], [
+    Function([], unit_type, Parameter(box_effect)),
+  ])
+  let marker_type_parameter = metadata.define_type_parameter("T", Type)
+  let marker_type = @buslane.Type::Forall(
+    [marker_type_parameter],
+    Function([], unit_type, Empty),
+  )
+  let marker = metadata.define_value("marker", Function, marker_type)
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], unit_type, Empty),
+  )
+  let box_empty = @buslane.GenericArgument::TypeArgument(
+    Apply(Constructor(box), [EffectArgument(Empty)]),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: marker,
+          rhs: TypeLambda(
+            [marker_type_parameter],
+            Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Literal(Unit),
+            }),
+          ),
+        },
+        {
+          id: entry,
+          rhs: Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Call(TypeApply(Ref(marker), [box_empty]), []),
+          }),
+        },
+      ]),
+    ],
+  }
+  let plan = plan_effect_specializations(program, entry)
+  assert_eq(plan, {
+    callable_demands: [],
+    data_demands: [
+      {
+        source: box,
+        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty) }],
+        constructors: [make_box],
+      },
+    ],
+  })
+  assert_eq(@buslane.verify_program(specialize(program, entry)).diagnostics, [])
+}
+
+///|
+test "ordinary generic type arguments contribute nominal data demands" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let box_effect = metadata.define_type_parameter("BoxEff", Effect)
+  let box = metadata.define_type("Box", [box_effect])
+  let make_box = metadata.define_data_constructor("box", box, [], [
+    Function([], unit_type, Parameter(box_effect)),
+  ])
+  let marker_type_parameter = metadata.define_type_parameter("T", Type)
+  let marker_parameter = metadata.define_value(
+    "value",
+    Parameter,
+    Parameter(marker_type_parameter),
+  )
+  let marker_type = @buslane.Type::Forall(
+    [marker_type_parameter],
+    Function([Parameter(marker_type_parameter)], unit_type, Empty),
+  )
+  let marker = metadata.define_value("marker", Function, marker_type)
+  let box_empty_type = @buslane.Type::Apply(Constructor(box), [
+    EffectArgument(Empty),
+  ])
+  let box_value = metadata.define_value("box_value", External, box_empty_type)
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], unit_type, Empty),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: marker,
+          rhs: TypeLambda(
+            [marker_type_parameter],
+            Function({
+              parameters: [marker_parameter],
+              result_type: unit_type,
+              body: Literal(Unit),
+            }),
+          ),
+        },
+        {
+          id: entry,
+          rhs: Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Call(TypeApply(Ref(marker), [TypeArgument(box_empty_type)]), [
+              Ref(box_value),
+            ]),
+          }),
+        },
+      ]),
+    ],
+  }
+  assert_eq(plan_effect_specializations(program, entry), {
+    callable_demands: [],
+    data_demands: [
+      {
+        source: box,
+        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty) }],
+        constructors: [make_box],
+      },
+    ],
+  })
+}
+
+///|
+test "external generic type arguments contribute nominal data demands" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let box_effect = metadata.define_type_parameter("BoxEff", Effect)
+  let box = metadata.define_type("Box", [box_effect])
+  let make_box = metadata.define_data_constructor("box", box, [], [
+    Function([], unit_type, Parameter(box_effect)),
+  ])
+  let marker_type_parameter = metadata.define_type_parameter("T", Type)
+  let marker = metadata.define_value(
+    "marker",
+    External,
+    Forall([marker_type_parameter], Function([], unit_type, Empty)),
+  )
+  let outer_effect = metadata.define_type_parameter("OuterEff", Effect)
+  let outer = metadata.define_value(
+    "outer",
+    Function,
+    Forall([outer_effect], Function([], unit_type, Parameter(outer_effect))),
+  )
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], unit_type, Empty),
+  )
+  let empty_effect = @buslane.GenericArgument::EffectArgument(Empty)
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: outer,
+          rhs: TypeLambda(
+            [outer_effect],
+            Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Call(
+                TypeApply(Ref(marker), [
+                  TypeArgument(
+                    Apply(Constructor(box), [
+                      EffectArgument(Parameter(outer_effect)),
+                    ]),
+                  ),
+                ]),
+                [],
+              ),
+            }),
+          ),
+        },
+        {
+          id: entry,
+          rhs: Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Call(TypeApply(Ref(outer), [empty_effect]), []),
+          }),
+        },
+      ]),
+    ],
+  }
+  assert_eq(plan_effect_specializations(program, entry), {
+    callable_demands: [
+      Specialize(TopLevel(outer), ambient_bindings=[], instance_bindings=[
+        { parameter: outer_effect, argument: empty_effect },
+      ]),
+    ],
+    data_demands: [
+      {
+        source: box,
+        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty) }],
+        constructors: [make_box],
+      },
+    ],
+  })
+}
+
+///|
 test "callable planner keeps generic and concrete demands independently" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)

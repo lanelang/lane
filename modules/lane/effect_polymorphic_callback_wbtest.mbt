@@ -271,6 +271,35 @@ test "partially applied type-lambda mappable verifies inline implementation" {
 }
 
 ///|
+test "phantom generic call plans its effect-parameterized nominal argument" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|enum Box[E : Effect] {
+      #|  box(() -> Unit ! E)
+      #|}
+      #|
+      #|fn[_T] marker() -> Unit {
+      #|  ()
+      #|}
+      #|
+      #|pub fn main() -> Unit {
+      #|  marker[Box[{}]]()
+      #|}
+    ),
+  )
+  let expected = [DirectInterpreter, WasmInterpreter, WasmJit].map(backend => {
+    backend,
+    result: Ok(()),
+    i64_values: [],
+    f64_bits: [],
+    callback_calls: 0,
+  })
+  assert_eq(actual, expected)
+}
+
+///|
 test "higher-kinded mappable factory forwards its callback effect" {
   let actual = execute_compiler_test_matrix(
     (

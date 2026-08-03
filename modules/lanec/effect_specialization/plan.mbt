@@ -620,19 +620,20 @@ fn SpecializationPlanner::visit_expr(
     TypeApply(_, _) => {
       let groups = []
       let base = collect_type_application_groups(expression, groups)
+      let arguments = []
+      for group in groups {
+        for argument in group {
+          arguments.push(
+            raw_substitute_specialized_argument(argument, ambient_bindings),
+          )
+        }
+      }
+      for argument in arguments {
+        self.visit_argument(argument)
+      }
       if base is Ref(source) &&
         self.find_definition(source) is Some(definition) &&
         !definition.effect_parameters.is_empty() {
-        let arguments = []
-        for group in groups {
-          for argument in group {
-            let substituted = raw_substitute_specialized_argument(
-              argument, ambient_bindings,
-            )
-            arguments.push(substituted)
-            self.visit_argument(substituted)
-          }
-        }
         self.record_generic_use(definition, arguments, ambient_bindings)
       } else {
         self.visit_expr(base, ambient_bindings)
