@@ -25,6 +25,27 @@ priv struct CpsCallableShape {
 }
 
 ///|
+priv enum CpsCallableValueParameters {
+  Existing(Array[@buslane.ValueId])
+  Fresh(String)
+}
+
+///|
+/// The binders and context selected by materializing one monadic callable
+/// shape. Both callable implementations and forwarding wrappers consume this
+/// frame instead of rebuilding the CPS ABI.
+priv struct CpsCallableFrame {
+  answer_parameter : @buslane.TypeParameterId
+  residual_parameter : @buslane.TypeParameterId
+  answer : CpsAnswer
+  context_parameters : Array[@buslane.ValueId]
+  value_parameters : Array[@buslane.ValueId]
+  continuation : @buslane.ValueId
+  environment : CpsEnvironment
+  result_type : @buslane.Type
+}
+
+///|
 fn CpsCallableShape::source_effect(self : CpsCallableShape) -> @buslane.Effect {
   guard self.source_type is Function(_, _, effect) else {
     abort("CPS callable shape lost its source function type")
@@ -47,6 +68,85 @@ fn CpsCallableShape::align_value_parameters(
     }
   }
   parameters
+}
+
+///|
+fn CpsCallableShape::materialize_monadic(
+  self : CpsCallableShape,
+  metadata : @buslane.MetadataRegistry,
+  value_parameter_source : CpsCallableValueParameters,
+) -> CpsCallableFrame raise SynthesisError {
+  guard self.mode
+    is Monadic(
+      answer_parameter~,
+      residual_parameter~,
+      context_terms~,
+      context_parameter_types~,
+      continuation_type~
+    ) else {
+    abort("cannot materialize a direct callable as monadic CPS")
+  }
+  let value_parameters = match value_parameter_source {
+    Existing(parameters) => self.align_value_parameters(metadata, parameters)
+    Fresh(occurrence) =>
+      self.value_parameter_types.map(type_ => {
+        metadata.define_value(occurrence, Parameter, type_)
+      })
+  }
+  let context_parameters = []
+  let bindings = []
+  for index, term in context_terms {
+    let parameter = metadata.define_value(
+      "%context",
+      Parameter,
+      context_parameter_types[index],
+    )
+    context_parameters.push(parameter)
+    bindings.push({ term, value: Ref(parameter) })
+  }
+  let continuation = metadata.define_value(
+    "%continuation",
+    Parameter,
+    continuation_type,
+  )
+  {
+    answer_parameter,
+    residual_parameter,
+    answer: { type_: self.result_type, residual: self.target_effect },
+    context_parameters,
+    value_parameters,
+    continuation,
+    environment: {
+      effect: self.source_effect(),
+      residual: self.target_effect,
+      bindings,
+    },
+    result_type: self.result_type,
+  }
+}
+
+///|
+fn CpsCallableFrame::wrap(self : CpsCallableFrame, body : Expr) -> Expr {
+  TypeLambda(
+    [self.answer_parameter, self.residual_parameter],
+    Function({
+      parameters: self.context_parameters +
+      self.value_parameters +
+      [self.continuation],
+      result_type: self.result_type,
+      body,
+    }),
+  )
+}
+
+///|
+fn CpsCallableFrame::forward(self : CpsCallableFrame, callable : Expr) -> Expr {
+  Call(
+    TypeApply(callable, self.answer.arguments()),
+    self.context_parameters.map(parameter => Ref(parameter)) +
+    self.value_parameters.map(parameter => Ref(parameter)) +
+    [Ref(self.continuation)],
+  )
 }
 
 ///|

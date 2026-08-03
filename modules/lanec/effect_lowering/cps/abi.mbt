@@ -192,59 +192,32 @@ fn lower_cps_function(
   function : FunctionExpr,
   shape : CpsCallableShape,
 ) -> Expr raise SynthesisError {
-  let value_parameters = shape.align_value_parameters(
-    schema.metadata,
-    function.parameters,
-  )
   match shape.mode {
-    Direct =>
+    Direct => {
+      let value_parameters = shape.align_value_parameters(
+        schema.metadata,
+        function.parameters,
+      )
       Function({
         parameters: value_parameters,
         result_type: shape.result_type,
         body: lower_cps_direct_expr(schema, program, function.body, None),
       })
-    Monadic(
-      answer_parameter~,
-      residual_parameter~,
-      context_terms~,
-      context_parameter_types~,
-      continuation_type~
-    ) => {
-      let context_parameters = []
-      let bindings = []
-      for index, term in context_terms {
-        let parameter = schema.metadata.define_value(
-          "%context",
-          Parameter,
-          context_parameter_types[index],
-        )
-        context_parameters.push(parameter)
-        bindings.push({ term, value: Ref(parameter) })
-      }
-      let continuation = schema.metadata.define_value(
-        "%continuation",
-        Parameter,
-        continuation_type,
+    }
+    Monadic(..) => {
+      let frame = shape.materialize_monadic(
+        schema.metadata,
+        Existing(function.parameters),
       )
-      let environment = CpsEnvironment::{
-        effect: shape.source_effect(),
-        residual: shape.target_effect,
-        bindings,
-      }
-      TypeLambda(
-        [answer_parameter, residual_parameter],
-        Function({
-          parameters: context_parameters + value_parameters + [continuation],
-          result_type: shape.result_type,
-          body: lower_cps_with_continuation(
-            schema,
-            program,
-            function.body,
-            environment,
-            shape.result_type,
-            Ref(continuation),
-          ),
-        }),
+      frame.wrap(
+        lower_cps_with_continuation(
+          schema,
+          program,
+          function.body,
+          frame.environment,
+          frame.result_type,
+          Ref(frame.continuation),
+        ),
       )
     }
   }
@@ -390,26 +363,16 @@ fn lower_cps_effectful_result_call(
   arguments : Array[Expr],
   source_result : @buslane.Type,
 ) -> Expr raise SynthesisError {
-  guard source_result is Function(parameter_types, result_type, latent_effect) else {
-    raise ExpectedFunction(source_result)
-  }
-  let answer_parameter = schema.metadata.define_type_parameter("%answer", Type)
-  let residual_parameter = schema.metadata.define_type_parameter(
-    "%residual",
-    Effect,
-    flavor=External,
+  let shape = schema.plan_callable_shape(source_result)
+  let frame = shape.materialize_monadic(
+    schema.metadata,
+    Fresh("%effectful_result_parameter"),
   )
-  let answer_type = @buslane.Type::Parameter(answer_parameter)
-  let residual_effect = schema.cps_residual_effect(
-    latent_effect,
-    Parameter(residual_parameter),
-  )
-  let answer = CpsAnswer::{ type_: answer_type, residual: residual_effect }
   let lowered_callee = lower_cps_direct_expr(
     schema,
     program,
     callee,
-    Some(answer),
+    Some(frame.answer),
   )
   let bindings : Array[(@buslane.ValueId, Expr)] = []
   let lowered_arguments : Array[Expr] = []
@@ -419,7 +382,7 @@ fn lower_cps_effectful_result_call(
       program,
       arguments,
       lowered_callee,
-      Some(answer),
+      Some(frame.answer),
     ) {
     match lowered {
       Ref(_) | Literal(_) => lowered_arguments.push(lowered)
@@ -434,36 +397,8 @@ fn lower_cps_effectful_result_call(
       }
     }
   }
-  let context_parameters = schema
-    .context_argument_types(latent_effect, answer_type, residual_effect)
-    .map(type_ => schema.metadata.define_value("%context", Parameter, type_))
-  let value_parameters = parameter_types.map(type_ => {
-    schema.metadata.define_value(
-      "%effectful_result_parameter",
-      Parameter,
-      schema.rewrite_type(type_),
-    )
-  })
-  let rewritten_result = schema.rewrite_type(result_type)
-  let continuation = schema.metadata.define_value(
-    "%continuation",
-    Parameter,
-    Function([rewritten_result], answer_type, residual_effect),
-  )
   let produced : Expr = Call(lowered_callee, lowered_arguments)
-  let expanded : Expr = TypeLambda(
-    [answer_parameter, residual_parameter],
-    Function({
-      parameters: context_parameters + value_parameters + [continuation],
-      result_type: answer_type,
-      body: Call(
-        TypeApply(produced, answer.arguments()),
-        context_parameters.map(parameter => Ref(parameter)) +
-        value_parameters.map(parameter => Ref(parameter)) +
-        [Ref(continuation)],
-      ),
-    }),
-  )
+  let expanded = frame.wrap(frame.forward(produced))
   let mut result = expanded
   for binding in bindings.rev_iter() {
     result = Let(binding.0, binding.1, result)

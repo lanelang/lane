@@ -551,6 +551,57 @@ test "expected and synthesized CPS callables use one ABI shape" {
 }
 
 ///|
+test "effectful result wrappers materialize one CPS callable shape" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect = metadata.define_effect("Effect", [])
+  let latent : @buslane.Effect = Singleton(effect, [])
+  let source_result : @buslane.Type = Function(
+    [Primitive(I64)],
+    Primitive(Bool),
+    latent,
+  )
+  let factory = metadata.define_value(
+    "factory",
+    External,
+    Function([], source_result, Empty),
+  )
+  let result = metadata.define_value("result", Value, source_result)
+  let output = rewrite_test_program({
+    metadata,
+    terms: [External(factory), Let(result, Call(Ref(factory), []))],
+  })
+  guard output.terms
+    is [
+      External(actual_factory),
+      Let(actual_result, TypeLambda([answer, residual], Function(wrapper))),
+    ] &&
+    wrapper.parameters is [context, value, continuation] else {
+    abort("expected one shape-materialized effectful result wrapper")
+  }
+  assert_eq((actual_factory, actual_result), (factory, result))
+  assert_eq(
+    wrapper.body,
+    Call(
+      TypeApply(Call(Ref(factory), []), [
+        TypeArgument(Parameter(answer)),
+        EffectArgument(Parameter(residual)),
+      ]),
+      [Ref(context), Ref(value), Ref(continuation)],
+    ),
+  )
+  assert_true(
+    metadata.types_definitionally_equal(
+      metadata.value_info(result).unwrap().type_,
+      synthesize_expr_or_raise(
+        metadata,
+        TypeLambda([answer, residual], Function(wrapper)),
+      ).type_,
+    ),
+  )
+  assert_cps_ordinary_output(output)
+}
+
+///|
 test "callable shape divergence reports the originating binding" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])
