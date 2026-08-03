@@ -13,13 +13,50 @@ test "check facade returns success with warnings" {
     abort("expected checking to succeed")
   }
   debug_inspect(
-    warnings
-    .diagnostics()
-    .map(diagnostic => {
-      (diagnostic.severity, diagnostic.code, diagnostic.message)
-    }),
+    warnings.diagnostics(),
     content=(
-      #|[(Warning, Some("W2001"), "unused local value binding")]
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unused local value binding",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 43,
+      #|          end_offset: 49,
+      #|          start_line: 3,
+      #|          start_column: 7,
+      #|          end_line: 3,
+      #|          end_column: 13,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Warning,
+      #|    code: Some("W2001"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 43,
+      #|            end_offset: 49,
+      #|            start_line: 3,
+      #|            start_column: 7,
+      #|            end_line: 3,
+      #|            end_column: 13,
+      #|          },
+      #|        ),
+      #|        message: "`unused` is never used",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: [],
+      #|    helps: ["prefix the name with `_` if this is intentional"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
     ),
   )
 }
@@ -34,13 +71,50 @@ test "check facade returns parse failure" {
   )
   guard outcome is Failed(failure) else { abort("expected parsing to fail") }
   debug_inspect(
-    failure
-    .diagnostics()
-    .map(diagnostic => {
-      (diagnostic.severity, diagnostic.code, diagnostic.message)
-    }),
+    failure.diagnostics(),
     content=(
-      #|[(Error, Some("E1100"), "unexpected token")]
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "unexpected token",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 29,
+      #|          end_offset: 30,
+      #|          start_line: 2,
+      #|          start_column: 18,
+      #|          end_line: 2,
+      #|          end_column: 19,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E1100"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 29,
+      #|            end_offset: 30,
+      #|            start_line: 2,
+      #|            start_column: 18,
+      #|            end_line: 2,
+      #|            end_column: 19,
+      #|          },
+      #|        ),
+      #|        message: "the parser did not expect `=`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["expected one of: identifier, `type`, `(`, `[`"],
+      #|    helps: ["rewrite this position so it starts with one of: identifier, `type`, `(`, `[`"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
     ),
   )
 }
@@ -57,13 +131,50 @@ test "check facade returns resolution failure" {
     abort("expected name resolution to fail")
   }
   debug_inspect(
-    failure
-    .diagnostics()
-    .map(diagnostic => {
-      (diagnostic.severity, diagnostic.code, diagnostic.message)
-    }),
+    failure.diagnostics(),
     content=(
-      #|[(Error, Some("E2001"), "cannot find value `missing`")]
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "cannot find value `missing`",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 35,
+      #|          end_offset: 42,
+      #|          start_line: 2,
+      #|          start_column: 24,
+      #|          end_line: 2,
+      #|          end_column: 31,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E2001"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 35,
+      #|            end_offset: 42,
+      #|            start_line: 2,
+      #|            start_column: 24,
+      #|            end_line: 2,
+      #|            end_column: 31,
+      #|          },
+      #|        ),
+      #|        message: "no value named `missing` is visible here",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["Lane value lookup uses local bindings, top-level values, and explicitly imported public values"],
+      #|    helps: ["define `missing` before this use, import it, or qualify it with its module path"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
     ),
   )
 }
@@ -80,13 +191,50 @@ test "check facade returns type failure" {
     abort("expected type checking to fail")
   }
   debug_inspect(
-    failure
-    .diagnostics()
-    .map(diagnostic => {
-      (diagnostic.severity, diagnostic.code, diagnostic.message)
-    }),
+    failure.diagnostics(),
     content=(
-      #|[(Error, Some("E3006"), "type mismatch")]
+      #|[
+      #|  {
+      #|    source_id: Some("<root>"),
+      #|    message: "type mismatch",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 35,
+      #|          end_offset: 39,
+      #|          start_line: 2,
+      #|          start_column: 24,
+      #|          end_line: 2,
+      #|          end_column: 28,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E3006"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="<root>",
+      #|          span={
+      #|            start_offset: 35,
+      #|            end_offset: 39,
+      #|            start_line: 2,
+      #|            start_column: 24,
+      #|            end_line: 2,
+      #|            end_column: 28,
+      #|          },
+      #|        ),
+      #|        message: "expected `I64`, found `Bool`",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["Lane does not insert implicit conversions between different types"],
+      #|    helps: ["change the expression type or adjust the annotation/expected type"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
     ),
   )
 }
@@ -117,28 +265,58 @@ test "diagnostic access is isolated from nested mutation" {
   first.facts.push({ name: "mutated", value: "fact", span: first.span })
   suggestion.edits.push({ span: label.span, replacement: "mutated" })
   first.suggestions.push(suggestion)
-  guard failure.diagnostics() is [second] &&
-    second.suggestions is [second_suggestion] else {
+  guard failure.diagnostics() is [second] else {
     abort("expected one isolated diagnostic")
   }
   debug_inspect(
-    (
-      second.labels.length(),
-      second.notes,
-      second.helps,
-      second.facts.length(),
-      second.suggestions.length(),
-      second_suggestion.edits.length(),
-    ),
+    second,
     content=(
-      #|(
-      #|  1,
-      #|  ["Lane struct literals and struct patterns must account for required fields"],
-      #|  ["add a `y: ...` field entry"],
-      #|  0,
-      #|  1,
-      #|  0,
-      #|)
+      #|{
+      #|  source_id: Some("<root>"),
+      #|  message: "missing field `y`",
+      #|  span: Some(
+      #|    Source(
+      #|      source_id="<root>",
+      #|      span={
+      #|        start_offset: 77,
+      #|        end_offset: 92,
+      #|        start_line: 6,
+      #|        start_column: 25,
+      #|        end_line: 6,
+      #|        end_column: 40,
+      #|      },
+      #|    ),
+      #|  ),
+      #|  severity: Error,
+      #|  code: Some("E3101"),
+      #|  labels: [
+      #|    {
+      #|      span: Source(
+      #|        source_id="<root>",
+      #|        span={
+      #|          start_offset: 77,
+      #|          end_offset: 92,
+      #|          start_line: 6,
+      #|          start_column: 25,
+      #|          end_line: 6,
+      #|          end_column: 40,
+      #|        },
+      #|      ),
+      #|      message: "this struct construction or pattern omits required field `y`",
+      #|      style: Primary,
+      #|    },
+      #|  ],
+      #|  notes: ["Lane struct literals and struct patterns must account for required fields"],
+      #|  helps: ["add a `y: ...` field entry"],
+      #|  facts: [],
+      #|  suggestions: [
+      #|    {
+      #|      message: "add a `y: ...` field entry",
+      #|      edits: [],
+      #|      applicability: HasPlaceholders,
+      #|    },
+      #|  ],
+      #|}
     ),
   )
 }
