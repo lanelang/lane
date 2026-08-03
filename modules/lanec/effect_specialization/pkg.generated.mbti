@@ -13,6 +13,7 @@ pub fn specialize(@buslane.Program, @buslane.ValueId) -> @buslane.Program raise 
 pub(all) suberror SpecializationError {
   UnsupportedProgram(SpecializationErrorContext)
   InvalidInputMetadata(SpecializationErrorContext)
+  TypeNormalizationCompilerDefect(SpecializationErrorContext, @buslane.TypeNormalizationError)
   PlannerInvariant(SpecializationErrorContext)
   AllocatorInvariant(SpecializationErrorContext)
   RewriterInvariant(SpecializationErrorContext)

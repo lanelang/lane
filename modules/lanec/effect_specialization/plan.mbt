@@ -90,7 +90,7 @@ fn SpecializationPlan::retains(
   metadata : @buslane.MetadataRegistry,
   site : SpecializationDefinitionSite,
   ambient_bindings : Array[EffectSpecializationBinding],
-) -> Bool {
+) -> Bool raise SpecializationError {
   self.callable_demands.any(demand => {
     match demand {
       RetainGeneric(candidate, candidate_ambient) =>
@@ -463,7 +463,7 @@ fn SpecializationPlanner::enqueue_visit(
   self : SpecializationPlanner,
   site : SpecializationDefinitionSite,
   bindings : Array[EffectSpecializationBinding],
-) -> Unit {
+) -> Unit raise SpecializationError {
   if self.visits.any(visit => {
       visit.site == site &&
       specialization_bindings_equal(
@@ -481,7 +481,7 @@ fn SpecializationPlanner::enqueue_visit(
 fn SpecializationPlanner::add_demand(
   self : SpecializationPlanner,
   demand : CallableSpecializationDemand,
-) -> Unit {
+) -> Unit raise SpecializationError {
   if self.plan.callable_demands.any(existing => {
       callable_demands_equal(self.program.metadata, existing, demand)
     }) {
@@ -590,7 +590,7 @@ fn callable_demands_equal(
   metadata : @buslane.MetadataRegistry,
   left : CallableSpecializationDemand,
   right : CallableSpecializationDemand,
-) -> Bool {
+) -> Bool raise SpecializationError {
   match (left, right) {
     (
       RetainGeneric(left_site, left_ambient),

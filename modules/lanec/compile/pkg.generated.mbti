@@ -81,7 +81,7 @@ pub fn CompiledProgram::buslane_text(Self, width? : Int) -> String
 pub fn CompiledProgram::elaborate_entry(Self, CompiledEntry) -> Result[@executable.ExecutableProgram, @executable.ExecutableElaborationError]
 pub fn CompiledProgram::elaborate_entry_observed(Self, CompiledEntry, (@executable.ExecutableElaborationStage) -> Unit) -> Result[@executable.ExecutableProgram, @executable.ExecutableElaborationError]
 pub fn CompiledProgram::entries(Self) -> Array[CompiledEntry]
-pub fn CompiledProgram::entry_effect_is_executable(Self, CompiledEntry) -> Bool
+pub fn CompiledProgram::entry_effect_is_executable(Self, CompiledEntry) -> Result[Bool, @executable.ExecutableElaborationError]
 pub fn CompiledProgram::module_path_texts(Self) -> Array[String]
 
 pub(all) struct InterfaceCompilationRequest {

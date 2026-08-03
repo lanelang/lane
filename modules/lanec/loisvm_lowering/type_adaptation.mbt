@@ -178,7 +178,7 @@ fn FunctionLowerer::make_callable_adapter(
   target_type : @buslane.Type,
   substitutions : @buslane.TypeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
-  if self.image.metadata.types_definitionally_equal(source_type, target_type) {
+  if self.image.types_definitionally_equal(source_type, target_type) {
     return Slot(source, target_type)
   }
   let (source_parameter_targets, adapter_substitutions) = self.image.align_callable_parameters(
@@ -249,7 +249,7 @@ fn ImageLowerer::align_callable_parameters(
           substitutions,
         )
         if self.runtime_type(actual_source) is Concrete(Primitive(Unit)) &&
-          self.metadata.types_definitionally_equal(actual_source, actual_target) {
+          self.types_definitionally_equal(actual_source, actual_target) {
           source_parameter_targets.push(target_index)
           source_index += 1
         }
@@ -265,7 +265,7 @@ fn ImageLowerer::align_callable_parameters(
       source_parameters[source_index],
       substitutions,
     )
-    if !self.metadata.types_definitionally_equal(actual_source, actual_target) {
+    if !self.types_definitionally_equal(actual_source, actual_target) {
       raise InvalidTypeApplication(
         detail="callable adapter source parameter \{source_index}/\{source_parameters.length()} does not align with target parameter \{target_index}/\{target_parameters.length()}",
       )
@@ -312,7 +312,7 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
     }
     _ => ()
   }
-  if self.image.metadata.types_definitionally_equal(source_type, target_type) {
+  if self.image.types_definitionally_equal(source_type, target_type) {
     return match value {
       Unit => Unit
       Slot(slot, _) => Slot(slot, target_type)
@@ -448,9 +448,7 @@ fn ImageLowerer::lower_callable_adapter(
       call_witnesses.push(lowerer.find_witness(parameter))
     }
   }
-  if self.metadata.types_definitionally_equal(
-      source_result_type, target_result_type,
-    ) {
+  if self.types_definitionally_equal(source_result_type, target_result_type) {
     lowerer.terminate(
       TailCallValue(source_callable, call_witnesses, source_arguments),
     )

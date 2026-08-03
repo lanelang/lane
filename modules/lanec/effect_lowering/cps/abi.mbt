@@ -86,7 +86,7 @@ fn lower_cps_top_term(
   match term {
     Let(id, expression) => {
       let facts = synthesize_expr_or_raise(program.metadata, expression)
-      if program.metadata.effects_definitionally_equal(facts.effect, Empty) {
+      if cps_effects_definitionally_equal(program.metadata, facts.effect, Empty) {
         let lowered = lower_cps_binding_initializer(
           schema,
           program,
@@ -437,7 +437,8 @@ fn lower_cps_direct_call(
       }
       let context_count = parameters.length() - non_context_count
       for index in 0..<context_count {
-        if !metadata.types_definitionally_equal(
+        if !cps_types_definitionally_equal(
+            metadata,
             parameters[index],
             Primitive(Unit),
           ) {
@@ -452,10 +453,12 @@ fn lower_cps_direct_call(
             continuation_effect
           )
         ) &&
-        metadata.types_definitionally_equal(continuation_input, result_type) &&
+        cps_types_definitionally_equal(
+          metadata, continuation_input, result_type,
+        ) &&
         continuation_result == answer_parameter &&
-        metadata.effects_definitionally_equal(
-          continuation_effect, latent_effect,
+        cps_effects_definitionally_equal(
+          metadata, continuation_effect, latent_effect,
         ) else {
         raise ExpectedFunction(callee_type)
       }

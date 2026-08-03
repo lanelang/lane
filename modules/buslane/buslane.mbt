@@ -524,16 +524,11 @@ fn MetadataRegistry::definitional_equality_context(
 }
 
 ///|
+/// Returns whether two Buslane types are definitionally equal.
+///
+/// Raises `TypeNormalizationError` when either type cannot be normalized within
+/// the bounded beta-reduction safeguard.
 pub fn MetadataRegistry::types_definitionally_equal(
-  self : MetadataRegistry,
-  left : Type,
-  right : Type,
-) -> Bool {
-  try! self.types_definitionally_equal_checked(left, right)
-}
-
-///|
-fn MetadataRegistry::types_definitionally_equal_checked(
   self : MetadataRegistry,
   left : Type,
   right : Type,
@@ -584,16 +579,8 @@ pub fn MetadataRegistry::effect_term_is_algebraic(
 ///
 /// Definitional equality remains the relation for deciding whether two types
 /// denote the same thing; this one decides whether a value fits a position.
+/// Raises `TypeNormalizationError` when either type cannot be normalized.
 pub fn MetadataRegistry::type_is_consumable_as(
-  self : MetadataRegistry,
-  actual : Type,
-  expected : Type,
-) -> Bool {
-  try! self.type_is_consumable_as_checked(actual, expected)
-}
-
-///|
-fn MetadataRegistry::type_is_consumable_as_checked(
   self : MetadataRegistry,
   actual : Type,
   expected : Type,
@@ -683,16 +670,8 @@ fn MetadataRegistry::effect_is_consumable_with(
 
 ///|
 /// Returns whether two Buslane effects are definitionally equal.
+/// Raises `TypeNormalizationError` when a generic argument cannot be normalized.
 pub fn MetadataRegistry::effects_definitionally_equal(
-  self : MetadataRegistry,
-  left : Effect,
-  right : Effect,
-) -> Bool {
-  try! self.effects_definitionally_equal_checked(left, right)
-}
-
-///|
-fn MetadataRegistry::effects_definitionally_equal_checked(
   self : MetadataRegistry,
   left : Effect,
   right : Effect,
@@ -706,16 +685,8 @@ fn MetadataRegistry::effects_definitionally_equal_checked(
 
 ///|
 /// Returns whether every effect term in `lower` occurs in `upper`.
+/// Raises `TypeNormalizationError` when a generic argument cannot be normalized.
 pub fn MetadataRegistry::effect_is_subeffect_of(
-  self : MetadataRegistry,
-  lower : Effect,
-  upper : Effect,
-) -> Bool {
-  try! self.effect_is_subeffect_of_checked(lower, upper)
-}
-
-///|
-fn MetadataRegistry::effect_is_subeffect_of_checked(
   self : MetadataRegistry,
   lower : Effect,
   upper : Effect,
@@ -729,15 +700,8 @@ fn MetadataRegistry::effect_is_subeffect_of_checked(
 
 ///|
 /// Returns the canonical effect shape under metadata-aware alpha equivalence.
+/// Raises `TypeNormalizationError` when a generic argument cannot be normalized.
 pub fn MetadataRegistry::canonicalize_effect(
-  self : MetadataRegistry,
-  effect : Effect,
-) -> Effect {
-  try! self.canonicalize_effect_checked(effect)
-}
-
-///|
-fn MetadataRegistry::canonicalize_effect_checked(
   self : MetadataRegistry,
   effect : Effect,
 ) -> Effect raise TypeNormalizationError {

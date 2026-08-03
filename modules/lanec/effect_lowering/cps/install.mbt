@@ -57,7 +57,8 @@ fn lower_cps_install(
     schema, program, unhandled, outer_environment,
   )
   let relay_environment = CpsEnvironment::{
-    effect: program.metadata.canonicalize_effect(
+    effect: cps_canonicalize_effect(
+      program.metadata,
       Union([unhandled.effect, unhandled.residual_effect]),
     ),
     residual: unhandled.residual_effect,
@@ -77,7 +78,8 @@ fn lower_cps_install(
   // arms and the final branch it hands control to are the handler's, and their
   // effects are what the dictionary it receives performs.
   let inner_environment = CpsEnvironment::{
-    effect: program.metadata.canonicalize_effect(
+    effect: cps_canonicalize_effect(
+      program.metadata,
       Union([body_facts.effect, unhandled.residual_effect]),
     ),
     residual: unhandled.residual_effect,
@@ -194,13 +196,18 @@ fn lower_handler_operation_clause(
   let type_binders = schema.rewrite_cps_parameters(source_type_binders)
   let function_type = instantiate_clause_field_type(field_type, type_binders)
   guard function_type is Function(parameter_types, result_type, function_effect) &&
-    schema.metadata.effects_definitionally_equal(
+    cps_effects_definitionally_equal(
+      schema.metadata,
       function_effect,
       unhandled.residual_effect,
     ) else {
     raise ExpectedFunction(function_type)
   }
-  if !schema.metadata.types_definitionally_equal(result_type, unhandled.type_) {
+  if !cps_types_definitionally_equal(
+      schema.metadata,
+      result_type,
+      unhandled.type_,
+    ) {
     raise ExpectedFunction(function_type)
   }
   let source_parameters = source_function.parameters.copy()
@@ -213,13 +220,18 @@ fn lower_handler_operation_clause(
   }
   guard direct_resume_type
     is Function([operation_result], direct_result, resume_effect) &&
-    schema.metadata.effects_definitionally_equal(
+    cps_effects_definitionally_equal(
+      schema.metadata,
       resume_effect,
       unhandled.residual_effect,
     ) else {
     raise ExpectedFunction(direct_resume_type)
   }
-  if !schema.metadata.types_definitionally_equal(direct_result, unhandled.type_) {
+  if !cps_types_definitionally_equal(
+      schema.metadata,
+      direct_result,
+      unhandled.type_,
+    ) {
     raise ExpectedFunction(direct_resume_type)
   }
   let direct_resume = schema.metadata.define_value(
@@ -288,7 +300,7 @@ fn build_handler_resume_value(
     operation_result,
   )
   let resumed = Expr::Call(Ref(direct_resume), [Ref(parameter)])
-  if program.metadata.effects_definitionally_equal(unhandled.effect, Empty) {
+  if cps_effects_definitionally_equal(program.metadata, unhandled.effect, Empty) {
     Function({
       parameters: [parameter],
       result_type: unhandled.result_type,

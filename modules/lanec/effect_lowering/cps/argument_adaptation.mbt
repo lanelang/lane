@@ -83,8 +83,10 @@ fn adapt_direct_argument_to_cps(
   target_parameter_type : @buslane.Type,
 ) -> Expr raise SynthesisError {
   let actual_type = synthesize_expr_or_raise(schema.metadata, argument).type_
-  if schema.metadata.types_definitionally_equal(
-      actual_type, target_parameter_type,
+  if cps_types_definitionally_equal(
+      schema.metadata,
+      actual_type,
+      target_parameter_type,
     ) {
     return argument
   }
@@ -128,7 +130,7 @@ fn direct_to_cps_callable(
   metadata : @buslane.MetadataRegistry,
   actual_type : @buslane.Type,
   target_parameter_type : @buslane.Type,
-) -> DirectToCpsCallable? {
+) -> DirectToCpsCallable? raise SynthesisError {
   guard actual_type is Function(actual_parameters, actual_result, actual_effect) else {
     return None
   }
@@ -155,18 +157,23 @@ fn direct_to_cps_callable(
       )
     ) &&
     continuation_result == answer_parameter &&
-    metadata.effects_definitionally_equal(continuation_effect, residual_effect) else {
+    cps_effects_definitionally_equal(
+      metadata, continuation_effect, residual_effect,
+    ) else {
     return None
   }
   // The adapter body calls the wrapped function and then the continuation, so
   // its row is the union of the two. It matches the shape being adapted to
   // exactly when the wrapped function stays inside the target's residual.
-  if !metadata.types_definitionally_equal(actual_result, continuation_input) ||
-    !metadata.effect_is_subeffect_of(actual_effect, residual_effect) {
+  if !cps_types_definitionally_equal(
+      metadata, actual_result, continuation_input,
+    ) ||
+    !cps_effect_is_subeffect_of(metadata, actual_effect, residual_effect) {
     return None
   }
   for index in 0..<actual_parameters.length() {
-    if !metadata.types_definitionally_equal(
+    if !cps_types_definitionally_equal(
+        metadata,
         actual_parameters[index],
         parameters[value_parameter_start + index],
       ) {

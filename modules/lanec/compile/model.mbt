@@ -180,14 +180,18 @@ pub fn CompiledProgram::elaborate_entry_observed(
 pub fn CompiledProgram::entry_effect_is_executable(
   self : CompiledProgram,
   entry : CompiledEntry,
-) -> Bool {
+) -> Result[Bool, @executable.ExecutableElaborationError] {
   match entry.entry.type_ {
     Function(_, _, effect) =>
-      @executable.entry_effect_is_executable(
-        self.linked.program.metadata,
-        effect,
-      )
-    _ => false
+      Ok(
+        @executable.entry_effect_is_executable(
+          self.linked.program.metadata,
+          effect,
+        ),
+      ) catch {
+        error => Err(EntryTypeNormalizationCompilerDefect(error))
+      }
+    _ => Ok(false)
   }
 }
 

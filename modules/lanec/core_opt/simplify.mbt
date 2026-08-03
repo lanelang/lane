@@ -9,7 +9,7 @@ fn simplify_program(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
-) -> @buslane.Program {
+) -> @buslane.Program raise CoreOptimizeError {
   let preserved_roots = roots.copy()
   preserved_roots.push(entry)
   let mut current = program
@@ -29,7 +29,7 @@ fn simplify_program_once(
   program : @buslane.Program,
   analysis : CoreAnalysis,
   preserved_roots : Array[@buslane.ValueId],
-) -> @buslane.Program {
+) -> @buslane.Program raise CoreOptimizeError {
   let facts = @buslane.ExpressionFactsQuery::new(program)
   let substitutions = collect_top_aliases(program, preserved_roots)
   let terms = []
@@ -68,7 +68,7 @@ fn simplify_program_once(
 fn collect_top_aliases(
   program : @buslane.Program,
   preserved_roots : Array[@buslane.ValueId],
-) -> Array[ValueSubstitution] {
+) -> Array[ValueSubstitution] raise CoreOptimizeError {
   let substitutions = []
   for term in program.terms {
     guard term is Let(value, Ref(target)) else { continue }
@@ -85,14 +85,15 @@ fn compatible_alias(
   program : @buslane.Program,
   value : @buslane.ValueId,
   target : @buslane.ValueId,
-) -> Bool {
+) -> Bool raise CoreOptimizeError {
   guard program.metadata.value_info(value) is Some(value_info) else {
     return false
   }
   guard program.metadata.value_info(target) is Some(target_info) else {
     return false
   }
-  program.metadata.types_definitionally_equal(
+  core_types_definitionally_equal(
+    program.metadata,
     value_info.type_,
     target_info.type_,
   )
@@ -105,7 +106,7 @@ fn simplify_expr(
   analysis : CoreAnalysis,
   substitutions : Array[ValueSubstitution],
   expression : @buslane.Expr,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise CoreOptimizeError {
   match expression {
     Ref(value) => substitutions.resolve_ref(value)
     Literal(_) => expression
@@ -259,7 +260,7 @@ fn simplify_call(
   substitutions : Array[ValueSubstitution],
   callee : @buslane.Expr,
   arguments : Array[@buslane.Expr],
-) -> @buslane.Expr {
+) -> @buslane.Expr raise CoreOptimizeError {
   guard callee is Function(function) &&
     function.parameters.length() == arguments.length() &&
     arguments.all(is_substitutable_atom) else {

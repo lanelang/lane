@@ -25,6 +25,7 @@ pub(all) enum ExecutionRoot {
 pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
+  EntryTypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   UnsupportedEffectSpecialization(detail~ : String)
   EffectSpecializationCompilerDefect(@effect_specialization.SpecializationError)
   CoreOptimizationError(@core_opt.CoreOptimizeError)

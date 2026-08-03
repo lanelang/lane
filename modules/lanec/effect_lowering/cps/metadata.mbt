@@ -39,7 +39,7 @@ fn validate_cps_binding_type(
 ) -> Unit raise SynthesisError {
   guard metadata.value_info(id) is Some(info) else { raise UnknownValue(id) }
   let actual = synthesize_expr_or_raise(metadata, initializer).type_
-  if !metadata.type_is_consumable_as(actual, info.type_) {
+  if !cps_type_is_consumable_as(metadata, actual, info.type_) {
     raise BindingTypeMismatch(value=id, expected=info.type_, actual~)
   }
 }

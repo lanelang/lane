@@ -53,6 +53,11 @@ fn contextualize_planner_error(
       UnsupportedProgram(context.at_planner_visit(site, specialization_key))
     InvalidInputMetadata(context) =>
       InvalidInputMetadata(context.at_planner_visit(site, specialization_key))
+    TypeNormalizationCompilerDefect(context, error) =>
+      TypeNormalizationCompilerDefect(
+        context.at_planner_visit(site, specialization_key),
+        error,
+      )
     PlannerInvariant(context) =>
       PlannerInvariant(context.at_planner_visit(site, specialization_key))
     AllocatorInvariant(context) => AllocatorInvariant(context)
@@ -66,10 +71,61 @@ fn normalize_specialization_input_type(
 ) -> @buslane.Type raise SpecializationError {
   type_.normalize() catch {
     error =>
-      raise InvalidInputMetadata(
+      raise TypeNormalizationCompilerDefect(
         specialization_error_context(
           "Buslane type normalization failed: \{Repr(error)}",
         ),
+        error,
+      )
+  }
+}
+
+///|
+fn canonicalize_specialization_input_effect(
+  metadata : @buslane.MetadataRegistry,
+  effect : @buslane.Effect,
+) -> @buslane.Effect raise SpecializationError {
+  metadata.canonicalize_effect(effect) catch {
+    error =>
+      raise TypeNormalizationCompilerDefect(
+        specialization_error_context(
+          "Buslane effect normalization failed: \{Repr(error)}",
+        ),
+        error,
+      )
+  }
+}
+
+///|
+fn specialization_types_definitionally_equal(
+  metadata : @buslane.MetadataRegistry,
+  left : @buslane.Type,
+  right : @buslane.Type,
+) -> Bool raise SpecializationError {
+  metadata.types_definitionally_equal(left, right) catch {
+    error =>
+      raise TypeNormalizationCompilerDefect(
+        specialization_error_context(
+          "Buslane type normalization failed: \{Repr(error)}",
+        ),
+        error,
+      )
+  }
+}
+
+///|
+fn specialization_effects_definitionally_equal(
+  metadata : @buslane.MetadataRegistry,
+  left : @buslane.Effect,
+  right : @buslane.Effect,
+) -> Bool raise SpecializationError {
+  metadata.effects_definitionally_equal(left, right) catch {
+    error =>
+      raise TypeNormalizationCompilerDefect(
+        specialization_error_context(
+          "Buslane effect normalization failed: \{Repr(error)}",
+        ),
+        error,
       )
   }
 }
@@ -83,6 +139,10 @@ fn normalize_specialization_input_type(
 pub(all) suberror SpecializationError {
   UnsupportedProgram(SpecializationErrorContext)
   InvalidInputMetadata(SpecializationErrorContext)
+  TypeNormalizationCompilerDefect(
+    SpecializationErrorContext,
+    @buslane.TypeNormalizationError
+  )
   PlannerInvariant(SpecializationErrorContext)
   AllocatorInvariant(SpecializationErrorContext)
   RewriterInvariant(SpecializationErrorContext)

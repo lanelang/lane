@@ -138,7 +138,11 @@ fn validate_executable_entry(
       ),
     )
   }
-  if !program.entry_effect_is_executable(entry) {
+  let executable_effect = match program.entry_effect_is_executable(entry) {
+    Ok(executable) => executable
+    Err(error) => return Err(Internal(message="\{Repr(error)}"))
+  }
+  if !executable_effect {
     return Err(
       EntryNotExecutable(
         name=display_entry(entry),

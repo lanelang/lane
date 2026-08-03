@@ -37,7 +37,7 @@ fn build_unhandled_computation_schema(
   let canonical = mon_effect_part(schema.metadata, effect)
   let residual_effect = schema.rewrite_residual_effect(effect)
   let rewritten_result = schema.rewrite_type(result_type)
-  if schema.metadata.effects_definitionally_equal(canonical, Empty) {
+  if cps_effects_definitionally_equal(schema.metadata, canonical, Empty) {
     {
       effect: canonical,
       residual_effect,
@@ -58,7 +58,8 @@ fn build_unhandled_computation_schema(
       flavor=External,
     )
     let answer_type = @buslane.Type::Parameter(answer_parameter)
-    let frame_residual = schema.metadata.canonicalize_effect(
+    let frame_residual = cps_canonicalize_effect(
+      schema.metadata,
       Union([residual_effect, Parameter(residual_parameter)]),
     )
     {
@@ -93,7 +94,8 @@ fn UnhandledComputationSchema::fresh_frame(
     flavor=External,
   )
   let answer_type = @buslane.Type::Parameter(answer_parameter)
-  let frame_residual = schema.metadata.canonicalize_effect(
+  let frame_residual = cps_canonicalize_effect(
+    schema.metadata,
     Union([self.residual_effect, Parameter(residual_parameter)]),
   )
   let context_parameters = []
@@ -118,7 +120,8 @@ fn UnhandledComputationSchema::fresh_frame(
     answer_type,
     context_parameters,
     environment: {
-      effect: schema.metadata.canonicalize_effect(
+      effect: cps_canonicalize_effect(
+        schema.metadata,
         Union([self.effect, self.residual_effect]),
       ),
       residual: frame_residual,
@@ -146,7 +149,7 @@ fn UnhandledComputationSchema::pure(
   schema : DictionaryCpsSchema,
   value : Expr,
 ) -> Expr raise SynthesisError {
-  if schema.metadata.effects_definitionally_equal(self.effect, Empty) {
+  if cps_effects_definitionally_equal(schema.metadata, self.effect, Empty) {
     value
   } else {
     let frame = self.fresh_frame(schema)
@@ -163,7 +166,7 @@ fn UnhandledComputationSchema::run(
   answer_type : @buslane.Type,
   continuation : Expr,
 ) -> Expr raise SynthesisError {
-  if metadata.effects_definitionally_equal(self.effect, Empty) {
+  if cps_effects_definitionally_equal(metadata, self.effect, Empty) {
     Call(continuation, [computation])
   } else {
     Call(
@@ -268,7 +271,8 @@ fn build_relay_field(
     field_type,
   )
   guard function_type is Function(parameter_types, result_type, function_effect) &&
-    schema.metadata.effects_definitionally_equal(
+    cps_effects_definitionally_equal(
+      schema.metadata,
       function_effect,
       unhandled.residual_effect,
     ) else {
@@ -282,14 +286,23 @@ fn build_relay_field(
   }
   guard parameter_types.last()
     is Some(Function([operation_result], resume_result, resume_effect)) &&
-    schema.metadata.effects_definitionally_equal(
+    cps_effects_definitionally_equal(
+      schema.metadata,
       resume_effect,
       unhandled.residual_effect,
     ) else {
     raise ExpectedFunction(parameter_types.last().unwrap())
   }
-  if !schema.metadata.types_definitionally_equal(resume_result, unhandled.type_) ||
-    !schema.metadata.types_definitionally_equal(result_type, unhandled.type_) {
+  if !cps_types_definitionally_equal(
+      schema.metadata,
+      resume_result,
+      unhandled.type_,
+    ) ||
+    !cps_types_definitionally_equal(
+      schema.metadata,
+      result_type,
+      unhandled.type_,
+    ) {
     raise ExpectedFunction(function_type)
   }
   let frame = unhandled.fresh_frame(schema)

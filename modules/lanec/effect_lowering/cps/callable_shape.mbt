@@ -63,7 +63,7 @@ fn CpsCallableShape::align_value_parameters(
   for index, parameter in parameters {
     let actual = value_type(metadata, parameter)
     let expected = self.value_parameter_types[index]
-    if !metadata.types_definitionally_equal(actual, expected) {
+    if !cps_types_definitionally_equal(metadata, actual, expected) {
       raise BindingTypeMismatch(value=parameter, expected~, actual~)
     }
   }

@@ -162,11 +162,12 @@ fn executable_elaboration_error(
   match error {
     EntryNotLinked(value) => MissingEntry(value~)
     InvalidEntryFunction(value~, type_~) => InvalidFunctionType(value~, type_~)
+    EntryTypeNormalizationCompilerDefect(error) =>
+      TypeNormalizationCompilerDefect(error)
     UnsupportedEffectSpecialization(detail~) => UnsupportedExpression(detail~)
     EffectSpecializationCompilerDefect(error) =>
       CompilerDefect(EffectSpecializationCompilerDefect(error))
-    CoreOptimizationError(error) =>
-      UnsupportedExpression(detail="core optimization failed: \{Repr(error)}")
+    CoreOptimizationError(error) => CompilerDefect(CoreOptimizationError(error))
     EffectLoweringError(error) => EffectLoweringError(error)
     UnverifiedProgram(stage~, result~) =>
       UnsupportedExpression(

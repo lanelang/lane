@@ -203,6 +203,17 @@ priv enum RuntimeType {
 }
 
 ///|
+fn ImageLowerer::types_definitionally_equal(
+  self : ImageLowerer,
+  left : @buslane.Type,
+  right : @buslane.Type,
+) -> Bool raise LoisvmLoweringError {
+  self.metadata.types_definitionally_equal(left, right) catch {
+    error => raise TypeNormalizationCompilerDefect(error)
+  }
+}
+
+///|
 /// Resolve the runtime representation of a value type.
 ///
 /// Ordinary `Type` parameters and applied effect companions are erased. A

@@ -104,9 +104,14 @@ fn require_open_contexts(
 ) -> Unit raise SynthesisError {
   let available = effect_terms(metadata, target)
   for required in effect_terms(metadata, source) {
-    if !available.any(context => {
-        metadata.effects_definitionally_equal(context, required)
-      }) {
+    let mut found = false
+    for context in available {
+      if effects_definitionally_equal(metadata, context, required) {
+        found = true
+        break
+      }
+    }
+    if !found {
       raise MissingEffectContext(required)
     }
   }

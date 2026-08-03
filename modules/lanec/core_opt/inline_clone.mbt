@@ -43,7 +43,7 @@ fn InlineCloneContext::from_application(
 fn InlineCloneContext::clone_function(
   self : InlineCloneContext,
   function : @buslane.FunctionExpr,
-) -> @buslane.FunctionExpr {
+) -> @buslane.FunctionExpr raise CoreOptimizeError {
   let parameters = function.parameters.map(parameter => {
     self.clone_value(parameter)
   })
@@ -58,7 +58,7 @@ fn InlineCloneContext::clone_function(
 fn InlineCloneContext::clone_expr(
   self : InlineCloneContext,
   expression : @buslane.Expr,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise CoreOptimizeError {
   match expression {
     Ref(value) => Ref(self.remap_value(value))
     Literal(_) => expression
@@ -202,12 +202,12 @@ fn InlineCloneContext::remap_value(
 fn InlineCloneContext::substitute_argument(
   self : InlineCloneContext,
   argument : @buslane.GenericArgument,
-) -> @buslane.GenericArgument {
+) -> @buslane.GenericArgument raise CoreOptimizeError {
   match argument {
     TypeArgument(type_) => TypeArgument(type_.substitute(self.substitution))
     EffectArgument(effect) =>
       EffectArgument(
-        self.metadata.canonicalize_effect(self.substitute_effect(effect)),
+        core_canonicalize_effect(self.metadata, self.substitute_effect(effect)),
       )
   }
 }
@@ -216,7 +216,7 @@ fn InlineCloneContext::substitute_argument(
 fn InlineCloneContext::substitute_effect(
   self : InlineCloneContext,
   effect : @buslane.Effect,
-) -> @buslane.Effect {
+) -> @buslane.Effect raise CoreOptimizeError {
   match effect {
     Empty | Io => effect
     Parameter(parameter) => {

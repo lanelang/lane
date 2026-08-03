@@ -4,8 +4,13 @@ fn validate_executable_entry(
   entry : @buslane_lowering.BuslaneEntry,
 ) -> Unit raise ExecutableElaborationError {
   guard entry.type_ is Function(parameters, Primitive(Unit), effect) &&
-    parameters.is_empty() &&
-    entry_effect_is_executable(metadata, effect) else {
+    parameters.is_empty() else {
+    raise InvalidEntryFunction(value=entry.value, type_=entry.type_)
+  }
+  let executable = entry_effect_is_executable(metadata, effect) catch {
+    error => raise EntryTypeNormalizationCompilerDefect(error)
+  }
+  if !executable {
     raise InvalidEntryFunction(value=entry.value, type_=entry.type_)
   }
 }
@@ -14,7 +19,7 @@ fn validate_executable_entry(
 pub fn entry_effect_is_executable(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
-) -> Bool {
+) -> Bool raise @buslane.TypeNormalizationError {
   if !entry_effect_is_closed(effect) {
     return false
   }

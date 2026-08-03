@@ -18,7 +18,7 @@ fn EffectSpecializer::planned_ambient_bindings(
 fn EffectSpecializer::root_scope(
   self : EffectSpecializer,
   owner : @buslane.ValueId,
-) -> EffectRewriteScope {
+) -> EffectRewriteScope raise SpecializationError {
   let scope = EffectRewriteScope::new(owner, [])
   for definition in self.definitions {
     if self.plan.retains(self.program.metadata, TopLevel(definition.id), []) {

@@ -30,7 +30,7 @@ fn partially_evaluate_program(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
-) -> @buslane.Program {
+) -> @buslane.Program raise CoreOptimizeError {
   let expansions = Array::make(program.metadata.values.length(), 0)
   let mut current = program
   let mut remaining_expansions = whole_program_expansion_limit
@@ -59,7 +59,7 @@ fn partially_evaluate_program(
 fn PartialEvaluator::rewrite_top_term(
   self : PartialEvaluator,
   term : @buslane.TopTerm,
-) -> @buslane.TopTerm {
+) -> @buslane.TopTerm raise CoreOptimizeError {
   match term {
     Let(value, expression) =>
       Let(value, self.rewrite_top_level_expression(expression))
@@ -78,7 +78,7 @@ fn PartialEvaluator::rewrite_top_term(
 fn PartialEvaluator::rewrite_top_level_expression(
   self : PartialEvaluator,
   expression : @buslane.Expr,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise CoreOptimizeError {
   match expression {
     Call(callee, arguments) => self.rewrite_call(callee, arguments, true)
     _ => self.rewrite_expr(expression)
@@ -89,7 +89,7 @@ fn PartialEvaluator::rewrite_top_level_expression(
 fn PartialEvaluator::rewrite_expr(
   self : PartialEvaluator,
   expression : @buslane.Expr,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise CoreOptimizeError {
   match expression {
     Ref(_) | Literal(_) | Resume(_) => expression
     Function(function) =>
@@ -150,7 +150,7 @@ fn PartialEvaluator::rewrite_call(
   callee : @buslane.Expr,
   arguments : Array[@buslane.Expr],
   allow_constructor_materialization : Bool,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise CoreOptimizeError {
   let callee = self.rewrite_expr(callee)
   let arguments = arguments.map(argument => self.rewrite_expr(argument))
   match
@@ -168,7 +168,7 @@ fn PartialEvaluator::try_inline_known_call(
   callee : @buslane.Expr,
   arguments : Array[@buslane.Expr],
   allow_constructor_materialization : Bool,
-) -> @buslane.Expr? {
+) -> @buslane.Expr? raise CoreOptimizeError {
   guard known_call(callee) is Some(call) &&
     self.analysis.find_callable(call.value) is Some(callable) &&
     !callable.recursive &&

@@ -5,7 +5,17 @@ pub(all) struct ExprFacts {
 } derive(Debug, Eq)
 
 ///|
+fn[T] normalization_or_synthesis_defect(
+  compute : () -> T raise @buslane.TypeNormalizationError,
+) -> T raise SynthesisError {
+  compute() catch {
+    error => raise TypeNormalizationCompilerDefect(error)
+  }
+}
+
+///|
 pub(all) suberror SynthesisError {
+  TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   UnknownValue(@buslane.ValueId)
   UnknownType(@buslane.TypeId)
   UnknownDataConstructor(@buslane.DataConId)
@@ -35,6 +45,25 @@ pub(all) suberror SynthesisError {
 } derive(Debug, Eq)
 
 ///|
+fn effects_definitionally_equal(
+  metadata : @buslane.MetadataRegistry,
+  left : @buslane.Effect,
+  right : @buslane.Effect,
+) -> Bool raise SynthesisError {
+  normalization_or_synthesis_defect(() => {
+    metadata.effects_definitionally_equal(left, right)
+  })
+}
+
+///|
+fn canonicalize_effect(
+  metadata : @buslane.MetadataRegistry,
+  effect : @buslane.Effect,
+) -> @buslane.Effect raise SynthesisError {
+  normalization_or_synthesis_defect(() => metadata.canonicalize_effect(effect))
+}
+
+///|
 pub fn synthesize_expr(
   program : Program,
   expression : Expr,
@@ -56,7 +85,7 @@ pub fn synthesize_expr_or_raise(
     Call(callee, arguments) => synthesize_call(metadata, callee, arguments)
     TypeLambda(parameters, body) => {
       let body_facts = synthesize_expr_or_raise(metadata, body)
-      if !metadata.effects_definitionally_equal(body_facts.effect, Empty) {
+      if !effects_definitionally_equal(metadata, body_facts.effect, Empty) {
         raise EffectfulTypeLambda(body_facts.effect)
       }
       pure_facts(Forall(parameters, body_facts.type_))
@@ -78,7 +107,7 @@ pub fn synthesize_expr_or_raise(
     LetRec(bindings, body) => {
       for binding in bindings {
         let rhs_facts = synthesize_expr_or_raise(metadata, binding.rhs)
-        if !metadata.effects_definitionally_equal(rhs_facts.effect, Empty) {
+        if !effects_definitionally_equal(metadata, rhs_facts.effect, Empty) {
           raise EffectfulRecursiveBinding(binding.id, rhs_facts.effect)
         }
       }
@@ -136,7 +165,7 @@ fn synthesize_call(
     raise ExpectedFunction(callee_facts.type_)
   }
   if arguments.length() > parameters.length() &&
-    !metadata.effects_definitionally_equal(latent_effect, Empty) {
+    !effects_definitionally_equal(metadata, latent_effect, Empty) {
     guard arguments.last() is Some(continuation) else {
       raise ArityMismatch(
         expected=parameters.length(),
@@ -340,16 +369,16 @@ fn pure_facts(type_ : @buslane.Type) -> ExprFacts {
 fn effect_union(
   metadata : @buslane.MetadataRegistry,
   effects : Array[@buslane.Effect],
-) -> @buslane.Effect {
-  metadata.canonicalize_effect(Union(effects))
+) -> @buslane.Effect raise SynthesisError {
+  canonicalize_effect(metadata, Union(effects))
 }
 
 ///|
 pub fn effect_terms(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
-) -> Array[@buslane.Effect] {
-  match metadata.canonicalize_effect(effect) {
+) -> Array[@buslane.Effect] raise SynthesisError {
+  match canonicalize_effect(metadata, effect) {
     Empty => []
     Union(effects) => effects
     effect => [effect]
@@ -361,13 +390,18 @@ fn remove_handled_effects(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
   handled : Array[@buslane.Effect],
-) -> @buslane.Effect {
+) -> @buslane.Effect raise SynthesisError {
   effect_union(
     metadata,
     effect_terms(metadata, effect).filter(term => {
-      !handled.any(handled_effect => {
-        metadata.effects_definitionally_equal(term, handled_effect)
-      })
+      let mut is_handled = false
+      for handled_effect in handled {
+        if effects_definitionally_equal(metadata, term, handled_effect) {
+          is_handled = true
+          break
+        }
+      }
+      !is_handled
     }),
   )
 }

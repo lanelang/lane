@@ -105,7 +105,8 @@ fn EffectSpecializer::specialize_substituted_effect(
         arguments.map(argument => self.specialize_substituted_argument(argument)),
       )
     Union(effects) =>
-      self.program.metadata.canonicalize_effect(
+      canonicalize_specialization_input_effect(
+        self.program.metadata,
         Union(effects.map(effect => self.specialize_substituted_effect(effect))),
       )
   }
@@ -203,7 +204,7 @@ fn data_instance_bindings(
         )
       }
       let specialized = abstract_effect_type_arguments(
-        metadata.canonicalize_effect(effect),
+        canonicalize_specialization_input_effect(metadata, effect),
         info.parameters,
         arguments,
         metadata,

@@ -208,8 +208,8 @@ fn substitute_cps_effect(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
   substitution : @buslane.TypeSubstitution,
-) -> @buslane.Effect {
-  metadata.canonicalize_effect(effect.substitute(substitution))
+) -> @buslane.Effect raise SynthesisError {
+  cps_canonicalize_effect(metadata, effect.substitute(substitution))
 }
 
 ///|
@@ -245,7 +245,7 @@ fn find_cps_context(
   term : @buslane.Effect,
 ) -> Expr raise SynthesisError {
   for binding in environment.bindings {
-    if metadata.effects_definitionally_equal(binding.term, term) {
+    if cps_effects_definitionally_equal(metadata, binding.term, term) {
       return binding.value
     }
   }
@@ -270,7 +270,10 @@ fn pack_cps_context(
   match values {
     [] => (Literal(Unit), true)
     [value] =>
-      (value, !schema.metadata.effects_definitionally_equal(effect, terms[0]))
+      (
+        value,
+        !cps_effects_definitionally_equal(schema.metadata, effect, terms[0]),
+      )
     values => {
       let pack = schema.context_pack(values.length())
       guard schema.metadata.type_info(pack.type_id) is Some(info) else {

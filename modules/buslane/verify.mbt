@@ -117,18 +117,24 @@ fn VerifyDiagnosticKind::is_type_compatibility_diagnostic(
 }
 
 ///|
+/// Returns whether an expression has an empty synthesized effect.
+///
+/// A synthesis or normalization failure is returned as a blocking verifier
+/// diagnostic rather than being converted to a negative answer or an abort.
 pub fn ExpressionFactsQuery::has_empty_effect(
   self : ExpressionFactsQuery,
   expression : Expr,
 ) -> Result[Bool, VerifyResult] {
-  self
-  .synthesize(expression)
-  .map(facts => {
-    try! self.program.metadata.effects_definitionally_equal_checked(
-      facts.effect,
-      Empty,
-    )
-  })
+  match self.synthesize(expression) {
+    Err(result) => Err(result)
+    Ok(facts) =>
+      Ok(
+        self.program.metadata.effects_definitionally_equal(facts.effect, Empty),
+      ) catch {
+        error =>
+          Err({ diagnostics: [{ kind: TypeNormalizationFailure(error) }] })
+      }
+  }
 }
 
 ///|
@@ -207,7 +213,7 @@ fn VerifyContext::types_definitionally_equal(
   right : Type,
 ) -> Bool {
   self.recover_normalization_failure(false, () => {
-    self.program.metadata.types_definitionally_equal_checked(left, right)
+    self.program.metadata.types_definitionally_equal(left, right)
   })
 }
 
@@ -218,7 +224,7 @@ fn VerifyContext::type_is_consumable_as(
   expected : Type,
 ) -> Bool {
   self.recover_normalization_failure(false, () => {
-    self.program.metadata.type_is_consumable_as_checked(actual, expected)
+    self.program.metadata.type_is_consumable_as(actual, expected)
   })
 }
 
@@ -229,7 +235,7 @@ fn VerifyContext::effects_definitionally_equal(
   right : Effect,
 ) -> Bool {
   self.recover_normalization_failure(false, () => {
-    self.program.metadata.effects_definitionally_equal_checked(left, right)
+    self.program.metadata.effects_definitionally_equal(left, right)
   })
 }
 
@@ -239,7 +245,7 @@ fn VerifyContext::canonicalize_effect(
   effect : Effect,
 ) -> Effect {
   self.recover_normalization_failure(effect, () => {
-    self.program.metadata.canonicalize_effect_checked(effect)
+    self.program.metadata.canonicalize_effect(effect)
   })
 }
 

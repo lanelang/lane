@@ -18,12 +18,13 @@ pub fn elaborate(@link.LinkedProgram, @buslane_lowering.BuslaneEntry) -> Result[
 
 pub fn elaborate_observed(@link.LinkedProgram, @buslane_lowering.BuslaneEntry, (ExecutableElaborationStage) -> Unit) -> Result[ExecutableProgram, ExecutableElaborationError]
 
-pub fn entry_effect_is_executable(@buslane.MetadataRegistry, @buslane.Effect) -> Bool
+pub fn entry_effect_is_executable(@buslane.MetadataRegistry, @buslane.Effect) -> Bool raise @buslane.TypeNormalizationError
 
 // Errors
 pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
+  EntryTypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   UnsupportedEffectSpecialization(detail~ : String)
   EffectSpecializationCompilerDefect(@effect_specialization.SpecializationError)
   CoreOptimizationError(@core_opt.CoreOptimizeError)

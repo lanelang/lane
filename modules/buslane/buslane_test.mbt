@@ -13,7 +13,7 @@ fn assert_type_equal(
   metadata : MetadataRegistry,
   actual : Type,
   expected : Type,
-) -> Unit {
+) -> Unit raise TypeNormalizationError {
   if !metadata.types_definitionally_equal(actual, expected) {
     abort(
       "expected equal buslane types\nactual:\n" +
@@ -29,7 +29,7 @@ fn assert_effect_equal(
   metadata : MetadataRegistry,
   actual : Effect,
   expected : Effect,
-) -> Unit {
+) -> Unit raise TypeNormalizationError {
   if !metadata.effects_definitionally_equal(actual, expected) {
     abort(
       "expected equal buslane effects\nactual:\n" +

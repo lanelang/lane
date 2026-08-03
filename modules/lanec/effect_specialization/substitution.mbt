@@ -81,7 +81,7 @@ fn abstract_effect_type_arguments(
   parameters : Array[@buslane.TypeParameterId],
   arguments : Array[@buslane.GenericArgument],
   metadata : @buslane.MetadataRegistry,
-) -> @buslane.Effect {
+) -> @buslane.Effect raise SpecializationError {
   match effect {
     Empty | Io | Parameter(_) => effect
     Singleton(id, effect_arguments) =>
@@ -94,7 +94,8 @@ fn abstract_effect_type_arguments(
         }),
       )
     Union(effects) =>
-      metadata.canonicalize_effect(
+      canonicalize_specialization_input_effect(
+        metadata,
         Union(
           effects.map(effect => {
             abstract_effect_type_arguments(
@@ -112,7 +113,7 @@ fn abstract_generic_type_argument(
   parameters : Array[@buslane.TypeParameterId],
   arguments : Array[@buslane.GenericArgument],
   metadata : @buslane.MetadataRegistry,
-) -> @buslane.GenericArgument {
+) -> @buslane.GenericArgument raise SpecializationError {
   match argument {
     TypeArgument(type_) =>
       TypeArgument(
@@ -131,11 +132,11 @@ fn abstract_specialized_type(
   parameters : Array[@buslane.TypeParameterId],
   arguments : Array[@buslane.GenericArgument],
   metadata : @buslane.MetadataRegistry,
-) -> @buslane.Type {
+) -> @buslane.Type raise SpecializationError {
   for index in 0..<parameters.length() {
     if !type_parameter_is_effect(metadata, parameters[index]) &&
       arguments[index] is TypeArgument(actual) &&
-      metadata.types_definitionally_equal(type_, actual) {
+      specialization_types_definitionally_equal(metadata, type_, actual) {
       return Parameter(parameters[index])
     }
   }

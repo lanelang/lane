@@ -453,7 +453,8 @@ fn DictionaryCpsSchema::cps_residual_effect(
   effect : @buslane.Effect,
   parameter : @buslane.Effect,
 ) -> @buslane.Effect raise SynthesisError {
-  self.metadata.canonicalize_effect(
+  cps_canonicalize_effect(
+    self.metadata,
     Union([self.rewrite_residual_effect(effect), parameter]),
   )
 }
@@ -482,7 +483,8 @@ fn DictionaryCpsSchema::rewrite_residual_effect(
       }
     }
     Union(effects) =>
-      self.metadata.canonicalize_effect(
+      cps_canonicalize_effect(
+        self.metadata,
         Union(effects.map(effect => self.rewrite_residual_effect(effect))),
       )
   }

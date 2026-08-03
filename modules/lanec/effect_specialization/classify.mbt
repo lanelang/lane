@@ -60,7 +60,7 @@ fn classify_effect_generic_use(
           ),
         )
       }
-      let canonical = metadata.canonicalize_effect(effect)
+      let canonical = canonicalize_specialization_input_effect(metadata, effect)
       let abstracted = abstract_effect_type_arguments(
         canonical, parameters, substituted_arguments, metadata,
       )
@@ -92,7 +92,7 @@ fn specialization_bindings_equal(
   metadata : @buslane.MetadataRegistry,
   left : Array[EffectSpecializationBinding],
   right : Array[EffectSpecializationBinding],
-) -> Bool {
+) -> Bool raise SpecializationError {
   if left.length() != right.length() {
     return false
   }
@@ -114,12 +114,12 @@ fn generic_arguments_definitionally_equal(
   metadata : @buslane.MetadataRegistry,
   left : @buslane.GenericArgument,
   right : @buslane.GenericArgument,
-) -> Bool {
+) -> Bool raise SpecializationError {
   match (left, right) {
     (TypeArgument(left), TypeArgument(right)) =>
-      metadata.types_definitionally_equal(left, right)
+      specialization_types_definitionally_equal(metadata, left, right)
     (EffectArgument(left), EffectArgument(right)) =>
-      metadata.effects_definitionally_equal(left, right)
+      specialization_effects_definitionally_equal(metadata, left, right)
     _ => false
   }
 }

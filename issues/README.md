@@ -333,6 +333,7 @@ graph TD
   ISS_303["ISS-303: Separate specialization allocation from mechanical rewriting"]
   ISS_304["ISS-304: Extract effect specialization behind a deep package boundary"]
   ISS_305["ISS-305: Validate specialization equivalence and retire legacy policy"]
+  ISS_315["ISS-315: Propagate checked normalization through public semantic relations"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
