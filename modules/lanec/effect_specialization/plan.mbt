@@ -43,6 +43,22 @@ priv struct DataInstanceDemand {
 } derive(Debug, Eq)
 
 ///|
+priv enum PlannedTopTerm {
+  RetainedLet(source_index~ : Int, value~ : @buslane.ValueId)
+  RetainedLetRec(source_index~ : Int, values~ : Array[@buslane.ValueId])
+  RetainedExternal(source_index~ : Int, value~ : @buslane.ValueId)
+} derive(Debug, Eq)
+
+///|
+fn PlannedTopTerm::source_index(self : PlannedTopTerm) -> Int {
+  match self {
+    RetainedLet(source_index~, ..)
+    | RetainedLetRec(source_index~, ..)
+    | RetainedExternal(source_index~, ..) => source_index
+  }
+}
+
+///|
 priv enum RetainedDeclaration {
   DataConstructor(@buslane.DataConId)
   Operation(@buslane.OperationId)
@@ -53,8 +69,20 @@ priv enum RetainedDeclaration {
 priv struct SpecializationPlan {
   callable_demands : Array[CallableSpecializationDemand]
   data_demands : Array[DataInstanceDemand]
+  retained_top_terms : Array[PlannedTopTerm]
   retained_declarations : Array[RetainedDeclaration]
 } derive(Debug, Eq)
+
+///|
+fn SpecializationPlan::add_retained_top_term(
+  self : SpecializationPlan,
+  term : PlannedTopTerm,
+) -> Unit {
+  self.retained_top_terms.push(term)
+  self.retained_top_terms.sort_by(fn(left, right) {
+    left.source_index().compare(right.source_index())
+  })
+}
 
 ///|
 fn SpecializationPlan::retains(
@@ -109,10 +137,21 @@ fn plan_effect_specializations_with_definitions(
     program,
     definitions,
     visits: [],
-    plan: { callable_demands: [], data_demands: [], retained_declarations: [] },
+    plan: {
+      callable_demands: [],
+      data_demands: [],
+      retained_top_terms: [],
+      retained_declarations: [],
+    },
   }
   guard planner.find_definition(entry) is Some(entry_definition) else {
+    if planner.retain_top_value(entry) {
+      planner.visit_value_type(entry, [])
+    }
     return planner.plan
+  }
+  if entry_definition.effect_parameters.is_empty() {
+    ignore(planner.retain_top_value(entry))
   }
   planner.enqueue_visit(entry_definition.site, [])
   let mut index = 0
@@ -142,6 +181,69 @@ fn plan_effect_specializations_with_definitions(
     index += 1
   }
   planner.plan
+}
+
+///|
+fn SpecializationPlanner::retain_top_value(
+  self : SpecializationPlanner,
+  id : @buslane.ValueId,
+) -> Bool raise SpecializationError {
+  for source_index, source_term in self.program.terms {
+    match source_term {
+      Let(source, _) if source == id => {
+        if self.plan.retained_top_terms.any(planned => {
+            planned.source_index() == source_index
+          }) {
+          return false
+        }
+        self.plan.add_retained_top_term(RetainedLet(source_index~, value=id))
+        return true
+      }
+      External(source) if source == id => {
+        if self.plan.retained_top_terms.any(planned => {
+            planned.source_index() == source_index
+          }) {
+          return false
+        }
+        self.plan.add_retained_top_term(
+          RetainedExternal(source_index~, value=id),
+        )
+        return true
+      }
+      LetRec(source_bindings) => {
+        guard source_bindings.any(binding => binding.id == id) else { continue }
+        for planned_index, planned in self.plan.retained_top_terms {
+          guard planned.source_index() == source_index else { continue }
+          guard planned is RetainedLetRec(values=retained_values, ..) else {
+            raise PlannerInvariant(
+              specialization_error_context(
+                "one source top-level term has conflicting retention plans",
+                source=Value(id),
+              ),
+            )
+          }
+          if retained_values.contains(id) {
+            return false
+          }
+          let retained_ids = retained_values.copy()
+          retained_ids.push(id)
+          self.plan.retained_top_terms[planned_index] = RetainedLetRec(
+            source_index~,
+            values=source_bindings
+              .filter(binding => retained_ids.contains(binding.id))
+              .map(binding => binding.id),
+          )
+          return true
+        }
+        self.plan.add_retained_top_term(
+          RetainedLetRec(source_index~, values=[id]),
+        )
+        return true
+      }
+      _ => ()
+    }
+  }
+  false
 }
 
 ///|
@@ -533,6 +635,9 @@ fn SpecializationPlanner::record_generic_use(
   match classified.mode {
     Incomplete | Symbolic => {
       self.add_demand(RetainGeneric(definition.site, ambient_bindings))
+      if definition.site is TopLevel(value) {
+        ignore(self.retain_top_value(value))
+      }
       self.enqueue_visit(definition.site, ambient_bindings)
     }
     Concrete(instance_bindings) => {
@@ -552,16 +657,25 @@ fn SpecializationPlanner::visit_reference(
   id : @buslane.ValueId,
   ambient_bindings : Array[EffectSpecializationBinding],
 ) -> Unit raise SpecializationError {
-  guard self.find_definition(id) is Some(definition) else { return }
-  if definition.effect_parameters.is_empty() {
-    self.enqueue_visit(
-      definition.site,
-      ambient_bindings.filter(binding => {
-        definition.captured_effect_parameters.contains(binding.parameter)
-      }),
-    )
-  } else {
-    self.record_generic_use(definition, [], ambient_bindings)
+  match self.find_definition(id) {
+    Some(definition) =>
+      if definition.effect_parameters.is_empty() {
+        if definition.site is TopLevel(value) {
+          ignore(self.retain_top_value(value))
+        }
+        self.enqueue_visit(
+          definition.site,
+          ambient_bindings.filter(binding => {
+            definition.captured_effect_parameters.contains(binding.parameter)
+          }),
+        )
+      } else {
+        self.record_generic_use(definition, [], ambient_bindings)
+      }
+    None =>
+      if self.retain_top_value(id) {
+        self.visit_value_type(id, ambient_bindings)
+      }
   }
 }
 

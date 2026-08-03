@@ -480,6 +480,7 @@ test "effect specialization rewrites retained declarations that name a specializ
   }
   assert_eq(plan_effect_specializations(program, entry), {
     callable_demands: [],
+    retained_top_terms: [RetainedLet(source_index=0, value=entry)],
     retained_declarations: [DataConstructor(make_holder)],
     data_demands: [
       {

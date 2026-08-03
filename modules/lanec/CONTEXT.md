@@ -373,7 +373,7 @@ A canonical request attached to one reachable source definition site after apply
 _Avoid_: definition-global runtime-polymorphic flag, raw call syntax, optimizer specialization candidate
 
 **Effect Specialization Plan**:
-The immutable, read-only fixed point of reachable callable and nominal-data Effect Specialization Demands, together with the exact reachable constructor and operation declarations whose retained metadata types require rewriting. It is computed before target metadata is allocated. Allocation consumes the plan exactly once, and expression rewriting may only look up its allocated identities; neither phase may add a demand or scan unrelated metadata declarations.
+The immutable, read-only fixed point of reachable callable and nominal-data Effect Specialization Demands, the source-ordered top-level values and externals retained in the output, and the exact reachable constructor and operation declarations whose retained metadata types require rewriting. It is computed before target metadata is allocated. Allocation and output rewriting consume the plan exactly once; neither phase may add a demand, choose retention through a second reachability analysis, or scan unrelated metadata declarations.
 _Avoid_: rewrite-time instance discovery, metadata-mutating analysis, forwarding-edge closure
 
 **Effect Specialization Definition Site**:
@@ -636,6 +636,9 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   identity occurs in the **Effect Specialization Plan**. Unreachable metadata
   declarations remain untouched and cannot introduce specialization demand
   during allocation.
+- Top-level values, recursive binding groups, and externals are emitted only
+  from the source-ordered retention entries in the **Effect Specialization
+  Plan**. Core occurrence facts cannot select or reject specialization output.
 - A source callable may be retained generically and also receive concrete
   clones. Dead symbolic uses contribute no demand, and concrete use sites do
   not lose specialization merely because another use forwards an effect

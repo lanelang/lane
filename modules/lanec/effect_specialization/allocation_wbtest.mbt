@@ -71,7 +71,6 @@ test "data allocation consumes the planned constructor family" {
     planned_definitions,
     instances: [],
     data_instances: [],
-    occurrence: @occurrence.analyze({ program, entry, roots: [] }),
     plan,
   }
   specializer.allocate_data_instances()

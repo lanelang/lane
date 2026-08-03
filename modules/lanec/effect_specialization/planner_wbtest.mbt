@@ -90,6 +90,54 @@ test "generic use classification follows substituted canonical effects" {
 }
 
 ///|
+test "planner owns retained top terms in source order" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let external_type = @buslane.Type::Function([], unit_type, Empty)
+  let reachable_external = metadata.define_value(
+    "reachable_external",
+    External,
+    external_type,
+  )
+  let unreachable_external = metadata.define_value(
+    "unreachable_external",
+    External,
+    external_type,
+  )
+  let ordinary = metadata.define_value("ordinary", Value, unit_type)
+  let local_value = metadata.define_value("local", Local, unit_type)
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], unit_type, Empty),
+  )
+  let entry_rhs = @buslane.Expr::Function({
+    parameters: [],
+    result_type: unit_type,
+    body: Let(local_value, Ref(ordinary), Call(Ref(reachable_external), [])),
+  })
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      External(reachable_external),
+      External(unreachable_external),
+      Let(ordinary, Literal(Unit)),
+      LetRec([{ id: entry, rhs: entry_rhs }]),
+    ],
+  }
+  assert_eq(plan_effect_specializations(program, entry), {
+    callable_demands: [],
+    data_demands: [],
+    retained_top_terms: [
+      RetainedExternal(source_index=0, value=reachable_external),
+      RetainedLet(source_index=2, value=ordinary),
+      RetainedLetRec(source_index=3, values=[entry]),
+    ],
+    retained_declarations: [],
+  })
+}
+
+///|
 test "phantom generic type arguments contribute nominal data demands" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
@@ -141,6 +189,7 @@ test "phantom generic type arguments contribute nominal data demands" {
   let plan = plan_effect_specializations(program, entry)
   assert_eq(plan, {
     callable_demands: [],
+    retained_top_terms: [RetainedLetRec(source_index=0, values=[marker, entry])],
     retained_declarations: [],
     data_demands: [
       {
@@ -212,6 +261,7 @@ test "ordinary generic type arguments contribute nominal data demands" {
   }
   assert_eq(plan_effect_specializations(program, entry), {
     callable_demands: [],
+    retained_top_terms: [RetainedLetRec(source_index=0, values=[marker, entry])],
     retained_declarations: [],
     data_demands: [
       {
@@ -291,6 +341,7 @@ test "external generic type arguments contribute nominal data demands" {
         { parameter: outer_effect, argument: empty_effect },
       ]),
     ],
+    retained_top_terms: [RetainedLetRec(source_index=0, values=[entry])],
     retained_declarations: [],
     data_demands: [
       {
@@ -336,6 +387,7 @@ test "planner records only reachable retained operations" {
   }
   assert_eq(plan_effect_specializations(program, entry), {
     callable_demands: [],
+    retained_top_terms: [RetainedLet(source_index=0, value=entry)],
     retained_declarations: [Operation(active_operation)],
     data_demands: [
       {
@@ -465,6 +517,7 @@ test "callable planner keeps generic and concrete demands independently" {
         { parameter: forward_effect, argument: log_argument },
       ]),
     ],
+    retained_top_terms: [RetainedLetRec(source_index=0, values=[apply, entry])],
     retained_declarations: [],
     data_demands: [],
   })
@@ -621,6 +674,7 @@ test "callable planner reaches a local recursive group with lexical bindings" {
         ],
       ),
     ],
+    retained_top_terms: [RetainedLetRec(source_index=0, values=[entry])],
     retained_declarations: [],
     data_demands: [],
   })
@@ -687,6 +741,7 @@ test "callable planner retains and specializes one local definition" {
         instance_bindings=[{ parameter: local_effect, argument: log_argument }],
       ),
     ],
+    retained_top_terms: [RetainedLet(source_index=0, value=entry)],
     retained_declarations: [],
     data_demands: [],
   })

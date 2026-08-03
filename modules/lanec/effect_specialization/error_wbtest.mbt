@@ -1,7 +1,6 @@
 ///|
 fn error_test_specializer(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
   plan : SpecializationPlan,
 ) -> EffectSpecializer {
   {
@@ -10,7 +9,6 @@ fn error_test_specializer(
     planned_definitions: collect_plannable_definitions(program),
     instances: [],
     data_instances: [],
-    occurrence: @occurrence.analyze({ program, entry, roots: [] }),
     plan,
   }
 }
@@ -83,6 +81,7 @@ test "planner rejects conflicting constructor families for one key" {
     plan: {
       callable_demands: [],
       data_demands: [{ source: box, bindings, constructors: [first] }],
+      retained_top_terms: [],
       retained_declarations: [],
     },
   }
@@ -107,12 +106,13 @@ test "allocator missing-plan errors retain the requested specialization key" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let box = metadata.define_type("Box", [effect_parameter])
-  let (program, generic, entry) = error_test_generic_program(
+  let (program, generic, _entry) = error_test_generic_program(
     metadata, effect_parameter,
   )
-  let specializer = error_test_specializer(program, entry, {
+  let specializer = error_test_specializer(program, {
     callable_demands: [],
     data_demands: [],
+    retained_top_terms: [],
     retained_declarations: [],
   })
   let arguments = [@buslane.GenericArgument::EffectArgument(Empty)]
@@ -154,9 +154,10 @@ test "rewriter missing-plan errors identify the callable site" {
   let (program, generic, entry) = error_test_generic_program(
     metadata, effect_parameter,
   )
-  let specializer = error_test_specializer(program, entry, {
+  let specializer = error_test_specializer(program, {
     callable_demands: [],
     data_demands: [],
+    retained_top_terms: [],
     retained_declarations: [],
   })
   try

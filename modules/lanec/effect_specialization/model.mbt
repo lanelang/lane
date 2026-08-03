@@ -146,7 +146,6 @@ priv struct EffectSpecializer {
   planned_definitions : Array[PlannedDefinition]
   instances : Array[EffectSpecializationInstance]
   data_instances : Array[EffectDataInstance]
-  occurrence : @occurrence.OccurrenceSummary
   plan : SpecializationPlan
 }
 
@@ -155,7 +154,6 @@ pub fn specialize(
   program : @buslane.Program,
   entry : @buslane.ValueId,
 ) -> @buslane.Program raise SpecializationError {
-  let occurrence = @occurrence.analyze({ program, entry, roots: [] })
   let definitions = collect_effect_generic_definitions(program)
   let planned_definitions = collect_plannable_definitions(program)
   let plan = plan_effect_specializations_with_definitions(
@@ -167,7 +165,6 @@ pub fn specialize(
     planned_definitions,
     instances: [],
     data_instances: [],
-    occurrence,
     plan,
   }
   if specializer.find_definition(entry) is Some(_) {
@@ -182,46 +179,53 @@ pub fn specialize(
   specializer.allocate_data_instances()
   specializer.allocate_callable_instances()
   let terms : Array[@buslane.TopTerm] = []
-  for term in program.terms {
-    match term {
-      Let(id, rhs) =>
-        if specializer.is_reachable(id) &&
-          (
-            specializer.find_definition(id) is None ||
-            specializer.plan.retains(program.metadata, TopLevel(id), [])
-          ) {
-          let rewritten = specializer.rewrite_expr(
-            rhs,
-            specializer.root_scope(id),
-          )
-          specializer.specialize_retained_value_type(id)
-          terms.push(Let(id, rewritten))
-        }
-      LetRec(bindings) => {
-        let rewritten : Array[@buslane.RecursiveBinding] = []
-        for binding in bindings {
-          if specializer.is_reachable(binding.id) &&
-            (
-              specializer.find_definition(binding.id) is None ||
-              specializer.plan.retains(program.metadata, TopLevel(binding.id), [])
-            ) {
-            let rhs = specializer.rewrite_expr(
-              binding.rhs,
-              specializer.root_scope(binding.id),
-            )
-            specializer.specialize_retained_value_type(binding.id)
-            rewritten.push({ id: binding.id, rhs })
-          }
-        }
-        if !rewritten.is_empty() {
-          terms.push(LetRec(rewritten))
-        }
+  for planned in specializer.plan.retained_top_terms {
+    guard program.terms.get(planned.source_index()) is Some(source_term) else {
+      raise RewriterInvariant(
+        specialization_error_context(
+          "a retained top-level term is missing from the source program",
+        ),
+      )
+    }
+    match (planned, source_term) {
+      (RetainedLet(value=id, ..), Let(source, rhs)) if source == id => {
+        let rewritten = specializer.rewrite_expr(
+          rhs,
+          specializer.root_scope(id),
+        )
+        specializer.specialize_retained_value_type(id)
+        terms.push(Let(id, rewritten))
       }
-      External(id) =>
-        if specializer.is_reachable(id) {
-          specializer.specialize_retained_value_type(id)
-          terms.push(External(id))
+      (RetainedLetRec(values=retained_values, ..), LetRec(source_bindings)) => {
+        let rewritten : Array[@buslane.RecursiveBinding] = []
+        for binding in source_bindings {
+          guard retained_values.contains(binding.id) else { continue }
+          let rhs = specializer.rewrite_expr(
+            binding.rhs,
+            specializer.root_scope(binding.id),
+          )
+          specializer.specialize_retained_value_type(binding.id)
+          rewritten.push({ id: binding.id, rhs })
         }
+        if rewritten.length() != retained_values.length() {
+          raise RewriterInvariant(
+            specialization_error_context(
+              "a retained recursive binding is missing from the source program",
+            ),
+          )
+        }
+        terms.push(LetRec(rewritten))
+      }
+      (RetainedExternal(value=id, ..), External(source)) if source == id => {
+        specializer.specialize_retained_value_type(id)
+        terms.push(External(id))
+      }
+      _ =>
+        raise RewriterInvariant(
+          specialization_error_context(
+            "a retained top-level term does not match the source program",
+          ),
+        )
     }
   }
   let specialized_bindings : Array[@buslane.RecursiveBinding] = []
@@ -359,17 +363,6 @@ fn EffectSpecializer::resolve_definition(
   match scope.find_local_definition(id) {
     Some((definition, site)) => Some(Local(definition, site))
     None => self.find_definition(id).map(definition => TopLevel(definition))
-  }
-}
-
-///|
-fn EffectSpecializer::is_reachable(
-  self : EffectSpecializer,
-  id : @buslane.ValueId,
-) -> Bool {
-  match self.occurrence.facts.get(id.index) {
-    Some(fact) => fact.reachable_from_entry
-    None => false
   }
 }
 
