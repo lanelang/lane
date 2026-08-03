@@ -13,6 +13,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
   TypeNormalizationFailure(TypeNormalizationError)
+  TypeSubstitutionFailure(TypeSubstitutionError)
   TypeMismatch(expected~ : Type, actual~ : Type)
   EffectMismatch(expected~ : Effect, actual~ : Effect)
   NotFunction(Type)
@@ -196,6 +197,26 @@ fn[T] VerifyContext::recover_normalization_failure(
 ///|
 fn VerifyContext::normalize_type(self : VerifyContext, type_ : Type) -> Type {
   self.recover_normalization_failure(type_, () => type_.normalize())
+}
+
+///|
+/// Applies an instantiation, reporting a diagnostic instead of aborting when
+/// the substitution refuses to capture. The unsubstituted type is returned so
+/// checking can continue past the report.
+fn VerifyContext::substituted(
+  self : VerifyContext,
+  type_ : Type,
+  substitution : TypeSubstitution,
+) -> Type {
+  type_.try_substitute(substitution) catch {
+    error => {
+      let kind = VerifyDiagnosticKind::TypeSubstitutionFailure(error)
+      if !self.diagnostics.any(diagnostic => diagnostic.kind == kind) {
+        self.report(kind)
+      }
+      type_
+    }
+  }
 }
 
 ///|
@@ -601,7 +622,7 @@ fn VerifyContext::synthesize_type_apply(
   let substitution = self.verified_substitution(
     parameters, arguments, type_scope,
   )
-  { type_: body.substitute(substitution), effect: callee_result.effect }
+  { type_: self.substituted(body, substitution), effect: callee_result.effect }
 }
 
 ///|
@@ -661,7 +682,7 @@ fn VerifyContext::synthesize_construct(
   for index in 0..<info.payload_types.length().min(construct.payloads.length()) {
     let payload_effect = self.check_expr(
       construct.payloads[index],
-      info.payload_types[index].substitute(substitution),
+      self.substituted(info.payload_types[index], substitution),
       value_scope,
       type_scope,
     )
@@ -729,7 +750,7 @@ fn VerifyContext::synthesize_perform(
   for index in 0..<info.payload_types.length().min(perform.payloads.length()) {
     let payload_effect = self.check_expr(
       perform.payloads[index],
-      info.payload_types[index].substitute(substitution),
+      self.substituted(info.payload_types[index], substitution),
       value_scope,
       type_scope,
     )
@@ -737,7 +758,7 @@ fn VerifyContext::synthesize_perform(
   }
   effects.push(Singleton(info.owner, perform.effect_arguments))
   {
-    type_: info.result_type.substitute(substitution),
+    type_: self.substituted(info.result_type, substitution),
     effect: self.effect_union(effects),
   }
 }
@@ -871,13 +892,13 @@ fn VerifyContext::verify_operation_alternative(
       self.report(UnknownValue(binder))
       continue
     }
-    let expected = info.payload_types[index].substitute(substitution)
+    let expected = self.substituted(info.payload_types[index], substitution)
     if !self.types_definitionally_equal(binder_info.type_, expected) {
       self.report(TypeMismatch(expected~, actual=binder_info.type_))
     }
     arm_scope.values.push(binder)
   }
-  let resume_result = info.result_type.substitute(substitution)
+  let resume_result = self.substituted(info.result_type, substitution)
   self.verify_resume_binder(
     alternative.resume_binder,
     resume_result,

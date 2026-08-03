@@ -490,6 +490,8 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
       ])
     TypeNormalizationFailure(error) =>
       text("type_normalization_failure") + space + text("\{Repr(error)}")
+    TypeSubstitutionFailure(error) =>
+      text("type_substitution_failure") + space + text("\{Repr(error)}")
     TypeMismatch(expected~, actual~) =>
       text("type_mismatch") +
       space +

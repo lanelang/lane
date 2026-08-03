@@ -20,6 +20,7 @@ pub(all) suberror TypeSubstitutionError {
   MissingParameterMetadata(parameter~ : TypeParameterId)
   ExpectedTypeArgument(parameter~ : TypeParameterId)
   ExpectedEffectArgument(parameter~ : TypeParameterId)
+  CapturedTypeParameter(parameter~ : TypeParameterId, binder~ : TypeParameterId)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -388,6 +389,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
   TypeNormalizationFailure(TypeNormalizationError)
+  TypeSubstitutionFailure(TypeSubstitutionError)
   TypeMismatch(expected~ : Type, actual~ : Type)
   EffectMismatch(expected~ : Effect, actual~ : Effect)
   NotFunction(Type)

@@ -364,6 +364,8 @@ fn type_substitution_error(
       "type substitution for \{Repr(parameter)} requires a type argument"
     ExpectedEffectArgument(parameter~) =>
       "type substitution for \{Repr(parameter)} requires an effect argument"
+    CapturedTypeParameter(parameter~, binder~) =>
+      "type substitution for \{Repr(parameter)} would be captured by \{Repr(binder)}"
   }
   InvalidTypeApplication(detail~)
 }

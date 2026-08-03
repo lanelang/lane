@@ -1318,6 +1318,220 @@ test "alpha equality gives a rebound id to its innermost binder" {
 }
 
 ///|
+test "substitution refuses to capture a replacement's free parameter" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let x = metadata.define_type_parameter("X", Type)
+  let y = metadata.define_type_parameter("Y", Type)
+  let substitution = TypeSubstitution::TypeSubstitution()
+  substitution.insert_argument(x, TypeArgument(Parameter(y)))
+  let body : Type = Forall(
+    [y],
+    Function([Parameter(x)], Primitive(Unit), Empty),
+  )
+  let result = try? body.try_substitute(substitution)
+  assert_eq(result, Err(CapturedTypeParameter(parameter=x, binder=y)))
+}
+
+///|
+test "substitution keeps a replacement's own binder without renaming" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let x = metadata.define_type_parameter("X", Type)
+  let y = metadata.define_type_parameter("Y", Type)
+  let a = metadata.define_type_parameter("A", Type)
+  let b = metadata.define_type_parameter("B", Type)
+  // The replacement binds its own `y`; planting it under the body's `y` makes
+  // shadowing, not capture, and the innermost reading keeps it correct.
+  let replacement : Type = Forall(
+    [y],
+    Function([Parameter(y)], Primitive(Unit), Empty),
+  )
+  let applied : Type = Apply(
+    TypeLambda([x], Forall([y], Function([], Parameter(x), Empty))),
+    [TypeArgument(replacement)],
+  )
+  let expected : Type = Forall(
+    [a],
+    Function(
+      [],
+      Forall([b], Function([Parameter(b)], Primitive(Unit), Empty)),
+      Empty,
+    ),
+  )
+  assert_true(metadata.types_definitionally_equal(applied, expected))
+}
+
+///|
+test "type application that would capture fails verification" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let x = metadata.define_type_parameter("X", Type)
+  let y = metadata.define_type_parameter("Y", Type)
+  let g = metadata.define_value(
+    "g",
+    Value,
+    Forall([x], Forall([y], Function([Parameter(x)], Primitive(Unit), Empty))),
+  )
+  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let result = query.synthesize(
+    TypeLambda([y], TypeApply(Ref(g), [TypeArgument(Parameter(y))])),
+  )
+  guard result is Err(verify) else { abort("expected capture rejection") }
+  assert_eq(verify.diagnostics(), [
+    {
+      kind: TypeSubstitutionFailure(
+        CapturedTypeParameter(parameter=x, binder=y),
+      ),
+    },
+  ])
+}
+
+///|
+test "construct payload instantiation that would capture fails verification" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let element = metadata.define_type_parameter("T", Type)
+  let y = metadata.define_type_parameter("Y", Type)
+  let box = metadata.define_type("Type", [element])
+  let payload_type : Type = Forall(
+    [y],
+    Function([Parameter(element), Parameter(y)], Primitive(Unit), Empty),
+  )
+  let con = metadata.define_data_constructor("Con", box, [], [payload_type])
+  let payload = metadata.define_value("payload", Value, payload_type)
+  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let result = query.synthesize(
+    Construct({
+      data_constructor: con,
+      type_arguments: [TypeArgument(Parameter(y))],
+      hidden_witnesses: [],
+      payloads: [Ref(payload)],
+    }),
+  )
+  guard result is Err(verify) else { abort("expected capture rejection") }
+  assert_eq(verify.diagnostics(), [
+    {
+      kind: TypeSubstitutionFailure(
+        CapturedTypeParameter(parameter=element, binder=y),
+      ),
+    },
+  ])
+}
+
+///|
+test "perform instantiation that would capture fails verification" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let element = metadata.define_type_parameter("T", Type)
+  let y = metadata.define_type_parameter("Y", Type)
+  let effect = metadata.define_effect("Effect", [element])
+  let op = metadata.define_operation(
+    "op",
+    effect,
+    [],
+    [],
+    Forall(
+      [y],
+      Function([Parameter(element), Parameter(y)], Primitive(Unit), Empty),
+    ),
+  )
+  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let result = query.synthesize(
+    Perform({
+      operation: op,
+      effect_arguments: [TypeArgument(Parameter(y))],
+      hidden_witnesses: [],
+      payloads: [],
+    }),
+  )
+  guard result is Err(verify) else { abort("expected capture rejection") }
+  assert_eq(verify.diagnostics(), [
+    {
+      kind: TypeSubstitutionFailure(
+        CapturedTypeParameter(parameter=element, binder=y),
+      ),
+    },
+  ])
+}
+
+///|
+test "handler alternative instantiation that would capture fails verification" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let hidden = metadata.define_type_parameter("Hidden", Type)
+  let w = metadata.define_type_parameter("W", Type)
+  let effect = metadata.define_effect("Effect", [])
+  let payload_type : Type = Forall(
+    [w],
+    Function([Parameter(hidden), Parameter(w)], Primitive(Unit), Empty),
+  )
+  let op = metadata.define_operation(
+    "op",
+    effect,
+    [hidden],
+    [payload_type],
+    Primitive(Unit),
+  )
+  let instantiated_payload = metadata.define_value(
+    "payload",
+    Value,
+    Forall(
+      [w],
+      Function([Primitive(I64), Parameter(w)], Primitive(Unit), Empty),
+    ),
+  )
+  let result_binder = metadata.define_value(
+    "result",
+    MatchBinder,
+    Primitive(Unit),
+  )
+  let payload_binder = metadata.define_value(
+    "payload",
+    MatchBinder,
+    payload_type,
+  )
+  let resume_binder = metadata.define_value(
+    "resume",
+    MatchBinder,
+    Function([Primitive(Unit)], Primitive(Unit), Empty),
+  )
+  let unit_value = metadata.define_value("unit", Value, Primitive(Unit))
+  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  // The alternative reuses the payload's inner binder as its own hidden
+  // binder, so instantiating the payload type for the binder check captures.
+  let result = query.synthesize(
+    Handle({
+      body: Perform({
+        operation: op,
+        effect_arguments: [],
+        hidden_witnesses: [TypeArgument(Primitive(I64))],
+        payloads: [Ref(instantiated_payload)],
+      }),
+      result_binder,
+      result_type: Primitive(Unit),
+      final_body: Ref(unit_value),
+      handlers: [
+        {
+          handled_effect: Singleton(effect, []),
+          operations: [
+            {
+              operation: op,
+              type_binders: [w],
+              payload_binders: [payload_binder],
+              resume_binder,
+              body: Ref(unit_value),
+            },
+          ],
+        },
+      ],
+    }),
+  )
+  guard result is Err(verify) else { abort("expected capture rejection") }
+  assert_eq(verify.diagnostics(), [
+    {
+      kind: TypeSubstitutionFailure(
+        CapturedTypeParameter(parameter=hidden, binder=w),
+      ),
+    },
+  ])
+}
+
+///|
 test "substitution and alpha equality agree on shadowed binders" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let x = metadata.define_type_parameter("X", Effect)

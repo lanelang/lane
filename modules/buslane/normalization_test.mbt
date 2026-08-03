@@ -54,6 +54,25 @@ test "type normalization reports runaway beta reduction" {
 }
 
 ///|
+test "type normalization rejects a capturing beta reduction" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let x = metadata.define_type_parameter("X", Type)
+  let y = metadata.define_type_parameter("Y", Type)
+  let capturing = @buslane.Type::Apply(
+    TypeLambda(
+      [x],
+      Forall([y], Function([Parameter(x)], Primitive(Unit), Empty)),
+    ),
+    [TypeArgument(Parameter(y))],
+  )
+  let result = try? capturing.normalize()
+  assert_eq(
+    result,
+    Err(InvalidBetaSubstitution(CapturedTypeParameter(parameter=x, binder=y))),
+  )
+}
+
+///|
 test "definitional type equality reports runaway beta reduction" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let parameter = metadata.define_type_parameter("T", Type)

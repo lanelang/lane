@@ -1002,6 +1002,7 @@ pub(all) suberror TypeSubstitutionError {
   MissingParameterMetadata(parameter~ : TypeParameterId)
   ExpectedTypeArgument(parameter~ : TypeParameterId)
   ExpectedEffectArgument(parameter~ : TypeParameterId)
+  CapturedTypeParameter(parameter~ : TypeParameterId, binder~ : TypeParameterId)
 } derive(Debug, Eq)
 
 ///|
@@ -1118,20 +1119,68 @@ pub fn TypeSubstitution::effect_argument(
 }
 
 ///|
+/// Returns the replacement for a parameter occurrence, refusing to capture:
+/// substitution never places a replacement's free parameter under a binder of
+/// the same id. This is the binder-freshness law, enforced at the one point
+/// every substitution in the system flows through.
 fn TypeSubstitution::lookup_argument(
   self : TypeSubstitution,
   parameter : TypeParameterId,
   bound : Array[TypeParameterId],
-) -> GenericArgument? {
+) -> GenericArgument? raise TypeSubstitutionError {
   if bound.contains(parameter) {
     return None
   }
   for entry in self.entries {
     if entry.parameter == parameter {
+      for binder in bound {
+        if entry.replacement.mentions_free(binder) {
+          raise CapturedTypeParameter(parameter~, binder~)
+        }
+      }
       return Some(entry.replacement)
     }
   }
   None
+}
+
+///|
+fn GenericArgument::mentions_free(
+  self : GenericArgument,
+  id : TypeParameterId,
+) -> Bool {
+  match self {
+    TypeArgument(type_) => type_.mentions_free(id)
+    EffectArgument(effect) => effect.mentions_free(id)
+  }
+}
+
+///|
+fn Type::mentions_free(self : Type, id : TypeParameterId) -> Bool {
+  match self {
+    Primitive(_) | Constructor(_) => false
+    Parameter(parameter) => parameter == id
+    Apply(callee, arguments) =>
+      callee.mentions_free(id) ||
+      arguments.any(argument => argument.mentions_free(id))
+    TypeLambda(parameters, body) | Forall(parameters, body) =>
+      !parameters.contains(id) && body.mentions_free(id)
+    Function(parameters, result, effect) =>
+      parameters.any(parameter => parameter.mentions_free(id)) ||
+      result.mentions_free(id) ||
+      effect.mentions_free(id)
+  }
+}
+
+///|
+fn Effect::mentions_free(self : Effect, id : TypeParameterId) -> Bool {
+  match self {
+    Empty | Io => false
+    Parameter(parameter) => parameter == id
+    Singleton(_, arguments) =>
+      arguments.any(argument => argument.mentions_free(id))
+    Union(effects) => effects.any(effect => effect.mentions_free(id))
+  }
 }
 
 ///|
@@ -1205,11 +1254,14 @@ fn GenericArgument::substitute_with_bound(
 /// Returns the full beta-normal form of a Buslane type.
 ///
 /// Type lambdas remain first-class type functions; only saturated applications
-/// are reduced, using capture-avoiding substitution. Ordinary structural
-/// descent does not consume the beta-reduction budget.
+/// are reduced. Substitution is capture-rejecting, not capture-avoiding: a
+/// reduction that would bind a replacement's free parameter raises instead of
+/// producing the captured type. Ordinary structural descent does not consume
+/// the beta-reduction budget.
 ///
 /// Raises `TypeNormalizationError` when beta reduction does not converge within
-/// the compiler safeguard or when a malformed application cannot be reduced.
+/// the compiler safeguard, when a malformed application cannot be reduced, or
+/// when a reduction would capture.
 pub fn Type::normalize(self : Type) -> Type raise TypeNormalizationError {
   self.normalize_with_budget({ remaining: TYPE_NORMALIZATION_BETA_LIMIT })
 }
@@ -1284,7 +1336,10 @@ fn Effect::normalize_with_budget(
 }
 
 ///|
-/// Applies a well-formed substitution, aborting if an entry has the wrong generic-argument kind. Use `try_substitute` when malformed substitutions are an expected input.
+/// Applies a well-formed substitution, aborting if an entry has the wrong
+/// generic-argument kind or if a replacement would be captured by a binder it
+/// crosses. Use `try_substitute` when malformed or capturing substitutions are
+/// an expected input.
 pub fn Type::substitute(self : Type, substitution : TypeSubstitution) -> Type {
   try! self.substitute_with_bound(substitution, [])
 }
