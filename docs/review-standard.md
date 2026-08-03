@@ -14,7 +14,8 @@ It asks whether every package is a work of art: nothing missing, nothing extra, 
 
 ## The architecture
 - The pipeline is a chain of verified programs: every stage boundary passes the Buslane verifier; no stage trusts its input or silently repairs it.
-- Each IR is a first-class language: it has a printer, a parser, a codec, and a verifier, and round-trips through them. An IR you cannot print and re-check is not done.
+- A persistent or exchangeable IR is a first-class interchange language: it has a stable printer, parser or decoder, codec for each persisted form, verifier, and round-trip tests across every supported representation.
+- A transient compiler-internal IR has a stable human-readable printer, a verifier at its stage boundaries, and structured debug output where diagnosis needs it. It needs no parser or codec without a real persistence, interchange, or tooling consumer; adding one speculatively is itself extra code.
 - Problems are fixed where they are created, never masked downstream — dead-code elimination is not a fix, and phase order follows meaning, not convenience.
 - One responsibility per package, stated in its CONTEXT.md in one paragraph that matches the code.
 - The glossary is law: every concept has exactly one name, defined in CONTEXT.md and used verbatim in code, tests, and issues; synonym drift is a finding.
