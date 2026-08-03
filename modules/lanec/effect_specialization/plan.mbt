@@ -1,6 +1,6 @@
 ///|
 /// Immutable source-demand planning for effect specialization.
-priv enum SpecializationDefinitionSite {
+pub(all) enum SpecializationDefinitionSite {
   TopLevel(@buslane.ValueId)
   Local(owner~ : @buslane.ValueId, value~ : @buslane.ValueId)
 } derive(Debug, Eq)
@@ -118,22 +118,26 @@ fn plan_effect_specializations_with_definitions(
   let mut index = 0
   while index < planner.visits.length() {
     let visit = planner.visits[index]
-    if planner.find_definition(visit.site.value()) is Some(definition) {
-      try {
-        planner.visit_value_type(definition.site.value(), visit.bindings)
-        planner.visit_expr(definition.rhs, visit.bindings)
-      } catch {
-        Unsupported(detail~) => {
-          let name = match
-            program.metadata.value_info(definition.site.value()) {
-            Some(info) => info.name.occurrence
-            None => "<unknown>"
-          }
-          raise Unsupported(
-            detail="while planning `\{name}` with \{Repr(visit.bindings)}: \{detail}",
-          )
-        }
-      }
+    guard planner.find_definition(visit.site.value()) is Some(definition) else {
+      raise PlannerInvariant(
+        specialization_error_context(
+          "a queued specialization visit has no planned definition",
+          site=visit.site,
+          source=Value(visit.site.value()),
+          specialization_key=visit.bindings,
+        ),
+      )
+    }
+    try {
+      planner.visit_value_type(definition.site.value(), visit.bindings)
+      planner.visit_expr(definition.rhs, visit.bindings)
+    } catch {
+      error =>
+        raise contextualize_planner_error(
+          error,
+          definition.site,
+          visit.bindings,
+        )
     }
     index += 1
   }
@@ -388,16 +392,25 @@ fn SpecializationPlanner::add_demand(
 fn SpecializationPlanner::add_data_demand(
   self : SpecializationPlanner,
   demand : DataInstanceDemand,
-) -> Bool {
-  if self.plan.data_demands.any(existing => {
-      existing.source == demand.source &&
+) -> Bool raise SpecializationError {
+  for existing in self.plan.data_demands {
+    if existing.source == demand.source &&
       specialization_bindings_equal(
         self.program.metadata,
         existing.bindings,
         demand.bindings,
-      )
-    }) {
-    return false
+      ) {
+      if existing.constructors != demand.constructors {
+        raise PlannerInvariant(
+          specialization_error_context(
+            "one data specialization key resolved to different constructor families",
+            source=Type(demand.source),
+            specialization_key=demand.bindings,
+          ),
+        )
+      }
+      return false
+    }
   }
   self.plan.data_demands.push(demand)
   true
@@ -424,7 +437,12 @@ fn SpecializationPlanner::retain_data_constructor(
   guard self.program.metadata.data_constructor_info(data_constructor)
     is Some(info) &&
     self.program.metadata.type_info(info.owner) is Some(owner) else {
-    raise Unsupported(detail="a reachable data constructor is missing metadata")
+    raise InvalidInputMetadata(
+      specialization_error_context(
+        "a reachable data constructor is missing metadata",
+        source=DataConstructor(data_constructor),
+      ),
+    )
   }
   if owner.parameters.any(parameter => {
       type_parameter_is_effect(self.program.metadata, parameter)
@@ -445,7 +463,12 @@ fn SpecializationPlanner::retain_operation(
 ) -> Unit raise SpecializationError {
   guard self.program.metadata.operation_info(operation) is Some(info) &&
     self.program.metadata.effect_info(info.owner) is Some(owner) else {
-    raise Unsupported(detail="a reachable operation is missing metadata")
+    raise InvalidInputMetadata(
+      specialization_error_context(
+        "a reachable operation is missing metadata",
+        source=Operation(operation),
+      ),
+    )
   }
   if owner.parameters.any(parameter => {
       type_parameter_is_effect(self.program.metadata, parameter)
@@ -548,7 +571,14 @@ fn SpecializationPlanner::visit_value_type(
   value : @buslane.ValueId,
   ambient_bindings : Array[EffectSpecializationBinding],
 ) -> Unit raise SpecializationError {
-  guard self.program.metadata.value_info(value) is Some(info) else { return }
+  guard self.program.metadata.value_info(value) is Some(info) else {
+    raise InvalidInputMetadata(
+      specialization_error_context(
+        "a reachable value is missing metadata",
+        source=Value(value),
+      ),
+    )
+  }
   let mut body = info.type_
   while body is Forall(_, next) {
     body = next
@@ -578,7 +608,12 @@ fn SpecializationPlanner::visit_effect(
     Empty | Io | Parameter(_) => ()
     Singleton(id, arguments) => {
       guard self.program.metadata.effect_info(id) is Some(info) else {
-        raise Unsupported(detail="a reachable effect is missing metadata")
+        raise InvalidInputMetadata(
+          specialization_error_context(
+            "a reachable effect is missing metadata",
+            source=Effect(id),
+          ),
+        )
       }
       for operation in info.operations {
         self.retain_operation(operation)
@@ -648,7 +683,12 @@ fn SpecializationPlanner::record_data_application(
     arguments,
   )
   guard self.program.metadata.type_info(source) is Some(info) else {
-    raise Unsupported(detail="effect-parameterized data metadata is missing")
+    raise InvalidInputMetadata(
+      specialization_error_context(
+        "effect-parameterized data metadata is missing",
+        source=Type(source),
+      ),
+    )
   }
   if self.add_data_demand({
       source,
@@ -658,8 +698,12 @@ fn SpecializationPlanner::record_data_application(
     for data_constructor in info.constructors {
       guard self.program.metadata.data_constructor_info(data_constructor)
         is Some(constructor_info) else {
-        raise Unsupported(
-          detail="an effect-parameterized data constructor is missing metadata",
+        raise InvalidInputMetadata(
+          specialization_error_context(
+            "an effect-parameterized data constructor is missing metadata",
+            source=DataConstructor(data_constructor),
+            specialization_key=bindings,
+          ),
         )
       }
       for payload_type in constructor_info.payload_types {

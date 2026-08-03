@@ -7,7 +7,7 @@ priv struct EffectGenericDefinition {
 }
 
 ///|
-priv struct EffectSpecializationBinding {
+pub(all) struct EffectSpecializationBinding {
   parameter : @buslane.TypeParameterId
   argument : @buslane.GenericArgument
 } derive(Debug, Eq)
@@ -53,8 +53,11 @@ fn classify_effect_generic_use(
     let argument = substituted_arguments[index]
     if type_parameter_is_effect(metadata, parameter) {
       guard argument is EffectArgument(effect) else {
-        raise Unsupported(
-          detail="an effect parameter requires an effect argument",
+        raise InvalidInputMetadata(
+          specialization_error_context(
+            "an effect parameter requires an effect argument",
+            source=TypeParameter(parameter),
+          ),
         )
       }
       let canonical = metadata.canonicalize_effect(effect)

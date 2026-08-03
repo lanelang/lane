@@ -68,12 +68,20 @@ fn EffectSpecializer::rewrite_expr(
         Ref(target)
       } else if self.resolve_definition(scope, id) is Some(_) {
         guard self.program.metadata.value_info(id) is Some(info) else {
-          raise Unsupported(
-            detail="effect-polymorphic value metadata is missing",
+          raise RewriterInvariant(
+            specialization_error_context(
+              "effect-polymorphic value metadata is missing",
+              source=Value(id),
+              specialization_key=scope.type_bindings,
+            ),
           )
         }
-        raise Unsupported(
-          detail="reachable effect-polymorphic value `\{info.name.occurrence}` must be explicitly applied",
+        raise UnsupportedProgram(
+          specialization_error_context(
+            "reachable effect-polymorphic value `\{info.name.occurrence}` must be explicitly applied",
+            source=Value(id),
+            specialization_key=scope.type_bindings,
+          ),
         )
       } else {
         Ref(id)
@@ -296,8 +304,13 @@ fn EffectSpecializer::rewrite_local_instances(
       continue
     }
     guard group.find_definition(value) is Some(definition) else {
-      raise Unsupported(
-        detail="a requested local effect specialization has no lexical definition",
+      raise RewriterInvariant(
+        specialization_error_context(
+          "a requested local effect specialization has no lexical definition",
+          site=instance.site,
+          source=Value(value),
+          specialization_key=instance.bindings,
+        ),
       )
     }
     rewritten_bindings.push({
@@ -411,8 +424,13 @@ fn EffectSpecializer::rewrite_type_application(
     match classified.mode {
       Incomplete | Symbolic => {
         if !self.plan.retains(self.program.metadata, site, ambient_bindings) {
-          raise Unsupported(
-            detail="a symbolic effect application is missing its planned generic definition",
+          raise RewriterInvariant(
+            specialization_error_context(
+              "a symbolic effect application is missing its planned generic definition",
+              site~,
+              source=Value(source),
+              specialization_key=ambient_bindings,
+            ),
           )
         }
         let rewritten_base = self.rewrite_expr(base, scope)

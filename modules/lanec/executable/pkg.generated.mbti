@@ -6,6 +6,7 @@ import {
   "Milky2018/lanec/core_opt",
   "Milky2018/lanec/effect_lowering/core",
   "Milky2018/lanec/effect_lowering/cps",
+  "Milky2018/lanec/effect_specialization",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/link",
   "moonbit-community/prettyprinter",
@@ -24,6 +25,7 @@ pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
   UnsupportedEffectSpecialization(detail~ : String)
+  EffectSpecializationCompilerDefect(@effect_specialization.SpecializationError)
   CoreOptimizationError(@core_opt.CoreOptimizeError)
   EffectLoweringError(@core.SynthesisError)
   UnverifiedProgram(stage~ : String, result~ : @buslane.VerifyResult)

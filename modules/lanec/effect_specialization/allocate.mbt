@@ -38,7 +38,14 @@ fn EffectSpecializer::allocate_callable_instances(
     }
     let source = site.value()
     guard self.program.metadata.value_info(source) is Some(info) else {
-      raise Unsupported(detail="effect-polymorphic value metadata is missing")
+      raise AllocatorInvariant(
+        specialization_error_context(
+          "a planned callable specialization is missing source metadata",
+          site~,
+          source=Value(source),
+          specialization_key=instance_bindings,
+        ),
+      )
     }
     let bindings = ambient_bindings.copy()
     bindings.append(instance_bindings)
@@ -79,8 +86,15 @@ fn EffectSpecializer::planned_instance(
       return instance
     }
   }
-  raise Unsupported(
-    detail="a reachable callable specialization is missing from the immutable plan",
+  let specialization_key = ambient_bindings.copy()
+  specialization_key.append(bindings)
+  raise AllocatorInvariant(
+    specialization_error_context(
+      "a reachable callable specialization is missing from the immutable plan",
+      site~,
+      source=Value(site.value()),
+      specialization_key~,
+    ),
   )
 }
 
@@ -125,8 +139,11 @@ fn EffectSpecializer::specialize_retained_declarations(
       DataConstructor(data_constructor) => {
         guard self.program.metadata.data_constructor_info(data_constructor)
           is Some(info) else {
-          raise Unsupported(
-            detail="a planned retained data constructor is missing metadata",
+          raise RewriterInvariant(
+            specialization_error_context(
+              "a planned retained data constructor is missing metadata",
+              source=DataConstructor(data_constructor),
+            ),
           )
         }
         self.program.metadata.data_constructors[data_constructor.index] = {
@@ -138,8 +155,11 @@ fn EffectSpecializer::specialize_retained_declarations(
       }
       Operation(operation) => {
         guard self.program.metadata.operation_info(operation) is Some(info) else {
-          raise Unsupported(
-            detail="a planned retained operation is missing metadata",
+          raise RewriterInvariant(
+            specialization_error_context(
+              "a planned retained operation is missing metadata",
+              source=Operation(operation),
+            ),
           )
         }
         self.program.metadata.operations[operation.index] = {
@@ -166,7 +186,12 @@ fn EffectSpecializer::specialize_retained_value_type(
   id : @buslane.ValueId,
 ) -> Unit raise SpecializationError {
   guard self.program.metadata.value_info(id) is Some(info) else {
-    raise Unsupported(detail="a retained definition is missing metadata")
+    raise RewriterInvariant(
+      specialization_error_context(
+        "a retained definition is missing metadata",
+        source=Value(id),
+      ),
+    )
   }
   let specialized = self.specialize_type(info.type_, [])
   self.program.metadata.values[id.index] = { ..info, type_: specialized }
@@ -179,7 +204,12 @@ fn EffectSpecializer::fresh_bound_value(
   scope : EffectRewriteScope,
 ) -> @buslane.ValueId raise SpecializationError {
   guard self.program.metadata.value_info(source) is Some(info) else {
-    raise Unsupported(detail="a specialized local value is missing metadata")
+    raise RewriterInvariant(
+      specialization_error_context(
+        "a specialized local value is missing metadata",
+        source=Value(source),
+      ),
+    )
   }
   let target = self.program.metadata.define_value(
     info.name.occurrence,

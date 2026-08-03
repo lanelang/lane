@@ -8,6 +8,7 @@ pub(all) suberror LoisvmLoweringError {
   UnsupportedType(type_~ : @buslane.Type)
   UnsupportedTopLevel(value~ : @buslane.ValueId)
   UnsupportedExpression(detail~ : String)
+  CompilerDefect(@executable.ExecutableElaborationError)
   UnsupportedGenericData(data_constructor~ : @buslane.DataConId)
   InvalidDataPayloadCount(
     data_constructor~ : @buslane.DataConId,

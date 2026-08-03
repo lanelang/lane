@@ -319,3 +319,62 @@ test "whole-program elaboration rejects an algebraic entry effect" {
     ),
   )
 }
+
+///|
+test "whole-program elaboration identifies specialization metadata defects" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  let generic = metadata.define_value(
+    "generic",
+    Function,
+    Forall(
+      [effect_parameter],
+      Function([], unit_type, Parameter(effect_parameter)),
+    ),
+  )
+  let main_type = @buslane.Type::Function([], unit_type, Empty)
+  let main = metadata.define_value("main", Function, main_type)
+  let entry = executable_test_entry("main", main, main_type)
+  let linked : @module_link.LinkedProgram = {
+    module_path_texts: ["Main"],
+    program: {
+      metadata,
+      terms: [
+        LetRec([
+          {
+            id: generic,
+            rhs: TypeLambda(
+              [effect_parameter],
+              Function({
+                parameters: [],
+                result_type: unit_type,
+                body: Literal(Unit),
+              }),
+            ),
+          },
+          {
+            id: main,
+            rhs: Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Call(TypeApply(Ref(generic), [TypeArgument(unit_type)]), []),
+            }),
+          },
+        ]),
+      ],
+    },
+    externals: { builtins: [], runtime_imports: [] },
+    entries: [entry],
+  }
+  guard elaborate(linked, entry)
+    is Err(EffectSpecializationCompilerDefect(InvalidInputMetadata(context))) else {
+    fail("expected an effect-specialization compiler defect")
+  }
+  assert_eq(context, {
+    detail: "an effect parameter requires an effect argument",
+    site: Some(TopLevel(main)),
+    source: Some(TypeParameter(effect_parameter)),
+    specialization_key: [],
+  })
+}

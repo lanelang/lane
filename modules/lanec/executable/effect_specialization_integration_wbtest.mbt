@@ -84,3 +84,25 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
     fail("lowered program did not verify: \{Repr(verified)}")
   }
 }
+
+///|
+test "specialization adapter exposes only source limitations as unsupported" {
+  let context : @effect_specialization.SpecializationErrorContext = {
+    detail: "source limitation",
+    site: None,
+    source: None,
+    specialization_key: [],
+  }
+  assert_eq(
+    effect_specialization_elaboration_error(UnsupportedProgram(context)),
+    UnsupportedEffectSpecialization(detail="source limitation"),
+  )
+  let invariant = @effect_specialization.SpecializationError::PlannerInvariant({
+    ..context,
+    detail: "planner state diverged",
+  })
+  assert_eq(
+    effect_specialization_elaboration_error(invariant),
+    EffectSpecializationCompilerDefect(invariant),
+  )
+}

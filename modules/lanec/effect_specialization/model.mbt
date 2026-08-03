@@ -171,8 +171,12 @@ pub fn specialize(
     plan,
   }
   if specializer.find_definition(entry) is Some(_) {
-    raise Unsupported(
-      detail="an executable entry cannot retain effect parameters",
+    raise UnsupportedProgram(
+      specialization_error_context(
+        "an executable entry cannot retain effect parameters",
+        site=TopLevel(entry),
+        source=Value(entry),
+      ),
     )
   }
   specializer.allocate_data_instances()
@@ -229,8 +233,13 @@ pub fn specialize(
       continue
     }
     guard specializer.find_definition(instance.site.value()) is Some(definition) else {
-      raise Unsupported(
-        detail="a requested effect specialization has no top-level definition",
+      raise RewriterInvariant(
+        specialization_error_context(
+          "a requested effect specialization has no top-level definition",
+          site=instance.site,
+          source=Value(instance.site.value()),
+          specialization_key=instance.bindings,
+        ),
       )
     }
     specialized_bindings.push({

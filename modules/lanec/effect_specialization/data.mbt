@@ -25,8 +25,11 @@ fn EffectSpecializer::specialize_substituted_type(
       if info.parameters.any(parameter => {
           type_parameter_is_effect(self.program.metadata, parameter)
         }) {
-        raise Unsupported(
-          detail="an effect-parameterized data type is missing its arguments",
+        raise InvalidInputMetadata(
+          specialization_error_context(
+            "an effect-parameterized data type is missing its arguments",
+            source=Type(id),
+          ),
         )
       }
       type_
@@ -157,8 +160,12 @@ fn EffectSpecializer::require_data_instance(
       return instance
     }
   }
-  raise Unsupported(
-    detail="a reachable data specialization is missing from the immutable plan",
+  raise AllocatorInvariant(
+    specialization_error_context(
+      "a reachable data specialization is missing from the immutable plan",
+      source=Type(source),
+      specialization_key=bindings,
+    ),
   )
 }
 
@@ -169,19 +176,30 @@ fn data_instance_bindings(
   arguments : Array[@buslane.GenericArgument],
 ) -> Array[EffectSpecializationBinding] raise SpecializationError {
   guard metadata.type_info(source) is Some(info) else {
-    raise Unsupported(detail="effect-parameterized data metadata is missing")
+    raise InvalidInputMetadata(
+      specialization_error_context(
+        "effect-parameterized data metadata is missing",
+        source=Type(source),
+      ),
+    )
   }
   if info.parameters.length() != arguments.length() {
-    raise Unsupported(
-      detail="effect-parameterized data application has the wrong arity",
+    raise InvalidInputMetadata(
+      specialization_error_context(
+        "effect-parameterized data application has the wrong arity",
+        source=Type(source),
+      ),
     )
   }
   let bindings = []
   for index, parameter in info.parameters {
     if type_parameter_is_effect(metadata, parameter) {
       guard arguments[index] is EffectArgument(effect) else {
-        raise Unsupported(
-          detail="a data effect parameter requires an effect argument",
+        raise InvalidInputMetadata(
+          specialization_error_context(
+            "a data effect parameter requires an effect argument",
+            source=Type(source),
+          ),
         )
       }
       let specialized = abstract_effect_type_arguments(
@@ -191,8 +209,11 @@ fn data_instance_bindings(
         metadata,
       )
       if effect_contains_parameter(specialized) {
-        raise Unsupported(
-          detail="reachable data specialization `\{info.name.occurrence}` must have concrete effects; found \{Repr(specialized)}",
+        raise UnsupportedProgram(
+          specialization_error_context(
+            "reachable data specialization `\{info.name.occurrence}` must have concrete effects; found \{Repr(specialized)}",
+            source=Type(source),
+          ),
         )
       }
       bindings.push({ parameter, argument: EffectArgument(specialized) })
@@ -207,7 +228,13 @@ fn EffectSpecializer::allocate_data_instances(
 ) -> Unit raise SpecializationError {
   for demand in self.plan.data_demands {
     guard self.program.metadata.type_info(demand.source) is Some(info) else {
-      raise Unsupported(detail="effect-parameterized data metadata is missing")
+      raise AllocatorInvariant(
+        specialization_error_context(
+          "a planned data specialization is missing source metadata",
+          source=Type(demand.source),
+          specialization_key=demand.bindings,
+        ),
+      )
     }
     let retained_parameters = info.parameters.filter(parameter => {
       !type_parameter_is_effect(self.program.metadata, parameter)
@@ -229,8 +256,12 @@ fn EffectSpecializer::allocate_data_instances(
     for data_constructor in demand.constructors {
       guard self.program.metadata.data_constructor_info(data_constructor)
         is Some(constructor_info) else {
-        raise Unsupported(
-          detail="an effect-parameterized data constructor is missing metadata",
+        raise AllocatorInvariant(
+          specialization_error_context(
+            "a planned data constructor is missing metadata",
+            source=DataConstructor(data_constructor),
+            specialization_key=demand.bindings,
+          ),
         )
       }
       let specialized_constructor = self.program.metadata.define_data_constructor(
@@ -267,8 +298,12 @@ fn EffectSpecializer::specialize_constructor(
   let instance = self.require_data_instance(info.owner, arguments)
   guard find_specialized_data_constructor(instance.constructors, source)
     is Some(binding) else {
-    raise Unsupported(
-      detail="a specialized data constructor mapping is missing",
+    raise RewriterInvariant(
+      specialization_error_context(
+        "a specialized data constructor mapping is missing",
+        source=DataConstructor(source),
+        specialization_key=instance.bindings,
+      ),
     )
   }
   let retained_arguments = []
@@ -317,7 +352,12 @@ fn EffectSpecializer::specialize_alt_constructor(
       }
     }
   }
-  raise Unsupported(detail="a specialized match constructor mapping is missing")
+  raise RewriterInvariant(
+    specialization_error_context(
+      "a specialized match constructor mapping is missing",
+      source=DataConstructor(source),
+    ),
+  )
 }
 
 ///|

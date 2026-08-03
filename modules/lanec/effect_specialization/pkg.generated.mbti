@@ -11,10 +11,39 @@ pub fn specialize(@buslane.Program, @buslane.ValueId) -> @buslane.Program raise 
 
 // Errors
 pub(all) suberror SpecializationError {
-  Unsupported(detail~ : String)
+  UnsupportedProgram(SpecializationErrorContext)
+  InvalidInputMetadata(SpecializationErrorContext)
+  PlannerInvariant(SpecializationErrorContext)
+  AllocatorInvariant(SpecializationErrorContext)
+  RewriterInvariant(SpecializationErrorContext)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) struct EffectSpecializationBinding {
+  parameter : @buslane.TypeParameterId
+  argument : @buslane.GenericArgument
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SpecializationDefinitionSite {
+  TopLevel(@buslane.ValueId)
+  Local(owner~ : @buslane.ValueId, value~ : @buslane.ValueId)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct SpecializationErrorContext {
+  detail : String
+  site : SpecializationDefinitionSite?
+  source : SpecializationSource?
+  specialization_key : Array[EffectSpecializationBinding]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum SpecializationSource {
+  Value(@buslane.ValueId)
+  TypeParameter(@buslane.TypeParameterId)
+  Type(@buslane.TypeId)
+  DataConstructor(@buslane.DataConId)
+  Effect(@buslane.EffectId)
+  Operation(@buslane.OperationId)
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 

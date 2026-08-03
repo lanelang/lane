@@ -43,7 +43,7 @@ fn elaborate_or_raise(
   let externals = linked.externals
   let entry = selected_entry
   let program = @effect_specialization.specialize(program, entry.value) catch {
-    Unsupported(detail~) => raise UnsupportedEffectSpecialization(detail~)
+    error => raise effect_specialization_elaboration_error(error)
   }
   require_verified("effect specialization", program)
   observe(EffectSpecialized(program))
@@ -60,6 +60,17 @@ fn elaborate_or_raise(
     initializers,
     execution_roots,
     effect_companions: lowered.effect_companions,
+  }
+}
+
+///|
+fn effect_specialization_elaboration_error(
+  error : @effect_specialization.SpecializationError,
+) -> ExecutableElaborationError {
+  match error {
+    UnsupportedProgram(context) =>
+      UnsupportedEffectSpecialization(detail=context.detail)
+    error => EffectSpecializationCompilerDefect(error)
   }
 }
 
