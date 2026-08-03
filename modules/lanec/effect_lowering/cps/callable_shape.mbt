@@ -62,7 +62,7 @@ fn DictionaryCpsSchema::plan_callable_shape(
   })
   let rewritten_result = self.rewrite_type(source_result)
   if !is_mon_effect(self.metadata, latent_effect) {
-    let target_effect = residual_effect_part(self.metadata, latent_effect)
+    let target_effect = self.rewrite_residual_effect(latent_effect)
     let target_type = @buslane.Type::Function(
       value_parameter_types, rewritten_result, target_effect,
     )

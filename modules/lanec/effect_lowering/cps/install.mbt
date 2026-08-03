@@ -26,7 +26,7 @@ fn lower_cps_direct_install(
     install,
     {
       effect: facts.effect,
-      residual: residual_effect_part(program.metadata, facts.effect),
+      residual: schema.rewrite_residual_effect(facts.effect),
       bindings: [],
     },
     result_type,

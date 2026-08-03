@@ -35,7 +35,7 @@ fn build_unhandled_computation_schema(
   result_type : @buslane.Type,
 ) -> UnhandledComputationSchema raise SynthesisError {
   let canonical = mon_effect_part(schema.metadata, effect)
-  let residual_effect = residual_effect_part(schema.metadata, effect)
+  let residual_effect = schema.rewrite_residual_effect(effect)
   let rewritten_result = schema.rewrite_type(result_type)
   if schema.metadata.effects_definitionally_equal(canonical, Empty) {
     {

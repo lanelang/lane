@@ -173,6 +173,31 @@ test "type planning shares one generated schema" {
 }
 
 ///|
+test "direct callable rewrites parameterized external residual arguments" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let source = metadata.define_type_parameter("E", Effect)
+  let host = metadata.define_effect("Host", [source], flavor=External)
+  let schema = build_dictionary_cps_schema_or_raise(metadata)
+  let shape = schema.plan_callable_shape(
+    Function(
+      [],
+      Primitive(Unit),
+      Singleton(host, [EffectArgument(Parameter(source))]),
+    ),
+  )
+  guard shape.target_type
+    is Function(
+      [],
+      Primitive(Unit),
+      Singleton(actual_host, [EffectArgument(Parameter(actual_residual))])
+    ) else {
+    abort("expected a direct callable with a rewritten external residual")
+  }
+  assert_eq(actual_host, host)
+  assert_eq(actual_residual, schema.residual_parameter(source))
+}
+
+///|
 test "context types cover empty singleton and ordered unions" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let first_effect = metadata.define_effect("First", [])

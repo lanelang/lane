@@ -16,7 +16,6 @@ using @effect_lowering_core {
   is_mon_effect,
   mon_effect_part,
   require_arity,
-  residual_effect_part,
   set_source_resume_effect,
   synthesize_expr_or_raise,
   value_type,

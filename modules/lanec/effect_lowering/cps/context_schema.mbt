@@ -293,6 +293,18 @@ fn DictionaryCpsSchema::rewrite_generic_argument(
 }
 
 ///|
+fn DictionaryCpsSchema::rewrite_residual_generic_argument(
+  self : DictionaryCpsSchema,
+  argument : @buslane.GenericArgument,
+) -> @buslane.GenericArgument raise SynthesisError {
+  match argument {
+    TypeArgument(type_) => TypeArgument(self.rewrite_type(type_))
+    EffectArgument(effect) =>
+      EffectArgument(self.rewrite_residual_effect(effect))
+  }
+}
+
+///|
 fn DictionaryCpsSchema::rewrite_cps_application_arguments(
   self : DictionaryCpsSchema,
   parameter : @buslane.TypeParameterId,
@@ -314,7 +326,7 @@ fn DictionaryCpsSchema::rewrite_cps_application_arguments(
         // Concrete and composite effects define the two facts independently;
         // neither can be reconstructed from the other.
         TypeArgument(self.companion_context_argument(effect)),
-        EffectArgument(self.source_residual_effect(effect)),
+        EffectArgument(self.rewrite_residual_effect(effect)),
       ]
     (_, _, TypeArgument(type_)) => [TypeArgument(self.rewrite_type(type_))]
     (_, _, EffectArgument(effect)) => [EffectArgument(effect)]
@@ -442,12 +454,12 @@ fn DictionaryCpsSchema::cps_residual_effect(
   parameter : @buslane.Effect,
 ) -> @buslane.Effect raise SynthesisError {
   self.metadata.canonicalize_effect(
-    Union([self.source_residual_effect(effect), parameter]),
+    Union([self.rewrite_residual_effect(effect), parameter]),
   )
 }
 
 ///|
-fn DictionaryCpsSchema::source_residual_effect(
+fn DictionaryCpsSchema::rewrite_residual_effect(
   self : DictionaryCpsSchema,
   effect : @buslane.Effect,
 ) -> @buslane.Effect raise SynthesisError {
@@ -463,13 +475,15 @@ fn DictionaryCpsSchema::source_residual_effect(
       } else {
         Singleton(
           effect,
-          arguments.map(argument => self.rewrite_generic_argument(argument)),
+          arguments.map(argument => {
+            self.rewrite_residual_generic_argument(argument)
+          }),
         )
       }
     }
     Union(effects) =>
       self.metadata.canonicalize_effect(
-        Union(effects.map(effect => self.source_residual_effect(effect))),
+        Union(effects.map(effect => self.rewrite_residual_effect(effect))),
       )
   }
 }
