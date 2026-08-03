@@ -488,6 +488,13 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
         text("expected ") + expected.pretty(),
         text("actual ") + actual.pretty(),
       ])
+    EffectFlavorMismatch(parameter~, argument~) =>
+      text("effect_flavor_mismatch") +
+      space +
+      braced_block([
+        text("parameter ") + parameter.pretty(),
+        text("argument ") + argument.pretty(),
+      ])
     TypeNormalizationFailure(error) =>
       text("type_normalization_failure") + space + text("\{Repr(error)}")
     TypeSubstitutionFailure(error) =>

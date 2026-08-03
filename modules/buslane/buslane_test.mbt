@@ -1328,8 +1328,15 @@ test "substitution refuses to capture a replacement's free parameter" {
     [y],
     Function([Parameter(x)], Primitive(Unit), Empty),
   )
-  let result = try? body.try_substitute(substitution)
-  assert_eq(result, Err(CapturedTypeParameter(parameter=x, binder=y)))
+  try body.try_substitute(substitution) catch {
+    CapturedTypeParameter(parameter~, binder~) => {
+      assert_eq(parameter, x)
+      assert_eq(binder, y)
+    }
+    error => fail("unexpected substitution error: \{Repr(error)}")
+  } noraise {
+    _ => fail("expected substitution to refuse the capture")
+  }
 }
 
 ///|
@@ -1550,4 +1557,151 @@ test "substitution and alpha equality agree on shadowed binders" {
   let captured : Type = Forall([y], Function([], Primitive(Unit), Io))
   assert_true(metadata.types_definitionally_equal(applied, untouched))
   assert_false(metadata.types_definitionally_equal(applied, captured))
+}
+
+///|
+test "type application enforces an external row variable's flavor" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let algebraic = metadata.define_effect("Alg", [])
+  let external = metadata.define_effect("Ext", [], flavor=External)
+  let row = metadata.define_type_parameter("R", Effect, flavor=External)
+  let g = metadata.define_value(
+    "g",
+    Value,
+    Forall([row], Function([], Primitive(Unit), Parameter(row))),
+  )
+  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let rejected = query.synthesize(
+    TypeApply(Ref(g), [EffectArgument(Singleton(algebraic, []))]),
+  )
+  guard rejected is Err(verify) else { abort("expected a flavor diagnostic") }
+  assert_eq(verify.diagnostics(), [
+    {
+      kind: EffectFlavorMismatch(
+        parameter=row,
+        argument=Singleton(algebraic, []),
+      ),
+    },
+  ])
+  for
+    admitted in (
+      [Empty, Io, Singleton(external, []), Union([Io, Singleton(external, [])])] :
+      Array[Effect]) {
+    assert_true(
+      query.synthesize(TypeApply(Ref(g), [EffectArgument(admitted)])) is Ok(_),
+    )
+  }
+}
+
+///|
+test "binder compatibility distinguishes row variable flavors" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let algebraic_row = metadata.define_type_parameter("E", Effect)
+  let external_row = metadata.define_type_parameter(
+    "E",
+    Effect,
+    flavor=External,
+  )
+  let with_row = fn(parameter) {
+    Type::Forall(
+      [parameter],
+      Function([], Primitive(Unit), Parameter(parameter)),
+    )
+  }
+  assert_false(
+    metadata.types_definitionally_equal(
+      with_row(algebraic_row),
+      with_row(external_row),
+    ),
+  )
+  assert_false(
+    metadata.type_is_consumable_as(
+      with_row(algebraic_row),
+      with_row(external_row),
+    ),
+  )
+  assert_false(
+    metadata.type_is_consumable_as(
+      with_row(external_row),
+      with_row(algebraic_row),
+    ),
+  )
+}
+
+///|
+test "a handler over a purely external row must name its handled effect" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let algebraic = metadata.define_effect("Alg", [])
+  let external_row = metadata.define_type_parameter(
+    "R",
+    Effect,
+    flavor=External,
+  )
+  let algebraic_row = metadata.define_type_parameter("S", Effect)
+  let external_body = metadata.define_value(
+    "external_body",
+    Value,
+    Function([], Primitive(Unit), Parameter(external_row)),
+  )
+  let algebraic_body = metadata.define_value(
+    "algebraic_body",
+    Value,
+    Function([], Primitive(Unit), Parameter(algebraic_row)),
+  )
+  let result_binder = metadata.define_value(
+    "result",
+    MatchBinder,
+    Primitive(Unit),
+  )
+  let unit_value = metadata.define_value("unit", Value, Primitive(Unit))
+  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let handle_over = fn(body : ValueId) {
+    Expr::Handle({
+      body: Call(Ref(body), []),
+      result_binder,
+      result_type: Primitive(Unit),
+      final_body: Ref(unit_value),
+      handlers: [{ handled_effect: Singleton(algebraic, []), operations: [] }],
+    })
+  }
+  // An External row provably lacks the algebraic effect, so handling it there
+  // is a verifier diagnostic; an Algebraic row may still conceal it.
+  guard query.synthesize(handle_over(external_body)) is Err(verify) else {
+    abort("expected a handler diagnostic over the external row")
+  }
+  assert_eq(verify.diagnostics(), [
+    {
+      kind: EffectMismatch(
+        expected=Singleton(algebraic, []),
+        actual=Parameter(external_row),
+      ),
+    },
+  ])
+  assert_true(query.synthesize(handle_over(algebraic_body)) is Ok(_))
+}
+
+///|
+test "declared types enforce constructor parameter flavors" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let algebraic = metadata.define_effect("Alg", [])
+  let residual_row = metadata.define_type_parameter(
+    "R",
+    Effect,
+    flavor=External,
+  )
+  let dictionary = metadata.define_type("Type", [residual_row])
+  let _value = metadata.define_value(
+    "value",
+    Value,
+    Apply(Constructor(dictionary), [EffectArgument(Singleton(algebraic, []))]),
+  )
+  let diagnostics = verify_program({ metadata, terms: [] }).diagnostics()
+  assert_eq(diagnostics, [
+    {
+      kind: EffectFlavorMismatch(
+        parameter=residual_row,
+        argument=Singleton(algebraic, []),
+      ),
+    },
+  ])
 }

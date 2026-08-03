@@ -518,7 +518,11 @@ fn MetadataRegistry::definitional_equality_context(
       guard self.type_parameter_info(right) is Some(right_info) else {
         return false
       }
-      left_info.kind == right_info.kind
+      // Effect-kind binders must also agree on flavor: an External row
+      // variable ranges over fewer rows than an Algebraic one, so pairing
+      // them would launder the flavor through an equality-gated position.
+      left_info.kind == right_info.kind &&
+      (left_info.kind != Effect || left_info.flavor == right_info.flavor)
     },
   }
 }

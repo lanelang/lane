@@ -65,11 +65,15 @@ test "type normalization rejects a capturing beta reduction" {
     ),
     [TypeArgument(Parameter(y))],
   )
-  let result = try? capturing.normalize()
-  assert_eq(
-    result,
-    Err(InvalidBetaSubstitution(CapturedTypeParameter(parameter=x, binder=y))),
-  )
+  try capturing.normalize() catch {
+    InvalidBetaSubstitution(CapturedTypeParameter(parameter~, binder~)) => {
+      assert_eq(parameter, x)
+      assert_eq(binder, y)
+    }
+    error => fail("unexpected normalization error: \{Repr(error)}")
+  } noraise {
+    _ => fail("expected the capturing reduction to be rejected")
+  }
 }
 
 ///|

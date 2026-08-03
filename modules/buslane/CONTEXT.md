@@ -89,6 +89,17 @@ The **Effect Flavor** carried by an **Effect Row Variable**, saying what the row
 it ranges over may contain: Algebraic admits any row, External admits only rows
 of External Effects. A consumer that must eliminate algebraic effects reads the
 flavor to tell a variable it still has to discharge from one it may keep.
+Three verifier rules consume it. Instantiation: an argument paired with a
+declared External-flavored parameter — through substitution or nominal type
+application — must contain no algebraic term (`EffectFlavorMismatch`
+otherwise); higher-kinded application carries kinds without declarations, and
+flavor is a property of declared row variables, not of kinds. Binder
+compatibility: Effect-kind binders pair only when their flavors are equal, in
+definitional equality and consumability alike — an External variable ranges
+over fewer rows, so a directional reading could be sound, but no relation has
+a measured need for it and both stay strict. Open rows: a row ending in an
+External-flavored variable is closed to algebraic effects, so a handler over
+it must find its handled algebraic effect among the row's explicit terms.
 _Avoid_: naming convention, binder position, pipeline phase
 
 **Canonical Effect**:

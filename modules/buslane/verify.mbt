@@ -12,6 +12,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownEffect(EffectId)
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
+  EffectFlavorMismatch(parameter~ : TypeParameterId, argument~ : Effect)
   TypeNormalizationFailure(TypeNormalizationError)
   TypeSubstitutionFailure(TypeSubstitutionError)
   TypeMismatch(expected~ : Type, actual~ : Type)
@@ -1261,6 +1262,25 @@ fn VerifyContext::verify_generic_argument_kind(
 }
 
 ///|
+/// Enforces a declared parameter's Effect Row Variable Flavor on the argument
+/// standing in for it: an External-flavored variable admits only rows of
+/// External Effects, so an argument containing any algebraic term cannot
+/// inhabit it.
+fn VerifyContext::verify_argument_flavor(
+  self : VerifyContext,
+  parameter : TypeParameterId,
+  parameter_info : TypeParameterInfo,
+  argument : GenericArgument,
+) -> Unit {
+  guard parameter_info.flavor is External && argument is EffectArgument(effect) else {
+    return
+  }
+  if self.program.metadata.effect_term_is_algebraic(effect) {
+    self.report(EffectFlavorMismatch(parameter~, argument=effect))
+  }
+}
+
+///|
 fn VerifyContext::verified_substitution(
   self : VerifyContext,
   parameters : Array[TypeParameterId],
@@ -1292,6 +1312,7 @@ fn VerifyContext::insert_verified_argument(
     self.report(UnknownTypeParameter(parameter))
     return
   }
+  self.verify_argument_flavor(parameter, parameter_info, argument)
   if self.verify_generic_argument_kind(argument, parameter_info.kind, scope) {
     substitution.insert_argument(parameter, argument)
   }
@@ -1315,6 +1336,7 @@ fn VerifyContext::insert_verified_binder(
   } else {
     TypeArgument(Parameter(binder))
   }
+  self.verify_argument_flavor(parameter, parameter_info, argument)
   if self.verify_generic_argument_kind(argument, parameter_info.kind, scope) {
     substitution.insert_argument(parameter, argument)
   }
@@ -1394,6 +1416,24 @@ fn VerifyContext::synthesize_type_kind(
             TypeArgument(type_) =>
               ignore(self.synthesize_type_kind(type_, scope))
             EffectArgument(effect) => self.verify_effect(effect, scope)
+          }
+        }
+      }
+      // A nominal application pairs each argument with a declared parameter,
+      // so the parameter's flavor constrains it here too. Higher-kinded
+      // callees carry kinds without declarations, and flavor is a property of
+      // declared row variables, not of kinds.
+      if callee is Constructor(callee_id) &&
+        self.program.metadata.type_info(callee_id) is Some(callee_info) {
+        for index in 0..<arguments.length().min(callee_info.parameters.length()) {
+          let parameter = callee_info.parameters[index]
+          if self.program.metadata.type_parameter_info(parameter)
+            is Some(parameter_info) {
+            self.verify_argument_flavor(
+              parameter,
+              parameter_info,
+              arguments[index],
+            )
           }
         }
       }
@@ -1593,12 +1633,12 @@ fn VerifyContext::remove_handled_effects(
   handled : Array[Effect],
 ) -> Effect {
   let residual : Array[Effect] = []
-  let mut has_open_row = false
+  let open_rows : Array[Effect] = []
   let effect_terms = self.effect_terms(effect)
   for term in effect_terms {
     match term {
       Parameter(_) => {
-        has_open_row = true
+        open_rows.push(term)
         residual.push(term)
       }
       _ =>
@@ -1609,13 +1649,21 @@ fn VerifyContext::remove_handled_effects(
         }
     }
   }
-  if !has_open_row {
-    for handled_effect in handled {
-      if !effect_terms.any(fn(term) {
-          self.effects_definitionally_equal(term, handled_effect)
-        }) {
-        self.report(EffectMismatch(expected=handled_effect, actual=effect))
-      }
+  for handled_effect in handled {
+    if effect_terms.any(fn(term) {
+        self.effects_definitionally_equal(term, handled_effect)
+      }) {
+      continue
+    }
+    // An absent handled effect may still hide inside an open row, but only
+    // when the row's flavor admits it: an Algebraic row variable ranges over
+    // any row, while an External one ranges over rows this effect could not
+    // be in unless the effect itself is non-algebraic.
+    if !open_rows.any(fn(row) {
+        self.program.metadata.effect_term_is_algebraic(row) ||
+        !self.program.metadata.effect_term_is_algebraic(handled_effect)
+      }) {
+      self.report(EffectMismatch(expected=handled_effect, actual=effect))
     }
   }
   self.effect_union(residual)
