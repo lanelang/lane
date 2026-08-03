@@ -1,4 +1,7 @@
 ///|
+using @buslane {type MetadataRegistry, type Program}
+
+///|
 test "program binary codec roundtrips core structures" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let effect_param = metadata.define_type_parameter("E", Effect)
@@ -128,7 +131,7 @@ test "program decoder rejects schema version 5 at the version boundary" {
   } catch {
     error => Some(error)
   }
-  assert_eq(error, Some(UnsupportedCodecVersion(version=5)))
+  debug_inspect(error, content="Some(UnsupportedCodecVersion(version=5))")
 }
 
 ///|
@@ -226,7 +229,7 @@ test "program codec roundtrips Char type and literal" {
 
 ///|
 test "program decoder rejects invalid Char literals" {
-  let errors : Array[BuslaneDecodeError] = []
+  let errors : Array[@codec.BuslaneDecodeError] = []
   for value in [-1, 0xD800, 0xDFFF, 0x110000] {
     let metadata = MetadataRegistry::MetadataRegistry()
     let target = metadata.define_value("target", Value, Primitive(Char))

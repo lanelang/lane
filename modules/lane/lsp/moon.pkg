@@ -18,4 +18,10 @@ import {
   "moonbitlang/async",
 } for "wbtest"
 
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/io",
+  "moonbitlang/core/json",
+} for "test"
+
 supported_targets = "native"

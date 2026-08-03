@@ -6,6 +6,7 @@ import Basic.Data.Option.{ Option }
 import Basic.Data.I32 as I32
 import Basic.Data.String as String
 import Basic.Data.I64.{ i64_impl_equal }
+import Basic.Data.List.{ List }
 import Basic.Eff.Bound.{ OutOfBound }
 import Test.Assert.{ Assert, execute_all_tests }
 
@@ -82,6 +83,6 @@ fn test_utf8_string_char_i32() -> Unit ! Assert {
 }
 
 pub fn answer() -> Unit ! Io {
-  test_utf8_string_char_i32
+  [test_utf8_string_char_i32]
     |> execute_all_tests()
 }

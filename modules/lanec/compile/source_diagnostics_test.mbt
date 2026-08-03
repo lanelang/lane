@@ -1,6 +1,6 @@
 ///|
 test "check reports unused local value binding as warning" {
-  let result = check_source_for_test(
+  let result = successful_check_diagnostics(
     (
       #|module Test
       #|pub fn answer() -> I64 {
@@ -11,9 +11,8 @@ test "check reports unused local value binding as warning" {
       #|}
     ),
   )
-  guard result.source is Some(_) else { abort("expected checked source") }
   debug_inspect(
-    result.diagnostics,
+    result,
     content=(
       #|[
       #|  {
@@ -63,7 +62,7 @@ test "check reports unused local value binding as warning" {
 
 ///|
 test "compile modules keeps artifacts when unused local warning exists" {
-  let result = compile_modules_for_test(
+  let result = successful_compile_modules_diagnostics(
     (
       #|module Test
       #|pub fn answer() -> I64 {
@@ -73,9 +72,8 @@ test "compile modules keeps artifacts when unused local warning exists" {
     ),
     [],
   )
-  guard result.modules is Some(_) else { abort("expected compiled modules") }
   debug_inspect(
-    result.diagnostics,
+    result,
     content=(
       #|[
       #|  {
@@ -125,7 +123,7 @@ test "compile modules keeps artifacts when unused local warning exists" {
 
 ///|
 test "unused local offered function remains unused" {
-  let result = check_source_for_test(
+  let result = successful_check_diagnostics(
     (
       #|module Test
       #|pub fn program() -> Unit {
@@ -136,8 +134,7 @@ test "unused local offered function remains unused" {
       #|}
     ),
   )
-  guard result.source is Some(_) else { abort("expected checked source") }
-  guard result.diagnostics
+  guard result
     is [{ message: "unused local value binding", code: Some("W2001"), .. }] else {
     abort("expected one unused local value binding warning")
   }
@@ -145,7 +142,7 @@ test "unused local offered function remains unused" {
 
 ///|
 test "check reports unused private top-level declarations as warnings" {
-  let result = check_source_for_test(
+  let result = successful_check_diagnostics(
     (
       #|module Test
       #|fn dead_function() -> I64 {
@@ -168,9 +165,8 @@ test "check reports unused private top-level declarations as warnings" {
       #|}
     ),
   )
-  guard result.source is Some(_) else { abort("expected checked source") }
   debug_inspect(
-    result.diagnostics,
+    result,
     content=(
       #|[
       #|  {
@@ -460,7 +456,7 @@ test "check reports unused private top-level declarations as warnings" {
 
 ///|
 test "check keeps reachable private top-level declarations quiet" {
-  let result = check_source_for_test(
+  let result = successful_check_diagnostics(
     (
       #|module Test
       #|struct Box {
@@ -493,13 +489,12 @@ test "check keeps reachable private top-level declarations quiet" {
       #|}
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
-  guard result.source is Some(_) else { abort("expected checked source") }
+  debug_inspect(result, content="[]")
 }
 
 ///|
 test "check reports unused generic parameters as warnings" {
-  let result = check_source_for_test(
+  let result = successful_check_diagnostics(
     (
       #|module Test
       #|pub struct Box[A, B] {
@@ -521,7 +516,7 @@ test "check reports unused generic parameters as warnings" {
     ),
   )
   debug_inspect(
-    result.diagnostics,
+    result,
     content=(
       #|[
       #|  {
@@ -807,12 +802,11 @@ test "check reports unused generic parameters as warnings" {
       #|]
     ),
   )
-  guard result.source is Some(_) else { abort("expected checked source") }
 }
 
 ///|
 test "check keeps used generic parameters quiet" {
-  let result = check_source_for_test(
+  let result = successful_check_diagnostics(
     (
       #|module Test
       #|pub struct Box[A] {
@@ -835,13 +829,12 @@ test "check keeps used generic parameters quiet" {
       #|}
     ),
   )
-  debug_inspect(result.diagnostics, content="[]")
-  guard result.source is Some(_) else { abort("expected checked source") }
+  debug_inspect(result, content="[]")
 }
 
 ///|
 test "check reports unused imports and opens as warnings" {
-  let result = check_sources_for_test(
+  let result = successful_check_sources_diagnostics(
     (
       #|module Main
       #|import UsedQualified
@@ -880,9 +873,8 @@ test "check reports unused imports and opens as warnings" {
       ),
     ],
   )
-  guard result.source is Some(_) else { abort("expected checked source") }
   debug_inspect(
-    result.diagnostics.map(compiler_diagnostic_summary),
+    result.map(compiler_diagnostic_summary),
     content=(
       #|[
       #|  {
@@ -907,7 +899,7 @@ test "check reports unused imports and opens as warnings" {
 
 ///|
 test "check reports payloadless variant without parentheses" {
-  let result = check_source_for_test(
+  let result = check_source(
     (
       #|module Test
       #|enum Option[A] {
@@ -918,7 +910,7 @@ test "check reports payloadless variant without parentheses" {
     ),
   )
   debug_inspect(
-    result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
+    result.diagnostics().map(fn(diagnostic) { diagnostic.message }),
     content=(
       #|["payloadless variant `none` must use empty parentheses"]
     ),
@@ -934,7 +926,7 @@ priv struct CompilerDiagnosticSummary {
 
 ///|
 fn compiler_diagnostic_summary(
-  diagnostic : CompilerDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
 ) -> CompilerDiagnosticSummary {
   {
     message: diagnostic.message,

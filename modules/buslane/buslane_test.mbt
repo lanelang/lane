@@ -49,9 +49,10 @@ test "verify buslane rejects invalid Char literals" {
       metadata,
       terms: [Let(target, Literal(Char(value)))],
     }
-    assert_eq(verify_program(program), {
-      diagnostics: [{ kind: InvalidCharLiteral(value) }],
-    })
+    assert_eq(
+      @prettyprinter.render(verify_program(program), width=100),
+      "verify_result {\n  invalid_char_literal \{value}\n}",
+    )
   }
 }
 
@@ -277,10 +278,10 @@ test "buslane substitution is simultaneous and capture avoiding" {
     Function([Parameter(element)], Parameter(element), Empty),
   )
   assert_eq(
-    Forall([element], Function([], Parameter(element), Empty)).try_substitute(
+    Type::Forall([element], Function([], Parameter(element), Empty)).try_substitute(
       substitution,
     ),
-    Forall([element], Function([], Parameter(element), Empty)),
+    Type::Forall([element], Function([], Parameter(element), Empty)),
   )
 }
 
@@ -396,7 +397,7 @@ test "buslane preserves the built-in Io effect atom" {
     metadata.canonicalize_effect(effect.substitute(substitution)),
     content="Io",
   )
-  assert_false(Io == Empty)
+  assert_false(Effect::Io == Effect::Empty)
 }
 
 ///|

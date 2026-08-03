@@ -1,16 +1,16 @@
 ///|
-fn single_check_diagnostic(source : String) -> CompilerDiagnostic {
-  let result = check_source_for_test(source)
-  guard result.diagnostics is [diagnostic] else {
-    abort("\{Repr(result.diagnostics)}")
-  }
+fn single_check_diagnostic(
+  source : String,
+) -> @compiler_diag.CompilerDiagnostic {
+  let diagnostics = check_source(source).diagnostics()
+  guard diagnostics is [diagnostic] else { abort("\{Repr(diagnostics)}") }
   diagnostic
 }
 
 ///|
-fn first_check_diagnostic(source : String) -> CompilerDiagnostic {
-  let result = check_source_for_test(source)
-  guard result.diagnostics is [diagnostic, ..] else {
+fn first_check_diagnostic(source : String) -> @compiler_diag.CompilerDiagnostic {
+  let diagnostics = check_source(source).diagnostics()
+  guard diagnostics is [diagnostic, ..] else {
     abort("expected at least one diagnostic")
   }
   diagnostic
@@ -20,17 +20,17 @@ fn first_check_diagnostic(source : String) -> CompilerDiagnostic {
 fn single_check_sources_diagnostic(
   root_source : String,
   library_sources : Array[String],
-) -> CompilerDiagnostic {
-  let result = check_sources_for_test(root_source, library_sources)
-  guard result.diagnostics is [diagnostic] else {
-    abort("\{Repr(result.diagnostics)}")
-  }
+) -> @compiler_diag.CompilerDiagnostic {
+  let diagnostics = check(
+    test_compilation_request(root_source, library_sources),
+  ).diagnostics()
+  guard diagnostics is [diagnostic] else { abort("\{Repr(diagnostics)}") }
   diagnostic
 }
 
 ///|
 fn assert_diagnostic_headline(
-  diagnostic : CompilerDiagnostic,
+  diagnostic : @compiler_diag.CompilerDiagnostic,
   code : String,
   message : String,
 ) -> Unit {
@@ -43,7 +43,10 @@ fn assert_diagnostic_headline(
 }
 
 ///|
-fn assert_single_help(diagnostic : CompilerDiagnostic, help : String) -> Unit {
+fn assert_single_help(
+  diagnostic : @compiler_diag.CompilerDiagnostic,
+  help : String,
+) -> Unit {
   guard diagnostic.helps.length() == 1 else {
     abort("expected one diagnostic help")
   }

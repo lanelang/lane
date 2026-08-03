@@ -3,6 +3,7 @@ module Examples.Valid.ByteAndBytesPrimitives
 import Basic.Data.Byte as Byte
 import Basic.Data.Bytes as ByteSeq
 import Basic.Data.I64.{ i64_impl_equal }
+import Basic.Data.List.{ List }
 import Basic.Eff.Bound.{ OutOfBound }
 import Test.Assert.{ Assert, execute_all_tests }
 
@@ -50,6 +51,6 @@ fn test_byte_and_bytes_primitives() -> Unit ! Assert {
 }
 
 pub fn answer() -> Unit ! Io {
-  test_byte_and_bytes_primitives
+  [test_byte_and_bytes_primitives]
     |> execute_all_tests()
 }

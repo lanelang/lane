@@ -12,6 +12,11 @@ You can browse and install extra skills here:
   blackbox test files (ending in `_test.mbt`) and whitebox test files (ending in
   `_wbtest.mbt`).
 
+- Write blackbox tests by default. Use whitebox tests only when the behavior
+  cannot reasonably be verified through public APIs or when a private invariant
+  must be inspected directly; convenience alone is not sufficient justification
+  for a whitebox test.
+
 - In the toplevel directory, there is a `moon.mod` file listing module
   metadata.
 

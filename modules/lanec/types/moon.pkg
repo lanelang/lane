@@ -6,3 +6,8 @@ import {
 import {
   "Milky2018/lanec/basic",
 } for "wbtest"
+
+import {
+  "Milky2018/lanec/basic",
+  "Milky2018/lanec/symbol",
+} for "test"

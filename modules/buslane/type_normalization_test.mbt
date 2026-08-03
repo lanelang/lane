@@ -16,7 +16,9 @@ test "verify match through a beta-reducible nominal type application" {
       TypeArgument(Primitive(String)),
     ]),
   )
-  let applied_result = Apply(partial_result, [TypeArgument(Primitive(Bool))])
+  let applied_result = Type::Apply(partial_result, [
+    TypeArgument(Primitive(Bool)),
+  ])
   let scrutinee = metadata.define_value("scrutinee", Value, applied_result)
   let match_binder = metadata.define_value(
     "matched",
@@ -69,5 +71,5 @@ test "verify match through a beta-reducible nominal type application" {
       ),
     ],
   }
-  assert_eq(verify_program(program), { diagnostics: [] })
+  assert_true(verify_program(program).is_ok())
 }

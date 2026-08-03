@@ -8,4 +8,4 @@ import {
 
 import {
   "Milky2018/lanec/source_prettyprinter" @prettyprinter,
-} for "wbtest"
+} for "test"

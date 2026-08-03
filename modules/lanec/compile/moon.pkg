@@ -10,6 +10,10 @@ import {
 } for "wbtest"
 
 import {
+  "Milky2018/lanec/diagnostic" @compiler_diag,
+} for "test"
+
+import {
   "Milky2018/buslane",
   "Milky2018/lanec/artifact",
   "Milky2018/lanec/checked",

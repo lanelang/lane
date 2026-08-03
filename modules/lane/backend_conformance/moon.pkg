@@ -1,0 +1,12 @@
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/compile",
+  "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/loisvm_lowering",
+  "Milky2018/loisvm/bytecode" @loisvm_bytecode,
+  "Milky2018/loisvm/interp" @loisvm_interp,
+  "Milky2018/loisvm/runtime" @loisvm_runtime,
+  "Milky2018/loisvm/wasm" @loisvm_wasm,
+} for "test"
+
+supported_targets = "native"

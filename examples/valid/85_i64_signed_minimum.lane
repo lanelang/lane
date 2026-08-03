@@ -5,6 +5,7 @@
 module Examples.Valid.I64SignedMinimum
 
 import Basic.Data.I64.*
+import Basic.Data.List.{ List }
 import Basic.Ops.*
 import Test.Assert.{ Assert, execute_all_tests }
 
@@ -30,6 +31,6 @@ fn test_i64_signed_minimum() -> Unit ! Assert {
 }
 
 pub fn answer() -> Unit ! Io {
-  test_i64_signed_minimum
+  [test_i64_signed_minimum]
     |> execute_all_tests()
 }

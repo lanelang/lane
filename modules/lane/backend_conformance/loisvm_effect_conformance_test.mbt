@@ -15,14 +15,20 @@ fn compile_effect_conformance_image(
     fail("effect conformance compilation failed: \{Repr(result.diagnostics())}")
   }
   let program = successful_compilation(result)
-  guard find_entry(program.entries(), "main") is Ok(entry) else {
+  let mut main = None
+  for entry in program.entries() {
+    if entry.name() == "main" {
+      main = Some(entry)
+    }
+  }
+  guard main is Some(entry) else {
     fail("effect conformance source produced no main entry")
   }
   let executable = match program.elaborate_entry(entry) {
     Ok(executable) => executable
     Err(error) => fail("effect conformance elaboration failed: \{Repr(error)}")
   }
-  match lower_executable_image(executable) {
+  match @loisvm_lowering.lower_executable_program_to_bytecode(executable) {
     Ok(image) => image
     Err(error) => fail("effect conformance lowering failed: \{Repr(error)}")
   }
