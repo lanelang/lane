@@ -33,17 +33,41 @@ pub(all) enum CompilationOutcome[T] {
 } derive(Debug, Eq)
 
 ///|
+fn detached_compiler_diagnostic(
+  diagnostic : CompilerDiagnostic,
+) -> CompilerDiagnostic {
+  {
+    ..diagnostic,
+    labels: diagnostic.labels.copy(),
+    notes: diagnostic.notes.copy(),
+    helps: diagnostic.helps.copy(),
+    facts: diagnostic.facts.copy(),
+    suggestions: diagnostic.suggestions.map(suggestion => {
+      ..suggestion,
+      edits: suggestion.edits.copy(),
+    }),
+  }
+}
+
+///|
+fn detached_compiler_diagnostics(
+  diagnostics : Array[CompilerDiagnostic],
+) -> Array[CompilerDiagnostic] {
+  diagnostics.map(detached_compiler_diagnostic)
+}
+
+///|
 pub fn CompilationWarnings::diagnostics(
   self : CompilationWarnings,
 ) -> Array[CompilerDiagnostic] {
-  self.diagnostics.copy()
+  detached_compiler_diagnostics(self.diagnostics)
 }
 
 ///|
 pub fn CompilationFailure::diagnostics(
   self : CompilationFailure,
 ) -> Array[CompilerDiagnostic] {
-  self.diagnostics.copy()
+  detached_compiler_diagnostics(self.diagnostics)
 }
 
 ///|
@@ -64,7 +88,7 @@ fn[T] compilation_succeeded(
   if diagnostics.any(diagnostic => diagnostic.severity is Error) {
     abort("successful compilation cannot contain error diagnostics")
   }
-  Succeeded(value, { diagnostics, })
+  Succeeded(value, { diagnostics: detached_compiler_diagnostics(diagnostics) })
 }
 
 ///|
@@ -74,7 +98,7 @@ fn[T] compilation_failed(
   if !diagnostics.any(diagnostic => diagnostic.severity is Error) {
     abort("failed compilation must contain an error diagnostic")
   }
-  Failed({ diagnostics, })
+  Failed({ diagnostics: detached_compiler_diagnostics(diagnostics) })
 }
 
 ///|

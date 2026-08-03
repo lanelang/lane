@@ -92,6 +92,58 @@ test "check facade returns type failure" {
 }
 
 ///|
+test "diagnostic access is isolated from nested mutation" {
+  let outcome = check_source(
+    (
+      #|module Main
+      #|pub struct Point {
+      #|  x : I64
+      #|  y : I64
+      #|}
+      #|pub let point : Point = Point::{ x: 1 }
+    ),
+  )
+  guard outcome is Failed(failure) else {
+    abort("expected type checking to fail")
+  }
+  guard failure.diagnostics() is [first] &&
+    first.labels is [label] &&
+    first.suggestions is [suggestion] else {
+    abort("expected one structured diagnostic")
+  }
+  first.labels.push(label)
+  first.notes.push("mutated note")
+  first.helps.push("mutated help")
+  first.facts.push({ name: "mutated", value: "fact", span: first.span })
+  suggestion.edits.push({ span: label.span, replacement: "mutated" })
+  first.suggestions.push(suggestion)
+  guard failure.diagnostics() is [second] &&
+    second.suggestions is [second_suggestion] else {
+    abort("expected one isolated diagnostic")
+  }
+  debug_inspect(
+    (
+      second.labels.length(),
+      second.notes,
+      second.helps,
+      second.facts.length(),
+      second.suggestions.length(),
+      second_suggestion.edits.length(),
+    ),
+    content=(
+      #|(
+      #|  1,
+      #|  ["Lane struct literals and struct patterns must account for required fields"],
+      #|  ["add a `y: ...` field entry"],
+      #|  0,
+      #|  1,
+      #|  0,
+      #|)
+    ),
+  )
+}
+
+///|
 test "module compilation and linking expose facade-owned results" {
   let request : CompilationRequest = {
     root: {
