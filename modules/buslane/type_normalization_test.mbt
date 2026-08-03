@@ -25,10 +25,10 @@ test "verify match through a beta-reducible nominal type application" {
     MatchBinder,
     applied_result,
   )
-  let ok_binder = metadata.define_value("value", Parameter, Primitive(Bool))
+  let ok_binder = metadata.define_value("value", MatchBinder, Primitive(Bool))
   let error_binder = metadata.define_value(
     "error",
-    Parameter,
+    MatchBinder,
     Primitive(String),
   )
   let answer = metadata.define_value("answer", Value, Primitive(I64))

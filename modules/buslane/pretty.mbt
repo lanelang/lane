@@ -488,6 +488,13 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
         text("expected ") + expected.pretty(),
         text("actual ") + actual.pretty(),
       ])
+    InvalidBinderKind(value~, actual~) =>
+      text("invalid_binder_kind") +
+      space +
+      braced_block([
+        text("value ") + value.pretty(),
+        text("actual ") + actual.pretty(),
+      ])
     EffectFlavorMismatch(parameter~, argument~) =>
       text("effect_flavor_mismatch") +
       space +

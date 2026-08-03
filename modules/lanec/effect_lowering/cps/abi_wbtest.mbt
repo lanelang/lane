@@ -519,7 +519,7 @@ test "expected and synthesized CPS callables use one ABI shape" {
     External,
     Function([callable_type, callable_type], Primitive(Unit), Empty),
   )
-  let declared = metadata.define_value("declared", Local, callable_type)
+  let declared = metadata.define_value("declared", Function, callable_type)
   let result = metadata.define_value("result", Value, Primitive(Unit))
   let function = FunctionExpr::{
     parameters: [],

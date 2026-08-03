@@ -127,7 +127,7 @@ test "verify nominal construction and matching" {
   ])
   let result = metadata.define_value("result", Value, Primitive(I64))
   let matched = metadata.define_value("matched", MatchBinder, box_of_int)
-  let payload = metadata.define_value("payload", Parameter, Primitive(I64))
+  let payload = metadata.define_value("payload", MatchBinder, Primitive(I64))
   let program = Program::{
     metadata,
     terms: [

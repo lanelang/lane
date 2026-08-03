@@ -52,9 +52,9 @@ test "whole-program elaboration records ordered reachable initializer roots" {
   let producer_type = @buslane.Type::Function([i64_type], i64_type, Empty)
   let observe_type = @buslane.Type::Function([i64_type], unit_type, Io)
   let function_type = @buslane.Type::Function([], unit_type, Io)
-  let first = metadata.define_value("first", Local, i64_type)
-  let second = metadata.define_value("second", Local, i64_type)
-  let unused = metadata.define_value("unused", Local, i64_type)
+  let first = metadata.define_value("first", Value, i64_type)
+  let second = metadata.define_value("second", Value, i64_type)
+  let unused = metadata.define_value("unused", Value, i64_type)
   let producer_parameter = metadata.define_value(
     "producer_parameter",
     Parameter,

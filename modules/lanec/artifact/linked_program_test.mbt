@@ -123,7 +123,7 @@ test "linked program roundtrips and inspects instance globals" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let string_type = @buslane.Type::Primitive(String)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let message = metadata.define_value("message", Local, string_type)
+  let message = metadata.define_value("message", Value, string_type)
   let produce_type = @buslane.Type::Function([], string_type, Empty)
   let produce = metadata.define_value("produce", External, produce_type)
   let consume_type = @buslane.Type::Function([string_type], unit_type, Empty)

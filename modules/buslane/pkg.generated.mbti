@@ -388,6 +388,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownEffect(EffectId)
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
+  InvalidBinderKind(value~ : ValueId, actual~ : ValueKind)
   EffectFlavorMismatch(parameter~ : TypeParameterId, argument~ : Effect)
   TypeNormalizationFailure(TypeNormalizationError)
   TypeSubstitutionFailure(TypeSubstitutionError)

@@ -18,8 +18,8 @@ test "executable lowering emits reachable instance globals in source order" {
     External,
     consume_type,
   )
-  let first = metadata.define_value("first", Local, string_type)
-  let second = metadata.define_value("second", Local, string_type)
+  let first = metadata.define_value("first", Value, string_type)
+  let second = metadata.define_value("second", Value, string_type)
   let unused_type = global_test_function_type([], unit_type)
   let unused = metadata.define_value("unused", Function, unused_type)
   let main_type = global_test_function_type([], unit_type)
@@ -113,7 +113,7 @@ test "executable initializer materializes function-valued data fields" {
   ])
   let holder_type = @buslane.Type::Constructor(holder)
   let helper = metadata.define_value("helper", Function, callable_type)
-  let stored = metadata.define_value("stored", Local, holder_type)
+  let stored = metadata.define_value("stored", Value, holder_type)
   let consume_parameter = metadata.define_value(
     "consume_parameter",
     Parameter,

@@ -12,6 +12,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownEffect(EffectId)
   UnknownOperation(OperationId)
   KindMismatch(expected~ : Kind, actual~ : Kind)
+  InvalidBinderKind(value~ : ValueId, actual~ : ValueKind)
   EffectFlavorMismatch(parameter~ : TypeParameterId, argument~ : Effect)
   TypeNormalizationFailure(TypeNormalizationError)
   TypeSubstitutionFailure(TypeSubstitutionError)
@@ -341,6 +342,45 @@ fn ValueKind::has_closed_metadata_type(self : ValueKind) -> Bool {
 }
 
 ///|
+/// Returns whether a value is introduced by a binding site inside a term
+/// rather than declared closed in metadata — exactly the complement of
+/// `has_closed_metadata_type`, so every value's declared type is verified
+/// once: closed kinds during the metadata pass, binder kinds at the site that
+/// introduces them.
+///
+/// The three binder kinds are interchangeable, and deliberately so. They
+/// record which construct binds a value, and lowering rewrites constructs
+/// without reissuing ids: a handler clause's payload binders become a
+/// function's parameters, and a resume binder becomes a let binding. A rule
+/// demanding one exact kind per site would make those values illegal at one
+/// end of a rewrite that is otherwise correct.
+fn ValueKind::is_term_binder(self : ValueKind) -> Bool {
+  !self.has_closed_metadata_type()
+}
+
+///|
+/// Verifies a binder at its binding site: the value must exist, carry a binder
+/// kind, and declare a type well-formed in the scope the binder is introduced
+/// into. Metadata that gives a binder a closed declaration kind or mentions
+/// parameters that are not in scope misleads every downstream consumer, so the
+/// gate refuses it here, once.
+fn VerifyContext::verify_binder(
+  self : VerifyContext,
+  binder : ValueId,
+  scope : TypeScope,
+) -> ValueInfo? {
+  guard self.program.metadata.value_info(binder) is Some(info) else {
+    self.report(UnknownValue(binder))
+    return None
+  }
+  if !info.kind.is_term_binder() {
+    self.report(InvalidBinderKind(value=binder, actual=info.kind))
+  }
+  self.verify_value_type(info.type_, scope)
+  Some(info)
+}
+
+///|
 fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
   let scope = ValueScope::{ values: [] }
   for term in self.program.terms {
@@ -383,6 +423,12 @@ fn VerifyContext::verify_top_let(
     self.report(UnknownValue(id))
     return
   }
+  // A top-level binding is closed by construction, so it keeps the closed
+  // metadata kinds; a binder kind here would dodge the metadata-pass type
+  // check.
+  if !info.kind.has_closed_metadata_type() {
+    self.report(InvalidBinderKind(value=id, actual=info.kind))
+  }
   let effect = self.check_binding_initializer(
     if info.kind is Function {
       FunctionBinding
@@ -410,6 +456,9 @@ fn VerifyContext::verify_top_letrec(
     guard self.program.metadata.value_info(binding.id) is Some(info) else {
       self.report(UnknownValue(binding.id))
       continue
+    }
+    if !info.kind.has_closed_metadata_type() {
+      self.report(InvalidBinderKind(value=binding.id, actual=info.kind))
     }
     let effect = self.check_binding_initializer(
       FunctionBinding,
@@ -524,8 +573,7 @@ fn VerifyContext::synthesize_function(
   let parameters : Array[Type] = []
   let body_scope = value_scope.copy()
   for parameter in function.parameters {
-    guard self.program.metadata.value_info(parameter) is Some(info) else {
-      self.report(UnknownValue(parameter))
+    guard self.verify_binder(parameter, type_scope) is Some(info) else {
       continue
     }
     parameters.push(info.type_)
@@ -778,9 +826,9 @@ fn VerifyContext::synthesize_handle(
     handled_effects,
   )
   let effects = [residual_body_effect]
-  guard self.program.metadata.value_info(handle.result_binder)
+  self.verify_value_type(handle.result_type, type_scope)
+  guard self.verify_binder(handle.result_binder, type_scope)
     is Some(result_info) else {
-    self.report(UnknownValue(handle.result_binder))
     return { type_: handle.result_type, effect: self.effect_union(effects) }
   }
   if !self.types_definitionally_equal(result_info.type_, body_result.type_) {
@@ -889,8 +937,7 @@ fn VerifyContext::verify_operation_alternative(
     .length()
     .min(info.payload_types.length()) {
     let binder = alternative.payload_binders[index]
-    guard self.program.metadata.value_info(binder) is Some(binder_info) else {
-      self.report(UnknownValue(binder))
+    guard self.verify_binder(binder, arm_type_scope) is Some(binder_info) else {
       continue
     }
     let expected = self.substituted(info.payload_types[index], substitution)
@@ -905,6 +952,7 @@ fn VerifyContext::verify_operation_alternative(
     resume_result,
     handler_result,
     arm_scope,
+    arm_type_scope,
   )
   self.check_expr(alternative.body, handler_result, arm_scope, arm_type_scope)
 }
@@ -916,11 +964,9 @@ fn VerifyContext::verify_resume_binder(
   parameter : Type,
   result : Type,
   scope : ValueScope,
+  type_scope : TypeScope,
 ) -> Unit {
-  guard self.program.metadata.value_info(binder) is Some(info) else {
-    self.report(UnknownValue(binder))
-    return
-  }
+  guard self.verify_binder(binder, type_scope) is Some(info) else { return }
   scope.values.push(binder)
   guard info.type_ is Function(parameters, actual_result, _) else {
     self.report(NotFunction(info.type_))
@@ -945,8 +991,7 @@ fn VerifyContext::synthesize_let(
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> ExpressionFacts {
-  guard self.program.metadata.value_info(id) is Some(info) else {
-    self.report(UnknownValue(id))
+  guard self.verify_binder(id, type_scope) is Some(info) else {
     return self.synthesize_expr(body, value_scope, type_scope)
   }
   let initializer_effect = self.check_binding_initializer(
@@ -981,8 +1026,7 @@ fn VerifyContext::synthesize_letrec(
     if !binding.rhs.is_direct_function_implementation() {
       self.report(InvalidLetRecRhs(binding.id))
     }
-    guard self.program.metadata.value_info(binding.id) is Some(info) else {
-      self.report(UnknownValue(binding.id))
+    guard self.verify_binder(binding.id, type_scope) is Some(info) else {
       continue
     }
     let rhs_effect = self.check_binding_initializer(
@@ -1011,8 +1055,8 @@ fn VerifyContext::synthesize_match(
     value_scope,
     type_scope,
   )
-  guard self.program.metadata.value_info(match_.binder) is Some(binder_info) else {
-    self.report(UnknownValue(match_.binder))
+  self.verify_value_type(match_.result_type, type_scope)
+  guard self.verify_binder(match_.binder, type_scope) is Some(binder_info) else {
     return pure_expr(match_.result_type)
   }
   if !self.types_definitionally_equal(binder_info.type_, scrutinee_result.type_) {
@@ -1051,22 +1095,24 @@ fn VerifyContext::verify_alternative(
     alternative_type_scope.parameters.push(binder)
   }
   match alternative.alt_constructor {
-    Default => ()
+    Default =>
+      self.verify_binderless_alternative(
+        alternative, body_scope, alternative_type_scope,
+      )
     Literal(literal) => {
       self.verify_literal(literal)
       let literal_type = literal.type_()
       if !self.types_definitionally_equal(literal_type, scrutinee_type) {
         self.report(TypeMismatch(expected=scrutinee_type, actual=literal_type))
       }
+      self.verify_binderless_alternative(
+        alternative, body_scope, alternative_type_scope,
+      )
     }
     DataCon(data_constructor) =>
       self.verify_data_alternative(
         data_constructor, alternative, scrutinee_type, body_scope, alternative_type_scope,
       )
-  }
-  for binder in alternative.value_binders {
-    self.require_value(binder)
-    body_scope.values.push(binder)
   }
   self.check_expr(
     alternative.body,
@@ -1074,6 +1120,27 @@ fn VerifyContext::verify_alternative(
     body_scope,
     alternative_type_scope,
   )
+}
+
+///|
+/// A default or literal alternative introduces nothing, so its binder lists
+/// must be empty. An illegal binder is still verified and scoped so checking
+/// can continue past the report.
+fn VerifyContext::verify_binderless_alternative(
+  self : VerifyContext,
+  alternative : Alternative,
+  body_scope : ValueScope,
+  type_scope : TypeScope,
+) -> Unit {
+  if !alternative.type_binders.is_empty() ||
+    !alternative.value_binders.is_empty() {
+    self.report(InvalidAlternativeBinderCount)
+  }
+  for binder in alternative.value_binders {
+    if self.verify_binder(binder, type_scope) is Some(_) {
+      body_scope.values.push(binder)
+    }
+  }
 }
 
 ///|
@@ -1129,11 +1196,10 @@ fn VerifyContext::verify_data_alternative(
   let substitution = substitution.overlay(hidden_substitution)
   for index in 0..<alternative.value_binders.length() {
     let binder = alternative.value_binders[index]
-    guard self.program.metadata.value_info(binder) is Some(binder_info) else {
-      self.report(UnknownValue(binder))
+    guard self.verify_binder(binder, type_scope) is Some(binder_info) else {
       continue
     }
-    let expected = info.payload_types[index].substitute(substitution)
+    let expected = self.substituted(info.payload_types[index], substitution)
     if !self.types_definitionally_equal(binder_info.type_, expected) {
       self.report(TypeMismatch(expected~, actual=binder_info.type_))
     }
@@ -1545,13 +1611,6 @@ fn VerifyContext::require_type_parameter(
 ) -> Unit {
   if self.program.metadata.type_parameter_info(id) is None {
     self.report(UnknownTypeParameter(id))
-  }
-}
-
-///|
-fn VerifyContext::require_value(self : VerifyContext, id : ValueId) -> Unit {
-  if self.program.metadata.value_info(id) is None {
-    self.report(UnknownValue(id))
   }
 }
 

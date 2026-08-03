@@ -184,7 +184,16 @@ test "extended verifier checks OpenContext effect scope and inclusion" {
   debug_inspect(
     verify_program(scoped),
     content=(
-      #|Ok({ diagnostics: [{ kind: UnknownTypeParameter({ index: 1 }) }] })
+      #|Ok(
+      #|  {
+      #|    diagnostics: [
+      #|      { kind: UnknownTypeParameter({ index: 1 }) },
+      #|      { kind: UnknownTypeParameter({ index: 1 }) },
+      #|      { kind: UnknownTypeParameter({ index: 1 }) },
+      #|      { kind: UnknownTypeParameter({ index: 1 }) },
+      #|    ],
+      #|  },
+      #|)
     ),
   )
 

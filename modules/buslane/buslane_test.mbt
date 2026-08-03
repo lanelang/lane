@@ -502,11 +502,11 @@ test "verify buslane handler removes handled perform effect" {
     i64_type(),
   )
   let result = metadata.define_value("value", Value, i64_type())
-  let final_binder = metadata.define_value("value", Local, i64_type())
-  let payload = metadata.define_value("value", Parameter, i64_type())
+  let final_binder = metadata.define_value("value", MatchBinder, i64_type())
+  let payload = metadata.define_value("value", MatchBinder, i64_type())
   let resume_binder = metadata.define_value(
     "value",
-    Parameter,
+    MatchBinder,
     Function([i64_type()], i64_type(), Empty),
   )
   let program = Program::{
@@ -572,11 +572,11 @@ test "verify buslane handler preserves open residual effect row" {
     Function,
     Forall([row], Function([], i64_type(), Parameter(row))),
   )
-  let final_binder = metadata.define_value("value", Local, i64_type())
-  let payload = metadata.define_value("value", Parameter, i64_type())
+  let final_binder = metadata.define_value("value", MatchBinder, i64_type())
+  let payload = metadata.define_value("value", MatchBinder, i64_type())
   let resume_binder = metadata.define_value(
     "value",
-    Parameter,
+    MatchBinder,
     Function([i64_type()], i64_type(), Parameter(row)),
   )
   let program = Program::{
@@ -640,11 +640,11 @@ test "verify buslane reports invalid perform payload and resume types" {
     i64_type(),
   )
   let result = metadata.define_value("value", Value, i64_type())
-  let final_binder = metadata.define_value("value", Local, i64_type())
-  let payload = metadata.define_value("value", Parameter, bool_type())
+  let final_binder = metadata.define_value("value", MatchBinder, i64_type())
+  let payload = metadata.define_value("value", MatchBinder, bool_type())
   let resume_binder = metadata.define_value(
     "value",
-    Parameter,
+    MatchBinder,
     Function([bool_type()], i64_type(), Empty),
   )
   let program = Program::{
@@ -757,10 +757,10 @@ test "verify buslane reports operation ownership and resume arity errors" {
     i64_type(),
   )
   let result = metadata.define_value("value", Value, i64_type())
-  let final_binder = metadata.define_value("value", Local, i64_type())
+  let final_binder = metadata.define_value("value", MatchBinder, i64_type())
   let resume_binder = metadata.define_value(
     "value",
-    Parameter,
+    MatchBinder,
     Function([], i64_type(), Empty),
   )
   let program = Program::{
@@ -880,7 +880,7 @@ test "pretty buslane construct and one-level match" {
     MatchBinder,
     Apply(Constructor(option_type), [TypeArgument(i64_type())]),
   )
-  let payload = metadata.define_value("value", Parameter, i64_type())
+  let payload = metadata.define_value("value", MatchBinder, i64_type())
   let program = Program::{
     metadata,
     terms: [
@@ -1704,4 +1704,106 @@ test "declared types enforce constructor parameter flavors" {
       ),
     },
   ])
+}
+
+///|
+test "binding sites verify binder types in their own scope" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let bogus : TypeParameterId = { index: 9999 }
+  let parameter = metadata.define_value("p", Parameter, Parameter(bogus))
+  let local_binder = metadata.define_value(
+    "f",
+    Local,
+    Function([Parameter(bogus)], Primitive(Unit), Empty),
+  )
+  let main = metadata.define_value("main", Value, Primitive(Unit))
+  let program : Program = {
+    metadata,
+    terms: [
+      Let(
+        main,
+        Let(
+          local_binder,
+          Function({
+            parameters: [parameter],
+            result_type: Primitive(Unit),
+            body: Literal(Unit),
+          }),
+          Literal(Unit),
+        ),
+      ),
+    ],
+  }
+  // The local's declared type and the function's parameter both name an id
+  // that does not exist; equality alone would never ask.
+  assert_eq(verify_program(program).diagnostics(), [
+    { kind: UnknownTypeParameter(bogus) },
+    { kind: UnknownTypeParameter(bogus) },
+  ])
+}
+
+///|
+test "binding sites reject closed declaration kinds" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let external = metadata.define_value("q", External, Primitive(I64))
+  let main = metadata.define_value("main", Value, Primitive(Unit))
+  let program : Program = {
+    metadata,
+    terms: [Let(main, Let(external, Literal(I64(1)), Literal(Unit)))],
+  }
+  assert_eq(verify_program(program).diagnostics(), [
+    { kind: InvalidBinderKind(value=external, actual=External) },
+  ])
+}
+
+///|
+test "a top-level binding keeps a closed declaration kind" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let binder_kind = metadata.define_value("top", Local, Primitive(I64))
+  let program : Program = {
+    metadata,
+    terms: [Let(binder_kind, Literal(I64(1)))],
+  }
+  assert_eq(verify_program(program).diagnostics(), [
+    { kind: InvalidBinderKind(value=binder_kind, actual=Local) },
+  ])
+}
+
+///|
+test "binder kinds stay interchangeable across a lowering rewrite" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let main = metadata.define_value("main", Value, Primitive(Unit))
+  let scrutinee = metadata.define_value("s", Value, Primitive(I64))
+  // Lowering rewrites constructs without reissuing ids, so one value serves
+  // as a match binder here and as a function parameter next door; both forms
+  // must verify.
+  let shared = metadata.define_value("shared", MatchBinder, Primitive(I64))
+  let as_match : Expr = Match({
+    scrutinee: Ref(scrutinee),
+    binder: shared,
+    result_type: Primitive(Unit),
+    alternatives: [
+      {
+        alt_constructor: Default,
+        type_binders: [],
+        value_binders: [],
+        body: Literal(Unit),
+      },
+    ],
+  })
+  let as_parameter : Expr = Call(
+    Function({
+      parameters: [shared],
+      result_type: Primitive(Unit),
+      body: Literal(Unit),
+    }),
+    [Ref(scrutinee)],
+  )
+  for form in [as_match, as_parameter] {
+    let program : Program = {
+      metadata,
+      terms: [Let(scrutinee, Literal(I64(1))), Let(main, form)],
+    }
+    assert_eq(verify_program(program).diagnostics(), [])
+  }
 }
