@@ -281,7 +281,7 @@ test "buslane substitution is simultaneous and capture avoiding" {
     Type::Forall([element], Function([], Parameter(element), Empty)).try_substitute(
       substitution,
     ),
-    Type::Forall([element], Function([], Parameter(element), Empty)),
+    Forall([element], Function([], Parameter(element), Empty)),
   )
 }
 
@@ -397,7 +397,7 @@ test "buslane preserves the built-in Io effect atom" {
     metadata.canonicalize_effect(effect.substitute(substitution)),
     content="Io",
   )
-  assert_false(Effect::Io == Effect::Empty)
+  assert_false(Effect::Io == Empty)
 }
 
 ///|

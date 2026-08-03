@@ -44,14 +44,7 @@ test "numeric primitive lookup uses the new source names exclusively" {
       PrimitiveType::from_name("S32"),
       PrimitiveType::from_name("Double"),
     ],
-    [
-      Some(PrimitiveType::I64),
-      Some(PrimitiveType::I32),
-      Some(PrimitiveType::F64),
-      None,
-      None,
-      None,
-    ],
+    [Some(I64), Some(I32), Some(F64), None, None, None],
   )
 }
 
@@ -77,7 +70,7 @@ test "pretty prints checked type objects" {
 ///|
 test "pretty prints arrow kinds" {
   inspect(
-    @prettyprinter.render(Kind::Function([Kind::Type], Kind::Type)),
+    @prettyprinter.render(Kind::Function([Type], Type)),
     content="[Type] -> Type",
   )
 }
@@ -137,11 +130,7 @@ test "Io is a canonical built-in effect atom" {
     "E",
     @basic.SourceSpan::dummy(),
   )
-  let parameter = TypeParameter::{
-    id: parameter_id,
-    name: "E",
-    kind: Kind::Effect,
-  }
+  let parameter = TypeParameter::{ id: parameter_id, name: "E", kind: Effect }
   let effect = Effect::Union([Io, Empty, Io, Parameter(parameter.id)])
   debug_inspect(
     effect.canonicalize(),
@@ -150,7 +139,7 @@ test "Io is a canonical built-in effect atom" {
   let substitution = TypeSubstitution::TypeSubstitution()
   substitution.insert_effect(parameter.id, Io)
   debug_inspect(effect.substitute(substitution).canonicalize(), content="Io")
-  assert_false(Effect::Io == Effect::Empty)
+  assert_false(Effect::Io == Empty)
 }
 
 ///|
