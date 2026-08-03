@@ -650,7 +650,11 @@ fn SpecializationPlanner::record_data_application(
   guard self.program.metadata.type_info(source) is Some(info) else {
     raise Unsupported(detail="effect-parameterized data metadata is missing")
   }
-  if self.add_data_demand({ source, bindings, constructors: info.constructors }) {
+  if self.add_data_demand({
+      source,
+      bindings,
+      constructors: info.constructors.copy(),
+    }) {
     for data_constructor in info.constructors {
       guard self.program.metadata.data_constructor_info(data_constructor)
         is Some(constructor_info) else {

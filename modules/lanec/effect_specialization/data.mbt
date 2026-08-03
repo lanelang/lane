@@ -224,11 +224,9 @@ fn EffectSpecializer::allocate_data_instances(
       constructors: [],
     })
   }
-  for instance in self.data_instances {
-    guard self.program.metadata.type_info(instance.source) is Some(info) else {
-      raise Unsupported(detail="effect-parameterized data metadata is missing")
-    }
-    for data_constructor in info.constructors {
+  for index, demand in self.plan.data_demands {
+    let instance = self.data_instances[index]
+    for data_constructor in demand.constructors {
       guard self.program.metadata.data_constructor_info(data_constructor)
         is Some(constructor_info) else {
         raise Unsupported(
