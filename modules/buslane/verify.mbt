@@ -43,8 +43,15 @@ priv struct VerifyContext {
 }
 
 ///|
+/// The values an expression may reference, split by when they are bound.
+///
+/// `values` are bound by the time this expression is evaluated. `deferred` are
+/// top-level bindings that come later in the program: unavailable to anything
+/// evaluated now, but available inside a function body, which runs only once
+/// the whole program's top-level terms are bound.
 priv struct ValueScope {
   values : Array[ValueId]
+  deferred : Array[ValueId]
 }
 
 ///|
@@ -94,9 +101,11 @@ pub fn ExpressionFactsQuery::synthesize(
   expression : Expr,
 ) -> Result[ExpressionFacts, VerifyResult] {
   let context = VerifyContext::{ program: self.program, diagnostics: [] }
-  let facts = context.synthesize_expr(expression, { values: self.values }, {
-    parameters: self.type_parameters,
-  })
+  let facts = context.synthesize_expr(
+    expression,
+    { values: self.values, deferred: [] },
+    { parameters: self.type_parameters },
+  )
   let blockers = context.diagnostics.filter(diagnostic => {
     diagnostic.blocks_expression_facts()
   })
@@ -382,22 +391,48 @@ fn VerifyContext::verify_binder(
 
 ///|
 fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
-  let scope = ValueScope::{ values: [] }
+  // Scope grows term by term, as the reference interpreter binds: an external
+  // once installed, a recursive group once its closures are in place, and a
+  // plain let only after its initializer has been evaluated. Later bindings
+  // stay deferred rather than absent, since a function body defined here does
+  // not run until the whole program is bound.
+  let bound : Array[ValueId] = []
+  let deferred : Array[ValueId] = []
   for term in self.program.terms {
-    match term {
-      Let(id, _) | External(id) => scope.values.push(id)
-      LetRec(bindings) =>
-        for binding in bindings {
-          scope.values.push(binding.id)
-        }
+    for id in term.bound_values() {
+      deferred.push(id)
     }
   }
   for term in self.program.terms {
+    let introduced = term.bound_values()
+    for _ in introduced {
+      deferred.remove(0) |> ignore
+    }
+    let scope = ValueScope::{ values: bound.copy(), deferred: deferred.copy() }
     match term {
       External(id) => self.verify_external(id)
       Let(id, initializer) => self.verify_top_let(id, initializer, scope)
-      LetRec(bindings) => self.verify_top_letrec(bindings, scope)
+      LetRec(bindings) => {
+        // A recursive group's closures are installed before any of its right
+        // sides run, so the group sees itself.
+        for id in introduced {
+          scope.values.push(id)
+        }
+        self.verify_top_letrec(bindings, scope)
+      }
     }
+    for id in introduced {
+      bound.push(id)
+    }
+  }
+}
+
+///|
+/// Returns the values a top-level term binds, in binding order.
+fn TopTerm::bound_values(self : TopTerm) -> Array[ValueId] {
+  match self {
+    External(id) | Let(id, _) => [id]
+    LetRec(bindings) => bindings.map(binding => binding.id)
   }
 }
 
@@ -571,7 +606,7 @@ fn VerifyContext::synthesize_function(
   type_scope : TypeScope,
 ) -> ExpressionFacts {
   let parameters : Array[Type] = []
-  let body_scope = value_scope.copy()
+  let body_scope = value_scope.entered()
   for parameter in function.parameters {
     guard self.verify_binder(parameter, type_scope) is Some(info) else {
       continue
@@ -1648,7 +1683,15 @@ fn ValueScope::contains(self : ValueScope, id : ValueId) -> Bool {
 
 ///|
 fn ValueScope::copy(self : ValueScope) -> ValueScope {
-  { values: self.values.copy() }
+  { values: self.values.copy(), deferred: self.deferred.copy() }
+}
+
+///|
+/// Returns the scope a function body sees: every deferred top-level binding
+/// has joined, because calling the function is what makes the body run and
+/// that cannot happen before the program's top-level terms are bound.
+fn ValueScope::entered(self : ValueScope) -> ValueScope {
+  { values: self.values + self.deferred, deferred: [] }
 }
 
 ///|

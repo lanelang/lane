@@ -130,8 +130,8 @@ test "reachable effect applications create concrete callable instances" {
     ],
   }
   let specialized = specialize(program, entry)
-  guard specialized.terms is [LetRec(entry_bindings), LetRec([instance])] else {
-    abort("expected one retained entry and one specialized callable")
+  guard specialized.terms is [LetRec([instance]), LetRec(entry_bindings)] else {
+    abort("expected one specialized callable and one retained entry")
   }
   guard entry_bindings is [{ rhs: Function(entry_function), .. }] &&
     entry_function.body is Call(Ref(target), []) else {
@@ -282,7 +282,7 @@ test "unreachable bare references do not retain effect-polymorphic definitions" 
     ],
   }
   let specialized = specialize(program, entry)
-  guard specialized.terms is [LetRec([entry_binding]), LetRec([instance])] else {
+  guard specialized.terms is [LetRec([instance]), LetRec([entry_binding])] else {
     abort("expected dead references to leave one concrete specialization")
   }
   assert_eq(entry_binding.id, entry)
@@ -386,7 +386,7 @@ test "handler residual effects specialize before answer-type CPS" {
     ],
   }
   let specialized = specialize(program, entry)
-  guard specialized.terms is [LetRec(_), LetRec([instance])] &&
+  guard specialized.terms is [LetRec([instance]), LetRec(_)] &&
     instance.rhs is Function(function) &&
     function.body is Handle(handle) &&
     handle.handlers is [{ operations: [operation], .. }] else {

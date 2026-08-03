@@ -236,8 +236,8 @@ test "effect specialization retains a generic source beside its concrete clone" 
     ),
     content=(
       #|[
-      #|  RecursiveValues(["forward", "answer"]),
       #|  RecursiveValues(["forward%effect"]),
+      #|  RecursiveValues(["forward", "answer"]),
       #|]
     ),
   )

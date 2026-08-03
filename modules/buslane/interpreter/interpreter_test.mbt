@@ -622,3 +622,49 @@ test "evaluation rejects invalid program" {
     ),
   )
 }
+
+///|
+test "every verified top-term shape evaluates without an unbound value" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let thunk = @buslane.Type::Function([], unit_type, Empty)
+  let external = metadata.define_value("external", External, thunk)
+  let recursive = metadata.define_value("recursive", Function, thunk)
+  let ordinary = metadata.define_value("ordinary", Value, unit_type)
+  let observer = metadata.define_value("observer", Function, thunk)
+  let call = fn(target) {
+    @buslane.Expr::Function({
+      parameters: [],
+      result_type: unit_type,
+      body: Call(Ref(target), []),
+    })
+  }
+  // One program using every top-term shape, with each reference the verifier
+  // admits: an external installed earlier, a recursive group naming itself,
+  // an ordinary let reading an earlier binding, and a function body reaching
+  // a binding that comes later.
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      External(external),
+      LetRec([{ id: recursive, rhs: call(external) }]),
+      Let(ordinary, Call(Ref(recursive), [])),
+      Let(observer, call(recursive)),
+    ],
+  }
+  assert_eq(@buslane.verify_program(program).diagnostics(), [])
+  let runtime = BuslaneExternalRuntime::BuslaneExternalRuntime()
+  runtime.add_resolver((id, _type) => {
+    if id != external {
+      abort("unexpected Buslane external")
+    }
+    BuslaneRuntimeValue::native_function(_arguments => {
+      BuslaneRuntimeValue::unit()
+    })
+  })
+  let evaluated = evaluate_buslane_program(program, runtime)
+  inspect(
+    @prettyprinter.render(evaluated.lookup(ordinary), width=80),
+    content="unit",
+  )
+}

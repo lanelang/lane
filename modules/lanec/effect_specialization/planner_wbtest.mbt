@@ -528,14 +528,14 @@ test "callable planner keeps generic and concrete demands independently" {
     is [
       LetRec(
         [
-          { id: retained_apply, rhs: TypeLambda(_, _) },
-          { id: retained_entry, rhs: Function({ body: entry_body, .. }) },
+          { id: concrete_apply, rhs: Function(_) },
+          { id: concrete_forward, rhs: Function(_) },
         ]
       ),
       LetRec(
         [
-          { id: concrete_apply, rhs: Function(_) },
-          { id: concrete_forward, rhs: Function(_) },
+          { id: retained_apply, rhs: TypeLambda(_, _) },
+          { id: retained_entry, rhs: Function({ body: entry_body, .. }) },
         ]
       ),
     ] &&

@@ -69,9 +69,6 @@ test "whole-program elaboration records ordered reachable initializer roots" {
     program: {
       metadata,
       terms: [
-        Let(first, Literal(I64(1))),
-        Let(second, Call(Ref(produce), [Ref(first)])),
-        Let(unused, Literal(I64(2))),
         Let(
           produce,
           Function({
@@ -80,6 +77,9 @@ test "whole-program elaboration records ordered reachable initializer roots" {
             body: Ref(producer_parameter),
           }),
         ),
+        Let(first, Literal(I64(1))),
+        Let(second, Call(Ref(produce), [Ref(first)])),
+        Let(unused, Literal(I64(2))),
         External(observe),
         Let(main, pure_function(unit_type, Call(Ref(observe), [Ref(second)]))),
       ],

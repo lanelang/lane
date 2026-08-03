@@ -1807,3 +1807,70 @@ test "binder kinds stay interchangeable across a lowering rewrite" {
     assert_eq(verify_program(program).diagnostics(), [])
   }
 }
+
+///|
+test "top-level scope grows term by term" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let a = metadata.define_value("a", Value, Primitive(Unit))
+  let b = metadata.define_value("b", Value, Primitive(Unit))
+  // Both initializers are evaluated where they stand, so neither may reach a
+  // binding the interpreter has not established yet.
+  assert_eq(
+    verify_program({ metadata, terms: [Let(a, Ref(a))] }).diagnostics(),
+    [{ kind: UnknownValue(a) }],
+  )
+  assert_eq(
+    verify_program({ metadata, terms: [Let(a, Ref(b)), Let(b, Literal(Unit))] }).diagnostics(),
+    [{ kind: UnknownValue(b) }],
+  )
+  assert_eq(
+    verify_program({ metadata, terms: [Let(b, Literal(Unit)), Let(a, Ref(b))] }).diagnostics(),
+    [],
+  )
+}
+
+///|
+test "a function body sees the whole top-level scope" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let unit_thunk : Type = Function([], Primitive(Unit), Empty)
+  let caller = metadata.define_value("caller", Function, unit_thunk)
+  let later = metadata.define_value("later", Value, Primitive(Unit))
+  // The body runs only once the program is bound, so a later binding is in
+  // scope there even though an eager position could not reach it.
+  let body : Expr = Function({
+    parameters: [],
+    result_type: Primitive(Unit),
+    body: Ref(later),
+  })
+  assert_eq(
+    verify_program({
+      metadata,
+      terms: [Let(caller, body), Let(later, Literal(Unit))],
+    }).diagnostics(),
+    [],
+  )
+}
+
+///|
+test "a recursive group is in scope for its own right sides" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let thunk : Type = Function([], Primitive(Unit), Empty)
+  let ping = metadata.define_value("ping", Function, thunk)
+  let pong = metadata.define_value("pong", Function, thunk)
+  let call = fn(target) {
+    Expr::Function({
+      parameters: [],
+      result_type: Primitive(Unit),
+      body: Call(Ref(target), []),
+    })
+  }
+  assert_eq(
+    verify_program({
+      metadata,
+      terms: [
+        LetRec([{ id: ping, rhs: call(pong) }, { id: pong, rhs: call(ping) }]),
+      ],
+    }).diagnostics(),
+    [],
+  )
+}

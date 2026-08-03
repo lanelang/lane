@@ -252,11 +252,15 @@ pub fn specialize(
     })
     index = index + 1
   }
-  if !specialized_bindings.is_empty() {
-    terms.push(LetRec(specialized_bindings))
-  }
   specializer.specialize_retained_declarations()
-  { metadata: program.metadata, terms }
+  if specialized_bindings.is_empty() {
+    return { metadata: program.metadata, terms }
+  }
+  // Specialized definitions are function implementations, so binding them as
+  // one recursive group installs closures without evaluating anything. They
+  // lead the program because a retained value initializer may call one, and
+  // top-level bindings are established in order.
+  { metadata: program.metadata, terms: [LetRec(specialized_bindings), ..terms] }
 }
 
 ///|
