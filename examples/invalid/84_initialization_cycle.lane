@@ -1,0 +1,17 @@
+// invalid: top-level value initializers must admit an initialization order
+module Examples.Invalid84
+
+import Basic.Ops.*
+import Basic.Data.I64.*
+
+pub fn read_second() -> I64 {
+  second
+}
+
+pub fn read_first() -> I64 {
+  first
+}
+
+pub let first : I64 = read_second()
+
+pub let second : I64 = read_first()

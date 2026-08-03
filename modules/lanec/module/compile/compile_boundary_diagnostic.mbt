@@ -7,6 +7,7 @@ priv enum CompileBoundaryDiagnosticKind {
     interface_modules~ : Array[String]
   )
   ImportCycle(String)
+  InitializationCycle(names~ : Array[String])
   CheckedSourceConstructionFailed
 }
 
@@ -31,6 +32,20 @@ fn compile_boundary_diagnostic(
 ///|
 pub fn no_root_source_module_diagnostic() -> CompilerDiagnostic {
   compile_boundary_diagnostic(NoRootSourceModule, None)
+}
+
+///|
+/// Reports top-level values whose initializers cannot be put in any order.
+///
+/// The span is the first member's name, so the report points at a declaration
+/// the author can move or rewrite.
+fn initialization_cycle_diagnostic(
+  members : Array[@checked.CheckedInitializationCycleMember],
+) -> CompilerDiagnostic {
+  compile_boundary_diagnostic(
+    InitializationCycle(names=members.map(entry => entry.name)),
+    members.get(0).map(entry => entry.name_loc),
+  )
 }
 
 ///|
@@ -85,6 +100,15 @@ impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn t
         label="module imports must form an acyclic graph",
         note="cyclic module dependencies cannot be typechecked in a stable order",
         help="move shared declarations into a separate module imported by both sides",
+      )
+    InitializationCycle(names~) =>
+      compile_report(
+        "initialization cycle between `\{names.join("`, `")}`",
+        diagnostic_.span,
+        code="E4004",
+        label="this initializer depends on its own value",
+        note="a top-level value is initialized after every value its initializer reads, directly or through the functions it calls",
+        help="break the cycle by moving the shared computation into a function each initializer calls",
       )
     CheckedSourceConstructionFailed =>
       compile_report(

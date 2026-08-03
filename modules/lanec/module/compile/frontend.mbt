@@ -75,6 +75,19 @@ fn compile_one_module(
       let warning_diagnostics = warning_diagnostics.map(fn(diagnostic) {
         diagnostic.with_source_id(input.source_id)
       })
+      // Lint reads the module as written; everything downstream reads it in
+      // initialization order. Ordering here, after the source-order readers
+      // and before the module is stored, keeps the order a property of the
+      // declaration list rather than a table each later stage must consult.
+      let checked = match checked.in_initialization_order() {
+        Ok(ordered) => ordered
+        Err(members) =>
+          return Err([
+            initialization_cycle_diagnostic(members).with_source_id(
+              input.source_id,
+            ),
+          ])
+      }
       let interface = { ..interface, source_id: Some(input.source_id) }
       let imported_fingerprints = @artifact.imported_environment_fingerprints(
         direct,

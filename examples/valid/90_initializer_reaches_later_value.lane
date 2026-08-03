@@ -1,0 +1,28 @@
+module Examples.Valid90
+
+import Basic.Ops.*
+import Basic.Data.I64.*
+import Basic.Io.{ println }
+
+// A top-level function may forward-reference a value, so an initializer that
+// calls one can depend on a value declared after it. Initialization order is
+// derived from those dependencies, not from declaration order.
+pub fn read_threshold(count : I64) -> I64 {
+  if count == 0 {
+    threshold
+  } else {
+    read_threshold(count - 1)
+  }
+}
+
+pub let scaled : I64 = read_threshold(2) + 1
+
+pub let threshold : I64 = 41
+
+pub fn answer() -> Unit ! Io {
+  if scaled == 42 {
+    println("42")
+  } else {
+    println("bad:42")
+  }
+}

@@ -1855,6 +1855,27 @@
           "the handler residual effect occurs inside"
         ]
       }
+    },
+    {
+      "name": "90 initializer reaches later value",
+      "file": "examples/valid/90_initializer_reaches_later_value.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "42"
+      }
+    },
+    {
+      "name": "invalid 84 initialization cycle",
+      "file": "examples/invalid/84_initialization_cycle.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E4004]",
+          "initialization cycle between `first`, `second`",
+          "this initializer depends on its own value"
+        ]
+      }
     }
   ]
 }
