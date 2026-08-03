@@ -141,6 +141,7 @@ test "phantom generic type arguments contribute nominal data demands" {
   let plan = plan_effect_specializations(program, entry)
   assert_eq(plan, {
     callable_demands: [],
+    retained_declarations: [],
     data_demands: [
       {
         source: box,
@@ -211,6 +212,7 @@ test "ordinary generic type arguments contribute nominal data demands" {
   }
   assert_eq(plan_effect_specializations(program, entry), {
     callable_demands: [],
+    retained_declarations: [],
     data_demands: [
       {
         source: box,
@@ -289,6 +291,52 @@ test "external generic type arguments contribute nominal data demands" {
         { parameter: outer_effect, argument: empty_effect },
       ]),
     ],
+    retained_declarations: [],
+    data_demands: [
+      {
+        source: box,
+        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty) }],
+        constructors: [make_box],
+      },
+    ],
+  })
+}
+
+///|
+test "planner records only reachable retained operations" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let box_effect = metadata.define_type_parameter("BoxEff", Effect)
+  let box = metadata.define_type("Box", [box_effect])
+  let make_box = metadata.define_data_constructor("box", box, [], [unit_type])
+  let boxed = @buslane.Type::Apply(Constructor(box), [EffectArgument(Empty)])
+  let active = metadata.define_effect("Active", [])
+  let active_operation = metadata.define_operation(
+    "active",
+    active,
+    [],
+    [],
+    boxed,
+  )
+  let dormant = metadata.define_effect("Dormant", [])
+  ignore(metadata.define_operation("dormant", dormant, [], [], boxed))
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], unit_type, Singleton(active, [])),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        entry,
+        Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
+      ),
+    ],
+  }
+  assert_eq(plan_effect_specializations(program, entry), {
+    callable_demands: [],
+    retained_declarations: [Operation(active_operation)],
     data_demands: [
       {
         source: box,
@@ -417,6 +465,7 @@ test "callable planner keeps generic and concrete demands independently" {
         { parameter: forward_effect, argument: log_argument },
       ]),
     ],
+    retained_declarations: [],
     data_demands: [],
   })
   assert_eq(plan_effect_specializations(program, entry), plan)
@@ -572,6 +621,7 @@ test "callable planner reaches a local recursive group with lexical bindings" {
         ],
       ),
     ],
+    retained_declarations: [],
     data_demands: [],
   })
 }
@@ -637,6 +687,7 @@ test "callable planner retains and specializes one local definition" {
         instance_bindings=[{ parameter: local_effect, argument: log_argument }],
       ),
     ],
+    retained_declarations: [],
     data_demands: [],
   })
 }

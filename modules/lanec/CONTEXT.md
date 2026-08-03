@@ -373,7 +373,7 @@ A canonical request attached to one reachable source definition site after apply
 _Avoid_: definition-global runtime-polymorphic flag, raw call syntax, optimizer specialization candidate
 
 **Effect Specialization Plan**:
-The immutable, read-only fixed point of reachable callable and nominal-data Effect Specialization Demands computed before target metadata is allocated. Allocation consumes the plan exactly once, and expression rewriting may only look up its allocated identities; neither phase may add a demand.
+The immutable, read-only fixed point of reachable callable and nominal-data Effect Specialization Demands, together with the exact reachable constructor and operation declarations whose retained metadata types require rewriting. It is computed before target metadata is allocated. Allocation consumes the plan exactly once, and expression rewriting may only look up its allocated identities; neither phase may add a demand or scan unrelated metadata declarations.
 _Avoid_: rewrite-time instance discovery, metadata-mutating analysis, forwarding-edge closure
 
 **Effect Specialization Definition Site**:
@@ -632,6 +632,10 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   specialized callable, type, and constructor metadata; lowered bodies may
   validate and consume those declarations but cannot replace them or discover
   additional instances.
+- Retained constructor and operation metadata is rewritten only when its
+  identity occurs in the **Effect Specialization Plan**. Unreachable metadata
+  declarations remain untouched and cannot introduce specialization demand
+  during allocation.
 - A source callable may be retained generically and also receive concrete
   clones. Dead symbolic uses contribute no demand, and concrete use sites do
   not lose specialization merely because another use forwards an effect

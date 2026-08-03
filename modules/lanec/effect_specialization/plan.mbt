@@ -43,10 +43,17 @@ priv struct DataInstanceDemand {
 } derive(Debug, Eq)
 
 ///|
+priv enum RetainedDeclaration {
+  DataConstructor(@buslane.DataConId)
+  Operation(@buslane.OperationId)
+} derive(Debug, Eq)
+
+///|
 #warnings("-unused_value")
 priv struct SpecializationPlan {
   callable_demands : Array[CallableSpecializationDemand]
   data_demands : Array[DataInstanceDemand]
+  retained_declarations : Array[RetainedDeclaration]
 } derive(Debug, Eq)
 
 ///|
@@ -102,7 +109,7 @@ fn plan_effect_specializations_with_definitions(
     program,
     definitions,
     visits: [],
-    plan: { callable_demands: [], data_demands: [] },
+    plan: { callable_demands: [], data_demands: [], retained_declarations: [] },
   }
   guard planner.find_definition(entry) is Some(entry_definition) else {
     return planner.plan
@@ -397,6 +404,63 @@ fn SpecializationPlanner::add_data_demand(
 }
 
 ///|
+fn SpecializationPlanner::add_retained_declaration(
+  self : SpecializationPlanner,
+  declaration : RetainedDeclaration,
+) -> Bool {
+  if self.plan.retained_declarations.contains(declaration) {
+    false
+  } else {
+    self.plan.retained_declarations.push(declaration)
+    true
+  }
+}
+
+///|
+fn SpecializationPlanner::retain_data_constructor(
+  self : SpecializationPlanner,
+  data_constructor : @buslane.DataConId,
+) -> Unit raise SpecializationError {
+  guard self.program.metadata.data_constructor_info(data_constructor)
+    is Some(info) &&
+    self.program.metadata.type_info(info.owner) is Some(owner) else {
+    raise Unsupported(detail="a reachable data constructor is missing metadata")
+  }
+  if owner.parameters.any(parameter => {
+      type_parameter_is_effect(self.program.metadata, parameter)
+    }) {
+    return
+  }
+  if self.add_retained_declaration(DataConstructor(data_constructor)) {
+    for payload_type in info.payload_types {
+      self.visit_type(payload_type, [])
+    }
+  }
+}
+
+///|
+fn SpecializationPlanner::retain_operation(
+  self : SpecializationPlanner,
+  operation : @buslane.OperationId,
+) -> Unit raise SpecializationError {
+  guard self.program.metadata.operation_info(operation) is Some(info) &&
+    self.program.metadata.effect_info(info.owner) is Some(owner) else {
+    raise Unsupported(detail="a reachable operation is missing metadata")
+  }
+  if owner.parameters.any(parameter => {
+      type_parameter_is_effect(self.program.metadata, parameter)
+    }) {
+    return
+  }
+  if self.add_retained_declaration(Operation(operation)) {
+    for payload_type in info.payload_types {
+      self.visit_type(payload_type, [])
+    }
+    self.visit_type(info.result_type, [])
+  }
+}
+
+///|
 fn callable_demands_equal(
   metadata : @buslane.MetadataRegistry,
   left : CallableSpecializationDemand,
@@ -512,10 +576,17 @@ fn SpecializationPlanner::visit_effect(
   let effect = raw_substitute_specialized_effect(effect, ambient_bindings)
   match effect {
     Empty | Io | Parameter(_) => ()
-    Singleton(_, arguments) =>
+    Singleton(id, arguments) => {
+      guard self.program.metadata.effect_info(id) is Some(info) else {
+        raise Unsupported(detail="a reachable effect is missing metadata")
+      }
+      for operation in info.operations {
+        self.retain_operation(operation)
+      }
       for argument in arguments {
         self.visit_argument(argument)
       }
+    }
     Union(effects) =>
       for effect_term in effects {
         self.visit_effect(effect_term, [])
@@ -640,6 +711,7 @@ fn SpecializationPlanner::visit_expr(
       }
     }
     Construct(construct) => {
+      self.retain_data_constructor(construct.data_constructor)
       let arguments = construct.type_arguments.map(argument => {
         raw_substitute_specialized_argument(argument, ambient_bindings)
       })
@@ -696,6 +768,9 @@ fn SpecializationPlanner::visit_expr(
       self.visit_type(match_.result_type, ambient_bindings)
       self.visit_expr(match_.scrutinee, ambient_bindings)
       for alternative in match_.alternatives {
+        if alternative.alt_constructor is DataCon(data_constructor) {
+          self.retain_data_constructor(data_constructor)
+        }
         for binder in alternative.value_binders {
           self.visit_value_type(binder, ambient_bindings)
         }
@@ -703,6 +778,7 @@ fn SpecializationPlanner::visit_expr(
       }
     }
     Perform(perform) => {
+      self.retain_operation(perform.operation)
       for argument in perform.effect_arguments {
         self.visit_argument(
           raw_substitute_specialized_argument(argument, ambient_bindings),
@@ -725,6 +801,7 @@ fn SpecializationPlanner::visit_expr(
       for table in handle.handlers {
         self.visit_effect(table.handled_effect, ambient_bindings)
         for operation in table.operations {
+          self.retain_operation(operation.operation)
           for binder in operation.payload_binders {
             self.visit_value_type(binder, ambient_bindings)
           }

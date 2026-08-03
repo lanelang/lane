@@ -112,45 +112,44 @@ fn EffectSpecializer::specialize_type_scheme(
 /// A data constructor or operation whose owner carries no effect parameters is
 /// never copied, but its payloads can still name a type that was. Runs after
 /// every instance has been requested, so each specialized target already exists.
+/// The immutable plan supplies the exact reachable declaration identities;
+/// this step never scans unrelated metadata tables.
 ///
-/// Owners that do carry effect parameters are skipped: their declarations
-/// mention those parameters, and a copy of them exists per instance already.
+/// Declarations whose owners carry effect parameters are absent from this set:
+/// their metadata is copied and specialized by data-instance allocation.
 fn EffectSpecializer::specialize_retained_declarations(
   self : EffectSpecializer,
 ) -> Unit raise SpecializationError {
-  for index in 0..<self.program.metadata.data_constructors.length() {
-    let info = self.program.metadata.data_constructors[index]
-    guard self.program.metadata.type_info(info.owner) is Some(owner) else {
-      continue
-    }
-    if owner.parameters.any(parameter => {
-        type_parameter_is_effect(self.program.metadata, parameter)
-      }) {
-      continue
-    }
-    self.program.metadata.data_constructors[index] = {
-      ..info,
-      payload_types: info.payload_types.map(type_ => {
-        self.specialize_type(type_, [])
-      }),
-    }
-  }
-  for index in 0..<self.program.metadata.operations.length() {
-    let info = self.program.metadata.operations[index]
-    guard self.program.metadata.effect_info(info.owner) is Some(owner) else {
-      continue
-    }
-    if owner.parameters.any(parameter => {
-        type_parameter_is_effect(self.program.metadata, parameter)
-      }) {
-      continue
-    }
-    self.program.metadata.operations[index] = {
-      ..info,
-      payload_types: info.payload_types.map(type_ => {
-        self.specialize_type(type_, [])
-      }),
-      result_type: self.specialize_type(info.result_type, []),
+  for declaration in self.plan.retained_declarations {
+    match declaration {
+      DataConstructor(data_constructor) => {
+        guard self.program.metadata.data_constructor_info(data_constructor)
+          is Some(info) else {
+          raise Unsupported(
+            detail="a planned retained data constructor is missing metadata",
+          )
+        }
+        self.program.metadata.data_constructors[data_constructor.index] = {
+          ..info,
+          payload_types: info.payload_types.map(type_ => {
+            self.specialize_type(type_, [])
+          }),
+        }
+      }
+      Operation(operation) => {
+        guard self.program.metadata.operation_info(operation) is Some(info) else {
+          raise Unsupported(
+            detail="a planned retained operation is missing metadata",
+          )
+        }
+        self.program.metadata.operations[operation.index] = {
+          ..info,
+          payload_types: info.payload_types.map(type_ => {
+            self.specialize_type(type_, [])
+          }),
+          result_type: self.specialize_type(info.result_type, []),
+        }
+      }
     }
   }
 }
