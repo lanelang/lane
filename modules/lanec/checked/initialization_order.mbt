@@ -16,14 +16,15 @@ priv enum CheckedInitializationOrder {
 
 ///|
 priv struct CheckedInitializationGraph {
-  // Every top-level value and function of the module, in declaration order.
-  nodes : Array[ValueSymbolId]
-  // The top-level symbols each node's body or initializer references, whether
-  // or not the reference is evaluated on every run.
-  references : Array[Array[ValueSymbolId]]
-  // The subset of nodes that are `let` values, which are the ones that carry
-  // an initializer and therefore need an order.
-  initialized : Array[ValueSymbolId]
+  nodes : Array[CheckedInitializationNode]
+}
+
+///|
+/// One top-level value or function and its initialization-order facts.
+priv struct CheckedInitializationNode {
+  symbol : ValueSymbolId
+  references : Array[ValueSymbolId]
+  initialized : Bool
 }
 
 ///|
@@ -44,10 +45,12 @@ fn CheckedSourceFile::initialization_order(
   let ordered : Array[ValueSymbolId] = []
   let visiting : Array[ValueSymbolId] = []
   let visited : Array[ValueSymbolId] = []
-  for symbol in graph.initialized {
-    let cycle = graph.visit(symbol, visiting, visited, ordered)
-    if cycle is Some(cycle) {
-      return Cycle(self.cycle_members(cycle))
+  for node in graph.nodes {
+    if node.initialized {
+      let cycle = graph.visit(node.symbol, visiting, visited, ordered)
+      if cycle is Some(cycle) {
+        return Cycle(self.cycle_members(cycle))
+      }
     }
   }
   Ordered(ordered)
@@ -73,13 +76,13 @@ fn CheckedInitializationGraph::visit(
     let entered = visiting.search(symbol).unwrap()
     let members = visiting[entered:]
       .iter()
-      .filter(node => self.initialized.contains(node))
+      .filter(symbol => self.is_initialized(symbol))
       .collect()
     return if members.is_empty() { None } else { Some(members) }
   }
-  guard self.nodes.search(symbol) is Some(index) else { return None }
+  guard self.node(symbol) is Some(node) else { return None }
   visiting.push(symbol)
-  for reference in self.references[index] {
+  for reference in node.references {
     let cycle = self.visit(reference, visiting, visited, ordered)
     if cycle is Some(cycle) {
       return Some(cycle)
@@ -87,39 +90,64 @@ fn CheckedInitializationGraph::visit(
   }
   ignore(visiting.pop())
   visited.push(symbol)
-  if self.initialized.contains(symbol) {
+  if node.initialized {
     ordered.push(symbol)
   }
   None
 }
 
 ///|
+fn CheckedInitializationGraph::node(
+  self : CheckedInitializationGraph,
+  symbol : ValueSymbolId,
+) -> CheckedInitializationNode? {
+  for node in self.nodes {
+    if node.symbol == symbol {
+      return Some(node)
+    }
+  }
+  None
+}
+
+///|
+fn CheckedInitializationGraph::is_initialized(
+  self : CheckedInitializationGraph,
+  symbol : ValueSymbolId,
+) -> Bool {
+  self.node(symbol).map(node => node.initialized).unwrap_or(false)
+}
+
+///|
 fn CheckedSourceFile::initialization_graph(
   self : CheckedSourceFile,
 ) -> CheckedInitializationGraph {
-  let nodes : Array[ValueSymbolId] = []
-  let initialized : Array[ValueSymbolId] = []
+  let symbols : Array[ValueSymbolId] = []
   for declaration in self.declarations {
     match declaration {
-      Function(declaration) => nodes.push(declaration.symbol)
-      Let(declaration) => {
-        nodes.push(declaration.symbol)
-        initialized.push(declaration.symbol)
-      }
+      Function(declaration) => symbols.push(declaration.symbol)
+      Let(declaration) => symbols.push(declaration.symbol)
       Struct(_) | Enum(_) | Effect(_) | ExternalType(_) => ()
     }
   }
-  let references = []
+  let nodes = []
   for declaration in self.declarations {
     match declaration {
       Function(declaration) =>
-        references.push(referenced_nodes(declaration.body, nodes))
+        nodes.push({
+          symbol: declaration.symbol,
+          references: referenced_nodes(declaration.body, symbols),
+          initialized: false,
+        })
       Let(declaration) =>
-        references.push(referenced_nodes(declaration.initializer, nodes))
+        nodes.push({
+          symbol: declaration.symbol,
+          references: referenced_nodes(declaration.initializer, symbols),
+          initialized: true,
+        })
       Struct(_) | Enum(_) | Effect(_) | ExternalType(_) => ()
     }
   }
-  { nodes, references, initialized }
+  { nodes, }
 }
 
 ///|
