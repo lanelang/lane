@@ -358,6 +358,7 @@ graph TD
   ISS_326["ISS-326: Encode Buslane metadata allocator state in canonical text"]
   ISS_327["ISS-327: Keep initialization-order machinery package-private"]
   ISS_328["ISS-328: Store initialization graph facts in one node structure"]
+  ISS_329["ISS-329: Remove the duplicate ISS-317 close template"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
