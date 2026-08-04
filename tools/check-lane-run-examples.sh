@@ -39,4 +39,31 @@ cp "$lane_build" "$lane_smoke_bin"
 chmod +x "$lane_smoke_bin"
 trap 'rm -f "$lane_smoke_bin"' EXIT
 
+frame_lsp_message() {
+  local message="$1"
+  printf 'Content-Length: %s\r\n\r\n%s' "${#message}" "$message"
+}
+
+shutdown_message='{"jsonrpc":"2.0","id":1,"method":"shutdown","params":null}'
+exit_message='{"jsonrpc":"2.0","method":"exit","params":null}'
+if ! {
+  frame_lsp_message "$shutdown_message"
+  frame_lsp_message "$exit_message"
+} | "$repo_root/$lane_smoke_bin" lsp --stdio >/dev/null; then
+  echo "error: lane lsp rejected a graceful shutdown/exit session" >&2
+  exit 1
+fi
+
+if frame_lsp_message "$exit_message" |
+  "$repo_root/$lane_smoke_bin" lsp --stdio >/dev/null; then
+  echo "error: lane lsp accepted exit before shutdown" >&2
+  exit 1
+else
+  premature_status=$?
+fi
+if [ "$premature_status" -ne 1 ]; then
+  echo "error: lane lsp returned $premature_status for exit before shutdown; expected 1" >&2
+  exit 1
+fi
+
 LANE_HOME="$repo_root" LANE_SMOKE_BIN="$repo_root/$lane_smoke_bin" moon run --target native tools/check-lane-run-examples.mbtx

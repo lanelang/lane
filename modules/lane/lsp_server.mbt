@@ -1,6 +1,8 @@
 ///|
 async fn lsp_command(_stdio : Bool) -> LaneCommandOutcome {
   @async.pause()
-  @lsp.run_server(@stdio.stdin, @stdio.stdout)
-  Succeeded
+  match @lsp.run_server(@stdio.stdin, @stdio.stdout) {
+    GracefulExit | TransportClosed => Succeeded
+    PrematureExit => FailedSilently
+  }
 }

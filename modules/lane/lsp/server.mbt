@@ -1,5 +1,15 @@
 ///|
-pub async fn run_server(input : &@io.Reader, output : &@io.Writer) -> Unit {
+pub(all) enum ServerTermination {
+  GracefulExit
+  PrematureExit
+  TransportClosed
+} derive(Debug, Eq)
+
+///|
+pub async fn run_server(
+  input : &@io.Reader,
+  output : &@io.Writer,
+) -> ServerTermination {
   let state = ServerState()
   while read_protocol_message(input) is Some(message) {
     let result = state.handle_message(message)
@@ -8,7 +18,9 @@ pub async fn run_server(input : &@io.Reader, output : &@io.Writer) -> Unit {
     }
     match result.transition {
       Continue => ()
-      Exit(_) => break
+      Exit(graceful~) =>
+        return if graceful { GracefulExit } else { PrematureExit }
     }
   }
+  TransportClosed
 }

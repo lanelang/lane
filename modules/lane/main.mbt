@@ -4,6 +4,7 @@ using @compiler_diag {type CompilerDiagnosticSources}
 ///|
 enum LaneCommandOutcome {
   Succeeded
+  FailedSilently
   UserErrors(Array[CliError])
   CompileDiagnostics(
     diagnostics~ : Array[@compiler_diag.CompilerDiagnostic],
@@ -36,6 +37,7 @@ async fn main {
       }
       match outcome {
         Succeeded => ()
+        FailedSilently => @sys.exit(1)
         UserErrors(errors) => {
           render_cli_errors(errors)
           @sys.exit(1)

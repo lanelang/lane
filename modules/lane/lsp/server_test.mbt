@@ -89,9 +89,10 @@ async test "public server runs a complete editing session" {
     #|
     #|pub let answer : Bool = value
   @async.with_task_group(group => {
-    group.spawn_bg(() => {
-      run_server(server_input, server_output)
+    let server = group.spawn(() => {
+      let termination = run_server(server_input, server_output)
       server_output.close()
+      termination
     })
     let observed = []
     send_lsp_message(client_input, lsp_call(1, "initialize", null))
@@ -128,6 +129,7 @@ async test "public server runs a complete editing session" {
     send_lsp_message(client_input, lsp_notification("exit", null))
     client_input.close()
     assert_true(client_output.read_until("\n") is None)
+    assert_eq(server.wait(), GracefulExit)
     json_inspect(observed, content=[
       {
         "jsonrpc": "2.0",
@@ -195,4 +197,24 @@ async test "public server runs a complete editing session" {
       { "jsonrpc": "2.0", "id": 4, "result": null },
     ])
   })
+}
+
+///|
+async test "public server reports exit before shutdown as premature" {
+  let (server_input, client_input) = @io.pipe()
+  let (_client_output, server_output) = @io.pipe()
+  @async.with_task_group(group => {
+    let server = group.spawn(() => run_server(server_input, server_output))
+    send_lsp_message(client_input, lsp_notification("exit", null))
+    client_input.close()
+    assert_eq(server.wait(), PrematureExit)
+  })
+}
+
+///|
+async test "public server distinguishes transport closure" {
+  let (server_input, client_input) = @io.pipe()
+  let (_client_output, server_output) = @io.pipe()
+  client_input.close()
+  assert_eq(run_server(server_input, server_output), TransportClosed)
 }

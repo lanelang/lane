@@ -3,14 +3,20 @@ package "Milky2018/lane/lsp"
 
 import {
   "moonbitlang/async/io",
+  "moonbitlang/core/debug",
 }
 
 // Values
-pub async fn run_server(&@io.Reader, &@io.Writer) -> Unit
+pub async fn run_server(&@io.Reader, &@io.Writer) -> ServerTermination
 
 // Errors
 
 // Types and methods
+pub(all) enum ServerTermination {
+  GracefulExit
+  PrematureExit
+  TransportClosed
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 
