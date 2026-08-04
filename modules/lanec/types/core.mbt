@@ -679,7 +679,7 @@ fn Type::normalize_with_fuel(
       }
     }
     TypeLambda(parameters, body) =>
-      TypeLambda(parameters, body.normalize_with_fuel(fuel - 1))
+      eta_reduce(parameters, body.normalize_with_fuel(fuel - 1))
     Function(parameters, result, effect) =>
       Function(
         parameters.map(parameter => parameter.normalize_with_fuel(fuel - 1)),
@@ -688,6 +688,76 @@ fn Type::normalize_with_fuel(
       )
     Forall(parameters, body) =>
       Forall(parameters, body.normalize_with_fuel(fuel - 1))
+  }
+}
+
+///|
+/// Reduces `type [A..] => f[A..]` to `f`.
+///
+/// A parameterized type alias is written as the eta-expansion of its body —
+/// `type MyBox[A] = Box[A]` is how the language spells an alias for `Box` —
+/// so without this rule the alias and the constructor it names are two
+/// distinct normal forms, and every structural comparison downstream reads
+/// them as different types.
+fn eta_reduce(parameters : Array[TypeParameter], body : Type) -> Type {
+  guard body is Apply(callee, arguments) else {
+    return TypeLambda(parameters, body)
+  }
+  guard parameters.length() == arguments.length() else {
+    return TypeLambda(parameters, body)
+  }
+  for index, parameter in parameters {
+    guard arguments[index] is TypeArgument(Parameter(applied)) &&
+      applied == parameter.id else {
+      return TypeLambda(parameters, body)
+    }
+  }
+  // The callee must not mention the binders it would lose.
+  for parameter in parameters {
+    if callee.mentions_parameter(parameter.id) {
+      return TypeLambda(parameters, body)
+    }
+  }
+  callee
+}
+
+///|
+fn Type::mentions_parameter(self : Type, id : TypeParameterId) -> Bool {
+  match self {
+    Error | Primitive(_) | Constructor(_) => false
+    Parameter(parameter) => parameter == id
+    Apply(callee, arguments) =>
+      callee.mentions_parameter(id) ||
+      arguments.any(argument => argument.mentions_parameter(id))
+    TypeLambda(parameters, body) | Forall(parameters, body) =>
+      !parameters.any(parameter => parameter.id == id) &&
+      body.mentions_parameter(id)
+    Function(parameters, result, effect) =>
+      parameters.any(parameter => parameter.mentions_parameter(id)) ||
+      result.mentions_parameter(id) ||
+      effect.mentions_parameter(id)
+  }
+}
+
+///|
+fn GenericArgument::mentions_parameter(
+  self : GenericArgument,
+  id : TypeParameterId,
+) -> Bool {
+  match self {
+    TypeArgument(type_) => type_.mentions_parameter(id)
+    EffectArgument(effect) => effect.mentions_parameter(id)
+  }
+}
+
+///|
+fn Effect::mentions_parameter(self : Effect, id : TypeParameterId) -> Bool {
+  match self {
+    Empty | Io => false
+    Parameter(parameter) => parameter == id
+    Singleton(_, arguments) =>
+      arguments.any(argument => argument.mentions_parameter(id))
+    Union(effects) => effects.any(effect => effect.mentions_parameter(id))
   }
 }
 

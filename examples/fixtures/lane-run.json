@@ -1866,6 +1866,15 @@
       }
     },
     {
+      "name": "91 higher kinded alias instantiation",
+      "file": "examples/valid/91_higher_kinded_alias_instantiation.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "42"
+      }
+    },
+    {
       "name": "invalid 84 initialization cycle",
       "file": "examples/invalid/84_initialization_cycle.lane",
       "mode": "check-error",

@@ -347,6 +347,7 @@ graph TD
   ISS_315["ISS-315: Propagate checked normalization through public semantic relations"]
   ISS_316["ISS-316: Decide whether the examples gate should race the live Basic checkout"]
   ISS_317["ISS-317: Derive initialization order from dependencies at value granularity"]
+  ISS_318["ISS-318: Include eta in the type-level normal form"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

@@ -1,0 +1,39 @@
+module Examples.Valid91
+
+import Basic.Ops.*
+import Basic.Data.I64.*
+import Basic.Io.{ println }
+
+pub struct Box[A] {
+  value : A
+}
+
+// A parameterized alias is the eta-expansion of the constructor it names, so
+// it must instantiate a higher-kinded parameter exactly as `Box` does.
+pub type MyBox[A] = Box[A]
+
+pub struct Wrapper[F : [Type] -> Type] {
+  held : F[I64]
+}
+
+pub enum Holder[F : [Type] -> Type] {
+  hold(F[I64])
+}
+
+pub let wrapped : Wrapper[MyBox] = Wrapper::{ held: Box::{ value: 40 } }
+
+pub let held : Holder[MyBox] = Holder::hold(Box::{ value: 2 })
+
+pub fn held_value(holder : Holder[MyBox]) -> I64 {
+  match holder {
+    Holder::hold(box) => box.value
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if wrapped.held.value + held_value(held) == 42 {
+    println("42")
+  } else {
+    println("bad:42")
+  }
+}
