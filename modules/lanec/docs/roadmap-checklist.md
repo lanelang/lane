@@ -53,8 +53,9 @@ The checked-source to Buslane boundary is defined in
 - [x] F-Omega: implement structural kind checking for parameter-list kinds,
   higher-kinded type parameters, arbitrary-kind aliases, and higher-kinded
   existential witnesses.
-- [x] F-Omega: implement transparent alias expansion, capture-avoiding beta
-  normalization, and definitional equality.
+- [x] F-Omega: implement transparent alias expansion, capture-avoiding source
+  beta semantics, a capture-rejecting Buslane freshness backstop, and
+  definitional equality.
 - [x] F-Omega: replace normalization-fuel aborts with explicit internal-bug
   diagnostics if type-level computation does not terminate.
 

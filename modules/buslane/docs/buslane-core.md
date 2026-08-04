@@ -184,11 +184,14 @@ PrimitiveType =
   Bytes
 ```
 
-Type substitution is simultaneous and capture-avoiding. Extending a lexical
+Type substitution is simultaneous and capture-rejecting. Extending a lexical
 scope uses an explicit overlay whose new bindings shadow the base substitution;
 replacement terms are not recursively reinterpreted as another substitution
-program. Construction and strict application report type/effect argument-kind
-mismatches instead of treating a mismatched binding as absent.
+program. A replacement that would be captured reports invalid Buslane IR. This
+enforces the producer freshness invariant while preserving capture-avoiding Lane
+source semantics without allocating metadata during a semantic query, as
+decided by ADR-0058. Construction and strict application report type/effect
+argument-kind mismatches instead of treating a mismatched binding as absent.
 
 Function types use n-ary parameter lists and carry a latent effect. Buslane does
 not curry function types, does not tuple arguments implicitly, and does not

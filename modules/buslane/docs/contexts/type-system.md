@@ -33,9 +33,13 @@ _Avoid_: value-level lambda, implicit curry, separate alias-header semantics
 The rule that type-level lambdas differing only by consistent renaming of bound type parameters are equal.
 _Avoid_: binder identity equality, display-name equality
 
-**Capture-Avoiding Type Substitution**:
-The substitution rule used by type-level beta reduction and generic instantiation so replacement type expressions are not captured by nested binders.
-_Avoid_: textual substitution, capture-prone beta reduction
+**Capture-Rejecting Core Substitution**:
+The Buslane substitution rule that reports invalid IR when a replacement's free
+parameter identity would be captured by a crossed binder. A valid producer
+allocates distinct logical binder identities, making this backstop equivalent to
+the source language's capture-avoiding beta semantics without mutating metadata
+during normalization.
+_Avoid_: source-language restriction, metadata-allocating substitution, capture-prone beta reduction
 
 **Parameter-List Type Lambda**:
 A non-curried type-level lambda whose bracketed binder list introduces all parameters at once.
@@ -343,7 +347,9 @@ _Avoid_: monomorphized value layout, type-specialized runtime
 - A **Type-Level Lambda** may be used directly as a type argument or existential witness when its kind matches the required kind.
 - **Type-Level Lambdas** use **Type Parameter Binders**.
 - **Type-Level Lambdas** use **Type-Level Lambda Alpha-Equivalence**.
-- Type-level beta reduction uses **Capture-Avoiding Type Substitution**.
+- Buslane type-level beta reduction uses **Capture-Rejecting Core
+  Substitution** under the producer freshness invariant; this realizes Lane's
+  capture-avoiding source semantics for valid core programs.
 - A **Type-Level Lambda Kind** is `[K1, ..., Kn] -> K` when the lambda binders have kinds `K1, ..., Kn` and the body has kind `K`.
 - A **Type-Level Lambda** body may have any well-formed kind.
 - A **Parameter-List Type Lambda** is not implicitly curried; nested type lambdas express staged type-level functions.

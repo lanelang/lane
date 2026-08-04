@@ -34,7 +34,11 @@ The rule that type-level lambdas differing only by consistent renaming of bound 
 _Avoid_: binder identity equality, display-name equality
 
 **Capture-Avoiding Type Substitution**:
-The substitution rule used by type-level beta reduction and generic instantiation so replacement type expressions are not captured by nested binders.
+The Lane source-language substitution semantics used by type-level beta
+reduction and generic instantiation so replacement type expressions are not
+captured by nested binders. Lowering establishes distinct logical binder
+identities; Buslane rejects a capture collision as invalid IR rather than
+changing this source rule.
 _Avoid_: textual substitution, capture-prone beta reduction
 
 **Parameter-List Type Lambda**:

@@ -18,8 +18,11 @@ annotations default to `Type`.
 Type-level lambdas use `type[A1 : K1, ..., An : Kn] => T`. They are ordinary
 type-level expressions and may appear anywhere a type-level expression is
 allowed. A single binder list is n-ary and non-curried; nested type-level
-lambdas express staged type functions. Lambda application uses capture-avoiding
-beta reduction. Lambda equality uses alpha-equivalence, but not eta equality.
+lambdas express staged type functions. Lane lambda application has
+capture-avoiding beta semantics. Buslane realizes that contract under its
+fresh-binder identity invariant and rejects a substitution that would capture,
+as specified by ADR-0058. Lambda equality uses alpha-equivalence, but not eta
+equality.
 
 Top-level type aliases use `type Name = TypeExpr` or the single-layer sugar
 `type Name[A1 : K1, ..., An : Kn] = TypeExpr`. The parameter header is preserved
