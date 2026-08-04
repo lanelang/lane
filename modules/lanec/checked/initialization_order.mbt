@@ -9,10 +9,10 @@ pub(all) struct CheckedInitializationCycleMember {
 ///|
 /// The order a module's top-level `let` initializers must run in, or the cycle
 /// that makes no order possible.
-pub(all) enum CheckedInitializationOrder {
+priv enum CheckedInitializationOrder {
   Ordered(Array[ValueSymbolId])
   Cycle(Array[CheckedInitializationCycleMember])
-} derive(Debug, Eq)
+}
 
 ///|
 priv struct CheckedInitializationGraph {
@@ -37,7 +37,7 @@ priv struct CheckedInitializationGraph {
 ///
 /// Mutual recursion between functions is ordinary and stays legal; it is a
 /// cycle between *initialized* values that no order can satisfy.
-pub fn CheckedSourceFile::initialization_order(
+fn CheckedSourceFile::initialization_order(
   self : CheckedSourceFile,
 ) -> CheckedInitializationOrder {
   let graph = self.initialization_graph()

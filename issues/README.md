@@ -356,6 +356,7 @@ graph TD
   ISS_324["ISS-324: Keep post-synthesis diagnostics inside the expression frame"]
   ISS_325["ISS-325: Carry display names in Buslane diagnostic anchors"]
   ISS_326["ISS-326: Encode Buslane metadata allocator state in canonical text"]
+  ISS_327["ISS-327: Keep initialization-order machinery package-private"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

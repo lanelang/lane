@@ -272,11 +272,6 @@ pub(all) struct CheckedInitializationCycleMember {
   name_loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 
-pub(all) enum CheckedInitializationOrder {
-  Ordered(Array[@symbol.ValueSymbolId])
-  Cycle(Array[CheckedInitializationCycleMember])
-} derive(Eq, @debug.Debug)
-
 pub(all) struct CheckedLetDeclaration {
   is_public : Bool
   is_offered : Bool
@@ -340,7 +335,6 @@ pub(all) struct CheckedSourceFile {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub fn CheckedSourceFile::in_initialization_order(Self) -> Result[Self, Array[CheckedInitializationCycleMember]]
-pub fn CheckedSourceFile::initialization_order(Self) -> CheckedInitializationOrder
 pub fn CheckedSourceFile::value_use_analysis(Self, @symbol.SymbolRegistry) -> CheckedValueUseAnalysis
 pub impl @prettyprinter.Pretty for CheckedSourceFile
 
