@@ -1,8 +1,9 @@
 ///|
-/// A type alias expands to a type lambda, so binding a higher-kinded parameter
-/// to one substitutes a lambda into a template of the form `F[..]`. The result
-/// is a redex, and the checker compares types structurally, so every
-/// instantiation site has to hand back a normal form.
+/// Contextual checking binds the higher-kinded parameter `F` before checking a
+/// member whose template contains `F[..]`. Inference must apply that existing
+/// binding, head-beta-reduce the result, and match what it denotes. It must not
+/// decompose `F[..]` to infer a second binding for `F`. This is a local
+/// inference rule; definitional equality remains beta-only.
 fn higher_kinded_alias_source(declarations : String) -> String {
   (
     #|module Test
@@ -61,9 +62,12 @@ test "an explicit generic application with an alias still checks" {
 }
 
 ///|
-/// The discriminating case: `Swap` reorders its parameters, so it is not an
-/// eta-redex and only beta can reduce it. Without this the fix could be an
-/// eta rule that happens to cover the aliases whose bodies are eta-expansions.
+/// The discriminating case: `Swap` reorders its parameters rather than
+/// eta-expanding `Pair`, so eta equality cannot explain why this checks. The
+/// conflicting second binding is collected before final type equality, so
+/// globally normalizing compared types cannot repair it either. Success
+/// requires the local rule above: honor the existing `F` binding and
+/// head-beta-reduce its complete application.
 test "a reordering alias instantiates a higher-kinded parameter" {
   let source =
     #|module Test
