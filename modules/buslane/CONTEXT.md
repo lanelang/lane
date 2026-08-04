@@ -38,6 +38,40 @@ _Avoid_: occurrence name, pretty text, source span, namespace-local text suffix
 The pure checker that validates Buslane metadata, scope, and expression typing.
 _Avoid_: Lane source typechecker, parser validation
 
+**Metadata Registry**:
+The authoritative table of Buslane identities and their declarations, including
+the binder kinds and effect flavors required by semantic type relations.
+_Avoid_: source symbol table, display-name index, raw metadata arrays
+
+**Buslane Type Logic**:
+The metadata-aware family of Buslane type and effect relations used for
+normalization, equality, value compatibility, and declaration conformance.
+_Avoid_: structural `Eq`, Lane source inference, one universal compatibility relation
+
+**Definitional Type Equality**:
+The symmetric relation asking whether two types denote the same type after beta
+normalization and alpha-renaming; it permits no type or effect widening.
+_Avoid_: structural type equality, value compatibility, assignability
+
+**Type Consumability**:
+The directed relation asking whether an `actual` value fits an `expected`
+position; function parameters are contravariant, results are covariant, and
+latent effects may widen only by residual, non-algebraic terms.
+_Avoid_: definitional equality, representation compatibility, plain effect subset
+
+**Function Implementation Conformance**:
+The directed relation asking whether a direct function body implements its
+declaration; parameters and results stay invariant while the body's effects may
+widen to any declared superset, including algebraic terms, because the
+declaration owns the ABI under which the body is lowered.
+_Avoid_: function-value consumability, reference adaptation, implicit coercion
+
+**Effect Subeffect Relation**:
+The directed plain-subset relation asking whether every term in a lower effect
+occurs in an upper effect; unlike **Type Consumability**, it permits algebraic
+as well as residual widening.
+_Avoid_: effect equality, callable ABI compatibility, handler subtraction
+
 **Buslane Expression Facts**:
 The type and effect synthesized for a Buslane expression from its program metadata. Type-compatibility diagnostics do not invalidate already synthesized facts; structural failures that require sentinel facts do. Verification and effect-aware optimization share this semantic query rather than maintaining parallel expression classifications.
 _Avoid_: optimizer purity taxonomy, duplicated type field, structural effect equality
@@ -83,6 +117,11 @@ _Avoid_: closed effect set, effect subtyping, implicit weakening
 A type-level effect variable used to preserve unknown residual effects through
 effect-polymorphic functions and handlers.
 _Avoid_: singleton effect, operation identity, runtime value
+
+**Effect Flavor**:
+The Algebraic-or-External classification attached to effect declarations and
+effect row variables, determining whether their terms may require handling.
+_Avoid_: effect kind, effect set, naming convention
 
 **Effect Row Variable Flavor**:
 The **Effect Flavor** carried by an **Effect Row Variable**, saying what the rows
@@ -183,8 +222,9 @@ _Avoid_: artifact text parser, compiler artifact writer, inspect renderer
   Row** is the effect-polymorphic case.
 - **Canonical Effect** ignores singleton order and duplicate singleton effects.
 - **Buslane Type Logic** uses the **Metadata Registry** for definitional type
-  equality, effect equality, subeffect checks, and effect canonicalization;
-  structural `Eq` on core terms is not semantic equality.
+  equality, **Type Consumability**, **Function Implementation Conformance**,
+  the **Effect Subeffect Relation**, effect equality, and effect
+  canonicalization; structural `Eq` on core terms is not semantic equality.
 - **Buslane Effect Core** must be represented by Buslane text parsing and
   pretty printing.
 - Buslane text is a readable canonical core-language representation; it may use

@@ -33,6 +33,13 @@ fn VerifyContext::check_binding_initializer(
 }
 
 ///|
+/// Returns whether a direct function implementation conforms to its declaration.
+///
+/// Parameter and result types remain invariant, while the implementation's
+/// latent effect may be any subeffect of the declaration, including across
+/// algebraic terms. This is deliberately broader than value consumability: the
+/// declaration owns the callable ABI and the direct body is lowered under that
+/// declaration, whereas an already-existing function value has a fixed ABI.
 fn VerifyContext::function_implementation_matches(
   self : VerifyContext,
   implementation : Type,

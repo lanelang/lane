@@ -689,6 +689,11 @@ pub fn MetadataRegistry::effects_definitionally_equal(
 
 ///|
 /// Returns whether every effect term in `lower` occurs in `upper`.
+///
+/// This is plain effect-set inclusion, so both algebraic and residual terms may
+/// widen. Use it where an owning declaration admits an implementation effect;
+/// callable value compatibility instead belongs to `type_is_consumable_as`,
+/// whose ABI rule forbids adding algebraic effects.
 /// Raises `TypeNormalizationError` when a generic argument cannot be normalized.
 pub fn MetadataRegistry::effect_is_subeffect_of(
   self : MetadataRegistry,
