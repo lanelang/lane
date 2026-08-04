@@ -1,5 +1,8 @@
 ///|
-pub type LoadError = @runtime.RuntimeImportResolutionError
+pub(all) suberror LoadError {
+  InvalidBytecode(@bytecode.BytecodeVerificationError)
+  RuntimeImportResolution(@runtime.RuntimeImportResolutionError)
+} derive(Debug, Eq)
 
 ///|
 pub struct LoadedImage {
@@ -12,6 +15,10 @@ pub fn load(
   image : @bytecode.BytecodeImage,
   registry : @runtime.RuntimeRegistry,
 ) -> Result[LoadedImage, LoadError] {
+  match @bytecode.verify_bytecode_image(image) {
+    Ok(_) => ()
+    Err(error) => return Err(InvalidBytecode(error))
+  }
   let bindings : Array[@runtime.RuntimeBinding?] = []
   for entry in image.functions {
     match entry {
@@ -25,7 +32,7 @@ pub fn load(
             expected_result=import_.result,
           ) {
           Ok(binding) => binding
-          Err(error) => return Err(error)
+          Err(error) => return Err(RuntimeImportResolution(error))
         }
         bindings.push(Some(binding))
       }

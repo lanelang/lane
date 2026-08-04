@@ -2,7 +2,7 @@
 
 `Milky2018/loisvm/bytecode` owns the portable register-style execution image shared by the LoisVM interpreter and WebAssembly backend. This document is the producer-facing reference for the current bytecode model, instruction set, ownership contract, and binary instruction tags.
 
-LoisVM bytecode is trusted compiler output rather than a sandbox format. The decoder validates framing, table references, local metadata, and basic image structure, but a producer remains responsible for type-compatible slots, valid data flow, call signatures, ownership balance, object-shape compatibility, and every instruction-specific precondition described below.
+LoisVM bytecode is a verified execution IR rather than a sandbox format. The package-owned verifier checks table identities, runtime representations, instruction contracts, control-flow edges, initialization dataflow, ownership balance, object shapes, and statically known direct-call signatures. Binary decoding, interpreter loading, and Wasm compilation reject an image unless it passes this verifier. Resource limits still bound decoding and execution; verification is not a general malicious-input sandbox proof.
 
 ## Image model
 
@@ -128,7 +128,7 @@ The constructor spelling is the public MoonBit API. The lowercase spelling shown
 | `0x0C` | `CallValue(callable, witnesses, arguments, destination)` | `call_value`; consumes the packed callable and user arguments, borrows witnesses, dispatches through the callable table, and writes an optional result. |
 | `0x14` | `MakeClosure(destination, function, environment)` | `make_closure`; consumes one nonzero environment owner and packs it with the target function into an `I64 + OwnedCallable` destination. |
 
-Direct calls use `environment=None` for no-context functions and `Some(slot)` for functions that require a closure environment. A `CallValue` extracts the immediate function and optional environment from the packed callable. Call depth limits, unresolved imports, host failures, and indirect ABI mismatches are execution failures rather than valid alternate results.
+Direct calls use `environment=None` for no-context functions and `Some(slot)` for functions that require a closure environment. A `CallValue` extracts the immediate function and optional environment from the packed callable. The verifier checks direct target signatures and the physical shape of every indirect call site; because an indirect target is selected at execution, target ABI mismatch remains an execution failure. Call depth limits, unresolved imports, and host failures are likewise execution failures rather than valid alternate results.
 
 ### Data and environment objects
 
@@ -143,7 +143,7 @@ Direct calls use `environment=None` for no-context functions and `Some(slot)` fo
 | `0x13` | `ConsumeCaptures(shape, source, selections)` | `consume_captures`; obtains owning results for the selected captures, consumes and releases the source environment, and releases unselected owned captures with it. |
 | `0x43` | `LoadObjectWitness(destination, shape, object, ordinal)` | `load_object_witness`; borrows a shape-compatible Data or Environment object and writes the selected stored `LayoutId` to an `I32 + Trivial` destination. |
 
-Shapes, member indices, witness ordinals, field counts, capture counts, member representations, and optional projection-witness destinations must match the corresponding object-shape metadata. Violations are malformed trusted IR.
+Shapes, member indices, witness ordinals, field counts, capture counts, member representations, and optional projection-witness destinations must match the corresponding object-shape metadata. The verifier rejects violations as invalid bytecode.
 
 ### Byte and ByteSequence
 

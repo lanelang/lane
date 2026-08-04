@@ -195,7 +195,7 @@ test "engine traps discard the instance without ARC unwinding" {
       ConstF64({ value: 2 }, (0.0 / 0.0).reinterpret_as_int64()),
       F64ToI64({ value: 3 }, { value: 2 }),
     ],
-    terminator=Return(None),
+    terminator=Unreachable,
   )
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },

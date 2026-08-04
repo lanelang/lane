@@ -199,7 +199,7 @@ test "Bytes primitives trap on invalid length and index" {
         I64ToByte({ value: 1 }, { value: 0 }),
         ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       ],
-      terminator: Return(None),
+      terminator: Unreachable,
     },
   ])
   assert_eq(
@@ -223,7 +223,7 @@ test "Bytes primitives trap on invalid length and index" {
       )
     }
     bytes_test_body([i64, i32, owned, i64, if update { owned } else { i32 }], [
-      { parameters: [], instructions, terminator: Return(None) },
+      { parameters: [], instructions, terminator: Unreachable },
     ])
   }
   for case in [(-1L, false), (1L, false), (-1L, true), (1L, true)] {
@@ -339,7 +339,7 @@ test "Bytes layout preflight determines the large length limit" {
         I64ToByte({ value: 1 }, { value: 0 }),
         ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       ],
-      terminator: Return(None),
+      terminator: Unreachable,
     },
   ])
   assert_eq(

@@ -91,6 +91,43 @@ test "parse keeps negation outside a suffixed numeric literal" {
 }
 
 ///|
+test "parse negative floating literal patterns with their fixed suffix" {
+  let file = expect_parse_ok(
+    (
+      #|fn classify(value : F32) -> Bool {
+      #|  match value {
+      #|    -1.5f32 => true
+      #|    _ => false
+      #|  }
+      #|}
+    ),
+  )
+  assert_true(
+    file.declarations
+    is [
+      Function(
+        {
+          body: Block(
+            result=Match(
+              arms=[
+                {
+                  pattern: FloatingLiteral("-1.5", suffix=Some(F32Suffix), ..),
+                  ..,
+                },
+                ..,
+              ],
+              ..
+            ),
+            ..
+          ),
+          ..,
+        }
+      ),
+    ],
+  )
+}
+
+///|
 test "parse character literals in expressions and patterns" {
   let file = expect_parse_ok(
     (

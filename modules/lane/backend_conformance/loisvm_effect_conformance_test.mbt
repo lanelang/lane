@@ -407,7 +407,9 @@ fn interpreter_resolution_error(
   registry : @loisvm_runtime.RuntimeRegistry,
 ) -> @loisvm_runtime.RuntimeImportResolutionError raise {
   match @loisvm_interp.load(image, registry) {
-    Err(error) => error
+    Err(RuntimeImportResolution(error)) => error
+    Err(error) =>
+      fail("unexpected LoisVM interpreter load failure: \{Repr(error)}")
     Ok(_) => fail("expected LoisVM interpreter load to fail")
   }
 }

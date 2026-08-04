@@ -39,7 +39,7 @@ fn lifecycle_initializer() -> @bytecode.FunctionBody {
           MakeEnv({ value: 3 }, { value: 0 }, Immediate({ value: 2 }), [], [
             { value: 2 },
           ]),
-          MakeClosure({ value: 4 }, { value: 2 }, { value: 3 }),
+          MakeClosure({ value: 4 }, { value: 3 }, { value: 3 }),
           InitGlobal({ value: 2 }, { value: 4 }),
           ConstString({ value: 0 }, { value: 0 }),
           ConstString({ value: 1 }, { value: 1 }),
@@ -63,7 +63,7 @@ fn lifecycle_entry(failing? : Bool = false) -> @bytecode.FunctionBody {
     BorrowGlobal({ value: 4 }, { value: 4 }),
   ]
   if failing {
-    instructions.push(BorrowGlobal({ value: 0 }, { value: 99 }))
+    instructions.push(CallDirect({ value: 4 }, None, [], [], None))
   }
   {
     slots: [
@@ -80,11 +80,41 @@ fn lifecycle_entry(failing? : Bool = false) -> @bytecode.FunctionBody {
 }
 
 ///|
+fn lifecycle_closure_body() -> @bytecode.FunctionBody {
+  {
+    slots: [owned_slot(I32, OwnedRef)],
+    inputs: {
+      environment: Some({ value: 0 }),
+      witnesses: [],
+      user_parameters: [],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [Release({ value: 0 })],
+        terminator: Return(None),
+      },
+    ],
+  }
+}
+
+///|
 fn lifecycle_image(entry : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
   {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
-    functions: [BytecodeBody(lifecycle_initializer()), BytecodeBody(entry)],
+    functions: [
+      BytecodeBody(lifecycle_initializer()),
+      BytecodeBody(entry),
+      BytecodeBody(lifecycle_closure_body()),
+      RuntimeImport({
+        abi_major: 1,
+        parameters: [],
+        result: Unit,
+        symbol: "lane.test.fail",
+      }),
+    ],
     globals: [
       { representation: I64, cleanup: Trivial, erased_companion: None },
       { representation: I32, cleanup: OwnedRef, erased_companion: None },
@@ -110,9 +140,24 @@ fn lifecycle_image(entry : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
 }
 
 ///|
+fn lifecycle_registry() -> @runtime.RuntimeRegistry {
+  let registry = @runtime.RuntimeRegistry::new()
+  registry.register(
+    @runtime.RuntimeBinding::new(
+      symbol="lane.test.fail",
+      abi_major=1,
+      parameters=[],
+      result=Unit,
+      invoke=(_context, _arguments) => raise Failure(message="boom"),
+    ),
+  )
+  registry
+}
+
+///|
 test "instance globals clean trivial reference callable and erased roots" {
   let loaded = match
-    load(lifecycle_image(lifecycle_entry()), @runtime.RuntimeRegistry::new()) {
+    load(lifecycle_image(lifecycle_entry()), lifecycle_registry()) {
     Ok(loaded) => loaded
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -126,17 +171,14 @@ test "instance globals clean trivial reference callable and erased roots" {
 ///|
 test "cleanup-capable entry failures release initialized global roots" {
   let loaded = match
-    load(
-      lifecycle_image(lifecycle_entry(failing=true)),
-      @runtime.RuntimeRegistry::new(),
-    ) {
+    load(lifecycle_image(lifecycle_entry(failing=true)), lifecycle_registry()) {
     Ok(loaded) => loaded
     Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = loaded.new_instance()
   assert_eq(
     instance.execute(),
-    Err(InternalRuntimeFailure(detail="GlobalId 99 is out of range")),
+    Err(RuntimeImportFailure(symbol="lane.test.fail", message="boom")),
   )
   assert_eq(instance.heap.live_bytes, 0)
   assert_true(instance.globals.all(value => value is None))
@@ -147,18 +189,18 @@ test "cleanup-capable entry failures release initialized global roots" {
 test "cleanup-capable initializer failures release initialized global roots" {
   let initializer = lifecycle_initializer()
   initializer.blocks[0].instructions.push(
-    BorrowGlobal({ value: 7 }, { value: 99 }),
+    CallDirect({ value: 4 }, None, [], [], None),
   )
   let image = lifecycle_image(lifecycle_entry())
   image.functions[0] = BytecodeBody(initializer)
-  let loaded = match load(image, @runtime.RuntimeRegistry::new()) {
+  let loaded = match load(image, lifecycle_registry()) {
     Ok(loaded) => loaded
     Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = loaded.new_instance()
   assert_eq(
     instance.execute(),
-    Err(InternalRuntimeFailure(detail="GlobalId 99 is out of range")),
+    Err(RuntimeImportFailure(symbol="lane.test.fail", message="boom")),
   )
   assert_eq(instance.heap.live_bytes, 0)
   assert_true(instance.globals.all(value => value is None))

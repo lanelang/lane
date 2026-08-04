@@ -14,6 +14,7 @@ pub fn load(@bytecode.BytecodeImage, @Milky2018/loisvm/runtime.RuntimeRegistry, 
 
 // Errors
 pub(all) suberror WasmCompileError {
+  InvalidBytecode(@bytecode.BytecodeVerificationError)
   UnsupportedInstruction(function_id~ : Int, instruction~ : String)
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(function_id~ : Int, target~ : Int, expected~ : Int, actual~ : Int)
@@ -22,6 +23,7 @@ pub(all) suberror WasmCompileError {
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror WasmLoadError {
+  InvalidBytecode(@bytecode.BytecodeVerificationError)
   RuntimeImportResolution(error~ : @Milky2018/loisvm/runtime.RuntimeImportResolutionError)
   BackendCompileFailure(detail~ : String)
 } derive(Eq, @debug.Debug)

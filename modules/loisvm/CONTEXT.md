@@ -30,10 +30,13 @@ The `loisvm/interp` package that owns bytecode execution, VM values, call
 frames, closures, and runtime-import invocation.
 _Avoid_: bytecode data model, compiler optimization pass, CLI command parser
 
-**Trusted Bytecode Image**:
-A decoded LoisVM image assumed to satisfy bytecode invariants because it was
-emitted by the matching Lane linker.
-_Avoid_: verified bytecode, untrusted artifact, sandbox input
+**Verified Bytecode Image**:
+A LoisVM image accepted by the bytecode package's semantic verifier after it
+checks identities, runtime representations, instruction contracts, CFG edge
+shapes, initialization dataflow, and linear ownership. Binary decoding,
+interpreter loading, and Wasm compilation all require this verification before
+publishing a consumer result.
+_Avoid_: trusted compiler output, sandbox safety proof, backend-specific validation
 
 **LoisVM Bytecode Format Compatibility**:
 The lockstep producer-consumer contract in which a bytecode section contains only the current canonical layout and carries no independent version field or backward-compatibility discriminator. Persisted `.lbp` compatibility is owned by the enclosing linked-program schema version.
@@ -468,8 +471,16 @@ _Avoid_: retained host pointer, copied input, owned string result
 ### Loading And Failure
 
 **Bytecode Binary Adapter**:
-The LoisVM-owned current-format decoder that composes the domain-independent Bytecodec reader, maps primitive framing failures into bytecode-relative MalformedEncoding or ResourceLimit failures, and retains all LoisVM tag and table semantics.
+The LoisVM-owned current-format decoder that composes the domain-independent Bytecodec reader, maps primitive framing failures into bytecode-relative MalformedEncoding or ResourceLimit failures, retains all LoisVM tag and table semantics, and submits the decoded image to the Bytecode Verifier.
 _Avoid_: duplicated byte cursor, Bytecodec-owned instruction schema, signed u32 interpretation
+
+**Bytecode Verifier**:
+The `loisvm/bytecode`-owned semantic boundary that accepts a complete image or
+returns a structured error with image, function, block, instruction, or
+terminator provenance. Direct-call target signatures are statically known and
+checked here; indirect call sites are checked for physical operand shape, while
+their dynamically selected target ABI remains an execution check.
+_Avoid_: decoder framing rule, source typechecker, Wasm validator
 
 **Atomic Bytecode Load**:
 The all-or-nothing path from complete section decoding through import binding and backend construction to publication of one reusable loaded executable image.
@@ -548,3 +559,16 @@ The external module contract exporting `"lane.entry":() -> ()`, canonical
 memory, and restricted runtime-service helpers while importing registry symbols
 from `"lane.runtime.v1"`.
 _Avoid_: source module exports, arbitrary Lane function exports, Component ABI
+
+**Lane Wasm Internal Runtime ABI V1**:
+The compiler-private `"lane.runtime.internal.v1"` namespace owned jointly by
+LoisVM Wasm lowering and its loader. It is implemented by the selected LoisVM
+backend, is not resolved through the embedding Runtime Registry, and may only be
+referenced by Wasm modules produced by the matching compiler. Its V1 functions
+`f32_to_string:(f32)->i32` and `f64_to_string:(f64)->i32` allocate the canonical
+Lane String spelling: `NaN`, `inf`, and `-inf`; signed zero is preserved; finite
+values use the shortest round-tripping decimal; and integral values retain
+`.0`. Any incompatible signature or meaning requires a new internal namespace
+major, while implementation-only compatible changes do not affect
+`lane.runtime.v1`.
+_Avoid_: Runtime Import ABI V1, host extension API, user-provided import

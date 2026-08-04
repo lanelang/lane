@@ -66,6 +66,8 @@ test "format explicit numeric literal suffixes" {
       #|let f64=1.25e-3f64
       #|let minimum=-2147483648i32
       #|match i32 { 42i32=>(); _=>() }
+      #|match f32 { -100.30f32=>(); _=>() }
+      #|match f64 { -1.25e-3f64=>(); _=>() }
       #|()
       #|}
     ),
@@ -82,6 +84,14 @@ test "format explicit numeric literal suffixes" {
       #|  let minimum = -2147483648i32
       #|  match i32 {
       #|    42i32 => ()
+      #|    _ => ()
+      #|  }
+      #|  match f32 {
+      #|    -100.30f32 => ()
+      #|    _ => ()
+      #|  }
+      #|  match f64 {
+      #|    -1.25e-3f64 => ()
       #|    _ => ()
       #|  }
       #|  ()

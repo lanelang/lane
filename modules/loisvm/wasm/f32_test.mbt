@@ -76,6 +76,7 @@ test "F32 host ABI agrees across interpreter and Wasm backends" {
       instructions: [
         ConstF32({ value: 0 }, expected.reinterpret_as_int()),
         CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
+        ConstF32({ value: 0 }, expected.reinterpret_as_int()),
         F32Eq({ value: 2 }, { value: 0 }, { value: 1 }),
       ],
       terminator: BranchBool(

@@ -352,7 +352,7 @@ Every image encodes the optional instance initializer and Instance Global table,
 
 Use `bytecode_image_to_disassembly` for human-readable diagnostics, snapshots, and producer debugging. Disassembly is not a stable persistence or parsing format.
 
-Binary decoding validates framing, tags, lengths, and basic image structure. LoisVM deliberately does not include a full bytecode verifier. Images are trusted compiler output, so a producer remains responsible for slot data flow, control-flow compatibility, call signatures, ownership balance, object-shape compatibility, and all other semantic invariants.
+Binary decoding validates framing, tags, and lengths, then the package-owned bytecode verifier checks identities, runtime representations, instruction contracts, control-flow compatibility, initialization dataflow, ownership balance, object-shape compatibility, and statically known direct-call signatures. Interpreter loading and Wasm compilation apply the same verifier to directly constructed images, so neither backend publishes a consumer result for invalid bytecode. Indirect target ABI compatibility remains a dynamic check because the target is selected at execution.
 
 ## Backend choice
 

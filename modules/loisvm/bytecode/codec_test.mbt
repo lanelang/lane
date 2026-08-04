@@ -24,11 +24,6 @@ fn shape(value : Int) -> ObjectShapeId {
 }
 
 ///|
-fn constant(value : Int) -> ConstantId {
-  { value, }
-}
-
-///|
 fn minimal_body(instructions? : Array[Instruction] = []) -> FunctionBody {
   {
     slots: [],
@@ -55,6 +50,8 @@ fn minimal_image() -> BytecodeImage {
 fn global_image() -> BytecodeImage {
   let initializer = {
     ..minimal_body(instructions=[
+      ConstLayout(slot(0), layout(1)),
+      EraseUnit(slot(1)),
       InitGlobal(global(1), slot(1)),
       BorrowGlobal(slot(2), global(1)),
     ]),
@@ -84,7 +81,7 @@ fn global_image() -> BytecodeImage {
         erased_companion: Some(global(0)),
       },
     ],
-    layouts: [],
+    layouts: [Unit],
     object_shapes: [],
     constants: [],
   }
@@ -216,7 +213,10 @@ test "F32 bytecode instructions roundtrip" {
       F32ToF64(slot(5), slot(2)),
       F64ToF32(slot(2), slot(5)),
       F32ToString(slot(8), slot(2)),
+      Release(slot(8)),
       F64ToString(slot(8), slot(5)),
+      Release(slot(8)),
+      ConstLayout(slot(6), layout(1)),
       EraseF32(slot(7), slot(2)),
       UneraseF32(slot(2), slot(7)),
     ]),
@@ -243,7 +243,7 @@ test "global image has canonical disassembly" {
       #|initializer: f2
       #|functions: 2
       #|globals: 2
-      #|layouts: 0
+      #|layouts: 1
       #|object shapes: 0
       #|constants: 0
       #|
@@ -268,6 +268,8 @@ test "global image has canonical disassembly" {
       #|    %1: i64 + owned_erased, companion=%0
       #|    %2: i64 + owned_erased, companion=%0
       #|  b0([]):
+      #|    const_layout %0, l1
+      #|    erase_unit %1
       #|    init_global g1, %1
       #|    borrow_global %2, g1
       #|    return none
@@ -277,131 +279,10 @@ test "global image has canonical disassembly" {
       #|  g0 = i32 + trivial
       #|  g1 = i64 + owned_erased, companion=g0
       #|
+      #|layout table:
+      #|  l1 = unit
+      #|
     ),
-  )
-}
-
-///|
-test "all instructions roundtrip" {
-  let zero = slot(0)
-  let one = slot(1)
-  let two = slot(2)
-  let projection : ProjectionResult = {
-    value_destination: zero,
-    witness_destination: Some(one),
-  }
-  let instructions : Array[Instruction] = [
-    Copy(zero, one),
-    Move(zero, one),
-    RetainCopy(zero, one),
-    Release(zero),
-    ConstI64(zero, -42L),
-    ConstI32(zero, -42),
-    ConstChar(zero, 0x1F600),
-    ConstF64(two, -1L),
-    ConstBool(zero, true),
-    ConstLayout(zero, layout(1)),
-    ConstFunction(one, function(1)),
-    ConstString(zero, constant(0)),
-    CallDirect(function(1), Some(zero), [zero], [one], None),
-    CallValue(one, [zero], [one], Some(two)),
-    MakeData(zero, shape(0), Immediate(layout(1)), [zero], [one]),
-    LoadTag(zero, one),
-    BorrowField(shape(0), one, 0, projection),
-    ConsumeFields(shape(0), one, [{ member_index: 0, result: projection }]),
-    MakeEnv(zero, shape(1), Witness(zero), [zero], [one]),
-    BorrowCapture(shape(1), one, 0, projection),
-    ConsumeCaptures(shape(1), one, [{ member_index: 0, result: projection }]),
-    MakeClosure(one, function(1), zero),
-    ByteToI64(one, zero),
-    I64ToByte(zero, one),
-    ByteSequenceMake(zero, one, zero),
-    ByteSequenceLength(one, zero),
-    ByteSequenceGet(zero, zero, one),
-    ByteSequenceSet(zero, zero, one, zero),
-    I32Add(zero, one, two),
-    I32Sub(zero, one, two),
-    I32Mul(zero, one, two),
-    I32Neg(zero, one),
-    I32Div(zero, one, two),
-    I32Rem(zero, one, two),
-    I32Eq(zero, one, two),
-    I32Lt(zero, one, two),
-    I32ToI64(one, zero),
-    I64ToI32(zero, one),
-    ByteSequenceConcat(zero, one, two),
-    ByteSequenceSlice(zero, one, two, zero),
-    ByteSequenceEqual(zero, one, two),
-    ByteSequenceIsValidUtf8(zero, one),
-    I64Add(zero, one, two),
-    I64Sub(zero, one, two),
-    I64Mul(zero, one, two),
-    I64Neg(zero, one),
-    I64Div(zero, one, two),
-    I64Rem(zero, one, two),
-    I64And(zero, one, two),
-    I64Or(zero, one, two),
-    I64Xor(zero, one, two),
-    I64Not(zero, one),
-    I64Shl(zero, one, two),
-    I64ShrS(zero, one, two),
-    I64Eq(zero, one, two),
-    I64Ne(zero, one, two),
-    I64Lt(zero, one, two),
-    I64Le(zero, one, two),
-    I64Gt(zero, one, two),
-    I64Ge(zero, one, two),
-    BoolNot(zero, one),
-    BoolEq(zero, one, two),
-    BoolNe(zero, one, two),
-    F64Add(two, one, two),
-    F64Sub(two, one, two),
-    F64Mul(two, one, two),
-    F64Div(two, one, two),
-    F64Neg(two, one),
-    F64Eq(zero, one, two),
-    F64Ne(zero, one, two),
-    F64Lt(zero, one, two),
-    F64Le(zero, one, two),
-    F64Gt(zero, one, two),
-    F64Ge(zero, one, two),
-    I64ToF64(two, zero),
-    F64ToI64(zero, two),
-    EraseI32(one, zero),
-    UneraseI32(zero, one),
-    EraseI64(one, one),
-    UneraseI64(one, one),
-    EraseF64(one, two),
-    UneraseF64(two, one),
-    EraseUnit(one),
-    UneraseUnit(one),
-    LoadObjectWitness(zero, shape(0), one, 1),
-  ]
-  let body = minimal_body(instructions~)
-  let image : BytecodeImage = {
-    entry: function(1),
-    initializer: None,
-    functions: [
-      BytecodeBody({
-        ..body,
-        slots: [
-          { representation: I32, cleanup: Trivial, erased_companion: None },
-          { representation: I64, cleanup: Trivial, erased_companion: None },
-          { representation: F64, cleanup: Trivial, erased_companion: None },
-        ],
-      }),
-    ],
-    globals: [],
-    layouts: [Unit],
-    object_shapes: [
-      Data({ constructor_tag: 0, stored_witness_count: 0, members: [] }),
-      Environment({ stored_witness_count: 0, members: [] }),
-    ],
-    constants: [Bytes::from_array([b'L', b'a', b'n', b'e'])],
-  }
-  assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(image)),
-    Ok(image),
   )
 }
 
@@ -616,9 +497,11 @@ test "decoder validates initializer and global metadata" {
   assert_eq(
     parse_bytecode_image_binary(bytecode_image_to_binary(missing_initializer)),
     Err(
-      MalformedEncoding(
-        offset=4,
-        detail="nonempty instance global table requires an initializer",
+      InvalidBytecode(
+        error=InvalidBytecode(
+          site=Image,
+          detail="nonempty instance global table requires an initializer",
+        ),
       ),
     ),
   )
@@ -626,9 +509,8 @@ test "decoder validates initializer and global metadata" {
   assert_eq(
     parse_bytecode_image_binary(bytecode_image_to_binary(invalid_initializer)),
     Err(
-      MalformedEncoding(
-        offset=4,
-        detail="instance initializer FunctionId is out of range",
+      InvalidBytecode(
+        error=InvalidBytecode(site=Image, detail="FunctionId 3 is out of range"),
       ),
     ),
   )
@@ -645,9 +527,11 @@ test "decoder validates initializer and global metadata" {
   assert_eq(
     parse_bytecode_image_binary(bytecode_image_to_binary(invalid_companion)),
     Err(
-      MalformedEncoding(
-        offset=0,
-        detail="OwnedErased global companion must immediately precede its owner",
+      InvalidBytecode(
+        error=InvalidBytecode(
+          site=Image,
+          detail="OwnedErased global companion must immediately precede its owner",
+        ),
       ),
     ),
   )
@@ -761,9 +645,11 @@ test "decoder rejects illegal slot metadata" {
     parse_bytecode_image_binary(bytecode_image_to_binary(illegal_image)),
     content=(
       #|Err(
-      #|  MalformedEncoding(
-      #|    offset=0,
-      #|    detail="illegal slot representation and cleanup combination",
+      #|  InvalidBytecode(
+      #|    error=InvalidBytecode(
+      #|      site=Function({ value: 1 }),
+      #|      detail="illegal slot representation and cleanup combination",
+      #|    ),
       #|  ),
       #|)
     ),

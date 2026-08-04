@@ -44,7 +44,10 @@ test "loader resolves all runtime imports atomically" {
     Err(error) => Some(error)
     Ok(_) => None
   }
-  assert_eq(error, Some(UnresolvedImport(symbol="lane.test.identity")))
+  assert_eq(
+    error,
+    Some(RuntimeImportResolution(UnresolvedImport(symbol="lane.test.identity"))),
+  )
   let wrong_parameter = @runtime.RuntimeRegistry::new()
   wrong_parameter.register(
     @runtime.RuntimeBinding::new(
@@ -78,17 +81,21 @@ test "loader resolves all runtime imports atomically" {
     content=(
       #|(
       #|  Some(
-      #|    ParameterKindsMismatch(
-      #|      symbol="lane.test.identity",
-      #|      expected=[I64],
-      #|      actual=[Bool],
+      #|    RuntimeImportResolution(
+      #|      ParameterKindsMismatch(
+      #|        symbol="lane.test.identity",
+      #|        expected=[I64],
+      #|        actual=[Bool],
+      #|      ),
       #|    ),
       #|  ),
       #|  Some(
-      #|    ResultKindMismatch(
-      #|      symbol="lane.test.identity",
-      #|      expected=I64,
-      #|      actual=Bool,
+      #|    RuntimeImportResolution(
+      #|      ResultKindMismatch(
+      #|        symbol="lane.test.identity",
+      #|        expected=I64,
+      #|        actual=Bool,
+      #|      ),
       #|    ),
       #|  ),
       #|)

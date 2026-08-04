@@ -555,6 +555,47 @@ pub(all) enum NumericLiteralSuffix {
 } derive(Debug, Eq)
 
 ///|
+/// The lexical content of a numeric token after its suffix has been separated.
+pub(all) struct NumericLiteralToken {
+  body : String
+  suffix : NumericLiteralSuffix?
+} derive(Debug, Eq)
+
+///|
+/// Separates the suffix of a numeric spelling already accepted by the lexer.
+pub fn NumericLiteralToken::from_valid_spelling(
+  spelling : String,
+) -> NumericLiteralToken {
+  match spelling {
+    _ if spelling.strip_suffix("i32") is Some(body) =>
+      { body: body.to_owned(), suffix: Some(I32Suffix) }
+    _ if spelling.strip_suffix("i64") is Some(body) =>
+      { body: body.to_owned(), suffix: Some(I64Suffix) }
+    _ if spelling.strip_suffix("f32") is Some(body) =>
+      { body: body.to_owned(), suffix: Some(F32Suffix) }
+    _ if spelling.strip_suffix("f64") is Some(body) =>
+      { body: body.to_owned(), suffix: Some(F64Suffix) }
+    _ => { body: spelling, suffix: None }
+  }
+}
+
+///|
+/// Returns the canonical source spelling of a numeric literal.
+pub fn numeric_literal_text(
+  body : String,
+  suffix : NumericLiteralSuffix?,
+) -> String {
+  body +
+  (match suffix {
+    Some(I32Suffix) => "i32"
+    Some(I64Suffix) => "i64"
+    Some(F32Suffix) => "f32"
+    Some(F64Suffix) => "f64"
+    None => ""
+  })
+}
+
+///|
 pub(all) enum StructPatternField {
   Value(name~ : String, pattern~ : Pattern?, loc~ : SourceSpan)
   TypeBinder(name~ : String, loc~ : SourceSpan)

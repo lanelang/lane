@@ -15,10 +15,17 @@ pub fn bytecode_image_to_disassembly(BytecodeImage) -> String
 
 pub fn parse_bytecode_image_binary(Bytes) -> Result[BytecodeImage, BytecodeDecodeError]
 
+pub fn verify_bytecode_image(BytecodeImage) -> Result[Unit, BytecodeVerificationError]
+
 // Errors
 pub(all) suberror BytecodeDecodeError {
   MalformedEncoding(offset~ : Int, detail~ : String)
   ResourceLimit(offset~ : Int, detail~ : String)
+  InvalidBytecode(error~ : BytecodeVerificationError)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror BytecodeVerificationError {
+  InvalidBytecode(site~ : BytecodeVerificationSite, detail~ : String)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -42,6 +49,14 @@ pub(all) struct BytecodeImage {
   constants : Array[Bytes]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for BytecodeImage
+
+pub(all) enum BytecodeVerificationSite {
+  Image
+  Function(FunctionId)
+  Block(FunctionId, BlockId)
+  Instruction(FunctionId, BlockId, Int)
+  Terminator(FunctionId, BlockId)
+} derive(Eq, @debug.Debug)
 
 pub(all) enum Cleanup {
   Trivial

@@ -28,7 +28,7 @@ fn propagate_local_scalar_values(
   values : Array[ValueMetadata],
   blocks : Array[Block],
 ) -> Array[Block] {
-  let use_locations = value_use_locations(values.length(), blocks)
+  let use_locations = value_use_locations(values, blocks)
   blocks.mapi(fn(block_index, block) {
     let aliases : Array[(ValueId, ValueId)] = []
     let constants : Array[(Instruction, ValueId)] = []
@@ -72,8 +72,11 @@ fn propagate_local_scalar_values(
 }
 
 ///|
-fn value_use_locations(value_count : Int, blocks : Array[Block]) -> Array[Int] {
-  let locations = Array::make(value_count, -1)
+fn value_use_locations(
+  values : Array[ValueMetadata],
+  blocks : Array[Block],
+) -> Array[Int] {
+  let locations = Array::make(values.length(), -1)
   for block_index, block in blocks {
     for instruction in block.instructions {
       for value in instruction_uses(instruction) {
@@ -82,6 +85,11 @@ fn value_use_locations(value_count : Int, blocks : Array[Block]) -> Array[Int] {
     }
     for value in terminator_uses(block.terminator) {
       record_use_location(locations, value, block_index)
+    }
+  }
+  for metadata in values {
+    if metadata.erased_companion is Some(companion) {
+      locations[companion.value] = -2
     }
   }
   locations
@@ -235,7 +243,8 @@ fn remove_dead_scalar_instructions(body : FunctionBody) -> Array[Block] {
           liveness.is_live_after_instruction(
             body, block_index, instruction_index, destination,
           ) ||
-          body.values[destination.value].ownership != Trivial
+          body.values[destination.value].ownership != Trivial ||
+          value_is_erased_companion(body.values, destination)
         })
       }
       if keep {
@@ -244,6 +253,14 @@ fn remove_dead_scalar_instructions(body : FunctionBody) -> Array[Block] {
     }
     { ..block, instructions, }
   })
+}
+
+///|
+fn value_is_erased_companion(
+  values : Array[ValueMetadata],
+  value : ValueId,
+) -> Bool {
+  values.any(metadata => metadata.erased_companion == Some(value))
 }
 
 ///|
@@ -516,7 +533,7 @@ fn coalesce_single_block_trivial_values(body : FunctionBody) -> FunctionBody {
   }
   for metadata in body.values {
     if metadata.erased_companion is Some(companion) {
-      record_interval_use(first, last, companion, 0)
+      record_interval_use(first, last, companion, terminator_position)
     }
   }
   let remap = Array::make(value_count, -1)

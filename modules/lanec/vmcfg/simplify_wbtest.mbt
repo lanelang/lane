@@ -9,6 +9,44 @@ fn scalar_metadata() -> ValueMetadata {
 }
 
 ///|
+test "simplify preserves layout values named by erased companions" {
+  let body : FunctionBody = {
+    values: [
+      {
+        representation: I32,
+        cleanup: Trivial,
+        ownership: Trivial,
+        erased_companion: None,
+      },
+      scalar_metadata(),
+      {
+        representation: I64,
+        cleanup: OwnedErased,
+        ownership: Owned,
+        erased_companion: Some({ value: 0 }),
+      },
+    ],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          ConstLayout({ value: 0 }, { value: 1 }),
+          ConstI64({ value: 1 }, 42L),
+          EraseI64({ value: 2 }, { value: 1 }),
+          Release({ value: 2 }),
+        ],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let simplified = simplify_body(body)
+  assert_eq(simplified.values, body.values)
+  assert_eq(simplified.blocks, body.blocks)
+}
+
+///|
 test "simplify VM CFG folds branches and threads empty blocks" {
   let body : FunctionBody = {
     values: [scalar_metadata(), scalar_metadata(), scalar_metadata()],

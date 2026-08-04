@@ -8,9 +8,13 @@ import {
 }
 
 // Values
-pub fn load(@bytecode.BytecodeImage, @runtime.RuntimeRegistry) -> Result[LoadedImage, @runtime.RuntimeImportResolutionError]
+pub fn load(@bytecode.BytecodeImage, @runtime.RuntimeRegistry) -> Result[LoadedImage, LoadError]
 
 // Errors
+pub(all) suberror LoadError {
+  InvalidBytecode(@bytecode.BytecodeVerificationError)
+  RuntimeImportResolution(@runtime.RuntimeImportResolutionError)
+} derive(Eq, @debug.Debug)
 
 // Types and methods
 pub struct ExecutionInstance {
@@ -80,6 +84,5 @@ pub enum VMValue {
 } derive(Eq, @debug.Debug)
 
 // Type aliases
-pub using @runtime {type RuntimeImportResolutionError as LoadError}
 
 // Traits

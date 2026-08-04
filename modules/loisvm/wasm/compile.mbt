@@ -1,5 +1,6 @@
 ///|
 pub(all) suberror WasmCompileError {
+  InvalidBytecode(@bytecode.BytecodeVerificationError)
   UnsupportedInstruction(function_id~ : Int, instruction~ : String)
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(
@@ -38,6 +39,7 @@ fn validate_compiled_module(
 ///|
 fn import_compile_error(error : @compiler.WasmCompileError) -> WasmCompileError {
   match error {
+    InvalidBytecode(error) => InvalidBytecode(error)
     UnsupportedInstruction(function_id~, instruction~) =>
       UnsupportedInstruction(function_id~, instruction~)
     InvalidBlockTarget(function_id~, target~) =>

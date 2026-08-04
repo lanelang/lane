@@ -133,7 +133,7 @@ fn assert_bytes_backends(
 
 ///|
 test "ByteSequence operations reject objects with another layout across backends" {
-  let body = wasm_bytes_single_block(
+  let body = wasm_bytes_trapping_block(
     [wasm_bytes_owned_slot(), wasm_bytes_trivial_slot(I64)],
     [
       MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 2 }), [], []),
@@ -379,7 +379,7 @@ test "ByteSequence slice overflow and addressability failures agree across backe
       (3L, 1L),
     ] {
     assert_bytes_backends(
-      wasm_bytes_single_block([owned, i64, i64, owned], [
+      wasm_bytes_trapping_block([owned, i64, i64, owned], [
         ConstString({ value: 0 }, { value: 0 }),
         ConstI64({ value: 1 }, case.0),
         ConstI64({ value: 2 }, case.1),
@@ -401,7 +401,7 @@ test "ByteSequence concat and slice resource failures agree across backends" {
     max_host_objects: None,
   }
   assert_bytes_backends(
-    wasm_bytes_single_block([owned, owned, owned], [
+    wasm_bytes_trapping_block([owned, owned, owned], [
       ConstString({ value: 0 }, { value: 0 }),
       ConstString({ value: 1 }, { value: 1 }),
       ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
@@ -411,7 +411,7 @@ test "ByteSequence concat and slice resource failures agree across backends" {
     constants=[b"a", b"b"],
   )
   assert_bytes_backends(
-    wasm_bytes_single_block([owned, i64, i64, owned], [
+    wasm_bytes_trapping_block([owned, i64, i64, owned], [
       ConstString({ value: 0 }, { value: 0 }),
       ConstI64({ value: 1 }, 0L),
       ConstI64({ value: 2 }, 1L),
@@ -430,6 +430,16 @@ fn wasm_bytes_single_block(
 ) -> @bytecode.FunctionBody {
   wasm_bytes_body(slots, [
     { parameters: [], instructions, terminator: Return(None) },
+  ])
+}
+
+///|
+fn wasm_bytes_trapping_block(
+  slots : Array[@bytecode.SlotMetadata],
+  instructions : Array[@bytecode.Instruction],
+) -> @bytecode.FunctionBody {
+  wasm_bytes_body(slots, [
+    { parameters: [], instructions, terminator: Unreachable },
   ])
 }
 
@@ -711,7 +721,7 @@ test "Bytes shared update needs a second allocation across backends" {
   let i64 = wasm_bytes_trivial_slot(I64)
   let owned = wasm_bytes_owned_slot()
   assert_bytes_backends(
-    wasm_bytes_single_block([i64, i32, owned, owned, i64, owned], [
+    wasm_bytes_trapping_block([i64, i32, owned, owned, i64, owned], [
       ConstI64({ value: 0 }, 1L),
       I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
@@ -734,7 +744,7 @@ test "Bytes allocation exhaustion agrees across interpreter and Wasm backends" {
   let i64 = wasm_bytes_trivial_slot(I64)
   let owned = wasm_bytes_owned_slot()
   assert_bytes_backends(
-    wasm_bytes_single_block([i64, i32, owned], [
+    wasm_bytes_trapping_block([i64, i32, owned], [
       ConstI64({ value: 0 }, 1L),
       I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
@@ -776,7 +786,7 @@ test "large Bytes allocation is rejected before materialization across backends"
   let i64 = wasm_bytes_trivial_slot(I64)
   let owned = wasm_bytes_owned_slot()
   assert_bytes_backends(
-    wasm_bytes_single_block([i64, i32, owned], [
+    wasm_bytes_trapping_block([i64, i32, owned], [
       ConstI64({ value: 0 }, 2147483636L),
       I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
@@ -796,7 +806,7 @@ test "unaddressable Bytes allocation is safely rejected across backends" {
   let i64 = wasm_bytes_trivial_slot(I64)
   let owned = wasm_bytes_owned_slot()
   let outcomes = execute_bytes_backends(
-    wasm_bytes_single_block([i64, i32, owned], [
+    wasm_bytes_trapping_block([i64, i32, owned], [
       ConstI64({ value: 0 }, 4294967295L),
       I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
@@ -820,7 +830,7 @@ test "Bytes invalid lengths and indices are fatal across backends" {
   let i64 = wasm_bytes_trivial_slot(I64)
   let owned = wasm_bytes_owned_slot()
   let invalid_length_body = fn(length : Int64) {
-    wasm_bytes_single_block([i64, i32, owned], [
+    wasm_bytes_trapping_block([i64, i32, owned], [
       ConstI64({ value: 0 }, length),
       I64ToByte({ value: 1 }, { value: 0 }),
       ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
@@ -845,7 +855,7 @@ test "Bytes invalid lengths and indices are fatal across backends" {
         ByteSequenceGet({ value: 4 }, { value: 2 }, { value: 3 }),
       )
     }
-    wasm_bytes_single_block(
+    wasm_bytes_trapping_block(
       [i64, i32, owned, i64, if update { owned } else { i32 }],
       instructions,
     )

@@ -27,7 +27,7 @@ using @syntax {
   type MatchArm,
   type ModuleAlias,
   type ModulePath,
-  type NumericLiteralSuffix,
+  type NumericLiteralToken,
   type CallArgument,
   type Parameter,
   type ParameterModifiers,
@@ -47,45 +47,27 @@ using @syntax {
 }
 
 ///|
-priv struct ParsedNumericLiteral {
-  body : String
-  suffix : NumericLiteralSuffix?
-}
-
-///|
-fn parsed_numeric_literal(raw : String) -> ParsedNumericLiteral {
-  match raw {
-    _ if raw.strip_suffix("i32") is Some(body) =>
-      { body: body.to_owned(), suffix: Some(I32Suffix) }
-    _ if raw.strip_suffix("i64") is Some(body) =>
-      { body: body.to_owned(), suffix: Some(I64Suffix) }
-    _ if raw.strip_suffix("f32") is Some(body) =>
-      { body: body.to_owned(), suffix: Some(F32Suffix) }
-    _ if raw.strip_suffix("f64") is Some(body) =>
-      { body: body.to_owned(), suffix: Some(F64Suffix) }
-    _ => { body: raw, suffix: None }
-  }
-}
-
-///|
-fn integer_expression_literal(raw : String, loc : SourceSpan) -> Expr {
-  let literal = parsed_numeric_literal(raw)
+fn integer_expression_literal(
+  literal : NumericLiteralToken,
+  loc : SourceSpan,
+) -> Expr {
   IntegerLiteral(literal.body, suffix=literal.suffix, loc~)
 }
 
 ///|
-fn floating_expression_literal(raw : String, loc : SourceSpan) -> Expr {
-  let literal = parsed_numeric_literal(raw)
+fn floating_expression_literal(
+  literal : NumericLiteralToken,
+  loc : SourceSpan,
+) -> Expr {
   FloatingLiteral(literal.body, suffix=literal.suffix, loc~)
 }
 
 ///|
 fn integer_pattern_literal(
-  raw : String,
+  literal : NumericLiteralToken,
   loc : SourceSpan,
   negative~ : Bool,
 ) -> Pattern {
-  let literal = parsed_numeric_literal(raw)
   IntegerLiteral(
     if negative {
       "-" + literal.body
@@ -98,9 +80,20 @@ fn integer_pattern_literal(
 }
 
 ///|
-fn floating_pattern_literal(raw : String, loc : SourceSpan) -> Pattern {
-  let literal = parsed_numeric_literal(raw)
-  FloatingLiteral(literal.body, suffix=literal.suffix, loc~)
+fn floating_pattern_literal(
+  literal : NumericLiteralToken,
+  loc : SourceSpan,
+  negative~ : Bool,
+) -> Pattern {
+  FloatingLiteral(
+    if negative {
+      "-" + literal.body
+    } else {
+      literal.body
+    },
+    suffix=literal.suffix,
+    loc~,
+  )
 }
 
 ///|

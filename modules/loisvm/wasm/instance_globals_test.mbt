@@ -208,7 +208,7 @@ fn wasm_lifecycle_initializer() -> @bytecode.FunctionBody {
       MakeEnv({ value: 3 }, { value: 0 }, Immediate({ value: 2 }), [], [
         { value: 2 },
       ]),
-      MakeClosure({ value: 4 }, { value: 2 }, { value: 3 }),
+      MakeClosure({ value: 4 }, { value: 3 }, { value: 3 }),
       InitGlobal({ value: 2 }, { value: 4 }),
       ConstString({ value: 0 }, { value: 0 }),
       ConstString({ value: 1 }, { value: 1 }),
@@ -244,6 +244,26 @@ fn wasm_lifecycle_entry() -> @bytecode.FunctionBody {
 }
 
 ///|
+fn wasm_lifecycle_closure_body() -> @bytecode.FunctionBody {
+  {
+    slots: [wasm_global_slot(I32, cleanup=OwnedRef)],
+    inputs: {
+      environment: Some({ value: 0 }),
+      witnesses: [],
+      user_parameters: [],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [Release({ value: 0 })],
+        terminator: Return(None),
+      },
+    ],
+  }
+}
+
+///|
 fn wasm_lifecycle_image() -> @bytecode.BytecodeImage {
   {
     entry: { value: 2 },
@@ -251,6 +271,13 @@ fn wasm_lifecycle_image() -> @bytecode.BytecodeImage {
     functions: [
       BytecodeBody(wasm_lifecycle_initializer()),
       BytecodeBody(wasm_lifecycle_entry()),
+      BytecodeBody(wasm_lifecycle_closure_body()),
+      RuntimeImport({
+        abi_major: 1,
+        parameters: [],
+        result: Unit,
+        symbol: "lane.test.fail",
+      }),
     ],
     globals: [
       { representation: I64, cleanup: Trivial, erased_companion: None },
@@ -277,11 +304,26 @@ fn wasm_lifecycle_image() -> @bytecode.BytecodeImage {
 }
 
 ///|
+fn wasm_lifecycle_registry() -> @loisvm_runtime.RuntimeRegistry {
+  let registry = @loisvm_runtime.RuntimeRegistry::new()
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.test.fail",
+      abi_major=1,
+      parameters=[],
+      result=Unit,
+      invoke=(_context, _arguments) => raise Failure(message="boom"),
+    ),
+  )
+  registry
+}
+
+///|
 fn wasm_global_instance(
   image : @bytecode.BytecodeImage,
   config? : @loisvm_runtime.ExecutionConfig = @loisvm_runtime.ExecutionConfig::defaults(),
 ) -> ExecutionInstance raise {
-  let loaded = match load(image, @loisvm_runtime.RuntimeRegistry::new()) {
+  let loaded = match load(image, wasm_lifecycle_registry()) {
     Ok(loaded) => loaded
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -330,11 +372,13 @@ test "Wasm entry failures clean initialized global roots" {
   guard image.functions[1] is BytecodeBody(entry) else {
     fail("expected bytecode entry")
   }
-  entry.blocks[0].instructions.push(InitGlobal({ value: 0 }, { value: 0 }))
+  entry.blocks[0].instructions.push(
+    CallDirect({ value: 4 }, None, [], [], None),
+  )
   let instance = wasm_global_instance(image)
   assert_eq(
     instance.execute(),
-    Err(InternalRuntimeFailure(detail="Wasm instance-global lifecycle failure")),
+    Err(RuntimeImportFailure(symbol="lane.test.fail", message="boom")),
   )
   assert_eq(
     instance.store.get_global(instance.instance.global_addrs[4]).get(),
@@ -375,11 +419,9 @@ test "Wasm reports invalid instance-global initialization" {
     wasm_global_body([], []),
   )
   for image in [duplicate, incomplete, premature_read] {
-    assert_eq(
-      wasm_global_instance(image).execute(),
-      Err(
-        InternalRuntimeFailure(detail="Wasm instance-global lifecycle failure"),
-      ),
+    assert_true(
+      load(image, @loisvm_runtime.RuntimeRegistry::new())
+      is Err(InvalidBytecode(_)),
     )
   }
 }

@@ -26,6 +26,7 @@ pub fn runtime_results_for_import(@bytecode.RuntimeImport) -> Array[@types.Value
 
 // Errors
 pub(all) suberror WasmCompileError {
+  InvalidBytecode(@bytecode.BytecodeVerificationError)
   UnsupportedInstruction(function_id~ : Int, instruction~ : String)
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(function_id~ : Int, target~ : Int, expected~ : Int, actual~ : Int)

@@ -11,6 +11,8 @@ import {
 // Values
 pub fn format_source_file_with_trivia(SourceFile, SourceFormatTrivia) -> @source_prettyprinter.Document
 
+pub fn numeric_literal_text(String, NumericLiteralSuffix?) -> String
+
 // Errors
 
 // Types and methods
@@ -284,6 +286,12 @@ pub(all) enum NumericLiteralSuffix {
   F32Suffix
   F64Suffix
 } derive(Eq, @debug.Debug)
+
+pub(all) struct NumericLiteralToken {
+  body : String
+  suffix : NumericLiteralSuffix?
+} derive(Eq, @debug.Debug)
+pub fn NumericLiteralToken::from_valid_spelling(String) -> Self
 
 pub(all) struct Parameter {
   is_auto : Bool

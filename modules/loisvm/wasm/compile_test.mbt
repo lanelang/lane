@@ -208,14 +208,14 @@ test "runtime imports compile from bytecode descriptors" {
 }
 
 ///|
-test "compiled Wasm is validated before publication" {
+test "invalid Bytecode is rejected before Wasm publication" {
   let invalid_entry = body(instructions=[
     CallDirect({ value: 2 }, None, [], [], None),
   ])
   let target = body(slots=[trivial_slot(I64)], parameters=[{ value: 0 }])
   assert_true(
     compile(image([BytecodeBody(invalid_entry), BytecodeBody(target)]))
-    is Err(ValidationFailure(_)),
+    is Err(InvalidBytecode(_)),
   )
 }
 
@@ -445,7 +445,7 @@ test "packed closure environment and indirect tail call execute" {
   let entry = body(
     slots=[owned_slot(I32, OwnedRef), owned_slot(I64, OwnedCallable)],
     instructions=[
-      ConstBool({ value: 0 }, true),
+      MakeEnv({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
       MakeClosure({ value: 1 }, { value: 2 }, { value: 0 }),
     ],
     terminator=TailCallValue({ value: 1 }, [], []),
@@ -458,10 +458,20 @@ test "packed closure environment and indirect tail call execute" {
       user_parameters: [],
     },
     result: Unit,
-    blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+    blocks: [
+      {
+        parameters: [],
+        instructions: [Release({ value: 0 })],
+        terminator: Return(None),
+      },
+    ],
   }
-  let wasm_module = match
-    compile(image([BytecodeBody(entry), BytecodeBody(target)])) {
+  let bytecode_image = {
+    ..image([BytecodeBody(entry), BytecodeBody(target)]),
+    layouts: [Environment({ value: 0 })],
+    object_shapes: [Environment({ stored_witness_count: 0, members: [] })],
+  }
+  let wasm_module = match compile(bytecode_image) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -487,6 +497,7 @@ test "static image materializes layout descriptors and immortal strings" {
         instructions: [
           ConstString({ value: 0 }, { value: 0 }),
           ByteSequenceLength({ value: 1 }, { value: 0 }),
+          Release({ value: 0 }),
           ConstI64({ value: 2 }, 3L),
           I64Eq({ value: 3 }, { value: 1 }, { value: 2 }),
         ],
@@ -525,7 +536,9 @@ test "static image materializes layout descriptors and immortal strings" {
 ///|
 test "ByteSequence instructions require the shared layout" {
   let entry = body(slots=[owned_slot(I32, OwnedRef), trivial_slot(I64)], instructions=[
+    ConstString({ value: 0 }, { value: 0 }),
     ByteSequenceLength({ value: 1 }, { value: 0 }),
+    Release({ value: 0 }),
   ])
   let error = match
     compile({
@@ -535,7 +548,7 @@ test "ByteSequence instructions require the shared layout" {
       functions: [BytecodeBody(entry)],
       layouts: [],
       object_shapes: [],
-      constants: [],
+      constants: [b"a"],
     }) {
     Err(error) => error
     Ok(_) => fail("expected missing ByteSequence layout")

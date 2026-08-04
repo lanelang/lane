@@ -148,7 +148,7 @@ fn lex_token(
     }
     (re"^[0-9]+[.][0-9]+[eE][+][0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
-        DOUBLE(raw.to_owned()),
+        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
@@ -156,7 +156,7 @@ fn lex_token(
     }
     (re"^[0-9]+[.][0-9]+[eE]-[0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
-        DOUBLE(raw.to_owned()),
+        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
@@ -164,7 +164,7 @@ fn lex_token(
     }
     (re"^[0-9]+[.][0-9]+[eE][0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
-        DOUBLE(raw.to_owned()),
+        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
@@ -172,7 +172,7 @@ fn lex_token(
     }
     (re"^[0-9]+[.][0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
-        DOUBLE(raw.to_owned()),
+        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
@@ -180,7 +180,7 @@ fn lex_token(
     }
     (re"^[0-9]+[eE][+][0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
-        DOUBLE(raw.to_owned()),
+        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
@@ -188,7 +188,7 @@ fn lex_token(
     }
     (re"^[0-9]+[eE]-[0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
-        DOUBLE(raw.to_owned()),
+        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
@@ -196,7 +196,7 @@ fn lex_token(
     }
     (re"^[0-9]+[eE][0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
-        DOUBLE(raw.to_owned()),
+        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
@@ -267,7 +267,7 @@ fn lex_token(
       )
     (re"^[0-9]+(i32|i64|f32|f64)?" as raw, after=rest) => {
       env.add_token(
-        INT(raw.to_owned()),
+        INT(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )

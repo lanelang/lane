@@ -1,5 +1,6 @@
 ///|
 pub(all) suberror WasmCompileError {
+  InvalidBytecode(@bytecode.BytecodeVerificationError)
   UnsupportedInstruction(function_id~ : Int, instruction~ : String)
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(
@@ -25,10 +26,9 @@ pub fn compile(
 fn compile_or_raise(
   image : @bytecode.BytecodeImage,
 ) -> @wasm_types.Module raise WasmCompileError {
-  if !image.globals.is_empty() && image.initializer is None {
-    raise ValidationFailure(
-      detail="nonempty instance global table requires an initializer",
-    )
+  match @bytecode.verify_bytecode_image(image) {
+    Ok(_) => ()
+    Err(error) => raise InvalidBytecode(error)
   }
   let wasm_module = @wasm_types.Module::empty()
   let imports = image.functions.filter_map(fn(entry) {

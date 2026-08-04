@@ -22,8 +22,8 @@ pub(all) struct LayoutNewlineClaim {
 } derive(@debug.Debug)
 
 pub(all) enum Token {
-  INT(String)
-  DOUBLE(String)
+  INT(@syntax.NumericLiteralToken)
+  DOUBLE(@syntax.NumericLiteralToken)
   STRING(String)
   CHAR(Int)
   IDENT(String)

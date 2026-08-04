@@ -49,11 +49,27 @@ test "suffix-selected types survive nominal generic call and pattern contexts" {
       #|  }
       #|}
       #|
+      #|fn classify_negative_ratio(value : F32) -> Bool {
+      #|  match value {
+      #|    -1.5f32 => true
+      #|    _ => false
+      #|  }
+      #|}
+      #|
+      #|fn classify_negative_wide(value : F64) -> Bool {
+      #|  match value {
+      #|    -1.5f64 => true
+      #|    _ => false
+      #|  }
+      #|}
+      #|
       #|pub fn answer() -> Numbers {
       #|  let narrow = identity(42i32)
       #|  let ratio = identity(1.5f32)
       #|  let _ = classify_narrow(narrow)
       #|  let _ = classify_ratio(ratio)
+      #|  let _ = classify_negative_ratio(-1.5f32)
+      #|  let _ = classify_negative_wide(-1.5f64)
       #|  Numbers::{ narrow, ratio }
       #|}
     ),

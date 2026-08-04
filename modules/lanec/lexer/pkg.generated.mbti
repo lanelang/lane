@@ -3,6 +3,7 @@ package "Milky2018/lanec/lexer"
 
 import {
   "Milky2018/lanec/basic",
+  "Milky2018/lanec/syntax",
   "moonbitlang/core/debug",
 }
 
@@ -56,8 +57,8 @@ pub(all) struct LexicalErrorPresentation {
 }
 
 pub(all) enum Token {
-  INT(String)
-  DOUBLE(String)
+  INT(@syntax.NumericLiteralToken)
+  DOUBLE(@syntax.NumericLiteralToken)
   STRING(String)
   CHAR(Int)
   IDENT(String)

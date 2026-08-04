@@ -1,5 +1,6 @@
 ///|
 pub(all) suberror WasmLoadError {
+  InvalidBytecode(@bytecode.BytecodeVerificationError)
   RuntimeImportResolution(error~ : @loisvm_runtime.RuntimeImportResolutionError)
   BackendCompileFailure(detail~ : String)
 } derive(Debug, Eq)
@@ -74,6 +75,7 @@ pub fn load(
       }
       Ok({ wasm_module, imports, backend })
     }
+    Err(InvalidBytecode(error)) => Err(InvalidBytecode(error))
     Err(error) => Err(BackendCompileFailure(detail=Repr(error).to_string()))
   }
 }

@@ -7,8 +7,8 @@
 
 %start source_file
 
-%token<String> INT
-%token<String> DOUBLE
+%token<NumericLiteralToken> INT
+%token<NumericLiteralToken> DOUBLE
 %token<String> STRING
 %token<Int> CHAR
 %token<String> IDENT
@@ -1062,7 +1062,8 @@ pattern -> Pattern
   | "_" { Wildcard(span($sloc)) }
   | INT { integer_pattern_literal($1, span($sloc), negative=false) }
   | "-" INT { integer_pattern_literal($2, span($sloc), negative=true) }
-  | DOUBLE { floating_pattern_literal($1, span($sloc)) }
+  | DOUBLE { floating_pattern_literal($1, span($sloc), negative=false) }
+  | "-" DOUBLE { floating_pattern_literal($2, span($sloc), negative=true) }
   | STRING { StringLiteral($1, loc=span($sloc)) }
   | CHAR { CharLiteral($1, loc=span($sloc)) }
   | "true" { BoolLiteral(true, loc=span($sloc)) }

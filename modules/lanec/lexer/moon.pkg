@@ -1,5 +1,6 @@
 import {
   "Milky2018/lanec/basic",
+  "Milky2018/lanec/syntax",
   "moonbitlang/core/hashmap",
   "moonbitlang/core/hashset",
 }

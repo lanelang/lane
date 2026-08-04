@@ -2376,21 +2376,6 @@ pub impl @prettyprinter.Pretty for Pattern with fn pretty(pattern : Pattern) {
 }
 
 ///|
-fn numeric_literal_text(
-  body : String,
-  suffix : NumericLiteralSuffix?,
-) -> String {
-  body +
-  (match suffix {
-    Some(I32Suffix) => "i32"
-    Some(I64Suffix) => "i64"
-    Some(F32Suffix) => "f32"
-    Some(F64Suffix) => "f64"
-    None => ""
-  })
-}
-
-///|
 fn Pattern::to_doc(
   self : Pattern,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),

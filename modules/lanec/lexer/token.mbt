@@ -1,7 +1,7 @@
 ///|
 pub(all) enum Token {
-  INT(String)
-  DOUBLE(String)
+  INT(NumericLiteralToken)
+  DOUBLE(NumericLiteralToken)
   STRING(String)
   CHAR(Int)
   IDENT(String)

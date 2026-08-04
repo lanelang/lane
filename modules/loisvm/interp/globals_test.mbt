@@ -28,7 +28,7 @@ fn global_test_image(
 }
 
 ///|
-test "interpreter reports invalid instance-global initialization" {
+test "loader rejects invalid instance-global initialization" {
   let trivial_i64 : @bytecode.SlotMetadata = {
     representation: I64,
     cleanup: Trivial,
@@ -60,32 +60,50 @@ test "interpreter reports invalid instance-global initialization" {
       InitGlobal({ value: 0 }, { value: 0 }),
     ]),
   )
-  let cases : Array[(@bytecode.BytecodeImage, @runtime.ExecutionError)] = [
+  let cases : Array[(@bytecode.BytecodeImage, LoadError)] = [
     (
       duplicate,
-      InternalRuntimeFailure(detail="GlobalId 0 was initialized twice"),
+      InvalidBytecode(
+        InvalidBytecode(
+          site=Instruction({ value: 1 }, { value: 0 }, 2),
+          detail="GlobalId 0 is initialized twice",
+        ),
+      ),
     ),
     (
       incomplete,
-      InternalRuntimeFailure(detail="initializer left GlobalId 0 uninitialized"),
+      InvalidBytecode(
+        InvalidBytecode(
+          site=Terminator({ value: 1 }, { value: 0 }),
+          detail="initializer leaves GlobalId 0 uninitialized",
+        ),
+      ),
     ),
     (
       premature_read,
-      InternalRuntimeFailure(detail="read from uninitialized GlobalId 0"),
+      InvalidBytecode(
+        InvalidBytecode(
+          site=Instruction({ value: 1 }, { value: 0 }, 0),
+          detail="read from uninitialized GlobalId 0",
+        ),
+      ),
     ),
     (
       outside_initialization,
-      InternalRuntimeFailure(
-        detail="init_global executed outside initialization",
+      InvalidBytecode(
+        InvalidBytecode(
+          site=Instruction({ value: 2 }, { value: 0 }, 1),
+          detail="InitGlobal appears outside the instance initializer",
+        ),
       ),
     ),
   ]
   for case in cases {
     let (image, expected) = case
-    let loaded = match load(image, @runtime.RuntimeRegistry::new()) {
-      Ok(loaded) => loaded
-      Err(error) => fail("load failed: \{Repr(error)}")
+    let actual = match load(image, @runtime.RuntimeRegistry::new()) {
+      Err(error) => error
+      Ok(_) => fail("invalid image loaded successfully")
     }
-    assert_eq(loaded.new_instance().execute(), Err(expected))
+    assert_eq(actual, expected)
   }
 }
