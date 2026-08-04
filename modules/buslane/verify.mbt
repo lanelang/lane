@@ -129,6 +129,7 @@ pub(all) enum VerifyDiagnosticKind {
   DuplicateAlternative
   NonExhaustiveMatch
   InvalidCharLiteral(Int)
+  InvalidMetadataIdentity(MetadataIdentityError)
 } derive(Debug, Eq)
 
 ///|
@@ -440,6 +441,9 @@ fn VerifyContext::canonicalize_effect(
 
 ///|
 fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
+  for error in self.program.metadata.identity_errors() {
+    self.report(InvalidMetadataIdentity(error))
+  }
   for index, type_info in self.program.metadata.types {
     self.within(Metadata(Type({ index, }, type_info.name)), () => {
       for parameter in type_info.parameters {

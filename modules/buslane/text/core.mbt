@@ -29,12 +29,11 @@ pub fn parse_program_text(text : String) -> Result[@buslane.Program, String] {
     let (token, loc) = item
     (token, loc, loc)
   })
-  let program = buslane_program(yacc_tokens) catch {
+  buslane_program(yacc_tokens) catch {
     UnexpectedEndOfInput(_, _) => return Err("unexpected end of Buslane text")
     UnexpectedToken(token, _, _) =>
       return Err("unexpected Buslane text token " + token_label(token))
   }
-  Ok(program)
 }
 
 ///|

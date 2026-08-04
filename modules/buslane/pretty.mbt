@@ -739,6 +739,29 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
     DuplicateAlternative => text("duplicate_alternative")
     NonExhaustiveMatch => text("non_exhaustive_match")
     InvalidCharLiteral(value) => text("invalid_char_literal \{value}")
+    InvalidMetadataIdentity(error) => error.pretty()
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for MetadataIdentityError with fn pretty(
+  error : MetadataIdentityError,
+) {
+  match error {
+    DuplicateUnique(unique) =>
+      text("duplicate_metadata_unique unique#\{unique.value}")
+    InvalidNextUnique(next_unique~, maximum_unique~) => {
+      let maximum_text = match maximum_unique {
+        Some(maximum) => maximum.to_string()
+        None => "none"
+      }
+      text("invalid_next_unique") +
+      space +
+      braced_block([
+        text("next_unique \{next_unique}"),
+        text("maximum_unique " + maximum_text),
+      ])
+    }
   }
 }
 

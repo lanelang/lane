@@ -44,31 +44,114 @@ fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
 fn make_metadata(
   next_unique : Int,
   declarations : Array[MetadataDeclaration],
-) -> MetadataRegistry {
-  let types : Array[TypeInfo] = []
-  let type_parameters : Array[TypeParameterInfo] = []
-  let values : Array[ValueInfo] = []
-  let data_constructors : Array[DataConInfo] = []
-  let effects = []
-  let operations = []
-  for declaration in declarations {
-    match declaration {
-      TypeInfoDecl(id, info) => set_at(types, id.index, info)
-      TypeParameterInfoDecl(id, info) => set_at(type_parameters, id.index, info)
-      ValueInfoDecl(id, info) => set_at(values, id.index, info)
-      DataConInfoDecl(id, info) => set_at(data_constructors, id.index, info)
-      EffectInfoDecl(id, info) => set_at(effects, id.index, info)
-      OperationInfoDecl(id, info) => set_at(operations, id.index, info)
-    }
+) -> Result[MetadataRegistry, String] {
+  let types = collect_metadata_table(
+    declarations,
+    "type",
+    index => "type#\{index}",
+    declaration => {
+      match declaration {
+        TypeInfoDecl(id, info) => Some((id.index, info))
+        _ => None
+      }
+    },
+  )
+  let type_parameters = collect_metadata_table(
+    declarations,
+    "type_parameter",
+    index => "tparam#\{index}",
+    declaration => {
+      match declaration {
+        TypeParameterInfoDecl(id, info) => Some((id.index, info))
+        _ => None
+      }
+    },
+  )
+  let values = collect_metadata_table(
+    declarations,
+    "value",
+    index => "value#\{index}",
+    declaration => {
+      match declaration {
+        ValueInfoDecl(id, info) => Some((id.index, info))
+        _ => None
+      }
+    },
+  )
+  let data_constructors = collect_metadata_table(
+    declarations,
+    "data_constructor",
+    index => "datacon#\{index}",
+    declaration => {
+      match declaration {
+        DataConInfoDecl(id, info) => Some((id.index, info))
+        _ => None
+      }
+    },
+  )
+  let effects = collect_metadata_table(
+    declarations,
+    "effect",
+    index => "effect#\{index}",
+    declaration => {
+      match declaration {
+        EffectInfoDecl(id, info) => Some((id.index, info))
+        _ => None
+      }
+    },
+  )
+  let operations = collect_metadata_table(
+    declarations,
+    "operation",
+    index => "operation#\{index}",
+    declaration => {
+      match declaration {
+        OperationInfoDecl(id, info) => Some((id.index, info))
+        _ => None
+      }
+    },
+  )
+  let registry = match
+    (types, type_parameters, values, data_constructors, effects, operations) {
+    (
+      Ok(types),
+      Ok(type_parameters),
+      Ok(values),
+      Ok(data_constructors),
+      Ok(effects),
+      Ok(operations),
+    ) =>
+      MetadataRegistry::{
+        next_unique,
+        types,
+        type_parameters,
+        values,
+        data_constructors,
+        effects,
+        operations,
+      }
+    (Err(message), _, _, _, _, _)
+    | (_, Err(message), _, _, _, _)
+    | (_, _, Err(message), _, _, _)
+    | (_, _, _, Err(message), _, _)
+    | (_, _, _, _, Err(message), _)
+    | (_, _, _, _, _, Err(message)) => return Err(message)
   }
-  {
-    next_unique,
-    types,
-    type_parameters,
-    values,
-    data_constructors,
-    effects,
-    operations,
+  match registry.identity_errors().get(0) {
+    Some(DuplicateUnique(unique)) =>
+      Err("duplicate metadata name unique#\{unique.value}")
+    Some(InvalidNextUnique(next_unique~, maximum_unique~)) =>
+      if next_unique < 0 {
+        Err("next_unique#\{next_unique} must be non-negative")
+      } else {
+        guard maximum_unique is Some(maximum) else {
+          return Err("next_unique#\{next_unique} is invalid")
+        }
+        Err(
+          "next_unique#\{next_unique} must be greater than used unique#\{maximum}",
+        )
+      }
+    None => Ok(registry)
   }
 }
 
@@ -88,11 +171,39 @@ fn parsed_name(
 }
 
 ///|
-fn[T] set_at(items : Array[T], index : Int, value : T) -> Unit {
-  while items.length() <= index {
-    items.push(value)
+fn[T] collect_metadata_table(
+  declarations : Array[MetadataDeclaration],
+  table_name : String,
+  format_id : (Int) -> String,
+  select : (MetadataDeclaration) -> (Int, T)?,
+) -> Result[Array[T], String] {
+  let entries : Array[(Int, T)] = []
+  for declaration in declarations {
+    if select(declaration) is Some((index, value)) {
+      if index < 0 {
+        return Err("negative metadata \{table_name} id \{format_id(index)}")
+      }
+      entries.push((index, value))
+    }
   }
-  items[index] = value
+  entries.sort_by((left, right) => Int::compare(left.0, right.0))
+  for index in 1..<entries.length() {
+    if entries[index - 1].0 == entries[index].0 {
+      return Err(
+        "duplicate metadata \{table_name} id \{format_id(entries[index].0)}",
+      )
+    }
+  }
+  let items = []
+  for expected, entry in entries {
+    if entry.0 != expected {
+      return Err(
+        "sparse metadata \{table_name} table: missing \{format_id(expected)}",
+      )
+    }
+    items.push(entry.1)
+  }
+  Ok(items)
 }
 
 ///|

@@ -7,7 +7,7 @@ import {
 }
 
 // Values
-pub fn buslane_program(Array[(Token, Unit, Unit)], initial_pos? : Unit) -> @buslane.Program raise ParseError
+pub fn buslane_program(Array[(Token, Unit, Unit)], initial_pos? : Unit) -> Result[@buslane.Program, String] raise ParseError
 
 pub fn buslane_type(Array[(Token, Unit, Unit)], initial_pos? : Unit) -> @buslane.Type raise ParseError
 

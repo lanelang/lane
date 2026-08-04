@@ -73,9 +73,12 @@
 
 %%
 
-buslane_program -> Program
+buslane_program -> Result[Program, String]
   : "buslane" "{" metadata top_terms "}" EOF {
-    { metadata: $3, terms: $4 }
+    match $3 {
+      Ok(metadata) => Ok({ metadata, terms: $4 })
+      Err(message) => Err(message)
+    }
   }
   ;
 
@@ -83,7 +86,7 @@ buslane_type -> Type
   : type EOF { $1 }
   ;
 
-metadata -> MetadataRegistry
+metadata -> Result[MetadataRegistry, String]
   : "metadata" "{" NEXT_UNIQUE ";" metadata_declarations "}" {
     make_metadata($3, $5)
   }

@@ -241,6 +241,12 @@ pub(all) enum MetadataAnchor {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for MetadataAnchor
 
+pub(all) enum MetadataIdentityError {
+  DuplicateUnique(BuslaneUnique)
+  InvalidNextUnique(next_unique~ : Int, maximum_unique~ : Int?)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for MetadataIdentityError
+
 pub(all) struct MetadataRegistry {
   mut next_unique : Int
   types : Array[TypeInfo]
@@ -263,6 +269,7 @@ pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
 pub fn MetadataRegistry::effect_is_subeffect_of(Self, Effect, Effect) -> Bool raise TypeNormalizationError
 pub fn MetadataRegistry::effect_term_is_algebraic(Self, Effect) -> Bool
 pub fn MetadataRegistry::effects_definitionally_equal(Self, Effect, Effect) -> Bool raise TypeNormalizationError
+pub fn MetadataRegistry::identity_errors(Self) -> Array[MetadataIdentityError]
 pub fn MetadataRegistry::operation_info(Self, OperationId) -> OperationInfo?
 pub fn MetadataRegistry::snapshot(Self) -> Self
 pub fn MetadataRegistry::type_info(Self, TypeId) -> TypeInfo?
@@ -468,6 +475,7 @@ pub(all) enum VerifyDiagnosticKind {
   DuplicateAlternative
   NonExhaustiveMatch
   InvalidCharLiteral(Int)
+  InvalidMetadataIdentity(MetadataIdentityError)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for VerifyDiagnosticKind
 

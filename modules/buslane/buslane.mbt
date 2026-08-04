@@ -195,6 +195,12 @@ pub(all) struct MetadataRegistry {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum MetadataIdentityError {
+  DuplicateUnique(BuslaneUnique)
+  InvalidNextUnique(next_unique~ : Int, maximum_unique~ : Int?)
+} derive(Debug, Eq)
+
+///|
 pub(all) struct Program {
   metadata : MetadataRegistry
   terms : Array[TopTerm]
@@ -328,6 +334,53 @@ pub fn MetadataRegistry::snapshot(self : MetadataRegistry) -> MetadataRegistry {
     effects: self.effects.copy(),
     operations: self.operations.copy(),
   }
+}
+
+///|
+/// Returns violations of the registry's program-wide name allocation
+/// invariant.
+pub fn MetadataRegistry::identity_errors(
+  self : MetadataRegistry,
+) -> Array[MetadataIdentityError] {
+  let seen : Map[Int, Unit] = Map([])
+  let errors = []
+  let mut maximum_unique : Int? = None
+  let inspect_name = fn(name : BuslaneName) {
+    if seen.get(name.unique.value) is Some(_) {
+      errors.push(DuplicateUnique(name.unique))
+    } else {
+      seen[name.unique.value] = ()
+    }
+    maximum_unique = match maximum_unique {
+      None => Some(name.unique.value)
+      Some(maximum) => Some(maximum.max(name.unique.value))
+    }
+  }
+  for info in self.types {
+    inspect_name(info.name)
+  }
+  for info in self.type_parameters {
+    inspect_name(info.name)
+  }
+  for info in self.values {
+    inspect_name(info.name)
+  }
+  for info in self.data_constructors {
+    inspect_name(info.name)
+  }
+  for info in self.effects {
+    inspect_name(info.name)
+  }
+  for info in self.operations {
+    inspect_name(info.name)
+  }
+  if self.next_unique < 0 ||
+    maximum_unique.map(maximum => self.next_unique <= maximum).unwrap_or(false) {
+    errors.push(
+      InvalidNextUnique(next_unique=self.next_unique, maximum_unique~),
+    )
+  }
+  errors
 }
 
 ///|

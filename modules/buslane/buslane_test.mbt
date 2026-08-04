@@ -64,6 +64,93 @@ test "verify buslane rejects invalid Char literals" {
 }
 
 ///|
+test "verify buslane rejects duplicate metadata name uniques" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let type_parameter = metadata.define_type_parameter("T", Type)
+  let type_id = metadata.define_type("Type", [type_parameter])
+  let data_constructor = metadata.define_data_constructor(
+    "constructor",
+    type_id,
+    [],
+    [],
+  )
+  let value_id = metadata.define_value("value", Value, Primitive(Unit))
+  let effect = metadata.define_effect("Effect", [])
+  let operation = metadata.define_operation(
+    "operation",
+    effect,
+    [],
+    [],
+    Primitive(Unit),
+  )
+  let type_info = metadata.type_info(type_id).unwrap()
+  let unique = type_info.name.unique
+  let duplicate = fn(name : BuslaneName) { { ..name, unique, } }
+  let type_parameter_info = metadata
+    .type_parameter_info(type_parameter)
+    .unwrap()
+  metadata.type_parameters[type_parameter.index] = {
+    ..type_parameter_info,
+    name: duplicate(type_parameter_info.name),
+  }
+  let data_constructor_info = metadata
+    .data_constructor_info(data_constructor)
+    .unwrap()
+  metadata.data_constructors[data_constructor.index] = {
+    ..data_constructor_info,
+    name: duplicate(data_constructor_info.name),
+  }
+  let value_info = metadata.value_info(value_id).unwrap()
+  metadata.values[value_id.index] = {
+    ..value_info,
+    name: duplicate(value_info.name),
+  }
+  let effect_info = metadata.effect_info(effect).unwrap()
+  metadata.effects[effect.index] = {
+    ..effect_info,
+    name: duplicate(effect_info.name),
+  }
+  let operation_info = metadata.operation_info(operation).unwrap()
+  metadata.operations[operation.index] = {
+    ..operation_info,
+    name: duplicate(operation_info.name),
+  }
+  debug_inspect(
+    diagnostic_kinds(verify_program({ metadata, terms: [] })),
+    content=(
+      #|[
+      #|  InvalidMetadataIdentity(DuplicateUnique({ value: 1 })),
+      #|  InvalidMetadataIdentity(DuplicateUnique({ value: 1 })),
+      #|  InvalidMetadataIdentity(DuplicateUnique({ value: 1 })),
+      #|  InvalidMetadataIdentity(DuplicateUnique({ value: 1 })),
+      #|  InvalidMetadataIdentity(DuplicateUnique({ value: 1 })),
+      #|]
+    ),
+  )
+}
+
+///|
+test "verify buslane rejects invalid next unique" {
+  let negative = MetadataRegistry::MetadataRegistry()
+  negative.next_unique = -1
+  let repeated = MetadataRegistry::MetadataRegistry()
+  ignore(repeated.define_value("value", Value, Primitive(Unit)))
+  repeated.next_unique = 0
+  debug_inspect(
+    [
+      diagnostic_kinds(verify_program({ metadata: negative, terms: [] })),
+      diagnostic_kinds(verify_program({ metadata: repeated, terms: [] })),
+    ],
+    content=(
+      #|[
+      #|  [InvalidMetadataIdentity(InvalidNextUnique(next_unique=-1, maximum_unique=None))],
+      #|  [InvalidMetadataIdentity(InvalidNextUnique(next_unique=0, maximum_unique=Some(0)))],
+      #|]
+    ),
+  )
+}
+
+///|
 test "buslane metadata owns nominal data shape" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let option_param = metadata.define_type_parameter("T", Type)

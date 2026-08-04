@@ -270,6 +270,92 @@ test "buslane text reads a literal's pieces and refuses an unusable identity" {
 }
 
 ///|
+test "canonical text rejects duplicate and sparse metadata ids" {
+  let cases = [
+    (
+      "buslane { metadata { next_unique#2; type type#0 = \"A\"#0 {}; type type#0 = \"B\"#1 {}; } }",
+      "duplicate metadata type id type#0",
+    ),
+    (
+      "buslane { metadata { next_unique#1; type type#1 = \"A\"#0 {}; } }", "sparse metadata type table: missing type#0",
+    ),
+    (
+      "buslane { metadata { next_unique#2; type_parameter tparam#0 = \"A\"#0 : Type; type_parameter tparam#0 = \"B\"#1 : Type; } }",
+      "duplicate metadata type_parameter id tparam#0",
+    ),
+    (
+      "buslane { metadata { next_unique#1; type_parameter tparam#1 = \"A\"#0 : Type; } }",
+      "sparse metadata type_parameter table: missing tparam#0",
+    ),
+    (
+      "buslane { metadata { next_unique#2; datacon datacon#0 = \"A\"#0() : type#0; datacon datacon#0 = \"B\"#1() : type#0; } }",
+      "duplicate metadata data_constructor id datacon#0",
+    ),
+    (
+      "buslane { metadata { next_unique#1; datacon datacon#1 = \"A\"#0() : type#0; } }",
+      "sparse metadata data_constructor table: missing datacon#0",
+    ),
+    (
+      "buslane { metadata { next_unique#2; value value#0 = \"a\"#0 value : Unit; value value#0 = \"b\"#1 value : Unit; } }",
+      "duplicate metadata value id value#0",
+    ),
+    (
+      "buslane { metadata { next_unique#1; value value#1 = \"a\"#0 value : Unit; } }",
+      "sparse metadata value table: missing value#0",
+    ),
+    (
+      "buslane { metadata { next_unique#2; effect effect#0 = \"A\"#0 {}; effect effect#0 = \"B\"#1 {}; } }",
+      "duplicate metadata effect id effect#0",
+    ),
+    (
+      "buslane { metadata { next_unique#1; effect effect#1 = \"A\"#0 {}; } }", "sparse metadata effect table: missing effect#0",
+    ),
+    (
+      "buslane { metadata { next_unique#2; operation operation#0 = \"a\"#0() -> Unit : effect#0; operation operation#0 = \"b\"#1() -> Unit : effect#0; } }",
+      "duplicate metadata operation id operation#0",
+    ),
+    (
+      "buslane { metadata { next_unique#1; operation operation#1 = \"a\"#0() -> Unit : effect#0; } }",
+      "sparse metadata operation table: missing operation#0",
+    ),
+  ]
+  for case in cases {
+    let (text, expected) = case
+    assert_eq(parse_program_text(text), Err(expected))
+  }
+}
+
+///|
+test "canonical text allocator remains fresh after parse and verify" {
+  let duplicate_unique_text = "buslane { metadata { next_unique#2; type type#0 = \"Type\"#0 {}; value value#0 = \"value\"#0 value : Unit; } }"
+  assert_eq(
+    parse_program_text(duplicate_unique_text),
+    Err("duplicate metadata name unique#0"),
+  )
+  let unsafe_text = "buslane { metadata { next_unique#0; value value#0 = \"existing\"#0 value : Unit; } }"
+  assert_eq(
+    parse_program_text(unsafe_text),
+    Err("next_unique#0 must be greater than used unique#0"),
+  )
+  let safe_text = "buslane { metadata { next_unique#2; value value#1 = \"second\"#1 value : Unit; value value#0 = \"first\"#0 value : Unit; } }"
+  let program = match parse_program_text(safe_text) {
+    Ok(program) => program
+    Err(message) => abort(message)
+  }
+  assert_true(@buslane.verify_program(program).is_ok())
+  assert_eq(
+    [
+      program.metadata.value_info({ index: 0 }).unwrap().name.occurrence,
+      program.metadata.value_info({ index: 1 }).unwrap().name.occurrence,
+    ],
+    ["first", "second"],
+  )
+  let added = program.metadata.define_value("added", Value, Primitive(Unit))
+  assert_eq(program.metadata.value_info(added).unwrap().name.unique.value, 2)
+  assert_true(@buslane.verify_program(program).is_ok())
+}
+
+///|
 test "buslane text roundtrips Byte and Bytes primitives" {
   let type_ : @buslane.Type = Function(
     [Primitive(Byte)],

@@ -768,12 +768,7 @@ test "a function-valued eager initializer checks callable dependencies" {
       #|}
     ),
   )
-  try
-    evaluate_buslane_program(
-      program,
-      BuslaneExternalRuntime::BuslaneExternalRuntime(),
-    )
-  catch {
+  try evaluate_buslane_program(program, BuslaneExternalRuntime()) catch {
     error =>
       inspect(
         @prettyprinter.render(error, width=100),
