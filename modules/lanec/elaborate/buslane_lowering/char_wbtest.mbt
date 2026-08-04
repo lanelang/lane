@@ -32,7 +32,6 @@ test "lower Unicode character literals and patterns to Buslane" {
       #|  }
       #|  diagnostics {}
       #|}
-
     ),
   )
 }

@@ -596,7 +596,6 @@ test "elaborate lowers handler payload binders before alternatives" {
       #|  datacon#0() => 1;
       #|  _ => 2;
       #|}
-
     ),
   )
 }
@@ -999,7 +998,6 @@ test "elaborate lowers handlers into buslane handler tables" {
       #|  }
       #|  diagnostics {}
       #|}
-
     ),
   )
 }

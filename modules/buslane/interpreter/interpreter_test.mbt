@@ -572,7 +572,6 @@ test "data constructor match selects matching alternative" {
       #|  datacon#0() => 0;
       #|  datacon#1(value#2) => value#2;
       #|}
-
     ),
   )
   expect_ok(program)
