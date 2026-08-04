@@ -87,29 +87,61 @@ pub impl @prettyprinter.Pretty for PrimitiveType with fn pretty(
 
 ///|
 pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
-  match type_ {
+  type_doc(type_, at=Whole)
+}
+
+///|
+/// How much of the type grammar a position admits. The order is the grammar's
+/// own chain — a whole type admits more than a function type, which admits
+/// more than an application, which admits more than an atom — so a type
+/// written at the level its position admits always reads back as itself.
+priv enum TypeLevel {
+  Atom
+  Applied
+  Arrow
+  Whole
+} derive(Eq, Compare)
+
+///|
+fn Type::level(self : Type) -> TypeLevel {
+  match self {
+    Primitive(_) | Parameter(_) | Constructor(_) => Atom
+    Apply(_, _) => Applied
+    Function(_, _, _) => Arrow
+    TypeLambda(_, _) | Forall(_, _) => Whole
+  }
+}
+
+///|
+fn type_doc(type_ : Type, at~ : TypeLevel) -> Document {
+  let doc = match type_ {
     Primitive(primitive) => primitive.pretty()
     Parameter(parameter) => parameter.pretty()
     Constructor(type_id) => type_id.pretty()
     Apply(callee, arguments) =>
-      callee.pretty() + generic_arguments_doc(arguments)
+      type_doc(callee, at=Applied) + application_arguments_doc(arguments)
     TypeLambda(parameters, body) =>
       text("type") +
       space +
-      bracketed_inline(parameters.map(TypeParameterId::pretty)) +
+      binder_parameters_doc(parameters) +
       space +
       text("=>") +
       space +
-      body.pretty()
+      type_doc(body, at=Whole)
     Function(parameters, result, effect) =>
       function_type_doc(parameters, result, effect)
     Forall(parameters, body) =>
       text("forall") +
       space +
-      bracketed_inline(parameters.map(TypeParameterId::pretty)) +
+      binder_parameters_doc(parameters) +
       text(".") +
       space +
-      body.pretty()
+      type_doc(body, at=Whole)
+  }
+  if type_.level() > at {
+    parenthesized(doc)
+  } else {
+    doc
   }
 }
 
@@ -118,7 +150,7 @@ pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
   match effect {
     Empty => text("{}")
     Io => text("Io")
-    Singleton(id, arguments) => id.pretty() + generic_arguments_doc(arguments)
+    Singleton(id, arguments) => id.pretty() + effect_arguments_doc(arguments)
     Parameter(parameter) => parameter.pretty()
     Union(effects) => braced_inline(effects.map(Effect::pretty))
   }
@@ -305,19 +337,44 @@ pub impl @prettyprinter.Pretty for RecursiveBinding with fn pretty(
 
 ///|
 pub impl @prettyprinter.Pretty for Expr with fn pretty(expr : Expr) {
-  match expr {
+  expr_doc(expr, at=Whole)
+}
+
+///|
+/// How much of the expression grammar a position admits, mirroring the type
+/// levels: a whole expression admits a binding form, a postfix expression
+/// admits a call or a type application, an atom admits neither.
+priv enum ExprLevel {
+  Atom
+  Postfix
+  Whole
+} derive(Eq, Compare)
+
+///|
+fn Expr::level(self : Expr) -> ExprLevel {
+  match self {
+    Call(_, _) | TypeApply(_, _) => Postfix
+    Let(_, _, _) | LetRec(_, _) => Whole
+    _ => Atom
+  }
+}
+
+///|
+fn expr_doc(expr : Expr, at~ : ExprLevel) -> Document {
+  let doc = match expr {
     Ref(id) => id.pretty()
     Literal(literal) => literal.pretty()
     Function(function) => function.pretty()
     Call(callee, arguments) =>
-      callee.pretty() + parenthesized_inline(arguments.map(Expr::pretty))
+      expr_doc(callee, at=Postfix) +
+      parenthesized_inline(arguments.map(Expr::pretty))
     TypeLambda(parameters, body) =>
       text("fn") +
-      type_parameters_doc(parameters) +
+      binder_parameters_doc(parameters) +
       space +
       braced_block([body.pretty()])
     TypeApply(callee, arguments) =>
-      callee.pretty() + generic_arguments_doc(arguments)
+      expr_doc(callee, at=Postfix) + application_arguments_doc(arguments)
     Construct(construct) => construct.pretty()
     Let(id, initializer, body) =>
       text("let") +
@@ -343,6 +400,11 @@ pub impl @prettyprinter.Pretty for Expr with fn pretty(expr : Expr) {
     Perform(perform) => perform.pretty()
     Handle(handle) => handle.pretty()
     Resume(id) => text("resume") + space + id.pretty()
+  }
+  if expr.level() > at {
+    parenthesized(doc)
+  } else {
+    doc
   }
 }
 
@@ -586,6 +648,7 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
         text("parameter ") + parameter.pretty(),
         text("argument ") + argument.pretty(),
       ])
+    EmptyEffectUnion => text("empty_effect_union")
     ExpectedTypeArgument(effect) =>
       text("expected_type_argument") + space + effect.pretty()
     ExpectedEffectArgument(type_) =>
@@ -626,7 +689,7 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
 }
 
 ///|
-fn generic_arguments_doc(arguments : Array[GenericArgument]) -> Document {
+fn effect_arguments_doc(arguments : Array[GenericArgument]) -> Document {
   if arguments.is_empty() {
     empty
   } else {
@@ -635,24 +698,19 @@ fn generic_arguments_doc(arguments : Array[GenericArgument]) -> Document {
 }
 
 ///|
-/// A function-typed result is parenthesized so a latent effect always attaches
-/// to exactly one arrow: `(A) -> (B) -> C ! E` would otherwise not say which
-/// arrow performs `E`.
+/// A result is written at the application level, so a latent effect always
+/// attaches to exactly one arrow: `(A) -> (B) -> C ! E` would otherwise not
+/// say which arrow performs `E`, and a binder would swallow what follows it.
 fn function_type_doc(
   parameters : Array[Type],
   result : Type,
   effect : Effect,
 ) -> Document {
-  let result_doc = if result is Function(_, _, _) {
-    surround(char('('), char(')'), result.pretty())
-  } else {
-    result.pretty()
-  }
   let base = parenthesized_inline(parameters.map(Type::pretty)) +
     space +
     text("->") +
     space +
-    result_doc
+    type_doc(result, at=Applied)
   match effect {
     Empty => base
     _ => base + space + text("!") + space + effect.pretty()
@@ -660,12 +718,26 @@ fn function_type_doc(
 }
 
 ///|
+/// A list that is part of a construct always writes its brackets, because
+/// dropping them would leave a different construct behind; a list that only
+/// adorns one writes them when it has members. `Apply` and the binders are the
+/// first kind, an entity's own parameters the second.
 fn type_parameters_doc(parameters : Array[TypeParameterId]) -> Document {
   if parameters.is_empty() {
     empty
   } else {
-    bracketed_inline(parameters.map(TypeParameterId::pretty))
+    binder_parameters_doc(parameters)
   }
+}
+
+///|
+fn binder_parameters_doc(parameters : Array[TypeParameterId]) -> Document {
+  bracketed_inline(parameters.map(TypeParameterId::pretty))
+}
+
+///|
+fn application_arguments_doc(arguments : Array[GenericArgument]) -> Document {
+  bracketed_inline(arguments.map(GenericArgument::pretty))
 }
 
 ///|
@@ -834,7 +906,12 @@ fn alternative_pattern_doc(alternative : Alternative) -> Document {
 
 ///|
 fn parenthesized_inline(docs : Array[Document]) -> Document {
-  surround(char('('), char(')'), separate(text(",") + space, docs))
+  parenthesized(separate(text(",") + space, docs))
+}
+
+///|
+fn parenthesized(doc : Document) -> Document {
+  surround(char('('), char(')'), doc)
 }
 
 ///|
@@ -862,8 +939,52 @@ fn braced_block(docs : Array[Document]) -> Document {
 }
 
 ///|
+/// Arbitrary text is quoted, and every character a reader takes as an escape
+/// is written as one, so what a renderer emits is what a parser reads back.
 fn quoted(value : String) -> Document {
-  text("\"") + text(value) + text("\"")
+  let quoted_text = StringBuilder::new()
+  quoted_text.write_char('"')
+  for character in value.iter() {
+    match text_string_escape(character) {
+      Some(escape) => {
+        quoted_text.write_char('\\')
+        quoted_text.write_char(escape)
+      }
+      None => quoted_text.write_char(character)
+    }
+  }
+  quoted_text.write_char('"')
+  text(quoted_text.to_string())
+}
+
+///|
+/// The one table relating a character to the escape that stands for it inside
+/// quoted Buslane text. The renderer reads it forwards and a reader reads it
+/// backwards, so a spelling cannot be added to one direction alone.
+fn text_string_escapes() -> FixedArray[(Char, Char)] {
+  [('\\', '\\'), ('"', '"'), ('\n', 'n'), ('\r', 'r'), ('\t', 't')]
+}
+
+///|
+/// The escape a character is written as, or `None` when it stands for itself.
+pub fn text_string_escape(character : Char) -> Char? {
+  for pair in text_string_escapes() {
+    if pair.0 == character {
+      return Some(pair.1)
+    }
+  }
+  None
+}
+
+///|
+/// The character an escape stands for, reading the same table backwards.
+pub fn text_string_unescape(escape : Char) -> Char? {
+  for pair in text_string_escapes() {
+    if pair.1 == escape {
+      return Some(pair.0)
+    }
+  }
+  None
 }
 
 ///|

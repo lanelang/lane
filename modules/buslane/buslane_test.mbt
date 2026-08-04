@@ -1947,3 +1947,20 @@ test "a type argument in an effect position is a category mismatch" {
   }
   assert_eq(diagnostic_kinds(verify), [ExpectedEffectArgument(Parameter(row))])
 }
+
+///|
+/// A union is a row of members and the empty row is `Empty`. Admitting both
+/// would give one effect two encodings that every consumer would have to
+/// relate — the canonical form already collapses them, and the text notation,
+/// which spells a row by its members, cannot tell an empty one from `Empty`.
+test "an empty effect union is not an effect" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let _ = metadata.define_value(
+    "pure",
+    Value,
+    Function([], Primitive(Unit), Union([])),
+  )
+  assert_eq(diagnostic_kinds(verify_program({ metadata, terms: [] })), [
+    EmptyEffectUnion,
+  ])
+}

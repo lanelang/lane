@@ -7,6 +7,10 @@ import {
 }
 
 // Values
+pub fn text_string_escape(Char) -> Char?
+
+pub fn text_string_unescape(Char) -> Char?
+
 pub fn verify_program(Program) -> VerifyResult
 
 // Errors
@@ -419,6 +423,7 @@ pub(all) enum VerifyDiagnosticKind {
   ExpectedEffectArgument(Type)
   InvalidBinderKind(value~ : ValueId, actual~ : ValueKind)
   EffectFlavorMismatch(parameter~ : TypeParameterId, argument~ : Effect)
+  EmptyEffectUnion
   TypeNormalizationFailure(TypeNormalizationError)
   TypeSubstitutionFailure(TypeSubstitutionError)
   TypeMismatch(expected~ : Type, actual~ : Type)

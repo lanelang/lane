@@ -322,14 +322,13 @@ fn read_string_literal(
       guard index + 1 < input.length() else {
         lexer_fail("unterminated string escape")
       }
-      let escaped = input[index + 1]
-      match escaped {
-        b'"' => output.push(b'"')
-        b'\\' => output.push(b'\\')
-        b'n' => output.push(b'\n')
-        b'r' => output.push(b'\r')
-        b't' => output.push(b'\t')
-        _ => lexer_fail("invalid string escape")
+      // The escape table lives with the renderer that writes it, so the two
+      // directions cannot drift apart. Every escape is ASCII, so one byte
+      // names one.
+      let escaped = input[index + 1].to_int().unsafe_to_char()
+      match @buslane.text_string_unescape(escaped) {
+        Some(character) => output.push(character.to_int().to_byte())
+        None => lexer_fail("invalid string escape")
       }
       index = index + 2
     } else {

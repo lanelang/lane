@@ -81,6 +81,7 @@ pub(all) enum VerifyDiagnosticKind {
   ExpectedEffectArgument(Type)
   InvalidBinderKind(value~ : ValueId, actual~ : ValueKind)
   EffectFlavorMismatch(parameter~ : TypeParameterId, argument~ : Effect)
+  EmptyEffectUnion
   TypeNormalizationFailure(TypeNormalizationError)
   TypeSubstitutionFailure(TypeSubstitutionError)
   TypeMismatch(expected~ : Type, actual~ : Type)
@@ -1720,10 +1721,18 @@ fn VerifyContext::verify_effect(
     Singleton(id, arguments) =>
       ignore(self.verify_effect_singleton(id, arguments, scope))
     Parameter(parameter) => self.verify_effect_parameter(parameter, scope)
-    Union(effects) =>
+    Union(effects) => {
+      // A union is a row of members, and the empty row is `Empty`. Admitting
+      // both would give one effect two encodings, which every consumer would
+      // then have to relate — including the text notation, which spells a row
+      // by its members and so cannot tell an empty one from `Empty`.
+      if effects.is_empty() {
+        self.report(EmptyEffectUnion)
+      }
       for nested in effects {
         self.verify_effect(nested, scope)
       }
+    }
   }
 }
 
