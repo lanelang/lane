@@ -59,3 +59,26 @@ test "an explicit generic application with an alias still checks" {
     abort("expected the explicit generic application to check")
   }
 }
+
+///|
+/// The discriminating case: `Swap` reorders its parameters, so it is not an
+/// eta-redex and only beta can reduce it. Without this the fix could be an
+/// eta rule that happens to cover the aliases whose bodies are eta-expansions.
+test "a reordering alias instantiates a higher-kinded parameter" {
+  let source =
+    #|module Test
+    #|pub struct Pair[A, B] {
+    #|  first : A
+    #|  second : B
+    #|}
+    #|pub type Swap[A, B] = Pair[B, A]
+    #|pub struct Wrapper[F : [Type, Type] -> Type] {
+    #|  held : F[I64, Bool]
+    #|}
+    #|pub let held : Wrapper[Swap] = Wrapper::{
+    #|  held: Pair::{ first: true, second: 5 },
+    #|}
+  guard check_source(source) is Succeeded(_, _) else {
+    abort("expected the reordering alias to instantiate the parameter")
+  }
+}

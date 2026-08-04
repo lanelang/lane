@@ -158,6 +158,22 @@ fn GenericArgumentInference::record_missing_kind_metadata(
 }
 
 ///|
+/// Returns the type with its head reduced, or the type unchanged when
+/// type-level computation cannot finish; the failure is recorded so inference
+/// reports it rather than silently matching against an unreduced form.
+fn GenericArgumentInference::normalized(
+  self : GenericArgumentInference,
+  type_ : @types.Type,
+) -> @types.Type {
+  type_.try_head_normalize() catch {
+    error => {
+      self.record_computation_error(error)
+      type_
+    }
+  }
+}
+
+///|
 fn GenericArgumentInference::types_equal(
   self : GenericArgumentInference,
   left : @types.Type,
@@ -236,6 +252,25 @@ fn GenericArgumentInference::inferred_argument(
       }
     None => provisional_exact
   }
+}
+
+///|
+/// The type lambda a parameter is exactly bound to, if it is bound to one.
+fn GenericArgumentInference::exact_type_lambda_binding(
+  self : GenericArgumentInference,
+  parameter : TypeParameterId,
+) -> @types.Type? {
+  for binding in self.bindings {
+    if binding.parameter.id == parameter &&
+      binding.constraint
+      is ExactConstraint(
+        argument=TypeArgument(TypeLambda(_, _) as bound),
+        is_provisional=false
+      ) {
+      return Some(bound)
+    }
+  }
+  None
 }
 
 ///|
@@ -501,12 +536,48 @@ fn GenericArgumentInference::type_parameter_kind(
 }
 
 ///|
+/// Collects constraints from one template against one actual type.
+///
+/// Both sides are normalized here and nowhere below, because the structural
+/// match recurses: a type alias is a type lambda, so an expected type that
+/// mentions one carries a redex whose callee no nominal constructor can
+/// equal, and normalizing per level would renormalize every subtree.
 fn GenericArgumentInference::collect(
   self : GenericArgumentInference,
   template : @types.Type,
   actual : @types.Type,
   include_effects? : Bool = true,
 ) -> Bool {
+  self.collect_normalized(
+    self.normalized(template),
+    self.normalized(actual),
+    include_effects~,
+  )
+}
+
+///|
+fn GenericArgumentInference::collect_normalized(
+  self : GenericArgumentInference,
+  template : @types.Type,
+  actual : @types.Type,
+  include_effects? : Bool = true,
+) -> Bool {
+  // An application headed by a parameter already bound to a type lambda is
+  // matched against what it denotes, never used to solve for that parameter
+  // again. Decomposing `F[I64]` against `Box[I64]` would read `F = Box`,
+  // which is one of several solutions — higher-order matching this language
+  // does not do — and it conflicts with the binding the expected type gave,
+  // which is the type lambda an alias expands to.
+  //
+  // Only a type-lambda binding qualifies: any other binding leaves the head a
+  // parameter after substitution, and reducing would not make progress.
+  if template is Apply(Parameter(callee), _) &&
+    self.exact_type_lambda_binding(callee) is Some(_) {
+    let reduced = self.normalized(
+      template.substitute(self.exact_substitution()),
+    )
+    return self.collect_normalized(reduced, actual, include_effects~)
+  }
   // Type-argument collection implements the local rule:
   //
   //   collect(T, Actual) = Sub
@@ -527,7 +598,11 @@ fn GenericArgumentInference::collect(
       Apply(template_callee, template_arguments),
       Apply(actual_callee, actual_arguments),
     ) => {
-      if !self.collect(template_callee, actual_callee, include_effects~) {
+      if !self.collect_normalized(
+          template_callee,
+          actual_callee,
+          include_effects~,
+        ) {
         return false
       }
       self.collect_generic_array(
@@ -541,7 +616,7 @@ fn GenericArgumentInference::collect(
       Function(right_parameters, right_result, right_effect),
     ) =>
       self.collect_array(left_parameters, right_parameters, include_effects~) &&
-      self.collect(left_result, right_result, include_effects~) &&
+      self.collect_normalized(left_result, right_result, include_effects~) &&
       (
         !include_effects ||
         self.collect_effect_upper_bound(left_effect, right_effect)
@@ -993,7 +1068,11 @@ fn GenericArgumentInference::collect_array(
     return true
   }
   for index in 0..<templates.length() {
-    if !self.collect(templates[index], actuals[index], include_effects~) {
+    if !self.collect_normalized(
+        templates[index],
+        actuals[index],
+        include_effects~,
+      ) {
       return false
     }
   }
@@ -1013,7 +1092,7 @@ fn GenericArgumentInference::collect_generic_array(
   for index in 0..<templates.length() {
     match (templates[index], actuals[index]) {
       (TypeArgument(template), TypeArgument(actual)) =>
-        if !self.collect(template, actual, include_effects~) {
+        if !self.collect_normalized(template, actual, include_effects~) {
           return false
         }
       (EffectArgument(template), EffectArgument(actual)) =>

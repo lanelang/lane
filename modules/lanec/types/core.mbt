@@ -679,7 +679,7 @@ fn Type::normalize_with_fuel(
       }
     }
     TypeLambda(parameters, body) =>
-      eta_reduce(parameters, body.normalize_with_fuel(fuel - 1))
+      TypeLambda(parameters, body.normalize_with_fuel(fuel - 1))
     Function(parameters, result, effect) =>
       Function(
         parameters.map(parameter => parameter.normalize_with_fuel(fuel - 1)),
@@ -692,73 +692,35 @@ fn Type::normalize_with_fuel(
 }
 
 ///|
-/// Reduces `type [A..] => f[A..]` to `f`.
+/// Reduces only the redexes at the head, leaving subterms untouched.
 ///
-/// A parameterized type alias is written as the eta-expansion of its body —
-/// `type MyBox[A] = Box[A]` is how the language spells an alias for `Box` —
-/// so without this rule the alias and the constructor it names are two
-/// distinct normal forms, and every structural comparison downstream reads
-/// them as different types.
-fn eta_reduce(parameters : Array[TypeParameter], body : Type) -> Type {
-  guard body is Apply(callee, arguments) else {
-    return TypeLambda(parameters, body)
-  }
-  guard parameters.length() == arguments.length() else {
-    return TypeLambda(parameters, body)
-  }
-  for index, parameter in parameters {
-    guard arguments[index] is TypeArgument(Parameter(applied)) &&
-      applied == parameter.id else {
-      return TypeLambda(parameters, body)
-    }
-  }
-  // The callee must not mention the binders it would lose.
-  for parameter in parameters {
-    if callee.mentions_parameter(parameter.id) {
-      return TypeLambda(parameters, body)
-    }
-  }
-  callee
+/// Structural matching needs to know what a type *is* at each level, not what
+/// its subterms reduce to; the match recurses and each level reduces its own
+/// head. Full normalization at every level would renormalize every subtree,
+/// and substitution can duplicate them.
+pub fn Type::try_head_normalize(self : Type) -> Type raise TypeComputationError {
+  self.head_normalize_with_fuel(NORMALIZATION_DEPTH_LIMIT)
 }
 
 ///|
-fn Type::mentions_parameter(self : Type, id : TypeParameterId) -> Bool {
-  match self {
-    Error | Primitive(_) | Constructor(_) => false
-    Parameter(parameter) => parameter == id
-    Apply(callee, arguments) =>
-      callee.mentions_parameter(id) ||
-      arguments.any(argument => argument.mentions_parameter(id))
-    TypeLambda(parameters, body) | Forall(parameters, body) =>
-      !parameters.any(parameter => parameter.id == id) &&
-      body.mentions_parameter(id)
-    Function(parameters, result, effect) =>
-      parameters.any(parameter => parameter.mentions_parameter(id)) ||
-      result.mentions_parameter(id) ||
-      effect.mentions_parameter(id)
+fn Type::head_normalize_with_fuel(
+  self : Type,
+  fuel : Int,
+) -> Type raise TypeComputationError {
+  if fuel <= 0 {
+    raise TypeNormalizationFuelExhausted
   }
-}
-
-///|
-fn GenericArgument::mentions_parameter(
-  self : GenericArgument,
-  id : TypeParameterId,
-) -> Bool {
-  match self {
-    TypeArgument(type_) => type_.mentions_parameter(id)
-    EffectArgument(effect) => effect.mentions_parameter(id)
+  guard self is Apply(callee, arguments) else { return self }
+  let head = callee.head_normalize_with_fuel(fuel - 1)
+  guard head is TypeLambda(parameters, body) &&
+    parameters.length() == arguments.length() else {
+    return Apply(head, arguments)
   }
-}
-
-///|
-fn Effect::mentions_parameter(self : Effect, id : TypeParameterId) -> Bool {
-  match self {
-    Empty | Io => false
-    Parameter(parameter) => parameter == id
-    Singleton(_, arguments) =>
-      arguments.any(argument => argument.mentions_parameter(id))
-    Union(effects) => effects.any(effect => effect.mentions_parameter(id))
+  let substitution = TypeSubstitution::TypeSubstitution()
+  for index in 0..<parameters.length() {
+    substitution.insert_argument(parameters[index].id, arguments[index])
   }
+  body.substitute(substitution).head_normalize_with_fuel(fuel - 1)
 }
 
 ///|
