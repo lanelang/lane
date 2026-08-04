@@ -84,6 +84,8 @@ pub(all) enum Intrinsic {
   F32ToI64
   F32ToF64
   F64ToF32
+  F32ToString
+  F64ToString
   CharToI32
   I32ToChar
   StringToBytes
@@ -147,6 +149,8 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
     "%f32_to_i64" => Some(F32ToI64)
     "%f32_to_f64" => Some(F32ToF64)
     "%f64_to_f32" => Some(F64ToF32)
+    "%f32_to_string" => Some(F32ToString)
+    "%f64_to_string" => Some(F64ToString)
     "%char_to_i32" => Some(CharToI32)
     "%i32_to_char" => Some(I32ToChar)
     "%string_to_bytes" => Some(StringToBytes)
@@ -212,6 +216,8 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
     F32ToI64 => "%f32_to_i64"
     F32ToF64 => "%f32_to_f64"
     F64ToF32 => "%f64_to_f32"
+    F32ToString => "%f32_to_string"
+    F64ToString => "%f64_to_string"
     CharToI32 => "%char_to_i32"
     I32ToChar => "%i32_to_char"
     StringToBytes => "%string_to_bytes"
@@ -258,6 +264,8 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
     F32ToI64 => Function(parameters=[F32], result=I64)
     F32ToF64 => Function(parameters=[F32], result=F64)
     F64ToF32 => Function(parameters=[F64], result=F32)
+    F32ToString => Function(parameters=[F32], result=String)
+    F64ToString => Function(parameters=[F64], result=String)
     CharToI32 => Function(parameters=[Char], result=I32)
     I32ToChar => Function(parameters=[I32], result=Char)
     StringToBytes => Function(parameters=[String], result=Bytes)

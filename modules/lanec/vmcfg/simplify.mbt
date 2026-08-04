@@ -927,6 +927,10 @@ fn map_instruction_values(
       F32ToF64(transform(destination), transform(source))
     F64ToF32(destination, source) =>
       F64ToF32(transform(destination), transform(source))
+    F32ToString(destination, source) =>
+      F32ToString(transform(destination), transform(source))
+    F64ToString(destination, source) =>
+      F64ToString(transform(destination), transform(source))
     F64Add(destination, left, right) =>
       F64Add(transform(destination), transform(left), transform(right))
     F64Sub(destination, left, right) =>

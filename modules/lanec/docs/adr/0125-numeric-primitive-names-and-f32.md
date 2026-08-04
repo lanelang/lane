@@ -46,6 +46,7 @@ The complete compiler-owned numeric intrinsic surface is:
 | I64/F64 | `%i64_to_f64`, `%f64_to_i64` | IEEE conversion to F64; truncation toward zero to I64 with a finite, representable-result precondition |
 | I64/F32 | `%i64_to_f32`, `%f32_to_i64` | Round-to-nearest, ties-to-even to F32; truncation toward zero to I64 with a finite, representable-result precondition |
 | Float width | `%f32_to_f64`, `%f64_to_f32` | Exact promotion to F64; round-to-nearest, ties-to-even demotion to F32 |
+| Float text | `%f32_to_string`, `%f64_to_string` | Deterministic shortest round-tripping decimal text at the source IEEE width |
 | Byte/I64 | `%byte_to_i64`, `%i64_to_byte` | Zero extension and low-eight-bit truncation |
 
 There are no direct I32/float conversions. Library code composes the explicit width conversions when it needs them.
@@ -57,6 +58,8 @@ The precondition of float-to-I64 conversion excludes NaN, both infinities, and v
 Arithmetic uses the target IEEE width rather than widening F32 operations through F64. `+0.0` and `-0.0` compare equal, neither is less than the other, and negation changes the sign bit. Every ordered comparison with NaN is false, including equality and less-than. The `%f32_nan` and `%f64_nan` intrinsics produce NaN values, but Lane does not promise a particular NaN payload or preservation of a payload through arithmetic. Persistence and representation erasure preserve the stored bits of an existing F32 or F64 value.
 
 `%f32_to_f64` is exact. `%f64_to_f32`, `%i64_to_f32`, and F32 arithmetic may produce signed zero or infinity according to IEEE rounding; only source-literal elaboration applies the additional finite-nonzero underflow and overflow diagnostics.
+
+`%f32_to_string` and `%f64_to_string` format finite values with a deterministic Ryū-family shortest-round-trip conversion. F32 is formatted directly at binary32 width rather than after promotion to F64. The canonical special spellings are `NaN`, `inf`, and `-inf`; zero preserves its sign as `0.0` or `-0.0`; and a finite fixed-form result that would otherwise look integral keeps `.0`. LoisVM's direct interpreter, Wasm interpreter, and JIT consume the same formatter implementation.
 
 Buslane canonical text writes F64 and F32 literals as fixed-width lowercase hexadecimal IEEE bit patterns: `f64(0x0000000000000000)` and `f32(0x00000000)`. This representation round-trips signed zero, infinities, subnormals, and every NaN payload exactly. Human-oriented Buslane Pretty output remains decimal and is not a persistence format.
 

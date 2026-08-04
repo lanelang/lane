@@ -36,6 +36,8 @@ fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
     | F32ToI64(_, source)
     | F32ToF64(_, source)
     | F64ToF32(_, source)
+    | F32ToString(_, source)
+    | F64ToString(_, source)
     | F64Neg(_, source)
     | I64ToF64(_, source)
     | F64ToI64(_, source)

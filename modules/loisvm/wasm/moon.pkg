@@ -1,5 +1,6 @@
 import {
   "Milky2018/loisvm/bytecode",
+  "Milky2018/loisvm/float_format",
   "Milky2018/loisvm/runtime" @loisvm_runtime,
   "Milky2018/loisvm/wasm/compiler",
   "Milky2018/milkir",

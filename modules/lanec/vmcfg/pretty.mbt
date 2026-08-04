@@ -272,6 +272,10 @@ fn render_instruction(instruction : Instruction) -> String {
       unary_instruction("f32_to_f64", destination, source)
     F64ToF32(destination, source) =>
       unary_instruction("f64_to_f32", destination, source)
+    F32ToString(destination, source) =>
+      unary_instruction("f32_to_string", destination, source)
+    F64ToString(destination, source) =>
+      unary_instruction("f64_to_string", destination, source)
     F64Add(destination, left, right) =>
       binary_instruction("f64_add", destination, left, right)
     F64Sub(destination, left, right) =>

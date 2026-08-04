@@ -44,7 +44,10 @@ fn compile_or_raise(
     )
   }
   let host_service_count = if host_objects_enabled { 1 } else { 0 }
-  let import_count = host_service_count + imports.length()
+  let internal_imports = internal_runtime_imports(image)
+  let import_count = internal_imports.count +
+    host_service_count +
+    imports.length()
   let callable_table = plan_callable_table(image)
   let runtime_functions = runtime_function_indices(
     import_count + image.functions.length(),
@@ -61,6 +64,7 @@ fn compile_or_raise(
     host_objects_enabled,
     callable_table.table_indices,
   )
+  append_float_format_imports(wasm_module, internal_imports)
   if host_objects_enabled {
     append_host_object_release_import(wasm_module)
   }
@@ -84,6 +88,7 @@ fn compile_or_raise(
             wasm_module,
             static_image,
             runtime_functions,
+            internal_imports,
           ),
         )
       }
@@ -91,7 +96,7 @@ fn compile_or_raise(
         append_runtime_import_adapter(
           wasm_module,
           import_,
-          host_service_count + import_index,
+          internal_imports.count + host_service_count + import_index,
           runtime_functions,
         )
         import_index += 1
@@ -228,6 +233,7 @@ fn compile_body(
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
   runtime_functions : RuntimeFunctions,
+  internal_imports : InternalRuntimeImports,
 ) -> @wasm_types.FunctionCode raise WasmCompileError {
   let parameter_count = 1 +
     body.inputs.witnesses.length() +
@@ -250,6 +256,7 @@ fn compile_body(
     wasm_module,
     static_image,
     runtime_functions,
+    internal_imports,
   }
   let instructions : Array[@wasm_types.Instruction] = []
   let needs_frame_cleanup = body.slots.any(fn(slot) {

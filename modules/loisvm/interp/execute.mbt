@@ -385,6 +385,14 @@ fn ExecutionInstance::execute_instruction(
       frame.write(destination, F64(frame.f32(source).to_double()))
     F64ToF32(destination, source) =>
       frame.write(destination, F32(Float::from_double(frame.f64(source))))
+    F32ToString(destination, source) => {
+      let bytes = @utf8.encode(@float_format.format_f32(frame.f32(source)))
+      frame.write(destination, I32(self.heap.allocate_byte_sequence(bytes)))
+    }
+    F64ToString(destination, source) => {
+      let bytes = @utf8.encode(@float_format.format_f64(frame.f64(source)))
+      frame.write(destination, I32(self.heap.allocate_byte_sequence(bytes)))
+    }
     EraseI32(destination, source) => {
       let value = frame.i32(source).to_int64() & 0xFFFFFFFFL
       frame.transfer_value(destination, source, I64(value))

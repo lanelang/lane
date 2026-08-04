@@ -7,6 +7,7 @@ priv struct FunctionCompilationContext {
   wasm_module : @wasm_types.Module
   static_image : StaticImage
   runtime_functions : RuntimeFunctions
+  internal_imports : InternalRuntimeImports
 }
 
 ///|
@@ -21,6 +22,7 @@ fn FunctionCompilationContext::compile_instruction(
     self.wasm_module,
     self.static_image,
     self.runtime_functions,
+    self.internal_imports,
     instruction,
   )
 }

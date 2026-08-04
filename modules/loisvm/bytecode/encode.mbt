@@ -561,6 +561,10 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_binary_slots(0x6C, destination, source)
     UneraseF32(destination, source) =>
       self.write_binary_slots(0x6D, destination, source)
+    F32ToString(destination, source) =>
+      self.write_binary_slots(0x6E, destination, source)
+    F64ToString(destination, source) =>
+      self.write_binary_slots(0x6F, destination, source)
   }
 }
 

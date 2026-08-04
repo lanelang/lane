@@ -706,6 +706,16 @@ fn finalize_instruction(
         value_to_slot(destination),
         value_to_slot(borrow_value(remaining, source)),
       )
+    F32ToString(destination, source) =>
+      F32ToString(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
+    F64ToString(destination, source) =>
+      F64ToString(
+        value_to_slot(destination),
+        value_to_slot(borrow_value(remaining, source)),
+      )
     F64Add(destination, left, right) =>
       F64Add(
         value_to_slot(destination),
@@ -976,6 +986,8 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | F32ToI64(destination, _)
     | F32ToF64(destination, _)
     | F64ToF32(destination, _)
+    | F32ToString(destination, _)
+    | F64ToString(destination, _)
     | F64Add(destination, _, _)
     | F64Sub(destination, _, _)
     | F64Mul(destination, _, _)

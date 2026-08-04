@@ -442,7 +442,9 @@ fn FunctionLowerer::lower_intrinsic(
     | BytesEqual
     | BytesConcat
     | BytesSlice
-    | BytesIsValidUtf8 => ignore(self.image.intern_layout(ByteSequence))
+    | BytesIsValidUtf8
+    | F32ToString
+    | F64ToString => ignore(self.image.intern_layout(ByteSequence))
     _ => ()
   }
   let slots = arguments.map(fn(argument) {
@@ -482,6 +484,8 @@ fn FunctionLowerer::lower_intrinsic(
     (F32ToI64, [source]) => F32ToI64(destination, source)
     (F32ToF64, [source]) => F32ToF64(destination, source)
     (F64ToF32, [source]) => F64ToF32(destination, source)
+    (F32ToString, [source]) => F32ToString(destination, source)
+    (F64ToString, [source]) => F64ToString(destination, source)
     (I64ToF64, [source]) => I64ToF64(destination, source)
     (F64ToI64, [source]) => F64ToI64(destination, source)
     (F64Add, [left, right]) => F64Add(destination, left, right)

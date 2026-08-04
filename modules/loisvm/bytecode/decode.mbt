@@ -575,6 +575,8 @@ fn Decoder::read_instruction(
     0x6B => F64ToF32(self.read_slot_id(), self.read_slot_id())
     0x6C => EraseF32(self.read_slot_id(), self.read_slot_id())
     0x6D => UneraseF32(self.read_slot_id(), self.read_slot_id())
+    0x6E => F32ToString(self.read_slot_id(), self.read_slot_id())
+    0x6F => F64ToString(self.read_slot_id(), self.read_slot_id())
     tag => self.invalid_tag(offset~, domain="instruction", tag~)
   }
 }

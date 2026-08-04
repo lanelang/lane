@@ -313,6 +313,10 @@ fn render_instruction(instruction : Instruction) -> String {
       unary_instruction("f32_to_f64", destination, source)
     F64ToF32(destination, source) =>
       unary_instruction("f64_to_f32", destination, source)
+    F32ToString(destination, source) =>
+      unary_instruction("f32_to_string", destination, source)
+    F64ToString(destination, source) =>
+      unary_instruction("f64_to_string", destination, source)
     EraseI32(destination, source) =>
       unary_instruction("erase_i32", destination, source)
     UneraseI32(destination, source) =>

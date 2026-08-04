@@ -60,6 +60,8 @@ pub(all) enum Intrinsic {
   F32ToI64
   F32ToF64
   F64ToF32
+  F32ToString
+  F64ToString
   CharToI32
   I32ToChar
   StringToBytes

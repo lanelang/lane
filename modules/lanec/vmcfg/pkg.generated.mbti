@@ -153,6 +153,8 @@ pub(all) enum Instruction {
   F32ToI64(ValueId, ValueId)
   F32ToF64(ValueId, ValueId)
   F64ToF32(ValueId, ValueId)
+  F32ToString(ValueId, ValueId)
+  F64ToString(ValueId, ValueId)
   EraseI32(ValueId, ValueId)
   UneraseI32(ValueId, ValueId)
   EraseI64(ValueId, ValueId)

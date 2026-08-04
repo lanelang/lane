@@ -1,11 +1,13 @@
 ///|
-test "module object preserves I64 and F64 conversion intrinsics" {
+test "module object preserves numeric conversion intrinsics" {
   let compiled = compile_modules_for_test(
     (
       #|module NumericConversions
       #|
       #|pub let i64_to_f64 : (I64) -> F64 = builtin("%i64_to_f64")
       #|pub let f64_to_i64 : (F64) -> I64 = builtin("%f64_to_i64")
+      #|pub let f32_to_string : (F32) -> String = builtin("%f32_to_string")
+      #|pub let f64_to_string : (F64) -> String = builtin("%f64_to_string")
     ),
     [],
   )
@@ -22,6 +24,6 @@ test "module object preserves I64 and F64 conversion intrinsics" {
   }
   assert_eq(
     decoded.externals.builtins.map(external => external.intrinsic.name()),
-    ["%i64_to_f64", "%f64_to_i64"],
+    ["%i64_to_f64", "%f64_to_i64", "%f32_to_string", "%f64_to_string"],
   )
 }

@@ -117,6 +117,52 @@ fn LoadedImage::new_instance_or_raise(
   let runtime = @loisvm_runtime.ExecutionRuntime::new(config~)
   let host_objects = WasmHostObjects::new(runtime)
   let runtime_context = runtime.context()
+  let format_f32 : (@wasmoon_runtime.Caller, Array[@wasm_types.Value]) -> Array[
+    @wasm_types.Value,
+  ] raise @wasmoon_runtime.RuntimeError = (caller, values) => {
+    guard values is [F32(value)] else { raise TypeMismatch }
+    [
+      I32(
+        copy_host_string(caller, @utf8.encode(@float_format.format_f32(value))),
+      ),
+    ]
+  }
+  let format_f64 : (@wasmoon_runtime.Caller, Array[@wasm_types.Value]) -> Array[
+    @wasm_types.Value,
+  ] raise @wasmoon_runtime.RuntimeError = (caller, values) => {
+    guard values is [F64(value)] else { raise TypeMismatch }
+    [
+      I32(
+        copy_host_string(caller, @utf8.encode(@float_format.format_f64(value))),
+      ),
+    ]
+  }
+  if self.wasm_module.imports.any(import_ => {
+      import_.mod_name == "lane.runtime.internal.v1" &&
+      import_.name == "f32_to_string"
+    }) {
+    imports.add_func(
+      "lane.runtime.internal.v1",
+      "f32_to_string",
+      store.alloc_host_func_with_caller(format_f32, func_type={
+        params: [F32],
+        results: [I32],
+      }),
+    )
+  }
+  if self.wasm_module.imports.any(import_ => {
+      import_.mod_name == "lane.runtime.internal.v1" &&
+      import_.name == "f64_to_string"
+    }) {
+    imports.add_func(
+      "lane.runtime.internal.v1",
+      "f64_to_string",
+      store.alloc_host_func_with_caller(format_f64, func_type={
+        params: [F64],
+        results: [I32],
+      }),
+    )
+  }
   if self.imports.any(resolved => runtime_import_uses_host_objects(resolved.0)) {
     let release_host_object : (
       @wasmoon_runtime.Caller,

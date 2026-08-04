@@ -196,6 +196,8 @@ pub(all) enum Instruction {
   F32ToI64(SlotId, SlotId)
   F32ToF64(SlotId, SlotId)
   F64ToF32(SlotId, SlotId)
+  F32ToString(SlotId, SlotId)
+  F64ToString(SlotId, SlotId)
   EraseI32(SlotId, SlotId)
   UneraseI32(SlotId, SlotId)
   EraseI64(SlotId, SlotId)

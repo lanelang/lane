@@ -1,4 +1,71 @@
 ///|
+priv struct InternalRuntimeImports {
+  f32_to_string : Int?
+  f64_to_string : Int?
+  count : Int
+}
+
+///|
+fn internal_runtime_imports(
+  image : @bytecode.BytecodeImage,
+) -> InternalRuntimeImports {
+  let mut uses_f32 = false
+  let mut uses_f64 = false
+  for entry in image.functions {
+    if entry is BytecodeBody(body) {
+      for block in body.blocks {
+        for instruction in block.instructions {
+          match instruction {
+            F32ToString(_, _) => uses_f32 = true
+            F64ToString(_, _) => uses_f64 = true
+            _ => ()
+          }
+        }
+      }
+    }
+  }
+  let mut count = 0
+  let f32_to_string = if uses_f32 {
+    let index = count
+    count += 1
+    Some(index)
+  } else {
+    None
+  }
+  let f64_to_string = if uses_f64 {
+    let index = count
+    count += 1
+    Some(index)
+  } else {
+    None
+  }
+  { f32_to_string, f64_to_string, count }
+}
+
+///|
+fn append_float_format_imports(
+  wasm_module : @wasm_types.Module,
+  imports : InternalRuntimeImports,
+) -> Unit {
+  if imports.f32_to_string is Some(_) {
+    let type_index = intern_function_type(wasm_module, [F32], [I32])
+    wasm_module.imports.push({
+      mod_name: "lane.runtime.internal.v1",
+      name: "f32_to_string",
+      desc: Func(type_index),
+    })
+  }
+  if imports.f64_to_string is Some(_) {
+    let type_index = intern_function_type(wasm_module, [F64], [I32])
+    wasm_module.imports.push({
+      mod_name: "lane.runtime.internal.v1",
+      name: "f64_to_string",
+      desc: Func(type_index),
+    })
+  }
+}
+
+///|
 fn canonical_runtime_type(
   kind : @bytecode.RuntimeValueKind,
 ) -> @wasm_types.ValueType? {

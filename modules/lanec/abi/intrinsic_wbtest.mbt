@@ -67,3 +67,26 @@ test "I64 and F64 conversion intrinsics have exact names and signatures" {
     ),
   )
 }
+
+///|
+test "floating-point string intrinsics have exact names and signatures" {
+  assert_eq(
+    (
+      [
+        Intrinsic::from_name("%f32_to_string"),
+        Intrinsic::from_name("%f64_to_string"),
+      ],
+      [
+        (F32ToString.name(), F32ToString.signature()),
+        (F64ToString.name(), F64ToString.signature()),
+      ],
+    ),
+    (
+      [Some(F32ToString), Some(F64ToString)],
+      [
+        ("%f32_to_string", Function(parameters=[F32], result=String)),
+        ("%f64_to_string", Function(parameters=[F64], result=String)),
+      ],
+    ),
+  )
+}

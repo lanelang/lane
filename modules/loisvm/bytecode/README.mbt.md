@@ -257,6 +257,8 @@ F32 operands and arithmetic destinations use `F32 + Trivial`; comparison destina
 | `0x69` | `F32ToI64(destination, source)` | `f32_to_i64`; truncates `F32` toward zero to signed `I64` and traps for NaN or a value outside the I64 range. |
 | `0x6A` | `F32ToF64(destination, source)` | `f32_to_f64`; exactly widens binary32 to binary64. |
 | `0x6B` | `F64ToF32(destination, source)` | `f64_to_f32`; narrows binary64 to binary32 using IEEE 754 rounding. |
+| `0x6E` | `F32ToString(destination, source)` | `f32_to_string`; creates the canonical shortest round-tripping decimal String for binary32. |
+| `0x6F` | `F64ToString(destination, source)` | `f64_to_string`; creates the canonical shortest round-tripping decimal String for binary64. |
 
 ### Representation erasure
 

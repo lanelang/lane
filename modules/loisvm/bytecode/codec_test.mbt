@@ -190,6 +190,11 @@ test "F32 bytecode instructions roundtrip" {
     cleanup: OwnedErased,
     erased_companion: Some(slot(6)),
   }
+  let string : SlotMetadata = {
+    representation: I32,
+    cleanup: OwnedRef,
+    erased_companion: None,
+  }
   let body = {
     ..minimal_body(instructions=[
       ConstF32(slot(0), 0x3FC00000),
@@ -210,15 +215,17 @@ test "F32 bytecode instructions roundtrip" {
       F32ToI64(slot(4), slot(2)),
       F32ToF64(slot(5), slot(2)),
       F64ToF32(slot(2), slot(5)),
+      F32ToString(slot(8), slot(2)),
+      F64ToString(slot(8), slot(5)),
       EraseF32(slot(7), slot(2)),
       UneraseF32(slot(2), slot(7)),
     ]),
-    slots: [f32, f32, f32, i32, i64, f64, i32, erased],
+    slots: [f32, f32, f32, i32, i64, f64, i32, erased, string],
   }
   let image = {
     ..minimal_image(),
     functions: [BytecodeBody(body)],
-    layouts: [F32],
+    layouts: [F32, ByteSequence],
   }
   assert_eq(
     parse_bytecode_image_binary(bytecode_image_to_binary(image)),
