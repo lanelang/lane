@@ -25,10 +25,6 @@ pub fn parse_program_text(text : String) -> Result[@buslane.Program, String] {
   let tokens = tokens_from_string(text) catch {
     BuslaneTextLexerError(message) => return Err(message)
   }
-  match validate_literal_tokens(tokens) {
-    Err(message) => return Err(message)
-    Ok(_) => ()
-  }
   let yacc_tokens = tokens.map(fn(item) {
     let (token, loc) = item
     (token, loc, loc)
@@ -76,9 +72,8 @@ fn token_label(token : Token) -> String {
     DATACON_ID(index) => "datacon#\{index}"
     EFFECT_ID(index) => "effect#\{index}"
     OPERATION_ID(index) => "operation#\{index}"
-    INT(value) => value
-    FLOAT_BITS(value) => value
-    STRING(_) => "string"
+    LITERAL(_) => "literal"
+    NAME(_) => "name"
     EOF => "eof"
     BUSLANE => "buslane"
     METADATA => "metadata"
@@ -118,12 +113,6 @@ fn token_label(token : Token) -> String {
     HANDLE => "handle"
     RESUME => "resume"
     MATCH => "match"
-    TRUE => "true"
-    FALSE => "false"
-    I32_LITERAL => "i32"
-    CHAR_LITERAL => "char"
-    F32_LITERAL => "f32"
-    F64_LITERAL => "f64"
     LBRACE => "{"
     RBRACE => "}"
     LBRACKET => "["
@@ -138,6 +127,5 @@ fn token_label(token : Token) -> String {
     ARROW => "->"
     BANG => "!"
     DOT => "."
-    HASH => "#"
   }
 }

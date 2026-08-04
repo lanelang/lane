@@ -8,9 +8,8 @@
 %start buslane_program
 %start buslane_type
 
-%token<String> INT
-%token<String> FLOAT_BITS
-%token<String> STRING
+%token<Literal> LITERAL
+%token<(String, Int)> NAME
 %token<Int> TYPE_ID
 %token<Int> TPARAM_ID
 %token<Int> VALUE_ID
@@ -56,12 +55,6 @@
 %token HANDLE "handle"
 %token RESUME "resume"
 %token MATCH "match"
-%token TRUE "true"
-%token FALSE "false"
-%token I32_LITERAL "i32"
-%token CHAR_LITERAL "char"
-%token F32_LITERAL "f32"
-%token F64_LITERAL "f64"
 %token LBRACE "{"
 %token RBRACE "}"
 %token LBRACKET "["
@@ -76,7 +69,6 @@
 %token ARROW "->"
 %token BANG "!"
 %token DOT "."
-%token HASH "#"
 
 %%
 
@@ -157,7 +149,7 @@ external_marker -> Bool
   ;
 
 buslane_name -> ParsedBuslaneName
-  : STRING "#" INT { { occurrence: $1, unique: parse_text_int($3) } }
+  : NAME { { occurrence: $1.0, unique: $1.1 } }
   ;
 
 top_terms -> Array[TopTerm]
@@ -293,16 +285,14 @@ alternative -> Alternative
   }
   ;
 
+/* Every literal but the unit is one token: the lexer reads the whole
+   spelling, including the wrapper that says which literal it is, because which
+   values a wrapper admits is known exactly there and a semantic action has no
+   way to reject one. The unit stays a production, since its parentheses are
+   the ordinary ones. */
 literal -> Literal
   : "(" ")" { Unit }
-  | TRUE { Bool(true) }
-  | FALSE { Bool(false) }
-  | INT { validated_literal(parse_i64_literal($1)) }
-  | "i32" "(" INT ")" { validated_literal(parse_i32_literal($3)) }
-  | "char" "(" INT ")" { validated_literal(parse_char_literal($3)) }
-  | "f32" "(" FLOAT_BITS ")" { validated_literal(parse_f32_bits($3)) }
-  | "f64" "(" FLOAT_BITS ")" { validated_literal(parse_f64_bits($3)) }
-  | STRING { String($1) }
+  | LITERAL { $1 }
   ;
 
 kind -> Kind

@@ -238,6 +238,34 @@ test "buslane text rejects invalid numeric and Char literals" {
 }
 
 ///|
+/// A wrapped literal is one token but several pieces, so the reader that joins
+/// them accepts the same trivia between them that the notation accepts
+/// anywhere else, and an identity that does not fit is refused rather than
+/// quietly becoming a different one.
+test "buslane text reads a literal's pieces and refuses an unusable identity" {
+  let named = fn(name : String) {
+    "buslane { metadata { value value#0 = \{name} value : I32; } }"
+  }
+  debug_inspect(
+    [
+      parse_program_text(named("\"v\"#0")) is Ok(_),
+      parse_program_text(named("\"v\" // which\n #0")) is Ok(_),
+      parse_program_text(
+        "buslane { metadata {} let value#0 = i32 ( // pieces\n 5 ) }",
+      )
+      is Ok(_),
+    ],
+    content="[true, true, true]",
+  )
+  debug_inspect(
+    parse_program_text(named("\"v\"#99999999999999")),
+    content=(
+      #|Err("number `99999999999999` after a name's unique is out of range")
+    ),
+  )
+}
+
+///|
 test "buslane text roundtrips Byte and Bytes primitives" {
   let type_ : @buslane.Type = Function(
     [Primitive(Byte)],

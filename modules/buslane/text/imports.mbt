@@ -76,13 +76,6 @@ priv struct ParsedBuslaneName {
 }
 
 ///|
-fn parse_text_int(text : String) -> Int {
-  @string.parse_int(text, base=10) catch {
-    _ => 0
-  }
-}
-
-///|
 fn parsed_name(
   name_space : NameNamespace,
   occurrence : String,

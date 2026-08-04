@@ -30,9 +30,8 @@ pub fn CanonicalTextWriter::write_program(Self, @buslane.Program) -> String
 pub fn CanonicalTextWriter::write_type(Self, @buslane.Type) -> String
 
 pub(all) enum Token {
-  INT(String)
-  FLOAT_BITS(String)
-  STRING(String)
+  LITERAL(@buslane.Literal)
+  NAME((String, Int))
   TYPE_ID(Int)
   TPARAM_ID(Int)
   VALUE_ID(Int)
@@ -78,12 +77,6 @@ pub(all) enum Token {
   HANDLE
   RESUME
   MATCH
-  TRUE
-  FALSE
-  I32_LITERAL
-  CHAR_LITERAL
-  F32_LITERAL
-  F64_LITERAL
   LBRACE
   RBRACE
   LBRACKET
@@ -98,14 +91,12 @@ pub(all) enum Token {
   ARROW
   BANG
   DOT
-  HASH
 } derive(@debug.Debug)
 pub fn Token::kind(Self) -> TokenKind
 
 pub(all) enum TokenKind {
-  TK_INT
-  TK_FLOAT_BITS
-  TK_STRING
+  TK_LITERAL
+  TK_NAME
   TK_TYPE_ID
   TK_TPARAM_ID
   TK_VALUE_ID
@@ -151,12 +142,6 @@ pub(all) enum TokenKind {
   TK_HANDLE
   TK_RESUME
   TK_MATCH
-  TK_TRUE
-  TK_FALSE
-  TK_I32_LITERAL
-  TK_CHAR_LITERAL
-  TK_F32_LITERAL
-  TK_F64_LITERAL
   TK_LBRACE
   TK_RBRACE
   TK_LBRACKET
@@ -171,7 +156,6 @@ pub(all) enum TokenKind {
   TK_ARROW
   TK_BANG
   TK_DOT
-  TK_HASH
 } derive(Compare, Eq, Hash)
 pub impl Show for TokenKind
 pub impl @debug.Debug for TokenKind
