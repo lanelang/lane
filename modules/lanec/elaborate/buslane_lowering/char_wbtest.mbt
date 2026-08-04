@@ -24,14 +24,15 @@ test "lower Unicode character literals and patterns to Buslane" {
       #|    letrec {
       #|      value#0 = fn(value#1) -> I64 {
       #|        match value#1 as value#2 -> I64 {
-      #|          char(20320) => 1
-      #|          _ => 0
+      #|          char(20320) => 1;
+      #|          _ => 0;
       #|        }
       #|      }
       #|    }
       #|  }
       #|  diagnostics {}
       #|}
+
     ),
   )
 }

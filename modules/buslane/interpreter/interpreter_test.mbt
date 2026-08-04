@@ -569,9 +569,10 @@ test "data constructor match selects matching alternative" {
     @prettyprinter.render(program.terms[1], width=100),
     content=(
       #|let value#3 = match value#0 as value#1 -> I64 {
-      #|  datacon#0() => 0
-      #|  datacon#1(value#2) => value#2
+      #|  datacon#0() => 0;
+      #|  datacon#1(value#2) => value#2;
       #|}
+
     ),
   )
   expect_ok(program)

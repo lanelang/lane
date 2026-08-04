@@ -527,20 +527,30 @@ test "buslane text disambiguates a latent effect on nested arrows" {
 /// checking it, because a semantic action has no way to report an error — it
 /// used to abort the process on either input below.
 test "buslane text rejects a parenthesized group that is not one type" {
-  assert_eq(parse_type_text("(I64)"), Ok(Primitive(I64)))
-  assert_eq(
-    parse_type_text("(I64, Bool)"),
-    Err("unexpected Buslane type token eof"),
-  )
-  assert_eq(parse_type_text("()"), Err("unexpected Buslane type token eof"))
-  assert_eq(
-    parse_type_text("(I64, Bool) -> Unit"),
-    Ok(Function([Primitive(I64), Primitive(Bool)], Primitive(Unit), Empty)),
-  )
-  assert_eq(
-    parse_type_text("() -> Unit"),
-    Ok(Function([], Primitive(Unit), Empty)),
-  )
+  let groups : Array[(String, Array[@buslane.Type])] = [
+    ("()", []),
+    ("(I64)", [Primitive(I64)]),
+    ("(I64, Bool)", [Primitive(I64), Primitive(Bool)]),
+    (
+      "(I64, Bool, String)",
+      [Primitive(I64), Primitive(Bool), Primitive(String)],
+    ),
+  ]
+  for entry in groups {
+    let (group, parameters) = entry
+    if parameters is [parameter] {
+      assert_eq(parse_type_text(group), Ok(parameter))
+    } else {
+      assert_true(parse_type_text(group) is Err(_))
+    }
+    assert_eq(
+      parse_type_text(group + " -> Unit"),
+      Ok(Function(parameters, Primitive(Unit), Empty)),
+    )
+  }
+  for malformed in ["(", ")", "(,)", "(I64,)", "(,I64)", "((I64)"] {
+    assert_true(parse_type_text(malformed) is Err(_))
+  }
 }
 
 ///|

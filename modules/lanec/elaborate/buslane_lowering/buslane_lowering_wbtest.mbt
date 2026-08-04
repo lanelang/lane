@@ -593,9 +593,10 @@ test "elaborate lowers handler payload binders before alternatives" {
     @prettyprinter.render(tables[0].operations[1].body, width=100),
     content=(
       #|match value#3 as value#3 -> I64 {
-      #|  datacon#0() => 1
-      #|  _ => 2
+      #|  datacon#0() => 1;
+      #|  _ => 2;
       #|}
+
     ),
   )
 }
@@ -987,8 +988,8 @@ test "elaborate lowers handlers into buslane handler tables" {
       #|        handle perform operation#0(true) as value#1 -> I64 {
       #|          effect#0 {
       #|            operation#0(value#2) resume value#3 => match value#2 as value#2 -> I64 {
-      #|              true => value#3(10)
-      #|              _ => 2
+      #|              true => value#3(10);
+      #|              _ => 2;
       #|            }
       #|          }
       #|          final => value#1
@@ -998,6 +999,7 @@ test "elaborate lowers handlers into buslane handler tables" {
       #|  }
       #|  diagnostics {}
       #|}
+
     ),
   )
 }

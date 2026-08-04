@@ -265,10 +265,10 @@ alternatives -> Array[Alternative]
   ;
 
 alternative -> Alternative
-  : "_" "=>" expr {
+  : "_" "=>" expr ";" {
     { alt_constructor: Default, type_binders: [], value_binders: [], body: $3 }
   }
-  | literal "=>" expr {
+  | literal "=>" expr ";" {
     {
       alt_constructor: Literal($1),
       type_binders: [],
@@ -276,7 +276,7 @@ alternative -> Alternative
       body: $3,
     }
   }
-  | data_con_id type_parameter_ids "(" value_id_list ")" "=>" expr {
+  | data_con_id type_parameter_ids "(" value_id_list ")" "=>" expr ";" {
     {
       alt_constructor: DataCon($1),
       type_binders: $2,

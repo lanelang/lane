@@ -526,7 +526,8 @@ pub impl @prettyprinter.Pretty for Alternative with fn pretty(
   space +
   text("=>") +
   space +
-  alternative.body.pretty()
+  alternative.body.pretty() +
+  char(';')
 }
 
 ///|

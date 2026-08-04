@@ -521,6 +521,36 @@ test "buslane text round-trips every expression constructor in every position" {
   round_trip_failures(failures, "expressions")
 }
 
+///|
+/// Alternative bodies and following patterns need an explicit boundary. Without
+/// the canonical semicolon, the unit pattern below can be consumed as a call on
+/// the preceding reference instead of beginning the second alternative.
+test "buslane text keeps a unit alternative after a postfix-capable body" {
+  let subject = expr_program(
+    Match({
+      scrutinee: Literal(Unit),
+      binder: { index: 1 },
+      result_type: Primitive(Unit),
+      alternatives: [
+        {
+          alt_constructor: Default,
+          type_binders: [],
+          value_binders: [],
+          body: Ref({ index: 1 }),
+        },
+        {
+          alt_constructor: Literal(Unit),
+          type_binders: [],
+          value_binders: [],
+          body: Literal(Unit),
+        },
+      ],
+    }),
+  )
+  let text = writer().write_program(subject)
+  assert_eq(parse_program_text(text), Ok(subject))
+}
+
 // -- literals and arbitrary text --------------------------------------------
 
 ///|

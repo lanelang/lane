@@ -923,7 +923,7 @@ test "pretty buslane construct and one-level match" {
     @prettyprinter.render(program.terms[1], width=100),
     content=(
       #|let value#2 = match value#0 as value#1 -> I64 {
-      #|  datacon#0(value#2) => value#2
+      #|  datacon#0(value#2) => value#2;
       #|}
     ),
   )
