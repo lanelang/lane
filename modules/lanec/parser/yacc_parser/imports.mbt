@@ -74,6 +74,54 @@ priv struct OwnerExpression {
 }
 
 ///|
+/// A nominal type name is an identifier path: a bare name, or a module path
+/// and a name. It is what the grammar builds one segment at a time, and the
+/// only thing a further segment can extend, so the parser carries the path
+/// itself. Carrying the whole `Type` instead needs an arm for every shape no
+/// derivation reaches, and such an arm can only abort or quietly drop a
+/// segment.
+priv struct NominalTypeName {
+  module_path : ModulePath?
+  name : String
+  loc : SourceSpan
+}
+
+///|
+priv struct OwnerPathExpression {
+  expr : Expr
+  owner : NominalTypeName
+}
+
+///|
+/// Extending a path turns its current name into the last module component.
+fn NominalTypeName::extended(
+  self : NominalTypeName,
+  name : String,
+  loc : SourceSpan,
+) -> NominalTypeName {
+  let module_path : ModulePath = match self.module_path {
+    // A bare name has no earlier path whose span to carry forward, so the
+    // extension's own span stands for it.
+    None => { components: [self.name], loc }
+    Some(path) => {
+      let components = path.components.copy()
+      components.push(self.name)
+      { components, loc: self.loc }
+    }
+  }
+  { module_path: Some(module_path), name, loc }
+}
+
+///|
+fn NominalTypeName::to_type(self : NominalTypeName) -> Type {
+  match self.module_path {
+    None => Name(name=self.name, loc=self.loc)
+    Some(module_path) =>
+      QualifiedName(module_path~, name=self.name, loc=self.loc)
+  }
+}
+
+///|
 priv struct HandlerOperationArmParameters {
   payload_patterns : Array[Pattern]
   resume_binder : String
@@ -217,22 +265,6 @@ fn effect_or_empty(effect : EffectTerm?, result : Type) -> EffectTerm {
 }
 
 ///|
-fn extend_qualified_type_name(
-  type_ : Type,
-  name : String,
-  loc : SourceSpan,
-) -> Type {
-  match type_ {
-    QualifiedName(module_path~, name=previous_name, loc=previous_loc) => {
-      let components = module_path.components.copy()
-      components.push(previous_name)
-      QualifiedName(module_path={ components, loc: previous_loc }, name~, loc~)
-    }
-    _ => type_
-  }
-}
-
-///|
 fn apply_type_arguments(
   callee : Type,
   arguments : Array[GenericArgument],
@@ -246,45 +278,27 @@ fn apply_type_arguments(
 }
 
 ///|
-fn extend_owner_type_name(
-  owner : Type,
-  name : String,
-  loc : SourceSpan,
-) -> Type {
-  match owner {
-    Name(name=previous_name, ..) =>
-      QualifiedName(
-        module_path={ components: [previous_name], loc },
-        name~,
-        loc~,
-      )
-    QualifiedName(..) => extend_qualified_type_name(owner, name, loc)
-    _ => abort("expected nominal owner type")
-  }
-}
-
-///|
-fn owner_expression_field(
-  expression : OwnerExpression,
+fn owner_path_field(
+  expression : OwnerPathExpression,
   name : String,
   name_loc : SourceSpan,
   loc : SourceSpan,
-) -> OwnerExpression {
+) -> OwnerPathExpression {
   {
     expr: Field(base=expression.expr, name~, name_loc~, loc~),
-    owner: extend_owner_type_name(expression.owner, name, loc),
+    owner: expression.owner.extended(name, loc),
   }
 }
 
 ///|
 fn owner_expression_with_arguments(
-  expression : OwnerExpression,
+  expression : OwnerPathExpression,
   arguments : Array[GenericArgument],
   loc : SourceSpan,
 ) -> OwnerExpression {
   {
     expr: TypeApplication(callee=expression.expr, arguments~, loc~),
-    owner: apply_type_arguments(expression.owner, arguments, loc),
+    owner: apply_type_arguments(expression.owner.to_type(), arguments, loc),
   }
 }
 
