@@ -15,7 +15,32 @@ pub(all) struct VerifyDiagnostic {
 pub(all) enum VerifyFrame {
   Metadata(MetadataAnchor)
   TopTerm(ValueId)
+  Child(ExprChild)
   Expression(ExprLabel)
+} derive(Debug, Eq)
+
+///|
+/// The structural position of one expression inside its parent.
+pub(all) enum ExprChild {
+  FunctionBody
+  CallCallee
+  CallArgument(Int)
+  TypeLambdaBody
+  TypeApplyCallee
+  ConstructPayload(Int)
+  LetInitializer
+  LetBody
+  LetRecBinding(Int)
+  LetRecBody
+  MatchScrutinee
+  MatchAlternative(Int)
+  AlternativeBody
+  PerformPayload(Int)
+  HandleBody
+  HandleFinalBody
+  HandlerTable(Int)
+  OperationAlternative(Int)
+  OperationBody
 } derive(Debug, Eq)
 
 ///|
@@ -274,6 +299,33 @@ fn[T] VerifyContext::within(
   let result = verify()
   ignore(self.frames.pop())
   result
+}
+
+///|
+fn VerifyContext::synthesize_child(
+  self : VerifyContext,
+  child : ExprChild,
+  expression : Expr,
+  value_scope : ValueScope,
+  type_scope : TypeScope,
+) -> ExpressionFacts {
+  self.within(Child(child), () => {
+    self.synthesize_expr(expression, value_scope, type_scope)
+  })
+}
+
+///|
+fn VerifyContext::check_child(
+  self : VerifyContext,
+  child : ExprChild,
+  expression : Expr,
+  expected : Type,
+  value_scope : ValueScope,
+  type_scope : TypeScope,
+) -> Effect {
+  self.within(Child(child), () => {
+    self.check_expr(expression, expected, value_scope, type_scope)
+  })
 }
 
 ///|
@@ -748,7 +800,8 @@ fn VerifyContext::synthesize_function(
     body_scope.values.push(parameter)
   }
   self.verify_value_type(function.result_type, type_scope)
-  let latent_effect = self.check_expr(
+  let latent_effect = self.check_child(
+    FunctionBody,
     function.body,
     function.result_type,
     body_scope,
@@ -765,7 +818,12 @@ fn VerifyContext::synthesize_call(
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> ExpressionFacts {
-  let callee_result = self.synthesize_expr(callee, value_scope, type_scope)
+  let callee_result = self.synthesize_child(
+    CallCallee,
+    callee,
+    value_scope,
+    type_scope,
+  )
   guard callee_result.type_
     is Function(parameter_types, result_type, latent_effect) else {
     self.report(NotFunction(callee_result.type_))
@@ -785,7 +843,8 @@ fn VerifyContext::synthesize_call(
     }
   }
   for index in 0..<arguments.length() {
-    let argument_effect = self.check_expr(
+    let argument_effect = self.check_child(
+      CallArgument(index),
       arguments[index],
       parameter_types[index],
       value_scope,
@@ -810,7 +869,12 @@ fn VerifyContext::synthesize_type_lambda(
     self.require_type_parameter(parameter)
     body_scope.parameters.push(parameter)
   }
-  let body_result = self.synthesize_expr(body, value_scope, body_scope)
+  let body_result = self.synthesize_child(
+    TypeLambdaBody,
+    body,
+    value_scope,
+    body_scope,
+  )
   if !self.effects_definitionally_equal(body_result.effect, Empty) {
     self.report(EffectMismatch(expected=Empty, actual=body_result.effect))
   }
@@ -825,7 +889,12 @@ fn VerifyContext::synthesize_type_apply(
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> ExpressionFacts {
-  let callee_result = self.synthesize_expr(callee, value_scope, type_scope)
+  let callee_result = self.synthesize_child(
+    TypeApplyCallee,
+    callee,
+    value_scope,
+    type_scope,
+  )
   guard callee_result.type_ is Forall(parameters, body) else {
     self.report(NotForall(callee_result.type_))
     return { type_: Primitive(Unit), effect: callee_result.effect }
@@ -897,7 +966,8 @@ fn VerifyContext::synthesize_construct(
     )
   let effects = []
   for index in 0..<info.payload_types.length().min(construct.payloads.length()) {
-    let payload_effect = self.check_expr(
+    let payload_effect = self.check_child(
+      ConstructPayload(index),
       construct.payloads[index],
       self.substituted(info.payload_types[index], substitution),
       value_scope,
@@ -965,7 +1035,8 @@ fn VerifyContext::synthesize_perform(
   }
   let effects = []
   for index in 0..<info.payload_types.length().min(perform.payloads.length()) {
-    let payload_effect = self.check_expr(
+    let payload_effect = self.check_child(
+      PerformPayload(index),
       perform.payloads[index],
       self.substituted(info.payload_types[index], substitution),
       value_scope,
@@ -987,7 +1058,12 @@ fn VerifyContext::synthesize_handle(
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> ExpressionFacts {
-  let body_result = self.synthesize_expr(handle.body, value_scope, type_scope)
+  let body_result = self.synthesize_child(
+    HandleBody,
+    handle.body,
+    value_scope,
+    type_scope,
+  )
   let handled_effects = handle.handlers.map(fn(table) { table.handled_effect })
   let residual_body_effect = self.remove_handled_effects(
     body_result.effect,
@@ -1006,33 +1082,43 @@ fn VerifyContext::synthesize_handle(
   }
   let final_scope = value_scope.copy()
   final_scope.values.push(handle.result_binder)
-  let final_effect = self.check_expr(
+  let final_effect = self.check_child(
+    HandleFinalBody,
     handle.final_body,
     handle.result_type,
     final_scope,
     type_scope,
   )
   effects.push(final_effect)
-  for table in handle.handlers {
-    let owner_substitution = match table.handled_effect {
-      Singleton(owner, arguments) =>
-        self.verify_effect_singleton(owner, arguments, type_scope)
-      effect => {
-        self.verify_effect(effect, type_scope)
-        None
+  for table_index in 0..<handle.handlers.length() {
+    let table = handle.handlers[table_index]
+    self.within(Child(HandlerTable(table_index)), () => {
+      let owner_substitution = match table.handled_effect {
+        Singleton(owner, arguments) =>
+          self.verify_effect_singleton(owner, arguments, type_scope)
+        effect => {
+          self.verify_effect(effect, type_scope)
+          None
+        }
       }
-    }
-    for alternative in table.operations {
-      let arm_effect = self.verify_operation_alternative(
-        table.handled_effect,
-        owner_substitution,
-        alternative,
-        handle.result_type,
-        value_scope,
-        type_scope,
-      )
-      effects.push(arm_effect)
-    }
+      for alternative_index in 0..<table.operations.length() {
+        let alternative = table.operations[alternative_index]
+        let arm_effect = self.within(
+          Child(OperationAlternative(alternative_index)),
+          () => {
+            self.verify_operation_alternative(
+              table.handled_effect,
+              owner_substitution,
+              alternative,
+              handle.result_type,
+              value_scope,
+              type_scope,
+            )
+          },
+        )
+        effects.push(arm_effect)
+      }
+    })
   }
   { type_: handle.result_type, effect: self.effect_union(effects) }
 }
@@ -1122,7 +1208,13 @@ fn VerifyContext::verify_operation_alternative(
     arm_scope,
     arm_type_scope,
   )
-  self.check_expr(alternative.body, handler_result, arm_scope, arm_type_scope)
+  self.check_child(
+    OperationBody,
+    alternative.body,
+    handler_result,
+    arm_scope,
+    arm_type_scope,
+  )
 }
 
 ///|
@@ -1160,18 +1252,20 @@ fn VerifyContext::synthesize_let(
   type_scope : TypeScope,
 ) -> ExpressionFacts {
   guard self.verify_binder(id, type_scope) is Some(info) else {
-    return self.synthesize_expr(body, value_scope, type_scope)
+    return self.synthesize_child(LetBody, body, value_scope, type_scope)
   }
-  let initializer_effect = self.check_binding_initializer(
-    OrdinaryBinding,
-    initializer,
-    info.type_,
-    value_scope,
-    type_scope,
-  )
+  let initializer_effect = self.within(Child(LetInitializer), () => {
+    self.check_binding_initializer(
+      OrdinaryBinding,
+      initializer,
+      info.type_,
+      value_scope,
+      type_scope,
+    )
+  })
   let body_scope = value_scope.copy()
   body_scope.values.push(id)
-  let body_result = self.synthesize_expr(body, body_scope, type_scope)
+  let body_result = self.synthesize_child(LetBody, body, body_scope, type_scope)
   {
     type_: body_result.type_,
     effect: self.effect_union([initializer_effect, body_result.effect]),
@@ -1190,25 +1284,27 @@ fn VerifyContext::synthesize_letrec(
   for binding in bindings {
     body_scope.values.push(binding.id)
   }
-  for binding in bindings {
-    if !binding.rhs.is_direct_function_implementation() {
-      self.report(InvalidLetRecRhs(binding.id))
-    }
-    guard self.verify_binder(binding.id, type_scope) is Some(info) else {
-      continue
-    }
-    let rhs_effect = self.check_binding_initializer(
-      FunctionBinding,
-      binding.rhs,
-      info.type_,
-      body_scope,
-      type_scope,
-    )
-    if !self.effects_definitionally_equal(rhs_effect, Empty) {
-      self.report(EffectMismatch(expected=Empty, actual=rhs_effect))
-    }
+  for index in 0..<bindings.length() {
+    let binding = bindings[index]
+    self.within(Child(LetRecBinding(index)), () => {
+      if !binding.rhs.is_direct_function_implementation() {
+        self.report(InvalidLetRecRhs(binding.id))
+      }
+      if self.verify_binder(binding.id, type_scope) is Some(info) {
+        let rhs_effect = self.check_binding_initializer(
+          FunctionBinding,
+          binding.rhs,
+          info.type_,
+          body_scope,
+          type_scope,
+        )
+        if !self.effects_definitionally_equal(rhs_effect, Empty) {
+          self.report(EffectMismatch(expected=Empty, actual=rhs_effect))
+        }
+      }
+    })
   }
-  self.synthesize_expr(body, body_scope, type_scope)
+  self.synthesize_child(LetRecBody, body, body_scope, type_scope)
 }
 
 ///|
@@ -1218,7 +1314,8 @@ fn VerifyContext::synthesize_match(
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> ExpressionFacts {
-  let scrutinee_result = self.synthesize_expr(
+  let scrutinee_result = self.synthesize_child(
+    MatchScrutinee,
     match_.scrutinee,
     value_scope,
     type_scope,
@@ -1234,14 +1331,17 @@ fn VerifyContext::synthesize_match(
   }
   self.verify_match_shape(match_, scrutinee_result.type_)
   let effects = [scrutinee_result.effect]
-  for alternative in match_.alternatives {
-    let alternative_effect = self.verify_alternative(
-      alternative,
-      scrutinee_result.type_,
-      match_.result_type,
-      value_scope,
-      type_scope,
-    )
+  for index in 0..<match_.alternatives.length() {
+    let alternative = match_.alternatives[index]
+    let alternative_effect = self.within(Child(MatchAlternative(index)), () => {
+      self.verify_alternative(
+        alternative,
+        scrutinee_result.type_,
+        match_.result_type,
+        value_scope,
+        type_scope,
+      )
+    })
     effects.push(alternative_effect)
   }
   { type_: match_.result_type, effect: self.effect_union(effects) }
@@ -1282,7 +1382,8 @@ fn VerifyContext::verify_alternative(
         data_constructor, alternative, scrutinee_type, body_scope, alternative_type_scope,
       )
   }
-  self.check_expr(
+  self.check_child(
+    AlternativeBody,
     alternative.body,
     result_type,
     body_scope,

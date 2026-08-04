@@ -122,6 +122,29 @@ pub(all) enum Expr {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Expr
 
+pub(all) enum ExprChild {
+  FunctionBody
+  CallCallee
+  CallArgument(Int)
+  TypeLambdaBody
+  TypeApplyCallee
+  ConstructPayload(Int)
+  LetInitializer
+  LetBody
+  LetRecBinding(Int)
+  LetRecBody
+  MatchScrutinee
+  MatchAlternative(Int)
+  AlternativeBody
+  PerformPayload(Int)
+  HandleBody
+  HandleFinalBody
+  HandlerTable(Int)
+  OperationAlternative(Int)
+  OperationBody
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ExprChild
+
 pub(all) enum ExprLabel {
   Ref(ValueId)
   Literal
@@ -445,6 +468,7 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind
 pub(all) enum VerifyFrame {
   Metadata(MetadataAnchor)
   TopTerm(ValueId)
+  Child(ExprChild)
   Expression(ExprLabel)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for VerifyFrame

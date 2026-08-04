@@ -692,15 +692,15 @@ test "verify buslane reports invalid perform payload and resume types" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  } at term value#0 / handle / perform operation#0
+      #|  } at term value#0 / handle / handled body / perform operation#0 / perform payload 0
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  } at term value#0 / handle
+      #|  } at term value#0 / handle / handler 0 / operation alternative 0
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  } at term value#0 / handle
+      #|  } at term value#0 / handle / handler 0 / operation alternative 0
       #|}
     ),
   )
@@ -807,15 +807,15 @@ test "verify buslane reports operation ownership and resume arity errors" {
       #|  effect_mismatch {
       #|    expected effect#1
       #|    actual effect#0
-      #|  } at term value#0 / handle
+      #|  } at term value#0 / handle / handler 0 / operation alternative 0
       #|  arity_mismatch {
       #|    expected 1
       #|    actual 0
-      #|  } at term value#0 / handle
+      #|  } at term value#0 / handle / handler 0 / operation alternative 0
       #|  arity_mismatch {
       #|    expected 1
       #|    actual 0
-      #|  } at term value#0 / handle
+      #|  } at term value#0 / handle / handler 0 / operation alternative 0
       #|}
     ),
   )
@@ -1067,6 +1067,39 @@ test "verify buslane skips kind-invalid substitution bindings" {
       #|      provenance: [TopTerm({ index: 3 })],
       #|    },
       #|  ],
+      #|}
+    ),
+  )
+}
+
+///|
+test "diagnostic provenance distinguishes sibling call arguments" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let callee = metadata.define_value(
+    "callee",
+    External,
+    Function([i64_type(), i64_type()], Primitive(Unit), Empty),
+  )
+  let result = metadata.define_value("result", Value, Primitive(Unit))
+  let program = Program::{
+    metadata,
+    terms: [
+      External(callee),
+      Let(result, Call(Ref(callee), [Literal(Unit), Literal(Unit)])),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  type_mismatch {
+      #|    expected I64
+      #|    actual Unit
+      #|  } at term value#1 / call / argument 0
+      #|  type_mismatch {
+      #|    expected I64
+      #|    actual Unit
+      #|  } at term value#1 / call / argument 1
       #|}
     ),
   )
@@ -1898,11 +1931,11 @@ test "a diagnostic carries the path the verifier took to reach it" {
     @prettyprinter.render(verify_program(program), width=100),
     content=(
       #|verify_result {
-      #|  unknown_value value#9999 at term value#1 / fn / let value#0 / ref value#9999
+      #|  unknown_value value#9999 at term value#1 / fn / function body / let value#0 / initializer / ref value#9999
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#1 / fn / let value#0
+      #|  } at term value#1 / fn / function body / let value#0 / initializer
       #|}
     ),
   )

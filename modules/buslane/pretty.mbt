@@ -578,7 +578,35 @@ pub impl @prettyprinter.Pretty for VerifyFrame with fn pretty(
   match frame {
     Metadata(anchor) => anchor.pretty()
     TopTerm(id) => text("term") + space + id.pretty()
+    Child(child) => child.pretty()
     Expression(label) => label.pretty()
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for ExprChild with fn pretty(child : ExprChild) {
+  match child {
+    FunctionBody => text("function body")
+    CallCallee => text("callee")
+    CallArgument(index) => text("argument ") + text(index.to_string())
+    TypeLambdaBody => text("type lambda body")
+    TypeApplyCallee => text("type callee")
+    ConstructPayload(index) =>
+      text("construct payload ") + text(index.to_string())
+    LetInitializer => text("initializer")
+    LetBody => text("let body")
+    LetRecBinding(index) => text("recursive binding ") + text(index.to_string())
+    LetRecBody => text("letrec body")
+    MatchScrutinee => text("scrutinee")
+    MatchAlternative(index) => text("alternative ") + text(index.to_string())
+    AlternativeBody => text("alternative body")
+    PerformPayload(index) => text("perform payload ") + text(index.to_string())
+    HandleBody => text("handled body")
+    HandleFinalBody => text("final body")
+    HandlerTable(index) => text("handler ") + text(index.to_string())
+    OperationAlternative(index) =>
+      text("operation alternative ") + text(index.to_string())
+    OperationBody => text("operation body")
   }
 }
 
