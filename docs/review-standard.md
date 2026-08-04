@@ -1,8 +1,9 @@
 # Lane Review Standard
 
 The Lane language is designed to be elegant; the compiler must be its equal.
-This review does not ask whether the code works — the test suite answers that.
-It asks whether every package is a work of art: nothing missing, nothing extra, nothing accidental.
+Tests provide evidence for correctness, but no test suite proves it. This review
+asks whether the evidence supports the behavior claims and whether the design is
+a work of art: nothing missing, nothing extra, nothing accidental.
 
 ## The aesthetic, concretely
 - No special cases. A rule holds uniformly or the rule is wrong; a branch added for one caller means the seam is misplaced — move the seam, never add the case.
@@ -13,11 +14,11 @@ It asks whether every package is a work of art: nothing missing, nothing extra, 
 - Code reads as inevitable, not clever: if believing it correct requires the commit message, it fails.
 
 ## The architecture
-- The pipeline is a chain of verified programs: every stage boundary passes the Buslane verifier; no stage trusts its input or silently repairs it.
+- The pipeline is a chain of verified representations: every IR stage boundary passes the verifier owned by that IR layer, and every Buslane boundary passes the Buslane verifier; no stage trusts its input or silently repairs it.
 - A persistent or exchangeable IR is a first-class interchange language: it has a stable printer, parser or decoder, codec for each persisted form, verifier, and round-trip tests across every supported representation.
 - A transient compiler-internal IR has a stable human-readable printer, a verifier at its stage boundaries, and structured debug output where diagnosis needs it. It needs no parser or codec without a real persistence, interchange, or tooling consumer; adding one speculatively is itself extra code.
 - Problems are fixed where they are created, never masked downstream — dead-code elimination is not a fix, and phase order follows meaning, not convenience.
-- One responsibility per package, stated in its CONTEXT.md in one paragraph that matches the code.
+- One responsibility per independently meaningful module or package boundary, stated in the nearest owning CONTEXT.md in one paragraph that matches the code. A leaf package with no independent responsibility may inherit its parent's context instead of duplicating it.
 - The glossary is law: every concept has exactly one name, defined in CONTEXT.md and used verbatim in code, tests, and issues; synonym drift is a finding.
 - Invariants are enforced by construction or checked by a verifier; a comment is not an enforcement mechanism.
 - Tests pin contracts, not implementation accidents: a test that a legal refactor breaks is itself a finding.
