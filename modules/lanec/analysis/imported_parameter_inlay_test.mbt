@@ -5,7 +5,7 @@ test "semantic workspace tracks imported auto arguments in top-level initializer
     #|module Data.I64
     #|import Trait.Iso.{ Into, From, into_by_from, from_by_into }
     #|
-    #|offer i32_impl_from_i64 : From[I32, I64] = From::{ from: fn(_value : I64) -> I32 { 0 } }
+    #|offer i32_impl_from_i64 : From[I32, I64] = From::{ from: fn(_value : I64) -> I32 { 0i32 } }
     #|offer i32_impl_into_i64 : Into[I32, I64] = Into::{ into: fn(_value : I32) -> I64 { 0 } }
     #|
     #|pub offer i64_impl_into_i32 : Into[I64, I32] = into_by_from()

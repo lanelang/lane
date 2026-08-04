@@ -11,11 +11,11 @@ test "typecheck accepts the complete I32 builtin contract" {
       #|let less : (I32, I32) -> Bool = builtin("%i32_less")
       #|let to_int : (I32) -> I64 = builtin("%i32_to_i64")
       #|let from_int : (I64) -> I32 = builtin("%i64_to_i32")
-      #|let maximum : I32 = 2147483647
-      #|let minimum : I32 = -2147483648
+      #|let maximum : I32 = 2147483647i32
+      #|let minimum : I32 = -2147483648i32
       #|fn is_minimum(value : I32) -> Bool {
       #|  match value {
-      #|    -2147483648 => true
+      #|    -2147483648i32 => true
       #|    _ => false
       #|  }
       #|}
@@ -29,7 +29,7 @@ test "typecheck accepts the complete I32 builtin contract" {
 test "typecheck rejects an I32 literal below the signed range" {
   let result = expect_typecheck_result(
     (
-      #|let invalid : I32 = -2147483649
+      #|let invalid : I32 = -2147483649i32
     ),
   )
   assert_true(
@@ -41,7 +41,7 @@ test "typecheck rejects an I32 literal below the signed range" {
 test "typecheck rejects an out-of-range I32 literal" {
   let result = expect_typecheck_result(
     (
-      #|let invalid : I32 = 2147483648
+      #|let invalid : I32 = 2147483648i32
     ),
   )
   debug_inspect(
@@ -52,11 +52,11 @@ test "typecheck rejects an out-of-range I32 literal" {
       #|    kind: InvalidI32Literal("2147483648"),
       #|    loc: {
       #|      start_offset: 32,
-      #|      end_offset: 42,
+      #|      end_offset: 45,
       #|      start_line: 2,
       #|      start_column: 21,
       #|      end_line: 2,
-      #|      end_column: 31,
+      #|      end_column: 34,
       #|    },
       #|  },
       #|]

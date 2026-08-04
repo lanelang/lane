@@ -9,8 +9,9 @@ fn @syntax.Expr::resolve_expr(
   scope : ResolveScope,
 ) -> ResolvedExpr {
   match self {
-    IntegerLiteral(value, loc~) => IntegerLiteral(value, loc~)
-    FloatingLiteral(value, loc~) => FloatingLiteral(value, loc~)
+    IntegerLiteral(value, suffix~, loc~) => IntegerLiteral(value, suffix~, loc~)
+    FloatingLiteral(value, suffix~, loc~) =>
+      FloatingLiteral(value, suffix~, loc~)
     StringLiteral(value, loc~) => StringLiteral(value, loc~)
     CharLiteral(value, loc~) => CharLiteral(value, loc~)
     BoolLiteral(value, loc~) => BoolLiteral(value, loc~)
@@ -181,6 +182,10 @@ fn @syntax.Expr::resolve_expr(
           )
         }
       }
+    Unary(operator=Neg, operand=IntegerLiteral(raw, suffix~, ..), loc~) =>
+      ImmediatelyNegatedIntegerLiteral(raw, suffix~, loc~)
+    Unary(operator=Neg, operand=FloatingLiteral(raw, suffix~, ..), loc~) =>
+      ImmediatelyNegatedFloatingLiteral(raw, suffix~, loc~)
     Unary(operator~, operand~, loc~) => {
       let target = resolver.operator_target(
         scope,

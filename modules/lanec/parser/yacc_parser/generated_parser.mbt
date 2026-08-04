@@ -2566,30 +2566,30 @@ fn yy_action_160(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1063|    INT { IntegerLiteral($1, loc=span($sloc)) }
+// 1063|    INT { integer_pattern_literal($1, span($sloc), negative=false) }
 fn yy_action_161(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_Pattern({();  IntegerLiteral(_dollar1, loc=span((_symbol_start_pos, _end_pos))) })
+  YYObj_Pattern({();  integer_pattern_literal(_dollar1, span((_symbol_start_pos, _end_pos)), negative=false) })
 }
 
 // file:///./parser.mbty
-// 1064|    "-" INT { IntegerLiteral("-" + $2, loc=span($sloc)) }
+// 1064|    "-" INT { integer_pattern_literal($2, span($sloc), negative=true) }
 fn yy_action_162(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_String(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_Pattern({();  IntegerLiteral("-" + _dollar2, loc=span((_symbol_start_pos, _end_pos))) })
+  YYObj_Pattern({();  integer_pattern_literal(_dollar2, span((_symbol_start_pos, _end_pos)), negative=true) })
 }
 
 // file:///./parser.mbty
-// 1065|    DOUBLE { FloatingLiteral($1, loc=span($sloc)) }
+// 1065|    DOUBLE { floating_pattern_literal($1, span($sloc)) }
 fn yy_action_163(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_Pattern({();  FloatingLiteral(_dollar1, loc=span((_symbol_start_pos, _end_pos))) })
+  YYObj_Pattern({();  floating_pattern_literal(_dollar1, span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
@@ -3450,21 +3450,21 @@ fn yy_action_247(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 723|    INT { IntegerLiteral($1, loc=span($sloc)) }
+// 723|    INT { integer_expression_literal($1, span($sloc)) }
 fn yy_action_248(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_Expr({();  IntegerLiteral(_dollar1, loc=span((_symbol_start_pos, _end_pos))) })
+  YYObj_Expr({();  integer_expression_literal(_dollar1, span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 724|    DOUBLE { FloatingLiteral($1, loc=span($sloc)) }
+// 724|    DOUBLE { floating_expression_literal($1, span($sloc)) }
 fn yy_action_249(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_Expr({();  FloatingLiteral(_dollar1, loc=span((_symbol_start_pos, _end_pos))) })
+  YYObj_Expr({();  floating_expression_literal(_dollar1, span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty

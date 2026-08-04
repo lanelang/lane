@@ -53,8 +53,8 @@ fn[T] is_none(value : Option[T]) -> Bool {
 fn test_utf8_string_char_i32() -> Unit ! Assert {
   let text = "Aé中😀\0"
   let encoded = String.encode_utf8(text)
-  let maximum : I32 = 2147483647
-  let one : I32 = 1
+  let maximum : I32 = 2147483647i32
+  let one : I32 = 1i32
   let add = I32.i32_impl_add
   let minimum = add.add(maximum, one)
   assert_eq!(String.byte_length(text), 11, i64_impl_equal)

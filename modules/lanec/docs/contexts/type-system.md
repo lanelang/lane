@@ -198,7 +198,7 @@ A built-in type provided by the language core: `I64`, `I32`, `F64`, `F32`, `Bool
 _Avoid_: Basic library type, numeric tower
 
 **Primitive Literal**:
-A direct inhabitant of a primitive type, such as `true`, `42`, `"abc"`, or `()`.
+A direct inhabitant of a primitive type, such as `true`, `42`, `42i32`, `1f32`, `"abc"`, or `()`. A numeric primitive literal's type is fixed by its own spelling rather than an expected type.
 _Avoid_: enum variant, nominal constructor
 
 **Normalized I64 Literal**:

@@ -153,12 +153,12 @@ A blank line separating a comment group from adjacent syntax; pure blank-line-on
 _Avoid_: raw whitespace, vertical padding, empty statement
 
 **Parsed F64 Literal**:
-A source `F64` literal after validation, retaining the original source text for diagnostics and a binary64 value for semantic lowering.
+A source numeric literal selected as `F64` by its own spelling, retaining the original source text for diagnostics and a directly rounded binary64 value for semantic lowering.
 _Avoid_: string-only float literal, arbitrary-precision decimal constant, overloaded numeric literal
 
 **Parsed F32 Literal**:
-A source floating literal checked under an explicit `F32` expectation, rounded once to binary32 while retaining the original source text for diagnostics.
-_Avoid_: implicit F64 conversion, suffixed literal, binary64 payload labeled as F32
+A source numeric literal selected by an `f32` suffix and rounded directly from its exact authored decimal value to binary32 while retaining the original source text for diagnostics.
+_Avoid_: expected-type-directed literal, implicit F64 conversion, binary64 payload labeled as F32
 
 **F64 Literal Pattern**:
 A refutable pattern that matches a `F64` value by floating-point equality without making `F64` an exhaustively enumerable primitive.

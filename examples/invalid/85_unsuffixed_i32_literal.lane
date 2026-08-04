@@ -1,0 +1,3 @@
+module Examples.Invalid.UnsuffixedI32Literal
+
+pub let answer : I32 = 42

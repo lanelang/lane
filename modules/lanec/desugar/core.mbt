@@ -111,8 +111,8 @@ pub(all) enum DesugaredCallArgument {
 
 ///|
 pub(all) enum DesugaredLiteral {
-  Integer(String)
-  Floating(String)
+  Integer(String, suffix~ : @syntax.NumericLiteralSuffix?)
+  Floating(String, suffix~ : @syntax.NumericLiteralSuffix?)
   String(String)
   Char(Int)
   Bool(Bool)

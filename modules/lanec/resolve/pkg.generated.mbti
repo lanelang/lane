@@ -131,8 +131,10 @@ pub(all) struct ResolvedEnumVariant {
 pub impl @prettyprinter.Pretty for ResolvedEnumVariant
 
 pub(all) enum ResolvedExpr {
-  IntegerLiteral(String, loc~ : @basic.SourceSpan)
-  FloatingLiteral(String, loc~ : @basic.SourceSpan)
+  IntegerLiteral(String, suffix~ : @syntax.NumericLiteralSuffix?, loc~ : @basic.SourceSpan)
+  ImmediatelyNegatedIntegerLiteral(String, suffix~ : @syntax.NumericLiteralSuffix?, loc~ : @basic.SourceSpan)
+  FloatingLiteral(String, suffix~ : @syntax.NumericLiteralSuffix?, loc~ : @basic.SourceSpan)
+  ImmediatelyNegatedFloatingLiteral(String, suffix~ : @syntax.NumericLiteralSuffix?, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   CharLiteral(Int, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
@@ -336,8 +338,8 @@ pub(all) struct ResolvedOperatorTarget {
 pub(all) enum ResolvedPattern {
   Wildcard(@basic.SourceSpan)
   Binding(name~ : String, symbol~ : @symbol.ValueSymbolId, loc~ : @basic.SourceSpan)
-  IntegerLiteral(String, loc~ : @basic.SourceSpan)
-  FloatingLiteral(String, loc~ : @basic.SourceSpan)
+  IntegerLiteral(String, suffix~ : @syntax.NumericLiteralSuffix?, loc~ : @basic.SourceSpan)
+  FloatingLiteral(String, suffix~ : @syntax.NumericLiteralSuffix?, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   CharLiteral(Int, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)

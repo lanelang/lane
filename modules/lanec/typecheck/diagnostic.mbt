@@ -367,6 +367,31 @@ fn typecheck_diagnostic(
           "change the expression type or adjust the annotation/expected type",
         ],
       )
+    NumericLiteralTypeMismatch(expected~, actual~, replacement~) =>
+      diagnostic(
+        "type mismatch",
+        span~,
+        severity=Error,
+        code=Some("E3006"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: "expected `\{display.type_text(expected)}`, found `\{display.type_text(actual)}`",
+            style: Primary,
+          },
+        ],
+        notes=[
+          "unsuffixed integer literals have type `I64`, and unsuffixed floating literals have type `F64`",
+        ],
+        helps=["write an explicit suffix to select the intended literal type"],
+        suggestions=[
+          {
+            message: "write this literal as `\{replacement}`",
+            edits: [{ span: compiler_local_span(diagnostic_.loc), replacement }],
+            applicability: MachineApplicable,
+          },
+        ],
+      )
     ElseOmittingConditionalRequiresUnit(actual~) =>
       diagnostic(
         "`if` without `else` must produce `Unit`",
@@ -888,7 +913,7 @@ fn typecheck_diagnostic(
           },
         ],
         notes=[
-          "Lane `F32` literals must round to a finite, nonzero IEEE 754 binary32 value",
+          "a nonzero decimal must round to a finite, nonzero IEEE 754 binary32 value; authored zero remains valid",
         ],
         helps=["use a finite F32 literal within the binary32 range"],
       )

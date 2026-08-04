@@ -4,6 +4,10 @@ status: accepted
 
 # UTF-8 String, Char, I32, and the shared byte-sequence runtime
 
+The expected-type-directed numeric literal rules in this ADR are superseded by
+ADR 0127. This ADR continues to own its other String, Char, I32, representation,
+and runtime decisions.
+
 Lane replaces its ASCII-only String model with always-valid UTF-8 text, adds `Char` as the Unicode scalar primitive, and adds `I32` as the ordinary signed 32-bit integer primitive. String and Bytes remain distinct semantic types but share one packed runtime ByteSequence representation. The compiler owns only a closed set of representation-dependent intrinsics; scalar text algorithms and user-facing validation remain ordinary Basic library code.
 
 This document is the complete review contract for the change. Implementation must not infer additional String syntax, Unicode behavior, implicit conversions, reflection, compiler-recognized library declarations, or mutable collection semantics beyond what is specified here.
@@ -21,6 +25,8 @@ This document is the complete review contract for the change. Implementation mus
 `String`, `Char`, and `I32` are globally available primitive types. Their ordinary library operations still follow normal module import and name-resolution rules.
 
 ## Numeric literals and I32
+
+The following two paragraphs record the historical rule replaced by ADR 0127.
 
 Lane retains one decimal integer-literal syntax. An integer literal is checked as `I32` when its expected type is `I32`; otherwise it defaults to `I64`. This is expected-type-directed literal elaboration, not an implicit conversion between `I64` and `I32`. Literal and unary-negation checking must admit the complete signed range of the selected type and produce a range diagnostic when the mathematical value is outside it.
 
@@ -174,7 +180,7 @@ The implementation is complete only when the following behaviors are covered by 
 
 - Direct ASCII, multibyte UTF-8, NUL, BMP, and supplementary-plane String and Char literals parse, typecheck, format idempotently, serialize, lower, and execute.
 - Valid short and Unicode escapes canonicalize as specified; malformed, empty, oversized, surrogate, out-of-range, multi-scalar Char, and removed `\xNN` forms produce precise diagnostics.
-- Integer literals default to I64, elaborate to I32 under an I32 expectation, cover both signed limits, and reject out-of-range values in expressions and patterns.
+- Numeric literal spelling, default types, suffixes, signed limits, and expression/pattern consistency satisfy ADR 0127.
 - I32 arithmetic, comparison, wrapping, division, remainder, literal patterns, `I32 -> I64` sign extension, and `I64 -> I32` truncation agree between interpreter and Wasm.
 - Char remains type-distinct from I32 and I64 through checked AST, Buslane, generic substitution, artifacts, hover, completion display, and diagnostics; Char expressions and patterns execute through the I32 representation.
 - UTF-8 validation accepts every legal sequence class and rejects invalid continuation, truncation, overlong, surrogate, and above-maximum cases in both backends.

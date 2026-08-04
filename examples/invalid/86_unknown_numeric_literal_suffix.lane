@@ -1,0 +1,3 @@
+module Examples.Invalid.UnknownNumericLiteralSuffix
+
+pub let answer : I64 = 42i16

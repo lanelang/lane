@@ -306,8 +306,8 @@ pub fn Type::loc(self : Type) -> SourceSpan {
 
 ///|
 pub(all) enum Expr {
-  IntegerLiteral(String, loc~ : SourceSpan)
-  FloatingLiteral(String, loc~ : SourceSpan)
+  IntegerLiteral(String, suffix~ : NumericLiteralSuffix?, loc~ : SourceSpan)
+  FloatingLiteral(String, suffix~ : NumericLiteralSuffix?, loc~ : SourceSpan)
   StringLiteral(String, loc~ : SourceSpan)
   CharLiteral(Int, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
@@ -386,8 +386,8 @@ pub(all) enum Expr {
 /// Returns the source span covered by this expression syntax node.
 pub fn Expr::loc(self : Expr) -> SourceSpan {
   match self {
-    IntegerLiteral(_, loc~)
-    | FloatingLiteral(_, loc~)
+    IntegerLiteral(_, loc~, ..)
+    | FloatingLiteral(_, loc~, ..)
     | StringLiteral(_, loc~)
     | CharLiteral(_, loc~)
     | BoolLiteral(_, loc~)
@@ -504,8 +504,8 @@ pub(all) struct MatchArm {
 pub(all) enum Pattern {
   Wildcard(SourceSpan)
   Binding(String, loc~ : SourceSpan)
-  IntegerLiteral(String, loc~ : SourceSpan)
-  FloatingLiteral(String, loc~ : SourceSpan)
+  IntegerLiteral(String, suffix~ : NumericLiteralSuffix?, loc~ : SourceSpan)
+  FloatingLiteral(String, suffix~ : NumericLiteralSuffix?, loc~ : SourceSpan)
   StringLiteral(String, loc~ : SourceSpan)
   CharLiteral(Int, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
@@ -534,8 +534,8 @@ pub fn Pattern::loc(self : Pattern) -> SourceSpan {
   match self {
     Wildcard(loc)
     | Binding(_, loc~)
-    | IntegerLiteral(_, loc~)
-    | FloatingLiteral(_, loc~)
+    | IntegerLiteral(_, loc~, ..)
+    | FloatingLiteral(_, loc~, ..)
     | StringLiteral(_, loc~)
     | CharLiteral(_, loc~)
     | BoolLiteral(_, loc~)
@@ -545,6 +545,14 @@ pub fn Pattern::loc(self : Pattern) -> SourceSpan {
     | Tuple(loc~, ..) => loc
   }
 }
+
+///|
+pub(all) enum NumericLiteralSuffix {
+  I32Suffix
+  I64Suffix
+  F32Suffix
+  F64Suffix
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum StructPatternField {

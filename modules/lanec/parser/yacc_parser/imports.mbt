@@ -27,6 +27,7 @@ using @syntax {
   type MatchArm,
   type ModuleAlias,
   type ModulePath,
+  type NumericLiteralSuffix,
   type CallArgument,
   type Parameter,
   type ParameterModifiers,
@@ -43,6 +44,63 @@ using @syntax {
   type TypeParameter,
   type TopLevelDeclaration,
   type Type,
+}
+
+///|
+priv struct ParsedNumericLiteral {
+  body : String
+  suffix : NumericLiteralSuffix?
+}
+
+///|
+fn parsed_numeric_literal(raw : String) -> ParsedNumericLiteral {
+  match raw {
+    _ if raw.strip_suffix("i32") is Some(body) =>
+      { body: body.to_owned(), suffix: Some(I32Suffix) }
+    _ if raw.strip_suffix("i64") is Some(body) =>
+      { body: body.to_owned(), suffix: Some(I64Suffix) }
+    _ if raw.strip_suffix("f32") is Some(body) =>
+      { body: body.to_owned(), suffix: Some(F32Suffix) }
+    _ if raw.strip_suffix("f64") is Some(body) =>
+      { body: body.to_owned(), suffix: Some(F64Suffix) }
+    _ => { body: raw, suffix: None }
+  }
+}
+
+///|
+fn integer_expression_literal(raw : String, loc : SourceSpan) -> Expr {
+  let literal = parsed_numeric_literal(raw)
+  IntegerLiteral(literal.body, suffix=literal.suffix, loc~)
+}
+
+///|
+fn floating_expression_literal(raw : String, loc : SourceSpan) -> Expr {
+  let literal = parsed_numeric_literal(raw)
+  FloatingLiteral(literal.body, suffix=literal.suffix, loc~)
+}
+
+///|
+fn integer_pattern_literal(
+  raw : String,
+  loc : SourceSpan,
+  negative~ : Bool,
+) -> Pattern {
+  let literal = parsed_numeric_literal(raw)
+  IntegerLiteral(
+    if negative {
+      "-" + literal.body
+    } else {
+      literal.body
+    },
+    suffix=literal.suffix,
+    loc~,
+  )
+}
+
+///|
+fn floating_pattern_literal(raw : String, loc : SourceSpan) -> Pattern {
+  let literal = parsed_numeric_literal(raw)
+  FloatingLiteral(literal.body, suffix=literal.suffix, loc~)
 }
 
 ///|
@@ -229,31 +287,8 @@ fn local_let_item(
 }
 
 ///|
-/// Builds the expression for a prefix `-`.
-///
-/// A sign directly in front of a numeric literal belongs to that literal's
-/// spelling, exactly as it does in pattern position. Folding it here keeps one
-/// surface rule for both positions and leaves later stages with a single shape
-/// to reason about: no `Unary` node ever wraps a bare numeric literal, so name
-/// resolution never looks up `op_neg` for one and literal checking always sees
-/// the value it must represent. Without the fold, `-9223372036854775808` would
-/// be unwritable, since its magnitude alone is not an `I64`.
-///
-/// An already-signed literal is not folded again: `- -1` negates the literal
-/// `-1` and stays an ordinary operator application.
 fn negated_expression(operand : Expr, loc : SourceSpan) -> Expr {
-  match operand {
-    IntegerLiteral(raw, ..) if !is_signed_literal(raw) =>
-      IntegerLiteral("-" + raw, loc~)
-    FloatingLiteral(raw, ..) if !is_signed_literal(raw) =>
-      FloatingLiteral("-" + raw, loc~)
-    _ => Unary(operator=Neg, operand~, loc~)
-  }
-}
-
-///|
-fn is_signed_literal(raw : String) -> Bool {
-  raw.view() is ['-', ..]
+  Unary(operator=Neg, operand~, loc~)
 }
 
 ///|

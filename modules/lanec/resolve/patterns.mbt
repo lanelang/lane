@@ -15,8 +15,9 @@ fn @syntax.Pattern::resolve_pattern(
       scope.define_value(name, symbol, None)
       Binding(name~, symbol~, loc~)
     }
-    IntegerLiteral(value, loc~) => IntegerLiteral(value, loc~)
-    FloatingLiteral(value, loc~) => FloatingLiteral(value, loc~)
+    IntegerLiteral(value, suffix~, loc~) => IntegerLiteral(value, suffix~, loc~)
+    FloatingLiteral(value, suffix~, loc~) =>
+      FloatingLiteral(value, suffix~, loc~)
     StringLiteral(value, loc~) => StringLiteral(value, loc~)
     CharLiteral(value, loc~) => CharLiteral(value, loc~)
     BoolLiteral(value, loc~) => BoolLiteral(value, loc~)

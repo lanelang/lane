@@ -70,6 +70,8 @@ pub(all) enum Token {
 ///|
 pub(all) enum LexicalError {
   IllegalCharacter(String)
+  UnknownNumericLiteralSuffix(String)
+  IntegerSuffixOnFloatingLiteral(String)
   UnterminatedString
   UnterminatedChar
   InvalidLiteralEscape(String)

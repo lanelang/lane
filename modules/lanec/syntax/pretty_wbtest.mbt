@@ -175,11 +175,11 @@ test "pretty print expression precedence" {
     operator=Mul,
     left=Binary(
       operator=Add,
-      left=IntegerLiteral("1", loc=test_loc()),
-      right=IntegerLiteral("2", loc=test_loc()),
+      left=IntegerLiteral("1", suffix=None, loc=test_loc()),
+      right=IntegerLiteral("2", suffix=None, loc=test_loc()),
       loc=test_loc(),
     ),
-    right=IntegerLiteral("3", loc=test_loc()),
+    right=IntegerLiteral("3", suffix=None, loc=test_loc()),
     loc=test_loc(),
   )
   inspect(@prettyprinter.render(expression), content="(1 + 2) * 3")
@@ -212,7 +212,7 @@ test "pretty print handler keeps with and final attached" {
               callee=Var("resume", loc=test_loc()),
               arguments=[
                 Positional(
-                  value=IntegerLiteral("42", loc=test_loc()),
+                  value=IntegerLiteral("42", suffix=None, loc=test_loc()),
                   loc=test_loc(),
                 ),
               ],

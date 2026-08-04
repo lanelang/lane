@@ -532,8 +532,26 @@ pub(all) struct ResolvedPatternLetDeclaration {
 
 ///|
 pub(all) enum ResolvedExpr {
-  IntegerLiteral(String, loc~ : SourceSpan)
-  FloatingLiteral(String, loc~ : SourceSpan)
+  IntegerLiteral(
+    String,
+    suffix~ : @syntax.NumericLiteralSuffix?,
+    loc~ : SourceSpan
+  )
+  ImmediatelyNegatedIntegerLiteral(
+    String,
+    suffix~ : @syntax.NumericLiteralSuffix?,
+    loc~ : SourceSpan
+  )
+  FloatingLiteral(
+    String,
+    suffix~ : @syntax.NumericLiteralSuffix?,
+    loc~ : SourceSpan
+  )
+  ImmediatelyNegatedFloatingLiteral(
+    String,
+    suffix~ : @syntax.NumericLiteralSuffix?,
+    loc~ : SourceSpan
+  )
   StringLiteral(String, loc~ : SourceSpan)
   CharLiteral(Int, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)
@@ -647,8 +665,16 @@ pub(all) enum ResolvedExpr {
 pub(all) enum ResolvedPattern {
   Wildcard(SourceSpan)
   Binding(name~ : String, symbol~ : ValueSymbolId, loc~ : SourceSpan)
-  IntegerLiteral(String, loc~ : SourceSpan)
-  FloatingLiteral(String, loc~ : SourceSpan)
+  IntegerLiteral(
+    String,
+    suffix~ : @syntax.NumericLiteralSuffix?,
+    loc~ : SourceSpan
+  )
+  FloatingLiteral(
+    String,
+    suffix~ : @syntax.NumericLiteralSuffix?,
+    loc~ : SourceSpan
+  )
   StringLiteral(String, loc~ : SourceSpan)
   CharLiteral(Int, loc~ : SourceSpan)
   BoolLiteral(Bool, loc~ : SourceSpan)

@@ -45,6 +45,7 @@ priv struct CheckedCallArguments {
 ///|
 priv enum CheckedMismatchContext {
   OrdinaryMismatch
+  NumericLiteralMismatch(replacement~ : String)
   ElseOmittingConditionalMismatch
 }
 
@@ -79,6 +80,18 @@ fn CheckedExpectation::for_else_omitting_conditional(
   self : CheckedExpectation,
 ) -> CheckedExpectation {
   { ..self, mismatch_context: ElseOmittingConditionalMismatch }
+}
+
+///|
+fn CheckedExpectation::for_numeric_literal(
+  self : CheckedExpectation,
+  replacement : String?,
+) -> CheckedExpectation {
+  match replacement {
+    Some(replacement) =>
+      { ..self, mismatch_context: NumericLiteralMismatch(replacement~) }
+    None => self
+  }
 }
 
 ///|
@@ -134,6 +147,12 @@ fn SemanticChecker::report_checked_expectation_mismatch(
   } else {
     match expectation.mismatch_context {
       OrdinaryMismatch => TypeMismatch(expected=expectation.type_, actual~)
+      NumericLiteralMismatch(replacement~) =>
+        NumericLiteralTypeMismatch(
+          expected=expectation.type_,
+          actual~,
+          replacement~,
+        )
       ElseOmittingConditionalMismatch =>
         ElseOmittingConditionalRequiresUnit(actual~)
     }
@@ -217,24 +236,6 @@ fn SemanticChecker::check_checked_expr_with_expectation(
         ErrorRecovery(type_=expectation.type_, loc~),
         expectation.type_,
       ).with_expectation_match(MatchesExpectation)
-    Literal(literal=Integer(raw), loc~) if expectation.type_ == Primitive(I32) =>
-      checked_expression(
-        Literal(
-          literal=I32(self.check_i32_literal(raw, loc)),
-          type_=expectation.type_,
-          loc~,
-        ),
-        expectation.type_,
-      ).with_expectation_match(MatchesExpectation)
-    Literal(literal=Floating(raw), loc~) if expectation.type_ == Primitive(F32) =>
-      checked_expression(
-        Literal(
-          literal=F32(self.check_f32_literal(raw, loc)),
-          type_=expectation.type_,
-          loc~,
-        ),
-        expectation.type_,
-      ).with_expectation_match(MatchesExpectation)
     Unary(target~, operand~, loc~, ..) => {
       let synthesis = self.synthesize_checked_expr(
         scope,
@@ -242,7 +243,17 @@ fn SemanticChecker::check_checked_expr_with_expectation(
       )
       self.check_synthesis_against_expectation(synthesis, expectation, loc)
     }
-    Literal(..) | Field(..) => {
+    Literal(literal~, loc~) => {
+      let synthesis = self.synthesize_checked_expr(scope, expression)
+      self.check_synthesis_against_expectation(
+        synthesis,
+        expectation.for_numeric_literal(
+          literal.numeric_literal_suffix_replacement(expectation.type_),
+        ),
+        loc,
+      )
+    }
+    Field(..) => {
       let synthesis = self.synthesize_checked_expr(scope, expression)
       self.check_synthesis_against_expectation(
         synthesis,
@@ -377,11 +388,8 @@ fn SemanticChecker::synthesize_checked_expr(
   // instead of inventing non-local inference.
   match expression {
     Literal(literal~, loc~) => {
-      let type_ = literal.type_()
-      checked_expression(
-        Literal(literal=self.checked_literal(literal, loc), type_~, loc~),
-        type_,
-      )
+      let (literal, type_) = self.check_literal(literal, loc)
+      checked_expression(Literal(literal~, type_~, loc~), type_)
     }
     FunctionLiteral(
       type_parameters~,

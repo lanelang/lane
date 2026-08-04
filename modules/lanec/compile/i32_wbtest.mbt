@@ -9,9 +9,9 @@ test "compiler preserves I32 literal and arithmetic through executable lowering"
       #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
       #|
       #|pub fn answer() -> Unit ! Io {
-      #|  let minimum : I32 = -2147483648
-      #|  match add(2147483647, 1) {
-      #|    -2147483648 => observe(to_int(minimum))
+      #|  let minimum : I32 = -2147483648i32
+      #|  match add(2147483647i32, 1i32) {
+      #|    -2147483648i32 => observe(to_int(minimum))
       #|    _ => observe(0)
       #|  }
       #|}

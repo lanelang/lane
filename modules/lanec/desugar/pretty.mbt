@@ -152,12 +152,23 @@ pub impl @prettyprinter.Pretty for DesugaredLiteral with fn pretty(
   literal : DesugaredLiteral,
 ) {
   match literal {
-    Integer(value) => text(value)
-    Floating(value) => text(value)
+    Integer(value, suffix~) => text(value + numeric_literal_suffix(suffix))
+    Floating(value, suffix~) => text(value + numeric_literal_suffix(suffix))
     String(value) => text("\"") + text(value) + text("\"")
     Char(value) => text("'") + text(value.to_string()) + text("'")
     Bool(value) => text(value.to_string())
     Unit => text("()")
+  }
+}
+
+///|
+fn numeric_literal_suffix(suffix : @syntax.NumericLiteralSuffix?) -> String {
+  match suffix {
+    Some(I32Suffix) => "i32"
+    Some(I64Suffix) => "i64"
+    Some(F32Suffix) => "f32"
+    Some(F64Suffix) => "f64"
+    None => ""
   }
 }
 

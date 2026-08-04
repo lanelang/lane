@@ -14,6 +14,8 @@ pub fn LexicalError::presentation(
   {
     code: match self {
       IllegalCharacter(_) => "E1000"
+      UnknownNumericLiteralSuffix(_) => "E1008"
+      IntegerSuffixOnFloatingLiteral(_) => "E1009"
       UnterminatedString => "E1002"
       InvalidLiteralEscape(_) => "E1003"
       InvalidUnicodeEscape(_, _) => "E1004"
@@ -23,6 +25,9 @@ pub fn LexicalError::presentation(
     },
     title: match self {
       IllegalCharacter(_) => "illegal character in source"
+      UnknownNumericLiteralSuffix(_) => "unknown numeric literal suffix"
+      IntegerSuffixOnFloatingLiteral(_) =>
+        "integer suffix requires an integer literal body"
       UnterminatedString => "unterminated string literal"
       UnterminatedChar => "unterminated character literal"
       InvalidLiteralEscape(_) => "invalid literal escape"
@@ -32,6 +37,10 @@ pub fn LexicalError::presentation(
     },
     label: match self {
       IllegalCharacter(value) => "`\{value}` is not valid Lane syntax"
+      UnknownNumericLiteralSuffix(value) =>
+        "`\{value}` ends with an unsupported numeric literal suffix"
+      IntegerSuffixOnFloatingLiteral(value) =>
+        "`\{value}` has a fractional or exponent form with an integer suffix"
       UnterminatedString => "this string literal is never closed"
       UnterminatedChar => "this character literal is never closed"
       InvalidLiteralEscape(value) =>
@@ -50,6 +59,10 @@ pub fn LexicalError::presentation(
     helps: match self {
       IllegalCharacter(_) =>
         ["remove this character or replace it with a valid Lane token"]
+      UnknownNumericLiteralSuffix(_) =>
+        ["use one of the lowercase suffixes `i32`, `i64`, `f32`, or `f64`"]
+      IntegerSuffixOnFloatingLiteral(_) =>
+        ["remove the fractional or exponent part, or use `f32` or `f64`"]
       UnterminatedString => ["add a closing `\"` before the end of the line"]
       UnterminatedChar => ["add a closing `'` before the end of the line"]
       InvalidLiteralEscape(_) =>

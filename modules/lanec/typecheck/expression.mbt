@@ -40,6 +40,24 @@ fn SemanticChecker::expect_type(
 }
 
 ///|
+fn SemanticChecker::expect_numeric_literal_type(
+  self : SemanticChecker,
+  expected : @types.Type,
+  actual : @types.Type,
+  replacement : String?,
+  loc : SourceSpan,
+) -> Unit {
+  if self.type_matches(expected, actual, loc) is Some(false) {
+    let kind = match replacement {
+      Some(replacement) =>
+        NumericLiteralTypeMismatch(expected~, actual~, replacement~)
+      None => TypeMismatch(expected~, actual~)
+    }
+    self.diagnostics.push({ kind, loc })
+  }
+}
+
+///|
 fn SemanticChecker::type_matches(
   self : SemanticChecker,
   expected : @types.Type,

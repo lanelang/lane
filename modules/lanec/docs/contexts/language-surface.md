@@ -191,6 +191,22 @@ _Avoid_: tuple index access, flat positional record, numeric field
 A value belonging to a primitive type, such as an integer literal, boolean literal, string literal, or `()`.
 _Avoid_: enum variant, nominal constructor
 
+**Typed Numeric Literal**:
+A numeric literal whose type is fixed in every source position by a lowercase, lexically attached `i32`, `i64`, `f32`, or `f64` suffix. It constructs that primitive value directly rather than converting from another numeric type.
+_Avoid_: cast literal, converted literal, context-directed literal
+
+**Unsuffixed Numeric Literal**:
+A numeric literal whose type is fixed by its numeral form: integer-shaped literals are I64 and floating-shaped literals are F64, independently of contextual expectations or generic inference.
+_Avoid_: overloaded numeric literal, inferred-width literal
+
+**Immediately Negated Integer Literal**:
+An integer literal directly governed by unary negation and checked as one mathematical signed value so the selected integer type's minimum value remains expressible. Parenthesizing the positive literal ends this special form.
+_Avoid_: negative literal
+
+**Target-Width Literal Rounding**:
+The single correctly rounded conversion from an exact authored decimal value to its explicitly selected IEEE floating type. It never obtains an F32 literal by first producing an F64 value and narrowing it.
+_Avoid_: F64-mediated literal conversion, double rounding
+
 ## Relationships
 
 - A Lane source file contains **Top-Level Definitions**, not an executable entrypoint.

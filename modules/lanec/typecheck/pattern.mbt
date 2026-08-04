@@ -264,26 +264,27 @@ fn SemanticChecker::check_pattern(
       scope.bind(symbol, name, expected)
       Binding(name~, symbol~, type_=expected, loc~)
     }
-    IntegerLiteral(raw, loc~) => {
-      let (literal, literal_type) : (@checked.CheckedLiteral, @types.Type) = if expected ==
-        Primitive(I32) {
-        (I32(self.check_i32_literal(raw, loc)), Primitive(I32))
-      } else {
-        (I64(self.check_i64_literal(raw, loc)), Primitive(I64))
-      }
-      self.expect_type(expected, literal_type, loc)
-      Literal(literal~, type_=expected, loc~)
+    IntegerLiteral(raw, suffix~, loc~) => {
+      let (literal, literal_type) = self.check_integer_literal(raw, suffix, loc)
+      self.expect_numeric_literal_type(
+        expected,
+        literal_type,
+        numeric_literal_suffix_replacement(raw, suffix, expected, false),
+        loc,
+      )
+      Literal(literal~, type_=literal_type, loc~)
     }
-    FloatingLiteral(raw, loc~) => {
-      let checked : (@checked.CheckedLiteral, @types.Type) = if expected ==
-        Primitive(F32) {
-        (F32(self.check_f32_literal(raw, loc)), Primitive(F32))
-      } else {
-        (F64(self.check_f64_literal(raw, loc)), Primitive(F64))
-      }
-      let (literal, literal_type) = checked
-      self.expect_type(expected, literal_type, loc)
-      Literal(literal~, type_=expected, loc~)
+    FloatingLiteral(raw, suffix~, loc~) => {
+      let (literal, literal_type) = self.check_floating_literal(
+        raw, suffix, loc,
+      )
+      self.expect_numeric_literal_type(
+        expected,
+        literal_type,
+        numeric_literal_suffix_replacement(raw, suffix, expected, true),
+        loc,
+      )
+      Literal(literal~, type_=literal_type, loc~)
     }
     StringLiteral(value, loc~) => {
       self.expect_type(expected, Primitive(String), loc)

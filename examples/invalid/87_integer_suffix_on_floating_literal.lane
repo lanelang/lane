@@ -1,0 +1,3 @@
+module Examples.Invalid.IntegerSuffixOnFloatingLiteral
+
+pub let answer : I32 = 1.5i32

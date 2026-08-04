@@ -1875,6 +1875,11 @@
       }
     },
     {
+      "name": "92 explicit numeric literal suffixes",
+      "file": "examples/valid/92_explicit_numeric_literal_suffixes.lane",
+      "mode": "check"
+    },
+    {
       "name": "invalid 84 initialization cycle",
       "file": "examples/invalid/84_initialization_cycle.lane",
       "mode": "check-error",
@@ -1883,6 +1888,53 @@
           "error[E4004]",
           "initialization cycle between `first`, `second`",
           "this initializer depends on its own value"
+        ]
+      }
+    },
+    {
+      "name": "invalid 85 unsuffixed I32 literal",
+      "file": "examples/invalid/85_unsuffixed_i32_literal.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3006]",
+          "expected `I32`, found `I64`",
+          "write this literal as `42i32`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 86 unknown numeric literal suffix",
+      "file": "examples/invalid/86_unknown_numeric_literal_suffix.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1008]",
+          "unknown numeric literal suffix",
+          "use one of the lowercase suffixes `i32`, `i64`, `f32`, or `f64`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 87 integer suffix on floating literal",
+      "file": "examples/invalid/87_integer_suffix_on_floating_literal.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E1009]",
+          "integer suffix requires an integer literal body",
+          "use `f32` or `f64`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 88 mixed numeric literal suffixes",
+      "file": "examples/invalid/88_mixed_numeric_literal_suffixes.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3006]",
+          "expected `I32`, found `I64`"
         ]
       }
     }

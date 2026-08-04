@@ -146,7 +146,7 @@ fn lex_token(
       )
       rest
     }
-    (re"^[0-9]+[.][0-9]+[eE][+][0-9]+" as raw, after=rest) => {
+    (re"^[0-9]+[.][0-9]+[eE][+][0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -154,7 +154,7 @@ fn lex_token(
       )
       rest
     }
-    (re"^[0-9]+[.][0-9]+[eE]-[0-9]+" as raw, after=rest) => {
+    (re"^[0-9]+[.][0-9]+[eE]-[0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -162,7 +162,7 @@ fn lex_token(
       )
       rest
     }
-    (re"^[0-9]+[.][0-9]+[eE][0-9]+" as raw, after=rest) => {
+    (re"^[0-9]+[.][0-9]+[eE][0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -170,7 +170,7 @@ fn lex_token(
       )
       rest
     }
-    (re"^[0-9]+[.][0-9]+" as raw, after=rest) => {
+    (re"^[0-9]+[.][0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -178,7 +178,7 @@ fn lex_token(
       )
       rest
     }
-    (re"^[0-9]+[eE][+][0-9]+" as raw, after=rest) => {
+    (re"^[0-9]+[eE][+][0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -186,7 +186,7 @@ fn lex_token(
       )
       rest
     }
-    (re"^[0-9]+[eE]-[0-9]+" as raw, after=rest) => {
+    (re"^[0-9]+[eE]-[0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -194,7 +194,7 @@ fn lex_token(
       )
       rest
     }
-    (re"^[0-9]+[eE][0-9]+" as raw, after=rest) => {
+    (re"^[0-9]+[eE][0-9]+(f32|f64)?" as raw, after=rest) => {
       env.add_token(
         DOUBLE(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -202,7 +202,70 @@ fn lex_token(
       )
       rest
     }
-    (re"^[0-9]+" as raw, after=rest) => {
+    (re"^[0-9]+[.][0-9]+[eE][+][0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
+      reject_numeric_literal_suffix(
+        input,
+        raw,
+        rest,
+        base~,
+        env~,
+        floating=true,
+      )
+    (re"^[0-9]+[.][0-9]+[eE]-[0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
+      reject_numeric_literal_suffix(
+        input,
+        raw,
+        rest,
+        base~,
+        env~,
+        floating=true,
+      )
+    (re"^[0-9]+[.][0-9]+[eE][0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
+      reject_numeric_literal_suffix(
+        input,
+        raw,
+        rest,
+        base~,
+        env~,
+        floating=true,
+      )
+    (re"^[0-9]+[.][0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
+      reject_numeric_literal_suffix(
+        input,
+        raw,
+        rest,
+        base~,
+        env~,
+        floating=true,
+      )
+    (re"^[0-9]+[eE][+][0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
+      reject_numeric_literal_suffix(
+        input,
+        raw,
+        rest,
+        base~,
+        env~,
+        floating=true,
+      )
+    (re"^[0-9]+[eE]-[0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
+      reject_numeric_literal_suffix(
+        input,
+        raw,
+        rest,
+        base~,
+        env~,
+        floating=true,
+      )
+    (re"^[0-9]+[eE][0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
+      reject_numeric_literal_suffix(
+        input,
+        raw,
+        rest,
+        base~,
+        env~,
+        floating=true,
+      )
+    (re"^[0-9]+(i32|i64|f32|f64)?" as raw, after=rest) => {
       env.add_token(
         INT(raw.to_owned()),
         start=env.calc_offset(input, base~),
@@ -210,6 +273,15 @@ fn lex_token(
       )
       rest
     }
+    (re"^[0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
+      reject_numeric_literal_suffix(
+        input,
+        raw,
+        rest,
+        base~,
+        env~,
+        floating=false,
+      )
     (re"^([A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+)" as raw, after=rest) => {
       let name = raw.to_owned()
       let token = if keyword_table.get(name) is Some(token) {
@@ -326,6 +398,33 @@ fn add_simple_token(
 ) -> StringView {
   env.add_token(
     token,
+    start=env.calc_offset(input, base~),
+    end=env.calc_offset(rest, base~),
+  )
+  rest
+}
+
+///|
+fn reject_numeric_literal_suffix(
+  input : StringView,
+  raw : StringView,
+  rest : StringView,
+  base~ : StringView,
+  env~ : LexEnv,
+  floating~ : Bool,
+) -> StringView {
+  let spelling = raw.to_owned()
+  let error = if floating &&
+    (
+      spelling.strip_suffix("i32") is Some(_) ||
+      spelling.strip_suffix("i64") is Some(_)
+    ) {
+    IntegerSuffixOnFloatingLiteral(spelling)
+  } else {
+    UnknownNumericLiteralSuffix(spelling)
+  }
+  env.add_error(
+    error,
     start=env.calc_offset(input, base~),
     end=env.calc_offset(rest, base~),
   )

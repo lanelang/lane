@@ -1,8 +1,10 @@
 ///|
 pub fn ResolvedExpr::loc(self : ResolvedExpr) -> SourceSpan {
   match self {
-    IntegerLiteral(_, loc~)
-    | FloatingLiteral(_, loc~)
+    IntegerLiteral(_, loc~, ..)
+    | ImmediatelyNegatedIntegerLiteral(_, loc~, ..)
+    | FloatingLiteral(_, loc~, ..)
+    | ImmediatelyNegatedFloatingLiteral(_, loc~, ..)
     | StringLiteral(_, loc~)
     | CharLiteral(_, loc~)
     | BoolLiteral(_, loc~)
@@ -36,7 +38,9 @@ pub fn ResolvedExpr::for_each_child_expr(
 ) -> Unit {
   match self {
     IntegerLiteral(_)
+    | ImmediatelyNegatedIntegerLiteral(_)
     | FloatingLiteral(_)
+    | ImmediatelyNegatedFloatingLiteral(_)
     | StringLiteral(_)
     | CharLiteral(_)
     | BoolLiteral(_)

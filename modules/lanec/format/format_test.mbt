@@ -53,6 +53,45 @@ test "format Unicode strings and character literals canonically" {
 }
 
 ///|
+test "format explicit numeric literal suffixes" {
+  assert_format(
+    (
+      #|module Test
+      #|fn literals()->Unit {
+      #|let i32=42i32
+      #|let i64=42i64
+      #|let whole_f32=1f32
+      #|let whole_f64=1f64
+      #|let f32=100.30f32
+      #|let f64=1.25e-3f64
+      #|let minimum=-2147483648i32
+      #|match i32 { 42i32=>(); _=>() }
+      #|()
+      #|}
+    ),
+    (
+      #|module Test
+      #|
+      #|fn literals() -> Unit {
+      #|  let i32 = 42i32
+      #|  let i64 = 42i64
+      #|  let whole_f32 = 1f32
+      #|  let whole_f64 = 1f64
+      #|  let f32 = 100.30f32
+      #|  let f64 = 1.25e-3f64
+      #|  let minimum = -2147483648i32
+      #|  match i32 {
+      #|    42i32 => ()
+      #|    _ => ()
+      #|  }
+      #|  ()
+      #|}
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves comments around an import alias" {
   assert_format(
     (

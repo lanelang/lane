@@ -690,8 +690,14 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
   expr : ResolvedExpr,
 ) {
   match expr {
-    IntegerLiteral(value, ..) => text(value)
-    FloatingLiteral(value, ..) => text(value)
+    IntegerLiteral(value, suffix~, ..) =>
+      text(value + numeric_literal_suffix(suffix))
+    ImmediatelyNegatedIntegerLiteral(value, suffix~, ..) =>
+      text("-" + value + numeric_literal_suffix(suffix))
+    FloatingLiteral(value, suffix~, ..) =>
+      text(value + numeric_literal_suffix(suffix))
+    ImmediatelyNegatedFloatingLiteral(value, suffix~, ..) =>
+      text("-" + value + numeric_literal_suffix(suffix))
     StringLiteral(value, ..) => text("\"") + text(value) + text("\"")
     CharLiteral(value, ..) => text("'") + text(value.to_string()) + text("'")
     BoolLiteral(value, ..) => text(value.to_string())
@@ -835,8 +841,10 @@ pub impl @prettyprinter.Pretty for ResolvedPattern with fn pretty(
     Wildcard(_) => text("_")
     Binding(name~, symbol~, ..) =>
       text("bind") + space + symbol.pretty() + space + text(name)
-    IntegerLiteral(value, ..) => text(value)
-    FloatingLiteral(value, ..) => text(value)
+    IntegerLiteral(value, suffix~, ..) =>
+      text(value + numeric_literal_suffix(suffix))
+    FloatingLiteral(value, suffix~, ..) =>
+      text(value + numeric_literal_suffix(suffix))
     StringLiteral(value, ..) => text("\"") + text(value) + text("\"")
     CharLiteral(value, ..) => text("'") + text(value.to_string()) + text("'")
     BoolLiteral(value, ..) => text(value.to_string())
@@ -873,6 +881,17 @@ pub impl @prettyprinter.Pretty for ResolvedPattern with fn pretty(
     Struct(type_name~, fields~, ..) =>
       text(type_name.display_text()) +
       @pretty.braced_block(fields.map(ResolvedStructPatternField::pretty))
+  }
+}
+
+///|
+fn numeric_literal_suffix(suffix : @syntax.NumericLiteralSuffix?) -> String {
+  match suffix {
+    Some(I32Suffix) => "i32"
+    Some(I64Suffix) => "i64"
+    Some(F32Suffix) => "f32"
+    Some(F64Suffix) => "f64"
+    None => ""
   }
 }
 

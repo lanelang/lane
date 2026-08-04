@@ -98,8 +98,8 @@ pub impl @source_prettyprinter.Pretty for EnumVariant
 pub impl @prettyprinter.Pretty for EnumVariant
 
 pub(all) enum Expr {
-  IntegerLiteral(String, loc~ : @basic.SourceSpan)
-  FloatingLiteral(String, loc~ : @basic.SourceSpan)
+  IntegerLiteral(String, suffix~ : NumericLiteralSuffix?, loc~ : @basic.SourceSpan)
+  FloatingLiteral(String, suffix~ : NumericLiteralSuffix?, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   CharLiteral(Int, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)
@@ -278,6 +278,13 @@ pub(all) struct ModulePath {
 pub impl @source_prettyprinter.Pretty for ModulePath
 pub impl @prettyprinter.Pretty for ModulePath
 
+pub(all) enum NumericLiteralSuffix {
+  I32Suffix
+  I64Suffix
+  F32Suffix
+  F64Suffix
+} derive(Eq, @debug.Debug)
+
 pub(all) struct Parameter {
   is_auto : Bool
   is_offered : Bool
@@ -297,8 +304,8 @@ pub(all) struct ParameterModifiers {
 pub(all) enum Pattern {
   Wildcard(@basic.SourceSpan)
   Binding(String, loc~ : @basic.SourceSpan)
-  IntegerLiteral(String, loc~ : @basic.SourceSpan)
-  FloatingLiteral(String, loc~ : @basic.SourceSpan)
+  IntegerLiteral(String, suffix~ : NumericLiteralSuffix?, loc~ : @basic.SourceSpan)
+  FloatingLiteral(String, suffix~ : NumericLiteralSuffix?, loc~ : @basic.SourceSpan)
   StringLiteral(String, loc~ : @basic.SourceSpan)
   CharLiteral(Int, loc~ : @basic.SourceSpan)
   BoolLiteral(Bool, loc~ : @basic.SourceSpan)

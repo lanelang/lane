@@ -25,6 +25,72 @@ fn parse_error_kinds(source : String) -> Array[ParseErrorKind] {
 }
 
 ///|
+test "parse reports an unknown numeric literal suffix" {
+  let result = parse_string("module Test\npub let answer : I64 = 42i16")
+  assert_eq(
+    result.lexical_errors().map(fn(error) { error.error.presentation().title }),
+    ["unknown numeric literal suffix"],
+  )
+}
+
+///|
+test "parse rejects an integer suffix on a floating literal" {
+  let result = parse_string("module Test\npub let answer : I32 = 1.5i32")
+  assert_eq(
+    result.lexical_errors().map(fn(error) { error.error.presentation().title }),
+    ["integer suffix requires an integer literal body"],
+  )
+}
+
+///|
+test "parse rejects noncanonical numeric literal suffix forms" {
+  let lexical_titles = ["42I32", "42_i32", "1_000i32"].map(fn(literal) {
+    parse_string("module Test\npub let answer = " + literal)
+    .lexical_errors()
+    .map(fn(error) { error.error.presentation().title })
+  })
+  assert_eq(lexical_titles, [
+    ["unknown numeric literal suffix"],
+    ["unknown numeric literal suffix"],
+    ["unknown numeric literal suffix"],
+  ])
+  for literal in ["42 i32", ".5f32", "1.f32"] {
+    let result = parse_string("module Test\npub let answer = " + literal)
+    assert_true(result.lexical_errors().is_empty())
+    assert_false(result.parse_errors().is_empty())
+  }
+}
+
+///|
+test "parse rejects exponent-shaped literals with integer suffixes" {
+  let result = parse_string("module Test\npub let answer : I64 = 1e3i64")
+  assert_eq(
+    result.lexical_errors().map(fn(error) { error.error.presentation().title }),
+    ["integer suffix requires an integer literal body"],
+  )
+}
+
+///|
+test "parse keeps negation outside a suffixed numeric literal" {
+  let file = expect_parse_ok("pub let answer : I32 = -2147483648i32")
+  assert_true(
+    file.declarations
+    is [
+      Let(
+        {
+          initializer: Unary(
+            operator=Neg,
+            operand=IntegerLiteral("2147483648", suffix=Some(I32Suffix), ..),
+            ..
+          ),
+          ..,
+        }
+      ),
+    ],
+  )
+}
+
+///|
 test "parse character literals in expressions and patterns" {
   let file = expect_parse_ok(
     (

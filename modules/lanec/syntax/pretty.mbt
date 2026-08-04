@@ -1368,8 +1368,10 @@ fn Expr::render_with_precedence(
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> RenderedExpr {
   let rendered = match self {
-    IntegerLiteral(value, ..) => rendered_expr(10, text(value))
-    FloatingLiteral(value, ..) => rendered_expr(10, text(value))
+    IntegerLiteral(value, suffix~, ..) =>
+      rendered_expr(10, text(numeric_literal_text(value, suffix)))
+    FloatingLiteral(value, suffix~, ..) =>
+      rendered_expr(10, text(numeric_literal_text(value, suffix)))
     StringLiteral(value, ..) => rendered_expr(10, source_string(value))
     CharLiteral(value, ..) => rendered_expr(10, source_char(value))
     BoolLiteral(value, ..) => rendered_expr(10, text(value.to_string()))
@@ -2374,6 +2376,21 @@ pub impl @prettyprinter.Pretty for Pattern with fn pretty(pattern : Pattern) {
 }
 
 ///|
+fn numeric_literal_text(
+  body : String,
+  suffix : NumericLiteralSuffix?,
+) -> String {
+  body +
+  (match suffix {
+    Some(I32Suffix) => "i32"
+    Some(I64Suffix) => "i64"
+    Some(F32Suffix) => "f32"
+    Some(F64Suffix) => "f64"
+    None => ""
+  })
+}
+
+///|
 fn Pattern::to_doc(
   self : Pattern,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
@@ -2381,8 +2398,10 @@ fn Pattern::to_doc(
   let doc = match self {
     Wildcard(_) => text("_")
     Binding(name, ..) => text(name)
-    IntegerLiteral(value, ..) => text(value)
-    FloatingLiteral(value, ..) => text(value)
+    IntegerLiteral(value, suffix~, ..) =>
+      text(numeric_literal_text(value, suffix))
+    FloatingLiteral(value, suffix~, ..) =>
+      text(numeric_literal_text(value, suffix))
     StringLiteral(value, ..) => source_string(value)
     CharLiteral(value, ..) => source_char(value)
     BoolLiteral(value, ..) => text(value.to_string())

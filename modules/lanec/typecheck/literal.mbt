@@ -93,20 +93,7 @@ fn SemanticChecker::check_f32_literal(
   raw : String,
   loc : SourceSpan,
 ) -> @checked.CheckedF32Literal {
-  let parsed = try @string.parse_double(raw) catch {
-    _ => return self.invalid_f32_literal(raw, loc)
-  } noraise {
-    value => value
-  }
-  if parsed.is_nan() || parsed.is_inf() {
-    return self.invalid_f32_literal(raw, loc)
-  }
-  let value = Float::from_double(parsed)
-  if value.is_nan() || value.is_inf() {
-    return self.invalid_f32_literal(raw, loc)
-  }
-  if value == Float::from_double(0.0) &&
-    floating_significand_has_nonzero_digit(raw) {
+  guard parse_f32_decimal(raw) is Some(value) else {
     return self.invalid_f32_literal(raw, loc)
   }
   { raw, value }
@@ -150,31 +137,84 @@ fn is_decimal_integer_literal(raw : String) -> Bool {
 }
 
 ///|
-fn @desugar.DesugaredLiteral::type_(
-  self : @desugar.DesugaredLiteral,
-) -> @types.Type {
-  match self {
-    Integer(_) => Primitive(I64)
-    Floating(_) => Primitive(F64)
-    String(_) => Primitive(String)
-    Char(_) => Primitive(Char)
-    Bool(_) => Primitive(Bool)
-    Unit => Primitive(Unit)
+fn SemanticChecker::check_literal(
+  self : SemanticChecker,
+  literal : @desugar.DesugaredLiteral,
+  loc : SourceSpan,
+) -> (@checked.CheckedLiteral, @types.Type) {
+  match literal {
+    Integer(raw, suffix~) => self.check_integer_literal(raw, suffix, loc)
+    Floating(raw, suffix~) => self.check_floating_literal(raw, suffix, loc)
+    String(value) => (String(value), Primitive(String))
+    Char(value) => (Char(value), Primitive(Char))
+    Bool(value) => (Bool(value), Primitive(Bool))
+    Unit => (Unit, Primitive(Unit))
   }
 }
 
 ///|
-fn SemanticChecker::checked_literal(
+fn SemanticChecker::check_integer_literal(
   self : SemanticChecker,
-  literal : @desugar.DesugaredLiteral,
+  raw : String,
+  suffix : @syntax.NumericLiteralSuffix?,
   loc : SourceSpan,
-) -> @checked.CheckedLiteral {
-  match literal {
-    Integer(raw) => I64(self.check_i64_literal(raw, loc))
-    Floating(raw) => F64(self.check_f64_literal(raw, loc))
-    String(value) => String(value)
-    Char(value) => Char(value)
-    Bool(value) => Bool(value)
-    Unit => Unit
+) -> (@checked.CheckedLiteral, @types.Type) {
+  match suffix {
+    None | Some(I64Suffix) =>
+      (I64(self.check_i64_literal(raw, loc)), Primitive(I64))
+    Some(I32Suffix) => (I32(self.check_i32_literal(raw, loc)), Primitive(I32))
+    Some(F64Suffix) => (F64(self.check_f64_literal(raw, loc)), Primitive(F64))
+    Some(F32Suffix) => (F32(self.check_f32_literal(raw, loc)), Primitive(F32))
+  }
+}
+
+///|
+fn SemanticChecker::check_floating_literal(
+  self : SemanticChecker,
+  raw : String,
+  suffix : @syntax.NumericLiteralSuffix?,
+  loc : SourceSpan,
+) -> (@checked.CheckedLiteral, @types.Type) {
+  match suffix {
+    None | Some(F64Suffix) =>
+      (F64(self.check_f64_literal(raw, loc)), Primitive(F64))
+    Some(F32Suffix) => (F32(self.check_f32_literal(raw, loc)), Primitive(F32))
+    Some(I64Suffix) => (I64(self.check_i64_literal(raw, loc)), Primitive(I64))
+    Some(I32Suffix) => (I32(self.check_i32_literal(raw, loc)), Primitive(I32))
+  }
+}
+
+///|
+fn @desugar.DesugaredLiteral::numeric_literal_suffix_replacement(
+  self : @desugar.DesugaredLiteral,
+  expected : @types.Type,
+) -> String? {
+  match self {
+    Integer(raw, suffix~) =>
+      numeric_literal_suffix_replacement(raw, suffix, expected, false)
+    Floating(raw, suffix~) =>
+      numeric_literal_suffix_replacement(raw, suffix, expected, true)
+    _ => None
+  }
+}
+
+///|
+fn numeric_literal_suffix_replacement(
+  raw : String,
+  suffix : @syntax.NumericLiteralSuffix?,
+  expected : @types.Type,
+  floating : Bool,
+) -> String? {
+  guard suffix is None else { return None }
+  if floating {
+    if expected == Primitive(F32) {
+      Some(raw + "f32")
+    } else {
+      None
+    }
+  } else if expected == Primitive(I32) {
+    Some(raw + "i32")
+  } else {
+    None
   }
 }

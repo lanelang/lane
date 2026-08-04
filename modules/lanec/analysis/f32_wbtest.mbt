@@ -6,7 +6,7 @@ test "semantic hover preserves F32 identity" {
     #|
     #|let f32_add : (F32, F32) -> F32 = builtin("%f32_add")
     #|pub fn use() -> F32 {
-    #|  let value : F32 = f32_add(1.25, 2.5)
+    #|  let value : F32 = f32_add(1.25f32, 2.5f32)
     #|  value
     #|}
   guard workspace.replace_sources([

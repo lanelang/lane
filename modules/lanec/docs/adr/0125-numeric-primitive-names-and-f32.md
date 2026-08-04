@@ -4,6 +4,10 @@ status: accepted
 
 # Numeric primitive names and F32
 
+The expected-type-directed numeric literal rules in this ADR are superseded by
+ADR 0127. This ADR continues to own primitive naming, numeric operations,
+representation, persistence, and host ABI decisions.
+
 ## Decision
 
 Lane names its four numeric primitive types by semantic width: `I64`, `I32`, `F64`, and `F32`. The former source names `Int`, `S32`, and `Double` are removed without aliases. This is a coordinated breaking change across source syntax, diagnostics, Basic APIs, Buslane, artifacts, LoisVM, host bindings, editor highlighting, examples, and documentation.
@@ -13,6 +17,8 @@ Lane names its four numeric primitive types by semantic width: `I64`, `I32`, `F6
 Basic exposes ordinary modules `Basic.Data.I64`, `Basic.Data.I32`, `Basic.Data.F64`, and `Basic.Data.F32`. These module names, declarations, traits, and offers are not compiler-recognized.
 
 ## Literal elaboration
+
+The following three paragraphs record the historical rule replaced by ADR 0127.
 
 Integer literals default to `I64` and elaborate to `I32` only under an explicit I32 expectation. The complete signed range of each type is accepted, including a minimum value written through unary negation; an out-of-range mathematical integer produces a typechecking diagnostic.
 

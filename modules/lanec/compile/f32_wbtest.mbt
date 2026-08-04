@@ -16,7 +16,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|
       #|fn nonzero(value : F32) -> F32 {
       #|  match value {
-      #|    0.0 => 1.0
+      #|    0.0f32 => 1.0f32
       #|    _ => value
       #|  }
       #|}
@@ -25,7 +25,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|  observe(f32_inf)
       #|  observe(f32_ninf)
       #|  observe(f32_nan)
-      #|  observe(f32_add(nonzero(identity[F32](1.5)), 2.25))
+      #|  observe(f32_add(nonzero(identity[F32](1.5f32)), 2.25f32))
       #|}
     ),
   )

@@ -384,6 +384,17 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       space +
       text("actual=") +
       actual.pretty()
+    NumericLiteralTypeMismatch(expected~, actual~, replacement~) =>
+      text("numeric_literal_type_mismatch") +
+      space +
+      text("expected=") +
+      expected.pretty() +
+      space +
+      text("actual=") +
+      actual.pretty() +
+      space +
+      text("replacement=") +
+      text(replacement)
     ElseOmittingConditionalRequiresUnit(actual~) =>
       text("else-omitting conditional requires Unit, found ") + actual.pretty()
     EffectMismatch(expected~, actual~) =>

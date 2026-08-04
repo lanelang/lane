@@ -720,8 +720,8 @@ owner_type_arguments -> Array[GenericArgument]
   ;
 
 non_owner_primary_expression -> Expr
-  : INT { IntegerLiteral($1, loc=span($sloc)) }
-  | DOUBLE { FloatingLiteral($1, loc=span($sloc)) }
+  : INT { integer_expression_literal($1, span($sloc)) }
+  | DOUBLE { floating_expression_literal($1, span($sloc)) }
   | STRING { StringLiteral($1, loc=span($sloc)) }
   | CHAR { CharLiteral($1, loc=span($sloc)) }
   | "true" { BoolLiteral(true, loc=span($sloc)) }
@@ -1060,9 +1060,9 @@ extern_expression -> Expr
 pattern -> Pattern
   : PATTERN_IDENTIFIER_SLOT { abort("pattern completion slot token must not be shifted") }
   | "_" { Wildcard(span($sloc)) }
-  | INT { IntegerLiteral($1, loc=span($sloc)) }
-  | "-" INT { IntegerLiteral("-" + $2, loc=span($sloc)) }
-  | DOUBLE { FloatingLiteral($1, loc=span($sloc)) }
+  | INT { integer_pattern_literal($1, span($sloc), negative=false) }
+  | "-" INT { integer_pattern_literal($2, span($sloc), negative=true) }
+  | DOUBLE { floating_pattern_literal($1, span($sloc)) }
   | STRING { StringLiteral($1, loc=span($sloc)) }
   | CHAR { CharLiteral($1, loc=span($sloc)) }
   | "true" { BoolLiteral(true, loc=span($sloc)) }

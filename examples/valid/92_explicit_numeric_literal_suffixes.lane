@@ -1,0 +1,42 @@
+module Examples.Valid.ExplicitNumericLiteralSuffixes
+
+import Basic.Data.List.{ List }
+
+fn[T] identity(value : T) -> T {
+  value
+}
+
+fn take_i32(value : I32) -> I32 {
+  value
+}
+
+pub fn narrow_integer() -> I32 {
+  identity(42i32)
+}
+
+pub fn narrow_float() -> F32 {
+  identity(1f32)
+}
+
+pub fn narrow_argument() -> I32 {
+  take_i32(7i32)
+}
+
+pub fn classify(value : I32) -> Bool {
+  match value {
+    42i32 => true
+    _ => false
+  }
+}
+
+pub fn wide_integer() -> I64 {
+  42i64
+}
+
+pub fn wide_float() -> F64 {
+  1.25e-3f64
+}
+
+pub fn values() -> List[I32] {
+  [1i32, 2i32]
+}

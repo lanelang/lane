@@ -8,8 +8,10 @@ import {
   "Milky2018/lanec/pretty",
   "Milky2018/lanec/resolve",
   "Milky2018/lanec/symbol",
+  "Milky2018/lanec/syntax",
   "Milky2018/lanec/types",
   "moonbit-community/prettyprinter",
+  "moonbitlang/core/bigint",
   "moonbitlang/core/string",
 }
 
