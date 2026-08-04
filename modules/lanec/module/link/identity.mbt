@@ -1,43 +1,64 @@
 ///|
-priv struct LinkTypeMapEntry {
+priv struct LinkTypeKey {
   module_path_text : String
-  source : @buslane.TypeId
-  target : @buslane.TypeId
+  source_index : Int
+} derive(Eq, Hash)
+
+///|
+priv struct LinkTypeParameterKey {
+  module_path_text : String
+  source_index : Int
+} derive(Eq, Hash)
+
+///|
+priv struct LinkValueKey {
+  module_path_text : String
+  source_index : Int
+} derive(Eq, Hash)
+
+///|
+priv struct LinkDataConKey {
+  module_path_text : String
+  source_index : Int
+} derive(Eq, Hash)
+
+///|
+priv struct LinkEffectKey {
+  module_path_text : String
+  source_index : Int
+} derive(Eq, Hash)
+
+///|
+priv struct LinkOperationKey {
+  module_path_text : String
+  source_index : Int
+} derive(Eq, Hash)
+
+///|
+priv enum LinkModuleReferenceKind {
+  TypeReference
+  DataConstructorReference
+  EffectReference
+  OperationReference
+  FieldSelectorReference
+  ValueReference
+} derive(Eq, Hash)
+
+///|
+priv struct LinkExportKey {
+  kind : LinkModuleReferenceKind
+  name : String
+} derive(Eq, Hash)
+
+///|
+priv struct LinkExportIndex {
+  references : Map[LinkExportKey, @buslane_lowering.BuslaneModuleReference]
 }
 
 ///|
-priv struct LinkTypeParameterMapEntry {
-  module_path_text : String
-  source : @buslane.TypeParameterId
-  target : @buslane.TypeParameterId
-}
-
-///|
-priv struct LinkValueMapEntry {
-  module_path_text : String
-  source : @buslane.ValueId
-  target : @buslane.ValueId
-}
-
-///|
-priv struct LinkDataConMapEntry {
-  module_path_text : String
-  source : @buslane.DataConId
-  target : @buslane.DataConId
-}
-
-///|
-priv struct LinkEffectMapEntry {
-  module_path_text : String
-  source : @buslane.EffectId
-  target : @buslane.EffectId
-}
-
-///|
-priv struct LinkOperationMapEntry {
-  module_path_text : String
-  source : @buslane.OperationId
-  target : @buslane.OperationId
+priv struct LinkedModuleExports {
+  fingerprint : @artifact_model.CompilationFingerprint
+  index : LinkExportIndex
 }
 
 ///|
@@ -48,12 +69,12 @@ priv struct BuslaneLinker {
 
 ///|
 priv struct LinkIdentityMaps {
-  types : Array[LinkTypeMapEntry]
-  type_parameters : Array[LinkTypeParameterMapEntry]
-  values : Array[LinkValueMapEntry]
-  data_constructors : Array[LinkDataConMapEntry]
-  effects : Array[LinkEffectMapEntry]
-  operations : Array[LinkOperationMapEntry]
+  types : Map[LinkTypeKey, @buslane.TypeId]
+  type_parameters : Map[LinkTypeParameterKey, @buslane.TypeParameterId]
+  values : Map[LinkValueKey, @buslane.ValueId]
+  data_constructors : Map[LinkDataConKey, @buslane.DataConId]
+  effects : Map[LinkEffectKey, @buslane.EffectId]
+  operations : Map[LinkOperationKey, @buslane.OperationId]
 }
 
 ///|
@@ -67,14 +88,6 @@ priv struct RemappedModuleObject {
 }
 
 ///|
-priv struct LinkedModuleExport {
-  module_path_text : String
-  name : String
-  fingerprint : @artifact_model.CompilationFingerprint
-  reference : @buslane_lowering.BuslaneModuleReference
-}
-
-///|
 priv struct OrderedLinkModulesResult {
   modules : Array[LinkModuleObject]
   diagnostics : Array[CompilerDiagnostic]
@@ -83,6 +96,8 @@ priv struct OrderedLinkModulesResult {
 ///|
 priv struct LinkModuleIndex {
   modules : Array[LinkModuleObject]
+  module_slots_by_path : Map[String, Int]
+  exports_by_path : Map[String, LinkExportIndex]
 }
 
 ///|
@@ -105,12 +120,23 @@ fn BuslaneLinker::BuslaneLinker() -> BuslaneLinker {
 ///|
 fn LinkIdentityMaps::LinkIdentityMaps() -> LinkIdentityMaps {
   {
-    types: [],
-    type_parameters: [],
-    values: [],
-    data_constructors: [],
-    effects: [],
-    operations: [],
+    types: Map([]),
+    type_parameters: Map([]),
+    values: Map([]),
+    data_constructors: Map([]),
+    effects: Map([]),
+    operations: Map([]),
+  }
+}
+
+///|
+fn[K : Hash + Eq, V] bind_first(entries : Map[K, V], key : K, target : V) -> V {
+  match entries.get(key) {
+    Some(existing) => existing
+    None => {
+      entries[key] = target
+      target
+    }
   }
 }
 
@@ -120,12 +146,7 @@ fn LinkIdentityMaps::find_type(
   module_path_text : String,
   source : @buslane.TypeId,
 ) -> @buslane.TypeId? {
-  for entry in self.types {
-    if entry.module_path_text == module_path_text && entry.source == source {
-      return Some(entry.target)
-    }
-  }
-  None
+  self.types.get({ module_path_text, source_index: source.index })
 }
 
 ///|
@@ -135,12 +156,11 @@ fn LinkIdentityMaps::bind_type(
   source : @buslane.TypeId,
   target : @buslane.TypeId,
 ) -> @buslane.TypeId {
-  if self.find_type(module_path_text, source) is Some(existing) {
-    existing
-  } else {
-    self.types.push({ module_path_text, source, target })
-    target
-  }
+  bind_first(
+    self.types,
+    { module_path_text, source_index: source.index },
+    target,
+  )
 }
 
 ///|
@@ -149,12 +169,7 @@ fn LinkIdentityMaps::find_type_parameter(
   module_path_text : String,
   source : @buslane.TypeParameterId,
 ) -> @buslane.TypeParameterId? {
-  for entry in self.type_parameters {
-    if entry.module_path_text == module_path_text && entry.source == source {
-      return Some(entry.target)
-    }
-  }
-  None
+  self.type_parameters.get({ module_path_text, source_index: source.index })
 }
 
 ///|
@@ -164,12 +179,11 @@ fn LinkIdentityMaps::bind_type_parameter(
   source : @buslane.TypeParameterId,
   target : @buslane.TypeParameterId,
 ) -> @buslane.TypeParameterId {
-  if self.find_type_parameter(module_path_text, source) is Some(existing) {
-    existing
-  } else {
-    self.type_parameters.push({ module_path_text, source, target })
-    target
-  }
+  bind_first(
+    self.type_parameters,
+    { module_path_text, source_index: source.index },
+    target,
+  )
 }
 
 ///|
@@ -178,12 +192,7 @@ fn LinkIdentityMaps::find_value(
   module_path_text : String,
   source : @buslane.ValueId,
 ) -> @buslane.ValueId? {
-  for entry in self.values {
-    if entry.module_path_text == module_path_text && entry.source == source {
-      return Some(entry.target)
-    }
-  }
-  None
+  self.values.get({ module_path_text, source_index: source.index })
 }
 
 ///|
@@ -193,12 +202,11 @@ fn LinkIdentityMaps::bind_value(
   source : @buslane.ValueId,
   target : @buslane.ValueId,
 ) -> @buslane.ValueId {
-  if self.find_value(module_path_text, source) is Some(existing) {
-    existing
-  } else {
-    self.values.push({ module_path_text, source, target })
-    target
-  }
+  bind_first(
+    self.values,
+    { module_path_text, source_index: source.index },
+    target,
+  )
 }
 
 ///|
@@ -207,12 +215,7 @@ fn LinkIdentityMaps::find_data_constructor(
   module_path_text : String,
   source : @buslane.DataConId,
 ) -> @buslane.DataConId? {
-  for entry in self.data_constructors {
-    if entry.module_path_text == module_path_text && entry.source == source {
-      return Some(entry.target)
-    }
-  }
-  None
+  self.data_constructors.get({ module_path_text, source_index: source.index })
 }
 
 ///|
@@ -222,12 +225,11 @@ fn LinkIdentityMaps::bind_data_constructor(
   source : @buslane.DataConId,
   target : @buslane.DataConId,
 ) -> @buslane.DataConId {
-  if self.find_data_constructor(module_path_text, source) is Some(existing) {
-    existing
-  } else {
-    self.data_constructors.push({ module_path_text, source, target })
-    target
-  }
+  bind_first(
+    self.data_constructors,
+    { module_path_text, source_index: source.index },
+    target,
+  )
 }
 
 ///|
@@ -236,12 +238,7 @@ fn LinkIdentityMaps::find_effect(
   module_path_text : String,
   source : @buslane.EffectId,
 ) -> @buslane.EffectId? {
-  for entry in self.effects {
-    if entry.module_path_text == module_path_text && entry.source == source {
-      return Some(entry.target)
-    }
-  }
-  None
+  self.effects.get({ module_path_text, source_index: source.index })
 }
 
 ///|
@@ -251,12 +248,11 @@ fn LinkIdentityMaps::bind_effect(
   source : @buslane.EffectId,
   target : @buslane.EffectId,
 ) -> @buslane.EffectId {
-  if self.find_effect(module_path_text, source) is Some(existing) {
-    existing
-  } else {
-    self.effects.push({ module_path_text, source, target })
-    target
-  }
+  bind_first(
+    self.effects,
+    { module_path_text, source_index: source.index },
+    target,
+  )
 }
 
 ///|
@@ -265,12 +261,7 @@ fn LinkIdentityMaps::find_operation(
   module_path_text : String,
   source : @buslane.OperationId,
 ) -> @buslane.OperationId? {
-  for entry in self.operations {
-    if entry.module_path_text == module_path_text && entry.source == source {
-      return Some(entry.target)
-    }
-  }
-  None
+  self.operations.get({ module_path_text, source_index: source.index })
 }
 
 ///|
@@ -280,10 +271,59 @@ fn LinkIdentityMaps::bind_operation(
   source : @buslane.OperationId,
   target : @buslane.OperationId,
 ) -> @buslane.OperationId {
-  if self.find_operation(module_path_text, source) is Some(existing) {
-    existing
-  } else {
-    self.operations.push({ module_path_text, source, target })
-    target
+  bind_first(
+    self.operations,
+    { module_path_text, source_index: source.index },
+    target,
+  )
+}
+
+///|
+fn LinkExportIndex::from_exports(
+  exports : Array[@buslane_lowering.BuslaneModuleExport],
+) -> LinkExportIndex {
+  let references : Map[LinkExportKey, @buslane_lowering.BuslaneModuleReference] = Map([],
+  )
+  for item in exports {
+    ignore(
+      bind_first(
+        references,
+        { kind: link_module_reference_kind(item.reference), name: item.name },
+        item.reference,
+      ),
+    )
+  }
+  { references, }
+}
+
+///|
+fn LinkExportIndex::find(
+  self : LinkExportIndex,
+  reference : @buslane_lowering.BuslaneModuleReference,
+  name : String,
+) -> @buslane_lowering.BuslaneModuleReference? {
+  self.references.get({ kind: link_module_reference_kind(reference), name })
+}
+
+///|
+fn LinkExportIndex::contains(
+  self : LinkExportIndex,
+  kind : LinkModuleReferenceKind,
+  name : String,
+) -> Bool {
+  self.references.contains({ kind, name })
+}
+
+///|
+fn link_module_reference_kind(
+  reference : @buslane_lowering.BuslaneModuleReference,
+) -> LinkModuleReferenceKind {
+  match reference {
+    Type(_) => TypeReference
+    DataConstructor(_) => DataConstructorReference
+    Effect(_) => EffectReference
+    Operation(_) => OperationReference
+    FieldSelector(_) => FieldSelectorReference
+    Value(_) => ValueReference
   }
 }

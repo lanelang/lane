@@ -273,26 +273,20 @@ fn validate_imported_references(
               None,
             ),
           )
+        } else if index.export_index(imported.module_path_text) is Some(exports) &&
+          exports.find(imported.reference, imported.name) is Some(_) {
+          ()
         } else {
-          match
-            find_module_export(
-              imported_module.exports,
-              imported.reference,
-              imported.name,
-            ) {
-            Some(_) => ()
-            None =>
-              diagnostics.push(
-                link_diagnostic(
-                  ImportedReferenceMismatch(
-                    importer=object.module_path_text,
-                    imported=imported.module_path_text,
-                    name=imported.name,
-                  ),
-                  None,
-                ),
-              )
-          }
+          diagnostics.push(
+            link_diagnostic(
+              ImportedReferenceMismatch(
+                importer=object.module_path_text,
+                imported=imported.module_path_text,
+                name=imported.name,
+              ),
+              None,
+            ),
+          )
         }
       None =>
         diagnostics.push(
@@ -307,21 +301,6 @@ fn validate_imported_references(
 }
 
 ///|
-fn find_module_export(
-  exports : Array[@buslane_lowering.BuslaneModuleExport],
-  reference : @buslane_lowering.BuslaneModuleReference,
-  name : String,
-) -> @buslane_lowering.BuslaneModuleExport? {
-  for item in exports {
-    if module_references_have_same_kind(item.reference, reference) &&
-      item.name == name {
-      return Some(item)
-    }
-  }
-  None
-}
-
-///|
 fn validate_module_exports_for_link_order(
   ordered : Array[LinkModuleObject],
   index : LinkModuleIndex,
@@ -330,13 +309,14 @@ fn validate_module_exports_for_link_order(
   for module_ in ordered {
     for imported in module_.imported_interface_fingerprints {
       if index.find(imported.module_path_text) is Some(imported_module) &&
-        imported_module.interface is Some(interface) {
+        imported_module.interface is Some(interface) &&
+        index.export_index(imported.module_path_text) is Some(exports) {
         diagnostics.append(
           validate_imported_exports(
             importer=module_.module_path_text,
             provider=imported_module.module_path_text,
             interface~,
-            exports=imported_module.exports,
+            exports~,
           ),
         )
       }
@@ -350,11 +330,11 @@ fn validate_imported_exports(
   importer~ : String,
   provider~ : String,
   interface~ : @module_interface.ModuleInterface,
-  exports~ : Array[@buslane_lowering.BuslaneModuleExport],
+  exports~ : LinkExportIndex,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   for value in interface.values {
-    if !module_exports_value(exports, value.name) {
+    if !exports.contains(ValueReference, value.name) {
       diagnostics.push(
         link_diagnostic(
           MissingExported(kind="value", provider~, name=value.name, importer~),
@@ -365,7 +345,7 @@ fn validate_imported_exports(
   }
   for type_ in interface.types {
     let name = interface_type_name(type_)
-    if !module_exports_type(exports, name) {
+    if !exports.contains(TypeReference, name) {
       diagnostics.push(
         link_diagnostic(
           MissingExported(kind="type", provider~, name~, importer~),
@@ -375,7 +355,7 @@ fn validate_imported_exports(
     }
     let constructor_names = interface_type_constructors(type_)
     for constructor_name in constructor_names {
-      if !module_exports_data_constructor(exports, constructor_name) {
+      if !exports.contains(DataConstructorReference, constructor_name) {
         diagnostics.push(
           link_diagnostic(
             MissingExported(
@@ -390,7 +370,7 @@ fn validate_imported_exports(
       }
     }
     for field_selector_name in interface_type_field_selectors(type_) {
-      if !module_exports_field_selector(exports, field_selector_name) {
+      if !exports.contains(FieldSelectorReference, field_selector_name) {
         diagnostics.push(
           link_diagnostic(
             MissingExported(
@@ -406,7 +386,7 @@ fn validate_imported_exports(
     }
   }
   for effect in interface.effects {
-    if !module_exports_effect(exports, effect.name) {
+    if !exports.contains(EffectReference, effect.name) {
       diagnostics.push(
         link_diagnostic(
           MissingExported(kind="effect", provider~, name=effect.name, importer~),
@@ -419,7 +399,7 @@ fn validate_imported_exports(
         effect.name,
         operation.name,
       )
-      if !module_exports_operation(exports, operation_name) {
+      if !exports.contains(OperationReference, operation_name) {
         diagnostics.push(
           link_diagnostic(
             MissingExported(
@@ -435,58 +415,6 @@ fn validate_imported_exports(
     }
   }
   diagnostics
-}
-
-///|
-fn module_exports_value(
-  exports : Array[@buslane_lowering.BuslaneModuleExport],
-  name : String,
-) -> Bool {
-  exports.any(fn(item) { item.reference is Value(_) && item.name == name })
-}
-
-///|
-fn module_exports_type(
-  exports : Array[@buslane_lowering.BuslaneModuleExport],
-  name : String,
-) -> Bool {
-  exports.any(fn(item) { item.reference is Type(_) && item.name == name })
-}
-
-///|
-fn module_exports_data_constructor(
-  exports : Array[@buslane_lowering.BuslaneModuleExport],
-  name : String,
-) -> Bool {
-  exports.any(fn(item) {
-    item.reference is DataConstructor(_) && item.name == name
-  })
-}
-
-///|
-fn module_exports_effect(
-  exports : Array[@buslane_lowering.BuslaneModuleExport],
-  name : String,
-) -> Bool {
-  exports.any(fn(item) { item.reference is Effect(_) && item.name == name })
-}
-
-///|
-fn module_exports_operation(
-  exports : Array[@buslane_lowering.BuslaneModuleExport],
-  name : String,
-) -> Bool {
-  exports.any(fn(item) { item.reference is Operation(_) && item.name == name })
-}
-
-///|
-fn module_exports_field_selector(
-  exports : Array[@buslane_lowering.BuslaneModuleExport],
-  name : String,
-) -> Bool {
-  exports.any(fn(item) {
-    item.reference is FieldSelector(_) && item.name == name
-  })
 }
 
 ///|

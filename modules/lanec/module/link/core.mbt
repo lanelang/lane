@@ -93,19 +93,15 @@ fn BuslaneLinker::remap_module_objects(
   objects : Array[ValidatedLinkModuleObject],
 ) -> Array[RemappedModuleObject] raise @buslane.MetadataAllocationError {
   let remapped_objects = []
-  let exports : Array[LinkedModuleExport] = []
+  let exports : Map[String, LinkedModuleExports] = Map([])
   for validated in objects {
     let object = validated.object
     self.seed_imports(object, exports)
     let remapped = self.remap_module_object(object)
     remapped_objects.push(remapped)
-    for item in remapped.exports {
-      exports.push({
-        module_path_text: remapped.module_path_text,
-        name: item.name,
-        fingerprint: remapped.fingerprint,
-        reference: item.reference,
-      })
+    exports[remapped.module_path_text] = {
+      fingerprint: remapped.fingerprint,
+      index: LinkExportIndex::from_exports(remapped.exports),
     }
   }
   remapped_objects
@@ -115,11 +111,15 @@ fn BuslaneLinker::remap_module_objects(
 fn BuslaneLinker::seed_imports(
   self : BuslaneLinker,
   object : LinkModuleObject,
-  exports : Array[LinkedModuleExport],
+  exports : Map[String, LinkedModuleExports],
 ) -> Unit {
   for imported in object.imports {
-    guard find_linked_export(exports, imported) is Some(item) else { continue }
-    match (imported.reference, item.reference) {
+    guard exports.get(imported.module_path_text) is Some(provider) &&
+      provider.fingerprint == imported.fingerprint &&
+      provider.index.find(imported.reference, imported.name) is Some(target) else {
+      continue
+    }
+    match (imported.reference, target) {
       (Type(source), Type(target)) =>
         ignore(
           self.identities.bind_type(object.module_path_text, source, target),
@@ -155,57 +155,23 @@ fn BuslaneLinker::seed_imports(
 }
 
 ///|
-fn find_linked_export(
-  exports : Array[LinkedModuleExport],
-  imported : @artifact_model.ModuleImportedReference,
-) -> LinkedModuleExport? {
-  for item in exports {
-    if item.module_path_text == imported.module_path_text &&
-      module_references_have_same_kind(item.reference, imported.reference) &&
-      item.name == imported.name &&
-      item.fingerprint == imported.fingerprint {
-      return Some(item)
-    }
-  }
-  None
-}
-
-///|
-fn module_references_have_same_kind(
-  left : @buslane_lowering.BuslaneModuleReference,
-  right : @buslane_lowering.BuslaneModuleReference,
-) -> Bool {
-  match (left, right) {
-    (Type(_), Type(_))
-    | (DataConstructor(_), DataConstructor(_))
-    | (Effect(_), Effect(_))
-    | (Operation(_), Operation(_))
-    | (FieldSelector(_), FieldSelector(_))
-    | (Value(_), Value(_)) => true
-    _ => false
-  }
-}
-
-///|
 fn LinkModuleIndex::from_modules(
   modules : Array[LinkModuleObject],
 ) -> Result[LinkModuleIndex, Array[CompilerDiagnostic]] {
   let diagnostics = []
-  for index in 0..<modules.length() {
-    for other_index in (index + 1)..<modules.length() {
-      if modules[index].module_path_text ==
-        modules[other_index].module_path_text {
-        diagnostics.push(
-          link_diagnostic(
-            DuplicateModuleArtifact(modules[index].module_path_text),
-            None,
-          ),
-        )
-      }
+  let module_slots_by_path : Map[String, Int] = Map([])
+  let exports_by_path : Map[String, LinkExportIndex] = Map([])
+  for slot, module_ in modules {
+    let path = module_.module_path_text
+    if module_slots_by_path.contains(path) {
+      diagnostics.push(link_diagnostic(DuplicateModuleArtifact(path), None))
+    } else {
+      module_slots_by_path[path] = slot
+      exports_by_path[path] = LinkExportIndex::from_exports(module_.exports)
     }
   }
   if diagnostics.is_empty() {
-    Ok({ modules, })
+    Ok({ modules, module_slots_by_path, exports_by_path })
   } else {
     Err(diagnostics)
   }
@@ -214,8 +180,8 @@ fn LinkModuleIndex::from_modules(
 ///|
 fn LinkModuleIndex::all(self : LinkModuleIndex) -> OrderedLinkModulesResult {
   let ordered = []
-  let visiting : Array[String] = []
-  let visited : Array[String] = []
+  let visiting : @hashset.HashSet[String] = HashSet([])
+  let visited : @hashset.HashSet[String] = HashSet([])
   let diagnostics = []
   for module_ in self.modules {
     self.visit(
@@ -235,8 +201,8 @@ fn LinkModuleIndex::reachable(
   root_module_path_text : String,
 ) -> OrderedLinkModulesResult {
   let ordered = []
-  let visiting : Array[String] = []
-  let visited : Array[String] = []
+  let visiting : @hashset.HashSet[String] = HashSet([])
+  let visited : @hashset.HashSet[String] = HashSet([])
   let diagnostics = []
   self.visit(root_module_path_text, visiting, visited, ordered, diagnostics)
   { modules: ordered, diagnostics }
@@ -246,8 +212,8 @@ fn LinkModuleIndex::reachable(
 fn LinkModuleIndex::visit(
   self : LinkModuleIndex,
   module_path_text : String,
-  visiting : Array[String],
-  visited : Array[String],
+  visiting : @hashset.HashSet[String],
+  visited : @hashset.HashSet[String],
   ordered : Array[LinkModuleObject],
   diagnostics : Array[CompilerDiagnostic],
 ) -> Unit {
@@ -262,7 +228,7 @@ fn LinkModuleIndex::visit(
     diagnostics.push(link_diagnostic(MissingObject(module_path_text), None))
     return
   }
-  visiting.push(module_path_text)
+  visiting.add(module_path_text)
   for import_ in module_.imported_interface_fingerprints {
     self.visit(
       import_.module_path_text,
@@ -272,8 +238,8 @@ fn LinkModuleIndex::visit(
       diagnostics,
     )
   }
-  ignore(visiting.pop())
-  visited.push(module_path_text)
+  visiting.remove(module_path_text)
+  visited.add(module_path_text)
   ordered.push(module_)
 }
 
@@ -282,12 +248,16 @@ fn LinkModuleIndex::find(
   self : LinkModuleIndex,
   path : String,
 ) -> LinkModuleObject? {
-  for module_ in self.modules {
-    if module_.module_path_text == path {
-      return Some(module_)
-    }
-  }
-  None
+  guard self.module_slots_by_path.get(path) is Some(slot) else { return None }
+  self.modules.get(slot)
+}
+
+///|
+fn LinkModuleIndex::export_index(
+  self : LinkModuleIndex,
+  path : String,
+) -> LinkExportIndex? {
+  self.exports_by_path.get(path)
 }
 
 ///|
