@@ -45,15 +45,30 @@ pub(all) enum NameNamespace {
 /// the same numeric domain.
 pub struct BuslaneUnique {
   value : Int
-} derive(Debug, Eq, Compare)
+} derive(Debug, Eq, Hash, Compare)
+
+///|
+fn BuslaneUnique::is_valid(self : BuslaneUnique) -> Bool {
+  self.value >= 0
+}
+
+///|
+fn BuslaneUnique::successor(self : BuslaneUnique) -> BuslaneUnique? {
+  if self.value == 0x7FFFFFFF {
+    None
+  } else {
+    Some({ value: self.value + 1 })
+  }
+}
 
 ///|
 /// Constructs a Buslane unique when the value belongs to its legal domain.
 pub fn BuslaneUnique::from_int(value : Int) -> BuslaneUnique? {
-  if value < 0 {
-    None
+  let unique = BuslaneUnique::{ value, }
+  if unique.is_valid() {
+    Some(unique)
   } else {
-    Some({ value, })
+    None
   }
 }
 
@@ -373,22 +388,20 @@ pub fn MetadataRegistry::snapshot(self : MetadataRegistry) -> MetadataRegistry {
 pub fn MetadataRegistry::identity_errors(
   self : MetadataRegistry,
 ) -> Array[MetadataIdentityError] {
-  let seen : Map[Int, Unit] = Map([])
+  let seen : @hashset.HashSet[BuslaneUnique] = HashSet([])
   let errors = []
   let mut maximum_unique : BuslaneUnique? = None
   let inspect_name = fn(name : BuslaneName) {
-    if BuslaneUnique::from_int(name.unique.value) is None {
+    if !name.unique.is_valid() {
       errors.push(InvalidUnique(name.unique))
     }
-    if seen.get(name.unique.value) is Some(_) {
+    if !seen.add_and_check(name.unique) {
       errors.push(DuplicateUnique(name.unique))
-    } else {
-      seen[name.unique.value] = ()
     }
     maximum_unique = match maximum_unique {
       None => Some(name.unique)
       Some(maximum) =>
-        if name.unique.value > maximum.value {
+        if name.unique.compare(maximum) > 0 {
           Some(name.unique)
         } else {
           Some(maximum)
@@ -415,11 +428,11 @@ pub fn MetadataRegistry::identity_errors(
   }
   let allocator_is_invalid = match self.name_allocator {
     Fresh(next) =>
-      maximum_unique
-      .map(maximum => next.value <= maximum.value)
-      .unwrap_or(false)
+      maximum_unique.map(maximum => next.compare(maximum) <= 0).unwrap_or(false)
     Exhausted =>
-      maximum_unique.map(maximum => maximum.value != 0x7FFFFFFF).unwrap_or(true)
+      maximum_unique
+      .map(maximum => maximum.successor() is Some(_))
+      .unwrap_or(true)
   }
   if allocator_is_invalid {
     errors.push(
@@ -439,10 +452,9 @@ fn MetadataRegistry::fresh_name(
     Fresh(unique) => unique
     Exhausted => raise MetadataNameExhausted
   }
-  self.name_allocator = if unique.value == 0x7FFFFFFF {
-    Exhausted
-  } else {
-    Fresh({ value: unique.value + 1 })
+  self.name_allocator = match unique.successor() {
+    Some(next) => Fresh(next)
+    None => Exhausted
   }
   { name_space, occurrence, unique }
 }

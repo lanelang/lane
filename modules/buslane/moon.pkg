@@ -1,5 +1,6 @@
 import {
   "moonbit-community/prettyprinter",
+  "moonbitlang/core/hashset",
 }
 
 import {

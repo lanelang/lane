@@ -56,7 +56,7 @@ pub impl @prettyprinter.Pretty for BuslaneName
 
 pub struct BuslaneUnique {
   value : Int
-} derive(Compare, Eq, @debug.Debug)
+} derive(Compare, Eq, Hash, @debug.Debug)
 pub fn BuslaneUnique::from_int(Int) -> Self?
 
 pub(all) struct ConstructExpr {
