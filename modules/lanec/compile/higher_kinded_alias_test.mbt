@@ -86,3 +86,39 @@ test "a reordering alias instantiates a higher-kinded parameter" {
     abort("expected the reordering alias to instantiate the parameter")
   }
 }
+
+///|
+test "a callable returned through a higher-kinded field can be called" {
+  let source =
+    #|module Test
+    #|pub type Callable = type[T] => (T) -> T
+    #|pub struct Recursive[C : [Type] -> Type] {
+    #|  defer : [T](() -> C[T]) -> C[T]
+    #|}
+    #|pub let recursive : Recursive[Callable] = Recursive::{
+    #|  defer: fn[T](get_value) {
+    #|    fn(value : T) {
+    #|      get_value()(value)
+    #|    }
+    #|  },
+    #|}
+  guard check_source(source) is Succeeded(_, _) else {
+    abort("expected the head-normalized callable result to check")
+  }
+}
+
+///|
+test "a function literal uses a head-normalized higher-kinded expectation" {
+  let source =
+    #|module Test
+    #|pub type Callable = type[T] => (T) -> T
+    #|pub struct Holder[C : [Type] -> Type] {
+    #|  value : C[I64]
+    #|}
+    #|pub let holder : Holder[Callable] = Holder::{
+    #|  value: fn(value) { value },
+    #|}
+  guard check_source(source) is Succeeded(_, _) else {
+    abort("expected the head-normalized function expectation to check")
+  }
+}

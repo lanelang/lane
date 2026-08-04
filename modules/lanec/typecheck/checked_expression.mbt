@@ -1090,19 +1090,23 @@ fn SemanticChecker::synthesize_checked_call_with_expected(
     is Some(checked_callee_expr) else {
     return checked_expression_none_reported(Error)
   }
+  guard normalize_head_or_report(
+      self.diagnostics,
+      checked_callee.type_,
+      callee.loc(),
+      context="callable type",
+    )
+    is Some(callee_type) else {
+    return checked_expression_none_reported(Error)
+  }
   let diagnostic_count = self.diagnostics.length()
   let arguments = self.prepare_direct_call_arguments(
-    scope,
-    callee,
-    checked_callee.type_,
-    arguments,
-    expected_result,
-    loc,
+    scope, callee, callee_type, arguments, expected_result, loc,
   )
   if self.diagnostics.length() != diagnostic_count {
     return checked_expression_none_reported(Error)
   }
-  match checked_callee.type_ {
+  match callee_type {
     Function(parameters, result, effect) => {
       guard self.check_checked_call_arguments(scope, parameters, arguments, loc)
         is Some(checked_arguments) else {
@@ -1370,7 +1374,19 @@ fn SemanticChecker::check_checked_function_literal(
   expectation : CheckedExpectation,
   loc : SourceSpan,
 ) -> CheckedExpressionCheck {
-  match expectation.type_ {
+  guard normalize_head_or_report(
+      self.diagnostics,
+      expectation.type_,
+      loc,
+      context="function literal expectation",
+    )
+    is Some(expected_type) else {
+    return checked_expression_none_reported(Error).with_expectation_match(
+      MatchesExpectation,
+    )
+  }
+  let expectation = { ..expectation, type_: expected_type }
+  match expected_type {
     Forall(expected_parameters, expected_body) => {
       // Checked forall introduction mirrors the non-building checker:
       //

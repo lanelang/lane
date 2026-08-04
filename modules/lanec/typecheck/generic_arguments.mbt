@@ -1741,6 +1741,15 @@ fn SemanticChecker::check_explicit_generic_application(
   loc : SourceSpan,
 ) -> ExplicitGenericApplicationResult? {
   let subject = explicit_generic_application_subject(callee)
+  guard normalize_head_or_report(
+      self.diagnostics,
+      callee_type,
+      callee.loc(),
+      context="generic application callee type",
+    )
+    is Some(callee_type) else {
+    return None
+  }
   match callee_type {
     Forall(type_parameters, body) => {
       if type_parameters.length() != arguments.length() {
@@ -1840,6 +1849,15 @@ fn SemanticChecker::instantiate_generic_callable(
   //   2. collect result constraints from a checking context, if present;
   //   3. substitute only when every A_i is known;
   //   4. let normal argument/result checking report concrete mismatches.
+  guard normalize_head_or_report(
+      self.diagnostics,
+      body,
+      loc,
+      context="generic callable body type",
+    )
+    is Some(body) else {
+    return None
+  }
   guard body is Function(parameters, result, effect) else {
     if report_failure {
       self.diagnostics.push({

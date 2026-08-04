@@ -78,6 +78,21 @@ fn normalize_type_or_report(
 }
 
 ///|
+fn normalize_head_or_report(
+  diagnostics : Array[TypeCheckDiagnostic],
+  type_ : @types.Type,
+  loc : SourceSpan,
+  context~ : String,
+) -> @types.Type? {
+  Some(type_.try_head_normalize()) catch {
+    error => {
+      report_type_computation_failure(diagnostics, context, loc, error)
+      None
+    }
+  }
+}
+
+///|
 fn normalize_effect_or_report(
   diagnostics : Array[TypeCheckDiagnostic],
   effect : @types.Effect,

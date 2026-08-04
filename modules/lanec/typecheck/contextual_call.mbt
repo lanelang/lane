@@ -190,7 +190,16 @@ fn SemanticChecker::direct_parameter_types(
       } else {
         None
       }
-    Forall(type_parameters, Function(parameter_types, result, _)) => {
+    Forall(type_parameters, body) => {
+      guard normalize_head_or_report(
+          self.diagnostics,
+          body,
+          loc,
+          context="generic direct-call body type",
+        )
+        is Some(Function(parameter_types, result, _)) else {
+        return None
+      }
       if parameter_types.length() != parameters.length() {
         return None
       }
