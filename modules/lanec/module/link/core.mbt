@@ -49,6 +49,15 @@ fn link_ordered_modules(
   entry_mode : LinkedEntryMode,
 ) -> LinkResult {
   let remapper = BuslaneLinker::BuslaneLinker()
+  link_ordered_modules_with_remapper(remapper, modules, entry_mode)
+}
+
+///|
+fn link_ordered_modules_with_remapper(
+  remapper : BuslaneLinker,
+  modules : Array[ValidatedLinkModuleObject],
+  entry_mode : LinkedEntryMode,
+) -> LinkResult {
   let remapped_objects = remapper.remap_module_objects(modules) catch {
     error =>
       return {

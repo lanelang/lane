@@ -184,6 +184,10 @@ test "metadata allocation exhaustion retains context and typed cause" {
   } noraise {
     _ => fail("expected a metadata allocation compiler defect")
   }
+  assert_eq(
+    (specializer.instances.length(), specializer.data_instances.length()),
+    (0, 0),
+  )
 }
 
 ///|
