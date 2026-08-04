@@ -21,7 +21,9 @@ _Avoid_: Lane source name, numeric identity alone, display-only label, unnamed f
 
 **Buslane Unique**:
 A program-wide disambiguator carried by a **Buslane Name** and used for stable
-identity in text.
+identity in text. Its legal domain is the nonnegative MoonBit `Int` range. The
+metadata name allocator is either `Fresh(next)` or `Exhausted`; allocating the
+maximum unique succeeds once and transitions atomically to `Exhausted`.
 _Avoid_: namespace-local index, source span, occurrence name
 
 **Buslane Name Origin**:

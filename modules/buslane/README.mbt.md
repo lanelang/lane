@@ -79,7 +79,7 @@ test "build and verify a Buslane program" {
 }
 ```
 
-The metadata registry allocates IDs and globally unique readable names. Expressions refer to IDs; occurrence names are for readable core text and diagnostics, not semantic equality.
+The metadata registry allocates IDs and globally unique readable names. Expressions refer to IDs; occurrence names are for readable core text and diagnostics, not semantic equality. Name uniques are nonnegative, and the allocator has explicit `Fresh(next)` and `Exhausted` states. A `define_*` method raises `MetadataNameExhausted` without changing the registry when the finite identity space is exhausted.
 
 ### Canonicalize effects
 

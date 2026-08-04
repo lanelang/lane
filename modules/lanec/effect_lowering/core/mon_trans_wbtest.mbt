@@ -2,7 +2,7 @@
 fn test_program(
   metadata : @buslane.MetadataRegistry,
   expression : Expr,
-) -> Program {
+) -> Program raise @buslane.MetadataAllocationError {
   let result = metadata.define_value("result", Value, Primitive(I64))
   { metadata, terms: [Let(result, expression)] }
 }

@@ -22,7 +22,7 @@ fn non_normalizing_type_application(
 fn runaway_effect(
   metadata : @buslane.MetadataRegistry,
   type_ : @buslane.Type,
-) -> @buslane.Effect {
+) -> @buslane.Effect raise @buslane.MetadataAllocationError {
   let parameter = metadata.define_type_parameter("T", Type)
   let effect = metadata.define_effect("Runaway", [parameter])
   Singleton(effect, [TypeArgument(type_)])

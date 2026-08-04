@@ -75,6 +75,7 @@ pub(all) struct BuslaneModuleObjectSet {
 
 ///|
 pub(all) suberror BuslaneLoweringError {
+  MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
   MissingTypeReference(@symbol.TypeSymbolId)
   MissingEffectReference(@symbol.EffectSymbolId)
   MissingTypeDependency(String, String)

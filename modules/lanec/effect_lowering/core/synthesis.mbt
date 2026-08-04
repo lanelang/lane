@@ -16,6 +16,7 @@ fn[T] normalization_or_synthesis_defect(
 ///|
 pub(all) suberror SynthesisError {
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
+  MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
   UnknownValue(@buslane.ValueId)
   UnknownType(@buslane.TypeId)
   UnknownDataConstructor(@buslane.DataConId)
@@ -43,6 +44,18 @@ pub(all) suberror SynthesisError {
     actual~ : @buslane.Type
   )
 } derive(Debug, Eq)
+
+///|
+fn define_synthetic_value(
+  metadata : @buslane.MetadataRegistry,
+  occurrence : String,
+  kind : @buslane.ValueKind,
+  type_ : @buslane.Type,
+) -> @buslane.ValueId raise SynthesisError {
+  metadata.define_value(occurrence, kind, type_) catch {
+    error => raise MetadataAllocationCompilerDefect(error)
+  }
+}
 
 ///|
 fn effects_definitionally_equal(

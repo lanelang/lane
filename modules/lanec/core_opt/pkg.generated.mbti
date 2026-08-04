@@ -13,6 +13,7 @@ pub fn optimize(CoreOptimizeRequest) -> Result[@buslane.Program, CoreOptimizeErr
 pub(all) suberror CoreOptimizeError {
   UnknownRoot(@buslane.ValueId)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
+  MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
 } derive(Eq, @debug.Debug)
 
 // Types and methods

@@ -2,6 +2,7 @@
 using @buslane {
   type Alternative,
   type BuslaneName,
+  type BuslaneUnique,
   type DataConId,
   type DataConInfo,
   type Effect,
@@ -13,6 +14,7 @@ using @buslane {
   type Kind,
   type Literal,
   type MetadataRegistry,
+  type MetadataNameAllocator,
   type NameNamespace,
   type OperationAlternative,
   type OperationId,
@@ -42,7 +44,7 @@ fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
 
 ///|
 fn make_metadata(
-  next_unique : Int,
+  name_allocator : MetadataNameAllocator,
   declarations : Array[MetadataDeclaration],
 ) -> Result[MetadataRegistry, String] {
   let types = collect_metadata_table(
@@ -122,7 +124,7 @@ fn make_metadata(
       Ok(operations),
     ) =>
       MetadataRegistry::{
-        next_unique,
+        name_allocator,
         types,
         type_parameters,
         values,
@@ -138,18 +140,22 @@ fn make_metadata(
     | (_, _, _, _, _, Err(message)) => return Err(message)
   }
   match registry.identity_errors().get(0) {
+    Some(InvalidUnique(unique)) =>
+      Err("invalid metadata name unique#\{unique.value}")
     Some(DuplicateUnique(unique)) =>
       Err("duplicate metadata name unique#\{unique.value}")
-    Some(InvalidNextUnique(next_unique~, maximum_unique~)) =>
-      if next_unique < 0 {
-        Err("next_unique#\{next_unique} must be non-negative")
-      } else {
-        guard maximum_unique is Some(maximum) else {
-          return Err("next_unique#\{next_unique} is invalid")
+    Some(InvalidNameAllocator(allocator~, maximum_unique~)) =>
+      match allocator {
+        Fresh(next) => {
+          guard maximum_unique is Some(maximum) else {
+            return Err("next_unique#\{next.value} is invalid")
+          }
+          Err(
+            "next_unique#\{next.value} must be greater than used unique#\{maximum.value}",
+          )
         }
-        Err(
-          "next_unique#\{next_unique} must be greater than used unique#\{maximum}",
-        )
+        Exhausted =>
+          Err("next_unique#exhausted requires used unique#2147483647")
       }
     None => Ok(registry)
   }
@@ -158,16 +164,16 @@ fn make_metadata(
 ///|
 priv struct ParsedBuslaneName {
   occurrence : String
-  unique : Int
+  unique : BuslaneUnique
 }
 
 ///|
 fn parsed_name(
   name_space : NameNamespace,
   occurrence : String,
-  index : Int,
+  unique : BuslaneUnique,
 ) -> BuslaneName {
-  { name_space, occurrence, unique: { value: index } }
+  { name_space, occurrence, unique }
 }
 
 ///|

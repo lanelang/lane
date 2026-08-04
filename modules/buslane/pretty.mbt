@@ -299,9 +299,10 @@ pub impl @prettyprinter.Pretty for OperationInfo with fn pretty(
 pub impl @prettyprinter.Pretty for MetadataRegistry with fn pretty(
   metadata : MetadataRegistry,
 ) {
-  let allocator = text("next_unique#") +
-    text(metadata.next_unique.to_string()) +
-    text(";")
+  let allocator = match metadata.name_allocator {
+    Fresh(next) => text("next_unique#\{next.value};")
+    Exhausted => text("next_unique#exhausted;")
+  }
   text("metadata") +
   space +
   braced_block([allocator] + metadata_declarations(metadata))
@@ -748,17 +749,23 @@ pub impl @prettyprinter.Pretty for MetadataIdentityError with fn pretty(
   error : MetadataIdentityError,
 ) {
   match error {
+    InvalidUnique(unique) =>
+      text("invalid_unique") + space + text(unique.value.to_string())
     DuplicateUnique(unique) =>
       text("duplicate_metadata_unique unique#\{unique.value}")
-    InvalidNextUnique(next_unique~, maximum_unique~) => {
+    InvalidNameAllocator(allocator~, maximum_unique~) => {
+      let allocator_text = match allocator {
+        Fresh(next) => "fresh \{next.value}"
+        Exhausted => "exhausted"
+      }
       let maximum_text = match maximum_unique {
-        Some(maximum) => maximum.to_string()
+        Some(maximum) => maximum.value.to_string()
         None => "none"
       }
-      text("invalid_next_unique") +
+      text("invalid_name_allocator") +
       space +
       braced_block([
-        text("next_unique \{next_unique}"),
+        text("allocator " + allocator_text),
         text("maximum_unique " + maximum_text),
       ])
     }

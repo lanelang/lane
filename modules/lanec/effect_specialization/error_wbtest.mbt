@@ -17,7 +17,7 @@ fn error_test_specializer(
 fn error_test_generic_program(
   metadata : @buslane.MetadataRegistry,
   effect_parameter : @buslane.TypeParameterId,
-) -> (@buslane.Program, @buslane.ValueId, @buslane.ValueId) {
+) -> (@buslane.Program, @buslane.ValueId, @buslane.ValueId) raise @buslane.MetadataAllocationError {
   let unit_type = @buslane.Type::Primitive(Unit)
   let generic = metadata.define_value(
     "generic",

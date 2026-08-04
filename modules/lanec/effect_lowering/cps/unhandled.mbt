@@ -48,11 +48,11 @@ fn build_unhandled_computation_schema(
     // A unhandled computation is a CPS'd callable like any other, so it carries
     // the same binders: callers instantiate the unhandled it runs under rather
     // than being handed one fixed at the install site.
-    let answer_parameter = schema.metadata.define_type_parameter(
+    let answer_parameter = schema.metadata.define_cps_type_parameter(
       "%unhandled_answer",
       Type,
     )
-    let residual_parameter = schema.metadata.define_type_parameter(
+    let residual_parameter = schema.metadata.define_cps_type_parameter(
       "%unhandled",
       Effect,
       flavor=External,
@@ -84,11 +84,11 @@ fn UnhandledComputationSchema::fresh_frame(
   self : UnhandledComputationSchema,
   schema : DictionaryCpsSchema,
 ) -> UnhandledFrame raise SynthesisError {
-  let answer_parameter = schema.metadata.define_type_parameter(
+  let answer_parameter = schema.metadata.define_cps_type_parameter(
     "%unhandled_answer",
     Type,
   )
-  let residual_parameter = schema.metadata.define_type_parameter(
+  let residual_parameter = schema.metadata.define_cps_type_parameter(
     "%unhandled",
     Effect,
     flavor=External,
@@ -101,7 +101,7 @@ fn UnhandledComputationSchema::fresh_frame(
   let context_parameters = []
   let bindings = []
   for term in effect_terms(schema.metadata, self.effect) {
-    let parameter = schema.metadata.define_value(
+    let parameter = schema.metadata.define_cps_value(
       "%unhandled_context",
       Parameter,
       schema.context_term_type(term, answer_type, frame_residual),
@@ -109,7 +109,7 @@ fn UnhandledComputationSchema::fresh_frame(
     context_parameters.push(parameter)
     bindings.push({ term, value: Ref(parameter) })
   }
-  let continuation = schema.metadata.define_value(
+  let continuation = schema.metadata.define_cps_value(
     "%unhandled_continuation",
     Parameter,
     Function([self.result_type], answer_type, frame_residual),
@@ -195,7 +195,7 @@ fn build_relay_bindings(
         let value = build_concrete_relay_dictionary(
           schema, program, unhandled, effect, arguments,
         )
-        let id = schema.metadata.define_value(
+        let id = schema.metadata.define_cps_value(
           "%relay_dictionary",
           Local,
           schema.context_term_type(
@@ -279,7 +279,7 @@ fn build_relay_field(
     raise ExpectedFunction(function_type)
   }
   let parameters = parameter_types.map(type_ => {
-    schema.metadata.define_value("%relay_parameter", Parameter, type_)
+    schema.metadata.define_cps_value("%relay_parameter", Parameter, type_)
   })
   guard parameters.last() is Some(resume_parameter) else {
     raise ArityMismatch(expected=1, actual=0)
@@ -306,7 +306,7 @@ fn build_relay_field(
     raise ExpectedFunction(function_type)
   }
   let frame = unhandled.fresh_frame(schema)
-  let operation_result_parameter = schema.metadata.define_value(
+  let operation_result_parameter = schema.metadata.define_cps_value(
     "%relay_result",
     Parameter,
     operation_result,
@@ -363,12 +363,12 @@ fn build_relay_field(
 fn freshen_relay_field_type(
   metadata : @buslane.MetadataRegistry,
   field_type : @buslane.Type,
-) -> (Array[@buslane.TypeParameterId], @buslane.Type) {
+) -> (Array[@buslane.TypeParameterId], @buslane.Type) raise SynthesisError {
   match field_type {
     Forall(parameters, body) => {
       let fresh = parameters.map(parameter => {
         let info = metadata.type_parameter_info(parameter).unwrap()
-        metadata.define_type_parameter("%relay_type", info.kind)
+        metadata.define_cps_type_parameter("%relay_type", info.kind)
       })
       let substitution = @buslane.TypeSubstitution::TypeSubstitution()
       for index in 0..<parameters.length() {

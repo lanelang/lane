@@ -4,7 +4,7 @@ fn verification_function_program(
   result_type : @buslane.Type,
   effect : @buslane.Effect,
   body : Expr,
-) -> Program {
+) -> Program raise @buslane.MetadataAllocationError {
   let main = metadata.define_value(
     "main",
     Function,

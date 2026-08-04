@@ -1,5 +1,5 @@
 ///|
-let buslane_codec_version = 6
+let buslane_codec_version = 7
 
 ///|
 pub suberror BuslaneDecodeError {
@@ -50,7 +50,7 @@ fn @bytecodec.ByteWriter::write_metadata_registry(
   self : @bytecodec.ByteWriter,
   registry : MetadataRegistry,
 ) -> Unit {
-  self.write_u32_le_int(registry.next_unique)
+  self.write_metadata_name_allocator(registry.name_allocator)
   self.write_type_infos(registry.types)
   self.write_type_parameter_infos(registry.type_parameters)
   self.write_value_infos(registry.values)
@@ -64,13 +64,53 @@ fn @bytecodec.ByteReader::read_metadata_registry(
   self : @bytecodec.ByteReader,
 ) -> MetadataRegistry raise BuslaneDecodeError {
   {
-    next_unique: read_u32_le(self),
+    name_allocator: self.read_metadata_name_allocator(),
     types: self.read_type_infos(),
     type_parameters: self.read_type_parameter_infos(),
     values: self.read_value_infos(),
     data_constructors: self.read_data_con_infos(),
     effects: self.read_effect_infos(),
     operations: self.read_operation_infos(),
+  }
+}
+
+///|
+fn @bytecodec.ByteWriter::write_metadata_name_allocator(
+  self : @bytecodec.ByteWriter,
+  allocator : MetadataNameAllocator,
+) -> Unit {
+  match allocator {
+    Fresh(next) => {
+      self.write_u8(0)
+      self.write_u32_le_int(next.value)
+    }
+    Exhausted => self.write_u8(1)
+  }
+}
+
+///|
+fn @bytecodec.ByteReader::read_metadata_name_allocator(
+  self : @bytecodec.ByteReader,
+) -> MetadataNameAllocator raise BuslaneDecodeError {
+  let offset = self.offset()
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      Fresh(self.read_buslane_unique())
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Exhausted
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_tag(
+        offset~,
+        domain="metadata name allocator",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self, offset~)
   }
 }
 
@@ -335,7 +375,19 @@ fn @bytecodec.ByteReader::read_buslane_name(
   {
     name_space: self.read_name_namespace(),
     occurrence: read_string(self),
-    unique: { value: read_u32_le(self) },
+    unique: self.read_buslane_unique(),
+  }
+}
+
+///|
+fn @bytecodec.ByteReader::read_buslane_unique(
+  self : @bytecodec.ByteReader,
+) -> BuslaneUnique raise BuslaneDecodeError {
+  let value = read_u32_le(self)
+  match BuslaneUnique::from_int(value) {
+    Some(unique) => unique
+    None =>
+      invalid_tag(offset=self.offset() - 4, domain="Buslane unique", tag=value)
   }
 }
 

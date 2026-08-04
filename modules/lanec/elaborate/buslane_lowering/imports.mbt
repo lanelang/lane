@@ -3,6 +3,16 @@ fn BuslaneLowerer::seed_imported_interfaces(
   self : BuslaneLowerer,
   imported : @module_interface.ModuleImportEnvironments,
 ) -> Result[Unit, BuslaneLoweringError] {
+  Ok(self.seed_imported_interfaces_or_raise(imported)) catch {
+    error => Err(error)
+  }
+}
+
+///|
+fn BuslaneLowerer::seed_imported_interfaces_or_raise(
+  self : BuslaneLowerer,
+  imported : @module_interface.ModuleImportEnvironments,
+) -> Unit raise BuslaneLoweringError {
   for interface in imported.direct.modules {
     for type_ in interface.types {
       self.seed_imported_type_header(interface.module_path, type_)
@@ -14,10 +24,7 @@ fn BuslaneLowerer::seed_imported_interfaces(
     }
   }
   for interface in imported.direct.modules {
-    match self.seed_imported_dependency_headers(interface, imported.available) {
-      Ok(_) => ()
-      Err(error) => return Err(error)
-    }
+    self.seed_imported_dependency_headers(interface, imported.available)
   }
   for interface in imported.direct.modules {
     for type_ in interface.types {
@@ -34,7 +41,6 @@ fn BuslaneLowerer::seed_imported_interfaces(
       self.seed_imported_value(interface.module_path, value)
     }
   }
-  Ok(())
 }
 
 ///|
@@ -42,19 +48,21 @@ fn BuslaneLowerer::seed_imported_type_header(
   self : BuslaneLowerer,
   module_path_text : String,
   type_ : @module_interface.ModuleInterfaceType,
-) -> Unit {
+) -> Unit raise BuslaneLoweringError {
   if self.registry.find_type(interface_type_symbol(type_)) is Some(_) {
     return
   }
   match type_ {
     Struct(declaration) => {
-      let parameters = declaration.type_parameters.map(fn(parameter) {
+      let parameters = declaration.type_parameters.map(parameter => {
         self.define_type_parameter(parameter)
       })
       for type_member in declaration.type_members {
         ignore(self.define_type_parameter(type_member.type_parameter))
       }
-      let target = self.metadata.define_type(declaration.name, parameters)
+      let target = metadata_allocation_or_lowering_defect(() => {
+        self.metadata.define_type(declaration.name, parameters)
+      })
       ignore(self.registry.register_type(declaration.symbol, target))
       self.imports.push({
         module_path_text,
@@ -63,7 +71,7 @@ fn BuslaneLowerer::seed_imported_type_header(
       })
     }
     Enum(declaration) => {
-      let parameters = declaration.type_parameters.map(fn(parameter) {
+      let parameters = declaration.type_parameters.map(parameter => {
         self.define_type_parameter(parameter)
       })
       for variant in declaration.variants {
@@ -71,7 +79,9 @@ fn BuslaneLowerer::seed_imported_type_header(
           ignore(self.define_type_parameter(parameter))
         }
       }
-      let target = self.metadata.define_type(declaration.name, parameters)
+      let target = metadata_allocation_or_lowering_defect(() => {
+        self.metadata.define_type(declaration.name, parameters)
+      })
       ignore(self.registry.register_type(declaration.symbol, target))
       self.imports.push({
         module_path_text,
@@ -80,11 +90,9 @@ fn BuslaneLowerer::seed_imported_type_header(
       })
     }
     External(declaration) => {
-      let target = self.metadata.define_type(
-        declaration.name,
-        [],
-        flavor=External,
-      )
+      let target = metadata_allocation_or_lowering_defect(() => {
+        self.metadata.define_type(declaration.name, [], flavor=External)
+      })
       ignore(self.registry.register_type(declaration.symbol, target))
       self.imports.push({
         module_path_text,
@@ -128,7 +136,7 @@ fn BuslaneLowerer::seed_imported_type_constructors(
   self : BuslaneLowerer,
   module_path_text : String,
   type_ : @module_interface.ModuleInterfaceType,
-) -> Unit {
+) -> Unit raise BuslaneLoweringError {
   match type_ {
     Struct(declaration) => {
       if self.registry.find_struct_constructor(declaration.symbol) is Some(_) {
@@ -140,20 +148,20 @@ fn BuslaneLowerer::seed_imported_type_constructors(
         return
       }
       let owner = self.type_id(declaration.symbol)
-      let hidden_type_parameters = declaration.type_members.map(fn(
-        type_member,
-      ) {
+      let hidden_type_parameters = declaration.type_members.map(type_member => {
         self.define_type_parameter(type_member.type_parameter)
       })
-      let payload_types = declaration.fields.map(fn(field) {
+      let payload_types = declaration.fields.map(field => {
         self.lower_type(field.type_)
       })
-      let data_constructor = self.metadata.define_data_constructor(
-        declaration.name,
-        owner,
-        hidden_type_parameters,
-        payload_types,
-      )
+      let data_constructor = metadata_allocation_or_lowering_defect(() => {
+        self.metadata.define_data_constructor(
+          declaration.name,
+          owner,
+          hidden_type_parameters,
+          payload_types,
+        )
+      })
       ignore(
         self.registry.register_struct_constructor(
           declaration.symbol,
@@ -185,22 +193,24 @@ fn BuslaneLowerer::seed_imported_variant_constructors(
   self : BuslaneLowerer,
   module_path_text : String,
   declaration : @module_interface.ModuleInterfaceEnum,
-) -> Unit {
+) -> Unit raise BuslaneLoweringError {
   let owner = self.type_id(declaration.symbol)
   for variant in declaration.variants {
     if self.registry.find_data_constructor(variant.symbol) is Some(_) {
       continue
     }
-    let hidden_type_parameters = variant.type_parameters.map(fn(parameter) {
+    let hidden_type_parameters = variant.type_parameters.map(parameter => {
       self.define_type_parameter(parameter)
     })
-    let payload_types = variant.payload.map(fn(type_) { self.lower_type(type_) })
-    let data_constructor = self.metadata.define_data_constructor(
-      variant.name,
-      owner,
-      hidden_type_parameters,
-      payload_types,
-    )
+    let payload_types = variant.payload.map(type_ => self.lower_type(type_))
+    let data_constructor = metadata_allocation_or_lowering_defect(() => {
+      self.metadata.define_data_constructor(
+        variant.name,
+        owner,
+        hidden_type_parameters,
+        payload_types,
+      )
+    })
     ignore(
       self.registry.register_data_constructor(variant.symbol, data_constructor),
     )
@@ -218,12 +228,12 @@ fn BuslaneLowerer::seed_imported_field_selector(
   module_path_text : String,
   declaration : @module_interface.ModuleInterfaceStruct,
   field : @module_interface.ModuleInterfaceField,
-) -> Unit {
+) -> Unit raise BuslaneLoweringError {
   if self.registry.find_field_selector(field.symbol) is Some(_) {
     return
   }
   let selector_type = self.imported_selector_type(declaration, field)
-  let selector = self.metadata.define_value(field.name, Function, selector_type)
+  let selector = self.define_fresh_value(field.name, Function, selector_type)
   ignore(self.registry.register_field_selector(field.symbol, selector))
   self.imports.push({
     module_path_text,
@@ -237,8 +247,8 @@ fn BuslaneLowerer::imported_selector_type(
   self : BuslaneLowerer,
   declaration : @module_interface.ModuleInterfaceStruct,
   field : @module_interface.ModuleInterfaceField,
-) -> @buslane.Type {
-  let type_parameters = declaration.type_parameters.map(fn(parameter) {
+) -> @buslane.Type raise BuslaneLoweringError {
+  let type_parameters = declaration.type_parameters.map(parameter => {
     self.define_type_parameter(parameter)
   })
   for type_member in declaration.type_members {
@@ -246,7 +256,7 @@ fn BuslaneLowerer::imported_selector_type(
   }
   let receiver = buslane_nominal_type(
     self.type_id(declaration.symbol),
-    declaration.type_parameters.map(fn(parameter) {
+    declaration.type_parameters.map(parameter => {
       self.lower_type_parameter_argument(parameter)
     }),
   )
@@ -267,18 +277,20 @@ fn BuslaneLowerer::seed_imported_effect_header(
   self : BuslaneLowerer,
   module_path_text : String,
   effect : @module_interface.ModuleInterfaceEffect,
-) -> Unit {
+) -> Unit raise BuslaneLoweringError {
   if self.registry.find_effect(effect.symbol) is Some(_) {
     return
   }
-  let parameters = effect.type_parameters.map(fn(parameter) {
+  let parameters = effect.type_parameters.map(parameter => {
     self.define_type_parameter(parameter)
   })
   let flavor = match effect.flavor {
     Algebraic => @buslane.EffectFlavor::Algebraic
     External => External
   }
-  let target = self.metadata.define_effect(effect.name, parameters, flavor~)
+  let target = metadata_allocation_or_lowering_defect(() => {
+    self.metadata.define_effect(effect.name, parameters, flavor~)
+  })
   ignore(self.registry.register_effect(effect.symbol, target))
   self.imports.push({
     module_path_text,
@@ -292,7 +304,7 @@ fn BuslaneLowerer::seed_imported_effect_operations(
   self : BuslaneLowerer,
   module_path_text : String,
   effect : @module_interface.ModuleInterfaceEffect,
-) -> Unit {
+) -> Unit raise BuslaneLoweringError {
   let owner = self.effect_id(effect.symbol)
   for operation in effect.operations {
     let target = self.define_operation(
@@ -316,7 +328,7 @@ fn BuslaneLowerer::seed_imported_value(
   self : BuslaneLowerer,
   module_path_text : String,
   value : @module_interface.ModuleInterfaceValue,
-) -> Unit {
+) -> Unit raise BuslaneLoweringError {
   let type_ = self.lower_type(value.type_)
   let kind : @buslane.ValueKind = match value.kind {
     Function => Function

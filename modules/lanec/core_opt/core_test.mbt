@@ -1,5 +1,5 @@
 ///|
-fn core_opt_test_program() -> (@buslane.Program, @buslane.ValueId) {
+fn core_opt_test_program() -> (@buslane.Program, @buslane.ValueId) raise @buslane.MetadataAllocationError {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
   let main_type = @buslane.Type::Function([], unit_type, Empty)

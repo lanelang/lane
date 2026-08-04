@@ -14,6 +14,10 @@ pub fn text_string_unescape(Char) -> Char?
 pub fn verify_program(Program) -> VerifyResult
 
 // Errors
+pub suberror MetadataAllocationError {
+  MetadataNameExhausted
+} derive(Eq, @debug.Debug)
+
 pub(all) suberror TypeNormalizationError {
   BetaReductionLimitExceeded(limit~ : Int)
   InvalidBetaSubstitution(TypeSubstitutionError)
@@ -50,9 +54,10 @@ pub(all) struct BuslaneName {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for BuslaneName
 
-pub(all) struct BuslaneUnique {
+pub struct BuslaneUnique {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn BuslaneUnique::from_int(Int) -> Self?
 
 pub(all) struct ConstructExpr {
   data_constructor : DataConId
@@ -242,13 +247,19 @@ pub(all) enum MetadataAnchor {
 pub impl @prettyprinter.Pretty for MetadataAnchor
 
 pub(all) enum MetadataIdentityError {
+  InvalidUnique(BuslaneUnique)
   DuplicateUnique(BuslaneUnique)
-  InvalidNextUnique(next_unique~ : Int, maximum_unique~ : Int?)
+  InvalidNameAllocator(allocator~ : MetadataNameAllocator, maximum_unique~ : BuslaneUnique?)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for MetadataIdentityError
 
+pub(all) enum MetadataNameAllocator {
+  Fresh(BuslaneUnique)
+  Exhausted
+} derive(Eq, @debug.Debug)
+
 pub(all) struct MetadataRegistry {
-  mut next_unique : Int
+  mut name_allocator : MetadataNameAllocator
   types : Array[TypeInfo]
   type_parameters : Array[TypeParameterInfo]
   values : Array[ValueInfo]
@@ -259,12 +270,12 @@ pub(all) struct MetadataRegistry {
 pub fn MetadataRegistry::MetadataRegistry() -> Self
 pub fn MetadataRegistry::canonicalize_effect(Self, Effect) -> Effect raise TypeNormalizationError
 pub fn MetadataRegistry::data_constructor_info(Self, DataConId) -> DataConInfo?
-pub fn MetadataRegistry::define_data_constructor(Self, String, TypeId, Array[TypeParameterId], Array[Type]) -> DataConId
-pub fn MetadataRegistry::define_effect(Self, String, Array[TypeParameterId], flavor? : EffectFlavor) -> EffectId
-pub fn MetadataRegistry::define_operation(Self, String, EffectId, Array[TypeParameterId], Array[Type], Type) -> OperationId
-pub fn MetadataRegistry::define_type(Self, String, Array[TypeParameterId], flavor? : TypeFlavor) -> TypeId
-pub fn MetadataRegistry::define_type_parameter(Self, String, Kind, flavor? : EffectFlavor) -> TypeParameterId
-pub fn MetadataRegistry::define_value(Self, String, ValueKind, Type) -> ValueId
+pub fn MetadataRegistry::define_data_constructor(Self, String, TypeId, Array[TypeParameterId], Array[Type]) -> DataConId raise MetadataAllocationError
+pub fn MetadataRegistry::define_effect(Self, String, Array[TypeParameterId], flavor? : EffectFlavor) -> EffectId raise MetadataAllocationError
+pub fn MetadataRegistry::define_operation(Self, String, EffectId, Array[TypeParameterId], Array[Type], Type) -> OperationId raise MetadataAllocationError
+pub fn MetadataRegistry::define_type(Self, String, Array[TypeParameterId], flavor? : TypeFlavor) -> TypeId raise MetadataAllocationError
+pub fn MetadataRegistry::define_type_parameter(Self, String, Kind, flavor? : EffectFlavor) -> TypeParameterId raise MetadataAllocationError
+pub fn MetadataRegistry::define_value(Self, String, ValueKind, Type) -> ValueId raise MetadataAllocationError
 pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
 pub fn MetadataRegistry::effect_is_subeffect_of(Self, Effect, Effect) -> Bool raise TypeNormalizationError
 pub fn MetadataRegistry::effect_term_is_algebraic(Self, Effect) -> Bool

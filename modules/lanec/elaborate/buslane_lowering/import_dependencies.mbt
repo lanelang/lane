@@ -3,14 +3,14 @@ fn BuslaneLowerer::seed_imported_dependency_headers(
   self : BuslaneLowerer,
   interface : @module_interface.ModuleInterface,
   available : @module_interface.ImportedEnvironment,
-) -> Result[Unit, BuslaneLoweringError] {
+) -> Unit raise BuslaneLoweringError {
   let { types: type_symbols, effects: effect_symbols } = interface.dependency_symbols()
   for symbol in type_symbols {
     if self.registry.find_type(symbol) is Some(_) {
       continue
     }
     guard find_interface_type_reference(interface, symbol) is Some(reference) else {
-      return Err(MissingTypeReference(symbol))
+      raise MissingTypeReference(symbol)
     }
     guard find_available_interface_type(
         available,
@@ -18,24 +18,16 @@ fn BuslaneLowerer::seed_imported_dependency_headers(
         reference.name,
       )
       is Some(type_) else {
-      return Err(MissingTypeDependency(reference.module_path, reference.name))
+      raise MissingTypeDependency(reference.module_path, reference.name)
     }
-    match
-      self.seed_imported_type_dependency(
-        reference.module_path,
-        type_,
-        available,
-      ) {
-      Ok(_) => ()
-      Err(error) => return Err(error)
-    }
+    self.seed_imported_type_dependency(reference.module_path, type_, available)
   }
   for symbol in effect_symbols {
     if self.registry.find_effect(symbol) is Some(_) {
       continue
     }
     guard find_interface_effect_reference(interface, symbol) is Some(reference) else {
-      return Err(MissingEffectReference(symbol))
+      raise MissingEffectReference(symbol)
     }
     guard find_available_interface_effect(
         available,
@@ -43,11 +35,10 @@ fn BuslaneLowerer::seed_imported_dependency_headers(
         reference.name,
       )
       is Some(effect) else {
-      return Err(MissingEffectDependency(reference.module_path, reference.name))
+      raise MissingEffectDependency(reference.module_path, reference.name)
     }
     self.seed_imported_effect_header(reference.module_path, effect)
   }
-  Ok(())
 }
 
 ///|
@@ -56,10 +47,10 @@ fn BuslaneLowerer::seed_imported_type_dependency(
   module_path : String,
   type_ : @module_interface.ModuleInterfaceType,
   available : @module_interface.ImportedEnvironment,
-) -> Result[Unit, BuslaneLoweringError] {
+) -> Unit raise BuslaneLoweringError {
   self.seed_imported_type_header(module_path, type_)
   guard available.find(module_path) is Some(interface) else {
-    return Err(MissingTypeDependency(module_path, interface_type_name(type_)))
+    raise MissingTypeDependency(module_path, interface_type_name(type_))
   }
   let { types: type_symbols, effects: effect_symbols } = type_.dependency_symbols()
   for symbol in type_symbols {
@@ -67,7 +58,7 @@ fn BuslaneLowerer::seed_imported_type_dependency(
       continue
     }
     guard find_interface_type_reference(interface, symbol) is Some(reference) else {
-      return Err(MissingTypeReference(symbol))
+      raise MissingTypeReference(symbol)
     }
     guard find_available_interface_type(
         available,
@@ -75,24 +66,20 @@ fn BuslaneLowerer::seed_imported_type_dependency(
         reference.name,
       )
       is Some(dependency) else {
-      return Err(MissingTypeDependency(reference.module_path, reference.name))
+      raise MissingTypeDependency(reference.module_path, reference.name)
     }
-    match
-      self.seed_imported_type_dependency(
-        reference.module_path,
-        dependency,
-        available,
-      ) {
-      Ok(_) => ()
-      Err(error) => return Err(error)
-    }
+    self.seed_imported_type_dependency(
+      reference.module_path,
+      dependency,
+      available,
+    )
   }
   for symbol in effect_symbols {
     if self.registry.find_effect(symbol) is Some(_) {
       continue
     }
     guard find_interface_effect_reference(interface, symbol) is Some(reference) else {
-      return Err(MissingEffectReference(symbol))
+      raise MissingEffectReference(symbol)
     }
     guard find_available_interface_effect(
         available,
@@ -100,12 +87,11 @@ fn BuslaneLowerer::seed_imported_type_dependency(
         reference.name,
       )
       is Some(effect) else {
-      return Err(MissingEffectDependency(reference.module_path, reference.name))
+      raise MissingEffectDependency(reference.module_path, reference.name)
     }
     self.seed_imported_effect_header(reference.module_path, effect)
   }
   self.seed_unimported_owner_visible_members(module_path, type_)
-  Ok(())
 }
 
 ///|
@@ -121,7 +107,7 @@ fn BuslaneLowerer::seed_unimported_owner_visible_members(
   self : BuslaneLowerer,
   module_path_text : String,
   type_ : @module_interface.ModuleInterfaceType,
-) -> Unit {
+) -> Unit raise BuslaneLoweringError {
   match type_ {
     Struct(declaration) =>
       for field in declaration.fields {
@@ -138,7 +124,7 @@ fn BuslaneLowerer::seed_structural_derive_dependencies(
   self : BuslaneLowerer,
   source : @checked.CheckedSourceFile,
   available : @module_interface.ImportedEnvironment,
-) -> Unit {
+) -> Unit raise BuslaneLoweringError {
   let symbols : Array[@symbol.TypeSymbolId] = []
   for declaration in source.declarations {
     match declaration {

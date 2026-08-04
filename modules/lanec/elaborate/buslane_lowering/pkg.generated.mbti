@@ -11,18 +11,19 @@ import {
 }
 
 // Values
-pub fn lower_checked_source_file_to_buslane(@checked.CheckedSourceFile) -> @buslane.Program
+pub fn lower_checked_source_file_to_buslane(@checked.CheckedSourceFile) -> @buslane.Program raise BuslaneLoweringError
 
 pub fn lower_checked_source_file_to_buslane_object_with_imports(@checked.CheckedSourceFile, @module.ModuleImportEnvironments) -> Result[BuslaneModuleObject, BuslaneLoweringError]
 
-pub fn lower_checked_source_file_to_buslane_result(@checked.CheckedSourceFile) -> BuslaneLowerResult
+pub fn lower_checked_source_file_to_buslane_result(@checked.CheckedSourceFile) -> BuslaneLowerResult raise BuslaneLoweringError
 
-pub fn lower_checked_source_files_to_buslane_objects(Array[@checked.CheckedSourceFile]) -> BuslaneModuleObjectSet
+pub fn lower_checked_source_files_to_buslane_objects(Array[@checked.CheckedSourceFile]) -> BuslaneModuleObjectSet raise BuslaneLoweringError
 
-pub fn lower_checked_source_files_to_buslane_result(@checked.CheckedSourceFile, Array[@checked.CheckedSourceFile]) -> BuslaneLowerResult
+pub fn lower_checked_source_files_to_buslane_result(@checked.CheckedSourceFile, Array[@checked.CheckedSourceFile]) -> BuslaneLowerResult raise BuslaneLoweringError
 
 // Errors
 pub(all) suberror BuslaneLoweringError {
+  MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
   MissingTypeReference(@symbol.TypeSymbolId)
   MissingEffectReference(@symbol.EffectSymbolId)
   MissingTypeDependency(String, String)

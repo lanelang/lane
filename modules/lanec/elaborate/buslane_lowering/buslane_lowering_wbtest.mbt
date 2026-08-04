@@ -5,7 +5,9 @@ priv struct BuslaneLoweringTestResult {
 }
 
 ///|
-fn elaborate_buslane_source(source : String) -> BuslaneLoweringTestResult {
+fn elaborate_buslane_source(
+  source : String,
+) -> BuslaneLoweringTestResult raise BuslaneLoweringError {
   let file = expect_parse_ok(source)
   let resolution = @resolve.resolve_source_file_result(file)
   if !resolution.diagnostics.is_empty() {
@@ -100,7 +102,7 @@ fn checked_module_for_elaborate_test(
 ///|
 fn lower_first_handler_for_elaborate_test(
   source_text : String,
-) -> Array[LoweredHandlerTable] {
+) -> Array[LoweredHandlerTable] raise BuslaneLoweringError {
   let source = checked_source_for_elaborate_test(source_text)
   let lowerer = BuslaneLowerer::BuslaneLowerer()
   lowerer.collect_type_headers(source)

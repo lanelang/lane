@@ -244,7 +244,16 @@ fn EffectSpecializer::allocate_data_instances(
       "\{info.name.occurrence}%effect",
       retained_parameters,
       flavor=info.flavor,
-    )
+    ) catch {
+      error =>
+        raise AllocatorInvariant(
+          specialization_error_context(
+            "Buslane metadata allocation failed: \{Repr(error)}",
+            source=Type(demand.source),
+            specialization_key=demand.bindings,
+          ),
+        )
+    }
     self.data_instances.push({
       source: demand.source,
       bindings: demand.bindings,
@@ -272,7 +281,16 @@ fn EffectSpecializer::allocate_data_instances(
         constructor_info.payload_types.map(type_ => {
           self.specialize_type(type_, instance.bindings)
         }),
-      )
+      ) catch {
+        error =>
+          raise AllocatorInvariant(
+            specialization_error_context(
+              "Buslane metadata allocation failed: \{Repr(error)}",
+              source=DataConstructor(data_constructor),
+              specialization_key=demand.bindings,
+            ),
+          )
+      }
       instance.constructors.push({
         source: data_constructor,
         target: specialized_constructor,

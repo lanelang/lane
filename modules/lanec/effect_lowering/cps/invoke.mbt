@@ -27,7 +27,7 @@ fn lower_cps_invoke(
   let dictionary_type = schema.context_term_type(
     term, answer_type, residual_effect,
   )
-  let dictionary_binder = schema.metadata.define_value(
+  let dictionary_binder = schema.metadata.define_cps_value(
     "%dictionary",
     MatchBinder,
     dictionary_type,
@@ -40,7 +40,7 @@ fn lower_cps_invoke(
     residual_effect,
   )
   let field_binders = instance.field_types.map(type_ => {
-    schema.metadata.define_value("%operation", MatchBinder, type_)
+    schema.metadata.define_cps_value("%operation", MatchBinder, type_)
   })
   let field_index = operation_field_index(effect.operations, invoke.operation)
   let field = Expr::Ref(field_binders[field_index])

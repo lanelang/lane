@@ -113,25 +113,25 @@ test "program binary codec roundtrips core structures" {
 }
 
 ///|
-test "program codec writes schema version 6" {
+test "program codec writes schema version 7" {
   let bytes = encode_program({ metadata: MetadataRegistry(), terms: [] })
   guard bytes is [i32le(version), ..] else {
     fail("expected Buslane codec version prefix")
   }
-  assert_eq(version, 6)
+  assert_eq(version, 7)
 }
 
 ///|
-test "program decoder rejects schema version 5 at the version boundary" {
+test "program decoder rejects schema version 6 at the version boundary" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(5)
+  writer.write_u32_le_int(6)
   let error = try {
     ignore(decode_program(writer.to_bytes()))
     None
   } catch {
     error => Some(error)
   }
-  debug_inspect(error, content="Some(UnsupportedCodecVersion(version=5))")
+  debug_inspect(error, content="Some(UnsupportedCodecVersion(version=6))")
 }
 
 ///|
@@ -162,7 +162,7 @@ test "program decoder rejects trailing bytes" {
   debug_inspect(
     error,
     content=(
-      #|Some(ByteError(TrailingBytes(offset=36, remaining=1)))
+      #|Some(ByteError(TrailingBytes(offset=37, remaining=1)))
     ),
   )
 }
@@ -170,7 +170,8 @@ test "program decoder rejects trailing bytes" {
 ///|
 test "program decoder rejects invalid top term tag" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(6) // codec version
+  writer.write_u32_le_int(7) // codec version
+  writer.write_u8(0) // fresh metadata name allocator
   writer.write_u32_le_int(0) // metadata next_unique
   writer.write_u32_le_int(0) // types
   writer.write_u32_le_int(0) // type parameters
@@ -189,7 +190,44 @@ test "program decoder rejects invalid top term tag" {
   debug_inspect(
     error,
     content=(
-      #|Some(InvalidTag(offset=36, domain="TopTerm", tag=99))
+      #|Some(InvalidTag(offset=37, domain="TopTerm", tag=99))
+    ),
+  )
+}
+
+///|
+test "program codec roundtrips the last unique and exhausted allocator" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  metadata.name_allocator = Fresh(
+    @buslane.BuslaneUnique::from_int(0x7FFFFFFF).unwrap(),
+  )
+  assert_eq(
+    decode_program(encode_program({ metadata, terms: [] })).metadata,
+    metadata,
+  )
+  ignore(metadata.define_value("last", Value, Primitive(Unit)))
+  assert_eq(metadata.name_allocator, Exhausted)
+  assert_eq(
+    decode_program(encode_program({ metadata, terms: [] })).metadata,
+    metadata,
+  )
+}
+
+///|
+test "program decoder rejects an invalid metadata allocator tag" {
+  let writer = @bytecodec.ByteWriter::new()
+  writer.write_u32_le_int(7)
+  writer.write_u8(99)
+  let error = try {
+    ignore(decode_program(writer.to_bytes()))
+    None
+  } catch {
+    error => Some(error)
+  }
+  debug_inspect(
+    error,
+    content=(
+      #|Some(InvalidTag(offset=4, domain="metadata name allocator", tag=99))
     ),
   )
 }
@@ -252,10 +290,10 @@ test "program decoder rejects invalid Char literals" {
     errors,
     content=(
       #|[
-      #|  InvalidUnicodeScalar(offset=61, value=-1),
-      #|  InvalidUnicodeScalar(offset=61, value=55296),
-      #|  InvalidUnicodeScalar(offset=61, value=57343),
-      #|  InvalidUnicodeScalar(offset=61, value=1114112),
+      #|  InvalidUnicodeScalar(offset=62, value=-1),
+      #|  InvalidUnicodeScalar(offset=62, value=55296),
+      #|  InvalidUnicodeScalar(offset=62, value=57343),
+      #|  InvalidUnicodeScalar(offset=62, value=1114112),
       #|]
     ),
   )

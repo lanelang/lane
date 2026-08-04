@@ -209,10 +209,11 @@ fn verification_effect_annotation(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
   body : @buslane.Expr,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise SynthesisError {
   let unit_type = @buslane.Type::Primitive(Unit)
   let annotated_type = @buslane.Type::Function([], unit_type, effect)
-  let parameter = metadata.define_value(
+  let parameter = define_synthetic_value(
+    metadata,
     "%verify-effect-parameter",
     Parameter,
     annotated_type,
@@ -222,7 +223,8 @@ fn verification_effect_annotation(
     annotated_type,
     Empty,
   )
-  let validator = metadata.define_value(
+  let validator = define_synthetic_value(
+    metadata,
     "%verify-effect-annotation",
     Local,
     validator_type,

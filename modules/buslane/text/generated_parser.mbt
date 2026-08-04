@@ -1,14 +1,14 @@
 
 pub(all) enum Token {
   LITERAL(Literal)
-  NAME((String, Int))
+  NAME((String, BuslaneUnique))
   TYPE_ID(Int)
   TPARAM_ID(Int)
   VALUE_ID(Int)
   DATACON_ID(Int)
   EFFECT_ID(Int)
   OPERATION_ID(Int)
-  NEXT_UNIQUE(Int)
+  NEXT_UNIQUE(MetadataNameAllocator)
   EOF
   BUSLANE
   METADATA
@@ -501,12 +501,16 @@ priv suberror YYObj_OperationAlternative {
   YYObj_OperationAlternative(OperationAlternative)
 }
 
+priv suberror YYObj_MetadataNameAllocator {
+  YYObj_MetadataNameAllocator(MetadataNameAllocator)
+}
+
 priv suberror YYObj__Array_GenericArgument___Array_GenericArgument__ {
   YYObj__Array_GenericArgument___Array_GenericArgument__((Array[GenericArgument], Array[GenericArgument]))
 }
 
-priv suberror YYObj__String__Int_ {
-  YYObj__String__Int_((String, Int))
+priv suberror YYObj__String__BuslaneUnique_ {
+  YYObj__String__BuslaneUnique_((String, BuslaneUnique))
 }
 
 type YYState = (YYSymbol) -> YYDecision
@@ -1145,7 +1149,7 @@ fn yy_action_48(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 // 91|    make_metadata($3, $5)
 // 92|  }
 fn yy_action_49(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[2].0 is YYObj_Int(_dollar3)
+  guard _args[2].0 is YYObj_MetadataNameAllocator(_dollar3)
   guard _args[4].0 is YYObj_Array_MetadataDeclaration_(_dollar5)
   YYObj_Result_MetadataRegistry__String_({(); 
     make_metadata(_dollar3, _dollar5)
@@ -1490,7 +1494,7 @@ fn yy_action_83(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 // file:///./parser.mbty
 // 156|    NAME { { occurrence: $1.0, unique: $1.1 } }
 fn yy_action_84(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj__String__Int_(_dollar1)
+  guard _args[0].0 is YYObj__String__BuslaneUnique_(_dollar1)
   YYObj_ParsedBuslaneName({();  { occurrence: _dollar1.0, unique: _dollar1.1 } })
 }
 
@@ -1876,14 +1880,14 @@ fn yy_action_139(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 fn yy_input(token : Token, _start_pos : SourceSpan, _end_pos : SourceSpan) -> (YYSymbol, YYObj) {
   match token {
     LITERAL(data) => (T_LITERAL, YYObj_Literal(data))
-    NAME(data) => (T_NAME, YYObj__String__Int_(data))
+    NAME(data) => (T_NAME, YYObj__String__BuslaneUnique_(data))
     TYPE_ID(data) => (T_TYPE_ID, YYObj_Int(data))
     TPARAM_ID(data) => (T_TPARAM_ID, YYObj_Int(data))
     VALUE_ID(data) => (T_VALUE_ID, YYObj_Int(data))
     DATACON_ID(data) => (T_DATACON_ID, YYObj_Int(data))
     EFFECT_ID(data) => (T_EFFECT_ID, YYObj_Int(data))
     OPERATION_ID(data) => (T_OPERATION_ID, YYObj_Int(data))
-    NEXT_UNIQUE(data) => (T_NEXT_UNIQUE, YYObj_Int(data))
+    NEXT_UNIQUE(data) => (T_NEXT_UNIQUE, YYObj_MetadataNameAllocator(data))
     EOF => (T_EOF, YYObj_Void)
     BUSLANE => (T_BUSLANE, YYObj_Void)
     METADATA => (T_METADATA, YYObj_Void)

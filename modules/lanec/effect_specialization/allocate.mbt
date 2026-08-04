@@ -54,7 +54,17 @@ fn EffectSpecializer::allocate_callable_instances(
       "\{info.name.occurrence}%effect",
       info.kind,
       specialized_type,
-    )
+    ) catch {
+      error =>
+        raise AllocatorInvariant(
+          specialization_error_context(
+            "Buslane metadata allocation failed: \{Repr(error)}",
+            site~,
+            source=Value(source),
+            specialization_key=instance_bindings,
+          ),
+        )
+    }
     self.instances.push({
       site,
       ambient_bindings,
@@ -215,7 +225,15 @@ fn EffectSpecializer::fresh_bound_value(
     info.name.occurrence,
     info.kind,
     self.specialize_type(info.type_, scope.type_bindings),
-  )
+  ) catch {
+    error =>
+      raise RewriterInvariant(
+        specialization_error_context(
+          "Buslane metadata allocation failed: \{Repr(error)}",
+          source=Value(source),
+        ),
+      )
+  }
   scope.bind_value(source, target)
   target
 }

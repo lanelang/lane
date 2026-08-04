@@ -5,7 +5,7 @@ fn BuslaneLowerer::lower_handler(
   handlers : Array[@checked.CheckedHandlerTable],
   final_branch : @checked.CheckedHandlerFinalBranch,
   result_type : @types.Type,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   guard body is Some(body) else { abort("unchecked handler body") }
   guard final_branch.body is Some(final_body) else {
     abort("unchecked handler final branch")
@@ -31,14 +31,12 @@ fn BuslaneLowerer::lower_handler(
 fn BuslaneLowerer::lower_handler_tables(
   self : BuslaneLowerer,
   tables : Array[LoweredHandlerTable],
-) -> Array[@buslane.HandlerTable] {
-  tables.map(fn(table) {
-    {
-      handled_effect: self.lower_effect(table.handled_effect),
-      operations: table.operations.map(fn(operation) {
-        self.lower_operation_alternative(operation)
-      }),
-    }
+) -> Array[@buslane.HandlerTable] raise BuslaneLoweringError {
+  tables.map(table => {
+    handled_effect: self.lower_effect(table.handled_effect),
+    operations: table.operations.map(operation => {
+      self.lower_operation_alternative(operation)
+    }),
   })
 }
 
@@ -61,15 +59,13 @@ fn BuslaneLowerer::lower_handler_tables_for_alternatives(
   self : BuslaneLowerer,
   handlers : Array[@checked.CheckedHandlerTable],
   result_type : @types.Type,
-) -> Array[LoweredHandlerTable] {
-  handlers.map(fn(handler) {
-    {
-      handled_effect: handler.handled_effect,
-      operations: self.lower_handler_operation_groups(
-        lower_handler_operation_groups(handler.operations),
-        result_type,
-      ),
-    }
+) -> Array[LoweredHandlerTable] raise BuslaneLoweringError {
+  handlers.map(handler => {
+    handled_effect: handler.handled_effect,
+    operations: self.lower_handler_operation_groups(
+      lower_handler_operation_groups(handler.operations),
+      result_type,
+    ),
   })
 }
 
@@ -112,10 +108,8 @@ fn BuslaneLowerer::lower_handler_operation_groups(
   self : BuslaneLowerer,
   groups : Array[LowerHandlerOperationGroup],
   result_type : @types.Type,
-) -> Array[LoweredOperationAlternative] {
-  groups.map(fn(group) {
-    self.lower_handler_operation_group(group, result_type)
-  })
+) -> Array[LoweredOperationAlternative] raise BuslaneLoweringError {
+  groups.map(group => self.lower_handler_operation_group(group, result_type))
 }
 
 ///|
@@ -123,11 +117,11 @@ fn BuslaneLowerer::lower_handler_operation_group(
   self : BuslaneLowerer,
   group : LowerHandlerOperationGroup,
   result_type : @types.Type,
-) -> LoweredOperationAlternative {
-  let type_binders = group.type_binders.map(fn(parameter) {
+) -> LoweredOperationAlternative raise BuslaneLoweringError {
+  let type_binders = group.type_binders.map(parameter => {
     self.define_type_parameter(parameter)
   })
-  let payload_binders = group.payload_types.map(fn(type_) {
+  let payload_binders = group.payload_types.map(type_ => {
     self.define_fresh_value("payload", Parameter, self.lower_type(type_))
   })
   let resume_binder = self.define_fresh_value(
@@ -135,7 +129,7 @@ fn BuslaneLowerer::lower_handler_operation_group(
     Parameter,
     self.lower_type(group.resume_type),
   )
-  let rows = group.arms.map(fn(arm) {
+  let rows = group.arms.map(arm => {
     for index, parameter in arm.type_binders {
       self.bind_type_parameter_alias(parameter.id, type_binders[index])
     }
@@ -154,7 +148,7 @@ fn BuslaneLowerer::lower_handler_operation_group(
     payload_binders,
     resume_binder,
     body: self.lower_pattern_decision(
-      payload_binders.map(fn(binder) { Ref(binder) }),
+      payload_binders.map(binder => Ref(binder)),
       payload_binders,
       rows,
       group.payload_types,

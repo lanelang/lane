@@ -59,7 +59,7 @@ fn build_dictionary_cps_schema_or_raise(
   for header in headers {
     let field_types = define_operation_field_types(schema, header)
     ignore(
-      metadata.define_data_constructor(
+      metadata.define_cps_data_constructor(
         "%effect_dictionary",
         header.type_id,
         [],
@@ -73,7 +73,7 @@ fn build_dictionary_cps_schema_or_raise(
 ///|
 fn define_effect_companions(
   metadata : @buslane.MetadataRegistry,
-) -> Array[EffectCompanionBinding] {
+) -> Array[EffectCompanionBinding] raise SynthesisError {
   let companions = []
   let source_parameter_count = metadata.type_parameters.length()
   for index in 0..<source_parameter_count {
@@ -82,11 +82,11 @@ fn define_effect_companions(
     if info.kind == Effect {
       companions.push(EffectCompanionBinding::{
         source,
-        companion: metadata.define_type_parameter(
+        companion: metadata.define_cps_type_parameter(
           info.name.occurrence + "%context",
           Function([Type, Effect], Type),
         ),
-        residual: metadata.define_type_parameter(
+        residual: metadata.define_cps_type_parameter(
           info.name.occurrence + "%residual",
           Effect,
           flavor=External,
@@ -107,16 +107,16 @@ fn define_dictionary_header(
     raise UnknownEffect(effect)
   }
   let parameters = rewrite_cps_parameters(companions, info.parameters)
-  let answer_parameter = metadata.define_type_parameter(
+  let answer_parameter = metadata.define_cps_type_parameter(
     info.name.occurrence + "%answer",
     Type,
   )
-  let residual_parameter = metadata.define_type_parameter(
+  let residual_parameter = metadata.define_cps_type_parameter(
     info.name.occurrence + "%residual",
     Effect,
     flavor=External,
   )
-  let type_id = metadata.define_type(
+  let type_id = metadata.define_cps_type(
     info.name.occurrence + "%dictionary",
     parameters + [answer_parameter, residual_parameter],
   )
@@ -421,11 +421,11 @@ fn DictionaryCpsSchema::companion_context_argument(
   self : DictionaryCpsSchema,
   effect : @buslane.Effect,
 ) -> @buslane.Type raise SynthesisError {
-  let answer_parameter = self.metadata.define_type_parameter(
+  let answer_parameter = self.metadata.define_cps_type_parameter(
     "%companion_answer",
     Type,
   )
-  let residual_parameter = self.metadata.define_type_parameter(
+  let residual_parameter = self.metadata.define_cps_type_parameter(
     "%companion_residual",
     Effect,
     flavor=External,
@@ -494,7 +494,7 @@ fn DictionaryCpsSchema::rewrite_residual_effect(
 fn DictionaryCpsSchema::context_pack(
   self : DictionaryCpsSchema,
   arity : Int,
-) -> ContextPackSchema {
+) -> ContextPackSchema raise SynthesisError {
   for pack in self.context_packs {
     if pack.arity == arity {
       return pack
@@ -503,12 +503,15 @@ fn DictionaryCpsSchema::context_pack(
   let parameters = []
   for index in 0..<arity {
     parameters.push(
-      self.metadata.define_type_parameter("%context" + index.to_string(), Type),
+      self.metadata.define_cps_type_parameter(
+        "%context" + index.to_string(),
+        Type,
+      ),
     )
   }
-  let type_id = self.metadata.define_type("%context_pack", parameters)
+  let type_id = self.metadata.define_cps_type("%context_pack", parameters)
   ignore(
-    self.metadata.define_data_constructor(
+    self.metadata.define_cps_data_constructor(
       "%context_pack",
       type_id,
       [],

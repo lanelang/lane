@@ -22,7 +22,7 @@ fn writer() -> CanonicalTextWriter {
 ///|
 test "buslane text round-trips metadata allocator state" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  metadata.next_unique = 7
+  metadata.name_allocator = Fresh(@buslane.BuslaneUnique::from_int(7).unwrap())
   let program : @buslane.Program = { metadata, terms: [] }
   let text = writer().write_program(program)
   let decoded = match parse_program_text(text) {
@@ -30,6 +30,18 @@ test "buslane text round-trips metadata allocator state" {
     Err(message) => abort(message + "\n" + text)
   }
   assert_program_equal(decoded, program)
+
+  metadata.name_allocator = Fresh(
+    @buslane.BuslaneUnique::from_int(0x7FFFFFFF).unwrap(),
+  )
+  ignore(metadata.define_value("last", Value, Primitive(Unit)))
+  let exhausted : @buslane.Program = { metadata, terms: [] }
+  let exhausted_text = writer().write_program(exhausted)
+  let exhausted_decoded = match parse_program_text(exhausted_text) {
+    Ok(decoded) => decoded
+    Err(message) => abort(message + "\n" + exhausted_text)
+  }
+  assert_program_equal(exhausted_decoded, exhausted)
 }
 
 // -- types ------------------------------------------------------------------

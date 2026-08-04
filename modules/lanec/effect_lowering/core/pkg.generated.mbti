@@ -49,6 +49,7 @@ pub fn verify_program(Program) -> Result[@buslane.VerifyResult, SynthesisError]
 // Errors
 pub(all) suberror SynthesisError {
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
+  MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
   UnknownValue(@buslane.ValueId)
   UnknownType(@buslane.TypeId)
   UnknownDataConstructor(@buslane.DataConId)

@@ -77,9 +77,15 @@ fn tokens_from_string(
       let (value, next) = read_integer(input, index)
       tokens.push((LITERAL(literal_value(parse_i64_literal(value))), ()))
       index = next
+    } else if starts_with(input, index, "next_unique#exhausted") {
+      tokens.push((NEXT_UNIQUE(Exhausted), ()))
+      index = index + b"next_unique#exhausted".length()
     } else if starts_with(input, index, "next_unique#") {
       let (next_unique, next) = read_prefixed_id(input, index, "next_unique#")
-      tokens.push((NEXT_UNIQUE(next_unique), ()))
+      guard BuslaneUnique::from_int(next_unique) is Some(unique) else {
+        lexer_fail("next unique must be non-negative")
+      }
+      tokens.push((NEXT_UNIQUE(Fresh(unique)), ()))
       index = next
     } else if starts_with(input, index, "type#") {
       let (id, next) = read_prefixed_id(input, index, "type#")
@@ -172,6 +178,9 @@ fn read_quoted(
     skip_trivia(input, after_trivia + 1),
     "a name's unique",
   )
+  guard BuslaneUnique::from_int(unique) is Some(unique) else {
+    lexer_fail("a name's unique must be non-negative")
+  }
   (NAME((value, unique)), after_unique)
 }
 

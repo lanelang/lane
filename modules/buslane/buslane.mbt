@@ -39,9 +39,23 @@ pub(all) enum NameNamespace {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct BuslaneUnique {
+/// A nonnegative program-wide Buslane name identity.
+///
+/// Construction is checked so text, binary, and programmatic producers share
+/// the same numeric domain.
+pub struct BuslaneUnique {
   value : Int
 } derive(Debug, Eq, Compare)
+
+///|
+/// Constructs a Buslane unique when the value belongs to its legal domain.
+pub fn BuslaneUnique::from_int(value : Int) -> BuslaneUnique? {
+  if value < 0 {
+    None
+  } else {
+    Some({ value, })
+  }
+}
 
 ///|
 pub(all) struct BuslaneName {
@@ -184,8 +198,15 @@ pub(all) struct OperationInfo {
 } derive(Debug, Eq)
 
 ///|
+/// The state of the program-wide Buslane name allocator.
+pub(all) enum MetadataNameAllocator {
+  Fresh(BuslaneUnique)
+  Exhausted
+} derive(Debug, Eq)
+
+///|
 pub(all) struct MetadataRegistry {
-  mut next_unique : Int
+  mut name_allocator : MetadataNameAllocator
   types : Array[TypeInfo]
   type_parameters : Array[TypeParameterInfo]
   values : Array[ValueInfo]
@@ -196,8 +217,18 @@ pub(all) struct MetadataRegistry {
 
 ///|
 pub(all) enum MetadataIdentityError {
+  InvalidUnique(BuslaneUnique)
   DuplicateUnique(BuslaneUnique)
-  InvalidNextUnique(next_unique~ : Int, maximum_unique~ : Int?)
+  InvalidNameAllocator(
+    allocator~ : MetadataNameAllocator,
+    maximum_unique~ : BuslaneUnique?
+  )
+} derive(Debug, Eq)
+
+///|
+/// A Buslane metadata identity could not be allocated.
+pub suberror MetadataAllocationError {
+  MetadataNameExhausted
 } derive(Debug, Eq)
 
 ///|
@@ -310,7 +341,7 @@ pub(all) enum Expr {
 /// Creates an empty Buslane metadata registry.
 pub fn MetadataRegistry::MetadataRegistry() -> MetadataRegistry {
   {
-    next_unique: 0,
+    name_allocator: Fresh({ value: 0 }),
     types: [],
     type_parameters: [],
     values: [],
@@ -326,7 +357,7 @@ pub fn MetadataRegistry::MetadataRegistry() -> MetadataRegistry {
 /// Metadata payload values are shared.
 pub fn MetadataRegistry::snapshot(self : MetadataRegistry) -> MetadataRegistry {
   {
-    next_unique: self.next_unique,
+    name_allocator: self.name_allocator,
     types: self.types.copy(),
     type_parameters: self.type_parameters.copy(),
     values: self.values.copy(),
@@ -344,16 +375,24 @@ pub fn MetadataRegistry::identity_errors(
 ) -> Array[MetadataIdentityError] {
   let seen : Map[Int, Unit] = Map([])
   let errors = []
-  let mut maximum_unique : Int? = None
+  let mut maximum_unique : BuslaneUnique? = None
   let inspect_name = fn(name : BuslaneName) {
+    if BuslaneUnique::from_int(name.unique.value) is None {
+      errors.push(InvalidUnique(name.unique))
+    }
     if seen.get(name.unique.value) is Some(_) {
       errors.push(DuplicateUnique(name.unique))
     } else {
       seen[name.unique.value] = ()
     }
     maximum_unique = match maximum_unique {
-      None => Some(name.unique.value)
-      Some(maximum) => Some(maximum.max(name.unique.value))
+      None => Some(name.unique)
+      Some(maximum) =>
+        if name.unique.value > maximum.value {
+          Some(name.unique)
+        } else {
+          Some(maximum)
+        }
     }
   }
   for info in self.types {
@@ -374,10 +413,17 @@ pub fn MetadataRegistry::identity_errors(
   for info in self.operations {
     inspect_name(info.name)
   }
-  if self.next_unique < 0 ||
-    maximum_unique.map(maximum => self.next_unique <= maximum).unwrap_or(false) {
+  let allocator_is_invalid = match self.name_allocator {
+    Fresh(next) =>
+      maximum_unique
+      .map(maximum => next.value <= maximum.value)
+      .unwrap_or(false)
+    Exhausted =>
+      maximum_unique.map(maximum => maximum.value != 0x7FFFFFFF).unwrap_or(true)
+  }
+  if allocator_is_invalid {
     errors.push(
-      InvalidNextUnique(next_unique=self.next_unique, maximum_unique~),
+      InvalidNameAllocator(allocator=self.name_allocator, maximum_unique~),
     )
   }
   errors
@@ -388,9 +434,16 @@ fn MetadataRegistry::fresh_name(
   self : MetadataRegistry,
   name_space : NameNamespace,
   occurrence : String,
-) -> BuslaneName {
-  let unique = BuslaneUnique::{ value: self.next_unique }
-  self.next_unique = self.next_unique + 1
+) -> BuslaneName raise MetadataAllocationError {
+  let unique = match self.name_allocator {
+    Fresh(unique) => unique
+    Exhausted => raise MetadataNameExhausted
+  }
+  self.name_allocator = if unique.value == 0x7FFFFFFF {
+    Exhausted
+  } else {
+    Fresh({ value: unique.value + 1 })
+  }
   { name_space, occurrence, unique }
 }
 
@@ -401,7 +454,7 @@ pub fn MetadataRegistry::define_type_parameter(
   occurrence : String,
   kind : Kind,
   flavor? : EffectFlavor = Algebraic,
-) -> TypeParameterId {
+) -> TypeParameterId raise MetadataAllocationError {
   let id = TypeParameterId::{ index: self.type_parameters.length() }
   self.type_parameters.push({
     name: self.fresh_name(TypeParameterName, occurrence),
@@ -418,7 +471,7 @@ pub fn MetadataRegistry::define_type(
   occurrence : String,
   parameters : Array[TypeParameterId],
   flavor? : TypeFlavor = Data,
-) -> TypeId {
+) -> TypeId raise MetadataAllocationError {
   let id = TypeId::{ index: self.types.length() }
   self.types.push({
     name: self.fresh_name(TypeName, occurrence),
@@ -437,7 +490,7 @@ pub fn MetadataRegistry::define_data_constructor(
   owner : TypeId,
   hidden_type_parameters : Array[TypeParameterId],
   payload_types : Array[Type],
-) -> DataConId {
+) -> DataConId raise MetadataAllocationError {
   let id = DataConId::{ index: self.data_constructors.length() }
   self.data_constructors.push({
     name: self.fresh_name(DataConstructorName, occurrence),
@@ -457,7 +510,7 @@ pub fn MetadataRegistry::define_effect(
   occurrence : String,
   parameters : Array[TypeParameterId],
   flavor? : EffectFlavor = Algebraic,
-) -> EffectId {
+) -> EffectId raise MetadataAllocationError {
   let id = EffectId::{ index: self.effects.length() }
   self.effects.push({
     name: self.fresh_name(EffectName, occurrence),
@@ -477,7 +530,7 @@ pub fn MetadataRegistry::define_operation(
   hidden_type_parameters : Array[TypeParameterId],
   payload_types : Array[Type],
   result_type : Type,
-) -> OperationId {
+) -> OperationId raise MetadataAllocationError {
   let id = OperationId::{ index: self.operations.length() }
   self.operations.push({
     name: self.fresh_name(OperationName, occurrence),
@@ -498,7 +551,7 @@ pub fn MetadataRegistry::define_value(
   occurrence : String,
   kind : ValueKind,
   type_ : Type,
-) -> ValueId {
+) -> ValueId raise MetadataAllocationError {
   let id = ValueId::{ index: self.values.length() }
   self.values.push({ name: self.fresh_name(ValueName, occurrence), kind, type_ })
   id

@@ -90,13 +90,13 @@ fn CpsCallableShape::materialize_monadic(
     Existing(parameters) => self.align_value_parameters(metadata, parameters)
     Fresh(occurrence) =>
       self.value_parameter_types.map(type_ => {
-        metadata.define_value(occurrence, Parameter, type_)
+        metadata.define_cps_value(occurrence, Parameter, type_)
       })
   }
   let context_parameters = []
   let bindings = []
   for index, term in context_terms {
-    let parameter = metadata.define_value(
+    let parameter = metadata.define_cps_value(
       "%context",
       Parameter,
       context_parameter_types[index],
@@ -104,7 +104,7 @@ fn CpsCallableShape::materialize_monadic(
     context_parameters.push(parameter)
     bindings.push({ term, value: Ref(parameter) })
   }
-  let continuation = metadata.define_value(
+  let continuation = metadata.define_cps_value(
     "%continuation",
     Parameter,
     continuation_type,
@@ -175,8 +175,11 @@ fn DictionaryCpsSchema::plan_callable_shape(
       mode: Direct,
     }
   } else {
-    let answer_parameter = self.metadata.define_type_parameter("%answer", Type)
-    let residual_parameter = self.metadata.define_type_parameter(
+    let answer_parameter = self.metadata.define_cps_type_parameter(
+      "%answer",
+      Type,
+    )
+    let residual_parameter = self.metadata.define_cps_type_parameter(
       "%residual",
       Effect,
       flavor=External,

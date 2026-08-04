@@ -15,7 +15,7 @@ fn lower_cps_direct_install(
     raise MissingEffectContext(facts.effect)
   }
   let result_type = schema.rewrite_type(install.result_type)
-  let result = schema.metadata.define_value(
+  let result = schema.metadata.define_cps_value(
     "%handler_result",
     Parameter,
     result_type,
@@ -152,7 +152,7 @@ fn build_handler_dictionary_plan(
       hidden_witnesses: [],
       payloads: fields,
     })
-    let id = schema.metadata.define_value(
+    let id = schema.metadata.define_cps_value(
       "%handler_dictionary",
       Local,
       schema.context_term_type(
@@ -234,7 +234,7 @@ fn lower_handler_operation_clause(
     ) {
     raise ExpectedFunction(direct_resume_type)
   }
-  let direct_resume = schema.metadata.define_value(
+  let direct_resume = schema.metadata.define_cps_value(
     "%resume_continuation",
     Parameter,
     direct_resume_type,
@@ -294,7 +294,7 @@ fn build_handler_resume_value(
   operation_result : @buslane.Type,
   direct_resume : @buslane.ValueId,
 ) -> Expr raise SynthesisError {
-  let parameter = schema.metadata.define_value(
+  let parameter = schema.metadata.define_cps_value(
     "%resume_result",
     Parameter,
     operation_result,
@@ -342,7 +342,7 @@ fn build_unhandled_result_continuation(
   schema : DictionaryCpsSchema,
   unhandled : UnhandledComputationSchema,
 ) -> Expr raise SynthesisError {
-  let result = schema.metadata.define_value(
+  let result = schema.metadata.define_cps_value(
     "%handler_result",
     Parameter,
     unhandled.result_type,

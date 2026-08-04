@@ -9,14 +9,14 @@
 %start buslane_type
 
 %token<Literal> LITERAL
-%token<(String, Int)> NAME
+%token<(String, BuslaneUnique)> NAME
 %token<Int> TYPE_ID
 %token<Int> TPARAM_ID
 %token<Int> VALUE_ID
 %token<Int> DATACON_ID
 %token<Int> EFFECT_ID
 %token<Int> OPERATION_ID
-%token<Int> NEXT_UNIQUE
+%token<MetadataNameAllocator> NEXT_UNIQUE
 %token EOF
 %token BUSLANE "buslane"
 %token METADATA "metadata"

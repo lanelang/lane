@@ -1,7 +1,7 @@
 ///|
 pub fn lower_checked_source_file_to_buslane(
   source : @checked.CheckedSourceFile,
-) -> @buslane.Program {
+) -> @buslane.Program raise BuslaneLoweringError {
   lower_checked_source_file_to_buslane_result(source).program
 }
 
@@ -9,7 +9,7 @@ pub fn lower_checked_source_file_to_buslane(
 /// Lowers Checked Source into Buslane and returns compiler-owned side tables.
 pub fn lower_checked_source_file_to_buslane_result(
   source : @checked.CheckedSourceFile,
-) -> BuslaneLowerResult {
+) -> BuslaneLowerResult raise BuslaneLoweringError {
   lower_checked_source_files_to_buslane_result(source, [])
 }
 
@@ -19,7 +19,7 @@ pub fn lower_checked_source_file_to_buslane_result(
 pub fn lower_checked_source_files_to_buslane_result(
   root : @checked.CheckedSourceFile,
   libraries : Array[@checked.CheckedSourceFile],
-) -> BuslaneLowerResult {
+) -> BuslaneLowerResult raise BuslaneLoweringError {
   let object_set = lower_checked_source_files_to_buslane_objects(
     libraries + [root],
   )
@@ -46,7 +46,7 @@ pub fn lower_checked_source_files_to_buslane_result(
 ///|
 pub fn lower_checked_source_files_to_buslane_objects(
   sources : Array[@checked.CheckedSourceFile],
-) -> BuslaneModuleObjectSet {
+) -> BuslaneModuleObjectSet raise BuslaneLoweringError {
   let lowerer = BuslaneLowerer::BuslaneLowerer()
   let module_entries : Array[ModuleEntries] = []
   for source in sources {
@@ -111,9 +111,23 @@ pub fn lower_checked_source_file_to_buslane_object_with_imports(
   source : @checked.CheckedSourceFile,
   imported : @module_interface.ModuleImportEnvironments,
 ) -> Result[BuslaneModuleObject, BuslaneLoweringError] {
+  Ok(
+    lower_checked_source_file_to_buslane_object_with_imports_or_raise(
+      source, imported,
+    ),
+  ) catch {
+    error => Err(error)
+  }
+}
+
+///|
+fn lower_checked_source_file_to_buslane_object_with_imports_or_raise(
+  source : @checked.CheckedSourceFile,
+  imported : @module_interface.ModuleImportEnvironments,
+) -> BuslaneModuleObject raise BuslaneLoweringError {
   let lowerer = BuslaneLowerer::BuslaneLowerer()
   match lowerer.seed_imported_interfaces(imported) {
-    Err(error) => return Err(error)
+    Err(error) => raise error
     Ok(_) => ()
   }
   lowerer.collect_type_headers(source)
@@ -132,7 +146,7 @@ pub fn lower_checked_source_file_to_buslane_object_with_imports(
     external_start,
   )
   external_terms.append(terms)
-  Ok({
+  {
     module_path_text: checked_module_path_text(source),
     metadata: lowerer.metadata,
     terms: external_terms,
@@ -146,7 +160,7 @@ pub fn lower_checked_source_file_to_buslane_object_with_imports(
     entries: lowerer.entries,
     exports: lowerer.module_exports(source),
     imports: lowerer.imports,
-  })
+  }
 }
 
 ///|

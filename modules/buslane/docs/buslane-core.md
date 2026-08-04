@@ -79,6 +79,7 @@ tables, but the conceptual content is:
 
 ```text
 MetadataRegistry {
+  name_allocator : Fresh(BuslaneUnique) | Exhausted
   types : TypeMetadata
   type_parameters : TypeParameterMetadata
   values : ValueMetadata
@@ -88,6 +89,13 @@ MetadataRegistry {
   order : MetadataOrder
 }
 ```
+
+`BuslaneUnique` ranges from zero through the largest nonnegative MoonBit `Int`.
+The registry allocates the value held by `Fresh(next)` and then advances; after
+allocating the maximum value it records `Exhausted`. Definition methods report
+`MetadataNameExhausted` without changing any metadata table when no identity is
+available. Canonical text, the binary codec, and the verifier consume this same
+typed allocator state.
 
 Value metadata records kind and type:
 

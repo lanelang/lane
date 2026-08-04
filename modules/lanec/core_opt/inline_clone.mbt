@@ -169,7 +169,7 @@ fn InlineCloneContext::clone_expr(
 fn InlineCloneContext::clone_value(
   self : InlineCloneContext,
   value : @buslane.ValueId,
-) -> @buslane.ValueId {
+) -> @buslane.ValueId raise CoreOptimizeError {
   for clone in self.value_clones {
     if clone.original == value {
       return clone.cloned
@@ -180,7 +180,9 @@ fn InlineCloneContext::clone_value(
     info.name.occurrence,
     info.kind,
     info.type_.substitute(self.substitution),
-  )
+  ) catch {
+    error => raise MetadataAllocationCompilerDefect(error)
+  }
   self.value_clones.push({ original: value, cloned })
   cloned
 }

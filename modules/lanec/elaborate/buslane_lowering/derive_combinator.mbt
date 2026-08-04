@@ -2,7 +2,7 @@
 fn BuslaneLowerer::lower_derive(
   self : BuslaneLowerer,
   plan : @checked.CheckedDerivePlan,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   let deriver_type = @types.nominal_type_generic(plan.abi.deriver, [
     TypeArgument(plan.capability),
   ])
@@ -24,7 +24,7 @@ fn BuslaneLowerer::lower_record_derive(
   plan : @checked.CheckedDerivePlan,
   deriver : @buslane.ValueId,
   product : @checked.CheckedDeriveProduct[@checked.CheckedDeriveField],
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   let mut derived = self.lower_derive_method_call(
     plan,
     deriver,
@@ -68,7 +68,7 @@ fn BuslaneLowerer::lower_enumeration_derive(
   plan : @checked.CheckedDerivePlan,
   deriver : @buslane.ValueId,
   sum : @checked.CheckedDeriveSum,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   let mut derived = self.lower_derive_method_call(
     plan,
     deriver,
@@ -144,7 +144,7 @@ fn BuslaneLowerer::lower_derive_method_call(
   method_field : @symbol.FieldSymbolId,
   generic_arguments : Array[@types.GenericArgument],
   arguments : Array[@buslane.Expr],
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   let selector : @buslane.Expr = TypeApply(
     Ref(self.field_selector_id(method_field)),
     [self.lower_generic_argument(TypeArgument(plan.capability))],
@@ -153,9 +153,7 @@ fn BuslaneLowerer::lower_derive_method_call(
   if !generic_arguments.is_empty() {
     callee = TypeApply(
       callee,
-      generic_arguments.map(fn(argument) {
-        self.lower_generic_argument(argument)
-      }),
+      generic_arguments.map(argument => self.lower_generic_argument(argument)),
     )
   }
   Call(callee, arguments)
@@ -182,6 +180,6 @@ fn BuslaneLowerer::lower_derive_metadata(
     data_constructor: self.struct_constructor_id(type_symbol),
     type_arguments: [],
     hidden_witnesses: [],
-    payloads: values.map(fn(value) { Literal(String(value)) }),
+    payloads: values.map(value => Literal(String(value))),
   })
 }

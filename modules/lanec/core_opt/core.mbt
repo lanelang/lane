@@ -9,6 +9,7 @@ pub(all) struct CoreOptimizeRequest {
 pub(all) suberror CoreOptimizeError {
   UnknownRoot(@buslane.ValueId)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
+  MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
 } derive(Debug, Eq)
 
 ///|

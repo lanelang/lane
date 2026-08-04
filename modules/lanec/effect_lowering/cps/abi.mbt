@@ -387,7 +387,7 @@ fn lower_cps_effectful_result_call(
     match lowered {
       Ref(_) | Literal(_) => lowered_arguments.push(lowered)
       _ => {
-        let binding = schema.metadata.define_value(
+        let binding = schema.metadata.define_cps_value(
           "%effectful_result_argument",
           Value,
           synthesize_expr_or_raise(schema.metadata, lowered).type_,
@@ -477,10 +477,10 @@ fn build_empty_context_direct_call(
   arguments : Array[Expr],
   result_type : @buslane.Type,
   context_count : Int,
-) -> Expr {
+) -> Expr raise SynthesisError {
   // The local residual is empty because the identity continuation performs
   // nothing. Any residual owned by the source callable stays in its CPS type.
-  let continuation_parameter = metadata.define_value(
+  let continuation_parameter = metadata.define_cps_value(
     "%direct_result",
     Parameter,
     result_type,

@@ -170,7 +170,7 @@ fn lower_cps_monadic_let(
   continuation : Expr,
 ) -> Expr raise SynthesisError {
   let facts = synthesize_expr_or_raise(program.metadata, expression)
-  let binder = schema.metadata.define_value(
+  let binder = schema.metadata.define_cps_value(
     "%bind_result",
     Parameter,
     schema.rewrite_type(facts.type_),
@@ -210,7 +210,8 @@ fn lower_cps_bind_computation(
   )
   let parameter = match binder {
     Some(parameter) => parameter
-    None => schema.metadata.define_value("%bind_result", Parameter, value_type)
+    None =>
+      schema.metadata.define_cps_value("%bind_result", Parameter, value_type)
   }
   Bind({
     computation,

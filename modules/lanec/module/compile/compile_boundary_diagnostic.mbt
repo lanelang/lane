@@ -59,6 +59,15 @@ fn buslane_lowering_diagnostic(
     MissingTypeDependency(module_path, name) => "type `\{module_path}.\{name}`"
     MissingEffectDependency(module_path, name) =>
       "effect `\{module_path}.\{name}`"
+    MetadataAllocationCompilerDefect(allocation_error) =>
+      return compile_report(
+        "internal compiler error while lowering Buslane metadata",
+        None,
+        code="E4599",
+        label="Buslane metadata identity allocation failed",
+        note="metadata lowering exhausted its identity space: \{Repr(allocation_error)}",
+        help="report this compiler defect with the input module sources",
+      )
   }
   compile_report(
     "missing Buslane interface dependency",

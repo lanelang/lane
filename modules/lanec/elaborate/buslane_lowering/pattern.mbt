@@ -6,7 +6,7 @@ fn BuslaneLowerer::lower_pattern_decision(
   rows : Array[LowerPatternRow],
   types : Array[@types.Type],
   result_type : @buslane.Type,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   if types.is_empty() {
     guard rows.get(0) is Some(row) else { abort("empty pattern decision") }
     return row.body
@@ -33,7 +33,7 @@ fn BuslaneLowerer::lower_pattern_decision(
       _ => Let(binder, scrutinee, body)
     }
   }
-  let alternatives = constructors.map(fn(signature) {
+  let alternatives = constructors.map(signature => {
     self.lower_constructor_decision_alternative(
       signature, scrutinees, binders, rows, types, result_type,
     )
@@ -67,14 +67,14 @@ fn BuslaneLowerer::lower_constructor_decision_alternative(
   rows : Array[LowerPatternRow],
   types : Array[@types.Type],
   result_type : @buslane.Type,
-) -> @buslane.Alternative {
+) -> @buslane.Alternative raise BuslaneLoweringError {
   guard binders.get(0) is Some(binder) else {
     abort("missing constructor binder")
   }
-  let value_binders = signature.argument_types.map(fn(type_) {
+  let value_binders = signature.argument_types.map(type_ => {
     self.define_fresh_value("payload", MatchBinder, self.lower_type(type_))
   })
-  let payload_refs = value_binders.map(fn(value) { @buslane.Expr::Ref(value) })
+  let payload_refs = value_binders.map(value => @buslane.Expr::Ref(value))
   {
     alt_constructor: signature.alt_constructor,
     type_binders: signature.type_binders,
@@ -93,7 +93,7 @@ fn BuslaneLowerer::lower_constructor_decision_alternative(
 fn BuslaneLowerer::lower_first_column_signatures(
   self : BuslaneLowerer,
   rows : Array[LowerPatternRow],
-) -> Array[LowerConstructorSignature] {
+) -> Array[LowerConstructorSignature] raise BuslaneLoweringError {
   let signatures = []
   for row in rows {
     guard row.patterns.get(0) is Some(pattern) else { continue }
@@ -113,7 +113,7 @@ fn BuslaneLowerer::lower_specialized_rows(
   rows : Array[LowerPatternRow],
   binder : @buslane.ValueId,
   signature : LowerConstructorSignature,
-) -> Array[LowerPatternRow] {
+) -> Array[LowerPatternRow] raise BuslaneLoweringError {
   let specialized = []
   for row in rows {
     if self.lower_specialized_row(row, binder, signature) is Some(row) {
@@ -129,7 +129,7 @@ fn BuslaneLowerer::lower_specialized_row(
   row : LowerPatternRow,
   binder : @buslane.ValueId,
   signature : LowerConstructorSignature,
-) -> LowerPatternRow? {
+) -> LowerPatternRow? raise BuslaneLoweringError {
   guard row.patterns.get(0) is Some(head) else { return None }
   let tail = checked_pattern_tail(row.patterns)
   match head {
@@ -204,7 +204,7 @@ fn BuslaneLowerer::lower_bind_whole_pattern(
 fn BuslaneLowerer::lower_signature_for_pattern(
   self : BuslaneLowerer,
   pattern : @checked.CheckedPattern,
-) -> LowerConstructorSignature? {
+) -> LowerConstructorSignature? raise BuslaneLoweringError {
   match pattern {
     Wildcard(..) | Binding(..) => None
     Literal(literal~, ..) =>
@@ -217,7 +217,7 @@ fn BuslaneLowerer::lower_signature_for_pattern(
       let data_constructor = self.data_constructor_id(symbol)
       Some({
         alt_constructor: DataCon(data_constructor),
-        argument_types: arguments.map(fn(argument) { argument.type_() }),
+        argument_types: arguments.map(argument => argument.type_()),
         type_binders: self.lower_pattern_type_binders(
           data_constructor, generic_arguments,
         ),
@@ -232,7 +232,7 @@ fn BuslaneLowerer::lower_signature_for_pattern(
       }
       Some({
         alt_constructor: DataCon(self.struct_constructor_id(symbol)),
-        argument_types: fields.map(fn(field) { field.pattern.type_() }),
+        argument_types: fields.map(field => field.pattern.type_()),
         type_binders: lowered_type_binders,
       })
     }
@@ -245,7 +245,7 @@ fn lower_constructor_arguments_for_pattern(
 ) -> Array[@checked.CheckedPattern] {
   match pattern {
     Variant(arguments~, ..) => arguments
-    Struct(fields~, ..) => fields.map(fn(field) { field.pattern })
+    Struct(fields~, ..) => fields.map(field => field.pattern)
     _ => []
   }
 }
@@ -273,7 +273,7 @@ fn BuslaneLowerer::complete_alt_constructors_for_type(
   if decompose_checked_nominal(type_) is Some((symbol, _)) {
     if self.metadata.type_info(self.type_id(symbol)) is Some(info) {
       return Some(
-        info.constructors.map(fn(data_constructor) { DataCon(data_constructor) }),
+        info.constructors.map(data_constructor => DataCon(data_constructor)),
       )
     }
     return None
@@ -298,7 +298,7 @@ fn lower_signature_contains(
 fn wildcard_checked_patterns(
   types : Array[@types.Type],
 ) -> Array[@checked.CheckedPattern] {
-  types.map(fn(type_) { Wildcard(type_~, loc=@basic.SourceSpan::dummy()) })
+  types.map(type_ => Wildcard(type_~, loc=@basic.SourceSpan::dummy()))
 }
 
 ///|
@@ -388,7 +388,7 @@ fn BuslaneLowerer::lower_pattern_type_binders(
   self : BuslaneLowerer,
   data_constructor : @buslane.DataConId,
   generic_arguments : Array[@types.GenericArgument],
-) -> Array[@buslane.TypeParameterId] {
+) -> Array[@buslane.TypeParameterId] raise BuslaneLoweringError {
   let lowered : Array[@buslane.TypeParameterId] = []
   let hidden_parameters = match
     self.metadata.data_constructor_info(data_constructor) {
@@ -423,7 +423,7 @@ fn BuslaneLowerer::lower_pattern_type_binders(
 fn BuslaneLowerer::define_pattern_binders(
   self : BuslaneLowerer,
   pattern : @checked.CheckedPattern,
-) -> Unit {
+) -> Unit raise BuslaneLoweringError {
   match pattern {
     Wildcard(..) | Literal(..) => ()
     Binding(name~, symbol~, type_~, ..) =>

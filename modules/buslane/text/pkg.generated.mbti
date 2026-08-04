@@ -31,14 +31,14 @@ pub fn CanonicalTextWriter::write_type(Self, @buslane.Type) -> String
 
 pub(all) enum Token {
   LITERAL(@buslane.Literal)
-  NAME((String, Int))
+  NAME((String, @buslane.BuslaneUnique))
   TYPE_ID(Int)
   TPARAM_ID(Int)
   VALUE_ID(Int)
   DATACON_ID(Int)
   EFFECT_ID(Int)
   OPERATION_ID(Int)
-  NEXT_UNIQUE(Int)
+  NEXT_UNIQUE(@buslane.MetadataNameAllocator)
   EOF
   BUSLANE
   METADATA

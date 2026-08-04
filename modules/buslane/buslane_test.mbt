@@ -130,24 +130,93 @@ test "verify buslane rejects duplicate metadata name uniques" {
 }
 
 ///|
-test "verify buslane rejects invalid next unique" {
-  let negative = MetadataRegistry::MetadataRegistry()
-  negative.next_unique = -1
+test "verify buslane rejects invalid metadata allocator states" {
+  let premature_exhaustion = MetadataRegistry::MetadataRegistry()
+  premature_exhaustion.name_allocator = Exhausted
   let repeated = MetadataRegistry::MetadataRegistry()
   ignore(repeated.define_value("value", Value, Primitive(Unit)))
-  repeated.next_unique = 0
+  repeated.name_allocator = Fresh(BuslaneUnique::from_int(0).unwrap())
   debug_inspect(
     [
-      diagnostic_kinds(verify_program({ metadata: negative, terms: [] })),
+      diagnostic_kinds(
+        verify_program({ metadata: premature_exhaustion, terms: [] }),
+      ),
       diagnostic_kinds(verify_program({ metadata: repeated, terms: [] })),
     ],
     content=(
       #|[
-      #|  [InvalidMetadataIdentity(InvalidNextUnique(next_unique=-1, maximum_unique=None))],
-      #|  [InvalidMetadataIdentity(InvalidNextUnique(next_unique=0, maximum_unique=Some(0)))],
+      #|  [InvalidMetadataIdentity(InvalidNameAllocator(allocator=Exhausted, maximum_unique=None))],
+      #|  [
+      #|    InvalidMetadataIdentity(
+      #|      InvalidNameAllocator(
+      #|        allocator=Fresh({ value: 0 }),
+      #|        maximum_unique=Some({ value: 0 }),
+      #|      ),
+      #|    ),
+      #|  ],
       #|]
     ),
   )
+}
+
+///|
+test "buslane unique rejects a negative value" {
+  assert_eq(BuslaneUnique::from_int(-1), None)
+}
+
+///|
+test "maximum metadata allocator exhausts without overflow" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  metadata.name_allocator = Fresh(BuslaneUnique::from_int(0x7FFFFFFF).unwrap())
+  let value = metadata.define_value("last", Value, Primitive(Unit))
+  assert_eq(metadata.value_info(value).unwrap().name.unique.value, 0x7FFFFFFF)
+  assert_true(verify_program({ metadata, terms: [] }).is_ok())
+  let before = metadata.snapshot()
+  try metadata.define_value("overflow", Value, Primitive(Unit)) catch {
+    MetadataNameExhausted => ()
+  } noraise {
+    _ => fail("expected metadata name allocation to be exhausted")
+  }
+  assert_eq(metadata, before)
+}
+
+///|
+test "every metadata definition preserves an exhausted registry" {
+  let definitions : Array[
+    (MetadataRegistry) -> Unit raise MetadataAllocationError,
+  ] = [
+    metadata => ignore(metadata.define_type_parameter("T", Type)),
+    metadata => ignore(metadata.define_type("Type", [])),
+    metadata => {
+      ignore(
+        metadata.define_data_constructor("constructor", { index: 0 }, [], []),
+      )
+    },
+    metadata => ignore(metadata.define_effect("Effect", [])),
+    metadata => {
+      ignore(
+        metadata.define_operation(
+          "operation",
+          { index: 0 },
+          [],
+          [],
+          Primitive(Unit),
+        ),
+      )
+    },
+    metadata => ignore(metadata.define_value("value", Value, Primitive(Unit))),
+  ]
+  for definition in definitions {
+    let metadata = MetadataRegistry::MetadataRegistry()
+    metadata.name_allocator = Exhausted
+    let before = metadata.snapshot()
+    try definition(metadata) catch {
+      MetadataNameExhausted => ()
+    } noraise {
+      _ => fail("expected metadata name allocation to be exhausted")
+    }
+    assert_eq(metadata, before)
+  }
 }
 
 ///|
@@ -1541,7 +1610,7 @@ test "substitution keeps a replacement's own binder without renaming" {
 fn capturing_construct_program(
   top_term_count : Int,
   payload_count : Int,
-) -> Program {
+) -> Program raise MetadataAllocationError {
   let metadata = MetadataRegistry::MetadataRegistry()
   let element = metadata.define_type_parameter("T", Type)
   let y = metadata.define_type_parameter("Y", Type)

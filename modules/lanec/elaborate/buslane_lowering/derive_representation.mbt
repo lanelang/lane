@@ -2,7 +2,7 @@
 fn BuslaneLowerer::lower_derive_iso(
   self : BuslaneLowerer,
   plan : @checked.CheckedDerivePlan,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   let representation = plan.shape.representation()
   Construct({
     data_constructor: self.struct_constructor_id(plan.abi.iso),
@@ -22,7 +22,7 @@ fn BuslaneLowerer::lower_derive_iso(
 fn BuslaneLowerer::lower_derive_to_function(
   self : BuslaneLowerer,
   plan : @checked.CheckedDerivePlan,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   let parameter = self.define_fresh_value(
     "_derive_value",
     Local,
@@ -32,7 +32,7 @@ fn BuslaneLowerer::lower_derive_to_function(
     Record(product~) => {
       let target_arguments = derive_target_arguments(plan.target)
       self.lower_derive_product_value(
-        product.steps.map(fn(step) {
+        product.steps.map(step => {
           self.lower_derive_field(
             Ref(parameter),
             step.head.symbol,
@@ -57,7 +57,7 @@ fn BuslaneLowerer::lower_derive_to_function(
 fn BuslaneLowerer::lower_derive_from_function(
   self : BuslaneLowerer,
   plan : @checked.CheckedDerivePlan,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   let parameter = self.define_fresh_value(
     "_derive_representation",
     Local,
@@ -70,7 +70,7 @@ fn BuslaneLowerer::lower_derive_from_function(
         data_constructor: self.struct_constructor_id(
           derive_target_symbol(plan.target),
         ),
-        type_arguments: target_arguments.map(fn(argument) {
+        type_arguments: target_arguments.map(argument => {
           self.lower_generic_argument(argument)
         }),
         hidden_witnesses: [],
@@ -97,18 +97,18 @@ fn BuslaneLowerer::lower_derive_to_enumeration(
   plan : @checked.CheckedDerivePlan,
   scrutinee : @buslane.Expr,
   sum : @checked.CheckedDeriveSum,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   let binder = self.define_fresh_value(
     "_derive_enum",
     MatchBinder,
     self.lower_type(plan.target),
   )
-  let alternatives : Array[@buslane.Alternative] = sum.steps.mapi(fn(
+  let alternatives : Array[@buslane.Alternative] = sum.steps.mapi((
     index,
     sum_step,
-  ) {
+  ) => {
     let variant = sum_step.head
-    let payload_binders = variant.payload.steps.map(fn(step) {
+    let payload_binders = variant.payload.steps.map(step => {
       self.define_fresh_value(
         "_derive_payload",
         MatchBinder,
@@ -125,7 +125,7 @@ fn BuslaneLowerer::lower_derive_to_enumeration(
         index,
         0,
         self.lower_derive_product_value(
-          payload_binders.map(fn(payload) { Ref(payload) }),
+          payload_binders.map(payload => Ref(payload)),
           variant.payload,
           plan.abi,
         ),
@@ -146,7 +146,7 @@ fn BuslaneLowerer::lower_derive_from_enumeration(
   plan : @checked.CheckedDerivePlan,
   representation : @buslane.Expr,
   sum : @checked.CheckedDeriveSum,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   self.lower_derive_sum_elimination(
     plan,
     sum,
@@ -164,7 +164,7 @@ fn BuslaneLowerer::lower_derive_sum_elimination(
   index : Int,
   scrutinee : @buslane.Expr,
   current_type : @types.Type,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   let binder = self.define_fresh_value(
     "_derive_sum",
     MatchBinder,
@@ -202,7 +202,7 @@ fn BuslaneLowerer::lower_derive_sum_elimination(
         value_binders: [payload],
         body: Construct({
           data_constructor: self.data_constructor_id(variant.symbol),
-          type_arguments: target_arguments.map(fn(argument) {
+          type_arguments: target_arguments.map(argument => {
             self.lower_generic_argument(argument)
           }),
           hidden_witnesses: [],
@@ -237,7 +237,7 @@ fn BuslaneLowerer::lower_derive_sum_injection(
   target_index : Int,
   current_index : Int,
   payload : @buslane.Expr,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   guard sum.steps.get(current_index) is Some(sum_step) else {
     abort("checked derive sum target is missing")
   }
@@ -278,7 +278,7 @@ fn[A] BuslaneLowerer::lower_derive_product_value(
   values : Array[@buslane.Expr],
   product : @checked.CheckedDeriveProduct[A],
   abi : @checked.CheckedDeriveAbi,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   if values.length() != product.steps.length() {
     abort("checked derive product values are incomplete")
   }
@@ -304,7 +304,7 @@ fn[A] BuslaneLowerer::lower_derive_product_projections(
   value : @buslane.Expr,
   product : @checked.CheckedDeriveProduct[A],
   abi : @checked.CheckedDeriveAbi,
-) -> Array[@buslane.Expr] {
+) -> Array[@buslane.Expr] raise BuslaneLoweringError {
   let projections = []
   let mut current = value
   for step in product.steps {
@@ -326,13 +326,13 @@ fn BuslaneLowerer::lower_derive_field(
   base : @buslane.Expr,
   field : @symbol.FieldSymbolId,
   owner_arguments : Array[@types.GenericArgument],
-) -> @buslane.Expr {
+) -> @buslane.Expr raise BuslaneLoweringError {
   let selector : @buslane.Expr = if owner_arguments.is_empty() {
     Ref(self.field_selector_id(field))
   } else {
     TypeApply(
       Ref(self.field_selector_id(field)),
-      owner_arguments.map(fn(argument) { self.lower_generic_argument(argument) }),
+      owner_arguments.map(argument => self.lower_generic_argument(argument)),
     )
   }
   Call(selector, [base])

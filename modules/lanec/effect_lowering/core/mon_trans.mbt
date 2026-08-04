@@ -381,7 +381,12 @@ fn bind_computation(
   match continuation {
     Identity => computation
     Then(next) => {
-      let binder = program.metadata.define_value("%bind", Parameter, value_type)
+      let binder = define_synthetic_value(
+        program.metadata,
+        "%bind",
+        Parameter,
+        value_type,
+      )
       Bind({
         computation,
         binder,

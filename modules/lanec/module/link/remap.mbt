@@ -2,48 +2,40 @@
 fn BuslaneLinker::remap_module_object(
   self : BuslaneLinker,
   object : LinkModuleObject,
-) -> RemappedModuleObject {
+) -> RemappedModuleObject raise @buslane.MetadataAllocationError {
   {
     module_path_text: object.module_path_text,
-    terms: object.terms.map(fn(term) { self.remap_top_term(object, term) }),
+    terms: object.terms.map(term => self.remap_top_term(object, term)),
     externals: {
-      builtins: object.externals.builtins.map(fn(builtin) {
-        {
-          value: self.remap_value_id(object, builtin.value),
-          intrinsic: builtin.intrinsic,
-          type_: self.remap_type(object, builtin.type_),
-        }
+      builtins: object.externals.builtins.map(builtin => {
+        value: self.remap_value_id(object, builtin.value),
+        intrinsic: builtin.intrinsic,
+        type_: self.remap_type(object, builtin.type_),
       }),
-      runtime_imports: object.externals.runtime_imports.map(fn(import_) {
-        {
-          value: self.remap_value_id(object, import_.value),
-          symbol: import_.symbol,
-          signature: import_.signature,
-          type_: self.remap_type(object, import_.type_),
-        }
+      runtime_imports: object.externals.runtime_imports.map(import_ => {
+        value: self.remap_value_id(object, import_.value),
+        symbol: import_.symbol,
+        signature: import_.signature,
+        type_: self.remap_type(object, import_.type_),
       }),
     },
-    entries: object.entries.map(fn(entry) {
-      {
-        module_path_text: entry.module_path_text,
-        name: entry.name,
-        value: self.remap_value_id(object, entry.value),
-        type_: self.remap_type(object, entry.type_),
-      }
+    entries: object.entries.map(entry => {
+      module_path_text: entry.module_path_text,
+      name: entry.name,
+      value: self.remap_value_id(object, entry.value),
+      type_: self.remap_type(object, entry.type_),
     }),
-    exports: object.exports.map(fn(item) {
-      {
-        name: item.name,
-        reference: match item.reference {
-          Type(id) => Type(self.remap_type_id(object, id))
-          DataConstructor(id) =>
-            DataConstructor(self.remap_data_constructor_id(object, id))
-          Effect(id) => Effect(self.remap_effect_id(object, id))
-          Operation(id) => Operation(self.remap_operation_id(object, id))
-          FieldSelector(id) => FieldSelector(self.remap_value_id(object, id))
-          Value(id) => Value(self.remap_value_id(object, id))
-        },
-      }
+    exports: object.exports.map(item => {
+      name: item.name,
+      reference: match item.reference {
+        Type(id) => Type(self.remap_type_id(object, id))
+        DataConstructor(id) =>
+          DataConstructor(self.remap_data_constructor_id(object, id))
+        Effect(id) => Effect(self.remap_effect_id(object, id))
+        Operation(id) => Operation(self.remap_operation_id(object, id))
+        FieldSelector(id) => FieldSelector(self.remap_value_id(object, id))
+        Value(id) => Value(self.remap_value_id(object, id))
+      },
     }),
     fingerprint: object.fingerprint,
   }
@@ -54,17 +46,15 @@ fn BuslaneLinker::remap_top_term(
   self : BuslaneLinker,
   object : LinkModuleObject,
   term : @buslane.TopTerm,
-) -> @buslane.TopTerm {
+) -> @buslane.TopTerm raise @buslane.MetadataAllocationError {
   match term {
     Let(id, expr) =>
       Let(self.remap_value_id(object, id), self.remap_expr(object, expr))
     LetRec(bindings) =>
       LetRec(
-        bindings.map(fn(binding) {
-          {
-            id: self.remap_value_id(object, binding.id),
-            rhs: self.remap_expr(object, binding.rhs),
-          }
+        bindings.map(binding => {
+          id: self.remap_value_id(object, binding.id),
+          rhs: self.remap_expr(object, binding.rhs),
         }),
       )
     External(id) => External(self.remap_value_id(object, id))
@@ -76,13 +66,13 @@ fn BuslaneLinker::remap_expr(
   self : BuslaneLinker,
   object : LinkModuleObject,
   expr : @buslane.Expr,
-) -> @buslane.Expr {
+) -> @buslane.Expr raise @buslane.MetadataAllocationError {
   match expr {
     Ref(id) => Ref(self.remap_value_id(object, id))
     Literal(literal) => Literal(literal)
     Function(function) =>
       Function({
-        parameters: function.parameters.map(fn(id) {
+        parameters: function.parameters.map(id => {
           self.remap_value_id(object, id)
         }),
         result_type: self.remap_type(object, function.result_type),
@@ -91,19 +81,17 @@ fn BuslaneLinker::remap_expr(
     Call(callee, arguments) =>
       Call(
         self.remap_expr(object, callee),
-        arguments.map(fn(argument) { self.remap_expr(object, argument) }),
+        arguments.map(argument => self.remap_expr(object, argument)),
       )
     TypeLambda(parameters, body) =>
       TypeLambda(
-        parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
+        parameters.map(id => self.remap_type_parameter_id(object, id)),
         self.remap_expr(object, body),
       )
     TypeApply(callee, arguments) =>
       TypeApply(
         self.remap_expr(object, callee),
-        arguments.map(fn(argument) {
-          self.remap_generic_argument(object, argument)
-        }),
+        arguments.map(argument => self.remap_generic_argument(object, argument)),
       )
     Construct(construct) =>
       Construct({
@@ -111,13 +99,13 @@ fn BuslaneLinker::remap_expr(
           object,
           construct.data_constructor,
         ),
-        type_arguments: construct.type_arguments.map(fn(argument) {
+        type_arguments: construct.type_arguments.map(argument => {
           self.remap_generic_argument(object, argument)
         }),
-        hidden_witnesses: construct.hidden_witnesses.map(fn(witness) {
+        hidden_witnesses: construct.hidden_witnesses.map(witness => {
           self.remap_generic_argument(object, witness)
         }),
-        payloads: construct.payloads.map(fn(payload) {
+        payloads: construct.payloads.map(payload => {
           self.remap_expr(object, payload)
         }),
       })
@@ -129,11 +117,9 @@ fn BuslaneLinker::remap_expr(
       )
     LetRec(bindings, body) =>
       LetRec(
-        bindings.map(fn(binding) {
-          {
-            id: self.remap_value_id(object, binding.id),
-            rhs: self.remap_expr(object, binding.rhs),
-          }
+        bindings.map(binding => {
+          id: self.remap_value_id(object, binding.id),
+          rhs: self.remap_expr(object, binding.rhs),
         }),
         self.remap_expr(object, body),
       )
@@ -142,32 +128,30 @@ fn BuslaneLinker::remap_expr(
         scrutinee: self.remap_expr(object, match_.scrutinee),
         binder: self.remap_value_id(object, match_.binder),
         result_type: self.remap_type(object, match_.result_type),
-        alternatives: match_.alternatives.map(fn(alternative) {
-          {
-            alt_constructor: self.remap_alt_constructor(
-              object,
-              alternative.alt_constructor,
-            ),
-            type_binders: alternative.type_binders.map(fn(id) {
-              self.remap_type_parameter_id(object, id)
-            }),
-            value_binders: alternative.value_binders.map(fn(id) {
-              self.remap_value_id(object, id)
-            }),
-            body: self.remap_expr(object, alternative.body),
-          }
+        alternatives: match_.alternatives.map(alternative => {
+          alt_constructor: self.remap_alt_constructor(
+            object,
+            alternative.alt_constructor,
+          ),
+          type_binders: alternative.type_binders.map(id => {
+            self.remap_type_parameter_id(object, id)
+          }),
+          value_binders: alternative.value_binders.map(id => {
+            self.remap_value_id(object, id)
+          }),
+          body: self.remap_expr(object, alternative.body),
         }),
       })
     Perform(perform) =>
       Perform({
         operation: self.remap_operation_id(object, perform.operation),
-        effect_arguments: perform.effect_arguments.map(fn(argument) {
+        effect_arguments: perform.effect_arguments.map(argument => {
           self.remap_generic_argument(object, argument)
         }),
-        hidden_witnesses: perform.hidden_witnesses.map(fn(argument) {
+        hidden_witnesses: perform.hidden_witnesses.map(argument => {
           self.remap_generic_argument(object, argument)
         }),
-        payloads: perform.payloads.map(fn(payload) {
+        payloads: perform.payloads.map(payload => {
           self.remap_expr(object, payload)
         }),
       })
@@ -177,7 +161,7 @@ fn BuslaneLinker::remap_expr(
         result_binder: self.remap_value_id(object, handle.result_binder),
         result_type: self.remap_type(object, handle.result_type),
         final_body: self.remap_expr(object, handle.final_body),
-        handlers: handle.handlers.map(fn(table) {
+        handlers: handle.handlers.map(table => {
           self.remap_handler_table(object, table)
         }),
       })
@@ -190,10 +174,10 @@ fn BuslaneLinker::remap_handler_table(
   self : BuslaneLinker,
   object : LinkModuleObject,
   table : @buslane.HandlerTable,
-) -> @buslane.HandlerTable {
+) -> @buslane.HandlerTable raise @buslane.MetadataAllocationError {
   {
     handled_effect: self.remap_effect(object, table.handled_effect),
-    operations: table.operations.map(fn(alternative) {
+    operations: table.operations.map(alternative => {
       self.remap_operation_alternative(object, alternative)
     }),
   }
@@ -204,13 +188,13 @@ fn BuslaneLinker::remap_operation_alternative(
   self : BuslaneLinker,
   object : LinkModuleObject,
   alternative : @buslane.OperationAlternative,
-) -> @buslane.OperationAlternative {
+) -> @buslane.OperationAlternative raise @buslane.MetadataAllocationError {
   {
     operation: self.remap_operation_id(object, alternative.operation),
-    type_binders: alternative.type_binders.map(fn(id) {
+    type_binders: alternative.type_binders.map(id => {
       self.remap_type_parameter_id(object, id)
     }),
-    payload_binders: alternative.payload_binders.map(fn(id) {
+    payload_binders: alternative.payload_binders.map(id => {
       self.remap_value_id(object, id)
     }),
     resume_binder: self.remap_value_id(object, alternative.resume_binder),
@@ -223,7 +207,7 @@ fn BuslaneLinker::remap_alt_constructor(
   self : BuslaneLinker,
   object : LinkModuleObject,
   alt_constructor : @buslane.AltCon,
-) -> @buslane.AltCon {
+) -> @buslane.AltCon raise @buslane.MetadataAllocationError {
   match alt_constructor {
     Default => Default
     Literal(literal) => Literal(literal)
@@ -236,7 +220,7 @@ fn BuslaneLinker::remap_type(
   self : BuslaneLinker,
   object : LinkModuleObject,
   type_ : @buslane.Type,
-) -> @buslane.Type {
+) -> @buslane.Type raise @buslane.MetadataAllocationError {
   match type_ {
     Primitive(primitive) => Primitive(primitive)
     Parameter(id) => Parameter(self.remap_type_parameter_id(object, id))
@@ -244,24 +228,22 @@ fn BuslaneLinker::remap_type(
     Apply(callee, arguments) =>
       Apply(
         self.remap_type(object, callee),
-        arguments.map(fn(argument) {
-          self.remap_generic_argument(object, argument)
-        }),
+        arguments.map(argument => self.remap_generic_argument(object, argument)),
       )
     TypeLambda(parameters, body) =>
       TypeLambda(
-        parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
+        parameters.map(id => self.remap_type_parameter_id(object, id)),
         self.remap_type(object, body),
       )
     Function(parameters, result, effect) =>
       Function(
-        parameters.map(fn(parameter) { self.remap_type(object, parameter) }),
+        parameters.map(parameter => self.remap_type(object, parameter)),
         self.remap_type(object, result),
         self.remap_effect(object, effect),
       )
     Forall(parameters, body) =>
       Forall(
-        parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
+        parameters.map(id => self.remap_type_parameter_id(object, id)),
         self.remap_type(object, body),
       )
   }
@@ -272,7 +254,7 @@ fn BuslaneLinker::remap_generic_argument(
   self : BuslaneLinker,
   object : LinkModuleObject,
   argument : @buslane.GenericArgument,
-) -> @buslane.GenericArgument {
+) -> @buslane.GenericArgument raise @buslane.MetadataAllocationError {
   match argument {
     TypeArgument(type_) => TypeArgument(self.remap_type(object, type_))
     EffectArgument(effect) => EffectArgument(self.remap_effect(object, effect))
@@ -284,21 +266,19 @@ fn BuslaneLinker::remap_effect(
   self : BuslaneLinker,
   object : LinkModuleObject,
   effect : @buslane.Effect,
-) -> @buslane.Effect {
+) -> @buslane.Effect raise @buslane.MetadataAllocationError {
   match effect {
     Empty => Empty
     Io => Io
     Singleton(id, arguments) =>
       Singleton(
         self.remap_effect_id(object, id),
-        arguments.map(fn(argument) {
-          self.remap_generic_argument(object, argument)
-        }),
+        arguments.map(argument => self.remap_generic_argument(object, argument)),
       )
     Parameter(parameter) =>
       Parameter(self.remap_type_parameter_id(object, parameter))
     Union(effects) =>
-      Union(effects.map(fn(effect) { self.remap_effect(object, effect) }))
+      Union(effects.map(effect => self.remap_effect(object, effect)))
   }
 }
 
@@ -307,7 +287,7 @@ fn BuslaneLinker::remap_type_parameter_id(
   self : BuslaneLinker,
   object : LinkModuleObject,
   source : @buslane.TypeParameterId,
-) -> @buslane.TypeParameterId {
+) -> @buslane.TypeParameterId raise @buslane.MetadataAllocationError {
   if self.identities.find_type_parameter(object.module_path_text, source)
     is Some(target) {
     return target
@@ -327,7 +307,7 @@ fn BuslaneLinker::remap_type_id(
   self : BuslaneLinker,
   object : LinkModuleObject,
   source : @buslane.TypeId,
-) -> @buslane.TypeId {
+) -> @buslane.TypeId raise @buslane.MetadataAllocationError {
   if self.identities.find_type(object.module_path_text, source) is Some(target) {
     return target
   }
@@ -336,7 +316,7 @@ fn BuslaneLinker::remap_type_id(
   }
   let target = self.metadata.define_type(
     info.name.occurrence,
-    info.parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
+    info.parameters.map(id => self.remap_type_parameter_id(object, id)),
     flavor=info.flavor,
   )
   ignore(self.identities.bind_type(object.module_path_text, source, target))
@@ -351,7 +331,7 @@ fn BuslaneLinker::remap_effect_id(
   self : BuslaneLinker,
   object : LinkModuleObject,
   source : @buslane.EffectId,
-) -> @buslane.EffectId {
+) -> @buslane.EffectId raise @buslane.MetadataAllocationError {
   if self.identities.find_effect(object.module_path_text, source)
     is Some(target) {
     return target
@@ -361,7 +341,7 @@ fn BuslaneLinker::remap_effect_id(
   }
   let target = self.metadata.define_effect(
     info.name.occurrence,
-    info.parameters.map(fn(id) { self.remap_type_parameter_id(object, id) }),
+    info.parameters.map(id => self.remap_type_parameter_id(object, id)),
     flavor=info.flavor,
   )
   ignore(self.identities.bind_effect(object.module_path_text, source, target))
@@ -376,7 +356,7 @@ fn BuslaneLinker::remap_operation_id(
   self : BuslaneLinker,
   object : LinkModuleObject,
   source : @buslane.OperationId,
-) -> @buslane.OperationId {
+) -> @buslane.OperationId raise @buslane.MetadataAllocationError {
   if self.identities.find_operation(object.module_path_text, source)
     is Some(target) {
     return target
@@ -392,10 +372,10 @@ fn BuslaneLinker::remap_operation_id(
   let target = self.metadata.define_operation(
     info.name.occurrence,
     owner,
-    info.hidden_type_parameters.map(fn(id) {
+    info.hidden_type_parameters.map(id => {
       self.remap_type_parameter_id(object, id)
     }),
-    info.payload_types.map(fn(type_) { self.remap_type(object, type_) }),
+    info.payload_types.map(type_ => self.remap_type(object, type_)),
     self.remap_type(object, info.result_type),
   )
   self.identities.bind_operation(object.module_path_text, source, target)
@@ -406,7 +386,7 @@ fn BuslaneLinker::remap_value_id(
   self : BuslaneLinker,
   object : LinkModuleObject,
   source : @buslane.ValueId,
-) -> @buslane.ValueId {
+) -> @buslane.ValueId raise @buslane.MetadataAllocationError {
   if self.identities.find_value(object.module_path_text, source) is Some(target) {
     return target
   }
@@ -426,7 +406,7 @@ fn BuslaneLinker::remap_data_constructor_id(
   self : BuslaneLinker,
   object : LinkModuleObject,
   source : @buslane.DataConId,
-) -> @buslane.DataConId {
+) -> @buslane.DataConId raise @buslane.MetadataAllocationError {
   if self.identities.find_data_constructor(object.module_path_text, source)
     is Some(target) {
     return target
@@ -442,10 +422,10 @@ fn BuslaneLinker::remap_data_constructor_id(
   let target = self.metadata.define_data_constructor(
     info.name.occurrence,
     owner,
-    info.hidden_type_parameters.map(fn(id) {
+    info.hidden_type_parameters.map(id => {
       self.remap_type_parameter_id(object, id)
     }),
-    info.payload_types.map(fn(type_) { self.remap_type(object, type_) }),
+    info.payload_types.map(type_ => self.remap_type(object, type_)),
   )
   self.identities.bind_data_constructor(object.module_path_text, source, target)
 }

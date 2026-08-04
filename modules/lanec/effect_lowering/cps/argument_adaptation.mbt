@@ -98,13 +98,13 @@ fn adapt_direct_argument_to_cps(
     is Some(callable) else {
     return argument
   }
-  let source = schema.metadata.define_value(
+  let source = schema.metadata.define_cps_value(
     "%direct_cps_source",
     Local,
     actual_type,
   )
   let parameters = callable.parameters.map(type_ => {
-    schema.metadata.define_value("%direct_cps_parameter", Parameter, type_)
+    schema.metadata.define_cps_value("%direct_cps_parameter", Parameter, type_)
   })
   let value_parameters : Array[Expr] = Array::makei(
     callable.value_parameter_count,

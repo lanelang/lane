@@ -262,9 +262,15 @@ test "buslane text reads a literal's pieces and refuses an unusable identity" {
     content="[true, true, true]",
   )
   debug_inspect(
-    parse_program_text(named("\"v\"#99999999999999")),
+    [
+      parse_program_text(named("\"v\"#-1")),
+      parse_program_text(named("\"v\"#99999999999999")),
+    ],
     content=(
-      #|Err("number `99999999999999` after a name's unique is out of range")
+      #|[
+      #|  Err("expected a number after a name's unique"),
+      #|  Err("number `99999999999999` after a name's unique is out of range"),
+      #|]
     ),
   )
 }
@@ -353,6 +359,33 @@ test "canonical text allocator remains fresh after parse and verify" {
   let added = program.metadata.define_value("added", Value, Primitive(Unit))
   assert_eq(program.metadata.value_info(added).unwrap().name.unique.value, 2)
   assert_true(@buslane.verify_program(program).is_ok())
+}
+
+///|
+test "canonical text preserves metadata allocator exhaustion" {
+  let text = "buslane { metadata { next_unique#2147483647; } }"
+  let program = match parse_program_text(text) {
+    Ok(program) => program
+    Err(message) => abort(message)
+  }
+  let last = program.metadata.define_value("last", Value, Primitive(Unit))
+  assert_eq(
+    program.metadata.value_info(last).unwrap().name.unique.value,
+    0x7FFFFFFF,
+  )
+  assert_eq(program.metadata.name_allocator, Exhausted)
+  assert_true(@buslane.verify_program(program).is_ok())
+  let canonical = CanonicalTextWriter::CanonicalTextWriter().write_program(
+    program,
+  )
+  assert_eq(parse_program_text(canonical), Ok(program))
+  let before = program.metadata.snapshot()
+  try program.metadata.define_value("overflow", Value, Primitive(Unit)) catch {
+    MetadataNameExhausted => ()
+  } noraise {
+    _ => fail("expected metadata name allocation to be exhausted")
+  }
+  assert_eq(program.metadata, before)
 }
 
 ///|

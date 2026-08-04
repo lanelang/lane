@@ -5,7 +5,9 @@ priv enum FloatLiteralBits {
 } derive(Debug, Eq)
 
 ///|
-fn float_literal_program(literal : @buslane.Literal) -> @buslane.Program {
+fn float_literal_program(
+  literal : @buslane.Literal,
+) -> @buslane.Program raise @buslane.MetadataAllocationError {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_ = match literal {
     F64(_) => @buslane.Type::Primitive(F64)
@@ -29,7 +31,7 @@ fn float_literal_bits(literal : @buslane.Literal) -> FloatLiteralBits {
 fn roundtrip_float_literal(
   writer : CanonicalTextWriter,
   literal : @buslane.Literal,
-) -> FloatLiteralBits {
+) -> FloatLiteralBits raise @buslane.MetadataAllocationError {
   let text = writer.write_program(float_literal_program(literal))
   let decoded = match parse_program_text(text) {
     Ok(program) => program

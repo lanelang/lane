@@ -49,7 +49,15 @@ fn link_ordered_modules(
   entry_mode : LinkedEntryMode,
 ) -> LinkResult {
   let remapper = BuslaneLinker::BuslaneLinker()
-  let remapped_objects = remapper.remap_module_objects(modules)
+  let remapped_objects = remapper.remap_module_objects(modules) catch {
+    error =>
+      return {
+        program: None,
+        diagnostics: [
+          link_diagnostic(LinkMetadataAllocationCompilerDefect(error), None),
+        ],
+      }
+  }
   let module_path_texts = []
   let terms = []
   let builtins = []
@@ -83,7 +91,7 @@ fn link_ordered_modules(
 fn BuslaneLinker::remap_module_objects(
   self : BuslaneLinker,
   objects : Array[ValidatedLinkModuleObject],
-) -> Array[RemappedModuleObject] {
+) -> Array[RemappedModuleObject] raise @buslane.MetadataAllocationError {
   let remapped_objects = []
   let exports : Array[LinkedModuleExport] = []
   for validated in objects {

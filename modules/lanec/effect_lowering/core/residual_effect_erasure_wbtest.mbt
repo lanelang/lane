@@ -36,7 +36,7 @@ test "residual effect erasure preserves extern call structure" {
     content=(
       #|{
       #|  metadata: {
-      #|    next_unique: 3,
+      #|    name_allocator: Fresh({ value: 3 }),
       #|    types: [],
       #|    type_parameters: [],
       #|    values: [

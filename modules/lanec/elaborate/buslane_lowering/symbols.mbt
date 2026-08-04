@@ -1,10 +1,21 @@
 ///|
+fn[T] metadata_allocation_or_lowering_defect(
+  allocate : () -> T raise @buslane.MetadataAllocationError,
+) -> T raise BuslaneLoweringError {
+  allocate() catch {
+    error => raise MetadataAllocationCompilerDefect(error)
+  }
+}
+
+///|
 fn BuslaneLowerer::define_external(
   self : BuslaneLowerer,
   occurrence : String,
   type_ : @buslane.Type,
-) -> @buslane.ValueId {
-  let id = self.metadata.define_value(occurrence, External, type_)
+) -> @buslane.ValueId raise BuslaneLoweringError {
+  let id = metadata_allocation_or_lowering_defect(() => {
+    self.metadata.define_value(occurrence, External, type_)
+  })
   self.external_terms.push(External(id))
   id
 }
@@ -14,7 +25,7 @@ fn BuslaneLowerer::define_builtin_external(
   self : BuslaneLowerer,
   intrinsic : @abi.Intrinsic,
   type_ : @buslane.Type,
-) -> @buslane.ValueId {
+) -> @buslane.ValueId raise BuslaneLoweringError {
   let value = self.define_external(intrinsic.name(), type_)
   self.builtin_externals.push({ value, intrinsic, type_ })
   value
@@ -26,7 +37,7 @@ fn BuslaneLowerer::define_runtime_import(
   symbol : String,
   signature : @abi.HostSignature,
   type_ : @buslane.Type,
-) -> @buslane.ValueId {
+) -> @buslane.ValueId raise BuslaneLoweringError {
   let value = self.define_external(symbol, type_)
   self.runtime_imports.push({ value, symbol, signature, type_ })
   value
@@ -38,8 +49,10 @@ fn BuslaneLowerer::define_fresh_value(
   occurrence : String,
   kind : @buslane.ValueKind,
   type_ : @buslane.Type,
-) -> @buslane.ValueId {
-  self.metadata.define_value(occurrence, kind, type_)
+) -> @buslane.ValueId raise BuslaneLoweringError {
+  metadata_allocation_or_lowering_defect(() => {
+    self.metadata.define_value(occurrence, kind, type_)
+  })
 }
 
 ///|
@@ -49,11 +62,13 @@ fn BuslaneLowerer::define_value(
   occurrence : String,
   kind : @buslane.ValueKind,
   type_ : @buslane.Type,
-) -> @buslane.ValueId {
+) -> @buslane.ValueId raise BuslaneLoweringError {
   if self.registry.find_value(source) is Some(target) {
     return target
   }
-  let target = self.metadata.define_value(occurrence, kind, type_)
+  let target = metadata_allocation_or_lowering_defect(() => {
+    self.metadata.define_value(occurrence, kind, type_)
+  })
   self.registry.register_value(source, target)
 }
 
@@ -66,20 +81,20 @@ fn BuslaneLowerer::define_operation(
   type_parameters : Array[@types.TypeParameter],
   payload : Array[@types.Type],
   result : @types.Type,
-) -> @buslane.OperationId {
+) -> @buslane.OperationId raise BuslaneLoweringError {
   if self.registry.find_operation(source) is Some(target) {
     return target
   }
-  let hidden_type_parameters = type_parameters.map(fn(parameter) {
+  let hidden_type_parameters = type_parameters.map(parameter => {
     self.define_type_parameter(parameter)
   })
-  let target = self.metadata.define_operation(
-    occurrence,
-    owner,
-    hidden_type_parameters,
-    payload.map(fn(type_) { self.lower_type(type_) }),
-    self.lower_type(result),
-  )
+  let payload_types = payload.map(type_ => self.lower_type(type_))
+  let result_type = self.lower_type(result)
+  let target = metadata_allocation_or_lowering_defect(() => {
+    self.metadata.define_operation(
+      occurrence, owner, hidden_type_parameters, payload_types, result_type,
+    )
+  })
   self.registry.register_operation(source, target)
 }
 
@@ -105,7 +120,7 @@ fn BuslaneLowerer::bind_type_parameter_alias(
 fn BuslaneLowerer::define_type_parameter(
   self : BuslaneLowerer,
   parameter : @types.TypeParameter,
-) -> @buslane.TypeParameterId {
+) -> @buslane.TypeParameterId raise BuslaneLoweringError {
   self.define_type_parameter_with_kind(
     parameter.id,
     parameter.name,
@@ -119,11 +134,13 @@ fn BuslaneLowerer::define_type_parameter_with_kind(
   source : @symbol.TypeParameterId,
   occurrence : String,
   kind : @buslane.Kind,
-) -> @buslane.TypeParameterId {
+) -> @buslane.TypeParameterId raise BuslaneLoweringError {
   if self.registry.find_type_parameter(source) is Some(target) {
     return target
   }
-  let target = self.metadata.define_type_parameter(occurrence, kind)
+  let target = metadata_allocation_or_lowering_defect(() => {
+    self.metadata.define_type_parameter(occurrence, kind)
+  })
   self.registry.register_type_parameter(source, target)
 }
 
