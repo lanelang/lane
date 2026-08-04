@@ -65,6 +65,7 @@ test "effect lowering pretty prints handler elaboration" {
     content=(
       #|buslane {
       #|  metadata {
+      #|    next_unique#8;
       #|    type_parameter tparam#0 = "A"#0 : Type;
       #|    type_parameter tparam#1 = "B"#2 : Type;
       #|    value value#0 = "result"#4 value : I64;
@@ -133,6 +134,7 @@ test "effect lowering pretty prints monadic context adaptation" {
     content=(
       #|buslane {
       #|  metadata {
+      #|    next_unique#5;
       #|    type_parameter tparam#0 = "E"#0 : Effect;
       #|    value value#0 = "callee"#2 value : () -> I64 ! tparam#0;
       #|    value value#1 = "result"#3 value : I64;

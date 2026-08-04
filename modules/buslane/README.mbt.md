@@ -67,6 +67,7 @@ test "build and verify a Buslane program" {
     content=(
       #|buslane {
       #|  metadata {
+      #|    next_unique#1;
       #|    value value#0 = "main"#0 function : () -> I64;
       #|  }
       #|  let value#0 = fn() -> I64 {

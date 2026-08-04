@@ -77,6 +77,10 @@ fn tokens_from_string(
       let (value, next) = read_integer(input, index)
       tokens.push((LITERAL(literal_value(parse_i64_literal(value))), ()))
       index = next
+    } else if starts_with(input, index, "next_unique#") {
+      let (next_unique, next) = read_prefixed_id(input, index, "next_unique#")
+      tokens.push((NEXT_UNIQUE(next_unique), ()))
+      index = next
     } else if starts_with(input, index, "type#") {
       let (id, next) = read_prefixed_id(input, index, "type#")
       tokens.push((TYPE_ID(id), ()))

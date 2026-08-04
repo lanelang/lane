@@ -19,6 +19,19 @@ fn writer() -> CanonicalTextWriter {
   CanonicalTextWriter()
 }
 
+///|
+test "buslane text round-trips metadata allocator state" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  metadata.next_unique = 7
+  let program : @buslane.Program = { metadata, terms: [] }
+  let text = writer().write_program(program)
+  let decoded = match parse_program_text(text) {
+    Ok(decoded) => decoded
+    Err(message) => abort(message + "\n" + text)
+  }
+  assert_program_equal(decoded, program)
+}
+
 // -- types ------------------------------------------------------------------
 
 ///|

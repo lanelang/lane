@@ -38,6 +38,7 @@ pub(all) enum Token {
   DATACON_ID(Int)
   EFFECT_ID(Int)
   OPERATION_ID(Int)
+  NEXT_UNIQUE(Int)
   EOF
   BUSLANE
   METADATA
@@ -103,6 +104,7 @@ pub(all) enum TokenKind {
   TK_DATACON_ID
   TK_EFFECT_ID
   TK_OPERATION_ID
+  TK_NEXT_UNIQUE
   TK_EOF
   TK_BUSLANE
   TK_METADATA

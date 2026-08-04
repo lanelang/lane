@@ -72,6 +72,7 @@ fn token_label(token : Token) -> String {
     DATACON_ID(index) => "datacon#\{index}"
     EFFECT_ID(index) => "effect#\{index}"
     OPERATION_ID(index) => "operation#\{index}"
+    NEXT_UNIQUE(index) => "next_unique#\{index}"
     LITERAL(_) => "literal"
     NAME(_) => "name"
     EOF => "eof"

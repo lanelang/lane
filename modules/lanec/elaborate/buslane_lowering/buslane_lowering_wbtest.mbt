@@ -644,6 +644,7 @@ test "elaborate resolved source into buslane core" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
+      #|      next_unique#3;
       #|      value value#0 = "identity"#0 function : (I64) -> I64;
       #|      value value#1 = "answer"#1 value : I64;
       #|      value value#2 = "x"#2 parameter : I64;
@@ -813,6 +814,7 @@ test "elaborate lowers effect metadata into buslane metadata" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
+      #|      next_unique#5;
       #|      type_parameter tparam#0 = "S"#0 : Type;
       #|      value value#0 = "answer"#4 value : I64;
       #|      effect effect#0 = "State"#1[tparam#0] {operation#0, operation#1};
@@ -857,6 +859,7 @@ test "elaborate lowers latent effects into buslane function types" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
+      #|      next_unique#7;
       #|      type_parameter tparam#0 = "E"#3 : Effect;
       #|      value value#0 = "run_console"#2 function : (() -> I64 ! effect#0) -> I64 ! effect#0;
       #|      value value#1 = "run_row"#4 function : forall [tparam#0]. (() -> Unit ! tparam#0) -> Unit ! tparam#0;
@@ -915,6 +918,7 @@ test "elaborate lowers operation calls into buslane perform" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
+      #|      next_unique#7;
       #|      type_parameter tparam#0 = "S"#1 : Type;
       #|      value value#0 = "write_hello"#5 function : () -> Unit ! effect#0;
       #|      value value#1 = "read_int"#6 function : () -> I64 ! effect#1[I64];
@@ -970,6 +974,7 @@ test "elaborate lowers handlers into buslane handler tables" {
       #|buslane_elaborate_result {
       #|  buslane {
       #|    metadata {
+      #|      next_unique#6;
       #|      value value#0 = "program"#2 function : () -> I64;
       #|      value value#1 = "value"#3 match_binder : I64;
       #|      value value#2 = "payload"#4 parameter : Bool;
@@ -1219,6 +1224,7 @@ test "elaborate sequential unit expressions in source order" {
     content=(
       #|buslane {
       #|  metadata {
+      #|    next_unique#4;
       #|    value value#0 = "mark"#0 function : (I64) -> Unit;
       #|    value value#1 = "run"#1 function : () -> Unit;
       #|    value value#2 = "value"#2 parameter : I64;

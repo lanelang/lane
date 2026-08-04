@@ -601,6 +601,7 @@ test "link modules produces Buslane program from reachable module objects" {
     content=(
       #|buslane {
       #|  metadata {
+      #|    next_unique#2;
       #|    value value#0 = "value"#0 value : I64;
       #|    value value#1 = "answer"#1 value : I64;
       #|  }

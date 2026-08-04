@@ -16,6 +16,7 @@
 %token<Int> DATACON_ID
 %token<Int> EFFECT_ID
 %token<Int> OPERATION_ID
+%token<Int> NEXT_UNIQUE
 %token EOF
 %token BUSLANE "buslane"
 %token METADATA "metadata"
@@ -83,8 +84,8 @@ buslane_type -> Type
   ;
 
 metadata -> MetadataRegistry
-  : "metadata" "{" metadata_declarations "}" {
-    make_metadata($3)
+  : "metadata" "{" NEXT_UNIQUE ";" metadata_declarations "}" {
+    make_metadata($3, $5)
   }
   ;
 

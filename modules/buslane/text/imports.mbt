@@ -41,7 +41,10 @@ fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
 }
 
 ///|
-fn make_metadata(declarations : Array[MetadataDeclaration]) -> MetadataRegistry {
+fn make_metadata(
+  next_unique : Int,
+  declarations : Array[MetadataDeclaration],
+) -> MetadataRegistry {
   let types : Array[TypeInfo] = []
   let type_parameters : Array[TypeParameterInfo] = []
   let values : Array[ValueInfo] = []
@@ -59,7 +62,7 @@ fn make_metadata(declarations : Array[MetadataDeclaration]) -> MetadataRegistry 
     }
   }
   {
-    next_unique: next_metadata_unique(declarations),
+    next_unique,
     types,
     type_parameters,
     values,
@@ -82,30 +85,6 @@ fn parsed_name(
   index : Int,
 ) -> BuslaneName {
   { name_space, occurrence, unique: { value: index } }
-}
-
-///|
-fn next_metadata_unique(declarations : Array[MetadataDeclaration]) -> Int {
-  let mut next = 0
-  for declaration in declarations {
-    let candidate = declaration.name().unique.value + 1
-    if candidate > next {
-      next = candidate
-    }
-  }
-  next
-}
-
-///|
-fn MetadataDeclaration::name(self : MetadataDeclaration) -> BuslaneName {
-  match self {
-    TypeInfoDecl(_, info) => info.name
-    TypeParameterInfoDecl(_, info) => info.name
-    ValueInfoDecl(_, info) => info.name
-    DataConInfoDecl(_, info) => info.name
-    EffectInfoDecl(_, info) => info.name
-    OperationInfoDecl(_, info) => info.name
-  }
 }
 
 ///|

@@ -299,7 +299,12 @@ pub impl @prettyprinter.Pretty for OperationInfo with fn pretty(
 pub impl @prettyprinter.Pretty for MetadataRegistry with fn pretty(
   metadata : MetadataRegistry,
 ) {
-  text("metadata") + space + braced_block(metadata_declarations(metadata))
+  let allocator = text("next_unique#") +
+    text(metadata.next_unique.to_string()) +
+    text(";")
+  text("metadata") +
+  space +
+  braced_block([allocator] + metadata_declarations(metadata))
 }
 
 ///|
