@@ -464,6 +464,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownType(TypeId)
   UnknownTypeParameter(TypeParameterId)
   UnknownValue(ValueId)
+  InitializationOrderViolation(initializer~ : ValueId, dependency~ : ValueId)
   UnknownDataConstructor(DataConId)
   UnknownEffect(EffectId)
   UnknownOperation(OperationId)

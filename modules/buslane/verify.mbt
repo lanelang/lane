@@ -105,6 +105,7 @@ pub(all) enum VerifyDiagnosticKind {
   UnknownType(TypeId)
   UnknownTypeParameter(TypeParameterId)
   UnknownValue(ValueId)
+  InitializationOrderViolation(initializer~ : ValueId, dependency~ : ValueId)
   UnknownDataConstructor(DataConId)
   UnknownEffect(EffectId)
   UnknownOperation(OperationId)
@@ -156,7 +157,20 @@ priv struct VerifyContext {
 /// the whole program's top-level terms are bound.
 priv struct ValueScope {
   values : Array[ValueId]
-  deferred : Array[ValueId]
+  deferred : DeferredValueScope
+}
+
+///|
+priv enum DeferredValueScope {
+  NoDeferredValues
+  DeferredTopLevelValues(initializer~ : ValueId, values~ : Array[ValueId])
+}
+
+///|
+priv enum ValueAvailability {
+  Available
+  Deferred(ValueId)
+  Absent
 }
 
 ///|
@@ -212,7 +226,7 @@ pub fn ExpressionFactsQuery::synthesize(
   }
   let facts = context.synthesize_expr(
     expression,
-    { values: self.values, deferred: [] },
+    { values: self.values, deferred: NoDeferredValues },
     { parameters: self.type_parameters },
   )
   let blockers = context.diagnostics.filter(diagnostic => {
@@ -579,7 +593,7 @@ fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
   // not run until the whole program is bound.
   let bound : Array[ValueId] = []
   let deferred : Array[ValueId] = []
-  let initialization_failures = self.program.unbound_callable_dependencies()
+  let initialization_failures = self.program.initialization_order_failures()
   for term in self.program.terms {
     for id in term.bound_values() {
       deferred.push(id)
@@ -590,7 +604,6 @@ fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
     for _ in introduced {
       deferred.remove(0) |> ignore
     }
-    let scope = ValueScope::{ values: bound.copy(), deferred: deferred.copy() }
     match term {
       External(id) =>
         self.within(TopTerm(self.value_anchor(id)), () => {
@@ -599,21 +612,39 @@ fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
       Let(id, initializer) =>
         self.within(TopTerm(self.value_anchor(id)), () => {
           for failure in initialization_failures {
-            if failure.0 == id {
-              self.report(UnknownValue(failure.1))
+            if failure.initializer == id {
+              self.report(
+                InitializationOrderViolation(
+                  initializer=failure.initializer,
+                  dependency=failure.dependency,
+                ),
+              )
             }
           }
-          self.verify_top_let(id, initializer, scope)
+          self.verify_top_let(id, initializer, {
+            values: bound.copy(),
+            deferred: DeferredTopLevelValues(
+              initializer=id,
+              values=deferred.copy(),
+            ),
+          })
         })
       LetRec(bindings) => {
         // A recursive group's closures are installed before any of its right
         // sides run, so the group sees itself.
+        let recursive_values = bound.copy()
         for id in introduced {
-          scope.values.push(id)
+          recursive_values.push(id)
         }
         for binding in bindings {
           self.within(TopTerm(self.value_anchor(binding.id)), () => {
-            self.verify_top_letrec_binding(binding, scope)
+            self.verify_top_letrec_binding(binding, {
+              values: recursive_values,
+              deferred: DeferredTopLevelValues(
+                initializer=binding.id,
+                values=deferred.copy(),
+              ),
+            })
           })
         }
       }
@@ -818,8 +849,11 @@ fn VerifyContext::synthesize_ref(
     self.report(UnknownValue(id))
     return pure_expr(Primitive(Unit))
   }
-  if !scope.contains(id) {
-    self.report(UnknownValue(id))
+  match scope.availability(id) {
+    Available => ()
+    Deferred(initializer) =>
+      self.report(InitializationOrderViolation(initializer~, dependency=id))
+    Absent => self.report(UnknownValue(id))
   }
   pure_expr(info.type_)
 }
@@ -1970,13 +2004,35 @@ fn VerifyContext::require_operation(
 }
 
 ///|
-fn ValueScope::contains(self : ValueScope, id : ValueId) -> Bool {
-  self.values.contains(id)
+fn ValueScope::availability(
+  self : ValueScope,
+  id : ValueId,
+) -> ValueAvailability {
+  if self.values.contains(id) {
+    Available
+  } else {
+    match self.deferred {
+      DeferredTopLevelValues(initializer~, values~) =>
+        if values.contains(id) {
+          Deferred(initializer)
+        } else {
+          Absent
+        }
+      NoDeferredValues => Absent
+    }
+  }
 }
 
 ///|
 fn ValueScope::copy(self : ValueScope) -> ValueScope {
-  { values: self.values.copy(), deferred: self.deferred.copy() }
+  {
+    values: self.values.copy(),
+    deferred: match self.deferred {
+      NoDeferredValues => NoDeferredValues
+      DeferredTopLevelValues(initializer~, values~) =>
+        DeferredTopLevelValues(initializer~, values=values.copy())
+    },
+  }
 }
 
 ///|
@@ -1984,7 +2040,13 @@ fn ValueScope::copy(self : ValueScope) -> ValueScope {
 /// has joined, because calling the function is what makes the body run and
 /// that cannot happen before the program's top-level terms are bound.
 fn ValueScope::entered(self : ValueScope) -> ValueScope {
-  { values: self.values + self.deferred, deferred: [] }
+  {
+    values: match self.deferred {
+      NoDeferredValues => self.values
+      DeferredTopLevelValues(values~, ..) => self.values + values
+    },
+    deferred: NoDeferredValues,
+  }
 }
 
 ///|

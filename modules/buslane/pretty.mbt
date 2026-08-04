@@ -678,6 +678,13 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind with fn pretty(
     UnknownTypeParameter(id) =>
       text("unknown_type_parameter") + space + id.pretty()
     UnknownValue(id) => text("unknown_value") + space + id.pretty()
+    InitializationOrderViolation(initializer~, dependency~) =>
+      text("initialization_order_violation") +
+      space +
+      braced_block([
+        text("initializer ") + initializer.pretty(),
+        text("dependency ") + dependency.pretty(),
+      ])
     UnknownDataConstructor(id) =>
       text("unknown_data_constructor") + space + id.pretty()
     UnknownEffect(id) => text("unknown_effect") + space + id.pretty()

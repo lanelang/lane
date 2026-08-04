@@ -704,11 +704,20 @@ test "an eager initializer checks transitive callable dependencies" {
       Let(later, Literal(Unit)),
     ],
   }
+  assert_eq(
+    @buslane.verify_program(program)
+    .diagnostics()
+    .map(diagnostic => diagnostic.kind),
+    [InitializationOrderViolation(initializer=eager, dependency=later)],
+  )
   inspect(
     @prettyprinter.render(@buslane.verify_program(program), width=100),
     content=(
       #|verify_result {
-      #|  unknown_value value#3 at term "eager"#2 (value#2)
+      #|  initialization_order_violation {
+      #|    initializer value#2
+      #|    dependency value#3
+      #|  } at term "eager"#2 (value#2)
       #|}
     ),
   )
@@ -719,7 +728,10 @@ test "an eager initializer checks transitive callable dependencies" {
         @prettyprinter.render(error, width=100),
         content=(
           #|invalid_program {
-          #|  unknown_value value#3 at term "eager"#2 (value#2)
+          #|  initialization_order_violation {
+          #|    initializer value#2
+          #|    dependency value#3
+          #|  } at term "eager"#2 (value#2)
           #|}
         ),
       )
@@ -760,11 +772,20 @@ test "a function-valued eager initializer checks callable dependencies" {
       Let(later, Literal(Unit)),
     ],
   }
+  assert_eq(
+    @buslane.verify_program(program)
+    .diagnostics()
+    .map(diagnostic => diagnostic.kind),
+    [InitializationOrderViolation(initializer=eager, dependency=later)],
+  )
   inspect(
     @prettyprinter.render(@buslane.verify_program(program), width=100),
     content=(
       #|verify_result {
-      #|  unknown_value value#3 at term "eager"#2 (value#2)
+      #|  initialization_order_violation {
+      #|    initializer value#2
+      #|    dependency value#3
+      #|  } at term "eager"#2 (value#2)
       #|}
     ),
   )
@@ -774,7 +795,10 @@ test "a function-valued eager initializer checks callable dependencies" {
         @prettyprinter.render(error, width=100),
         content=(
           #|invalid_program {
-          #|  unknown_value value#3 at term "eager"#2 (value#2)
+          #|  initialization_order_violation {
+          #|    initializer value#2
+          #|    dependency value#3
+          #|  } at term "eager"#2 (value#2)
           #|}
         ),
       )

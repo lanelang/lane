@@ -5,6 +5,12 @@ priv struct CallableInitializationBody {
 }
 
 ///|
+priv struct InitializationOrderFailure {
+  initializer : ValueId
+  dependency : ValueId
+}
+
+///|
 priv struct InitializationDependencyCollector {
   top_level : Array[ValueId]
   bound : Array[ValueId]
@@ -20,12 +26,12 @@ priv enum InitializationDependencyMode {
 ///|
 /// Returns deferred top-level bindings that an eager initializer may reach
 /// through a callable. Every non-direct-closure `Let` is an eager root,
-/// independently of its declared `ValueKind`; direct references are left to
-/// the ordinary scope check. Callable traversal reaches a fixed point by
-/// following known callable bodies while `visiting` cuts recursive cycles.
-fn Program::unbound_callable_dependencies(
+/// independently of its declared `ValueKind`; direct references are classified
+/// by `ValueScope`. Callable traversal reaches a fixed point by following known
+/// callable bodies while `visiting` cuts recursive cycles.
+fn Program::initialization_order_failures(
   self : Program,
-) -> Array[(ValueId, ValueId)] {
+) -> Array[InitializationOrderFailure] {
   let top_level = []
   let callables = []
   for term in self.terms {
@@ -64,7 +70,7 @@ fn Program::unbound_callable_dependencies(
           collector.collect(initializer, Eager, [], dependencies)
           for dependency in dependencies {
             if !bound.contains(dependency) {
-              failures.push((id, dependency))
+              failures.push({ initializer: id, dependency })
             }
           }
         }

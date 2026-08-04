@@ -2169,7 +2169,7 @@ test "top-level scope grows term by term" {
         terms: [Let(a, Ref(b)), Let(b, Literal(Unit))],
       }),
     ),
-    [UnknownValue(b)],
+    [InitializationOrderViolation(initializer=a, dependency=b)],
   )
   assert_eq(
     verify_program({ metadata, terms: [Let(b, Literal(Unit)), Let(a, Ref(b))] }).diagnostics(),
