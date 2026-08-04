@@ -12,8 +12,17 @@ priv struct InitializationDependencyCollector {
 }
 
 ///|
+priv enum InitializationDependencyMode {
+  Eager
+  Callable
+}
+
+///|
 /// Returns deferred top-level bindings that an eager initializer may reach
-/// through a callable. Direct references are left to the ordinary scope check.
+/// through a callable. Every non-direct-closure `Let` is an eager root,
+/// independently of its declared `ValueKind`; direct references are left to
+/// the ordinary scope check. Callable traversal reaches a fixed point by
+/// following known callable bodies while `visiting` cuts recursive cycles.
 fn Program::unbound_callable_dependencies(
   self : Program,
 ) -> Array[(ValueId, ValueId)] {
@@ -45,14 +54,14 @@ fn Program::unbound_callable_dependencies(
           bound.push(binding.id)
         }
       Let(id, initializer) => {
-        if self.metadata.value_info(id) is Some(info) && info.kind is Value {
+        if !initializer.is_direct_function_implementation() {
           let collector = InitializationDependencyCollector::{
             top_level,
             bound,
             callables,
           }
           let dependencies = []
-          collector.collect(initializer, delayed=false, [], dependencies)
+          collector.collect(initializer, Eager, [], dependencies)
           for dependency in dependencies {
             if !bound.contains(dependency) {
               failures.push((id, dependency))
@@ -70,20 +79,22 @@ fn Program::unbound_callable_dependencies(
 fn InitializationDependencyCollector::collect(
   self : InitializationDependencyCollector,
   expression : Expr,
-  delayed~ : Bool,
+  mode : InitializationDependencyMode,
   visiting : Array[ValueId],
   dependencies : Array[ValueId],
 ) -> Unit {
   match expression {
     Ref(id) => {
-      if delayed && self.top_level.contains(id) && !dependencies.contains(id) {
+      if mode is Callable &&
+        self.top_level.contains(id) &&
+        !dependencies.contains(id) {
         dependencies.push(id)
       }
       if self.bound.contains(id) && !visiting.contains(id) {
         for callable in self.callables {
           if callable.id == id {
             visiting.push(id)
-            self.collect(callable.body, delayed=true, visiting, dependencies)
+            self.collect(callable.body, Callable, visiting, dependencies)
             ignore(visiting.pop())
           }
         }
@@ -91,47 +102,45 @@ fn InitializationDependencyCollector::collect(
     }
     Literal(_) | Resume(_) => ()
     Function(function) =>
-      self.collect(function.body, delayed=true, visiting, dependencies)
+      self.collect(function.body, Callable, visiting, dependencies)
     Call(callee, arguments) => {
-      self.collect(callee, delayed~, visiting, dependencies)
+      self.collect(callee, mode, visiting, dependencies)
       for argument in arguments {
-        self.collect(argument, delayed~, visiting, dependencies)
+        self.collect(argument, mode, visiting, dependencies)
       }
     }
-    TypeLambda(_, body) =>
-      self.collect(body, delayed=true, visiting, dependencies)
-    TypeApply(callee, _) =>
-      self.collect(callee, delayed~, visiting, dependencies)
+    TypeLambda(_, body) => self.collect(body, Callable, visiting, dependencies)
+    TypeApply(callee, _) => self.collect(callee, mode, visiting, dependencies)
     Construct(construct) =>
       for payload in construct.payloads {
-        self.collect(payload, delayed~, visiting, dependencies)
+        self.collect(payload, mode, visiting, dependencies)
       }
     Let(_, initializer, body) => {
-      self.collect(initializer, delayed~, visiting, dependencies)
-      self.collect(body, delayed~, visiting, dependencies)
+      self.collect(initializer, mode, visiting, dependencies)
+      self.collect(body, mode, visiting, dependencies)
     }
     LetRec(bindings, body) => {
       for binding in bindings {
-        self.collect(binding.rhs, delayed=true, visiting, dependencies)
+        self.collect(binding.rhs, Callable, visiting, dependencies)
       }
-      self.collect(body, delayed~, visiting, dependencies)
+      self.collect(body, mode, visiting, dependencies)
     }
     Match(match_) => {
-      self.collect(match_.scrutinee, delayed~, visiting, dependencies)
+      self.collect(match_.scrutinee, mode, visiting, dependencies)
       for alternative in match_.alternatives {
-        self.collect(alternative.body, delayed~, visiting, dependencies)
+        self.collect(alternative.body, mode, visiting, dependencies)
       }
     }
     Perform(perform) =>
       for payload in perform.payloads {
-        self.collect(payload, delayed~, visiting, dependencies)
+        self.collect(payload, mode, visiting, dependencies)
       }
     Handle(handle) => {
-      self.collect(handle.body, delayed~, visiting, dependencies)
-      self.collect(handle.final_body, delayed~, visiting, dependencies)
+      self.collect(handle.body, mode, visiting, dependencies)
+      self.collect(handle.final_body, mode, visiting, dependencies)
       for handler in handle.handlers {
         for operation in handler.operations {
-          self.collect(operation.body, delayed~, visiting, dependencies)
+          self.collect(operation.body, mode, visiting, dependencies)
         }
       }
     }

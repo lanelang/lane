@@ -727,3 +727,63 @@ test "an eager initializer checks transitive callable dependencies" {
     _ => fail("expected the verifier to reject the initializer")
   }
 }
+
+///|
+test "a function-valued eager initializer checks callable dependencies" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let thunk = @buslane.Type::Function([], unit_type, Empty)
+  let factory_type = @buslane.Type::Function([], thunk, Empty)
+  let factory = metadata.define_value("factory", Function, factory_type)
+  let observed = metadata.define_value("observed", Local, unit_type)
+  let eager = metadata.define_value("eager", Function, thunk)
+  let later = metadata.define_value("later", Value, unit_type)
+  let returned_closure = @buslane.Expr::Function({
+    parameters: [],
+    result_type: unit_type,
+    body: Literal(Unit),
+  })
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: factory,
+          rhs: Function({
+            parameters: [],
+            result_type: thunk,
+            body: Let(observed, Ref(later), returned_closure),
+          }),
+        },
+      ]),
+      Let(eager, Call(Ref(factory), [])),
+      Let(later, Literal(Unit)),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  unknown_value value#3 at term "eager"#2 (value#2)
+      #|}
+    ),
+  )
+  try
+    evaluate_buslane_program(
+      program,
+      BuslaneExternalRuntime::BuslaneExternalRuntime(),
+    )
+  catch {
+    error =>
+      inspect(
+        @prettyprinter.render(error, width=100),
+        content=(
+          #|invalid_program {
+          #|  unknown_value value#3 at term "eager"#2 (value#2)
+          #|}
+        ),
+      )
+  } noraise {
+    _ => fail("expected the verifier to reject the eager initializer")
+  }
+}
