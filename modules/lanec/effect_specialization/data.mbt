@@ -240,20 +240,20 @@ fn EffectSpecializer::allocate_data_instances(
     let retained_parameters = info.parameters.filter(parameter => {
       !type_parameter_is_effect(self.program.metadata, parameter)
     })
-    let target = self.program.metadata.define_type(
-      "\{info.name.occurrence}%effect",
-      retained_parameters,
-      flavor=info.flavor,
-    ) catch {
-      error =>
-        raise AllocatorInvariant(
-          specialization_error_context(
-            "Buslane metadata allocation failed: \{Repr(error)}",
-            source=Type(demand.source),
-            specialization_key=demand.bindings,
-          ),
+    let target = specialization_metadata_allocation(
+      specialization_error_context(
+        "Buslane metadata allocation failed",
+        source=Type(demand.source),
+        specialization_key=demand.bindings,
+      ),
+      () => {
+        self.program.metadata.define_type(
+          "\{info.name.occurrence}%effect",
+          retained_parameters,
+          flavor=info.flavor,
         )
-    }
+      },
+    )
     self.data_instances.push({
       source: demand.source,
       bindings: demand.bindings,
@@ -274,23 +274,24 @@ fn EffectSpecializer::allocate_data_instances(
           ),
         )
       }
-      let specialized_constructor = self.program.metadata.define_data_constructor(
-        "\{constructor_info.name.occurrence}%effect",
-        instance.target,
-        constructor_info.hidden_type_parameters,
-        constructor_info.payload_types.map(type_ => {
-          self.specialize_type(type_, instance.bindings)
-        }),
-      ) catch {
-        error =>
-          raise AllocatorInvariant(
-            specialization_error_context(
-              "Buslane metadata allocation failed: \{Repr(error)}",
-              source=DataConstructor(data_constructor),
-              specialization_key=demand.bindings,
-            ),
+      let specialized_payload_types = constructor_info.payload_types.map(type_ => {
+        self.specialize_type(type_, instance.bindings)
+      })
+      let specialized_constructor = specialization_metadata_allocation(
+        specialization_error_context(
+          "Buslane metadata allocation failed",
+          source=DataConstructor(data_constructor),
+          specialization_key=demand.bindings,
+        ),
+        () => {
+          self.program.metadata.define_data_constructor(
+            "\{constructor_info.name.occurrence}%effect",
+            instance.target,
+            constructor_info.hidden_type_parameters,
+            specialized_payload_types,
           )
-      }
+        },
+      )
       instance.constructors.push({
         source: data_constructor,
         target: specialized_constructor,

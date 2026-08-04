@@ -148,6 +148,45 @@ test "allocator missing-plan errors retain the requested specialization key" {
 }
 
 ///|
+test "metadata allocation exhaustion retains context and typed cause" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect_parameter = metadata.define_type_parameter("E", Effect)
+  let (program, generic, _entry) = error_test_generic_program(
+    metadata, effect_parameter,
+  )
+  let bindings = [
+    { parameter: effect_parameter, argument: EffectArgument(Empty) },
+  ]
+  let specializer = error_test_specializer(program, {
+    callable_demands: [
+      Specialize(
+        TopLevel(generic),
+        ambient_bindings=[],
+        instance_bindings=bindings,
+      ),
+    ],
+    data_demands: [],
+    retained_top_terms: [],
+    retained_declarations: [],
+  })
+  metadata.name_allocator = Exhausted
+  try specializer.allocate_callable_instances() catch {
+    MetadataAllocationCompilerDefect(context, cause) => {
+      assert_eq(context, {
+        detail: "Buslane metadata allocation failed",
+        site: Some(TopLevel(generic)),
+        source: Some(Value(generic)),
+        specialization_key: bindings,
+      })
+      assert_true(cause is MetadataNameExhausted)
+    }
+    error => fail("unexpected specialization error: \{Repr(error)}")
+  } noraise {
+    _ => fail("expected a metadata allocation compiler defect")
+  }
+}
+
+///|
 test "rewriter missing-plan errors identify the callable site" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect_parameter = metadata.define_type_parameter("E", Effect)

@@ -14,6 +14,7 @@ pub(all) suberror SpecializationError {
   UnsupportedProgram(SpecializationErrorContext)
   InvalidInputMetadata(SpecializationErrorContext)
   TypeNormalizationCompilerDefect(SpecializationErrorContext, @buslane.TypeNormalizationError)
+  MetadataAllocationCompilerDefect(SpecializationErrorContext, @buslane.MetadataAllocationError)
   PlannerInvariant(SpecializationErrorContext)
   AllocatorInvariant(SpecializationErrorContext)
   RewriterInvariant(SpecializationErrorContext)

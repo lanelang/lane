@@ -58,10 +58,22 @@ fn contextualize_planner_error(
         context.at_planner_visit(site, specialization_key),
         error,
       )
+    MetadataAllocationCompilerDefect(context, error) =>
+      MetadataAllocationCompilerDefect(context, error)
     PlannerInvariant(context) =>
       PlannerInvariant(context.at_planner_visit(site, specialization_key))
     AllocatorInvariant(context) => AllocatorInvariant(context)
     RewriterInvariant(context) => RewriterInvariant(context)
+  }
+}
+
+///|
+fn[T] specialization_metadata_allocation(
+  context : SpecializationErrorContext,
+  allocate : () -> T raise @buslane.MetadataAllocationError,
+) -> T raise SpecializationError {
+  allocate() catch {
+    error => raise MetadataAllocationCompilerDefect(context, error)
   }
 }
 
@@ -142,6 +154,10 @@ pub(all) suberror SpecializationError {
   TypeNormalizationCompilerDefect(
     SpecializationErrorContext,
     @buslane.TypeNormalizationError
+  )
+  MetadataAllocationCompilerDefect(
+    SpecializationErrorContext,
+    @buslane.MetadataAllocationError
   )
   PlannerInvariant(SpecializationErrorContext)
   AllocatorInvariant(SpecializationErrorContext)

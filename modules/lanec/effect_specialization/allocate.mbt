@@ -50,21 +50,21 @@ fn EffectSpecializer::allocate_callable_instances(
     let bindings = ambient_bindings.copy()
     bindings.append(instance_bindings)
     let specialized_type = self.specialize_type_scheme(info.type_, bindings)
-    let target = self.program.metadata.define_value(
-      "\{info.name.occurrence}%effect",
-      info.kind,
-      specialized_type,
-    ) catch {
-      error =>
-        raise AllocatorInvariant(
-          specialization_error_context(
-            "Buslane metadata allocation failed: \{Repr(error)}",
-            site~,
-            source=Value(source),
-            specialization_key=instance_bindings,
-          ),
+    let target = specialization_metadata_allocation(
+      specialization_error_context(
+        "Buslane metadata allocation failed",
+        site~,
+        source=Value(source),
+        specialization_key=instance_bindings,
+      ),
+      () => {
+        self.program.metadata.define_value(
+          "\{info.name.occurrence}%effect",
+          info.kind,
+          specialized_type,
         )
-    }
+      },
+    )
     self.instances.push({
       site,
       ambient_bindings,
@@ -221,19 +221,20 @@ fn EffectSpecializer::fresh_bound_value(
       ),
     )
   }
-  let target = self.program.metadata.define_value(
-    info.name.occurrence,
-    info.kind,
-    self.specialize_type(info.type_, scope.type_bindings),
-  ) catch {
-    error =>
-      raise RewriterInvariant(
-        specialization_error_context(
-          "Buslane metadata allocation failed: \{Repr(error)}",
-          source=Value(source),
-        ),
+  let specialized_type = self.specialize_type(info.type_, scope.type_bindings)
+  let target = specialization_metadata_allocation(
+    specialization_error_context(
+      "Buslane metadata allocation failed",
+      source=Value(source),
+    ),
+    () => {
+      self.program.metadata.define_value(
+        info.name.occurrence,
+        info.kind,
+        specialized_type,
       )
-  }
+    },
+  )
   scope.bind_value(source, target)
   target
 }
