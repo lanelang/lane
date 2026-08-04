@@ -518,6 +518,7 @@ fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
   // not run until the whole program is bound.
   let bound : Array[ValueId] = []
   let deferred : Array[ValueId] = []
+  let initialization_failures = self.program.unbound_callable_dependencies()
   for term in self.program.terms {
     for id in term.bound_values() {
       deferred.push(id)
@@ -533,6 +534,11 @@ fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
       External(id) => self.within(TopTerm(id), () => self.verify_external(id))
       Let(id, initializer) =>
         self.within(TopTerm(id), () => {
+          for failure in initialization_failures {
+            if failure.0 == id {
+              self.report(UnknownValue(failure.1))
+            }
+          }
           self.verify_top_let(id, initializer, scope)
         })
       LetRec(bindings) => {

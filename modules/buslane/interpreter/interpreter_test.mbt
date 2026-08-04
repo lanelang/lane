@@ -668,3 +668,61 @@ test "every verified top-term shape evaluates without an unbound value" {
     content="unit",
   )
 }
+
+///|
+test "an eager initializer checks transitive callable dependencies" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let thunk = @buslane.Type::Function([], unit_type, Empty)
+  let read_later = metadata.define_value("read_later", Function, thunk)
+  let forward = metadata.define_value("forward", Function, thunk)
+  let eager = metadata.define_value("eager", Value, unit_type)
+  let later = metadata.define_value("later", Value, unit_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: read_later,
+          rhs: Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Ref(later),
+          }),
+        },
+        {
+          id: forward,
+          rhs: Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Call(Ref(read_later), []),
+          }),
+        },
+      ]),
+      Let(eager, Call(Ref(forward), [])),
+      Let(later, Literal(Unit)),
+    ],
+  }
+  inspect(
+    @prettyprinter.render(@buslane.verify_program(program), width=100),
+    content=(
+      #|verify_result {
+      #|  unknown_value value#3 at term value#2
+      #|}
+    ),
+  )
+  let runtime = BuslaneExternalRuntime::BuslaneExternalRuntime()
+  try evaluate_buslane_program(program, runtime) catch {
+    error =>
+      inspect(
+        @prettyprinter.render(error, width=100),
+        content=(
+          #|invalid_program {
+          #|  unknown_value value#3 at term value#2
+          #|}
+        ),
+      )
+  } noraise {
+    _ => fail("expected the verifier to reject the initializer")
+  }
+}

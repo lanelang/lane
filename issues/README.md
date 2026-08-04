@@ -351,6 +351,7 @@ graph TD
   ISS_319["ISS-319: Reject a wrong parenthesis arity in the grammar, not in an action"]
   ISS_320["ISS-320: Let the lexer own which spelling is which literal"]
   ISS_321["ISS-321: Hold an owner path as a path, not as a type it can only partly be"]
+  ISS_322["ISS-322: Verify callable dependencies used by top-level initializers"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
