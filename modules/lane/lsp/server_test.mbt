@@ -72,6 +72,17 @@ fn lsp_position(uri : String, line : Int, character : Int) -> Json {
 }
 
 ///|
+fn lsp_range(uri : String, end_line : Int, end_character : Int) -> Json {
+  {
+    "textDocument": { "uri": uri },
+    "range": {
+      "start": { "line": 0, "character": 0 },
+      "end": { "line": end_line, "character": end_character },
+    },
+  }
+}
+
+///|
 async test "public server runs a complete editing session" {
   let (server_input, client_input) = @io.pipe()
   let (client_output, server_output) = @io.pipe()
@@ -196,6 +207,78 @@ async test "public server runs a complete editing session" {
       },
       { "jsonrpc": "2.0", "id": 4, "result": null },
     ])
+  })
+}
+
+///|
+async test "public server returns imported auto argument inlays" {
+  let (server_input, client_input) = @io.pipe()
+  let (client_output, server_output) = @io.pipe()
+  let provider_uri = "file:///Provider.lane"
+  let consumer_uri = "file:///Main.lane"
+  let provider =
+    #|module Provider
+    #|
+    #|pub struct Witness {
+    #|  value : I64
+    #|}
+    #|
+    #|pub offer fn choose(auto witness : Witness) -> I64 {
+    #|  witness.value
+    #|}
+  let consumer =
+    #|module Main
+    #|import Provider.{ Witness, choose }
+    #|
+    #|offer local_witness : Witness = Witness::{ value: 42 }
+    #|pub let answer : I64 = choose()
+  @async.with_task_group(group => {
+    let server = group.spawn(() => {
+      let termination = run_server(server_input, server_output)
+      server_output.close()
+      termination
+    })
+    send_lsp_message(client_input, lsp_call(1, "initialize", null))
+    ignore(receive_lsp_message(client_output))
+    send_lsp_message(client_input, lsp_notification("initialized", {}))
+    send_lsp_message(
+      client_input,
+      lsp_notification(
+        "textDocument/didOpen",
+        lsp_document(provider_uri, provider),
+      ),
+    )
+    ignore(receive_lsp_message(client_output))
+    send_lsp_message(
+      client_input,
+      lsp_notification(
+        "textDocument/didOpen",
+        lsp_document(consumer_uri, consumer),
+      ),
+    )
+    ignore(receive_lsp_message(client_output))
+    ignore(receive_lsp_message(client_output))
+    send_lsp_message(
+      client_input,
+      lsp_call(2, "textDocument/inlayHint", lsp_range(consumer_uri, 6, 0)),
+    )
+    json_inspect(receive_lsp_message(client_output), content={
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": [
+        {
+          "position": { "line": 4, "character": 30 },
+          "label": "witness=local_witness",
+          "kind": 2,
+        },
+      ],
+    })
+    send_lsp_message(client_input, lsp_call(3, "shutdown", null))
+    ignore(receive_lsp_message(client_output))
+    send_lsp_message(client_input, lsp_notification("exit", null))
+    client_input.close()
+    assert_true(client_output.read_until("\n") is None)
+    assert_eq(server.wait(), GracefulExit)
   })
 }
 

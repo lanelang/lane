@@ -230,7 +230,13 @@ fn SemanticIndex::collect_resolved_declaration_body(
       }
     }
     Function(declaration) => {
-      self.add_parameter_signature(declaration.symbol, declaration.parameters)
+      self.add_parameter_signature(
+        declaration.symbol,
+        declaration.parameters.map(parameter => {
+          name: parameter.name,
+          is_auto: parameter.is_auto,
+        }),
+      )
       self.add_binding(
         ValueBinding(declaration.symbol),
         declaration.name,
@@ -364,7 +370,13 @@ fn SemanticIndex::collect_resolved_local_item(
         is_offered=declaration.is_offered,
         loc=declaration.name_loc,
       )
-      self.add_parameter_signature(declaration.symbol, declaration.parameters)
+      self.add_parameter_signature(
+        declaration.symbol,
+        declaration.parameters.map(parameter => {
+          name: parameter.name,
+          is_auto: parameter.is_auto,
+        }),
+      )
       self.add_resolved_type_parameters(
         declaration.type_parameters,
         ScopedBinding(declaration.body.loc()),

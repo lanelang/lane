@@ -73,15 +73,10 @@ fn SemanticIndex::enrich_definition(
 fn SemanticIndex::add_parameter_signature(
   self : SemanticIndex,
   symbol : @symbol.ValueSymbolId,
-  parameters : Array[@resolve.ResolvedValueParameter],
+  parameters : Array[ParameterHintParameter],
 ) -> Unit {
   if !parameters.is_empty() {
-    self.parameter_signatures.push({
-      symbol: Value(symbol),
-      parameters: parameters.map(fn(parameter) {
-        { name: parameter.name, is_auto: parameter.is_auto }
-      }),
-    })
+    self.parameter_signatures[symbol.index] = parameters
   }
 }
 
@@ -338,27 +333,14 @@ fn implicit_argument_insertion_span(
 ///|
 fn parameter_names_for_callee(
   callee : @checked.CheckedExpr,
-  signatures : Array[ParameterHintSignature],
+  signatures : Map[Int, Array[ParameterHintParameter]],
 ) -> Array[ParameterHintParameter]? {
   match callee {
-    Value(symbol~, ..) => parameter_names_for_symbol(Value(symbol), signatures)
+    Value(symbol~, ..) => signatures.get(symbol.index)
     GenericApplication(callee~, ..) =>
       parameter_names_for_callee(callee, signatures)
     _ => None
   }
-}
-
-///|
-fn parameter_names_for_symbol(
-  symbol : AnalysisSymbol,
-  signatures : Array[ParameterHintSignature],
-) -> Array[ParameterHintParameter]? {
-  for signature in signatures {
-    if signature.symbol == symbol {
-      return Some(signature.parameters)
-    }
-  }
-  None
 }
 
 ///|

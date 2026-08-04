@@ -704,6 +704,7 @@ fn build_cached_semantic_module(
   let index = SemanticIndex::from_sources(
     resolved.source,
     checked_source,
+    imports.direct,
     display,
     input.source_id,
     input.text,

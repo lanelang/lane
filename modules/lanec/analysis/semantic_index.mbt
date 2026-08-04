@@ -63,12 +63,6 @@ priv struct SemanticMemberFact {
 }
 
 ///|
-priv struct ParameterHintSignature {
-  symbol : AnalysisSymbol
-  parameters : Array[ParameterHintParameter]
-}
-
-///|
 priv struct ParameterHintParameter {
   name : String
   is_auto : Bool
@@ -96,13 +90,14 @@ priv struct SemanticIndex {
   references : Array[ReferenceEntry]
   hovers : Array[HoverEntry]
   inlay_hints : Array[InlayHintEntry]
-  parameter_signatures : Array[ParameterHintSignature]
+  parameter_signatures : Map[Int, Array[ParameterHintParameter]]
 }
 
 ///|
 fn SemanticIndex::from_sources(
   resolved : @resolve.ResolvedSourceFile,
   checked : @checked.CheckedSourceFile?,
+  direct_imports : @module_interface.ImportedEnvironment,
   display : @typecheck.TypeDisplayContext,
   source_id : String,
   _source_text : String,
@@ -123,9 +118,22 @@ fn SemanticIndex::from_sources(
     references: [],
     hovers: [],
     inlay_hints: [],
-    parameter_signatures: [],
+    parameter_signatures: Map([]),
   }
   index.add_module_bindings(resolved.module_binding_references)
+  for interface in direct_imports.modules {
+    for value in interface.values {
+      if value.parameters is Some(parameters) {
+        index.add_parameter_signature(
+          value.symbol,
+          parameters.map(parameter => {
+            name: parameter.name,
+            is_auto: parameter.is_auto,
+          }),
+        )
+      }
+    }
+  }
   for declaration in resolved.declarations {
     index.collect_resolved_declaration(declaration)
   }
