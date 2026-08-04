@@ -3204,6 +3204,116 @@ test "local value types override substituted formal types during adaptation" {
 }
 
 ///|
+test "value adaptation applies higher-kinded substitutions before classifying representation" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let capability = metadata.define_type_parameter("C", Function([Type], Type))
+  let element = metadata.define_type_parameter("T", Type)
+  let image = test_image_lowerer(metadata, [])
+  let lowerer = test_function_lowerer(image)
+  let source_type : @buslane.Type = Function(
+    [Primitive(Unit)],
+    Primitive(String),
+    Empty,
+  )
+  let target_type : @buslane.Type = Apply(Parameter(capability), [
+    TypeArgument(Primitive(Unit)),
+  ])
+  let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  substitutions.insert(
+    capability,
+    TypeLambda(
+      [element],
+      Function([Parameter(element)], Primitive(String), Empty),
+    ),
+  )
+  let slot = lowerer.fresh_slot(source_type)
+  let adapted = lowerer.adapt_local_value_with_substitutions(
+    Slot(slot, source_type),
+    source_type,
+    target_type,
+    substitutions,
+  )
+  guard adapted is Slot(adapted_slot, adapted_type) else {
+    fail("expected substituted callable adaptation to preserve the slot")
+  }
+  assert_eq(adapted_slot, slot)
+  assert_true(image.types_definitionally_equal(adapted_type, source_type))
+  assert_true(image.callable_adapters.is_empty())
+  assert_true(lowerer.blocks[0].instructions.is_empty())
+}
+
+///|
+test "ordinary calls adapt erased slots to concrete parameters" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let image = test_image_lowerer(metadata, [])
+  let callable_type : @buslane.Type = Function(
+    [Primitive(String)],
+    Primitive(Unit),
+    Empty,
+  )
+  let value_lowerer = test_function_lowerer(image)
+  let value_witness = value_lowerer.fresh_metadata(layout_witness_metadata())
+  let value_erased = value_lowerer.fresh_erased_slot(value_witness, Owned)
+  let callable = value_lowerer.fresh_slot(callable_type)
+  let value_result = value_lowerer.lower_value_call(callable, callable_type, [
+    Slot(value_erased, Primitive(String)),
+  ])
+  assert_true(value_result is Unit)
+  let direct_lowerer = test_function_lowerer(image)
+  let direct_witness = direct_lowerer.fresh_metadata(layout_witness_metadata())
+  let direct_erased = direct_lowerer.fresh_erased_slot(direct_witness, Owned)
+  let direct_result = direct_lowerer.lower_direct_call(
+    { value: 7 },
+    callable_type,
+    [Slot(direct_erased, Primitive(String))],
+    None,
+  )
+  assert_true(direct_result is Unit)
+  debug_inspect(
+    (
+      value_lowerer.blocks[0].instructions,
+      direct_lowerer.blocks[0].instructions,
+    ),
+    content=(
+      #|(
+      #|  [
+      #|    UneraseI32({ value: 3 }, { value: 1 }),
+      #|    CallValue({ value: 2 }, [], [{ value: 3 }], None),
+      #|  ],
+      #|  [
+      #|    UneraseI32({ value: 2 }, { value: 1 }),
+      #|    CallDirect({ value: 7 }, None, [], [{ value: 2 }], None),
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
+test "callable ABI comparison preserves nested formal erasure" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let parameter = metadata.define_type_parameter("T", Type)
+  let image = test_image_lowerer(metadata, [])
+  let source_type : @buslane.Type = Function(
+    [Function([Primitive(Unit)], Primitive(String), Empty)],
+    Primitive(Unit),
+    Empty,
+  )
+  let target_type : @buslane.Type = Function(
+    [Function([Parameter(parameter)], Primitive(String), Empty)],
+    Primitive(Unit),
+    Empty,
+  )
+  let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  substitutions.insert(parameter, Primitive(Unit))
+  assert_false(
+    image.callable_types_share_runtime_abi(
+      source_type, target_type, substitutions,
+    ),
+  )
+}
+
+///|
 test "callable adapter alignment beta-reduces effect companions" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let source_answer = metadata.define_type_parameter("SourceAnswer", Type)

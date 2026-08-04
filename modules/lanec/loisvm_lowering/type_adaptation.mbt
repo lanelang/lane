@@ -289,61 +289,212 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
   target_type : @buslane.Type,
   substitutions : @buslane.TypeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
-  let source_type = local_value_type(value).unwrap_or(source_type)
+  let source_value_type = match local_value_type(value) {
+    Some(type_) => type_
+    None => source_type
+  }
   let source_runtime = self.image.runtime_type(source_type)
   let target_runtime = self.image.runtime_type(target_type)
-  match (source_runtime, target_runtime) {
-    (Concrete(Primitive(Unit)), Concrete(Primitive(Unit))) => return Unit
-    (Erased(_), Erased(_)) => {
+  let source_shape = apply_type_substitution(source_value_type, substitutions)
+  let target_shape = apply_type_substitution(target_type, substitutions)
+  let source_is_erased = match value {
+    Slot(slot, _) => self.values[slot.value].erased_companion is Some(_)
+    _ => source_runtime is Erased(_)
+  }
+  match (source_is_erased, target_runtime is Erased(_)) {
+    (true, true) => {
       guard value is Slot(slot, _) else {
         raise InvalidTypeApplication(detail="erased value is not materialized")
       }
       return Slot(slot, target_type)
     }
-    (_, Erased(_)) => {
-      let witness = self.layout_witness(source_type)
-      return Slot(self.erase_value(value, source_type, witness), target_type)
+    (false, true) => {
+      let witness = self.layout_witness(source_shape)
+      return Slot(self.erase_value(value, source_shape, witness), target_type)
     }
-    (Erased(_), _) => {
+    (true, false) => {
       guard value is Slot(slot, _) else {
         raise InvalidTypeApplication(detail="erased value is not materialized")
       }
-      return self.unerase_value(slot, target_type)
+      return self.unerase_value(slot, target_shape)
     }
     _ => ()
   }
-  if self.image.types_definitionally_equal(source_type, target_type) {
-    return match value {
-      Unit => Unit
-      Slot(slot, _) => Slot(slot, target_type)
-      _ => value
-    }
+  if self.image.runtime_type(source_shape) is Concrete(Primitive(Unit)) &&
+    self.image.runtime_type(target_shape) is Concrete(Primitive(Unit)) {
+    return Unit
   }
-  match (source_type, target_type) {
+  guard self.image.runtime_type(source_shape) is Concrete(source_runtime_type) &&
+    self.image.runtime_type(target_shape) is Concrete(target_runtime_type) else {
+    raise InvalidTypeApplication(
+      detail="value adaptation reached an unresolved erased representation",
+    )
+  }
+  match (source_runtime_type, target_runtime_type) {
     (Function(_, _, _) | Forall(_, _), Function(_, _, _) | Forall(_, _)) => {
+      let source_callable_type = match
+        self.image.runtime_type(source_value_type) {
+        Concrete(Function(_, _, _) | Forall(_, _) as type_) => type_
+        _ => source_runtime_type
+      }
+      let target_callable_type = match self.image.runtime_type(target_type) {
+        Concrete(Function(_, _, _) | Forall(_, _) as type_) => type_
+        _ => target_runtime_type
+      }
+      if self.image.types_definitionally_equal(source_shape, target_shape) &&
+        self.image.callable_types_share_runtime_abi(
+          source_callable_type, target_callable_type, substitutions,
+        ) {
+        return match value {
+          Slot(slot, _) => Slot(slot, target_shape)
+          _ => value
+        }
+      }
       guard self.materialize_local(value) is Slot(source, _) else {
         raise InvalidTypeApplication(
           detail="callable value is not materialized",
         )
       }
-      self.make_callable_adapter(
-        source, source_type, target_type, substitutions,
-      )
+      guard self.make_callable_adapter(
+          source, source_callable_type, target_callable_type, substitutions,
+        )
+        is Slot(adapter, _) else {
+        raise InvalidTypeApplication(
+          detail="callable adapter is not materialized",
+        )
+      }
+      Slot(adapter, target_callable_type)
     }
     _ => {
+      if self.image.types_definitionally_equal(source_shape, target_shape) {
+        return match value {
+          Unit => Unit
+          Slot(slot, _) => Slot(slot, target_shape)
+          _ => value
+        }
+      }
       guard value is Slot(slot, _) else {
         raise InvalidTypeApplication(detail="adapted value is not materialized")
       }
-      let source_metadata = self.image.slot_metadata(source_type)
-      let target_metadata = self.image.slot_metadata(target_type)
+      let source_metadata = self.image.slot_metadata(source_runtime_type)
+      let target_metadata = self.image.slot_metadata(target_runtime_type)
       if source_metadata.representation != target_metadata.representation ||
         source_metadata.cleanup != target_metadata.cleanup {
         raise InvalidTypeApplication(
           detail="callable adapter cannot bridge incompatible value representations",
         )
       }
-      Slot(slot, target_type)
+      Slot(slot, target_runtime_type)
     }
+  }
+}
+
+///|
+priv struct RuntimeValueAbi {
+  representation : @bytecode.Representation
+  cleanup : @bytecode.Cleanup
+} derive(Eq)
+
+///|
+fn ImageLowerer::runtime_value_abi(
+  self : ImageLowerer,
+  type_ : @buslane.Type,
+  substitutions : @buslane.TypeSubstitution,
+) -> RuntimeValueAbi? raise LoisvmLoweringError {
+  match self.runtime_type(type_) {
+    Erased(_) => Some({ representation: I64, cleanup: OwnedErased })
+    Concrete(_) => {
+      let type_ = apply_type_substitution(type_, substitutions)
+      match self.runtime_type(type_) {
+        Erased(_) => Some({ representation: I64, cleanup: OwnedErased })
+        Concrete(Primitive(Unit)) => None
+        Concrete(type_) => {
+          let metadata = self.slot_metadata(type_)
+          Some({
+            representation: metadata.representation,
+            cleanup: metadata.cleanup,
+          })
+        }
+      }
+    }
+  }
+}
+
+///|
+fn ImageLowerer::callable_types_share_runtime_abi(
+  self : ImageLowerer,
+  source_type : @buslane.Type,
+  target_type : @buslane.Type,
+  substitutions : @buslane.TypeSubstitution,
+) -> Bool raise LoisvmLoweringError {
+  let (source_type_parameters, source_parameters, source_result) = function_type_parts(
+    source_type,
+  )
+  let (target_type_parameters, target_parameters, target_result) = function_type_parts(
+    target_type,
+  )
+  let mut source_witnesses = 0
+  for parameter in source_type_parameters {
+    if self.requires_layout_witness(parameter) {
+      source_witnesses += 1
+    }
+  }
+  let mut target_witnesses = 0
+  for parameter in target_type_parameters {
+    if self.requires_layout_witness(parameter) {
+      target_witnesses += 1
+    }
+  }
+  if source_witnesses != target_witnesses ||
+    source_parameters.length() != target_parameters.length() {
+    return false
+  }
+  for index in 0..<source_parameters.length() {
+    if !self.runtime_values_share_abi(
+        source_parameters[index],
+        target_parameters[index],
+        substitutions,
+      ) {
+      return false
+    }
+  }
+  self.runtime_values_share_abi(source_result, target_result, substitutions)
+}
+
+///|
+fn ImageLowerer::runtime_values_share_abi(
+  self : ImageLowerer,
+  source_type : @buslane.Type,
+  target_type : @buslane.Type,
+  substitutions : @buslane.TypeSubstitution,
+) -> Bool raise LoisvmLoweringError {
+  match (self.runtime_type(source_type), self.runtime_type(target_type)) {
+    (Erased(_), Erased(_)) => true
+    (Erased(_), _) | (_, Erased(_)) => false
+    (
+      Concrete(Function(_, _, _) | Forall(_, _) as source_type),
+      Concrete(Function(_, _, _) | Forall(_, _) as target_type),
+    ) =>
+      self.callable_types_share_runtime_abi(
+        source_type, target_type, substitutions,
+      )
+    (Concrete(Function(_, _, _) | Forall(_, _)), Concrete(_))
+    | (Concrete(_), Concrete(Function(_, _, _) | Forall(_, _))) => {
+      let source_type = apply_type_substitution(source_type, substitutions)
+      let target_type = apply_type_substitution(target_type, substitutions)
+      guard self.runtime_type(source_type)
+        is Concrete(Function(_, _, _) | Forall(_, _) as source_type) &&
+        self.runtime_type(target_type)
+        is Concrete(Function(_, _, _) | Forall(_, _) as target_type) else {
+        return false
+      }
+      self.callable_types_share_runtime_abi(
+        source_type, target_type, substitutions,
+      )
+    }
+    (Concrete(_), Concrete(_)) =>
+      self.runtime_value_abi(source_type, substitutions) ==
+      self.runtime_value_abi(target_type, substitutions)
   }
 }
 

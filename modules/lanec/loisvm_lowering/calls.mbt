@@ -88,19 +88,58 @@ fn FunctionLowerer::lower_value_call(
   type_ : @buslane.Type,
   arguments : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
-  let result_type = callable_result_type(type_)
+  let (parameters, parameter_types, result_type) = function_type_parts(type_)
+  if !parameters.is_empty() || parameter_types.length() != arguments.length() {
+    raise InvalidTypeApplication(
+      detail="value call arguments do not match its function type",
+    )
+  }
+  let argument_slots = self.adapt_call_arguments(
+    arguments,
+    parameter_types,
+    self.substitutions,
+  )
+  let destination = self.fresh_optional_slot(result_type)
+  self.emit(CallValue(callable, [], argument_slots, destination.0))
+  self.adapt_local_value_with_substitutions(
+    destination.1,
+    result_type,
+    apply_type_substitution(result_type, self.substitutions),
+    self.substitutions,
+  )
+}
+
+///|
+fn FunctionLowerer::adapt_call_arguments(
+  self : FunctionLowerer,
+  arguments : Array[LocalValue],
+  parameter_types : Array[@buslane.Type],
+  substitutions : @buslane.TypeSubstitution,
+) -> Array[@vmcfg.ValueId] raise LoisvmLoweringError {
+  if parameter_types.length() != arguments.length() {
+    raise InvalidTypeApplication(
+      detail="call arguments do not match its function type",
+    )
+  }
   let argument_slots = []
-  for argument in arguments {
-    match argument {
+  for index, argument in arguments {
+    let source_type = local_value_type(argument).unwrap_or(
+      parameter_types[index],
+    )
+    let adapted = self.adapt_local_value_with_substitutions(
+      argument,
+      source_type,
+      parameter_types[index],
+      substitutions,
+    )
+    match adapted {
       Unit => ()
       Slot(slot, _) => argument_slots.push(slot)
       _ =>
         raise UnsupportedExpression(detail="call argument is not materialized")
     }
   }
-  let destination = self.fresh_optional_slot(result_type)
-  self.emit(CallValue(callable, [], argument_slots, destination.0))
-  destination.1
+  argument_slots
 }
 
 ///|
@@ -404,21 +443,27 @@ fn FunctionLowerer::lower_direct_call(
   arguments : Array[LocalValue],
   environment : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
-  let result_type = callable_result_type(type_)
-  let argument_slots = []
-  for argument in arguments {
-    match argument {
-      Unit => ()
-      Slot(slot, _) => argument_slots.push(slot)
-      _ =>
-        raise UnsupportedExpression(detail="call argument is not materialized")
-    }
+  let (parameters, parameter_types, result_type) = function_type_parts(type_)
+  if !parameters.is_empty() {
+    raise InvalidTypeApplication(
+      detail="direct call requires explicit generic arguments",
+    )
   }
+  let argument_slots = self.adapt_call_arguments(
+    arguments,
+    parameter_types,
+    self.substitutions,
+  )
   let destination = self.fresh_optional_slot(result_type)
   self.emit(
     CallDirect(function, environment, [], argument_slots, destination.0),
   )
-  destination.1
+  self.adapt_local_value_with_substitutions(
+    destination.1,
+    result_type,
+    apply_type_substitution(result_type, self.substitutions),
+    self.substitutions,
+  )
 }
 
 ///|
