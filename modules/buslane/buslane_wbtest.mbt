@@ -15,7 +15,24 @@ test "verifier rejects an internally malformed negative unique" {
     content=(
       #|[
       #|  {
-      #|    kind: InvalidMetadataIdentity(InvalidUnique({ value: -1 })),
+      #|    kind: InvalidMetadataIdentity(NegativeUnique({ value: -1 })),
+      #|    provenance: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "verifier distinguishes an internally malformed negative next unique" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  metadata.name_allocator = Fresh({ value: -1 })
+  debug_inspect(
+    verify_program({ metadata, terms: [] }).diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    kind: InvalidMetadataIdentity(NegativeNextUnique({ value: -1 })),
       #|    provenance: [],
       #|  },
       #|]

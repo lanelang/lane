@@ -362,6 +362,16 @@ test "canonical text allocator remains fresh after parse and verify" {
 }
 
 ///|
+test "canonical text reports premature allocator exhaustion" {
+  assert_eq(
+    parse_program_text("buslane { metadata { next_unique#exhausted; } }"),
+    Err(
+      "next_unique#exhausted requires used unique#2147483647; found no allocated unique",
+    ),
+  )
+}
+
+///|
 test "canonical text preserves metadata allocator exhaustion" {
   let text = "buslane { metadata { next_unique#2147483647; } }"
   let program = match parse_program_text(text) {

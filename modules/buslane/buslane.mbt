@@ -232,12 +232,11 @@ pub(all) struct MetadataRegistry {
 
 ///|
 pub(all) enum MetadataIdentityError {
-  InvalidUnique(BuslaneUnique)
+  NegativeUnique(BuslaneUnique)
   DuplicateUnique(BuslaneUnique)
-  InvalidNameAllocator(
-    allocator~ : MetadataNameAllocator,
-    maximum_unique~ : BuslaneUnique?
-  )
+  NegativeNextUnique(BuslaneUnique)
+  NextUniqueNotFresh(next~ : BuslaneUnique, maximum~ : BuslaneUnique)
+  AllocatorExhaustedBeforeMaximum(maximum_unique~ : BuslaneUnique?)
 } derive(Debug, Eq)
 
 ///|
@@ -393,7 +392,7 @@ pub fn MetadataRegistry::identity_errors(
   let mut maximum_unique : BuslaneUnique? = None
   let inspect_name = fn(name : BuslaneName) {
     if !name.unique.is_valid() {
-      errors.push(InvalidUnique(name.unique))
+      errors.push(NegativeUnique(name.unique))
     }
     if !seen.add_and_check(name.unique) {
       errors.push(DuplicateUnique(name.unique))
@@ -426,18 +425,19 @@ pub fn MetadataRegistry::identity_errors(
   for info in self.operations {
     inspect_name(info.name)
   }
-  let allocator_is_invalid = match self.name_allocator {
+  match self.name_allocator {
     Fresh(next) =>
-      maximum_unique.map(maximum => next.compare(maximum) <= 0).unwrap_or(false)
+      if !next.is_valid() {
+        errors.push(NegativeNextUnique(next))
+      } else if maximum_unique is Some(maximum) && next.compare(maximum) <= 0 {
+        errors.push(NextUniqueNotFresh(next~, maximum~))
+      }
     Exhausted =>
-      maximum_unique
-      .map(maximum => maximum.successor() is Some(_))
-      .unwrap_or(true)
-  }
-  if allocator_is_invalid {
-    errors.push(
-      InvalidNameAllocator(allocator=self.name_allocator, maximum_unique~),
-    )
+      if maximum_unique
+        .map(maximum => maximum.successor() is Some(_))
+        .unwrap_or(true) {
+        errors.push(AllocatorExhaustedBeforeMaximum(maximum_unique~))
+      }
   }
   errors
 }

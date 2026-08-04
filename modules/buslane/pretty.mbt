@@ -749,25 +749,27 @@ pub impl @prettyprinter.Pretty for MetadataIdentityError with fn pretty(
   error : MetadataIdentityError,
 ) {
   match error {
-    InvalidUnique(unique) =>
-      text("invalid_unique") + space + text(unique.value.to_string())
+    NegativeUnique(unique) =>
+      text("negative_unique") + space + text(unique.value.to_string())
     DuplicateUnique(unique) =>
       text("duplicate_metadata_unique unique#\{unique.value}")
-    InvalidNameAllocator(allocator~, maximum_unique~) => {
-      let allocator_text = match allocator {
-        Fresh(next) => "fresh \{next.value}"
-        Exhausted => "exhausted"
-      }
+    NegativeNextUnique(next) =>
+      text("negative_next_unique") + space + text(next.value.to_string())
+    NextUniqueNotFresh(next~, maximum~) =>
+      text("next_unique_not_fresh") +
+      space +
+      braced_block([
+        text("next_unique \{next.value}"),
+        text("maximum_unique \{maximum.value}"),
+      ])
+    AllocatorExhaustedBeforeMaximum(maximum_unique~) => {
       let maximum_text = match maximum_unique {
         Some(maximum) => maximum.value.to_string()
         None => "none"
       }
-      text("invalid_name_allocator") +
+      text("allocator_exhausted_before_maximum") +
       space +
-      braced_block([
-        text("allocator " + allocator_text),
-        text("maximum_unique " + maximum_text),
-      ])
+      braced_block([text("maximum_unique " + maximum_text)])
     }
   }
 }

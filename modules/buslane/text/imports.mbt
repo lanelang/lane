@@ -140,23 +140,25 @@ fn make_metadata(
     | (_, _, _, _, _, Err(message)) => return Err(message)
   }
   match registry.identity_errors().get(0) {
-    Some(InvalidUnique(unique)) =>
+    Some(NegativeUnique(unique)) =>
       Err("invalid metadata name unique#\{unique.value}")
     Some(DuplicateUnique(unique)) =>
       Err("duplicate metadata name unique#\{unique.value}")
-    Some(InvalidNameAllocator(allocator~, maximum_unique~)) =>
-      match allocator {
-        Fresh(next) => {
-          guard maximum_unique is Some(maximum) else {
-            return Err("next_unique#\{next.value} is invalid")
-          }
-          Err(
-            "next_unique#\{next.value} must be greater than used unique#\{maximum.value}",
-          )
-        }
-        Exhausted =>
-          Err("next_unique#exhausted requires used unique#2147483647")
+    Some(NegativeNextUnique(next)) =>
+      Err("next_unique#\{next.value} must be non-negative")
+    Some(NextUniqueNotFresh(next~, maximum~)) =>
+      Err(
+        "next_unique#\{next.value} must be greater than used unique#\{maximum.value}",
+      )
+    Some(AllocatorExhaustedBeforeMaximum(maximum_unique~)) => {
+      let maximum = match maximum_unique {
+        Some(unique) => "unique#\{unique.value}"
+        None => "no allocated unique"
       }
+      Err(
+        "next_unique#exhausted requires used unique#2147483647; found \{maximum}",
+      )
+    }
     None => Ok(registry)
   }
 }

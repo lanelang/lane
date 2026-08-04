@@ -247,9 +247,11 @@ pub(all) enum MetadataAnchor {
 pub impl @prettyprinter.Pretty for MetadataAnchor
 
 pub(all) enum MetadataIdentityError {
-  InvalidUnique(BuslaneUnique)
+  NegativeUnique(BuslaneUnique)
   DuplicateUnique(BuslaneUnique)
-  InvalidNameAllocator(allocator~ : MetadataNameAllocator, maximum_unique~ : BuslaneUnique?)
+  NegativeNextUnique(BuslaneUnique)
+  NextUniqueNotFresh(next~ : BuslaneUnique, maximum~ : BuslaneUnique)
+  AllocatorExhaustedBeforeMaximum(maximum_unique~ : BuslaneUnique?)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for MetadataIdentityError
 

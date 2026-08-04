@@ -145,15 +145,8 @@ test "verify buslane rejects invalid metadata allocator states" {
     ],
     content=(
       #|[
-      #|  [InvalidMetadataIdentity(InvalidNameAllocator(allocator=Exhausted, maximum_unique=None))],
-      #|  [
-      #|    InvalidMetadataIdentity(
-      #|      InvalidNameAllocator(
-      #|        allocator=Fresh({ value: 0 }),
-      #|        maximum_unique=Some({ value: 0 }),
-      #|      ),
-      #|    ),
-      #|  ],
+      #|  [InvalidMetadataIdentity(AllocatorExhaustedBeforeMaximum(maximum_unique=None))],
+      #|  [InvalidMetadataIdentity(NextUniqueNotFresh(next={ value: 0 }, maximum={ value: 0 }))],
       #|]
     ),
   )
