@@ -17,7 +17,15 @@ test "extended stage verification retains the producer boundary" {
           #|    diagnostics: [
           #|      {
           #|        kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(I64)),
-          #|        provenance: [TopTerm({ index: 0 })],
+          #|        provenance: [
+          #|          TopTerm(
+          #|            {
+          #|              id: { index: 0 },
+          #|              name: Some({ name_space: ValueName, occurrence: "value", unique: { value: 0 } }),
+          #|            },
+          #|          ),
+          #|          Expression(Literal),
+          #|        ],
           #|      },
           #|    ],
           #|  },

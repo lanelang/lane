@@ -58,7 +58,7 @@ test "verify buslane rejects invalid Char literals" {
     }
     assert_eq(
       @prettyprinter.render(verify_program(program), width=100),
-      "verify_result {\n  invalid_char_literal \{value} at term value#0 / literal\n}",
+      "verify_result {\n  invalid_char_literal \{value} at term \"target\"#0 (value#0) / literal\n}",
     )
   }
 }
@@ -441,16 +441,16 @@ test "verify buslane reports malformed effect terms" {
     @prettyprinter.render(verify_program(program), width=100),
     content=(
       #|verify_result {
-      #|  unknown_effect effect#9 at value value#0
+      #|  unknown_effect effect#9 at value "value"#1 (value#0)
       #|  kind_mismatch {
       #|    expected Effect
       #|    actual Type
-      #|  } at value value#0
-      #|  unknown_operation operation#8 at term value#1 / perform operation#8
+      #|  } at value "value"#1 (value#0)
+      #|  unknown_operation operation#8 at term "value"#2 (value#1) / perform operation#8
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#1 / perform operation#8
+      #|  } at term "value"#2 (value#1) / perform operation#8
       #|}
     ),
   )
@@ -489,7 +489,7 @@ test "verify buslane reports unhandled perform effect" {
       #|  effect_mismatch {
       #|    expected {}
       #|    actual effect#0
-      #|  } at term value#0
+      #|  } at term "value"#2 (value#0)
       #|}
     ),
   )
@@ -692,15 +692,15 @@ test "verify buslane reports invalid perform payload and resume types" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  } at term value#0 / handle / handled body / perform operation#0 / perform payload 0 / literal
+      #|  } at term "value"#2 (value#0) / handle / handled body / perform operation#0 / perform payload 0 / literal
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  } at term value#0 / handle / handler 0 / operation alternative 0
+      #|  } at term "value"#2 (value#0) / handle / handler 0 / operation alternative 0
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  } at term value#0 / handle / handler 0 / operation alternative 0
+      #|  } at term "value"#2 (value#0) / handle / handler 0 / operation alternative 0
       #|}
     ),
   )
@@ -739,11 +739,11 @@ test "verify buslane reports perform payload arity mismatch" {
       #|  arity_mismatch {
       #|    expected 1
       #|    actual 0
-      #|  } at term value#0 / perform operation#0
+      #|  } at term "value"#2 (value#0) / perform operation#0
       #|  effect_mismatch {
       #|    expected {}
       #|    actual effect#0
-      #|  } at term value#0
+      #|  } at term "value"#2 (value#0)
       #|}
     ),
   )
@@ -803,19 +803,19 @@ test "verify buslane reports operation ownership and resume arity errors" {
       #|  effect_mismatch {
       #|    expected effect#1
       #|    actual {}
-      #|  } at term value#0 / handle
+      #|  } at term "value"#3 (value#0) / handle
       #|  effect_mismatch {
       #|    expected effect#1
       #|    actual effect#0
-      #|  } at term value#0 / handle / handler 0 / operation alternative 0
+      #|  } at term "value"#3 (value#0) / handle / handler 0 / operation alternative 0
       #|  arity_mismatch {
       #|    expected 1
       #|    actual 0
-      #|  } at term value#0 / handle / handler 0 / operation alternative 0
+      #|  } at term "value"#3 (value#0) / handle / handler 0 / operation alternative 0
       #|  arity_mismatch {
       #|    expected 1
       #|    actual 0
-      #|  } at term value#0 / handle / handler 0 / operation alternative 0
+      #|  } at term "value"#3 (value#0) / handle / handler 0 / operation alternative 0
       #|}
     ),
   )
@@ -1049,22 +1049,54 @@ test "verify buslane skips kind-invalid substitution bindings" {
       #|  diagnostics: [
       #|    {
       #|      kind: ExpectedTypeArgument(Empty),
-      #|      provenance: [TopTerm({ index: 2 }), Expression(TypeApply)],
+      #|      provenance: [
+      #|        TopTerm(
+      #|          {
+      #|            id: { index: 2 },
+      #|            name: Some({ name_space: ValueName, occurrence: "value", unique: { value: 4 } }),
+      #|          },
+      #|        ),
+      #|        Expression(TypeApply),
+      #|      ],
       #|    },
       #|    {
       #|      kind: TypeMismatch(expected=Primitive(I64), actual=Parameter({ index: 0 })),
-      #|      provenance: [TopTerm({ index: 2 }), Expression(TypeApply)],
+      #|      provenance: [
+      #|        TopTerm(
+      #|          {
+      #|            id: { index: 2 },
+      #|            name: Some({ name_space: ValueName, occurrence: "value", unique: { value: 4 } }),
+      #|          },
+      #|        ),
+      #|        Expression(TypeApply),
+      #|      ],
       #|    },
       #|    {
       #|      kind: ExpectedEffectArgument(Primitive(I64)),
-      #|      provenance: [TopTerm({ index: 3 }), Expression(TypeApply)],
+      #|      provenance: [
+      #|        TopTerm(
+      #|          {
+      #|            id: { index: 3 },
+      #|            name: Some({ name_space: ValueName, occurrence: "value", unique: { value: 5 } }),
+      #|          },
+      #|        ),
+      #|        Expression(TypeApply),
+      #|      ],
       #|    },
       #|    {
       #|      kind: TypeMismatch(
       #|        expected=Function([], Primitive(I64), Empty),
       #|        actual=Function([], Primitive(I64), Parameter({ index: 1 })),
       #|      ),
-      #|      provenance: [TopTerm({ index: 3 }), Expression(TypeApply)],
+      #|      provenance: [
+      #|        TopTerm(
+      #|          {
+      #|            id: { index: 3 },
+      #|            name: Some({ name_space: ValueName, occurrence: "value", unique: { value: 5 } }),
+      #|          },
+      #|        ),
+      #|        Expression(TypeApply),
+      #|      ],
       #|    },
       #|  ],
       #|}
@@ -1095,11 +1127,11 @@ test "diagnostic provenance distinguishes sibling call arguments" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#1 / call / argument 0 / literal
+      #|  } at term "result"#1 (value#1) / call / argument 0 / literal
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#1 / call / argument 1 / literal
+      #|  } at term "result"#1 (value#1) / call / argument 1 / literal
       #|}
     ),
   )
@@ -1124,7 +1156,7 @@ test "verify buslane rejects effect widening through ordinary value binding" {
       #|  type_mismatch {
       #|    expected () -> I64 ! effect#0
       #|    actual () -> I64
-      #|  } at term value#1 / ref value#0
+      #|  } at term "wide"#2 (value#1) / ref value#0
       #|}
     ),
   )
@@ -1210,12 +1242,12 @@ test "verify buslane reports structural errors" {
     @prettyprinter.render(verify_program(program), width=100),
     content=(
       #|verify_result {
-      #|  not_function I64 at term value#0 / call
+      #|  not_function I64 at term "value"#0 (value#0) / call
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#0 / call
-      #|  non_exhaustive_match at term value#0 / match
+      #|  } at term "value"#0 (value#0) / call
+      #|  non_exhaustive_match at term "value"#0 (value#0) / match
       #|}
     ),
   )
@@ -1931,11 +1963,11 @@ test "a diagnostic carries the path the verifier took to reach it" {
     @prettyprinter.render(verify_program(program), width=100),
     content=(
       #|verify_result {
-      #|  unknown_value value#9999 at term value#1 / fn / function body / let value#0 / initializer / ref value#9999
+      #|  unknown_value value#9999 at term "main"#1 (value#1) / fn / function body / let value#0 / initializer / ref value#9999
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#1 / fn / function body / let value#0 / initializer / ref value#9999
+      #|  } at term "main"#1 (value#1) / fn / function body / let value#0 / initializer / ref value#9999
       #|}
     ),
   )
@@ -1953,7 +1985,26 @@ test "metadata diagnostics name the entity under check" {
     @prettyprinter.render(verify_program({ metadata, terms: [] }), width=100),
     content=(
       #|verify_result {
-      #|  unknown_type_parameter tparam#9999 at data_constructor datacon#0
+      #|  unknown_type_parameter tparam#9999 at data_constructor "Box"#1 (datacon#0)
+      #|}
+    ),
+  )
+}
+
+///|
+test "a top-term anchor without metadata retains its id" {
+  let missing : ValueId = { index: 9999 }
+  inspect(
+    @prettyprinter.render(
+      verify_program({
+        metadata: MetadataRegistry(),
+        terms: [External(missing)],
+      }),
+      width=100,
+    ),
+    content=(
+      #|verify_result {
+      #|  unknown_value value#9999 at term value#9999
       #|}
     ),
   )

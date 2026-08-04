@@ -14,9 +14,16 @@ pub(all) struct VerifyDiagnostic {
 /// One step of a diagnostic's path, mirroring the verifier's own phases.
 pub(all) enum VerifyFrame {
   Metadata(MetadataAnchor)
-  TopTerm(ValueId)
+  TopTerm(ValueAnchor)
   Child(ExprChild)
   Expression(ExprLabel)
+} derive(Debug, Eq)
+
+///|
+/// A top-level value anchor, retaining a display name when metadata exists.
+pub(all) struct ValueAnchor {
+  id : ValueId
+  name : BuslaneName?
 } derive(Debug, Eq)
 
 ///|
@@ -46,11 +53,11 @@ pub(all) enum ExprChild {
 ///|
 /// The metadata entity whose declaration is being verified.
 pub(all) enum MetadataAnchor {
-  Type(TypeId)
-  DataConstructor(DataConId)
-  Effect(EffectId)
-  Operation(OperationId)
-  Value(ValueId)
+  Type(TypeId, BuslaneName)
+  DataConstructor(DataConId, BuslaneName)
+  Effect(EffectId, BuslaneName)
+  Operation(OperationId, BuslaneName)
+  Value(ValueId, BuslaneName)
 } derive(Debug, Eq)
 
 ///|
@@ -432,7 +439,7 @@ fn VerifyContext::canonicalize_effect(
 ///|
 fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
   for index, type_info in self.program.metadata.types {
-    self.within(Metadata(Type({ index, })), () => {
+    self.within(Metadata(Type({ index, }, type_info.name)), () => {
       for parameter in type_info.parameters {
         self.require_type_parameter(parameter)
       }
@@ -443,18 +450,18 @@ fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
   }
   for index, value in self.program.metadata.values {
     if value.kind.has_closed_metadata_type() {
-      self.within(Metadata(Value({ index, })), () => {
+      self.within(Metadata(Value({ index, }, value.name)), () => {
         self.verify_value_type(value.type_, { parameters: [] })
       })
     }
   }
   for index, data_constructor in self.program.metadata.data_constructors {
-    self.within(Metadata(DataConstructor({ index, })), () => {
+    self.within(Metadata(DataConstructor({ index, }, data_constructor.name)), () => {
       self.verify_data_constructor_metadata(data_constructor)
     })
   }
   for index, effect in self.program.metadata.effects {
-    self.within(Metadata(Effect({ index, })), () => {
+    self.within(Metadata(Effect({ index, }, effect.name)), () => {
       for parameter in effect.parameters {
         self.require_type_parameter(parameter)
       }
@@ -464,7 +471,7 @@ fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
     })
   }
   for index, operation in self.program.metadata.operations {
-    self.within(Metadata(Operation({ index, })), () => {
+    self.within(Metadata(Operation({ index, }, operation.name)), () => {
       self.verify_operation_metadata(operation)
     })
   }
@@ -583,9 +590,12 @@ fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
     }
     let scope = ValueScope::{ values: bound.copy(), deferred: deferred.copy() }
     match term {
-      External(id) => self.within(TopTerm(id), () => self.verify_external(id))
+      External(id) =>
+        self.within(TopTerm(self.value_anchor(id)), () => {
+          self.verify_external(id)
+        })
       Let(id, initializer) =>
-        self.within(TopTerm(id), () => {
+        self.within(TopTerm(self.value_anchor(id)), () => {
           for failure in initialization_failures {
             if failure.0 == id {
               self.report(UnknownValue(failure.1))
@@ -600,7 +610,7 @@ fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
           scope.values.push(id)
         }
         for binding in bindings {
-          self.within(TopTerm(binding.id), () => {
+          self.within(TopTerm(self.value_anchor(binding.id)), () => {
             self.verify_top_letrec_binding(binding, scope)
           })
         }
@@ -609,6 +619,20 @@ fn VerifyContext::verify_terms(self : VerifyContext) -> Unit {
     for id in introduced {
       bound.push(id)
     }
+  }
+}
+
+///|
+fn VerifyContext::value_anchor(
+  self : VerifyContext,
+  id : ValueId,
+) -> ValueAnchor {
+  {
+    id,
+    name: match self.program.metadata.value_info(id) {
+      Some(info) => Some(info.name)
+      None => None
+    },
   }
 }
 

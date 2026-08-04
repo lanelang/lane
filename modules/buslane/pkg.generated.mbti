@@ -233,11 +233,11 @@ pub(all) struct MatchExpr {
 pub impl @prettyprinter.Pretty for MatchExpr
 
 pub(all) enum MetadataAnchor {
-  Type(TypeId)
-  DataConstructor(DataConId)
-  Effect(EffectId)
-  Operation(OperationId)
-  Value(ValueId)
+  Type(TypeId, BuslaneName)
+  DataConstructor(DataConId, BuslaneName)
+  Effect(EffectId, BuslaneName)
+  Operation(OperationId, BuslaneName)
+  Value(ValueId, BuslaneName)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for MetadataAnchor
 
@@ -406,6 +406,12 @@ pub struct TypeSubstitutionEntry {
   replacement : GenericArgument
 } derive(Eq, @debug.Debug)
 
+pub(all) struct ValueAnchor {
+  id : ValueId
+  name : BuslaneName?
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for ValueAnchor
+
 pub(all) struct ValueId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
@@ -467,7 +473,7 @@ pub impl @prettyprinter.Pretty for VerifyDiagnosticKind
 
 pub(all) enum VerifyFrame {
   Metadata(MetadataAnchor)
-  TopTerm(ValueId)
+  TopTerm(ValueAnchor)
   Child(ExprChild)
   Expression(ExprLabel)
 } derive(Eq, @debug.Debug)

@@ -273,7 +273,15 @@ test "whole-program elaboration rejects unverified effect specialization before 
       #|      diagnostics: [
       #|        {
       #|          kind: InvalidCharLiteral(-1),
-      #|          provenance: [TopTerm({ index: 0 }), Expression(Literal)],
+      #|          provenance: [
+      #|            TopTerm(
+      #|              {
+      #|                id: { index: 0 },
+      #|                name: Some({ name_space: ValueName, occurrence: "invalid", unique: { value: 0 } }),
+      #|              },
+      #|            ),
+      #|            Expression(Literal),
+      #|          ],
       #|        },
       #|      ],
       #|    },

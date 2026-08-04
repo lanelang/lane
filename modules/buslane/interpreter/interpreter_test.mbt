@@ -598,7 +598,7 @@ test "evaluation rejects invalid program" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  } at term value#0
+      #|  } at term "value"#0 (value#0) / literal
       #|}
     ),
   )
@@ -617,7 +617,7 @@ test "evaluation rejects invalid program" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  } at term value#0
+      #|  } at term "value"#0 (value#0) / literal
       #|}
     ),
   )
@@ -707,7 +707,7 @@ test "an eager initializer checks transitive callable dependencies" {
     @prettyprinter.render(@buslane.verify_program(program), width=100),
     content=(
       #|verify_result {
-      #|  unknown_value value#3 at term value#2
+      #|  unknown_value value#3 at term "eager"#2 (value#2)
       #|}
     ),
   )
@@ -718,7 +718,7 @@ test "an eager initializer checks transitive callable dependencies" {
         @prettyprinter.render(error, width=100),
         content=(
           #|invalid_program {
-          #|  unknown_value value#3 at term value#2
+          #|  unknown_value value#3 at term "eager"#2 (value#2)
           #|}
         ),
       )

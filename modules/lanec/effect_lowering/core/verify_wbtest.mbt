@@ -48,9 +48,17 @@ test "extended verifier checks Invoke payload types" {
       #|      {
       #|        kind: TypeMismatch(expected=Primitive(I64), actual=Primitive(Unit)),
       #|        provenance: [
-      #|          TopTerm({ index: 0 }),
+      #|          TopTerm(
+      #|            {
+      #|              id: { index: 0 },
+      #|              name: Some({ name_space: ValueName, occurrence: "main", unique: { value: 2 } }),
+      #|            },
+      #|          ),
       #|          Expression(Function),
+      #|          Child(FunctionBody),
       #|          Expression(Perform({ index: 0 })),
+      #|          Child(PerformPayload(0)),
+      #|          Expression(Literal),
       #|        ],
       #|      },
       #|    ],
@@ -87,7 +95,19 @@ test "extended verifier checks Bind computation and continuation alignment" {
       #|    diagnostics: [
       #|      {
       #|        kind: TypeMismatch(expected=Primitive(Unit), actual=Primitive(I64)),
-      #|        provenance: [TopTerm({ index: 1 }), Expression(Function), Expression(Call)],
+      #|        provenance: [
+      #|          TopTerm(
+      #|            {
+      #|              id: { index: 1 },
+      #|              name: Some({ name_space: ValueName, occurrence: "main", unique: { value: 1 } }),
+      #|            },
+      #|          ),
+      #|          Expression(Function),
+      #|          Child(FunctionBody),
+      #|          Expression(Call),
+      #|          Child(CallArgument(0)),
+      #|          Expression(Literal),
+      #|        ],
       #|      },
       #|    ],
       #|  },
@@ -128,7 +148,17 @@ test "extended verifier checks Install final-clause input" {
       #|    diagnostics: [
       #|      {
       #|        kind: TypeMismatch(expected=Primitive(I64), actual=Primitive(Unit)),
-      #|        provenance: [TopTerm({ index: 1 }), Expression(Function), Expression(Handle)],
+      #|        provenance: [
+      #|          TopTerm(
+      #|            {
+      #|              id: { index: 1 },
+      #|              name: Some({ name_space: ValueName, occurrence: "main", unique: { value: 1 } }),
+      #|            },
+      #|          ),
+      #|          Expression(Function),
+      #|          Child(FunctionBody),
+      #|          Expression(Handle),
+      #|        ],
       #|      },
       #|    ],
       #|  },
@@ -182,7 +212,18 @@ test "extended verifier checks match alternative type binders" {
       #|    diagnostics: [
       #|      {
       #|        kind: KindMismatch(expected=Type, actual=Effect),
-      #|        provenance: [TopTerm({ index: 1 }), Expression(Function), Expression(Match)],
+      #|        provenance: [
+      #|          TopTerm(
+      #|            {
+      #|              id: { index: 1 },
+      #|              name: Some({ name_space: ValueName, occurrence: "main", unique: { value: 5 } }),
+      #|            },
+      #|          ),
+      #|          Expression(Function),
+      #|          Child(FunctionBody),
+      #|          Expression(Match),
+      #|          Child(MatchAlternative(0)),
+      #|        ],
       #|      },
       #|    ],
       #|  },
@@ -230,42 +271,76 @@ test "extended verifier checks OpenContext effect scope and inclusion" {
       #|      {
       #|        kind: UnknownTypeParameter({ index: 1 }),
       #|        provenance: [
-      #|          TopTerm({ index: 0 }),
+      #|          TopTerm(
+      #|            {
+      #|              id: { index: 0 },
+      #|              name: Some({ name_space: ValueName, occurrence: "main", unique: { value: 2 } }),
+      #|            },
+      #|          ),
       #|          Expression(TypeLambda),
+      #|          Child(TypeLambdaBody),
       #|          Expression(Function),
+      #|          Child(FunctionBody),
       #|          Expression(Let({ index: 4 })),
+      #|          Child(LetBody),
       #|          Expression(Let({ index: 2 })),
       #|        ],
       #|      },
       #|      {
       #|        kind: UnknownTypeParameter({ index: 1 }),
       #|        provenance: [
-      #|          TopTerm({ index: 0 }),
+      #|          TopTerm(
+      #|            {
+      #|              id: { index: 0 },
+      #|              name: Some({ name_space: ValueName, occurrence: "main", unique: { value: 2 } }),
+      #|            },
+      #|          ),
       #|          Expression(TypeLambda),
+      #|          Child(TypeLambdaBody),
       #|          Expression(Function),
+      #|          Child(FunctionBody),
       #|          Expression(Let({ index: 4 })),
+      #|          Child(LetBody),
       #|          Expression(Let({ index: 2 })),
       #|        ],
       #|      },
       #|      {
       #|        kind: UnknownTypeParameter({ index: 1 }),
       #|        provenance: [
-      #|          TopTerm({ index: 0 }),
+      #|          TopTerm(
+      #|            {
+      #|              id: { index: 0 },
+      #|              name: Some({ name_space: ValueName, occurrence: "main", unique: { value: 2 } }),
+      #|            },
+      #|          ),
       #|          Expression(TypeLambda),
+      #|          Child(TypeLambdaBody),
       #|          Expression(Function),
+      #|          Child(FunctionBody),
       #|          Expression(Let({ index: 4 })),
+      #|          Child(LetBody),
       #|          Expression(Let({ index: 2 })),
+      #|          Child(LetInitializer),
       #|          Expression(Function),
       #|        ],
       #|      },
       #|      {
       #|        kind: UnknownTypeParameter({ index: 1 }),
       #|        provenance: [
-      #|          TopTerm({ index: 0 }),
+      #|          TopTerm(
+      #|            {
+      #|              id: { index: 0 },
+      #|              name: Some({ name_space: ValueName, occurrence: "main", unique: { value: 2 } }),
+      #|            },
+      #|          ),
       #|          Expression(TypeLambda),
+      #|          Child(TypeLambdaBody),
       #|          Expression(Function),
+      #|          Child(FunctionBody),
       #|          Expression(Let({ index: 4 })),
+      #|          Child(LetBody),
       #|          Expression(Let({ index: 2 })),
+      #|          Child(LetInitializer),
       #|          Expression(Function),
       #|        ],
       #|      },

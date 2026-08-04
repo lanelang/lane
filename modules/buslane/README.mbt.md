@@ -262,7 +262,7 @@ test "inspect verifier diagnostics" {
       #|  type_mismatch {
       #|    expected Bool
       #|    actual I64
-      #|  } at term value#0 / literal
+      #|  } at term "answer"#0 (value#0) / literal
       #|}
     ),
   )

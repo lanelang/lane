@@ -577,9 +577,19 @@ pub impl @prettyprinter.Pretty for VerifyFrame with fn pretty(
 ) {
   match frame {
     Metadata(anchor) => anchor.pretty()
-    TopTerm(id) => text("term") + space + id.pretty()
+    TopTerm(anchor) => text("term") + space + anchor.pretty()
     Child(child) => child.pretty()
     Expression(label) => label.pretty()
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for ValueAnchor with fn pretty(
+  anchor : ValueAnchor,
+) {
+  match anchor.name {
+    Some(name) => name.pretty() + space + parenthesized(anchor.id.pretty())
+    None => anchor.id.pretty()
   }
 }
 
@@ -615,12 +625,22 @@ pub impl @prettyprinter.Pretty for MetadataAnchor with fn pretty(
   anchor : MetadataAnchor,
 ) {
   match anchor {
-    Type(id) => text("type") + space + id.pretty()
-    DataConstructor(id) => text("data_constructor") + space + id.pretty()
-    Effect(id) => text("effect") + space + id.pretty()
-    Operation(id) => text("operation") + space + id.pretty()
-    Value(id) => text("value") + space + id.pretty()
+    Type(id, name) => named_metadata_anchor("type", id.pretty(), name)
+    DataConstructor(id, name) =>
+      named_metadata_anchor("data_constructor", id.pretty(), name)
+    Effect(id, name) => named_metadata_anchor("effect", id.pretty(), name)
+    Operation(id, name) => named_metadata_anchor("operation", id.pretty(), name)
+    Value(id, name) => named_metadata_anchor("value", id.pretty(), name)
   }
+}
+
+///|
+fn named_metadata_anchor(
+  kind : String,
+  id : Document,
+  name : BuslaneName,
+) -> Document {
+  text(kind) + space + name.pretty() + space + parenthesized(id)
 }
 
 ///|
