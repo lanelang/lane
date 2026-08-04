@@ -337,11 +337,10 @@ fn VerifyContext::check_child(
 }
 
 ///|
-fn VerifyContext::report_normalization_failure(
+fn VerifyContext::report_once_at_current_provenance(
   self : VerifyContext,
-  error : TypeNormalizationError,
+  kind : VerifyDiagnosticKind,
 ) -> Unit {
-  let kind = VerifyDiagnosticKind::TypeNormalizationFailure(error)
   if !self.diagnostics.any(diagnostic => {
       diagnostic.kind == kind && diagnostic.provenance == self.frames
     }) {
@@ -357,7 +356,7 @@ fn[T] VerifyContext::recover_normalization_failure(
 ) -> T {
   compute() catch {
     error => {
-      self.report_normalization_failure(error)
+      self.report_once_at_current_provenance(TypeNormalizationFailure(error))
       fallback
     }
   }
@@ -379,10 +378,7 @@ fn VerifyContext::substituted(
 ) -> Type {
   type_.try_substitute(substitution) catch {
     error => {
-      let kind = VerifyDiagnosticKind::TypeSubstitutionFailure(error)
-      if !self.diagnostics.any(diagnostic => diagnostic.kind == kind) {
-        self.report(kind)
-      }
+      self.report_once_at_current_provenance(TypeSubstitutionFailure(error))
       type_
     }
   }

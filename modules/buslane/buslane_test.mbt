@@ -1538,6 +1538,142 @@ test "substitution keeps a replacement's own binder without renaming" {
 }
 
 ///|
+fn capturing_construct_program(
+  top_term_count : Int,
+  payload_count : Int,
+) -> Program {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let element = metadata.define_type_parameter("T", Type)
+  let y = metadata.define_type_parameter("Y", Type)
+  let box = metadata.define_type("Box", [element])
+  let payload_type : Type = Forall(
+    [y],
+    Function([Parameter(element), Parameter(y)], Primitive(Unit), Empty),
+  )
+  let payload_types = []
+  for _ in 0..<payload_count {
+    payload_types.push(payload_type)
+  }
+  let data_constructor = metadata.define_data_constructor(
+    "box",
+    box,
+    [],
+    payload_types,
+  )
+  let payload = metadata.define_value(
+    "payload",
+    External,
+    Forall([element, y], payload_type),
+  )
+  let result_type : Type = Forall(
+    [y],
+    Apply(Constructor(box), [TypeArgument(Parameter(y))]),
+  )
+  let terms : Array[TopTerm] = [External(payload)]
+  for index in 0..<top_term_count {
+    let result = metadata.define_value("result\{index}", Value, result_type)
+    let payloads : Array[Expr] = []
+    for _ in 0..<payload_count {
+      payloads.push(Ref(payload))
+    }
+    terms.push(
+      Let(
+        result,
+        TypeLambda(
+          [y],
+          Construct({
+            data_constructor,
+            type_arguments: [TypeArgument(Parameter(y))],
+            hidden_witnesses: [],
+            payloads,
+          }),
+        ),
+      ),
+    )
+  }
+  { metadata, terms }
+}
+
+///|
+fn substitution_failure_diagnostics(
+  program : Program,
+) -> Array[VerifyDiagnostic] {
+  verify_program(program)
+  .diagnostics()
+  .filter(diagnostic => diagnostic.kind is TypeSubstitutionFailure(_))
+}
+
+///|
+test "substitution failures preserve distinct provenance" {
+  let failures = substitution_failure_diagnostics(
+    capturing_construct_program(2, 1),
+  )
+  debug_inspect(
+    failures,
+    content=(
+      #|[
+      #|  {
+      #|    kind: TypeSubstitutionFailure(CapturedTypeParameter(parameter={ index: 0 }, binder={ index: 1 })),
+      #|    provenance: [
+      #|      TopTerm(
+      #|        {
+      #|          id: { index: 1 },
+      #|          name: Some({ name_space: ValueName, occurrence: "result0", unique: { value: 5 } }),
+      #|        },
+      #|      ),
+      #|      Expression(TypeLambda),
+      #|      Child(TypeLambdaBody),
+      #|      Expression(Construct({ index: 0 })),
+      #|    ],
+      #|  },
+      #|  {
+      #|    kind: TypeSubstitutionFailure(CapturedTypeParameter(parameter={ index: 0 }, binder={ index: 1 })),
+      #|    provenance: [
+      #|      TopTerm(
+      #|        {
+      #|          id: { index: 2 },
+      #|          name: Some({ name_space: ValueName, occurrence: "result1", unique: { value: 6 } }),
+      #|        },
+      #|      ),
+      #|      Expression(TypeLambda),
+      #|      Child(TypeLambdaBody),
+      #|      Expression(Construct({ index: 0 })),
+      #|    ],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "substitution failures deduplicate at one provenance" {
+  let failures = substitution_failure_diagnostics(
+    capturing_construct_program(1, 2),
+  )
+  debug_inspect(
+    failures,
+    content=(
+      #|[
+      #|  {
+      #|    kind: TypeSubstitutionFailure(CapturedTypeParameter(parameter={ index: 0 }, binder={ index: 1 })),
+      #|    provenance: [
+      #|      TopTerm(
+      #|        {
+      #|          id: { index: 1 },
+      #|          name: Some({ name_space: ValueName, occurrence: "result0", unique: { value: 5 } }),
+      #|        },
+      #|      ),
+      #|      Expression(TypeLambda),
+      #|      Child(TypeLambdaBody),
+      #|      Expression(Construct({ index: 0 })),
+      #|    ],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "type application that would capture fails verification" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let x = metadata.define_type_parameter("X", Type)
