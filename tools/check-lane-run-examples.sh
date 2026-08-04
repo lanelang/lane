@@ -8,18 +8,26 @@ cd "$repo_root"
 # $LANE_HOME installation, so a run is reproducible against a recorded Basic
 # revision. Bump the submodule (and commit the new gitlink) to move the pin.
 if [ ! -e "$repo_root/basic/.git" ]; then
-  git -C "$repo_root" -c protocol.file.allow=always submodule update --init -- basic
+  echo "error: the pinned Basic fixture is not initialized" >&2
+  echo "run: git submodule update --init --checkout basic" >&2
+  exit 1
 fi
-fixture_rev="$(git -C "$repo_root/basic" rev-parse --short=12 HEAD)"
-pinned_rev="$(git -C "$repo_root" rev-parse --short=12 :basic)"
-fixture_note=""
+
+fixture_rev="$(git -C "$repo_root/basic" rev-parse HEAD)"
+pinned_rev="$(git -C "$repo_root" rev-parse :basic)"
 if [ "$fixture_rev" != "$pinned_rev" ]; then
-  fixture_note=" (pinned: $pinned_rev)"
+  echo "error: Basic is at ${fixture_rev:0:12}; the pinned revision is ${pinned_rev:0:12}" >&2
+  echo "run: git submodule update --init --checkout basic" >&2
+  exit 1
 fi
+
 if [ -n "$(git -C "$repo_root/basic" status --porcelain)" ]; then
-  fixture_note="$fixture_note (dirty)"
+  echo "error: the pinned Basic fixture has uncommitted changes" >&2
+  echo "save or discard those changes, then run: git submodule update --init --checkout basic" >&2
+  exit 1
 fi
-echo "basic fixture: $fixture_rev$fixture_note"
+
+echo "basic fixture: ${fixture_rev:0:12}"
 
 moon build --target native --release modules/lane >/dev/null
 lane_build="_build/native/release/build/Milky2018/lane/lane.exe"
