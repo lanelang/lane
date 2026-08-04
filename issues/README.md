@@ -348,6 +348,7 @@ graph TD
   ISS_316["ISS-316: Decide whether the examples gate should race the live Basic checkout"]
   ISS_317["ISS-317: Derive initialization order from dependencies at value granularity"]
   ISS_318["ISS-318: Match higher-kinded templates against what a bound parameter denotes"]
+  ISS_319["ISS-319: Reject a wrong parenthesis arity in the grammar, not in an action"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

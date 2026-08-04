@@ -489,6 +489,29 @@ test "buslane text disambiguates a latent effect on nested arrows" {
 }
 
 ///|
+/// The shared parenthesis has one reading per arity: a group of exactly one
+/// type is also a parenthesized type, and any other arity is a parameter list
+/// and so needs its arrow. The grammar states that, rather than an action
+/// checking it, because a semantic action has no way to report an error — it
+/// used to abort the process on either input below.
+test "buslane text rejects a parenthesized group that is not one type" {
+  assert_eq(parse_type_text("(I64)"), Ok(Primitive(I64)))
+  assert_eq(
+    parse_type_text("(I64, Bool)"),
+    Err("unexpected Buslane type token eof"),
+  )
+  assert_eq(parse_type_text("()"), Err("unexpected Buslane type token eof"))
+  assert_eq(
+    parse_type_text("(I64, Bool) -> Unit"),
+    Ok(Function([Primitive(I64), Primitive(Bool)], Primitive(Unit), Empty)),
+  )
+  assert_eq(
+    parse_type_text("() -> Unit"),
+    Ok(Function([], Primitive(Unit), Empty)),
+  )
+}
+
+///|
 test "buslane text roundtrips flavors, hidden witnesses, and handlers" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let element = metadata.define_type_parameter("T", Type)

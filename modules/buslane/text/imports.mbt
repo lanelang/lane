@@ -132,14 +132,3 @@ priv enum MetadataDeclaration {
   EffectInfoDecl(EffectId, EffectInfo)
   OperationInfoDecl(OperationId, OperationInfo)
 }
-
-///|
-/// A parenthesized type holds exactly one type; the shared production that
-/// also serves a function type's parameter list admits any count, so the
-/// arity is checked here.
-fn parenthesized_type(types : Array[Type]) -> Type {
-  guard types is [type_] else {
-    abort("a parenthesized Buslane type holds exactly one type")
-  }
-  type_
-}
