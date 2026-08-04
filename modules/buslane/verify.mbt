@@ -341,7 +341,9 @@ fn VerifyContext::report_normalization_failure(
   error : TypeNormalizationError,
 ) -> Unit {
   let kind = VerifyDiagnosticKind::TypeNormalizationFailure(error)
-  if !self.diagnostics.any(diagnostic => diagnostic.kind == kind) {
+  if !self.diagnostics.any(diagnostic => {
+      diagnostic.kind == kind && diagnostic.provenance == self.frames
+    }) {
     self.report(kind)
   }
 }

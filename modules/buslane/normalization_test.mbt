@@ -151,6 +151,10 @@ test "empty-effect query returns a runaway beta diagnostic" {
       #|        kind: TypeNormalizationFailure(BetaReductionLimitExceeded(limit=1024)),
       #|        provenance: [Expression(Call), Child(CallCallee), Expression(Ref({ index: 0 }))],
       #|      },
+      #|      {
+      #|        kind: TypeNormalizationFailure(BetaReductionLimitExceeded(limit=1024)),
+      #|        provenance: [Expression(Call)],
+      #|      },
       #|    ],
       #|  },
       #|)
@@ -175,4 +179,181 @@ test "program verifier diagnoses runaway type normalization" {
     TypeNormalizationFailure(BetaReductionLimitExceeded(limit=1024)),
     TypeMismatch(expected=type_, actual=Primitive(Unit)),
   ])
+}
+
+///|
+test "program verifier preserves normalization failures at distinct paths" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let parameter = metadata.define_type_parameter("T", Type)
+  let type_ = non_normalizing_type_application(parameter)
+  let first = metadata.define_value("first", Value, type_)
+  let second = metadata.define_value("second", Value, type_)
+  debug_inspect(
+    @buslane.verify_program({
+      metadata,
+      terms: [Let(first, Literal(Unit)), Let(second, Literal(Unit))],
+    }).diagnostics(),
+    content=(
+      #|[
+      #|  {
+      #|    kind: KindMismatch(expected=Function([], Type), actual=Type),
+      #|    provenance: [
+      #|      Metadata(
+      #|        Value(
+      #|          { index: 0 },
+      #|          { name_space: ValueName, occurrence: "first", unique: { value: 1 } },
+      #|        ),
+      #|      ),
+      #|    ],
+      #|  },
+      #|  {
+      #|    kind: KindMismatch(expected=Function([], Type), actual=Type),
+      #|    provenance: [
+      #|      Metadata(
+      #|        Value(
+      #|          { index: 0 },
+      #|          { name_space: ValueName, occurrence: "first", unique: { value: 1 } },
+      #|        ),
+      #|      ),
+      #|    ],
+      #|  },
+      #|  {
+      #|    kind: KindMismatch(expected=Type, actual=Function([Type], Type)),
+      #|    provenance: [
+      #|      Metadata(
+      #|        Value(
+      #|          { index: 0 },
+      #|          { name_space: ValueName, occurrence: "first", unique: { value: 1 } },
+      #|        ),
+      #|      ),
+      #|    ],
+      #|  },
+      #|  {
+      #|    kind: KindMismatch(expected=Function([], Type), actual=Type),
+      #|    provenance: [
+      #|      Metadata(
+      #|        Value(
+      #|          { index: 1 },
+      #|          { name_space: ValueName, occurrence: "second", unique: { value: 2 } },
+      #|        ),
+      #|      ),
+      #|    ],
+      #|  },
+      #|  {
+      #|    kind: KindMismatch(expected=Function([], Type), actual=Type),
+      #|    provenance: [
+      #|      Metadata(
+      #|        Value(
+      #|          { index: 1 },
+      #|          { name_space: ValueName, occurrence: "second", unique: { value: 2 } },
+      #|        ),
+      #|      ),
+      #|    ],
+      #|  },
+      #|  {
+      #|    kind: KindMismatch(expected=Type, actual=Function([Type], Type)),
+      #|    provenance: [
+      #|      Metadata(
+      #|        Value(
+      #|          { index: 1 },
+      #|          { name_space: ValueName, occurrence: "second", unique: { value: 2 } },
+      #|        ),
+      #|      ),
+      #|    ],
+      #|  },
+      #|  {
+      #|    kind: TypeNormalizationFailure(BetaReductionLimitExceeded(limit=1024)),
+      #|    provenance: [
+      #|      TopTerm(
+      #|        {
+      #|          id: { index: 0 },
+      #|          name: Some({ name_space: ValueName, occurrence: "first", unique: { value: 1 } }),
+      #|        },
+      #|      ),
+      #|      Expression(Literal),
+      #|    ],
+      #|  },
+      #|  {
+      #|    kind: TypeMismatch(
+      #|      expected=Apply(
+      #|        TypeLambda(
+      #|          [{ index: 0 }],
+      #|          Apply(
+      #|            Parameter({ index: 0 }),
+      #|            [TypeArgument(Parameter({ index: 0 }))],
+      #|          ),
+      #|        ),
+      #|        [
+      #|          TypeArgument(
+      #|            TypeLambda(
+      #|              [{ index: 0 }],
+      #|              Apply(
+      #|                Parameter({ index: 0 }),
+      #|                [TypeArgument(Parameter({ index: 0 }))],
+      #|              ),
+      #|            ),
+      #|          ),
+      #|        ],
+      #|      ),
+      #|      actual=Primitive(Unit),
+      #|    ),
+      #|    provenance: [
+      #|      TopTerm(
+      #|        {
+      #|          id: { index: 0 },
+      #|          name: Some({ name_space: ValueName, occurrence: "first", unique: { value: 1 } }),
+      #|        },
+      #|      ),
+      #|      Expression(Literal),
+      #|    ],
+      #|  },
+      #|  {
+      #|    kind: TypeNormalizationFailure(BetaReductionLimitExceeded(limit=1024)),
+      #|    provenance: [
+      #|      TopTerm(
+      #|        {
+      #|          id: { index: 1 },
+      #|          name: Some({ name_space: ValueName, occurrence: "second", unique: { value: 2 } }),
+      #|        },
+      #|      ),
+      #|      Expression(Literal),
+      #|    ],
+      #|  },
+      #|  {
+      #|    kind: TypeMismatch(
+      #|      expected=Apply(
+      #|        TypeLambda(
+      #|          [{ index: 0 }],
+      #|          Apply(
+      #|            Parameter({ index: 0 }),
+      #|            [TypeArgument(Parameter({ index: 0 }))],
+      #|          ),
+      #|        ),
+      #|        [
+      #|          TypeArgument(
+      #|            TypeLambda(
+      #|              [{ index: 0 }],
+      #|              Apply(
+      #|                Parameter({ index: 0 }),
+      #|                [TypeArgument(Parameter({ index: 0 }))],
+      #|              ),
+      #|            ),
+      #|          ),
+      #|        ],
+      #|      ),
+      #|      actual=Primitive(Unit),
+      #|    ),
+      #|    provenance: [
+      #|      TopTerm(
+      #|        {
+      #|          id: { index: 1 },
+      #|          name: Some({ name_space: ValueName, occurrence: "second", unique: { value: 2 } }),
+      #|        },
+      #|      ),
+      #|      Expression(Literal),
+      #|    ],
+      #|  },
+      #|]
+    ),
+  )
 }

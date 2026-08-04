@@ -360,6 +360,7 @@ graph TD
   ISS_328["ISS-328: Store initialization graph facts in one node structure"]
   ISS_329["ISS-329: Remove the duplicate ISS-317 close template"]
   ISS_330["ISS-330: Terminate canonical match alternatives"]
+  ISS_331["ISS-331: Preserve normalization diagnostics at distinct verifier paths"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
