@@ -6,8 +6,9 @@ pub async fn run_server(input : &@io.Reader, output : &@io.Writer) -> Unit {
     for outgoing in result.outgoing {
       write_protocol_message(output, outgoing)
     }
-    if result.exit_requested {
-      break
+    match result.transition {
+      Continue => ()
+      Exit(_) => break
     }
   }
 }

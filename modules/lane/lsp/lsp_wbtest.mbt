@@ -560,7 +560,7 @@ async test "semantic tokens full is not provided by lane lsp" {
       "id": 2,
       "error": {
         "code": -32601,
-        "message": "method not found: textDocument/semanticTokens/full; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, textDocument/inlayHint, and textDocument/completion",
+        "message": "method not found: textDocument/semanticTokens/full; lane lsp supports initialize, initialized, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, textDocument/inlayHint, and textDocument/completion",
       },
     },
   ])

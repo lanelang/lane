@@ -19,7 +19,13 @@ priv struct ServerState {
 ///|
 priv struct HandlerResult {
   outgoing : Array[@jsonrpc.Message]
-  exit_requested : Bool
+  transition : ServerTransition
+}
+
+///|
+priv enum ServerTransition {
+  Continue
+  Exit(graceful~ : Bool)
 }
 
 ///|
@@ -41,7 +47,7 @@ async fn ServerState::handle_message(
   match message {
     Request(request) => self.handle_request(request)
     BatchRequest(requests) => self.handle_batch_request(requests)
-    Response(_) | BatchResponse(_) => { outgoing: [], exit_requested: false }
+    Response(_) | BatchResponse(_) => { outgoing: [], transition: Continue }
   }
 }
 
@@ -51,13 +57,15 @@ async fn ServerState::handle_batch_request(
   requests : Array[@jsonrpc.Request],
 ) -> HandlerResult {
   let outgoing = []
-  let mut exit_requested = false
+  let mut transition = Continue
   for request in requests {
     let result = self.handle_request(request)
     outgoing.append(result.outgoing)
-    exit_requested = exit_requested || result.exit_requested
+    if result.transition is Exit(graceful~) {
+      transition = Exit(graceful~)
+    }
   }
-  { outgoing, exit_requested }
+  { outgoing, transition }
 }
 
 ///|
@@ -78,6 +86,7 @@ async fn ServerState::dispatch_request(
 ) -> HandlerResult {
   match request.method_ {
     "initialize" => self.handle_initialize(request)
+    "initialized" => continue_session()
     "shutdown" => self.handle_shutdown(request)
     "exit" => self.handle_exit()
     "textDocument/didOpen" => self.handle_did_open(request)
@@ -89,6 +98,11 @@ async fn ServerState::dispatch_request(
     "textDocument/completion" => self.handle_completion(request)
     method_name => self.method_not_found(request, method_name)
   }
+}
+
+///|
+fn continue_session() -> HandlerResult {
+  { outgoing: [], transition: Continue }
 }
 
 ///|
@@ -130,7 +144,7 @@ fn ServerState::handle_shutdown(
 
 ///|
 fn ServerState::handle_exit(self : ServerState) -> HandlerResult {
-  { outgoing: [], exit_requested: self.shutdown_requested }
+  { outgoing: [], transition: Exit(graceful=self.shutdown_requested) }
 }
 
 ///|
@@ -183,7 +197,7 @@ async fn ServerState::handle_did_close(
       )
     }),
   )
-  { outgoing, exit_requested: false }
+  { outgoing, transition: Continue }
 }
 
 ///|
@@ -219,7 +233,7 @@ fn workspace_synchronization_result(
     )
   })
   outgoing.append(initialization.scan_issues.map(workspace_scan_issue_log))
-  { outgoing, exit_requested: false }
+  { outgoing, transition: Continue }
 }
 
 ///|
@@ -235,7 +249,7 @@ fn workspace_scan_failure(path : String) -> HandlerResult {
         "message": "Workspace scan failed: could not read directory `\{path}`.",
       }),
     ],
-    exit_requested: false,
+    transition: Continue,
   }
 }
 
@@ -433,7 +447,7 @@ fn invalid_range_params(method_name : String) -> String {
 
 ///|
 fn method_not_found_message(method_name : String) -> String {
-  "method not found: \{method_name}; lane lsp supports initialize, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, textDocument/inlayHint, and textDocument/completion"
+  "method not found: \{method_name}; lane lsp supports initialize, initialized, shutdown, exit, textDocument/didOpen, textDocument/didChange, textDocument/didClose, textDocument/definition, textDocument/hover, textDocument/inlayHint, and textDocument/completion"
 }
 
 ///|
@@ -571,8 +585,8 @@ fn respond(
 ) -> HandlerResult {
   match request.id {
     Some(id) =>
-      { outgoing: [@jsonrpc.new_response(id, result)], exit_requested: false }
-    None => { outgoing: [], exit_requested: false }
+      { outgoing: [@jsonrpc.new_response(id, result)], transition: Continue }
+    None => { outgoing: [], transition: Continue }
   }
 }
 

@@ -21,7 +21,9 @@ import {
 import {
   "moonbitlang/async",
   "moonbitlang/async/io",
+  "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
+  "moonbitlang/core/string",
 } for "test"
 
 supported_targets = "native"
