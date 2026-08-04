@@ -704,11 +704,13 @@ fn VerifyContext::check_expr(
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> Effect {
-  let actual = self.synthesize_expr(expr, value_scope, type_scope)
-  if !self.type_is_consumable_as(actual.type_, expected) {
-    self.report(TypeMismatch(expected~, actual=actual.type_))
-  }
-  actual.effect
+  self.within(Expression(expr.label()), () => {
+    let actual = self.synthesize_expr_contents(expr, value_scope, type_scope)
+    if !self.type_is_consumable_as(actual.type_, expected) {
+      self.report(TypeMismatch(expected~, actual=actual.type_))
+    }
+    actual.effect
+  })
 }
 
 ///|
@@ -719,11 +721,13 @@ fn VerifyContext::check_function_implementation(
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> Effect {
-  let actual = self.synthesize_expr(expr, value_scope, type_scope)
-  if !self.function_implementation_matches(actual.type_, expected) {
-    self.report(TypeMismatch(expected~, actual=actual.type_))
-  }
-  actual.effect
+  self.within(Expression(expr.label()), () => {
+    let actual = self.synthesize_expr_contents(expr, value_scope, type_scope)
+    if !self.function_implementation_matches(actual.type_, expected) {
+      self.report(TypeMismatch(expected~, actual=actual.type_))
+    }
+    actual.effect
+  })
 }
 
 ///|
@@ -733,34 +737,45 @@ fn VerifyContext::synthesize_expr(
   value_scope : ValueScope,
   type_scope : TypeScope,
 ) -> ExpressionFacts {
-  let facts = self.within(Expression(expr.label()), () => {
-    match expr {
-      Ref(id) => self.synthesize_ref(id, value_scope)
-      Literal(literal) => {
-        self.verify_literal(literal)
-        pure_expr(literal.type_())
-      }
-      Function(function) =>
-        self.synthesize_function(function, value_scope, type_scope)
-      Call(callee, arguments) =>
-        self.synthesize_call(callee, arguments, value_scope, type_scope)
-      TypeLambda(parameters, body) =>
-        self.synthesize_type_lambda(parameters, body, value_scope, type_scope)
-      TypeApply(callee, arguments) =>
-        self.synthesize_type_apply(callee, arguments, value_scope, type_scope)
-      Construct(construct) =>
-        self.synthesize_construct(construct, value_scope, type_scope)
-      Let(id, initializer, body) =>
-        self.synthesize_let(id, initializer, body, value_scope, type_scope)
-      LetRec(bindings, body) =>
-        self.synthesize_letrec(bindings, body, value_scope, type_scope)
-      Match(match_) => self.synthesize_match(match_, value_scope, type_scope)
-      Perform(perform) =>
-        self.synthesize_perform(perform, value_scope, type_scope)
-      Handle(handle) => self.synthesize_handle(handle, value_scope, type_scope)
-      Resume(id) => self.synthesize_ref(id, value_scope)
-    }
+  self.within(Expression(expr.label()), () => {
+    self.synthesize_expr_contents(expr, value_scope, type_scope)
   })
+}
+
+///|
+/// Synthesizes and normalizes one expression while its caller owns the frame.
+fn VerifyContext::synthesize_expr_contents(
+  self : VerifyContext,
+  expr : Expr,
+  value_scope : ValueScope,
+  type_scope : TypeScope,
+) -> ExpressionFacts {
+  let facts = match expr {
+    Ref(id) => self.synthesize_ref(id, value_scope)
+    Literal(literal) => {
+      self.verify_literal(literal)
+      pure_expr(literal.type_())
+    }
+    Function(function) =>
+      self.synthesize_function(function, value_scope, type_scope)
+    Call(callee, arguments) =>
+      self.synthesize_call(callee, arguments, value_scope, type_scope)
+    TypeLambda(parameters, body) =>
+      self.synthesize_type_lambda(parameters, body, value_scope, type_scope)
+    TypeApply(callee, arguments) =>
+      self.synthesize_type_apply(callee, arguments, value_scope, type_scope)
+    Construct(construct) =>
+      self.synthesize_construct(construct, value_scope, type_scope)
+    Let(id, initializer, body) =>
+      self.synthesize_let(id, initializer, body, value_scope, type_scope)
+    LetRec(bindings, body) =>
+      self.synthesize_letrec(bindings, body, value_scope, type_scope)
+    Match(match_) => self.synthesize_match(match_, value_scope, type_scope)
+    Perform(perform) =>
+      self.synthesize_perform(perform, value_scope, type_scope)
+    Handle(handle) => self.synthesize_handle(handle, value_scope, type_scope)
+    Resume(id) => self.synthesize_ref(id, value_scope)
+  }
   {
     type_: self.normalize_type(facts.type_),
     effect: self.normalize_effect(facts.effect),

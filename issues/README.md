@@ -353,6 +353,7 @@ graph TD
   ISS_321["ISS-321: Hold an owner path as a path, not as a type it can only partly be"]
   ISS_322["ISS-322: Verify callable dependencies used by top-level initializers"]
   ISS_323["ISS-323: Record child positions in Buslane diagnostic provenance"]
+  ISS_324["ISS-324: Keep post-synthesis diagnostics inside the expression frame"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

@@ -450,7 +450,7 @@ test "verify buslane reports malformed effect terms" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#1
+      #|  } at term value#1 / perform operation#8
       #|}
     ),
   )
@@ -692,7 +692,7 @@ test "verify buslane reports invalid perform payload and resume types" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
-      #|  } at term value#0 / handle / handled body / perform operation#0 / perform payload 0
+      #|  } at term value#0 / handle / handled body / perform operation#0 / perform payload 0 / literal
       #|  type_mismatch {
       #|    expected I64
       #|    actual Bool
@@ -1053,7 +1053,7 @@ test "verify buslane skips kind-invalid substitution bindings" {
       #|    },
       #|    {
       #|      kind: TypeMismatch(expected=Primitive(I64), actual=Parameter({ index: 0 })),
-      #|      provenance: [TopTerm({ index: 2 })],
+      #|      provenance: [TopTerm({ index: 2 }), Expression(TypeApply)],
       #|    },
       #|    {
       #|      kind: ExpectedEffectArgument(Primitive(I64)),
@@ -1064,7 +1064,7 @@ test "verify buslane skips kind-invalid substitution bindings" {
       #|        expected=Function([], Primitive(I64), Empty),
       #|        actual=Function([], Primitive(I64), Parameter({ index: 1 })),
       #|      ),
-      #|      provenance: [TopTerm({ index: 3 })],
+      #|      provenance: [TopTerm({ index: 3 }), Expression(TypeApply)],
       #|    },
       #|  ],
       #|}
@@ -1095,11 +1095,11 @@ test "diagnostic provenance distinguishes sibling call arguments" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#1 / call / argument 0
+      #|  } at term value#1 / call / argument 0 / literal
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#1 / call / argument 1
+      #|  } at term value#1 / call / argument 1 / literal
       #|}
     ),
   )
@@ -1124,7 +1124,7 @@ test "verify buslane rejects effect widening through ordinary value binding" {
       #|  type_mismatch {
       #|    expected () -> I64 ! effect#0
       #|    actual () -> I64
-      #|  } at term value#1
+      #|  } at term value#1 / ref value#0
       #|}
     ),
   )
@@ -1214,7 +1214,7 @@ test "verify buslane reports structural errors" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#0
+      #|  } at term value#0 / call
       #|  non_exhaustive_match at term value#0 / match
       #|}
     ),
@@ -1935,7 +1935,7 @@ test "a diagnostic carries the path the verifier took to reach it" {
       #|  type_mismatch {
       #|    expected I64
       #|    actual Unit
-      #|  } at term value#1 / fn / function body / let value#0 / initializer
+      #|  } at term value#1 / fn / function body / let value#0 / initializer / ref value#9999
       #|}
     ),
   )

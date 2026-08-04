@@ -47,7 +47,7 @@ test "verify buslane rejects forall function implementation with mismatched bind
       #|  type_mismatch {
       #|    expected forall [tparam#0]. () -> I64
       #|    actual forall [tparam#1]. () -> I64
-      #|  } at term value#0
+      #|  } at term value#0 / type_lambda
       #|}
     ),
   )
@@ -79,7 +79,7 @@ test "verify buslane exact binding compares forall binder kinds" {
       #|  type_mismatch {
       #|    expected forall [tparam#0]. () -> I64
       #|    actual forall [tparam#1]. () -> I64
-      #|  } at term value#1
+      #|  } at term value#1 / ref value#0
       #|}
     ),
   )
@@ -126,7 +126,7 @@ test "verify buslane compares nested forall binder kinds in function implementat
       #|  type_mismatch {
       #|    expected (forall [tparam#0]. () -> I64) -> I64
       #|    actual (forall [tparam#1]. () -> I64) -> I64
-      #|  } at term value#0
+      #|  } at term value#0 / fn
       #|}
     ),
   )
@@ -173,7 +173,7 @@ test "verify buslane keeps direct function-valued value bindings exact" {
       #|  type_mismatch {
       #|    expected () -> I64 ! effect#0
       #|    actual () -> I64
-      #|  } at term value#0
+      #|  } at term value#0 / fn
       #|}
     ),
   )
@@ -204,7 +204,7 @@ test "verify buslane keeps function references exact in non-recursive bindings" 
       #|  type_mismatch {
       #|    expected () -> I64 ! effect#0
       #|    actual () -> I64
-      #|  } at term value#1
+      #|  } at term value#1 / ref value#0
       #|}
     ),
   )

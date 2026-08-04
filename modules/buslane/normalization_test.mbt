@@ -149,7 +149,7 @@ test "empty-effect query returns a runaway beta diagnostic" {
       #|    diagnostics: [
       #|      {
       #|        kind: TypeNormalizationFailure(BetaReductionLimitExceeded(limit=1024)),
-      #|        provenance: [Expression(Call), Child(CallCallee)],
+      #|        provenance: [Expression(Call), Child(CallCallee), Expression(Ref({ index: 0 }))],
       #|      },
       #|    ],
       #|  },
