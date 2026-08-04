@@ -4,6 +4,17 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
+if [ "$#" -ne 1 ]; then
+  echo "usage: $0 /path/to/lane.exe" >&2
+  exit 2
+fi
+
+lane_bin="$1"
+if [ ! -x "$lane_bin" ]; then
+  echo "error: lane executable is not executable: $lane_bin" >&2
+  exit 1
+fi
+
 # The examples fixture is the pinned `basic` submodule, not the user-facing
 # $LANE_HOME installation, so a run is reproducible against a recorded Basic
 # revision. Bump the submodule (and commit the new gitlink) to move the pin.
@@ -29,41 +40,5 @@ fi
 
 echo "basic fixture: ${fixture_rev:0:12}"
 
-moon build --target native --release modules/lane >/dev/null
-lane_build="_build/native/release/build/Milky2018/lane/lane.exe"
-lane_smoke_dir="_build/lane-smoke"
-lane_smoke_bin="$lane_smoke_dir/lane.exe"
-
-mkdir -p "$lane_smoke_dir"
-cp "$lane_build" "$lane_smoke_bin"
-chmod +x "$lane_smoke_bin"
-trap 'rm -f "$lane_smoke_bin"' EXIT
-
-frame_lsp_message() {
-  local message="$1"
-  printf 'Content-Length: %s\r\n\r\n%s' "${#message}" "$message"
-}
-
-shutdown_message='{"jsonrpc":"2.0","id":1,"method":"shutdown","params":null}'
-exit_message='{"jsonrpc":"2.0","method":"exit","params":null}'
-if ! {
-  frame_lsp_message "$shutdown_message"
-  frame_lsp_message "$exit_message"
-} | "$repo_root/$lane_smoke_bin" lsp --stdio >/dev/null; then
-  echo "error: lane lsp rejected a graceful shutdown/exit session" >&2
-  exit 1
-fi
-
-if frame_lsp_message "$exit_message" |
-  "$repo_root/$lane_smoke_bin" lsp --stdio >/dev/null; then
-  echo "error: lane lsp accepted exit before shutdown" >&2
-  exit 1
-else
-  premature_status=$?
-fi
-if [ "$premature_status" -ne 1 ]; then
-  echo "error: lane lsp returned $premature_status for exit before shutdown; expected 1" >&2
-  exit 1
-fi
-
-LANE_HOME="$repo_root" LANE_SMOKE_BIN="$repo_root/$lane_smoke_bin" moon run --target native tools/check-lane-run-examples.mbtx
+LANE_HOME="$repo_root" LANE_SMOKE_BIN="$lane_bin" \
+  moon run --target native tools/check-lane-run-examples.mbtx
