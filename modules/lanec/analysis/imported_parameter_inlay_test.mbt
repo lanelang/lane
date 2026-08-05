@@ -99,3 +99,82 @@ test "semantic workspace names explicit arguments of imported functions" {
     ["left=", "right="],
   )
 }
+
+///|
+test "semantic workspace keeps imported pipeline parameter hints position-unique" {
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      {
+        source_id: "file:///Main.lane",
+        text: (
+          #|module Main
+          #|import Provider.{ concat }
+          #|
+          #|pub fn answer(value : String) -> String {
+          #|  "(" |> concat(value) |> concat(")")
+          #|}
+        ),
+      },
+      {
+        source_id: "file:///Provider.lane",
+        text: (
+          #|module Provider
+          #|
+          #|pub fn concat(left : String, right : String) -> String {
+          #|  if true { left } else { right }
+          #|}
+        ),
+      },
+    ])
+    is Some(snapshot) else {
+    fail("expected semantic snapshot")
+  }
+  assert_eq(snapshot.diagnostics(), [])
+  let hints = snapshot
+    .inlay_hints_in_range("file:///Main.lane", 1, 1, 8, 1)
+    .filter(fn(hint) { hint.kind is ParameterHint })
+  debug_inspect(
+    hints,
+    content=(
+      #|[
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 115,
+      #|        end_offset: 118,
+      #|        start_line: 5,
+      #|        start_column: 34,
+      #|        end_line: 5,
+      #|        end_column: 37,
+      #|      },
+      #|    },
+      #|    kind: ParameterHint,
+      #|    label: "right=",
+      #|  },
+      #|  {
+      #|    location: {
+      #|      source_id: "file:///Main.lane",
+      #|      span: {
+      #|        start_offset: 98,
+      #|        end_offset: 103,
+      #|        start_line: 5,
+      #|        start_column: 17,
+      #|        end_line: 5,
+      #|        end_column: 22,
+      #|      },
+      #|    },
+      #|    kind: ParameterHint,
+      #|    label: "right=",
+      #|  },
+      #|]
+    ),
+  )
+  let positions : Map[String, Unit] = Map([])
+  for hint in hints {
+    let span = hint.location.span
+    let position = "\{span.start_line}:\{span.start_column}"
+    assert_false(positions.contains(position))
+    positions[position] = ()
+  }
+}

@@ -211,7 +211,7 @@ async test "public server runs a complete editing session" {
 }
 
 ///|
-async test "public server returns imported auto argument inlays" {
+async test "public server returns imported argument inlays" {
   let (server_input, client_input) = @io.pipe()
   let (client_output, server_output) = @io.pipe()
   let provider_uri = "file:///Provider.lane"
@@ -226,12 +226,20 @@ async test "public server returns imported auto argument inlays" {
     #|pub offer fn choose(auto witness : Witness) -> I64 {
     #|  witness.value
     #|}
+    #|
+    #|pub fn concat(left : String, right : String) -> String {
+    #|  if true { left } else { right }
+    #|}
   let consumer =
     #|module Main
-    #|import Provider.{ Witness, choose }
+    #|import Provider.{ Witness, choose, concat }
     #|
     #|offer local_witness : Witness = Witness::{ value: 42 }
     #|pub let answer : I64 = choose()
+    #|
+    #|pub fn wrapped(value : String) -> String {
+    #|  "(" |> concat(value) |> concat(")")
+    #|}
   @async.with_task_group(group => {
     let server = group.spawn(() => {
       let termination = run_server(server_input, server_output)
@@ -260,7 +268,7 @@ async test "public server returns imported auto argument inlays" {
     ignore(receive_lsp_message(client_output))
     send_lsp_message(
       client_input,
-      lsp_call(2, "textDocument/inlayHint", lsp_range(consumer_uri, 6, 0)),
+      lsp_call(2, "textDocument/inlayHint", lsp_range(consumer_uri, 10, 0)),
     )
     json_inspect(receive_lsp_message(client_output), content={
       "jsonrpc": "2.0",
@@ -269,6 +277,16 @@ async test "public server returns imported auto argument inlays" {
         {
           "position": { "line": 4, "character": 30 },
           "label": "witness=local_witness",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 7, "character": 33 },
+          "label": "right=",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 7, "character": 16 },
+          "label": "right=",
           "kind": 2,
         },
       ],
