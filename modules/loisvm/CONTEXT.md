@@ -182,9 +182,23 @@ _Avoid_: closure-value call, dynamic function reference, tail call, source call
 
 **Value Call**:
 A fused returning non-terminating LoisVM instruction that calls a callable value
-from a local slot, carries a destination only for a non-`Unit` result, and does
-not expose callable-tag dispatch or closure-environment extraction to bytecode.
+from a local slot, names its expected Callable ABI, carries a destination only
+for a non-`Unit` result, and does not expose callable-tag dispatch or
+closure-environment extraction to bytecode.
 _Avoid_: closure unpack instruction, direct immediate target, closure-only call, tail call
+
+**Callable ABI**:
+The canonical execution signature of a callable: layout-witness count, ordered
+parameter representation and cleanup pairs, and complete result ABI. Functions,
+runtime imports, indirect call sites, interpreter validation, and Wasm function
+types all project through this one description.
+_Avoid_: source function type, call-site slot reconstruction, arity-only signature
+
+**Callable ABI ID**:
+A zero-based identifier into one Bytecode Image's duplicate-free Callable ABI
+table, carried by value calls and value tail calls as their expected dynamic
+target contract.
+_Avoid_: Function ID, runtime type tag, closure context kind
 
 **Callable Value**:
 A first-class function value represented by an immediate capture-free

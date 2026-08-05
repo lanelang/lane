@@ -10,7 +10,13 @@ Direct calls use `call`; packed callable calls unpack the table index and enviro
 
 Runtime-import adapters expose the same Lane entry ABI. Their environment must be zero. The adapter uses the runtime symbol registry to convert typed or erased Lane operands to the physical host import signature under module namespace `"lane.runtime.v1"`. `Int`, `Double`, `Bool`, and `Unit` use natural Wasm scalar shapes; a String argument expands to `(bytes_ptr:i32, byte_length:i32)`, and a String result is one owned `string_ref:i32`. The adapter implements the private exception-based fatal cleanup contract when the import or a restricted runtime service fails.
 
-The backend interns complete erased signatures in the Wasm type section. Bytecode does not serialize a separate `CallShapeId` table. For a returning callable-value call, the backend derives the exact signature from the ordered witness and user argument slot representations plus the optional destination representation. For a callable-value tail call, it uses the current function result descriptor because the terminator has no destination. It prepends canonical `env:i32` and interns the complete shape. Each indirect or indirect-tail call names the resulting exact type index. This preserves Wasm validation and dynamic indirect-call type checking without carrying full Lane source types.
+The backend interns complete erased signatures in the Wasm type section. As
+specified by ADR 0129, functions and callable-value call sites share an
+explicit `CallableAbi`; the backend prepends canonical `env:i32` and interns
+the parameters and result projected from that description. Each indirect or
+indirect-tail call names the resulting exact type index. This preserves Wasm
+validation and dynamic indirect-call type checking without carrying full Lane
+source types.
 
 Consequences:
 
@@ -25,4 +31,4 @@ Consequences:
 - Physical runtime imports use natural primitive Wasm signatures.
 - String input expands to pointer-length and String output is an owned `i32` reference.
 - Complete erased signatures are interned and used for typed indirect calls.
-- Indirect call shapes are derived from call-site slot metadata, not a serialized shape table.
+- Indirect call shapes are generated from the image's canonical Callable ABI table.

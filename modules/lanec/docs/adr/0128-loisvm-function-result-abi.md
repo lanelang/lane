@@ -17,13 +17,18 @@ The function body is the owner of its result ABI. A non-Unit `Return` source mus
 
 Runtime imports do not duplicate a result ABI beside `RuntimeValueKind`. The result kind is its semantic owner and projects deterministically to the common result ABI: Bool, I64, F32, and F64 are trivial; String and Opaque are `I32 + OwnedRef`; Unit has no result. Import calls then use the same call-result validation as bytecode bodies.
 
-Callable-value calls retain their existing erased physical call shape. Their destination or enclosing tail caller supplies the expected result ABI, while lowering remains responsible for constructing only callables whose source-level signature agrees with that use. This ADR adds no runtime type inspection and no second callable-signature table.
+The original callable-value paragraph is superseded by ADR 0129. Callable
+calls now name a canonical complete Callable ABI, including this result ABI,
+and dynamically selected targets are checked against it.
 
 ## Persistence
 
 The current-only bytecode encoding uses result tag `0x01` for Unit. Tag `0x02` means Value and is followed by the existing representation tag and cleanup tag. Unknown tags and illegal representation-cleanup pairs are rejected.
 
-This incompatible bytecode change raises the enclosing linked-program artifact schema from 8 to 9. Raw bytecode remains a lockstep internal format under ADR 0116; no legacy decoder or compatibility branch is added.
+This incompatible bytecode change raised the enclosing linked-program artifact
+schema from 8 to 9. ADR 0129 subsequently raises it from 9 to 10. Raw bytecode
+remains a lockstep internal format under ADR 0116; no legacy decoder or
+compatibility branch is added.
 
 ## Verification boundaries
 

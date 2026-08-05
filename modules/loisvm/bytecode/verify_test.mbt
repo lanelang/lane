@@ -28,9 +28,16 @@ fn verification_image(
 ) -> BytecodeImage {
   let entries : Array[FunctionEntry] = [BytecodeBody(body)]
   entries.append(functions)
+  let callable_abis : Array[CallableAbi] = []
+  for entry in entries {
+    if entry.callable_abi() is Some(abi) && !callable_abis.contains(abi) {
+      callable_abis.push(abi)
+    }
+  }
   {
     entry: { value: 1 },
     initializer: None,
+    callable_abis,
     functions: entries,
     globals: [],
     layouts: [],
@@ -142,7 +149,7 @@ test "bytecode verifier checks direct-call ABI and edge arity" {
       #|  Err(
       #|    InvalidBytecode(
       #|      site=Instruction({ value: 1 }, { value: 0 }, 0),
-      #|      detail="direct call has the wrong user argument count",
+      #|      detail="call has the wrong user argument count",
       #|    ),
       #|  ),
       #|  Err(
@@ -152,6 +159,64 @@ test "bytecode verifier checks direct-call ABI and edge arity" {
       #|    ),
       #|  ),
       #|)
+    ),
+  )
+}
+
+///|
+test "bytecode verifier checks CallValue ABI identity and physical shape" {
+  let callable = verification_slot(I64, cleanup=OwnedCallable)
+  let argument = verification_slot(I32)
+  let body = verification_body(slots=[callable, argument], instructions=[
+    ConstFunction({ value: 0 }, { value: 1 }),
+    ConstBool({ value: 1 }, true),
+    CallValue({ value: 0 }, { value: 1 }, [], [{ value: 1 }], None),
+  ])
+  let image = {
+    ..verification_image(body),
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      {
+        witness_count: 0,
+        parameters: [{ representation: I64, cleanup: Trivial }],
+        result: Unit,
+      },
+    ],
+  }
+  assert_eq(
+    verify_bytecode_image(image),
+    Err(
+      InvalidBytecode(
+        site=Instruction({ value: 1 }, { value: 0 }, 2),
+        detail="call argument 0 has the wrong value shape",
+      ),
+    ),
+  )
+  let invalid_abi = {
+    ..image,
+    functions: [
+      BytecodeBody({
+        ..body,
+        blocks: [
+          {
+            parameters: [],
+            instructions: [
+              ConstFunction({ value: 0 }, { value: 1 }),
+              CallValue({ value: 0 }, { value: 2 }, [], [], None),
+            ],
+            terminator: Return(None),
+          },
+        ],
+      }),
+    ],
+  }
+  assert_eq(
+    verify_bytecode_image(invalid_abi),
+    Err(
+      InvalidBytecode(
+        site=Instruction({ value: 1 }, { value: 0 }, 1),
+        detail="CallableAbiId 2 is out of range",
+      ),
     ),
   )
 }

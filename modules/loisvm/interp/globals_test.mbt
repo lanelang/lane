@@ -19,6 +19,7 @@ fn global_test_image(
   {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [BytecodeBody(initializer), BytecodeBody(entry)],
     globals: [{ representation: I64, cleanup: Trivial, erased_companion: None }],
     layouts: [],

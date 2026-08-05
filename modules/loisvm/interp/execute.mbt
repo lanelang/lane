@@ -73,6 +73,7 @@ pub fn ExecutionInstance::execute(
       should_cleanup = false
       Err(EngineTrap(detail~))
     }
+    InvalidCallable(error) => Err(InvalidCallableInvocation(error))
     InternalFailure(detail~) => Err(InternalRuntimeFailure(detail~))
   }
   if result is Err(_) && should_cleanup {
@@ -178,10 +179,11 @@ fn ExecutionInstance::execute_instruction(
         destination,
         tail=false,
       )
-    CallValue(callable_slot, witnesses, arguments, destination) =>
+    CallValue(callable_slot, abi, witnesses, arguments, destination) =>
       self.call_value(
         frame,
         callable_slot,
+        abi,
         witnesses,
         arguments,
         destination,
@@ -510,10 +512,11 @@ fn ExecutionInstance::execute_terminator(
         None,
         tail=true,
       )
-    TailCallValue(callable_slot, witnesses, arguments) =>
+    TailCallValue(callable_slot, abi, witnesses, arguments) =>
       self.call_value(
         frame,
         callable_slot,
+        abi,
         witnesses,
         arguments,
         None,

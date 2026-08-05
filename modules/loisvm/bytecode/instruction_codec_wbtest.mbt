@@ -61,7 +61,7 @@ test "every instruction constructor has a symmetric binary codec" {
     ConstFunction(one, raw_function(1)),
     ConstString(zero, raw_constant(0)),
     CallDirect(raw_function(1), Some(zero), [zero], [one], None),
-    CallValue(one, [zero], [one], Some(two)),
+    CallValue(one, { value: 0 }, [zero], [one], Some(two)),
     MakeData(zero, raw_shape(0), Immediate(raw_layout(1)), [zero], [one]),
     LoadTag(zero, one),
     BorrowField(raw_shape(0), one, 0, projection),

@@ -27,6 +27,7 @@ fn i32_test_image() -> @bytecode.BytecodeImage {
   {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [
       BytecodeBody({
         slots,

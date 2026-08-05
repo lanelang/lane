@@ -114,9 +114,16 @@ fn body(
 
 ///|
 fn image(functions : Array[@bytecode.FunctionEntry]) -> @bytecode.BytecodeImage {
+  let callable_abis : Array[@bytecode.CallableAbi] = []
+  for entry in functions {
+    if entry.callable_abi() is Some(abi) && !callable_abis.contains(abi) {
+      callable_abis.push(abi)
+    }
+  }
   {
     entry: { value: 1 },
     initializer: None,
+    callable_abis,
     globals: [],
     functions,
     layouts: [],
@@ -452,7 +459,13 @@ test "packed callables execute through the canonical function table" {
     instructions=[
       ConstFunction({ value: 0 }, { value: 2 }),
       ConstI64({ value: 1 }, 42L),
-      CallValue({ value: 0 }, [], [{ value: 1 }], Some({ value: 2 })),
+      CallValue(
+        { value: 0 },
+        { value: 1 },
+        [],
+        [{ value: 1 }],
+        Some({ value: 2 }),
+      ),
     ],
   )
   let identity = body(
@@ -471,6 +484,48 @@ test "packed callables execute through the canonical function table" {
 }
 
 ///|
+test "packed callable ownership ABI mismatch traps in both Wasm modes" {
+  let entry = body(slots=[owned_slot(I64, OwnedCallable), trivial_slot(I32)], instructions=[
+    ConstFunction({ value: 0 }, { value: 2 }),
+    ConstBool({ value: 1 }, true),
+    CallValue({ value: 0 }, { value: 1 }, [], [{ value: 1 }], None),
+  ])
+  let target = body(
+    slots=[owned_slot(I32, OwnedRef)],
+    parameters=[{ value: 0 }],
+    instructions=[Release({ value: 0 })],
+  )
+  let bytecode_image = {
+    ..image([BytecodeBody(entry), BytecodeBody(target)]),
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      {
+        witness_count: 0,
+        parameters: [{ representation: I32, cleanup: Trivial }],
+        result: Unit,
+      },
+      {
+        witness_count: 0,
+        parameters: [{ representation: I32, cleanup: OwnedRef }],
+        result: Unit,
+      },
+    ],
+  }
+  for mode in [ExecutionMode::Interpreter, Jit] {
+    let loaded = match
+      load(bytecode_image, @loisvm_runtime.RuntimeRegistry::new(), mode~) {
+      Ok(value) => value
+      Err(error) => fail("load failed: \{Repr(error)}")
+    }
+    let instance = match loaded.new_instance() {
+      Ok(value) => value
+      Err(error) => fail("instantiation failed: \{Repr(error)}")
+    }
+    assert_true(instance.execute() is Err(EngineTrap(detail=_)))
+  }
+}
+
+///|
 test "packed closure environment and indirect tail call execute" {
   let entry = body(
     slots=[owned_slot(I32, OwnedRef), owned_slot(I64, OwnedCallable)],
@@ -478,7 +533,7 @@ test "packed closure environment and indirect tail call execute" {
       MakeEnv({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
       MakeClosure({ value: 1 }, { value: 2 }, { value: 0 }),
     ],
-    terminator=TailCallValue({ value: 1 }, [], []),
+    terminator=TailCallValue({ value: 1 }, { value: 0 }, [], []),
   )
   let target : @bytecode.FunctionBody = {
     slots: [owned_slot(I32, OwnedRef)],
@@ -540,6 +595,7 @@ test "static image materializes layout descriptors and immortal strings" {
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [ByteSequence],
@@ -574,6 +630,7 @@ test "ByteSequence instructions require the shared layout" {
     compile({
       entry: { value: 1 },
       initializer: None,
+      callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
       globals: [],
       functions: [BytecodeBody(entry)],
       layouts: [],
@@ -598,6 +655,7 @@ test "fieldless data construction reuses an immortal static singleton" {
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 })],
@@ -676,6 +734,7 @@ test "dynamic String primitives allocate, copy, compare, and release" {
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [ByteSequence],
@@ -786,6 +845,7 @@ test "canonical Data and Environment layouts construct and project" {
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 }), Environment({ value: 1 })],
@@ -834,6 +894,7 @@ test "descriptor destructors preserve owners across consuming projection" {
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 }), Data({ value: 1 })],
@@ -893,6 +954,7 @@ test "Wasm loads an object witness independently from members" {
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Bool, Data({ value: 0 })],
@@ -939,6 +1001,7 @@ test "OwnedErased ARC dispatches through its layout witness" {
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 })],
@@ -1052,6 +1115,14 @@ test "call depth exhaustion releases arguments transferred into the callee" {
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      {
+        witness_count: 0,
+        parameters: [{ representation: I32, cleanup: OwnedRef }],
+        result: Unit,
+      },
+    ],
     globals: [],
     functions: [BytecodeBody(entry), BytecodeBody(target)],
     layouts: [ByteSequence],
@@ -1091,6 +1162,7 @@ test "Wasm allocator enforces canonical live heap bytes" {
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [ByteSequence],
@@ -1140,6 +1212,7 @@ test "live heap exhaustion unwinds owners from the current frame" {
   let bytecode_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [ByteSequence],
@@ -1196,6 +1269,7 @@ test "non-positive execution limits provide zero budget" {
   let allocating_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(allocating_entry)],
     layouts: [ByteSequence],

@@ -14,6 +14,9 @@ priv struct StaticImage {
   globals : Array[@bytecode.GlobalMetadata]
   wasm_function_offset : Int
   callable_table_indices : Array[Int]
+  callable_abis : Array[@bytecode.CallableAbi]
+  callable_abi_table_base : Int
+  callable_table_size : Int
 }
 
 ///|
@@ -266,6 +269,34 @@ fn build_static_image(
       }
     }
   }
+  let mut callable_table_size = 1
+  for table_index in callable_table_indices {
+    if table_index >= callable_table_size {
+      callable_table_size = table_index + 1
+    }
+  }
+  let mut callable_abi_table_base = 0
+  if callable_table_size > 1 {
+    pad_to(writer, 4)
+    callable_abi_table_base = writer.length()
+    let callable_abi_ids = Array::make(callable_table_size, -1)
+    for function_index, table_index in callable_table_indices {
+      if table_index != 0 {
+        let function : @bytecode.FunctionId = { value: function_index + 1 }
+        let abi = match image.function_callable_abi_id(function) {
+          Some(abi) => abi
+          None =>
+            raise ValidationFailure(
+              detail="callable table target has no canonical ABI",
+            )
+        }
+        callable_abi_ids[table_index] = abi.value
+      }
+    }
+    for abi in callable_abi_ids {
+      writer.write_i32_le(abi)
+    }
+  }
   pad_to(writer, 8)
   let global_table_base = writer.length()
   write_zeroes(writer, image.globals.length() * 16)
@@ -286,6 +317,9 @@ fn build_static_image(
     globals: image.globals,
     wasm_function_offset,
     callable_table_indices,
+    callable_abis: image.callable_abis,
+    callable_abi_table_base,
+    callable_table_size,
   }
 }
 
@@ -295,4 +329,12 @@ fn StaticImage::callable_table_index(
   function : @bytecode.FunctionId,
 ) -> Int {
   self.callable_table_indices[function.value - 1]
+}
+
+///|
+fn StaticImage::callable_abi(
+  self : StaticImage,
+  abi : @bytecode.CallableAbiId,
+) -> @bytecode.CallableAbi {
+  self.callable_abis[abi.value]
 }

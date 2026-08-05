@@ -149,14 +149,18 @@ fn BytecodeVerifier::verify_terminator(
         None,
         tail_result=Some(body.result),
       )
-    TailCallValue(callable, witnesses, arguments) => {
+    TailCallValue(callable, abi_id, witnesses, arguments) => {
       self.expect_slot(site, body, callable, I64, OwnedCallable)
-      for witness in witnesses {
-        self.expect_slot(site, body, witness, I32, Trivial)
-      }
-      for argument in arguments {
-        ignore(self.slot_metadata(site, body, argument))
-      }
+      let abi = self.callable_abi(site, abi_id)
+      self.verify_call_abi(
+        site,
+        body,
+        abi,
+        witnesses,
+        arguments,
+        None,
+        tail_result=Some(body.result),
+      )
     }
     Unreachable => ()
   }

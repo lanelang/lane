@@ -1,12 +1,25 @@
 # Packed Wasm callables
 
-The wasm32 backend currently represents every first-class Lane callable as one `i64`. The low 32 bits contain the image `FunctionId`, which is also the function's Wasm table index, and the high 32 bits contain the wasm32 linear-memory offset of the closure environment. `FunctionId = 0` is invalid, making packed value zero an invalid callable. Environment offset zero denotes a capture-free function, so linear-memory address zero is reserved and never used for an allocated environment.
+The wasm32 backend currently represents every first-class Lane callable as one
+`i64`. The low 32 bits contain its nonzero private callable-table index, and the
+high 32 bits contain the wasm32 linear-memory offset of the closure environment.
+The backend's immutable table plan associates each index with one image
+`FunctionId`. Packed value zero is invalid. Environment offset zero denotes a
+capture-free function, so linear-memory address zero is reserved and never used
+for an allocated environment.
 
 Memory64 is excluded from this profile. Supporting 64-bit environment offsets would require a different callable representation and is not a transparent extension of the packed v1 ABI.
 
-Multiple Tables is also excluded. The packed callable carries one `FunctionId` but no table identifier, so every callable target belongs to one canonical Wasm `funcref` table. The table is private, is initialized by an active element segment, has exact equal minimum and maximum sizes, and cannot grow.
+Multiple Tables is also excluded. The packed callable carries one index but no
+table identifier, so every callable target belongs to one canonical Wasm
+`funcref` table. The table is private, is initialized by an active element
+segment, has exact equal minimum and maximum sizes, and cannot grow.
 
-Table index zero remains invalid. Contiguous indices `1..N` are valid Lane `FunctionId` values and include both compiled Lane bodies and generated runtime-import adapters. Internal layout retain, release, destroy, and size helpers follow that range. Such helper indices are not valid `FunctionId` values. The exported entry wrapper and runtime-service helpers are not table entries. A packed callable may contain only an index from the declared Lane `FunctionId` range.
+Table index zero remains invalid. Contiguous indices `1..N` name address-taken
+compiled Lane bodies or generated runtime-import adapters. Internal layout
+retain, release, destroy, and size helpers follow that range but are not valid
+callable targets. The exported entry wrapper and runtime-service helpers are not
+table entries.
 
 Callable targets use a typed Wasm function signature whose hidden first argument is the unpacked environment `i32`. A capture-free call passes zero. `call_direct` uses a direct Wasm `call` with the statically known environment argument, while `call_value` unpacks the `i64` and invokes the indexed target through `call_indirect` with the statically known erased representation signature. Runtime-import entries use table adapters when necessary.
 
@@ -16,7 +29,14 @@ The Lane Wasm feature profile permits Typed Function References, but they do not
 
 The callable representation does not allocate a closure shell. Each owned packed callable whose environment is nonzero directly owns one strong reference to that environment. Retaining the callable retains the environment; releasing it releases the environment; consuming invocation transfers that environment owner into the callee. Multiple callable owners are established by compiler-inserted retains, so consuming a packed callable requires no dynamic unique-versus-shared shell-count branch.
 
-`make_closure(destination, FunctionId, environment)` consumes one nonzero environment owner and packs it with a context-requiring function identifier. It performs no Wasm allocation. `const_function` constructs only a no-context callable with environment zero. Neither instruction carries a LayoutId, ObjectShapeId, call-shape identifier, or function type operand; trusted function-table metadata establishes the required context kind and call signature.
+`make_closure(destination, FunctionId, environment)` consumes one nonzero
+environment owner and packs it with a context-requiring function identifier. It
+performs no Wasm allocation. `const_function` constructs only a no-context
+callable with environment zero. Neither construction instruction carries a
+LayoutId, ObjectShapeId, CallableAbiId, or function type operand. The target's
+function-table metadata establishes context kind and projects its actual ABI;
+ADR 0129 requires each invocation to compare that ABI with the call site's
+explicit expected ABI.
 
 The LoisVM interpreter uses the same logical pair inside its tagged `I64` VM value, so interpretation and Wasm execution share direct environment ownership rather than relying on ownership-equivalent but physically different closure objects.
 

@@ -74,17 +74,18 @@ fn BytecodeVerifier::verify_instruction(
         destination,
         tail_result=None,
       )
-    CallValue(callable, witnesses, arguments, destination) => {
+    CallValue(callable, abi_id, witnesses, arguments, destination) => {
       self.expect_slot(site, body, callable, I64, OwnedCallable)
-      for witness in witnesses {
-        self.expect_slot(site, body, witness, I32, Trivial)
-      }
-      for argument in arguments {
-        ignore(self.slot_metadata(site, body, argument))
-      }
-      if destination is Some(destination) {
-        ignore(self.slot_metadata(site, body, destination))
-      }
+      let abi = self.callable_abi(site, abi_id)
+      self.verify_call_abi(
+        site,
+        body,
+        abi,
+        witnesses,
+        arguments,
+        destination,
+        tail_result=None,
+      )
     }
     MakeData(destination, shape, layout, witnesses, fields) => {
       self.expect_slot(site, body, destination, I32, OwnedRef)
@@ -427,93 +428,66 @@ fn BytecodeVerifier::verify_direct_call(
   destination : SlotId?,
   tail_result~ : ResultAbi?,
 ) -> Unit raise BytecodeVerificationError {
-  match self.function_entry(site, target) {
-    BytecodeBody(target_body) => {
+  let entry = self.function_entry(site, target)
+  match entry {
+    BytecodeBody(target_body) =>
       match (target_body.inputs.environment, environment) {
         (None, None) => ()
-        (Some(expected), Some(actual)) => {
-          let expected_metadata = self.slot_metadata(
-            site, target_body, expected,
-          )
-          let actual_metadata = self.slot_metadata(site, body, actual)
-          if expected_metadata.representation != actual_metadata.representation ||
-            expected_metadata.cleanup != actual_metadata.cleanup {
-            self.fail(site, "direct-call environment has the wrong value shape")
-          }
-        }
+        (Some(_), Some(actual)) =>
+          self.expect_slot(site, body, actual, I32, OwnedRef)
         _ =>
           self.fail(
             site, "direct-call environment presence does not match target",
           )
       }
-      self.verify_call_arguments(site, body, target_body, witnesses, arguments)
-      self.verify_call_result(
-        site,
-        body,
-        target_body.result,
-        destination,
-        tail_result~,
-      )
-    }
     RuntimeImport(import_) => {
-      if environment is Some(_) || !witnesses.is_empty() {
-        self.fail(
-          site, "runtime import call cannot carry environment or witnesses",
-        )
+      ignore(import_)
+      if environment is Some(_) {
+        self.fail(site, "runtime import call cannot carry an environment")
       }
-      let parameter_shapes = import_.parameters.filter_map(runtime_value_shape)
-      if arguments.length() != parameter_shapes.length() {
-        self.fail(site, "runtime import call has the wrong argument count")
-      }
-      for index in 0..<arguments.length() {
-        let (representation, cleanup) = parameter_shapes[index]
-        self.expect_slot(site, body, arguments[index], representation, cleanup)
-      }
-      let result = runtime_result_abi(import_.result)
-      self.verify_call_result(site, body, result, destination, tail_result~)
     }
   }
+  let abi = self.function_callable_abi(site, target)
+  self.verify_call_abi(
+    site,
+    body,
+    abi,
+    witnesses,
+    arguments,
+    destination,
+    tail_result~,
+  )
 }
 
 ///|
-fn BytecodeVerifier::verify_call_arguments(
+fn BytecodeVerifier::verify_call_abi(
   self : BytecodeVerifier,
   site : BytecodeVerificationSite,
-  caller : FunctionBody,
-  callee : FunctionBody,
+  body : FunctionBody,
+  abi : CallableAbi,
   witnesses : Array[SlotId],
   arguments : Array[SlotId],
+  destination : SlotId?,
+  tail_result~ : ResultAbi?,
 ) -> Unit raise BytecodeVerificationError {
-  if witnesses.length() != callee.inputs.witnesses.length() {
-    self.fail(site, "direct call has the wrong witness count")
+  if witnesses.length() != abi.witness_count {
+    self.fail(site, "call has the wrong witness count")
   }
-  if arguments.length() != callee.inputs.user_parameters.length() {
-    self.fail(site, "direct call has the wrong user argument count")
+  if arguments.length() != abi.parameters.length() {
+    self.fail(site, "call has the wrong user argument count")
   }
-  for index in 0..<witnesses.length() {
-    let expected = self.slot_metadata(
-      site,
-      callee,
-      callee.inputs.witnesses[index],
-    )
-    let actual = self.slot_metadata(site, caller, witnesses[index])
-    if expected.representation != actual.representation ||
-      expected.cleanup != actual.cleanup {
-      self.fail(site, "direct-call witness \{index} has the wrong value shape")
-    }
+  for witness in witnesses {
+    self.expect_slot(site, body, witness, I32, Trivial)
   }
   for index in 0..<arguments.length() {
-    let expected = self.slot_metadata(
-      site,
-      callee,
-      callee.inputs.user_parameters[index],
-    )
-    let actual = self.slot_metadata(site, caller, arguments[index])
+    let expected = abi.parameters[index]
+    let actual = self.slot_metadata(site, body, arguments[index])
     if expected.representation != actual.representation ||
       expected.cleanup != actual.cleanup {
-      self.fail(site, "direct-call argument \{index} has the wrong value shape")
+      self.fail(site, "call argument \{index} has the wrong value shape")
     }
   }
+  self.verify_call_result(site, body, abi.result, destination, tail_result~)
 }
 
 ///|

@@ -148,13 +148,16 @@ fn compile_instruction(
       }
       result
     }
-    CallValue(callable, witnesses, arguments, destination) => {
-      let result : Array[@wasm_types.Instruction] = [
+    CallValue(callable, abi_id, witnesses, arguments, destination) => {
+      let result = validate_callable_abi(
+        parameter_count, static_image, callable, abi_id,
+      )
+      result.append([
         LocalGet(slot_local(parameter_count, callable)),
         I64Const(32L),
         I64ShrU,
         I32WrapI64,
-      ]
+      ])
       for slot in witnesses {
         result.push(LocalGet(slot_local(parameter_count, slot)))
       }
@@ -169,13 +172,7 @@ fn compile_instruction(
       }
       let type_index = indirect_type(
         wasm_module,
-        slots,
-        witnesses,
-        arguments,
-        match destination {
-          Some(slot) => [wasm_representation(slots[slot.value].representation)]
-          None => []
-        },
+        static_image.callable_abi(abi_id),
       )
       result.push(CallIndirect(type_index, 0))
       if destination is Some(slot) {
@@ -862,7 +859,6 @@ fn compile_terminator(
   parameter_count : Int,
   live_base : Int,
   slots : Array[@bytecode.SlotMetadata],
-  current_result : @bytecode.ResultAbi,
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
   terminator : @bytecode.Terminator,
@@ -910,8 +906,11 @@ fn compile_terminator(
       )
       instructions
     }
-    TailCallValue(callable, witnesses, arguments) => {
-      let instructions : Array[@wasm_types.Instruction] = [
+    TailCallValue(callable, abi_id, witnesses, arguments) => {
+      let instructions = validate_callable_abi(
+        parameter_count, static_image, callable, abi_id,
+      )
+      instructions.append([
         GlobalGet(call_depth_global_index),
         I32Const(1),
         I32Sub,
@@ -920,7 +919,7 @@ fn compile_terminator(
         I64Const(32L),
         I64ShrU,
         I32WrapI64,
-      ]
+      ])
       for slot in witnesses {
         instructions.push(LocalGet(slot_local(parameter_count, slot)))
       }
@@ -935,10 +934,7 @@ fn compile_terminator(
       }
       let type_index = indirect_type(
         wasm_module,
-        slots,
-        witnesses,
-        arguments,
-        wasm_function_results(current_result),
+        static_image.callable_abi(abi_id),
       )
       instructions.push(ReturnCallIndirect(type_index, 0))
       instructions
@@ -974,19 +970,43 @@ fn compile_erasure_transfer(
 ///|
 fn indirect_type(
   wasm_module : @wasm_types.Module,
-  slots : Array[@bytecode.SlotMetadata],
-  witnesses : Array[@bytecode.SlotId],
-  arguments : Array[@bytecode.SlotId],
-  results : Array[@wasm_types.ValueType],
+  abi : @bytecode.CallableAbi,
 ) -> Int {
-  let parameters : Array[@wasm_types.ValueType] = [I32]
-  for slot in witnesses {
-    parameters.push(wasm_representation(slots[slot.value].representation))
-  }
-  for slot in arguments {
-    parameters.push(wasm_representation(slots[slot.value].representation))
-  }
-  intern_function_type(wasm_module, parameters, results)
+  intern_function_type(
+    wasm_module,
+    wasm_callable_parameters(abi),
+    wasm_function_results(abi.result),
+  )
+}
+
+///|
+fn validate_callable_abi(
+  parameter_count : Int,
+  static_image : StaticImage,
+  callable : @bytecode.SlotId,
+  expected : @bytecode.CallableAbiId,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(slot_local(parameter_count, callable)),
+    I32WrapI64,
+    I32Eqz,
+    LocalGet(slot_local(parameter_count, callable)),
+    I32WrapI64,
+    I32Const(static_image.callable_table_size),
+    I32GeU,
+    I32Or,
+    If(Empty, [Unreachable], []),
+    I32Const(static_image.callable_abi_table_base),
+    LocalGet(slot_local(parameter_count, callable)),
+    I32WrapI64,
+    I32Const(2),
+    I32Shl,
+    I32Add,
+    I32Load(0, 2, 0L),
+    I32Const(expected.value),
+    I32Ne,
+    If(Empty, [Unreachable], []),
+  ]
 }
 
 ///|

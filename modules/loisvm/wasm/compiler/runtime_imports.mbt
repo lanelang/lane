@@ -162,16 +162,12 @@ fn append_physical_runtime_import(
 fn append_runtime_import_adapter(
   wasm_module : @wasm_types.Module,
   import_ : @bytecode.RuntimeImport,
+  abi : @bytecode.CallableAbi,
   physical_import_index : Int,
   runtime : RuntimeFunctions,
 ) -> Unit {
-  let parameters : Array[@wasm_types.ValueType] = [I32]
-  for kind in import_.parameters {
-    if canonical_runtime_type(kind) is Some(value_type) {
-      parameters.push(value_type)
-    }
-  }
-  let results = runtime_results(import_)
+  let parameters = wasm_callable_parameters(abi)
+  let results = wasm_function_results(abi.result)
   let instructions : Array[@wasm_types.Instruction] = []
   let reference_parameters : Array[Int] = []
   let mut parameter_index = 1

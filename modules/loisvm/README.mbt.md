@@ -78,6 +78,14 @@ fn example_image() -> @bytecode.BytecodeImage {
   {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      {
+        witness_count: 0,
+        parameters: [{ representation: I64, cleanup: Trivial }],
+        result: Unit,
+      },
+    ],
     globals: [],
     functions: [
       BytecodeBody(entry),

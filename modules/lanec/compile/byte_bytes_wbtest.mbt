@@ -44,6 +44,7 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
       #|{
       #|  entry: { value: 1 },
       #|  initializer: None,
+      #|  callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
       #|  functions: [
       #|    BytecodeBody(
       #|      {
@@ -96,6 +97,19 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|{
       #|  entry: { value: 2 },
       #|  initializer: None,
+      #|  callable_abis: [
+      #|    {
+      #|      witness_count: 1,
+      #|      parameters: [{ representation: I64, cleanup: OwnedErased }],
+      #|      result: Value(I64, OwnedErased),
+      #|    },
+      #|    { witness_count: 0, parameters: [], result: Unit },
+      #|    {
+      #|      witness_count: 0,
+      #|      parameters: [{ representation: I64, cleanup: Trivial }],
+      #|      result: Unit,
+      #|    },
+      #|  ],
       #|  functions: [
       #|    BytecodeBody(
       #|      {
@@ -275,6 +289,33 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|{
       #|  entry: { value: 4 },
       #|  initializer: Some({ value: 5 }),
+      #|  callable_abis: [
+      #|    {
+      #|      witness_count: 0,
+      #|      parameters: [{ representation: I32, cleanup: OwnedRef }],
+      #|      result: Value(I32, Trivial),
+      #|    },
+      #|    {
+      #|      witness_count: 0,
+      #|      parameters: [{ representation: I32, cleanup: OwnedRef }],
+      #|      result: Value(I32, OwnedRef),
+      #|    },
+      #|    {
+      #|      witness_count: 0,
+      #|      parameters: [
+      #|        { representation: I32, cleanup: OwnedRef },
+      #|        { representation: I32, cleanup: Trivial },
+      #|      ],
+      #|      result: Value(I64, OwnedCallable),
+      #|    },
+      #|    { witness_count: 0, parameters: [], result: Unit },
+      #|    { witness_count: 0, parameters: [], result: Value(I32, Trivial) },
+      #|    {
+      #|      witness_count: 0,
+      #|      parameters: [{ representation: I64, cleanup: Trivial }],
+      #|      result: Unit,
+      #|    },
+      #|  ],
       #|  functions: [
       #|    BytecodeBody(
       #|      {
@@ -444,7 +485,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|                [{ value: 5 }, { value: 0 }],
       #|                Some({ value: 7 }),
       #|              ),
-      #|              CallValue({ value: 7 }, [], [], Some({ value: 0 })),
+      #|              CallValue({ value: 7 }, { value: 4 }, [], [], Some({ value: 0 })),
       #|              ByteToI64({ value: 6 }, { value: 0 }),
       #|            ],
       #|            terminator: TailCallDirect({ value: 7 }, None, [], [{ value: 6 }]),

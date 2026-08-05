@@ -4,7 +4,7 @@ fn terminator_transfers_control(terminator : @bytecode.Terminator) -> Bool {
     Jump(_) | BranchBool(_, _, _) | SwitchTag(_, _, _) => true
     Return(_)
     | TailCallDirect(_, _, _, _)
-    | TailCallValue(_, _, _)
+    | TailCallValue(_, _, _, _)
     | Unreachable => false
   }
 }

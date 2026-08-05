@@ -32,6 +32,7 @@ fn execute_bytes_test(
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(body)],
     layouts: [ByteSequence],

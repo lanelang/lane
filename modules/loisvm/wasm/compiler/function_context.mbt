@@ -37,7 +37,6 @@ fn FunctionCompilationContext::compile_terminator(
     self.parameter_count,
     self.live_base,
     self.body.slots,
-    self.body.result,
     self.wasm_module,
     self.static_image,
     terminator,

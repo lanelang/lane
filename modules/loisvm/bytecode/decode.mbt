@@ -26,6 +26,14 @@ fn decode_bytecode_image(
   let decoder = Decoder::{ reader: @bytecodec.ByteReader::from_bytes(bytes) }
   let entry = decoder.read_function_id()
   let initializer = decoder.read_optional_function_id()
+  let abi_count = decoder.read_count(minimum_size=9, table="callable ABI")
+  if abi_count == 0 {
+    decoder.fail("callable ABI table must be nonempty")
+  }
+  let callable_abis = []
+  for _index in 0..<abi_count {
+    callable_abis.push(decoder.read_callable_abi())
+  }
   let function_count_offset = decoder.offset()
   let function_count = decoder.read_count(minimum_size=1, table="function")
   if function_count == 0 {
@@ -62,6 +70,7 @@ fn decode_bytecode_image(
   let image : BytecodeImage = {
     entry,
     initializer,
+    callable_abis,
     functions,
     globals,
     layouts,
@@ -73,6 +82,27 @@ fn decode_bytecode_image(
     Err(error) => raise InvalidBytecode(error~)
   }
   image
+}
+
+///|
+fn Decoder::read_callable_abi(
+  self : Decoder,
+) -> CallableAbi raise BytecodeDecodeError {
+  let witness_count = self.read_nonnegative_u32(
+    expected="callable ABI witness count",
+  )
+  let parameter_count = self.read_count(
+    minimum_size=2,
+    table="callable ABI parameter",
+  )
+  let parameters = []
+  for _index in 0..<parameter_count {
+    parameters.push({
+      representation: self.read_representation(),
+      cleanup: self.read_cleanup(),
+    })
+  }
+  { witness_count, parameters, result: self.read_result_abi() }
 }
 
 ///|
@@ -364,6 +394,7 @@ fn Decoder::read_instruction(
     0x0C =>
       CallValue(
         self.read_slot_id(),
+        self.read_callable_abi_id(),
         self.read_slot_ids(),
         self.read_slot_ids(),
         self.read_optional_slot(),
@@ -610,6 +641,7 @@ fn Decoder::read_terminator(
     0x06 =>
       TailCallValue(
         self.read_slot_id(),
+        self.read_callable_abi_id(),
         self.read_slot_ids(),
         self.read_slot_ids(),
       )
@@ -702,6 +734,13 @@ fn Decoder::read_function_id(
     self.fail_at(offset, "FunctionId zero is reserved")
   }
   { value, }
+}
+
+///|
+fn Decoder::read_callable_abi_id(
+  self : Decoder,
+) -> CallableAbiId raise BytecodeDecodeError {
+  { value: self.read_nonnegative_u32(expected="CallableAbiId") }
 }
 
 ///|

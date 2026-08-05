@@ -42,12 +42,16 @@ pub(all) struct BlockId {
 pub(all) struct BytecodeImage {
   entry : FunctionId
   initializer : FunctionId?
+  callable_abis : Array[CallableAbi]
   functions : Array[FunctionEntry]
   globals : Array[GlobalMetadata]
   layouts : Array[LayoutRecipe]
   object_shapes : Array[ObjectShape]
   constants : Array[Bytes]
 } derive(Eq, @debug.Debug)
+pub fn BytecodeImage::callable_abi(Self, CallableAbiId) -> CallableAbi?
+pub fn BytecodeImage::function_callable_abi(Self, FunctionId) -> CallableAbi?
+pub fn BytecodeImage::function_callable_abi_id(Self, FunctionId) -> CallableAbiId?
 pub impl @prettyprinter.Pretty for BytecodeImage
 
 pub(all) enum BytecodeVerificationSite {
@@ -57,6 +61,16 @@ pub(all) enum BytecodeVerificationSite {
   Instruction(FunctionId, BlockId, Int)
   Terminator(FunctionId, BlockId)
 } derive(Eq, @debug.Debug)
+
+pub(all) struct CallableAbi {
+  witness_count : Int
+  parameters : Array[ValueAbi]
+  result : ResultAbi
+} derive(Eq, @debug.Debug)
+
+pub(all) struct CallableAbiId {
+  value : Int
+} derive(Compare, Eq, @debug.Debug)
 
 pub(all) enum Cleanup {
   Trivial
@@ -91,11 +105,13 @@ pub(all) struct FunctionBody {
   result : ResultAbi
   blocks : Array[Block]
 } derive(Eq, @debug.Debug)
+pub fn FunctionBody::callable_abi(Self) -> CallableAbi?
 
 pub(all) enum FunctionEntry {
   BytecodeBody(FunctionBody)
   RuntimeImport(RuntimeImport)
 } derive(Eq, @debug.Debug)
+pub fn FunctionEntry::callable_abi(Self) -> CallableAbi?
 
 pub(all) struct FunctionId {
   value : Int
@@ -132,7 +148,7 @@ pub(all) enum Instruction {
   ConstFunction(SlotId, FunctionId)
   ConstString(SlotId, ConstantId)
   CallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId], SlotId?)
-  CallValue(SlotId, Array[SlotId], Array[SlotId], SlotId?)
+  CallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId], SlotId?)
   MakeData(SlotId, ObjectShapeId, LayoutOperand, Array[SlotId], Array[SlotId])
   LoadTag(SlotId, SlotId)
   LoadObjectWitness(SlotId, ObjectShapeId, SlotId, Int)
@@ -295,6 +311,7 @@ pub(all) struct RuntimeImport {
   result : RuntimeValueKind
   symbol : String
 } derive(Eq, @debug.Debug)
+pub fn RuntimeImport::callable_abi(Self) -> CallableAbi
 
 pub(all) enum RuntimeValueKind {
   Unit
@@ -322,8 +339,13 @@ pub(all) enum Terminator {
   SwitchTag(SlotId, Array[Edge], Edge)
   Return(SlotId?)
   TailCallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId])
-  TailCallValue(SlotId, Array[SlotId], Array[SlotId])
+  TailCallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId])
   Unreachable
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ValueAbi {
+  representation : Representation
+  cleanup : Cleanup
 } derive(Eq, @debug.Debug)
 
 // Type aliases

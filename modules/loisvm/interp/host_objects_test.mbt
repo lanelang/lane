@@ -102,6 +102,7 @@ test "interpreter stores shared Host Objects in data and environments" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: host_object_callable_abis(),
     globals: [],
     functions: [
       BytecodeBody(entry),
@@ -146,6 +147,7 @@ test "interpreter finalizes Host Object globals during normal shutdown" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    callable_abis: host_object_callable_abis(),
     globals: [
       { representation: I32, cleanup: OwnedRef, erased_companion: None },
     ],
@@ -182,6 +184,7 @@ test "interpreter rolls back rejected Host Object results" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: host_object_callable_abis(),
     globals: [],
     functions: [
       BytecodeBody(entry),
@@ -274,6 +277,7 @@ test "interpreter reports Host Object use after explicit close" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: host_object_callable_abis(),
     globals: [],
     functions: [
       BytecodeBody(entry),
@@ -303,4 +307,22 @@ test "interpreter reports Host Object use after explicit close" {
       #|)
     ),
   )
+}
+
+///|
+fn host_object_callable_abis() -> Array[@bytecode.CallableAbi] {
+  [
+    { witness_count: 0, parameters: [], result: Unit },
+    { witness_count: 0, parameters: [], result: Value(I32, OwnedRef) },
+    {
+      witness_count: 0,
+      parameters: [{ representation: I32, cleanup: OwnedRef }],
+      result: Unit,
+    },
+    {
+      witness_count: 0,
+      parameters: [{ representation: I32, cleanup: OwnedRef }],
+      result: Value(I64, Trivial),
+    },
+  ]
 }

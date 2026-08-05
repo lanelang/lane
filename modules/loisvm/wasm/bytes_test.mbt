@@ -45,6 +45,7 @@ fn wasm_bytes_image(
   {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(body)],
     layouts: [ByteSequence],
@@ -143,6 +144,7 @@ test "ByteSequence operations reject objects with another layout across backends
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(body)],
     layouts: [ByteSequence, Data({ value: 0 })],

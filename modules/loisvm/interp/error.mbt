@@ -4,5 +4,6 @@ priv suberror ExecutionFailure {
   ResourceLimit(@runtime.ResourceLimitKind)
   InterruptedExecution
   Trap(detail~ : String)
+  InvalidCallable(@runtime.CallableInvocationError)
   InternalFailure(detail~ : String)
 } derive(Debug)

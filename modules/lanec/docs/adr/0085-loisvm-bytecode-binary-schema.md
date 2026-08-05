@@ -1,5 +1,8 @@
 # LoisVM bytecode binary schema
 
+This historical schema is superseded by ADR 0116 for the current-only framing
+and ADR 0129 for callable ABI identity and indirect-call operands.
+
 Status: Superseded by ADR-0116. This document records the historical versioned bytecode design.
 
 This ADR defines schema v1. ADR-0113 reserves schema v2 for the incompatible addition of Instance Globals and an optional Instance Initializer, and ADR-0114 defines their binary encoding; v1 remains unchanged.
@@ -38,7 +41,12 @@ The block table begins with nonzero `block_count:u32le`; table position defines 
 
 Every optional SlotId uses `slot_plus_one:u32le`: zero is absent, and nonzero N denotes `SlotId = N - 1`. This form encodes function and direct-call environments, returning-call destinations, return sources, and projection witness destinations without a separate presence tag.
 
-`call_direct` encodes target `FunctionId`, environment OptionalSlot, counted witness SlotId array, counted user-argument SlotId array, and destination OptionalSlot. `call_value` encodes callable `SlotId`, counted witness array, counted user-argument array, and destination OptionalSlot. A SlotId array is one `count:u32le` followed by exactly that many `SlotId:u32le` values; empty arrays are permitted. No `CallShapeId` is serialized.
+In the historical v1 format, `call_direct` encoded target `FunctionId`,
+environment OptionalSlot, counted witness SlotId array, counted user-argument
+SlotId array, and destination OptionalSlot. `call_value` encoded callable
+`SlotId`, counted witness array, counted user-argument array, and destination
+OptionalSlot. ADR 0129 adds a Callable ABI table and a `CallableAbiId` operand
+to each value call in the current-only format.
 
 The `return` terminator encodes only source OptionalSlot. Zero returns Unit; nonzero consumes one result owner into the caller. `tail_call_direct` encodes target, environment OptionalSlot, counted witness array, and counted user-argument array. `tail_call_value` encodes callable, counted witness array, and counted user-argument array. Tail terminators have no destination field.
 
@@ -144,7 +152,7 @@ Consequences:
 - Construction arrays remain explicitly counted for independent body framing.
 - Consuming field and capture indices are strictly increasing and may be empty.
 - `unreachable` is an operand-free trusted terminator.
-- Bytecode contains no call-shape identifier table.
+- The historical v1 bytecode contained no call-shape identifier table; ADR 0129 supersedes this decision.
 - Bytecode records contain no alignment padding.
 - `i64` and `f64` constants preserve their raw little-endian bits.
 - Unknown tags and trailing function bytes are decoding errors.

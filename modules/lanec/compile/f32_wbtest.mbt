@@ -35,6 +35,14 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|{
       #|  entry: { value: 1 },
       #|  initializer: Some({ value: 2 }),
+      #|  callable_abis: [
+      #|    { witness_count: 0, parameters: [], result: Unit },
+      #|    {
+      #|      witness_count: 0,
+      #|      parameters: [{ representation: F32, cleanup: Trivial }],
+      #|      result: Unit,
+      #|    },
+      #|  ],
       #|  functions: [
       #|    BytecodeBody(
       #|      {

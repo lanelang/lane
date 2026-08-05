@@ -9,6 +9,7 @@ fn minimal_loisvm_image() -> @loisvm_bytecode.BytecodeImage {
   {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [BytecodeBody(body)],
     globals: [],
     layouts: [],
@@ -22,7 +23,7 @@ test "linked program contains only current LoisVM bytecode" {
   let image = minimal_loisvm_image()
   let binary = loisvm_linked_program_to_binary(image)
   assert_eq(parse_loisvm_linked_program_binary(binary), Ok(image))
-  assert_eq(binary.length(), 85)
+  assert_eq(binary.length(), 98)
 }
 
 ///|
@@ -38,18 +39,19 @@ test "linked program inspection delegates to LoisVM" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 9
+      #|schema: 10
       #|
       #|LoisVM bytecode
       #|entry: f1
       #|initializer: none
+      #|callable ABIs: 1
       #|functions: 1
       #|globals: 0
       #|layouts: 0
       #|object shapes: 0
       #|constants: 0
       #|
-      #|function f1(
+      #|function f1 abi=abi0(
       #|  environment=none,
       #|  witnesses=[],
       #|  parameters=[]
@@ -60,19 +62,22 @@ test "linked program inspection delegates to LoisVM" {
       #|    return none
       #|}
       #|
+      #|callable ABI table:
+      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
+      #|
     ),
   )
 }
 
 ///|
-test "schema 9 rejects schema 8 linked program payload" {
+test "schema 10 rejects schema 9 linked program payload" {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_raw_bytes(
     Bytes::from_array([b'L', b'A', b'N', b'E', b'A', b'R', b'T', b'\x00']),
   )
   writer.write_u8(1)
   writer.write_u8(3)
-  writer.write_u32_le_int(8)
+  writer.write_u32_le_int(9)
   writer.write_u32_le_int(4)
   let result = parse_loisvm_linked_program_binary(writer.to_bytes())
   assert_true(result is Err(_))
@@ -196,18 +201,19 @@ test "linked program roundtrips and inspects instance globals" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 9
+      #|schema: 10
       #|
       #|LoisVM bytecode
       #|entry: f1
       #|initializer: f2
+      #|callable ABIs: 3
       #|functions: 4
       #|globals: 1
       #|layouts: 0
       #|object shapes: 0
       #|constants: 0
       #|
-      #|function f1(
+      #|function f1 abi=abi0(
       #|  environment=none,
       #|  witnesses=[],
       #|  parameters=[]
@@ -221,7 +227,7 @@ test "linked program roundtrips and inspects instance globals" {
       #|    tail_call_direct f3 env=none witnesses=[] arguments=[%1]
       #|}
       #|
-      #|function f2(
+      #|function f2 abi=abi0(
       #|  environment=none,
       #|  witnesses=[],
       #|  parameters=[]
@@ -234,19 +240,24 @@ test "linked program roundtrips and inspects instance globals" {
       #|    return none
       #|}
       #|
-      #|function f3 = runtime_import(
+      #|function f3 abi=abi1 = runtime_import(
       #|  symbol="lane.test.consume",
       #|  abi_major=1,
       #|  parameters=[string],
       #|  result=unit
       #|)
       #|
-      #|function f4 = runtime_import(
+      #|function f4 abi=abi2 = runtime_import(
       #|  symbol="lane.test.produce",
       #|  abi_major=1,
       #|  parameters=[],
       #|  result=string
       #|)
+      #|
+      #|callable ABI table:
+      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
+      #|  abi1 = fn(witnesses=0, parameters=[i32 + owned_ref]) -> unit
+      #|  abi2 = fn(witnesses=0, parameters=[]) -> i32 + owned_ref
       #|
       #|instance global table:
       #|  g0 = i32 + owned_ref

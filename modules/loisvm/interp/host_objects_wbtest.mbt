@@ -3,6 +3,7 @@ test "interpreter rejects stale Host Object handles" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [],
     globals: [],
     functions: [],
     layouts: [Reference],

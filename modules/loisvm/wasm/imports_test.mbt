@@ -27,9 +27,17 @@ fn import_test_image(
   layouts? : Array[@bytecode.LayoutRecipe] = [],
   constants? : Array[Bytes] = [],
 ) -> @bytecode.BytecodeImage {
+  let callable_abis : Array[@bytecode.CallableAbi] = [
+    { witness_count: 0, parameters: [], result: Unit },
+  ]
+  let import_abi = import_.callable_abi()
+  if !callable_abis.contains(import_abi) {
+    callable_abis.push(import_abi)
+  }
   {
     entry: { value: 1 },
     initializer: None,
+    callable_abis,
     functions: [BytecodeBody(body), RuntimeImport(import_)],
     globals: [],
     layouts,
@@ -203,6 +211,19 @@ test "String import transports multibyte UTF-8 and embedded NUL" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      {
+        witness_count: 0,
+        parameters: [{ representation: I32, cleanup: OwnedRef }],
+        result: Value(I32, OwnedRef),
+      },
+      {
+        witness_count: 0,
+        parameters: [{ representation: I32, cleanup: OwnedRef }],
+        result: Unit,
+      },
+    ],
     functions: [
       BytecodeBody(body),
       RuntimeImport({

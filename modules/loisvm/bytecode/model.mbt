@@ -4,6 +4,11 @@ pub(all) struct FunctionId {
 } derive(Debug, Eq, Compare)
 
 ///|
+pub(all) struct CallableAbiId {
+  value : Int
+} derive(Debug, Eq, Compare)
+
+///|
 pub(all) struct GlobalId {
   value : Int
 } derive(Debug, Eq, Compare)
@@ -67,6 +72,19 @@ pub(all) struct GlobalMetadata {
 pub(all) enum ResultAbi {
   Unit
   Value(Representation, Cleanup)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ValueAbi {
+  representation : Representation
+  cleanup : Cleanup
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CallableAbi {
+  witness_count : Int
+  parameters : Array[ValueAbi]
+  result : ResultAbi
 } derive(Debug, Eq)
 
 ///|
@@ -172,7 +190,7 @@ pub(all) enum Instruction {
   ConstFunction(SlotId, FunctionId)
   ConstString(SlotId, ConstantId)
   CallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId], SlotId?)
-  CallValue(SlotId, Array[SlotId], Array[SlotId], SlotId?)
+  CallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId], SlotId?)
   MakeData(SlotId, ObjectShapeId, LayoutOperand, Array[SlotId], Array[SlotId])
   LoadTag(SlotId, SlotId)
   LoadObjectWitness(SlotId, ObjectShapeId, SlotId, Int)
@@ -280,7 +298,7 @@ pub(all) enum Terminator {
   SwitchTag(SlotId, Array[Edge], Edge)
   Return(SlotId?)
   TailCallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId])
-  TailCallValue(SlotId, Array[SlotId], Array[SlotId])
+  TailCallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId])
   Unreachable
 } derive(Debug, Eq)
 
@@ -309,6 +327,7 @@ pub(all) enum FunctionEntry {
 pub(all) struct BytecodeImage {
   entry : FunctionId
   initializer : FunctionId?
+  callable_abis : Array[CallableAbi]
   functions : Array[FunctionEntry]
   globals : Array[GlobalMetadata]
   layouts : Array[LayoutRecipe]

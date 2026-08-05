@@ -10,7 +10,12 @@ Normal return performs no implicit frame traversal or cleanup sweep. Compiler AR
 
 Before either tail terminator, explicit release instructions dispose of every current-frame owner not transferred into the replacement callee. The tail target's result representation must equal the current function result descriptor. The replaced frame is therefore ownership-empty at the transfer point.
 
-The Wasm backend lowers `tail_call_direct` to `return_call` and `tail_call_value` to `return_call_indirect`. An indirect-tail type is derived from the witness and user argument slot representations plus the current function result descriptor, then prepended with canonical `env:i32`. Wasm validation independently enforces the tail target's physical result compatibility.
+The Wasm backend lowers `tail_call_direct` to `return_call` and
+`tail_call_value` to `return_call_indirect`. Under ADR 0129, an indirect-tail
+type is generated from the terminator's explicit `CallableAbiId`, then
+prepended with canonical `env:i32`. The bytecode verifier checks that its
+result ABI equals the current function result, and Wasm validation independently
+enforces the dynamic target's physical compatibility.
 
 Runtime-import entries may also be tail targets. Their arguments and any callable environment transfer under the same callee-owned rule. If a runtime-import adapter fails, it consumes or releases its transferred arguments and throws the private fatal exception. The replaced Lane frame has no remaining ownership and requires no cleanup handler after the tail transfer.
 

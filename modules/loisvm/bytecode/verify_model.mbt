@@ -34,6 +34,16 @@ fn BytecodeVerifier::verify(
   if self.image.functions.is_empty() {
     self.fail(image_site, "function table must be nonempty")
   }
+  self.verify_callable_abis()
+  for index, entry in self.image.functions {
+    let function : FunctionId = { value: index + 1 }
+    guard entry.callable_abi() is Some(abi) else {
+      self.fail(Function(function), "function inputs do not define an ABI")
+    }
+    if !self.image.callable_abis.contains(abi) {
+      self.fail(Function(function), "function ABI is missing from the table")
+    }
+  }
   self.verify_root_function(self.image.entry, "selected entry")
   match self.image.initializer {
     Some(initializer) =>
@@ -58,6 +68,35 @@ fn BytecodeVerifier::verify(
 }
 
 ///|
+fn BytecodeVerifier::verify_callable_abis(
+  self : BytecodeVerifier,
+) -> Unit raise BytecodeVerificationError {
+  let site = BytecodeVerificationSite::Image
+  if self.image.callable_abis.is_empty() {
+    self.fail(site, "callable ABI table must be nonempty")
+  }
+  for index, abi in self.image.callable_abis {
+    if abi.witness_count < 0 {
+      self.fail(site, "callable ABI witness count must be nonnegative")
+    }
+    for parameter in abi.parameters {
+      if !legal_metadata(parameter.representation, parameter.cleanup) {
+        self.fail(site, "callable ABI contains an illegal parameter shape")
+      }
+    }
+    if abi.result is Value(representation, cleanup) &&
+      !legal_metadata(representation, cleanup) {
+      self.fail(site, "callable ABI contains an illegal result shape")
+    }
+    for previous in 0..<index {
+      if self.image.callable_abis[previous] == abi {
+        self.fail(site, "callable ABI table contains a duplicate description")
+      }
+    }
+  }
+}
+
+///|
 fn[T] BytecodeVerifier::fail(
   self : BytecodeVerifier,
   site : BytecodeVerificationSite,
@@ -77,6 +116,31 @@ fn BytecodeVerifier::function_entry(
     self.fail(site, "FunctionId \{id.value} is out of range")
   }
   self.image.functions[id.value - 1]
+}
+
+///|
+fn BytecodeVerifier::callable_abi(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  id : CallableAbiId,
+) -> CallableAbi raise BytecodeVerificationError {
+  match self.image.callable_abi(id) {
+    Some(abi) => abi
+    None => self.fail(site, "CallableAbiId \{id.value} is out of range")
+  }
+}
+
+///|
+fn BytecodeVerifier::function_callable_abi(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  id : FunctionId,
+) -> CallableAbi raise BytecodeVerificationError {
+  ignore(self.function_entry(site, id))
+  match self.image.function_callable_abi(id) {
+    Some(abi) => abi
+    None => self.fail(site, "function inputs do not define an ABI")
+  }
 }
 
 ///|
@@ -342,21 +406,3 @@ fn result_shape(result : ResultAbi) -> (Representation, Cleanup)? {
 }
 
 ///|
-fn runtime_value_shape(kind : RuntimeValueKind) -> (Representation, Cleanup)? {
-  match kind {
-    Unit => None
-    Bool => Some((I32, Trivial))
-    I64 => Some((I64, Trivial))
-    F64 => Some((F64, Trivial))
-    F32 => Some((F32, Trivial))
-    String | Opaque => Some((I32, OwnedRef))
-  }
-}
-
-///|
-fn runtime_result_abi(kind : RuntimeValueKind) -> ResultAbi {
-  match runtime_value_shape(kind) {
-    None => Unit
-    Some((representation, cleanup)) => Value(representation, cleanup)
-  }
-}

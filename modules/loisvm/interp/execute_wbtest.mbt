@@ -53,6 +53,10 @@ test "ARC releases dynamic runtime String owners" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      { witness_count: 0, parameters: [], result: Value(I32, OwnedRef) },
+    ],
     globals: [],
     functions: [
       BytecodeBody(entry),
@@ -109,6 +113,10 @@ test "interpreter rejects invalid host String UTF-8" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      { witness_count: 0, parameters: [], result: Value(I32, OwnedRef) },
+    ],
     globals: [],
     functions: [
       BytecodeBody(entry),
@@ -159,6 +167,7 @@ test "fieldless data construction reuses an immortal image singleton" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 })],
@@ -200,6 +209,7 @@ test "engine traps discard the instance without ARC unwinding" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 })],
@@ -225,6 +235,94 @@ test "engine traps discard the instance without ARC unwinding" {
   )
   assert_true(instance.heap.live_bytes > 0)
   assert_false(instance.frames.is_empty())
+}
+
+///|
+test "CallValue validates dynamic target and environment before consumption" {
+  let callable_slot : @bytecode.SlotMetadata = {
+    representation: I64,
+    cleanup: OwnedCallable,
+    erased_companion: None,
+  }
+  let entry = body(
+    slots=[callable_slot],
+    result=Unit,
+    instructions=[],
+    terminator=Return(None),
+  )
+  let capturing_target : @bytecode.FunctionBody = {
+    slots: [{ representation: I32, cleanup: OwnedRef, erased_companion: None }],
+    inputs: {
+      environment: Some({ value: 0 }),
+      witnesses: [],
+      user_parameters: [],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [Release({ value: 0 })],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let image : @bytecode.BytecodeImage = {
+    entry: { value: 1 },
+    initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    functions: [BytecodeBody(entry), BytecodeBody(capturing_target)],
+    globals: [],
+    layouts: [],
+    object_shapes: [],
+    constants: [],
+  }
+  let loaded = LoadedImage::{ image, bindings: [None, None] }
+  let instance = loaded.new_instance()
+  let frame = make_frame(entry, None, [], [], None)
+  frame.write({ value: 0 }, I64(callable({ value: 99 }, 0)))
+  let error : ExecutionFailure? = try {
+    instance.call_value(
+      frame,
+      { value: 0 },
+      { value: 0 },
+      [],
+      [],
+      None,
+      tail=false,
+    )
+    None
+  } catch {
+    error => Some(error)
+  }
+  assert_true(
+    error is Some(InvalidCallable(InvalidTarget(function={ value: 99 }))),
+  )
+  assert_eq(frame.owned_live, [true])
+  let missing_environment = make_frame(entry, None, [], [], None)
+  missing_environment.write({ value: 0 }, I64(callable({ value: 2 }, 0)))
+  let environment_error : ExecutionFailure? = try {
+    instance.call_value(
+      missing_environment,
+      { value: 0 },
+      { value: 0 },
+      [],
+      [],
+      None,
+      tail=false,
+    )
+    None
+  } catch {
+    error => Some(error)
+  }
+  assert_true(
+    environment_error
+    is Some(
+      InvalidCallable(
+        EnvironmentMismatch(function={ value: 2 }, expected=true, actual=false)
+      )
+    ),
+  )
+  assert_eq(missing_environment.owned_live, [true])
 }
 
 ///|

@@ -8,21 +8,54 @@ pub fn finalize(
 }
 
 ///|
+priv struct CallableAbiInterner {
+  entries : Array[@bytecode.CallableAbi]
+}
+
+///|
+fn CallableAbiInterner::intern(
+  self : CallableAbiInterner,
+  abi : @bytecode.CallableAbi,
+) -> @bytecode.CallableAbiId {
+  for index, existing in self.entries {
+    if existing == abi {
+      return { value: index }
+    }
+  }
+  let id : @bytecode.CallableAbiId = { value: self.entries.length() }
+  self.entries.push(abi)
+  id
+}
+
+///|
 fn finalize_or_raise(
   image : Image,
 ) -> @bytecode.BytecodeImage raise FinalizeError {
   let image = devirtualize_image(image)
   let image = select_consuming_projections(image)
+  let callable_abis = CallableAbiInterner::{ entries: [] }
+  for entry in image.functions {
+    ignore(
+      callable_abis.intern(
+        match entry {
+          Body(body) => vmcfg_callable_abi(body)
+          RuntimeImport(import_) => import_.callable_abi()
+        },
+      ),
+    )
+  }
   let functions : Array[@bytecode.FunctionEntry] = []
   for entry in image.functions {
     match entry {
-      Body(body) => functions.push(BytecodeBody(finalize_body(body)))
+      Body(body) =>
+        functions.push(BytecodeBody(finalize_body(body, callable_abis)))
       RuntimeImport(import_) => functions.push(RuntimeImport(import_))
     }
   }
   {
     entry: image.entry,
     initializer: image.initializer,
+    callable_abis: callable_abis.entries,
     functions,
     globals: image.globals,
     layouts: image.layouts,
@@ -32,8 +65,38 @@ fn finalize_or_raise(
 }
 
 ///|
+fn vmcfg_callable_abi(body : FunctionBody) -> @bytecode.CallableAbi {
+  {
+    witness_count: body.inputs.witnesses.length(),
+    parameters: body.inputs.user_parameters.map(parameter => {
+      let metadata = value_metadata_to_slot(body.values[parameter.value])
+      { representation: metadata.representation, cleanup: metadata.cleanup }
+    }),
+    result: body.result,
+  }
+}
+
+///|
+fn callsite_callable_abi(
+  body : FunctionBody,
+  witnesses : Array[ValueId],
+  arguments : Array[ValueId],
+  result : @bytecode.ResultAbi,
+) -> @bytecode.CallableAbi {
+  {
+    witness_count: witnesses.length(),
+    parameters: arguments.map(argument => {
+      let metadata = value_metadata_to_slot(body.values[argument.value])
+      { representation: metadata.representation, cleanup: metadata.cleanup }
+    }),
+    result,
+  }
+}
+
+///|
 fn finalize_body(
   body : FunctionBody,
+  callable_abis : CallableAbiInterner,
 ) -> @bytecode.FunctionBody raise FinalizeError {
   let body = simplify_body(body)
   let body = promote_cross_block_instruction_borrows(body)
@@ -46,7 +109,9 @@ fn finalize_body(
   let original_block_count = body.blocks.length()
   for index, block in body.blocks {
     blocks.push(
-      finalize_block(body, index, block, original_block_count, edge_blocks),
+      finalize_block(
+        body, callable_abis, index, block, original_block_count, edge_blocks,
+      ),
     )
   }
   blocks.append(edge_blocks)
@@ -109,6 +174,7 @@ fn value_to_slot(value : ValueId) -> @bytecode.SlotId {
 ///|
 fn finalize_block(
   body : FunctionBody,
+  callable_abis : CallableAbiInterner,
   block_index : Int,
   block : Block,
   original_block_count : Int,
@@ -134,12 +200,13 @@ fn finalize_block(
   for instruction in block.instructions {
     instructions.push(
       finalize_instruction(
-        body, block_index, live, remaining, instructions, instruction,
+        body, callable_abis, block_index, live, remaining, instructions, instruction,
       ),
     )
   }
   let terminator = finalize_terminator(
     body,
+    callable_abis,
     block_index,
     live,
     remaining,
@@ -225,6 +292,7 @@ fn mark_destination(
 ///|
 fn finalize_instruction(
   body : FunctionBody,
+  callable_abis : CallableAbiInterner,
   block : Int,
   live : Array[Bool],
   remaining : Array[Int],
@@ -290,11 +358,22 @@ fn finalize_instruction(
         destination.map(value_to_slot),
       )
     }
-    CallValue(callable, witnesses, arguments, destination) =>
+    CallValue(callable, witnesses, arguments, destination) => {
+      let result = match destination {
+        Some(value) => {
+          let metadata = value_metadata_to_slot(body.values[value.value])
+          @bytecode.ResultAbi::Value(metadata.representation, metadata.cleanup)
+        }
+        None => Unit
+      }
+      let abi = callable_abis.intern(
+        callsite_callable_abi(body, witnesses, arguments, result),
+      )
       CallValue(
         value_to_slot(
           consume_value(body, block, live, remaining, prefix, callable),
         ),
+        abi,
         witnesses.map(value => value_to_slot(borrow_value(remaining, value))),
         arguments.map(value => {
           value_to_slot(
@@ -303,6 +382,7 @@ fn finalize_instruction(
         }),
         destination.map(value_to_slot),
       )
+    }
     MakeData(destination, shape, layout, witnesses, fields) =>
       MakeData(
         value_to_slot(destination),
@@ -1029,6 +1109,7 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
 ///|
 fn finalize_terminator(
   body : FunctionBody,
+  callable_abis : CallableAbiInterner,
   block : Int,
   live : Array[Bool],
   remaining : Array[Int],
@@ -1108,11 +1189,15 @@ fn finalize_terminator(
         }),
       )
     }
-    TailCallValue(callable, witnesses, arguments) =>
+    TailCallValue(callable, witnesses, arguments) => {
+      let abi = callable_abis.intern(
+        callsite_callable_abi(body, witnesses, arguments, body.result),
+      )
       TailCallValue(
         value_to_slot(
           consume_value(body, block, live, remaining, prefix, callable),
         ),
+        abi,
         witnesses.map(value => value_to_slot(borrow_value(remaining, value))),
         arguments.map(value => {
           value_to_slot(
@@ -1120,6 +1205,7 @@ fn finalize_terminator(
           )
         }),
       )
+    }
     Unreachable => Unreachable
   }
 }

@@ -23,6 +23,14 @@ test "compiler preserves I32 literal and arithmetic through executable lowering"
       #|{
       #|  entry: { value: 1 },
       #|  initializer: None,
+      #|  callable_abis: [
+      #|    { witness_count: 0, parameters: [], result: Unit },
+      #|    {
+      #|      witness_count: 0,
+      #|      parameters: [{ representation: I64, cleanup: Trivial }],
+      #|      result: Unit,
+      #|    },
+      #|  ],
       #|  functions: [
       #|    BytecodeBody(
       #|      {

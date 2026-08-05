@@ -139,11 +139,33 @@ pub(all) enum ResourceLimitKind {
 } derive(Debug, Eq)
 
 ///|
+pub(all) suberror CallableInvocationError {
+  InvalidTarget(function~ : @bytecode.FunctionId)
+  InvalidAbi(abi~ : @bytecode.CallableAbiId)
+  AbiMismatch(
+    function~ : @bytecode.FunctionId,
+    expected~ : @bytecode.CallableAbiId,
+    actual~ : @bytecode.CallableAbiId
+  )
+  EnvironmentMismatch(
+    function~ : @bytecode.FunctionId,
+    expected~ : Bool,
+    actual~ : Bool
+  )
+  WitnessCountMismatch(expected~ : Int, actual~ : Int)
+  ArgumentCountMismatch(expected~ : Int, actual~ : Int)
+  WitnessShapeMismatch(index~ : Int)
+  ArgumentShapeMismatch(index~ : Int)
+  ResultShapeMismatch
+} derive(Debug, Eq)
+
+///|
 pub(all) suberror ExecutionError {
   RuntimeImportFailure(symbol~ : String, message~ : String)
   ExecutionResourceLimit(kind~ : ResourceLimitKind)
   Interrupted
   EngineTrap(detail~ : String)
+  InvalidCallableInvocation(CallableInvocationError)
   InternalRuntimeFailure(detail~ : String)
   InstanceNotReady
 } derive(Debug, Eq)

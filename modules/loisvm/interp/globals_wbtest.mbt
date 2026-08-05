@@ -104,6 +104,7 @@ fn lifecycle_image(entry : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
   {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [
       BytecodeBody(lifecycle_initializer()),
       BytecodeBody(entry),

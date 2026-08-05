@@ -325,17 +325,29 @@ fn ExecutionInstance::call_value(
   self : ExecutionInstance,
   frame : Frame,
   callable_slot : @bytecode.SlotId,
+  expected_abi_id : @bytecode.CallableAbiId,
   witnesses : Array[@bytecode.SlotId],
   arguments : Array[@bytecode.SlotId],
   destination : @bytecode.SlotId?,
   tail~ : Bool,
 ) -> Unit raise ExecutionFailure {
   let packed = frame.i64(callable_slot)
-  frame.consume_owner(callable_slot)
+  let function = callable_function(packed)
   let environment = callable_environment(packed)
+  self.validate_callable_invocation(
+    frame,
+    function,
+    expected_abi_id,
+    environment != 0,
+    witnesses,
+    arguments,
+    destination,
+    tail~,
+  )
+  frame.consume_owner(callable_slot)
   self.dispatch_call(
     frame,
-    callable_function(packed),
+    function,
     if environment == 0 {
       None
     } else {
@@ -346,6 +358,113 @@ fn ExecutionInstance::call_value(
     destination,
     tail~,
   )
+}
+
+///|
+fn ExecutionInstance::validate_callable_invocation(
+  self : ExecutionInstance,
+  frame : Frame,
+  function : @bytecode.FunctionId,
+  expected_abi_id : @bytecode.CallableAbiId,
+  has_environment : Bool,
+  witnesses : Array[@bytecode.SlotId],
+  arguments : Array[@bytecode.SlotId],
+  destination : @bytecode.SlotId?,
+  tail~ : Bool,
+) -> Unit raise ExecutionFailure {
+  let expected = match self.loaded.image.callable_abi(expected_abi_id) {
+    Some(abi) => abi
+    None => raise InvalidCallable(InvalidAbi(abi=expected_abi_id))
+  }
+  let entry = match self.loaded.image.functions.get(function.value - 1) {
+    Some(entry) if function.value > 0 => entry
+    _ => raise InvalidCallable(InvalidTarget(function~))
+  }
+  let actual = match entry.callable_abi() {
+    Some(abi) => abi
+    None => raise InvalidCallable(InvalidTarget(function~))
+  }
+  let actual_abi_id = match
+    self.loaded.image.function_callable_abi_id(function) {
+    Some(id) => id
+    None => raise InvalidCallable(InvalidTarget(function~))
+  }
+  if expected != actual {
+    raise InvalidCallable(
+      AbiMismatch(function~, expected=expected_abi_id, actual=actual_abi_id),
+    )
+  }
+  let expects_environment = match entry {
+    BytecodeBody(body) => body.inputs.environment is Some(_)
+    RuntimeImport(_) => false
+  }
+  if expects_environment != has_environment {
+    raise InvalidCallable(
+      EnvironmentMismatch(
+        function~,
+        expected=expects_environment,
+        actual=has_environment,
+      ),
+    )
+  }
+  if witnesses.length() != expected.witness_count {
+    raise InvalidCallable(
+      WitnessCountMismatch(
+        expected=expected.witness_count,
+        actual=witnesses.length(),
+      ),
+    )
+  }
+  if arguments.length() != expected.parameters.length() {
+    raise InvalidCallable(
+      ArgumentCountMismatch(
+        expected=expected.parameters.length(),
+        actual=arguments.length(),
+      ),
+    )
+  }
+  for index, witness in witnesses {
+    if frame.body.slots[witness.value] !=
+      { representation: I32, cleanup: Trivial, erased_companion: None } ||
+      !value_has_representation(frame.value(witness), I32) {
+      raise InvalidCallable(WitnessShapeMismatch(index~))
+    }
+  }
+  for index, argument in arguments {
+    let slot = frame.body.slots[argument.value]
+    let parameter = expected.parameters[index]
+    if slot.representation != parameter.representation ||
+      slot.cleanup != parameter.cleanup ||
+      !value_has_representation(frame.value(argument), parameter.representation) {
+      raise InvalidCallable(ArgumentShapeMismatch(index~))
+    }
+  }
+  let result_matches = if tail {
+    frame.body.result == expected.result
+  } else {
+    match (expected.result, destination) {
+      (Unit, None) => true
+      (Value(representation, cleanup), Some(slot)) => {
+        let metadata = frame.body.slots[slot.value]
+        metadata.representation == representation && metadata.cleanup == cleanup
+      }
+      _ => false
+    }
+  }
+  if !result_matches {
+    raise InvalidCallable(ResultShapeMismatch)
+  }
+}
+
+///|
+fn value_has_representation(
+  value : VMValue,
+  representation : @bytecode.Representation,
+) -> Bool {
+  match (value, representation) {
+    (I32(_), I32) | (I64(_), I64) | (F32(_), F32) | (F64(_), F64) => true
+    _ => false
+  }
 }
 
 ///|
@@ -375,7 +494,11 @@ fn ExecutionInstance::dispatch_call(
   destination : @bytecode.SlotId?,
   tail~ : Bool,
 ) -> Unit raise ExecutionFailure {
-  match self.loaded.image.functions[function.value - 1] {
+  let entry = match self.loaded.image.functions.get(function.value - 1) {
+    Some(entry) if function.value > 0 => entry
+    _ => raise InvalidCallable(InvalidTarget(function~))
+  }
+  match entry {
     BytecodeBody(body) => {
       if !tail &&
         self.config.max_call_depth is Some(maximum) &&

@@ -49,6 +49,14 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      {
+        witness_count: 0,
+        parameters: [{ representation: I64, cleanup: Trivial }],
+        result: Unit,
+      },
+    ],
     functions: [
       BytecodeBody(initializer),
       BytecodeBody(entry),
@@ -123,6 +131,7 @@ test "Wasm initializer and entry share one runtime context" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [
       BytecodeBody(call_import),
       BytecodeBody(call_import),
@@ -268,6 +277,7 @@ fn wasm_lifecycle_image() -> @bytecode.BytecodeImage {
   {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [
       BytecodeBody(wasm_lifecycle_initializer()),
       BytecodeBody(wasm_lifecycle_entry()),
@@ -393,6 +403,7 @@ test "Wasm reports invalid instance-global initialization" {
     {
       entry: { value: 2 },
       initializer: Some({ value: 1 }),
+      callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
       functions: [BytecodeBody(initializer), BytecodeBody(entry)],
       globals: [
         { representation: I64, cleanup: Trivial, erased_companion: None },

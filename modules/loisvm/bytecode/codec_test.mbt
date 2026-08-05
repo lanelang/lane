@@ -24,6 +24,14 @@ fn shape(value : Int) -> ObjectShapeId {
 }
 
 ///|
+fn write_unit_callable_abi_table(writer : @bytecodec.ByteWriter) -> Unit {
+  writer.write_u32_le_int(1)
+  writer.write_u32_le_int(0)
+  writer.write_u32_le_int(0)
+  writer.write_u8(1)
+}
+
+///|
 fn minimal_body(instructions? : Array[Instruction] = []) -> FunctionBody {
   {
     slots: [],
@@ -38,6 +46,7 @@ fn minimal_image() -> BytecodeImage {
   {
     entry: function(1),
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [BytecodeBody(minimal_body())],
     globals: [],
     layouts: [],
@@ -72,6 +81,7 @@ fn global_image() -> BytecodeImage {
   {
     entry: function(1),
     initializer: Some(function(2)),
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [BytecodeBody(minimal_body()), BytecodeBody(initializer)],
     globals: [
       { representation: I32, cleanup: Trivial, erased_companion: None },
@@ -90,11 +100,93 @@ fn global_image() -> BytecodeImage {
 ///|
 test "minimal bytecode image has stable encoding" {
   let binary = bytecode_image_to_binary(minimal_image())
-  assert_eq(binary.to_array().map(fn(byte) { byte.to_int() }), [
-    1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  ])
+  debug_inspect(
+    binary.to_array().map(fn(byte) { byte.to_int() }),
+    content=(
+      #|[
+      #|  1,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  1,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  1,
+      #|  1,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  1,
+      #|  34,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  1,
+      #|  1,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  4,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|]
+    ),
+  )
   assert_eq(parse_bytecode_image_binary(binary), Ok(minimal_image()))
 }
 
@@ -106,13 +198,14 @@ test "minimal bytecode image has canonical disassembly" {
       #|LoisVM bytecode
       #|entry: f1
       #|initializer: none
+      #|callable ABIs: 1
       #|functions: 1
       #|globals: 0
       #|layouts: 0
       #|object shapes: 0
       #|constants: 0
       #|
-      #|function f1(
+      #|function f1 abi=abi0(
       #|  environment=none,
       #|  witnesses=[],
       #|  parameters=[]
@@ -122,6 +215,9 @@ test "minimal bytecode image has canonical disassembly" {
       #|  b0([]):
       #|    return none
       #|}
+      #|
+      #|callable ABI table:
+      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
       #|
     ),
   )
@@ -132,7 +228,7 @@ test "minimal bytecode code view omits image summary" {
   inspect(
     bytecode_image_to_code(minimal_image()),
     content=(
-      #|function f1(
+      #|function f1 abi=abi0(
       #|  environment=none,
       #|  witnesses=[],
       #|  parameters=[]
@@ -142,6 +238,9 @@ test "minimal bytecode code view omits image summary" {
       #|  b0([]):
       #|    return none
       #|}
+      #|
+      #|callable ABI table:
+      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
       #|
     ),
   )
@@ -241,13 +340,14 @@ test "global image has canonical disassembly" {
       #|LoisVM bytecode
       #|entry: f1
       #|initializer: f2
+      #|callable ABIs: 1
       #|functions: 2
       #|globals: 2
       #|layouts: 1
       #|object shapes: 0
       #|constants: 0
       #|
-      #|function f1(
+      #|function f1 abi=abi0(
       #|  environment=none,
       #|  witnesses=[],
       #|  parameters=[]
@@ -258,7 +358,7 @@ test "global image has canonical disassembly" {
       #|    return none
       #|}
       #|
-      #|function f2(
+      #|function f2 abi=abi0(
       #|  environment=none,
       #|  witnesses=[],
       #|  parameters=[]
@@ -274,6 +374,9 @@ test "global image has canonical disassembly" {
       #|    borrow_global %2, g1
       #|    return none
       #|}
+      #|
+      #|callable ABI table:
+      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
       #|
       #|instance global table:
       #|  g0 = i32 + trivial
@@ -291,6 +394,17 @@ test "function, layout, shape, and constant tables roundtrip" {
   let image : BytecodeImage = {
     entry: function(1),
     initializer: None,
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      {
+        witness_count: 0,
+        parameters: [
+          { representation: I64, cleanup: Trivial },
+          { representation: I32, cleanup: OwnedRef },
+        ],
+        result: Value(I32, OwnedRef),
+      },
+    ],
     functions: [
       BytecodeBody(minimal_body()),
       RuntimeImport({
@@ -358,6 +472,20 @@ test "function, layout, shape, and constant tables roundtrip" {
 test "runtime import disassembly renders complete direct ABI signature" {
   let image = {
     ..minimal_image(),
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      {
+        witness_count: 0,
+        parameters: [
+          { representation: I32, cleanup: Trivial },
+          { representation: I64, cleanup: Trivial },
+          { representation: F64, cleanup: Trivial },
+          { representation: I32, cleanup: OwnedRef },
+          { representation: I32, cleanup: OwnedRef },
+        ],
+        result: Value(I32, OwnedRef),
+      },
+    ],
     functions: [
       BytecodeBody(minimal_body()),
       RuntimeImport({
@@ -374,13 +502,14 @@ test "runtime import disassembly renders complete direct ABI signature" {
       #|LoisVM bytecode
       #|entry: f1
       #|initializer: none
+      #|callable ABIs: 2
       #|functions: 2
       #|globals: 0
       #|layouts: 0
       #|object shapes: 0
       #|constants: 0
       #|
-      #|function f1(
+      #|function f1 abi=abi0(
       #|  environment=none,
       #|  witnesses=[],
       #|  parameters=[]
@@ -391,12 +520,16 @@ test "runtime import disassembly renders complete direct ABI signature" {
       #|    return none
       #|}
       #|
-      #|function f2 = runtime_import(
+      #|function f2 abi=abi1 = runtime_import(
       #|  symbol="lane.host.all",
       #|  abi_major=1,
       #|  parameters=[unit, bool, i64, f64, string, opaque],
       #|  result=opaque
       #|)
+      #|
+      #|callable ABI table:
+      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
+      #|  abi1 = fn(witnesses=0, parameters=[i32 + trivial, i64 + trivial, f64 + trivial, i32 + owned_ref, i32 + owned_ref]) -> i32 + owned_ref
       #|
     ),
   )
@@ -407,11 +540,12 @@ test "decoder rejects unknown function tag" {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u32_le_int(1)
   writer.write_u32_le_int(0)
+  write_unit_callable_abi_table(writer)
   writer.write_u32_le_int(1)
   writer.write_u8(0)
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
-    Err(MalformedEncoding(offset=12, detail="unknown function entry tag 0")),
+    Err(MalformedEncoding(offset=25, detail="unknown function entry tag 0")),
   )
 }
 
@@ -420,6 +554,7 @@ test "decoder rejects unknown runtime value kind" {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u32_le_int(1)
   writer.write_u32_le_int(0)
+  write_unit_callable_abi_table(writer)
   writer.write_u32_le_int(1)
   writer.write_u8(2)
   writer.write_u32_le_int(1)
@@ -428,7 +563,7 @@ test "decoder rejects unknown runtime value kind" {
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
     Err(
-      MalformedEncoding(offset=21, detail="unknown runtime value kind tag 99"),
+      MalformedEncoding(offset=34, detail="unknown runtime value kind tag 99"),
     ),
   )
 }
@@ -448,20 +583,32 @@ test "decoder preserves truncation offsets with pattern parsing" {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u32_le_int(1)
   writer.write_u32_le_int(0)
+  assert_eq(
+    parse_bytecode_image_binary(writer.to_bytes()),
+    Err(MalformedEncoding(offset=8, detail="expected callable ABI count")),
+  )
   writer.write_u32_le_int(1)
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
     Err(
       MalformedEncoding(
         offset=8,
-        detail="function count exceeds enclosing payload",
+        detail="callable ABI count exceeds enclosing payload",
       ),
     ),
   )
+  writer.write_u32_le_int(0)
+  writer.write_u32_le_int(0)
   writer.write_u8(1)
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
-    Err(MalformedEncoding(offset=13, detail="expected function body length")),
+    Err(MalformedEncoding(offset=21, detail="expected function count")),
+  )
+  writer.write_u32_le_int(1)
+  writer.write_u8(1)
+  assert_eq(
+    parse_bytecode_image_binary(writer.to_bytes()),
+    Err(MalformedEncoding(offset=26, detail="expected function body length")),
   )
 }
 
@@ -470,6 +617,7 @@ test "decoder reports u32 values beyond host I64 as resource limits" {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u32_le_int(1)
   writer.write_u32_le_int(0)
+  write_unit_callable_abi_table(writer)
   writer.write_u32_le_int(1)
   writer.write_u8(2)
   writer.write_i32_le(-1)
@@ -484,7 +632,7 @@ test "decoder reports u32 values beyond host I64 as resource limits" {
     parse_bytecode_image_binary(writer.to_bytes()),
     Err(
       ResourceLimit(
-        offset=13,
+        offset=26,
         detail="runtime import ABI major exceeds implementation limit",
       ),
     ),
@@ -545,15 +693,15 @@ test "global count beyond host I64 is a resource limit" {
     globals: [{ representation: I32, cleanup: Trivial, erased_companion: None }],
   }
   let bytes = bytecode_image_to_binary(image).to_array()
-  bytes[51] = b'\xFF'
-  bytes[52] = b'\xFF'
-  bytes[53] = b'\xFF'
-  bytes[54] = b'\xFF'
+  bytes[64] = b'\xFF'
+  bytes[65] = b'\xFF'
+  bytes[66] = b'\xFF'
+  bytes[67] = b'\xFF'
   assert_eq(
     parse_bytecode_image_binary(Bytes::from_array(bytes)),
     Err(
       ResourceLimit(
-        offset=51,
+        offset=64,
         detail="instance global count exceeds implementation limit",
       ),
     ),
@@ -575,7 +723,7 @@ test "decoder accepts UTF-8 constants and rejects malformed UTF-8" {
     parse_bytecode_image_binary(bytecode_image_to_binary(malformed_utf8)),
     Err(
       MalformedEncoding(
-        offset=71,
+        offset=84,
         detail="String constant must contain valid UTF-8",
       ),
     ),
@@ -602,25 +750,25 @@ test "decoder rejects invalid Char constants" {
       #|[
       #|  Err(
       #|    MalformedEncoding(
-      #|      offset=51,
+      #|      offset=64,
       #|      detail="Char constant -1 is not a Unicode scalar value",
       #|    ),
       #|  ),
       #|  Err(
       #|    MalformedEncoding(
-      #|      offset=51,
+      #|      offset=64,
       #|      detail="Char constant 55296 is not a Unicode scalar value",
       #|    ),
       #|  ),
       #|  Err(
       #|    MalformedEncoding(
-      #|      offset=51,
+      #|      offset=64,
       #|      detail="Char constant 57343 is not a Unicode scalar value",
       #|    ),
       #|  ),
       #|  Err(
       #|    MalformedEncoding(
-      #|      offset=51,
+      #|      offset=64,
       #|      detail="Char constant 1114112 is not a Unicode scalar value",
       #|    ),
       #|  ),
@@ -672,6 +820,10 @@ test "result ABI round-trips and decoder rejects ownership mismatch" {
   }
   let valid = {
     ..minimal_image(),
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      { witness_count: 0, parameters: [], result: Value(I32, OwnedRef) },
+    ],
     functions: [BytecodeBody(minimal_body()), BytecodeBody(owned_result)],
     constants: [b"owned"],
   }
@@ -707,6 +859,10 @@ test "result ABI round-trips and decoder rejects ownership mismatch" {
   }
   let invalid = {
     ..minimal_image(),
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      { witness_count: 0, parameters: [], result: Value(I32, Trivial) },
+    ],
     functions: [BytecodeBody(caller), BytecodeBody(scalar_result)],
   }
   assert_eq(

@@ -90,6 +90,14 @@ test "F32 host ABI agrees across interpreter and Wasm backends" {
   ])
   let image = {
     ..wasm_bytes_image(body),
+    callable_abis: [
+      { witness_count: 0, parameters: [], result: Unit },
+      {
+        witness_count: 0,
+        parameters: [{ representation: F32, cleanup: Trivial }],
+        result: Value(F32, Trivial),
+      },
+    ],
     functions: [
       BytecodeBody(body),
       RuntimeImport({

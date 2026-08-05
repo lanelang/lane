@@ -3,6 +3,10 @@ pub fn bytecode_image_to_binary(image : BytecodeImage) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_function_id(image.entry)
   writer.write_optional_function_id(image.initializer)
+  writer.write_u32_le_int(image.callable_abis.length())
+  for abi in image.callable_abis {
+    writer.write_callable_abi(abi)
+  }
   writer.write_u32_le_int(image.functions.length())
   for function in image.functions {
     writer.write_function_entry(function)
@@ -24,6 +28,20 @@ pub fn bytecode_image_to_binary(image : BytecodeImage) -> Bytes {
     writer.write_bytes(constant)
   }
   writer.to_bytes()
+}
+
+///|
+fn @bytecodec.ByteWriter::write_callable_abi(
+  self : @bytecodec.ByteWriter,
+  abi : CallableAbi,
+) -> Unit {
+  self.write_u32_le_int(abi.witness_count)
+  self.write_u32_le_int(abi.parameters.length())
+  for parameter in abi.parameters {
+    self.write_representation(parameter.representation)
+    self.write_cleanup(parameter.cleanup)
+  }
+  self.write_result_abi(abi.result)
 }
 
 ///|
@@ -299,9 +317,10 @@ fn @bytecodec.ByteWriter::write_instruction(
       self.write_slot_ids(arguments)
       self.write_optional_slot(destination)
     }
-    CallValue(callable, witnesses, arguments, destination) => {
+    CallValue(callable, abi, witnesses, arguments, destination) => {
       self.write_u8(0x0C)
       self.write_slot_id(callable)
+      self.write_callable_abi_id(abi)
       self.write_slot_ids(witnesses)
       self.write_slot_ids(arguments)
       self.write_optional_slot(destination)
@@ -603,9 +622,10 @@ fn @bytecodec.ByteWriter::write_terminator(
       self.write_slot_ids(witnesses)
       self.write_slot_ids(arguments)
     }
-    TailCallValue(callable, witnesses, arguments) => {
+    TailCallValue(callable, abi, witnesses, arguments) => {
       self.write_u8(0x06)
       self.write_slot_id(callable)
+      self.write_callable_abi_id(abi)
       self.write_slot_ids(witnesses)
       self.write_slot_ids(arguments)
     }
@@ -712,6 +732,14 @@ fn @bytecodec.ByteWriter::write_optional_slot(
 fn @bytecodec.ByteWriter::write_function_id(
   self : @bytecodec.ByteWriter,
   id : FunctionId,
+) -> Unit {
+  self.write_u32_le_int(id.value)
+}
+
+///|
+fn @bytecodec.ByteWriter::write_callable_abi_id(
+  self : @bytecodec.ByteWriter,
+  id : CallableAbiId,
 ) -> Unit {
   self.write_u32_le_int(id.value)
 }

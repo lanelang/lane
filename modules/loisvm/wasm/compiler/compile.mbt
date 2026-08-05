@@ -75,10 +75,11 @@ fn compile_or_raise(
   for index, entry in image.functions {
     match entry {
       BytecodeBody(body) => {
+        let abi = body.callable_abi().unwrap()
         let type_index = intern_function_type(
           wasm_module,
-          wasm_function_parameters(body),
-          wasm_function_results(body.result),
+          wasm_callable_parameters(abi),
+          wasm_function_results(abi.result),
         )
         wasm_module.funcs.push(type_index)
         wasm_module.codes.push(
@@ -96,6 +97,7 @@ fn compile_or_raise(
         append_runtime_import_adapter(
           wasm_module,
           import_,
+          import_.callable_abi(),
           internal_imports.count + host_service_count + import_index,
           runtime_functions,
         )
@@ -171,15 +173,15 @@ fn compile_or_raise(
 }
 
 ///|
-fn wasm_function_parameters(
-  body : @bytecode.FunctionBody,
+fn wasm_callable_parameters(
+  abi : @bytecode.CallableAbi,
 ) -> Array[@wasm_types.ValueType] {
   let parameters : Array[@wasm_types.ValueType] = [I32]
-  for slot in body.inputs.witnesses {
-    parameters.push(wasm_representation(body.slots[slot.value].representation))
+  for _ in 0..<abi.witness_count {
+    parameters.push(I32)
   }
-  for slot in body.inputs.user_parameters {
-    parameters.push(wasm_representation(body.slots[slot.value].representation))
+  for parameter in abi.parameters {
+    parameters.push(wasm_representation(parameter.representation))
   }
   parameters
 }

@@ -174,7 +174,7 @@ test "explore protocol v1 exposes all eighteen ordered completed stages" {
       #|      "completed",
       #|      Some("compiler"),
       #|      Some("loisvm-bytecode"),
-      #|      Some("function f1("),
+      #|      Some("function f1 abi=abi0("),
       #|    ),
       #|    ("wasm", "completed", Some("backend"), Some("wat"), Some("(module")),
       #|  ],

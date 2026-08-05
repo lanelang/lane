@@ -6,7 +6,12 @@ LoisVM bytecode is a verified execution IR rather than a sandbox format. The pac
 
 ## Image model
 
-A `BytecodeImage` contains one unified function table, an optional instance initializer, an instance-global table, layout recipes, object shapes, and a valid UTF-8 String constant pool. `FunctionId` and `LayoutId` are nonzero one-based identifiers; `GlobalId`, `BlockId`, `SlotId`, `ConstantId`, and `ObjectShapeId` are zero-based dense table indices.
+A `BytecodeImage` contains one canonical Callable ABI table, one unified
+function table, an optional instance initializer, an instance-global table,
+layout recipes, object shapes, and a valid UTF-8 String constant pool.
+`FunctionId` and `LayoutId` are nonzero one-based identifiers;
+`CallableAbiId`, `GlobalId`, `BlockId`, `SlotId`, `ConstantId`, and
+`ObjectShapeId` are zero-based dense table indices.
 
 Each `FunctionEntry` is either a `BytecodeBody` or a `RuntimeImport`. The selected `entry` and optional `initializer` must name no-context, witness-free, zero-argument bytecode bodies returning `Unit`. A nonempty global table requires an initializer, and the initializer must initialize every global exactly once before the selected entry begins.
 
@@ -18,6 +23,7 @@ test "a minimal LoisVM bytecode image round-trips" {
   let image : BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [
       BytecodeBody({
         slots: [
@@ -127,10 +133,18 @@ The constructor spelling is the public MoonBit API. The lowercase spelling shown
 | Opcode | Constructor | Semantics |
 | --- | --- | --- |
 | `0x0B` | `CallDirect(function, environment, witnesses, arguments, destination)` | `call_direct`; invokes the immediate function-table entry. The optional environment and all user arguments are consumed, witnesses are borrowed, and a non-`Unit` result is written to `destination`. |
-| `0x0C` | `CallValue(callable, witnesses, arguments, destination)` | `call_value`; consumes the packed callable and user arguments, borrows witnesses, dispatches through the callable table, and writes an optional result. |
+| `0x0C` | `CallValue(callable, abi, witnesses, arguments, destination)` | `call_value`; validates the packed target against `abi`, consumes the packed callable and user arguments, borrows witnesses, dispatches through the callable table, and writes an optional result. |
 | `0x14` | `MakeClosure(destination, function, environment)` | `make_closure`; consumes one nonzero environment owner and packs it with the target function into an `I64 + OwnedCallable` destination. |
 
-Direct calls use `environment=None` for no-context functions and `Some(slot)` for functions that require a closure environment. A `CallValue` extracts the immediate function and optional environment from the packed callable. The verifier checks direct target signatures and the physical shape of every indirect call site; because an indirect target is selected at execution, target ABI mismatch remains an execution failure. Call depth limits, unresolved imports, and host failures are likewise execution failures rather than valid alternate results.
+Direct calls use `environment=None` for no-context functions and `Some(slot)`
+for functions that require a closure environment. A `CallValue` extracts the
+immediate target and optional environment from the packed callable. The
+verifier checks direct target signatures and the complete physical shape of
+every indirect call site. At execution, the interpreter compares the dynamic
+target ABI before consuming operands; the Wasm backend compares the target's
+table-associated ABI identifier before `call_indirect`, then uses an ABI-derived
+Wasm type. Call depth limits, unresolved imports, and host failures are likewise
+execution failures rather than valid alternate results.
 
 ### Data and environment objects
 
@@ -301,7 +315,7 @@ Every terminator begins with the listed `u8` tag. Edge operands encode a target 
 | `0x03` | `SwitchTag(tag, cases, default)` | Borrows an `I32` tag, selects `cases[tag]` when the tag is in range, otherwise selects `default`, then performs the edge transfer. |
 | `0x04` | `Return(source)` | Returns `None` for a `Unit` function or consumes the owning source value for a non-`Unit` function. All other owned slots must already be dead. |
 | `0x05` | `TailCallDirect(function, environment, witnesses, arguments)` | Replaces the current frame with a direct call, consuming the optional environment and arguments, borrowing witnesses, and preserving the current return destination. |
-| `0x06` | `TailCallValue(callable, witnesses, arguments)` | Replaces the current frame with a callable-value call, consuming the callable and arguments, borrowing witnesses, and preserving the current return destination. |
+| `0x06` | `TailCallValue(callable, abi, witnesses, arguments)` | Validates the packed target against `abi`, then replaces the current frame with a callable-value call, consuming the callable and arguments, borrowing witnesses, and preserving the current return destination. |
 | `0x07` | `Unreachable` | Traps if execution reaches the terminator. |
 
 Edge arguments are logical transfers. Their count and representations must match the target block parameters exactly. Any owned value not transferred along the selected edge must already have been released.

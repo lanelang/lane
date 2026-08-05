@@ -154,7 +154,7 @@ fn terminator_targets(terminator : @bytecode.Terminator) -> Array[Int] {
     }
     Return(_)
     | TailCallDirect(_, _, _, _)
-    | TailCallValue(_, _, _)
+    | TailCallValue(_, _, _, _)
     | Unreachable => []
   }
 }

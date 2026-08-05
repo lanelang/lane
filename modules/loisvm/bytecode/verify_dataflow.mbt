@@ -855,7 +855,7 @@ fn BytecodeVerifier::apply_instruction_flow(
         self.write_from_metadata(site, body, state, destination)
       }
     }
-    CallValue(callable, witnesses, arguments, destination) => {
+    CallValue(callable, _, witnesses, arguments, destination) => {
       for witness in witnesses {
         ignore(self.read_flow(site, state, witness))
       }
@@ -1305,7 +1305,7 @@ fn BytecodeVerifier::apply_terminator_flow(
       self.require_no_live_owners(site, state)
       []
     }
-    TailCallValue(callable, witnesses, arguments) => {
+    TailCallValue(callable, _, witnesses, arguments) => {
       for witness in witnesses {
         ignore(self.read_flow(site, state, witness))
       }

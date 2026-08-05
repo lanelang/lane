@@ -14,6 +14,7 @@ pub fn bytecode_image_to_disassembly(image : BytecodeImage) -> String {
     "LoisVM bytecode",
     "entry: \{render_function(image.entry)}",
     "initializer: \{render_optional_function(image.initializer)}",
+    "callable ABIs: \{image.callable_abis.length()}",
     "functions: \{image.functions.length()}",
     "globals: \{image.globals.length()}",
     "layouts: \{image.layouts.length()}",
@@ -34,7 +35,20 @@ pub fn bytecode_image_to_code(image : BytecodeImage) -> String {
 fn bytecode_image_code_lines(image : BytecodeImage) -> Array[String] {
   let lines : Array[String] = []
   for index, function in image.functions {
-    lines.append(render_function_entry(index + 1, function))
+    lines.append(
+      render_function_entry(
+        index + 1,
+        function,
+        render_function_callable_abi(image, function),
+      ),
+    )
+    lines.push("")
+  }
+  if !image.callable_abis.is_empty() {
+    lines.push("callable ABI table:")
+    for index, abi in image.callable_abis {
+      lines.push("  abi\{index} = \{render_callable_abi(abi)}")
+    }
     lines.push("")
   }
   if !image.globals.is_empty() {
@@ -70,14 +84,18 @@ fn bytecode_image_code_lines(image : BytecodeImage) -> Array[String] {
 }
 
 ///|
-fn render_function_entry(id : Int, entry : FunctionEntry) -> Array[String] {
+fn render_function_entry(
+  id : Int,
+  entry : FunctionEntry,
+  abi : String,
+) -> Array[String] {
   match entry {
     RuntimeImport(import_) => {
       let parameters = import_.parameters
         .map(render_runtime_value_kind)
         .join(", ")
       [
-        "function f\{id} = runtime_import(",
+        "function f\{id} abi=\{abi} = runtime_import(",
         "  symbol=\{Repr(import_.symbol)},",
         "  abi_major=\{import_.abi_major},",
         "  parameters=[\{parameters}],",
@@ -87,7 +105,7 @@ fn render_function_entry(id : Int, entry : FunctionEntry) -> Array[String] {
     }
     BytecodeBody(body) => {
       let lines = [
-        "function f\{id}(",
+        "function f\{id} abi=\{abi}(",
         "  environment=\{render_optional_slot(body.inputs.environment)},",
         "  witnesses=[\{render_slots(body.inputs.witnesses)}],",
         "  parameters=[\{render_slots(body.inputs.user_parameters)}]",
@@ -112,6 +130,30 @@ fn render_function_entry(id : Int, entry : FunctionEntry) -> Array[String] {
       lines
     }
   }
+}
+
+///|
+fn render_function_callable_abi(
+  image : BytecodeImage,
+  entry : FunctionEntry,
+) -> String {
+  guard entry.callable_abi() is Some(expected) else { return "<invalid>" }
+  for index, abi in image.callable_abis {
+    if abi == expected {
+      return "abi\{index}"
+    }
+  }
+  "<missing>"
+}
+
+///|
+fn render_callable_abi(abi : CallableAbi) -> String {
+  let parameters = abi.parameters
+    .map(parameter => {
+      "\{render_representation(parameter.representation)} + \{render_cleanup(parameter.cleanup)}"
+    })
+    .join(", ")
+  "fn(witnesses=\{abi.witness_count}, parameters=[\{parameters}]) -> \{render_result(abi.result)}"
 }
 
 ///|
@@ -155,8 +197,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "const_string \{render_slot(destination)}, \{render_constant(constant)}"
     CallDirect(function, environment, witnesses, arguments, destination) =>
       "call_direct \{render_optional_destination(destination)}\{render_function(function)} env=\{render_optional_slot(environment)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
-    CallValue(callable, witnesses, arguments, destination) =>
-      "call_value \{render_optional_destination(destination)}\{render_slot(callable)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
+    CallValue(callable, abi, witnesses, arguments, destination) =>
+      "call_value \{render_optional_destination(destination)}\{render_slot(callable)} abi=abi\{abi.value} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
     MakeData(destination, shape, layout, witnesses, fields) =>
       "make_data \{render_slot(destination)}, \{render_shape(shape)}, \{render_layout_operand(layout)}, witnesses=[\{render_slots(witnesses)}], fields=[\{render_slots(fields)}]"
     LoadTag(destination, source) =>
@@ -353,8 +395,8 @@ fn render_terminator(terminator : Terminator) -> String {
     Return(value) => "return \{render_optional_slot(value)}"
     TailCallDirect(function, environment, witnesses, arguments) =>
       "tail_call_direct \{render_function(function)} env=\{render_optional_slot(environment)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
-    TailCallValue(callable, witnesses, arguments) =>
-      "tail_call_value \{render_slot(callable)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
+    TailCallValue(callable, abi, witnesses, arguments) =>
+      "tail_call_value \{render_slot(callable)} abi=abi\{abi.value} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
     Unreachable => "unreachable"
   }
 }
