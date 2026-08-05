@@ -1,5 +1,7 @@
 # Bytecode function inputs and call shapes
 
+The result-descriptor and static result-agreement portions of this historical ADR are superseded by ADR 0128. Function results now carry both representation and cleanup.
+
 A LoisVM bytecode body explicitly lists its initial frame slots in three groups: optional closure environment, representation layout witnesses, and user arguments. `environment_slot_plus_one:u32le` is zero for no environment and N for `SlotId = N - 1`; a nonzero environment identifies an `I32 + OwnedRef` slot. Witness inputs use `witness_count:u32le` followed by ordered SlotIds, each identifying an `I32 + Trivial` slot. User inputs use `user_parameter_count:u32le` followed by ordered SlotIds whose representations and cleanup categories come from the slot table. All environment, witness, and user-input SlotIds are pairwise distinct.
 
 Function inputs are not block parameters. They are initialized by function entry before control reaches fixed entry `BlockId = 0`. The entry block therefore has an empty parameter list. Other blocks may declare parameters and receive their values through ordinary parallel edge transfer.

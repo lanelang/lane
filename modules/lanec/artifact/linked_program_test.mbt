@@ -38,7 +38,7 @@ test "linked program inspection delegates to LoisVM" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 8
+      #|schema: 9
       #|
       #|LoisVM bytecode
       #|entry: f1
@@ -65,14 +65,14 @@ test "linked program inspection delegates to LoisVM" {
 }
 
 ///|
-test "schema 8 rejects schema 7 linked program payload" {
+test "schema 9 rejects schema 8 linked program payload" {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_raw_bytes(
     Bytes::from_array([b'L', b'A', b'N', b'E', b'A', b'R', b'T', b'\x00']),
   )
   writer.write_u8(1)
   writer.write_u8(3)
-  writer.write_u32_le_int(7)
+  writer.write_u32_le_int(8)
   writer.write_u32_le_int(4)
   let result = parse_loisvm_linked_program_binary(writer.to_bytes())
   assert_true(result is Err(_))
@@ -196,7 +196,7 @@ test "linked program roundtrips and inspects instance globals" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 8
+      #|schema: 9
       #|
       #|LoisVM bytecode
       #|entry: f1

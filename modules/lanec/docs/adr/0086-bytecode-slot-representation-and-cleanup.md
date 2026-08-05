@@ -1,5 +1,7 @@
 # Bytecode slot representation and cleanup
 
+The result-descriptor portions of this historical ADR are superseded by ADR 0128. Function results now carry both representation and cleanup.
+
 Every LoisVM v1 physical slot has one representation tag and one cleanup category for its entire lifetime. The representation tags are exactly `I32`, `I64`, and `F64`. `Unit` has no slot representation. A returning call encodes `Option<SlotId>` for its result: non-`Unit` calls use `Some(destination)`, while `Unit` calls use `None` and carry no destination identifier.
 
 Their v1 wire values are I32 `0x01`, I64 `0x02`, and F64 `0x03`. Cleanup wire values are Trivial `0x01`, OwnedRef `0x02`, OwnedCallable `0x03`, and OwnedErased `0x04`. Zero and `0xFF` are invalid in both namespaces.

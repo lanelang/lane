@@ -155,3 +155,108 @@ test "bytecode verifier checks direct-call ABI and edge arity" {
     ),
   )
 }
+
+///|
+test "bytecode verifier rejects call result ownership mismatch" {
+  let target = {
+    ..verification_body(
+      slots=[verification_slot(I32)],
+      instructions=[ConstI32({ value: 0 }, 42)],
+      terminator=Return(Some({ value: 0 })),
+    ),
+    result: Value(I32, Trivial),
+  }
+  let caller = verification_body(
+    slots=[verification_slot(I32, cleanup=OwnedRef)],
+    instructions=[
+      CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
+      Release({ value: 0 }),
+    ],
+  )
+  assert_eq(
+    verify_bytecode_image(
+      verification_image(caller, functions=[BytecodeBody(target)]),
+    ),
+    Err(
+      InvalidBytecode(
+        site=Instruction({ value: 1 }, { value: 0 }, 0),
+        detail="call result ABI does not match destination slot",
+      ),
+    ),
+  )
+}
+
+///|
+test "bytecode verifier enforces result ABI at every static call boundary" {
+  let bad_return = {
+    ..verification_body(
+      slots=[verification_slot(I32)],
+      instructions=[ConstI32({ value: 0 }, 42)],
+      terminator=Return(Some({ value: 0 })),
+    ),
+    result: Value(I32, OwnedRef),
+  }
+  let tail_caller = {
+    ..verification_body(terminator=TailCallDirect({ value: 3 }, None, [], [])),
+    result: Value(I32, OwnedRef),
+  }
+  let scalar_target = {
+    ..verification_body(
+      slots=[verification_slot(I32)],
+      instructions=[ConstI32({ value: 0 }, 42)],
+      terminator=Return(Some({ value: 0 })),
+    ),
+    result: Value(I32, Trivial),
+  }
+  let import_caller = verification_body(slots=[verification_slot(I32)], instructions=[
+    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
+  ])
+  let string_import : RuntimeImport = {
+    abi_major: 1,
+    parameters: [],
+    result: String,
+    symbol: "lane.test.string",
+  }
+  debug_inspect(
+    (
+      verify_bytecode_image(
+        verification_image(verification_body(), functions=[
+          BytecodeBody(bad_return),
+        ]),
+      ),
+      verify_bytecode_image(
+        verification_image(verification_body(), functions=[
+          BytecodeBody(tail_caller),
+          BytecodeBody(scalar_target),
+        ]),
+      ),
+      verify_bytecode_image(
+        verification_image(import_caller, functions=[
+          RuntimeImport(string_import),
+        ]),
+      ),
+    ),
+    content=(
+      #|(
+      #|  Err(
+      #|    InvalidBytecode(
+      #|      site=Terminator({ value: 2 }, { value: 0 }),
+      #|      detail="SlotId 0 must be I32 + OwnedRef, got I32 + Trivial",
+      #|    ),
+      #|  ),
+      #|  Err(
+      #|    InvalidBytecode(
+      #|      site=Terminator({ value: 2 }, { value: 0 }),
+      #|      detail="tail-call result ABI does not match caller",
+      #|    ),
+      #|  ),
+      #|  Err(
+      #|    InvalidBytecode(
+      #|      site=Instruction({ value: 1 }, { value: 0 }, 0),
+      #|      detail="call result ABI does not match destination slot",
+      #|    ),
+      #|  ),
+      #|)
+    ),
+  )
+}

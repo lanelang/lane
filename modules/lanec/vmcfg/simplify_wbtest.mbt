@@ -51,7 +51,7 @@ test "simplify VM CFG folds branches and threads empty blocks" {
   let body : FunctionBody = {
     values: [scalar_metadata(), scalar_metadata(), scalar_metadata()],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: I64,
+    result: Value(I64, Trivial),
     blocks: [
       {
         parameters: [],
@@ -107,7 +107,7 @@ test "simplify VM CFG removes unused parameters and dead scalar work" {
       witnesses: [],
       user_parameters: [{ value: 0 }],
     },
-    result: I64,
+    result: Value(I64, Trivial),
     blocks: [
       {
         parameters: [],
@@ -162,7 +162,7 @@ test "simplify VM CFG reuses local constants and scalar slots" {
       scalar_metadata(),
     ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: I64,
+    result: Value(I64, Trivial),
     blocks: [
       {
         parameters: [],

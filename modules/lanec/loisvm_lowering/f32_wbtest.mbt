@@ -91,7 +91,7 @@ test "generic F32 calls cross explicit representation erasure bridges" {
     fail("expected identity bytecode body")
   }
   assert_eq(identity_body.inputs.witnesses.length(), 1)
-  assert_eq(identity_body.result, I64)
+  assert_eq(identity_body.result, Value(I64, OwnedErased))
   guard image.functions[1] is BytecodeBody(apply_body) else {
     fail("expected apply bytecode body")
   }

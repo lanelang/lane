@@ -48,7 +48,7 @@ test "VM CFG analyses describe a diamond and ignore unreachable dominance" {
       witnesses: [],
       user_parameters: [{ value: 0 }, { value: 1 }],
     },
-    result: I64,
+    result: Value(I64, Trivial),
     blocks: [
       {
         parameters: [],
@@ -163,7 +163,7 @@ test "VM CFG analyses converge through a loop with block parameters" {
       witnesses: [],
       user_parameters: [{ value: 0 }, { value: 1 }, { value: 2 }],
     },
-    result: I64,
+    result: Value(I64, Trivial),
     blocks: [
       {
         parameters: [],

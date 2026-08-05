@@ -118,6 +118,10 @@ _Avoid_: relative PC, byte address, Wasm label depth
 The byte-length-delimited body payload ordered as slot table, inputs, result descriptor, then nonempty block table, with no entry-block field.
 _Avoid_: entry BlockId operand, block length, extensible field map
 
+**Function Result ABI**:
+The single function-owned result contract: either zero-width `Unit`, or one value with an exact representation and cleanup category. Returns and statically known calls must agree on both fields.
+_Avoid_: representation-only result, destination-owned result semantics, inferred cleanup
+
 **Block Parameter Transfer**:
 The control-flow operation that assigns a target block's ordered parameter
 slots from an incoming edge's ordered source slots in parallel.

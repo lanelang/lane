@@ -11,6 +11,10 @@ fn BytecodeVerifier::verify_function(
   if !body.blocks[0].parameters.is_empty() {
     self.fail(function_site, "entry block must have no parameters")
   }
+  if body.result is Value(representation, cleanup) &&
+    !legal_metadata(representation, cleanup) {
+    self.fail(function_site, "illegal function result ABI")
+  }
   for slot in body.slots {
     if !legal_metadata(slot.representation, slot.cleanup) {
       self.fail(
@@ -126,10 +130,10 @@ fn BytecodeVerifier::verify_terminator(
       self.verify_edge(site, body, default)
     }
     Return(source) =>
-      match (result_representation(body.result), source) {
+      match (result_shape(body.result), source) {
         (None, None) => ()
-        (Some(expected), Some(source)) =>
-          ignore(self.expect_representation(site, body, source, expected))
+        (Some((representation, cleanup)), Some(source)) =>
+          self.expect_slot(site, body, source, representation, cleanup)
         (None, Some(_)) => self.fail(site, "Unit function must return no slot")
         (Some(_), None) =>
           self.fail(site, "non-Unit function must return a slot")

@@ -64,12 +64,9 @@ pub(all) struct GlobalMetadata {
 } derive(Debug, Eq)
 
 ///|
-pub(all) enum ResultRepresentation {
+pub(all) enum ResultAbi {
   Unit
-  I32
-  I64
-  F64
-  F32
+  Value(Representation, Cleanup)
 } derive(Debug, Eq)
 
 ///|
@@ -298,7 +295,7 @@ pub(all) struct Block {
 pub(all) struct FunctionBody {
   slots : Array[SlotMetadata]
   inputs : FunctionInputs
-  result : ResultRepresentation
+  result : ResultAbi
   blocks : Array[Block]
 } derive(Debug, Eq)
 

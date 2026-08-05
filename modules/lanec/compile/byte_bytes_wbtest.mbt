@@ -112,7 +112,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|          witnesses: [{ value: 0 }],
       #|          user_parameters: [{ value: 1 }],
       #|        },
-      #|        result: I64,
+      #|        result: Value(I64, OwnedErased),
       #|        blocks: [
       #|          {
       #|            parameters: [],
@@ -284,7 +284,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          { representation: I32, cleanup: Trivial, erased_companion: None },
       #|        ],
       #|        inputs: { environment: None, witnesses: [], user_parameters: [{ value: 0 }] },
-      #|        result: I32,
+      #|        result: Value(I32, Trivial),
       #|        blocks: [
       #|          {
       #|            parameters: [],
@@ -316,7 +316,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          { representation: I32, cleanup: OwnedRef, erased_companion: None },
       #|        ],
       #|        inputs: { environment: None, witnesses: [], user_parameters: [{ value: 0 }] },
-      #|        result: I32,
+      #|        result: Value(I32, OwnedRef),
       #|        blocks: [
       #|          {
       #|            parameters: [],
@@ -358,7 +358,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          witnesses: [],
       #|          user_parameters: [{ value: 0 }, { value: 1 }],
       #|        },
-      #|        result: I64,
+      #|        result: Value(I64, OwnedCallable),
       #|        blocks: [
       #|          {
       #|            parameters: [],
@@ -491,7 +491,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          witnesses: [],
       #|          user_parameters: [],
       #|        },
-      #|        result: I32,
+      #|        result: Value(I32, Trivial),
       #|        blocks: [
       #|          {
       #|            parameters: [],

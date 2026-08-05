@@ -637,7 +637,7 @@ fn ImageLowerer::lower_callable_adapter(
       witnesses: input_witnesses,
       user_parameters: user_parameter_slots,
     },
-    result: self.result_representation(target_result_type),
+    result: self.result_abi(target_result_type),
     blocks: [
       {
         parameters: [],

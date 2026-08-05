@@ -334,13 +334,10 @@ fn legal_metadata(representation : Representation, cleanup : Cleanup) -> Bool {
 }
 
 ///|
-fn result_representation(result : ResultRepresentation) -> Representation? {
+fn result_shape(result : ResultAbi) -> (Representation, Cleanup)? {
   match result {
     Unit => None
-    I32 => Some(I32)
-    I64 => Some(I64)
-    F64 => Some(F64)
-    F32 => Some(F32)
+    Value(representation, cleanup) => Some((representation, cleanup))
   }
 }
 
@@ -353,5 +350,13 @@ fn runtime_value_shape(kind : RuntimeValueKind) -> (Representation, Cleanup)? {
     F64 => Some((F64, Trivial))
     F32 => Some((F32, Trivial))
     String | Opaque => Some((I32, OwnedRef))
+  }
+}
+
+///|
+fn runtime_result_abi(kind : RuntimeValueKind) -> ResultAbi {
+  match runtime_value_shape(kind) {
+    None => Unit
+    Some((representation, cleanup)) => Value(representation, cleanup)
   }
 }

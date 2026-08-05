@@ -655,3 +655,69 @@ test "decoder rejects illegal slot metadata" {
     ),
   )
 }
+
+///|
+test "result ABI round-trips and decoder rejects ownership mismatch" {
+  let owned_result = {
+    ..minimal_body(),
+    slots: [{ representation: I32, cleanup: OwnedRef, erased_companion: None }],
+    result: Value(I32, OwnedRef),
+    blocks: [
+      {
+        parameters: [],
+        instructions: [ConstString(slot(0), { value: 0 })],
+        terminator: Return(Some(slot(0))),
+      },
+    ],
+  }
+  let valid = {
+    ..minimal_image(),
+    functions: [BytecodeBody(minimal_body()), BytecodeBody(owned_result)],
+    constants: [b"owned"],
+  }
+  assert_eq(
+    parse_bytecode_image_binary(bytecode_image_to_binary(valid)),
+    Ok(valid),
+  )
+  let caller = {
+    ..minimal_body(),
+    slots: [{ representation: I32, cleanup: OwnedRef, erased_companion: None }],
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          CallDirect(function(2), None, [], [], Some(slot(0))),
+          Release(slot(0)),
+        ],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let scalar_result = {
+    ..minimal_body(),
+    slots: [{ representation: I32, cleanup: Trivial, erased_companion: None }],
+    result: Value(I32, Trivial),
+    blocks: [
+      {
+        parameters: [],
+        instructions: [ConstI32(slot(0), 42)],
+        terminator: Return(Some(slot(0))),
+      },
+    ],
+  }
+  let invalid = {
+    ..minimal_image(),
+    functions: [BytecodeBody(caller), BytecodeBody(scalar_result)],
+  }
+  assert_eq(
+    parse_bytecode_image_binary(bytecode_image_to_binary(invalid)),
+    Err(
+      InvalidBytecode(
+        error=InvalidBytecode(
+          site=Instruction(function(1), { value: 0 }, 0),
+          detail="call result ABI does not match destination slot",
+        ),
+      ),
+    ),
+  )
+}

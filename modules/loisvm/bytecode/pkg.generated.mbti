@@ -88,7 +88,7 @@ pub(all) struct EnvironmentShape {
 pub(all) struct FunctionBody {
   slots : Array[SlotMetadata]
   inputs : FunctionInputs
-  result : ResultRepresentation
+  result : ResultAbi
   blocks : Array[Block]
 } derive(Eq, @debug.Debug)
 
@@ -284,12 +284,9 @@ pub(all) enum Representation {
   F32
 } derive(Eq, @debug.Debug)
 
-pub(all) enum ResultRepresentation {
+pub(all) enum ResultAbi {
   Unit
-  I32
-  I64
-  F64
-  F32
+  Value(Representation, Cleanup)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct RuntimeImport {

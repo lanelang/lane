@@ -58,6 +58,8 @@ test "a minimal LoisVM bytecode image round-trips" {
 
 Every `SlotId` has one immutable `SlotMetadata` entry. The representation fixes its physical value class, while cleanup determines whether the slot owns a resource.
 
+Every function result has one `ResultAbi`: `Unit` occupies no slot, while `Value(representation, cleanup)` records both the physical representation and the ownership cleanup contract. A return source, direct-call destination, or statically known tail-call target must match the complete result ABI. Runtime-import result kinds project to the same ABI: scalar kinds are trivial, while String and Opaque results are owned references.
+
 | Representation | Runtime contents |
 | --- | --- |
 | `I32` | Lane `I32`, `Char`, Boolean and Byte values, layout witnesses, object references, ByteSequence references used by semantic String and Bytes values, and other 32-bit runtime values |
@@ -94,11 +96,11 @@ A `DataShape` stores a constructor tag, stored layout witnesses, and ordered fie
 
 The callee receives an optional hidden environment, ordered layout witnesses, and ordered user arguments in the slots named by `FunctionInputs`. The caller and callee counts and representations must agree exactly.
 
-Environments, callable values, and user arguments are transferred into calls. Layout witnesses are borrowed. A non-`Unit` call must provide a destination matching the callee result representation; a `Unit` call must omit the destination. `RuntimeImport` parameters of kind `Unit` are zero-width and do not consume an argument slot.
+Environments, callable values, and user arguments are transferred into calls. Layout witnesses are borrowed. A non-`Unit` call must provide a destination matching the callee result representation and cleanup; a `Unit` call must omit the destination. `RuntimeImport` parameters of kind `Unit` are zero-width and do not consume an argument slot.
 
 ## Instruction encoding
 
-Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstI32`, `ConstChar`, and `ConstF32` use little-endian 32-bit payloads; `ConstI64` and `ConstF64` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements.
+Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstI32`, `ConstChar`, and `ConstF32` use little-endian 32-bit payloads; `ConstI64` and `ConstF64` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements. A function result ABI uses tag `0x01` for `Unit`, or tag `0x02` followed by one representation tag and one cleanup tag for `Value`.
 
 The constructor spelling is the public MoonBit API. The lowercase spelling shown in descriptions is the human-readable disassembly name.
 

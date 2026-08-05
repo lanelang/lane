@@ -102,3 +102,58 @@ test "loader resolves all runtime imports atomically" {
     ),
   )
 }
+
+///|
+test "loader rejects call result ownership mismatch before execution" {
+  let caller : @bytecode.FunctionBody = {
+    slots: [{ representation: I32, cleanup: OwnedRef, erased_companion: None }],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
+          Release({ value: 0 }),
+        ],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let target : @bytecode.FunctionBody = {
+    slots: [{ representation: I32, cleanup: Trivial, erased_companion: None }],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Value(I32, Trivial),
+    blocks: [
+      {
+        parameters: [],
+        instructions: [ConstI32({ value: 0 }, 42)],
+        terminator: Return(Some({ value: 0 })),
+      },
+    ],
+  }
+  let image : @bytecode.BytecodeImage = {
+    entry: { value: 1 },
+    initializer: None,
+    functions: [BytecodeBody(caller), BytecodeBody(target)],
+    globals: [],
+    layouts: [],
+    object_shapes: [],
+    constants: [],
+  }
+  let error = match load(image, @runtime.RuntimeRegistry::new()) {
+    Ok(_) => None
+    Err(error) => Some(error)
+  }
+  assert_eq(
+    error,
+    Some(
+      InvalidBytecode(
+        InvalidBytecode(
+          site=Instruction({ value: 1 }, { value: 0 }, 0),
+          detail="call result ABI does not match destination slot",
+        ),
+      ),
+    ),
+  )
+}

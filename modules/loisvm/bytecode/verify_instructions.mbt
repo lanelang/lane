@@ -425,7 +425,7 @@ fn BytecodeVerifier::verify_direct_call(
   witnesses : Array[SlotId],
   arguments : Array[SlotId],
   destination : SlotId?,
-  tail_result~ : ResultRepresentation?,
+  tail_result~ : ResultAbi?,
 ) -> Unit raise BytecodeVerificationError {
   match self.function_entry(site, target) {
     BytecodeBody(target_body) => {
@@ -469,20 +469,8 @@ fn BytecodeVerifier::verify_direct_call(
         let (representation, cleanup) = parameter_shapes[index]
         self.expect_slot(site, body, arguments[index], representation, cleanup)
       }
-      let result : ResultRepresentation = match
-        runtime_value_shape(import_.result) {
-        None => Unit
-        Some((I32, _)) => I32
-        Some((I64, _)) => I64
-        Some((F64, _)) => F64
-        Some((F32, _)) => F32
-      }
+      let result = runtime_result_abi(import_.result)
       self.verify_call_result(site, body, result, destination, tail_result~)
-      if tail_result is None &&
-        destination is Some(destination) &&
-        runtime_value_shape(import_.result) is Some((representation, cleanup)) {
-        self.expect_slot(site, body, destination, representation, cleanup)
-      }
     }
   }
 }
@@ -533,24 +521,25 @@ fn BytecodeVerifier::verify_call_result(
   self : BytecodeVerifier,
   site : BytecodeVerificationSite,
   caller : FunctionBody,
-  result : ResultRepresentation,
+  result : ResultAbi,
   destination : SlotId?,
-  tail_result~ : ResultRepresentation?,
+  tail_result~ : ResultAbi?,
 ) -> Unit raise BytecodeVerificationError {
   match tail_result {
     Some(expected) =>
       if result != expected {
-        self.fail(site, "tail-call result representation does not match caller")
+        self.fail(site, "tail-call result ABI does not match caller")
       }
     None =>
-      match (result_representation(result), destination) {
+      match (result_shape(result), destination) {
         (None, None) => ()
-        (Some(representation), Some(destination)) =>
-          ignore(
-            self.expect_representation(
-              site, caller, destination, representation,
-            ),
-          )
+        (Some((representation, cleanup)), Some(destination)) => {
+          let actual = self.slot_metadata(site, caller, destination)
+          if actual.representation != representation ||
+            actual.cleanup != cleanup {
+            self.fail(site, "call result ABI does not match destination slot")
+          }
+        }
         (None, Some(_)) =>
           self.fail(site, "Unit call must omit its destination")
         (Some(_), None) =>

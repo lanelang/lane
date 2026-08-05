@@ -507,13 +507,11 @@ fn render_cleanup(cleanup : Cleanup) -> String {
 }
 
 ///|
-fn render_result(result : ResultRepresentation) -> String {
+fn render_result(result : ResultAbi) -> String {
   match result {
     Unit => "unit"
-    I32 => "i32"
-    I64 => "i64"
-    F64 => "f64"
-    F32 => "f32"
+    Value(representation, cleanup) =>
+      "\{render_representation(representation)} + \{render_cleanup(cleanup)}"
   }
 }
 

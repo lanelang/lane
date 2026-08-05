@@ -80,7 +80,7 @@ fn @bytecodec.ByteWriter::write_function_body(
   payload.write_optional_slot(body.inputs.environment)
   payload.write_slot_ids(body.inputs.witnesses)
   payload.write_slot_ids(body.inputs.user_parameters)
-  payload.write_result_representation(body.result)
+  payload.write_result_abi(body.result)
   payload.write_u32_le_int(body.blocks.length())
   for block in body.blocks {
     payload.write_block(block)
@@ -151,19 +151,18 @@ fn @bytecodec.ByteWriter::write_cleanup(
 }
 
 ///|
-fn @bytecodec.ByteWriter::write_result_representation(
+fn @bytecodec.ByteWriter::write_result_abi(
   self : @bytecodec.ByteWriter,
-  result : ResultRepresentation,
+  result : ResultAbi,
 ) -> Unit {
-  self.write_u8(
-    match result {
-      Unit => 0x01
-      I32 => 0x02
-      I64 => 0x03
-      F64 => 0x04
-      F32 => 0x05
-    },
-  )
+  match result {
+    Unit => self.write_u8(0x01)
+    Value(representation, cleanup) => {
+      self.write_u8(0x02)
+      self.write_representation(representation)
+      self.write_cleanup(cleanup)
+    }
+  }
 }
 
 ///|

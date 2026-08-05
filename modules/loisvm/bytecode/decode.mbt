@@ -172,7 +172,7 @@ fn Decoder::read_function_body(
     witnesses: body_decoder.read_slot_ids(),
     user_parameters: body_decoder.read_slot_ids(),
   }
-  let result = body_decoder.read_result_representation()
+  let result = body_decoder.read_result_abi()
   let block_count = body_decoder.read_count(minimum_size=9, table="block")
   if block_count == 0 {
     body_decoder.fail("block table must be nonempty")
@@ -240,16 +240,13 @@ fn Decoder::read_cleanup(self : Decoder) -> Cleanup raise BytecodeDecodeError {
 }
 
 ///|
-fn Decoder::read_result_representation(
+fn Decoder::read_result_abi(
   self : Decoder,
-) -> ResultRepresentation raise BytecodeDecodeError {
+) -> ResultAbi raise BytecodeDecodeError {
   let offset = self.offset()
   match self.read_tag(expected="result tag") {
     0x01 => Unit
-    0x02 => I32
-    0x03 => I64
-    0x04 => F64
-    0x05 => F32
+    0x02 => Value(self.read_representation(), self.read_cleanup())
     tag => self.invalid_tag(offset~, domain="result", tag~)
   }
 }

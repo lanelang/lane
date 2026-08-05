@@ -862,7 +862,7 @@ fn compile_terminator(
   parameter_count : Int,
   live_base : Int,
   slots : Array[@bytecode.SlotMetadata],
-  current_result : @bytecode.ResultRepresentation,
+  current_result : @bytecode.ResultAbi,
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
   terminator : @bytecode.Terminator,

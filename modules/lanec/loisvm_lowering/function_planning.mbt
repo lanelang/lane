@@ -383,7 +383,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
       witnesses: [],
       user_parameters: parameter_slots,
     },
-    result: self.result_representation(result_type),
+    result: self.result_abi(result_type),
     blocks: [
       {
         parameters: [],

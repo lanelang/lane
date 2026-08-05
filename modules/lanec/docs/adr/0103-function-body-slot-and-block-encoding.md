@@ -1,5 +1,7 @@
 # Function body, slot, and block encoding
 
+The result-descriptor portion of this historical ADR is superseded by ADR 0128. The current format encodes `Unit`, or a value representation together with cleanup.
+
 Each BytecodeBody function-table entry begins with `body_length:u32le`. The length covers the complete body payload after the length field, and the body decoder must consume exactly that slice. The payload order is slot table, function inputs, result descriptor, then block table. No entry `BlockId` is serialized because `BlockId = 0` is always the function entry.
 
 The slot table begins with `slot_count:u32le`; zero slots are permitted. Table position defines the zero-based `SlotId`. Each slot stores `representation_tag:u8` followed by `cleanup_tag:u8`. Only `OwnedErased` appends `companion_slot_id:u32le`.

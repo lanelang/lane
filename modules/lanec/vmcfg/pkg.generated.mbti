@@ -33,7 +33,7 @@ pub(all) struct Edge {
 pub(all) struct FunctionBody {
   values : Array[ValueMetadata]
   inputs : FunctionInputs
-  result : @bytecode.ResultRepresentation
+  result : @bytecode.ResultAbi
   blocks : Array[Block]
 } derive(Eq, @debug.Debug)
 

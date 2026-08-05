@@ -9,7 +9,7 @@ fn trivial_slot(
 fn body(
   slots~ : Array[@bytecode.SlotMetadata],
   parameters? : Array[@bytecode.SlotId] = [],
-  result~ : @bytecode.ResultRepresentation,
+  result~ : @bytecode.ResultAbi,
   instructions~ : Array[@bytecode.Instruction],
   terminator~ : @bytecode.Terminator,
 ) -> @bytecode.FunctionBody {

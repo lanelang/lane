@@ -22,7 +22,7 @@ test "select consuming field projection for returned owned member" {
       witnesses: [],
       user_parameters: [{ value: 0 }],
     },
-    result: I32,
+    result: Value(I32, OwnedRef),
     blocks: [
       {
         parameters: [],
@@ -116,7 +116,7 @@ test "group consuming captures and preserve block-local borrows" {
       witnesses: [],
       user_parameters: [],
     },
-    result: I32,
+    result: Value(I32, OwnedRef),
     blocks: [
       {
         parameters: [],

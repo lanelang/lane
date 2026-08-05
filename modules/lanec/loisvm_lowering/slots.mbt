@@ -171,27 +171,18 @@ fn layout_witness_metadata() -> @vmcfg.ValueMetadata {
 }
 
 ///|
-fn ImageLowerer::result_representation(
+fn ImageLowerer::result_abi(
   self : ImageLowerer,
   type_ : @buslane.Type,
-) -> @bytecode.ResultRepresentation raise LoisvmLoweringError {
+) -> @bytecode.ResultAbi raise LoisvmLoweringError {
   match self.runtime_type(type_) {
-    Erased(_) => I64
+    Erased(_) => Value(I64, OwnedErased)
     Concrete(type_) =>
-      match type_ {
-        Primitive(Unit) => Unit
-        Primitive(Bool)
-        | Primitive(I32)
-        | Primitive(Char)
-        | Primitive(String)
-        | Primitive(Byte)
-        | Primitive(Bytes)
-        | Constructor(_)
-        | Apply(_, _) => I32
-        Primitive(I64) | Function(_, _, _) | Forall(_, _) => I64
-        Primitive(F32) => F32
-        Primitive(F64) => F64
-        _ => raise UnsupportedType(type_~)
+      if type_ is Primitive(Unit) {
+        Unit
+      } else {
+        let metadata = self.slot_metadata(type_)
+        Value(metadata.representation, metadata.cleanup)
       }
   }
 }

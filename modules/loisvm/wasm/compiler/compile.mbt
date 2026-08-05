@@ -186,14 +186,11 @@ fn wasm_function_parameters(
 
 ///|
 fn wasm_function_results(
-  result : @bytecode.ResultRepresentation,
+  result : @bytecode.ResultAbi,
 ) -> Array[@wasm_types.ValueType] {
   match result {
     Unit => []
-    I32 => [I32]
-    I64 => [I64]
-    F64 => [F64]
-    F32 => [F32]
+    Value(representation, _) => [wasm_representation(representation)]
   }
 }
 

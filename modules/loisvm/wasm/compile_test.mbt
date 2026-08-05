@@ -100,7 +100,7 @@ fn contains_loop(instructions : Array[@wasm_types.Instruction]) -> Bool {
 fn body(
   slots? : Array[@bytecode.SlotMetadata] = [],
   parameters? : Array[@bytecode.SlotId] = [],
-  result? : @bytecode.ResultRepresentation = Unit,
+  result? : @bytecode.ResultAbi = Unit,
   instructions? : Array[@bytecode.Instruction] = [],
   terminator? : @bytecode.Terminator = Return(None),
 ) -> @bytecode.FunctionBody {
@@ -150,7 +150,7 @@ test "compiled scalar bytecode executes with Wasmoon" {
   ])
   let target = body(
     slots=[trivial_slot(I64), trivial_slot(I64), trivial_slot(I64)],
-    result=I64,
+    result=Value(I64, Trivial),
     instructions=[
       ConstI64({ value: 0 }, 40L),
       ConstI64({ value: 1 }, 2L),
@@ -216,6 +216,36 @@ test "invalid Bytecode is rejected before Wasm publication" {
   assert_true(
     compile(image([BytecodeBody(invalid_entry), BytecodeBody(target)]))
     is Err(InvalidBytecode(_)),
+  )
+}
+
+///|
+test "Wasm compiler rejects call result ownership mismatch" {
+  let caller = body(slots=[owned_slot(I32, OwnedRef)], instructions=[
+    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
+    Release({ value: 0 }),
+  ])
+  let target = body(
+    slots=[trivial_slot(I32)],
+    result=Value(I32, Trivial),
+    instructions=[ConstI32({ value: 0 }, 42)],
+    terminator=Return(Some({ value: 0 })),
+  )
+  let error = match
+    compile(image([BytecodeBody(caller), BytecodeBody(target)])) {
+    Ok(_) => None
+    Err(error) => Some(error)
+  }
+  assert_eq(
+    error,
+    Some(
+      InvalidBytecode(
+        InvalidBytecode(
+          site=Instruction({ value: 1 }, { value: 0 }, 0),
+          detail="call result ABI does not match destination slot",
+        ),
+      ),
+    ),
   )
 }
 
@@ -428,7 +458,7 @@ test "packed callables execute through the canonical function table" {
   let identity = body(
     slots=[trivial_slot(I64)],
     parameters=[{ value: 0 }],
-    result=I64,
+    result=Value(I64, Trivial),
     terminator=Return(Some({ value: 0 })),
   )
   let wasm_module = match

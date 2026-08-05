@@ -17,7 +17,7 @@ pub let module_interface_artifact_schema_version = 11
 pub let module_object_artifact_schema_version = 16
 
 ///|
-pub let linked_program_artifact_schema_version = 8
+pub let linked_program_artifact_schema_version = 9
 
 ///|
 pub let compiled_module_artifact_schema_version = 2

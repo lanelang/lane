@@ -85,7 +85,7 @@ The stable new tags within those current formats are:
 | Lane artifact host value kind | tag `6` |
 | LoisVM runtime import value kind | tag `0x06` |
 | LoisVM slot representation | tag `0x04` |
-| LoisVM result representation | tag `0x05` |
+| LoisVM result ABI representation | nested representation tag `0x04` |
 | LoisVM layout recipe | tag `0x0E` |
 | LoisVM instructions | opcodes `0x5C` through `0x6D` for `ConstF32`, arithmetic, six comparisons, four conversions, and erase/unerase |
 

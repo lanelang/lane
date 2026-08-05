@@ -18,7 +18,7 @@ test "devirtualize uniquely invoked known callables" {
       scalar_metadata(),
     ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: I64,
+    result: Value(I64, Trivial),
     blocks: [
       {
         parameters: [],
@@ -65,7 +65,7 @@ test "devirtualize known tail calls but preserve escaping closures" {
       scalar_metadata(),
     ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: I64,
+    result: Value(I64, Trivial),
     blocks: [
       {
         parameters: [],
@@ -121,13 +121,13 @@ test "devirtualize immediate closure environment into hidden direct arguments" {
     erased_companion: None,
   }
   let caller : FunctionBody = {
-    values: [owned_reference, callable, owned_reference, scalar_metadata()],
+    values: [owned_reference, callable, owned_reference, owned_reference],
     inputs: {
       environment: None,
       witnesses: [],
       user_parameters: [{ value: 2 }],
     },
-    result: I32,
+    result: Value(I32, OwnedRef),
     blocks: [
       {
         parameters: [],
@@ -149,7 +149,7 @@ test "devirtualize immediate closure environment into hidden direct arguments" {
       witnesses: [],
       user_parameters: [],
     },
-    result: I32,
+    result: Value(I32, OwnedRef),
     blocks: [
       {
         parameters: [],

@@ -1,5 +1,7 @@
 # Bytecode return and tail-call terminators
 
+The result-agreement portions of this historical ADR are superseded by ADR 0128. Static return and tail-call checks now compare the complete result ABI, including cleanup.
+
 The `return` terminator encodes only `source_slot_plus_one:u32le`. Zero returns Unit. Nonzero N consumes source `SlotId = N - 1` and transfers one non-Unit result to the caller. The source representation must equal the function body's result descriptor.
 
 Normal return performs no implicit frame traversal or cleanup sweep. Compiler ARC insertion emits explicit releases for every owned slot not transferred as the result. Reaching `return` with another current-frame owner still live is invalid trusted bytecode.

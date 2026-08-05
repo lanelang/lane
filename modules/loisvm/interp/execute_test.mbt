@@ -9,7 +9,7 @@ fn trivial_slot(
 fn body(
   slots~ : Array[@bytecode.SlotMetadata],
   parameters? : Array[@bytecode.SlotId] = [],
-  result~ : @bytecode.ResultRepresentation,
+  result~ : @bytecode.ResultAbi,
   instructions~ : Array[@bytecode.Instruction],
   terminator~ : @bytecode.Terminator,
 ) -> @bytecode.FunctionBody {
@@ -55,7 +55,7 @@ test "interpreter executes direct and runtime calls once" {
   let add_one = body(
     slots=[trivial_slot(I64), trivial_slot(I64), trivial_slot(I64)],
     parameters=[{ value: 0 }],
-    result=I64,
+    result=Value(I64, Trivial),
     instructions=[
       ConstI64({ value: 1 }, 1L),
       I64Add({ value: 2 }, { value: 0 }, { value: 1 }),

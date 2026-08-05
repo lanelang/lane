@@ -200,7 +200,7 @@ pub(all) struct Block {
 pub(all) struct FunctionBody {
   values : Array[ValueMetadata]
   inputs : FunctionInputs
-  result : @bytecode.ResultRepresentation
+  result : @bytecode.ResultAbi
   blocks : Array[Block]
 } derive(Debug, Eq)
 

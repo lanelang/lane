@@ -239,7 +239,7 @@ test "finalize transfers an owned return without releasing it" {
   let body : FunctionBody = {
     values: [owned_ref_value()],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: I32,
+    result: Value(I32, OwnedRef),
     blocks: [
       {
         parameters: [],
@@ -269,7 +269,7 @@ test "finalize preserves object witness loads as non-consuming reads" {
       witnesses: [],
       user_parameters: [{ value: 0 }],
     },
-    result: I32,
+    result: Value(I32, Trivial),
     blocks: [
       {
         parameters: [],
@@ -456,7 +456,7 @@ test "finalize threads an owned function input into its using branch" {
       witnesses: [],
       user_parameters: [{ value: 0 }, { value: 1 }],
     },
-    result: I32,
+    result: Value(I32, Trivial),
     blocks: [
       {
         parameters: [],
@@ -512,7 +512,7 @@ test "finalize rejects a borrowed function input used across blocks" {
       witnesses: [],
       user_parameters: [{ value: 0 }, { value: 1 }],
     },
-    result: I64,
+    result: Value(I64, Trivial),
     blocks: [
       {
         parameters: [],
