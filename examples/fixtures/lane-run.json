@@ -1880,6 +1880,15 @@
       "mode": "check"
     },
     {
+      "name": "93 higher kinded identity representations",
+      "file": "examples/valid/93_higher_kinded_identity_representations.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "identity layouts=ok"
+      }
+    },
+    {
       "name": "invalid 84 initialization cycle",
       "file": "examples/invalid/84_initialization_cycle.lane",
       "mode": "check-error",

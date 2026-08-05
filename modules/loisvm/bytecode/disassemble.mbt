@@ -148,12 +148,12 @@ fn render_function_callable_abi(
 
 ///|
 fn render_callable_abi(abi : CallableAbi) -> String {
-  let parameters = abi.parameters
-    .map(parameter => {
-      "\{render_representation(parameter.representation)} + \{render_cleanup(parameter.cleanup)} + \{Repr(parameter.kind)}"
-    })
-    .join(", ")
-  "fn(witnesses=\{abi.witness_count}, parameters=[\{parameters}]) -> \{render_result(abi.result)}"
+  let render_operand = fn(operand : ValueAbi) {
+    "\{render_representation(operand.representation)} + \{render_cleanup(operand.cleanup)} + \{Repr(operand.kind)}"
+  }
+  let parameters = abi.parameters.map(render_operand).join(", ")
+  let witnesses = abi.witnesses.map(render_operand).join(", ")
+  "fn(witnesses=[\{witnesses}], parameters=[\{parameters}]) -> \{render_result(abi.result)}"
 }
 
 ///|

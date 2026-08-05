@@ -68,7 +68,14 @@ fn finalize_or_raise(
 ///|
 fn vmcfg_callable_abi(body : FunctionBody) -> @bytecode.CallableAbi {
   {
-    witness_count: body.inputs.witnesses.length(),
+    witnesses: body.inputs.witnesses.map(witness => {
+      let metadata = value_metadata_to_slot(body.values[witness.value])
+      {
+        representation: metadata.representation,
+        cleanup: metadata.cleanup,
+        kind: metadata.kind,
+      }
+    }),
     parameters: body.inputs.user_parameters.map(parameter => {
       let metadata = value_metadata_to_slot(body.values[parameter.value])
       {
@@ -84,12 +91,19 @@ fn vmcfg_callable_abi(body : FunctionBody) -> @bytecode.CallableAbi {
 ///|
 fn callsite_callable_abi(
   body : FunctionBody,
-  witnesses : Array[ValueId],
-  arguments : Array[ValueId],
+  witnesses : Array[@bytecode.SlotId],
+  arguments : Array[@bytecode.SlotId],
   result : @bytecode.ResultAbi,
 ) -> @bytecode.CallableAbi {
   {
-    witness_count: witnesses.length(),
+    witnesses: witnesses.map(witness => {
+      let metadata = value_metadata_to_slot(body.values[witness.value])
+      {
+        representation: metadata.representation,
+        cleanup: metadata.cleanup,
+        kind: metadata.kind,
+      }
+    }),
     parameters: arguments.map(argument => {
       let metadata = value_metadata_to_slot(body.values[argument.value])
       {
@@ -354,7 +368,9 @@ fn finalize_instruction(
         None => None
       }
       let lowered_witnesses = witnesses.map(value => {
-        value_to_slot(borrow_value(remaining, value))
+        value_to_slot(
+          consume_value(body, block, live, remaining, prefix, value),
+        )
       })
       let lowered_arguments = arguments.map(value => {
         value_to_slot(
@@ -381,20 +397,29 @@ fn finalize_instruction(
         }
         None => Unit
       }
+      let lowered_callable = value_to_slot(
+        consume_value(body, block, live, remaining, prefix, callable),
+      )
+      let lowered_witnesses = witnesses.map(value => {
+        value_to_slot(
+          consume_value(body, block, live, remaining, prefix, value),
+        )
+      })
+      let lowered_arguments = arguments.map(value => {
+        value_to_slot(
+          consume_value(body, block, live, remaining, prefix, value),
+        )
+      })
       let abi = callable_abis.intern(
-        callsite_callable_abi(body, witnesses, arguments, result),
+        callsite_callable_abi(
+          body, lowered_witnesses, lowered_arguments, result,
+        ),
       )
       CallValue(
-        value_to_slot(
-          consume_value(body, block, live, remaining, prefix, callable),
-        ),
+        lowered_callable,
         abi,
-        witnesses.map(value => value_to_slot(borrow_value(remaining, value))),
-        arguments.map(value => {
-          value_to_slot(
-            consume_value(body, block, live, remaining, prefix, value),
-          )
-        }),
+        lowered_witnesses,
+        lowered_arguments,
         destination.map(value_to_slot),
       )
     }
@@ -403,7 +428,11 @@ fn finalize_instruction(
         value_to_slot(destination),
         shape,
         finalize_layout_operand(remaining, layout),
-        witnesses.map(value => value_to_slot(borrow_value(remaining, value))),
+        witnesses.map(value => {
+          value_to_slot(
+            consume_value(body, block, live, remaining, prefix, value),
+          )
+        }),
         fields.map(value => {
           value_to_slot(
             consume_value(body, block, live, remaining, prefix, value),
@@ -1196,7 +1225,11 @@ fn finalize_terminator(
       TailCallDirect(
         target,
         lowered_environment,
-        witnesses.map(value => value_to_slot(borrow_value(remaining, value))),
+        witnesses.map(value => {
+          value_to_slot(
+            consume_value(body, block, live, remaining, prefix, value),
+          )
+        }),
         arguments.map(value => {
           value_to_slot(
             consume_value(body, block, live, remaining, prefix, value),
@@ -1205,21 +1238,28 @@ fn finalize_terminator(
       )
     }
     TailCallValue(callable, witnesses, arguments) => {
-      let abi = callable_abis.intern(
-        callsite_callable_abi(body, witnesses, arguments, body.result),
+      let lowered_callable = value_to_slot(
+        consume_value(body, block, live, remaining, prefix, callable),
       )
-      TailCallValue(
+      let lowered_witnesses = witnesses.map(value => {
         value_to_slot(
-          consume_value(body, block, live, remaining, prefix, callable),
+          consume_value(body, block, live, remaining, prefix, value),
+        )
+      })
+      let lowered_arguments = arguments.map(value => {
+        value_to_slot(
+          consume_value(body, block, live, remaining, prefix, value),
+        )
+      })
+      let abi = callable_abis.intern(
+        callsite_callable_abi(
+          body,
+          lowered_witnesses,
+          lowered_arguments,
+          body.result,
         ),
-        abi,
-        witnesses.map(value => value_to_slot(borrow_value(remaining, value))),
-        arguments.map(value => {
-          value_to_slot(
-            consume_value(body, block, live, remaining, prefix, value),
-          )
-        }),
       )
+      TailCallValue(lowered_callable, abi, lowered_witnesses, lowered_arguments)
     }
     Unreachable => Unreachable
   }

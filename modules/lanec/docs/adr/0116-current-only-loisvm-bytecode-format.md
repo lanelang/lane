@@ -18,13 +18,15 @@ A function body encodes its result ABI after its inputs. `Unit` is tag `0x01`.
 A value result is tag `0x02` followed by representation, cleanup, and semantic
 value-kind tags. Slot, global, object-member, parameter, and result metadata all
 carry the same semantic kind. Data kinds name a dense data-family identity;
-environment kinds name an exact object shape; abstract higher-kinded reference
-applications carry their quantified parameter identity.
+environment kinds name an exact object shape. Layout-constructor evidence is
+an owned callable semantic kind carrying its evidence-parameter arity. Each
+Callable ABI records the complete ordered `ValueAbi` of every hidden evidence
+input rather than only an untyped witness count.
 
 Persisted Lane programs use the enclosing linked-program artifact schema as
-their compatibility boundary. The explicit Callable ABI format established by
-The semantic-kind and data-family additions raise
-`linked_program_schema_version` to 11. A loader rejects older
+their compatibility boundary. Complete evidence-input ABIs and the
+layout-constructor semantic kind raise `linked_program_schema_version` to 12.
+A loader rejects older
 linked-program artifacts before invoking the bytecode decoder, and users
 regenerate them with the matching compiler. A raw bytecode section exchanged
 outside that container has no compatibility guarantee and requires a matching
@@ -38,6 +40,6 @@ Future incompatible bytecode changes replace the current format directly and rai
 - `UnsupportedSchema` is not a bytecode decode error.
 - Every image encodes initializer and global-table fields.
 - The encoder, decoder, disassembler, interpreter, and Wasm backend target one current model.
-- Linked-program schema version 11 identifies the current persisted bytecode payload.
+- Linked-program schema version 12 identifies the current persisted bytecode payload.
 - Raw bytecode binaries are lockstep implementation artifacts, not independently versioned files.
 - ADR-0085 and ADR-0114 remain historical records and are superseded for versioning and top-level layout.

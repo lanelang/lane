@@ -68,16 +68,16 @@ test "interpreter executes direct and runtime calls once" {
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I64, cleanup: Trivial, kind: ScalarValue },
         ],
         result: Value(I64, Trivial, ScalarValue),
       },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I64, cleanup: Trivial, kind: ScalarValue },
         ],
@@ -153,7 +153,7 @@ test "interpreter initializer and entry share one runtime context" {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     globals: [],
     functions: [
       BytecodeBody(call_import),
@@ -212,7 +212,7 @@ test "interpreter execution can be interrupted" {
     entry: { value: 1 },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [],
@@ -273,16 +273,16 @@ test "interpreter rejects ownership-only CallValue ABI mismatch before dispatch"
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I32, cleanup: Trivial, kind: ScalarValue },
         ],
         result: Unit,
       },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
         ],
@@ -339,7 +339,7 @@ test "interpreter synthesizes logical Unit runtime arguments" {
     entry: { value: 1 },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     globals: [],
     functions: [
       BytecodeBody(entry),
@@ -381,7 +381,7 @@ test "tail calls preserve logical call depth" {
     entry: { value: 1 },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry), BytecodeBody(target)],
     layouts: [],
@@ -450,7 +450,7 @@ test "object witnesses load independently from data and environment members" {
     entry: { value: 1 },
     initializer: None,
     data_family_count: 1,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Bool, Data({ value: 0 }), Environment({ value: 1 })],
@@ -490,7 +490,7 @@ test "returning calls enforce logical depth" {
     entry: { value: 1 },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry), BytecodeBody(target)],
     layouts: [],
@@ -521,7 +521,7 @@ test "non-positive execution limits provide zero budget" {
     entry: { value: 1 },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(empty_entry)],
     layouts: [],
@@ -561,7 +561,7 @@ test "non-positive execution limits provide zero budget" {
     entry: { value: 1 },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(allocating_entry)],
     layouts: [ByteSequence],

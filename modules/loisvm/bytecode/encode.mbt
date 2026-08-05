@@ -36,7 +36,12 @@ fn @bytecodec.ByteWriter::write_callable_abi(
   self : @bytecodec.ByteWriter,
   abi : CallableAbi,
 ) -> Unit {
-  self.write_u32_le_int(abi.witness_count)
+  self.write_u32_le_int(abi.witnesses.length())
+  for witness in abi.witnesses {
+    self.write_representation(witness.representation)
+    self.write_cleanup(witness.cleanup)
+    self.write_semantic_value_kind(witness.kind)
+  }
   self.write_u32_le_int(abi.parameters.length())
   for parameter in abi.parameters {
     self.write_representation(parameter.representation)
@@ -192,9 +197,9 @@ fn @bytecodec.ByteWriter::write_semantic_value_kind(
     }
     OpaqueReferenceValue => self.write_u8(0x07)
     ErasedValue => self.write_u8(0x08)
-    AbstractReferenceValue(parameter) => {
+    LayoutConstructorValue(arity) => {
       self.write_u8(0x09)
-      self.write_u32_le_int(parameter)
+      self.write_u32_le_int(arity)
     }
   }
 }

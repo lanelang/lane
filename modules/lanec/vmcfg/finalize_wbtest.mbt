@@ -233,6 +233,61 @@ test "finalize promotes a borrowed call argument to an owner" {
 }
 
 ///|
+test "indirect call ABI uses the finalized owned argument slot" {
+  let callable : ValueMetadata = {
+    representation: I64,
+    cleanup: OwnedCallable,
+    kind: CallableValue,
+    ownership: Owned,
+    erased_companion: None,
+  }
+  let body : FunctionBody = {
+    values: [callable, borrowed_ref_value()],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }, { value: 1 }],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [CallValue({ value: 0 }, [], [{ value: 1 }], None)],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let image = match finalize(test_image(body)) {
+    Ok(value) => value
+    Err(error) => fail("finalize failed: \{Repr(error)}")
+  }
+  guard image.functions[0] is BytecodeBody(lowered) else {
+    fail("expected bytecode body")
+  }
+  assert_eq(image.callable_abis, [
+    {
+      witnesses: [],
+      parameters: [
+        { representation: I64, cleanup: OwnedCallable, kind: CallableValue },
+        { representation: I32, cleanup: Trivial, kind: ByteSequenceValue },
+      ],
+      result: Unit,
+    },
+    {
+      witnesses: [],
+      parameters: [
+        { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+      ],
+      result: Unit,
+    },
+  ])
+  assert_eq(lowered.blocks[0].instructions, [
+    RetainCopy({ value: 2 }, { value: 1 }),
+    CallValue({ value: 0 }, { value: 1 }, [], [{ value: 2 }], None),
+  ])
+}
+
+///|
 test "finalize releases an owned value left live at return" {
   let body : FunctionBody = {
     values: [owned_ref_value()],

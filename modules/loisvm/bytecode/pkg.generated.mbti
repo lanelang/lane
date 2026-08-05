@@ -64,7 +64,7 @@ pub(all) enum BytecodeVerificationSite {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CallableAbi {
-  witness_count : Int
+  witnesses : Array[ValueAbi]
   parameters : Array[ValueAbi]
   result : ResultAbi
 } derive(Eq, @debug.Debug)
@@ -335,11 +335,11 @@ pub(all) enum RuntimeValueKind {
 pub(all) enum SemanticValueKind {
   ScalarValue
   LayoutValue
+  LayoutConstructorValue(Int)
   CallableValue
   ByteSequenceValue
   DataValue(DataFamilyId)
   EnvironmentValue(ObjectShapeId)
-  AbstractReferenceValue(Int)
   OpaqueReferenceValue
   ErasedValue
 } derive(Eq, @debug.Debug)

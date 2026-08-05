@@ -172,7 +172,10 @@ fn BytecodeVerifier::verify_function_flow(
     )
   }
   for witness in body.inputs.witnesses {
-    initial_slots[witness.value] = LiveTrivial
+    initial_slots[witness.value] = flow_state_for_metadata(
+      self.slot_metadata(function_site, body, witness),
+      { origin: InputOwner(witness), projections: [] },
+    )
   }
   for parameter in body.inputs.user_parameters {
     initial_slots[parameter.value] = flow_state_for_metadata(
@@ -930,7 +933,7 @@ fn BytecodeVerifier::apply_instruction_flow(
       self.write_from_metadata(site, body, state, destination)
     CallDirect(target, environment, witnesses, arguments, destination) => {
       for witness in witnesses {
-        ignore(self.read_flow(site, state, witness))
+        ignore(self.consume_flow(site, body, state, witness))
       }
       self.require_global_dependencies(
         site,
@@ -949,7 +952,7 @@ fn BytecodeVerifier::apply_instruction_flow(
     }
     CallValue(callable, _, witnesses, arguments, destination) => {
       for witness in witnesses {
-        ignore(self.read_flow(site, state, witness))
+        ignore(self.consume_flow(site, body, state, witness))
       }
       ignore(self.consume_owner(site, body, state, callable))
       for argument in arguments {
@@ -965,7 +968,7 @@ fn BytecodeVerifier::apply_instruction_flow(
         ignore(self.read_flow(site, state, witness))
       }
       for witness in witnesses {
-        ignore(self.read_flow(site, state, witness))
+        ignore(self.consume_flow(site, body, state, witness))
       }
       self.transfer_aggregate_ownership(
         site, body, state, destination, shape, fields,
@@ -1439,7 +1442,7 @@ fn BytecodeVerifier::apply_terminator_flow(
     }
     TailCallDirect(target, environment, witnesses, arguments) => {
       for witness in witnesses {
-        ignore(self.read_flow(site, state, witness))
+        ignore(self.consume_flow(site, body, state, witness))
       }
       self.require_global_dependencies(
         site,
@@ -1457,7 +1460,7 @@ fn BytecodeVerifier::apply_terminator_flow(
     }
     TailCallValue(callable, _, witnesses, arguments) => {
       for witness in witnesses {
-        ignore(self.read_flow(site, state, witness))
+        ignore(self.consume_flow(site, body, state, witness))
       }
       ignore(self.consume_owner(site, body, state, callable))
       for argument in arguments {

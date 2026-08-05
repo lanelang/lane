@@ -341,21 +341,21 @@ test "interpreter reports Host Object use after explicit close" {
 ///|
 fn host_object_callable_abis() -> Array[@bytecode.CallableAbi] {
   [
-    { witness_count: 0, parameters: [], result: Unit },
+    { witnesses: [], parameters: [], result: Unit },
     {
-      witness_count: 0,
+      witnesses: [],
       parameters: [],
       result: Value(I32, OwnedRef, OpaqueReferenceValue),
     },
     {
-      witness_count: 0,
+      witnesses: [],
       parameters: [
         { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
       ],
       result: Unit,
     },
     {
-      witness_count: 0,
+      witnesses: [],
       parameters: [
         { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
       ],

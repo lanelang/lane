@@ -57,9 +57,9 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
     initializer: Some({ value: 1 }),
     data_family_count: 0,
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I64, cleanup: Trivial, kind: ScalarValue },
         ],
@@ -148,7 +148,7 @@ test "Wasm initializer and entry share one runtime context" {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     functions: [
       BytecodeBody(call_import),
       BytecodeBody(call_import),
@@ -305,7 +305,7 @@ fn wasm_lifecycle_image() -> @bytecode.BytecodeImage {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     functions: [
       BytecodeBody(wasm_lifecycle_initializer()),
       BytecodeBody(wasm_lifecycle_entry()),
@@ -458,7 +458,7 @@ test "Wasm reports invalid instance-global initialization" {
       entry: { value: 2 },
       initializer: Some({ value: 1 }),
       data_family_count: 0,
-      callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+      callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
       functions: [BytecodeBody(initializer), BytecodeBody(entry)],
       globals: [
         {

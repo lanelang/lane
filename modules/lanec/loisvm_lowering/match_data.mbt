@@ -236,13 +236,7 @@ fn FunctionLowerer::bind_data_alternative(
   let hidden_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
   if binds_payloads {
     let shape = self.image.data_shape(data_constructor, info)
-    let owner_info = match self.image.metadata.type_info(info.owner) {
-      Some(info) => info
-      None => raise MissingDataConstructorMetadata(data_constructor~)
-    }
-    let mut witness_ordinal = owner_info.parameters
-      .filter(parameter => self.image.requires_layout_witness(parameter))
-      .length()
+    let mut evidence_member_index = 0
     for index, hidden_parameter in info.hidden_type_parameters {
       let binder = alternative.type_binders[index]
       let argument = match
@@ -256,11 +250,17 @@ fn FunctionLowerer::bind_data_alternative(
           )
       }
       hidden_substitutions.insert_argument(hidden_parameter, argument)
-      if self.image.requires_layout_witness(hidden_parameter) {
-        let witness = self.fresh_metadata(layout_witness_metadata())
-        self.emit(LoadObjectWitness(witness, shape, scrutinee, witness_ordinal))
-        self.witnesses.push({ parameter: binder, value: witness })
-        witness_ordinal += 1
+      if self.image.requires_runtime_evidence(hidden_parameter) {
+        let metadata = self.image.runtime_evidence_metadata(hidden_parameter)
+        let evidence = self.fresh_metadata(borrowed_evidence_metadata(metadata))
+        self.emit(
+          BorrowField(shape, scrutinee, evidence_member_index, {
+            value_destination: evidence,
+            witness_destination: None,
+          }),
+        )
+        self.witnesses.push({ parameter: binder, value: evidence })
+        evidence_member_index += 1
       }
     }
     let branch_substitutions = substitutions.overlay(hidden_substitutions)
@@ -276,6 +276,7 @@ fn FunctionLowerer::bind_data_alternative(
           BorrowField(
             shape,
             scrutinee,
+            evidence_member_index +
             runtime_member_index(info.payload_types, index),
             { value_destination: erased, witness_destination: Some(witness) },
           ),
@@ -290,6 +291,7 @@ fn FunctionLowerer::bind_data_alternative(
           BorrowField(
             shape,
             scrutinee,
+            evidence_member_index +
             runtime_member_index(info.payload_types, index),
             { value_destination: destination, witness_destination: None },
           ),

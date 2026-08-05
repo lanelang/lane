@@ -5,7 +5,7 @@ fn ImageLowerer::callable_adapter(
   target_type : @buslane.Type,
   source_parameter_targets : Array[Int],
   substitutions : @buslane.TypeSubstitution,
-) -> CallableAdapterPlan {
+) -> CallableAdapterPlan raise LoisvmLoweringError {
   for adapter in self.callable_adapters {
     if adapter.source_type == source_type &&
       adapter.target_type == target_type &&
@@ -17,18 +17,24 @@ fn ImageLowerer::callable_adapter(
   let captured_parameters = free_runtime_type_parameters(
     self, source_type, target_type,
   )
+  let members : Array[@bytecode.MemberSchema] = []
+  for parameter in captured_parameters {
+    let metadata = self.runtime_evidence_metadata(parameter)
+    members.push({
+      representation: metadata.representation,
+      cleanup: metadata.cleanup,
+      kind: metadata.kind,
+      witness_ordinal: None,
+    })
+  }
+  members.push({
+    representation: I64,
+    cleanup: OwnedCallable,
+    kind: CallableValue,
+    witness_ordinal: None,
+  })
   let environment_shape = self.intern_object_shape(
-    Environment({
-      stored_witness_count: captured_parameters.length(),
-      members: [
-        {
-          representation: I64,
-          cleanup: OwnedCallable,
-          kind: CallableValue,
-          witness_ordinal: None,
-        },
-      ],
-    }),
+    Environment({ stored_witness_count: 0, members }),
   )
   let adapter : CallableAdapterPlan = {
     function: { value: self.plans.length() + 1 },
@@ -76,7 +82,7 @@ fn collect_free_runtime_type_parameters(
     Parameter(parameter) =>
       if !bound.contains(parameter) &&
         !parameters.contains(parameter) &&
-        (parameter.index < 0 || image.requires_layout_witness(parameter)) {
+        (parameter.index < 0 || image.requires_runtime_evidence(parameter)) {
         parameters.push(parameter)
       }
     Apply(applied_type, arguments) => {
@@ -154,7 +160,7 @@ fn FunctionLowerer::canonical_callable_value_type(
   if self.image.runtime_type(type_) is Concrete(Primitive(Unit)) {
     return type_
   }
-  if self.image.runtime_type(type_) is Erased(parameter) &&
+  if self.image.runtime_type(type_) is Erased(Parameter(parameter)) &&
     bound.contains(parameter) {
     return type_
   }
@@ -170,7 +176,7 @@ fn FunctionLowerer::adapter_witness(
   substitutions : @buslane.TypeSubstitution,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   if type_substitution_type_argument(substitutions, parameter) is Some(type_) {
-    return self.layout_witness(type_)
+    return self.runtime_evidence(parameter, type_)
   }
   self.find_witness(parameter)
 }
@@ -206,8 +212,8 @@ fn FunctionLowerer::make_callable_adapter(
       environment,
       plan.environment_shape,
       Immediate(environment_layout),
-      witnesses,
-      [source],
+      [],
+      witnesses + [source],
     ),
   )
   let callable = self.fresh_slot(target_type)
@@ -300,10 +306,10 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
     Some(type_) => type_
     None => source_type
   }
-  let source_runtime = self.image.runtime_type(source_type)
-  let target_runtime = self.image.runtime_type(target_type)
   let source_shape = apply_type_substitution(source_value_type, substitutions)
   let target_shape = apply_type_substitution(target_type, substitutions)
+  let source_runtime = self.image.runtime_type(source_type)
+  let target_runtime = self.image.runtime_type(target_type)
   let source_is_erased = match value {
     Slot(slot, _) => self.values[slot.value].erased_companion is Some(_)
     _ => source_runtime is Erased(_)
@@ -440,16 +446,26 @@ fn ImageLowerer::callable_types_share_runtime_abi(
   let (target_type_parameters, target_parameters, target_result) = function_type_parts(
     target_type,
   )
-  let mut source_witnesses = 0
+  let source_witnesses : Array[@bytecode.ValueAbi] = []
   for parameter in source_type_parameters {
-    if self.requires_layout_witness(parameter) {
-      source_witnesses += 1
+    if self.requires_runtime_evidence(parameter) {
+      let metadata = self.runtime_evidence_metadata(parameter)
+      source_witnesses.push({
+        representation: metadata.representation,
+        cleanup: metadata.cleanup,
+        kind: metadata.kind,
+      })
     }
   }
-  let mut target_witnesses = 0
+  let target_witnesses : Array[@bytecode.ValueAbi] = []
   for parameter in target_type_parameters {
-    if self.requires_layout_witness(parameter) {
-      target_witnesses += 1
+    if self.requires_runtime_evidence(parameter) {
+      let metadata = self.runtime_evidence_metadata(parameter)
+      target_witnesses.push({
+        representation: metadata.representation,
+        cleanup: metadata.cleanup,
+        kind: metadata.kind,
+      })
     }
   }
   if source_witnesses != target_witnesses ||
@@ -550,8 +566,10 @@ fn ImageLowerer::lower_callable_adapter(
   }
   let input_witnesses = []
   for index, parameter in target_type_parameters {
-    if self.requires_layout_witness(parameter) {
-      let witness = lowerer.fresh_metadata(layout_witness_metadata())
+    if self.requires_runtime_evidence(parameter) {
+      let witness = lowerer.fresh_metadata(
+        self.runtime_evidence_metadata(parameter),
+      )
       input_witnesses.push(witness)
       lowerer.witnesses.push({ parameter, value: witness })
       let source_parameter = source_type_parameters[index]
@@ -565,18 +583,24 @@ fn ImageLowerer::lower_callable_adapter(
   )
   lowerer.environment = Some(environment)
   for index, parameter in plan.captured_parameters {
-    let witness = lowerer.fresh_metadata(layout_witness_metadata())
+    let metadata = self.runtime_evidence_metadata(parameter)
+    let witness = lowerer.fresh_metadata(borrowed_evidence_metadata(metadata))
     lowerer.emit(
-      LoadObjectWitness(witness, plan.environment_shape, environment, index),
+      BorrowCapture(plan.environment_shape, environment, index, {
+        value_destination: witness,
+        witness_destination: None,
+      }),
     )
     lowerer.witnesses.push({ parameter, value: witness })
   }
   let source_callable = lowerer.fresh_borrowed_slot(plan.source_type)
   lowerer.emit(
-    BorrowCapture(plan.environment_shape, environment, 0, {
-      value_destination: source_callable,
-      witness_destination: None,
-    }),
+    BorrowCapture(
+      plan.environment_shape,
+      environment,
+      plan.captured_parameters.length(),
+      { value_destination: source_callable, witness_destination: None },
+    ),
   )
   let target_parameters : Array[LocalValue] = []
   let user_parameter_slots = []
@@ -604,7 +628,7 @@ fn ImageLowerer::lower_callable_adapter(
   }
   let call_witnesses = []
   for parameter in source_type_parameters {
-    if self.requires_layout_witness(parameter) {
+    if self.requires_runtime_evidence(parameter) {
       call_witnesses.push(lowerer.find_witness(parameter))
     }
   }

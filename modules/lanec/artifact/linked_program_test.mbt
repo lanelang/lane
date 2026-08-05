@@ -9,7 +9,7 @@ fn minimal_loisvm_image() -> @loisvm_bytecode.BytecodeImage {
   {
     entry: { value: 1 },
     initializer: None,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     data_family_count: 0,
     functions: [BytecodeBody(body)],
     globals: [],
@@ -40,7 +40,7 @@ test "linked program inspection delegates to LoisVM" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 11
+      #|schema: 12
       #|
       #|LoisVM bytecode
       #|entry: f1
@@ -64,21 +64,21 @@ test "linked program inspection delegates to LoisVM" {
       #|}
       #|
       #|callable ABI table:
-      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
+      #|  abi0 = fn(witnesses=[], parameters=[]) -> unit
       #|
     ),
   )
 }
 
 ///|
-test "schema 11 rejects schema 10 linked program payload" {
+test "schema 12 rejects schema 11 linked program payload" {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_raw_bytes(
     Bytes::from_array([b'L', b'A', b'N', b'E', b'A', b'R', b'T', b'\x00']),
   )
   writer.write_u8(1)
   writer.write_u8(3)
-  writer.write_u32_le_int(10)
+  writer.write_u32_le_int(11)
   writer.write_u32_le_int(4)
   let result = parse_loisvm_linked_program_binary(writer.to_bytes())
   assert_true(result is Err(_))
@@ -207,7 +207,7 @@ test "linked program roundtrips and inspects instance globals" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 11
+      #|schema: 12
       #|
       #|LoisVM bytecode
       #|entry: f1
@@ -261,9 +261,9 @@ test "linked program roundtrips and inspects instance globals" {
       #|)
       #|
       #|callable ABI table:
-      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
-      #|  abi1 = fn(witnesses=0, parameters=[i32 + owned_ref + ByteSequenceValue]) -> unit
-      #|  abi2 = fn(witnesses=0, parameters=[]) -> i32 + owned_ref + ByteSequenceValue
+      #|  abi0 = fn(witnesses=[], parameters=[]) -> unit
+      #|  abi1 = fn(witnesses=[], parameters=[i32 + owned_ref + ByteSequenceValue]) -> unit
+      #|  abi2 = fn(witnesses=[], parameters=[]) -> i32 + owned_ref + ByteSequenceValue
       #|
       #|instance global table:
       #|  g0 = i32 + owned_ref + ByteSequenceValue

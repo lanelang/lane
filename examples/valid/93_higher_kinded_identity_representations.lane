@@ -1,0 +1,33 @@
+module Examples.Valid.HigherKindedIdentityRepresentations
+
+import Basic.Builtins.{ f32_equal, f64_equal, i32_equal, i64_equal }
+import Basic.Data.Bool.*
+import Basic.Io.{ println }
+import Basic.Ops.*
+
+pub type Identity = type[T] => T
+
+pub struct Cell[F : [Type] -> Type, A] {
+  value : F[A]
+}
+
+fn[F : [Type] -> Type, A] roundtrip(cell : Cell[F, A]) -> F[A] {
+  match cell {
+    Cell::{ value } => value
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  let i32_cell : Cell[Identity, I32] = Cell::{ value: 42i32 }
+  let f32_cell : Cell[Identity, F32] = Cell::{ value: 1.5f32 }
+  let i64_cell : Cell[Identity, I64] = Cell::{ value: 42i64 }
+  let f64_cell : Cell[Identity, F64] = Cell::{ value: 1.5f64 }
+  if
+    i32_equal(roundtrip(i32_cell), 42i32) && f32_equal(roundtrip(f32_cell), 1.5f32)
+      && i64_equal(roundtrip(i64_cell), 42i64)
+      && f64_equal(roundtrip(f64_cell), 1.5f64) {
+    println("identity layouts=ok")
+  } else {
+    println("identity layouts=bad")
+  }
+}

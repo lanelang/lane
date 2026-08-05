@@ -288,16 +288,16 @@ test "bytecode verifier rejects wrong exact object shapes" {
 }
 
 ///|
-test "abstract reference ABI binding cannot turn ByteSequence into Data" {
-  let abstract_kind = @bytecode.AbstractReferenceValue(7)
+test "closed reference ABI cannot turn ByteSequence into Data" {
+  let data_kind = @bytecode.DataValue({ value: 0 })
   let target : FunctionBody = {
-    slots: [verification_slot(I32, cleanup=OwnedRef, kind=Some(abstract_kind))],
+    slots: [verification_slot(I32, cleanup=OwnedRef, kind=Some(data_kind))],
     inputs: {
       environment: None,
       witnesses: [],
       user_parameters: [{ value: 0 }],
     },
-    result: Value(I32, OwnedRef, abstract_kind),
+    result: Value(I32, OwnedRef, data_kind),
     blocks: [
       {
         parameters: [],
@@ -337,7 +337,7 @@ test "abstract reference ABI binding cannot turn ByteSequence into Data" {
     is Err(
       InvalidBytecode(
         site=Instruction({ value: 1 }, { value: 0 }, 1),
-        detail="call result ABI does not match destination slot"
+        detail="call argument 0 has the wrong value shape"
       )
     ),
   )
@@ -478,9 +478,9 @@ test "bytecode verifier checks CallValue ABI identity and physical shape" {
   let image = {
     ..verification_image(body),
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I64, cleanup: Trivial, kind: ScalarValue },
         ],
@@ -521,6 +521,40 @@ test "bytecode verifier checks CallValue ABI identity and physical shape" {
       InvalidBytecode(
         site=Instruction({ value: 1 }, { value: 0 }, 1),
         detail="CallableAbiId 2 is out of range",
+      ),
+    ),
+  )
+}
+
+///|
+test "bytecode verifier rejects a forged layout constructor arity" {
+  let constructor_slot = verification_slot(
+    I64,
+    cleanup=OwnedCallable,
+    kind=Some(LayoutConstructorValue(2)),
+  )
+  let caller = verification_body(slots=[constructor_slot], instructions=[
+    ConstFunction({ value: 0 }, { value: 2 }),
+    Release({ value: 0 }),
+  ])
+  let layout = verification_slot(I32, kind=Some(LayoutValue))
+  let implementation = {
+    ..verification_body(slots=[layout], terminator=Return(Some({ value: 0 }))),
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }],
+    },
+    result: Value(I32, Trivial, LayoutValue),
+  }
+  assert_eq(
+    verify_bytecode_image(
+      verification_image(caller, functions=[BytecodeBody(implementation)]),
+    ),
+    Err(
+      InvalidBytecode(
+        site=Instruction({ value: 1 }, { value: 0 }, 0),
+        detail="layout constructor ABI has the wrong arity",
       ),
     ),
   )
@@ -627,6 +661,69 @@ test "bytecode verifier enforces result ABI at every static call boundary" {
       #|    ),
       #|  ),
       #|)
+    ),
+  )
+}
+
+///|
+test "bytecode verifier rejects an erased member with the wrong stored evidence" {
+  let body = verification_body(
+    slots=[
+      verification_slot(I32, kind=Some(LayoutValue)),
+      verification_slot(I32, kind=Some(LayoutValue)),
+      {
+        representation: I64,
+        cleanup: OwnedErased,
+        kind: ErasedValue,
+        erased_companion: Some({ value: 0 }),
+      },
+      verification_slot(
+        I32,
+        cleanup=OwnedRef,
+        kind=Some(DataValue({ value: 0 })),
+      ),
+    ],
+    instructions=[
+      ConstLayout({ value: 0 }, { value: 1 }),
+      ConstLayout({ value: 1 }, { value: 2 }),
+      EraseUnit({ value: 2 }),
+      MakeData(
+        { value: 3 },
+        { value: 0 },
+        Immediate({ value: 3 }),
+        [{ value: 1 }],
+        [{ value: 2 }],
+      ),
+      Release({ value: 3 }),
+    ],
+  )
+  let image = {
+    ..verification_image(body),
+    data_family_count: 1,
+    layouts: [Unit, I64, Data({ value: 0 })],
+    object_shapes: [
+      Data({
+        family: { value: 0 },
+        constructor_tag: 0,
+        stored_witness_count: 1,
+        members: [
+          {
+            representation: I64,
+            cleanup: OwnedErased,
+            kind: ErasedValue,
+            witness_ordinal: Some(0),
+          },
+        ],
+      }),
+    ],
+  }
+  assert_eq(
+    verify_bytecode_image(image),
+    Err(
+      InvalidBytecode(
+        site=Instruction({ value: 1 }, { value: 0 }, 3),
+        detail="erased object member does not use its stored layout witness",
+      ),
     ),
   )
 }

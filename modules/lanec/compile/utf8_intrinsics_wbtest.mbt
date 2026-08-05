@@ -52,9 +52,9 @@ test "compiler erases representation-identical Char conversion" {
       #|  entry: { value: 1 },
       #|  initializer: None,
       #|  callable_abis: [
-      #|    { witness_count: 0, parameters: [], result: Unit },
+      #|    { witnesses: [], parameters: [], result: Unit },
       #|    {
-      #|      witness_count: 0,
+      #|      witnesses: [],
       #|      parameters: [{ representation: I64, cleanup: Trivial, kind: ScalarValue }],
       #|      result: Unit,
       #|    },

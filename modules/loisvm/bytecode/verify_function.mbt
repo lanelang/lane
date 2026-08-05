@@ -56,10 +56,7 @@ fn BytecodeVerifier::verify_function(
     input_slots.push(environment)
   }
   for witness in body.inputs.witnesses {
-    self.expect_slot(function_site, body, witness, I32, Trivial)
-    if self.slot_metadata(function_site, body, witness).kind != LayoutValue {
-      self.fail(function_site, "function witness must have Layout value kind")
-    }
+    ignore(self.slot_metadata(function_site, body, witness))
     input_slots.push(witness)
   }
   for parameter in body.inputs.user_parameters {

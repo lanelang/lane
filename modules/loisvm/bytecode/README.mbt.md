@@ -23,7 +23,7 @@ test "a minimal LoisVM bytecode image round-trips" {
   let image : BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     data_family_count: 0,
     functions: [
       BytecodeBody({
@@ -82,10 +82,9 @@ Every `SlotId` has one immutable `SlotMetadata` entry. The representation fixes 
 
 Every slot, global, member, parameter ABI, and non-Unit result also carries a
 `SemanticValueKind`. Physical representation and cleanup describe storage;
-semantic kind distinguishes scalars, layout witnesses, callables,
+semantic kind distinguishes scalars, layout witnesses, layout constructors, callables,
 ByteSequences, Data families, exact Environment shapes, external opaque
-references, erased values, and quantified higher-kinded reference
-applications. Equal bits and cleanup do not make different semantic kinds
+references, and erased values. Equal bits and cleanup do not make different semantic kinds
 interchangeable.
 
 Every function result has one `ResultAbi`: `Unit` occupies no slot, while
@@ -115,7 +114,7 @@ Instruction operands use the following conventions:
 - `destination` is written by the instruction and must have metadata matching the documented result representation and ownership.
 - A borrowed input remains owned by its existing owner and receives no retain.
 - A consumed input transfers or destroys its ownership; subsequent use requires a separately retained owner.
-- Witness arrays and `LayoutOperand::Witness` values are borrowed `I32 + Trivial` layout IDs.
+- Object witness arrays and `LayoutOperand::Witness` values are borrowed `I32 + Trivial` layout IDs. Callable evidence inputs use their complete ABI and transfer owned layout constructors into the callee.
 - Argument, field, capture, edge, and result order is semantically significant.
 
 ## Object and layout model
@@ -134,17 +133,17 @@ used for its cleanup.
 
 ## Function ABI
 
-The callee receives an optional hidden environment, ordered layout witnesses,
+The callee receives an optional hidden environment, ordered representation evidence,
 and ordered user arguments in the slots named by `FunctionInputs`. The caller
-and callee counts and complete value ABIs must agree. An
-`AbstractReferenceValue(parameter)` is instantiated consistently across one
-call's parameters and result; it cannot independently rebind a ByteSequence
-argument into a Data result.
+and callee counts and complete value ABIs must agree. An unresolved source type
+is represented by `ErasedValue` plus explicit evidence; all bytecode call
+parameter and result kinds are closed.
 
-Environments, callable values, and user arguments are transferred into calls.
-Layout witnesses are borrowed. A non-`Unit` call must provide a destination
-matching the callee's complete result ABI, after consistent abstract-reference
-binding; a `Unit` call must omit the destination. `RuntimeImport` parameters of
+Environments, evidence inputs, callable values, and user arguments are
+transferred into calls. Transferring a trivial `LayoutValue` is physically a
+read; transferring an owned layout constructor moves or retains its callable
+owner. A non-`Unit` call must provide a destination matching the callee's
+complete result ABI; a `Unit` call must omit the destination. `RuntimeImport` parameters of
 kind `Unit` are zero-width and do not consume an argument slot.
 
 ## Instruction encoding
@@ -175,8 +174,8 @@ The constructor spelling is the public MoonBit API. The lowercase spelling shown
 
 | Opcode | Constructor | Semantics |
 | --- | --- | --- |
-| `0x0B` | `CallDirect(function, environment, witnesses, arguments, destination)` | `call_direct`; invokes the immediate function-table entry. The optional environment and all user arguments are consumed, witnesses are borrowed, and a non-`Unit` result is written to `destination`. |
-| `0x0C` | `CallValue(callable, abi, witnesses, arguments, destination)` | `call_value`; validates the packed target against `abi`, consumes the packed callable and user arguments, borrows witnesses, dispatches through the callable table, and writes an optional result. |
+| `0x0B` | `CallDirect(function, environment, witnesses, arguments, destination)` | `call_direct`; invokes the immediate function-table entry. The optional environment, evidence inputs, and user arguments are transferred, and a non-`Unit` result is written to `destination`. |
+| `0x0C` | `CallValue(callable, abi, witnesses, arguments, destination)` | `call_value`; validates the packed target against `abi`, transfers the packed callable, evidence inputs, and user arguments, dispatches through the callable table, and writes an optional result. |
 | `0x14` | `MakeClosure(destination, function, environment)` | `make_closure`; consumes one nonzero environment owner and packs it with the target function into an `I64 + OwnedCallable` destination. |
 
 Direct calls use `environment=None` for no-context functions and `Some(slot)`
@@ -357,8 +356,8 @@ Every terminator begins with the listed `u8` tag. Edge operands encode a target 
 | `0x02` | `BranchBool(condition, true_edge, false_edge)` | Borrows an `I32` condition, selects `true_edge` for nonzero and `false_edge` for zero, then performs the edge transfer. |
 | `0x03` | `SwitchTag(tag, cases, default)` | Borrows an `I32` tag, selects `cases[tag]` when the tag is in range, otherwise selects `default`, then performs the edge transfer. |
 | `0x04` | `Return(source)` | Returns `None` for a `Unit` function or consumes the owning source value for a non-`Unit` function. All other owned slots must already be dead. |
-| `0x05` | `TailCallDirect(function, environment, witnesses, arguments)` | Replaces the current frame with a direct call, consuming the optional environment and arguments, borrowing witnesses, and preserving the current return destination. |
-| `0x06` | `TailCallValue(callable, abi, witnesses, arguments)` | Validates the packed target against `abi`, then replaces the current frame with a callable-value call, consuming the callable and arguments, borrowing witnesses, and preserving the current return destination. |
+| `0x05` | `TailCallDirect(function, environment, witnesses, arguments)` | Replaces the current frame with a direct call, transferring the optional environment, evidence inputs, and arguments while preserving the current return destination. |
+| `0x06` | `TailCallValue(callable, abi, witnesses, arguments)` | Validates the packed target against `abi`, then replaces the current frame with a callable-value call, transferring the callable, evidence inputs, and arguments while preserving the current return destination. |
 | `0x07` | `Unreachable` | Traps if execution reaches the terminator. |
 
 Edge arguments are logical transfers. Their count and representations must match the target block parameters exactly. Any owned value not transferred along the selected edge must already have been released.

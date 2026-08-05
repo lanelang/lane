@@ -119,6 +119,8 @@ fn lower_executable_program_to_bytecode_or_raise(
         functions.push(Body(lowerer.lower_intrinsic_wrapper(plan)))
       CallableAdapter(plan) =>
         functions.push(Body(lowerer.lower_callable_adapter(plan)))
+      LayoutConstructor(plan) =>
+        functions.push(Body(lowerer.lower_layout_constructor(plan)))
       RuntimeImport(import_) => functions.push(RuntimeImport(import_))
     }
     plan_index += 1

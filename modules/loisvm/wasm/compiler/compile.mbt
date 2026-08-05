@@ -177,8 +177,8 @@ fn wasm_callable_parameters(
   abi : @bytecode.CallableAbi,
 ) -> Array[@wasm_types.ValueType] {
   let parameters : Array[@wasm_types.ValueType] = [I32]
-  for _ in 0..<abi.witness_count {
-    parameters.push(I32)
+  for witness in abi.witnesses {
+    parameters.push(wasm_representation(witness.representation))
   }
   for parameter in abi.parameters {
     parameters.push(wasm_representation(parameter.representation))

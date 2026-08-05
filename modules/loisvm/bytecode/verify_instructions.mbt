@@ -92,13 +92,23 @@ fn BytecodeVerifier::verify_instruction(
     }
     ConstFunction(destination, target) => {
       self.expect_slot(site, body, destination, I64, OwnedCallable)
-      self.expect_kind(site, body, destination, CallableValue)
+      let destination_kind = self.slot_metadata(site, body, destination).kind
+      self.expect_callable_kind(site, destination_kind)
       match self.function_entry(site, target) {
-        BytecodeBody(target_body) =>
+        BytecodeBody(target_body) => {
           if target_body.inputs.environment is Some(_) {
             self.fail(site, "ConstFunction target requires an environment")
           }
-        RuntimeImport(_) => ()
+          self.verify_callable_kind_abi(
+            site,
+            destination_kind,
+            self.function_callable_abi(site, target),
+          )
+        }
+        RuntimeImport(_) =>
+          if !(destination_kind is CallableValue) {
+            self.fail(site, "runtime imports cannot be layout constructors")
+          }
       }
     }
     ConstString(destination, constant) => {
@@ -119,8 +129,10 @@ fn BytecodeVerifier::verify_instruction(
       )
     CallValue(callable, abi_id, witnesses, arguments, destination) => {
       self.expect_slot(site, body, callable, I64, OwnedCallable)
-      self.expect_kind(site, body, callable, CallableValue)
+      let callable_kind = self.slot_metadata(site, body, callable).kind
+      self.expect_callable_kind(site, callable_kind)
       let abi = self.callable_abi(site, abi_id)
+      self.verify_callable_kind_abi(site, callable_kind, abi)
       self.verify_call_abi(
         site,
         body,
@@ -241,7 +253,8 @@ fn BytecodeVerifier::verify_instruction(
     MakeClosure(destination, target, environment) => {
       self.expect_slot(site, body, destination, I64, OwnedCallable)
       self.expect_slot(site, body, environment, I32, OwnedRef)
-      self.expect_kind(site, body, destination, CallableValue)
+      let destination_kind = self.slot_metadata(site, body, destination).kind
+      self.expect_callable_kind(site, destination_kind)
       match self.function_entry(site, target) {
         BytecodeBody(target_body) => {
           if target_body.inputs.environment is None {
@@ -255,6 +268,11 @@ fn BytecodeVerifier::verify_instruction(
             body,
             environment,
             target_body.slots[target_environment.value].kind,
+          )
+          self.verify_callable_kind_abi(
+            site,
+            destination_kind,
+            self.function_callable_abi(site, target),
           )
         }
         RuntimeImport(_) =>
@@ -582,15 +600,20 @@ fn BytecodeVerifier::verify_call_abi(
   destination : SlotId?,
   tail_result~ : ResultAbi?,
 ) -> Unit raise BytecodeVerificationError {
-  if witnesses.length() != abi.witness_count {
+  if witnesses.length() != abi.witnesses.length() {
     self.fail(site, "call has the wrong witness count")
   }
   if arguments.length() != abi.parameters.length() {
     self.fail(site, "call has the wrong user argument count")
   }
+  let witness_abis : Array[ValueAbi] = []
   for witness in witnesses {
-    self.expect_slot(site, body, witness, I32, Trivial)
-    self.expect_kind(site, body, witness, LayoutValue)
+    let metadata = self.slot_metadata(site, body, witness)
+    witness_abis.push({
+      representation: metadata.representation,
+      cleanup: metadata.cleanup,
+      kind: metadata.kind,
+    })
   }
   let parameters : Array[ValueAbi] = []
   for argument in arguments {
@@ -612,12 +635,7 @@ fn BytecodeVerifier::verify_call_abi(
         None => Unit
       }
   }
-  match
-    abi.callsite_mismatch({
-      witness_count: witnesses.length(),
-      parameters,
-      result,
-    }) {
+  match abi.callsite_mismatch({ witnesses: witness_abis, parameters, result }) {
     None => ()
     Some(CallParameterMismatch(index)) =>
       self.fail(site, "call argument \{index} has the wrong value shape")
@@ -631,6 +649,40 @@ fn BytecodeVerifier::verify_call_abi(
       self.fail(
         site, "callsite value shapes do not instantiate the callable ABI",
       )
+  }
+}
+
+///|
+fn BytecodeVerifier::expect_callable_kind(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  kind : SemanticValueKind,
+) -> Unit raise BytecodeVerificationError {
+  match kind {
+    CallableValue | LayoutConstructorValue(_) => ()
+    _ => self.fail(site, "callable slot has the wrong semantic value kind")
+  }
+}
+
+///|
+fn BytecodeVerifier::verify_callable_kind_abi(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  kind : SemanticValueKind,
+  abi : CallableAbi,
+) -> Unit raise BytecodeVerificationError {
+  guard kind is LayoutConstructorValue(arity) else { return }
+  if !abi.witnesses.is_empty() || abi.parameters.length() != arity {
+    self.fail(site, "layout constructor ABI has the wrong arity")
+  }
+  for parameter in abi.parameters {
+    match parameter.kind {
+      LayoutValue | LayoutConstructorValue(_) => ()
+      _ => self.fail(site, "layout constructor has a non-evidence parameter")
+    }
+  }
+  if abi.result != Value(I32, Trivial, LayoutValue) {
+    self.fail(site, "layout constructor must return a layout value")
   }
 }
 
@@ -681,6 +733,15 @@ fn BytecodeVerifier::verify_object_construction(
       schema.cleanup,
     )
     self.expect_kind(site, body, values[index], schema.kind)
+    if schema.cleanup is OwnedErased &&
+      schema.witness_ordinal is Some(witness_ordinal) {
+      let metadata = self.slot_metadata(site, body, values[index])
+      if metadata.erased_companion != Some(witnesses[witness_ordinal]) {
+        self.fail(
+          site, "erased object member does not use its stored layout witness",
+        )
+      }
+    }
   }
 }
 

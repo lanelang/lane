@@ -139,8 +139,9 @@ _Avoid_: entry BlockId operand, block length, extensible field map
 **Function Result ABI**:
 The single function-owned result contract: either zero-width `Unit`, or one
 value with an exact representation, cleanup category, and semantic value kind.
-Returns and calls must agree on the complete ABI, modulo consistent binding of
-an explicit abstract reference parameter.
+Returns and calls must agree on the complete closed ABI. Representation-
+polymorphic source values reach this boundary as erased payloads with explicit
+evidence rather than as abstract reference kinds.
 _Avoid_: representation-only result, destination-owned result semantics,
 inferred cleanup, physical-shape casts
 

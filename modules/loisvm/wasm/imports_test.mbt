@@ -34,7 +34,7 @@ fn import_test_image(
   constants? : Array[Bytes] = [],
 ) -> @bytecode.BytecodeImage {
   let callable_abis : Array[@bytecode.CallableAbi] = [
-    { witness_count: 0, parameters: [], result: Unit },
+    { witnesses: [], parameters: [], result: Unit },
   ]
   let import_abi = import_.callable_abi()
   if !callable_abis.contains(import_abi) {
@@ -220,16 +220,16 @@ test "String import transports multibyte UTF-8 and embedded NUL" {
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
         ],
         result: Value(I32, OwnedRef, ByteSequenceValue),
       },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
         ],

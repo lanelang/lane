@@ -93,6 +93,14 @@ fn Decoder::read_callable_abi(
   let witness_count = self.read_nonnegative_u32(
     expected="callable ABI witness count",
   )
+  let witnesses = []
+  for _index in 0..<witness_count {
+    witnesses.push({
+      representation: self.read_representation(),
+      cleanup: self.read_cleanup(),
+      kind: self.read_semantic_value_kind(),
+    })
+  }
   let parameter_count = self.read_count(
     minimum_size=2,
     table="callable ABI parameter",
@@ -105,7 +113,7 @@ fn Decoder::read_callable_abi(
       kind: self.read_semantic_value_kind(),
     })
   }
-  { witness_count, parameters, result: self.read_result_abi() }
+  { witnesses, parameters, result: self.read_result_abi() }
 }
 
 ///|
@@ -274,8 +282,8 @@ fn Decoder::read_semantic_value_kind(
     0x07 => OpaqueReferenceValue
     0x08 => ErasedValue
     0x09 =>
-      AbstractReferenceValue(
-        self.read_nonnegative_u32(expected="abstract reference parameter"),
+      LayoutConstructorValue(
+        self.read_nonnegative_u32(expected="layout constructor arity"),
       )
     tag => self.invalid_tag(offset~, domain="semantic value kind", tag~)
   }

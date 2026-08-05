@@ -85,9 +85,9 @@ fn example_image() -> @bytecode.BytecodeImage {
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I64, cleanup: Trivial, kind: ScalarValue },
         ],

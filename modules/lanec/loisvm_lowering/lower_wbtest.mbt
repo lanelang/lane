@@ -2295,6 +2295,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
         {
           stored_witness_count: 2,
           members: [
+            { cleanup: Trivial, kind: LayoutValue, .. },
             { cleanup: OwnedErased, witness_ordinal: Some(0), .. },
             { cleanup: OwnedErased, witness_ordinal: Some(1), .. },
           ],
@@ -2308,7 +2309,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
   }
   assert_true(
     contains_instruction(main_body, instruction => {
-      instruction is LoadObjectWitness(_, _, _, 1)
+      instruction is BorrowField(_, _, 0, { witness_destination: None, .. })
     }),
   )
   assert_true(
@@ -2432,7 +2433,14 @@ test "payload-free existential data still opens its hidden witness" {
   }
   assert_true(
     image.object_shapes.any(shape => {
-      shape is Data({ stored_witness_count: 1, members: [], .. })
+      shape
+      is Data(
+        {
+          stored_witness_count: 0,
+          members: [{ cleanup: Trivial, kind: LayoutValue, .. }],
+          ..,
+        }
+      )
     }),
   )
   guard image.functions[1] is BytecodeBody(main_body) else {
@@ -2440,12 +2448,7 @@ test "payload-free existential data still opens its hidden witness" {
   }
   assert_true(
     contains_instruction(main_body, instruction => {
-      instruction is LoadObjectWitness(_, _, _, 0)
-    }),
-  )
-  assert_false(
-    contains_instruction(main_body, instruction => {
-      instruction is BorrowField(_, _, _, _)
+      instruction is BorrowField(_, _, 0, { witness_destination: None, .. })
     }),
   )
   let mut observed = 0L
@@ -2976,7 +2979,7 @@ test "concrete companion substitution determines its layout witness" {
       lowerer.blocks[0].instructions,
     ),
     content=(
-      #|({ value: 0 }, [Unit], [], [ConstLayout({ value: 0 }, { value: 1 })])
+      #|({ value: 0 }, [], [], [ConstFunction({ value: 0 }, { value: 1 })])
     ),
   )
 }
@@ -3123,7 +3126,7 @@ test "callable adapter owns its final substitution" {
     ),
     content=(
       #|(
-      #|  [Reference, Environment({ value: 0 })],
+      #|  [Environment({ value: 0 }), Reference],
       #|  [
       #|    {
       #|      function: { value: 1 },
@@ -3159,13 +3162,13 @@ test "callable adapter owns its final substitution" {
       #|    },
       #|  ],
       #|  [
-      #|    ConstLayout({ value: 1 }, { value: 1 }),
+      #|    ConstFunction({ value: 1 }, { value: 2 }),
       #|    MakeEnv(
       #|      { value: 2 },
       #|      { value: 0 },
-      #|      Immediate({ value: 2 }),
-      #|      [{ value: 1 }],
-      #|      [{ value: 0 }],
+      #|      Immediate({ value: 1 }),
+      #|      [],
+      #|      [{ value: 1 }, { value: 0 }],
       #|    ),
       #|    MakeClosure({ value: 3 }, { value: 1 }, { value: 2 }),
       #|  ],
@@ -3173,14 +3176,19 @@ test "callable adapter owns its final substitution" {
       #|    {
       #|      parameters: [],
       #|      instructions: [
-      #|        LoadObjectWitness({ value: 1 }, { value: 0 }, { value: 0 }, 0),
       #|        BorrowCapture(
       #|          { value: 0 },
       #|          { value: 0 },
       #|          0,
+      #|          { value_destination: { value: 1 }, witness_destination: None },
+      #|        ),
+      #|        BorrowCapture(
+      #|          { value: 0 },
+      #|          { value: 0 },
+      #|          1,
       #|          { value_destination: { value: 2 }, witness_destination: None },
       #|        ),
-      #|        ConstLayout({ value: 4 }, { value: 1 }),
+      #|        ConstLayout({ value: 4 }, { value: 2 }),
       #|        EraseI32({ value: 5 }, { value: 3 }),
       #|      ],
       #|      terminator: TailCallValue({ value: 2 }, [], [{ value: 5 }]),
@@ -3205,7 +3213,7 @@ test "local value types override substituted formal types during adaptation" {
 }
 
 ///|
-test "value adaptation applies higher-kinded substitutions before classifying representation" {
+test "higher-kinded formal applications retain their erased generic ABI" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let capability = metadata.define_type_parameter("C", Function([Type], Type))
   let element = metadata.define_type_parameter("T", Type)
@@ -3235,12 +3243,98 @@ test "value adaptation applies higher-kinded substitutions before classifying re
     substitutions,
   )
   guard adapted is Slot(adapted_slot, adapted_type) else {
-    fail("expected substituted callable adaptation to preserve the slot")
+    fail("expected the higher-kinded formal value to be erased")
   }
-  assert_eq(adapted_slot, slot)
-  assert_true(image.types_definitionally_equal(adapted_type, source_type))
-  assert_true(image.callable_adapters.is_empty())
-  assert_true(lowerer.blocks[0].instructions.is_empty())
+  assert_eq(adapted_slot, { value: 2 })
+  assert_eq(adapted_type, target_type)
+  debug_inspect(
+    (
+      image.layouts,
+      image.callable_adapters,
+      lowerer.values,
+      lowerer.blocks[0].instructions,
+    ),
+    content=(
+      #|(
+      #|  [Callable, ByteSequence, Environment({ value: 0 })],
+      #|  [
+      #|    {
+      #|      function: { value: 1 },
+      #|      source_type: Function([Primitive(Unit)], Primitive(String), Empty),
+      #|      target_type: Function([Primitive(Unit)], Parameter({ index: -1 }), Empty),
+      #|      source_parameter_targets: [0],
+      #|      substitutions: {
+      #|        entries: [
+      #|          {
+      #|            parameter: { index: -1 },
+      #|            replacement: TypeArgument(Primitive(String)),
+      #|          },
+      #|        ],
+      #|      },
+      #|      captured_parameters: [{ index: -1 }],
+      #|      environment_shape: { value: 0 },
+      #|    },
+      #|  ],
+      #|  [
+      #|    {
+      #|      representation: I64,
+      #|      cleanup: OwnedCallable,
+      #|      kind: CallableValue,
+      #|      ownership: Owned,
+      #|      erased_companion: None,
+      #|    },
+      #|    {
+      #|      representation: I32,
+      #|      cleanup: Trivial,
+      #|      kind: LayoutValue,
+      #|      ownership: Trivial,
+      #|      erased_companion: None,
+      #|    },
+      #|    {
+      #|      representation: I64,
+      #|      cleanup: OwnedErased,
+      #|      kind: ErasedValue,
+      #|      ownership: Owned,
+      #|      erased_companion: Some({ value: 1 }),
+      #|    },
+      #|    {
+      #|      representation: I32,
+      #|      cleanup: Trivial,
+      #|      kind: LayoutValue,
+      #|      ownership: Trivial,
+      #|      erased_companion: None,
+      #|    },
+      #|    {
+      #|      representation: I32,
+      #|      cleanup: OwnedRef,
+      #|      kind: EnvironmentValue({ value: 0 }),
+      #|      ownership: Owned,
+      #|      erased_companion: None,
+      #|    },
+      #|    {
+      #|      representation: I64,
+      #|      cleanup: OwnedCallable,
+      #|      kind: CallableValue,
+      #|      ownership: Owned,
+      #|      erased_companion: None,
+      #|    },
+      #|  ],
+      #|  [
+      #|    ConstLayout({ value: 1 }, { value: 1 }),
+      #|    ConstLayout({ value: 3 }, { value: 2 }),
+      #|    MakeEnv(
+      #|      { value: 4 },
+      #|      { value: 0 },
+      #|      Immediate({ value: 3 }),
+      #|      [],
+      #|      [{ value: 3 }, { value: 0 }],
+      #|    ),
+      #|    MakeClosure({ value: 5 }, { value: 1 }, { value: 4 }),
+      #|    EraseI64({ value: 2 }, { value: 5 }),
+      #|  ],
+      #|)
+    ),
+  )
 }
 
 ///|

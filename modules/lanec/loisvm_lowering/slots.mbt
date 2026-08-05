@@ -16,8 +16,8 @@ fn FunctionLowerer::fresh_slot(
   self : FunctionLowerer,
   type_ : @buslane.Type,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  if self.image.runtime_type(type_) is Erased(parameter) {
-    return self.fresh_erased_slot(self.find_witness(parameter), Owned)
+  if self.image.runtime_type(type_) is Erased(_) {
+    return self.fresh_erased_slot(self.layout_witness(type_), Owned)
   }
   let slot : @vmcfg.ValueId = { value: self.values.length() }
   self.values.push(self.image.slot_metadata(type_))
@@ -39,8 +39,8 @@ fn FunctionLowerer::fresh_borrowed_slot(
   self : FunctionLowerer,
   type_ : @buslane.Type,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  if self.image.runtime_type(type_) is Erased(parameter) {
-    return self.fresh_erased_slot(self.find_witness(parameter), Borrowed)
+  if self.image.runtime_type(type_) is Erased(_) {
+    return self.fresh_erased_slot(self.layout_witness(type_), Borrowed)
   }
   let metadata = self.image.slot_metadata(type_)
   let ownership : @vmcfg.Ownership = match metadata.ownership {
@@ -72,11 +72,38 @@ fn ImageLowerer::slot_metadata(
   self : ImageLowerer,
   type_ : @buslane.Type,
 ) -> @vmcfg.ValueMetadata raise LoisvmLoweringError {
-  guard self.runtime_type(type_) is Concrete(type_) else {
-    raise UnsupportedType(type_~)
+  match self.elaborate_runtime_representation(type_) {
+    Concrete(_, metadata) => metadata
+    Unit | Erased(_) => raise UnsupportedType(type_~)
+  }
+}
+
+///|
+fn ImageLowerer::elaborate_runtime_representation(
+  self : ImageLowerer,
+  type_ : @buslane.Type,
+) -> RuntimeRepresentation raise LoisvmLoweringError {
+  let type_ = type_.normalize() catch {
+    error => raise TypeNormalizationCompilerDefect(error)
+  }
+  match type_ {
+    Parameter(parameter) if parameter.index < 0 => return Erased(type_)
+    Parameter(parameter) =>
+      if self.metadata.type_parameter_info(parameter)
+        is Some({ kind: Type, .. }) {
+        return Erased(type_)
+      }
+    Apply(Parameter(parameter), _) =>
+      if self.metadata.type_parameter_info(parameter)
+        is Some({ kind: Function(_, Type), .. }) {
+        return Erased(type_)
+      }
+    _ => ()
+  }
+  if type_ is Primitive(Unit) {
+    return Unit
   }
   let metadata : @vmcfg.ValueMetadata = match type_ {
-    Primitive(Unit) => raise UnsupportedType(type_~)
     Primitive(Bool) =>
       {
         representation: I32,
@@ -164,14 +191,6 @@ fn ImageLowerer::slot_metadata(
         erased_companion: None,
       }
     }
-    Apply(Parameter(parameter), _) =>
-      {
-        representation: I32,
-        cleanup: OwnedRef,
-        kind: AbstractReferenceValue(parameter.index),
-        ownership: Owned,
-        erased_companion: None,
-      }
     Apply(_, _) =>
       {
         representation: I32,
@@ -182,7 +201,7 @@ fn ImageLowerer::slot_metadata(
       }
     _ => raise UnsupportedType(type_~)
   }
-  metadata
+  Concrete(type_, metadata)
 }
 
 ///|
@@ -210,25 +229,87 @@ fn layout_witness_metadata() -> @vmcfg.ValueMetadata {
 }
 
 ///|
-fn ImageLowerer::result_abi(
-  self : ImageLowerer,
-  type_ : @buslane.Type,
-) -> @bytecode.ResultAbi raise LoisvmLoweringError {
-  match self.runtime_type(type_) {
-    Erased(_) => Value(I64, OwnedErased, ErasedValue)
-    Concrete(type_) =>
-      if type_ is Primitive(Unit) {
-        Unit
-      } else {
-        let metadata = self.slot_metadata(type_)
-        Value(metadata.representation, metadata.cleanup, metadata.kind)
-      }
+fn layout_constructor_metadata(arity : Int) -> @vmcfg.ValueMetadata {
+  {
+    representation: I64,
+    cleanup: OwnedCallable,
+    kind: LayoutConstructorValue(arity),
+    ownership: Owned,
+    erased_companion: None,
   }
 }
 
 ///|
+fn borrowed_evidence_metadata(
+  metadata : @vmcfg.ValueMetadata,
+) -> @vmcfg.ValueMetadata {
+  if metadata.cleanup is Trivial {
+    metadata
+  } else {
+    { ..metadata, ownership: Borrowed }
+  }
+}
+
+///|
+fn ImageLowerer::runtime_evidence_metadata(
+  self : ImageLowerer,
+  parameter : @buslane.TypeParameterId,
+) -> @vmcfg.ValueMetadata raise LoisvmLoweringError {
+  let kind = match self.metadata.type_parameter_info(parameter) {
+    Some(info) => info.kind
+    None if parameter.index < 0 => @buslane.Kind::Type
+    None => raise UnsupportedType(type_=Parameter(parameter))
+  }
+  match kind {
+    Type => layout_witness_metadata()
+    Function(parameters, Type) =>
+      layout_constructor_metadata(runtime_evidence_arity(parameters))
+    _ => raise UnsupportedType(type_=Parameter(parameter))
+  }
+}
+
+///|
+fn runtime_evidence_arity(parameters : Array[@buslane.Kind]) -> Int {
+  parameters.fold(init=0, fn(count, kind) {
+    if kind_requires_runtime_evidence(kind) {
+      count + 1
+    } else {
+      count
+    }
+  })
+}
+
+///|
+fn kind_requires_runtime_evidence(kind : @buslane.Kind) -> Bool {
+  match kind {
+    Type | Function(_, Type) => true
+    _ => false
+  }
+}
+
+///|
+fn ImageLowerer::result_abi(
+  self : ImageLowerer,
+  type_ : @buslane.Type,
+) -> @bytecode.ResultAbi raise LoisvmLoweringError {
+  match self.elaborate_runtime_representation(type_) {
+    Unit => Unit
+    Erased(_) => Value(I64, OwnedErased, ErasedValue)
+    Concrete(_, metadata) =>
+      Value(metadata.representation, metadata.cleanup, metadata.kind)
+  }
+}
+
+///|
+priv enum RuntimeRepresentation {
+  Unit
+  Concrete(@buslane.Type, @vmcfg.ValueMetadata)
+  Erased(@buslane.Type)
+}
+
+///|
 priv enum RuntimeType {
-  Erased(@buslane.TypeParameterId)
+  Erased(@buslane.Type)
   Concrete(@buslane.Type)
 }
 
@@ -253,19 +334,10 @@ fn ImageLowerer::runtime_type(
   self : ImageLowerer,
   type_ : @buslane.Type,
 ) -> RuntimeType raise LoisvmLoweringError {
-  let type_ = type_.normalize() catch {
-    error => raise TypeNormalizationCompilerDefect(error)
-  }
-  match type_ {
-    Parameter(parameter) if parameter.index < 0 => Erased(parameter)
-    Parameter(parameter) =>
-      match self.metadata.type_parameter_info(parameter) {
-        Some({ kind: Type, .. }) => Erased(parameter)
-        _ => Concrete(type_)
-      }
-    Apply(Parameter(companion), _) if self.effect_source(companion) is Some(_) =>
-      Erased(companion)
-    _ => Concrete(type_)
+  match self.elaborate_runtime_representation(type_) {
+    Unit => Concrete(Primitive(Unit))
+    Concrete(type_, _) => Concrete(type_)
+    Erased(type_) => Erased(type_)
   }
 }
 
@@ -278,8 +350,6 @@ fn ImageLowerer::layout_runtime_type(
     error => raise TypeNormalizationCompilerDefect(error)
   }
   match type_ {
-    Parameter(companion) if self.effect_source(companion) is Some(_) =>
-      Erased(companion)
     TypeLambda(_, body) => self.layout_runtime_type(body)
     type_ => self.runtime_type(type_)
   }

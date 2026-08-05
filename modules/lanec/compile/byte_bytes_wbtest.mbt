@@ -44,7 +44,7 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
       #|{
       #|  entry: { value: 1 },
       #|  initializer: None,
-      #|  callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+      #|  callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
       #|  data_family_count: 0,
       #|  functions: [
       #|    BytecodeBody(
@@ -100,13 +100,13 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|  initializer: None,
       #|  callable_abis: [
       #|    {
-      #|      witness_count: 1,
+      #|      witnesses: [{ representation: I32, cleanup: Trivial, kind: LayoutValue }],
       #|      parameters: [{ representation: I64, cleanup: OwnedErased, kind: ErasedValue }],
       #|      result: Value(I64, OwnedErased, ErasedValue),
       #|    },
-      #|    { witness_count: 0, parameters: [], result: Unit },
+      #|    { witnesses: [], parameters: [], result: Unit },
       #|    {
-      #|      witness_count: 0,
+      #|      witnesses: [],
       #|      parameters: [{ representation: I64, cleanup: Trivial, kind: ScalarValue }],
       #|      result: Unit,
       #|    },
@@ -359,7 +359,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|  initializer: Some({ value: 5 }),
       #|  callable_abis: [
       #|    {
-      #|      witness_count: 0,
+      #|      witnesses: [],
       #|      parameters: [
       #|        {
       #|          representation: I32,
@@ -370,7 +370,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|      result: Value(I32, Trivial, ScalarValue),
       #|    },
       #|    {
-      #|      witness_count: 0,
+      #|      witnesses: [],
       #|      parameters: [
       #|        {
       #|          representation: I32,
@@ -381,21 +381,21 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|      result: Value(I32, OwnedRef, ByteSequenceValue),
       #|    },
       #|    {
-      #|      witness_count: 0,
+      #|      witnesses: [],
       #|      parameters: [
       #|        { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
       #|        { representation: I32, cleanup: Trivial, kind: ScalarValue },
       #|      ],
       #|      result: Value(I64, OwnedCallable, CallableValue),
       #|    },
-      #|    { witness_count: 0, parameters: [], result: Unit },
+      #|    { witnesses: [], parameters: [], result: Unit },
       #|    {
-      #|      witness_count: 0,
+      #|      witnesses: [],
       #|      parameters: [],
       #|      result: Value(I32, Trivial, ScalarValue),
       #|    },
       #|    {
-      #|      witness_count: 0,
+      #|      witnesses: [],
       #|      parameters: [{ representation: I64, cleanup: Trivial, kind: ScalarValue }],
       #|      result: Unit,
       #|    },

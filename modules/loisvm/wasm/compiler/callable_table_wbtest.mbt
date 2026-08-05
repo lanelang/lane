@@ -19,7 +19,7 @@ test "callable table includes only address-taken functions in ID order" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     data_family_count: 0,
     functions: [
       body([
@@ -72,7 +72,7 @@ test "trivial functions omit frame liveness locals" {
     entry: { value: 1 },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     functions: [BytecodeBody(body)],
     globals: [],
     layouts: [],

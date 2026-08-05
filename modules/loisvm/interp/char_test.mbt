@@ -5,7 +5,7 @@ test "interpreter executes character constants" {
     entry: { value: 1 },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     functions: [
       BytecodeBody({
         slots,

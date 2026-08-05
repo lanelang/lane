@@ -19,7 +19,10 @@ fn FunctionLowerer::layout_witness(
   type_ : @buslane.Type,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   let type_ = match self.image.layout_runtime_type(type_) {
-    Erased(parameter) => return self.find_witness(parameter)
+    Erased(Parameter(parameter)) => return self.find_witness(parameter)
+    Erased(Apply(Parameter(constructor_parameter), arguments)) =>
+      return self.apply_layout_constructor(constructor_parameter, arguments)
+    Erased(type_) => raise UnsupportedType(type_~)
     Concrete(type_) => type_
   }
   let recipe : @bytecode.LayoutRecipe = match type_ {

@@ -23,8 +23,10 @@ fn ImageLowerer::lower_function_body(
   }
   let input_witnesses = []
   for parameter in type_parameters {
-    if self.requires_layout_witness(parameter) {
-      let witness = lowerer.fresh_metadata(layout_witness_metadata())
+    if self.requires_runtime_evidence(parameter) {
+      let witness = lowerer.fresh_metadata(
+        self.runtime_evidence_metadata(parameter),
+      )
       input_witnesses.push(witness)
       lowerer.witnesses.push({ parameter, value: witness })
     }
@@ -33,9 +35,17 @@ fn ImageLowerer::lower_function_body(
     let environment = lowerer.fresh_metadata(environment_metadata(shape))
     lowerer.environment = Some(environment)
     for index, parameter in captured_parameters {
-      let witness = lowerer.fresh_metadata(layout_witness_metadata())
-      lowerer.emit(LoadObjectWitness(witness, shape, environment, index))
-      lowerer.witnesses.push({ parameter, value: witness })
+      let metadata = self.runtime_evidence_metadata(parameter)
+      let evidence = lowerer.fresh_metadata(
+        borrowed_evidence_metadata(metadata),
+      )
+      lowerer.emit(
+        BorrowCapture(shape, environment, index, {
+          value_destination: evidence,
+          witness_destination: None,
+        }),
+      )
+      lowerer.witnesses.push({ parameter, value: evidence })
     }
     for capture in captures {
       if capture.member_index is Some(member_index) {
@@ -220,14 +230,13 @@ fn tail_destination_matches(
 }
 
 ///|
-fn ImageLowerer::requires_layout_witness(
+fn ImageLowerer::requires_runtime_evidence(
   self : ImageLowerer,
   parameter : @buslane.TypeParameterId,
 ) -> Bool {
   match self.metadata.type_parameter_info(parameter) {
     Some({ kind: Type, .. }) => true
-    Some({ kind: Function(_, Type), .. }) =>
-      self.effect_source(parameter) is Some(_)
+    Some({ kind: Function(_, Type), .. }) => true
     _ => parameter.index < 0
   }
 }

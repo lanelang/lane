@@ -26,9 +26,9 @@ test "loader resolves all runtime imports atomically" {
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I64, cleanup: Trivial, kind: ScalarValue },
         ],
@@ -162,9 +162,9 @@ test "loader rejects call result ownership mismatch before execution" {
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [],
         result: Value(I32, Trivial, ScalarValue),
       },

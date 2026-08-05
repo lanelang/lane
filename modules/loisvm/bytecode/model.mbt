@@ -63,11 +63,11 @@ pub(all) enum Cleanup {
 pub(all) enum SemanticValueKind {
   ScalarValue
   LayoutValue
+  LayoutConstructorValue(Int)
   CallableValue
   ByteSequenceValue
   DataValue(DataFamilyId)
   EnvironmentValue(ObjectShapeId)
-  AbstractReferenceValue(Int)
   OpaqueReferenceValue
   ErasedValue
 } derive(Debug, Eq)
@@ -103,7 +103,7 @@ pub(all) struct ValueAbi {
 
 ///|
 pub(all) struct CallableAbi {
-  witness_count : Int
+  witnesses : Array[ValueAbi]
   parameters : Array[ValueAbi]
   result : ResultAbi
 } derive(Debug, Eq)

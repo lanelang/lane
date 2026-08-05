@@ -133,32 +133,37 @@ fn FunctionLowerer::lower_construct(
       actual=construct.payloads.length(),
     )
   }
-  let witnesses = []
-  for parameter in owner_info.parameters + info.hidden_type_parameters {
-    if self.image.requires_layout_witness(parameter) {
-      witnesses.push(
-        self.layout_witness(
-          required_type_substitution_argument(substitutions, parameter),
-        ),
-      )
-    }
-    if self.image.effect_companion(parameter) is Some(companion) &&
-      type_substitution_type_argument(substitutions, companion) is Some(type_) {
-      witnesses.push(self.layout_witness(type_))
+  let fields = []
+  for parameter in info.hidden_type_parameters {
+    if self.image.requires_runtime_evidence(parameter) {
+      let type_ = required_type_substitution_argument(substitutions, parameter)
+      fields.push(self.runtime_evidence(parameter, type_))
     }
   }
-  let fields = []
+  let witnesses = []
   for index, payload in construct.payloads {
     let formal_type = info.payload_types[index]
     let actual_type = apply_type_substitution(formal_type, substitutions)
-    let lowered = self.materialize_local(
+    let source = self.materialize_local(self.lower_atom(payload))
+    let lowered = if self.image.runtime_type(formal_type) is Erased(_) {
+      match source {
+        Slot(slot, _) if self.values[slot.value].erased_companion
+          is Some(witness) => {
+          witnesses.push(witness)
+          Slot(slot, formal_type)
+        }
+        _ => {
+          let witness = self.layout_witness(actual_type)
+          witnesses.push(witness)
+          Slot(self.erase_value(source, actual_type, witness), formal_type)
+        }
+      }
+    } else {
       self.adapt_local_value_with_substitutions(
-        self.lower_atom(payload),
-        actual_type,
-        formal_type,
-        substitutions,
-      ),
-    )
+        source, actual_type, formal_type, substitutions,
+      )
+    }
+    let lowered = self.materialize_local(lowered)
     match lowered {
       Unit =>
         if formal_type != Primitive(Unit) {
@@ -191,31 +196,28 @@ fn ImageLowerer::data_shape(
   data_constructor : @buslane.DataConId,
   info : @buslane.DataConInfo,
 ) -> @bytecode.ObjectShapeId raise LoisvmLoweringError {
-  let owner_info = match self.metadata.type_info(info.owner) {
-    Some(info) => info
-    None => raise MissingDataConstructorMetadata(data_constructor~)
-  }
-  let witness_parameters = owner_info.parameters.filter(parameter => {
-    self.requires_layout_witness(parameter)
-  })
-  witness_parameters.append(
-    info.hidden_type_parameters.filter(parameter => {
-      self.requires_layout_witness(parameter)
-    }),
-  )
   let members : Array[@bytecode.MemberSchema] = []
+  for parameter in info.hidden_type_parameters {
+    if self.requires_runtime_evidence(parameter) {
+      let metadata = self.runtime_evidence_metadata(parameter)
+      members.push({
+        representation: metadata.representation,
+        cleanup: metadata.cleanup,
+        kind: metadata.kind,
+        witness_ordinal: None,
+      })
+    }
+  }
+  let mut witness_ordinal = 0
   for payload_type in info.payload_types {
-    if self.runtime_type(payload_type) is Erased(parameter) {
-      guard type_parameter_ordinal(witness_parameters, parameter)
-        is Some(witness_ordinal) else {
-        raise UnsupportedGenericData(data_constructor~)
-      }
+    if self.runtime_type(payload_type) is Erased(_) {
       members.push({
         representation: I64,
         cleanup: OwnedErased,
         kind: ErasedValue,
         witness_ordinal: Some(witness_ordinal),
       })
+      witness_ordinal += 1
     } else if self.runtime_type(payload_type) is Concrete(Primitive(Unit)) {
       ()
     } else {
@@ -233,23 +235,10 @@ fn ImageLowerer::data_shape(
     Data({
       family: self.intern_data_family(info.owner),
       constructor_tag,
-      stored_witness_count: witness_parameters.length(),
+      stored_witness_count: witness_ordinal,
       members,
     }),
   )
-}
-
-///|
-fn type_parameter_ordinal(
-  parameters : Array[@buslane.TypeParameterId],
-  target : @buslane.TypeParameterId,
-) -> Int? {
-  for index, parameter in parameters {
-    if parameter == target {
-      return Some(index)
-    }
-  }
-  None
 }
 
 ///|

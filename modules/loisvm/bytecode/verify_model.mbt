@@ -80,8 +80,15 @@ fn BytecodeVerifier::verify_callable_abis(
     self.fail(site, "callable ABI table must be nonempty")
   }
   for index, abi in self.image.callable_abis {
-    if abi.witness_count < 0 {
-      self.fail(site, "callable ABI witness count must be nonnegative")
+    for witness in abi.witnesses {
+      if !self.legal_metadata(
+          site,
+          witness.representation,
+          witness.cleanup,
+          witness.kind,
+        ) {
+        self.fail(site, "callable ABI contains an illegal witness shape")
+      }
     }
     for parameter in abi.parameters {
       if !self.legal_metadata(
@@ -514,6 +521,10 @@ fn BytecodeVerifier::legal_metadata(
   match kind {
     ScalarValue => cleanup == Trivial
     LayoutValue => representation == I32 && cleanup == Trivial
+    LayoutConstructorValue(arity) =>
+      arity >= 0 &&
+      representation == I64 &&
+      (cleanup == Trivial || cleanup == OwnedCallable)
     CallableValue =>
       representation == I64 && (cleanup == Trivial || cleanup == OwnedCallable)
     ByteSequenceValue | OpaqueReferenceValue =>
@@ -530,10 +541,6 @@ fn BytecodeVerifier::legal_metadata(
       }
       representation == I32 && (cleanup == Trivial || cleanup == OwnedRef)
     }
-    AbstractReferenceValue(parameter) =>
-      parameter >= 0 &&
-      representation == I32 &&
-      (cleanup == Trivial || cleanup == OwnedRef)
     ErasedValue => representation == I64 && cleanup == OwnedErased
   }
 }

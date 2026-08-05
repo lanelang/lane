@@ -161,9 +161,9 @@ fn FunctionLowerer::lower_generic_direct_call(
   let substitutions = self.call_type_substitution(parameters, arguments)
   let witnesses = []
   for parameter in parameters {
-    if self.image.requires_layout_witness(parameter) {
+    if self.image.requires_runtime_evidence(parameter) {
       let type_ = required_type_substitution_argument(substitutions, parameter)
-      witnesses.push(self.layout_witness(type_))
+      witnesses.push(self.runtime_evidence(parameter, type_))
     }
   }
   let argument_slots = []
@@ -183,24 +183,18 @@ fn FunctionLowerer::lower_generic_direct_call(
     }
   }
   let actual_result = apply_type_substitution(formal_result, substitutions)
-  if self.image.runtime_type(formal_result) is Erased(parameter) {
-    let witness = self.adapter_witness(parameter, substitutions)
+  if self.image.runtime_type(formal_result) is Erased(_) {
+    let witness = self.layout_witness(actual_result)
     let erased_result = self.fresh_erased_slot(witness, Owned)
     self.emit(
       CallDirect(function, None, witnesses, argument_slots, Some(erased_result)),
     )
     self.unerase_value(erased_result, actual_result)
   } else {
-    let (call_result, result_is_instantiated) = self.image.generic_call_result_materialization(
-      formal_result, actual_result,
-    )
-    let destination = self.fresh_optional_slot(call_result)
+    let destination = self.fresh_optional_slot(formal_result)
     self.emit(
       CallDirect(function, None, witnesses, argument_slots, destination.0),
     )
-    if result_is_instantiated {
-      return destination.1
-    }
     self.adapt_local_value_with_substitutions(
       destination.1,
       formal_result,
@@ -229,9 +223,9 @@ fn FunctionLowerer::lower_generic_value_call(
   let substitutions = self.call_type_substitution(parameters, arguments)
   let witnesses = []
   for parameter in parameters {
-    if self.image.requires_layout_witness(parameter) {
+    if self.image.requires_runtime_evidence(parameter) {
       let type_ = required_type_substitution_argument(substitutions, parameter)
-      witnesses.push(self.layout_witness(type_))
+      witnesses.push(self.runtime_evidence(parameter, type_))
     }
   }
   let argument_slots = []
@@ -251,61 +245,22 @@ fn FunctionLowerer::lower_generic_value_call(
     }
   }
   let actual_result = apply_type_substitution(formal_result, substitutions)
-  if self.image.runtime_type(formal_result) is Erased(parameter) {
-    let witness = self.adapter_witness(parameter, substitutions)
+  if self.image.runtime_type(formal_result) is Erased(_) {
+    let witness = self.layout_witness(actual_result)
     let erased_result = self.fresh_erased_slot(witness, Owned)
     self.emit(
       CallValue(callable, witnesses, argument_slots, Some(erased_result)),
     )
     self.unerase_value(erased_result, actual_result)
   } else {
-    let (call_result, result_is_instantiated) = self.image.generic_call_result_materialization(
-      formal_result, actual_result,
-    )
-    let destination = self.fresh_optional_slot(call_result)
+    let destination = self.fresh_optional_slot(formal_result)
     self.emit(CallValue(callable, witnesses, argument_slots, destination.0))
-    if result_is_instantiated {
-      return destination.1
-    }
     self.adapt_local_value_with_substitutions(
       destination.1,
       formal_result,
       actual_result,
       substitutions,
     )
-  }
-}
-
-///|
-fn ImageLowerer::generic_call_result_materialization(
-  self : ImageLowerer,
-  formal_result : @buslane.Type,
-  actual_result : @buslane.Type,
-) -> (@buslane.Type, Bool) raise LoisvmLoweringError {
-  guard self.runtime_type(formal_result) is Concrete(formal_runtime) &&
-    self.runtime_type(actual_result) is Concrete(actual_runtime) else {
-    return (formal_result, false)
-  }
-  if actual_runtime is Primitive(Unit) {
-    return (formal_result, false)
-  }
-  let formal = self.slot_metadata(formal_runtime)
-  let actual = self.slot_metadata(actual_runtime)
-  let actual_is_reference = match actual.kind {
-    ByteSequenceValue
-    | DataValue(_)
-    | EnvironmentValue(_)
-    | AbstractReferenceValue(_)
-    | OpaqueReferenceValue => true
-    _ => false
-  }
-  if formal.kind is AbstractReferenceValue(_) &&
-    formal.representation == actual.representation &&
-    formal.cleanup == actual.cleanup &&
-    actual_is_reference {
-    (actual_result, true)
-  } else {
-    (formal_result, false)
   }
 }
 

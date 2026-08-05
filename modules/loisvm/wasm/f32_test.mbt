@@ -91,9 +91,9 @@ test "F32 host ABI agrees across interpreter and Wasm backends" {
   let image = {
     ..wasm_bytes_image(body),
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: F32, cleanup: Trivial, kind: ScalarValue },
         ],

@@ -407,10 +407,10 @@ fn ExecutionInstance::validate_callable_invocation(
       ),
     )
   }
-  if witnesses.length() != expected.witness_count {
+  if witnesses.length() != expected.witnesses.length() {
     raise InvalidCallable(
       WitnessCountMismatch(
-        expected=expected.witness_count,
+        expected=expected.witnesses.length(),
         actual=witnesses.length(),
       ),
     )
@@ -424,14 +424,15 @@ fn ExecutionInstance::validate_callable_invocation(
     )
   }
   for index, witness in witnesses {
-    if frame.body.slots[witness.value] !=
-      {
-        representation: I32,
-        cleanup: Trivial,
-        kind: LayoutValue,
-        erased_companion: None,
-      } ||
-      !value_has_representation(frame.value(witness), I32) {
+    let actual = frame.body.slots[witness.value]
+    let expected_witness = expected.witnesses[index]
+    if actual.representation != expected_witness.representation ||
+      actual.cleanup != expected_witness.cleanup ||
+      actual.kind != expected_witness.kind ||
+      !value_has_representation(
+        frame.value(witness),
+        expected_witness.representation,
+      ) {
       raise InvalidCallable(WitnessShapeMismatch(index~))
     }
   }

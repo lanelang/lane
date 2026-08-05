@@ -20,11 +20,11 @@ fn FunctionLowerer::lower_nested_function_with_type(
     [function_type],
     capture_bindings,
   )
-  let (capture_plans, capture_slots, members) = self.prepare_captures(
+  let (capture_plans, stored_layouts, capture_slots, members) = self.prepare_captures(
     capture_bindings, captured_parameters,
   )
   let environment_shape = self.image.environment_shape(
-    captured_parameters.length(),
+    stored_layouts.length(),
     members,
   )
   let function_id : @bytecode.FunctionId = {
@@ -40,12 +40,9 @@ fn FunctionLowerer::lower_nested_function_with_type(
       recursive_functions: [],
     }),
   )
-  let captured_witnesses = captured_parameters.map(parameter => {
-    self.find_witness(parameter)
-  })
   match
     self.make_capture_environment(
-      environment_shape, captured_witnesses, capture_slots,
+      environment_shape, stored_layouts, capture_slots,
     ) {
     None => {
       let destination = self.fresh_slot(function_type)
@@ -101,18 +98,15 @@ fn FunctionLowerer::lower_recursive_group(
     recursive_functions.map(recursive => recursive.type_),
     capture_bindings,
   )
-  let (capture_plans, capture_slots, members) = self.prepare_captures(
+  let (capture_plans, stored_layouts, capture_slots, members) = self.prepare_captures(
     capture_bindings, captured_parameters,
   )
   let environment_shape = self.image.environment_shape(
-    captured_parameters.length(),
+    stored_layouts.length(),
     members,
   )
-  let captured_witnesses = captured_parameters.map(parameter => {
-    self.find_witness(parameter)
-  })
   let environment = self.make_capture_environment(
-    environment_shape, captured_witnesses, capture_slots,
+    environment_shape, stored_layouts, capture_slots,
   )
   for index, function in functions {
     self.image.plans.push(
@@ -174,10 +168,26 @@ fn FunctionLowerer::prepare_captures(
   self : FunctionLowerer,
   bindings : Array[CaptureBinding],
   captured_parameters : Array[@buslane.TypeParameterId],
-) -> (Array[CapturePlan], Array[@vmcfg.ValueId], Array[@bytecode.MemberSchema]) raise LoisvmLoweringError {
+) -> (
+  Array[CapturePlan],
+  Array[@vmcfg.ValueId],
+  Array[@vmcfg.ValueId],
+  Array[@bytecode.MemberSchema],
+) raise LoisvmLoweringError {
   let capture_plans : Array[CapturePlan] = []
+  let stored_layouts = []
   let capture_slots = []
   let members : Array[@bytecode.MemberSchema] = []
+  for parameter in captured_parameters {
+    let metadata = self.image.runtime_evidence_metadata(parameter)
+    members.push({
+      representation: metadata.representation,
+      cleanup: metadata.cleanup,
+      kind: metadata.kind,
+      witness_ordinal: None,
+    })
+    capture_slots.push(self.find_witness(parameter))
+  }
   for binding in bindings {
     let captured = self.capture_value(binding)
     match captured {
@@ -193,13 +203,14 @@ fn FunctionLowerer::prepare_captures(
           abort("captured value was not materialized")
         }
         let (metadata, witness_ordinal) = if self.image.runtime_type(type_)
-          is Erased(parameter) {
-          let ordinal = type_parameter_ordinal(captured_parameters, parameter)
-          guard ordinal is Some(_) else {
+          is Erased(_) {
+          let ordinal = stored_layouts.length()
+          guard self.values[slot.value].erased_companion is Some(witness) else {
             raise InvalidTypeApplication(
-              detail="generic capture is missing its layout witness",
+              detail="erased capture is missing its layout evidence",
             )
           }
+          stored_layouts.push(witness)
           (
             @vmcfg.ValueMetadata::{
               representation: I64,
@@ -208,7 +219,7 @@ fn FunctionLowerer::prepare_captures(
               ownership: Owned,
               erased_companion: None,
             },
-            ordinal,
+            Some(ordinal),
           )
         } else {
           (self.image.slot_metadata(type_), None)
@@ -225,7 +236,7 @@ fn FunctionLowerer::prepare_captures(
       }
     }
   }
-  (capture_plans, capture_slots, members)
+  (capture_plans, stored_layouts, capture_slots, members)
 }
 
 ///|

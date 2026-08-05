@@ -5,8 +5,8 @@ status: accepted
 # LoisVM callable ABI identity
 
 Every dynamically invoked LoisVM callable has one explicit execution ABI. A
-`CallableAbi` contains the layout-witness count, the ordered user-parameter
-`ValueAbi` values, and the complete `ResultAbi`. `ValueAbi` contains
+`CallableAbi` contains the complete ordered hidden-evidence and user-parameter
+`ValueAbi` values, plus the complete `ResultAbi`. `ValueAbi` contains
 representation, cleanup, and semantic value kind. A `BytecodeImage` owns a canonical, duplicate-free
 table of these descriptions, addressed by zero-based `CallableAbiId` values.
 
@@ -31,11 +31,11 @@ that every indirect call site's witness, parameter, destination, and tail
 result slots match the named complete ABI. Direct calls use the target
 function's projection and the same physical-shape checking operation.
 
-An `AbstractReferenceValue(parameter)` in either side of an ABI comparison is
-a quantified reference category, not an external or unknown concrete value.
-One call binds every occurrence of that parameter consistently across
-parameters and result. Concrete ByteSequence, Data, Environment, and opaque
-external categories otherwise remain distinct.
+Every callable ABI is closed at the bytecode boundary. Concrete ByteSequence,
+Data, Environment, layout-constructor, and opaque external categories remain
+distinct; an unresolved source application crosses this boundary as
+`ErasedValue` with explicit representation evidence rather than as an abstract
+reference category.
 
 The interpreter resolves the packed `FunctionId` safely and, before consuming
 the callable or any argument owner, compares the target's projected ABI with
@@ -61,7 +61,8 @@ the entry and initializer identifiers and before the Function table.
 `CallValue` and `TailCallValue` encode a `CallableAbiId` immediately after the
 callable slot. This incompatible change raises the enclosing linked-program
 artifact schema from 9 to 10. The later semantic-kind expansion raises it from
-10 to 11. No legacy decoder is retained under ADR 0116.
+10 to 11. Complete evidence-input ABIs and layout constructors raise it from
+11 to 12. No legacy decoder is retained under ADR 0116.
 
 ## Consequences
 

@@ -47,7 +47,7 @@ fn minimal_image() -> BytecodeImage {
   {
     entry: function(1),
     initializer: None,
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     data_family_count: 0,
     functions: [BytecodeBody(minimal_body())],
     globals: [],
@@ -90,7 +90,7 @@ fn global_image() -> BytecodeImage {
   {
     entry: function(1),
     initializer: Some(function(2)),
-    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
     data_family_count: 0,
     functions: [BytecodeBody(minimal_body()), BytecodeBody(initializer)],
     globals: [
@@ -237,7 +237,7 @@ test "minimal bytecode image has canonical disassembly" {
       #|}
       #|
       #|callable ABI table:
-      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
+      #|  abi0 = fn(witnesses=[], parameters=[]) -> unit
       #|
     ),
   )
@@ -260,7 +260,7 @@ test "minimal bytecode code view omits image summary" {
       #|}
       #|
       #|callable ABI table:
-      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
+      #|  abi0 = fn(witnesses=[], parameters=[]) -> unit
       #|
     ),
   )
@@ -403,7 +403,7 @@ test "global image has canonical disassembly" {
       #|}
       #|
       #|callable ABI table:
-      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
+      #|  abi0 = fn(witnesses=[], parameters=[]) -> unit
       #|
       #|instance global table:
       #|  g0 = i32 + trivial + LayoutValue
@@ -422,9 +422,9 @@ test "function, layout, shape, and constant tables roundtrip" {
     entry: function(1),
     initializer: None,
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I64, cleanup: Trivial, kind: ScalarValue },
           { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
@@ -432,15 +432,21 @@ test "function, layout, shape, and constant tables roundtrip" {
         result: Value(I32, OwnedRef, ByteSequenceValue),
       },
       {
-        witness_count: 0,
+        witnesses: [
+          {
+            representation: I64,
+            cleanup: OwnedCallable,
+            kind: LayoutConstructorValue(1),
+          },
+        ],
         parameters: [
           {
             representation: I32,
             cleanup: OwnedRef,
-            kind: @bytecode.AbstractReferenceValue(17),
+            kind: @bytecode.DataValue({ value: 0 }),
           },
         ],
-        result: Value(I32, OwnedRef, @bytecode.AbstractReferenceValue(17)),
+        result: Value(I32, OwnedRef, @bytecode.DataValue({ value: 0 })),
       },
     ],
     data_family_count: 1,
@@ -519,9 +525,9 @@ test "runtime import disassembly renders complete direct ABI signature" {
   let image = {
     ..minimal_image(),
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [
           { representation: I32, cleanup: Trivial, kind: ScalarValue },
           { representation: I64, cleanup: Trivial, kind: ScalarValue },
@@ -574,8 +580,8 @@ test "runtime import disassembly renders complete direct ABI signature" {
       #|)
       #|
       #|callable ABI table:
-      #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
-      #|  abi1 = fn(witnesses=0, parameters=[i32 + trivial + ScalarValue, i64 + trivial + ScalarValue, f64 + trivial + ScalarValue, i32 + owned_ref + ByteSequenceValue, i32 + owned_ref + OpaqueReferenceValue]) -> i32 + owned_ref + OpaqueReferenceValue
+      #|  abi0 = fn(witnesses=[], parameters=[]) -> unit
+      #|  abi1 = fn(witnesses=[], parameters=[i32 + trivial + ScalarValue, i64 + trivial + ScalarValue, f64 + trivial + ScalarValue, i32 + owned_ref + ByteSequenceValue, i32 + owned_ref + OpaqueReferenceValue]) -> i32 + owned_ref + OpaqueReferenceValue
       #|
     ),
   )
@@ -907,9 +913,9 @@ test "result ABI round-trips and decoder rejects ownership mismatch" {
   let valid = {
     ..minimal_image(),
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [],
         result: Value(I32, OwnedRef, ByteSequenceValue),
       },
@@ -964,9 +970,9 @@ test "result ABI round-trips and decoder rejects ownership mismatch" {
   let invalid = {
     ..minimal_image(),
     callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit },
       {
-        witness_count: 0,
+        witnesses: [],
         parameters: [],
         result: Value(I32, Trivial, ScalarValue),
       },

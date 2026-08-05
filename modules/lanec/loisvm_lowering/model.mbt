@@ -46,6 +46,7 @@ priv enum PlannedEntry {
   LiftedFunction(LiftedFunctionPlan)
   IntrinsicWrapper(IntrinsicWrapperPlan)
   CallableAdapter(CallableAdapterPlan)
+  LayoutConstructor(LayoutConstructorPlan)
   RuntimeImport(@bytecode.RuntimeImport)
 }
 
@@ -73,6 +74,17 @@ priv struct CallableAdapterPlan {
   captured_parameters : Array[@buslane.TypeParameterId]
   environment_shape : @bytecode.ObjectShapeId
 } derive(Debug)
+
+///|
+priv struct LayoutConstructorPlan {
+  function : @bytecode.FunctionId
+  type_ : @buslane.Type
+  parameters : Array[@buslane.TypeParameterId]
+  body : @buslane.Type
+  captured_parameters : Array[@buslane.TypeParameterId]
+  environment_shape : @bytecode.ObjectShapeId?
+  arity : Int
+}
 
 ///|
 priv struct CanonicalRuntimeImport {
