@@ -290,7 +290,13 @@ _Avoid_: retained jump copy, borrowed edge value, sequential move
 **Borrowing Read**:
 A LoisVM read operation whose reference-bearing result does not establish a new
 strong owner and is valid only while its compiler-preserved owner remains live.
-_Avoid_: owned projection, retained copy, borrow-region metadata
+_Avoid_: owned projection, retained copy, serialized borrow-region metadata
+
+**Verifier Borrow Provenance**:
+The verifier-only ownership origin and object-shape/member path that connects a
+borrowed slot to every possible live runtime owner across moves, projections,
+aggregate transfers, retained aliases, and control-flow joins.
+_Avoid_: serialized borrow region, runtime ownership tag, source-language lifetime
 
 **Consuming Object Construction**:
 The LoisVM convention where an object-building operation consumes each

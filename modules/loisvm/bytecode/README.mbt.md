@@ -320,6 +320,14 @@ Before publishing or executing an image, a producer must ensure:
 - every String constant contains valid UTF-8, while runtime-import symbols remain nonempty ASCII without NUL;
 - the image is encoded and decoded by the matching LoisVM implementation.
 
+The verifier derives ownership tokens from function inputs and owning
+instructions. Retained aliases share a token, moves and consuming object
+operations transfer tokens, and borrowed projections record their root plus the
+object-shape/member path. Control-flow joins preserve alternative token sets. A
+borrow is rejected when a later read cannot find every possible root in a live
+owner. This provenance is verifier state only; it does not change the serialized
+slot or instruction format.
+
 Use `bytecode_image_to_disassembly` for human inspection and `bytecode_image_to_binary` plus `parse_bytecode_image_binary` for persistence. The binary format has no independent compatibility version; compatibility belongs to the enclosing Lane linked-program artifact.
 
 ## Development
