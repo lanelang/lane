@@ -286,12 +286,18 @@ pub(all) enum NumericLiteralSuffix {
   F32Suffix
   F64Suffix
 } derive(Eq, @debug.Debug)
+pub fn NumericLiteralSuffix::canonical_text(Self) -> String
+pub fn NumericLiteralSuffix::parse(String, floating~ : Bool) -> Result[Self?, NumericLiteralSuffixParseError]
+
+pub(all) enum NumericLiteralSuffixParseError {
+  UnknownSuffix
+  IntegerSuffixForFloatingBody
+} derive(Eq, @debug.Debug)
 
 pub(all) struct NumericLiteralToken {
   body : String
   suffix : NumericLiteralSuffix?
 } derive(Eq, @debug.Debug)
-pub fn NumericLiteralToken::from_valid_spelling(String) -> Self
 
 pub(all) struct Parameter {
   is_auto : Bool

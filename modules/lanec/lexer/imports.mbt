@@ -2,4 +2,4 @@
 using @basic {type SourceSpan}
 
 ///|
-using @syntax {type NumericLiteralToken}
+using @syntax {type NumericLiteralSuffix, type NumericLiteralToken}

@@ -25,11 +25,21 @@ fn parse_error_kinds(source : String) -> Array[ParseErrorKind] {
 }
 
 ///|
-test "parse reports an unknown numeric literal suffix" {
-  let result = parse_string("module Test\npub let answer : I64 = 42i16")
+test "parse reports unknown complete numeric literal suffixes" {
+  let result = parse_string(
+    "module Test\npub let first = 42i16\npub let second = 42i32foo",
+  )
   assert_eq(
-    result.lexical_errors().map(fn(error) { error.error.presentation().title }),
-    ["unknown numeric literal suffix"],
+    result
+    .lexical_errors()
+    .map(fn(error) {
+      let presentation = error.error.presentation()
+      (presentation.code, presentation.title)
+    }),
+    [
+      ("E1008", "unknown numeric literal suffix"),
+      ("E1008", "unknown numeric literal suffix"),
+    ],
   )
 }
 

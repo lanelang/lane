@@ -555,29 +555,51 @@ pub(all) enum NumericLiteralSuffix {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum NumericLiteralSuffixParseError {
+  UnknownSuffix
+  IntegerSuffixForFloatingBody
+} derive(Debug, Eq)
+
+///|
+/// Parses the complete identifier-like tail attached to a numeric body.
+pub fn NumericLiteralSuffix::parse(
+  attached_tail : String,
+  floating~ : Bool,
+) -> Result[NumericLiteralSuffix?, NumericLiteralSuffixParseError] {
+  let suffix = match attached_tail {
+    "" => return Ok(None)
+    "i32" => I32Suffix
+    "i64" => I64Suffix
+    "f32" => F32Suffix
+    "f64" => F64Suffix
+    _ => return Err(UnknownSuffix)
+  }
+  if floating && (suffix is I32Suffix || suffix is I64Suffix) {
+    Err(IntegerSuffixForFloatingBody)
+  } else {
+    Ok(Some(suffix))
+  }
+}
+
+///|
+/// Returns this suffix's canonical source spelling.
+pub fn NumericLiteralSuffix::canonical_text(
+  self : NumericLiteralSuffix,
+) -> String {
+  match self {
+    I32Suffix => "i32"
+    I64Suffix => "i64"
+    F32Suffix => "f32"
+    F64Suffix => "f64"
+  }
+}
+
+///|
 /// The lexical content of a numeric token after its suffix has been separated.
 pub(all) struct NumericLiteralToken {
   body : String
   suffix : NumericLiteralSuffix?
 } derive(Debug, Eq)
-
-///|
-/// Separates the suffix of a numeric spelling already accepted by the lexer.
-pub fn NumericLiteralToken::from_valid_spelling(
-  spelling : String,
-) -> NumericLiteralToken {
-  match spelling {
-    _ if spelling.strip_suffix("i32") is Some(body) =>
-      { body: body.to_owned(), suffix: Some(I32Suffix) }
-    _ if spelling.strip_suffix("i64") is Some(body) =>
-      { body: body.to_owned(), suffix: Some(I64Suffix) }
-    _ if spelling.strip_suffix("f32") is Some(body) =>
-      { body: body.to_owned(), suffix: Some(F32Suffix) }
-    _ if spelling.strip_suffix("f64") is Some(body) =>
-      { body: body.to_owned(), suffix: Some(F64Suffix) }
-    _ => { body: spelling, suffix: None }
-  }
-}
 
 ///|
 /// Returns the canonical source spelling of a numeric literal.
@@ -587,10 +609,7 @@ pub fn numeric_literal_text(
 ) -> String {
   body +
   (match suffix {
-    Some(I32Suffix) => "i32"
-    Some(I64Suffix) => "i64"
-    Some(F32Suffix) => "f32"
-    Some(F64Suffix) => "f64"
+    Some(suffix) => suffix.canonical_text()
     None => ""
   })
 }

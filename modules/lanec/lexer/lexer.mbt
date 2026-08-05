@@ -146,142 +146,74 @@ fn lex_token(
       )
       rest
     }
-    (re"^[0-9]+[.][0-9]+[eE][+][0-9]+(f32|f64)?" as raw, after=rest) => {
-      env.add_token(
-        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
-        start=env.calc_offset(input, base~),
-        end=env.calc_offset(rest, base~),
-      )
-      rest
-    }
-    (re"^[0-9]+[.][0-9]+[eE]-[0-9]+(f32|f64)?" as raw, after=rest) => {
-      env.add_token(
-        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
-        start=env.calc_offset(input, base~),
-        end=env.calc_offset(rest, base~),
-      )
-      rest
-    }
-    (re"^[0-9]+[.][0-9]+[eE][0-9]+(f32|f64)?" as raw, after=rest) => {
-      env.add_token(
-        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
-        start=env.calc_offset(input, base~),
-        end=env.calc_offset(rest, base~),
-      )
-      rest
-    }
-    (re"^[0-9]+[.][0-9]+(f32|f64)?" as raw, after=rest) => {
-      env.add_token(
-        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
-        start=env.calc_offset(input, base~),
-        end=env.calc_offset(rest, base~),
-      )
-      rest
-    }
-    (re"^[0-9]+[eE][+][0-9]+(f32|f64)?" as raw, after=rest) => {
-      env.add_token(
-        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
-        start=env.calc_offset(input, base~),
-        end=env.calc_offset(rest, base~),
-      )
-      rest
-    }
-    (re"^[0-9]+[eE]-[0-9]+(f32|f64)?" as raw, after=rest) => {
-      env.add_token(
-        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
-        start=env.calc_offset(input, base~),
-        end=env.calc_offset(rest, base~),
-      )
-      rest
-    }
-    (re"^[0-9]+[eE][0-9]+(f32|f64)?" as raw, after=rest) => {
-      env.add_token(
-        DOUBLE(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
-        start=env.calc_offset(input, base~),
-        end=env.calc_offset(rest, base~),
-      )
-      rest
-    }
-    (re"^[0-9]+[.][0-9]+[eE][+][0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
-      reject_numeric_literal_suffix(
+    (
+      re"^" +
+      (re"[0-9]+[.][0-9]+[eE]([+]|-)?[0-9]+" as body) +
+      (re"[A-Za-z_][A-Za-z0-9_]*" as attached_tail),
+      after=rest,
+    ) =>
+      add_numeric_literal(
         input,
-        raw,
+        body,
+        attached_tail,
         rest,
         base~,
         env~,
         floating=true,
       )
-    (re"^[0-9]+[.][0-9]+[eE]-[0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
-      reject_numeric_literal_suffix(
+    (re"^[0-9]+[.][0-9]+[eE]([+]|-)?[0-9]+" as body, after=rest) =>
+      add_numeric_literal(input, body, "", rest, base~, env~, floating=true)
+    (
+      re"^" +
+      (re"[0-9]+[.][0-9]+" as body) +
+      (re"[A-Za-z_][A-Za-z0-9_]*" as attached_tail),
+      after=rest,
+    ) =>
+      add_numeric_literal(
         input,
-        raw,
+        body,
+        attached_tail,
         rest,
         base~,
         env~,
         floating=true,
       )
-    (re"^[0-9]+[.][0-9]+[eE][0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
-      reject_numeric_literal_suffix(
+    (re"^[0-9]+[.][0-9]+" as body, after=rest) =>
+      add_numeric_literal(input, body, "", rest, base~, env~, floating=true)
+    (
+      re"^" +
+      (re"[0-9]+[eE]([+]|-)?[0-9]+" as body) +
+      (re"[A-Za-z_][A-Za-z0-9_]*" as attached_tail),
+      after=rest,
+    ) =>
+      add_numeric_literal(
         input,
-        raw,
+        body,
+        attached_tail,
         rest,
         base~,
         env~,
         floating=true,
       )
-    (re"^[0-9]+[.][0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
-      reject_numeric_literal_suffix(
+    (re"^[0-9]+[eE]([+]|-)?[0-9]+" as body, after=rest) =>
+      add_numeric_literal(input, body, "", rest, base~, env~, floating=true)
+    (
+      re"^" +
+      (re"[0-9]+" as body) +
+      (re"[A-Za-z_][A-Za-z0-9_]*" as attached_tail),
+      after=rest,
+    ) =>
+      add_numeric_literal(
         input,
-        raw,
-        rest,
-        base~,
-        env~,
-        floating=true,
-      )
-    (re"^[0-9]+[eE][+][0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
-      reject_numeric_literal_suffix(
-        input,
-        raw,
-        rest,
-        base~,
-        env~,
-        floating=true,
-      )
-    (re"^[0-9]+[eE]-[0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
-      reject_numeric_literal_suffix(
-        input,
-        raw,
-        rest,
-        base~,
-        env~,
-        floating=true,
-      )
-    (re"^[0-9]+[eE][0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
-      reject_numeric_literal_suffix(
-        input,
-        raw,
-        rest,
-        base~,
-        env~,
-        floating=true,
-      )
-    (re"^[0-9]+(i32|i64|f32|f64)?" as raw, after=rest) => {
-      env.add_token(
-        INT(NumericLiteralToken::from_valid_spelling(raw.to_owned())),
-        start=env.calc_offset(input, base~),
-        end=env.calc_offset(rest, base~),
-      )
-      rest
-    }
-    (re"^[0-9]+[A-Za-z_][A-Za-z0-9_]*" as raw, after=rest) =>
-      reject_numeric_literal_suffix(
-        input,
-        raw,
+        body,
+        attached_tail,
         rest,
         base~,
         env~,
         floating=false,
       )
+    (re"^[0-9]+" as body, after=rest) =>
+      add_numeric_literal(input, body, "", rest, base~, env~, floating=false)
     (re"^([A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+)" as raw, after=rest) => {
       let name = raw.to_owned()
       let token = if keyword_table.get(name) is Some(token) {
@@ -405,29 +337,40 @@ fn add_simple_token(
 }
 
 ///|
-fn reject_numeric_literal_suffix(
+fn add_numeric_literal(
   input : StringView,
-  raw : StringView,
+  body : StringView,
+  attached_tail : StringView,
   rest : StringView,
   base~ : StringView,
   env~ : LexEnv,
   floating~ : Bool,
 ) -> StringView {
-  let spelling = raw.to_owned()
-  let error = if floating &&
-    (
-      spelling.strip_suffix("i32") is Some(_) ||
-      spelling.strip_suffix("i64") is Some(_)
-    ) {
-    IntegerSuffixOnFloatingLiteral(spelling)
-  } else {
-    UnknownNumericLiteralSuffix(spelling)
+  let suffix = NumericLiteralSuffix::parse(attached_tail.to_owned(), floating~)
+  match suffix {
+    Ok(suffix) =>
+      env.add_token(
+        if floating {
+          DOUBLE({ body: body.to_owned(), suffix })
+        } else {
+          INT({ body: body.to_owned(), suffix })
+        },
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+    Err(error) => {
+      let spelling = body.to_owned() + attached_tail.to_owned()
+      env.add_error(
+        match error {
+          UnknownSuffix => UnknownNumericLiteralSuffix(spelling)
+          IntegerSuffixForFloatingBody =>
+            IntegerSuffixOnFloatingLiteral(spelling)
+        },
+        start=env.calc_offset(input, base~),
+        end=env.calc_offset(rest, base~),
+      )
+    }
   }
-  env.add_error(
-    error,
-    start=env.calc_offset(input, base~),
-    end=env.calc_offset(rest, base~),
-  )
   rest
 }
 
