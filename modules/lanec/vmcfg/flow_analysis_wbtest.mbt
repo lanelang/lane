@@ -5,6 +5,7 @@ fn flow_scalar_metadata(
   {
     representation,
     cleanup: Trivial,
+    kind: ScalarValue,
     ownership: Trivial,
     erased_companion: None,
   }
@@ -48,7 +49,7 @@ test "VM CFG analyses describe a diamond and ignore unreachable dominance" {
       witnesses: [],
       user_parameters: [{ value: 0 }, { value: 1 }],
     },
-    result: Value(I64, Trivial),
+    result: Value(I64, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
@@ -163,7 +164,7 @@ test "VM CFG analyses converge through a loop with block parameters" {
       witnesses: [],
       user_parameters: [{ value: 0 }, { value: 1 }, { value: 2 }],
     },
-    result: Value(I64, Trivial),
+    result: Value(I64, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],

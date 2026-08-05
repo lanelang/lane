@@ -2,12 +2,22 @@
 fn wasm_bytes_trivial_slot(
   representation : @bytecode.Representation,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup: Trivial, erased_companion: None }
+  {
+    representation,
+    cleanup: Trivial,
+    kind: ScalarValue,
+    erased_companion: None,
+  }
 }
 
 ///|
 fn wasm_bytes_owned_slot() -> @bytecode.SlotMetadata {
-  { representation: I32, cleanup: OwnedRef, erased_companion: None }
+  {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: ByteSequenceValue,
+    erased_companion: None,
+  }
 }
 
 ///|
@@ -46,6 +56,7 @@ fn wasm_bytes_image(
     entry: { value: 1 },
     initializer: None,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    data_family_count: 0,
     globals: [],
     functions: [BytecodeBody(body)],
     layouts: [ByteSequence],
@@ -133,9 +144,15 @@ fn assert_bytes_backends(
 }
 
 ///|
-test "ByteSequence operations reject objects with another layout across backends" {
+test "complete-image verification rejects Data used as ByteSequence" {
+  let data_slot : @bytecode.SlotMetadata = {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: DataValue({ value: 0 }),
+    erased_companion: None,
+  }
   let body = wasm_bytes_trapping_block(
-    [wasm_bytes_owned_slot(), wasm_bytes_trivial_slot(I64)],
+    [data_slot, wasm_bytes_trivial_slot(I64)],
     [
       MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 2 }), [], []),
       ByteSequenceLength({ value: 1 }, { value: 0 }),
@@ -144,20 +161,30 @@ test "ByteSequence operations reject objects with another layout across backends
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 1,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(body)],
     layouts: [ByteSequence, Data({ value: 0 })],
     object_shapes: [
-      Data({ constructor_tag: 7, stored_witness_count: 0, members: [] }),
+      Data({
+        family: { value: 0 },
+        constructor_tag: 7,
+        stored_witness_count: 0,
+        members: [],
+      }),
     ],
     constants: [],
   }
-  assert_eq(execute_bytes_image_backends(image), {
-    direct_interpreter: Fatal,
-    wasm_interpreter: Fatal,
-    wasm_jit: Fatal,
-  })
+  assert_true(
+    @bytecode.verify_bytecode_image(image)
+    is Err(
+      InvalidBytecode(
+        site=Instruction(_, _, _),
+        detail="SlotId 0 must have ByteSequenceValue semantic kind, got DataValue({ value: 0 })"
+      )
+    ),
+  )
 }
 
 ///|
@@ -179,31 +206,54 @@ test "ByteSequence UTF-8 validation agrees across interpreter and Wasm backends"
     (Bytes::from_array([b'\xF4', b'\x90', b'\x80', b'\x80']), false),
     (Bytes::from_array([b'\xF5', b'\x80', b'\x80', b'\x80']), false),
   ]
-  let blocks : Array[@bytecode.Block] = []
-  for index, case in cases {
-    blocks.push({
-      parameters: [],
-      instructions: [
-        ConstString({ value: 0 }, { value: index }),
-        ByteSequenceIsValidUtf8({ value: 1 }, { value: 0 }),
-        ConstBool({ value: 2 }, case.1),
-        BoolEq({ value: 3 }, { value: 1 }, { value: 2 }),
-        Release({ value: 0 }),
-      ],
-      terminator: BranchBool(
-        { value: 3 },
-        { target: { value: index + 1 }, arguments: [] },
-        { target: { value: cases.length() + 1 }, arguments: [] },
+  for case in cases {
+    let (bytes, expected) = case
+    let instructions : Array[@bytecode.Instruction] = [
+      ConstI64({ value: 0 }, bytes.length().to_int64()),
+      ConstI64({ value: 1 }, 0L),
+      I64ToByte({ value: 2 }, { value: 1 }),
+      ByteSequenceMake({ value: 3 }, { value: 0 }, { value: 2 }),
+    ]
+    for index, byte in bytes {
+      instructions.push(ConstI64({ value: 1 }, index.to_int64()))
+      instructions.push(ConstI64({ value: 0 }, byte.to_int().to_int64()))
+      instructions.push(I64ToByte({ value: 2 }, { value: 0 }))
+      instructions.push(
+        ByteSequenceSet({ value: 3 }, { value: 3 }, { value: 1 }, { value: 2 }),
+      )
+    }
+    instructions.push(ByteSequenceIsValidUtf8({ value: 4 }, { value: 3 }))
+    instructions.push(ConstBool({ value: 5 }, expected))
+    instructions.push(BoolEq({ value: 6 }, { value: 4 }, { value: 5 }))
+    instructions.push(Release({ value: 3 }))
+    assert_bytes_backends(
+      wasm_bytes_body(
+        [
+          wasm_bytes_trivial_slot(I64),
+          wasm_bytes_trivial_slot(I64),
+          i32,
+          owned,
+          i32,
+          i32,
+          i32,
+        ],
+        [
+          {
+            parameters: [],
+            instructions,
+            terminator: BranchBool(
+              { value: 6 },
+              { target: { value: 1 }, arguments: [] },
+              { target: { value: 2 }, arguments: [] },
+            ),
+          },
+          { parameters: [], instructions: [], terminator: Return(None) },
+          { parameters: [], instructions: [], terminator: Unreachable },
+        ],
       ),
-    })
+      Completed,
+    )
   }
-  blocks.push({ parameters: [], instructions: [], terminator: Return(None) })
-  blocks.push({ parameters: [], instructions: [], terminator: Unreachable })
-  assert_bytes_backends(
-    wasm_bytes_body([owned, i32, i32, i32], blocks),
-    Completed,
-    constants=cases.map(case => case.0),
-  )
 }
 
 ///|

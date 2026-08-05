@@ -2,9 +2,15 @@
 fn wasm_global_slot(
   representation : @bytecode.Representation,
   cleanup? : @bytecode.Cleanup = Trivial,
+  kind? : @bytecode.SemanticValueKind = match cleanup {
+    OwnedCallable => CallableValue
+    OwnedRef => ByteSequenceValue
+    OwnedErased => ErasedValue
+    Trivial => ScalarValue
+  },
   erased_companion? : @bytecode.SlotId? = None,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup, erased_companion }
+  { representation, cleanup, kind, erased_companion }
 }
 
 ///|
@@ -49,11 +55,14 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    data_family_count: 0,
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
       {
         witness_count: 0,
-        parameters: [{ representation: I64, cleanup: Trivial }],
+        parameters: [
+          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+        ],
         result: Unit,
       },
     ],
@@ -67,7 +76,14 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
         symbol: "lane.test.observe_global",
       }),
     ],
-    globals: [{ representation: I64, cleanup: Trivial, erased_companion: None }],
+    globals: [
+      {
+        representation: I64,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        erased_companion: None,
+      },
+    ],
     layouts: [],
     object_shapes: [],
     constants: [],
@@ -131,6 +147,7 @@ test "Wasm initializer and entry share one runtime context" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [
       BytecodeBody(call_import),
@@ -194,9 +211,13 @@ fn wasm_lifecycle_initializer() -> @bytecode.FunctionBody {
       owned_ref,
       owned_ref,
       owned_ref,
-      owned_ref,
+      wasm_global_slot(
+        I32,
+        cleanup=OwnedRef,
+        kind=EnvironmentValue({ value: 0 }),
+      ),
       wasm_global_slot(I64, cleanup=OwnedCallable),
-      wasm_global_slot(I32),
+      wasm_global_slot(I32, kind=LayoutValue),
       wasm_global_slot(
         I64,
         cleanup=OwnedErased,
@@ -234,9 +255,9 @@ fn wasm_lifecycle_entry() -> @bytecode.FunctionBody {
   wasm_global_body(
     [
       wasm_global_slot(I64),
-      wasm_global_slot(I32),
-      wasm_global_slot(I64),
-      wasm_global_slot(I32),
+      wasm_global_slot(I32, kind=ByteSequenceValue),
+      wasm_global_slot(I64, kind=CallableValue),
+      wasm_global_slot(I32, kind=LayoutValue),
       wasm_global_slot(
         I64,
         cleanup=OwnedErased,
@@ -255,7 +276,13 @@ fn wasm_lifecycle_entry() -> @bytecode.FunctionBody {
 ///|
 fn wasm_lifecycle_closure_body() -> @bytecode.FunctionBody {
   {
-    slots: [wasm_global_slot(I32, cleanup=OwnedRef)],
+    slots: [
+      wasm_global_slot(
+        I32,
+        cleanup=OwnedRef,
+        kind=EnvironmentValue({ value: 0 }),
+      ),
+    ],
     inputs: {
       environment: Some({ value: 0 }),
       witnesses: [],
@@ -277,6 +304,7 @@ fn wasm_lifecycle_image() -> @bytecode.BytecodeImage {
   {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [
       BytecodeBody(wasm_lifecycle_initializer()),
@@ -290,13 +318,34 @@ fn wasm_lifecycle_image() -> @bytecode.BytecodeImage {
       }),
     ],
     globals: [
-      { representation: I64, cleanup: Trivial, erased_companion: None },
-      { representation: I32, cleanup: OwnedRef, erased_companion: None },
-      { representation: I64, cleanup: OwnedCallable, erased_companion: None },
-      { representation: I32, cleanup: Trivial, erased_companion: None },
+      {
+        representation: I64,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        erased_companion: None,
+      },
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: ByteSequenceValue,
+        erased_companion: None,
+      },
+      {
+        representation: I64,
+        cleanup: OwnedCallable,
+        kind: CallableValue,
+        erased_companion: None,
+      },
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: LayoutValue,
+        erased_companion: None,
+      },
       {
         representation: I64,
         cleanup: OwnedErased,
+        kind: ErasedValue,
         erased_companion: Some({ value: 3 }),
       },
     ],
@@ -305,7 +354,12 @@ fn wasm_lifecycle_image() -> @bytecode.BytecodeImage {
       Environment({
         stored_witness_count: 0,
         members: [
-          { representation: I32, cleanup: OwnedRef, witness_ordinal: None },
+          {
+            representation: I32,
+            cleanup: OwnedRef,
+            kind: ByteSequenceValue,
+            witness_ordinal: None,
+          },
         ],
       }),
     ],
@@ -403,10 +457,16 @@ test "Wasm reports invalid instance-global initialization" {
     {
       entry: { value: 2 },
       initializer: Some({ value: 1 }),
+      data_family_count: 0,
       callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
       functions: [BytecodeBody(initializer), BytecodeBody(entry)],
       globals: [
-        { representation: I64, cleanup: Trivial, erased_companion: None },
+        {
+          representation: I64,
+          cleanup: Trivial,
+          kind: ScalarValue,
+          erased_companion: None,
+        },
       ],
       layouts: [],
       object_shapes: [],

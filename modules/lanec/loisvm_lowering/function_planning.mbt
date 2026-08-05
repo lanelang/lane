@@ -73,6 +73,7 @@ fn ImageLowerer::add_instance_global(
   self.instance_globals.push({
     representation: metadata.representation,
     cleanup: metadata.cleanup,
+    kind: metadata.kind,
     erased_companion: None,
   })
   self.globals.push({ value, lowered: InstanceGlobal(global, type_) })

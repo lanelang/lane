@@ -3,6 +3,7 @@ fn owned_string_value() -> ValueMetadata {
   {
     representation: I32,
     cleanup: OwnedRef,
+    kind: ByteSequenceValue,
     ownership: Owned,
     erased_companion: None,
   }
@@ -22,7 +23,7 @@ test "select consuming field projection for returned owned member" {
       witnesses: [],
       user_parameters: [{ value: 0 }],
     },
-    result: Value(I32, OwnedRef),
+    result: Value(I32, OwnedRef, ByteSequenceValue),
     blocks: [
       {
         parameters: [],
@@ -45,12 +46,14 @@ test "select consuming field projection for returned owned member" {
       #|    {
       #|      representation: I32,
       #|      cleanup: OwnedRef,
+      #|      kind: ByteSequenceValue,
       #|      ownership: Owned,
       #|      erased_companion: None,
       #|    },
       #|    {
       #|      representation: I32,
       #|      cleanup: OwnedRef,
+      #|      kind: ByteSequenceValue,
       #|      ownership: Owned,
       #|      erased_companion: None,
       #|    },
@@ -116,7 +119,7 @@ test "group consuming captures and preserve block-local borrows" {
       witnesses: [],
       user_parameters: [],
     },
-    result: Value(I32, OwnedRef),
+    result: Value(I32, OwnedRef, ByteSequenceValue),
     blocks: [
       {
         parameters: [],

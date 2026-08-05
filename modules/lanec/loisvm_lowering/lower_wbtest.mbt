@@ -107,6 +107,7 @@ fn test_image_lowerer(
     object_shapes: [],
     intrinsic_wrappers: [],
     callable_adapters: [],
+    data_families: [],
     effect_companions,
     next_synthetic_parameter: -1,
   }
@@ -1627,7 +1628,7 @@ test "generic identity calls cross explicit representation erasure bridges" {
     fail("expected identity bytecode body")
   }
   assert_eq(identity_body.inputs.witnesses.length(), 1)
-  assert_eq(identity_body.result, Value(I64, OwnedErased))
+  assert_eq(identity_body.result, Value(I64, OwnedErased, ErasedValue))
   guard image.functions[1] is BytecodeBody(apply_body) else {
     fail("expected apply bytecode body")
   }

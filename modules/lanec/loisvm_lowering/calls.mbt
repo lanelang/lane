@@ -191,10 +191,16 @@ fn FunctionLowerer::lower_generic_direct_call(
     )
     self.unerase_value(erased_result, actual_result)
   } else {
-    let destination = self.fresh_optional_slot(formal_result)
+    let (call_result, result_is_instantiated) = self.image.generic_call_result_materialization(
+      formal_result, actual_result,
+    )
+    let destination = self.fresh_optional_slot(call_result)
     self.emit(
       CallDirect(function, None, witnesses, argument_slots, destination.0),
     )
+    if result_is_instantiated {
+      return destination.1
+    }
     self.adapt_local_value_with_substitutions(
       destination.1,
       formal_result,
@@ -253,14 +259,53 @@ fn FunctionLowerer::lower_generic_value_call(
     )
     self.unerase_value(erased_result, actual_result)
   } else {
-    let destination = self.fresh_optional_slot(formal_result)
+    let (call_result, result_is_instantiated) = self.image.generic_call_result_materialization(
+      formal_result, actual_result,
+    )
+    let destination = self.fresh_optional_slot(call_result)
     self.emit(CallValue(callable, witnesses, argument_slots, destination.0))
+    if result_is_instantiated {
+      return destination.1
+    }
     self.adapt_local_value_with_substitutions(
       destination.1,
       formal_result,
       actual_result,
       substitutions,
     )
+  }
+}
+
+///|
+fn ImageLowerer::generic_call_result_materialization(
+  self : ImageLowerer,
+  formal_result : @buslane.Type,
+  actual_result : @buslane.Type,
+) -> (@buslane.Type, Bool) raise LoisvmLoweringError {
+  guard self.runtime_type(formal_result) is Concrete(formal_runtime) &&
+    self.runtime_type(actual_result) is Concrete(actual_runtime) else {
+    return (formal_result, false)
+  }
+  if actual_runtime is Primitive(Unit) {
+    return (formal_result, false)
+  }
+  let formal = self.slot_metadata(formal_runtime)
+  let actual = self.slot_metadata(actual_runtime)
+  let actual_is_reference = match actual.kind {
+    ByteSequenceValue
+    | DataValue(_)
+    | EnvironmentValue(_)
+    | AbstractReferenceValue(_)
+    | OpaqueReferenceValue => true
+    _ => false
+  }
+  if formal.kind is AbstractReferenceValue(_) &&
+    formal.representation == actual.representation &&
+    formal.cleanup == actual.cleanup &&
+    actual_is_reference {
+    (actual_result, true)
+  } else {
+    (formal_result, false)
   }
 }
 

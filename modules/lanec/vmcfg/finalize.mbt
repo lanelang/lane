@@ -56,6 +56,7 @@ fn finalize_or_raise(
     entry: image.entry,
     initializer: image.initializer,
     callable_abis: callable_abis.entries,
+    data_family_count: image.data_family_count,
     functions,
     globals: image.globals,
     layouts: image.layouts,
@@ -70,7 +71,11 @@ fn vmcfg_callable_abi(body : FunctionBody) -> @bytecode.CallableAbi {
     witness_count: body.inputs.witnesses.length(),
     parameters: body.inputs.user_parameters.map(parameter => {
       let metadata = value_metadata_to_slot(body.values[parameter.value])
-      { representation: metadata.representation, cleanup: metadata.cleanup }
+      {
+        representation: metadata.representation,
+        cleanup: metadata.cleanup,
+        kind: metadata.kind,
+      }
     }),
     result: body.result,
   }
@@ -87,7 +92,11 @@ fn callsite_callable_abi(
     witness_count: witnesses.length(),
     parameters: arguments.map(argument => {
       let metadata = value_metadata_to_slot(body.values[argument.value])
-      { representation: metadata.representation, cleanup: metadata.cleanup }
+      {
+        representation: metadata.representation,
+        cleanup: metadata.cleanup,
+        kind: metadata.kind,
+      }
     }),
     result,
   }
@@ -149,6 +158,7 @@ fn value_metadata_to_slot(metadata : ValueMetadata) -> @bytecode.SlotMetadata {
     return {
       representation: metadata.representation,
       cleanup: OwnedErased,
+      kind: metadata.kind,
       erased_companion: metadata.erased_companion.map(value_to_slot),
     }
   }
@@ -158,6 +168,7 @@ fn value_metadata_to_slot(metadata : ValueMetadata) -> @bytecode.SlotMetadata {
       Trivial | Borrowed => Trivial
       Owned => metadata.cleanup
     },
+    kind: metadata.kind,
     erased_companion: match metadata.ownership {
       Owned if metadata.cleanup is OwnedErased =>
         metadata.erased_companion.map(value_to_slot)
@@ -362,7 +373,11 @@ fn finalize_instruction(
       let result = match destination {
         Some(value) => {
           let metadata = value_metadata_to_slot(body.values[value.value])
-          @bytecode.ResultAbi::Value(metadata.representation, metadata.cleanup)
+          @bytecode.ResultAbi::Value(
+            metadata.representation,
+            metadata.cleanup,
+            metadata.kind,
+          )
         }
         None => Unit
       }

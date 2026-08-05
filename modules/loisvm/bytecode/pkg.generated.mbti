@@ -43,6 +43,7 @@ pub(all) struct BytecodeImage {
   entry : FunctionId
   initializer : FunctionId?
   callable_abis : Array[CallableAbi]
+  data_family_count : Int
   functions : Array[FunctionEntry]
   globals : Array[GlobalMetadata]
   layouts : Array[LayoutRecipe]
@@ -67,6 +68,7 @@ pub(all) struct CallableAbi {
   parameters : Array[ValueAbi]
   result : ResultAbi
 } derive(Eq, @debug.Debug)
+pub fn CallableAbi::accepts_callsite(Self, Self) -> Bool
 
 pub(all) struct CallableAbiId {
   value : Int
@@ -83,7 +85,12 @@ pub(all) struct ConstantId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
 
+pub(all) struct DataFamilyId {
+  value : Int
+} derive(Compare, Eq, @debug.Debug)
+
 pub(all) struct DataShape {
+  family : DataFamilyId
   constructor_tag : Int
   stored_witness_count : Int
   members : Array[MemberSchema]
@@ -130,6 +137,7 @@ pub(all) struct GlobalId {
 pub(all) struct GlobalMetadata {
   representation : Representation
   cleanup : Cleanup
+  kind : SemanticValueKind
   erased_companion : GlobalId?
 } derive(Eq, @debug.Debug)
 
@@ -271,6 +279,7 @@ pub(all) enum LayoutRecipe {
 pub(all) struct MemberSchema {
   representation : Representation
   cleanup : Cleanup
+  kind : SemanticValueKind
   witness_ordinal : Int?
 } derive(Eq, @debug.Debug)
 
@@ -302,7 +311,7 @@ pub(all) enum Representation {
 
 pub(all) enum ResultAbi {
   Unit
-  Value(Representation, Cleanup)
+  Value(Representation, Cleanup, SemanticValueKind)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct RuntimeImport {
@@ -323,6 +332,18 @@ pub(all) enum RuntimeValueKind {
   Opaque
 } derive(Eq, @debug.Debug)
 
+pub(all) enum SemanticValueKind {
+  ScalarValue
+  LayoutValue
+  CallableValue
+  ByteSequenceValue
+  DataValue(DataFamilyId)
+  EnvironmentValue(ObjectShapeId)
+  AbstractReferenceValue(Int)
+  OpaqueReferenceValue
+  ErasedValue
+} derive(Eq, @debug.Debug)
+
 pub(all) struct SlotId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
@@ -330,6 +351,7 @@ pub(all) struct SlotId {
 pub(all) struct SlotMetadata {
   representation : Representation
   cleanup : Cleanup
+  kind : SemanticValueKind
   erased_companion : SlotId?
 } derive(Eq, @debug.Debug)
 
@@ -346,6 +368,7 @@ pub(all) enum Terminator {
 pub(all) struct ValueAbi {
   representation : Representation
   cleanup : Cleanup
+  kind : SemanticValueKind
 } derive(Eq, @debug.Debug)
 
 // Type aliases

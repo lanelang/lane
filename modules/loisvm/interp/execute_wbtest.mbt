@@ -2,7 +2,12 @@
 fn trivial_slot(
   representation : @bytecode.Representation,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup: Trivial, erased_companion: None }
+  {
+    representation,
+    cleanup: Trivial,
+    kind: ScalarValue,
+    erased_companion: None,
+  }
 }
 
 ///|
@@ -36,6 +41,7 @@ test "ARC releases dynamic runtime String owners" {
   let owned_string : @bytecode.SlotMetadata = {
     representation: I32,
     cleanup: OwnedRef,
+    kind: ByteSequenceValue,
     erased_companion: None,
   }
   let entry = body(
@@ -53,9 +59,14 @@ test "ARC releases dynamic runtime String owners" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
-      { witness_count: 0, parameters: [], result: Value(I32, OwnedRef) },
+      {
+        witness_count: 0,
+        parameters: [],
+        result: Value(I32, OwnedRef, ByteSequenceValue),
+      },
     ],
     globals: [],
     functions: [
@@ -99,6 +110,7 @@ test "interpreter rejects invalid host String UTF-8" {
   let owned_string : @bytecode.SlotMetadata = {
     representation: I32,
     cleanup: OwnedRef,
+    kind: ByteSequenceValue,
     erased_companion: None,
   }
   let entry = body(
@@ -113,9 +125,14 @@ test "interpreter rejects invalid host String UTF-8" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
-      { witness_count: 0, parameters: [], result: Value(I32, OwnedRef) },
+      {
+        witness_count: 0,
+        parameters: [],
+        result: Value(I32, OwnedRef, ByteSequenceValue),
+      },
     ],
     globals: [],
     functions: [
@@ -151,6 +168,7 @@ test "fieldless data construction reuses an immortal image singleton" {
   let owned_ref : @bytecode.SlotMetadata = {
     representation: I32,
     cleanup: OwnedRef,
+    kind: DataValue({ value: 0 }),
     erased_companion: None,
   }
   let entry = body(
@@ -167,12 +185,18 @@ test "fieldless data construction reuses an immortal image singleton" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 1,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 })],
     object_shapes: [
-      Data({ constructor_tag: 7, stored_witness_count: 0, members: [] }),
+      Data({
+        family: { value: 0 },
+        constructor_tag: 7,
+        stored_witness_count: 0,
+        members: [],
+      }),
     ],
     constants: [],
   }
@@ -191,6 +215,7 @@ test "engine traps discard the instance without ARC unwinding" {
   let owned_ref : @bytecode.SlotMetadata = {
     representation: I32,
     cleanup: OwnedRef,
+    kind: DataValue({ value: 0 }),
     erased_companion: None,
   }
   let entry = body(
@@ -209,16 +234,23 @@ test "engine traps discard the instance without ARC unwinding" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 1,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [Data({ value: 0 })],
     object_shapes: [
       Data({
+        family: { value: 0 },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [
-          { representation: I64, cleanup: Trivial, witness_ordinal: None },
+          {
+            representation: I64,
+            cleanup: Trivial,
+            kind: ScalarValue,
+            witness_ordinal: None,
+          },
         ],
       }),
     ],
@@ -242,6 +274,7 @@ test "CallValue validates dynamic target and environment before consumption" {
   let callable_slot : @bytecode.SlotMetadata = {
     representation: I64,
     cleanup: OwnedCallable,
+    kind: CallableValue,
     erased_companion: None,
   }
   let entry = body(
@@ -251,7 +284,14 @@ test "CallValue validates dynamic target and environment before consumption" {
     terminator=Return(None),
   )
   let capturing_target : @bytecode.FunctionBody = {
-    slots: [{ representation: I32, cleanup: OwnedRef, erased_companion: None }],
+    slots: [
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: ByteSequenceValue,
+        erased_companion: None,
+      },
+    ],
     inputs: {
       environment: Some({ value: 0 }),
       witnesses: [],
@@ -269,6 +309,7 @@ test "CallValue validates dynamic target and environment before consumption" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [BytecodeBody(entry), BytecodeBody(capturing_target)],
     globals: [],

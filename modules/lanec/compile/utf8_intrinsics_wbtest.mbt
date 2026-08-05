@@ -55,16 +55,27 @@ test "compiler erases representation-identical Char conversion" {
       #|    { witness_count: 0, parameters: [], result: Unit },
       #|    {
       #|      witness_count: 0,
-      #|      parameters: [{ representation: I64, cleanup: Trivial }],
+      #|      parameters: [{ representation: I64, cleanup: Trivial, kind: ScalarValue }],
       #|      result: Unit,
       #|    },
       #|  ],
+      #|  data_family_count: 0,
       #|  functions: [
       #|    BytecodeBody(
       #|      {
       #|        slots: [
-      #|          { representation: I32, cleanup: Trivial, erased_companion: None },
-      #|          { representation: I64, cleanup: Trivial, erased_companion: None },
+      #|          {
+      #|            representation: I32,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            erased_companion: None,
+      #|          },
+      #|          {
+      #|            representation: I64,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            erased_companion: None,
+      #|          },
       #|        ],
       #|        inputs: { environment: None, witnesses: [], user_parameters: [] },
       #|        result: Unit,

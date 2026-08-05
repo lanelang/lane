@@ -61,6 +61,7 @@ fn FunctionLowerer::fresh_erased_slot(
   self.fresh_metadata({
     representation: I64,
     cleanup: OwnedErased,
+    kind: ErasedValue,
     ownership,
     erased_companion: Some(witness),
   })
@@ -74,12 +75,13 @@ fn ImageLowerer::slot_metadata(
   guard self.runtime_type(type_) is Concrete(type_) else {
     raise UnsupportedType(type_~)
   }
-  match type_ {
+  let metadata : @vmcfg.ValueMetadata = match type_ {
     Primitive(Unit) => raise UnsupportedType(type_~)
     Primitive(Bool) =>
       {
         representation: I32,
         cleanup: Trivial,
+        kind: ScalarValue,
         ownership: Trivial,
         erased_companion: None,
       }
@@ -87,6 +89,7 @@ fn ImageLowerer::slot_metadata(
       {
         representation: I32,
         cleanup: Trivial,
+        kind: ScalarValue,
         ownership: Trivial,
         erased_companion: None,
       }
@@ -94,6 +97,7 @@ fn ImageLowerer::slot_metadata(
       {
         representation: I64,
         cleanup: Trivial,
+        kind: ScalarValue,
         ownership: Trivial,
         erased_companion: None,
       }
@@ -101,6 +105,7 @@ fn ImageLowerer::slot_metadata(
       {
         representation: F32,
         cleanup: Trivial,
+        kind: ScalarValue,
         ownership: Trivial,
         erased_companion: None,
       }
@@ -108,6 +113,7 @@ fn ImageLowerer::slot_metadata(
       {
         representation: F64,
         cleanup: Trivial,
+        kind: ScalarValue,
         ownership: Trivial,
         erased_companion: None,
       }
@@ -115,6 +121,7 @@ fn ImageLowerer::slot_metadata(
       {
         representation: I32,
         cleanup: OwnedRef,
+        kind: ByteSequenceValue,
         ownership: Owned,
         erased_companion: None,
       }
@@ -122,6 +129,7 @@ fn ImageLowerer::slot_metadata(
       {
         representation: I32,
         cleanup: Trivial,
+        kind: ScalarValue,
         ownership: Trivial,
         erased_companion: None,
       }
@@ -129,6 +137,7 @@ fn ImageLowerer::slot_metadata(
       {
         representation: I32,
         cleanup: OwnedRef,
+        kind: ByteSequenceValue,
         ownership: Owned,
         erased_companion: None,
       }
@@ -136,25 +145,54 @@ fn ImageLowerer::slot_metadata(
       {
         representation: I64,
         cleanup: OwnedCallable,
+        kind: CallableValue,
         ownership: Owned,
         erased_companion: None,
       }
-    Constructor(_) | Apply(_, _) =>
+    Constructor(owner) | Apply(Constructor(owner), _) => {
+      let kind : @bytecode.SemanticValueKind = match
+        self.metadata.type_info(owner) {
+        Some({ flavor: Data, .. }) => DataValue(self.intern_data_family(owner))
+        Some({ flavor: External, .. }) => OpaqueReferenceValue
+        None => raise UnsupportedType(type_~)
+      }
       {
         representation: I32,
         cleanup: OwnedRef,
+        kind,
+        ownership: Owned,
+        erased_companion: None,
+      }
+    }
+    Apply(Parameter(parameter), _) =>
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: AbstractReferenceValue(parameter.index),
+        ownership: Owned,
+        erased_companion: None,
+      }
+    Apply(_, _) =>
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: OpaqueReferenceValue,
         ownership: Owned,
         erased_companion: None,
       }
     _ => raise UnsupportedType(type_~)
   }
+  metadata
 }
 
 ///|
-fn environment_metadata() -> @vmcfg.ValueMetadata {
+fn environment_metadata(
+  shape : @bytecode.ObjectShapeId,
+) -> @vmcfg.ValueMetadata {
   {
     representation: I32,
     cleanup: OwnedRef,
+    kind: EnvironmentValue(shape),
     ownership: Owned,
     erased_companion: None,
   }
@@ -165,6 +203,7 @@ fn layout_witness_metadata() -> @vmcfg.ValueMetadata {
   {
     representation: I32,
     cleanup: Trivial,
+    kind: LayoutValue,
     ownership: Trivial,
     erased_companion: None,
   }
@@ -176,13 +215,13 @@ fn ImageLowerer::result_abi(
   type_ : @buslane.Type,
 ) -> @bytecode.ResultAbi raise LoisvmLoweringError {
   match self.runtime_type(type_) {
-    Erased(_) => Value(I64, OwnedErased)
+    Erased(_) => Value(I64, OwnedErased, ErasedValue)
     Concrete(type_) =>
       if type_ is Primitive(Unit) {
         Unit
       } else {
         let metadata = self.slot_metadata(type_)
-        Value(metadata.representation, metadata.cleanup)
+        Value(metadata.representation, metadata.cleanup, metadata.kind)
       }
   }
 }

@@ -6,6 +6,7 @@ priv struct ImageLowerer {
   instance_globals : Array[@bytecode.GlobalMetadata]
   plans : Array[PlannedEntry]
   constants : Array[Bytes]
+  data_families : Array[@buslane.TypeId]
   layouts : Array[@bytecode.LayoutRecipe]
   object_shapes : Array[@bytecode.ObjectShape]
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
@@ -90,6 +91,7 @@ fn lower_executable_program_to_bytecode_or_raise(
     instance_globals: [],
     plans: [],
     constants: [],
+    data_families: [],
     layouts: [],
     object_shapes: [],
     intrinsic_wrappers: [],
@@ -125,6 +127,7 @@ fn lower_executable_program_to_bytecode_or_raise(
     entry: entry_function,
     initializer,
     functions,
+    data_family_count: lowerer.data_families.length(),
     globals: lowerer.instance_globals,
     layouts: lowerer.layouts,
     object_shapes: lowerer.object_shapes,

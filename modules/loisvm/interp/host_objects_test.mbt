@@ -6,7 +6,12 @@ priv struct InterpreterHostObject {
 
 ///|
 fn host_owned_ref_slot() -> @bytecode.SlotMetadata {
-  { representation: I32, cleanup: OwnedRef, erased_companion: None }
+  {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: OpaqueReferenceValue,
+    erased_companion: None,
+  }
 }
 
 ///|
@@ -73,8 +78,16 @@ test "interpreter stores shared Host Objects in data and environments" {
     ),
   )
   let owned_ref = host_owned_ref_slot()
+  let data_ref : @bytecode.SlotMetadata = {
+    ..owned_ref,
+    kind: DataValue({ value: 0 }),
+  }
+  let environment_ref : @bytecode.SlotMetadata = {
+    ..owned_ref,
+    kind: EnvironmentValue({ value: 1 }),
+  }
   let entry = host_unit_body(
-    slots=[owned_ref, owned_ref, owned_ref, owned_ref, owned_ref],
+    slots=[owned_ref, data_ref, owned_ref, owned_ref, environment_ref],
     instructions=[
       CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
       MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 2 }), [], [
@@ -97,11 +110,13 @@ test "interpreter stores shared Host Objects in data and environments" {
   let owned_member : @bytecode.MemberSchema = {
     representation: I32,
     cleanup: OwnedRef,
+    kind: OpaqueReferenceValue,
     witness_ordinal: None,
   }
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 1,
     callable_abis: host_object_callable_abis(),
     globals: [],
     functions: [
@@ -116,6 +131,7 @@ test "interpreter stores shared Host Objects in data and environments" {
     layouts: [Reference, Data({ value: 0 }), Environment({ value: 1 })],
     object_shapes: [
       Data({
+        family: { value: 0 },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [owned_member],
@@ -147,9 +163,15 @@ test "interpreter finalizes Host Object globals during normal shutdown" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    data_family_count: 0,
     callable_abis: host_object_callable_abis(),
     globals: [
-      { representation: I32, cleanup: OwnedRef, erased_companion: None },
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: OpaqueReferenceValue,
+        erased_companion: None,
+      },
     ],
     functions: [
       BytecodeBody(initializer),
@@ -184,6 +206,7 @@ test "interpreter rolls back rejected Host Object results" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: host_object_callable_abis(),
     globals: [],
     functions: [
@@ -265,7 +288,12 @@ test "interpreter reports Host Object use after explicit close" {
     slots=[
       owned_ref,
       owned_ref,
-      { representation: I64, cleanup: Trivial, erased_companion: None },
+      {
+        representation: I64,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        erased_companion: None,
+      },
     ],
     instructions=[
       CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
@@ -277,6 +305,7 @@ test "interpreter reports Host Object use after explicit close" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: host_object_callable_abis(),
     globals: [],
     functions: [
@@ -313,16 +342,24 @@ test "interpreter reports Host Object use after explicit close" {
 fn host_object_callable_abis() -> Array[@bytecode.CallableAbi] {
   [
     { witness_count: 0, parameters: [], result: Unit },
-    { witness_count: 0, parameters: [], result: Value(I32, OwnedRef) },
     {
       witness_count: 0,
-      parameters: [{ representation: I32, cleanup: OwnedRef }],
+      parameters: [],
+      result: Value(I32, OwnedRef, OpaqueReferenceValue),
+    },
+    {
+      witness_count: 0,
+      parameters: [
+        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
+      ],
       result: Unit,
     },
     {
       witness_count: 0,
-      parameters: [{ representation: I32, cleanup: OwnedRef }],
-      result: Value(I64, Trivial),
+      parameters: [
+        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
+      ],
+      result: Value(I64, Trivial, ScalarValue),
     },
   ]
 }

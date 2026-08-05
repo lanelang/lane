@@ -39,6 +39,11 @@ pub(all) struct ObjectShapeId {
 } derive(Debug, Eq, Compare)
 
 ///|
+pub(all) struct DataFamilyId {
+  value : Int
+} derive(Debug, Eq, Compare)
+
+///|
 pub(all) enum Representation {
   I32
   I64
@@ -55,9 +60,23 @@ pub(all) enum Cleanup {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum SemanticValueKind {
+  ScalarValue
+  LayoutValue
+  CallableValue
+  ByteSequenceValue
+  DataValue(DataFamilyId)
+  EnvironmentValue(ObjectShapeId)
+  AbstractReferenceValue(Int)
+  OpaqueReferenceValue
+  ErasedValue
+} derive(Debug, Eq)
+
+///|
 pub(all) struct SlotMetadata {
   representation : Representation
   cleanup : Cleanup
+  kind : SemanticValueKind
   erased_companion : SlotId?
 } derive(Debug, Eq)
 
@@ -65,19 +84,21 @@ pub(all) struct SlotMetadata {
 pub(all) struct GlobalMetadata {
   representation : Representation
   cleanup : Cleanup
+  kind : SemanticValueKind
   erased_companion : GlobalId?
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum ResultAbi {
   Unit
-  Value(Representation, Cleanup)
+  Value(Representation, Cleanup, SemanticValueKind)
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct ValueAbi {
   representation : Representation
   cleanup : Cleanup
+  kind : SemanticValueKind
 } derive(Debug, Eq)
 
 ///|
@@ -134,11 +155,13 @@ pub(all) enum LayoutRecipe {
 pub(all) struct MemberSchema {
   representation : Representation
   cleanup : Cleanup
+  kind : SemanticValueKind
   witness_ordinal : Int?
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct DataShape {
+  family : DataFamilyId
   constructor_tag : Int
   stored_witness_count : Int
   members : Array[MemberSchema]
@@ -328,6 +351,7 @@ pub(all) struct BytecodeImage {
   entry : FunctionId
   initializer : FunctionId?
   callable_abis : Array[CallableAbi]
+  data_family_count : Int
   functions : Array[FunctionEntry]
   globals : Array[GlobalMetadata]
   layouts : Array[LayoutRecipe]

@@ -6,8 +6,8 @@ status: accepted
 
 Every dynamically invoked LoisVM callable has one explicit execution ABI. A
 `CallableAbi` contains the layout-witness count, the ordered user-parameter
-`ValueAbi` values, and the complete `ResultAbi`. `ValueAbi` contains both
-representation and cleanup. A `BytecodeImage` owns a canonical, duplicate-free
+`ValueAbi` values, and the complete `ResultAbi`. `ValueAbi` contains
+representation, cleanup, and semantic value kind. A `BytecodeImage` owns a canonical, duplicate-free
 table of these descriptions, addressed by zero-based `CallableAbiId` values.
 
 Every `CallValue` and `TailCallValue` names its expected `CallableAbiId`.
@@ -31,6 +31,12 @@ that every indirect call site's witness, parameter, destination, and tail
 result slots match the named complete ABI. Direct calls use the target
 function's projection and the same physical-shape checking operation.
 
+An `AbstractReferenceValue(parameter)` in either side of an ABI comparison is
+a quantified reference category, not an external or unknown concrete value.
+One call binds every occurrence of that parameter consistently across
+parameters and result. Concrete ByteSequence, Data, Environment, and opaque
+external categories otherwise remain distinct.
+
 The interpreter resolves the packed `FunctionId` safely and, before consuming
 the callable or any argument owner, compares the target's projected ABI with
 the call site's expected ABI. It also checks target range, environment
@@ -38,11 +44,12 @@ presence, counts, runtime value representations, cleanup metadata, and result
 shape. Failure is the structured `InvalidCallableInvocation` execution error;
 it is not an array failure or an internal representation error.
 
-The Wasm backend associates each private callable-table index with its target's
-`CallableAbiId`. Before any indirect call consumes operands, generated code
-compares that identifier with the call site's expected identifier. This guard
-is necessary because Wasm value types cannot distinguish equal representations
-with different cleanup contracts. Ordinary function types, runtime-import
+The Wasm backend persists a compatibility matrix from each private
+callable-table index to every call-site `CallableAbiId`. Before any indirect
+call consumes operands, generated code checks the matrix entry produced by the
+same relation used by verification and the interpreter. This guard is
+necessary because Wasm value types cannot distinguish equal representations
+with different cleanup or semantic contracts. Ordinary function types, runtime-import
 adapter types, `call_indirect`, and `return_call_indirect` types are then
 generated from the same `CallableAbi` description, so Wasm's native type check
 also enforces the representational portion of the identity.
@@ -53,13 +60,14 @@ The current-only bytecode format places the counted Callable ABI table after
 the entry and initializer identifiers and before the Function table.
 `CallValue` and `TailCallValue` encode a `CallableAbiId` immediately after the
 callable slot. This incompatible change raises the enclosing linked-program
-artifact schema from 9 to 10. No legacy decoder is retained under ADR 0116.
+artifact schema from 9 to 10. The later semantic-kind expansion raises it from
+10 to 11. No legacy decoder is retained under ADR 0116.
 
 ## Consequences
 
 - Callable ABI agreement has one description shared by verification and both
   execution backends.
-- Physical equality includes ownership cleanup, not only Wasm value types.
+- ABI compatibility includes ownership cleanup and semantic value kind, not only Wasm value types.
 - Dynamic target validation happens before ownership transfer.
 - Function context kind remains an independent invariant.
 - Call sites no longer reconstruct ABI identity from local slot syntax.

@@ -14,6 +14,7 @@ pub(all) enum Ownership {
 pub(all) struct ValueMetadata {
   representation : @bytecode.Representation
   cleanup : @bytecode.Cleanup
+  kind : @bytecode.SemanticValueKind
   ownership : Ownership
   erased_companion : ValueId?
 } derive(Debug, Eq)
@@ -215,6 +216,7 @@ pub(all) struct Image {
   entry : @bytecode.FunctionId
   initializer : @bytecode.FunctionId?
   functions : Array[FunctionEntry]
+  data_family_count : Int
   globals : Array[@bytecode.GlobalMetadata]
   layouts : Array[@bytecode.LayoutRecipe]
   object_shapes : Array[@bytecode.ObjectShape]

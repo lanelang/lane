@@ -150,7 +150,7 @@ fn render_function_callable_abi(
 fn render_callable_abi(abi : CallableAbi) -> String {
   let parameters = abi.parameters
     .map(parameter => {
-      "\{render_representation(parameter.representation)} + \{render_cleanup(parameter.cleanup)}"
+      "\{render_representation(parameter.representation)} + \{render_cleanup(parameter.cleanup)} + \{Repr(parameter.kind)}"
     })
     .join(", ")
   "fn(witnesses=\{abi.witness_count}, parameters=[\{parameters}]) -> \{render_result(abi.result)}"
@@ -516,7 +516,7 @@ fn render_slot_metadata(metadata : SlotMetadata) -> String {
     Some(slot) => ", companion=\{render_slot(slot)}"
     None => ""
   }
-  "\{render_representation(metadata.representation)} + \{render_cleanup(metadata.cleanup)}\{companion}"
+  "\{render_representation(metadata.representation)} + \{render_cleanup(metadata.cleanup)} + \{Repr(metadata.kind)}\{companion}"
 }
 
 ///|
@@ -525,7 +525,7 @@ fn render_global_metadata(metadata : GlobalMetadata) -> String {
     Some(global) => ", companion=\{render_global(global)}"
     None => ""
   }
-  "\{render_representation(metadata.representation)} + \{render_cleanup(metadata.cleanup)}\{companion}"
+  "\{render_representation(metadata.representation)} + \{render_cleanup(metadata.cleanup)} + \{Repr(metadata.kind)}\{companion}"
 }
 
 ///|
@@ -552,8 +552,8 @@ fn render_cleanup(cleanup : Cleanup) -> String {
 fn render_result(result : ResultAbi) -> String {
   match result {
     Unit => "unit"
-    Value(representation, cleanup) =>
-      "\{render_representation(representation)} + \{render_cleanup(cleanup)}"
+    Value(representation, cleanup, kind) =>
+      "\{render_representation(representation)} + \{render_cleanup(cleanup)} + \{Repr(kind)}"
   }
 }
 
@@ -580,7 +580,7 @@ fn render_layout_recipe(recipe : LayoutRecipe) -> String {
 fn render_object_shape(shape : ObjectShape) -> String {
   match shape {
     Data(data) =>
-      "data(tag=\{data.constructor_tag}, witnesses=\{data.stored_witness_count}, members=[\{data.members.map(render_member).join(", ")}])"
+      "data(family=\{data.family.value}, tag=\{data.constructor_tag}, witnesses=\{data.stored_witness_count}, members=[\{data.members.map(render_member).join(", ")}])"
     Environment(environment) =>
       "environment(witnesses=\{environment.stored_witness_count}, members=[\{environment.members.map(render_member).join(", ")}])"
   }
@@ -592,5 +592,5 @@ fn render_member(schema : MemberSchema) -> String {
     Some(ordinal) => ", witness=\{ordinal}"
     None => ""
   }
-  "\{render_representation(schema.representation)} + \{render_cleanup(schema.cleanup)}\{witness}"
+  "\{render_representation(schema.representation)} + \{render_cleanup(schema.cleanup)} + \{Repr(schema.kind)}\{witness}"
 }

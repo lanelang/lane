@@ -3,6 +3,7 @@ test "callable table includes only address-taken functions in ID order" {
   let trivial_slot : @bytecode.SlotMetadata = {
     representation: I64,
     cleanup: Trivial,
+    kind: ScalarValue,
     erased_companion: None,
   }
   let body = fn(
@@ -19,6 +20,7 @@ test "callable table includes only address-taken functions in ID order" {
     entry: { value: 1 },
     initializer: None,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    data_family_count: 0,
     functions: [
       body([
         ConstFunction({ value: 0 }, { value: 3 }),
@@ -47,6 +49,7 @@ test "trivial functions omit frame liveness locals" {
   let trivial_slot : @bytecode.SlotMetadata = {
     representation: I64,
     cleanup: Trivial,
+    kind: ScalarValue,
     erased_companion: None,
   }
   let body : @bytecode.FunctionBody = {
@@ -68,6 +71,7 @@ test "trivial functions omit frame liveness locals" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [BytecodeBody(body)],
     globals: [],

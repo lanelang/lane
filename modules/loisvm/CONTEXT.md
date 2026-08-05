@@ -57,6 +57,24 @@ The uniform tagged runtime value stored in bytecode local slots, including
 primitive cases such as `F64`.
 _Avoid_: Lane type object, typed unboxed slot, Buslane interpreter value
 
+**Semantic Value Kind**:
+The immutable bytecode metadata category that distinguishes scalar, layout,
+callable, ByteSequence, Data-family, exact Environment-shape, abstract
+higher-kinded reference, opaque external reference, and erased values even
+when their physical representation and cleanup are equal.
+_Avoid_: source type, Wasm value type, cleanup policy
+
+**Abstract Reference Value**:
+A quantified semantic reference category associated with one higher-kinded
+type parameter and instantiated consistently across one callable ABI use.
+_Avoid_: arbitrary I32 reference, external opaque value, wildcard cast
+
+**Data Family**:
+The dense bytecode identity shared by the constructor shapes of one nominal
+data boundary. Dataflow uses the family for tag switching and separately tracks
+the exact shape proven for a constructed or refined value.
+_Avoid_: ObjectShapeId, constructor tag, source TypeId persisted in bytecode
+
 **Image Constant Pool**:
 The single image-wide table of deduplicated valid UTF-8 String constants referenced through zero-based `ConstantId` values.
 _Avoid_: per-function constant table, function table, debug metadata
@@ -119,8 +137,12 @@ The byte-length-delimited body payload ordered as slot table, inputs, result des
 _Avoid_: entry BlockId operand, block length, extensible field map
 
 **Function Result ABI**:
-The single function-owned result contract: either zero-width `Unit`, or one value with an exact representation and cleanup category. Returns and statically known calls must agree on both fields.
-_Avoid_: representation-only result, destination-owned result semantics, inferred cleanup
+The single function-owned result contract: either zero-width `Unit`, or one
+value with an exact representation, cleanup category, and semantic value kind.
+Returns and calls must agree on the complete ABI, modulo consistent binding of
+an explicit abstract reference parameter.
+_Avoid_: representation-only result, destination-owned result semantics,
+inferred cleanup, physical-shape casts
 
 **Block Parameter Transfer**:
 The control-flow operation that assigns a target block's ordered parameter

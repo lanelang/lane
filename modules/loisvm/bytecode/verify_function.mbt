@@ -11,12 +11,17 @@ fn BytecodeVerifier::verify_function(
   if !body.blocks[0].parameters.is_empty() {
     self.fail(function_site, "entry block must have no parameters")
   }
-  if body.result is Value(representation, cleanup) &&
-    !legal_metadata(representation, cleanup) {
+  if body.result is Value(representation, cleanup, kind) &&
+    !self.legal_metadata(function_site, representation, cleanup, kind) {
     self.fail(function_site, "illegal function result ABI")
   }
   for slot in body.slots {
-    if !legal_metadata(slot.representation, slot.cleanup) {
+    if !self.legal_metadata(
+        function_site,
+        slot.representation,
+        slot.cleanup,
+        slot.kind,
+      ) {
       self.fail(
         function_site, "illegal slot representation and cleanup combination",
       )
@@ -25,7 +30,8 @@ fn BytecodeVerifier::verify_function(
       (OwnedErased, Some(companion)) => {
         let companion_slot = self.slot_metadata(function_site, body, companion)
         if companion_slot.representation != I32 ||
-          companion_slot.cleanup != Trivial {
+          companion_slot.cleanup != Trivial ||
+          companion_slot.kind != LayoutValue {
           self.fail(
             function_site, "erased companion must name an I32 Trivial slot",
           )
@@ -41,10 +47,19 @@ fn BytecodeVerifier::verify_function(
   let input_slots : Array[SlotId] = []
   if body.inputs.environment is Some(environment) {
     self.expect_slot(function_site, body, environment, I32, OwnedRef)
+    if !(self.slot_metadata(function_site, body, environment).kind
+      is EnvironmentValue(_)) {
+      self.fail(
+        function_site, "function environment must have Environment value kind",
+      )
+    }
     input_slots.push(environment)
   }
   for witness in body.inputs.witnesses {
     self.expect_slot(function_site, body, witness, I32, Trivial)
+    if self.slot_metadata(function_site, body, witness).kind != LayoutValue {
+      self.fail(function_site, "function witness must have Layout value kind")
+    }
     input_slots.push(witness)
   }
   for parameter in body.inputs.user_parameters {
@@ -119,11 +134,13 @@ fn BytecodeVerifier::verify_terminator(
     Jump(edge) => self.verify_edge(site, body, edge)
     BranchBool(condition, true_edge, false_edge) => {
       self.expect_slot(site, body, condition, I32, Trivial)
+      self.expect_kind(site, body, condition, ScalarValue)
       self.verify_edge(site, body, true_edge)
       self.verify_edge(site, body, false_edge)
     }
     SwitchTag(tag, cases, default) => {
       self.expect_slot(site, body, tag, I32, Trivial)
+      self.expect_kind(site, body, tag, ScalarValue)
       for edge in cases {
         self.verify_edge(site, body, edge)
       }
@@ -132,8 +149,10 @@ fn BytecodeVerifier::verify_terminator(
     Return(source) =>
       match (result_shape(body.result), source) {
         (None, None) => ()
-        (Some((representation, cleanup)), Some(source)) =>
-          self.expect_slot(site, body, source, representation, cleanup)
+        (Some((representation, cleanup, kind)), Some(source)) =>
+          self.expect_value_shape(
+            site, body, source, representation, cleanup, kind,
+          )
         (None, Some(_)) => self.fail(site, "Unit function must return no slot")
         (Some(_), None) =>
           self.fail(site, "non-Unit function must return a slot")

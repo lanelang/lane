@@ -1,8 +1,9 @@
 ///|
 fn trivial_slot(
   representation : @bytecode.Representation,
+  kind? : @bytecode.SemanticValueKind = ScalarValue,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup: Trivial, erased_companion: None }
+  { representation, cleanup: Trivial, kind, erased_companion: None }
 }
 
 ///|
@@ -55,7 +56,7 @@ test "interpreter executes direct and runtime calls once" {
   let add_one = body(
     slots=[trivial_slot(I64), trivial_slot(I64), trivial_slot(I64)],
     parameters=[{ value: 0 }],
-    result=Value(I64, Trivial),
+    result=Value(I64, Trivial, ScalarValue),
     instructions=[
       ConstI64({ value: 1 }, 1L),
       I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
@@ -65,16 +66,21 @@ test "interpreter executes direct and runtime calls once" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
       {
         witness_count: 0,
-        parameters: [{ representation: I64, cleanup: Trivial }],
-        result: Value(I64, Trivial),
+        parameters: [
+          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+        ],
+        result: Value(I64, Trivial, ScalarValue),
       },
       {
         witness_count: 0,
-        parameters: [{ representation: I64, cleanup: Trivial }],
+        parameters: [
+          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+        ],
         result: Unit,
       },
     ],
@@ -146,6 +152,7 @@ test "interpreter initializer and entry share one runtime context" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [
@@ -204,6 +211,7 @@ test "interpreter execution can be interrupted" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry)],
@@ -234,6 +242,7 @@ test "interpreter rejects ownership-only CallValue ABI mismatch before dispatch"
   let callable : @bytecode.SlotMetadata = {
     representation: I64,
     cleanup: OwnedCallable,
+    kind: CallableValue,
     erased_companion: None,
   }
   let entry = body(
@@ -249,6 +258,7 @@ test "interpreter rejects ownership-only CallValue ABI mismatch before dispatch"
   let owned_ref : @bytecode.SlotMetadata = {
     representation: I32,
     cleanup: OwnedRef,
+    kind: ByteSequenceValue,
     erased_companion: None,
   }
   let target = body(
@@ -261,16 +271,21 @@ test "interpreter rejects ownership-only CallValue ABI mismatch before dispatch"
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
       {
         witness_count: 0,
-        parameters: [{ representation: I32, cleanup: Trivial }],
+        parameters: [
+          { representation: I32, cleanup: Trivial, kind: ScalarValue },
+        ],
         result: Unit,
       },
       {
         witness_count: 0,
-        parameters: [{ representation: I32, cleanup: OwnedRef }],
+        parameters: [
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+        ],
         result: Unit,
       },
     ],
@@ -323,6 +338,7 @@ test "interpreter synthesizes logical Unit runtime arguments" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [
@@ -364,6 +380,7 @@ test "tail calls preserve logical call depth" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry), BytecodeBody(target)],
@@ -385,34 +402,25 @@ test "tail calls preserve logical call depth" {
 
 ///|
 test "object witnesses load independently from data and environment members" {
-  let mut observed = 0
-  let registry = @runtime.RuntimeRegistry::new()
-  registry.register(
-    @runtime.RuntimeBinding::new(
-      symbol="lane.test.object_witness",
-      abi_major=1,
-      parameters=[Bool],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [Bool(true)] {
-          observed += 1
-        }
-        Unit
-      },
-    ),
-  )
-  let owned_ref : @bytecode.SlotMetadata = {
+  let data_ref : @bytecode.SlotMetadata = {
     representation: I32,
     cleanup: OwnedRef,
+    kind: DataValue({ value: 0 }),
+    erased_companion: None,
+  }
+  let environment_ref : @bytecode.SlotMetadata = {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: EnvironmentValue({ value: 1 }),
     erased_companion: None,
   }
   let entry = body(
     slots=[
-      trivial_slot(I32),
-      owned_ref,
-      trivial_slot(I32),
-      owned_ref,
-      trivial_slot(I32),
+      trivial_slot(I32, kind=LayoutValue),
+      data_ref,
+      trivial_slot(I32, kind=LayoutValue),
+      environment_ref,
+      trivial_slot(I32, kind=LayoutValue),
     ],
     result=Unit,
     instructions=[
@@ -425,7 +433,6 @@ test "object witnesses load independently from data and environment members" {
         [],
       ),
       LoadObjectWitness({ value: 2 }, { value: 0 }, { value: 1 }, 0),
-      CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
       Release({ value: 1 }),
       MakeEnv(
         { value: 3 },
@@ -435,7 +442,6 @@ test "object witnesses load independently from data and environment members" {
         [],
       ),
       LoadObjectWitness({ value: 4 }, { value: 1 }, { value: 3 }, 0),
-      CallDirect({ value: 2 }, None, [], [{ value: 4 }], None),
       Release({ value: 3 }),
     ],
     terminator=Return(None),
@@ -443,37 +449,27 @@ test "object witnesses load independently from data and environment members" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
-    callable_abis: [
-      { witness_count: 0, parameters: [], result: Unit },
-      {
-        witness_count: 0,
-        parameters: [{ representation: I32, cleanup: Trivial }],
-        result: Unit,
-      },
-    ],
+    data_family_count: 1,
+    callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
-    functions: [
-      BytecodeBody(entry),
-      RuntimeImport({
-        abi_major: 1,
-        parameters: [Bool],
-        result: Unit,
-        symbol: "lane.test.object_witness",
-      }),
-    ],
+    functions: [BytecodeBody(entry)],
     layouts: [Bool, Data({ value: 0 }), Environment({ value: 1 })],
     object_shapes: [
-      Data({ constructor_tag: 0, stored_witness_count: 1, members: [] }),
+      Data({
+        family: { value: 0 },
+        constructor_tag: 0,
+        stored_witness_count: 1,
+        members: [],
+      }),
       Environment({ stored_witness_count: 1, members: [] }),
     ],
     constants: [],
   }
-  let loaded = match load(image, registry) {
+  let loaded = match load(image, @runtime.RuntimeRegistry::new()) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.new_instance().execute(), Ok(()))
-  assert_eq(observed, 2)
 }
 
 ///|
@@ -493,6 +489,7 @@ test "returning calls enforce logical depth" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(entry), BytecodeBody(target)],
@@ -523,6 +520,7 @@ test "non-positive execution limits provide zero budget" {
   let empty_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(empty_entry)],
@@ -545,6 +543,7 @@ test "non-positive execution limits provide zero budget" {
   let owned_string : @bytecode.SlotMetadata = {
     representation: I32,
     cleanup: OwnedRef,
+    kind: ByteSequenceValue,
     erased_companion: None,
   }
   let allocating_entry = body(
@@ -561,6 +560,7 @@ test "non-positive execution limits provide zero budget" {
   let allocating_image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     globals: [],
     functions: [BytecodeBody(allocating_entry)],

@@ -46,7 +46,12 @@ The following tested example constructs a bytecode image without Lane, round-tri
 fn example_trivial_slot(
   representation : @bytecode.Representation,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup: Trivial, erased_companion: None }
+  {
+    representation,
+    cleanup: Trivial,
+    kind: ScalarValue,
+    erased_companion: None,
+  }
 }
 
 ///|
@@ -78,11 +83,14 @@ fn example_image() -> @bytecode.BytecodeImage {
   {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
       {
         witness_count: 0,
-        parameters: [{ representation: I64, cleanup: Trivial }],
+        parameters: [
+          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+        ],
         result: Unit,
       },
     ],

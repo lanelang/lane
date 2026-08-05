@@ -94,8 +94,10 @@ test "F32 host ABI agrees across interpreter and Wasm backends" {
       { witness_count: 0, parameters: [], result: Unit },
       {
         witness_count: 0,
-        parameters: [{ representation: F32, cleanup: Trivial }],
-        result: Value(F32, Trivial),
+        parameters: [
+          { representation: F32, cleanup: Trivial, kind: ScalarValue },
+        ],
+        result: Value(F32, Trivial, ScalarValue),
       },
     ],
     functions: [

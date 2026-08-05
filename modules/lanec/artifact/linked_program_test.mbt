@@ -10,6 +10,7 @@ fn minimal_loisvm_image() -> @loisvm_bytecode.BytecodeImage {
     entry: { value: 1 },
     initializer: None,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    data_family_count: 0,
     functions: [BytecodeBody(body)],
     globals: [],
     layouts: [],
@@ -23,7 +24,7 @@ test "linked program contains only current LoisVM bytecode" {
   let image = minimal_loisvm_image()
   let binary = loisvm_linked_program_to_binary(image)
   assert_eq(parse_loisvm_linked_program_binary(binary), Ok(image))
-  assert_eq(binary.length(), 98)
+  assert_eq(binary.length(), 102)
 }
 
 ///|
@@ -39,7 +40,7 @@ test "linked program inspection delegates to LoisVM" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 10
+      #|schema: 11
       #|
       #|LoisVM bytecode
       #|entry: f1
@@ -70,14 +71,14 @@ test "linked program inspection delegates to LoisVM" {
 }
 
 ///|
-test "schema 10 rejects schema 9 linked program payload" {
+test "schema 11 rejects schema 10 linked program payload" {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_raw_bytes(
     Bytes::from_array([b'L', b'A', b'N', b'E', b'A', b'R', b'T', b'\x00']),
   )
   writer.write_u8(1)
   writer.write_u8(3)
-  writer.write_u32_le_int(9)
+  writer.write_u32_le_int(10)
   writer.write_u32_le_int(4)
   let result = parse_loisvm_linked_program_binary(writer.to_bytes())
   assert_true(result is Err(_))
@@ -191,7 +192,12 @@ test "linked program roundtrips and inspects instance globals" {
   }
   assert_eq(image.initializer, Some({ value: 2 }))
   assert_eq(image.globals, [
-    { representation: I32, cleanup: OwnedRef, erased_companion: None },
+    {
+      representation: I32,
+      cleanup: OwnedRef,
+      kind: ByteSequenceValue,
+      erased_companion: None,
+    },
   ])
   let text = match artifact_binary_to_inspect_text(binary) {
     Ok(text) => text
@@ -201,7 +207,7 @@ test "linked program roundtrips and inspects instance globals" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 10
+      #|schema: 11
       #|
       #|LoisVM bytecode
       #|entry: f1
@@ -219,8 +225,8 @@ test "linked program roundtrips and inspects instance globals" {
       #|  parameters=[]
       #|) -> unit {
       #|  slots:
-      #|    %0: i32 + trivial
-      #|    %1: i32 + owned_ref
+      #|    %0: i32 + trivial + ByteSequenceValue
+      #|    %1: i32 + owned_ref + ByteSequenceValue
       #|  b0([]):
       #|    borrow_global %0, g0
       #|    retain_copy %1, %0
@@ -233,7 +239,7 @@ test "linked program roundtrips and inspects instance globals" {
       #|  parameters=[]
       #|) -> unit {
       #|  slots:
-      #|    %0: i32 + owned_ref
+      #|    %0: i32 + owned_ref + ByteSequenceValue
       #|  b0([]):
       #|    call_direct %0 = f4 env=none witnesses=[] arguments=[]
       #|    init_global g0, %0
@@ -256,11 +262,11 @@ test "linked program roundtrips and inspects instance globals" {
       #|
       #|callable ABI table:
       #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
-      #|  abi1 = fn(witnesses=0, parameters=[i32 + owned_ref]) -> unit
-      #|  abi2 = fn(witnesses=0, parameters=[]) -> i32 + owned_ref
+      #|  abi1 = fn(witnesses=0, parameters=[i32 + owned_ref + ByteSequenceValue]) -> unit
+      #|  abi2 = fn(witnesses=0, parameters=[]) -> i32 + owned_ref + ByteSequenceValue
       #|
       #|instance global table:
-      #|  g0 = i32 + owned_ref
+      #|  g0 = i32 + owned_ref + ByteSequenceValue
       #|
     ),
   )

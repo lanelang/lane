@@ -73,8 +73,18 @@ test "executable lowering emits reachable instance globals in source order" {
   assert_eq(image.entry, { value: 1 })
   assert_eq(image.initializer, Some({ value: 2 }))
   assert_eq(image.globals, [
-    { representation: I32, cleanup: OwnedRef, erased_companion: None },
-    { representation: I32, cleanup: OwnedRef, erased_companion: None },
+    {
+      representation: I32,
+      cleanup: OwnedRef,
+      kind: ByteSequenceValue,
+      erased_companion: None,
+    },
+    {
+      representation: I32,
+      cleanup: OwnedRef,
+      kind: ByteSequenceValue,
+      erased_companion: None,
+    },
   ])
   guard image.functions
     is [

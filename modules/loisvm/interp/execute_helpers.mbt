@@ -389,7 +389,7 @@ fn ExecutionInstance::validate_callable_invocation(
     Some(id) => id
     None => raise InvalidCallable(InvalidTarget(function~))
   }
-  if expected != actual {
+  if !actual.accepts_callsite(expected) {
     raise InvalidCallable(
       AbiMismatch(function~, expected=expected_abi_id, actual=actual_abi_id),
     )
@@ -425,7 +425,12 @@ fn ExecutionInstance::validate_callable_invocation(
   }
   for index, witness in witnesses {
     if frame.body.slots[witness.value] !=
-      { representation: I32, cleanup: Trivial, erased_companion: None } ||
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: LayoutValue,
+        erased_companion: None,
+      } ||
       !value_has_representation(frame.value(witness), I32) {
       raise InvalidCallable(WitnessShapeMismatch(index~))
     }
@@ -435,6 +440,7 @@ fn ExecutionInstance::validate_callable_invocation(
     let parameter = expected.parameters[index]
     if slot.representation != parameter.representation ||
       slot.cleanup != parameter.cleanup ||
+      slot.kind != parameter.kind ||
       !value_has_representation(frame.value(argument), parameter.representation) {
       raise InvalidCallable(ArgumentShapeMismatch(index~))
     }
@@ -444,9 +450,11 @@ fn ExecutionInstance::validate_callable_invocation(
   } else {
     match (expected.result, destination) {
       (Unit, None) => true
-      (Value(representation, cleanup), Some(slot)) => {
+      (Value(representation, cleanup, kind), Some(slot)) => {
         let metadata = frame.body.slots[slot.value]
-        metadata.representation == representation && metadata.cleanup == cleanup
+        metadata.representation == representation &&
+        metadata.cleanup == cleanup &&
+        metadata.kind == kind
       }
       _ => false
     }

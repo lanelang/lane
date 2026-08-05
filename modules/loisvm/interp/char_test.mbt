@@ -4,6 +4,7 @@ test "interpreter executes character constants" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [
       BytecodeBody({

@@ -33,6 +33,7 @@ test "Bytes heap capacity is checked before payload materialization" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [],
     globals: [],
     functions: [],
@@ -57,6 +58,7 @@ test "Bytes heap capacity is checked before shared payload copying" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [],
     globals: [],
     functions: [],

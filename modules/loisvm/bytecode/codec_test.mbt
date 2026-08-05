@@ -29,6 +29,7 @@ fn write_unit_callable_abi_table(writer : @bytecodec.ByteWriter) -> Unit {
   writer.write_u32_le_int(0)
   writer.write_u32_le_int(0)
   writer.write_u8(1)
+  writer.write_u32_le_int(0)
 }
 
 ///|
@@ -47,6 +48,7 @@ fn minimal_image() -> BytecodeImage {
     entry: function(1),
     initializer: None,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    data_family_count: 0,
     functions: [BytecodeBody(minimal_body())],
     globals: [],
     layouts: [],
@@ -65,15 +67,22 @@ fn global_image() -> BytecodeImage {
       BorrowGlobal(slot(2), global(1)),
     ]),
     slots: [
-      { representation: I32, cleanup: Trivial, erased_companion: None },
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: LayoutValue,
+        erased_companion: None,
+      },
       {
         representation: I64,
         cleanup: OwnedErased,
+        kind: ErasedValue,
         erased_companion: Some(slot(0)),
       },
       {
         representation: I64,
         cleanup: OwnedErased,
+        kind: ErasedValue,
         erased_companion: Some(slot(0)),
       },
     ],
@@ -82,12 +91,19 @@ fn global_image() -> BytecodeImage {
     entry: function(1),
     initializer: Some(function(2)),
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    data_family_count: 0,
     functions: [BytecodeBody(minimal_body()), BytecodeBody(initializer)],
     globals: [
-      { representation: I32, cleanup: Trivial, erased_companion: None },
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: LayoutValue,
+        erased_companion: None,
+      },
       {
         representation: I64,
         cleanup: OwnedErased,
+        kind: ErasedValue,
         erased_companion: Some(global(0)),
       },
     ],
@@ -125,6 +141,10 @@ test "minimal bytecode image has stable encoding" {
       #|  0,
       #|  0,
       #|  1,
+      #|  0,
+      #|  0,
+      #|  0,
+      #|  0,
       #|  1,
       #|  0,
       #|  0,
@@ -264,31 +284,38 @@ test "F32 bytecode instructions roundtrip" {
   let f32 : SlotMetadata = {
     representation: F32,
     cleanup: Trivial,
+    kind: ScalarValue,
     erased_companion: None,
   }
   let i32 : SlotMetadata = {
     representation: I32,
     cleanup: Trivial,
+    kind: ScalarValue,
     erased_companion: None,
   }
+  let layout_value : SlotMetadata = { ..i32, kind: LayoutValue }
   let i64 : SlotMetadata = {
     representation: I64,
     cleanup: Trivial,
+    kind: ScalarValue,
     erased_companion: None,
   }
   let f64 : SlotMetadata = {
     representation: F64,
     cleanup: Trivial,
+    kind: ScalarValue,
     erased_companion: None,
   }
   let erased : SlotMetadata = {
     representation: I64,
     cleanup: OwnedErased,
+    kind: ErasedValue,
     erased_companion: Some(slot(6)),
   }
   let string : SlotMetadata = {
     representation: I32,
     cleanup: OwnedRef,
+    kind: ByteSequenceValue,
     erased_companion: None,
   }
   let body = {
@@ -319,7 +346,7 @@ test "F32 bytecode instructions roundtrip" {
       EraseF32(slot(7), slot(2)),
       UneraseF32(slot(2), slot(7)),
     ]),
-    slots: [f32, f32, f32, i32, i64, f64, i32, erased, string],
+    slots: [f32, f32, f32, i32, i64, f64, layout_value, erased, string],
   }
   let image = {
     ..minimal_image(),
@@ -364,9 +391,9 @@ test "global image has canonical disassembly" {
       #|  parameters=[]
       #|) -> unit {
       #|  slots:
-      #|    %0: i32 + trivial
-      #|    %1: i64 + owned_erased, companion=%0
-      #|    %2: i64 + owned_erased, companion=%0
+      #|    %0: i32 + trivial + LayoutValue
+      #|    %1: i64 + owned_erased + ErasedValue, companion=%0
+      #|    %2: i64 + owned_erased + ErasedValue, companion=%0
       #|  b0([]):
       #|    const_layout %0, l1
       #|    erase_unit %1
@@ -379,8 +406,8 @@ test "global image has canonical disassembly" {
       #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
       #|
       #|instance global table:
-      #|  g0 = i32 + trivial
-      #|  g1 = i64 + owned_erased, companion=g0
+      #|  g0 = i32 + trivial + LayoutValue
+      #|  g1 = i64 + owned_erased + ErasedValue, companion=g0
       #|
       #|layout table:
       #|  l1 = unit
@@ -399,12 +426,24 @@ test "function, layout, shape, and constant tables roundtrip" {
       {
         witness_count: 0,
         parameters: [
-          { representation: I64, cleanup: Trivial },
-          { representation: I32, cleanup: OwnedRef },
+          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+          { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
         ],
-        result: Value(I32, OwnedRef),
+        result: Value(I32, OwnedRef, ByteSequenceValue),
+      },
+      {
+        witness_count: 0,
+        parameters: [
+          {
+            representation: I32,
+            cleanup: OwnedRef,
+            kind: @bytecode.AbstractReferenceValue(17),
+          },
+        ],
+        result: Value(I32, OwnedRef, @bytecode.AbstractReferenceValue(17)),
       },
     ],
+    data_family_count: 1,
     functions: [
       BytecodeBody(minimal_body()),
       RuntimeImport({
@@ -431,12 +470,14 @@ test "function, layout, shape, and constant tables roundtrip" {
     ],
     object_shapes: [
       Data({
+        family: { value: 0 },
         constructor_tag: 7,
         stored_witness_count: 1,
         members: [
           {
             representation: I64,
             cleanup: OwnedErased,
+            kind: ErasedValue,
             witness_ordinal: Some(0),
           },
         ],
@@ -444,7 +485,12 @@ test "function, layout, shape, and constant tables roundtrip" {
       Environment({
         stored_witness_count: 0,
         members: [
-          { representation: I32, cleanup: OwnedRef, witness_ordinal: None },
+          {
+            representation: I32,
+            cleanup: OwnedRef,
+            kind: ByteSequenceValue,
+            witness_ordinal: None,
+          },
         ],
       }),
     ],
@@ -477,13 +523,13 @@ test "runtime import disassembly renders complete direct ABI signature" {
       {
         witness_count: 0,
         parameters: [
-          { representation: I32, cleanup: Trivial },
-          { representation: I64, cleanup: Trivial },
-          { representation: F64, cleanup: Trivial },
-          { representation: I32, cleanup: OwnedRef },
-          { representation: I32, cleanup: OwnedRef },
+          { representation: I32, cleanup: Trivial, kind: ScalarValue },
+          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+          { representation: F64, cleanup: Trivial, kind: ScalarValue },
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+          { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
         ],
-        result: Value(I32, OwnedRef),
+        result: Value(I32, OwnedRef, OpaqueReferenceValue),
       },
     ],
     functions: [
@@ -529,7 +575,7 @@ test "runtime import disassembly renders complete direct ABI signature" {
       #|
       #|callable ABI table:
       #|  abi0 = fn(witnesses=0, parameters=[]) -> unit
-      #|  abi1 = fn(witnesses=0, parameters=[i32 + trivial, i64 + trivial, f64 + trivial, i32 + owned_ref, i32 + owned_ref]) -> i32 + owned_ref
+      #|  abi1 = fn(witnesses=0, parameters=[i32 + trivial + ScalarValue, i64 + trivial + ScalarValue, f64 + trivial + ScalarValue, i32 + owned_ref + ByteSequenceValue, i32 + owned_ref + OpaqueReferenceValue]) -> i32 + owned_ref + OpaqueReferenceValue
       #|
     ),
   )
@@ -545,7 +591,7 @@ test "decoder rejects unknown function tag" {
   writer.write_u8(0)
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
-    Err(MalformedEncoding(offset=25, detail="unknown function entry tag 0")),
+    Err(MalformedEncoding(offset=29, detail="unknown function entry tag 0")),
   )
 }
 
@@ -563,7 +609,7 @@ test "decoder rejects unknown runtime value kind" {
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
     Err(
-      MalformedEncoding(offset=34, detail="unknown runtime value kind tag 99"),
+      MalformedEncoding(offset=38, detail="unknown runtime value kind tag 99"),
     ),
   )
 }
@@ -602,13 +648,14 @@ test "decoder preserves truncation offsets with pattern parsing" {
   writer.write_u8(1)
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
-    Err(MalformedEncoding(offset=21, detail="expected function count")),
+    Err(MalformedEncoding(offset=21, detail="expected data family count")),
   )
+  writer.write_u32_le_int(0)
   writer.write_u32_le_int(1)
   writer.write_u8(1)
   assert_eq(
     parse_bytecode_image_binary(writer.to_bytes()),
-    Err(MalformedEncoding(offset=26, detail="expected function body length")),
+    Err(MalformedEncoding(offset=30, detail="expected function body length")),
   )
 }
 
@@ -632,7 +679,7 @@ test "decoder reports u32 values beyond host I64 as resource limits" {
     parse_bytecode_image_binary(writer.to_bytes()),
     Err(
       ResourceLimit(
-        offset=26,
+        offset=30,
         detail="runtime import ABI major exceeds implementation limit",
       ),
     ),
@@ -668,6 +715,7 @@ test "decoder validates initializer and global metadata" {
       {
         representation: I64,
         cleanup: OwnedErased,
+        kind: ErasedValue,
         erased_companion: Some(global(0)),
       },
     ],
@@ -690,18 +738,26 @@ test "global count beyond host I64 is a resource limit" {
   let image = {
     ..minimal_image(),
     initializer: Some(function(1)),
-    globals: [{ representation: I32, cleanup: Trivial, erased_companion: None }],
+    data_family_count: 0,
+    globals: [
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        erased_companion: None,
+      },
+    ],
   }
   let bytes = bytecode_image_to_binary(image).to_array()
-  bytes[64] = b'\xFF'
-  bytes[65] = b'\xFF'
-  bytes[66] = b'\xFF'
-  bytes[67] = b'\xFF'
+  bytes[68] = b'\xFF'
+  bytes[69] = b'\xFF'
+  bytes[70] = b'\xFF'
+  bytes[71] = b'\xFF'
   assert_eq(
     parse_bytecode_image_binary(Bytes::from_array(bytes)),
     Err(
       ResourceLimit(
-        offset=64,
+        offset=68,
         detail="instance global count exceeds implementation limit",
       ),
     ),
@@ -709,7 +765,7 @@ test "global count beyond host I64 is a resource limit" {
 }
 
 ///|
-test "decoder accepts UTF-8 constants and rejects malformed UTF-8" {
+test "binary loader verifies String constant semantics after decoding" {
   let utf8 = { ..minimal_image(), constants: [@utf8.encode("中\u{0}🙂")] }
   assert_eq(
     parse_bytecode_image_binary(bytecode_image_to_binary(utf8)),
@@ -722,24 +778,34 @@ test "decoder accepts UTF-8 constants and rejects malformed UTF-8" {
   assert_eq(
     parse_bytecode_image_binary(bytecode_image_to_binary(malformed_utf8)),
     Err(
-      MalformedEncoding(
-        offset=84,
-        detail="String constant must contain valid UTF-8",
+      InvalidBytecode(
+        error=InvalidBytecode(
+          site=Image,
+          detail="String constant must contain valid UTF-8",
+        ),
       ),
     ),
   )
 }
 
 ///|
-test "decoder rejects invalid Char constants" {
+test "binary loader verifies Char semantics after decoding" {
   let results = []
   for value in [-1, 0xD800, 0xDFFF, 0x110000] {
     let image = {
       ..minimal_image(),
       functions: [
-        BytecodeBody(
-          minimal_body(instructions=[ConstChar({ value: 0 }, value)]),
-        ),
+        BytecodeBody({
+          ..minimal_body(instructions=[ConstChar({ value: 0 }, value)]),
+          slots: [
+            {
+              representation: I32,
+              cleanup: Trivial,
+              kind: ScalarValue,
+              erased_companion: None,
+            },
+          ],
+        }),
       ],
     }
     results.push(parse_bytecode_image_binary(bytecode_image_to_binary(image)))
@@ -749,27 +815,35 @@ test "decoder rejects invalid Char constants" {
     content=(
       #|[
       #|  Err(
-      #|    MalformedEncoding(
-      #|      offset=64,
-      #|      detail="Char constant -1 is not a Unicode scalar value",
+      #|    InvalidBytecode(
+      #|      error=InvalidBytecode(
+      #|        site=Instruction({ value: 1 }, { value: 0 }, 0),
+      #|        detail="Char constant -1 is not a Unicode scalar value",
+      #|      ),
       #|    ),
       #|  ),
       #|  Err(
-      #|    MalformedEncoding(
-      #|      offset=64,
-      #|      detail="Char constant 55296 is not a Unicode scalar value",
+      #|    InvalidBytecode(
+      #|      error=InvalidBytecode(
+      #|        site=Instruction({ value: 1 }, { value: 0 }, 0),
+      #|        detail="Char constant 55296 is not a Unicode scalar value",
+      #|      ),
       #|    ),
       #|  ),
       #|  Err(
-      #|    MalformedEncoding(
-      #|      offset=64,
-      #|      detail="Char constant 57343 is not a Unicode scalar value",
+      #|    InvalidBytecode(
+      #|      error=InvalidBytecode(
+      #|        site=Instruction({ value: 1 }, { value: 0 }, 0),
+      #|        detail="Char constant 57343 is not a Unicode scalar value",
+      #|      ),
       #|    ),
       #|  ),
       #|  Err(
-      #|    MalformedEncoding(
-      #|      offset=64,
-      #|      detail="Char constant 1114112 is not a Unicode scalar value",
+      #|    InvalidBytecode(
+      #|      error=InvalidBytecode(
+      #|        site=Instruction({ value: 1 }, { value: 0 }, 0),
+      #|        detail="Char constant 1114112 is not a Unicode scalar value",
+      #|      ),
       #|    ),
       #|  ),
       #|]
@@ -782,7 +856,12 @@ test "decoder rejects illegal slot metadata" {
   let illegal_body = {
     ..minimal_body(),
     slots: [
-      { representation: I32, cleanup: OwnedCallable, erased_companion: None },
+      {
+        representation: I32,
+        cleanup: OwnedCallable,
+        kind: CallableValue,
+        erased_companion: None,
+      },
     ],
   }
   let illegal_image = {
@@ -808,8 +887,15 @@ test "decoder rejects illegal slot metadata" {
 test "result ABI round-trips and decoder rejects ownership mismatch" {
   let owned_result = {
     ..minimal_body(),
-    slots: [{ representation: I32, cleanup: OwnedRef, erased_companion: None }],
-    result: Value(I32, OwnedRef),
+    slots: [
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: ByteSequenceValue,
+        erased_companion: None,
+      },
+    ],
+    result: Value(I32, OwnedRef, ByteSequenceValue),
     blocks: [
       {
         parameters: [],
@@ -822,7 +908,11 @@ test "result ABI round-trips and decoder rejects ownership mismatch" {
     ..minimal_image(),
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
-      { witness_count: 0, parameters: [], result: Value(I32, OwnedRef) },
+      {
+        witness_count: 0,
+        parameters: [],
+        result: Value(I32, OwnedRef, ByteSequenceValue),
+      },
     ],
     functions: [BytecodeBody(minimal_body()), BytecodeBody(owned_result)],
     constants: [b"owned"],
@@ -833,7 +923,14 @@ test "result ABI round-trips and decoder rejects ownership mismatch" {
   )
   let caller = {
     ..minimal_body(),
-    slots: [{ representation: I32, cleanup: OwnedRef, erased_companion: None }],
+    slots: [
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: ByteSequenceValue,
+        erased_companion: None,
+      },
+    ],
     blocks: [
       {
         parameters: [],
@@ -847,8 +944,15 @@ test "result ABI round-trips and decoder rejects ownership mismatch" {
   }
   let scalar_result = {
     ..minimal_body(),
-    slots: [{ representation: I32, cleanup: Trivial, erased_companion: None }],
-    result: Value(I32, Trivial),
+    slots: [
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        erased_companion: None,
+      },
+    ],
+    result: Value(I32, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
@@ -861,7 +965,11 @@ test "result ABI round-trips and decoder rejects ownership mismatch" {
     ..minimal_image(),
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
-      { witness_count: 0, parameters: [], result: Value(I32, Trivial) },
+      {
+        witness_count: 0,
+        parameters: [],
+        result: Value(I32, Trivial, ScalarValue),
+      },
     ],
     functions: [BytecodeBody(caller), BytecodeBody(scalar_result)],
   }

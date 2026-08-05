@@ -45,3 +45,18 @@ fn ImageLowerer::intern_object_shape(
 }
 
 ///|
+fn ImageLowerer::intern_data_family(
+  self : ImageLowerer,
+  owner : @buslane.TypeId,
+) -> @bytecode.DataFamilyId {
+  for index, existing in self.data_families {
+    if existing == owner {
+      return { value: index }
+    }
+  }
+  let family : @bytecode.DataFamilyId = { value: self.data_families.length() }
+  self.data_families.push(owner)
+  family
+}
+
+///|

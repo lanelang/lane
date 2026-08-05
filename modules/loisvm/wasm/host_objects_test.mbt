@@ -6,7 +6,12 @@ priv struct WasmTestHostObject {
 
 ///|
 fn wasm_host_owned_ref_slot() -> @bytecode.SlotMetadata {
-  { representation: I32, cleanup: OwnedRef, erased_companion: None }
+  {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: OpaqueReferenceValue,
+    erased_companion: None,
+  }
 }
 
 ///|
@@ -98,6 +103,7 @@ test "Wasm adapters preserve shared Host Object wrappers" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: wasm_host_callable_abis(),
     globals: [],
     functions: [
@@ -130,9 +136,15 @@ test "Wasm normal shutdown finalizes Host Object globals" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    data_family_count: 0,
     callable_abis: wasm_host_callable_abis(),
     globals: [
-      { representation: I32, cleanup: OwnedRef, erased_companion: None },
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: OpaqueReferenceValue,
+        erased_companion: None,
+      },
     ],
     functions: [
       BytecodeBody(initializer),
@@ -163,6 +175,7 @@ test "Wasm rolls back rejected Host Object results" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: wasm_host_callable_abis(),
     globals: [],
     functions: [
@@ -234,7 +247,12 @@ test "Wasm reports Host Object use after explicit close" {
     slots=[
       owned_ref,
       owned_ref,
-      { representation: I64, cleanup: Trivial, erased_companion: None },
+      {
+        representation: I64,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        erased_companion: None,
+      },
     ],
     instructions=[
       CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
@@ -246,6 +264,7 @@ test "Wasm reports Host Object use after explicit close" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: wasm_host_callable_abis(),
     globals: [],
     functions: [
@@ -278,16 +297,24 @@ test "Wasm reports Host Object use after explicit close" {
 fn wasm_host_callable_abis() -> Array[@bytecode.CallableAbi] {
   [
     { witness_count: 0, parameters: [], result: Unit },
-    { witness_count: 0, parameters: [], result: Value(I32, OwnedRef) },
     {
       witness_count: 0,
-      parameters: [{ representation: I32, cleanup: OwnedRef }],
+      parameters: [],
+      result: Value(I32, OwnedRef, OpaqueReferenceValue),
+    },
+    {
+      witness_count: 0,
+      parameters: [
+        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
+      ],
       result: Unit,
     },
     {
       witness_count: 0,
-      parameters: [{ representation: I32, cleanup: OwnedRef }],
-      result: Value(I64, Trivial),
+      parameters: [
+        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
+      ],
+      result: Value(I64, Trivial, ScalarValue),
     },
   ]
 }

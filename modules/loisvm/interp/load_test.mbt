@@ -24,12 +24,15 @@ test "loader resolves all runtime imports atomically" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
       {
         witness_count: 0,
-        parameters: [{ representation: I64, cleanup: Trivial }],
-        result: Value(I64, Trivial),
+        parameters: [
+          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+        ],
+        result: Value(I64, Trivial, ScalarValue),
       },
     ],
     globals: [],
@@ -114,7 +117,14 @@ test "loader resolves all runtime imports atomically" {
 ///|
 test "loader rejects call result ownership mismatch before execution" {
   let caller : @bytecode.FunctionBody = {
-    slots: [{ representation: I32, cleanup: OwnedRef, erased_companion: None }],
+    slots: [
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: ByteSequenceValue,
+        erased_companion: None,
+      },
+    ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
     result: Unit,
     blocks: [
@@ -129,9 +139,16 @@ test "loader rejects call result ownership mismatch before execution" {
     ],
   }
   let target : @bytecode.FunctionBody = {
-    slots: [{ representation: I32, cleanup: Trivial, erased_companion: None }],
+    slots: [
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        erased_companion: None,
+      },
+    ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: Value(I32, Trivial),
+    result: Value(I32, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
@@ -143,9 +160,14 @@ test "loader rejects call result ownership mismatch before execution" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
-      { witness_count: 0, parameters: [], result: Value(I32, Trivial) },
+      {
+        witness_count: 0,
+        parameters: [],
+        result: Value(I32, Trivial, ScalarValue),
+      },
     ],
     functions: [BytecodeBody(caller), BytecodeBody(target)],
     globals: [],

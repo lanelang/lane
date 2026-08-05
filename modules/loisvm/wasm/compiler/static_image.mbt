@@ -279,22 +279,33 @@ fn build_static_image(
   if callable_table_size > 1 {
     pad_to(writer, 4)
     callable_abi_table_base = writer.length()
-    let callable_abi_ids = Array::make(callable_table_size, -1)
+    let callable_table_abis : Array[@bytecode.CallableAbi?] = Array::make(
+      callable_table_size,
+      None,
+    )
     for function_index, table_index in callable_table_indices {
       if table_index != 0 {
         let function : @bytecode.FunctionId = { value: function_index + 1 }
-        let abi = match image.function_callable_abi_id(function) {
+        let abi = match image.function_callable_abi(function) {
           Some(abi) => abi
           None =>
             raise ValidationFailure(
               detail="callable table target has no canonical ABI",
             )
         }
-        callable_abi_ids[table_index] = abi.value
+        callable_table_abis[table_index] = Some(abi)
       }
     }
-    for abi in callable_abi_ids {
-      writer.write_i32_le(abi)
+    for actual in callable_table_abis {
+      for expected in image.callable_abis {
+        writer.write_i32_le(
+          if actual is Some(actual) && actual.accepts_callsite(expected) {
+            1
+          } else {
+            0
+          },
+        )
+      }
     }
   }
   pad_to(writer, 8)

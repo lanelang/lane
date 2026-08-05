@@ -34,6 +34,10 @@ fn BytecodeVerifier::verify(
   if self.image.functions.is_empty() {
     self.fail(image_site, "function table must be nonempty")
   }
+  if self.image.data_family_count < 0 {
+    self.fail(image_site, "data family count must be nonnegative")
+  }
+  self.verify_runtime_imports_and_constants()
   self.verify_callable_abis()
   for index, entry in self.image.functions {
     let function : FunctionId = { value: index + 1 }
@@ -80,12 +84,17 @@ fn BytecodeVerifier::verify_callable_abis(
       self.fail(site, "callable ABI witness count must be nonnegative")
     }
     for parameter in abi.parameters {
-      if !legal_metadata(parameter.representation, parameter.cleanup) {
+      if !self.legal_metadata(
+          site,
+          parameter.representation,
+          parameter.cleanup,
+          parameter.kind,
+        ) {
         self.fail(site, "callable ABI contains an illegal parameter shape")
       }
     }
-    if abi.result is Value(representation, cleanup) &&
-      !legal_metadata(representation, cleanup) {
+    if abi.result is Value(representation, cleanup, kind) &&
+      !self.legal_metadata(site, representation, cleanup, kind) {
       self.fail(site, "callable ABI contains an illegal result shape")
     }
     for previous in 0..<index {
@@ -93,6 +102,39 @@ fn BytecodeVerifier::verify_callable_abis(
         self.fail(site, "callable ABI table contains a duplicate description")
       }
     }
+  }
+}
+
+///|
+fn BytecodeVerifier::verify_runtime_imports_and_constants(
+  self : BytecodeVerifier,
+) -> Unit raise BytecodeVerificationError {
+  for index, entry in self.image.functions {
+    if entry is RuntimeImport(import_) {
+      let site = BytecodeVerificationSite::Function({ value: index + 1 })
+      if import_.abi_major < 0 {
+        self.fail(site, "runtime import ABI major must be nonnegative")
+      }
+      let symbol = @utf8.encode(import_.symbol)
+      if symbol.is_empty() {
+        self.fail(site, "runtime import symbol must be nonempty")
+      }
+      for byte in symbol {
+        if byte.to_int() > 0x7F {
+          self.fail(site, "runtime import symbol must contain ASCII bytes only")
+        }
+        if byte == b'\x00' {
+          self.fail(site, "runtime import symbol must not contain NUL")
+        }
+      }
+    }
+  }
+  for constant in self.image.constants {
+    ignore(
+      @utf8.decode(constant) catch {
+        _ => self.fail(Image, "String constant must contain valid UTF-8")
+      },
+    )
   }
 }
 
@@ -223,6 +265,63 @@ fn BytecodeVerifier::expect_slot(
 }
 
 ///|
+fn BytecodeVerifier::expect_value_shape(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  body : FunctionBody,
+  id : SlotId,
+  representation : Representation,
+  cleanup : Cleanup,
+  kind : SemanticValueKind,
+) -> Unit raise BytecodeVerificationError {
+  self.expect_slot(site, body, id, representation, cleanup)
+  let actual = self.slot_metadata(site, body, id)
+  if actual.kind != kind {
+    self.fail(
+      site,
+      "SlotId \{id.value} must have \{Repr(kind)} semantic kind, got \{Repr(actual.kind)}",
+    )
+  }
+}
+
+///|
+fn BytecodeVerifier::expect_kind(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  body : FunctionBody,
+  id : SlotId,
+  kind : SemanticValueKind,
+) -> Unit raise BytecodeVerificationError {
+  let actual = self.slot_metadata(site, body, id)
+  if actual.kind != kind {
+    self.fail(
+      site,
+      "SlotId \{id.value} must have \{Repr(kind)} semantic kind, got \{Repr(actual.kind)}",
+    )
+  }
+}
+
+///|
+fn BytecodeVerifier::expect_data_value(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  body : FunctionBody,
+  id : SlotId,
+  family : DataFamilyId?,
+) -> Unit raise BytecodeVerificationError {
+  let actual = self.slot_metadata(site, body, id)
+  guard actual.kind is DataValue(actual_family) else {
+    self.fail(site, "SlotId \{id.value} must hold a Data value")
+  }
+  if family is Some(expected) && actual_family != expected {
+    self.fail(
+      site,
+      "SlotId \{id.value} belongs to DataFamilyId \{actual_family.value}, expected DataFamilyId \{expected.value}",
+    )
+  }
+}
+
+///|
 fn BytecodeVerifier::expect_representation(
   self : BytecodeVerifier,
   site : BytecodeVerificationSite,
@@ -241,19 +340,6 @@ fn BytecodeVerifier::expect_representation(
 }
 
 ///|
-fn BytecodeVerifier::expect_reference_operand(
-  self : BytecodeVerifier,
-  site : BytecodeVerificationSite,
-  body : FunctionBody,
-  id : SlotId,
-) -> Unit raise BytecodeVerificationError {
-  let actual = self.expect_representation(site, body, id, I32)
-  if actual.cleanup != Trivial && actual.cleanup != OwnedRef {
-    self.fail(site, "SlotId \{id.value} must hold a reference value")
-  }
-}
-
-///|
 fn BytecodeVerifier::expect_same_shape(
   self : BytecodeVerifier,
   site : BytecodeVerificationSite,
@@ -264,7 +350,8 @@ fn BytecodeVerifier::expect_same_shape(
   let left_metadata = self.slot_metadata(site, body, left)
   let right_metadata = self.slot_metadata(site, body, right)
   if left_metadata.representation != right_metadata.representation ||
-    left_metadata.cleanup != right_metadata.cleanup {
+    left_metadata.cleanup != right_metadata.cleanup ||
+    left_metadata.kind != right_metadata.kind {
     self.fail(
       site,
       "SlotId \{left.value} and SlotId \{right.value} have incompatible value shapes",
@@ -300,7 +387,12 @@ fn BytecodeVerifier::verify_globals(
 ) -> Unit raise BytecodeVerificationError {
   let site = BytecodeVerificationSite::Image
   for index, global in self.image.globals {
-    if !legal_metadata(global.representation, global.cleanup) {
+    if !self.legal_metadata(
+        site,
+        global.representation,
+        global.cleanup,
+        global.kind,
+      ) {
       self.fail(site, "illegal global representation and cleanup combination")
     }
     match (global.cleanup, global.erased_companion) {
@@ -313,6 +405,7 @@ fn BytecodeVerifier::verify_globals(
         let companion_global = self.image.globals[companion.value]
         if companion_global.representation != I32 ||
           companion_global.cleanup != Trivial ||
+          companion_global.kind != LayoutValue ||
           companion_global.erased_companion is Some(_) {
           self.fail(
             site, "erased global companion must be an I32 Trivial global",
@@ -346,10 +439,25 @@ fn BytecodeVerifier::verify_layouts_and_shapes(
       _ => ()
     }
   }
-  for shape in self.image.object_shapes {
+  for shape_index, shape in self.image.object_shapes {
     match shape {
-      Data(data) =>
+      Data(data) => {
+        if data.family.value < 0 ||
+          data.family.value >= self.image.data_family_count {
+          self.fail(site, "data shape has an out-of-range family")
+        }
+        for previous in 0..<shape_index {
+          if self.image.object_shapes[previous] is Data(previous_data) &&
+            previous_data.family == data.family &&
+            previous_data.constructor_tag == data.constructor_tag {
+            self.fail(
+              site,
+              "data family contains duplicate constructor tag \{data.constructor_tag}",
+            )
+          }
+        }
         self.verify_member_schemas(data.members, data.stored_witness_count)
+      }
       Environment(environment) =>
         self.verify_member_schemas(
           environment.members,
@@ -384,24 +492,60 @@ fn BytecodeVerifier::verify_member_schemas(
     if !legal {
       self.fail(site, "illegal object member schema")
     }
+    if !self.legal_metadata(
+        site,
+        schema.representation,
+        schema.cleanup,
+        schema.kind,
+      ) {
+      self.fail(site, "object member schema has an illegal semantic value kind")
+    }
   }
 }
 
 ///|
-fn legal_metadata(representation : Representation, cleanup : Cleanup) -> Bool {
-  match (representation, cleanup) {
-    (I32, Trivial | OwnedRef) => true
-    (I64, Trivial | OwnedCallable | OwnedErased) => true
-    (F32 | F64, Trivial) => true
-    _ => false
+fn BytecodeVerifier::legal_metadata(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  representation : Representation,
+  cleanup : Cleanup,
+  kind : SemanticValueKind,
+) -> Bool raise BytecodeVerificationError {
+  match kind {
+    ScalarValue => cleanup == Trivial
+    LayoutValue => representation == I32 && cleanup == Trivial
+    CallableValue =>
+      representation == I64 && (cleanup == Trivial || cleanup == OwnedCallable)
+    ByteSequenceValue | OpaqueReferenceValue =>
+      representation == I32 && (cleanup == Trivial || cleanup == OwnedRef)
+    DataValue(family) => {
+      if family.value < 0 || family.value >= self.image.data_family_count {
+        self.fail(site, "DataFamilyId \{family.value} is out of range")
+      }
+      representation == I32 && (cleanup == Trivial || cleanup == OwnedRef)
+    }
+    EnvironmentValue(shape) => {
+      if !(self.object_shape(site, shape) is Environment(_)) {
+        self.fail(site, "environment value kind references a Data shape")
+      }
+      representation == I32 && (cleanup == Trivial || cleanup == OwnedRef)
+    }
+    AbstractReferenceValue(parameter) =>
+      parameter >= 0 &&
+      representation == I32 &&
+      (cleanup == Trivial || cleanup == OwnedRef)
+    ErasedValue => representation == I64 && cleanup == OwnedErased
   }
 }
 
 ///|
-fn result_shape(result : ResultAbi) -> (Representation, Cleanup)? {
+fn result_shape(
+  result : ResultAbi,
+) -> (Representation, Cleanup, SemanticValueKind)? {
   match result {
     Unit => None
-    Value(representation, cleanup) => Some((representation, cleanup))
+    Value(representation, cleanup, kind) =>
+      Some((representation, cleanup, kind))
   }
 }
 

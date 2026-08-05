@@ -34,6 +34,9 @@ fn decode_bytecode_image(
   for _index in 0..<abi_count {
     callable_abis.push(decoder.read_callable_abi())
   }
+  let data_family_count = decoder.read_nonnegative_u32(
+    expected="data family count",
+  )
   let function_count_offset = decoder.offset()
   let function_count = decoder.read_count(minimum_size=1, table="function")
   if function_count == 0 {
@@ -61,9 +64,7 @@ fn decode_bytecode_image(
   let constant_count = decoder.read_count(minimum_size=4, table="constant")
   let constants : Array[Bytes] = []
   for _index in 0..<constant_count {
-    let offset = decoder.offset()
     let constant = decoder.read_bytes(expected="String constant")
-    validate_utf8_bytes(constant, offset=offset + 4, what="String constant")
     constants.push(constant)
   }
   decoder.expect_end(what="bytecode section")
@@ -71,6 +72,7 @@ fn decode_bytecode_image(
     entry,
     initializer,
     callable_abis,
+    data_family_count,
     functions,
     globals,
     layouts,
@@ -100,6 +102,7 @@ fn Decoder::read_callable_abi(
     parameters.push({
       representation: self.read_representation(),
       cleanup: self.read_cleanup(),
+      kind: self.read_semantic_value_kind(),
     })
   }
   { witness_count, parameters, result: self.read_result_abi() }
@@ -130,26 +133,10 @@ fn Decoder::read_runtime_import(
     parameters.push(self.read_runtime_value_kind())
   }
   let result = self.read_runtime_value_kind()
-  let symbol_offset = self.offset()
   let symbol_bytes = self.read_bytes(expected="runtime import symbol")
-  if symbol_bytes.length() == 0 {
-    self.fail_at(symbol_offset + 4, "runtime import symbol must be nonempty")
-  }
-  validate_ascii_bytes(
-    symbol_bytes,
-    offset=symbol_offset + 4,
-    what="runtime import symbol",
-  )
-  for index, byte in symbol_bytes {
-    if byte == b'\x00' {
-      self.fail_at(
-        symbol_offset + 4 + index,
-        "runtime import symbol must not contain NUL",
-      )
-    }
-  }
+  let symbol_offset = self.offset() - symbol_bytes.length()
   let symbol = @utf8.decode(symbol_bytes) catch {
-    _ => self.fail_at(symbol_offset + 4, "runtime import symbol is not ASCII")
+    _ => self.fail_at(symbol_offset, "runtime import symbol is not valid UTF-8")
   }
   { abi_major, parameters, result, symbol }
 }
@@ -221,12 +208,13 @@ fn Decoder::read_slot_metadata(
 ) -> SlotMetadata raise BytecodeDecodeError {
   let representation = self.read_representation()
   let cleanup = self.read_cleanup()
+  let kind = self.read_semantic_value_kind()
   let erased_companion = if cleanup is OwnedErased {
     Some(self.read_slot_id())
   } else {
     None
   }
-  { representation, cleanup, erased_companion }
+  { representation, cleanup, kind, erased_companion }
 }
 
 ///|
@@ -235,12 +223,13 @@ fn Decoder::read_global_metadata(
 ) -> GlobalMetadata raise BytecodeDecodeError {
   let representation = self.read_representation()
   let cleanup = self.read_cleanup()
+  let kind = self.read_semantic_value_kind()
   let erased_companion = if cleanup is OwnedErased {
     Some(self.read_global_id())
   } else {
     None
   }
-  { representation, cleanup, erased_companion }
+  { representation, cleanup, kind, erased_companion }
 }
 
 ///|
@@ -270,13 +259,41 @@ fn Decoder::read_cleanup(self : Decoder) -> Cleanup raise BytecodeDecodeError {
 }
 
 ///|
+fn Decoder::read_semantic_value_kind(
+  self : Decoder,
+) -> SemanticValueKind raise BytecodeDecodeError {
+  let offset = self.offset()
+  match self.read_tag(expected="semantic value kind") {
+    0x01 => ScalarValue
+    0x02 => LayoutValue
+    0x03 => CallableValue
+    0x04 => ByteSequenceValue
+    0x05 =>
+      DataValue({ value: self.read_nonnegative_u32(expected="DataFamilyId") })
+    0x06 => EnvironmentValue(self.read_object_shape_id())
+    0x07 => OpaqueReferenceValue
+    0x08 => ErasedValue
+    0x09 =>
+      AbstractReferenceValue(
+        self.read_nonnegative_u32(expected="abstract reference parameter"),
+      )
+    tag => self.invalid_tag(offset~, domain="semantic value kind", tag~)
+  }
+}
+
+///|
 fn Decoder::read_result_abi(
   self : Decoder,
 ) -> ResultAbi raise BytecodeDecodeError {
   let offset = self.offset()
   match self.read_tag(expected="result tag") {
     0x01 => Unit
-    0x02 => Value(self.read_representation(), self.read_cleanup())
+    0x02 =>
+      Value(
+        self.read_representation(),
+        self.read_cleanup(),
+        self.read_semantic_value_kind(),
+      )
     tag => self.invalid_tag(offset~, domain="result", tag~)
   }
 }
@@ -311,6 +328,9 @@ fn Decoder::read_object_shape(
   let offset = self.offset()
   match self.read_tag(expected="object shape tag") {
     0x01 => {
+      let family : DataFamilyId = {
+        value: self.read_nonnegative_u32(expected="DataFamilyId"),
+      }
       let constructor_tag = self.read_nonnegative_u32(
         expected="constructor tag",
       )
@@ -318,7 +338,7 @@ fn Decoder::read_object_shape(
         expected="stored witness count",
       )
       let members = self.read_member_schemas()
-      Data({ constructor_tag, stored_witness_count, members })
+      Data({ family, constructor_tag, stored_witness_count, members })
     }
     0x02 => {
       let stored_witness_count = self.read_nonnegative_u32(
@@ -340,10 +360,12 @@ fn Decoder::read_member_schemas(
   for _index in 0..<count {
     let representation = self.read_representation()
     let cleanup = self.read_cleanup()
+    let kind = self.read_semantic_value_kind()
     let witness_plus_one = self.read_nonnegative_u32(expected="witness ordinal")
     schemas.push({
       representation,
       cleanup,
+      kind,
       witness_ordinal: if witness_plus_one == 0 {
         None
       } else {
@@ -553,18 +575,8 @@ fn Decoder::read_instruction(
     0x54 => I32Lt(self.read_slot_id(), self.read_slot_id(), self.read_slot_id())
     0x55 => I32ToI64(self.read_slot_id(), self.read_slot_id())
     0x56 => I64ToI32(self.read_slot_id(), self.read_slot_id())
-    0x57 => {
-      let destination = self.read_slot_id()
-      let value_offset = self.offset()
-      let value = self.read_i32(expected="Char constant")
-      guard value.to_char() is Some(scalar) else {
-        self.fail_at(
-          value_offset,
-          "Char constant \{value} is not a Unicode scalar value",
-        )
-      }
-      ConstChar(destination, scalar.to_int())
-    }
+    0x57 =>
+      ConstChar(self.read_slot_id(), self.read_i32(expected="Char constant"))
     0x58 =>
       ByteSequenceEqual(
         self.read_slot_id(),
@@ -968,34 +980,3 @@ fn[T] Decoder::fail_at(
 }
 
 ///|
-fn validate_ascii_bytes(
-  bytes : Bytes,
-  offset~ : Int,
-  what~ : String,
-) -> Unit raise BytecodeDecodeError {
-  for index, byte in bytes {
-    if byte.to_int() > 0x7F {
-      raise MalformedEncoding(
-        offset=offset + index,
-        detail="\{what} must contain ASCII bytes only",
-      )
-    }
-  }
-}
-
-///|
-fn validate_utf8_bytes(
-  bytes : Bytes,
-  offset~ : Int,
-  what~ : String,
-) -> Unit raise BytecodeDecodeError {
-  ignore(
-    @utf8.decode(bytes) catch {
-      _ =>
-        raise MalformedEncoding(
-          offset~,
-          detail="\{what} must contain valid UTF-8",
-        )
-    },
-  )
-}

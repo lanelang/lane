@@ -3,6 +3,7 @@ fn trivial_value(representation : @bytecode.Representation) -> ValueMetadata {
   {
     representation,
     cleanup: Trivial,
+    kind: ScalarValue,
     ownership: Trivial,
     erased_companion: None,
   }
@@ -13,6 +14,7 @@ fn owned_ref_value() -> ValueMetadata {
   {
     representation: I32,
     cleanup: OwnedRef,
+    kind: ByteSequenceValue,
     ownership: Owned,
     erased_companion: None,
   }
@@ -23,6 +25,7 @@ fn borrowed_ref_value() -> ValueMetadata {
   {
     representation: I32,
     cleanup: OwnedRef,
+    kind: ByteSequenceValue,
     ownership: Borrowed,
     erased_companion: None,
   }
@@ -33,6 +36,7 @@ fn borrowed_erased_value(companion : ValueId) -> ValueMetadata {
   {
     representation: I64,
     cleanup: OwnedErased,
+    kind: ErasedValue,
     ownership: Borrowed,
     erased_companion: Some(companion),
   }
@@ -43,6 +47,7 @@ fn test_image(body : FunctionBody) -> Image {
   {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     functions: [Body(body)],
     globals: [],
     layouts: [ByteSequence],
@@ -84,7 +89,12 @@ test "finalize transfers global owners and promotes global borrows" {
         }),
       ],
       globals: [
-        { representation: I32, cleanup: OwnedRef, erased_companion: None },
+        {
+          representation: I32,
+          cleanup: OwnedRef,
+          kind: ByteSequenceValue,
+          erased_companion: None,
+        },
       ],
     }) {
     Ok(value) => value
@@ -95,7 +105,12 @@ test "finalize transfers global owners and promotes global borrows" {
   }
   assert_eq(image.initializer, Some({ value: 1 }))
   assert_eq(image.globals, [
-    { representation: I32, cleanup: OwnedRef, erased_companion: None },
+    {
+      representation: I32,
+      cleanup: OwnedRef,
+      kind: ByteSequenceValue,
+      erased_companion: None,
+    },
   ])
   assert_eq(lowered.slots.length(), 3)
   assert_eq(lowered.blocks[0].instructions, [
@@ -110,7 +125,10 @@ test "finalize transfers global owners and promotes global borrows" {
 ///|
 test "finalize preserves erased companions for promoted global borrows" {
   let body : FunctionBody = {
-    values: [trivial_value(I32), borrowed_erased_value({ value: 0 })],
+    values: [
+      { ..trivial_value(I32), kind: LayoutValue },
+      borrowed_erased_value({ value: 0 }),
+    ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
     result: Unit,
     blocks: [
@@ -144,15 +162,22 @@ test "finalize preserves erased companions for promoted global borrows" {
     fail("expected bytecode body")
   }
   assert_eq(lowered.slots, [
-    { representation: I32, cleanup: Trivial, erased_companion: None },
+    {
+      representation: I32,
+      cleanup: Trivial,
+      kind: LayoutValue,
+      erased_companion: None,
+    },
     {
       representation: I64,
       cleanup: OwnedErased,
+      kind: ErasedValue,
       erased_companion: Some({ value: 0 }),
     },
     {
       representation: I64,
       cleanup: OwnedErased,
+      kind: ErasedValue,
       erased_companion: Some({ value: 0 }),
     },
   ])
@@ -239,7 +264,7 @@ test "finalize transfers an owned return without releasing it" {
   let body : FunctionBody = {
     values: [owned_ref_value()],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: Value(I32, OwnedRef),
+    result: Value(I32, OwnedRef, ByteSequenceValue),
     blocks: [
       {
         parameters: [],
@@ -269,7 +294,7 @@ test "finalize preserves object witness loads as non-consuming reads" {
       witnesses: [],
       user_parameters: [{ value: 0 }],
     },
-    result: Value(I32, Trivial),
+    result: Value(I32, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
@@ -446,6 +471,7 @@ test "finalize threads an owned function input into its using branch" {
   let callable : ValueMetadata = {
     representation: I64,
     cleanup: OwnedCallable,
+    kind: CallableValue,
     ownership: Owned,
     erased_companion: None,
   }
@@ -456,7 +482,7 @@ test "finalize threads an owned function input into its using branch" {
       witnesses: [],
       user_parameters: [{ value: 0 }, { value: 1 }],
     },
-    result: Value(I32, Trivial),
+    result: Value(I32, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
@@ -512,7 +538,7 @@ test "finalize rejects a borrowed function input used across blocks" {
       witnesses: [],
       user_parameters: [{ value: 0 }, { value: 1 }],
     },
-    result: Value(I64, Trivial),
+    result: Value(I64, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
@@ -546,6 +572,7 @@ test "finalize promotes a borrowed global before it crosses a branch" {
   let borrowed_callable : ValueMetadata = {
     representation: I64,
     cleanup: OwnedCallable,
+    kind: CallableValue,
     ownership: Borrowed,
     erased_companion: None,
   }
@@ -579,7 +606,12 @@ test "finalize promotes a borrowed global before it crosses a branch" {
     finalize({
       ..test_image(body),
       globals: [
-        { representation: I64, cleanup: OwnedCallable, erased_companion: None },
+        {
+          representation: I64,
+          cleanup: OwnedCallable,
+          kind: CallableValue,
+          erased_companion: None,
+        },
       ],
     }) {
     Ok(value) => value

@@ -39,17 +39,33 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|    { witness_count: 0, parameters: [], result: Unit },
       #|    {
       #|      witness_count: 0,
-      #|      parameters: [{ representation: F32, cleanup: Trivial }],
+      #|      parameters: [{ representation: F32, cleanup: Trivial, kind: ScalarValue }],
       #|      result: Unit,
       #|    },
       #|  ],
+      #|  data_family_count: 0,
       #|  functions: [
       #|    BytecodeBody(
       #|      {
       #|        slots: [
-      #|          { representation: F32, cleanup: Trivial, erased_companion: None },
-      #|          { representation: F32, cleanup: Trivial, erased_companion: None },
-      #|          { representation: F32, cleanup: Trivial, erased_companion: None },
+      #|          {
+      #|            representation: F32,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            erased_companion: None,
+      #|          },
+      #|          {
+      #|            representation: F32,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            erased_companion: None,
+      #|          },
+      #|          {
+      #|            representation: F32,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            erased_companion: None,
+      #|          },
       #|        ],
       #|        inputs: { environment: None, witnesses: [], user_parameters: [] },
       #|        result: Unit,
@@ -74,7 +90,14 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|    ),
       #|    BytecodeBody(
       #|      {
-      #|        slots: [{ representation: F32, cleanup: Trivial, erased_companion: None }],
+      #|        slots: [
+      #|          {
+      #|            representation: F32,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            erased_companion: None,
+      #|          },
+      #|        ],
       #|        inputs: { environment: None, witnesses: [], user_parameters: [] },
       #|        result: Unit,
       #|        blocks: [
@@ -103,9 +126,24 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|    ),
       #|  ],
       #|  globals: [
-      #|    { representation: F32, cleanup: Trivial, erased_companion: None },
-      #|    { representation: F32, cleanup: Trivial, erased_companion: None },
-      #|    { representation: F32, cleanup: Trivial, erased_companion: None },
+      #|    {
+      #|      representation: F32,
+      #|      cleanup: Trivial,
+      #|      kind: ScalarValue,
+      #|      erased_companion: None,
+      #|    },
+      #|    {
+      #|      representation: F32,
+      #|      cleanup: Trivial,
+      #|      kind: ScalarValue,
+      #|      erased_companion: None,
+      #|    },
+      #|    {
+      #|      representation: F32,
+      #|      cleanup: Trivial,
+      #|      kind: ScalarValue,
+      #|      erased_companion: None,
+      #|    },
       #|  ],
       #|  layouts: [],
       #|  object_shapes: [],

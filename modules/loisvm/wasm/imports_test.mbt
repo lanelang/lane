@@ -2,8 +2,14 @@
 fn import_test_slot(
   representation : @bytecode.Representation,
   cleanup? : @bytecode.Cleanup = Trivial,
+  kind? : @bytecode.SemanticValueKind = match cleanup {
+    OwnedRef => ByteSequenceValue
+    OwnedCallable => CallableValue
+    OwnedErased => ErasedValue
+    Trivial => ScalarValue
+  },
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup, erased_companion: None }
+  { representation, cleanup, kind, erased_companion: None }
 }
 
 ///|
@@ -38,6 +44,7 @@ fn import_test_image(
     entry: { value: 1 },
     initializer: None,
     callable_abis,
+    data_family_count: 0,
     functions: [BytecodeBody(body), RuntimeImport(import_)],
     globals: [],
     layouts,
@@ -211,16 +218,21 @@ test "String import transports multibyte UTF-8 and embedded NUL" {
   let image : @bytecode.BytecodeImage = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     callable_abis: [
       { witness_count: 0, parameters: [], result: Unit },
       {
         witness_count: 0,
-        parameters: [{ representation: I32, cleanup: OwnedRef }],
-        result: Value(I32, OwnedRef),
+        parameters: [
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+        ],
+        result: Value(I32, OwnedRef, ByteSequenceValue),
       },
       {
         witness_count: 0,
-        parameters: [{ representation: I32, cleanup: OwnedRef }],
+        parameters: [
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+        ],
         result: Unit,
       },
     ],

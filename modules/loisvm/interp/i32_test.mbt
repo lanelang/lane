@@ -2,7 +2,12 @@
 fn i32_test_slot(
   representation : @bytecode.Representation,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup: Trivial, erased_companion: None }
+  {
+    representation,
+    cleanup: Trivial,
+    kind: ScalarValue,
+    erased_companion: None,
+  }
 }
 
 ///|
@@ -28,6 +33,7 @@ fn i32_test_image() -> @bytecode.BytecodeImage {
     entry: { value: 1 },
     initializer: None,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    data_family_count: 0,
     functions: [
       BytecodeBody({
         slots,

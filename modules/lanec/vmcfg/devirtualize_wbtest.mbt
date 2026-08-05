@@ -5,12 +5,14 @@ test "devirtualize uniquely invoked known callables" {
       {
         representation: I64,
         cleanup: OwnedCallable,
+        kind: CallableValue,
         ownership: Owned,
         erased_companion: None,
       },
       {
         representation: I32,
         cleanup: OwnedRef,
+        kind: EnvironmentValue({ value: 0 }),
         ownership: Owned,
         erased_companion: None,
       },
@@ -18,7 +20,7 @@ test "devirtualize uniquely invoked known callables" {
       scalar_metadata(),
     ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: Value(I64, Trivial),
+    result: Value(I64, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
@@ -59,13 +61,14 @@ test "devirtualize known tail calls but preserve escaping closures" {
       {
         representation: I64,
         cleanup: OwnedCallable,
+        kind: CallableValue,
         ownership: Owned,
         erased_companion: None,
       },
       scalar_metadata(),
     ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: Value(I64, Trivial),
+    result: Value(I64, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
@@ -107,6 +110,7 @@ test "devirtualize immediate closure environment into hidden direct arguments" {
   let owned_reference : ValueMetadata = {
     representation: I32,
     cleanup: OwnedRef,
+    kind: ByteSequenceValue,
     ownership: Owned,
     erased_companion: None,
   }
@@ -117,17 +121,23 @@ test "devirtualize immediate closure environment into hidden direct arguments" {
   let callable : ValueMetadata = {
     representation: I64,
     cleanup: OwnedCallable,
+    kind: CallableValue,
     ownership: Owned,
     erased_companion: None,
   }
   let caller : FunctionBody = {
-    values: [owned_reference, callable, owned_reference, owned_reference],
+    values: [
+      { ..owned_reference, kind: EnvironmentValue({ value: 0 }) },
+      callable,
+      owned_reference,
+      owned_reference,
+    ],
     inputs: {
       environment: None,
       witnesses: [],
       user_parameters: [{ value: 2 }],
     },
-    result: Value(I32, OwnedRef),
+    result: Value(I32, OwnedRef, ByteSequenceValue),
     blocks: [
       {
         parameters: [],
@@ -143,13 +153,16 @@ test "devirtualize immediate closure environment into hidden direct arguments" {
     ],
   }
   let callee : FunctionBody = {
-    values: [owned_reference, borrowed_reference],
+    values: [
+      { ..owned_reference, kind: EnvironmentValue({ value: 0 }) },
+      borrowed_reference,
+    ],
     inputs: {
       environment: Some({ value: 0 }),
       witnesses: [],
       user_parameters: [],
     },
-    result: Value(I32, OwnedRef),
+    result: Value(I32, OwnedRef, ByteSequenceValue),
     blocks: [
       {
         parameters: [],
@@ -166,6 +179,7 @@ test "devirtualize immediate closure environment into hidden direct arguments" {
   let image : Image = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     functions: [Body(caller), Body(callee)],
     globals: [],
     layouts: [Environment({ value: 0 })],
@@ -173,7 +187,12 @@ test "devirtualize immediate closure environment into hidden direct arguments" {
       Environment({
         stored_witness_count: 0,
         members: [
-          { representation: I32, cleanup: OwnedRef, witness_ordinal: None },
+          {
+            representation: I32,
+            cleanup: OwnedRef,
+            kind: ByteSequenceValue,
+            witness_ordinal: None,
+          },
         ],
       }),
     ],
@@ -205,6 +224,7 @@ test "devirtualize immediate closure environment into hidden direct arguments" {
       #|  {
       #|    representation: I32,
       #|    cleanup: OwnedRef,
+      #|    kind: ByteSequenceValue,
       #|    ownership: Owned,
       #|    erased_companion: None,
       #|  },

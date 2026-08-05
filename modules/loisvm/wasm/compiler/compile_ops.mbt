@@ -999,12 +999,15 @@ fn validate_callable_abi(
     I32Const(static_image.callable_abi_table_base),
     LocalGet(slot_local(parameter_count, callable)),
     I32WrapI64,
+    I32Const(static_image.callable_abis.length()),
+    I32Mul,
+    I32Const(expected.value),
+    I32Add,
     I32Const(2),
     I32Shl,
     I32Add,
     I32Load(0, 2, 0L),
-    I32Const(expected.value),
-    I32Ne,
+    I32Eqz,
     If(Empty, [Unreachable], []),
   ]
 }

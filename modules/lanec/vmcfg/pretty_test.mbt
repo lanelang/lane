@@ -3,24 +3,28 @@ test "VM CFG pretty printer exposes control flow and ownership" {
   let image : Image = {
     entry: { value: 1 },
     initializer: Some({ value: 1 }),
+    data_family_count: 0,
     functions: [
       Body({
         values: [
           {
             representation: I32,
             cleanup: OwnedRef,
+            kind: ByteSequenceValue,
             ownership: Owned,
             erased_companion: None,
           },
           {
             representation: I32,
             cleanup: OwnedRef,
+            kind: ByteSequenceValue,
             ownership: Borrowed,
             erased_companion: None,
           },
           {
             representation: I64,
             cleanup: Trivial,
+            kind: ScalarValue,
             ownership: Trivial,
             erased_companion: None,
           },
@@ -58,7 +62,12 @@ test "VM CFG pretty printer exposes control flow and ownership" {
       }),
     ],
     globals: [
-      { representation: I32, cleanup: OwnedRef, erased_companion: None },
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: ByteSequenceValue,
+        erased_companion: None,
+      },
     ],
     layouts: [ByteSequence],
     object_shapes: [],
@@ -118,6 +127,7 @@ test "VM CFG code view omits image summary" {
   let image : Image = {
     entry: { value: 1 },
     initializer: None,
+    data_family_count: 0,
     functions: [
       Body({
         values: [],

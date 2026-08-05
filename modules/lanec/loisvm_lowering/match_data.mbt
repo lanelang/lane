@@ -348,7 +348,9 @@ fn FunctionLowerer::lower_bool_alternative(
 fn FunctionLowerer::branch_environment_parameter(
   self : FunctionLowerer,
 ) -> @vmcfg.ValueId? {
-  self.environment.map(_ => self.fresh_metadata(environment_metadata()))
+  self.environment.map(environment => {
+    self.fresh_metadata(self.values[environment.value])
+  })
 }
 
 ///|

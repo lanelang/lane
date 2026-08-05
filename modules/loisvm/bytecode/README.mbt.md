@@ -11,7 +11,7 @@ function table, an optional instance initializer, an instance-global table,
 layout recipes, object shapes, and a valid UTF-8 String constant pool.
 `FunctionId` and `LayoutId` are nonzero one-based identifiers;
 `CallableAbiId`, `GlobalId`, `BlockId`, `SlotId`, `ConstantId`, and
-`ObjectShapeId` are zero-based dense table indices.
+`DataFamilyId` and `ObjectShapeId` are zero-based dense table indices.
 
 Each `FunctionEntry` is either a `BytecodeBody` or a `RuntimeImport`. The selected `entry` and optional `initializer` must name no-context, witness-free, zero-argument bytecode bodies returning `Unit`. A nonempty global table requires an initializer, and the initializer must initialize every global exactly once before the selected entry begins.
 
@@ -24,12 +24,28 @@ test "a minimal LoisVM bytecode image round-trips" {
     entry: { value: 1 },
     initializer: None,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    data_family_count: 0,
     functions: [
       BytecodeBody({
         slots: [
-          { representation: I64, cleanup: Trivial, erased_companion: None },
-          { representation: I64, cleanup: Trivial, erased_companion: None },
-          { representation: I64, cleanup: Trivial, erased_companion: None },
+          {
+            representation: I64,
+            cleanup: Trivial,
+            kind: ScalarValue,
+            erased_companion: None,
+          },
+          {
+            representation: I64,
+            cleanup: Trivial,
+            kind: ScalarValue,
+            erased_companion: None,
+          },
+          {
+            representation: I64,
+            cleanup: Trivial,
+            kind: ScalarValue,
+            erased_companion: None,
+          },
         ],
         inputs: { environment: None, witnesses: [], user_parameters: [] },
         result: Unit,
@@ -64,7 +80,19 @@ test "a minimal LoisVM bytecode image round-trips" {
 
 Every `SlotId` has one immutable `SlotMetadata` entry. The representation fixes its physical value class, while cleanup determines whether the slot owns a resource.
 
-Every function result has one `ResultAbi`: `Unit` occupies no slot, while `Value(representation, cleanup)` records both the physical representation and the ownership cleanup contract. A return source, direct-call destination, or statically known tail-call target must match the complete result ABI. Runtime-import result kinds project to the same ABI: scalar kinds are trivial, while String and Opaque results are owned references.
+Every slot, global, member, parameter ABI, and non-Unit result also carries a
+`SemanticValueKind`. Physical representation and cleanup describe storage;
+semantic kind distinguishes scalars, layout witnesses, callables,
+ByteSequences, Data families, exact Environment shapes, external opaque
+references, erased values, and quantified higher-kinded reference
+applications. Equal bits and cleanup do not make different semantic kinds
+interchangeable.
+
+Every function result has one `ResultAbi`: `Unit` occupies no slot, while
+`Value(representation, cleanup, kind)` records physical representation,
+ownership cleanup, and semantic category. A return source, direct-call
+destination, or statically known tail-call target must match the complete
+result ABI.
 
 | Representation | Runtime contents |
 | --- | --- |
@@ -94,19 +122,34 @@ Instruction operands use the following conventions:
 
 `LayoutRecipe` describes a runtime layout. `I64`, `I32`, `F64`, and `F32` are the four trivial numeric layouts, `Char` is the trivial Unicode-scalar layout, `Byte` is the trivial scalar-byte layout, and `ByteSequence` is the single owned packed-byte-sequence layout shared by semantic String and Bytes values. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot.
 
-A `DataShape` stores a constructor tag, stored layout witnesses, and ordered field schemas. An `EnvironmentShape` stores layout witnesses and ordered capture schemas. A `MemberSchema` fixes the member representation and cleanup; an `OwnedErased` member must name the stored-witness ordinal used for its cleanup.
+A `DataShape` stores its `DataFamilyId`, constructor tag, stored layout
+witnesses, and ordered field schemas. The family identifies one nominal data
+boundary while dataflow refines a constructed or tag-switched value to its
+exact `ObjectShapeId`. An `EnvironmentShape` stores layout witnesses and
+ordered capture schemas. A `MemberSchema` fixes representation, cleanup, and
+semantic kind; an `OwnedErased` member must name the stored-witness ordinal
+used for its cleanup.
 
 `ProjectionResult` always names a value destination and may name a layout-witness destination. The optional witness destination is required when the projected member is `OwnedErased` and absent otherwise. `ProjectionSelection` pairs one member index with its destinations.
 
 ## Function ABI
 
-The callee receives an optional hidden environment, ordered layout witnesses, and ordered user arguments in the slots named by `FunctionInputs`. The caller and callee counts and representations must agree exactly.
+The callee receives an optional hidden environment, ordered layout witnesses,
+and ordered user arguments in the slots named by `FunctionInputs`. The caller
+and callee counts and complete value ABIs must agree. An
+`AbstractReferenceValue(parameter)` is instantiated consistently across one
+call's parameters and result; it cannot independently rebind a ByteSequence
+argument into a Data result.
 
-Environments, callable values, and user arguments are transferred into calls. Layout witnesses are borrowed. A non-`Unit` call must provide a destination matching the callee result representation and cleanup; a `Unit` call must omit the destination. `RuntimeImport` parameters of kind `Unit` are zero-width and do not consume an argument slot.
+Environments, callable values, and user arguments are transferred into calls.
+Layout witnesses are borrowed. A non-`Unit` call must provide a destination
+matching the callee's complete result ABI, after consistent abstract-reference
+binding; a `Unit` call must omit the destination. `RuntimeImport` parameters of
+kind `Unit` are zero-width and do not consume an argument slot.
 
 ## Instruction encoding
 
-Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstI32`, `ConstChar`, and `ConstF32` use little-endian 32-bit payloads; `ConstI64` and `ConstF64` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements. A function result ABI uses tag `0x01` for `Unit`, or tag `0x02` followed by one representation tag and one cleanup tag for `Value`.
+Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstI32`, `ConstChar`, and `ConstF32` use little-endian 32-bit payloads; `ConstI64` and `ConstF64` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements. A function result ABI uses tag `0x01` for `Unit`, or tag `0x02` followed by representation, cleanup, and semantic-kind tags for `Value`.
 
 The constructor spelling is the public MoonBit API. The lowercase spelling shown in descriptions is the human-readable disassembly name.
 
@@ -139,10 +182,10 @@ The constructor spelling is the public MoonBit API. The lowercase spelling shown
 Direct calls use `environment=None` for no-context functions and `Some(slot)`
 for functions that require a closure environment. A `CallValue` extracts the
 immediate target and optional environment from the packed callable. The
-verifier checks direct target signatures and the complete physical shape of
+verifier checks direct target signatures and the complete semantic shape of
 every indirect call site. At execution, the interpreter compares the dynamic
-target ABI before consuming operands; the Wasm backend compares the target's
-table-associated ABI identifier before `call_indirect`, then uses an ABI-derived
+target ABI before consuming operands; the Wasm backend checks the target and
+call-site pair in a precomputed compatibility matrix before `call_indirect`, then uses an ABI-derived
 Wasm type. Call depth limits, unresolved imports, and host failures are likewise
 execution failures rather than valid alternate results.
 

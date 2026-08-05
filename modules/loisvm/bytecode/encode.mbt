@@ -7,6 +7,7 @@ pub fn bytecode_image_to_binary(image : BytecodeImage) -> Bytes {
   for abi in image.callable_abis {
     writer.write_callable_abi(abi)
   }
+  writer.write_u32_le_int(image.data_family_count)
   writer.write_u32_le_int(image.functions.length())
   for function in image.functions {
     writer.write_function_entry(function)
@@ -40,6 +41,7 @@ fn @bytecodec.ByteWriter::write_callable_abi(
   for parameter in abi.parameters {
     self.write_representation(parameter.representation)
     self.write_cleanup(parameter.cleanup)
+    self.write_semantic_value_kind(parameter.kind)
   }
   self.write_result_abi(abi.result)
 }
@@ -115,6 +117,7 @@ fn @bytecodec.ByteWriter::write_slot_metadata(
 ) -> Unit {
   self.write_representation(slot.representation)
   self.write_cleanup(slot.cleanup)
+  self.write_semantic_value_kind(slot.kind)
   if slot.cleanup is OwnedErased {
     match slot.erased_companion {
       Some(companion) => self.write_slot_id(companion)
@@ -130,6 +133,7 @@ fn @bytecodec.ByteWriter::write_global_metadata(
 ) -> Unit {
   self.write_representation(global.representation)
   self.write_cleanup(global.cleanup)
+  self.write_semantic_value_kind(global.kind)
   if global.cleanup is OwnedErased {
     match global.erased_companion {
       Some(companion) => self.write_global_id(companion)
@@ -169,16 +173,44 @@ fn @bytecodec.ByteWriter::write_cleanup(
 }
 
 ///|
+fn @bytecodec.ByteWriter::write_semantic_value_kind(
+  self : @bytecodec.ByteWriter,
+  kind : SemanticValueKind,
+) -> Unit {
+  match kind {
+    ScalarValue => self.write_u8(0x01)
+    LayoutValue => self.write_u8(0x02)
+    CallableValue => self.write_u8(0x03)
+    ByteSequenceValue => self.write_u8(0x04)
+    DataValue(family) => {
+      self.write_u8(0x05)
+      self.write_u32_le_int(family.value)
+    }
+    EnvironmentValue(shape) => {
+      self.write_u8(0x06)
+      self.write_object_shape_id(shape)
+    }
+    OpaqueReferenceValue => self.write_u8(0x07)
+    ErasedValue => self.write_u8(0x08)
+    AbstractReferenceValue(parameter) => {
+      self.write_u8(0x09)
+      self.write_u32_le_int(parameter)
+    }
+  }
+}
+
+///|
 fn @bytecodec.ByteWriter::write_result_abi(
   self : @bytecodec.ByteWriter,
   result : ResultAbi,
 ) -> Unit {
   match result {
     Unit => self.write_u8(0x01)
-    Value(representation, cleanup) => {
+    Value(representation, cleanup, kind) => {
       self.write_u8(0x02)
       self.write_representation(representation)
       self.write_cleanup(cleanup)
+      self.write_semantic_value_kind(kind)
     }
   }
 }
@@ -219,6 +251,7 @@ fn @bytecodec.ByteWriter::write_object_shape(
   match shape {
     Data(data) => {
       self.write_u8(0x01)
+      self.write_u32_le_int(data.family.value)
       self.write_u32_le_int(data.constructor_tag)
       self.write_u32_le_int(data.stored_witness_count)
       self.write_u32_le_int(data.members.length())
@@ -244,6 +277,7 @@ fn @bytecodec.ByteWriter::write_member_schema(
 ) -> Unit {
   self.write_representation(schema.representation)
   self.write_cleanup(schema.cleanup)
+  self.write_semantic_value_kind(schema.kind)
   match schema.witness_ordinal {
     None => self.write_u32_le_int(0)
     Some(ordinal) => self.write_u32_le_int(ordinal + 1)

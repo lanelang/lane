@@ -3,6 +3,7 @@ fn scalar_metadata() -> ValueMetadata {
   {
     representation: I64,
     cleanup: Trivial,
+    kind: ScalarValue,
     ownership: Trivial,
     erased_companion: None,
   }
@@ -15,6 +16,7 @@ test "simplify preserves layout values named by erased companions" {
       {
         representation: I32,
         cleanup: Trivial,
+        kind: LayoutValue,
         ownership: Trivial,
         erased_companion: None,
       },
@@ -22,6 +24,7 @@ test "simplify preserves layout values named by erased companions" {
       {
         representation: I64,
         cleanup: OwnedErased,
+        kind: ErasedValue,
         ownership: Owned,
         erased_companion: Some({ value: 0 }),
       },
@@ -51,7 +54,7 @@ test "simplify VM CFG folds branches and threads empty blocks" {
   let body : FunctionBody = {
     values: [scalar_metadata(), scalar_metadata(), scalar_metadata()],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: Value(I64, Trivial),
+    result: Value(I64, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
@@ -107,7 +110,7 @@ test "simplify VM CFG removes unused parameters and dead scalar work" {
       witnesses: [],
       user_parameters: [{ value: 0 }],
     },
-    result: Value(I64, Trivial),
+    result: Value(I64, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
@@ -162,7 +165,7 @@ test "simplify VM CFG reuses local constants and scalar slots" {
       scalar_metadata(),
     ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: Value(I64, Trivial),
+    result: Value(I64, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],

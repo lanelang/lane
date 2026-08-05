@@ -192,7 +192,7 @@ fn wasm_function_results(
 ) -> Array[@wasm_types.ValueType] {
   match result {
     Unit => []
-    Value(representation, _) => [wasm_representation(representation)]
+    Value(representation, _, _) => [wasm_representation(representation)]
   }
 }
 

@@ -30,7 +30,7 @@ fn ImageLowerer::lower_function_body(
     }
   }
   if environment_shape is Some(shape) {
-    let environment = lowerer.fresh_metadata(environment_metadata())
+    let environment = lowerer.fresh_metadata(environment_metadata(shape))
     lowerer.environment = Some(environment)
     for index, parameter in captured_parameters {
       let witness = lowerer.fresh_metadata(layout_witness_metadata())

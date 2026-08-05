@@ -504,8 +504,8 @@ fn render_cleanup(cleanup : @bytecode.Cleanup) -> String {
 fn render_result(result : @bytecode.ResultAbi) -> String {
   match result {
     Unit => "unit"
-    Value(representation, cleanup) =>
-      "\{render_representation(representation)} + \{render_cleanup(cleanup)}"
+    Value(representation, cleanup, kind) =>
+      "\{render_representation(representation)} + \{render_cleanup(cleanup)} + \{Repr(kind)}"
   }
 }
 

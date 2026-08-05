@@ -19,9 +19,17 @@ fn global_test_image(
   {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [BytecodeBody(initializer), BytecodeBody(entry)],
-    globals: [{ representation: I64, cleanup: Trivial, erased_companion: None }],
+    globals: [
+      {
+        representation: I64,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        erased_companion: None,
+      },
+    ],
     layouts: [],
     object_shapes: [],
     constants: [],
@@ -33,6 +41,7 @@ test "loader rejects invalid instance-global initialization" {
   let trivial_i64 : @bytecode.SlotMetadata = {
     representation: I64,
     cleanup: Trivial,
+    kind: ScalarValue,
     erased_companion: None,
   }
   let duplicate = global_test_image(

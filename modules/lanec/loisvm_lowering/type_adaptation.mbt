@@ -21,7 +21,12 @@ fn ImageLowerer::callable_adapter(
     Environment({
       stored_witness_count: captured_parameters.length(),
       members: [
-        { representation: I64, cleanup: OwnedCallable, witness_ordinal: None },
+        {
+          representation: I64,
+          cleanup: OwnedCallable,
+          kind: CallableValue,
+          witness_ordinal: None,
+        },
       ],
     }),
   )
@@ -190,7 +195,9 @@ fn FunctionLowerer::make_callable_adapter(
   let witnesses = plan.captured_parameters.map(parameter => {
     self.adapter_witness(parameter, adapter_substitutions)
   })
-  let environment = self.fresh_metadata(environment_metadata())
+  let environment = self.fresh_metadata(
+    environment_metadata(plan.environment_shape),
+  )
   let environment_layout = self.image.intern_layout(
     Environment(plan.environment_shape),
   )
@@ -553,7 +560,9 @@ fn ImageLowerer::lower_callable_adapter(
       }
     }
   }
-  let environment = lowerer.fresh_metadata(environment_metadata())
+  let environment = lowerer.fresh_metadata(
+    environment_metadata(plan.environment_shape),
+  )
   lowerer.environment = Some(environment)
   for index, parameter in plan.captured_parameters {
     let witness = lowerer.fresh_metadata(layout_witness_metadata())

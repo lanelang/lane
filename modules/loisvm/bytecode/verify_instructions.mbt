@@ -22,7 +22,8 @@ fn BytecodeVerifier::verify_instruction(
       let destination_metadata = self.slot_metadata(site, body, destination)
       let source_metadata = self.slot_metadata(site, body, source)
       if destination_metadata.cleanup == Trivial ||
-        destination_metadata.representation != source_metadata.representation {
+        destination_metadata.representation != source_metadata.representation ||
+        destination_metadata.kind != source_metadata.kind {
         self.fail(
           site, "RetainCopy requires a nontrivial compatible destination",
         )
@@ -36,21 +37,62 @@ fn BytecodeVerifier::verify_instruction(
     }
     Release(source) => ignore(self.slot_metadata(site, body, source))
     ConstI64(destination, _) =>
-      self.expect_slot(site, body, destination, I64, Trivial)
-    ConstI32(destination, _)
-    | ConstChar(destination, _)
-    | ConstBool(destination, _) =>
-      self.expect_slot(site, body, destination, I32, Trivial)
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        I64,
+        Trivial,
+        ScalarValue,
+      )
+    ConstI32(destination, _) | ConstBool(destination, _) =>
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        I32,
+        Trivial,
+        ScalarValue,
+      )
+    ConstChar(destination, value) => {
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        I32,
+        Trivial,
+        ScalarValue,
+      )
+      if value.to_char() is None {
+        self.fail(site, "Char constant \{value} is not a Unicode scalar value")
+      }
+    }
     ConstF64(destination, _) =>
-      self.expect_slot(site, body, destination, F64, Trivial)
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        F64,
+        Trivial,
+        ScalarValue,
+      )
     ConstF32(destination, _) =>
-      self.expect_slot(site, body, destination, F32, Trivial)
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        F32,
+        Trivial,
+        ScalarValue,
+      )
     ConstLayout(destination, layout) => {
       self.expect_slot(site, body, destination, I32, Trivial)
+      self.expect_kind(site, body, destination, LayoutValue)
       ignore(self.layout_recipe(site, layout))
     }
     ConstFunction(destination, target) => {
       self.expect_slot(site, body, destination, I64, OwnedCallable)
+      self.expect_kind(site, body, destination, CallableValue)
       match self.function_entry(site, target) {
         BytecodeBody(target_body) =>
           if target_body.inputs.environment is Some(_) {
@@ -61,6 +103,7 @@ fn BytecodeVerifier::verify_instruction(
     }
     ConstString(destination, constant) => {
       self.expect_slot(site, body, destination, I32, OwnedRef)
+      self.expect_kind(site, body, destination, ByteSequenceValue)
       ignore(self.constant(site, constant))
     }
     CallDirect(target, environment, witnesses, arguments, destination) =>
@@ -76,6 +119,7 @@ fn BytecodeVerifier::verify_instruction(
       )
     CallValue(callable, abi_id, witnesses, arguments, destination) => {
       self.expect_slot(site, body, callable, I64, OwnedCallable)
+      self.expect_kind(site, body, callable, CallableValue)
       let abi = self.callable_abi(site, abi_id)
       self.verify_call_abi(
         site,
@@ -92,6 +136,7 @@ fn BytecodeVerifier::verify_instruction(
       guard self.object_shape(site, shape) is Data(data) else {
         self.fail(site, "MakeData requires a Data object shape")
       }
+      self.expect_data_value(site, body, destination, Some(data.family))
       self.verify_object_construction(
         site,
         body,
@@ -109,6 +154,7 @@ fn BytecodeVerifier::verify_instruction(
       guard self.object_shape(site, shape) is Environment(environment_shape) else {
         self.fail(site, "MakeEnv requires an Environment object shape")
       }
+      self.expect_kind(site, body, destination, EnvironmentValue(shape))
       self.verify_object_construction(
         site,
         body,
@@ -123,15 +169,22 @@ fn BytecodeVerifier::verify_instruction(
     }
     LoadTag(destination, source) => {
       self.expect_slot(site, body, destination, I32, Trivial)
-      self.expect_reference_operand(site, body, source)
+      self.expect_kind(site, body, destination, ScalarValue)
+      self.expect_data_value(site, body, source, None)
     }
     LoadObjectWitness(destination, shape, source, ordinal) => {
       self.expect_slot(site, body, destination, I32, Trivial)
-      self.expect_reference_operand(site, body, source)
       let witness_count = match self.object_shape(site, shape) {
-        Data(data) => data.stored_witness_count
-        Environment(environment) => environment.stored_witness_count
+        Data(data) => {
+          self.expect_data_value(site, body, source, Some(data.family))
+          data.stored_witness_count
+        }
+        Environment(environment) => {
+          self.expect_kind(site, body, source, EnvironmentValue(shape))
+          environment.stored_witness_count
+        }
       }
+      self.expect_kind(site, body, destination, LayoutValue)
       if ordinal < 0 || ordinal >= witness_count {
         self.fail(site, "object witness ordinal \{ordinal} is out of range")
       }
@@ -140,7 +193,7 @@ fn BytecodeVerifier::verify_instruction(
       guard self.object_shape(site, shape) is Data(data) else {
         self.fail(site, "BorrowField requires a Data object shape")
       }
-      self.expect_reference_operand(site, body, source)
+      self.expect_data_value(site, body, source, Some(data.family))
       self.verify_projection_result(
         site,
         body,
@@ -154,7 +207,7 @@ fn BytecodeVerifier::verify_instruction(
       guard self.object_shape(site, shape) is Environment(environment) else {
         self.fail(site, "BorrowCapture requires an Environment object shape")
       }
-      self.expect_reference_operand(site, body, source)
+      self.expect_kind(site, body, source, EnvironmentValue(shape))
       self.verify_projection_result(
         site,
         body,
@@ -169,6 +222,7 @@ fn BytecodeVerifier::verify_instruction(
         self.fail(site, "ConsumeFields requires a Data object shape")
       }
       self.expect_slot(site, body, source, I32, OwnedRef)
+      self.expect_data_value(site, body, source, Some(data.family))
       self.verify_projection_selections(site, body, selections, data.members)
     }
     ConsumeCaptures(shape, source, selections) => {
@@ -176,6 +230,7 @@ fn BytecodeVerifier::verify_instruction(
         self.fail(site, "ConsumeCaptures requires an Environment object shape")
       }
       self.expect_slot(site, body, source, I32, OwnedRef)
+      self.expect_kind(site, body, source, EnvironmentValue(shape))
       self.verify_projection_selections(
         site,
         body,
@@ -186,11 +241,22 @@ fn BytecodeVerifier::verify_instruction(
     MakeClosure(destination, target, environment) => {
       self.expect_slot(site, body, destination, I64, OwnedCallable)
       self.expect_slot(site, body, environment, I32, OwnedRef)
+      self.expect_kind(site, body, destination, CallableValue)
       match self.function_entry(site, target) {
-        BytecodeBody(target_body) =>
+        BytecodeBody(target_body) => {
           if target_body.inputs.environment is None {
             self.fail(site, "MakeClosure target does not accept an environment")
           }
+          guard target_body.inputs.environment is Some(target_environment) else {
+            self.fail(site, "MakeClosure target does not accept an environment")
+          }
+          self.expect_kind(
+            site,
+            body,
+            environment,
+            target_body.slots[target_environment.value].kind,
+          )
+        }
         RuntimeImport(_) =>
           self.fail(site, "MakeClosure target must be a bytecode body")
       }
@@ -198,50 +264,73 @@ fn BytecodeVerifier::verify_instruction(
     ByteToI64(destination, source) => {
       self.expect_slot(site, body, destination, I64, Trivial)
       self.expect_slot(site, body, source, I32, Trivial)
+      self.expect_kind(site, body, destination, ScalarValue)
+      self.expect_kind(site, body, source, ScalarValue)
     }
     I64ToByte(destination, source) => {
       self.expect_slot(site, body, destination, I32, Trivial)
       self.expect_slot(site, body, source, I64, Trivial)
+      self.expect_kind(site, body, destination, ScalarValue)
+      self.expect_kind(site, body, source, ScalarValue)
     }
     ByteSequenceMake(destination, length, fill) => {
       self.expect_slot(site, body, destination, I32, OwnedRef)
+      self.expect_kind(site, body, destination, ByteSequenceValue)
       self.expect_slot(site, body, length, I64, Trivial)
       self.expect_slot(site, body, fill, I32, Trivial)
+      self.expect_kind(site, body, length, ScalarValue)
+      self.expect_kind(site, body, fill, ScalarValue)
     }
     ByteSequenceLength(destination, source) => {
       self.expect_slot(site, body, destination, I64, Trivial)
-      self.expect_reference_operand(site, body, source)
+      self.expect_kind(site, body, destination, ScalarValue)
+      self.expect_kind(site, body, source, ByteSequenceValue)
     }
     ByteSequenceGet(destination, source, index) => {
       self.expect_slot(site, body, destination, I32, Trivial)
-      self.expect_reference_operand(site, body, source)
+      self.expect_kind(site, body, destination, ScalarValue)
+      self.expect_kind(site, body, source, ByteSequenceValue)
       self.expect_slot(site, body, index, I64, Trivial)
+      self.expect_kind(site, body, index, ScalarValue)
     }
     ByteSequenceSet(destination, source, index, value) => {
       self.expect_slot(site, body, destination, I32, OwnedRef)
       self.expect_slot(site, body, source, I32, OwnedRef)
+      self.expect_kind(site, body, destination, ByteSequenceValue)
+      self.expect_kind(site, body, source, ByteSequenceValue)
       self.expect_slot(site, body, index, I64, Trivial)
       self.expect_slot(site, body, value, I32, Trivial)
+      self.expect_kind(site, body, index, ScalarValue)
+      self.expect_kind(site, body, value, ScalarValue)
     }
     ByteSequenceEqual(destination, left, right) => {
       self.expect_slot(site, body, destination, I32, Trivial)
-      self.expect_reference_operand(site, body, left)
-      self.expect_reference_operand(site, body, right)
+      self.expect_kind(site, body, destination, ScalarValue)
+      self.expect_kind(site, body, left, ByteSequenceValue)
+      self.expect_kind(site, body, right, ByteSequenceValue)
     }
     ByteSequenceConcat(destination, left, right) => {
       self.expect_slot(site, body, destination, I32, OwnedRef)
       self.expect_slot(site, body, left, I32, OwnedRef)
       self.expect_slot(site, body, right, I32, OwnedRef)
+      self.expect_kind(site, body, destination, ByteSequenceValue)
+      self.expect_kind(site, body, left, ByteSequenceValue)
+      self.expect_kind(site, body, right, ByteSequenceValue)
     }
     ByteSequenceSlice(destination, source, start, length) => {
       self.expect_slot(site, body, destination, I32, OwnedRef)
       self.expect_slot(site, body, source, I32, OwnedRef)
+      self.expect_kind(site, body, destination, ByteSequenceValue)
+      self.expect_kind(site, body, source, ByteSequenceValue)
       self.expect_slot(site, body, start, I64, Trivial)
       self.expect_slot(site, body, length, I64, Trivial)
+      self.expect_kind(site, body, start, ScalarValue)
+      self.expect_kind(site, body, length, ScalarValue)
     }
     ByteSequenceIsValidUtf8(destination, source) => {
       self.expect_slot(site, body, destination, I32, Trivial)
-      self.expect_reference_operand(site, body, source)
+      self.expect_kind(site, body, destination, ScalarValue)
+      self.expect_kind(site, body, source, ByteSequenceValue)
     }
     I32Add(destination, left, right)
     | I32Sub(destination, left, right)
@@ -324,10 +413,12 @@ fn BytecodeVerifier::verify_instruction(
     F32ToString(destination, source) => {
       self.expect_slot(site, body, destination, I32, OwnedRef)
       self.expect_slot(site, body, source, F32, Trivial)
+      self.expect_kind(site, body, destination, ByteSequenceValue)
     }
     F64ToString(destination, source) => {
       self.expect_slot(site, body, destination, I32, OwnedRef)
       self.expect_slot(site, body, source, F64, Trivial)
+      self.expect_kind(site, body, destination, ByteSequenceValue)
     }
     EraseI32(destination, source) =>
       self.verify_erasure(site, body, destination, source, I32)
@@ -346,9 +437,16 @@ fn BytecodeVerifier::verify_instruction(
     UneraseF32(destination, source) =>
       self.verify_unerasure(site, body, destination, source, F32)
     EraseUnit(destination) =>
-      self.expect_slot(site, body, destination, I64, OwnedErased)
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        I64,
+        OwnedErased,
+        ErasedValue,
+      )
     UneraseUnit(source) =>
-      self.expect_slot(site, body, source, I64, OwnedErased)
+      self.expect_value_shape(site, body, source, I64, OwnedErased, ErasedValue)
     InitGlobal(global, source) =>
       self.verify_init_global(site, body, global, source)
     BorrowGlobal(destination, global) =>
@@ -368,6 +466,8 @@ fn BytecodeVerifier::verify_unary(
 ) -> Unit raise BytecodeVerificationError {
   self.expect_slot(site, body, destination, destination_representation, Trivial)
   self.expect_slot(site, body, source, source_representation, Trivial)
+  self.expect_kind(site, body, destination, ScalarValue)
+  self.expect_kind(site, body, source, ScalarValue)
 }
 
 ///|
@@ -384,6 +484,9 @@ fn BytecodeVerifier::verify_binary(
   self.expect_slot(site, body, destination, destination_representation, Trivial)
   self.expect_slot(site, body, left, operand_representation, Trivial)
   self.expect_slot(site, body, right, operand_representation, Trivial)
+  self.expect_kind(site, body, destination, ScalarValue)
+  self.expect_kind(site, body, left, ScalarValue)
+  self.expect_kind(site, body, right, ScalarValue)
 }
 
 ///|
@@ -396,6 +499,7 @@ fn BytecodeVerifier::verify_erasure(
   source_representation : Representation,
 ) -> Unit raise BytecodeVerificationError {
   self.expect_slot(site, body, destination, I64, OwnedErased)
+  self.expect_kind(site, body, destination, ErasedValue)
   ignore(self.expect_representation(site, body, source, source_representation))
 }
 
@@ -414,6 +518,7 @@ fn BytecodeVerifier::verify_unerasure(
     ),
   )
   self.expect_slot(site, body, source, I64, OwnedErased)
+  self.expect_kind(site, body, source, ErasedValue)
 }
 
 ///|
@@ -433,8 +538,15 @@ fn BytecodeVerifier::verify_direct_call(
     BytecodeBody(target_body) =>
       match (target_body.inputs.environment, environment) {
         (None, None) => ()
-        (Some(_), Some(actual)) =>
+        (Some(expected), Some(actual)) => {
           self.expect_slot(site, body, actual, I32, OwnedRef)
+          self.expect_kind(
+            site,
+            body,
+            actual,
+            target_body.slots[expected.value].kind,
+          )
+        }
         _ =>
           self.fail(
             site, "direct-call environment presence does not match target",
@@ -478,47 +590,47 @@ fn BytecodeVerifier::verify_call_abi(
   }
   for witness in witnesses {
     self.expect_slot(site, body, witness, I32, Trivial)
+    self.expect_kind(site, body, witness, LayoutValue)
   }
-  for index in 0..<arguments.length() {
-    let expected = abi.parameters[index]
-    let actual = self.slot_metadata(site, body, arguments[index])
-    if expected.representation != actual.representation ||
-      expected.cleanup != actual.cleanup {
-      self.fail(site, "call argument \{index} has the wrong value shape")
-    }
+  let parameters : Array[ValueAbi] = []
+  for argument in arguments {
+    let metadata = self.slot_metadata(site, body, argument)
+    parameters.push({
+      representation: metadata.representation,
+      cleanup: metadata.cleanup,
+      kind: metadata.kind,
+    })
   }
-  self.verify_call_result(site, body, abi.result, destination, tail_result~)
-}
-
-///|
-fn BytecodeVerifier::verify_call_result(
-  self : BytecodeVerifier,
-  site : BytecodeVerificationSite,
-  caller : FunctionBody,
-  result : ResultAbi,
-  destination : SlotId?,
-  tail_result~ : ResultAbi?,
-) -> Unit raise BytecodeVerificationError {
-  match tail_result {
-    Some(expected) =>
-      if result != expected {
-        self.fail(site, "tail-call result ABI does not match caller")
-      }
+  let result = match tail_result {
+    Some(result) => result
     None =>
-      match (result_shape(result), destination) {
-        (None, None) => ()
-        (Some((representation, cleanup)), Some(destination)) => {
-          let actual = self.slot_metadata(site, caller, destination)
-          if actual.representation != representation ||
-            actual.cleanup != cleanup {
-            self.fail(site, "call result ABI does not match destination slot")
-          }
+      match destination {
+        Some(destination) => {
+          let metadata = self.slot_metadata(site, body, destination)
+          Value(metadata.representation, metadata.cleanup, metadata.kind)
         }
-        (None, Some(_)) =>
-          self.fail(site, "Unit call must omit its destination")
-        (Some(_), None) =>
-          self.fail(site, "non-Unit call requires a destination")
+        None => Unit
       }
+  }
+  match
+    abi.callsite_mismatch({
+      witness_count: witnesses.length(),
+      parameters,
+      result,
+    }) {
+    None => ()
+    Some(CallParameterMismatch(index)) =>
+      self.fail(site, "call argument \{index} has the wrong value shape")
+    Some(CallResultMismatch) =>
+      if tail_result is Some(_) {
+        self.fail(site, "tail-call result ABI does not match caller")
+      } else {
+        self.fail(site, "call result ABI does not match destination slot")
+      }
+    Some(CallShapeMismatch) =>
+      self.fail(
+        site, "callsite value shapes do not instantiate the callable ABI",
+      )
   }
 }
 
@@ -544,13 +656,17 @@ fn BytecodeVerifier::verify_object_construction(
           }
         _ => self.fail(site, "object construction uses the wrong layout recipe")
       }
-    Witness(witness) => self.expect_slot(site, body, witness, I32, Trivial)
+    Witness(witness) => {
+      self.expect_slot(site, body, witness, I32, Trivial)
+      self.expect_kind(site, body, witness, LayoutValue)
+    }
   }
   if witnesses.length() != stored_witness_count {
     self.fail(site, "object construction has the wrong witness count")
   }
   for witness in witnesses {
     self.expect_slot(site, body, witness, I32, Trivial)
+    self.expect_kind(site, body, witness, LayoutValue)
   }
   if values.length() != members.length() {
     self.fail(site, "object construction has the wrong member count")
@@ -564,6 +680,7 @@ fn BytecodeVerifier::verify_object_construction(
       schema.representation,
       schema.cleanup,
     )
+    self.expect_kind(site, body, values[index], schema.kind)
   }
 }
 
@@ -593,9 +710,10 @@ fn BytecodeVerifier::verify_projection_result(
     schema.representation,
     expected_cleanup,
   )
+  self.expect_kind(site, body, result.value_destination, schema.kind)
   match (schema.cleanup, result.witness_destination) {
     (OwnedErased, Some(witness)) =>
-      self.expect_slot(site, body, witness, I32, Trivial)
+      self.expect_value_shape(site, body, witness, I32, Trivial, LayoutValue)
     (OwnedErased, None) =>
       self.fail(site, "OwnedErased projection requires a witness destination")
     (_, Some(_)) =>
@@ -645,7 +763,8 @@ fn BytecodeVerifier::verify_init_global(
     self.fail(site, "InitGlobal cannot target an erased companion global")
   }
   if global_metadata.representation != source_metadata.representation ||
-    global_metadata.cleanup != source_metadata.cleanup {
+    global_metadata.cleanup != source_metadata.cleanup ||
+    global_metadata.kind != source_metadata.kind {
     self.fail(site, "InitGlobal source has the wrong value shape")
   }
 }
@@ -671,4 +790,5 @@ fn BytecodeVerifier::verify_borrow_global(
     global_metadata.representation,
     expected_cleanup,
   )
+  self.expect_kind(site, body, destination, global_metadata.kind)
 }

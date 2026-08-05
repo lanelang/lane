@@ -2,9 +2,15 @@
 fn owned_slot(
   representation : @bytecode.Representation,
   cleanup : @bytecode.Cleanup,
+  kind? : @bytecode.SemanticValueKind = match cleanup {
+    OwnedCallable => CallableValue
+    OwnedRef => ByteSequenceValue
+    OwnedErased => ErasedValue
+    Trivial => ScalarValue
+  },
   erased_companion? : @bytecode.SlotId? = None,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup, erased_companion }
+  { representation, cleanup, kind, erased_companion }
 }
 
 ///|
@@ -15,9 +21,14 @@ fn lifecycle_initializer() -> @bytecode.FunctionBody {
       owned_ref,
       owned_ref,
       owned_ref,
-      owned_ref,
+      owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0 })),
       owned_slot(I64, OwnedCallable),
-      trivial_slot(I32),
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: LayoutValue,
+        erased_companion: None,
+      },
       owned_slot(I64, OwnedErased, erased_companion=Some({ value: 5 })),
       trivial_slot(I64),
     ],
@@ -68,9 +79,24 @@ fn lifecycle_entry(failing? : Bool = false) -> @bytecode.FunctionBody {
   {
     slots: [
       trivial_slot(I64),
-      trivial_slot(I32),
-      trivial_slot(I64),
-      trivial_slot(I32),
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: ByteSequenceValue,
+        erased_companion: None,
+      },
+      {
+        representation: I64,
+        cleanup: Trivial,
+        kind: CallableValue,
+        erased_companion: None,
+      },
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: LayoutValue,
+        erased_companion: None,
+      },
       owned_slot(I64, OwnedErased, erased_companion=Some({ value: 3 })),
     ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
@@ -82,7 +108,7 @@ fn lifecycle_entry(failing? : Bool = false) -> @bytecode.FunctionBody {
 ///|
 fn lifecycle_closure_body() -> @bytecode.FunctionBody {
   {
-    slots: [owned_slot(I32, OwnedRef)],
+    slots: [owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0 }))],
     inputs: {
       environment: Some({ value: 0 }),
       witnesses: [],
@@ -104,6 +130,7 @@ fn lifecycle_image(entry : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
   {
     entry: { value: 2 },
     initializer: Some({ value: 1 }),
+    data_family_count: 0,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
     functions: [
       BytecodeBody(lifecycle_initializer()),
@@ -117,13 +144,34 @@ fn lifecycle_image(entry : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
       }),
     ],
     globals: [
-      { representation: I64, cleanup: Trivial, erased_companion: None },
-      { representation: I32, cleanup: OwnedRef, erased_companion: None },
-      { representation: I64, cleanup: OwnedCallable, erased_companion: None },
-      { representation: I32, cleanup: Trivial, erased_companion: None },
+      {
+        representation: I64,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        erased_companion: None,
+      },
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: ByteSequenceValue,
+        erased_companion: None,
+      },
+      {
+        representation: I64,
+        cleanup: OwnedCallable,
+        kind: CallableValue,
+        erased_companion: None,
+      },
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: LayoutValue,
+        erased_companion: None,
+      },
       {
         representation: I64,
         cleanup: OwnedErased,
+        kind: ErasedValue,
         erased_companion: Some({ value: 3 }),
       },
     ],
@@ -132,7 +180,12 @@ fn lifecycle_image(entry : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
       Environment({
         stored_witness_count: 0,
         members: [
-          { representation: I32, cleanup: OwnedRef, witness_ordinal: None },
+          {
+            representation: I32,
+            cleanup: OwnedRef,
+            kind: ByteSequenceValue,
+            witness_ordinal: None,
+          },
         ],
       }),
     ],

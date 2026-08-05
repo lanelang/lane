@@ -2,12 +2,22 @@
 fn bytes_test_trivial_slot(
   representation : @bytecode.Representation,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup: Trivial, erased_companion: None }
+  {
+    representation,
+    cleanup: Trivial,
+    kind: ScalarValue,
+    erased_companion: None,
+  }
 }
 
 ///|
 fn bytes_test_owned_slot() -> @bytecode.SlotMetadata {
-  { representation: I32, cleanup: OwnedRef, erased_companion: None }
+  {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: ByteSequenceValue,
+    erased_companion: None,
+  }
 }
 
 ///|
@@ -33,6 +43,7 @@ fn execute_bytes_test(
     entry: { value: 1 },
     initializer: None,
     callable_abis: [{ witness_count: 0, parameters: [], result: Unit }],
+    data_family_count: 0,
     globals: [],
     functions: [BytecodeBody(body)],
     layouts: [ByteSequence],
@@ -298,33 +309,56 @@ test "ByteSequence UTF-8 validation rejects every malformed sequence class" {
     (Bytes::from_array([b'\xF4', b'\x90', b'\x80', b'\x80']), false),
     (Bytes::from_array([b'\xF5', b'\x80', b'\x80', b'\x80']), false),
   ]
-  let blocks : Array[@bytecode.Block] = []
-  for index, case in cases {
-    blocks.push({
-      parameters: [],
-      instructions: [
-        ConstString({ value: 0 }, { value: index }),
-        ByteSequenceIsValidUtf8({ value: 1 }, { value: 0 }),
-        ConstBool({ value: 2 }, case.1),
-        BoolEq({ value: 3 }, { value: 1 }, { value: 2 }),
-        Release({ value: 0 }),
-      ],
-      terminator: BranchBool(
-        { value: 3 },
-        { target: { value: index + 1 }, arguments: [] },
-        { target: { value: cases.length() + 1 }, arguments: [] },
+  for case in cases {
+    let (bytes, expected) = case
+    let instructions : Array[@bytecode.Instruction] = [
+      ConstI64({ value: 0 }, bytes.length().to_int64()),
+      ConstI64({ value: 1 }, 0L),
+      I64ToByte({ value: 2 }, { value: 1 }),
+      ByteSequenceMake({ value: 3 }, { value: 0 }, { value: 2 }),
+    ]
+    for index, byte in bytes {
+      instructions.push(ConstI64({ value: 1 }, index.to_int64()))
+      instructions.push(ConstI64({ value: 0 }, byte.to_int().to_int64()))
+      instructions.push(I64ToByte({ value: 2 }, { value: 0 }))
+      instructions.push(
+        ByteSequenceSet({ value: 3 }, { value: 3 }, { value: 1 }, { value: 2 }),
+      )
+    }
+    instructions.push(ByteSequenceIsValidUtf8({ value: 4 }, { value: 3 }))
+    instructions.push(ConstBool({ value: 5 }, expected))
+    instructions.push(BoolEq({ value: 6 }, { value: 4 }, { value: 5 }))
+    instructions.push(Release({ value: 3 }))
+    assert_eq(
+      execute_bytes_test(
+        bytes_test_body(
+          [
+            bytes_test_trivial_slot(I64),
+            bytes_test_trivial_slot(I64),
+            i32,
+            owned,
+            i32,
+            i32,
+            i32,
+          ],
+          [
+            {
+              parameters: [],
+              instructions,
+              terminator: BranchBool(
+                { value: 6 },
+                { target: { value: 1 }, arguments: [] },
+                { target: { value: 2 }, arguments: [] },
+              ),
+            },
+            { parameters: [], instructions: [], terminator: Return(None) },
+            { parameters: [], instructions: [], terminator: Unreachable },
+          ],
+        ),
       ),
-    })
+      Ok(()),
+    )
   }
-  blocks.push({ parameters: [], instructions: [], terminator: Return(None) })
-  blocks.push({ parameters: [], instructions: [], terminator: Unreachable })
-  assert_eq(
-    execute_bytes_test(
-      bytes_test_body([owned, i32, i32, i32], blocks),
-      constants=cases.map(case => case.0),
-    ),
-    Ok(()),
-  )
 }
 
 ///|

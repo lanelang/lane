@@ -204,6 +204,7 @@ fn FunctionLowerer::prepare_captures(
             @vmcfg.ValueMetadata::{
               representation: I64,
               cleanup: OwnedErased,
+              kind: ErasedValue,
               ownership: Owned,
               erased_companion: None,
             },
@@ -216,6 +217,7 @@ fn FunctionLowerer::prepare_captures(
         members.push({
           representation: metadata.representation,
           cleanup: metadata.cleanup,
+          kind: metadata.kind,
           witness_ordinal,
         })
         capture_slots.push(slot)
@@ -252,7 +254,7 @@ fn FunctionLowerer::make_capture_environment(
     None => None
     Some(shape) => {
       let layout = self.image.intern_layout(Environment(shape))
-      let environment = self.fresh_metadata(environment_metadata())
+      let environment = self.fresh_metadata(environment_metadata(shape))
       self.emit(
         MakeEnv(environment, shape, Immediate(layout), witnesses, capture_slots),
       )
