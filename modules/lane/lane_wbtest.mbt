@@ -36,7 +36,7 @@ test "reject run target without entry suffix" {
 }
 
 ///|
-test "reject runobj target with entry suffix" {
+test "reject exec target with entry suffix" {
   let error = InvalidExecTarget(target="program.lbp:Main.main")
   debug_inspect(
     error,
@@ -48,41 +48,10 @@ test "reject runobj target with entry suffix" {
       #|error[E6008]: invalid exec target `program.lbp:Main.main`
       #|  expected: FILE.lbp
       #|
-      #|`lane runobj` executes the entry selected when the linked program artifact was produced.
+      #|`lane exec` executes the entry selected when the linked program artifact was produced.
       #|
       #|Example:
-      #|  lane runobj program.lbp
-    ),
-  )
-}
-
-///|
-test "basic command parser diagnostics render as command reports" {
-  inspect(
-    [
-      InvalidCommand(message="invalid option `--wat`").render_human(),
-      UnknownCommand.render_human(),
-      MissingArgument(name="file").render_human(),
-    ].join("\n---\n"),
-    content=(
-      #|error[E6000]: invalid lane command line
-      #|  parser message: invalid option `--wat`
-      #|
-      #|This is a CLI usage error, not a Lane source error.
-      #|
-      #|Run `lane --help` or `lane <command> --help` to see valid forms.
-      #|---
-      #|error[E6001]: unknown lane command
-      #|The requested subcommand is not supported by this `lane` binary.
-      #|Available commands include check, run, runobj, explore, compile, inspect, link, fmt, and lsp.
-      #|
-      #|Example:
-      #|  lane check Main.lane
-      #|---
-      #|error[E6003]: missing required CLI argument `file`
-      #|This is a CLI usage error, not a Lane source error.
-      #|
-      #|Run `lane --help` or `lane <command> --help` to see the required arguments.
+      #|  lane exec program.lbp
     ),
   )
 }
@@ -577,16 +546,8 @@ async test "link rejects unsupported selected entry effects" {
 ///|
 test "invalid link entry diagnostic explains expected public symbol form" {
   inspect(
-    [
-      MissingArgument(name="entry").render_human(),
-      InvalidLinkEntry(entry="main").render_human(),
-    ].join("\n---\n"),
+    InvalidLinkEntry(entry="main").render_human(),
     content=(
-      #|error[E6003]: missing required CLI argument `entry`
-      #|This is a CLI usage error, not a Lane source error.
-      #|
-      #|Run `lane --help` or `lane <command> --help` to see the required arguments.
-      #|---
       #|error[E6010]: invalid link entry `main`
       #|  expected: Module.value
       #|

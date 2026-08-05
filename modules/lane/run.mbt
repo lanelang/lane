@@ -1,8 +1,5 @@
 ///|
-async fn lane_runobj(
-  path : String,
-  no_jit? : Bool = false,
-) -> LaneCommandOutcome {
+async fn lane_exec(path : String, no_jit? : Bool = false) -> LaneCommandOutcome {
   let image = match read_linked_program_artifact(path) {
     Ok(image) => image
     Err(error) => return LaneCommandOutcome::user_error(error)

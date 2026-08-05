@@ -29,7 +29,7 @@ async fn main {
         Link(objects~, entry~, output~, verbose~) =>
           lane_link(objects, entry, output, verbose)
         Lsp(stdio~) => lsp_command(stdio)
-        RunObj(program~, no_jit~) => lane_runobj(program, no_jit~)
+        Exec(program~, no_jit~) => lane_exec(program, no_jit~)
         Explore(file~, entry~, libs~, lib_dirs~, no_basic~, output~) =>
           lane_explore(file, entry, libs, lib_dirs, output, no_basic~)
         Run(file~, entry~, libs~, lib_dirs~, no_basic~, no_jit~) =>

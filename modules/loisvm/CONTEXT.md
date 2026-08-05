@@ -570,7 +570,7 @@ The project-controlled WebAssembly engine used by default for Lane compiled
 execution. Lane prepares Wasmoon JIT code by default and selects Wasmoon's
 instruction interpreter only when the embedding policy requests
 `ExecutionMode::Interpreter`, including `lane run --no-jit` and
-`lane runobj --no-jit`. Runtime integration and supported WebAssembly
+`lane exec --no-jit`. Runtime integration and supported WebAssembly
 capabilities may evolve with Lane.
 _Avoid_: fixed third-party feature matrix, browser portability guarantee, LoisVM interpreter
 

@@ -26,7 +26,7 @@ enum LaneCommand {
     verbose~ : Bool
   )
   Lsp(stdio~ : Bool)
-  RunObj(program~ : String, no_jit~ : Bool)
+  Exec(program~ : String, no_jit~ : Bool)
   Explore(
     file~ : String,
     entry~ : String,
@@ -76,7 +76,11 @@ fn lane_command_spec() -> Command {
       Command(
         "explore",
         about="Write an HTML report for every curated compiler stage.",
-        options=[lib_option(), lib_dir_option(), output_option()],
+        options=[
+          lib_option(),
+          lib_dir_option(),
+          output_option("Write the HTML compiler-stage report here."),
+        ],
         flags=[no_basic_flag()],
         positionals=[run_target_positional_arg()],
       ),
@@ -97,7 +101,12 @@ fn lane_command_spec() -> Command {
       Command(
         "link",
         about="Link compiled Lane module object artifacts.",
-        options=[link_entry_option(), output_option()],
+        options=[
+          link_entry_option(),
+          output_option(
+            "Write the linked program artifact here, conventionally `.lbp`.",
+          ),
+        ],
         flags=[verbose_flag()],
         positionals=[
           PositionArg(
@@ -108,16 +117,8 @@ fn lane_command_spec() -> Command {
         ],
       ),
       Command(
-        "runobj",
-        about="Run a linked Lane program artifact.",
-        flags=[no_jit_flag()],
-        positionals=[
-          artifact_positional_arg("program", "Linked program artifact to run."),
-        ],
-      ),
-      Command(
         "exec",
-        about="Compatibility alias for `lane runobj`.",
+        about="Run a linked Lane program artifact.",
         flags=[no_jit_flag()],
         positionals=[
           artifact_positional_arg("program", "Linked program artifact to run."),
@@ -160,113 +161,89 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
   }
   match matches.subcommand {
     Some(("check", child)) =>
-      match required_value(child, "file") {
-        Ok(file) =>
+      Ok(
+        Check(
+          file=single_value(child, "file"),
+          libs=values(child, "lib"),
+          lib_dirs=values(child, "lib-dir"),
+          no_basic=flag(child, "no-basic"),
+          deny=flag(child, "deny"),
+        ),
+      )
+    Some(("run", child)) =>
+      match parse_run_target(single_value(child, "target")) {
+        Ok(target) =>
           Ok(
-            Check(
-              file~,
+            Run(
+              file=target.file,
+              entry=target.entry,
               libs=values(child, "lib"),
               lib_dirs=values(child, "lib-dir"),
               no_basic=flag(child, "no-basic"),
-              deny=flag(child, "deny"),
+              no_jit=flag(child, "no-jit"),
             ),
           )
         Err(message) => Err(message)
       }
-    Some(("run", child)) =>
-      match required_value(child, "target") {
-        Ok(target_text) =>
-          match parse_run_target(target_text) {
-            Ok(target) =>
-              Ok(
-                Run(
-                  file=target.file,
-                  entry=target.entry,
-                  libs=values(child, "lib"),
-                  lib_dirs=values(child, "lib-dir"),
-                  no_basic=flag(child, "no-basic"),
-                  no_jit=flag(child, "no-jit"),
-                ),
-              )
-            Err(message) => Err(message)
-          }
-        Err(message) => Err(message)
-      }
-    Some(("explore", child)) =>
-      match (required_value(child, "target"), required_value(child, "output")) {
-        (Ok(target_text), Ok(output)) =>
-          match parse_run_target(target_text) {
-            Ok(target) =>
-              Ok(
-                Explore(
-                  file=target.file,
-                  entry=target.entry,
-                  libs=values(child, "lib"),
-                  lib_dirs=values(child, "lib-dir"),
-                  no_basic=flag(child, "no-basic"),
-                  output~,
-                ),
-              )
-            Err(_) => Err(InvalidExploreTarget(target=target_text))
-          }
-        (Err(message), _) | (_, Err(message)) => Err(message)
-      }
-    Some(("compile", child)) =>
-      match
-        (
-          required_value(child, "file"),
-          required_value(child, "interface-output"),
-          required_value(child, "object-output"),
-        ) {
-        (Ok(file), Ok(interface_output), Ok(object_output)) =>
+    Some(("explore", child)) => {
+      let target_text = single_value(child, "target")
+      match parse_run_target(target_text) {
+        Ok(target) =>
           Ok(
-            Compile(
-              file~,
-              interfaces=values(child, "interface"),
-              interface_output~,
-              object_output~,
+            Explore(
+              file=target.file,
+              entry=target.entry,
+              libs=values(child, "lib"),
+              lib_dirs=values(child, "lib-dir"),
+              no_basic=flag(child, "no-basic"),
+              output=single_value(child, "output"),
+            ),
+          )
+        Err(_) => Err(InvalidExploreTarget(target=target_text))
+      }
+    }
+    Some(("compile", child)) =>
+      Ok(
+        Compile(
+          file=single_value(child, "file"),
+          interfaces=values(child, "interface"),
+          interface_output=single_value(child, "interface-output"),
+          object_output=single_value(child, "object-output"),
+          verbose=flag(child, "verbose"),
+        ),
+      )
+    Some(("inspect", child)) =>
+      Ok(Inspect(artifact=single_value(child, "artifact")))
+    Some(("link", child)) => {
+      let entry_text = single_value(child, "entry")
+      match parse_public_entry_name(entry_text) {
+        Ok(entry) =>
+          Ok(
+            Link(
+              objects=values(child, "objects"),
+              entry~,
+              output=single_value(child, "output"),
               verbose=flag(child, "verbose"),
             ),
           )
-        (Err(message), _, _) | (_, Err(message), _) | (_, _, Err(message)) =>
-          Err(message)
+        Err(_) => Err(InvalidLinkEntry(entry=entry_text))
       }
-    Some(("inspect", child)) =>
-      match required_value(child, "artifact") {
-        Ok(artifact) => Ok(Inspect(artifact~))
-        Err(message) => Err(message)
+    }
+    Some(("exec", child)) => {
+      let program = single_value(child, "program")
+      if program.contains(":") {
+        Err(InvalidExecTarget(target=program))
+      } else {
+        Ok(Exec(program~, no_jit=flag(child, "no-jit")))
       }
-    Some(("link", child)) =>
-      match (required_value(child, "entry"), required_value(child, "output")) {
-        (Ok(entry_text), Ok(output)) =>
-          match parse_public_entry_name(entry_text) {
-            Ok(entry) =>
-              Ok(
-                Link(
-                  objects=values(child, "objects"),
-                  entry~,
-                  output~,
-                  verbose=flag(child, "verbose"),
-                ),
-              )
-            Err(_) => Err(InvalidLinkEntry(entry=entry_text))
-          }
-        (Err(message), _) | (_, Err(message)) => Err(message)
-      }
-    Some(("runobj", child)) | Some(("exec", child)) =>
-      match required_value(child, "program") {
-        Ok(program) =>
-          if program.contains(":") {
-            Err(InvalidExecTarget(target=program))
-          } else {
-            Ok(RunObj(program~, no_jit=flag(child, "no-jit")))
-          }
-        Err(message) => Err(message)
-      }
+    }
     Some(("fmt", child)) =>
       Ok(Fmt(files=values(child, "files"), check=flag(child, "check")))
     Some(("lsp", child)) => Ok(Lsp(stdio=flag(child, "stdio")))
-    _ => Err(UnknownCommand)
+    _ =>
+      abort(
+        "internal Lane CLI bug: argparse returned an unrecognized required subcommand",
+      )
   }
 }
 
@@ -311,7 +288,7 @@ fn parse_public_entry_name(name : String) -> Result[PublicEntryName, Unit] {
 fn source_positional_arg() -> @argparse.PositionArg {
   PositionArg(
     "file",
-    num_args=ValueRange(lower=1, upper=1),
+    num_args=@argparse.ValueRange::single(),
     about="Lane source file to read.",
   )
 }
@@ -320,7 +297,7 @@ fn source_positional_arg() -> @argparse.PositionArg {
 fn run_target_positional_arg() -> @argparse.PositionArg {
   PositionArg(
     "target",
-    num_args=ValueRange(lower=1, upper=1),
+    num_args=@argparse.ValueRange::single(),
     about="Source file and entry to select, as FILE:ENTRY.",
   )
 }
@@ -330,7 +307,7 @@ fn artifact_positional_arg(
   name : String,
   about : String,
 ) -> @argparse.PositionArg {
-  PositionArg(name, num_args=ValueRange(lower=1, upper=1), about~)
+  PositionArg(name, num_args=@argparse.ValueRange::single(), about~)
 }
 
 ///|
@@ -388,6 +365,7 @@ fn interface_output_option() -> @argparse.OptionArg {
     "interface-output",
     short='I',
     long="interface-output",
+    required=true,
     about="Write the module interface artifact here, conventionally `.lmi`.",
   )
 }
@@ -398,18 +376,14 @@ fn object_output_option() -> @argparse.OptionArg {
     "object-output",
     short='o',
     long="object-output",
+    required=true,
     about="Write the module object artifact here, conventionally `.lmo`.",
   )
 }
 
 ///|
-fn output_option() -> @argparse.OptionArg {
-  OptionArg(
-    "output",
-    short='o',
-    long="output",
-    about="Write the output artifact here; `lane link` writes `.lbp`.",
-  )
+fn output_option(about : String) -> @argparse.OptionArg {
+  OptionArg("output", short='o', long="output", required=true, about~)
 }
 
 ///|
@@ -417,6 +391,7 @@ fn link_entry_option() -> @argparse.OptionArg {
   OptionArg(
     "entry",
     long="entry",
+    required=true,
     about="Select the exported entry for the linked executable artifact, such as Main.main.",
   )
 }
@@ -427,15 +402,16 @@ fn verbose_flag() -> @argparse.FlagArg {
 }
 
 ///|
-fn required_value(
-  matches : @argparse.Matches,
-  name : String,
-) -> Result[String, CliError] {
+fn single_value(matches : @argparse.Matches, name : String) -> String {
   guard matches.values.get(name) is Some(values) else {
-    return Err(MissingArgument(name~))
+    abort("internal Lane CLI bug: argparse omitted required argument `\{name}`")
   }
-  guard values.get(0) is Some(value) else { return Err(MissingArgument(name~)) }
-  Ok(value)
+  guard values is [value] else {
+    abort(
+      "internal Lane CLI bug: argparse produced a non-single value for `\{name}`",
+    )
+  }
+  value
 }
 
 ///|

@@ -627,8 +627,8 @@ _Avoid_: VS Code extension, compiler front end
 - A linked executable artifact exposes one selected entry, not a list of run-time selectable public entries.
 - A link-time executable entry is selected through an **Exported Symbol**; private lowered definitions are not command-line entry contracts.
 - Link validates the selected entry against the **Executable Entry Contract** before producing a linked executable artifact; no runtime algebraic-effect table extends the accepted residual effects.
-- `runobj` must not rely on source-level type information to decide whether an entry is executable; a linked executable artifact may omit type information needed only for link-time validation.
-- `runobj` executes the selected entry recorded in the **Linked Program**; it does not choose an entry at run time.
+- `exec` must not rely on source-level type information to decide whether an entry is executable; a linked executable artifact may omit type information needed only for link-time validation.
+- `exec` executes the selected entry recorded in the **Linked Program**; it does not choose an entry at run time.
 - Lane follows **GHC-Like Artifact Layering** for compile, link, optimization, and execution artifacts.
 - **Optimization Hints** may guide downstream optimization like interface metadata, but they do not define source semantics.
 - **Whole-Program Core Optimization** runs over a linked **Canonical Core Artifact**, not over source text or per-module bytecode alone.
@@ -647,7 +647,7 @@ _Avoid_: VS Code extension, compiler front end
 - **Core Occurrence Analysis** runs on linked Buslane/core, not on ANF; ANF is a
   lower derived form that may have its own later liveness or occurrence pass.
 - ANF is a derived normalization layer below Buslane and may be regenerated from the **Canonical Core Artifact**.
-- An **Execution Image** is produced from linked core after optimization; it may be the primary payload used by `runobj`, but it is not the public interface contract.
+- An **Execution Image** is produced from linked core after optimization; it may be the primary payload used by `exec`, but it is not the public interface contract.
 - A **Bytecode Cache** may appear in a **Module Object** or **Linked Program** only as a target-specific cache guarded by fingerprints, compiler version, and lowering options.
 - `inspect` should expose semantic metadata and Buslane/core for module objects, while `.lbp` inspection uses **Canonical Linked Disassembly** because linked artifacts contain only the execution image.
 - The **NoBuild Model** leaves build policy to **Build Workflows**.

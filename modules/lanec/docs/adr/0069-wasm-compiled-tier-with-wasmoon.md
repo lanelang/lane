@@ -6,7 +6,7 @@ Lane uses WebAssembly, rather than MilkIR, as the compiled representation below 
 
 Milky2018/wasmoon is Lane's default WebAssembly execution engine. Wasmoon is project-controlled and may be extended alongside Lane, including its interpreter, JIT, runtime integration, and supported WebAssembly capabilities. Lane's Wasm design therefore need not be limited by the current feature floor or rollout schedule of unrelated WebAssembly engines.
 
-Both `lane run` and `lane runobj` use the same LoisVM-bytecode-to-Wasm path and Wasmoon JIT by default. `lane run` performs in-memory linking and bytecode lowering before loading the generated image; `lane runobj` decodes the linked `.lbp` bytecode image. Passing `--no-jit` selects Wasmoon's instruction interpreter. Neither mode uses the Buslane reference interpreter as its normal execution backend. `lane exec` remains a compatibility alias for `lane runobj`.
+Both `lane run` and `lane exec` use the same LoisVM-bytecode-to-Wasm path and Wasmoon JIT by default. `lane run` performs in-memory linking and bytecode lowering before loading the generated image; `lane exec` decodes the linked `.lbp` bytecode image. Passing `--no-jit` selects Wasmoon's instruction interpreter. Neither mode uses the Buslane reference interpreter as its normal execution backend.
 
 This decision intentionally delegates Wasm heap representation, garbage collection profile, function-reference strategy, control-flow structuring, runtime-import adapter ABI, String representation, and fatal-failure cleanup to follow-up ADRs. Previous bytecode semantics remain in force unless one of those Wasm mapping decisions requires an explicit revision. In particular, effect erasure, callable-value semantics, compiler-directed ownership, and the common-bytecode boundary are not discarded merely because the lower compiled representation changes.
 
@@ -45,8 +45,8 @@ Consequences:
 - Lane v1 excludes Multiple Memories; all Lane pointers address canonical memory zero.
 - Lane v1 excludes Threads and Atomics; canonical memory zero is non-shared and ARC is non-atomic.
 - Lane v1 output does not require Wasm GC or Wasmoon-specific opcodes or types.
-- `lane run` and `lane runobj` share the default Wasmoon JIT execution path;
-  `--no-jit` selects the Wasmoon interpreter and `lane exec` remains an alias.
+- `lane run` and `lane exec` share the default Wasmoon JIT execution path;
+  `--no-jit` selects the Wasmoon interpreter.
 - WebAssembly validation remains required even though LoisVM bytecode verification is not.
 - Wasm object representation, ARC versus GC, control-flow structuring, calls,
   imports, Strings, and failure cleanup are governed by the subsequent focused
