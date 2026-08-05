@@ -54,13 +54,7 @@ fn lane_command_spec() -> Command {
     subcommands=[
       Command(
         "check",
-        about=(
-          $|Check a single Lane source file.
-          $|
-          $|Examples:
-          $|  lane check Main.lane
-          $|  lane check --lib-dir lib Main.lane
-        ),
+        about="Check a single Lane source file.",
         options=[lib_option(), lib_dir_option()],
         flags=[
           no_basic_flag(),
@@ -74,39 +68,21 @@ fn lane_command_spec() -> Command {
       ),
       Command(
         "run",
-        about=(
-          $|Run a selected top-level entry from a single Lane source file.
-          $|
-          $|The target names the entry after the file, as FILE:ENTRY.
-          $|
-          $|Examples:
-          $|  lane run Main.lane:main
-          $|  lane run --lib-dir lib Main.lane:main
-        ),
+        about="Run a selected top-level entry from a single Lane source file.",
         options=[lib_option(), lib_dir_option()],
         flags=[no_basic_flag(), no_jit_flag()],
         positionals=[run_target_positional_arg()],
       ),
       Command(
         "explore",
-        about=(
-          $|Write an HTML report for every curated compiler stage.
-          $|
-          $|Example:
-          $|  lane explore -o report.html Main.lane:main
-        ),
+        about="Write an HTML report for every curated compiler stage.",
         options=[lib_option(), lib_dir_option(), output_option()],
         flags=[no_basic_flag()],
         positionals=[run_target_positional_arg()],
       ),
       Command(
         "compile",
-        about=(
-          $|Compile one Lane source file into module interface/object artifacts.
-          $|
-          $|Example:
-          $|  lane compile -I Main.lmi -o Main.lmo Main.lane
-        ),
+        about="Compile one Lane source file into module interface/object artifacts.",
         options=[
           interface_option(),
           interface_output_option(),
@@ -115,28 +91,12 @@ fn lane_command_spec() -> Command {
         flags=[verbose_flag()],
         positionals=[source_positional_arg()],
       ),
-      Command(
-        "inspect",
-        about=(
-          $|Dump a compiled Lane module artifact.
-          $|
-          $|Examples:
-          $|  lane inspect Main.lmi
-          $|  lane inspect program.lbp
-        ),
-        positionals=[artifact_positional_arg("artifact", "Artifact to dump.")],
-      ),
+      Command("inspect", about="Dump a compiled Lane module artifact.", positionals=[
+        artifact_positional_arg("artifact", "Artifact to dump."),
+      ]),
       Command(
         "link",
-        about=(
-          $|Link compiled Lane module object artifacts.
-          $|
-          $|Every module the program reaches must be passed, including ones
-          $|used only inside another module's implementation.
-          $|
-          $|Example:
-          $|  lane link --entry Main.main -o program.lbp Main.lmo Lib.lmo
-        ),
+        about="Link compiled Lane module object artifacts.",
         options=[link_entry_option(), output_option()],
         flags=[verbose_flag()],
         positionals=[
@@ -149,12 +109,7 @@ fn lane_command_spec() -> Command {
       ),
       Command(
         "runobj",
-        about=(
-          $|Run a linked Lane program artifact.
-          $|
-          $|Example:
-          $|  lane runobj program.lbp
-        ),
+        about="Run a linked Lane program artifact.",
         flags=[no_jit_flag()],
         positionals=[
           artifact_positional_arg("program", "Linked program artifact to run."),
@@ -162,12 +117,7 @@ fn lane_command_spec() -> Command {
       ),
       Command(
         "exec",
-        about=(
-          $|Compatibility alias for `lane runobj`.
-          $|
-          $|Example:
-          $|  lane exec program.lbp
-        ),
+        about="Compatibility alias for `lane runobj`.",
         flags=[no_jit_flag()],
         positionals=[
           artifact_positional_arg("program", "Linked program artifact to run."),
@@ -175,12 +125,7 @@ fn lane_command_spec() -> Command {
       ),
       Command(
         "fmt",
-        about=(
-          $|Format Lane source files.
-          $|
-          $|Example:
-          $|  lane fmt Main.lane
-        ),
+        about="Format Lane source files.",
         flags=[
           FlagArg(
             "check",
