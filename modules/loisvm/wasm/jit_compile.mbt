@@ -118,14 +118,14 @@ fn compile_wasm_module_for_jit(
           function_index,
           import_.mod_name,
           import_.name,
-          module_.get_func_type(type_index),
+          module_.validated_func_type_at(type_index),
         ),
       )
       function_index = function_index + 1
     }
   }
   for local_index, type_index in module_.funcs {
-    let function_type = module_.get_func_type(type_index)
+    let function_type = module_.validated_func_type_at(type_index)
     let code = module_.codes[local_index]
     let function = @wasm_frontend.translate_function_body(
       translation,

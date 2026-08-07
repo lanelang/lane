@@ -16,9 +16,9 @@ preferred_target = "native"
 
 import {
   "Milky2018/bytecodec@0.1.0",
-  "Milky2018/milkir@0.4.0",
-  "Milky2018/wasm_core@0.3.0",
-  "Milky2018/wasmoon@0.10.0",
-  "Milky2018/wasmoon_jit@0.5.0",
+  "Milky2018/milkir@0.5.1",
+  "Milky2018/wasm_core@0.4.0",
+  "Milky2018/wasmoon@0.11.2",
+  "Milky2018/wasmoon_jit@0.6.2",
   "moonbit-community/prettyprinter@0.4.10",
 }
