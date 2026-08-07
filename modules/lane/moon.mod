@@ -20,5 +20,5 @@ import {
   "gmlewis/jsonrpc2@0.0.33",
   "moonbit-community/prettyprinter@0.4.10",
   "moonbitlang/async@0.20.3",
-  "moonbitlang/x@0.4.47",
+  "moonbitlang/x@0.4.48",
 }

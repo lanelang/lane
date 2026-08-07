@@ -8,8 +8,8 @@ priv enum DiagnosticColorMode {
 ///|
 pub fn diagnostic_render_config() -> @diag_render.RenderConfig {
   diagnostic_render_config_from_environment(
-    @sys.get_env_var("LANE_COLOR"),
-    @sys.get_env_var("NO_COLOR"),
+    @env.get_env_var("LANE_COLOR"),
+    @env.get_env_var("NO_COLOR"),
     terminal_is_tty(1),
     terminal_width(1),
   )

@@ -242,7 +242,7 @@ async fn read_source_command_library_inputs(
 ) -> Result[Array[LaneSourceInput], CliError] {
   let resolved = match
     source_command_library_dirs(
-      @sys.get_env_var("LANE_HOME"),
+      @env.get_env_var("LANE_HOME"),
       lib_dirs,
       no_basic~,
     ) {
