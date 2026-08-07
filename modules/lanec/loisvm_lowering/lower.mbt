@@ -111,8 +111,10 @@ fn lower_executable_program_to_bytecode_or_raise(
     match plan {
       Function(value, function) =>
         functions.push(Body(lowerer.lower_function(value, function)))
-      Initializer(bindings) =>
-        functions.push(Body(lowerer.lower_initializer(bindings)))
+      InitializerStep(step) =>
+        functions.push(Body(lowerer.lower_initializer_step(step)))
+      InitializerOrchestrator(steps) =>
+        functions.push(Body(lowerer.lower_initializer_orchestrator(steps)))
       LiftedFunction(plan) =>
         functions.push(Body(lowerer.lower_lifted_function(plan)))
       IntrinsicWrapper(plan) =>

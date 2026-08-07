@@ -112,13 +112,13 @@ test "finalize transfers global owners and promotes global borrows" {
       erased_companion: None,
     },
   ])
-  assert_eq(lowered.slots.length(), 3)
+  assert_eq(lowered.slots.length(), 2)
   assert_eq(lowered.blocks[0].instructions, [
     ConstString({ value: 0 }, { value: 0 }),
     InitGlobal({ value: 0 }, { value: 0 }),
     BorrowGlobal({ value: 1 }, { value: 0 }),
-    RetainCopy({ value: 2 }, { value: 1 }),
-    CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
+    RetainCopy({ value: 0 }, { value: 1 }),
+    CallDirect({ value: 2 }, None, [], [{ value: 0 }], None),
   ])
 }
 

@@ -138,7 +138,7 @@ fn finalize_body(
     )
   }
   blocks.append(edge_blocks)
-  {
+  allocate_finalized_slots({
     slots: body.values.map(value_metadata_to_slot),
     inputs: {
       environment: body.inputs.environment.map(value_to_slot),
@@ -147,7 +147,7 @@ fn finalize_body(
     },
     result: body.result,
     blocks,
-  }
+  })
 }
 
 ///|

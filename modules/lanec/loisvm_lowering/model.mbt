@@ -42,7 +42,8 @@ priv struct GlobalBinding {
 ///|
 priv enum PlannedEntry {
   Function(@buslane.ValueId, @anf.AnfFunction)
-  Initializer(Array[InitializerBinding])
+  InitializerStep(InitializerStepPlan)
+  InitializerOrchestrator(Array[InitializerStepPlan])
   LiftedFunction(LiftedFunctionPlan)
   IntrinsicWrapper(IntrinsicWrapperPlan)
   CallableAdapter(CallableAdapterPlan)
@@ -51,7 +52,8 @@ priv enum PlannedEntry {
 }
 
 ///|
-priv struct InitializerBinding {
+priv struct InitializerStepPlan {
+  function : @bytecode.FunctionId
   value : @buslane.ValueId
   expression : @anf.AnfExpr
 }

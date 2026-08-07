@@ -190,7 +190,7 @@ test "linked program roundtrips and inspects instance globals" {
   guard parse_loisvm_linked_program_binary(binary) is Ok(image) else {
     fail("linked program did not roundtrip")
   }
-  assert_eq(image.initializer, Some({ value: 2 }))
+  assert_eq(image.initializer, Some({ value: 3 }))
   assert_eq(image.globals, [
     {
       representation: I32,
@@ -210,16 +210,28 @@ test "linked program roundtrips and inspects instance globals" {
       #|schema: 12
       #|
       #|LoisVM bytecode
-      #|entry: f1
-      #|initializer: f2
+      #|entry: f2
+      #|initializer: f3
       #|callable ABIs: 3
-      #|functions: 4
+      #|functions: 5
       #|globals: 1
       #|layouts: 0
       #|object shapes: 0
       #|constants: 0
       #|
       #|function f1 abi=abi0(
+      #|  environment=none,
+      #|  witnesses=[],
+      #|  parameters=[]
+      #|) -> i32 + owned_ref + ByteSequenceValue {
+      #|  slots:
+      #|    %0: i32 + owned_ref + ByteSequenceValue
+      #|  b0([]):
+      #|    call_direct %0 = f5 env=none witnesses=[] arguments=[]
+      #|    return %0
+      #|}
+      #|
+      #|function f2 abi=abi1(
       #|  environment=none,
       #|  witnesses=[],
       #|  parameters=[]
@@ -230,10 +242,10 @@ test "linked program roundtrips and inspects instance globals" {
       #|  b0([]):
       #|    borrow_global %0, g0
       #|    retain_copy %1, %0
-      #|    tail_call_direct f3 env=none witnesses=[] arguments=[%1]
+      #|    tail_call_direct f4 env=none witnesses=[] arguments=[%1]
       #|}
       #|
-      #|function f2 abi=abi0(
+      #|function f3 abi=abi1(
       #|  environment=none,
       #|  witnesses=[],
       #|  parameters=[]
@@ -241,19 +253,19 @@ test "linked program roundtrips and inspects instance globals" {
       #|  slots:
       #|    %0: i32 + owned_ref + ByteSequenceValue
       #|  b0([]):
-      #|    call_direct %0 = f4 env=none witnesses=[] arguments=[]
+      #|    call_direct %0 = f1 env=none witnesses=[] arguments=[]
       #|    init_global g0, %0
       #|    return none
       #|}
       #|
-      #|function f3 abi=abi1 = runtime_import(
+      #|function f4 abi=abi2 = runtime_import(
       #|  symbol="lane.test.consume",
       #|  abi_major=1,
       #|  parameters=[string],
       #|  result=unit
       #|)
       #|
-      #|function f4 abi=abi2 = runtime_import(
+      #|function f5 abi=abi0 = runtime_import(
       #|  symbol="lane.test.produce",
       #|  abi_major=1,
       #|  parameters=[],
@@ -261,9 +273,9 @@ test "linked program roundtrips and inspects instance globals" {
       #|)
       #|
       #|callable ABI table:
-      #|  abi0 = fn(witnesses=[], parameters=[]) -> unit
-      #|  abi1 = fn(witnesses=[], parameters=[i32 + owned_ref + ByteSequenceValue]) -> unit
-      #|  abi2 = fn(witnesses=[], parameters=[]) -> i32 + owned_ref + ByteSequenceValue
+      #|  abi0 = fn(witnesses=[], parameters=[]) -> i32 + owned_ref + ByteSequenceValue
+      #|  abi1 = fn(witnesses=[], parameters=[]) -> unit
+      #|  abi2 = fn(witnesses=[], parameters=[i32 + owned_ref + ByteSequenceValue]) -> unit
       #|
       #|instance global table:
       #|  g0 = i32 + owned_ref + ByteSequenceValue

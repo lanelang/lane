@@ -4,7 +4,7 @@ fn ImageLowerer::plan(
   program : @anf.AnfProgram,
   occurrence : @occurrence.OccurrenceSummary,
 ) -> @bytecode.FunctionId? raise LoisvmLoweringError {
-  let initializers : Array[InitializerBinding] = []
+  let initializers : Array[InitializerStepPlan] = []
   for term in program.terms {
     match term {
       External(value) =>
@@ -20,7 +20,12 @@ fn ImageLowerer::plan(
           None =>
             if occurrence.is_reachable(value) {
               self.add_instance_global(value)
-              initializers.push({ value, expression })
+              let function : @bytecode.FunctionId = {
+                value: self.plans.length() + 1,
+              }
+              let step = { function, value, expression }
+              self.plans.push(InitializerStep(step))
+              initializers.push(step)
             }
         }
       LetRec(bindings) =>
@@ -39,7 +44,7 @@ fn ImageLowerer::plan(
     None
   } else {
     let initializer : @bytecode.FunctionId = { value: self.plans.length() + 1 }
-    self.plans.push(Initializer(initializers))
+    self.plans.push(InitializerOrchestrator(initializers))
     Some(initializer)
   }
 }
@@ -275,9 +280,9 @@ fn ImageLowerer::lower_function(
 }
 
 ///|
-fn ImageLowerer::lower_initializer(
+fn ImageLowerer::lower_initializer_step(
   self : ImageLowerer,
-  bindings : Array[InitializerBinding],
+  step : InitializerStepPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
@@ -290,21 +295,17 @@ fn ImageLowerer::lower_initializer(
     witnesses: [],
     substitutions: TypeSubstitution(),
   }
-  for binding in bindings {
-    let result = lowerer.materialize_local(
-      lowerer.lower_expr(binding.expression),
-    )
-    match (self.find_global(binding.value), result) {
-      (Some(UnitValue), Unit) => ()
-      (Some(InstanceGlobal(global, _)), Slot(source, _)) =>
-        lowerer.emit(InitGlobal(global, source))
-      _ =>
-        raise UnsupportedExpression(
-          detail="top-level initializer result does not match its instance global",
-        )
-    }
+  let result = lowerer.materialize_local(lowerer.lower_expr(step.expression))
+  let (result_abi, returned) = match (self.find_global(step.value), result) {
+    (Some(UnitValue), Unit) => (@bytecode.ResultAbi::Unit, None)
+    (Some(InstanceGlobal(_, type_)), Slot(source, _)) =>
+      (self.result_abi(type_), Some(source))
+    _ =>
+      raise UnsupportedExpression(
+        detail="top-level initializer result does not match its instance global",
+      )
   }
-  lowerer.terminate(Return(None))
+  lowerer.terminate(Return(returned))
   let blocks : Array[@vmcfg.Block] = []
   for index, block in lowerer.blocks {
     let terminator = match block.terminator {
@@ -320,8 +321,54 @@ fn ImageLowerer::lower_initializer(
   {
     values: lowerer.values,
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: Unit,
+    result: result_abi,
     blocks,
+  }
+}
+
+///|
+fn ImageLowerer::lower_initializer_orchestrator(
+  self : ImageLowerer,
+  steps : Array[InitializerStepPlan],
+) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
+  let lowerer : FunctionLowerer = {
+    image: self,
+    values: [],
+    blocks: [{ parameters: [], instructions: [], terminator: None }],
+    current_block: 0,
+    bindings: [],
+    temps: [],
+    environment: None,
+    witnesses: [],
+    substitutions: TypeSubstitution(),
+  }
+  for step in steps {
+    match self.find_global(step.value) {
+      Some(UnitValue) =>
+        lowerer.emit(CallDirect(step.function, None, [], [], None))
+      Some(InstanceGlobal(global, type_)) => {
+        let destination = lowerer.fresh_slot(type_)
+        lowerer.emit(CallDirect(step.function, None, [], [], Some(destination)))
+        lowerer.emit(InitGlobal(global, destination))
+      }
+      _ =>
+        raise UnsupportedExpression(
+          detail="top-level initializer step does not match an instance global",
+        )
+    }
+  }
+  lowerer.terminate(Return(None))
+  {
+    values: lowerer.values,
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: lowerer.blocks[0].instructions,
+        terminator: Return(None),
+      },
+    ],
   }
 }
 

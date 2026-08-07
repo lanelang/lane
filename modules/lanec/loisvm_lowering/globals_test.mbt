@@ -70,8 +70,8 @@ test "executable lowering emits reachable instance globals in source order" {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_eq(image.entry, { value: 1 })
-  assert_eq(image.initializer, Some({ value: 2 }))
+  assert_eq(image.entry, { value: 3 })
+  assert_eq(image.initializer, Some({ value: 4 }))
   assert_eq(image.globals, [
     {
       representation: I32,
@@ -88,19 +88,43 @@ test "executable lowering emits reachable instance globals in source order" {
   ])
   guard image.functions
     is [
+      BytecodeBody(first_step),
+      BytecodeBody(second_step),
       BytecodeBody(main_body),
       BytecodeBody(initializer),
       RuntimeImport(import_),
     ] else {
-    fail("expected reachable entry, initializer, and one runtime import")
+    fail(
+      "expected two initializer steps, the reachable entry, its orchestrator, and one runtime import",
+    )
   }
   assert_eq(import_.symbol, "lane.test.consume")
+  assert_eq(first_step.blocks[0], {
+    parameters: [],
+    instructions: [ConstString({ value: 0 }, { value: 0 })],
+    terminator: Return(Some({ value: 0 })),
+  })
+  assert_eq(second_step.blocks[0], {
+    parameters: [],
+    instructions: [
+      BorrowGlobal({ value: 0 }, { value: 0 }),
+      RetainCopy({ value: 1 }, { value: 0 }),
+    ],
+    terminator: Return(Some({ value: 1 })),
+  })
+  assert_eq(initializer.slots, [
+    {
+      representation: I32,
+      cleanup: OwnedRef,
+      kind: ByteSequenceValue,
+      erased_companion: None,
+    },
+  ])
   assert_eq(initializer.blocks[0].instructions, [
-    ConstString({ value: 0 }, { value: 0 }),
+    CallDirect({ value: 1 }, None, [], [], Some({ value: 0 })),
     InitGlobal({ value: 0 }, { value: 0 }),
-    BorrowGlobal({ value: 1 }, { value: 0 }),
-    RetainCopy({ value: 2 }, { value: 1 }),
-    InitGlobal({ value: 1 }, { value: 2 }),
+    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
+    InitGlobal({ value: 1 }, { value: 0 }),
   ])
   assert_eq(main_body.blocks[0].instructions, [
     BorrowGlobal({ value: 0 }, { value: 1 }),
@@ -108,8 +132,9 @@ test "executable lowering emits reachable instance globals in source order" {
   ])
   assert_eq(
     main_body.blocks[0].terminator,
-    TailCallDirect({ value: 3 }, None, [], [{ value: 1 }]),
+    TailCallDirect({ value: 5 }, None, [], [{ value: 1 }]),
   )
+  assert_eq(@bytecode.verify_bytecode_image(image), Ok(()))
 }
 
 ///|
@@ -197,17 +222,114 @@ test "executable initializer materializes function-valued data fields" {
   guard image.initializer is Some(initializer) else {
     fail("expected executable initializer")
   }
-  guard image.functions[initializer.value - 1] is BytecodeBody(body) else {
+  assert_eq(initializer, { value: 4 })
+  guard image.functions is [_, BytecodeBody(step), _, BytecodeBody(body)] else {
     fail("expected initializer bytecode body")
   }
-  guard body.blocks[0].instructions
-    is [
-      ConstFunction(field, _),
-      MakeData(global, _, _, [], [actual_field]),
-      InitGlobal({ value: 0 }, actual_global),
-    ] else {
-    fail("expected materialized function field in global initializer")
+  guard step.blocks[0].instructions
+    is [ConstFunction(field, _), MakeData(global, _, _, [], [actual_field])] else {
+    fail("expected initializer step to materialize the function field")
   }
   assert_eq(actual_field, field)
-  assert_eq(actual_global, global)
+  assert_eq(step.blocks[0].terminator, Return(Some(global)))
+  guard body.blocks[0].instructions
+    is [
+      CallDirect(_, None, [], [], Some(result)),
+      InitGlobal({ value: 0 }, actual_global),
+    ] else {
+    fail("expected orchestrator to transfer the step result to its global")
+  }
+  assert_eq(result, actual_global)
+  assert_eq(@bytecode.verify_bytecode_image(image), Ok(()))
+}
+
+///|
+test "initializer orchestration is bounded by peak live owned results" {
+  for count in [4, 16] {
+    let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+    let string_type = @buslane.Type::Primitive(String)
+    let unit_type = @buslane.Type::Primitive(Unit)
+    let consume_type = global_test_function_type(
+      Array::make(count, string_type),
+      unit_type,
+    )
+    let consume = metadata.define_value("consume", External, consume_type)
+    let values : Array[@buslane.ValueId] = []
+    let terms : Array[@buslane.TopTerm] = [External(consume)]
+    for index in 0..<count {
+      let value = metadata.define_value("global_\{index}", Value, string_type)
+      values.push(value)
+      terms.push(Let(value, Literal(String("Lane"))))
+    }
+    let main_type = global_test_function_type([], unit_type)
+    let main = metadata.define_value("main", Function, main_type)
+    terms.push(
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Call(Ref(consume), values.map(value => Ref(value))),
+        }),
+      ),
+    )
+    let program : @buslane.Program = { metadata, terms }
+    let image = match
+      lower_linked_program_to_bytecode(
+        program,
+        {
+          builtins: [],
+          runtime_imports: [
+            {
+              value: consume,
+              symbol: "lane.test.consume_many",
+              signature: {
+                parameters: Array::make(count, @abi.ValueKind::String),
+                result: @abi.ValueKind::Unit,
+              },
+              type_: consume_type,
+            },
+          ],
+        },
+        {
+          module_path_text: "Main",
+          name: "main",
+          value: main,
+          type_: main_type,
+        },
+      ) {
+      Ok(image) => image
+      Err(error) => fail("lowering failed: \{Repr(error)}")
+    }
+    assert_eq(image.functions.length(), count + 3)
+    assert_eq(image.initializer, Some({ value: count + 2 }))
+    for index in 0..<count {
+      guard image.functions[index] is BytecodeBody(step) else {
+        fail("expected initializer step bytecode body")
+      }
+      assert_eq(step.slots.length(), 1)
+    }
+    guard image.functions[count + 1] is BytecodeBody(initializer) else {
+      fail("expected initializer orchestrator bytecode body")
+    }
+    assert_eq(initializer.slots, [
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: ByteSequenceValue,
+        erased_companion: None,
+      },
+    ])
+    let expected : Array[@bytecode.Instruction] = []
+    for index in 0..<count {
+      expected.push(
+        CallDirect({ value: index + 1 }, None, [], [], Some({ value: 0 })),
+      )
+      expected.push(InitGlobal({ value: index }, { value: 0 }))
+    }
+    assert_eq(initializer.blocks, [
+      { parameters: [], instructions: expected, terminator: Return(None) },
+    ])
+    assert_eq(@bytecode.verify_bytecode_image(image), Ok(()))
+  }
 }

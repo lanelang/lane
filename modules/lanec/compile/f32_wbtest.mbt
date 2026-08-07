@@ -34,9 +34,14 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
     content=(
       #|{
       #|  entry: { value: 1 },
-      #|  initializer: Some({ value: 2 }),
+      #|  initializer: Some({ value: 5 }),
       #|  callable_abis: [
       #|    { witnesses: [], parameters: [], result: Unit },
+      #|    {
+      #|      witnesses: [],
+      #|      parameters: [],
+      #|      result: Value(F32, Trivial, ScalarValue),
+      #|    },
       #|    {
       #|      witnesses: [],
       #|      parameters: [{ representation: F32, cleanup: Trivial, kind: ScalarValue }],
@@ -74,16 +79,79 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|            parameters: [],
       #|            instructions: [
       #|              BorrowGlobal({ value: 0 }, { value: 0 }),
-      #|              CallDirect({ value: 3 }, None, [], [{ value: 0 }], None),
+      #|              CallDirect({ value: 6 }, None, [], [{ value: 0 }], None),
       #|              BorrowGlobal({ value: 0 }, { value: 1 }),
-      #|              CallDirect({ value: 3 }, None, [], [{ value: 0 }], None),
+      #|              CallDirect({ value: 6 }, None, [], [{ value: 0 }], None),
       #|              BorrowGlobal({ value: 0 }, { value: 2 }),
-      #|              CallDirect({ value: 3 }, None, [], [{ value: 0 }], None),
+      #|              CallDirect({ value: 6 }, None, [], [{ value: 0 }], None),
       #|              ConstF32({ value: 0 }, 1069547520),
       #|              ConstF32({ value: 1 }, 1074790400),
       #|              F32Add({ value: 2 }, { value: 0 }, { value: 1 }),
       #|            ],
-      #|            terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 2 }]),
+      #|            terminator: TailCallDirect({ value: 6 }, None, [], [{ value: 2 }]),
+      #|          },
+      #|        ],
+      #|      },
+      #|    ),
+      #|    BytecodeBody(
+      #|      {
+      #|        slots: [
+      #|          {
+      #|            representation: F32,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            erased_companion: None,
+      #|          },
+      #|        ],
+      #|        inputs: { environment: None, witnesses: [], user_parameters: [] },
+      #|        result: Value(F32, Trivial, ScalarValue),
+      #|        blocks: [
+      #|          {
+      #|            parameters: [],
+      #|            instructions: [ConstF32({ value: 0 }, 2139095040)],
+      #|            terminator: Return(Some({ value: 0 })),
+      #|          },
+      #|        ],
+      #|      },
+      #|    ),
+      #|    BytecodeBody(
+      #|      {
+      #|        slots: [
+      #|          {
+      #|            representation: F32,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            erased_companion: None,
+      #|          },
+      #|        ],
+      #|        inputs: { environment: None, witnesses: [], user_parameters: [] },
+      #|        result: Value(F32, Trivial, ScalarValue),
+      #|        blocks: [
+      #|          {
+      #|            parameters: [],
+      #|            instructions: [ConstF32({ value: 0 }, -8388608)],
+      #|            terminator: Return(Some({ value: 0 })),
+      #|          },
+      #|        ],
+      #|      },
+      #|    ),
+      #|    BytecodeBody(
+      #|      {
+      #|        slots: [
+      #|          {
+      #|            representation: F32,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            erased_companion: None,
+      #|          },
+      #|        ],
+      #|        inputs: { environment: None, witnesses: [], user_parameters: [] },
+      #|        result: Value(F32, Trivial, ScalarValue),
+      #|        blocks: [
+      #|          {
+      #|            parameters: [],
+      #|            instructions: [ConstF32({ value: 0 }, 2143289344)],
+      #|            terminator: Return(Some({ value: 0 })),
       #|          },
       #|        ],
       #|      },
@@ -104,11 +172,11 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|          {
       #|            parameters: [],
       #|            instructions: [
-      #|              ConstF32({ value: 0 }, 2139095040),
+      #|              CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
       #|              InitGlobal({ value: 0 }, { value: 0 }),
-      #|              ConstF32({ value: 0 }, -8388608),
+      #|              CallDirect({ value: 3 }, None, [], [], Some({ value: 0 })),
       #|              InitGlobal({ value: 1 }, { value: 0 }),
-      #|              ConstF32({ value: 0 }, 2143289344),
+      #|              CallDirect({ value: 4 }, None, [], [], Some({ value: 0 })),
       #|              InitGlobal({ value: 2 }, { value: 0 }),
       #|            ],
       #|            terminator: Return(None),

@@ -362,6 +362,7 @@ graph TD
   ISS_334["ISS-334: Centralize numeric suffix syntax and complete literal patterns"]
   ISS_335["ISS-335: Verify persisted LoisVM bytecode images"]
   ISS_336["ISS-336: Document the internal Wasm runtime ABI"]
+  ISS_337["ISS-337: Bound top-level initializer lowering by peak live ownership"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -652,3 +653,4 @@ graph TD
 ## Warnings
 
 None.
+

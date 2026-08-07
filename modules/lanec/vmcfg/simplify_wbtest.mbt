@@ -153,7 +153,7 @@ test "simplify VM CFG removes unused parameters and dead scalar work" {
 }
 
 ///|
-test "simplify VM CFG reuses local constants and scalar slots" {
+test "simplify VM CFG reuses local constants" {
   let body : FunctionBody = {
     values: [
       scalar_metadata(),
@@ -183,7 +183,7 @@ test "simplify VM CFG reuses local constants and scalar slots" {
     ],
   }
   let simplified = simplify_body(body)
-  inspect(simplified.values.length(), content="3")
+  inspect(simplified.values.length(), content="7")
   debug_inspect(
     simplified.blocks,
     content=(
@@ -194,11 +194,11 @@ test "simplify VM CFG reuses local constants and scalar slots" {
       #|      ConstI64({ value: 0 }, 1),
       #|      ConstI64({ value: 1 }, 2),
       #|      I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
-      #|      I64Add({ value: 1 }, { value: 2 }, { value: 0 }),
-      #|      ConstI64({ value: 0 }, 3),
-      #|      I64Add({ value: 2 }, { value: 1 }, { value: 0 }),
+      #|      I64Add({ value: 4 }, { value: 2 }, { value: 0 }),
+      #|      ConstI64({ value: 5 }, 3),
+      #|      I64Add({ value: 6 }, { value: 4 }, { value: 5 }),
       #|    ],
-      #|    terminator: Return(Some({ value: 2 })),
+      #|    terminator: Return(Some({ value: 6 })),
       #|  },
       #|]
     ),
