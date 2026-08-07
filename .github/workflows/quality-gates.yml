@@ -33,6 +33,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Update MoonBit registry
+        run: moon update
+
       - name: Check
         run: moon check --target native --warn-list +73
 
