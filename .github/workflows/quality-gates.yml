@@ -1,0 +1,46 @@
+name: Quality gates
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Native compiler and integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      NO_COLOR: "1"
+
+    steps:
+      - name: Check out Lane and pinned fixtures
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Set up MoonBit nightly
+        uses: hustcer/setup-moonbit@1522f9aef02a8ca0187dfc00a41f5dd6b16750f7 # v1.23
+        with:
+          version: nightly
+          core-version: nightly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check
+        run: moon check --target native --warn-list +73
+
+      - name: Check formatting
+        run: moon fmt --check
+
+      - name: Test
+        run: moon test --target native
+
+      - name: Check Lane integration (includes examples)
+        run: tools/check-lane-integration.sh
