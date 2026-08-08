@@ -115,7 +115,7 @@ fn global_image() -> BytecodeImage {
 
 ///|
 test "minimal bytecode image has stable encoding" {
-  let binary = bytecode_image_to_binary(minimal_image())
+  let binary = bytecode_image_to_binary(minimal_image()).unwrap()
   debug_inspect(
     binary.to_array().map(fn(byte) { byte.to_int() }),
     content=(
@@ -269,10 +269,10 @@ test "minimal bytecode code view omits image summary" {
 ///|
 test "globals and initializer roundtrip" {
   let image = global_image()
-  let binary = bytecode_image_to_binary(image)
+  let binary = bytecode_image_to_binary(image).unwrap()
   assert_eq(parse_bytecode_image_binary(binary), Ok(image))
   let initializer_only = { ..minimal_image(), initializer: Some(function(1)) }
-  let initializer_only_binary = bytecode_image_to_binary(initializer_only)
+  let initializer_only_binary = bytecode_image_to_binary(initializer_only).unwrap()
   assert_eq(
     parse_bytecode_image_binary(initializer_only_binary),
     Ok(initializer_only),
@@ -354,7 +354,7 @@ test "F32 bytecode instructions roundtrip" {
     layouts: [F32, ByteSequence],
   }
   assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(image)),
+    parse_bytecode_image_binary(bytecode_image_to_binary(image).unwrap()),
     Ok(image),
   )
 }
@@ -502,7 +502,9 @@ test "function, layout, shape, and constant tables roundtrip" {
     ],
     constants: [Bytes::from_array([]), Bytes::from_array([b'a', b'b', b'c'])],
   }
-  let decoded = parse_bytecode_image_binary(bytecode_image_to_binary(image))
+  let decoded = parse_bytecode_image_binary(
+    bytecode_image_to_binary(image).unwrap(),
+  )
   assert_eq(decoded, Ok(image))
   guard decoded is Ok(decoded) else { fail("expected decoded image") }
   debug_inspect(
@@ -696,7 +698,9 @@ test "decoder reports u32 values beyond host I64 as resource limits" {
 test "decoder validates initializer and global metadata" {
   let missing_initializer = { ..global_image(), initializer: None }
   assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(missing_initializer)),
+    parse_bytecode_image_binary(
+      unchecked_bytecode_image_to_binary(missing_initializer),
+    ),
     Err(
       InvalidBytecode(
         error=InvalidBytecode(
@@ -708,7 +712,9 @@ test "decoder validates initializer and global metadata" {
   )
   let invalid_initializer = { ..global_image(), initializer: Some(function(3)) }
   assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(invalid_initializer)),
+    parse_bytecode_image_binary(
+      unchecked_bytecode_image_to_binary(invalid_initializer),
+    ),
     Err(
       InvalidBytecode(
         error=InvalidBytecode(site=Image, detail="FunctionId 3 is out of range"),
@@ -727,7 +733,9 @@ test "decoder validates initializer and global metadata" {
     ],
   }
   assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(invalid_companion)),
+    parse_bytecode_image_binary(
+      unchecked_bytecode_image_to_binary(invalid_companion),
+    ),
     Err(
       InvalidBytecode(
         error=InvalidBytecode(
@@ -754,7 +762,7 @@ test "global count beyond host I64 is a resource limit" {
       },
     ],
   }
-  let bytes = bytecode_image_to_binary(image).to_array()
+  let bytes = unchecked_bytecode_image_to_binary(image).to_array()
   bytes[68] = b'\xFF'
   bytes[69] = b'\xFF'
   bytes[70] = b'\xFF'
@@ -774,7 +782,7 @@ test "global count beyond host I64 is a resource limit" {
 test "binary loader verifies String constant semantics after decoding" {
   let utf8 = { ..minimal_image(), constants: [@utf8.encode("中\u{0}🙂")] }
   assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(utf8)),
+    parse_bytecode_image_binary(bytecode_image_to_binary(utf8).unwrap()),
     Ok(utf8),
   )
   let malformed_utf8 = {
@@ -782,7 +790,9 @@ test "binary loader verifies String constant semantics after decoding" {
     constants: [Bytes::from_array([b'\xFF'])],
   }
   assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(malformed_utf8)),
+    parse_bytecode_image_binary(
+      unchecked_bytecode_image_to_binary(malformed_utf8),
+    ),
     Err(
       InvalidBytecode(
         error=InvalidBytecode(
@@ -814,7 +824,9 @@ test "binary loader verifies Char semantics after decoding" {
         }),
       ],
     }
-    results.push(parse_bytecode_image_binary(bytecode_image_to_binary(image)))
+    results.push(
+      parse_bytecode_image_binary(unchecked_bytecode_image_to_binary(image)),
+    )
   }
   debug_inspect(
     results,
@@ -875,7 +887,9 @@ test "decoder rejects illegal slot metadata" {
     functions: [BytecodeBody(illegal_body)],
   }
   debug_inspect(
-    parse_bytecode_image_binary(bytecode_image_to_binary(illegal_image)),
+    parse_bytecode_image_binary(
+      unchecked_bytecode_image_to_binary(illegal_image),
+    ),
     content=(
       #|Err(
       #|  InvalidBytecode(
@@ -924,7 +938,7 @@ test "result ABI round-trips and decoder rejects ownership mismatch" {
     constants: [b"owned"],
   }
   assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(valid)),
+    parse_bytecode_image_binary(bytecode_image_to_binary(valid).unwrap()),
     Ok(valid),
   )
   let caller = {
@@ -980,7 +994,7 @@ test "result ABI round-trips and decoder rejects ownership mismatch" {
     functions: [BytecodeBody(caller), BytecodeBody(scalar_result)],
   }
   assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(invalid)),
+    parse_bytecode_image_binary(unchecked_bytecode_image_to_binary(invalid)),
     Err(
       InvalidBytecode(
         error=InvalidBytecode(

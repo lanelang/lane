@@ -2,8 +2,13 @@
 pub fn finalize(
   image : Image,
 ) -> Result[@bytecode.BytecodeImage, FinalizeError] {
-  Ok(finalize_or_raise(image)) catch {
-    error => Err(error)
+  match finalize_without_bytecode_verification(image) {
+    Err(error) => Err(error)
+    Ok(finalized) =>
+      match @bytecode.verify_bytecode_image(finalized) {
+        Ok(_) => Ok(finalized)
+        Err(error) => Err(BytecodeVerificationCompilerDefect(error))
+      }
   }
 }
 
@@ -28,7 +33,16 @@ fn CallableAbiInterner::intern(
 }
 
 ///|
-fn finalize_or_raise(
+fn finalize_without_bytecode_verification(
+  image : Image,
+) -> Result[@bytecode.BytecodeImage, FinalizeError] {
+  Ok(finalize_without_bytecode_verification_or_raise(image)) catch {
+    error => Err(error)
+  }
+}
+
+///|
+fn finalize_without_bytecode_verification_or_raise(
   image : Image,
 ) -> @bytecode.BytecodeImage raise FinalizeError {
   let image = devirtualize_image(image)

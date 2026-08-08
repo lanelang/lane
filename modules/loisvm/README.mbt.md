@@ -160,7 +160,10 @@ fn run_with_wasm(image : @bytecode.BytecodeImage) -> Array[Int64] raise {
 ///|
 test "one LoisVM image runs through both execution tiers" {
   let original = example_image()
-  let bytes = @bytecode.bytecode_image_to_binary(original)
+  let bytes = match @bytecode.bytecode_image_to_binary(original) {
+    Ok(bytes) => bytes
+    Err(error) => abort("invalid example bytecode: \{Repr(error)}")
+  }
   let decoded = match @bytecode.parse_bytecode_image_binary(bytes) {
     Ok(value) => value
     Err(error) => fail("bytecode decode failed: \{Repr(error)}")

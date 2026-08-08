@@ -107,11 +107,10 @@ async fn write_linked_program_artifact(
   path : String,
   program : @executable.ExecutableProgram,
 ) -> Result[Unit, CliError] {
-  let image = match lower_executable_image(program) {
-    Ok(image) => image
-    Err(error) => return Err(error)
+  let bytes = match @artifact.executable_to_loisvm_binary(program) {
+    Ok(bytes) => bytes
+    Err(error) => return Err(ExecutionImageLowering(message="\{Repr(error)}"))
   }
-  let bytes = @artifact.loisvm_linked_program_to_binary(image)
   write_binary_file(path, bytes) catch {
     error => return Err(CliError::file_io(Write, path, "\{error}"))
   }

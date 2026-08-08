@@ -76,7 +76,7 @@ test "finalize transfers global owners and promotes global borrows" {
     ],
   }
   let image = match
-    finalize({
+    finalize_without_bytecode_verification({
       ..test_image(body),
       initializer: Some({ value: 1 }),
       functions: [
@@ -143,7 +143,7 @@ test "finalize preserves erased companions for promoted global borrows" {
     ],
   }
   let image = match
-    finalize({
+    finalize_without_bytecode_verification({
       ..test_image(body),
       functions: [
         Body(body),
@@ -207,7 +207,7 @@ test "finalize promotes a borrowed call argument to an owner" {
     ],
   }
   let image = match
-    finalize({
+    finalize_without_bytecode_verification({
       ..test_image(body),
       functions: [
         Body(body),
@@ -257,7 +257,7 @@ test "indirect call ABI uses the finalized owned argument slot" {
       },
     ],
   }
-  let image = match finalize(test_image(body)) {
+  let image = match finalize_without_bytecode_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
@@ -301,7 +301,7 @@ test "finalize releases an owned value left live at return" {
       },
     ],
   }
-  let image = match finalize(test_image(body)) {
+  let image = match finalize_without_bytecode_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
@@ -328,7 +328,7 @@ test "finalize transfers an owned return without releasing it" {
       },
     ],
   }
-  let image = match finalize(test_image(body)) {
+  let image = match finalize_without_bytecode_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
@@ -360,7 +360,7 @@ test "finalize preserves object witness loads as non-consuming reads" {
       },
     ],
   }
-  let image = match finalize(test_image(body)) {
+  let image = match finalize_without_bytecode_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
@@ -395,7 +395,7 @@ test "finalize retains an owned call argument that is used afterward" {
     ],
   }
   let image = match
-    finalize({
+    finalize_without_bytecode_verification({
       ..test_image(body),
       functions: [
         Body(body),
@@ -445,7 +445,7 @@ test "finalize inserts path-specific releases for owned values at a branch" {
       { parameters: [], instructions: [], terminator: Return(None) },
     ],
   }
-  let image = match finalize(test_image(body)) {
+  let image = match finalize_without_bytecode_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
@@ -497,7 +497,7 @@ test "finalize inserts path-specific releases for every switch edge" {
       { parameters: [], instructions: [], terminator: Return(None) },
     ],
   }
-  let image = match finalize(test_image(body)) {
+  let image = match finalize_without_bytecode_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
@@ -560,7 +560,7 @@ test "finalize threads an owned function input into its using branch" {
       },
     ],
   }
-  let image = match finalize(test_image(body)) {
+  let image = match finalize_without_bytecode_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
@@ -617,7 +617,7 @@ test "finalize rejects a borrowed function input used across blocks" {
     ],
   }
   assert_eq(
-    finalize(test_image(body)),
+    finalize_without_bytecode_verification(test_image(body)),
     Err(IllegalValueMetadata(value={ value: 1 })),
   )
 }
@@ -658,7 +658,7 @@ test "finalize promotes a borrowed global before it crosses a branch" {
     ],
   }
   let image = match
-    finalize({
+    finalize_without_bytecode_verification({
       ..test_image(body),
       globals: [
         {

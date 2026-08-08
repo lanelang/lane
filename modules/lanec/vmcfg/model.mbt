@@ -227,4 +227,5 @@ pub(all) struct Image {
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
+  BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
 } derive(Debug, Eq)

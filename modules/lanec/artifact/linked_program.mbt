@@ -30,17 +30,17 @@ pub fn executable_to_loisvm_binary(
   program : @executable.ExecutableProgram,
 ) -> Result[Bytes, @loisvm_lowering.LoisvmLoweringError] {
   match executable_to_loisvm_artifact(program) {
-    Ok(artifact) => Ok(linked_program_artifact_to_binary(artifact))
+    Ok(artifact) => Ok(unchecked_linked_program_artifact_to_binary(artifact))
     Err(error) => Err(error)
   }
 }
 
 ///|
 /// Encodes a caller-supplied LoisVM image in the current linked-program schema.
-/// This trusted-internal convenience does not verify the image.
+/// Invalid bytecode is rejected before artifact bytes are produced.
 pub fn loisvm_linked_program_to_binary(
   image : @loisvm_bytecode.BytecodeImage,
-) -> Bytes {
+) -> Result[Bytes, @loisvm_bytecode.BytecodeVerificationError] {
   linked_program_artifact_to_binary({
     schema_version: linked_program_artifact_schema_version,
     bytecode: image,

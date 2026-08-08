@@ -33,10 +33,10 @@ _Avoid_: bytecode data model, compiler optimization pass, CLI command parser
 **Verified Bytecode Image**:
 A LoisVM image accepted by the bytecode package's semantic verifier after it
 checks identities, runtime representations, instruction contracts, CFG edge
-shapes, initialization dataflow, and linear ownership. Binary decoding,
-interpreter loading, and Wasm compilation all require this verification before
-publishing a consumer result.
-_Avoid_: trusted compiler output, sandbox safety proof, backend-specific validation
+shapes, initialization dataflow, and linear ownership. Compiler finalization,
+binary encoding and decoding, interpreter loading, and Wasm compilation all
+require this verification before publishing a producer or consumer result.
+_Avoid_: implicitly trusted compiler output, sandbox safety proof, backend-specific validation
 
 **LoisVM Bytecode Format Compatibility**:
 The lockstep producer-consumer contract in which a bytecode section contains only the current canonical layout and carries no independent version field or backward-compatibility discriminator. Persisted `.lbp` compatibility is owned by the enclosing linked-program schema version.

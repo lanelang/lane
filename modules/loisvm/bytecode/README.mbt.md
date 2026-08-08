@@ -68,7 +68,7 @@ test "a minimal LoisVM bytecode image round-trips" {
     constants: [],
   }
   let decoded = match
-    parse_bytecode_image_binary(bytecode_image_to_binary(image)) {
+    parse_bytecode_image_binary(bytecode_image_to_binary(image).unwrap()) {
     Ok(decoded) => decoded
     Err(error) => fail("bytecode round-trip failed: \{Repr(error)}")
   }

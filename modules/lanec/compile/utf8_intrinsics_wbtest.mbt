@@ -152,7 +152,7 @@ test "artifact decoders reject pre UTF-8 schema versions" {
         @artifact.linked_program_artifact_to_binary({
           schema_version: 6,
           bytecode,
-        }),
+        }).unwrap(),
       ),
     ),
     (

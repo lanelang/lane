@@ -16,6 +16,7 @@ pub fn image_to_code(Image) -> String
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
+  BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
 } derive(Eq, @debug.Debug)
 
 // Types and methods

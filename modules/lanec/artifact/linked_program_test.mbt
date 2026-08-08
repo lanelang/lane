@@ -22,16 +22,35 @@ fn minimal_loisvm_image() -> @loisvm_bytecode.BytecodeImage {
 ///|
 test "linked program contains only current LoisVM bytecode" {
   let image = minimal_loisvm_image()
-  let binary = loisvm_linked_program_to_binary(image)
+  let binary = loisvm_linked_program_to_binary(image).unwrap()
   assert_eq(parse_loisvm_linked_program_binary(binary), Ok(image))
   assert_eq(binary.length(), 102)
+}
+
+///|
+test "linked program persistence rejects invalid bytecode" {
+  let invalid = { ..minimal_loisvm_image(), entry: { value: 2 } }
+  let expected = Err(
+    @loisvm_bytecode.BytecodeVerificationError::InvalidBytecode(
+      site=Image,
+      detail="FunctionId 2 is out of range",
+    ),
+  )
+  assert_eq(loisvm_linked_program_to_binary(invalid), expected)
+  assert_eq(
+    linked_program_artifact_to_binary({
+      schema_version: linked_program_artifact_schema_version,
+      bytecode: invalid,
+    }),
+    expected,
+  )
 }
 
 ///|
 test "linked program inspection delegates to LoisVM" {
   let text = match
     artifact_binary_to_inspect_text(
-      loisvm_linked_program_to_binary(minimal_loisvm_image()),
+      loisvm_linked_program_to_binary(minimal_loisvm_image()).unwrap(),
     ) {
     Ok(text) => text
     Err(message) => fail(message)

@@ -49,8 +49,8 @@ pub(all) struct ModuleObjectArtifact {
 } derive(Debug, Eq)
 
 ///|
-/// Persisted complete LoisVM image. Decoding establishes framing only; the
-/// LoisVM verifier remains the trust boundary before execution.
+/// Persisted complete LoisVM image. Encoding and decoding both pass through the
+/// LoisVM-owned semantic verifier before bytes or an image are returned.
 pub(all) struct LinkedProgramArtifact {
   schema_version : Int
   bytecode : @loisvm_bytecode.BytecodeImage

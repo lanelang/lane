@@ -106,7 +106,7 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   )
   let linked_binary = @artifact.linked_program_artifact_to_binary(
     linked_artifact,
-  )
+  ).unwrap()
   inspect(byte_prefix_text(linked_binary, 8), content="76,65,78,69,65,82,84,0")
   let linked_decoded = match
     @artifact.parse_linked_program_artifact_binary(linked_binary) {
@@ -688,7 +688,7 @@ test "module artifact binary rejects wrong kind" {
     Ok(artifact) => artifact
     Err(error) => abort("unexpected LoisVM lowering error: \{Repr(error)}")
   }
-  let program_binary = @artifact.linked_program_artifact_to_binary(artifact)
+  let program_binary = @artifact.linked_program_artifact_to_binary(artifact).unwrap()
   if @artifact.parse_module_object_artifact_binary(program_binary)
     is Err(message) {
     inspect(

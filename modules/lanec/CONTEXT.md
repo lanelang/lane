@@ -465,7 +465,7 @@ The pre-bytecode lowering pass that turns nested functions and continuation clos
 _Avoid_: runtime code generation, nested bytecode function, source lambda lifting
 
 **Bytecode Lowering Pipeline**:
-The ordered compiler path from linked Buslane/core through the effect-erasure pipeline, ordinary ANF, closure lifting, compiler-private VM CFG lowering and simplification, runtime ownership analysis, ARC insertion, slot allocation, and bytecode emission.
+The ordered compiler path from linked Buslane/core through the effect-erasure pipeline, ordinary ANF, closure lifting, compiler-private VM CFG lowering and simplification, runtime ownership analysis, ARC insertion, slot allocation, bytecode emission, and complete LoisVM verification before the image is returned or persisted.
 _Avoid_: source elaboration pipeline, runtime execution loop, artifact parser
 
 **LoisVM Bytecode Target**:

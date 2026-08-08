@@ -36,9 +36,9 @@ pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> @link.LinkRe
 
 pub let linked_program_artifact_schema_version : Int
 
-pub fn linked_program_artifact_to_binary(LinkedProgramArtifact) -> Bytes
+pub fn linked_program_artifact_to_binary(LinkedProgramArtifact) -> Result[Bytes, @bytecode.BytecodeVerificationError]
 
-pub fn loisvm_linked_program_to_binary(@bytecode.BytecodeImage) -> Bytes
+pub fn loisvm_linked_program_to_binary(@bytecode.BytecodeImage) -> Result[Bytes, @bytecode.BytecodeVerificationError]
 
 pub fn lower_executable_to_loisvm_bytecode(@executable.ExecutableProgram) -> Result[@bytecode.BytecodeImage, @loisvm_lowering.LoisvmLoweringError]
 

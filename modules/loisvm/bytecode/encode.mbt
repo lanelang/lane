@@ -1,5 +1,18 @@
 ///|
-pub fn bytecode_image_to_binary(image : BytecodeImage) -> Bytes {
+pub fn bytecode_image_to_binary(
+  image : BytecodeImage,
+) -> Result[Bytes, BytecodeVerificationError] {
+  match verify_bytecode_image(image) {
+    Ok(_) => Ok(unchecked_bytecode_image_to_binary(image))
+    Err(error) => Err(error)
+  }
+}
+
+///|
+/// Encodes a caller-verified image without repeating semantic verification.
+/// Production persistence should use `bytecode_image_to_binary`; this seam is
+/// for decoder tests that deliberately construct invalid bytecode.
+pub fn unchecked_bytecode_image_to_binary(image : BytecodeImage) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_function_id(image.entry)
   writer.write_optional_function_id(image.initializer)

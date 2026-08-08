@@ -112,8 +112,18 @@ pub fn parse_module_object_artifact_binary(
 }
 
 ///|
-/// Deterministically encodes a linked-program artifact.
+/// Verifies and deterministically encodes a linked-program artifact.
 pub fn linked_program_artifact_to_binary(
+  artifact : LinkedProgramArtifact,
+) -> Result[Bytes, @loisvm_bytecode.BytecodeVerificationError] {
+  match @loisvm_bytecode.verify_bytecode_image(artifact.bytecode) {
+    Ok(_) => Ok(unchecked_linked_program_artifact_to_binary(artifact))
+    Err(error) => Err(error)
+  }
+}
+
+///|
+fn unchecked_linked_program_artifact_to_binary(
   artifact : LinkedProgramArtifact,
 ) -> Bytes {
   artifact_payload_to_binary(
@@ -123,8 +133,7 @@ pub fn linked_program_artifact_to_binary(
 }
 
 ///|
-/// Decodes linked-program framing and payload syntax. Execution must still pass
-/// the decoded bytecode image through the LoisVM verifier.
+/// Decodes linked-program framing and returns only verifier-accepted bytecode.
 pub fn parse_linked_program_artifact_binary(
   bytes : Bytes,
 ) -> Result[LinkedProgramArtifact, String] {
@@ -354,7 +363,7 @@ fn encode_linked_program_artifact_payload(
   let writer = @bytecodec.ByteWriter::new()
   writer.write_u32_le_int(artifact.schema_version)
   writer.write_raw_bytes(
-    @loisvm_bytecode.bytecode_image_to_binary(artifact.bytecode),
+    @loisvm_bytecode.unchecked_bytecode_image_to_binary(artifact.bytecode),
   )
   writer.to_bytes()
 }
