@@ -25,6 +25,10 @@ test "F32 formatting handles non-finite values" {
     @float_format.format_f32(Float::reinterpret_from_int(0x7fc00001)),
     "NaN",
   )
+  assert_eq(
+    @float_format.format_f32(Float::reinterpret_from_int(0xffc00001)),
+    "NaN",
+  )
 }
 
 ///|
@@ -42,9 +46,22 @@ test "F64 formatting is shortest and preserves floating spelling" {
 
 ///|
 test "F64 formatting handles non-finite values" {
-  assert_eq(@float_format.format_f64(1.0 / 0.0), "inf")
-  assert_eq(@float_format.format_f64(-1.0 / 0.0), "-inf")
-  assert_eq(@float_format.format_f64(0.0 / 0.0), "NaN")
+  assert_eq(
+    @float_format.format_f64(0x7ff0000000000000UL.reinterpret_as_double()),
+    "inf",
+  )
+  assert_eq(
+    @float_format.format_f64(0xfff0000000000000UL.reinterpret_as_double()),
+    "-inf",
+  )
+  assert_eq(
+    @float_format.format_f64(0x7ff8000000000001UL.reinterpret_as_double()),
+    "NaN",
+  )
+  assert_eq(
+    @float_format.format_f64(0xfff8000000000001UL.reinterpret_as_double()),
+    "NaN",
+  )
 }
 
 ///|

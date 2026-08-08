@@ -109,32 +109,23 @@ fn ImageLowerer::plan_intrinsic(
     F32Inf =>
       self.globals.push({
         value,
-        lowered: FloatConstant(
-          Float::from_double(1.0 / 0.0).reinterpret_as_int(),
-          external.type_,
-        ),
+        lowered: FloatConstant(0x7f800000, external.type_),
       })
     F32NegativeInf =>
       self.globals.push({
         value,
-        lowered: FloatConstant(
-          Float::from_double(-1.0 / 0.0).reinterpret_as_int(),
-          external.type_,
-        ),
+        lowered: FloatConstant(0xff800000U.reinterpret_as_int(), external.type_),
       })
     F32Nan =>
       self.globals.push({
         value,
-        lowered: FloatConstant(
-          Float::from_double(0.0 / 0.0).reinterpret_as_int(),
-          external.type_,
-        ),
+        lowered: FloatConstant(0x7fc00000, external.type_),
       })
     F64Inf =>
       self.globals.push({
         value,
         lowered: DoubleConstant(
-          (1.0 / 0.0).reinterpret_as_int64(),
+          0x7ff0000000000000UL.reinterpret_as_int64(),
           external.type_,
         ),
       })
@@ -142,7 +133,7 @@ fn ImageLowerer::plan_intrinsic(
       self.globals.push({
         value,
         lowered: DoubleConstant(
-          (-1.0 / 0.0).reinterpret_as_int64(),
+          0xfff0000000000000UL.reinterpret_as_int64(),
           external.type_,
         ),
       })
@@ -150,7 +141,7 @@ fn ImageLowerer::plan_intrinsic(
       self.globals.push({
         value,
         lowered: DoubleConstant(
-          (0.0 / 0.0).reinterpret_as_int64(),
+          0x7ff8000000000000UL.reinterpret_as_int64(),
           external.type_,
         ),
       })
