@@ -139,58 +139,37 @@ fn LoadedImage::new_instance_or_raise(
       ),
     ]
   }
-  if self.wasm_module.imports.any(import_ => {
-      import_.mod_name == "lane.runtime.internal.v1" &&
-      import_.name == "f32_to_string"
-    }) {
-    imports.add_func(
-      "lane.runtime.internal.v1",
-      "f32_to_string",
-      store.alloc_host_func_with_caller(format_f32, func_type={
-        params: [F32],
-        results: [I32],
-      }),
-    )
-  }
-  if self.wasm_module.imports.any(import_ => {
-      import_.mod_name == "lane.runtime.internal.v1" &&
-      import_.name == "f64_to_string"
-    }) {
-    imports.add_func(
-      "lane.runtime.internal.v1",
-      "f64_to_string",
-      store.alloc_host_func_with_caller(format_f64, func_type={
-        params: [F64],
-        results: [I32],
-      }),
-    )
-  }
-  if self.imports.any(resolved => runtime_import_uses_host_objects(resolved.0)) {
-    let release_host_object : (
-      @wasmoon_runtime.Caller,
-      Array[@wasm_types.Value],
-    ) -> Array[@wasm_types.Value] raise @wasmoon_runtime.RuntimeError = (
-      _caller,
-      values,
-    ) => {
-      guard values is [I64(token)] else { raise TypeMismatch }
-      host_objects.release(token) catch {
-        error => {
-          failure.error = Some(
-            InternalRuntimeFailure(
-              detail=wasm_host_object_failure_detail(error),
-            ),
-          )
-          raise TypeMismatch
-        }
+  let release_host_object : (@wasmoon_runtime.Caller, Array[@wasm_types.Value]) -> Array[
+    @wasm_types.Value,
+  ] raise @wasmoon_runtime.RuntimeError = (_caller, values) => {
+    guard values is [I64(token)] else { raise TypeMismatch }
+    host_objects.release(token) catch {
+      error => {
+        failure.error = Some(
+          InternalRuntimeFailure(detail=wasm_host_object_failure_detail(error)),
+        )
+        raise TypeMismatch
       }
-      []
     }
-    let address = store.alloc_host_func_with_caller(release_host_object, func_type={
-      params: [I64],
-      results: [],
-    })
-    imports.add_func("lane.runtime.internal.v1", "host_object.release", address)
+    []
+  }
+  for function in @internal_abi.functions() {
+    guard self.wasm_module.imports.any(import_ => {
+      import_.mod_name == @internal_abi.module_name() &&
+      import_.name == function.name()
+    }) else {
+      continue
+    }
+    let type_ = function.type_()
+    let address = match function {
+      F32ToString =>
+        store.alloc_host_func_with_caller(format_f32, func_type=type_)
+      F64ToString =>
+        store.alloc_host_func_with_caller(format_f64, func_type=type_)
+      HostObjectRelease =>
+        store.alloc_host_func_with_caller(release_host_object, func_type=type_)
+    }
+    imports.add_func(@internal_abi.module_name(), function.name(), address)
   }
   for resolved in self.imports {
     let descriptor = resolved.0

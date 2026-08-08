@@ -615,12 +615,15 @@ from `"lane.runtime.v1"`.
 _Avoid_: source module exports, arbitrary Lane function exports, Component ABI
 
 **Lane Wasm Internal Runtime ABI V1**:
-The compiler-private `"lane.runtime.internal.v1"` namespace owned jointly by
-LoisVM Wasm lowering and its loader. It is implemented by the selected LoisVM
-backend, is not resolved through the embedding Runtime Registry, and may only be
-referenced by Wasm modules produced by the matching compiler. Its V1 functions
-`f32_to_string:(f32)->i32` and `f64_to_string:(f64)->i32` allocate the canonical
-Lane String spelling: `NaN`, `inf`, and `-inf`; signed zero is preserved; finite
+The compiler-private `"lane.runtime.internal.v1"` namespace whose executable
+description is owned by `loisvm/wasm/internal_abi`; both Wasm lowering and the
+loader consume that single namespace, symbol, and physical-signature table. It
+is implemented by the selected LoisVM backend, is not resolved through the
+embedding Runtime Registry, and may only be referenced by Wasm modules produced
+by the matching compiler. Its V1 functions are
+`f32_to_string:(f32)->i32`, `f64_to_string:(f64)->i32`, and
+`host_object.release:(i64)->()`. The float helpers allocate the canonical Lane
+String spelling: `NaN`, `inf`, and `-inf`; signed zero is preserved; finite
 values use the shortest round-tripping decimal; and integral values retain
 `.0`. Any incompatible signature or meaning requires a new internal namespace
 major, while implementation-only compatible changes do not affect

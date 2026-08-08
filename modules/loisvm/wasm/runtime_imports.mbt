@@ -129,11 +129,6 @@ fn invoke_runtime_binding(
 }
 
 ///|
-fn runtime_import_uses_host_objects(import_ : @bytecode.RuntimeImport) -> Bool {
-  import_.result is Opaque || import_.parameters.any(kind => kind is Opaque)
-}
-
-///|
 fn wasm_host_object_failure_detail(failure : WasmHostObjectFailure) -> String {
   match failure {
     InvalidHostObjectToken(detail~) | HostObjectRuntimeFailure(detail~) =>
