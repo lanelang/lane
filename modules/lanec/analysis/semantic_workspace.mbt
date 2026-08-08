@@ -47,6 +47,10 @@ fn SourceLayout::from_ids(source_ids : Array[String]) -> SourceLayout {
 }
 
 ///|
+/// An immutable view of one completed semantic-workspace revision.
+///
+/// Later workspace edits do not change this snapshot. Queries tolerate parse or
+/// semantic errors and return the best information available for that revision.
 pub struct SemanticSnapshot {
   priv revision : Int
   priv source_layout : SourceLayout
@@ -59,6 +63,11 @@ pub struct SemanticSnapshot {
 }
 
 ///|
+/// Owns incrementally parsed and checked source state.
+///
+/// Effective source edits increment `revision`, invalidate the changed source
+/// and every import-dependent module, and publish a new snapshot synchronously.
+/// Repeating an identical edit preserves both revision and snapshot identity.
 pub struct SemanticWorkspace {
   priv mut revision : Int
   priv mut sources : Map[String, @module_frontend.SourceInput]
@@ -76,6 +85,7 @@ pub struct SemanticWorkspace {
 }
 
 ///|
+/// Creates an empty workspace at revision zero with no snapshot.
 pub fn SemanticWorkspace::new() -> SemanticWorkspace {
   {
     revision: 0,
@@ -95,6 +105,10 @@ pub fn SemanticWorkspace::new() -> SemanticWorkspace {
 }
 
 ///|
+/// Replaces the entire source set and refreshes every dirty import-dependent
+/// module. Duplicate source identities use the last supplied text. Returns
+/// `None` exactly when the resulting workspace is empty; an unchanged source
+/// set returns the current snapshot without advancing the revision.
 pub fn SemanticWorkspace::replace_sources(
   self : SemanticWorkspace,
   sources : Array[@module_frontend.SourceInput],
@@ -134,6 +148,8 @@ pub fn SemanticWorkspace::replace_sources(
 }
 
 ///|
+/// Returns the latest completed snapshot, or `None` before any non-empty source
+/// set has been analyzed and after `clear` or removal of the final source.
 pub fn SemanticWorkspace::snapshot(
   self : SemanticWorkspace,
 ) -> SemanticSnapshot? {
@@ -141,6 +157,8 @@ pub fn SemanticWorkspace::snapshot(
 }
 
 ///|
+/// Inserts or replaces one source and refreshes its dependent closure. An
+/// identical source is a no-op. Returns `None` only if the workspace is empty.
 pub fn SemanticWorkspace::upsert_source(
   self : SemanticWorkspace,
   source : @module_frontend.SourceInput,
@@ -164,6 +182,8 @@ pub fn SemanticWorkspace::upsert_source(
 }
 
 ///|
+/// Removes one source and refreshes modules affected by its absence. Removing
+/// an unknown identity is a no-op; removing the final source returns `None`.
 pub fn SemanticWorkspace::remove_source(
   self : SemanticWorkspace,
   source_id : String,
@@ -180,6 +200,7 @@ pub fn SemanticWorkspace::remove_source(
 }
 
 ///|
+/// Returns detached source values in stable `source_id` order.
 pub fn SemanticWorkspace::sources(
   self : SemanticWorkspace,
 ) -> Array[@module_frontend.SourceInput] {
@@ -193,11 +214,15 @@ pub fn SemanticWorkspace::sources(
 }
 
 ///|
+/// Returns the number of effective source-set mutations since construction or
+/// the last clear. Read-only queries and identical updates do not advance it.
 pub fn SemanticWorkspace::revision(self : SemanticWorkspace) -> Int {
   self.revision
 }
 
 ///|
+/// Drops all source, cache, and identity-allocation state and advances the
+/// revision once. Existing snapshots remain valid independent values.
 pub fn SemanticWorkspace::clear(self : SemanticWorkspace) -> Unit {
   self.revision += 1
   self.sources.clear()
@@ -748,11 +773,14 @@ fn push_unique(items : Array[String], item : String) -> Unit {
 }
 
 ///|
+/// Returns the workspace revision captured by this snapshot.
 pub fn SemanticSnapshot::revision(self : SemanticSnapshot) -> Int {
   self.revision
 }
 
 ///|
+/// Materializes the complete semantic index and diagnostics for this revision.
+/// Collection order is deterministic by source/module layout.
 pub fn SemanticSnapshot::analysis(self : SemanticSnapshot) -> AnalysisResult {
   let diagnostics = self.parse_and_graph_diagnostics()
   let definitions = []
@@ -773,6 +801,8 @@ pub fn SemanticSnapshot::analysis(self : SemanticSnapshot) -> AnalysisResult {
 }
 
 ///|
+/// Returns all parse, graph, and module diagnostics for this revision in stable
+/// source/module order.
 pub fn SemanticSnapshot::diagnostics(
   self : SemanticSnapshot,
 ) -> Array[CompilerDiagnostic] {
@@ -810,6 +840,9 @@ fn SemanticSnapshot::diagnostics_for_source(
 }
 
 ///|
+/// Returns diagnostics only for sources changed by the mutation that produced
+/// this snapshot. Removed sources are absent because they no longer have an
+/// input payload; unchanged dependents do not create duplicate publication rows.
 pub fn SemanticSnapshot::diagnostic_delta(
   self : SemanticSnapshot,
 ) -> Array[(@module_frontend.SourceInput, Array[CompilerDiagnostic])] {
@@ -836,6 +869,8 @@ fn SemanticSnapshot::parse_and_graph_diagnostics(
 }
 
 ///|
+/// Resolves the definition at a one-based source position. Returns `None` when
+/// the source has no semantic index or the position names no definition.
 pub fn SemanticSnapshot::definition_at(
   self : SemanticSnapshot,
   source_id : String,
@@ -890,6 +925,8 @@ fn SemanticSnapshot::semantic_index(
 }
 
 ///|
+/// Returns completion candidates for an incomplete-source position. Candidate
+/// ordering and replacement spans are deterministic for an equal snapshot.
 pub fn SemanticSnapshot::complete(
   self : SemanticSnapshot,
   source_id : String,

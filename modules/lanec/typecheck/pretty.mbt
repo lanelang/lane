@@ -329,12 +329,18 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       text("unknown_contextual_argument") + space + text(name)
     InvalidNamedArgument(name~) =>
       text("invalid_named_argument") + space + text(name)
-    MissingContextualOffer(expected~) =>
-      text("missing_contextual_offer") + space + expected.pretty()
-    AmbiguousContextualOffer(expected~, candidates~) =>
+    MissingContextualOffer(expected~, site~) =>
+      text("missing_contextual_offer") +
+      space +
+      expected.pretty() +
+      space +
+      contextual_offer_requirement_site_doc(site)
+    AmbiguousContextualOffer(expected~, site~, candidates~) =>
       text("ambiguous_contextual_offer") +
       space +
       expected.pretty() +
+      space +
+      contextual_offer_requirement_site_doc(site) +
       space +
       text(
         "candidates=[" +
@@ -504,6 +510,16 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       text(label) +
       space +
       failure.pretty()
+  }
+}
+
+///|
+fn contextual_offer_requirement_site_doc(
+  site : ContextualOfferRequirementSite,
+) -> Document {
+  match site {
+    AutoParameter(name~) => text("auto_parameter=") + text(name)
+    StructuralDeriver => text("structural_deriver")
   }
 }
 

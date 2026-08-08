@@ -268,7 +268,13 @@ fn SemanticChecker::complete_direct_call_arguments(
       Some(argument) =>
         result.push(Positional(value=argument.value, loc=argument.loc))
       None =>
-        match self.contextual_offer_expr(scope, parameter_types[index], loc) {
+        match
+          self.contextual_offer_expr(
+            scope,
+            parameter_types[index],
+            parameter.name,
+            loc,
+          ) {
           Some(argument) =>
             result.push(Positional(value=argument, loc=argument.loc()))
           None =>
@@ -284,9 +290,16 @@ fn SemanticChecker::contextual_offer_expr(
   self : SemanticChecker,
   scope : TypeScope,
   expected : @types.Type,
+  parameter_name : String,
   loc : SourceSpan,
 ) -> @desugar.DesugaredExpr? {
-  guard self.required_contextual_offer(scope, expected, loc) is Some(offer) else {
+  guard self.required_contextual_offer(
+      scope,
+      expected,
+      AutoParameter(name=parameter_name),
+      loc,
+    )
+    is Some(offer) else {
     return None
   }
   Some(offer.expression)
@@ -297,18 +310,23 @@ fn SemanticChecker::required_contextual_offer(
   self : SemanticChecker,
   scope : TypeScope,
   expected : @types.Type,
+  site : ContextualOfferRequirementSite,
   loc : SourceSpan,
 ) -> ContextualOffer? {
   match self.lookup_contextual_offer(scope, expected, loc) {
     ContextualOfferFound(offer) => Some(offer)
     ContextualOfferMissing => {
-      self.diagnostics.push({ kind: MissingContextualOffer(expected~), loc })
+      self.diagnostics.push({
+        kind: MissingContextualOffer(expected~, site~),
+        loc,
+      })
       None
     }
     ContextualOfferAmbiguous(matches) => {
       self.diagnostics.push({
         kind: AmbiguousContextualOffer(
           expected~,
+          site~,
           candidates=matches.map(fn(offer) {
             contextual_offer_diagnostic_candidate(offer)
           }),

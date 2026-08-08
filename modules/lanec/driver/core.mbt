@@ -4,6 +4,8 @@ priv struct ExploreStageBuilder {
 }
 
 ///|
+/// Compiles and links the source closure and lists entries in deterministic link
+/// order. Compilation failure returns an empty entry list plus full diagnostics.
 pub fn list_entries(
   root_source : @compile.SourceInput,
   library_sources : Array[@compile.SourceInput],
@@ -25,6 +27,10 @@ pub fn list_entries(
 }
 
 ///|
+/// Runs the fixed Explore Protocol pipeline from syntax through Wasm and records
+/// every completed stage in canonical order. The first failed stage terminates
+/// processing; later stages remain unavailable and no partial stage is marked
+/// completed.
 pub fn explore(request : ExploreRequest) -> ExploreReport {
   let stages = ExploreStageBuilder::new()
   let mut root_module_path_text : String? = None

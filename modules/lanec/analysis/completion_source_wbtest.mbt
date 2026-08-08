@@ -47,3 +47,26 @@ test "completion source indexes parser tokens and line positions" {
     ),
   )
 }
+
+///|
+test "completion source columns count decoded UTF-8 scalar values" {
+  let text = "module Main\n// é\npub let answer : I64 = 0"
+  let parsed = @module_frontend.parse_module_inputs(
+    { source_id: "file:///Main.lane", text },
+    [],
+  )
+  guard parsed.modules.get(0) is Some(input) else {
+    abort("expected parsed completion source")
+  }
+  let source = CompletionSource::from_input(input)
+  assert_eq(source.offset(2, 4), 15)
+  assert_eq(source.offset(2, 5), 16)
+  assert_eq(source.span(15, 16), {
+    start_offset: 15,
+    end_offset: 16,
+    start_line: 2,
+    start_column: 4,
+    end_line: 2,
+    end_column: 5,
+  })
+}

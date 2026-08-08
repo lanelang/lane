@@ -1,4 +1,7 @@
 ///|
+/// Validates and links every supplied module, exporting entries with qualified
+/// module identity. Semantic order is dependency-derived rather than input
+/// order; any diagnostic yields no partial program.
 pub fn link_modules(modules : Array[LinkModuleObject]) -> LinkResult {
   match LinkModuleIndex::from_modules(modules) {
     Err(diagnostics) => { program: None, diagnostics }
@@ -7,6 +10,9 @@ pub fn link_modules(modules : Array[LinkModuleObject]) -> LinkResult {
 }
 
 ///|
+/// Validates the module pool and links only the import closure reachable from
+/// `root_module_path_text`. Only root-module entries remain executable; missing
+/// roots, cycles, and integrity failures return diagnostics and no program.
 pub fn link_reachable_modules(
   modules : Array[LinkModuleObject],
   root_module_path_text : String,

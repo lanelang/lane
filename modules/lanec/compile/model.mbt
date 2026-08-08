@@ -1,32 +1,49 @@
 ///|
+/// Identifies one in-memory source file. `source_id` is preserved in every
+/// diagnostic and should therefore be stable across incremental requests.
 pub(all) struct SourceInput {
   source_id : String
   text : String
 } derive(Debug, Eq)
 
 ///|
+/// Describes a source compilation rooted at `root`.
+///
+/// `libraries` is an unordered source pool: compilation discovers the
+/// import-reachable closure and ignores dead library modules.
 pub(all) struct CompilationRequest {
   root : SourceInput
   libraries : Array[SourceInput]
 } derive(Debug, Eq)
 
 ///|
+/// Describes compilation of one source module against persisted interfaces.
+/// The interface artifacts are untrusted and are validated before use.
 pub(all) struct InterfaceCompilationRequest {
   root : SourceInput
   interfaces : Array[@artifact.ModuleInterfaceArtifact]
 } derive(Debug, Eq)
 
 ///|
+/// Owns the non-blocking diagnostics from a successful compilation.
+/// Accessors return detached diagnostic values, including nested arrays.
 pub struct CompilationWarnings {
   priv diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
 ///|
+/// Owns the blocking diagnostics from a failed compilation. A failure always
+/// contains at least one error and never carries a partial product.
 pub struct CompilationFailure {
   priv diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
 ///|
+/// The complete result of a facade operation.
+///
+/// `Succeeded` may carry warnings but never errors. `Failed` carries at least
+/// one error and no partial `T`, so callers cannot accidentally consume output
+/// from an incomplete compiler stage.
 pub(all) enum CompilationOutcome[T] {
   Succeeded(T, CompilationWarnings)
   Failed(CompilationFailure)
@@ -57,6 +74,7 @@ fn detached_compiler_diagnostics(
 }
 
 ///|
+/// Returns a deep, mutation-isolated copy of the successful diagnostics.
 pub fn CompilationWarnings::diagnostics(
   self : CompilationWarnings,
 ) -> Array[CompilerDiagnostic] {
@@ -64,6 +82,7 @@ pub fn CompilationWarnings::diagnostics(
 }
 
 ///|
+/// Returns a deep, mutation-isolated copy of the failure diagnostics.
 pub fn CompilationFailure::diagnostics(
   self : CompilationFailure,
 ) -> Array[CompilerDiagnostic] {
@@ -71,6 +90,8 @@ pub fn CompilationFailure::diagnostics(
 }
 
 ///|
+/// Returns all diagnostics regardless of whether the outcome succeeded.
+/// The returned diagnostics do not alias storage retained by the outcome.
 pub fn[T] CompilationOutcome::diagnostics(
   self : CompilationOutcome[T],
 ) -> Array[CompilerDiagnostic] {
@@ -102,11 +123,14 @@ fn[T] compilation_failed(
 }
 
 ///|
+/// An opaque, independently compiled source-module set ready for linking or
+/// persistence. Module order is compiler-owned and deterministic.
 pub struct CompiledModules {
   priv modules : @module_compile.CompiledModuleSet
 } derive(Debug, Eq)
 
 ///|
+/// Returns a detached persistence artifact for the complete module set.
 pub fn CompiledModules::artifact(
   self : CompiledModules,
 ) -> @artifact.CompiledModuleSetArtifact {
@@ -124,16 +148,20 @@ pub fn CompiledModules::module_count(self : CompiledModules) -> Int {
 }
 
 ///|
+/// An opaque linked Buslane program. Its entry and module queries return values
+/// detached from the facade's mutable collections.
 pub struct CompiledProgram {
   priv linked : @module_link.LinkedProgram
 } derive(Debug, Eq)
 
 ///|
+/// An entry identity owned by the `CompiledProgram` that produced it.
 pub struct CompiledEntry {
   priv entry : @buslane_lowering.BuslaneEntry
 } derive(Debug, Eq)
 
 ///|
+/// Lists linked executable candidates in deterministic link order.
 pub fn CompiledProgram::entries(self : CompiledProgram) -> Array[CompiledEntry] {
   self.linked.entries.map(entry => { entry, })
 }
@@ -154,6 +182,8 @@ pub fn CompiledProgram::buslane_text(
 }
 
 ///|
+/// Elaborates one linked entry through specialization, effect lowering, and
+/// core optimization. An entry from another program is rejected structurally.
 pub fn CompiledProgram::elaborate_entry(
   self : CompiledProgram,
   entry : CompiledEntry,
@@ -165,6 +195,8 @@ pub fn CompiledProgram::elaborate_entry(
 }
 
 ///|
+/// Elaborates an entry and reports each completed whole-program stage in
+/// pipeline order. No later stage is observed after the first failure.
 pub fn CompiledProgram::elaborate_entry_observed(
   self : CompiledProgram,
   entry : CompiledEntry,

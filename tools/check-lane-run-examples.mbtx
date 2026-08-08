@@ -75,6 +75,25 @@ async fn main raise {
       case.print_expectation()
     }
   }
+  let nesting_result = @async.with_timeout_opt(
+    fixture_timeout_ms,
+    () => check_valid_wasm_nesting(manifest.cases),
+  )
+  match nesting_result {
+    None => {
+      failure_count += 1
+      println("FAILED valid example Wasm nesting bound")
+      println(
+        "  error: timed out after " + fixture_timeout_ms.to_string() + "ms",
+      )
+    }
+    Some(result) if result.code != 0 => {
+      failure_count += 1
+      println("FAILED valid example Wasm nesting bound")
+      println("  actual: " + result.output)
+    }
+    Some(_) => ()
+  }
   let separate_result = @async.with_timeout_opt(
     fixture_timeout_ms,
     run_separate_compile_smoke,
@@ -104,6 +123,55 @@ async fn main raise {
       "lane run fixture failures: " + failure_count.to_string(),
     )
   }
+}
+
+async fn check_valid_wasm_nesting(
+  cases : Array[FixtureCase],
+) -> LaneRunResult {
+  let output_path = "_build/lane-wasm-nesting.html"
+  for case in cases {
+    guard case is RunCase(file~, entry~, ..) else { continue }
+    let result = run_moon_lane([
+      "explore", file + ":" + entry, "--output", output_path,
+    ])
+    if result.code != 0 {
+      return result
+    }
+    let depth = wasm_rendered_nesting_depth(read_text(output_path))
+    if depth > 23 {
+      return {
+        code: 1,
+        output: file + ":" + entry + " produced Wasm nesting depth " +
+        depth.to_string() +
+        ", exceeding the valid-corpus bound 23",
+      }
+    }
+  }
+  { code: 0, output: "" }
+}
+
+fn wasm_rendered_nesting_depth(report : String) -> Int {
+  let marker = "<section class=\"stage\" data-stage=\"wasm\"><pre>"
+  let mut in_wasm = false
+  let mut maximum_spaces = 0
+  for line in report.split("\n") {
+    let line = line.to_owned()
+    if line.contains(marker) {
+      in_wasm = true
+      continue
+    }
+    if in_wasm {
+      let mut spaces = 0
+      while spaces < line.length() &&
+            line.unsafe_substring(start=spaces, end=spaces + 1) == " " {
+        spaces += 1
+      }
+      if spaces > maximum_spaces {
+        maximum_spaces = spaces
+      }
+    }
+  }
+  maximum_spaces / 2
 }
 
 fn read_fixture_manifest(path : String) -> FixtureManifest raise {

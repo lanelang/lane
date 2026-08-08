@@ -1,4 +1,7 @@
 ///|
+/// Elaborates a linked entry into the deterministic whole-program form required
+/// by LoisVM lowering. The entry must belong to `linked`; every intermediate IR
+/// is verified and no executable is returned after a failed stage.
 pub fn elaborate(
   linked : @module_link.LinkedProgram,
   selected_entry : @buslane_lowering.BuslaneEntry,
@@ -7,6 +10,8 @@ pub fn elaborate(
 }
 
 ///|
+/// Stable observation points in the exact order used by executable elaboration.
+/// A variant is emitted only after that stage has passed its verifier.
 pub(all) enum ExecutableElaborationStage {
   EffectSpecialized(@buslane.Program)
   HandlersElaborated(@effect_lowering_core.Program)
@@ -19,6 +24,8 @@ pub(all) enum ExecutableElaborationStage {
 }
 
 ///|
+/// Elaborates while synchronously reporting each verified stage. Observation
+/// stops at the first failure and does not transfer ownership of compiler state.
 pub fn elaborate_observed(
   linked : @module_link.LinkedProgram,
   selected_entry : @buslane_lowering.BuslaneEntry,

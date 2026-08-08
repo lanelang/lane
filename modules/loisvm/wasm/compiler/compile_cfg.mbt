@@ -1,4 +1,7 @@
 ///|
+let maximum_linear_control_blocks = 16
+
+///|
 fn terminator_transfers_control(terminator : @bytecode.Terminator) -> Bool {
   match terminator {
     Jump(_) | BranchBool(_, _, _) | SwitchTag(_, _, _) => true
@@ -60,6 +63,75 @@ fn compile_dispatcher(
     dispatch.append(wrapped)
   }
   Loop(Empty, [Block(Empty, dispatch), Unreachable])
+}
+
+///|
+fn compile_balanced_dispatcher(
+  context : FunctionCompilationContext,
+) -> @wasm_types.Instruction raise WasmCompileError {
+  let state_local = dispatcher_state_local(
+    context.parameter_count,
+    context.body.slots.length(),
+  )
+  Loop(
+    Empty,
+    compile_balanced_dispatch_range(
+      context,
+      state_local,
+      start=0,
+      end=context.body.blocks.length(),
+      loop_depth=0,
+    ),
+  )
+}
+
+///|
+fn compile_balanced_dispatch_range(
+  context : FunctionCompilationContext,
+  state_local : Int,
+  start~ : Int,
+  end~ : Int,
+  loop_depth~ : Int,
+) -> Array[@wasm_types.Instruction] raise WasmCompileError {
+  if end - start == 1 {
+    let block = context.body.blocks[start]
+    let instructions : Array[@wasm_types.Instruction] = []
+    for instruction in block.instructions {
+      instructions.append(context.compile_instruction(instruction))
+    }
+    instructions.append(
+      compile_dispatch_terminator(
+        context,
+        state_local,
+        loop_depth,
+        block.terminator,
+      ),
+    )
+    return instructions
+  }
+  let middle = start + (end - start) / 2
+  [
+    LocalGet(state_local),
+    I32Const(middle),
+    I32LtU,
+    If(
+      Empty,
+      compile_balanced_dispatch_range(
+        context,
+        state_local,
+        start~,
+        end=middle,
+        loop_depth=loop_depth + 1,
+      ),
+      compile_balanced_dispatch_range(
+        context,
+        state_local,
+        start=middle,
+        end~,
+        loop_depth=loop_depth + 1,
+      ),
+    ),
+  ]
 }
 
 ///|

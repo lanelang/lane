@@ -1,4 +1,8 @@
 ///|
+/// Owns the verified, effect-erased whole-program input to LoisVM lowering.
+///
+/// Initializers and execution roots are in deterministic dependency order;
+/// `entry` belongs to the linked program from which this value was elaborated.
 pub(all) struct ExecutableProgram {
   module_path_texts : Array[String]
   program : @buslane.Program
@@ -10,18 +14,24 @@ pub(all) struct ExecutableProgram {
 } derive(Debug, Eq)
 
 ///|
+/// One eager top-level initialization action. Array order is execution order;
+/// recursive groups initialize atomically as one action.
 pub(all) enum TopLevelInitializer {
   Value(@buslane.ValueId, @buslane.Expr)
   Recursive(Array[@buslane.RecursiveBinding])
 } derive(Debug, Eq)
 
 ///|
+/// A root retained for execution. Initializer indices refer to the owning
+/// `ExecutableProgram.initializers` array and precede its selected entry root.
 pub(all) enum ExecutionRoot {
   Initializer(Int)
   Entry(@buslane.ValueId)
 } derive(Debug, Eq)
 
 ///|
+/// Structured whole-program elaboration failures. Unsupported source programs
+/// are distinguished from compiler invariant and verification failures.
 pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
   InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)

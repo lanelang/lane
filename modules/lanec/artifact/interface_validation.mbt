@@ -1,4 +1,7 @@
 ///|
+/// Validates untrusted interface schemas, module identities, fingerprints, and
+/// duplicate module paths. Diagnostics are returned in input order and no
+/// artifact is mutated or freshened by this check.
 pub fn validate_module_interface_artifacts(
   interfaces : Array[ModuleInterfaceArtifact],
 ) -> Array[CompilerDiagnostic] {

@@ -1,4 +1,7 @@
 ///|
+/// Persisted public interface plus the fingerprints needed to validate its own
+/// contents and the interfaces it was compiled against. Values decoded from
+/// storage remain untrusted until interface validation succeeds.
 pub(all) struct ModuleInterfaceArtifact {
   schema_version : Int
   module_path_text : String
@@ -26,6 +29,8 @@ pub let compiled_module_artifact_schema_version = 2
 pub let compiled_module_set_artifact_schema_version = 2
 
 ///|
+/// Persisted, independently linkable module implementation. Its schema and
+/// object fingerprint must be validated before its metadata is trusted.
 pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
@@ -44,6 +49,8 @@ pub(all) struct ModuleObjectArtifact {
 } derive(Debug, Eq)
 
 ///|
+/// Persisted complete LoisVM image. Decoding establishes framing only; the
+/// LoisVM verifier remains the trust boundary before execution.
 pub(all) struct LinkedProgramArtifact {
   schema_version : Int
   bytecode : @loisvm_bytecode.BytecodeImage
@@ -65,6 +72,9 @@ pub(all) struct CompiledModuleSetArtifact {
 } derive(Debug, Eq)
 
 ///|
+/// Validates every untrusted object and then links all modules. Any validation
+/// or link diagnostic produces no program; input order does not determine the
+/// semantic link order.
 pub fn link_module_object_artifacts(
   objects : Array[ModuleObjectArtifact],
 ) -> @module_link.LinkResult {
@@ -75,6 +85,8 @@ pub fn link_module_object_artifacts(
 }
 
 ///|
+/// Validates a compiled module-set artifact and links only the closure reachable
+/// from its recorded root. A failure returns diagnostics and no partial program.
 pub fn link_module_artifacts(
   artifact : CompiledModuleSetArtifact,
 ) -> @module_link.LinkResult {

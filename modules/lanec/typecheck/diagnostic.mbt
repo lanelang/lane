@@ -233,11 +233,11 @@ fn typecheck_diagnostic(
         "this call position only accepts positional arguments",
         "remove the name or call a function with an auto parameter named `\{name}`",
       )
-    MissingContextualOffer(expected~) =>
-      contextual_offer_diagnostic(diagnostic_, display, span, expected, [])
-    AmbiguousContextualOffer(expected~, candidates~) =>
+    MissingContextualOffer(expected~, site~) =>
+      contextual_offer_diagnostic(diagnostic_, display, span, expected, site, [])
+    AmbiguousContextualOffer(expected~, site~, candidates~) =>
       contextual_offer_diagnostic(
-        diagnostic_, display, span, expected, candidates,
+        diagnostic_, display, span, expected, site, candidates,
       )
     MissingDeriveEvidence(required~, paths~) =>
       diagnostic(
@@ -1165,6 +1165,7 @@ fn contextual_offer_diagnostic(
   display : TypeDisplayContext,
   span : @basic.SourceSpan?,
   expected : @types.Type,
+  site : ContextualOfferRequirementSite,
   candidates : Array[ContextualOfferDiagnosticCandidate],
 ) -> CompilerDiagnostic {
   let expected_text = display.type_text(expected)
@@ -1177,7 +1178,12 @@ fn contextual_offer_diagnostic(
       labels=[
         {
           span: compiler_local_span(diagnostic_.loc),
-          message: "no visible offer matches required type `\{expected_text}`",
+          message: match site {
+            AutoParameter(name~) =>
+              "auto offer parameter `\{name}` requires `\{expected_text}`, but no visible offer matches"
+            StructuralDeriver =>
+              "no visible offer matches required type `\{expected_text}`"
+          },
           style: Primary,
         },
       ],
@@ -1185,7 +1191,12 @@ fn contextual_offer_diagnostic(
         "contextual arguments are inserted only from visible `offer` bindings with matching type",
       ],
       helps=[
-        "pass the argument explicitly or add a visible `offer` with type `\{expected_text}`",
+        match site {
+          AutoParameter(name~) =>
+            "pass `\{name}=...` explicitly or add a visible `offer` with type `\{expected_text}`"
+          StructuralDeriver =>
+            "pass the argument explicitly or add a visible `offer` with type `\{expected_text}`"
+        },
       ],
     )
   } else {
@@ -1198,13 +1209,19 @@ fn contextual_offer_diagnostic(
         diagnostic_.loc,
         display,
         expected_text,
+        site,
         candidates,
       ),
       notes=[
         "Lane will not choose between multiple matching contextual offers implicitly",
       ],
       helps=[
-        "pass the argument explicitly or keep only one matching visible offer",
+        match site {
+          AutoParameter(name~) =>
+            "pass `\{name}=...` explicitly or keep only one matching visible offer"
+          StructuralDeriver =>
+            "pass the argument explicitly or keep only one matching visible offer"
+        },
       ],
     )
   }
@@ -1215,12 +1232,18 @@ fn contextual_offer_labels(
   loc : @basic.SourceSpan,
   display : TypeDisplayContext,
   expected_text : String,
+  site : ContextualOfferRequirementSite,
   candidates : Array[ContextualOfferDiagnosticCandidate],
 ) -> Array[CompilerDiagnosticLabel] {
   let labels : Array[CompilerDiagnosticLabel] = [
     {
       span: compiler_local_span(loc),
-      message: "\{candidates.length()} visible offers match required type `\{expected_text}`",
+      message: match site {
+        AutoParameter(name~) =>
+          "auto offer parameter `\{name}` requires `\{expected_text}`, and \{candidates.length()} visible offers match"
+        StructuralDeriver =>
+          "\{candidates.length()} visible offers match required type `\{expected_text}`"
+      },
       style: Primary,
     },
   ]

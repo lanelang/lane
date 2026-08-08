@@ -285,7 +285,49 @@ test "golden missing contextual offer diagnostic is specific" {
   )
   assert_diagnostic_headline(diagnostic, "E3013", "missing contextual offer")
   assert_single_help(
-    diagnostic, "pass the argument explicitly or add a visible `offer` with type `Add[I64]`",
+    diagnostic, "pass `op=...` explicitly or add a visible `offer` with type `Add[I64]`",
+  )
+}
+
+///|
+test "missing contextual offers identify their call parameters" {
+  let diagnostics = check_source(
+    (
+      #|module Test
+      #|struct DebugCapability {}
+      #|struct EqualCapability {}
+      #|fn consume(
+      #|  value : I64,
+      #|  auto debug_impl : DebugCapability,
+      #|  auto equal_impl : EqualCapability
+      #|) -> I64 {
+      #|  value
+      #|}
+      #|fn use() -> I64 {
+      #|  consume(1)
+      #|}
+    ),
+  ).diagnostics()
+  let observation = diagnostics.map(fn(diagnostic) {
+    guard diagnostic.labels is [primary] else {
+      abort("expected one primary label: \{Repr(diagnostic)}")
+    }
+    (primary.message, diagnostic.helps)
+  })
+  debug_inspect(
+    observation,
+    content=(
+      #|[
+      #|  (
+      #|    "auto offer parameter `debug_impl` requires `DebugCapability`, but no visible offer matches",
+      #|    ["pass `debug_impl=...` explicitly or add a visible `offer` with type `DebugCapability`"],
+      #|  ),
+      #|  (
+      #|    "auto offer parameter `equal_impl` requires `EqualCapability`, but no visible offer matches",
+      #|    ["pass `equal_impl=...` explicitly or add a visible `offer` with type `EqualCapability`"],
+      #|  ),
+      #|]
+    ),
   )
 }
 
@@ -310,8 +352,18 @@ test "golden ambiguous contextual offer diagnostic is specific" {
     ),
   )
   assert_diagnostic_headline(diagnostic, "E3013", "ambiguous contextual offer")
-  assert_single_help(
-    diagnostic, "pass the argument explicitly or keep only one matching visible offer",
+  debug_inspect(
+    (diagnostic.labels.map(fn(label) { label.message }), diagnostic.helps),
+    content=(
+      #|(
+      #|  [
+      #|    "auto offer parameter `op` requires `Add[I64]`, and 2 visible offers match",
+      #|    "candidate `offer_a` has type `Add[I64]`",
+      #|    "candidate `offer_b` has type `Add[I64]`",
+      #|  ],
+      #|  ["pass `op=...` explicitly or keep only one matching visible offer"],
+      #|)
+    ),
   )
 }
 

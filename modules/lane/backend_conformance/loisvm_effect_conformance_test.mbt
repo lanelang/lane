@@ -3,6 +3,7 @@ fn effect_conformance_basic_io() -> String {
   (
     #|module Basic.Io
     #|pub let println : (String) -> Unit ! Io = extern("println")
+    #|pub let panic : (String) -> Unit ! Io = extern("panic")
   )
 }
 
@@ -444,6 +445,17 @@ fn effect_conformance_failing_registry(
 }
 
 ///|
+fn effect_conformance_fatal_registry(
+  output : Array[String],
+) -> @loisvm_runtime.RuntimeRegistry {
+  let registry = effect_conformance_registry(output)
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::fatal_string(symbol="panic"),
+  )
+  registry
+}
+
+///|
 fn run_effect_conformance_interpreter_failure(
   image : @loisvm_bytecode.BytecodeImage,
   registry : @loisvm_runtime.RuntimeRegistry,
@@ -536,6 +548,41 @@ test "runtime import failures agree across production backends" {
       #|(
       #|  Err(RuntimeImportFailure(symbol="println", message="boom")),
       #|  Err(RuntimeImportFailure(symbol="println", message="boom")),
+      #|)
+    ),
+  )
+}
+
+///|
+test "statement-position panic is fatal and does not continue on either backend" {
+  let image = compile_effect_conformance_image(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|pub fn main() -> Unit ! Io {
+      #|  panic("boom")
+      #|  println("after")
+      #|}
+    ),
+  )
+  let interpreter_output : Array[String] = []
+  let interpreter = run_effect_conformance_interpreter_failure(
+    image,
+    effect_conformance_fatal_registry(interpreter_output),
+  )
+  let wasm_output : Array[String] = []
+  let wasm = run_effect_conformance_wasm_failure(
+    image,
+    effect_conformance_fatal_registry(wasm_output),
+  )
+  debug_inspect(
+    (interpreter, interpreter_output, wasm, wasm_output),
+    content=(
+      #|(
+      #|  Err(RuntimeImportFailure(symbol="panic", message="boom")),
+      #|  [],
+      #|  Err(RuntimeImportFailure(symbol="panic", message="boom")),
+      #|  [],
       #|)
     ),
   )

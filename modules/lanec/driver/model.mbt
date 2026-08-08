@@ -11,6 +11,8 @@ pub(all) struct ExploreRootIdentity {
 } derive(Debug, Eq)
 
 ///|
+/// Stable machine-readable outcome of an exploration request. `Failed(id)`
+/// names the first stage that did not complete.
 pub(all) enum ExploreStatus {
   Succeeded
   Failed(ExploreStageId)
@@ -36,6 +38,8 @@ pub(all) enum ExploreTextFormat {
 } derive(Debug, Eq)
 
 ///|
+/// Canonical total order of protocol stages. This order is also the execution
+/// order and is independent of map or source-pool iteration order.
 pub(all) enum ExploreStageId {
   Syntax
   Resolved
@@ -58,6 +62,7 @@ pub(all) enum ExploreStageId {
 } derive(Debug, Eq)
 
 ///|
+/// A completed stage's immutable rendered observation and diagnostics.
 pub(all) struct ExploreSnapshot {
   domain : ExploreStageDomain
   text_format : ExploreTextFormat
@@ -66,6 +71,8 @@ pub(all) struct ExploreSnapshot {
 } derive(Debug, Eq)
 
 ///|
+/// State of one fixed protocol stage. `Failed` is used only for the first
+/// failing stage; subsequent stages are `Unavailable`.
 pub(all) enum ExploreStageState {
   Completed(ExploreSnapshot)
   Failed(Array[@compiler_diag.CompilerDiagnostic])
@@ -102,6 +109,8 @@ pub(all) struct ExploreStages {
 } derive(Debug, Eq)
 
 ///|
+/// Input to the Explore Protocol. Library sources form an unordered import pool;
+/// `entry` must uniquely select one linked artifact-defined entry.
 pub(all) struct ExploreRequest {
   root_source : @compile.SourceInput
   library_sources : Array[@compile.SourceInput]
@@ -116,6 +125,8 @@ pub(all) struct EntrySummary {
 } derive(Debug, Eq)
 
 ///|
+/// Versioned complete Explore Protocol response. Reports are deterministic for
+/// equal requests and retain completed snapshots even when a later stage fails.
 pub(all) struct ExploreReport {
   schema_version : Int
   compiler : ExploreCompilerIdentity
@@ -127,6 +138,8 @@ pub(all) struct ExploreReport {
 } derive(Debug, Eq)
 
 ///|
+/// Versioned entry-discovery response. Diagnostics are complete and an error
+/// response never exposes entries from a partial compilation.
 pub(all) struct EntryReport {
   schema_version : Int
   entries : Array[EntrySummary]
@@ -134,6 +147,8 @@ pub(all) struct EntryReport {
 } derive(Debug, Eq)
 
 ///|
+/// Returns all 18 stages in canonical pipeline order, including unavailable and
+/// failed states; callers need not reconstruct ordering from record fields.
 pub fn ExploreStages::ordered(self : ExploreStages) -> Array[ExploreStage] {
   [
     explore_stage(Syntax, self.syntax),

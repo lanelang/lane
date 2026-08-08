@@ -660,6 +660,36 @@ test "run accepts built-in Io through an explicit Basic extern" {
 }
 
 ///|
+test "run registers the statement-oriented Basic panic binding" {
+  let basic_io =
+    #|module Basic.Io
+    #|pub let panic : (String) -> Unit ! Io = extern("panic")
+    #|pub let println : (String) -> Unit ! Io = extern("println")
+  let result = compile_program_for_test(
+    (
+      #|module Test
+      #|import Basic.Io.*
+      #|pub fn main() -> Unit ! Io {
+      #|  panic("boom")
+      #|  println("after")
+      #|}
+    ),
+    [basic_io],
+  )
+  debug_inspect(result.diagnostics(), content="[]")
+  let program = successful_compilation(result)
+  let entry = find_entry(program.entries(), "main")
+  guard entry is Ok(entry) else { abort("expected entry") }
+  let output : Array[String] = []
+  guard execute_entry_with_output(program, entry, line => output.push(line))
+    is UserErrors([ExecutionFailed(message~)]) else {
+    abort("expected run entry to terminate through panic")
+  }
+  assert_eq(message, "RuntimeImportFailure(symbol=\"panic\", message=\"boom\")")
+  assert_eq(output, [])
+}
+
+///|
 test "run lowers lexical handlers before runtime effects" {
   let basic_io =
     #|module Basic.Io

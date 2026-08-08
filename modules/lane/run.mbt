@@ -205,6 +205,9 @@ fn command_loisvm_runtime(
       },
     ),
   )
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::fatal_string(symbol="panic"),
+  )
   registry
 }
 

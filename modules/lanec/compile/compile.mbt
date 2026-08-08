@@ -1,11 +1,14 @@
 ///|
-/// Checks one in-memory Lane source module.
+/// Checks one in-memory Lane source module without linking it. Diagnostics use
+/// the synthetic source identity `<root>`; use `check` when identity matters.
 pub fn check_source(source : String) -> CompilationOutcome[Unit] {
   check({ root: { source_id: "<root>", text: source }, libraries: [] })
 }
 
 ///|
-/// Checks a source set without linking it.
+/// Checks the import-reachable source closure without linking it. Success may
+/// include warnings; every blocking parse, graph, resolve, or type error yields
+/// `Failed` and no partial checked product.
 pub fn check(request : CompilationRequest) -> CompilationOutcome[Unit] {
   discard_checked_source(check_request(request))
 }
@@ -33,7 +36,9 @@ fn check_request(
 }
 
 ///|
-/// Checks one source module against persisted module interfaces.
+/// Checks one source module against persisted, untrusted module interfaces.
+/// Schema, identity, and fingerprint failures are ordinary diagnostics and no
+/// source product is exposed.
 pub fn check_with_interfaces(
   request : InterfaceCompilationRequest,
 ) -> CompilationOutcome[Unit] {
@@ -77,13 +82,15 @@ fn discard_checked_source(
 }
 
 ///|
-/// Compiles one in-memory Lane source module through linking.
+/// Compiles one in-memory Lane source module through linking, using `<root>` as
+/// its diagnostic source identity.
 pub fn compile_source(source : String) -> CompilationOutcome[CompiledProgram] {
   compile({ root: { source_id: "<root>", text: source }, libraries: [] })
 }
 
 ///|
-/// Compiles and links a source set.
+/// Compiles and links the import-reachable source closure. The operation is
+/// deterministic for equal requests and returns no linked program on failure.
 pub fn compile(
   request : CompilationRequest,
 ) -> CompilationOutcome[CompiledProgram] {
@@ -95,7 +102,8 @@ pub fn compile(
 }
 
 ///|
-/// Compiles a source set into separate modules without linking it.
+/// Compiles the import-reachable source closure into separate modules without
+/// linking. The returned opaque set owns its artifacts and deterministic order.
 pub fn compile_modules(
   request : CompilationRequest,
 ) -> CompilationOutcome[CompiledModules] {
@@ -103,7 +111,9 @@ pub fn compile_modules(
 }
 
 ///|
-/// Compiles modules while reporting stable, rendered stage snapshots.
+/// Compiles modules while reporting stable, rendered stage snapshots in source
+/// pipeline order. Observation is synchronous and stops at the first blocking
+/// failure; snapshots are informational and do not transfer compiler state.
 pub fn compile_modules_observed(
   request : CompilationRequest,
   observe : (SourceCompilationStage) -> Unit,
@@ -115,7 +125,8 @@ pub fn compile_modules_observed(
 }
 
 ///|
-/// Compiles one source module against persisted module interfaces.
+/// Compiles one source module against persisted, untrusted interfaces. Every
+/// artifact is validated before it contributes symbols or metadata.
 pub fn compile_module_with_interfaces(
   request : InterfaceCompilationRequest,
 ) -> CompilationOutcome[CompiledModules] {
@@ -130,7 +141,8 @@ pub fn compile_module_with_interfaces(
 }
 
 ///|
-/// Links modules produced by this facade.
+/// Links a module set produced by this facade. Internal module invariants are
+/// trusted here because `CompiledModules` cannot be constructed by callers.
 pub fn link_modules(
   modules : CompiledModules,
 ) -> CompilationOutcome[CompiledProgram] {
@@ -138,7 +150,9 @@ pub fn link_modules(
 }
 
 ///|
-/// Validates and links persisted module object artifacts.
+/// Validates and links persisted module object artifacts. Schema, fingerprint,
+/// import, and bytecode-independent metadata invariants are checked before any
+/// artifact contributes to the linked program.
 pub fn link_module_objects(
   objects : Array[@artifact.ModuleObjectArtifact],
 ) -> CompilationOutcome[CompiledProgram] {

@@ -218,3 +218,19 @@ pub fn[Arguments, Result] RuntimeBinding::typed(
     },
   )
 }
+
+///|
+/// Defines a statement-oriented fatal runtime import that accepts one String.
+///
+/// The binding advertises a Unit result solely because the direct runtime ABI
+/// has no bottom result. Invocation always raises `RuntimeImportFailure`, so a
+/// conforming call never returns Unit or resumes Lane execution.
+pub fn RuntimeBinding::fatal_string(symbol~ : String) -> RuntimeBinding {
+  RuntimeBinding::typed(
+    symbol~,
+    abi_major=1,
+    parameters=HostParameters::one(HostParameter::string()),
+    result=HostResult::unit(),
+    invoke=(_context, message) => raise Failure(message=message.to_string()),
+  )
+}

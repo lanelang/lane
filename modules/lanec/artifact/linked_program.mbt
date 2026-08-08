@@ -1,4 +1,6 @@
 ///|
+/// Lowers a verified executable program to a complete LoisVM bytecode image.
+/// Failure returns no partial image.
 pub fn lower_executable_to_loisvm_bytecode(
   program : @executable.ExecutableProgram,
 ) -> Result[
@@ -9,6 +11,8 @@ pub fn lower_executable_to_loisvm_bytecode(
 }
 
 ///|
+/// Lowers and wraps an executable in the current linked-program artifact schema.
+/// The result is deterministic for an equal executable program.
 pub fn executable_to_loisvm_artifact(
   program : @executable.ExecutableProgram,
 ) -> Result[LinkedProgramArtifact, @loisvm_lowering.LoisvmLoweringError] {
@@ -20,6 +24,8 @@ pub fn executable_to_loisvm_artifact(
 }
 
 ///|
+/// Lowers and encodes an executable without exposing an intermediate artifact.
+/// Lowering failure returns no partial binary payload.
 pub fn executable_to_loisvm_binary(
   program : @executable.ExecutableProgram,
 ) -> Result[Bytes, @loisvm_lowering.LoisvmLoweringError] {
@@ -30,6 +36,8 @@ pub fn executable_to_loisvm_binary(
 }
 
 ///|
+/// Encodes a caller-supplied LoisVM image in the current linked-program schema.
+/// This trusted-internal convenience does not verify the image.
 pub fn loisvm_linked_program_to_binary(
   image : @loisvm_bytecode.BytecodeImage,
 ) -> Bytes {
@@ -40,6 +48,8 @@ pub fn loisvm_linked_program_to_binary(
 }
 
 ///|
+/// Decodes a linked-program payload into an untrusted bytecode image. Callers
+/// must pass the image through the LoisVM verifier before execution.
 pub fn parse_loisvm_linked_program_binary(
   bytes : Bytes,
 ) -> Result[@loisvm_bytecode.BytecodeImage, String] {

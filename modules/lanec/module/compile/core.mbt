@@ -17,6 +17,8 @@ pub(all) struct ModuleObject {
 } derive(Debug, Eq)
 
 ///|
+/// Trusted output of compiling one source module inside this package. The
+/// interface and object share the same fresh symbol registry and fingerprints.
 pub struct CompiledModule {
   interface : @module_interface.ModuleInterface
   object : ModuleObject
@@ -55,6 +57,8 @@ fn CompiledModule::to_link_object(
 }
 
 ///|
+/// Ordered compiler-owned module products for one import-reachable graph.
+/// `diagnostics` contains warnings only; blocking errors prevent construction.
 pub(all) struct CompiledModuleSet {
   root_module_path_text : String
   modules : Array[CompiledModule]
@@ -70,6 +74,8 @@ pub(all) enum ModuleCompileStage {
 }
 
 ///|
+/// Compiles graph modules in dependency order. A blocking module failure stops
+/// the pipeline and returns diagnostics without a partial `CompiledModuleSet`.
 pub fn compile_module_graph(
   graph : @module_frontend.ModuleGraph,
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
@@ -77,6 +83,8 @@ pub fn compile_module_graph(
 }
 
 ///|
+/// Compiles a graph while synchronously observing each completed module stage.
+/// Calls follow dependency order and stop after the first blocking failure.
 pub fn compile_module_graph_observed(
   graph : @module_frontend.ModuleGraph,
   observe : (String, ModuleCompileStage) -> Unit,
@@ -134,6 +142,9 @@ fn check_module_graph(
 }
 
 ///|
+/// Compiles one root source against untrusted persisted interfaces. Reachable
+/// interface schemas, identities, dependency fingerprints, and symbol metadata
+/// are validated and freshened before they enter source checking.
 pub fn compile_module_from_interface_artifacts(
   root_source : @module_frontend.SourceInput,
   interfaces : Array[@artifact.ModuleInterfaceArtifact],

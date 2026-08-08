@@ -30,6 +30,9 @@ fn artifact_binary_magic() -> Bytes {
 }
 
 ///|
+/// Decodes any Lane artifact container and renders its payload for inspection.
+/// This checks binary framing, version, kind, and payload syntax; it does not
+/// make decoded compiler metadata trusted for linking or execution.
 pub fn artifact_binary_to_inspect_text(bytes : Bytes) -> Result[String, String] {
   artifact_binary_decode_result(fn() raise {
     let decoded = decode_artifact_container(bytes)
@@ -57,6 +60,8 @@ fn[T : @prettyprinter.Pretty] artifact_to_inspect_text(artifact : T) -> String {
 }
 
 ///|
+/// Deterministically encodes an interface artifact using the current container
+/// and payload schema. Callers are responsible for supplying a valid artifact.
 pub fn module_interface_artifact_to_binary(
   artifact : ModuleInterfaceArtifact,
 ) -> Bytes {
@@ -67,6 +72,8 @@ pub fn module_interface_artifact_to_binary(
 }
 
 ///|
+/// Decodes interface framing and payload syntax. Semantic schema, identity, and
+/// fingerprint validation occurs when the artifact is consumed for compilation.
 pub fn parse_module_interface_artifact_binary(
   bytes : Bytes,
 ) -> Result[ModuleInterfaceArtifact, String] {
@@ -81,6 +88,7 @@ pub fn parse_module_interface_artifact_binary(
 }
 
 ///|
+/// Deterministically encodes a module object using the current binary schema.
 pub fn module_object_artifact_to_binary(
   artifact : ModuleObjectArtifact,
 ) -> Bytes {
@@ -91,6 +99,8 @@ pub fn module_object_artifact_to_binary(
 }
 
 ///|
+/// Decodes object framing and payload syntax without trusting its metadata.
+/// Linking performs the schema and fingerprint validation boundary.
 pub fn parse_module_object_artifact_binary(
   bytes : Bytes,
 ) -> Result[ModuleObjectArtifact, String] {
@@ -102,6 +112,7 @@ pub fn parse_module_object_artifact_binary(
 }
 
 ///|
+/// Deterministically encodes a linked-program artifact.
 pub fn linked_program_artifact_to_binary(
   artifact : LinkedProgramArtifact,
 ) -> Bytes {
@@ -112,6 +123,8 @@ pub fn linked_program_artifact_to_binary(
 }
 
 ///|
+/// Decodes linked-program framing and payload syntax. Execution must still pass
+/// the decoded bytecode image through the LoisVM verifier.
 pub fn parse_linked_program_artifact_binary(
   bytes : Bytes,
 ) -> Result[LinkedProgramArtifact, String] {

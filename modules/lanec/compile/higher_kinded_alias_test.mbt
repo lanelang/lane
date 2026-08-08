@@ -122,3 +122,67 @@ test "a function literal uses a head-normalized higher-kinded expectation" {
     abort("expected the head-normalized function expectation to check")
   }
 }
+
+///|
+fn capability_lifting_source(result : String) -> String {
+  (
+    #|module Test
+    #|pub enum Maybe[A] {
+    #|  none()
+    #|  some(A)
+    #|}
+    #|pub struct Nominal[A] {
+    #|  value : A
+    #|}
+    #|pub type Transparent[A] = (A) -> String
+    #|pub fn[Evid : [Type] -> Type, T1 : [Type] -> Type, T2] lift(
+    #|  auto provider : [T](Evid[T]) -> Evid[T1[T]],
+    #|  auto base : Evid[T2]
+    #|) -> Evid[T1[T2]] {
+    #|  provider(base)
+    #|}
+    #|pub offer nominal_base : Nominal[I64] = Nominal::{ value: 42 }
+    #|pub offer fn[A] nominal_maybe(
+    #|  auto base : Nominal[A]
+    #|) -> Nominal[Maybe[A]] {
+    #|  Nominal::{ value: Maybe::some(base.value) }
+    #|}
+    #|pub offer transparent_base : Transparent[I64] = fn(_value) { "base" }
+    #|pub offer fn[A] transparent_maybe(
+    #|  auto _base : Transparent[A]
+    #|) -> Transparent[Maybe[A]] {
+    #|  fn(_value) { "lifted" }
+    #|}
+    #|
+  ) +
+  result
+}
+
+///|
+test "capability lifting infers nominal heads and accepts explicit transparent heads" {
+  let source = capability_lifting_source(
+    (
+      #|pub let nominal : Nominal[Maybe[I64]] = lift()
+      #|pub let transparent : Transparent[Maybe[I64]] =
+      #|  lift[Transparent, Maybe, I64]()
+    ),
+  )
+  let result = check_source(source)
+  guard result is Succeeded(_, _) else {
+    abort("unexpected diagnostics: \{Repr(result.diagnostics())}")
+  }
+}
+
+///|
+test "transparent capability heads are not synthesized by higher-order inference" {
+  let diagnostic = single_check_diagnostic(
+    capability_lifting_source(
+      (
+        #|pub let transparent : Transparent[Maybe[I64]] = lift()
+      ),
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3010", "cannot infer generic arguments for this call",
+  )
+}

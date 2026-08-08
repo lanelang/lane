@@ -104,6 +104,35 @@ fn contains_loop(instructions : Array[@wasm_types.Instruction]) -> Bool {
 }
 
 ///|
+fn maximum_control_depth(instructions : Array[@wasm_types.Instruction]) -> Int {
+  let mut maximum = 0
+  for instruction in instructions {
+    let nested = match instruction {
+      Block(_, body) | Loop(_, body) | TryTable(_, _, body) =>
+        1 + maximum_control_depth(body)
+      If(_, consequent, alternate) =>
+        1 +
+        maximum_int(
+          maximum_control_depth(consequent),
+          maximum_control_depth(alternate),
+        )
+      _ => 0
+    }
+    maximum = maximum_int(maximum, nested)
+  }
+  maximum
+}
+
+///|
+fn maximum_int(left : Int, right : Int) -> Int {
+  if left > right {
+    left
+  } else {
+    right
+  }
+}
+
+///|
 fn body(
   slots? : Array[@bytecode.SlotMetadata] = [],
   parameters? : Array[@bytecode.SlotId] = [],
@@ -415,6 +444,37 @@ test "irreducible CFG uses the dispatcher fallback" {
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
   assert_true(contains_br_table(wasm_module.codes[0].body))
+  let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
+  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+}
+
+///|
+test "large straight-line CFG uses a logarithmic-depth dispatcher" {
+  let blocks : Array[@bytecode.Block] = []
+  for index in 0..<64 {
+    blocks.push({
+      parameters: [],
+      instructions: [],
+      terminator: if index + 1 == 64 {
+        Return(None)
+      } else {
+        Jump(edge(index + 1))
+      },
+    })
+  }
+  let linear : @bytecode.FunctionBody = {
+    slots: [],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks,
+  }
+  let wasm_module = match compile(image([BytecodeBody(linear)])) {
+    Ok(value) => value
+    Err(error) => fail("compile failed: \{Repr(error)}")
+  }
+  assert_true(contains_loop(wasm_module.codes[0].body))
+  assert_false(contains_br_table(wasm_module.codes[0].body))
+  assert_true(maximum_control_depth(wasm_module.codes[0].body) <= 10)
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
 }

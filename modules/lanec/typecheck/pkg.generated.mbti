@@ -178,6 +178,11 @@ pub(all) struct ContextualOfferDiagnosticCandidate {
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 
+pub(all) enum ContextualOfferRequirementSite {
+  AutoParameter(name~ : String)
+  StructuralDeriver
+} derive(Eq, @debug.Debug)
+
 pub(all) struct DeclarationTypeCheckResult {
   declarations : CheckedDeclarationEnvironment
   diagnostics : Array[TypeCheckDiagnostic]
@@ -237,8 +242,8 @@ pub(all) enum TypeCheckDiagnosticKind {
   DuplicateNamedArgument(name~ : String)
   UnknownContextualArgument(name~ : String)
   InvalidNamedArgument(name~ : String)
-  MissingContextualOffer(expected~ : @types.Type)
-  AmbiguousContextualOffer(expected~ : @types.Type, candidates~ : Array[ContextualOfferDiagnosticCandidate])
+  MissingContextualOffer(expected~ : @types.Type, site~ : ContextualOfferRequirementSite)
+  AmbiguousContextualOffer(expected~ : @types.Type, site~ : ContextualOfferRequirementSite, candidates~ : Array[ContextualOfferDiagnosticCandidate])
   MissingDeriveEvidence(required~ : @types.Type, paths~ : Array[String])
   AmbiguousDeriveEvidence(required~ : @types.Type, paths~ : Array[String], candidates~ : Array[ContextualOfferDiagnosticCandidate])
   InvalidStructuralDerivationInterface(reason~ : String)

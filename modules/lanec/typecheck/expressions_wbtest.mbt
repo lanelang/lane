@@ -253,7 +253,8 @@ test "typecheck inner ordinary binding hides same-named outer offer" {
       #|}
     ),
   )
-  guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
+  guard result.diagnostics
+    is [{ kind: MissingContextualOffer(expected~, ..), .. }] else {
     abort(@prettyprinter.render(result.diagnostics, width=100))
   }
   assert_eq(expected, Function([], Primitive(I64), Empty))
@@ -277,7 +278,8 @@ test "typecheck applies offer shadowing before contextual type matching" {
       #|}
     ),
   )
-  guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
+  guard result.diagnostics
+    is [{ kind: MissingContextualOffer(expected~, ..), .. }] else {
     abort(@prettyprinter.render(result.diagnostics, width=100))
   }
   assert_eq(expected, Function([], Primitive(I64), Empty))
@@ -353,7 +355,8 @@ test "typecheck does not specialize a generic offered function" {
       #|let answer : I64 = use_mono()
     ),
   )
-  guard result.diagnostics is [{ kind: MissingContextualOffer(expected~), .. }] else {
+  guard result.diagnostics
+    is [{ kind: MissingContextualOffer(expected~, ..), .. }] else {
     abort(@prettyprinter.render(result.diagnostics, width=100))
   }
   assert_eq(expected, Function([Primitive(I64)], Primitive(I64), Empty))
@@ -440,7 +443,7 @@ test "typecheck compare offer does not derive equal offer" {
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[missing_contextual_offer type#0[I64] @ 12:21-12:27]
+      #|[missing_contextual_offer type#0[I64] auto_parameter=op @ 12:21-12:27]
     ),
   )
 }
@@ -512,7 +515,7 @@ test "typecheck reports missing contextual offer" {
       #|    let answer#1 : I64
       #|  }
       #|  diagnostics {
-      #|    missing_contextual_offer type#0[I64] @ 8:20-8:25
+      #|    missing_contextual_offer type#0[I64] auto_parameter=op @ 8:20-8:25
       #|  }
       #|}
     ),
@@ -557,7 +560,7 @@ test "typecheck reports ambiguous contextual offer" {
       #|    let answer#3 : I64
       #|  }
       #|  diagnostics {
-      #|    ambiguous_contextual_offer type#0[I64] candidates=[add_a, add_b] @ 10:20-10:25
+      #|    ambiguous_contextual_offer type#0[I64] auto_parameter=op candidates=[add_a, add_b] @ 10:20-10:25
       #|  }
       #|}
     ),

@@ -148,7 +148,13 @@ fn SemanticChecker::checked_derive_deriver(
   loc : SourceSpan,
 ) -> CheckedDeriveDeriverSynthesis? {
   if arguments.is_empty() {
-    guard self.required_contextual_offer(scope, expected, loc) is Some(offer) else {
+    guard self.required_contextual_offer(
+        scope,
+        expected,
+        StructuralDeriver,
+        loc,
+      )
+      is Some(offer) else {
       return None
     }
     let synthesis = self.check_checked_expr(scope, offer.expression, expected)

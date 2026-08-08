@@ -331,6 +331,16 @@ Host Object handles never enter the public binding API, bytecode, or Wasm linear
 
 Host calls are synchronous. A binding must not retain a borrowed VM value or re-enter the active execution instance. Report host failures by raising `RuntimeImportFailure::Failure`; both backends convert it into `ExecutionError::RuntimeImportFailure`.
 
+For a source API that intentionally terminates after receiving a diagnostic
+String, register the SDK's statement-oriented fatal binding. Its advertised
+Unit result is only the direct ABI carrier; invocation always raises the same
+structured runtime-import failure on both backends:
+
+```moonbit nocheck
+///|
+registry.register(@runtime.RuntimeBinding::fatal_string(symbol="panic"))
+```
+
 ## Loading and execution lifecycle
 
 Use this lifecycle for either backend:

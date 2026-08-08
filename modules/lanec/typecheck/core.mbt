@@ -42,6 +42,12 @@ pub(all) struct ContextualOfferDiagnosticCandidate {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum ContextualOfferRequirementSite {
+  AutoParameter(name~ : String)
+  StructuralDeriver
+} derive(Debug, Eq)
+
+///|
 pub(all) enum CheckedTypeDeclaration {
   Struct(CheckedStructDeclaration)
   Enum(CheckedEnumDeclaration)
@@ -232,9 +238,13 @@ pub(all) enum TypeCheckDiagnosticKind {
   DuplicateNamedArgument(name~ : String)
   UnknownContextualArgument(name~ : String)
   InvalidNamedArgument(name~ : String)
-  MissingContextualOffer(expected~ : @types.Type)
+  MissingContextualOffer(
+    expected~ : @types.Type,
+    site~ : ContextualOfferRequirementSite
+  )
   AmbiguousContextualOffer(
     expected~ : @types.Type,
+    site~ : ContextualOfferRequirementSite,
     candidates~ : Array[ContextualOfferDiagnosticCandidate]
   )
   MissingDeriveEvidence(required~ : @types.Type, paths~ : Array[String])

@@ -255,7 +255,6 @@ fn LoadedImage::create_instance_backend(
       @wasmoon_wast.register_instance_funcrefs_for_jit(
         jit_module, instance, store,
       )
-      @wasmoon_wast.install_jit_hostcall_dispatcher(jit_module, store, instance)
       jit_module.alloc_wasm_stack(16L * 1024L * 1024L) |> ignore
       guard @wasmoon_wast.init_jit_memories_from_store(
           instance, store, jit_module,
@@ -298,6 +297,17 @@ fn LoadedImage::create_instance_backend(
         self.wasm_module.types,
         self.wasm_module.type_rec_groups,
         false,
+      )
+      @wasmoon_wast.install_jit_hostcall_dispatcher(
+        jit_module,
+        store,
+        instance,
+        before_dispatch=fn() {
+          @wasmoon_wast.sync_jit_globals_to_store(context, store)
+        },
+        after_dispatch=fn() {
+          @wasmoon_wast.sync_store_globals_to_jit(context, store)
+        },
       )
       Ok(Jit(jit_module, context))
     }

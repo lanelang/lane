@@ -1,4 +1,7 @@
 ///|
+/// A module object prepared for the linker. Public construction is intentional:
+/// the linker treats every field as untrusted and validates ordering,
+/// fingerprints, imports, exports, and object integrity before remapping it.
 pub(all) struct LinkModuleObject {
   module_path_text : String
   interface : @module_interface.ModuleInterface?
@@ -22,6 +25,8 @@ priv struct ValidatedLinkModuleObject {
 }
 
 ///|
+/// A fully linked Buslane program whose module paths and entries are in stable
+/// linker order and whose metadata identities have been remapped exactly once.
 pub(all) struct LinkedProgram {
   module_path_texts : Array[String]
   program : @buslane.Program
@@ -30,6 +35,8 @@ pub(all) struct LinkedProgram {
 } derive(Debug, Eq)
 
 ///|
+/// Complete link result. `program` is `None` whenever diagnostics contain a
+/// blocking link failure; the linker never exposes a partial linked program.
 pub(all) struct LinkResult {
   program : LinkedProgram?
   diagnostics : Array[@compiler_diag.CompilerDiagnostic]

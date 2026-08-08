@@ -239,7 +239,13 @@ fn compile_body(
     body.inputs.user_parameters.length()
   let uses_cfg = body.blocks.length() != 1 ||
     terminator_transfers_control(body.blocks[0].terminator)
-  let structured = if uses_cfg { structure_cfg(body) } else { None }
+  let use_balanced_dispatcher = uses_cfg &&
+    body.blocks.length() > maximum_linear_control_blocks
+  let structured = if uses_cfg && !use_balanced_dispatcher {
+    structure_cfg(body)
+  } else {
+    None
+  }
   let use_dispatcher = uses_cfg && structured is None
   let live_base = frame_live_base(
     parameter_count,
@@ -282,6 +288,8 @@ fn compile_body(
   let guarded_body : Array[@wasm_types.Instruction] = call_depth_prologue()
   if structured is Some(sequence) {
     guarded_body.append(compile_structured_cfg(context, sequence))
+  } else if use_balanced_dispatcher {
+    guarded_body.push(compile_balanced_dispatcher(context))
   } else if use_dispatcher {
     guarded_body.push(compile_dispatcher(context))
   } else {

@@ -16,7 +16,9 @@ Each serialized function body is prefixed by its `u32le` byte length and must be
 
 The Wasm backend maps each bytecode slot to a typed Wasm local by default rather than allocating a linear-memory frame cell. Block edge arguments retain bytecode parallel-transfer semantics. Trivial sources may repeat, while owned sources may not repeat without prior retain-copy. The backend uses temporary locals where needed to avoid clobbering cycles, swaps, duplicated Trivial sources, and other overlapping assignments before entering the target block.
 
-Reducible bytecode CFGs are restructured into nested Wasm `block`, `loop`, and `if` control. Irreducible CFGs remain valid LoisVM input and do not cause backend rejection. The fallback emits a dispatcher state local inside a Wasm `loop`, with `br_table` selecting the next bytecode block. The backend may use the same fallback selectively for CFG regions when that is simpler than whole-function dispatch.
+Reducible bytecode CFGs with at most 16 blocks are restructured into nested Wasm `block`, `loop`, and `if` control. This fixed cutoff prevents the forward-target block encoding from turning a long sequence of sibling bytecode blocks into an equally deep Wasm block tower.
+
+Larger CFGs use a dispatcher state local inside one Wasm `loop`. A balanced binary decision tree selects the next bytecode block, so dispatcher selection contributes at most `ceil(log2(block_count))` nested `if` labels rather than one label per block. Terminator-local `if` and dense-switch structure remains proportional to the corresponding bytecode terminator. Irreducible CFGs with at most 16 blocks remain valid through the compact `br_table` dispatcher; larger irreducible CFGs use the same balanced dispatcher. The current executable example corpus additionally pins the complete rendered Wasm nesting depth at 23, including function cleanup and terminator-local control.
 
 Although the Lane Wasm profile includes Multi-value, canonical v1 CFG lowering does not require Wasm block parameters to mirror LoisVM block parameters. Typed locals and explicit parallel transfer are the stable mapping. Multi-value block parameters may be introduced later as a local optimization without changing serialized bytecode.
 
@@ -41,6 +43,7 @@ Consequences:
 - Owned erased slots name stable trivial layout-witness slots.
 - Wasm lowering uses typed locals rather than a mandatory linear-memory frame.
 - Parallel edge transfer uses temporary locals when assignments overlap.
-- Reducible CFGs use structured Wasm control.
-- Irreducible CFGs use a `loop` and `br_table` dispatcher fallback.
+- Reducible CFGs of at most 16 blocks use structured Wasm control.
+- Larger CFGs use a loop dispatcher with logarithmic selection depth.
+- Small irreducible CFGs use a `loop` and `br_table` dispatcher fallback.
 - Multi-value block parameters are optional optimization rather than canonical ABI.

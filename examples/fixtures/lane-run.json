@@ -796,7 +796,7 @@
           "ambiguous contextual offer",
           "candidate `custom_impl_add` has type `Add[I64]`",
           "candidate `i64_impl_add` has type `Add[I64]`",
-          "pass the argument explicitly or keep only one matching visible offer"
+          "pass `op=...` explicitly or keep only one matching visible offer"
         ]
       }
     },
@@ -1298,7 +1298,7 @@
         "contains": [
           "error[E3013]",
           "missing contextual offer",
-          "no visible offer matches required type `Equal[I64]`",
+          "auto offer parameter `op` requires `Equal[I64]`, but no visible offer matches",
           "add a visible `offer` with type `Equal[I64]`"
         ]
       }
@@ -1816,7 +1816,7 @@
         "contains": [
           "error[E3013]",
           "missing contextual offer",
-          "no visible offer matches required type `(I64) -> I64`"
+          "auto offer parameter `transform` requires `(I64) -> I64`, but no visible offer matches"
         ]
       }
     },
