@@ -41,6 +41,14 @@ fn ImageLowerer::intern_object_shape(
   }
   let id : @bytecode.ObjectShapeId = { value: self.object_shapes.length() }
   self.object_shapes.push(shape)
+  ignore(
+    self.intern_layout(
+      match shape {
+        Data(_) => @bytecode.LayoutRecipe::Data(id)
+        Environment(_) => @bytecode.LayoutRecipe::Environment(id)
+      },
+    ),
+  )
   id
 }
 

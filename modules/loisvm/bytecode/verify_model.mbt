@@ -217,6 +217,42 @@ fn BytecodeVerifier::layout_recipe(
 }
 
 ///|
+fn BytecodeVerifier::object_layout_id(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  shape : ObjectShapeId,
+) -> LayoutId raise BytecodeVerificationError {
+  let expected = match self.object_shape(site, shape) {
+    Data(_) => LayoutRecipe::Data(shape)
+    Environment(_) => LayoutRecipe::Environment(shape)
+  }
+  for index, layout in self.image.layouts {
+    if layout == expected {
+      return { value: index + 1 }
+    }
+  }
+  self.fail(site, "object operation requires a canonical layout recipe")
+}
+
+///|
+fn BytecodeVerifier::require_data_family_layouts(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  family : DataFamilyId,
+) -> Unit raise BytecodeVerificationError {
+  let mut found = false
+  for index, shape in self.image.object_shapes {
+    if shape is Data({ family: actual, .. }) && actual == family {
+      found = true
+      ignore(self.object_layout_id(site, { value: index }))
+    }
+  }
+  if !found {
+    self.fail(site, "Data family has no object shape")
+  }
+}
+
+///|
 fn BytecodeVerifier::object_shape(
   self : BytecodeVerifier,
   site : BytecodeVerificationSite,
@@ -433,7 +469,12 @@ fn BytecodeVerifier::verify_layouts_and_shapes(
   self : BytecodeVerifier,
 ) -> Unit raise BytecodeVerificationError {
   let site = BytecodeVerificationSite::Image
-  for layout in self.image.layouts {
+  for layout_index, layout in self.image.layouts {
+    for previous in 0..<layout_index {
+      if self.image.layouts[previous] == layout {
+        self.fail(site, "layout table contains a duplicate recipe")
+      }
+    }
     match layout {
       Data(id) =>
         if !(self.object_shape(site, id) is Data(_)) {

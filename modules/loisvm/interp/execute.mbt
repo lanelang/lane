@@ -443,10 +443,15 @@ fn ExecutionInstance::execute_instruction(
       self.make_data(frame, destination, shape, layout, witnesses, fields)
     LoadTag(destination, source) => {
       let object = self.heap.object(frame.i32(source))
+      guard frame.body.slots[source.value].kind is DataValue(expected_family) else {
+        raise InternalFailure(detail="load_tag source lost its Data family")
+      }
       match object.payload {
         Data(shape, _, _) => {
           let tag = match self.loaded.image.object_shapes[shape.value] {
-            Data(data) => data.constructor_tag
+            Data(data) if data.family == expected_family => data.constructor_tag
+            Data(_) =>
+              raise InternalFailure(detail="load_tag Data family mismatch")
             _ =>
               raise InternalFailure(detail="Data object has Environment shape")
           }

@@ -3256,7 +3256,7 @@ test "higher-kinded formal applications retain their erased generic ABI" {
     ),
     content=(
       #|(
-      #|  [Callable, ByteSequence, Environment({ value: 0 })],
+      #|  [Callable, Environment({ value: 0 }), ByteSequence],
       #|  [
       #|    {
       #|      function: { value: 1 },
@@ -3321,11 +3321,11 @@ test "higher-kinded formal applications retain their erased generic ABI" {
       #|  ],
       #|  [
       #|    ConstLayout({ value: 1 }, { value: 1 }),
-      #|    ConstLayout({ value: 3 }, { value: 2 }),
+      #|    ConstLayout({ value: 3 }, { value: 3 }),
       #|    MakeEnv(
       #|      { value: 4 },
       #|      { value: 0 },
-      #|      Immediate({ value: 3 }),
+      #|      Immediate({ value: 2 }),
       #|      [],
       #|      [{ value: 3 }, { value: 0 }],
       #|    ),

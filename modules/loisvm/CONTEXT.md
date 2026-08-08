@@ -59,15 +59,10 @@ _Avoid_: Lane type object, typed unboxed slot, Buslane interpreter value
 
 **Semantic Value Kind**:
 The immutable bytecode metadata category that distinguishes scalar, layout,
-callable, ByteSequence, Data-family, exact Environment-shape, abstract
-higher-kinded reference, opaque external reference, and erased values even
+layout-constructor, callable, ByteSequence, Data-family, exact
+Environment-shape, opaque external reference, and erased values even
 when their physical representation and cleanup are equal.
 _Avoid_: source type, Wasm value type, cleanup policy
-
-**Abstract Reference Value**:
-A quantified semantic reference category associated with one higher-kinded
-type parameter and instantiated consistently across one callable ABI use.
-_Avoid_: arbitrary I32 reference, external opaque value, wildcard cast
 
 **Data Family**:
 The dense bytecode identity shared by the constructor shapes of one nominal
@@ -167,9 +162,18 @@ _Avoid_: source type argument, owned metadata, dynamic typecase
 The zero-based canonical member schema whose Data variant includes constructor tag and fields and whose Environment variant includes captures without a tag, with stored-witness ordinals but no raw offsets or alignment fields.
 _Avoid_: runtime LayoutId, raw offset list, source-specific object layout
 
+**Runtime Object-Shape Guard**:
+The interpreter payload check and equivalent Wasm header-layout check performed
+before an exact-shape witness or member projection. It turns an erased value's
+semantic family or environment category into exact ObjectShapeId proof; tag
+loading similarly validates the complete Data family before reading its tag.
+_Avoid_: unchecked field offset, destination-derived shape, backend-only trust
+
 **Layout Operand**:
 The five-byte operand selecting Immediate `0x01` with nonzero LayoutId or Witness `0x02` with a trivial `I32` witness SlotId.
-_Avoid_: ObjectShapeId, descriptor address, source type witness
+For object construction, verifier dataflow proves that either form names the
+Data or Environment recipe for the instruction's exact ObjectShapeId.
+_Avoid_: unproven dynamic layout, descriptor address, source type witness
 
 **Image Layout Table**:
 The image-owned static table of backend-independent Layout Recipes indexed by
@@ -194,7 +198,10 @@ Wasm tier lowers a generic value to an `i64` erased payload.
 _Avoid_: full Lane type, source type argument, dynamic typecase
 
 **Representation Erasure Bridge**:
-A compiler-internal consuming operation between a natural representation and erased `I64` that transfers ownership while changing width, bit interpretation, or cleanup interpretation.
+A compiler-internal consuming operation between a natural representation and
+erased `I64` that transfers ownership and any proven ObjectShapeId while
+changing width, bit interpretation, or cleanup interpretation. Unerasure may
+not derive object provenance from its destination metadata.
 _Avoid_: source conversion, generic heap box, runtime typecase
 
 ### Calls And Closures

@@ -114,12 +114,12 @@ Instruction operands use the following conventions:
 - `destination` is written by the instruction and must have metadata matching the documented result representation and ownership.
 - A borrowed input remains owned by its existing owner and receives no retain.
 - A consumed input transfers or destroys its ownership; subsequent use requires a separately retained owner.
-- Object witness arrays and `LayoutOperand::Witness` values are borrowed `I32 + Trivial` layout IDs. Callable evidence inputs use their complete ABI and transfer owned layout constructors into the callee.
+- Object witness arrays and `LayoutOperand::Witness` values are borrowed `I32 + Trivial` layout IDs. Verifier dataflow requires a dynamic construction layout to retain proof of the instruction's exact object shape. Callable evidence inputs use their complete ABI and transfer owned layout constructors into the callee.
 - Argument, field, capture, edge, and result order is semantically significant.
 
 ## Object and layout model
 
-`LayoutRecipe` describes a runtime layout. `I64`, `I32`, `F64`, and `F32` are the four trivial numeric layouts, `Char` is the trivial Unicode-scalar layout, `Byte` is the trivial scalar-byte layout, and `ByteSequence` is the single owned packed-byte-sequence layout shared by semantic String and Bytes values. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot.
+`LayoutRecipe` describes a runtime layout. `I64`, `I32`, `F64`, and `F32` are the four trivial numeric layouts, `Char` is the trivial Unicode-scalar layout, `Byte` is the trivial scalar-byte layout, and `ByteSequence` is the single owned packed-byte-sequence layout shared by semantic String and Bytes values. `Data(ObjectShapeId)` and `Environment(ObjectShapeId)` refer to entries in the object-shape table, while `Reference` is the witness-only erased reference layout. `LayoutOperand::Immediate` names an image layout directly and `LayoutOperand::Witness` reads a layout ID from a slot whose recipe provenance must match the constructed shape.
 
 A `DataShape` stores its `DataFamilyId`, constructor tag, stored layout
 witnesses, and ordered field schemas. The family identifies one nominal data
@@ -201,7 +201,7 @@ execution failures rather than valid alternate results.
 | `0x13` | `ConsumeCaptures(shape, source, selections)` | `consume_captures`; obtains owning results for the selected captures, consumes and releases the source environment, and releases unselected owned captures with it. |
 | `0x43` | `LoadObjectWitness(destination, shape, object, ordinal)` | `load_object_witness`; borrows a shape-compatible Data or Environment object and writes the selected stored `LayoutId` to an `I32 + Trivial` destination. |
 
-Shapes, member indices, witness ordinals, field counts, capture counts, member representations, and optional projection-witness destinations must match the corresponding object-shape metadata. The verifier rejects violations as invalid bytecode.
+Shapes, member indices, witness ordinals, field counts, capture counts, member representations, and optional projection-witness destinations must match the corresponding object-shape metadata. Every projected shape has one canonical layout recipe. The interpreter validates the object payload and the Wasm tier compares its header layout before using an exact member offset; tag loading validates the complete Data family. The verifier rejects images that cannot support those checks.
 
 ### Byte and ByteSequence
 
@@ -320,7 +320,7 @@ F32 operands and arithmetic destinations use `F32 + Trivial`; comparison destina
 
 ### Representation erasure
 
-Erasure instructions are ownership transfers between natural representations and the uniform `I64` erased representation. The source owner is consumed and the destination owner becomes live; no retain is implied.
+Erasure instructions are ownership transfers between natural representations and the uniform `I64` erased representation. The source owner is consumed and the destination owner becomes live; no retain is implied. Exact object-shape proof follows the transferred value through erasure and unerasure. Unerasure rejects a proven shape that the destination semantic kind cannot contain and never manufactures shape proof from destination metadata.
 
 | Opcode | Constructor | Semantics |
 | --- | --- | --- |

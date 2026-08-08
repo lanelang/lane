@@ -232,14 +232,25 @@ fn compile_instruction(
       result.append(mark_slot_live(live_base, slots, destination))
       result
     }
-    LoadTag(destination, object) =>
-      [
+    LoadTag(destination, object) => {
+      guard slots[object.value].kind is DataValue(family) else {
+        abort("verified LoadTag source lost its Data family")
+      }
+      let result = compile_data_family_guard(
+        parameter_count, static_image, object, family,
+      )
+      result.append([
         LocalGet(slot_local(parameter_count, object)),
         I32Load(0, 2, 8L),
         LocalSet(slot_local(parameter_count, destination)),
-      ]
-    LoadObjectWitness(destination, shape, object, ordinal) =>
-      [
+      ])
+      result
+    }
+    LoadObjectWitness(destination, shape, object, ordinal) => {
+      let result = compile_object_shape_guard(
+        parameter_count, static_image, object, shape,
+      )
+      result.append([
         LocalGet(slot_local(parameter_count, object)),
         I32Load(
           0,
@@ -247,7 +258,9 @@ fn compile_instruction(
           (static_image.shape_layouts[shape.value].witness_base + ordinal * 4).to_int64(),
         ),
         LocalSet(slot_local(parameter_count, destination)),
-      ]
+      ])
+      result
+    }
     BorrowField(shape, object, field_index, result) =>
       compile_projection(
         parameter_count, static_image, shape, object, field_index, result,
@@ -681,10 +694,12 @@ fn compile_consuming_projection(
     Data(data_shape) => data_shape.members
     Environment(environment_shape) => environment_shape.members
   }
-  let instructions : Array[@wasm_types.Instruction] = []
+  let instructions = compile_object_shape_guard(
+    parameter_count, static_image, object, shape,
+  )
   for selection in selections {
     instructions.append(
-      compile_projection(
+      compile_projection_unchecked(
         parameter_count,
         static_image,
         shape,
@@ -823,6 +838,26 @@ fn compile_projection(
   member_index : Int,
   result : @bytecode.ProjectionResult,
 ) -> Array[@wasm_types.Instruction] {
+  let instructions = compile_object_shape_guard(
+    parameter_count, static_image, object, shape,
+  )
+  instructions.append(
+    compile_projection_unchecked(
+      parameter_count, static_image, shape, object, member_index, result,
+    ),
+  )
+  instructions
+}
+
+///|
+fn compile_projection_unchecked(
+  parameter_count : Int,
+  static_image : StaticImage,
+  shape : @bytecode.ObjectShapeId,
+  object : @bytecode.SlotId,
+  member_index : Int,
+  result : @bytecode.ProjectionResult,
+) -> Array[@wasm_types.Instruction] {
   let shape_layout = static_image.shape_layouts[shape.value]
   let schema = match static_image.object_shapes[shape.value] {
     Data(data_shape) => data_shape.members[member_index]
@@ -850,6 +885,52 @@ fn compile_projection(
     )
     instructions.push(LocalSet(slot_local(parameter_count, destination)))
   }
+  instructions
+}
+
+///|
+fn compile_object_shape_guard(
+  parameter_count : Int,
+  static_image : StaticImage,
+  object : @bytecode.SlotId,
+  shape : @bytecode.ObjectShapeId,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(slot_local(parameter_count, object)),
+    I32Load(0, 2, 4L),
+    I32Const(static_image.shape_layout_ids[shape.value]),
+    I32Ne,
+    If(Empty, [Unreachable], []),
+  ]
+}
+
+///|
+fn compile_data_family_guard(
+  parameter_count : Int,
+  static_image : StaticImage,
+  object : @bytecode.SlotId,
+  family : @bytecode.DataFamilyId,
+) -> Array[@wasm_types.Instruction] {
+  let instructions : Array[@wasm_types.Instruction] = []
+  let mut alternatives = 0
+  for shape_index, shape in static_image.object_shapes {
+    if shape is Data({ family: actual, .. }) && actual == family {
+      instructions.append([
+        LocalGet(slot_local(parameter_count, object)),
+        I32Load(0, 2, 4L),
+        I32Const(static_image.shape_layout_ids[shape_index]),
+        I32Eq,
+      ])
+      if alternatives > 0 {
+        instructions.push(I32Or)
+      }
+      alternatives += 1
+    }
+  }
+  if alternatives == 0 {
+    abort("verified Data family has no object shape")
+  }
+  instructions.append([I32Eqz, If(Empty, [Unreachable], [])])
   instructions
 }
 

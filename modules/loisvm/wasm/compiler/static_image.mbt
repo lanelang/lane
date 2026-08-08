@@ -10,6 +10,7 @@ priv struct StaticImage {
   byte_sequence_layout_id : Int
   reference_layout_id : Int
   shape_layouts : Array[ShapeLayout]
+  shape_layout_ids : Array[Int]
   object_shapes : Array[@bytecode.ObjectShape]
   globals : Array[@bytecode.GlobalMetadata]
   wasm_function_offset : Int
@@ -164,6 +165,7 @@ fn build_static_image(
 ) -> StaticImage raise WasmCompileError {
   let writer = @bytecodec.ByteWriter::new()
   let shape_layouts = image.object_shapes.map(object_shape_layout)
+  let shape_layout_ids = Array::make(image.object_shapes.length(), 0)
   write_zeroes(writer, 8)
   let layout_table_base = writer.length()
   write_zeroes(writer, 32)
@@ -175,6 +177,11 @@ fn build_static_image(
     }
     if layout == Reference {
       reference_layout_id = index + 1
+    }
+    match layout {
+      Data(shape) | Environment(shape) =>
+        shape_layout_ids[shape.value] = index + 1
+      _ => ()
     }
     writer.write_u32_le_int(layout_rep_kind(layout))
     match
@@ -324,6 +331,7 @@ fn build_static_image(
     byte_sequence_layout_id,
     reference_layout_id,
     shape_layouts,
+    shape_layout_ids,
     object_shapes: image.object_shapes,
     globals: image.globals,
     wasm_function_offset,

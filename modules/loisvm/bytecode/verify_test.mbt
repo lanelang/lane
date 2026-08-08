@@ -729,6 +729,131 @@ test "bytecode verifier rejects an erased member with the wrong stored evidence"
 }
 
 ///|
+test "bytecode verifier requires a dynamic object layout to prove its shape" {
+  let body = verification_body(
+    slots=[
+      verification_slot(I32, kind=Some(LayoutValue)),
+      verification_slot(
+        I32,
+        cleanup=OwnedRef,
+        kind=Some(DataValue({ value: 0 })),
+      ),
+    ],
+    instructions=[
+      ConstLayout({ value: 0 }, { value: 1 }),
+      MakeData({ value: 1 }, { value: 0 }, Witness({ value: 0 }), [], []),
+    ],
+  )
+  let image = {
+    ..verification_image(body),
+    data_family_count: 1,
+    layouts: [Environment({ value: 1 })],
+    object_shapes: [
+      Data({
+        family: { value: 0 },
+        constructor_tag: 0,
+        stored_witness_count: 0,
+        members: [],
+      }),
+      Environment({ stored_witness_count: 0, members: [] }),
+    ],
+  }
+  assert_eq(
+    verify_bytecode_image(image),
+    Err(
+      InvalidBytecode(
+        site=Instruction({ value: 1 }, { value: 0 }, 1),
+        detail="object layout witness references a different shape",
+      ),
+    ),
+  )
+}
+
+///|
+test "bytecode verifier transfers object shape through erasure" {
+  let slots = [
+    verification_slot(I32, kind=Some(LayoutValue)),
+    verification_slot(I32, cleanup=OwnedRef, kind=Some(DataValue({ value: 0 }))),
+    {
+      representation: I64,
+      cleanup: OwnedErased,
+      kind: ErasedValue,
+      erased_companion: Some({ value: 0 }),
+    },
+    verification_slot(I32, cleanup=OwnedRef, kind=Some(DataValue({ value: 0 }))),
+  ]
+  let instructions : Array[Instruction] = [
+    ConstLayout({ value: 0 }, { value: 2 }),
+    MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 1 }), [], []),
+    EraseI32({ value: 2 }, { value: 1 }),
+    UneraseI32({ value: 3 }, { value: 2 }),
+    ConsumeFields({ value: 0 }, { value: 3 }, []),
+  ]
+  let image = {
+    ..verification_image(verification_body(slots~, instructions~)),
+    data_family_count: 1,
+    layouts: [Data({ value: 0 }), Reference],
+    object_shapes: [
+      Data({
+        family: { value: 0 },
+        constructor_tag: 0,
+        stored_witness_count: 0,
+        members: [],
+      }),
+    ],
+  }
+  assert_eq(verify_bytecode_image(image), Ok(()))
+}
+
+///|
+test "bytecode verifier rejects unerasure into an incompatible object kind" {
+  let slots = [
+    verification_slot(I32, kind=Some(LayoutValue)),
+    verification_slot(I32, cleanup=OwnedRef, kind=Some(DataValue({ value: 0 }))),
+    {
+      representation: I64,
+      cleanup: OwnedErased,
+      kind: ErasedValue,
+      erased_companion: Some({ value: 0 }),
+    },
+    verification_slot(
+      I32,
+      cleanup=OwnedRef,
+      kind=Some(EnvironmentValue({ value: 1 })),
+    ),
+  ]
+  let instructions : Array[Instruction] = [
+    ConstLayout({ value: 0 }, { value: 2 }),
+    MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 1 }), [], []),
+    EraseI32({ value: 2 }, { value: 1 }),
+    UneraseI32({ value: 3 }, { value: 2 }),
+  ]
+  let image = {
+    ..verification_image(verification_body(slots~, instructions~)),
+    data_family_count: 1,
+    layouts: [Data({ value: 0 }), Reference],
+    object_shapes: [
+      Data({
+        family: { value: 0 },
+        constructor_tag: 0,
+        stored_witness_count: 0,
+        members: [],
+      }),
+      Environment({ stored_witness_count: 0, members: [] }),
+    ],
+  }
+  assert_eq(
+    verify_bytecode_image(image),
+    Err(
+      InvalidBytecode(
+        site=Instruction({ value: 1 }, { value: 0 }, 3),
+        detail="unerasure destination does not accept proven ObjectShapeId 0",
+      ),
+    ),
+  )
+}
+
+///|
 test "bytecode verifier rejects using a field borrow after owner release" {
   let body = verification_body(
     slots=[
@@ -1019,6 +1144,7 @@ test "bytecode verifier transfers a borrowed root from an input projection" {
   let image = {
     ..verification_image(verification_body(), functions=[BytecodeBody(body)]),
     data_family_count: 1,
+    layouts: [Data({ value: 0 })],
     object_shapes: [
       Data({
         family: { value: 0 },

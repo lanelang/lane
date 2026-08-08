@@ -56,6 +56,7 @@ priv enum SlotFlowState {
 priv struct FunctionFlowState {
   slots : Array[SlotFlowState]
   object_shapes : Array[ObjectShapeId?]
+  layout_recipes : Array[LayoutRecipe?]
   tag_sources : Array[SlotId?]
   globals : Array[Bool]
 }
@@ -65,6 +66,7 @@ fn FunctionFlowState::copy(self : FunctionFlowState) -> FunctionFlowState {
   {
     slots: self.slots.copy(),
     object_shapes: self.object_shapes.copy(),
+    layout_recipes: self.layout_recipes.copy(),
     tag_sources: self.tag_sources.copy(),
     globals: self.globals.copy(),
   }
@@ -162,6 +164,10 @@ fn BytecodeVerifier::verify_function_flow(
     body.slots.length(),
     None,
   )
+  let initial_layout_recipes : Array[LayoutRecipe?] = Array::make(
+    body.slots.length(),
+    None,
+  )
   if body.inputs.environment is Some(environment) {
     initial_slots[environment.value] = flow_state_for_metadata(
       self.slot_metadata(function_site, body, environment),
@@ -198,6 +204,7 @@ fn BytecodeVerifier::verify_function_flow(
   entries[0] = Some({
     slots: initial_slots,
     object_shapes: initial_object_shapes,
+    layout_recipes: initial_layout_recipes,
     tag_sources: initial_tag_sources,
     globals: initial_globals,
   })
@@ -290,6 +297,16 @@ fn BytecodeVerifier::merge_predecessor_flow(
       destination.object_shapes[index] = joined_shape
       changed = true
     }
+    let joined_layout = if destination.layout_recipes[index] ==
+      incoming.layout_recipes[index] {
+      destination.layout_recipes[index]
+    } else {
+      None
+    }
+    if joined_layout != destination.layout_recipes[index] {
+      destination.layout_recipes[index] = joined_layout
+      changed = true
+    }
     let joined_tag_source = if destination.tag_sources[index] ==
       incoming.tag_sources[index] {
       destination.tag_sources[index]
@@ -336,6 +353,39 @@ fn BytecodeVerifier::initial_object_shape(
       found
     }
     _ => None
+  }
+}
+
+///|
+fn BytecodeVerifier::kind_accepts_object_shape(
+  self : BytecodeVerifier,
+  kind : SemanticValueKind,
+  shape : ObjectShapeId,
+) -> Bool {
+  match (kind, self.image.object_shapes[shape.value]) {
+    (DataValue(expected), Data({ family: actual, .. })) => expected == actual
+    (EnvironmentValue(expected), Environment(_)) => expected == shape
+    _ => false
+  }
+}
+
+///|
+fn BytecodeVerifier::require_object_layout_witness(
+  self : BytecodeVerifier,
+  site : BytecodeVerificationSite,
+  state : FunctionFlowState,
+  witness : SlotId,
+  shape : ObjectShapeId,
+) -> Unit raise BytecodeVerificationError {
+  let expected = match self.image.object_shapes[shape.value] {
+    Data(_) => LayoutRecipe::Data(shape)
+    Environment(_) => LayoutRecipe::Environment(shape)
+  }
+  match state.layout_recipes[witness.value] {
+    Some(actual) if actual == expected => ()
+    Some(_) =>
+      self.fail(site, "object layout witness references a different shape")
+    None => self.fail(site, "object layout witness has no proven layout recipe")
   }
 }
 
@@ -580,6 +630,7 @@ fn BytecodeVerifier::write_flow(
   }
   state.slots[destination.value] = value
   state.object_shapes[destination.value] = None
+  state.layout_recipes[destination.value] = None
   state.tag_sources[destination.value] = None
 }
 
@@ -861,14 +912,17 @@ fn BytecodeVerifier::apply_instruction_flow(
     Copy(destination, source) => {
       let value = self.read_flow(site, state, source)
       let object_shape = state.object_shapes[source.value]
+      let layout_recipe = state.layout_recipes[source.value]
       let tag_source = state.tag_sources[source.value]
       self.write_flow(site, body, state, destination, value)
       state.object_shapes[destination.value] = object_shape
+      state.layout_recipes[destination.value] = layout_recipe
       state.tag_sources[destination.value] = tag_source
     }
     Move(destination, source) => {
       let value = self.read_flow(site, state, source)
       let object_shape = state.object_shapes[source.value]
+      let layout_recipe = state.layout_recipes[source.value]
       let tag_source = state.tag_sources[source.value]
       match value {
         LiveBorrowed(_, _) =>
@@ -878,11 +932,13 @@ fn BytecodeVerifier::apply_instruction_flow(
           self.write_flow(site, body, state, destination, value)
           state.slots[source.value] = Unavailable
           state.object_shapes[source.value] = None
+          state.layout_recipes[source.value] = None
           state.tag_sources[source.value] = None
         }
         _ => self.write_flow(site, body, state, destination, value)
       }
       state.object_shapes[destination.value] = object_shape
+      state.layout_recipes[destination.value] = layout_recipe
       state.tag_sources[destination.value] = tag_source
     }
     RetainCopy(destination, source) => {
@@ -908,6 +964,7 @@ fn BytecodeVerifier::apply_instruction_flow(
         _ => self.fail(site, "RetainCopy source is not a retainable value")
       }
       state.object_shapes[destination.value] = state.object_shapes[source.value]
+      state.layout_recipes[destination.value] = state.layout_recipes[source.value]
     }
     Release(source) =>
       match self.read_flow(site, state, source) {
@@ -926,9 +983,14 @@ fn BytecodeVerifier::apply_instruction_flow(
     | ConstChar(destination, _)
     | ConstF64(destination, _)
     | ConstF32(destination, _)
-    | ConstBool(destination, _)
-    | ConstLayout(destination, _) =>
+    | ConstBool(destination, _) =>
       self.write_flow(site, body, state, destination, LiveTrivial)
+    ConstLayout(destination, layout) => {
+      self.write_flow(site, body, state, destination, LiveTrivial)
+      state.layout_recipes[destination.value] = Some(
+        self.layout_recipe(site, layout),
+      )
+    }
     ConstFunction(destination, _) | ConstString(destination, _) =>
       self.write_from_metadata(site, body, state, destination)
     CallDirect(target, environment, witnesses, arguments, destination) => {
@@ -966,6 +1028,7 @@ fn BytecodeVerifier::apply_instruction_flow(
     | MakeEnv(destination, shape, layout, witnesses, fields) => {
       if layout is Witness(witness) {
         ignore(self.read_flow(site, state, witness))
+        self.require_object_layout_witness(site, state, witness, shape)
       }
       for witness in witnesses {
         ignore(self.consume_flow(site, body, state, witness))
@@ -979,14 +1042,14 @@ fn BytecodeVerifier::apply_instruction_flow(
       state.tag_sources[destination.value] = Some(source)
     }
     LoadObjectWitness(destination, shape, source, _) => {
-      self.require_exact_object_shape(site, state, source, shape)
+      self.establish_exact_object_shape(site, body, state, source, shape)
       self.write_trivial_after_reads(site, body, state, destination, [source])
     }
     BorrowField(shape, source, member_index, result) => {
       guard self.image.object_shapes[shape.value] is Data(data) else {
         self.fail(site, "BorrowField shape changed after static verification")
       }
-      self.require_exact_object_shape(site, state, source, shape)
+      self.establish_exact_object_shape(site, body, state, source, shape)
       self.write_borrowed_projection(
         site,
         body,
@@ -1002,7 +1065,7 @@ fn BytecodeVerifier::apply_instruction_flow(
       guard self.image.object_shapes[shape.value] is Environment(environment) else {
         self.fail(site, "BorrowCapture shape changed after static verification")
       }
-      self.require_exact_object_shape(site, state, source, shape)
+      self.establish_exact_object_shape(site, body, state, source, shape)
       self.write_borrowed_projection(
         site,
         body,
@@ -1018,7 +1081,7 @@ fn BytecodeVerifier::apply_instruction_flow(
       guard self.image.object_shapes[shape.value] is Data(_) else {
         self.fail(site, "ConsumeFields shape changed after static verification")
       }
-      self.require_exact_object_shape(site, state, source, shape)
+      self.establish_exact_object_shape(site, body, state, source, shape)
       self.write_consumed_projections(
         site, body, state, source, shape, selections,
       )
@@ -1029,7 +1092,7 @@ fn BytecodeVerifier::apply_instruction_flow(
           site, "ConsumeCaptures shape changed after static verification",
         )
       }
-      self.require_exact_object_shape(site, state, source, shape)
+      self.establish_exact_object_shape(site, body, state, source, shape)
       self.write_consumed_projections(
         site, body, state, source, shape, selections,
       )
@@ -1073,6 +1136,7 @@ fn BytecodeVerifier::apply_instruction_flow(
           let object_shape = state.object_shapes[source.value]
           state.slots[source.value] = Unavailable
           state.object_shapes[source.value] = None
+          state.layout_recipes[source.value] = None
           state.tag_sources[source.value] = None
           self.write_transferred_owner(
             site, body, state, destination, ownership,
@@ -1089,13 +1153,23 @@ fn BytecodeVerifier::apply_instruction_flow(
       guard self.read_flow(site, state, source) is LiveOwned(_, ownership) else {
         self.fail(site, "unerasure source is not a live owner")
       }
+      let object_shape = state.object_shapes[source.value]
+      if object_shape is Some(shape) &&
+        !self.kind_accepts_object_shape(
+          body.slots[destination.value].kind,
+          shape,
+        ) {
+        self.fail(
+          site,
+          "unerasure destination does not accept proven ObjectShapeId \{shape.value}",
+        )
+      }
       state.slots[source.value] = Unavailable
       state.object_shapes[source.value] = None
+      state.layout_recipes[source.value] = None
       state.tag_sources[source.value] = None
       self.write_transferred_owner(site, body, state, destination, ownership)
-      state.object_shapes[destination.value] = self.initial_object_shape(
-        body.slots[destination.value].kind,
-      )
+      state.object_shapes[destination.value] = object_shape
     }
     EraseUnit(destination) =>
       self.write_from_metadata(site, body, state, destination)
@@ -1199,9 +1273,10 @@ fn BytecodeVerifier::apply_trivial_instruction_flow(
 }
 
 ///|
-fn BytecodeVerifier::require_exact_object_shape(
+fn BytecodeVerifier::establish_exact_object_shape(
   self : BytecodeVerifier,
   site : BytecodeVerificationSite,
+  body : FunctionBody,
   state : FunctionFlowState,
   source : SlotId,
   expected : ObjectShapeId,
@@ -1214,11 +1289,25 @@ fn BytecodeVerifier::require_exact_object_shape(
         site,
         "SlotId \{source.value} has ObjectShapeId \{actual.value}, expected ObjectShapeId \{expected.value}",
       )
-    None =>
-      self.fail(
-        site,
-        "SlotId \{source.value} has no proven ObjectShapeId \{expected.value}",
-      )
+    None => {
+      if !self.kind_accepts_object_shape(
+          body.slots[source.value].kind,
+          expected,
+        ) {
+        self.fail(
+          site,
+          "SlotId \{source.value} cannot contain ObjectShapeId \{expected.value}",
+        )
+      }
+      let expected_layout = match self.image.object_shapes[expected.value] {
+        Data(_) => LayoutRecipe::Data(expected)
+        Environment(_) => LayoutRecipe::Environment(expected)
+      }
+      if !self.image.layouts.contains(expected_layout) {
+        self.fail(site, "runtime shape validation requires a canonical layout")
+      }
+      state.object_shapes[source.value] = Some(expected)
+    }
   }
 }
 
@@ -1510,6 +1599,9 @@ fn BytecodeVerifier::transfer_edge_flow(
   let object_shapes = edge.arguments.map(argument => {
     state.object_shapes[argument.value]
   })
+  let layout_recipes = edge.arguments.map(argument => {
+    state.layout_recipes[argument.value]
+  })
   for index, argument in edge.arguments {
     let value = values[index]
     match value {
@@ -1530,12 +1622,14 @@ fn BytecodeVerifier::transfer_edge_flow(
     if values[index] is LiveOwned(_, _) {
       state.slots[argument.value] = Unavailable
       state.object_shapes[argument.value] = None
+      state.layout_recipes[argument.value] = None
       state.tag_sources[argument.value] = None
     }
   }
   for index in 0..<values.length() {
     self.write_flow(site, body, state, target.parameters[index], values[index])
     state.object_shapes[target.parameters[index].value] = object_shapes[index]
+    state.layout_recipes[target.parameters[index].value] = layout_recipes[index]
   }
   (edge.target.value, state)
 }

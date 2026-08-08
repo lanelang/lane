@@ -183,8 +183,13 @@ fn BytecodeVerifier::verify_instruction(
       self.expect_slot(site, body, destination, I32, Trivial)
       self.expect_kind(site, body, destination, ScalarValue)
       self.expect_data_value(site, body, source, None)
+      guard self.slot_metadata(site, body, source).kind is DataValue(family) else {
+        self.fail(site, "LoadTag source lost its Data family")
+      }
+      self.require_data_family_layouts(site, family)
     }
     LoadObjectWitness(destination, shape, source, ordinal) => {
+      ignore(self.object_layout_id(site, shape))
       self.expect_slot(site, body, destination, I32, Trivial)
       let witness_count = match self.object_shape(site, shape) {
         Data(data) => {
@@ -202,6 +207,7 @@ fn BytecodeVerifier::verify_instruction(
       }
     }
     BorrowField(shape, source, field_index, result) => {
+      ignore(self.object_layout_id(site, shape))
       guard self.object_shape(site, shape) is Data(data) else {
         self.fail(site, "BorrowField requires a Data object shape")
       }
@@ -216,6 +222,7 @@ fn BytecodeVerifier::verify_instruction(
       )
     }
     BorrowCapture(shape, source, capture_index, result) => {
+      ignore(self.object_layout_id(site, shape))
       guard self.object_shape(site, shape) is Environment(environment) else {
         self.fail(site, "BorrowCapture requires an Environment object shape")
       }
@@ -230,6 +237,7 @@ fn BytecodeVerifier::verify_instruction(
       )
     }
     ConsumeFields(shape, source, selections) => {
+      ignore(self.object_layout_id(site, shape))
       guard self.object_shape(site, shape) is Data(data) else {
         self.fail(site, "ConsumeFields requires a Data object shape")
       }
@@ -238,6 +246,7 @@ fn BytecodeVerifier::verify_instruction(
       self.verify_projection_selections(site, body, selections, data.members)
     }
     ConsumeCaptures(shape, source, selections) => {
+      ignore(self.object_layout_id(site, shape))
       guard self.object_shape(site, shape) is Environment(environment) else {
         self.fail(site, "ConsumeCaptures requires an Environment object shape")
       }
