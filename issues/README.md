@@ -385,6 +385,7 @@ graph TD
   ISS_346["ISS-346: Reconcile the numeric literal glossary"]
   ISS_347["ISS-347: Give the internal Wasm runtime ABI one owner"]
   ISS_348["ISS-348: Restore the semantic contract in lane link help"]
+  ISS_349["ISS-349: Remove the hard-coded host-object release import index"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

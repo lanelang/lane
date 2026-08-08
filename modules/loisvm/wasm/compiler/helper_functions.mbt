@@ -76,8 +76,7 @@ fn append_helper_functions(
   static_image : StaticImage,
   runtime : RuntimeFunctions,
   helpers : HelperFunctions,
-  host_objects_enabled : Bool,
-  host_object_release_import : Int,
+  host_object_release_import : Int?,
 ) -> Unit {
   append_runtime_function(wasm_module, [I64], [], [], [])
   append_runtime_function(wasm_module, [I64], [], [], [
@@ -110,10 +109,9 @@ fn append_helper_functions(
     [I32],
     [],
     [],
-    if host_objects_enabled {
-      [LocalGet(0), I64Load(0, 3, 8L), Call(host_object_release_import)]
-    } else {
-      []
+    match host_object_release_import {
+      Some(import_) => [LocalGet(0), I64Load(0, 3, 8L), Call(import_)]
+      None => []
     },
   )
   let erased_release_type = intern_function_type(wasm_module, [I64], [])

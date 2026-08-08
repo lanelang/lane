@@ -43,11 +43,8 @@ fn compile_or_raise(
       detail="Opaque runtime imports require a Reference layout",
     )
   }
-  let host_service_count = if host_objects_enabled { 1 } else { 0 }
-  let internal_imports = internal_runtime_imports(image)
-  let import_count = internal_imports.count +
-    host_service_count +
-    imports.length()
+  let internal_imports = internal_runtime_imports(image, host_objects_enabled)
+  let import_count = internal_imports.count + imports.length()
   let callable_table = plan_callable_table(image)
   let runtime_functions = runtime_function_indices(
     import_count + image.functions.length(),
@@ -64,10 +61,7 @@ fn compile_or_raise(
     host_objects_enabled,
     callable_table.table_indices,
   )
-  append_float_format_imports(wasm_module, internal_imports)
-  if host_objects_enabled {
-    append_host_object_release_import(wasm_module)
-  }
+  append_internal_runtime_imports(wasm_module, internal_imports)
   for import_ in imports {
     append_physical_runtime_import(wasm_module, import_)
   }
@@ -98,7 +92,7 @@ fn compile_or_raise(
           wasm_module,
           import_,
           import_.callable_abi(),
-          internal_imports.count + host_service_count + import_index,
+          internal_imports.count + import_index,
           runtime_functions,
         )
         import_index += 1
@@ -107,8 +101,11 @@ fn compile_or_raise(
   }
   append_runtime_functions(wasm_module, static_image, runtime_functions)
   append_helper_functions(
-    wasm_module, static_image, runtime_functions, helper_functions, host_objects_enabled,
-    0,
+    wasm_module,
+    static_image,
+    runtime_functions,
+    helper_functions,
+    internal_imports.host_object_release,
   )
   let fatal_tag_type = intern_function_type(wasm_module, [], [])
   wasm_module.tags.push({ type_idx: fatal_tag_type })

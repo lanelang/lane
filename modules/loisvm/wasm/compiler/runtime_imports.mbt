@@ -2,12 +2,14 @@
 priv struct InternalRuntimeImports {
   f32_to_string : Int?
   f64_to_string : Int?
+  host_object_release : Int?
   count : Int
 }
 
 ///|
 fn internal_runtime_imports(
   image : @bytecode.BytecodeImage,
+  host_objects_enabled : Bool,
 ) -> InternalRuntimeImports {
   let mut uses_f32 = false
   let mut uses_f64 = false
@@ -39,30 +41,48 @@ fn internal_runtime_imports(
   } else {
     None
   }
-  { f32_to_string, f64_to_string, count }
+  let host_object_release = if host_objects_enabled {
+    let index = count
+    count += 1
+    Some(index)
+  } else {
+    None
+  }
+  { f32_to_string, f64_to_string, host_object_release, count }
 }
 
 ///|
-fn append_float_format_imports(
+fn append_internal_runtime_imports(
   wasm_module : @wasm_types.Module,
   imports : InternalRuntimeImports,
 ) -> Unit {
   if imports.f32_to_string is Some(_) {
-    let type_index = intern_function_type(wasm_module, [F32], [I32])
-    wasm_module.imports.push({
-      mod_name: "lane.runtime.internal.v1",
-      name: "f32_to_string",
-      desc: Func(type_index),
-    })
+    append_internal_runtime_import(wasm_module, @internal_abi.F32ToString)
   }
   if imports.f64_to_string is Some(_) {
-    let type_index = intern_function_type(wasm_module, [F64], [I32])
-    wasm_module.imports.push({
-      mod_name: "lane.runtime.internal.v1",
-      name: "f64_to_string",
-      desc: Func(type_index),
-    })
+    append_internal_runtime_import(wasm_module, @internal_abi.F64ToString)
   }
+  if imports.host_object_release is Some(_) {
+    append_internal_runtime_import(wasm_module, @internal_abi.HostObjectRelease)
+  }
+}
+
+///|
+fn append_internal_runtime_import(
+  wasm_module : @wasm_types.Module,
+  function : @internal_abi.InternalRuntimeFunction,
+) -> Unit {
+  let type_ = function.type_()
+  let type_index = intern_function_type(
+    wasm_module,
+    type_.params,
+    type_.results,
+  )
+  wasm_module.imports.push({
+    mod_name: @internal_abi.module_name(),
+    name: function.name(),
+    desc: Func(type_index),
+  })
 }
 
 ///|
@@ -129,16 +149,6 @@ pub fn runtime_results_for_import(
 ///|
 fn runtime_import_uses_host_objects(import_ : @bytecode.RuntimeImport) -> Bool {
   import_.result is Opaque || import_.parameters.any(kind => kind is Opaque)
-}
-
-///|
-fn append_host_object_release_import(wasm_module : @wasm_types.Module) -> Unit {
-  let type_index = intern_function_type(wasm_module, [I64], [])
-  wasm_module.imports.push({
-    mod_name: "lane.runtime.internal.v1",
-    name: "host_object.release",
-    desc: Func(type_index),
-  })
 }
 
 ///|
