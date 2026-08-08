@@ -51,8 +51,8 @@ A Lane primitive type representing IEEE 754 binary32 floating-point values.
 _Avoid_: Float, Float32, Basic library number type
 
 **Floating Literal**:
-A source numeric literal containing a decimal fraction or exponent that defaults to **F64** and instead elaborates to **F32** when checked under an explicit F32 expectation.
-_Avoid_: implicit F64-to-F32 conversion, suffixed floating syntax, decimal arbitrary-precision value
+A source numeric literal whose own spelling selects an IEEE floating type: an unsuffixed floating-shaped literal or an `f64` suffix selects **F64**, while an `f32` suffix selects **F32**. An integer-shaped numeral may also carry either floating suffix. The [Language Surface glossary](modules/lanec/docs/contexts/language-surface.md) owns the terminology and [ADR 0127](modules/lanec/docs/adr/0127-explicit-numeric-literal-suffixes.md) owns the complete spelling and typing rule.
+_Avoid_: expected-type-directed literal, implicit F64-to-F32 conversion, decimal arbitrary-precision value
 
 **I64**:
 A Lane primitive type representing signed two's-complement 64-bit integer values.
@@ -63,8 +63,8 @@ A Lane primitive type representing signed two's-complement 32-bit integer values
 _Avoid_: internal I32 carrier, I64 alias, implicit narrow integer
 
 **Integer Literal**:
-A decimal source literal that defaults to `I64` and instead elaborates to **I32** when checked under an explicit I32 expectation.
-_Avoid_: implicit I64-to-I32 conversion, always-I64 literal, suffixed integer syntax
+An integer-shaped source numeric literal whose own spelling selects its type: an unsuffixed literal or an `i64` suffix selects **I64**, while an `i32` suffix selects **I32**. A numeral containing a fraction or exponent cannot carry an integer suffix; the detailed rule is owned by the [Language Surface glossary](modules/lanec/docs/contexts/language-surface.md) and [ADR 0127](modules/lanec/docs/adr/0127-explicit-numeric-literal-suffixes.md).
+_Avoid_: expected-type-directed literal, implicit I64-to-I32 conversion, overloaded integer literal
 
 **UTF-8 String**:
 A Lane `String` value containing a sequence of **Unicode Scalar Values** whose byte sequence is always valid UTF-8 text.
@@ -560,7 +560,7 @@ _Avoid_: VS Code extension, compiler front end
   another.
 - A module alias names exactly one imported **Module** and is not a prefix
   rewrite for other **Module Paths**.
-- **Floating Literals** default to **F64** and elaborate to **F32** only under an explicit F32 expectation; Lane inserts no implicit conversion among **I64**, **I32**, **F64**, and **F32**.
+- Numeric literal types are fixed by spelling: unsuffixed integer-shaped and floating-shaped forms are **I64** and **F64**, while attached `i32`, `i64`, `f32`, and `f64` suffixes select their named primitive directly. Lane inserts no implicit conversion among **I64**, **I32**, **F64**, and **F32**.
 - Lane effect sets contain **Typed Algebraic Effects** and **Built-in Effect Types**; **Unchecked Runtime Exceptions** are permanently outside the Lane language design.
 - A closed effect row containing only **Built-in Effect Types** does not require monadic translation because it has neither an open tail nor handled operations that may resume repeatedly; this follows from the general monadic-effect predicate rather than a built-in-effect special case. Such a row remains non-pure and visible to effect-sensitive optimization until type erasure.
 - A **Compiler Intrinsic** is understood and lowered by the compiler, while an **Extern Binding** is resolved by the execution host and is checked only against its asserted surrounding type.
