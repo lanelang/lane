@@ -47,23 +47,26 @@ fn finalize_without_bytecode_verification_or_raise(
 ) -> @bytecode.BytecodeImage raise FinalizeError {
   let image = devirtualize_image(image)
   let image = select_consuming_projections(image)
+  let functions = image.functions.map(entry => {
+    match entry {
+      Body(body) => Body(prepare_body(body))
+      RuntimeImport(_) => entry
+    }
+  })
   let callable_abis = CallableAbiInterner::{ entries: [] }
-  for entry in image.functions {
-    ignore(
-      callable_abis.intern(
-        match entry {
-          Body(body) => vmcfg_callable_abi(body)
-          RuntimeImport(import_) => import_.callable_abi()
-        },
-      ),
-    )
-  }
-  let functions : Array[@bytecode.FunctionEntry] = []
-  for entry in image.functions {
+  let finalized_functions : Array[@bytecode.FunctionEntry] = []
+  for entry in functions {
     match entry {
       Body(body) =>
-        functions.push(BytecodeBody(finalize_body(body, callable_abis)))
-      RuntimeImport(import_) => functions.push(RuntimeImport(import_))
+        finalized_functions.push(
+          BytecodeBody(finalize_prepared_body(body, callable_abis)),
+        )
+      RuntimeImport(import_) => finalized_functions.push(RuntimeImport(import_))
+    }
+  }
+  for entry in finalized_functions {
+    if entry.callable_abi() is Some(abi) {
+      ignore(callable_abis.intern(abi))
     }
   }
   {
@@ -71,7 +74,7 @@ fn finalize_without_bytecode_verification_or_raise(
     initializer: image.initializer,
     callable_abis: callable_abis.entries,
     data_family_count: image.data_family_count,
-    functions,
+    functions: finalized_functions,
     globals: image.globals,
     layouts: image.layouts,
     object_shapes: image.object_shapes,
@@ -80,33 +83,10 @@ fn finalize_without_bytecode_verification_or_raise(
 }
 
 ///|
-fn vmcfg_callable_abi(body : FunctionBody) -> @bytecode.CallableAbi {
-  {
-    witnesses: body.inputs.witnesses.map(witness => {
-      let metadata = value_metadata_to_slot(body.values[witness.value])
-      {
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-      }
-    }),
-    parameters: body.inputs.user_parameters.map(parameter => {
-      let metadata = value_metadata_to_slot(body.values[parameter.value])
-      {
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-      }
-    }),
-    result: body.result,
-  }
-}
-
-///|
-fn callsite_callable_abi(
+fn finalized_callable_abi(
   body : FunctionBody,
   witnesses : Array[@bytecode.SlotId],
-  arguments : Array[@bytecode.SlotId],
+  parameters : Array[@bytecode.SlotId],
   result : @bytecode.ResultAbi,
 ) -> @bytecode.CallableAbi {
   {
@@ -118,8 +98,8 @@ fn callsite_callable_abi(
         kind: metadata.kind,
       }
     }),
-    parameters: arguments.map(argument => {
-      let metadata = value_metadata_to_slot(body.values[argument.value])
+    parameters: parameters.map(parameter => {
+      let metadata = value_metadata_to_slot(body.values[parameter.value])
       {
         representation: metadata.representation,
         cleanup: metadata.cleanup,
@@ -131,16 +111,21 @@ fn callsite_callable_abi(
 }
 
 ///|
-fn finalize_body(
-  body : FunctionBody,
-  callable_abis : CallableAbiInterner,
-) -> @bytecode.FunctionBody raise FinalizeError {
+fn prepare_body(body : FunctionBody) -> FunctionBody raise FinalizeError {
   let body = simplify_body(body)
   let body = promote_cross_block_instruction_borrows(body)
   let body = thread_owned_block_values(body)
   for index, metadata in body.values {
     validate_metadata({ value: index }, metadata)
   }
+  body
+}
+
+///|
+fn finalize_prepared_body(
+  body : FunctionBody,
+  callable_abis : CallableAbiInterner,
+) -> @bytecode.FunctionBody raise FinalizeError {
   let blocks : Array[@bytecode.Block] = []
   let edge_blocks : Array[@bytecode.Block] = []
   let original_block_count = body.blocks.length()
@@ -425,7 +410,7 @@ fn finalize_instruction(
         )
       })
       let abi = callable_abis.intern(
-        callsite_callable_abi(
+        finalized_callable_abi(
           body, lowered_witnesses, lowered_arguments, result,
         ),
       )
@@ -1266,7 +1251,7 @@ fn finalize_terminator(
         )
       })
       let abi = callable_abis.intern(
-        callsite_callable_abi(
+        finalized_callable_abi(
           body,
           lowered_witnesses,
           lowered_arguments,

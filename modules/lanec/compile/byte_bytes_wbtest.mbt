@@ -342,6 +342,11 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|  callable_abis: [
       #|    {
       #|      witnesses: [],
+      #|      parameters: [],
+      #|      result: Value(I32, Trivial, ScalarValue),
+      #|    },
+      #|    {
+      #|      witnesses: [],
       #|      parameters: [
       #|        {
       #|          representation: I32,
@@ -371,11 +376,6 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|      result: Value(I64, OwnedCallable, CallableValue),
       #|    },
       #|    { witnesses: [], parameters: [], result: Unit },
-      #|    {
-      #|      witnesses: [],
-      #|      parameters: [],
-      #|      result: Value(I32, Trivial, ScalarValue),
-      #|    },
       #|    {
       #|      witnesses: [],
       #|      parameters: [],
@@ -643,7 +643,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|                [{ value: 3 }, { value: 0 }],
       #|                Some({ value: 6 }),
       #|              ),
-      #|              CallValue({ value: 6 }, { value: 4 }, [], [], Some({ value: 0 })),
+      #|              CallValue({ value: 6 }, { value: 0 }, [], [], Some({ value: 0 })),
       #|              ByteToI64({ value: 5 }, { value: 0 }),
       #|            ],
       #|            terminator: TailCallDirect({ value: 9 }, None, [], [{ value: 5 }]),

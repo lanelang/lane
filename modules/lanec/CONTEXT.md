@@ -332,6 +332,10 @@ _Avoid_: final-bytecode analysis, source ownership checker, bytecode verifier
 The compiler transformation that applies runtime ownership analysis by adding retain and release operations and recording ownership transfers in the VM CFG before slot allocation.
 _Avoid_: LoisVM interpreter behavior, Wasm-tier RC optimization, implicit slot semantics
 
+**Finalized Callable ABI**:
+The callable value shape derived only after VM CFG simplification, ownership promotion, owned-value threading, and physical slot allocation. Finalized bytecode bodies and runtime imports are the sole definition-side owners; indirect call sites use the same prepared value metadata, and all shapes enter one image-local interner.
+_Avoid_: source-type ABI reconstruction, pre-finalization ABI snapshot, verifier-side ABI repair
+
 **ARC Flow Cleanup**:
 The compiler-finalization policy that removes redundant ARC at the highest ownership-aware representation capable of proving the transfer. It prefers consuming projection selection and direct ownership flow before insertion; a post-insertion retain/release peephole is used only when no call, alias, branch, or destructor-visible action separates the pair.
 _Avoid_: refcount algebra without ownership provenance, runtime ARC optimization, destructor reordering
