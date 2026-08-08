@@ -611,6 +611,9 @@ _Avoid_: current third-party engine feature floor, automatic browser portability
   range without depending on editor protocol fields.
 - A **Completion Query** consumes the same **Semantic Snapshot** as diagnostics,
   navigation, and inlay hints.
+- **Call Argument Provenance** is assigned when ordinary, labeled, pipeline,
+  operator, or inserted contextual arguments are constructed and is preserved
+  in checked calls. Source spans locate hints but never reconstruct authorship.
 - An **Unused Local Value Binding** warning is a compiler semantic diagnostic,
   not a control-flow reachability analysis or an API export check.
 - **Checked Value-Use Analysis** may be reused by future optimization work, but

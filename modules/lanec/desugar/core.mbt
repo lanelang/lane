@@ -105,8 +105,17 @@ pub(all) struct DesugaredHandlerFinalBranch {
 
 ///|
 pub(all) enum DesugaredCallArgument {
-  Positional(value~ : DesugaredExpr, loc~ : SourceSpan)
-  Named(name~ : String, value~ : DesugaredExpr, loc~ : SourceSpan)
+  Positional(
+    value~ : DesugaredExpr,
+    loc~ : SourceSpan,
+    provenance~ : @syntax.CallArgumentProvenance
+  )
+  Named(
+    name~ : String,
+    value~ : DesugaredExpr,
+    loc~ : SourceSpan,
+    provenance~ : @syntax.CallArgumentProvenance
+  )
 } derive(Debug, Eq)
 
 ///|

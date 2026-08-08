@@ -185,7 +185,7 @@ fn SemanticChecker::checked_derive_deriver(
         })
         valid = false
       }
-      Named(name~, value=argument_value, loc=argument_loc) =>
+      Named(name~, value=argument_value, loc=argument_loc, ..) =>
         if name != "deriver" {
           self.diagnostics.push({
             kind: UnknownContextualArgument(name~),

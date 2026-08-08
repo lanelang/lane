@@ -3,12 +3,14 @@ priv struct NamedDirectArgument {
   name : String
   value : @desugar.DesugaredExpr
   loc : SourceSpan
+  provenance : @syntax.CallArgumentProvenance
 }
 
 ///|
 priv struct PositionalDirectArgument {
   value : @desugar.DesugaredExpr
   loc : SourceSpan
+  provenance : @syntax.CallArgumentProvenance
 }
 
 ///|
@@ -115,19 +117,19 @@ fn SemanticChecker::collect_direct_arguments(
   let named = []
   for argument in arguments {
     match argument {
-      Positional(value~, loc~) => {
+      Positional(value~, loc~, provenance~) => {
         if positional.length() >= positional_count {
           self.diagnostics.push({ kind: AutoArgumentMustBeNamed, loc })
           return None
         }
-        positional.push({ value, loc })
+        positional.push({ value, loc, provenance })
       }
-      Named(name~, value~, loc~) => {
+      Named(name~, value~, loc~, provenance~) => {
         if named_direct_argument(named, name) is Some(_) {
           self.diagnostics.push({ kind: DuplicateNamedArgument(name~), loc })
           return None
         }
-        named.push({ name, value, loc })
+        named.push({ name, value, loc, provenance })
       }
     }
   }
@@ -251,7 +253,13 @@ fn SemanticChecker::complete_direct_call_arguments(
 ) -> Array[@desugar.DesugaredCallArgument] {
   let result : Array[@desugar.DesugaredCallArgument] = []
   for argument in positional {
-    result.push(Positional(value=argument.value, loc=argument.loc))
+    result.push(
+      Positional(
+        value=argument.value,
+        loc=argument.loc,
+        provenance=argument.provenance,
+      ),
+    )
   }
   for argument in named {
     if auto_parameter_index(parameters, argument.name, first_auto) is None {
@@ -266,7 +274,13 @@ fn SemanticChecker::complete_direct_call_arguments(
     let parameter = parameters[index]
     match named_direct_argument(named, parameter.name) {
       Some(argument) =>
-        result.push(Positional(value=argument.value, loc=argument.loc))
+        result.push(
+          Positional(
+            value=argument.value,
+            loc=argument.loc,
+            provenance=argument.provenance,
+          ),
+        )
       None =>
         match
           self.contextual_offer_expr(
@@ -276,9 +290,21 @@ fn SemanticChecker::complete_direct_call_arguments(
             loc,
           ) {
           Some(argument) =>
-            result.push(Positional(value=argument, loc=argument.loc()))
+            result.push(
+              Positional(
+                value=argument,
+                loc=argument.loc(),
+                provenance=Synthetic,
+              ),
+            )
           None =>
-            result.push(Positional(value=error_contextual_argument(loc), loc~))
+            result.push(
+              Positional(
+                value=error_contextual_argument(loc),
+                loc~,
+                provenance=Synthetic,
+              ),
+            )
         }
     }
   }

@@ -19,6 +19,7 @@ import {
 pub(all) struct CheckedCallArgument {
   value : CheckedExpr
   loc : @basic.SourceSpan
+  provenance : @syntax.CallArgumentProvenance
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CheckedContextualSelection {

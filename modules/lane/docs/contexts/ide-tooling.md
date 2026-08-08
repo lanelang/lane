@@ -114,6 +114,12 @@ with `name=` label text. Constructor call arguments use the same hint rule as
 ordinary function call arguments.
 _Avoid_: argument label syntax, named argument
 
+**Call Argument Provenance**:
+The compiler-owned authored-or-synthetic fact carried by a checked call
+argument. Inlay hints consume this fact directly; a source span is only the
+presentation location and never evidence that the user wrote an argument.
+_Avoid_: span containment heuristic, pipeline offset convention, LSP desugaring
+
 **Implicit Argument Hint**:
 An Editor Inlay Hint that shows an automatically supplied contextual argument
 selected through Lane's `auto` parameter and `offer` value mechanism, using

@@ -44,6 +44,11 @@ pub fn CallArgument::loc(Self) -> @basic.SourceSpan
 pub impl @source_prettyprinter.Pretty for CallArgument
 pub impl @prettyprinter.Pretty for CallArgument
 
+pub(all) enum CallArgumentProvenance {
+  Authored
+  Synthetic
+} derive(Eq, @debug.Debug)
+
 pub(all) struct EffectDeclaration {
   is_public : Bool
   name : String

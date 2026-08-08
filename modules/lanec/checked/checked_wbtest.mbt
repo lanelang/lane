@@ -101,7 +101,7 @@ test "pretty prints checked source without surface-only syntax" {
   )
   let call = CheckedExpr::Call(
     callee~,
-    arguments=[{ value, loc: loc() }],
+    arguments=[{ value, loc: loc(), provenance: Authored }],
     type_=i64_type(),
     loc=loc(),
   )
@@ -165,7 +165,10 @@ test "pretty prints checked thunked short circuit call shape" {
   )
   let call = CheckedExpr::Call(
     callee=op_and,
-    arguments=[{ value: left, loc: loc() }, { value: thunk, loc: loc() }],
+    arguments=[
+      { value: left, loc: loc(), provenance: Synthetic },
+      { value: thunk, loc: loc(), provenance: Synthetic },
+    ],
     type_=bool_type(),
     loc=loc(),
   )
@@ -271,6 +274,7 @@ test "value use analysis classifies local dependency groups" {
       {
         value: Value(name="n", symbol=n, type_=i64_type(), loc=loc()),
         loc: loc(),
+        provenance: Authored,
       },
     ],
     type_=i64_type(),

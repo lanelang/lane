@@ -320,7 +320,11 @@ fn CheckedCallArgument::substitute(
   self : CheckedCallArgument,
   substitution : @types.TypeSubstitution,
 ) -> CheckedCallArgument {
-  { value: self.value.substitute(substitution), loc: self.loc }
+  {
+    value: self.value.substitute(substitution),
+    loc: self.loc,
+    provenance: self.provenance,
+  }
 }
 
 ///|

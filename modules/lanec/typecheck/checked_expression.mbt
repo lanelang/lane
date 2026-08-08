@@ -494,7 +494,9 @@ fn desugared_unary_call(
 ) -> @desugar.DesugaredExpr {
   Call(
     callee=Var(name=target.name, reference=target.reference, loc~),
-    arguments=[Positional(value=operand, loc=operand.loc())],
+    arguments=[
+      Positional(value=operand, loc=operand.loc(), provenance=Synthetic),
+    ],
     loc~,
   )
 }
@@ -1245,19 +1247,26 @@ fn SemanticChecker::check_checked_call_arguments(
   let effects = []
   let mut complete = true
   for index in 0..<parameters.length() {
+    let argument = arguments[index]
     let checked = self.check_checked_call_argument(
       scope,
-      arguments[index],
+      argument,
       parameters[index],
     )
     match
       self.require_checked_expression(
         checked,
-        arguments[index].value_expr().loc(),
+        argument.value_expr().loc(),
         "call argument",
       ) {
       Some(value) =>
-        checked_arguments.push({ value, loc: arguments[index].loc() })
+        checked_arguments.push({
+          value,
+          loc: argument.loc(),
+          provenance: match argument {
+            Positional(provenance~, ..) | Named(provenance~, ..) => provenance
+          },
+        })
       None => complete = false
     }
     effects.push(checked.effect)
@@ -1278,7 +1287,7 @@ fn SemanticChecker::check_checked_call_argument(
 ) -> CheckedExpressionSynthesis {
   match argument {
     Positional(value~, ..) => self.check_checked_expr(scope, value, parameter)
-    Named(name~, value~, loc~) => {
+    Named(name~, value~, loc~, ..) => {
       self.diagnostics.push({ kind: InvalidNamedArgument(name~), loc })
       self.check_checked_expr(scope, value, parameter)
     }

@@ -343,7 +343,7 @@ fn desugar_operator_call(
   Call(
     callee=Var(name~, reference~, loc~),
     arguments=arguments.map(fn(argument) {
-      Positional(value=argument, loc=argument.loc())
+      Positional(value=argument, loc=argument.loc(), provenance=Synthetic)
     }),
     loc~,
   )
@@ -359,13 +359,17 @@ fn desugar_pipeline(
     Call(
       callee~,
       arguments=prepend_argument(
-        Positional(value=left, loc=left.loc()),
+        Positional(value=left, loc=left.loc(), provenance=Synthetic),
         arguments,
       ),
       loc~,
     )
   } else {
-    Call(callee=right, arguments=[Positional(value=left, loc=left.loc())], loc~)
+    Call(
+      callee=right,
+      arguments=[Positional(value=left, loc=left.loc(), provenance=Synthetic)],
+      loc~,
+    )
   }
 }
 
@@ -386,8 +390,10 @@ fn desugar_call_argument(
   argument : @resolve.ResolvedCallArgument,
 ) -> DesugaredCallArgument {
   match argument {
-    Positional(value~, loc~) => Positional(value=desugar_expr(value), loc~)
-    Named(name~, value~, loc~) => Named(name~, value=desugar_expr(value), loc~)
+    Positional(value~, loc~) =>
+      Positional(value=desugar_expr(value), loc~, provenance=Authored)
+    Named(name~, value~, loc~) =>
+      Named(name~, value=desugar_expr(value), loc~, provenance=Authored)
   }
 }
 

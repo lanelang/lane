@@ -178,3 +178,34 @@ test "semantic workspace keeps imported pipeline parameter hints position-unique
     positions[position] = ()
   }
 }
+
+///|
+test "semantic workspace does not label synthetic operator operands" {
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      {
+        source_id: "file:///Main.lane",
+        text: (
+          #|module Main
+          #|
+          #|pub fn op_add(left : I64, right : I64) -> I64 {
+          #|  if true { left } else { right }
+          #|}
+          #|
+          #|pub fn answer(seed : I64) -> I64 {
+          #|  seed + 1
+          #|}
+        ),
+      },
+    ])
+    is Some(snapshot) else {
+    fail("expected semantic snapshot")
+  }
+  assert_eq(snapshot.diagnostics(), [])
+  assert_eq(
+    snapshot
+    .inlay_hints_in_range("file:///Main.lane", 1, 1, 12, 1)
+    .filter(fn(hint) { hint.kind is ParameterHint }),
+    [],
+  )
+}

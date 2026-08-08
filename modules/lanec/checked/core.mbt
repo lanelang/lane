@@ -202,6 +202,7 @@ pub(all) enum CheckedLiteral {
 pub(all) struct CheckedCallArgument {
   value : CheckedExpr
   loc : SourceSpan
+  provenance : @syntax.CallArgumentProvenance
 } derive(Debug, Eq)
 
 ///|

@@ -479,6 +479,12 @@ pub(all) enum CallArgument {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum CallArgumentProvenance {
+  Authored
+  Synthetic
+} derive(Debug, Eq)
+
+///|
 /// Returns the source span covered by this call argument.
 pub fn CallArgument::loc(self : CallArgument) -> SourceSpan {
   match self {

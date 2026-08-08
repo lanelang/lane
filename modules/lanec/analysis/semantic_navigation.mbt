@@ -273,21 +273,19 @@ fn add_argument_inlay_hints(
     parameters.length()
   }
   let implicit_arguments = []
-  let mut has_authored_argument = source_operator_call
+  let mut has_visible_argument = source_operator_call
   for index in 0..<count {
     let argument = arguments[index]
     let parameter = parameters[index]
-    let authored_argument = call_loc.contains_authored_call_argument(
-      argument.loc,
-    )
+    let authored_argument = argument.provenance is Authored
     if authored_argument {
-      has_authored_argument = true
+      has_visible_argument = true
     }
     if parameter.is_auto && !authored_argument {
       if implicit_argument_name(argument.value) is Some(name) {
         implicit_arguments.push("\{parameter.name}=\{name}")
       }
-    } else if authored_argument && !source_operator_call && !parameter.is_auto {
+    } else if authored_argument && !parameter.is_auto {
       add_parameter_inlay_hint(
         inlay_hints,
         source_id,
@@ -301,7 +299,7 @@ fn add_argument_inlay_hints(
       inlay_hints,
       source_id,
       implicit_argument_insertion_span(call_loc, source_operator_call),
-      if has_authored_argument {
+      if has_visible_argument {
         ", "
       } else {
         ""
@@ -356,15 +354,4 @@ fn implicit_argument_name(argument : @checked.CheckedExpr) -> String? {
       }
     _ => None
   }
-}
-
-///|
-fn @basic.SourceSpan::contains_authored_call_argument(
-  self : @basic.SourceSpan,
-  inner : @basic.SourceSpan,
-) -> Bool {
-  // In ordinary call syntax every authored argument starts after the callee.
-  // Pipeline desugaring prepends its left expression as the first argument,
-  // and that synthetic argument starts exactly where the expanded call starts.
-  inner.start_offset > self.start_offset && inner.end_offset <= self.end_offset
 }
