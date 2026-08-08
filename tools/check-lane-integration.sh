@@ -15,4 +15,5 @@ chmod +x "$lane_bin"
 trap 'rm -f "$lane_bin"' EXIT
 
 "$repo_root/tools/check-lane-run-examples.sh" "$lane_bin"
+"$repo_root/tools/check-lane-cli-help.sh" "$lane_bin"
 "$repo_root/tools/check-lane-lsp-cli.sh" "$lane_bin"

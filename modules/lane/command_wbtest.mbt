@@ -85,7 +85,7 @@ test "argparse owns required Lane option validation" {
       #|Link compiled Lane module object artifacts.
       #|
       #|Arguments:
-      #|  objects...  Module object artifacts to link.
+      #|  objects...  Supply one object artifact for every module reachable from the selected entry.
       #|
       #|Options:
       #|  -h, --help             Show help information.

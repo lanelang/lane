@@ -112,7 +112,7 @@ fn lane_command_spec() -> Command {
           PositionArg(
             "objects",
             num_args=ValueRange(lower=1),
-            about="Module object artifacts to link.",
+            about="Supply one object artifact for every module reachable from the selected entry.",
           ),
         ],
       ),
