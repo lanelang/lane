@@ -13,9 +13,6 @@ fn validate_buslane_object(
   for term in object.terms {
     validator.validate_top_term(term)
   }
-  for builtin in object.externals.builtins {
-    validator.validate_type(builtin.type_)
-  }
   for import_ in object.externals.runtime_imports {
     validator.validate_type(import_.type_)
   }

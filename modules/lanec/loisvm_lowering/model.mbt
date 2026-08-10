@@ -27,7 +27,7 @@ pub(all) suberror LoisvmLoweringError {
 priv enum GlobalValue {
   UnitValue
   Function(@bytecode.FunctionId, @buslane.Type)
-  Intrinsic(@abi.Intrinsic, @buslane.Type)
+  Intrinsic(@buslane_lowering.BuslaneIntrinsicFunctionContract)
   FloatConstant(Int, @buslane.Type)
   DoubleConstant(Int64, @buslane.Type)
   InstanceGlobal(@bytecode.GlobalId, @buslane.Type)
@@ -61,8 +61,7 @@ priv struct InitializerStepPlan {
 ///|
 priv struct IntrinsicWrapperPlan {
   function : @bytecode.FunctionId
-  intrinsic : @abi.Intrinsic
-  type_ : @buslane.Type
+  contract : @buslane_lowering.BuslaneIntrinsicFunctionContract
 }
 
 ///|

@@ -8,9 +8,10 @@ fn BuslaneLinker::remap_module_object(
     terms: object.terms.map(term => self.remap_top_term(object, term)),
     externals: {
       builtins: object.externals.builtins.map(builtin => {
-        value: self.remap_value_id(object, builtin.value),
-        intrinsic: builtin.intrinsic,
-        type_: self.remap_type(object, builtin.type_),
+        @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+          self.remap_value_id(object, builtin.value()),
+          builtin.intrinsic(),
+        )
       }),
       runtime_imports: object.externals.runtime_imports.map(import_ => {
         value: self.remap_value_id(object, import_.value),

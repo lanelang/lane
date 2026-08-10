@@ -35,9 +35,14 @@ annotations through the normal builtin-signature compatibility path. Neither
 the type checker nor a backend recognizes `Basic.Io.panic` by declaration name.
 
 The intrinsic signature table is the sole owner of its source type and effect.
-The lowering phase creates a normal Unit-returning callable wrapper whose body
-ends in `Fatal(message)`. Calls to the wrapper use the same direct, first-class,
-tail-call, and adapter machinery as every other Unit-returning callable.
+Buslane elaboration materializes that entry as an opaque intrinsic contract;
+module objects persist only the intrinsic identity, and linking validates its
+metadata type against the contract reconstructed from the table. Later phases
+consume the contract rather than accepting an independently supplied intrinsic
+type. The lowering phase creates a normal Unit-returning callable wrapper whose
+body ends in `Fatal(message)`. Calls to the wrapper use the same direct,
+first-class, tail-call, and adapter machinery as every other Unit-returning
+callable.
 
 ## Control-flow contract
 

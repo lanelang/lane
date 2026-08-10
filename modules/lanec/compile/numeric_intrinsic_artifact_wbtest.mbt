@@ -23,7 +23,7 @@ test "module object preserves numeric conversion intrinsics" {
     Err(message) => abort(message)
   }
   assert_eq(
-    decoded.externals.builtins.map(external => external.intrinsic.name()),
+    decoded.externals.builtins.map(external => external.intrinsic().name()),
     ["%i64_to_f64", "%f64_to_i64", "%f32_to_string", "%f64_to_string"],
   )
 }

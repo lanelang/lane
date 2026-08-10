@@ -1,9 +1,183 @@
 ///|
-pub(all) struct BuslaneBuiltinExternal {
-  value : @buslane.ValueId
-  intrinsic : @abi.Intrinsic
-  type_ : @buslane.Type
+priv enum BuslaneIntrinsicContractShape {
+  ValueContract(@buslane.Type)
+  FunctionContract(
+    parameters~ : Array[@buslane.Type],
+    result~ : @buslane.Type,
+    effect~ : @buslane.Effect
+  )
 } derive(Debug, Eq)
+
+///|
+pub struct BuslaneIntrinsicContract {
+  priv intrinsic : @abi.Intrinsic
+  priv shape : BuslaneIntrinsicContractShape
+} derive(Debug, Eq)
+
+///|
+pub struct BuslaneIntrinsicFunctionContract {
+  priv intrinsic : @abi.Intrinsic
+  priv parameters : Array[@buslane.Type]
+  priv result : @buslane.Type
+  priv effect : @buslane.Effect
+} derive(Debug, Eq)
+
+///|
+pub struct BuslaneBuiltinExternal {
+  priv value : @buslane.ValueId
+  priv contract : BuslaneIntrinsicContract
+} derive(Debug, Eq)
+
+///|
+pub fn BuslaneBuiltinExternal::from_intrinsic(
+  value : @buslane.ValueId,
+  intrinsic : @abi.Intrinsic,
+) -> BuslaneBuiltinExternal {
+  { value, contract: BuslaneIntrinsicContract::from_intrinsic(intrinsic) }
+}
+
+///|
+fn BuslaneBuiltinExternal::from_contract(
+  value : @buslane.ValueId,
+  contract : BuslaneIntrinsicContract,
+) -> BuslaneBuiltinExternal {
+  { value, contract }
+}
+
+///|
+pub fn BuslaneBuiltinExternal::value(
+  self : BuslaneBuiltinExternal,
+) -> @buslane.ValueId {
+  self.value
+}
+
+///|
+pub fn BuslaneBuiltinExternal::intrinsic(
+  self : BuslaneBuiltinExternal,
+) -> @abi.Intrinsic {
+  self.contract.intrinsic()
+}
+
+///|
+pub fn BuslaneBuiltinExternal::contract(
+  self : BuslaneBuiltinExternal,
+) -> BuslaneIntrinsicContract {
+  self.contract
+}
+
+///|
+pub fn BuslaneBuiltinExternal::type_(
+  self : BuslaneBuiltinExternal,
+) -> @buslane.Type {
+  self.contract.type_()
+}
+
+///|
+fn BuslaneIntrinsicContract::from_intrinsic(
+  intrinsic : @abi.Intrinsic,
+) -> BuslaneIntrinsicContract {
+  let shape = match intrinsic.signature() {
+    Value(kind) => ValueContract(Primitive(buslane_intrinsic_primitive(kind)))
+    Function(parameters~, result~, effect~) =>
+      FunctionContract(
+        parameters=parameters.map(kind => {
+          Primitive(buslane_intrinsic_primitive(kind))
+        }),
+        result=Primitive(buslane_intrinsic_primitive(result)),
+        effect=buslane_intrinsic_effect(effect),
+      )
+  }
+  { intrinsic, shape }
+}
+
+///|
+pub fn BuslaneIntrinsicContract::intrinsic(
+  self : BuslaneIntrinsicContract,
+) -> @abi.Intrinsic {
+  self.intrinsic
+}
+
+///|
+pub fn BuslaneIntrinsicContract::type_(
+  self : BuslaneIntrinsicContract,
+) -> @buslane.Type {
+  match self.shape {
+    ValueContract(type_) => type_
+    FunctionContract(parameters~, result~, effect~) =>
+      Function(parameters.copy(), result, effect)
+  }
+}
+
+///|
+pub fn BuslaneIntrinsicContract::function_contract(
+  self : BuslaneIntrinsicContract,
+) -> BuslaneIntrinsicFunctionContract? {
+  match self.shape {
+    FunctionContract(parameters~, result~, effect~) =>
+      Some({
+        intrinsic: self.intrinsic,
+        parameters: parameters.copy(),
+        result,
+        effect,
+      })
+    ValueContract(_) => None
+  }
+}
+
+///|
+pub fn BuslaneIntrinsicFunctionContract::intrinsic(
+  self : BuslaneIntrinsicFunctionContract,
+) -> @abi.Intrinsic {
+  self.intrinsic
+}
+
+///|
+pub fn BuslaneIntrinsicFunctionContract::parameter_types(
+  self : BuslaneIntrinsicFunctionContract,
+) -> Array[@buslane.Type] {
+  self.parameters.copy()
+}
+
+///|
+pub fn BuslaneIntrinsicFunctionContract::result_type(
+  self : BuslaneIntrinsicFunctionContract,
+) -> @buslane.Type {
+  self.result
+}
+
+///|
+pub fn BuslaneIntrinsicFunctionContract::type_(
+  self : BuslaneIntrinsicFunctionContract,
+) -> @buslane.Type {
+  Function(self.parameters.copy(), self.result, self.effect)
+}
+
+///|
+fn buslane_intrinsic_primitive(
+  kind : @abi.IntrinsicValueKind,
+) -> @buslane.PrimitiveType {
+  match kind {
+    Unit => Unit
+    Bool => Bool
+    I64 => I64
+    I32 => I32
+    Char => Char
+    F64 => F64
+    F32 => F32
+    String => String
+    Byte => Byte
+    Bytes => Bytes
+  }
+}
+
+///|
+fn buslane_intrinsic_effect(effect : @abi.IntrinsicEffect) -> @buslane.Effect {
+  match effect {
+    Pure => Empty
+    BuiltinIo => Builtin(Io)
+    BuiltinPanic => Builtin(Panic)
+  }
+}
 
 ///|
 pub(all) struct BuslaneRuntimeImport {

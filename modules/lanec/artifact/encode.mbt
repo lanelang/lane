@@ -81,9 +81,8 @@ fn write_externals(
 ) -> Unit {
   writer.write_u32_le_int(externals.builtins.length())
   for external in externals.builtins {
-    write_buslane_value_id(writer, external.value)
-    write_intrinsic(writer, external.intrinsic)
-    write_buslane_type(writer, external.type_)
+    write_buslane_value_id(writer, external.value())
+    write_intrinsic(writer, external.intrinsic())
   }
   writer.write_u32_le_int(externals.runtime_imports.length())
   for import_ in externals.runtime_imports {

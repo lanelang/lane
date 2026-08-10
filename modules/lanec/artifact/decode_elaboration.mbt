@@ -4,11 +4,12 @@ fn @bytecodec.ByteReader::read_externals(
 ) -> @buslane_lowering.BuslaneExternalMap raise {
   let builtins : Array[@buslane_lowering.BuslaneBuiltinExternal] = []
   for _ in 0..<self.read_u32_le_int() {
-    builtins.push({
-      value: self.read_buslane_value_id(),
-      intrinsic: self.read_intrinsic(),
-      type_: self.read_buslane_type(),
-    })
+    builtins.push(
+      @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+        self.read_buslane_value_id(),
+        self.read_intrinsic(),
+      ),
+    )
   }
   let runtime_imports : Array[@buslane_lowering.BuslaneRuntimeImport] = []
   for _ in 0..<self.read_u32_le_int() {

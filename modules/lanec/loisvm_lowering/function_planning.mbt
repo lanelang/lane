@@ -104,33 +104,33 @@ fn ImageLowerer::plan_intrinsic(
   self : ImageLowerer,
   value : @buslane.ValueId,
   external : @buslane_lowering.BuslaneBuiltinExternal,
-) -> Unit {
-  match external.intrinsic {
+) -> Unit raise LoisvmLoweringError {
+  let contract = external.contract()
+  let intrinsic = contract.intrinsic()
+  let type_ = contract.type_()
+  match intrinsic {
     Panic => {
-      let function = self.intrinsic_wrapper(Panic, external.type_)
-      self.globals.push({ value, lowered: Function(function, external.type_) })
+      guard contract.function_contract() is Some(function_contract) else {
+        raise UnsupportedIntrinsic(name=intrinsic.name())
+      }
+      let function = self.intrinsic_wrapper(function_contract)
+      self.globals.push({ value, lowered: Function(function, type_) })
     }
     F32Inf =>
-      self.globals.push({
-        value,
-        lowered: FloatConstant(0x7f800000, external.type_),
-      })
+      self.globals.push({ value, lowered: FloatConstant(0x7f800000, type_) })
     F32NegativeInf =>
       self.globals.push({
         value,
-        lowered: FloatConstant(0xff800000U.reinterpret_as_int(), external.type_),
+        lowered: FloatConstant(0xff800000U.reinterpret_as_int(), type_),
       })
     F32Nan =>
-      self.globals.push({
-        value,
-        lowered: FloatConstant(0x7fc00000, external.type_),
-      })
+      self.globals.push({ value, lowered: FloatConstant(0x7fc00000, type_) })
     F64Inf =>
       self.globals.push({
         value,
         lowered: DoubleConstant(
           0x7ff0000000000000UL.reinterpret_as_int64(),
-          external.type_,
+          type_,
         ),
       })
     F64NegativeInf =>
@@ -138,7 +138,7 @@ fn ImageLowerer::plan_intrinsic(
         value,
         lowered: DoubleConstant(
           0xfff0000000000000UL.reinterpret_as_int64(),
-          external.type_,
+          type_,
         ),
       })
     F64Nan =>
@@ -146,11 +146,15 @@ fn ImageLowerer::plan_intrinsic(
         value,
         lowered: DoubleConstant(
           0x7ff8000000000000UL.reinterpret_as_int64(),
-          external.type_,
+          type_,
         ),
       })
-    intrinsic =>
-      self.globals.push({ value, lowered: Intrinsic(intrinsic, external.type_) })
+    _ => {
+      guard contract.function_contract() is Some(function_contract) else {
+        raise UnsupportedIntrinsic(name=intrinsic.name())
+      }
+      self.globals.push({ value, lowered: Intrinsic(function_contract) })
+    }
   }
 }
 
@@ -199,7 +203,7 @@ fn ImageLowerer::find_builtin_external(
   value : @buslane.ValueId,
 ) -> @buslane_lowering.BuslaneBuiltinExternal? {
   for external in self.externals.builtins {
-    if external.value == value {
+    if external.value() == value {
       return Some(external)
     }
   }
@@ -392,17 +396,10 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   self : ImageLowerer,
   plan : IntrinsicWrapperPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
-  let (type_parameters, parameter_types, result_type) = function_type_parts(
-    plan.type_,
-  )
-  if !type_parameters.is_empty() {
-    raise UnsupportedIntrinsic(name=plan.intrinsic.name())
-  }
-  if plan.intrinsic is Panic {
-    guard parameter_types is [Primitive(String)] &&
-      self.result_abi(result_type) is Unit else {
-      raise UnsupportedIntrinsic(name=plan.intrinsic.name())
-    }
+  let intrinsic = plan.contract.intrinsic()
+  let parameter_types = plan.contract.parameter_types()
+  let result_type = plan.contract.result_type()
+  if intrinsic is Panic {
     let lowerer : FunctionLowerer = {
       image: self,
       values: [],
@@ -414,12 +411,19 @@ fn ImageLowerer::lower_intrinsic_wrapper(
       witnesses: [],
       substitutions: TypeSubstitution(),
     }
-    let message = lowerer.fresh_slot(Primitive(String))
+    let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
+    guard parameter_slots is [message] else {
+      abort("invalid canonical Panic contract")
+    }
     lowerer.terminate(Fatal(message))
     return {
       values: lowerer.values,
-      inputs: { environment: None, witnesses: [], user_parameters: [message] },
-      result: Unit,
+      inputs: {
+        environment: None,
+        witnesses: [],
+        user_parameters: parameter_slots,
+      },
+      result: self.result_abi(result_type),
       blocks: [{ parameters: [], instructions: [], terminator: Fatal(message) }],
     }
   }
@@ -439,9 +443,9 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   for index, slot in parameter_slots {
     arguments.push(Slot(slot, parameter_types[index]))
   }
-  let result = lowerer.lower_intrinsic(plan.intrinsic, plan.type_, arguments)
+  let result = lowerer.lower_intrinsic(plan.contract, arguments)
   guard result is Slot(result_slot, _) else {
-    raise UnsupportedIntrinsic(name=plan.intrinsic.name())
+    raise UnsupportedIntrinsic(name=intrinsic.name())
   }
   lowerer.terminate(Return(Some(result_slot)))
   {
@@ -465,16 +469,15 @@ fn ImageLowerer::lower_intrinsic_wrapper(
 ///|
 fn ImageLowerer::intrinsic_wrapper(
   self : ImageLowerer,
-  intrinsic : @abi.Intrinsic,
-  type_ : @buslane.Type,
+  contract : @buslane_lowering.BuslaneIntrinsicFunctionContract,
 ) -> @bytecode.FunctionId {
   for wrapper in self.intrinsic_wrappers {
-    if wrapper.intrinsic == intrinsic && wrapper.type_ == type_ {
+    if wrapper.contract == contract {
       return wrapper.function
     }
   }
   let function : @bytecode.FunctionId = { value: self.plans.length() + 1 }
-  let wrapper = { function, intrinsic, type_ }
+  let wrapper = { function, contract }
   self.intrinsic_wrappers.push(wrapper)
   self.plans.push(IntrinsicWrapper(wrapper))
   function

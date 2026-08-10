@@ -9,8 +9,8 @@ fn FunctionLowerer::lower_call(
     self.materialize_local(self.lower_atom(argument))
   })
   match callee {
-    Global(Intrinsic(intrinsic, type_)) =>
-      self.lower_intrinsic(intrinsic, type_, lowered_arguments)
+    Global(Intrinsic(contract)) =>
+      self.lower_intrinsic(contract, lowered_arguments)
     Global(Function(function, type_)) =>
       self.lower_direct_call(function, type_, lowered_arguments, None)
     RecursiveFunction(function, type_, environment) =>
@@ -44,13 +44,11 @@ fn FunctionLowerer::materialize_local(
       self.emit(ConstFunction(destination, function))
       Slot(destination, type_)
     }
-    Global(Intrinsic(intrinsic, type_)) => {
+    Global(Intrinsic(contract)) => {
+      let type_ = contract.type_()
       let destination = self.fresh_slot(type_)
       self.emit(
-        ConstFunction(
-          destination,
-          self.image.intrinsic_wrapper(intrinsic, type_),
-        ),
+        ConstFunction(destination, self.image.intrinsic_wrapper(contract)),
       )
       Slot(destination, type_)
     }
@@ -469,11 +467,11 @@ fn FunctionLowerer::lower_direct_call(
 ///|
 fn FunctionLowerer::lower_intrinsic(
   self : FunctionLowerer,
-  intrinsic : @abi.Intrinsic,
-  type_ : @buslane.Type,
+  contract : @buslane_lowering.BuslaneIntrinsicFunctionContract,
   arguments : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
-  let result_type = callable_result_type(type_)
+  let intrinsic = contract.intrinsic()
+  let result_type = contract.result_type()
   match (intrinsic, arguments) {
     (CharToI32 | I32ToChar | StringToBytes | BytesToString, [Slot(source, _)]) =>
       return Slot(source, result_type)
@@ -559,16 +557,6 @@ fn FunctionLowerer::lower_intrinsic(
   }
   self.emit(instruction)
   Slot(destination, result_type)
-}
-
-///|
-fn callable_result_type(
-  type_ : @buslane.Type,
-) -> @buslane.Type raise LoisvmLoweringError {
-  match strip_forall(type_) {
-    Function(_, result, _) => result
-    _ => raise UnsupportedType(type_~)
-  }
 }
 
 ///|

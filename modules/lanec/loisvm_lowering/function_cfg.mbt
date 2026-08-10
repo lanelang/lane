@@ -256,14 +256,6 @@ fn function_type_parts(
 }
 
 ///|
-fn strip_forall(type_ : @buslane.Type) -> @buslane.Type {
-  match type_ {
-    Forall(_, body) => strip_forall(body)
-    _ => type_
-  }
-}
-
-///|
 fn FunctionLowerer::emit(
   self : FunctionLowerer,
   instruction : @vmcfg.Instruction,

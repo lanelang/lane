@@ -31,6 +31,46 @@ fn compiled_test_object(source : String) -> @artifact.ModuleObjectArtifact {
 }
 
 ///|
+test "builtin external contract rejects metadata signature drift" {
+  let object = compiled_test_object(
+    (
+      #|module Invalid
+      #|pub let panic : (String) -> Unit ! Panic = builtin("%panic")
+    ),
+  )
+  guard object.externals.builtins is [builtin] else {
+    abort("expected one builtin external")
+  }
+  let metadata = object.metadata.snapshot()
+  let value = builtin.value()
+  let info = metadata.values[value.index]
+  metadata.values[value.index] = { ..info, type_: Primitive(I64) }
+  let malformed = refingerprint_test_object({ ..object, metadata, })
+  debug_inspect(
+    @artifact.link_module_object_artifacts([malformed]),
+    content=(
+      #|{
+      #|  program: None,
+      #|  diagnostics: [
+      #|    {
+      #|      source_id: None,
+      #|      message: "invalid module object `Invalid`",
+      #|      span: None,
+      #|      severity: Error,
+      #|      code: Some("E4208"),
+      #|      labels: [],
+      #|      notes: ["builtin external type does not match metadata for { index: 1 }; module objects must be internally valid before identity remapping begins"],
+      #|      helps: ["recompile the module object from valid Lane source"],
+      #|      facts: [],
+      #|      suggestions: [],
+      #|    },
+      #|  ],
+      #|}
+    ),
+  )
+}
+
+///|
 test "object artifact validation rejects every unknown Buslane identity namespace" {
   let object = compiled_test_object(
     (
@@ -204,7 +244,10 @@ test "object artifact validation rejects malformed side table references" {
   let unknown_value : @buslane.ValueId = { index: 1000 }
   let unknown_type : @buslane.TypeId = { index: 1001 }
   let builtins = object.externals.builtins.copy()
-  builtins[0] = { ..builtins[0], value: unknown_value }
+  builtins[0] = @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+    unknown_value,
+    builtins[0].intrinsic(),
+  )
   let entries = object.entries.copy()
   entries[0] = { ..entries[0], value: unknown_value }
   let exports = object.exports.copy()

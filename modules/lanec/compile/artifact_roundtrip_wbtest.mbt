@@ -70,7 +70,9 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   }
   debug_inspect(
     (
-      program.externals.builtins.map(fn(external) { external.intrinsic.name() }),
+      program.externals.builtins.map(fn(external) {
+        external.intrinsic().name()
+      }),
       program.externals.runtime_imports.map(fn(import_) { import_.symbol }),
     ),
     content=(
@@ -314,7 +316,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 18
+      #|schema: 19
       #|
       #|imported interfaces:
       #|  (none)
@@ -869,7 +871,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 18
+      #|schema: 19
       #|
       #|imported interfaces:
       #|  (none)
@@ -1054,7 +1056,7 @@ test "module binaries reject immediately preceding schema versions" {
   let object_bytes = @artifact.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   ).to_array()
-  object_bytes[14] = b'\x11'
+  object_bytes[14] = b'\x12'
   object_bytes[15] = b'\x00'
   object_bytes[16] = b'\x00'
   object_bytes[17] = b'\x00'
@@ -1074,7 +1076,7 @@ test "module binaries reject immediately preceding schema versions" {
     Ok(_) => fail("expected old object schema failure")
   }
   assert_eq(messages, [
-    "unsupported interface artifact schema version 11", "unsupported object artifact schema version 17",
+    "unsupported interface artifact schema version 11", "unsupported object artifact schema version 18",
   ])
 }
 

@@ -47,15 +47,15 @@ fn executable_externals_doc(
   let docs = externals.builtins.map(external => {
     text("builtin") +
     space +
-    string(external.intrinsic.name()) +
+    string(external.intrinsic().name()) +
     space +
     text("as") +
     space +
-    external.value.pretty() +
+    external.value().pretty() +
     space +
     text(":") +
     space +
-    external.type_.pretty()
+    external.type_().pretty()
   })
   docs.append(
     externals.runtime_imports.map(external => {

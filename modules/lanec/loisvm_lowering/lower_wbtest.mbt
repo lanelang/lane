@@ -184,7 +184,9 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
     lower_test_executable_to_bytecode(
       program,
       {
-        builtins: [{ value: add, intrinsic: I64Add, type_: add_type }],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
+        ],
         runtime_imports: [],
       },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -338,7 +340,9 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
     lower_test_executable_to_bytecode(
       program,
       {
-        builtins: [{ value: add, intrinsic: I64Add, type_: add_type }],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
+        ],
         runtime_imports: [
           {
             value: observe,
@@ -1243,7 +1247,9 @@ test "capture-free functions lower as callable values for higher-order calls" {
     lower_test_executable_to_bytecode(
       program,
       {
-        builtins: [{ value: add, intrinsic: I64Add, type_: add_type }],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
+        ],
         runtime_imports: [
           {
             value: observe,
@@ -1345,7 +1351,9 @@ test "nested functions lift with explicit reference-counted environments" {
     lower_linked_program_to_bytecode(
       program,
       {
-        builtins: [{ value: add, intrinsic: I64Add, type_: add_type }],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
+        ],
         runtime_imports: [
           {
             value: observe,
@@ -1486,8 +1494,11 @@ test "local recursive functions share a cycle-free captured environment" {
       program,
       {
         builtins: [
-          { value: sub, intrinsic: I64Sub, type_: sub_type },
-          { value: equal, intrinsic: I64Equal, type_: equal_type },
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(sub, I64Sub),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            equal,
+            I64Equal,
+          ),
         ],
         runtime_imports: [
           {

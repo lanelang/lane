@@ -11,7 +11,7 @@ test "compile source records intrinsic and runtime import origins" {
   debug_inspect(result.diagnostics, content="[]")
   debug_inspect(
     (
-      result.externals.builtins.map(fn(external) { external.intrinsic.name() }),
+      result.externals.builtins.map(fn(external) { external.intrinsic().name() }),
       result.externals.runtime_imports.map(fn(import_) { import_.symbol }),
     ),
     content=(

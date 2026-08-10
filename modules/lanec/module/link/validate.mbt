@@ -54,20 +54,20 @@ fn validate_object_side_tables(
     diagnostics.append(
       validate_external_reference(
         object,
-        builtin.value,
-        builtin.type_,
+        builtin.value(),
+        builtin.type_(),
         "builtin external",
       ),
     )
-    if external_values.contains(builtin.value) {
+    if external_values.contains(builtin.value()) {
       diagnostics.push(
         invalid_module_object(
           object,
-          "duplicate external value \{Repr(builtin.value)}",
+          "duplicate external value \{Repr(builtin.value())}",
         ),
       )
     } else {
-      external_values.push(builtin.value)
+      external_values.push(builtin.value())
     }
   }
   for import_ in object.externals.runtime_imports {
