@@ -260,7 +260,7 @@ fn callee_origin_loc(callee : @checked.CheckedExpr) -> @basic.SourceSpan {
 
 ///|
 fn add_argument_inlay_hints(
-  inlay_hints : Array[InlayHintEntry],
+  inlay_hints : Array[InlayHintFact],
   source_id : String,
   arguments : Array[@checked.CheckedCallArgument],
   parameters : Array[ParameterHintParameter],
@@ -299,6 +299,7 @@ fn add_argument_inlay_hints(
       inlay_hints,
       source_id,
       implicit_argument_insertion_span(call_loc, source_operator_call),
+      call_loc,
       if has_visible_argument {
         ", "
       } else {

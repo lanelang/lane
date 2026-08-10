@@ -23,6 +23,55 @@ test "struct sequencing temporaries stay outside the semantic index" {
 }
 
 ///|
+test "semantic snapshot composes right-nested operator inlays inner first" {
+  let workspace = SemanticWorkspace::new()
+  let source =
+    #|module Main
+    #|
+    #|pub struct Add[A] {
+    #|  add : (A, A) -> A
+    #|}
+    #|
+    #|pub struct Multiply[A] {
+    #|  multiply : (A, A) -> A
+    #|}
+    #|
+    #|pub fn[A] op_add(left : A, right : A, auto op : Add[A]) -> A {
+    #|  op.add(left, right)
+    #|}
+    #|
+    #|pub fn[A] op_mul(left : A, right : A, auto op : Multiply[A]) -> A {
+    #|  op.multiply(left, right)
+    #|}
+    #|
+    #|offer i64_add : Add[I64] = Add::{ add: fn(left : I64, right : I64) { builtin("%i64_add")(left, right) } }
+    #|offer i64_multiply : Multiply[I64] = Multiply::{ multiply: fn(left : I64, right : I64) { builtin("%i64_mul")(left, right) } }
+    #|
+    #|pub let answer : I64 = 1 + 2 * 3
+  guard workspace.replace_sources([
+      { source_id: "file:///Main.lane", text: source },
+    ])
+    is Some(snapshot) else {
+    abort("expected semantic snapshot")
+  }
+  assert_eq(snapshot.diagnostics(), [])
+  debug_inspect(
+    snapshot
+    .inlay_hints_in_range("file:///Main.lane", 1, 1, 24, 1)
+    .filter(fn(hint) { hint.kind is ImplicitArgumentHint }),
+    content=(
+      #|[
+      #|  {
+      #|    position: { source_id: "file:///Main.lane", line: 22, column: 33 },
+      #|    kind: ImplicitArgumentHint,
+      #|    label: ", op=i64_multiply, op=i64_add",
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "semantic snapshot queries use persistent source indexes" {
   let workspace = SemanticWorkspace::new()
   let source_a =
@@ -63,17 +112,7 @@ test "semantic snapshot queries use persistent source indexes" {
     content=(
       #|[
       #|  {
-      #|    location: {
-      #|      source_id: "file:///B.lane",
-      #|      span: {
-      #|        start_offset: 48,
-      #|        end_offset: 57,
-      #|        start_line: 6,
-      #|        start_column: 7,
-      #|        end_line: 6,
-      #|        end_column: 16,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///B.lane", line: 6, column: 16 },
       #|    kind: TypeHint,
       #|    label: ": I64",
       #|  },

@@ -476,17 +476,7 @@ test "derive type arguments retain semantic navigation" {
       #|  ),
       #|  [
       #|    {
-      #|      location: {
-      #|        source_id: "file:///Main.lane",
-      #|        span: {
-      #|          start_offset: 178,
-      #|          end_offset: 178,
-      #|          start_line: 11,
-      #|          start_column: 50,
-      #|          end_line: 11,
-      #|          end_column: 50,
-      #|        },
-      #|      },
+      #|      position: { source_id: "file:///Main.lane", line: 11, column: 50 },
       #|      kind: ImplicitArgumentHint,
       #|      label: "deriver=derive_box",
       #|    },

@@ -280,18 +280,115 @@ async test "public server returns imported argument inlays" {
           "kind": 2,
         },
         {
-          "position": { "line": 7, "character": 33 },
+          "position": { "line": 7, "character": 16 },
           "label": "right=",
           "kind": 2,
         },
         {
-          "position": { "line": 7, "character": 16 },
+          "position": { "line": 7, "character": 33 },
           "label": "right=",
           "kind": 2,
         },
       ],
     })
     send_lsp_message(client_input, lsp_call(3, "shutdown", null))
+    ignore(receive_lsp_message(client_output))
+    send_lsp_message(client_input, lsp_notification("exit", null))
+    client_input.close()
+    assert_true(client_output.read_until("\n") is None)
+    assert_eq(server.wait(), GracefulExit)
+  })
+}
+
+///|
+async test "public server composes nested implicit argument inlays" {
+  let (server_input, client_input) = @io.pipe()
+  let (client_output, server_output) = @io.pipe()
+  let uri = "file:///Main.lane"
+  let source =
+    #|module Main
+    #|
+    #|pub struct Compare[A] {
+    #|  less_than : (A, A) -> Bool
+    #|}
+    #|
+    #|pub fn[A] op_less(left : A, right : A, auto op : Compare[A]) -> Bool {
+    #|  op.less_than(left, right)
+    #|}
+    #|
+    #|pub fn assert_true(value : Bool, auto info : Unit) -> Unit {
+    #|  if value { info } else { info }
+    #|}
+    #|
+    #|offer char_compare : Compare[Char] = Compare::{ less_than: fn(_left : Char, _right : Char) { false } }
+    #|offer source_info : Unit = ()
+    #|
+    #|pub fn answer() -> Unit {
+    #|  assert_true('你' < '😀')
+    #|}
+  @async.with_task_group(group => {
+    let server = group.spawn(() => {
+      let termination = run_server(server_input, server_output)
+      server_output.close()
+      termination
+    })
+    send_lsp_message(client_input, lsp_call(1, "initialize", null))
+    ignore(receive_lsp_message(client_output))
+    send_lsp_message(client_input, lsp_notification("initialized", {}))
+    send_lsp_message(
+      client_input,
+      lsp_notification("textDocument/didOpen", lsp_document(uri, source)),
+    )
+    ignore(receive_lsp_message(client_output))
+    send_lsp_message(
+      client_input,
+      lsp_call(2, "textDocument/inlayHint", lsp_range(uri, 20, 0)),
+    )
+    json_inspect(receive_lsp_message(client_output), content={
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": [
+        {
+          "position": { "line": 18, "character": 14 },
+          "label": "value=",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 18, "character": 24 },
+          "label": ", op=char_compare, info=source_info",
+          "kind": 2,
+        },
+      ],
+    })
+    send_lsp_message(
+      client_input,
+      lsp_notification(
+        "textDocument/didChange",
+        lsp_document_change(uri, source + "\n"),
+      ),
+    )
+    ignore(receive_lsp_message(client_output))
+    send_lsp_message(
+      client_input,
+      lsp_call(3, "textDocument/inlayHint", lsp_range(uri, 20, 0)),
+    )
+    json_inspect(receive_lsp_message(client_output), content={
+      "jsonrpc": "2.0",
+      "id": 3,
+      "result": [
+        {
+          "position": { "line": 18, "character": 14 },
+          "label": "value=",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 18, "character": 24 },
+          "label": ", op=char_compare, info=source_info",
+          "kind": 2,
+        },
+      ],
+    })
+    send_lsp_message(client_input, lsp_call(4, "shutdown", null))
     ignore(receive_lsp_message(client_output))
     send_lsp_message(client_input, lsp_notification("exit", null))
     client_input.close()

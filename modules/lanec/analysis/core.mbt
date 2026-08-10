@@ -59,11 +59,24 @@ pub(all) enum InlayHintKind {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct AnalysisPosition {
+  source_id : String
+  line : Int
+  column : Int
+} derive(Debug, Eq)
+
+///|
 pub(all) struct InlayHintEntry {
-  location : AnalysisLocation
+  position : AnalysisPosition
   kind : InlayHintKind
   label : String
 } derive(Debug, Eq)
+
+///|
+priv struct InlayHintFact {
+  hint : InlayHintEntry
+  origin : @basic.SourceSpan
+}
 
 ///|
 pub(all) struct AnalysisResult {
@@ -86,7 +99,7 @@ fn SemanticIndex::append_analysis(
   definitions.append(self.definitions)
   references.append(self.references)
   hovers.append(self.hovers)
-  inlay_hints.append(self.inlay_hints)
+  inlay_hints.append(present_inlay_hints(self.inlay_hints))
 }
 
 ///|

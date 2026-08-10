@@ -19,6 +19,12 @@ pub(all) struct AnalysisLocation {
   span : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 
+pub(all) struct AnalysisPosition {
+  source_id : String
+  line : Int
+  column : Int
+} derive(Eq, @debug.Debug)
+
 pub(all) struct AnalysisResult {
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
   definitions : Array[DefinitionEntry]
@@ -85,7 +91,7 @@ pub(all) struct HoverEntry {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct InlayHintEntry {
-  location : AnalysisLocation
+  position : AnalysisPosition
   kind : InlayHintKind
   label : String
 } derive(Eq, @debug.Debug)

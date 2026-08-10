@@ -35,10 +35,8 @@ pub fn AnalysisResult::inlay_hints_in_range(
   end_column : Int,
 ) -> Array[InlayHintEntry] {
   self.inlay_hints.filter(fn(hint) {
-    hint.location.source_id == source_id &&
-    hint.location.span.overlaps_range(
-      start_line, start_column, end_line, end_column,
-    )
+    hint.position.source_id == source_id &&
+    hint.position.in_range(start_line, start_column, end_line, end_column)
   })
 }
 
@@ -97,11 +95,24 @@ fn SemanticIndex::inlay_hints_in_range(
   end_line : Int,
   end_column : Int,
 ) -> Array[InlayHintEntry] {
-  self.inlay_hints.filter(fn(hint) {
-    hint.location.span.overlaps_range(
-      start_line, start_column, end_line, end_column,
-    )
+  present_inlay_hints(self.inlay_hints).filter(fn(hint) {
+    hint.position.in_range(start_line, start_column, end_line, end_column)
   })
+}
+
+///|
+fn AnalysisPosition::in_range(
+  self : AnalysisPosition,
+  start_line : Int,
+  start_column : Int,
+  end_line : Int,
+  end_column : Int,
+) -> Bool {
+  let at_or_after_start = self.line > start_line ||
+    (self.line == start_line && self.column >= start_column)
+  let before_end = self.line < end_line ||
+    (self.line == end_line && self.column < end_column)
+  at_or_after_start && before_end
 }
 
 ///|
@@ -141,21 +152,6 @@ fn @basic.SourceSpan::contains_position(
     (line == self.start_line && column >= self.start_column)
   ) &&
   (line < self.end_line || (line == self.end_line && column < self.end_column))
-}
-
-///|
-fn @basic.SourceSpan::overlaps_range(
-  self : @basic.SourceSpan,
-  start_line : Int,
-  start_column : Int,
-  end_line : Int,
-  end_column : Int,
-) -> Bool {
-  let starts_before_range_end = self.start_line < end_line ||
-    (self.start_line == end_line && self.start_column < end_column)
-  let ends_after_range_start = self.end_line > start_line ||
-    (self.end_line == start_line && self.end_column > start_column)
-  starts_before_range_end && ends_after_range_start
 }
 
 ///|
@@ -253,18 +249,18 @@ fn location(source_id : String, span : @basic.SourceSpan) -> AnalysisLocation {
 
 ///|
 fn add_inlay_hint(
-  inlay_hints : Array[InlayHintEntry],
-  source_id : String,
+  inlay_hints : Array[InlayHintFact],
   kind : InlayHintKind,
-  span : @basic.SourceSpan,
+  origin : @basic.SourceSpan,
+  position : AnalysisPosition,
   label : String,
 ) -> Unit {
-  inlay_hints.push({ location: location(source_id, span), kind, label })
+  inlay_hints.push({ hint: { position, kind, label }, origin })
 }
 
 ///|
 fn add_type_inlay_hint(
-  inlay_hints : Array[InlayHintEntry],
+  inlay_hints : Array[InlayHintFact],
   source_id : String,
   span : @basic.SourceSpan,
   display : @typecheck.TypeDisplayContext,
@@ -272,38 +268,61 @@ fn add_type_inlay_hint(
 ) -> Unit {
   add_inlay_hint(
     inlay_hints,
-    source_id,
     TypeHint,
     span,
+    position_at_end(source_id, span),
     ": \{display.type_text(type_)}",
   )
 }
 
 ///|
 fn add_parameter_inlay_hint(
-  inlay_hints : Array[InlayHintEntry],
+  inlay_hints : Array[InlayHintFact],
   source_id : String,
   span : @basic.SourceSpan,
   name : String,
 ) -> Unit {
-  add_inlay_hint(inlay_hints, source_id, ParameterHint, span, "\{name}=")
+  add_inlay_hint(
+    inlay_hints,
+    ParameterHint,
+    span,
+    position_at_start(source_id, span),
+    "\{name}=",
+  )
 }
 
 ///|
 fn add_implicit_argument_inlay_hint(
-  inlay_hints : Array[InlayHintEntry],
+  inlay_hints : Array[InlayHintFact],
   source_id : String,
-  span : @basic.SourceSpan,
+  insertion : @basic.SourceSpan,
+  origin : @basic.SourceSpan,
   prefix : String,
   arguments : Array[String],
 ) -> Unit {
   add_inlay_hint(
     inlay_hints,
-    source_id,
     ImplicitArgumentHint,
-    span,
+    origin,
+    position_at_end(source_id, insertion),
     "\{prefix}\{arguments.join(", ")}",
   )
+}
+
+///|
+fn position_at_start(
+  source_id : String,
+  span : @basic.SourceSpan,
+) -> AnalysisPosition {
+  { source_id, line: span.start_line, column: span.start_column }
+}
+
+///|
+fn position_at_end(
+  source_id : String,
+  span : @basic.SourceSpan,
+) -> AnalysisPosition {
+  { source_id, line: span.end_line, column: span.end_column }
 }
 
 ///|

@@ -138,32 +138,12 @@ test "semantic workspace keeps imported pipeline parameter hints position-unique
     content=(
       #|[
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 115,
-      #|        end_offset: 118,
-      #|        start_line: 5,
-      #|        start_column: 34,
-      #|        end_line: 5,
-      #|        end_column: 37,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 5, column: 17 },
       #|    kind: ParameterHint,
       #|    label: "right=",
       #|  },
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 98,
-      #|        end_offset: 103,
-      #|        start_line: 5,
-      #|        start_column: 17,
-      #|        end_line: 5,
-      #|        end_column: 22,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 5, column: 34 },
       #|    kind: ParameterHint,
       #|    label: "right=",
       #|  },
@@ -172,8 +152,7 @@ test "semantic workspace keeps imported pipeline parameter hints position-unique
   )
   let positions : Map[String, Unit] = Map([])
   for hint in hints {
-    let span = hint.location.span
-    let position = "\{span.start_line}:\{span.start_column}"
+    let position = "\{hint.position.line}:\{hint.position.column}"
     assert_false(positions.contains(position))
     positions[position] = ()
   }

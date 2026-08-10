@@ -89,7 +89,7 @@ priv struct SemanticIndex {
   definitions : Array[DefinitionEntry]
   references : Array[ReferenceEntry]
   hovers : Array[HoverEntry]
-  inlay_hints : Array[InlayHintEntry]
+  inlay_hints : Array[InlayHintFact]
   parameter_signatures : Map[Int, Array[ParameterHintParameter]]
 }
 

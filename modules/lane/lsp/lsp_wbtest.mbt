@@ -140,26 +140,6 @@ async test "hover reports invalid params as an LSP request shape error" {
 }
 
 ///|
-test "inlay hint validation reports duplicate positions as compiler bugs" {
-  let location : @analysis.AnalysisLocation = {
-    source_id: "file:///Main.lane",
-    span: @basic.SourceSpan::dummy(),
-  }
-  let hints : Array[@analysis.InlayHintEntry] = [
-    { location, kind: TypeHint, label: ": I64" },
-    { location, kind: ParameterHint, label: "value=" },
-  ]
-  match validate_inlay_hint_positions(hints) {
-    Err(message) =>
-      inspect(
-        message,
-        content="internal Lane compiler bug: multiple inlay hints were produced at file:///Main.lane:1:1 (`: I64` and `value=`)",
-      )
-    Ok(_) => abort("expected duplicate inlay hint validation failure")
-  }
-}
-
-///|
 async test "inlay hint returns inferred binder type hints" {
   let state = ServerState::ServerState()
   ignore(

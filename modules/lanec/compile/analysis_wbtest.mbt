@@ -395,32 +395,12 @@ test "analysis produces type inlay hints for inferred binders" {
     content=(
       #|[
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 54,
-      #|        end_offset: 59,
-      #|        start_line: 4,
-      #|        start_column: 7,
-      #|        end_line: 4,
-      #|        end_column: 12,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 4, column: 12 },
       #|    kind: TypeHint,
       #|    label: ": I64",
       #|  },
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 87,
-      #|        end_offset: 92,
-      #|        start_line: 6,
-      #|        start_column: 5,
-      #|        end_line: 6,
-      #|        end_column: 10,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 6, column: 10 },
       #|    kind: TypeHint,
       #|    label: ": I64",
       #|  },
@@ -502,17 +482,7 @@ test "analysis renders user-facing type names in type inlay hints" {
     content=(
       #|[
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 97,
-      #|        end_offset: 102,
-      #|        start_line: 9,
-      #|        start_column: 7,
-      #|        end_line: 9,
-      #|        end_column: 12,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 9, column: 12 },
       #|    kind: TypeHint,
       #|    label: ": Option[I64]",
       #|  },
@@ -641,77 +611,27 @@ test "analysis produces parameter name inlay hints for calls" {
     content=(
       #|[
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 160,
-      #|        end_offset: 165,
-      #|        start_line: 13,
-      #|        start_column: 7,
-      #|        end_line: 13,
-      #|        end_column: 12,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 13, column: 12 },
       #|    kind: TypeHint,
       #|    label: ": I64",
       #|  },
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 175,
-      #|        end_offset: 179,
-      #|        start_line: 13,
-      #|        start_column: 22,
-      #|        end_line: 13,
-      #|        end_column: 26,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 13, column: 22 },
       #|    kind: ParameterHint,
       #|    label: "left=",
       #|  },
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 181,
-      #|        end_offset: 182,
-      #|        start_line: 13,
-      #|        start_column: 28,
-      #|        end_line: 13,
-      #|        end_column: 29,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 13, column: 28 },
       #|    kind: ParameterHint,
       #|    label: "right=",
       #|  },
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 221,
-      #|        end_offset: 226,
-      #|        start_line: 15,
-      #|        start_column: 10,
-      #|        end_line: 15,
-      #|        end_column: 15,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 15, column: 15 },
       #|    kind: TypeHint,
       #|    label: ": I64",
       #|  },
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 228,
-      #|        end_offset: 232,
-      #|        start_line: 15,
-      #|        start_column: 17,
-      #|        end_line: 15,
-      #|        end_column: 21,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 15, column: 21 },
       #|    kind: TypeHint,
       #|    label: ": Bool",
       #|  },
@@ -848,17 +768,7 @@ test "analysis anchors field argument parameter hint at argument start" {
     content=(
       #|[
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 131,
-      #|        end_offset: 142,
-      #|        start_line: 12,
-      #|        start_column: 8,
-      #|        end_line: 12,
-      #|        end_column: 19,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 12, column: 8 },
       #|    kind: ParameterHint,
       #|    label: "arg=",
       #|  },
@@ -939,17 +849,7 @@ test "analysis skips parameter name inlay hints for source operators" {
     content=(
       #|[
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 112,
-      #|        end_offset: 117,
-      #|        start_line: 8,
-      #|        start_column: 7,
-      #|        end_line: 8,
-      #|        end_column: 12,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 8, column: 12 },
       #|    kind: TypeHint,
       #|    label: ": I64",
       #|  },
@@ -990,32 +890,12 @@ test "analysis produces implicit argument inlay hints for auto offers" {
     content=(
       #|[
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 275,
-      #|        end_offset: 280,
-      #|        start_line: 14,
-      #|        start_column: 7,
-      #|        end_line: 14,
-      #|        end_column: 12,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 14, column: 12 },
       #|    kind: TypeHint,
       #|    label: ": I64",
       #|  },
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 283,
-      #|        end_offset: 291,
-      #|        start_line: 14,
-      #|        start_column: 15,
-      #|        end_line: 14,
-      #|        end_column: 23,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 14, column: 23 },
       #|    kind: ImplicitArgumentHint,
       #|    label: ", op=i64_add_ops",
       #|  },
@@ -1129,47 +1009,17 @@ test "analysis does not mark explicit named auto arguments as implicit" {
     content=(
       #|[
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 273,
-      #|        end_offset: 278,
-      #|        start_line: 14,
-      #|        start_column: 7,
-      #|        end_line: 14,
-      #|        end_column: 12,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 14, column: 12 },
       #|    kind: TypeHint,
       #|    label: ": I64",
       #|  },
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 288,
-      #|        end_offset: 292,
-      #|        start_line: 14,
-      #|        start_column: 22,
-      #|        end_line: 14,
-      #|        end_column: 26,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 14, column: 22 },
       #|    kind: ParameterHint,
       #|    label: "a=",
       #|  },
       #|  {
-      #|    location: {
-      #|      source_id: "file:///Main.lane",
-      #|      span: {
-      #|        start_offset: 294,
-      #|        end_offset: 295,
-      #|        start_line: 14,
-      #|        start_column: 28,
-      #|        end_line: 14,
-      #|        end_column: 29,
-      #|      },
-      #|    },
+      #|    position: { source_id: "file:///Main.lane", line: 14, column: 28 },
       #|    kind: ParameterHint,
       #|    label: "b=",
       #|  },
@@ -1199,7 +1049,7 @@ fn assert_no_duplicate_parameter_hint_positions(
   let positions = []
   for hint in hints {
     guard hint.kind is ParameterHint else { continue }
-    let position = "\{hint.location.source_id}:\{hint.location.span.start_line}:\{hint.location.span.start_column}"
+    let position = "\{hint.position.source_id}:\{hint.position.line}:\{hint.position.column}"
     if positions.contains(position) {
       abort("duplicate parameter inlay hint position: \{position}")
     }
