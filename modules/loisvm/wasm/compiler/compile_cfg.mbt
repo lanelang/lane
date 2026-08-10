@@ -8,8 +8,6 @@ fn terminator_transfers_control(terminator : @bytecode.Terminator) -> Bool {
     Return(_)
     | TailCallDirect(_, _, _, _)
     | TailCallValue(_, _, _, _)
-    | CallNeverDirect(_, _, _, _)
-    | CallNeverValue(_, _, _, _)
     | Fatal(_)
     | Unreachable => false
   }

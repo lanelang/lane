@@ -330,16 +330,10 @@ fn ExecutionInstance::call_value(
   arguments : Array[@bytecode.SlotId],
   destination : @bytecode.SlotId?,
   tail~ : Bool,
-  tail_result? : @bytecode.ResultAbi? = None,
 ) -> Unit raise ExecutionFailure {
   let packed = frame.i64(callable_slot)
   let function = callable_function(packed)
   let environment = callable_environment(packed)
-  let tail_result = match tail_result {
-    Some(result) => Some(result)
-    None if tail => Some(frame.body.result)
-    None => None
-  }
   self.validate_callable_invocation(
     frame,
     function,
@@ -348,7 +342,7 @@ fn ExecutionInstance::call_value(
     witnesses,
     arguments,
     destination,
-    tail_result,
+    tail~,
   )
   frame.consume_owner(callable_slot)
   self.dispatch_call(
@@ -376,7 +370,7 @@ fn ExecutionInstance::validate_callable_invocation(
   witnesses : Array[@bytecode.SlotId],
   arguments : Array[@bytecode.SlotId],
   destination : @bytecode.SlotId?,
-  tail_result : @bytecode.ResultAbi?,
+  tail~ : Bool,
 ) -> Unit raise ExecutionFailure {
   let expected = match self.loaded.image.callable_abi(expected_abi_id) {
     Some(abi) => abi
@@ -452,19 +446,19 @@ fn ExecutionInstance::validate_callable_invocation(
       raise InvalidCallable(ArgumentShapeMismatch(index~))
     }
   }
-  let result_matches = match tail_result {
-    Some(result) => result == expected.result
-    None =>
-      match (expected.result, destination) {
-        (Unit, None) => true
-        (Value(representation, cleanup, kind), Some(slot)) => {
-          let metadata = frame.body.slots[slot.value]
-          metadata.representation == representation &&
-          metadata.cleanup == cleanup &&
-          metadata.kind == kind
-        }
-        _ => false
+  let result_matches = if tail {
+    frame.body.result == expected.result
+  } else {
+    match (expected.result, destination) {
+      (Unit, None) => true
+      (Value(representation, cleanup, kind), Some(slot)) => {
+        let metadata = frame.body.slots[slot.value]
+        metadata.representation == representation &&
+        metadata.cleanup == cleanup &&
+        metadata.kind == kind
       }
+      _ => false
+    }
   }
   if !result_matches {
     raise InvalidCallable(ResultShapeMismatch)

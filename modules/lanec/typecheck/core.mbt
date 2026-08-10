@@ -215,15 +215,6 @@ pub(all) enum ExternTypeRestriction {
 } derive(Debug, Eq)
 
 ///|
-pub(all) enum FatalBuiltinTypeRestriction {
-  FunctionRequired
-  MonomorphicRequired
-  StringParameterRequired
-  UninhabitedResultRequired
-  IoEffectRequired
-} derive(Debug, Eq)
-
-///|
 pub(all) enum TypeCheckDiagnosticKind {
   UnresolvedType(String)
   UnresolvedValue(String)
@@ -312,12 +303,6 @@ pub(all) enum TypeCheckDiagnosticKind {
     name~ : String,
     expected~ : @types.Type,
     actual~ : @types.Type
-  )
-  BuiltinNeedsExpectedType(name~ : String)
-  InvalidFatalBuiltinType(
-    name~ : String,
-    type_~ : @types.Type,
-    restriction~ : FatalBuiltinTypeRestriction
   )
   ExternNeedsExpectedType(name~ : String)
   InvalidExternType(

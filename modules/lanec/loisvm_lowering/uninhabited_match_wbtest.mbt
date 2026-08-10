@@ -1,5 +1,5 @@
 ///|
-test "empty data producer makes its eliminator continuation unreachable" {
+test "empty data match lowers to unreachable bytecode" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let void_id = metadata.define_type("Void", [])
   let void_type = @buslane.Type::Constructor(void_id)
@@ -50,7 +50,5 @@ test "empty data producer makes its eliminator continuation unreachable" {
   guard image.functions[image.entry.value - 1] is BytecodeBody(main_body) else {
     fail("expected the entry to select the main bytecode body")
   }
-  assert_true(
-    main_body.blocks is [{ terminator: CallNeverDirect(_, None, [], []), .. }],
-  )
+  assert_true(main_body.blocks.any(block => block.terminator is Unreachable))
 }

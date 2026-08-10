@@ -400,7 +400,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   }
   if plan.intrinsic is Panic {
     guard parameter_types is [Primitive(String)] &&
-      self.result_abi(result_type) is Never else {
+      self.result_abi(result_type) is Unit else {
       raise UnsupportedIntrinsic(name=plan.intrinsic.name())
     }
     let lowerer : FunctionLowerer = {
@@ -419,7 +419,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     return {
       values: lowerer.values,
       inputs: { environment: None, witnesses: [], user_parameters: [message] },
-      result: Never,
+      result: Unit,
       blocks: [{ parameters: [], instructions: [], terminator: Fatal(message) }],
     }
   }

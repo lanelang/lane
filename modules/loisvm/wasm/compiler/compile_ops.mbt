@@ -949,8 +949,7 @@ fn compile_terminator(
       instructions.push(Return)
       instructions
     }
-    TailCallDirect(target, environment, witnesses, arguments)
-    | CallNeverDirect(target, environment, witnesses, arguments) => {
+    TailCallDirect(target, environment, witnesses, arguments) => {
       let instructions : Array[@wasm_types.Instruction] = [
         GlobalGet(call_depth_global_index),
         I32Const(1),
@@ -979,8 +978,7 @@ fn compile_terminator(
       )
       instructions
     }
-    TailCallValue(callable, abi_id, witnesses, arguments)
-    | CallNeverValue(callable, abi_id, witnesses, arguments) => {
+    TailCallValue(callable, abi_id, witnesses, arguments) => {
       let instructions = validate_callable_abi(
         parameter_count, static_image, callable, abi_id,
       )

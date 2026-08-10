@@ -305,7 +305,6 @@ fn Decoder::read_result_abi(
         self.read_cleanup(),
         self.read_semantic_value_kind(),
       )
-    0x03 => Never
     tag => self.invalid_tag(offset~, domain="result", tag~)
   }
 }
@@ -671,20 +670,6 @@ fn Decoder::read_terminator(
       )
     0x07 => Unreachable
     0x08 => Fatal(self.read_slot_id())
-    0x09 =>
-      CallNeverDirect(
-        self.read_function_id(),
-        self.read_optional_slot(),
-        self.read_slot_ids(),
-        self.read_slot_ids(),
-      )
-    0x0A =>
-      CallNeverValue(
-        self.read_slot_id(),
-        self.read_callable_abi_id(),
-        self.read_slot_ids(),
-        self.read_slot_ids(),
-      )
     tag => self.invalid_tag(offset~, domain="terminator", tag~)
   }
 }

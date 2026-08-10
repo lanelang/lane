@@ -530,27 +530,6 @@ fn ExecutionInstance::execute_terminator(
         None,
         tail=true,
       )
-    CallNeverDirect(function, environment, witnesses, arguments) =>
-      self.call_direct(
-        frame,
-        function,
-        environment,
-        witnesses,
-        arguments,
-        None,
-        tail=true,
-      )
-    CallNeverValue(callable_slot, abi, witnesses, arguments) =>
-      self.call_value(
-        frame,
-        callable_slot,
-        abi,
-        witnesses,
-        arguments,
-        None,
-        tail=true,
-        tail_result=Some(Never),
-      )
     Fatal(message) => {
       let reference = frame.i32(message)
       let text = @utf8.decode(

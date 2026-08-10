@@ -173,7 +173,6 @@ fn CallableAbi::callsite_mismatch(
   }
   match (self.result, callsite.result) {
     (Unit, Unit) => None
-    (Never, Never) => None
     (
       Value(representation, cleanup, kind),
       Value(actual_representation, actual_cleanup, actual_kind),

@@ -397,10 +397,6 @@ fn render_terminator(terminator : Terminator) -> String {
       "tail_call_direct \{render_function(function)} env=\{render_optional_slot(environment)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
     TailCallValue(callable, abi, witnesses, arguments) =>
       "tail_call_value \{render_slot(callable)} abi=abi\{abi.value} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
-    CallNeverDirect(function, environment, witnesses, arguments) =>
-      "call_never_direct \{render_function(function)} env=\{render_optional_slot(environment)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
-    CallNeverValue(callable, abi, witnesses, arguments) =>
-      "call_never_value \{render_slot(callable)} abi=abi\{abi.value} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
     Fatal(message) => "fatal \{render_slot(message)}"
     Unreachable => "unreachable"
   }
@@ -559,7 +555,6 @@ fn render_result(result : ResultAbi) -> String {
     Unit => "unit"
     Value(representation, cleanup, kind) =>
       "\{render_representation(representation)} + \{render_cleanup(cleanup)} + \{Repr(kind)}"
-    Never => "never"
   }
 }
 

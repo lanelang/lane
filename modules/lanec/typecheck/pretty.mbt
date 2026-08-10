@@ -13,19 +13,6 @@ pub impl @prettyprinter.Pretty for ExternTypeRestriction with fn pretty(
 }
 
 ///|
-pub impl @prettyprinter.Pretty for FatalBuiltinTypeRestriction with fn pretty(
-  restriction : FatalBuiltinTypeRestriction,
-) {
-  match restriction {
-    FunctionRequired => text("function_required")
-    MonomorphicRequired => text("monomorphic_required")
-    StringParameterRequired => text("string_parameter_required")
-    UninhabitedResultRequired => text("uninhabited_result_required")
-    IoEffectRequired => text("io_effect_required")
-  }
-}
-
-///|
 pub impl @prettyprinter.Pretty for DeclarationTypeCheckResult with fn pretty(
   result : DeclarationTypeCheckResult,
 ) {
@@ -495,16 +482,6 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       space +
       text("actual=") +
       actual.pretty()
-    BuiltinNeedsExpectedType(name~) =>
-      text("builtin_needs_expected_type") + space + text(name)
-    InvalidFatalBuiltinType(name~, type_~, restriction~) =>
-      text("invalid_fatal_builtin_type") +
-      space +
-      text(name) +
-      space +
-      type_.pretty() +
-      space +
-      restriction.pretty()
     ExternNeedsExpectedType(name~) =>
       text("extern_needs_expected_type") + space + text(name)
     InvalidExternType(name~, type_~, restriction~) =>

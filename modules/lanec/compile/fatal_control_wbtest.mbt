@@ -1,13 +1,12 @@
 ///|
-test "compiler preserves one Never ABI through direct and first-class fatal calls" {
+test "compiler preserves Unit calls and compiler-owned fatal control" {
   let image = compile_test_loisvm_image(
     (
       #|module Test
       #|
-      #|pub enum Void {}
-      #|let panic : (String) -> Void ! Io = builtin("%panic")
+      #|let panic : (String) -> Unit ! Io = builtin("%panic")
       #|
-      #|fn invoke(abort : (String) -> Void ! Io) -> Void ! Io {
+      #|fn invoke(abort : (String) -> Unit ! Io) -> Unit ! Io {
       #|  abort("indirect")
       #|}
       #|
@@ -35,12 +34,12 @@ test "compiler preserves one Never ABI through direct and first-class fatal call
     (results, terminators, imports),
     content=(
       #|(
-      #|  [Never, Never, Unit, Never],
+      #|  [Unit, Unit, Unit, Unit],
       #|  [
       #|    Fatal({ value: 0 }),
-      #|    CallNeverValue({ value: 0 }, { value: 0 }, [], [{ value: 1 }]),
-      #|    CallNeverDirect({ value: 2 }, None, [], [{ value: 0 }]),
-      #|    CallNeverValue({ value: 1 }, { value: 0 }, [], [{ value: 2 }]),
+      #|    TailCallValue({ value: 0 }, { value: 0 }, [], [{ value: 1 }]),
+      #|    TailCallDirect({ value: 2 }, None, [], [{ value: 0 }]),
+      #|    TailCallValue({ value: 1 }, { value: 0 }, [], [{ value: 2 }]),
       #|  ],
       #|  [],
       #|)

@@ -165,13 +165,6 @@ fn remap_terminator_function_ids(
         witnesses,
         arguments,
       )
-    CallNeverDirect(function, environment, witnesses, arguments) =>
-      CallNeverDirect(
-        remap_function_id(function, mappings),
-        environment,
-        witnesses,
-        arguments,
-      )
     _ => terminator
   }
 }

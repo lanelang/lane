@@ -4,19 +4,18 @@ status: superseded
 
 # Statement-oriented source panic
 
-This ADR recorded Lane's first, Unit-returning runtime-import panic contract.
-It is superseded by [Void-returning fatal control](../fatal-control-rfc.md).
+This ADR recorded Lane's first Unit-returning runtime-import panic contract.
+It is superseded by [compiler-owned fatal control](../fatal-control-rfc.md).
 
 The implemented contract is compiler-owned:
 
 ```lane
-pub let panic : (String) -> Void ! Io = builtin("%panic")
+pub let panic : (String) -> Unit ! Io = builtin("%panic")
 ```
 
-`Void` remains an ordinary empty enum and callers use its explicit `absurd`
-eliminator when another source result is required. The execution ABI derives a
-result-only `Never` contract for empty-enum callable results, and `%panic`
-materializes a compiler-owned callable whose body ends in `Fatal(message)`.
+`Unit` is the ordinary source result. `Io` owns observability and the
+compiler-owned wrapper's `Fatal(message)` terminator owns non-returning control.
+No bottom type, empty-enum inference, or no-return callable ABI is involved.
 Neither the source operation nor its first-class callable form creates a
 Runtime Import or requires host registration.
 

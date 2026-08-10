@@ -1235,56 +1235,6 @@ fn finalize_terminator(
       )
       TailCallValue(lowered_callable, abi, lowered_witnesses, lowered_arguments)
     }
-    CallNeverDirect(target, environment, witnesses, arguments) => {
-      let lowered_environment = match environment {
-        Some(value) =>
-          Some(
-            value_to_slot(
-              consume_value(body, block, live, remaining, prefix, value),
-            ),
-          )
-        None => None
-      }
-      CallNeverDirect(
-        target,
-        lowered_environment,
-        witnesses.map(value => {
-          value_to_slot(
-            consume_value(body, block, live, remaining, prefix, value),
-          )
-        }),
-        arguments.map(value => {
-          value_to_slot(
-            consume_value(body, block, live, remaining, prefix, value),
-          )
-        }),
-      )
-    }
-    CallNeverValue(callable, witnesses, arguments) => {
-      let lowered_callable = value_to_slot(
-        consume_value(body, block, live, remaining, prefix, callable),
-      )
-      let lowered_witnesses = witnesses.map(value => {
-        value_to_slot(
-          consume_value(body, block, live, remaining, prefix, value),
-        )
-      })
-      let lowered_arguments = arguments.map(value => {
-        value_to_slot(
-          consume_value(body, block, live, remaining, prefix, value),
-        )
-      })
-      let abi = callable_abis.intern(
-        @bytecode.CallableAbi::from_slot_metadata(
-          finalized_slot_metadata(body, lowered_witnesses),
-          finalized_slot_metadata(body, lowered_arguments),
-          Never,
-        ),
-      )
-      CallNeverValue(
-        lowered_callable, abi, lowered_witnesses, lowered_arguments,
-      )
-    }
     Fatal(message) =>
       Fatal(
         value_to_slot(

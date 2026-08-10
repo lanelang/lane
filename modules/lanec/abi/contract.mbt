@@ -30,14 +30,28 @@ pub(all) enum IntrinsicValueKind {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum IntrinsicEffect {
+  Pure
+  Io
+} derive(Debug, Eq)
+
+///|
 pub(all) enum IntrinsicSignature {
   Value(IntrinsicValueKind)
   Function(
     parameters~ : Array[IntrinsicValueKind],
-    result~ : IntrinsicValueKind
+    result~ : IntrinsicValueKind,
+    effect~ : IntrinsicEffect
   )
-  NeverFunction(parameters~ : Array[IntrinsicValueKind])
 } derive(Debug, Eq)
+
+///|
+fn pure_intrinsic_function(
+  parameters~ : Array[IntrinsicValueKind],
+  result~ : IntrinsicValueKind,
+) -> IntrinsicSignature {
+  Function(parameters~, result~, effect=Pure)
+}
 
 ///|
 pub(all) enum Intrinsic {
@@ -242,48 +256,56 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
 ///|
 pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
   match self {
-    Panic => NeverFunction(parameters=[String])
+    Panic => Function(parameters=[String], result=Unit, effect=Io)
     I64Add | I64Sub | I64Mul | I64Div | I64Rem =>
-      Function(parameters=[I64, I64], result=I64)
-    I64Neg => Function(parameters=[I64], result=I64)
-    I64Equal | I64Less => Function(parameters=[I64, I64], result=Bool)
+      pure_intrinsic_function(parameters=[I64, I64], result=I64)
+    I64Neg => pure_intrinsic_function(parameters=[I64], result=I64)
+    I64Equal | I64Less =>
+      pure_intrinsic_function(parameters=[I64, I64], result=Bool)
     I32Add | I32Sub | I32Mul | I32Div | I32Rem =>
-      Function(parameters=[I32, I32], result=I32)
-    I32Neg => Function(parameters=[I32], result=I32)
-    I32Equal | I32Less => Function(parameters=[I32, I32], result=Bool)
-    I32ToI64 => Function(parameters=[I32], result=I64)
-    I64ToI32 => Function(parameters=[I64], result=I32)
+      pure_intrinsic_function(parameters=[I32, I32], result=I32)
+    I32Neg => pure_intrinsic_function(parameters=[I32], result=I32)
+    I32Equal | I32Less =>
+      pure_intrinsic_function(parameters=[I32, I32], result=Bool)
+    I32ToI64 => pure_intrinsic_function(parameters=[I32], result=I64)
+    I64ToI32 => pure_intrinsic_function(parameters=[I64], result=I32)
     F64Add | F64Sub | F64Mul | F64Div =>
-      Function(parameters=[F64, F64], result=F64)
-    F64Neg => Function(parameters=[F64], result=F64)
-    F64Equal | F64Less => Function(parameters=[F64, F64], result=Bool)
+      pure_intrinsic_function(parameters=[F64, F64], result=F64)
+    F64Neg => pure_intrinsic_function(parameters=[F64], result=F64)
+    F64Equal | F64Less =>
+      pure_intrinsic_function(parameters=[F64, F64], result=Bool)
     F64Inf | F64NegativeInf | F64Nan => Value(F64)
     F32Add | F32Sub | F32Mul | F32Div =>
-      Function(parameters=[F32, F32], result=F32)
-    F32Neg => Function(parameters=[F32], result=F32)
-    F32Equal | F32Less => Function(parameters=[F32, F32], result=Bool)
+      pure_intrinsic_function(parameters=[F32, F32], result=F32)
+    F32Neg => pure_intrinsic_function(parameters=[F32], result=F32)
+    F32Equal | F32Less =>
+      pure_intrinsic_function(parameters=[F32, F32], result=Bool)
     F32Inf | F32NegativeInf | F32Nan => Value(F32)
-    I64ToF64 => Function(parameters=[I64], result=F64)
-    F64ToI64 => Function(parameters=[F64], result=I64)
-    I64ToF32 => Function(parameters=[I64], result=F32)
-    F32ToI64 => Function(parameters=[F32], result=I64)
-    F32ToF64 => Function(parameters=[F32], result=F64)
-    F64ToF32 => Function(parameters=[F64], result=F32)
-    F32ToString => Function(parameters=[F32], result=String)
-    F64ToString => Function(parameters=[F64], result=String)
-    CharToI32 => Function(parameters=[Char], result=I32)
-    I32ToChar => Function(parameters=[I32], result=Char)
-    StringToBytes => Function(parameters=[String], result=Bytes)
-    BytesIsValidUtf8 => Function(parameters=[Bytes], result=Bool)
-    BytesToString => Function(parameters=[Bytes], result=String)
-    BytesEqual => Function(parameters=[Bytes, Bytes], result=Bool)
-    BytesConcat => Function(parameters=[Bytes, Bytes], result=Bytes)
-    BytesSlice => Function(parameters=[Bytes, I64, I64], result=Bytes)
-    ByteToI64 => Function(parameters=[Byte], result=I64)
-    I64ToByte => Function(parameters=[I64], result=Byte)
-    BytesMake => Function(parameters=[I64, Byte], result=Bytes)
-    BytesLength => Function(parameters=[Bytes], result=I64)
-    BytesGet => Function(parameters=[Bytes, I64], result=Byte)
-    BytesSet => Function(parameters=[Bytes, I64, Byte], result=Bytes)
+    I64ToF64 => pure_intrinsic_function(parameters=[I64], result=F64)
+    F64ToI64 => pure_intrinsic_function(parameters=[F64], result=I64)
+    I64ToF32 => pure_intrinsic_function(parameters=[I64], result=F32)
+    F32ToI64 => pure_intrinsic_function(parameters=[F32], result=I64)
+    F32ToF64 => pure_intrinsic_function(parameters=[F32], result=F64)
+    F64ToF32 => pure_intrinsic_function(parameters=[F64], result=F32)
+    F32ToString => pure_intrinsic_function(parameters=[F32], result=String)
+    F64ToString => pure_intrinsic_function(parameters=[F64], result=String)
+    CharToI32 => pure_intrinsic_function(parameters=[Char], result=I32)
+    I32ToChar => pure_intrinsic_function(parameters=[I32], result=Char)
+    StringToBytes => pure_intrinsic_function(parameters=[String], result=Bytes)
+    BytesIsValidUtf8 => pure_intrinsic_function(parameters=[Bytes], result=Bool)
+    BytesToString => pure_intrinsic_function(parameters=[Bytes], result=String)
+    BytesEqual =>
+      pure_intrinsic_function(parameters=[Bytes, Bytes], result=Bool)
+    BytesConcat =>
+      pure_intrinsic_function(parameters=[Bytes, Bytes], result=Bytes)
+    BytesSlice =>
+      pure_intrinsic_function(parameters=[Bytes, I64, I64], result=Bytes)
+    ByteToI64 => pure_intrinsic_function(parameters=[Byte], result=I64)
+    I64ToByte => pure_intrinsic_function(parameters=[I64], result=Byte)
+    BytesMake => pure_intrinsic_function(parameters=[I64, Byte], result=Bytes)
+    BytesLength => pure_intrinsic_function(parameters=[Bytes], result=I64)
+    BytesGet => pure_intrinsic_function(parameters=[Bytes, I64], result=Byte)
+    BytesSet =>
+      pure_intrinsic_function(parameters=[Bytes, I64, Byte], result=Bytes)
   }
 }

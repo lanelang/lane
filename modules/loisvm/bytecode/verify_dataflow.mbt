@@ -1504,8 +1504,7 @@ fn BytecodeVerifier::apply_terminator_flow(
       }
       []
     }
-    TailCallDirect(target, environment, witnesses, arguments)
-    | CallNeverDirect(target, environment, witnesses, arguments) => {
+    TailCallDirect(target, environment, witnesses, arguments) => {
       for witness in witnesses {
         ignore(self.consume_flow(site, body, state, witness))
       }
@@ -1523,8 +1522,7 @@ fn BytecodeVerifier::apply_terminator_flow(
       self.require_no_live_owners(site, state)
       []
     }
-    TailCallValue(callable, _, witnesses, arguments)
-    | CallNeverValue(callable, _, witnesses, arguments) => {
+    TailCallValue(callable, _, witnesses, arguments) => {
       for witness in witnesses {
         ignore(self.consume_flow(site, body, state, witness))
       }

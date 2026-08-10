@@ -183,20 +183,6 @@ fn map_finalized_terminator_slots(
         witnesses.map(transform),
         arguments.map(transform),
       )
-    CallNeverDirect(target, environment, witnesses, arguments) =>
-      CallNeverDirect(
-        target,
-        environment.map(transform),
-        witnesses.map(transform),
-        arguments.map(transform),
-      )
-    CallNeverValue(callable, abi, witnesses, arguments) =>
-      CallNeverValue(
-        transform(callable),
-        abi,
-        witnesses.map(transform),
-        arguments.map(transform),
-      )
     Fatal(message) => Fatal(transform(message))
     Unreachable => Unreachable
   }

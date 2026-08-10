@@ -738,7 +738,7 @@ test "result ABI round-trips" {
         parameters: [
           { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
         ],
-        result: Never,
+        result: Unit,
       },
     ],
     functions: [
@@ -754,63 +754,17 @@ test "result ABI round-trips" {
           },
         ],
         inputs: { environment: None, witnesses: [], user_parameters: [slot(0)] },
-        result: Never,
+        result: Unit,
         blocks: [
           { parameters: [], instructions: [], terminator: Fatal(slot(0)) },
-        ],
-      }),
-      BytecodeBody({
-        slots: [
-          {
-            representation: I32,
-            cleanup: OwnedRef,
-            kind: ByteSequenceValue,
-            erased_companion: None,
-          },
-        ],
-        inputs: { environment: None, witnesses: [], user_parameters: [] },
-        result: Unit,
-        blocks: [
-          {
-            parameters: [],
-            instructions: [ConstString(slot(0), { value: 0 })],
-            terminator: CallNeverDirect(function(3), None, [], [slot(0)]),
-          },
-        ],
-      }),
-      BytecodeBody({
-        slots: [
-          {
-            representation: I64,
-            cleanup: OwnedCallable,
-            kind: CallableValue,
-            erased_companion: None,
-          },
-          {
-            representation: I32,
-            cleanup: OwnedRef,
-            kind: ByteSequenceValue,
-            erased_companion: None,
-          },
-        ],
-        inputs: { environment: None, witnesses: [], user_parameters: [] },
-        result: Unit,
-        blocks: [
-          {
-            parameters: [],
-            instructions: [
-              ConstFunction(slot(0), function(3)),
-              ConstString(slot(1), { value: 0 }),
-            ],
-            terminator: CallNeverValue(slot(0), { value: 2 }, [], [slot(1)]),
-          },
         ],
       }),
     ],
     constants: [b"owned"],
   }
-  assert_eq(
-    parse_bytecode_image_binary(bytecode_image_to_binary(valid).unwrap()),
-    Ok(valid),
-  )
+  let encoded = match bytecode_image_to_binary(valid) {
+    Ok(encoded) => encoded
+    Err(error) => fail("valid image failed verification: \{Repr(error)}")
+  }
+  assert_eq(parse_bytecode_image_binary(encoded), Ok(valid))
 }

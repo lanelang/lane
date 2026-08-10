@@ -227,7 +227,6 @@ fn @bytecodec.ByteWriter::write_result_abi(
       self.write_cleanup(cleanup)
       self.write_semantic_value_kind(kind)
     }
-    Never => self.write_u8(0x03)
   }
 }
 
@@ -674,20 +673,6 @@ fn @bytecodec.ByteWriter::write_terminator(
     }
     TailCallValue(callable, abi, witnesses, arguments) => {
       self.write_u8(0x06)
-      self.write_slot_id(callable)
-      self.write_callable_abi_id(abi)
-      self.write_slot_ids(witnesses)
-      self.write_slot_ids(arguments)
-    }
-    CallNeverDirect(function, environment, witnesses, arguments) => {
-      self.write_u8(0x09)
-      self.write_function_id(function)
-      self.write_optional_slot(environment)
-      self.write_slot_ids(witnesses)
-      self.write_slot_ids(arguments)
-    }
-    CallNeverValue(callable, abi, witnesses, arguments) => {
-      self.write_u8(0x0A)
       self.write_slot_id(callable)
       self.write_callable_abi_id(abi)
       self.write_slot_ids(witnesses)

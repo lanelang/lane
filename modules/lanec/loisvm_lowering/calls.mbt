@@ -39,7 +39,6 @@ fn FunctionLowerer::materialize_local(
   value : LocalValue,
 ) -> LocalValue raise LoisvmLoweringError {
   match value {
-    Never => Never
     Global(Function(function, type_)) => {
       let destination = self.fresh_slot(type_)
       self.emit(ConstFunction(destination, function))
@@ -100,10 +99,6 @@ fn FunctionLowerer::lower_value_call(
     parameter_types,
     self.substitutions,
   )
-  if self.image.result_abi(result_type) is Never {
-    self.terminate(CallNeverValue(callable, [], argument_slots))
-    return Never
-  }
   let destination = self.fresh_optional_slot(result_type)
   self.emit(CallValue(callable, [], argument_slots, destination.0))
   self.adapt_local_value_with_substitutions(
@@ -188,10 +183,6 @@ fn FunctionLowerer::lower_generic_direct_call(
     }
   }
   let actual_result = apply_type_substitution(formal_result, substitutions)
-  if self.image.result_abi(formal_result) is Never {
-    self.terminate(CallNeverDirect(function, None, witnesses, argument_slots))
-    return Never
-  }
   if self.image.runtime_type(formal_result) is Erased(_) {
     let witness = self.layout_witness(actual_result)
     let erased_result = self.fresh_erased_slot(witness, Owned)
@@ -254,10 +245,6 @@ fn FunctionLowerer::lower_generic_value_call(
     }
   }
   let actual_result = apply_type_substitution(formal_result, substitutions)
-  if self.image.result_abi(formal_result) is Never {
-    self.terminate(CallNeverValue(callable, witnesses, argument_slots))
-    return Never
-  }
   if self.image.runtime_type(formal_result) is Erased(_) {
     let witness = self.layout_witness(actual_result)
     let erased_result = self.fresh_erased_slot(witness, Owned)
@@ -467,10 +454,6 @@ fn FunctionLowerer::lower_direct_call(
     parameter_types,
     self.substitutions,
   )
-  if self.image.result_abi(result_type) is Never {
-    self.terminate(CallNeverDirect(function, environment, [], argument_slots))
-    return Never
-  }
   let destination = self.fresh_optional_slot(result_type)
   self.emit(
     CallDirect(function, environment, [], argument_slots, destination.0),

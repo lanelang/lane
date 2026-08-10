@@ -187,13 +187,6 @@ pub(all) enum Terminator {
   Return(ValueId?)
   TailCallDirect(@bytecode.FunctionId, ValueId?, Array[ValueId], Array[ValueId])
   TailCallValue(ValueId, Array[ValueId], Array[ValueId])
-  CallNeverDirect(
-    @bytecode.FunctionId,
-    ValueId?,
-    Array[ValueId],
-    Array[ValueId]
-  )
-  CallNeverValue(ValueId, Array[ValueId], Array[ValueId])
   Fatal(ValueId)
   Unreachable
 } derive(Debug, Eq)

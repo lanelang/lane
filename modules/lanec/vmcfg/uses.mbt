@@ -164,8 +164,7 @@ fn terminator_uses(terminator : Terminator) -> Array[ValueId] {
       uses.append(default.arguments)
       uses
     }
-    TailCallDirect(_, environment, witnesses, arguments)
-    | CallNeverDirect(_, environment, witnesses, arguments) => {
+    TailCallDirect(_, environment, witnesses, arguments) => {
       let uses = []
       if environment is Some(value) {
         uses.push(value)
@@ -174,8 +173,7 @@ fn terminator_uses(terminator : Terminator) -> Array[ValueId] {
       uses.append(arguments)
       uses
     }
-    TailCallValue(callable, witnesses, arguments)
-    | CallNeverValue(callable, witnesses, arguments) =>
+    TailCallValue(callable, witnesses, arguments) =>
       [callable] + witnesses + arguments
   }
 }

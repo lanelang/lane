@@ -261,10 +261,7 @@ fn direct_environment_body_is_leaf(body : FunctionBody) -> Bool {
       }
     }
     match block.terminator {
-      TailCallDirect(_, _, _, _)
-      | TailCallValue(_, _, _)
-      | CallNeverDirect(_, _, _, _)
-      | CallNeverValue(_, _, _) => return false
+      TailCallDirect(_, _, _, _) | TailCallValue(_, _, _) => return false
       _ => ()
     }
   }

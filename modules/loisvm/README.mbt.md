@@ -335,11 +335,10 @@ Host Object handles never enter the public binding API, bytecode, or Wasm linear
 Host calls are synchronous. A binding must not retain a borrowed VM value or re-enter the active execution instance. Report host failures by raising `RuntimeImportFailure::Failure`; both backends convert it into `ExecutionError::RuntimeImportFailure`.
 
 Intentional Lane fatal control is not a Runtime Import. A compiler-owned
-callable with `ResultAbi::Never` ends in the `Fatal(message)` bytecode
-terminator. Both backends preserve it as `ExecutionError::Fatal(message)` and
-run the fatal cleanup path. Embeddings register no panic symbol. Ordinary host
-binding failures remain `ExecutionError::RuntimeImportFailure` and retain their
-symbol.
+Unit-returning callable ends in the `Fatal(message)` bytecode terminator. Both
+backends preserve it as `ExecutionError::Fatal(message)` and run the fatal
+cleanup path. Embeddings register no panic symbol. Ordinary host binding
+failures remain `ExecutionError::RuntimeImportFailure` and retain their symbol.
 
 ## Loading and execution lifecycle
 

@@ -96,25 +96,22 @@ fn ImageLowerer::lower_function_body(
     }
   }
   let result = lowerer.materialize_local(lowerer.lower_expr(function.body))
-  if !(result is Never) {
-    let terminator : @vmcfg.Terminator = match lowerer.take_tail_call(result) {
-      Some(terminator) => terminator
-      None =>
-        match result {
-          Unit => Return(None)
-          Slot(slot, _) => Return(Some(slot))
-          Never => abort("handled above")
-          Global(_)
-          | RecursiveFunction(_, _, _)
-          | TypeApplied(_, _)
-          | TypeAppliedCallable(_, _, _) =>
-            raise UnsupportedExpression(
-              detail="function returns an unapplied callable",
-            )
-        }
-    }
-    lowerer.terminate(terminator)
+  let terminator : @vmcfg.Terminator = match lowerer.take_tail_call(result) {
+    Some(terminator) => terminator
+    None =>
+      match result {
+        Unit => Return(None)
+        Slot(slot, _) => Return(Some(slot))
+        Global(_)
+        | RecursiveFunction(_, _, _)
+        | TypeApplied(_, _)
+        | TypeAppliedCallable(_, _, _) =>
+          raise UnsupportedExpression(
+            detail="function returns an unapplied callable",
+          )
+      }
   }
+  lowerer.terminate(terminator)
   lowerer.rewrite_tail_call_predecessors()
   let blocks : Array[@vmcfg.Block] = []
   for index, block in lowerer.blocks {
@@ -226,7 +223,6 @@ fn tail_destination_matches(
   result : LocalValue,
 ) -> Bool {
   match (destination, result) {
-    (_, Never) => false
     (None, Unit) => true
     (Some(destination), Slot(result, _)) => destination == result
     _ => false

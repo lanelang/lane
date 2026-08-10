@@ -1,106 +1,47 @@
 ///|
-test "fatal builtin accepts only a closed String to empty-enum Io function" {
+test "fatal builtin has one canonical Unit and Io function type" {
   let valid = check_source(
-    (
-      #|module Main
-      #|pub enum Void {}
-      #|pub type Empty = Void
-      #|pub let panic : (String) -> Empty ! Io = builtin("%panic")
-    ),
-  )
-  assert_true(valid is Succeeded(_))
-
-  let invalid = check_source(
     (
       #|module Main
       #|pub let panic : (String) -> Unit ! Io = builtin("%panic")
     ),
   )
-  guard invalid is Failed(failure) else {
-    fail("inhabited fatal result unexpectedly typechecked")
-  }
-  assert_eq(failure.diagnostics().map(diagnostic => diagnostic.code), [
-    Some("E3037"),
-  ])
-}
+  assert_true(valid is Succeeded(_))
 
-///|
-test "fatal builtin rejects every noncanonical function shape" {
-  let sources = [
+  let invalid_sources = [
     (
       #|module Main
-      #|pub enum Void {}
-      #|pub let panic : (I64) -> Void ! Io = builtin("%panic")
+      #|pub let panic : (I64) -> Unit ! Io = builtin("%panic")
+    ),
+    (
+      #|module Main
+      #|pub let panic : (String) -> Unit = builtin("%panic")
     ),
     (
       #|module Main
       #|pub enum Void {}
-      #|pub let panic : (String) -> Void = builtin("%panic")
-    ),
-    (
-      #|module Main
-      #|pub enum Void {}
-      #|pub let panic : [T](String) -> Void ! Io = builtin("%panic")
+      #|pub let panic : (String) -> Void ! Io = builtin("%panic")
     ),
   ]
-  for source in sources {
+  for source in invalid_sources {
     guard check_source(source) is Failed(failure) else {
-      fail("invalid fatal builtin shape unexpectedly typechecked")
+      fail("invalid panic builtin type unexpectedly typechecked")
     }
     assert_eq(failure.diagnostics().map(diagnostic => diagnostic.code), [
-      Some("E3037"),
+      Some("E3027"),
     ])
   }
 }
 
 ///|
-test "fatal builtin needs a complete declaration type" {
+test "fatal builtin synthesizes its canonical type" {
   let outcome = check_source(
     (
       #|module Main
       #|pub fn answer() -> Unit {
-      #|  let _panic = builtin("%panic")
+      #|  let panic = builtin("%panic")
+      #|  let _typed : (String) -> Unit ! Io = panic
       #|  ()
-      #|}
-    ),
-  )
-  guard outcome is Failed(failure) else {
-    fail("unannotated fatal builtin unexpectedly typechecked")
-  }
-  assert_eq(failure.diagnostics().map(diagnostic => diagnostic.code), [
-    Some("E3036"),
-  ])
-}
-
-///|
-test "Void elimination gives fatal calls unrelated explicit result types" {
-  let outcome = check_source(
-    (
-      #|module Main
-      #|pub enum Void {}
-      #|let panic : (String) -> Void ! Io = builtin("%panic")
-      #|fn[T] absurd(value : Void) -> T { match value {} }
-      #|pub fn text() -> String ! Io {
-      #|  absurd[String](panic("text"))
-      #|}
-      #|pub fn number() -> I64 ! Io {
-      #|  absurd[I64](panic("number"))
-      #|}
-    ),
-  )
-  assert_true(outcome is Succeeded(_))
-}
-
-///|
-test "a Void-returning callable adapter terminates without materializing a result" {
-  let outcome = compile_source(
-    (
-      #|module Main
-      #|pub enum Void {}
-      #|fn identity(value : Void) -> Void { value }
-      #|fn[T] consume(_function : (T) -> T) -> Unit { () }
-      #|pub fn answer() -> Unit {
-      #|  consume[Void](identity)
       #|}
     ),
   )

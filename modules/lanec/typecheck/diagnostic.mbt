@@ -80,24 +80,6 @@ fn extern_type_restriction_message(
 }
 
 ///|
-fn fatal_builtin_type_restriction_message(
-  display : TypeDisplayContext,
-  type_ : @types.Type,
-  restriction : FatalBuiltinTypeRestriction,
-) -> String {
-  match restriction {
-    FunctionRequired =>
-      "fatal builtins must be functions, found `\{display.type_text(type_)}`"
-    MonomorphicRequired => "fatal builtins cannot have type parameters"
-    StringParameterRequired =>
-      "fatal builtins require exactly one `String` parameter"
-    UninhabitedResultRequired =>
-      "fatal builtin results must be a nominal enum with no constructors"
-    IoEffectRequired => "fatal builtins require exactly the `Io` latent effect"
-  }
-}
-
-///|
 fn typecheck_diagnostic(
   diagnostic_ : TypeCheckDiagnostic,
   display : TypeDisplayContext,
@@ -970,42 +952,6 @@ fn typecheck_diagnostic(
         helps=[
           "change the annotation or use the builtin with its canonical type",
         ],
-      )
-    BuiltinNeedsExpectedType(name~) =>
-      diagnostic(
-        "builtin `\{name}` needs a complete expected function type",
-        span~,
-        severity=Error,
-        code=Some("E3036"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: "the fatal result contract cannot be inferred here",
-            style: Primary,
-          },
-        ],
-        notes=["fatal builtins validate a complete, explicitly declared type"],
-        helps=["add the complete function type annotation next to this builtin"],
-      )
-    InvalidFatalBuiltinType(name~, type_~, restriction~) =>
-      diagnostic(
-        "builtin `\{name}` has an invalid fatal-control type",
-        span~,
-        severity=Error,
-        code=Some("E3037"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: fatal_builtin_type_restriction_message(
-              display, type_, restriction,
-            ),
-            style: Primary,
-          },
-        ],
-        notes=[
-          "fatal control requires a monomorphic `(String) -> EmptyEnum ! Io` declaration",
-        ],
-        helps=["use a nominal enum with no constructors as the result type"],
       )
     ExternNeedsExpectedType(name~) =>
       diagnostic(

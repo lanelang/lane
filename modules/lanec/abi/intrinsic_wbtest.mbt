@@ -1,4 +1,16 @@
 ///|
+test "panic intrinsic owns its exact Io signature" {
+  assert_eq(
+    (Intrinsic::from_name("%panic"), Panic.name(), Panic.signature()),
+    (
+      Some(Panic),
+      "%panic",
+      Function(parameters=[String], result=Unit, effect=Io),
+    ),
+  )
+}
+
+///|
 test "UTF-8 and Char intrinsics have one exact name and signature" {
   assert_eq(
     [
@@ -36,14 +48,32 @@ test "UTF-8 and Char intrinsics have one exact name and signature" {
       (BytesSlice.name(), BytesSlice.signature()),
     ],
     [
-      ("%char_to_i32", Function(parameters=[Char], result=I32)),
-      ("%i32_to_char", Function(parameters=[I32], result=Char)),
-      ("%string_to_bytes", Function(parameters=[String], result=Bytes)),
-      ("%bytes_is_valid_utf8", Function(parameters=[Bytes], result=Bool)),
-      ("%bytes_to_string", Function(parameters=[Bytes], result=String)),
-      ("%bytes_equal", Function(parameters=[Bytes, Bytes], result=Bool)),
-      ("%bytes_concat", Function(parameters=[Bytes, Bytes], result=Bytes)),
-      ("%bytes_slice", Function(parameters=[Bytes, I64, I64], result=Bytes)),
+      ("%char_to_i32", Function(parameters=[Char], result=I32, effect=Pure)),
+      ("%i32_to_char", Function(parameters=[I32], result=Char, effect=Pure)),
+      (
+        "%string_to_bytes",
+        Function(parameters=[String], result=Bytes, effect=Pure),
+      ),
+      (
+        "%bytes_is_valid_utf8",
+        Function(parameters=[Bytes], result=Bool, effect=Pure),
+      ),
+      (
+        "%bytes_to_string",
+        Function(parameters=[Bytes], result=String, effect=Pure),
+      ),
+      (
+        "%bytes_equal",
+        Function(parameters=[Bytes, Bytes], result=Bool, effect=Pure),
+      ),
+      (
+        "%bytes_concat",
+        Function(parameters=[Bytes, Bytes], result=Bytes, effect=Pure),
+      ),
+      (
+        "%bytes_slice",
+        Function(parameters=[Bytes, I64, I64], result=Bytes, effect=Pure),
+      ),
     ],
   )
 }
@@ -61,8 +91,8 @@ test "I64 and F64 conversion intrinsics have exact names and signatures" {
     (
       [Some(I64ToF64), Some(F64ToI64)],
       [
-        ("%i64_to_f64", Function(parameters=[I64], result=F64)),
-        ("%f64_to_i64", Function(parameters=[F64], result=I64)),
+        ("%i64_to_f64", Function(parameters=[I64], result=F64, effect=Pure)),
+        ("%f64_to_i64", Function(parameters=[F64], result=I64, effect=Pure)),
       ],
     ),
   )
@@ -84,8 +114,14 @@ test "floating-point string intrinsics have exact names and signatures" {
     (
       [Some(F32ToString), Some(F64ToString)],
       [
-        ("%f32_to_string", Function(parameters=[F32], result=String)),
-        ("%f64_to_string", Function(parameters=[F64], result=String)),
+        (
+          "%f32_to_string",
+          Function(parameters=[F32], result=String, effect=Pure),
+        ),
+        (
+          "%f64_to_string",
+          Function(parameters=[F64], result=String, effect=Pure),
+        ),
       ],
     ),
   )

@@ -578,19 +578,11 @@ fn SemanticChecker::check_checked_block(
           None => complete = false
         }
       Expression(expression) => {
-        let synthesis = self.synthesize_checked_expr(next_scope, expression)
-        let checked = if self.is_uninhabited_result_type(
-            synthesis.type_,
-            expression.loc(),
-          ) {
-          synthesis
-        } else {
-          self.check_synthesis_against_expectation(
-            synthesis,
-            checked_expectation(Primitive(Unit)),
-            expression.loc(),
-          ).synthesis
-        }
+        let checked = self.check_checked_expr(
+          next_scope,
+          expression,
+          Primitive(Unit),
+        )
         effects.push(checked.effect)
         match
           self.require_checked_expression(
@@ -667,19 +659,11 @@ fn SemanticChecker::synthesize_checked_block(
           None => complete = false
         }
       Expression(expression) => {
-        let synthesis = self.synthesize_checked_expr(next_scope, expression)
-        let checked = if self.is_uninhabited_result_type(
-            synthesis.type_,
-            expression.loc(),
-          ) {
-          synthesis
-        } else {
-          self.check_synthesis_against_expectation(
-            synthesis,
-            checked_expectation(Primitive(Unit)),
-            expression.loc(),
-          ).synthesis
-        }
+        let checked = self.check_checked_expr(
+          next_scope,
+          expression,
+          Primitive(Unit),
+        )
         effects.push(checked.effect)
         match
           self.require_checked_expression(

@@ -82,10 +82,14 @@ pub fn Intrinsic::from_name(String) -> Self?
 pub fn Intrinsic::name(Self) -> String
 pub fn Intrinsic::signature(Self) -> IntrinsicSignature
 
+pub(all) enum IntrinsicEffect {
+  Pure
+  Io
+} derive(Eq, @debug.Debug)
+
 pub(all) enum IntrinsicSignature {
   Value(IntrinsicValueKind)
-  Function(parameters~ : Array[IntrinsicValueKind], result~ : IntrinsicValueKind)
-  NeverFunction(parameters~ : Array[IntrinsicValueKind])
+  Function(parameters~ : Array[IntrinsicValueKind], result~ : IntrinsicValueKind, effect~ : IntrinsicEffect)
 } derive(Eq, @debug.Debug)
 
 pub(all) enum IntrinsicValueKind {

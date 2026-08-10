@@ -102,7 +102,7 @@ test "Fatal selects the private fatal String import" {
   let fatal_body : @bytecode.FunctionBody = {
     slots: [wasm_bytes_owned_slot()],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: Never,
+    result: Unit,
     blocks: [
       {
         parameters: [],
@@ -118,12 +118,13 @@ test "Fatal selects the private fatal String import" {
   )
   let image = {
     ..base,
-    callable_abis: base.callable_abis +
-    [{ witnesses: [], parameters: [], result: Never }],
     functions: base.functions + [BytecodeBody(fatal_body)],
     constants: [b"boom"],
   }
-  let module_ = compile(image).unwrap()
+  let module_ = match compile(image) {
+    Ok(module_) => module_
+    Err(error) => fail("compile failed: \{Repr(error)}")
+  }
   assert_eq(internal_import_observation(module_), [
     (@internal_abi.FatalString.name(), @internal_abi.FatalString.type_()),
   ])

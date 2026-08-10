@@ -46,7 +46,7 @@ private invariant, not merely the subsystem being tested.
 | `modules/lanec/compile/effect_specialization_example37_wbtest.mbt` | Captures and verifies the private monadic-lift stage for real regression fixtures. |
 | `modules/lanec/compile/existential_effect_witness_wbtest.mbt` | Inspects compiled existential witness metadata before executable erasure. |
 | `modules/lanec/compile/f32_wbtest.mbt` | Observes F32 lowering, layouts, artifacts, and bytecode rather than only source acceptance. |
-| `modules/lanec/compile/fatal_control_wbtest.mbt` | Inspects the private finalized bytecode image to prove direct, indirect, and adapter calls share the `Never` ABI without a Runtime Import. |
+| `modules/lanec/compile/fatal_control_wbtest.mbt` | Inspects the private finalized bytecode image to prove direct and first-class panic calls use the ordinary Unit ABI while only the compiler-owned wrapper contains `Fatal`, with no Runtime Import. |
 | `modules/lanec/compile/i32_wbtest.mbt` | Observes I32 representation and arithmetic after executable lowering. |
 | `modules/lanec/compile/import_alias_wbtest.mbt` | Inspects canonical identities retained in interface/object artifacts after alias resolution. |
 | `modules/lanec/compile/legacy_support_wbtest.mbt` | Provides private legacy fixture adapters used only by compile-package white-box regressions. |

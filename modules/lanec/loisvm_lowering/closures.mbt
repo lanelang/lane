@@ -157,7 +157,7 @@ fn FunctionLowerer::captured_runtime_parameters(
       Slot(_, type_)
       | RecursiveFunction(_, type_, _)
       | TypeAppliedCallable(_, type_, _) => types.push(type_)
-      Global(_) | Never | Unit | TypeApplied(_, _) => ()
+      Global(_) | Unit | TypeApplied(_, _) => ()
     }
   }
   free_runtime_type_parameters_in_types(self.image, types)

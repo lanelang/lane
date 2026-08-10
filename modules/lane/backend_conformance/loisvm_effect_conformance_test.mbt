@@ -2,9 +2,8 @@
 fn effect_conformance_basic_io() -> String {
   (
     #|module Basic.Io
-    #|pub enum Void {}
     #|pub let println : (String) -> Unit ! Io = extern("println")
-    #|pub let panic : (String) -> Void ! Io = builtin("%panic")
+    #|pub let panic : (String) -> Unit ! Io = builtin("%panic")
   )
 }
 
@@ -579,7 +578,7 @@ test "first-class panic preserves fatal control on either backend" {
     (
       #|module Main
       #|import Basic.Io.*
-      #|fn invoke(abort : (String) -> Void ! Io) -> Unit ! Io {
+      #|fn invoke(abort : (String) -> Unit ! Io) -> Unit ! Io {
       #|  abort("forwarded")
       #|  ()
       #|}
