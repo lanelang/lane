@@ -24,7 +24,7 @@ pub let compiled_module_set_artifact_schema_version : Int
 
 pub fn executable_to_loisvm_artifact(@executable.ExecutableProgram) -> Result[LinkedProgramArtifact, @loisvm_lowering.LoisvmLoweringError]
 
-pub fn executable_to_loisvm_binary(@executable.ExecutableProgram) -> Result[Bytes, @loisvm_lowering.LoisvmLoweringError]
+pub fn executable_to_loisvm_binary(@executable.ExecutableProgram) -> Result[Bytes, LoisvmBinaryError]
 
 pub fn imported_environment_fingerprints(@module.ImportedEnvironment) -> Array[@model.ImportedInterfaceFingerprint]
 
@@ -86,6 +86,11 @@ pub(all) struct LinkedProgramArtifact {
   bytecode : @bytecode.BytecodeImage
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact
+
+pub(all) enum LoisvmBinaryError {
+  Lowering(@loisvm_lowering.LoisvmLoweringError)
+  BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleInterfaceArtifact {
   schema_version : Int

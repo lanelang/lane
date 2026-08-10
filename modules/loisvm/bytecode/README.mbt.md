@@ -4,6 +4,10 @@
 
 LoisVM bytecode is a verified execution IR rather than a sandbox format. The package-owned verifier checks table identities, runtime representations, instruction contracts, control-flow edges, initialization dataflow, ownership balance, object shapes, and statically known direct-call signatures. Binary decoding, interpreter loading, and Wasm compilation reject an image unless it passes this verifier. Resource limits still bound decoding and execution; verification is not a general malicious-input sandbox proof.
 
+`bytecode_image_to_binary` verifies and encodes an image in one package-owned
+operation. There is no public raw semantic-image encoder: only white-box codec
+fixtures can use the private encoder to construct malformed binary inputs.
+
 ## Image model
 
 A `BytecodeImage` contains one canonical Callable ABI table, one unified

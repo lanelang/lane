@@ -28,10 +28,14 @@ pub fn executable_to_loisvm_artifact(
 /// Lowering failure returns no partial binary payload.
 pub fn executable_to_loisvm_binary(
   program : @executable.ExecutableProgram,
-) -> Result[Bytes, @loisvm_lowering.LoisvmLoweringError] {
+) -> Result[Bytes, LoisvmBinaryError] {
   match executable_to_loisvm_artifact(program) {
-    Ok(artifact) => Ok(unchecked_linked_program_artifact_to_binary(artifact))
-    Err(error) => Err(error)
+    Err(error) => Err(Lowering(error))
+    Ok(artifact) =>
+      match linked_program_artifact_to_binary(artifact) {
+        Ok(bytes) => Ok(bytes)
+        Err(error) => Err(BytecodeVerificationCompilerDefect(error))
+      }
   }
 }
 

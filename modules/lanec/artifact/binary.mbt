@@ -116,20 +116,20 @@ pub fn parse_module_object_artifact_binary(
 pub fn linked_program_artifact_to_binary(
   artifact : LinkedProgramArtifact,
 ) -> Result[Bytes, @loisvm_bytecode.BytecodeVerificationError] {
-  match @loisvm_bytecode.verify_bytecode_image(artifact.bytecode) {
-    Ok(_) => Ok(unchecked_linked_program_artifact_to_binary(artifact))
+  match @loisvm_bytecode.bytecode_image_to_binary(artifact.bytecode) {
+    Ok(bytecode) => {
+      let writer = @bytecodec.ByteWriter::new()
+      writer.write_u32_le_int(artifact.schema_version)
+      writer.write_raw_bytes(bytecode)
+      Ok(
+        artifact_payload_to_binary(
+          artifact_binary_kind_program,
+          writer.to_bytes(),
+        ),
+      )
+    }
     Err(error) => Err(error)
   }
-}
-
-///|
-fn unchecked_linked_program_artifact_to_binary(
-  artifact : LinkedProgramArtifact,
-) -> Bytes {
-  artifact_payload_to_binary(
-    artifact_binary_kind_program,
-    encode_linked_program_artifact_payload(artifact),
-  )
 }
 
 ///|
@@ -354,18 +354,6 @@ fn decode_module_object_artifact_payload(
   }
   reader.expect_end()
   artifact
-}
-
-///|
-fn encode_linked_program_artifact_payload(
-  artifact : LinkedProgramArtifact,
-) -> Bytes {
-  let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(artifact.schema_version)
-  writer.write_raw_bytes(
-    @loisvm_bytecode.unchecked_bytecode_image_to_binary(artifact.bytecode),
-  )
-  writer.to_bytes()
 }
 
 ///|

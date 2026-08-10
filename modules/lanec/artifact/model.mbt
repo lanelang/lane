@@ -57,6 +57,15 @@ pub(all) struct LinkedProgramArtifact {
 } derive(Debug, Eq)
 
 ///|
+/// Reports which compiler-owned phase prevented a LoisVM binary from being
+/// produced. A verification failure is a compiler defect, not an unsupported
+/// source program.
+pub(all) enum LoisvmBinaryError {
+  Lowering(@loisvm_lowering.LoisvmLoweringError)
+  BytecodeVerificationCompilerDefect(@loisvm_bytecode.BytecodeVerificationError)
+} derive(Debug, Eq)
+
+///|
 pub(all) struct CompiledModuleArtifact {
   schema_version : Int
   interface : ModuleInterfaceArtifact

@@ -17,8 +17,6 @@ pub fn parse_bytecode_image_binary(Bytes) -> Result[BytecodeImage, BytecodeDecod
 
 pub fn statically_known_object_shape(Array[ObjectShape], SemanticValueKind) -> ObjectShapeId?
 
-pub fn unchecked_bytecode_image_to_binary(BytecodeImage) -> Bytes
-
 pub fn verify_bytecode_image(BytecodeImage) -> Result[Unit, BytecodeVerificationError]
 
 // Errors

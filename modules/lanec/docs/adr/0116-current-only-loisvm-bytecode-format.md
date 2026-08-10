@@ -1,6 +1,6 @@
 # Current-only LoisVM bytecode format
 
-LoisVM bytecode is an internal compiler-runtime contract maintained in lockstep. A bytecode section carries neither magic nor an independent schema version, and `loisvm/bytecode` retains no legacy decoder. `bytecode_image_to_binary` always emits the current canonical layout, while `parse_bytecode_image_binary` accepts only that layout.
+LoisVM bytecode is an internal compiler-runtime contract maintained in lockstep. A bytecode section carries neither magic nor an independent schema version, and `loisvm/bytecode` retains no legacy decoder. `bytecode_image_to_binary` verifies the complete semantic image and emits the current canonical layout in one package-owned operation, while `parse_bytecode_image_binary` accepts only that layout. The raw encoder is private and exists only for white-box codec fixtures that deliberately construct malformed inputs.
 
 The bytecode section has this fixed order:
 
@@ -37,6 +37,7 @@ Future incompatible bytecode changes replace the current format directly and rai
 ## Consequences
 
 - Bytecode encoding has no leading version byte.
+- Public bytecode encoding verifies the complete image before returning bytes.
 - `UnsupportedSchema` is not a bytecode decode error.
 - Every image encodes initializer and global-table fields.
 - The encoder, decoder, disassembler, interpreter, and Wasm backend target one current model.
