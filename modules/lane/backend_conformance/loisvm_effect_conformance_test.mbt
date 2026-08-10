@@ -578,12 +578,7 @@ test "statement-position panic is fatal and does not continue on either backend"
   debug_inspect(
     (interpreter, interpreter_output, wasm, wasm_output),
     content=(
-      #|(
-      #|  Err(RuntimeImportFailure(symbol="panic", message="boom")),
-      #|  [],
-      #|  Err(RuntimeImportFailure(symbol="panic", message="boom")),
-      #|  [],
-      #|)
+      #|(Err(Fatal(message="boom")), [], Err(Fatal(message="boom")), [])
     ),
   )
 }

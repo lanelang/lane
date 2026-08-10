@@ -336,8 +336,9 @@ Host calls are synchronous. A binding must not retain a borrowed VM value or re-
 
 For a source API that intentionally terminates after receiving a diagnostic
 String, register the SDK's statement-oriented fatal binding. Its advertised
-Unit result is only the direct ABI carrier; invocation always raises the same
-structured runtime-import failure on both backends:
+Unit result is only the direct ABI carrier; invocation raises
+`RuntimeImportFailure::Fatal`, which both backends preserve as
+`ExecutionError::Fatal`:
 
 ```moonbit nocheck
 ///|

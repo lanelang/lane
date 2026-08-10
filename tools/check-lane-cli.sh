@@ -94,8 +94,20 @@ for mode in default no-jit; do
     args+=(--no-jit)
   fi
   panic_output="$(expect_failure_containing \
-    'RuntimeImportFailure(symbol="panic", message="boom")' \
+    'error[E6017]: Lane program panicked' \
     "${args[@]}")"
+  if [[ "$panic_output" != *'message: boom'* ]]; then
+    echo "error: panic message was not preserved in $mode mode" >&2
+    echo "$panic_output" >&2
+    exit 1
+  fi
+  if [[ "$panic_output" == *'RuntimeImportFailure'* ]] || \
+    [[ "$panic_output" == *'symbol="panic"'* ]] || \
+    [[ "$panic_output" == *'LoisVM execution failed'* ]]; then
+    echo "error: panic leaked an internal runtime representation in $mode mode" >&2
+    echo "$panic_output" >&2
+    exit 1
+  fi
   if [[ "$panic_output" == *'after'* ]]; then
     echo "error: statement-position panic continued in $mode mode" >&2
     echo "$panic_output" >&2

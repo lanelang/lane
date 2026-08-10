@@ -12,7 +12,7 @@ pub let panic : (String) -> Unit ! Io = extern("panic")
 
 `Unit` is the direct runtime-import ABI result carrier, not a claim that a
 conforming `panic` invocation returns normally. The host binding must terminate
-the current execution by raising a runtime-import failure carrying the supplied
+the current execution by raising the typed fatal outcome carrying the supplied
 message. The call therefore cannot be used as a bottom value to inhabit an
 arbitrary result type. A future `Never` type or polymorphic bottom operation
 would be a separate language change with its own typing, control-flow, ABI, and
@@ -28,18 +28,21 @@ symbol and does not add a symbol-specific terminator or optimizer rule.
 
 The public LoisVM host SDK provides `RuntimeBinding::fatal_string(symbol)`.
 This constructs the ordinary ABI `(String) -> Unit` at ABI major version 1 and
-an implementation that always raises `RuntimeImportFailure::Failure` with the
+an implementation that always raises `RuntimeImportFailure::Fatal` with the
 borrowed String as its message. An embedding chooses the symbol; the default
 Lane command registers this binding as `panic` alongside `println`.
 
 Both production backends report a failed call as
-`ExecutionError::RuntimeImportFailure(symbol, message)`, mark the execution
-instance terminal, and never execute its continuation. This is the existing,
-sole out-of-band runtime-import failure channel. It is neither a Lane effect nor
-a recoverable `Result`, and it cannot be handled by source code. Recoverable
-host errors remain deferred to the explicit host-ABI design tracked separately.
+`ExecutionError::Fatal(message)`, mark the execution instance terminal, and
+never execute its continuation. This classification is carried by the existing,
+sole out-of-band host-call failure channel; neither backend infers it from the
+runtime symbol. It is neither a Lane effect nor a recoverable `Result`, and it
+cannot be handled by source code. Ordinary host failures remain
+`RuntimeImportFailure::Failure` and become
+`ExecutionError::RuntimeImportFailure(symbol, message)`. Recoverable host errors
+remain deferred to the explicit host-ABI design tracked separately.
 
-Fatal runtime-import unwinding follows the existing cleanup contract. The
+Fatal host-call unwinding follows the existing cleanup contract. The
 interpreter and Wasm backend release owned values in live Lane frames and
 initialized roots as they unwind a cleanup-capable execution failure. Host
 Object finalization remains best effort under abnormal termination as specified

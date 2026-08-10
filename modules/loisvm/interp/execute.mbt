@@ -62,6 +62,7 @@ pub fn ExecutionInstance::execute(
     self.cleanup_globals()
     Ok(())
   } catch {
+    FatalExecution(message~) => Err(@runtime.ExecutionError::Fatal(message~))
     ImportFailure(symbol~, message~) =>
       Err(@runtime.ExecutionError::RuntimeImportFailure(symbol~, message~))
     ResourceLimit(kind) => Err(ExecutionResourceLimit(kind~))

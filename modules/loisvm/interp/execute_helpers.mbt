@@ -567,6 +567,10 @@ fn ExecutionInstance::invoke_import(
     raise InternalFailure(detail="runtime import argument count mismatch")
   }
   let host_result = binding.call(self.runtime.context(), host_arguments) catch {
+    Fatal(message~) => {
+      self.release_import_arguments(arguments, kinds)
+      raise FatalExecution(message~)
+    }
     Failure(message~) => {
       self.release_import_arguments(arguments, kinds)
       raise ImportFailure(symbol=binding.symbol(), message~)

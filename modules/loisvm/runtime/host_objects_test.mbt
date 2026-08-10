@@ -146,7 +146,7 @@ test "fatal String binding preserves its ABI and typed failure" {
       result,
     ),
     content=(
-      #|("lane.test.panic", 1, [String], Unit, Err(Failure(message="boom")))
+      #|("lane.test.panic", 1, [String], Unit, Err(Fatal(message="boom")))
     ),
   )
 }

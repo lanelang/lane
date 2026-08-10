@@ -60,7 +60,7 @@ enum CliError {
   ArtifactLoad(path~ : String, kind~ : String, message~ : String)
   ExecutionImageLowering(message~ : String)
   ExecutionImageLoad(message~ : String)
-  ExecutionFailed(message~ : String)
+  ExecutionFailed(@loisvm_runtime.ExecutionError)
   DuplicateObjectArtifact(module_path_text~ : String)
   RootLibraryInput(root~ : String, library~ : String)
   EntryNotFound(name~ : String, entries~ : Array[@compile.CompiledEntry])
@@ -200,10 +200,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         title="couldn't load the LoisVM execution image",
         fields=[command_report_field("reason", message)],
       )
-    ExecutionFailed(message~) =>
-      command_report(code="E6013", title="LoisVM execution failed", fields=[
-        command_report_field("reason", message),
-      ])
+    ExecutionFailed(error) => execution_failure_report(error)
     DuplicateObjectArtifact(module_path_text~) =>
       command_report(
         code="E6007",
@@ -301,6 +298,27 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
           ),
         ],
       )
+  }
+}
+
+///|
+fn execution_failure_report(
+  error : @loisvm_runtime.ExecutionError,
+) -> CommandReport {
+  match error {
+    Fatal(message~) =>
+      command_report(code="E6017", title="Lane program panicked", fields=[
+        command_report_field("message", message),
+      ])
+    RuntimeImportFailure(symbol~, message~) =>
+      command_report(code="E6013", title="runtime import failed", fields=[
+        command_report_field("symbol", symbol),
+        command_report_field("message", message),
+      ])
+    error =>
+      command_report(code="E6013", title="LoisVM execution failed", fields=[
+        command_report_field("reason", "\{Repr(error)}"),
+      ])
   }
 }
 

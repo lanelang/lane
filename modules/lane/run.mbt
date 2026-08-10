@@ -180,8 +180,7 @@ fn execute_loisvm_image_with_output(
   }
   match instance.execute() {
     Ok(_) => Succeeded
-    Err(error) =>
-      LaneCommandOutcome::user_error(ExecutionFailed(message="\{Repr(error)}"))
+    Err(error) => LaneCommandOutcome::user_error(ExecutionFailed(error))
   }
 }
 

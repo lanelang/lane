@@ -113,6 +113,7 @@ pub fn ExecutionRuntime::context(self : ExecutionRuntime) -> RuntimeContext {
 ///|
 pub(all) suberror RuntimeImportFailure {
   Failure(message~ : String)
+  Fatal(message~ : String)
 } derive(Debug, Eq)
 
 ///|
@@ -161,6 +162,7 @@ pub(all) suberror CallableInvocationError {
 
 ///|
 pub(all) suberror ExecutionError {
+  Fatal(message~ : String)
   RuntimeImportFailure(symbol~ : String, message~ : String)
   ExecutionResourceLimit(kind~ : ResourceLimitKind)
   Interrupted
