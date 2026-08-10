@@ -52,8 +52,9 @@ pub fn loisvm_linked_program_to_binary(
 }
 
 ///|
-/// Decodes a linked-program payload into an untrusted bytecode image. Callers
-/// must pass the image through the LoisVM verifier before execution.
+/// Decodes a linked-program payload and returns only a LoisVM-verifier-accepted
+/// bytecode image. Malformed framing, an incompatible artifact schema, or
+/// invalid bytecode returns `Err`; no additional verifier call is required.
 pub fn parse_loisvm_linked_program_binary(
   bytes : Bytes,
 ) -> Result[@loisvm_bytecode.BytecodeImage, String] {

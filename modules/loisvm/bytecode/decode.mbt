@@ -11,6 +11,9 @@ priv struct Decoder {
 }
 
 ///|
+/// Decodes a complete bytecode image and applies the semantic verifier before
+/// returning it. Malformed encoding and verifier rejection are both reported
+/// as `BytecodeDecodeError`; a successful image needs no second verification.
 pub fn parse_bytecode_image_binary(
   bytes : Bytes,
 ) -> Result[BytecodeImage, BytecodeDecodeError] {
