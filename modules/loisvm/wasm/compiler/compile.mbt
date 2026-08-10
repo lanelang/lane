@@ -43,8 +43,11 @@ fn compile_or_raise(
       detail="Opaque runtime imports require a Reference layout",
     )
   }
-  let internal_imports = internal_runtime_imports(image, host_objects_enabled)
-  let import_count = internal_imports.count + imports.length()
+  let internal_import_plan = plan_internal_runtime_imports(
+    image, host_objects_enabled,
+  )
+  let internal_import_count = internal_import_plan.entries.length()
+  let import_count = internal_import_count + imports.length()
   let callable_table = plan_callable_table(image)
   let runtime_functions = runtime_function_indices(
     import_count + image.functions.length(),
@@ -61,7 +64,7 @@ fn compile_or_raise(
     host_objects_enabled,
     callable_table.table_indices,
   )
-  append_internal_runtime_imports(wasm_module, internal_imports)
+  append_internal_runtime_imports(wasm_module, internal_import_plan)
   for import_ in imports {
     append_physical_runtime_import(wasm_module, import_)
   }
@@ -83,7 +86,7 @@ fn compile_or_raise(
             wasm_module,
             static_image,
             runtime_functions,
-            internal_imports,
+            internal_import_plan,
           ),
         )
       }
@@ -92,7 +95,7 @@ fn compile_or_raise(
           wasm_module,
           import_,
           import_.callable_abi(),
-          internal_imports.count + import_index,
+          internal_import_count + import_index,
           runtime_functions,
         )
         import_index += 1
@@ -105,7 +108,7 @@ fn compile_or_raise(
     static_image,
     runtime_functions,
     helper_functions,
-    internal_imports.host_object_release,
+    internal_import_plan.index(HostObjectRelease),
   )
   let fatal_tag_type = intern_function_type(wasm_module, [], [])
   wasm_module.tags.push({ type_idx: fatal_tag_type })
@@ -229,7 +232,7 @@ fn compile_body(
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
   runtime_functions : RuntimeFunctions,
-  internal_imports : InternalRuntimeImports,
+  internal_import_plan : InternalRuntimeImportPlan,
 ) -> @wasm_types.FunctionCode raise WasmCompileError {
   let parameter_count = 1 +
     body.inputs.witnesses.length() +
@@ -258,7 +261,7 @@ fn compile_body(
     wasm_module,
     static_image,
     runtime_functions,
-    internal_imports,
+    internal_import_plan,
   }
   let instructions : Array[@wasm_types.Instruction] = []
   let needs_frame_cleanup = body.slots.any(fn(slot) {

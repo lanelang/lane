@@ -6,7 +6,7 @@ fn compile_instruction(
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
   runtime_functions : RuntimeFunctions,
-  internal_imports : InternalRuntimeImports,
+  internal_import_plan : InternalRuntimeImportPlan,
   instruction : @bytecode.Instruction,
 ) -> Array[@wasm_types.Instruction] {
   match instruction {
@@ -503,7 +503,7 @@ fn compile_instruction(
     F32ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(slot_local(parameter_count, source)),
-        Call(internal_imports.f32_to_string.unwrap()),
+        Call(internal_import_plan.index(F32ToString).unwrap()),
         LocalSet(slot_local(parameter_count, destination)),
       ]
       result.append(mark_slot_live(live_base, slots, destination))
@@ -512,7 +512,7 @@ fn compile_instruction(
     F64ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(slot_local(parameter_count, source)),
-        Call(internal_imports.f64_to_string.unwrap()),
+        Call(internal_import_plan.index(F64ToString).unwrap()),
         LocalSet(slot_local(parameter_count, destination)),
       ]
       result.append(mark_slot_live(live_base, slots, destination))

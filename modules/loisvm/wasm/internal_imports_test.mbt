@@ -1,27 +1,36 @@
 ///|
-fn complete_internal_import_image() -> @bytecode.BytecodeImage {
-  let body = wasm_bytes_body(
-    [
-      wasm_bytes_trivial_slot(F32),
-      wasm_bytes_trivial_slot(F64),
-      wasm_bytes_owned_slot(),
-      wasm_bytes_owned_slot(),
-    ],
-    [
-      {
-        parameters: [],
-        instructions: [
-          ConstF32({ value: 0 }, 0),
-          F32ToString({ value: 2 }, { value: 0 }),
-          Release({ value: 2 }),
-          ConstF64({ value: 1 }, 0L),
-          F64ToString({ value: 3 }, { value: 1 }),
-          Release({ value: 3 }),
-        ],
-        terminator: Return(None),
-      },
-    ],
-  )
+fn internal_import_image(
+  uses_f32~ : Bool,
+  uses_f64~ : Bool,
+  uses_host_objects~ : Bool,
+) -> @bytecode.BytecodeImage {
+  let slots : Array[@bytecode.SlotMetadata] = []
+  let instructions : Array[@bytecode.Instruction] = []
+  if uses_f32 {
+    let source : @bytecode.SlotId = { value: slots.length() }
+    slots.push(wasm_bytes_trivial_slot(F32))
+    let destination : @bytecode.SlotId = { value: slots.length() }
+    slots.push(wasm_bytes_owned_slot())
+    instructions.push(ConstF32(source, 0))
+    instructions.push(F32ToString(destination, source))
+    instructions.push(Release(destination))
+  }
+  if uses_f64 {
+    let source : @bytecode.SlotId = { value: slots.length() }
+    slots.push(wasm_bytes_trivial_slot(F64))
+    let destination : @bytecode.SlotId = { value: slots.length() }
+    slots.push(wasm_bytes_owned_slot())
+    instructions.push(ConstF64(source, 0L))
+    instructions.push(F64ToString(destination, source))
+    instructions.push(Release(destination))
+  }
+  let body = wasm_bytes_body(slots, [
+    { parameters: [], instructions, terminator: Return(None) },
+  ])
+  let image = wasm_bytes_image(body)
+  if !uses_host_objects {
+    return image
+  }
   let import_ : @bytecode.RuntimeImport = {
     abi_major: 1,
     parameters: [Opaque],
@@ -29,28 +38,20 @@ fn complete_internal_import_image() -> @bytecode.BytecodeImage {
     symbol: "lane.test.consume_host_object",
   }
   {
-    ..wasm_bytes_image(body),
+    ..image,
     callable_abis: [
       { witnesses: [], parameters: [], result: Unit },
       import_.callable_abi(),
     ],
     functions: [BytecodeBody(body), RuntimeImport(import_)],
-    layouts: [Reference],
+    layouts: [ByteSequence, Reference],
   }
 }
 
 ///|
-test "float formatting and host objects share internal imports safely" {
-  let image = complete_internal_import_image()
-  assert_true(compile(image) is Ok(_))
-}
-
-///|
-test "compiler emits the package-owned internal runtime ABI" {
-  let wasm_module = match compile(complete_internal_import_image()) {
-    Ok(module_) => module_
-    Err(error) => fail("compile failed: \{Repr(error)}")
-  }
+fn internal_import_observation(
+  wasm_module : @wasm_types.Module,
+) -> Array[(String, @wasm_types.FuncType)] raise {
   let imports = []
   for import_ in wasm_module.imports {
     guard import_.mod_name == @internal_abi.module_name() else { continue }
@@ -62,10 +63,36 @@ test "compiler emits the package-owned internal runtime ABI" {
     }
     imports.push((import_.name, type_))
   }
-  assert_eq(
-    imports,
-    @internal_abi.functions().map(fn(function) {
-      (function.name(), function.type_())
-    }),
-  )
+  imports
+}
+
+///|
+test "compiler emits selected internal imports in canonical order" {
+  let cases : Array[
+    (Bool, Bool, Bool, Array[@internal_abi.InternalRuntimeFunction]),
+  ] = [
+    (false, false, false, []),
+    (true, false, false, [F32ToString]),
+    (false, true, false, [F64ToString]),
+    (true, true, false, [F32ToString, F64ToString]),
+    (false, false, true, [HostObjectRelease]),
+    (true, false, true, [F32ToString, HostObjectRelease]),
+    (false, true, true, [F64ToString, HostObjectRelease]),
+    (true, true, true, @internal_abi.functions()),
+  ]
+  let actual = []
+  let expected = []
+  for case in cases {
+    let (uses_f32, uses_f64, uses_host_objects, functions) = case
+    let image = internal_import_image(uses_f32~, uses_f64~, uses_host_objects~)
+    let wasm_module = match compile(image) {
+      Ok(module_) => module_
+      Err(error) => fail("compile failed: \{Repr(error)}")
+    }
+    actual.push(internal_import_observation(wasm_module))
+    expected.push(
+      functions.map(fn(function) { (function.name(), function.type_()) }),
+    )
+  }
+  assert_eq(actual, expected)
 }

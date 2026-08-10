@@ -1,16 +1,19 @@
 ///|
-priv struct InternalRuntimeImports {
-  f32_to_string : Int?
-  f64_to_string : Int?
-  host_object_release : Int?
-  count : Int
+priv struct PlannedInternalRuntimeImport {
+  function : @internal_abi.InternalRuntimeFunction
+  index : Int
 }
 
 ///|
-fn internal_runtime_imports(
+priv struct InternalRuntimeImportPlan {
+  entries : Array[PlannedInternalRuntimeImport]
+}
+
+///|
+fn plan_internal_runtime_imports(
   image : @bytecode.BytecodeImage,
   host_objects_enabled : Bool,
-) -> InternalRuntimeImports {
+) -> InternalRuntimeImportPlan {
   let mut uses_f32 = false
   let mut uses_f64 = false
   for entry in image.functions {
@@ -26,44 +29,40 @@ fn internal_runtime_imports(
       }
     }
   }
-  let mut count = 0
-  let f32_to_string = if uses_f32 {
-    let index = count
-    count += 1
-    Some(index)
-  } else {
-    None
+  let entries = []
+  for function in @internal_abi.functions() {
+    let required = match function {
+      F32ToString => uses_f32
+      F64ToString => uses_f64
+      HostObjectRelease => host_objects_enabled
+    }
+    if required {
+      entries.push({ function, index: entries.length() })
+    }
   }
-  let f64_to_string = if uses_f64 {
-    let index = count
-    count += 1
-    Some(index)
-  } else {
-    None
+  { entries, }
+}
+
+///|
+fn InternalRuntimeImportPlan::index(
+  self : InternalRuntimeImportPlan,
+  function : @internal_abi.InternalRuntimeFunction,
+) -> Int? {
+  for entry in self.entries {
+    if entry.function == function {
+      return Some(entry.index)
+    }
   }
-  let host_object_release = if host_objects_enabled {
-    let index = count
-    count += 1
-    Some(index)
-  } else {
-    None
-  }
-  { f32_to_string, f64_to_string, host_object_release, count }
+  None
 }
 
 ///|
 fn append_internal_runtime_imports(
   wasm_module : @wasm_types.Module,
-  imports : InternalRuntimeImports,
+  plan : InternalRuntimeImportPlan,
 ) -> Unit {
-  if imports.f32_to_string is Some(_) {
-    append_internal_runtime_import(wasm_module, @internal_abi.F32ToString)
-  }
-  if imports.f64_to_string is Some(_) {
-    append_internal_runtime_import(wasm_module, @internal_abi.F64ToString)
-  }
-  if imports.host_object_release is Some(_) {
-    append_internal_runtime_import(wasm_module, @internal_abi.HostObjectRelease)
+  for entry in plan.entries {
+    append_internal_runtime_import(wasm_module, entry.function)
   }
 }
 
