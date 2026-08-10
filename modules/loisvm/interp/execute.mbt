@@ -399,12 +399,14 @@ fn ExecutionInstance::execute_instruction(
       let value = frame.i32(source).to_int64() & 0xFFFFFFFFL
       frame.transfer_value(destination, source, I64(value))
     }
-    UneraseI32(destination, source) =>
+    UneraseI32(destination, source) => {
+      self.validate_unerased_object_shape(frame, destination, source)
       frame.transfer_value(
         destination,
         source,
         I32((frame.i64(source) & 0xFFFFFFFFL).to_int()),
       )
+    }
     EraseI64(destination, source) =>
       frame.transfer_value(destination, source, frame.value(source))
     UneraseI64(destination, source) =>

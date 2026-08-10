@@ -173,7 +173,8 @@ fn BytecodeVerifier::verify_function_flow(
       self.slot_metadata(function_site, body, environment),
       { origin: InputOwner(environment), projections: [] },
     )
-    initial_object_shapes[environment.value] = self.initial_object_shape(
+    initial_object_shapes[environment.value] = statically_known_object_shape(
+      self.image.object_shapes,
       body.slots[environment.value].kind,
     )
   }
@@ -188,7 +189,8 @@ fn BytecodeVerifier::verify_function_flow(
       self.slot_metadata(function_site, body, parameter),
       { origin: InputOwner(parameter), projections: [] },
     )
-    initial_object_shapes[parameter.value] = self.initial_object_shape(
+    initial_object_shapes[parameter.value] = statically_known_object_shape(
+      self.image.object_shapes,
       body.slots[parameter.value].kind,
     )
   }
@@ -330,29 +332,6 @@ fn flow_state_for_metadata(
     Trivial => LiveTrivial
     cleanup =>
       LiveOwned(cleanup, { roots: [token], retained: [token], members: [] })
-  }
-}
-
-///|
-fn BytecodeVerifier::initial_object_shape(
-  self : BytecodeVerifier,
-  kind : SemanticValueKind,
-) -> ObjectShapeId? {
-  match kind {
-    EnvironmentValue(shape) => Some(shape)
-    DataValue(family) => {
-      let mut found : ObjectShapeId? = None
-      for index, shape in self.image.object_shapes {
-        if shape is Data({ family: actual, .. }) && actual == family {
-          if found is Some(_) {
-            return None
-          }
-          found = Some({ value: index })
-        }
-      }
-      found
-    }
-    _ => None
   }
 }
 
@@ -653,7 +632,8 @@ fn BytecodeVerifier::write_from_metadata(
     destination,
     flow_state_for_metadata(body.slots[destination.value], token),
   )
-  state.object_shapes[destination.value] = self.initial_object_shape(
+  state.object_shapes[destination.value] = statically_known_object_shape(
+    self.image.object_shapes,
     body.slots[destination.value].kind,
   )
 }
@@ -1042,14 +1022,14 @@ fn BytecodeVerifier::apply_instruction_flow(
       state.tag_sources[destination.value] = Some(source)
     }
     LoadObjectWitness(destination, shape, source, _) => {
-      self.establish_exact_object_shape(site, body, state, source, shape)
+      self.require_exact_object_shape(site, state, source, shape)
       self.write_trivial_after_reads(site, body, state, destination, [source])
     }
     BorrowField(shape, source, member_index, result) => {
       guard self.image.object_shapes[shape.value] is Data(data) else {
         self.fail(site, "BorrowField shape changed after static verification")
       }
-      self.establish_exact_object_shape(site, body, state, source, shape)
+      self.require_exact_object_shape(site, state, source, shape)
       self.write_borrowed_projection(
         site,
         body,
@@ -1065,7 +1045,7 @@ fn BytecodeVerifier::apply_instruction_flow(
       guard self.image.object_shapes[shape.value] is Environment(environment) else {
         self.fail(site, "BorrowCapture shape changed after static verification")
       }
-      self.establish_exact_object_shape(site, body, state, source, shape)
+      self.require_exact_object_shape(site, state, source, shape)
       self.write_borrowed_projection(
         site,
         body,
@@ -1081,7 +1061,7 @@ fn BytecodeVerifier::apply_instruction_flow(
       guard self.image.object_shapes[shape.value] is Data(_) else {
         self.fail(site, "ConsumeFields shape changed after static verification")
       }
-      self.establish_exact_object_shape(site, body, state, source, shape)
+      self.require_exact_object_shape(site, state, source, shape)
       self.write_consumed_projections(
         site, body, state, source, shape, selections,
       )
@@ -1092,7 +1072,7 @@ fn BytecodeVerifier::apply_instruction_flow(
           site, "ConsumeCaptures shape changed after static verification",
         )
       }
-      self.establish_exact_object_shape(site, body, state, source, shape)
+      self.require_exact_object_shape(site, state, source, shape)
       self.write_consumed_projections(
         site, body, state, source, shape, selections,
       )
@@ -1153,8 +1133,8 @@ fn BytecodeVerifier::apply_instruction_flow(
       guard self.read_flow(site, state, source) is LiveOwned(_, ownership) else {
         self.fail(site, "unerasure source is not a live owner")
       }
-      let object_shape = state.object_shapes[source.value]
-      if object_shape is Some(shape) &&
+      let source_shape = state.object_shapes[source.value]
+      if source_shape is Some(shape) &&
         !self.kind_accepts_object_shape(
           body.slots[destination.value].kind,
           shape,
@@ -1169,7 +1149,14 @@ fn BytecodeVerifier::apply_instruction_flow(
       state.layout_recipes[source.value] = None
       state.tag_sources[source.value] = None
       self.write_transferred_owner(site, body, state, destination, ownership)
-      state.object_shapes[destination.value] = object_shape
+      state.object_shapes[destination.value] = match source_shape {
+        Some(shape) => Some(shape)
+        None =>
+          statically_known_object_shape(
+            self.image.object_shapes,
+            body.slots[destination.value].kind,
+          )
+      }
     }
     EraseUnit(destination) =>
       self.write_from_metadata(site, body, state, destination)
@@ -1273,10 +1260,9 @@ fn BytecodeVerifier::apply_trivial_instruction_flow(
 }
 
 ///|
-fn BytecodeVerifier::establish_exact_object_shape(
+fn BytecodeVerifier::require_exact_object_shape(
   self : BytecodeVerifier,
   site : BytecodeVerificationSite,
-  body : FunctionBody,
   state : FunctionFlowState,
   source : SlotId,
   expected : ObjectShapeId,
@@ -1289,25 +1275,11 @@ fn BytecodeVerifier::establish_exact_object_shape(
         site,
         "SlotId \{source.value} has ObjectShapeId \{actual.value}, expected ObjectShapeId \{expected.value}",
       )
-    None => {
-      if !self.kind_accepts_object_shape(
-          body.slots[source.value].kind,
-          expected,
-        ) {
-        self.fail(
-          site,
-          "SlotId \{source.value} cannot contain ObjectShapeId \{expected.value}",
-        )
-      }
-      let expected_layout = match self.image.object_shapes[expected.value] {
-        Data(_) => LayoutRecipe::Data(expected)
-        Environment(_) => LayoutRecipe::Environment(expected)
-      }
-      if !self.image.layouts.contains(expected_layout) {
-        self.fail(site, "runtime shape validation requires a canonical layout")
-      }
-      state.object_shapes[source.value] = Some(expected)
-    }
+    None =>
+      self.fail(
+        site,
+        "SlotId \{source.value} has no proven ObjectShapeId \{expected.value}",
+      )
   }
 }
 
@@ -1347,7 +1319,8 @@ fn BytecodeVerifier::write_borrowed_projection(
     }
   }
   self.write_flow(site, body, state, result.value_destination, value)
-  state.object_shapes[result.value_destination.value] = self.initial_object_shape(
+  state.object_shapes[result.value_destination.value] = statically_known_object_shape(
+    self.image.object_shapes,
     schema.kind,
   )
 }
@@ -1382,7 +1355,8 @@ fn BytecodeVerifier::write_consumed_projections(
         member_index: selection.member_index,
       }),
     )
-    state.object_shapes[selection.result.value_destination.value] = self.initial_object_shape(
+    state.object_shapes[selection.result.value_destination.value] = statically_known_object_shape(
+      self.image.object_shapes,
       body.slots[selection.result.value_destination.value].kind,
     )
   }
@@ -1452,7 +1426,8 @@ fn BytecodeVerifier::borrow_global_flow(
         LiveBorrowed(cleanup, { root: GlobalRoot(global), projections: [] })
     },
   )
-  state.object_shapes[destination.value] = self.initial_object_shape(
+  state.object_shapes[destination.value] = statically_known_object_shape(
+    self.image.object_shapes,
     body.slots[destination.value].kind,
   )
 }

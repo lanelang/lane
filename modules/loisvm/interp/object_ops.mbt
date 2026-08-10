@@ -12,6 +12,31 @@ fn ExecutionInstance::resolve_layout_operand(
 }
 
 ///|
+fn ExecutionInstance::validate_unerased_object_shape(
+  self : ExecutionInstance,
+  frame : Frame,
+  destination : @bytecode.SlotId,
+  source : @bytecode.SlotId,
+) -> Unit raise ExecutionFailure {
+  guard @bytecode.statically_known_object_shape(
+      self.loaded.image.object_shapes,
+      frame.body.slots[destination.value].kind,
+    )
+    is Some(expected) else {
+    return
+  }
+  let reference = (frame.i64(source) & 0xFFFFFFFFL).to_int()
+  let actual = match self.heap.object(reference).payload {
+    Data(shape, _, _) => shape
+    Environment(shape, _, _) => shape
+    _ => raise Trap(detail="unerased object shape mismatch")
+  }
+  if actual != expected {
+    raise Trap(detail="unerased object shape mismatch")
+  }
+}
+
+///|
 fn ExecutionInstance::make_data(
   self : ExecutionInstance,
   frame : Frame,
@@ -93,19 +118,13 @@ fn ExecutionInstance::load_object_witness(
   ordinal : Int,
 ) -> Unit raise ExecutionFailure {
   let object = self.heap.object(frame.i32(source))
-  match object.payload {
-    Data(shape, witnesses, _) if shape == expected_shape =>
-      match self.loaded.image.object_shapes[shape.value] {
-        Data(_) => frame.write(destination, I32(witnesses[ordinal].value))
-        _ => raise InternalFailure(detail="Data object has Environment shape")
-      }
-    Environment(shape, witnesses, _) if shape == expected_shape =>
-      match self.loaded.image.object_shapes[shape.value] {
-        Environment(_) =>
-          frame.write(destination, I32(witnesses[ordinal].value))
-        _ => raise InternalFailure(detail="Environment object has Data shape")
-      }
-    _ => raise InternalFailure(detail="object witness shape mismatch")
+  match
+    (self.loaded.image.object_shapes[expected_shape.value], object.payload) {
+    (Data(_), Data(_, witnesses, _)) =>
+      frame.write(destination, I32(witnesses[ordinal].value))
+    (Environment(_), Environment(_, witnesses, _)) =>
+      frame.write(destination, I32(witnesses[ordinal].value))
+    _ => raise InternalFailure(detail="object witness shape kind mismatch")
   }
 }
 
@@ -150,26 +169,13 @@ fn ExecutionInstance::object_members(
   expected_shape : @bytecode.ObjectShapeId,
   environment~ : Bool,
 ) -> (Array[VMValue], Array[@bytecode.LayoutId], Array[@bytecode.MemberSchema]) raise ExecutionFailure {
-  match object.payload {
-    Data(shape, witnesses, values) if !environment && shape == expected_shape => {
-      let schemas = match self.loaded.image.object_shapes[shape.value] {
-        Data(data) => data.members
-        _ => raise InternalFailure(detail="Data object has wrong shape variant")
-      }
-      (values, witnesses, schemas)
-    }
-    Environment(shape, witnesses, values) if environment &&
-      shape == expected_shape => {
-      let schemas = match self.loaded.image.object_shapes[shape.value] {
-        Environment(environment) => environment.members
-        _ =>
-          raise InternalFailure(
-            detail="Environment object has wrong shape variant",
-          )
-      }
-      (values, witnesses, schemas)
-    }
-    _ => raise InternalFailure(detail="object projection shape mismatch")
+  match
+    (self.loaded.image.object_shapes[expected_shape.value], object.payload) {
+    (Data(data), Data(_, witnesses, values)) if !environment =>
+      (values, witnesses, data.members)
+    (Environment(schema), Environment(_, witnesses, values)) if environment =>
+      (values, witnesses, schema.members)
+    _ => raise InternalFailure(detail="object projection shape kind mismatch")
   }
 }
 

@@ -232,6 +232,31 @@ test "bytecode verifier owns every encoding-independent image invariant" {
 }
 
 ///|
+fn two_constructor_data_shapes() -> Array[ObjectShape] {
+  [
+    Data({
+      family: { value: 0 },
+      constructor_tag: 0,
+      stored_witness_count: 0,
+      members: [],
+    }),
+    Data({
+      family: { value: 0 },
+      constructor_tag: 1,
+      stored_witness_count: 0,
+      members: [
+        {
+          representation: I64,
+          cleanup: Trivial,
+          kind: ScalarValue,
+          witness_ordinal: None,
+        },
+      ],
+    }),
+  ]
+}
+
+///|
 test "bytecode verifier rejects wrong exact object shapes" {
   let body = verification_body(
     slots=[
@@ -254,27 +279,7 @@ test "bytecode verifier rejects wrong exact object shapes" {
     ..verification_image(body),
     data_family_count: 1,
     layouts: [Data({ value: 0 }), Data({ value: 1 })],
-    object_shapes: [
-      Data({
-        family: { value: 0 },
-        constructor_tag: 0,
-        stored_witness_count: 0,
-        members: [],
-      }),
-      Data({
-        family: { value: 0 },
-        constructor_tag: 1,
-        stored_witness_count: 0,
-        members: [
-          {
-            representation: I64,
-            cleanup: Trivial,
-            kind: ScalarValue,
-            witness_ordinal: None,
-          },
-        ],
-      }),
-    ],
+    object_shapes: two_constructor_data_shapes(),
   }
   assert_eq(
     verify_bytecode_image(image),
@@ -282,6 +287,204 @@ test "bytecode verifier rejects wrong exact object shapes" {
       InvalidBytecode(
         site=Instruction({ value: 1 }, { value: 0 }, 1),
         detail="SlotId 0 has ObjectShapeId 0, expected ObjectShapeId 1",
+      ),
+    ),
+  )
+}
+
+///|
+test "bytecode verifier rejects projections without exact shape proof" {
+  let body = {
+    ..verification_body(
+      slots=[
+        verification_slot(
+          I32,
+          cleanup=OwnedRef,
+          kind=Some(DataValue({ value: 0 })),
+        ),
+        verification_slot(I64),
+      ],
+      instructions=[
+        BorrowField({ value: 1 }, { value: 0 }, 0, {
+          value_destination: { value: 1 },
+          witness_destination: None,
+        }),
+      ],
+    ),
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }],
+    },
+  }
+  let image = {
+    ..verification_image(verification_body(), functions=[BytecodeBody(body)]),
+    data_family_count: 1,
+    layouts: [Data({ value: 0 }), Data({ value: 1 })],
+    object_shapes: two_constructor_data_shapes(),
+  }
+  assert_eq(
+    verify_bytecode_image(image),
+    Err(
+      InvalidBytecode(
+        site=Instruction({ value: 2 }, { value: 0 }, 0),
+        detail="SlotId 0 has no proven ObjectShapeId 1",
+      ),
+    ),
+  )
+}
+
+///|
+test "bytecode verifier refines exact shape in tag switch cases" {
+  let body : FunctionBody = {
+    slots: [
+      verification_slot(
+        I32,
+        cleanup=OwnedRef,
+        kind=Some(DataValue({ value: 0 })),
+      ),
+      verification_slot(I32),
+      verification_slot(I64),
+    ],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [LoadTag({ value: 1 }, { value: 0 })],
+        terminator: SwitchTag(
+          { value: 1 },
+          [
+            { target: { value: 1 }, arguments: [] },
+            { target: { value: 2 }, arguments: [] },
+          ],
+          { target: { value: 3 }, arguments: [] },
+        ),
+      },
+      {
+        parameters: [],
+        instructions: [Release({ value: 0 })],
+        terminator: Return(None),
+      },
+      {
+        parameters: [],
+        instructions: [
+          ConsumeFields({ value: 1 }, { value: 0 }, [
+            {
+              member_index: 0,
+              result: {
+                value_destination: { value: 2 },
+                witness_destination: None,
+              },
+            },
+          ]),
+        ],
+        terminator: Return(None),
+      },
+      {
+        parameters: [],
+        instructions: [Release({ value: 0 })],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let image = {
+    ..verification_image(verification_body(), functions=[BytecodeBody(body)]),
+    data_family_count: 1,
+    layouts: [Data({ value: 0 }), Data({ value: 1 })],
+    object_shapes: two_constructor_data_shapes(),
+  }
+  assert_eq(verify_bytecode_image(image), Ok(()))
+}
+
+///|
+test "bytecode verifier forgets different exact shapes at joins" {
+  let body : FunctionBody = {
+    slots: [
+      verification_slot(I32),
+      verification_slot(
+        I32,
+        cleanup=OwnedRef,
+        kind=Some(DataValue({ value: 0 })),
+      ),
+      verification_slot(
+        I32,
+        cleanup=OwnedRef,
+        kind=Some(DataValue({ value: 0 })),
+      ),
+      verification_slot(
+        I32,
+        cleanup=OwnedRef,
+        kind=Some(DataValue({ value: 0 })),
+      ),
+      verification_slot(I64),
+    ],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [],
+        terminator: BranchBool(
+          { value: 0 },
+          { target: { value: 1 }, arguments: [] },
+          { target: { value: 2 }, arguments: [] },
+        ),
+      },
+      {
+        parameters: [],
+        instructions: [
+          MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 1 }), [], []),
+        ],
+        terminator: Jump({ target: { value: 3 }, arguments: [{ value: 1 }] }),
+      },
+      {
+        parameters: [],
+        instructions: [
+          ConstI64({ value: 4 }, 0L),
+          MakeData({ value: 2 }, { value: 1 }, Immediate({ value: 2 }), [], [
+            { value: 4 },
+          ]),
+        ],
+        terminator: Jump({ target: { value: 3 }, arguments: [{ value: 2 }] }),
+      },
+      {
+        parameters: [{ value: 3 }],
+        instructions: [
+          ConsumeFields({ value: 1 }, { value: 3 }, [
+            {
+              member_index: 0,
+              result: {
+                value_destination: { value: 4 },
+                witness_destination: None,
+              },
+            },
+          ]),
+        ],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let image = {
+    ..verification_image(verification_body(), functions=[BytecodeBody(body)]),
+    data_family_count: 1,
+    layouts: [Data({ value: 0 }), Data({ value: 1 })],
+    object_shapes: two_constructor_data_shapes(),
+  }
+  assert_eq(
+    verify_bytecode_image(image),
+    Err(
+      InvalidBytecode(
+        site=Instruction({ value: 2 }, { value: 3 }, 0),
+        detail="SlotId 3 has no proven ObjectShapeId 1",
       ),
     ),
   )

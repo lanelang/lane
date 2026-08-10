@@ -358,3 +358,26 @@ pub(all) struct BytecodeImage {
   object_shapes : Array[ObjectShape]
   constants : Array[Bytes]
 } derive(Debug, Eq)
+
+///|
+pub fn statically_known_object_shape(
+  object_shapes : Array[ObjectShape],
+  kind : SemanticValueKind,
+) -> ObjectShapeId? {
+  match kind {
+    EnvironmentValue(shape) => Some(shape)
+    DataValue(family) => {
+      let mut found : ObjectShapeId? = None
+      for index, shape in object_shapes {
+        if shape is Data({ family: actual, .. }) && actual == family {
+          if found is Some(_) {
+            return None
+          }
+          found = Some({ value: index })
+        }
+      }
+      found
+    }
+    _ => None
+  }
+}

@@ -194,14 +194,14 @@ execution failures rather than valid alternate results.
 | --- | --- | --- |
 | `0x0D` | `MakeData(destination, shape, layout, witnesses, fields)` | `make_data`; borrows the layout and witnesses, consumes every field owner in declaration order, and creates an `I32 + OwnedRef` Data object. |
 | `0x0E` | `LoadTag(destination, source)` | `load_tag`; borrows a Data object and writes its shape constructor tag to an `I32 + Trivial` destination. |
-| `0x0F` | `BorrowField(shape, source, index, result)` | `borrow_field`; checks the Data shape, borrows one field without retaining it, and optionally writes its stored layout witness. |
+| `0x0F` | `BorrowField(shape, source, index, result)` | `borrow_field`; requires verifier-proven exact Data shape, borrows one field without retaining it, and optionally writes its stored layout witness. |
 | `0x10` | `ConsumeFields(shape, source, selections)` | `consume_fields`; obtains owning results for the selected Data fields, consumes and releases the source object, and releases unselected owned members with the object. |
 | `0x11` | `MakeEnv(destination, shape, layout, witnesses, captures)` | `make_env`; borrows the layout and witnesses, consumes every capture owner in schema order, and creates an `I32 + OwnedRef` Environment object. |
-| `0x12` | `BorrowCapture(shape, source, index, result)` | `borrow_capture`; checks the Environment shape, borrows one capture without retaining it, and optionally writes its stored layout witness. |
+| `0x12` | `BorrowCapture(shape, source, index, result)` | `borrow_capture`; requires verifier-proven exact Environment shape, borrows one capture without retaining it, and optionally writes its stored layout witness. |
 | `0x13` | `ConsumeCaptures(shape, source, selections)` | `consume_captures`; obtains owning results for the selected captures, consumes and releases the source environment, and releases unselected owned captures with it. |
-| `0x43` | `LoadObjectWitness(destination, shape, object, ordinal)` | `load_object_witness`; borrows a shape-compatible Data or Environment object and writes the selected stored `LayoutId` to an `I32 + Trivial` destination. |
+| `0x43` | `LoadObjectWitness(destination, shape, object, ordinal)` | `load_object_witness`; requires verifier-proven exact Data or Environment shape and writes the selected stored `LayoutId` to an `I32 + Trivial` destination. |
 
-Shapes, member indices, witness ordinals, field counts, capture counts, member representations, and optional projection-witness destinations must match the corresponding object-shape metadata. Every projected shape has one canonical layout recipe. The interpreter validates the object payload and the Wasm tier compares its header layout before using an exact member offset; tag loading validates the complete Data family. The verifier rejects images that cannot support those checks.
+Shapes, member indices, witness ordinals, field counts, capture counts, member representations, and optional projection-witness destinations must match the corresponding object-shape metadata. Every projected shape has one canonical layout recipe. Construction, exact static metadata, ownership transfer, checked unerasure, or a `SwitchTag` case must establish the exact shape before a projection. Projection execution then uses the verified member offset directly; it neither checks nor refines shape. `LoadTag` separately validates the complete Data family before reading its tag.
 
 ### Byte and ByteSequence
 
@@ -325,7 +325,7 @@ Erasure instructions are ownership transfers between natural representations and
 | Opcode | Constructor | Semantics |
 | --- | --- | --- |
 | `0x3B` | `EraseI32(destination, source)` | `erase_i32`; zero-extends the low 32 bits into an erased `I64` payload. |
-| `0x3C` | `UneraseI32(destination, source)` | `unerase_i32`; extracts the low 32 bits of an erased `I64` payload into `I32`. |
+| `0x3C` | `UneraseI32(destination, source)` | `unerase_i32`; extracts the low 32 bits of an erased `I64` payload into `I32`. When the destination semantic kind uniquely determines an object shape, execution validates that shape before transferring ownership. |
 | `0x3D` | `EraseI64(destination, source)` | `erase_i64`; transfers the unchanged 64-bit payload into erased form. |
 | `0x3E` | `UneraseI64(destination, source)` | `unerase_i64`; transfers the unchanged erased payload into natural `I64` form. |
 | `0x3F` | `EraseF64(destination, source)` | `erase_f64`; reinterprets the `F64` bit pattern as an erased `I64` payload. |

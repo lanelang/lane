@@ -162,12 +162,14 @@ _Avoid_: source type argument, owned metadata, dynamic typecase
 The zero-based canonical member schema whose Data variant includes constructor tag and fields and whose Environment variant includes captures without a tag, with stored-witness ordinals but no raw offsets or alignment fields.
 _Avoid_: runtime LayoutId, raw offset list, source-specific object layout
 
-**Runtime Object-Shape Guard**:
-The interpreter payload check and equivalent Wasm header-layout check performed
-before an exact-shape witness or member projection. It turns an erased value's
-semantic family or environment category into exact ObjectShapeId proof; tag
-loading similarly validates the complete Data family before reading its tag.
-_Avoid_: unchecked field offset, destination-derived shape, backend-only trust
+**Checked Object Unerasure**:
+The `UneraseI32` boundary that validates an erased reference against the exact
+ObjectShapeId uniquely determined by its destination semantic kind before
+transferring ownership. The verifier may use that instruction to establish
+exact shape provenance. Member and witness projections consume this provenance
+without adding another runtime guard. Tag loading separately validates the
+complete Data family before reading its tag.
+_Avoid_: projection-owned shape refinement, unchecked erasure cast, backend-only trust
 
 **Layout Operand**:
 The five-byte operand selecting Immediate `0x01` with nonzero LayoutId or Witness `0x02` with a trivial `I32` witness SlotId.
@@ -200,9 +202,11 @@ _Avoid_: full Lane type, source type argument, dynamic typecase
 **Representation Erasure Bridge**:
 A compiler-internal consuming operation between a natural representation and
 erased `I64` that transfers ownership and any proven ObjectShapeId while
-changing width, bit interpretation, or cleanup interpretation. Unerasure may
-not derive object provenance from its destination metadata.
-_Avoid_: source conversion, generic heap box, runtime typecase
+changing width, bit interpretation, or cleanup interpretation. Unerasure
+preserves compatible provenance when present. When the source has no exact
+provenance and the destination semantic kind uniquely determines a shape,
+`UneraseI32` performs Checked Object Unerasure before establishing that proof.
+_Avoid_: source conversion, generic heap box, projection-time typecase
 
 ### Calls And Closures
 
@@ -219,9 +223,10 @@ _Avoid_: closure unpack instruction, direct immediate target, closure-only call,
 
 **Callable ABI**:
 The canonical execution signature of a callable: layout-witness count, ordered
-parameter representation and cleanup pairs, and complete result ABI. Functions,
-runtime imports, indirect call sites, interpreter validation, and Wasm function
-types all project through this one description.
+parameter value ABIs, and complete result ABI. Each value ABI includes
+representation, cleanup, and semantic value kind. Functions, runtime imports,
+indirect call sites, interpreter validation, and Wasm function types all
+project through this one description.
 _Avoid_: source function type, call-site slot reconstruction, arity-only signature
 
 **Callable ABI ID**:

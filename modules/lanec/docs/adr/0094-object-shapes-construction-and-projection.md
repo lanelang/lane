@@ -24,7 +24,7 @@ A projection result contains value destination `SlotId:u32le` followed by `witne
 
 `borrow_capture(shape, environment, capture_index, result)` preserves environment ownership and returns a block-local borrowed result using the same representation and witness conventions as borrowing data projection. `consume_captures(shape, environment, selected_results)` consumes one environment owner and returns a possibly empty strictly increasing sequence of selected captures as owned results using unique-move or shared-retain execution. Data-field indices and environment-capture indices are local to their selected shape variants.
 
-Trusted lowering guarantees that constructor selection has occurred before data-field projection and that an object's runtime LayoutId is compatible with the supplied shape. Bytecode object instructions never expose wasm32 byte offsets, raw loads, or raw stores.
+Verified bytecode guarantees an exact ObjectShapeId before every member or stored-witness projection. Construction and exact static metadata establish it directly; ownership transfer preserves it; `load_tag` plus a `switch_tag` case refines a Data family; and checked `unerase_i32` validates a uniquely determined object shape when erased flow carries no exact proof. Control-flow joins retain the proof only when all incoming shapes agree. Projection execution therefore uses its static offset directly and does not perform another shape check. Bytecode object instructions never expose wasm32 byte offsets, raw loads, or raw stores.
 
 Consequences:
 

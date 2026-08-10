@@ -246,11 +246,8 @@ fn compile_instruction(
       ])
       result
     }
-    LoadObjectWitness(destination, shape, object, ordinal) => {
-      let result = compile_object_shape_guard(
-        parameter_count, static_image, object, shape,
-      )
-      result.append([
+    LoadObjectWitness(destination, shape, object, ordinal) =>
+      [
         LocalGet(slot_local(parameter_count, object)),
         I32Load(
           0,
@@ -258,9 +255,7 @@ fn compile_instruction(
           (static_image.shape_layouts[shape.value].witness_base + ordinal * 4).to_int64(),
         ),
         LocalSet(slot_local(parameter_count, destination)),
-      ])
-      result
-    }
+      ]
     BorrowField(shape, object, field_index, result) =>
       compile_projection(
         parameter_count, static_image, shape, object, field_index, result,
@@ -532,15 +527,22 @@ fn compile_instruction(
         source,
         [I64ExtendI32U],
       )
-    UneraseI32(destination, source) =>
-      compile_erasure_transfer(
-        parameter_count,
-        live_base,
-        slots,
-        destination,
-        source,
-        [I32WrapI64],
+    UneraseI32(destination, source) => {
+      let result = compile_unerasure_shape_guard(
+        parameter_count, static_image, slots, destination, source,
       )
+      result.append(
+        compile_erasure_transfer(
+          parameter_count,
+          live_base,
+          slots,
+          destination,
+          source,
+          [I32WrapI64],
+        ),
+      )
+      result
+    }
     EraseI64(destination, source) | UneraseI64(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(slot_local(parameter_count, source)),
@@ -694,12 +696,10 @@ fn compile_consuming_projection(
     Data(data_shape) => data_shape.members
     Environment(environment_shape) => environment_shape.members
   }
-  let instructions = compile_object_shape_guard(
-    parameter_count, static_image, object, shape,
-  )
+  let instructions : Array[@wasm_types.Instruction] = []
   for selection in selections {
     instructions.append(
-      compile_projection_unchecked(
+      compile_projection(
         parameter_count,
         static_image,
         shape,
@@ -838,26 +838,6 @@ fn compile_projection(
   member_index : Int,
   result : @bytecode.ProjectionResult,
 ) -> Array[@wasm_types.Instruction] {
-  let instructions = compile_object_shape_guard(
-    parameter_count, static_image, object, shape,
-  )
-  instructions.append(
-    compile_projection_unchecked(
-      parameter_count, static_image, shape, object, member_index, result,
-    ),
-  )
-  instructions
-}
-
-///|
-fn compile_projection_unchecked(
-  parameter_count : Int,
-  static_image : StaticImage,
-  shape : @bytecode.ObjectShapeId,
-  object : @bytecode.SlotId,
-  member_index : Int,
-  result : @bytecode.ProjectionResult,
-) -> Array[@wasm_types.Instruction] {
   let shape_layout = static_image.shape_layouts[shape.value]
   let schema = match static_image.object_shapes[shape.value] {
     Data(data_shape) => data_shape.members[member_index]
@@ -889,14 +869,23 @@ fn compile_projection_unchecked(
 }
 
 ///|
-fn compile_object_shape_guard(
+fn compile_unerasure_shape_guard(
   parameter_count : Int,
   static_image : StaticImage,
-  object : @bytecode.SlotId,
-  shape : @bytecode.ObjectShapeId,
+  slots : Array[@bytecode.SlotMetadata],
+  destination : @bytecode.SlotId,
+  source : @bytecode.SlotId,
 ) -> Array[@wasm_types.Instruction] {
+  guard @bytecode.statically_known_object_shape(
+      static_image.object_shapes,
+      slots[destination.value].kind,
+    )
+    is Some(shape) else {
+    return []
+  }
   [
-    LocalGet(slot_local(parameter_count, object)),
+    LocalGet(slot_local(parameter_count, source)),
+    I32WrapI64,
     I32Load(0, 2, 4L),
     I32Const(static_image.shape_layout_ids[shape.value]),
     I32Ne,

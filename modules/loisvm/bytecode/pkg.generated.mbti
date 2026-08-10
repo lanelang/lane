@@ -15,6 +15,8 @@ pub fn bytecode_image_to_disassembly(BytecodeImage) -> String
 
 pub fn parse_bytecode_image_binary(Bytes) -> Result[BytecodeImage, BytecodeDecodeError]
 
+pub fn statically_known_object_shape(Array[ObjectShape], SemanticValueKind) -> ObjectShapeId?
+
 pub fn unchecked_bytecode_image_to_binary(BytecodeImage) -> Bytes
 
 pub fn verify_bytecode_image(BytecodeImage) -> Result[Unit, BytecodeVerificationError]
