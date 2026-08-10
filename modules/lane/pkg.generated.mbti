@@ -20,7 +20,7 @@ type HostFileErrorReason derive(Eq, @debug.Debug)
 
 type LaneCommand
 
-type LaneCommandOutcome
+type LaneCommandOutcome derive(@debug.Debug)
 
 // Type aliases
 

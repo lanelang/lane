@@ -78,7 +78,7 @@ pub struct CompilerDiagnosticSources {
   database : @source.SourceDatabase
   source_ids : Array[String]
   diagnostic_ids : Array[@core.SourceId]
-}
+} derive(@debug.Debug)
 pub fn CompilerDiagnosticSources::CompilerDiagnosticSources() -> Self
 pub fn CompilerDiagnosticSources::add(Self, String, String, String?) -> Unit
 pub fn CompilerDiagnosticSources::find(Self, String) -> @core.SourceId?

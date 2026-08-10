@@ -248,9 +248,20 @@ async test "run executes schema 2 top-level initialization" {
       #|}
     ),
   )
-  let outcome = lane_run(source, "main", [], [])
+  let default_outcome = lane_run(source, "main", [], [], no_basic=true)
+  let interpreter_outcome = lane_run(
+    source,
+    "main",
+    [],
+    [],
+    no_basic=true,
+    no_jit=true,
+  )
   cleanup_library_fixture(workspace)
-  assert_true(outcome is Succeeded)
+  debug_inspect(
+    (default_outcome, interpreter_outcome),
+    content="(Succeeded, Succeeded)",
+  )
 }
 
 ///|

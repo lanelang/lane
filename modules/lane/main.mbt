@@ -11,7 +11,7 @@ enum LaneCommandOutcome {
     sources~ : CompilerDiagnosticSources,
     success~ : Bool
   )
-}
+} derive(Debug)
 
 ///|
 async fn main {

@@ -3,7 +3,7 @@ pub struct CompilerDiagnosticSources {
   database : @diag_source.SourceDatabase
   source_ids : Array[String]
   diagnostic_ids : Array[@diag_core.SourceId]
-}
+} derive(Debug)
 
 ///|
 pub fn CompilerDiagnosticSources::CompilerDiagnosticSources() -> CompilerDiagnosticSources {
