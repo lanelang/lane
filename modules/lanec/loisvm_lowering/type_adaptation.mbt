@@ -635,16 +635,16 @@ fn ImageLowerer::lower_callable_adapter(
       call_witnesses.push(lowerer.find_witness(parameter))
     }
   }
-  if self.types_definitionally_equal(source_result_type, target_result_type) {
-    if self.result_abi(source_result_type) is Never {
-      lowerer.terminate(
-        CallNeverValue(source_callable, call_witnesses, source_arguments),
-      )
-    } else {
-      lowerer.terminate(
-        TailCallValue(source_callable, call_witnesses, source_arguments),
-      )
-    }
+  if self.result_abi(source_result_type) is Never {
+    lowerer.terminate(
+      CallNeverValue(source_callable, call_witnesses, source_arguments),
+    )
+  } else if self.types_definitionally_equal(
+      source_result_type, target_result_type,
+    ) {
+    lowerer.terminate(
+      TailCallValue(source_callable, call_witnesses, source_arguments),
+    )
   } else {
     let source_result = lowerer.fresh_optional_slot(source_result_type)
     lowerer.emit(
@@ -663,7 +663,7 @@ fn ImageLowerer::lower_callable_adapter(
     )
     lowerer.terminate(
       match result {
-        Never => abort("non-returning adapter call must terminate the block")
+        Never => abort("returning adapter call produced no result")
         Unit => Return(None)
         Slot(slot, _) => Return(Some(slot))
         _ =>

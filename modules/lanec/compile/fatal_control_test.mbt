@@ -90,3 +90,19 @@ test "Void elimination gives fatal calls unrelated explicit result types" {
   )
   assert_true(outcome is Succeeded(_))
 }
+
+///|
+test "a Void-returning callable adapter terminates without materializing a result" {
+  let outcome = compile_source(
+    (
+      #|module Main
+      #|pub enum Void {}
+      #|fn identity(value : Void) -> Void { value }
+      #|fn[T] consume(_function : (T) -> T) -> Unit { () }
+      #|pub fn answer() -> Unit {
+      #|  consume[Void](identity)
+      #|}
+    ),
+  )
+  assert_true(outcome is Succeeded(_))
+}
