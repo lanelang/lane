@@ -2,8 +2,9 @@
 fn effect_conformance_basic_io() -> String {
   (
     #|module Basic.Io
+    #|pub enum Void {}
     #|pub let println : (String) -> Unit ! Io = extern("println")
-    #|pub let panic : (String) -> Unit ! Io = extern("panic")
+    #|pub let panic : (String) -> Void ! Io = builtin("%panic")
   )
 }
 
@@ -445,17 +446,6 @@ fn effect_conformance_failing_registry(
 }
 
 ///|
-fn effect_conformance_fatal_registry(
-  output : Array[String],
-) -> @loisvm_runtime.RuntimeRegistry {
-  let registry = effect_conformance_registry(output)
-  registry.register(
-    @loisvm_runtime.RuntimeBinding::fatal_string(symbol="panic"),
-  )
-  registry
-}
-
-///|
 fn run_effect_conformance_interpreter_failure(
   image : @loisvm_bytecode.BytecodeImage,
   registry : @loisvm_runtime.RuntimeRegistry,
@@ -568,18 +558,50 @@ test "statement-position panic is fatal and does not continue on either backend"
   let interpreter_output : Array[String] = []
   let interpreter = run_effect_conformance_interpreter_failure(
     image,
-    effect_conformance_fatal_registry(interpreter_output),
+    effect_conformance_registry(interpreter_output),
   )
   let wasm_output : Array[String] = []
   let wasm = run_effect_conformance_wasm_failure(
     image,
-    effect_conformance_fatal_registry(wasm_output),
+    effect_conformance_registry(wasm_output),
   )
   debug_inspect(
     (interpreter, interpreter_output, wasm, wasm_output),
     content=(
       #|(Err(Fatal(message="boom")), [], Err(Fatal(message="boom")), [])
     ),
+  )
+}
+
+///|
+test "first-class panic preserves fatal control on either backend" {
+  let image = compile_effect_conformance_image(
+    (
+      #|module Main
+      #|import Basic.Io.*
+      #|fn invoke(abort : (String) -> Void ! Io) -> Unit ! Io {
+      #|  abort("forwarded")
+      #|  ()
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  invoke(panic)
+      #|  println("after")
+      #|}
+    ),
+  )
+  let interpreter_output : Array[String] = []
+  let interpreter = run_effect_conformance_interpreter_failure(
+    image,
+    effect_conformance_registry(interpreter_output),
+  )
+  let wasm_output : Array[String] = []
+  let wasm = run_effect_conformance_wasm_failure(
+    image,
+    effect_conformance_registry(wasm_output),
+  )
+  assert_eq(
+    (interpreter, interpreter_output, wasm, wasm_output),
+    (Err(Fatal(message="forwarded")), [], Err(Fatal(message="forwarded")), []),
   )
 }
 

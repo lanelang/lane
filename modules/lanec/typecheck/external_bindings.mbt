@@ -9,6 +9,24 @@ fn SemanticChecker::check_compiler_intrinsic(
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return undetermined_checked_expression(Error)
   }
+  if intrinsic.signature() is NeverFunction(_) {
+    match self.validate_fatal_builtin_type(expected, loc) {
+      Ok(_) =>
+        return checked_expression(
+          CompilerIntrinsic(intrinsic~, type_=expected, loc~),
+          expected,
+        ).with_expectation_match(MatchesExpectation)
+      Err(restriction) => {
+        self.diagnostics.push({
+          kind: InvalidFatalBuiltinType(name~, type_=expected, restriction~),
+          loc,
+        })
+        return checked_expression(ErrorRecovery(type_=expected, loc~), expected).with_expectation_match(
+          MismatchesExpectation,
+        )
+      }
+    }
+  }
   let actual = compiler_intrinsic_type(intrinsic)
   let synthesis = checked_expression(
     CompilerIntrinsic(intrinsic~, type_=actual, loc~),
@@ -43,6 +61,10 @@ fn SemanticChecker::synthesize_compiler_intrinsic(
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return checked_expression_none_reported(Error)
   }
+  if intrinsic.signature() is NeverFunction(_) {
+    self.diagnostics.push({ kind: BuiltinNeedsExpectedType(name~), loc })
+    return checked_expression_none_reported(Error)
+  }
   let type_ = compiler_intrinsic_type(intrinsic)
   checked_expression(CompilerIntrinsic(intrinsic~, type_~, loc~), type_)
 }
@@ -57,7 +79,52 @@ fn compiler_intrinsic_type(intrinsic : @abi.Intrinsic) -> @types.Type {
         Primitive(intrinsic_primitive_type(result)),
         Empty,
       )
+    NeverFunction(_) => abort("fatal builtin type requires an annotation")
   }
+}
+
+///|
+fn SemanticChecker::validate_fatal_builtin_type(
+  self : SemanticChecker,
+  type_ : @types.Type,
+  loc : SourceSpan,
+) -> Result[Unit, FatalBuiltinTypeRestriction] {
+  match type_ {
+    Forall(_) | TypeLambda(_) => Err(MonomorphicRequired)
+    Function(parameters, result, effect) => {
+      if parameters != [Primitive(String)] {
+        return Err(StringParameterRequired)
+      }
+      guard self.is_uninhabited_result_type(result, loc) else {
+        return Err(UninhabitedResultRequired)
+      }
+      if effect.canonicalize() == Io {
+        Ok(())
+      } else {
+        Err(IoEffectRequired)
+      }
+    }
+    _ => Err(FunctionRequired)
+  }
+}
+
+///|
+fn SemanticChecker::is_uninhabited_result_type(
+  self : SemanticChecker,
+  type_ : @types.Type,
+  loc : SourceSpan,
+) -> Bool {
+  let normalized = normalize_type_or_error(
+    self.diagnostics,
+    type_,
+    loc,
+    context="uninhabited result",
+  )
+  let owner = match normalized {
+    Constructor(owner) | Apply(Constructor(owner), _) => owner
+    _ => return false
+  }
+  self.declarations.checked_enum(owner) is Some({ variants: [], .. })
 }
 
 ///|

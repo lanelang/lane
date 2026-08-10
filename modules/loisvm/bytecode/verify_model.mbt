@@ -591,7 +591,7 @@ fn result_shape(
   result : ResultAbi,
 ) -> (Representation, Cleanup, SemanticValueKind)? {
   match result {
-    Unit => None
+    Unit | Never => None
     Value(representation, cleanup, kind) =>
       Some((representation, cleanup, kind))
   }

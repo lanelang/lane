@@ -16,6 +16,7 @@ fn plan_internal_runtime_imports(
 ) -> InternalRuntimeImportPlan {
   let mut uses_f32 = false
   let mut uses_f64 = false
+  let mut uses_fatal = false
   for entry in image.functions {
     if entry is BytecodeBody(body) {
       for block in body.blocks {
@@ -26,6 +27,9 @@ fn plan_internal_runtime_imports(
             _ => ()
           }
         }
+        if block.terminator is Fatal(_) {
+          uses_fatal = true
+        }
       }
     }
   }
@@ -34,6 +38,7 @@ fn plan_internal_runtime_imports(
     let required = match function {
       F32ToString => uses_f32
       F64ToString => uses_f64
+      FatalString => uses_fatal
       HostObjectRelease => host_objects_enabled
     }
     if required {

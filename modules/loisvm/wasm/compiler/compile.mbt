@@ -191,7 +191,7 @@ fn wasm_function_results(
   result : @bytecode.ResultAbi,
 ) -> Array[@wasm_types.ValueType] {
   match result {
-    Unit => []
+    Unit | Never => []
     Value(representation, _, _) => [wasm_representation(representation)]
   }
 }

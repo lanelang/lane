@@ -106,6 +106,10 @@ fn ImageLowerer::plan_intrinsic(
   external : @buslane_lowering.BuslaneBuiltinExternal,
 ) -> Unit {
   match external.intrinsic {
+    Panic => {
+      let function = self.intrinsic_wrapper(Panic, external.type_)
+      self.globals.push({ value, lowered: Function(function, external.type_) })
+    }
     F32Inf =>
       self.globals.push({
         value,
@@ -393,6 +397,31 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   )
   if !type_parameters.is_empty() {
     raise UnsupportedIntrinsic(name=plan.intrinsic.name())
+  }
+  if plan.intrinsic is Panic {
+    guard parameter_types is [Primitive(String)] &&
+      self.result_abi(result_type) is Never else {
+      raise UnsupportedIntrinsic(name=plan.intrinsic.name())
+    }
+    let lowerer : FunctionLowerer = {
+      image: self,
+      values: [],
+      blocks: [{ parameters: [], instructions: [], terminator: None }],
+      current_block: 0,
+      bindings: [],
+      temps: [],
+      environment: None,
+      witnesses: [],
+      substitutions: TypeSubstitution(),
+    }
+    let message = lowerer.fresh_slot(Primitive(String))
+    lowerer.terminate(Fatal(message))
+    return {
+      values: lowerer.values,
+      inputs: { environment: None, witnesses: [], user_parameters: [message] },
+      result: Never,
+      blocks: [{ parameters: [], instructions: [], terminator: Fatal(message) }],
+    }
   }
   let lowerer : FunctionLowerer = {
     image: self,

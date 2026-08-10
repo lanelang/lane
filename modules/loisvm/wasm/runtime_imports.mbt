@@ -74,10 +74,6 @@ fn invoke_runtime_binding(
     }
   }
   let result = try binding.call(runtime_context, arguments) catch {
-    Fatal(message~) => {
-      record_runtime_failure(caller, failure, Fatal(message~))
-      return default_runtime_result(binding.result())
-    }
     Failure(message~) => {
       record_runtime_failure(
         caller,

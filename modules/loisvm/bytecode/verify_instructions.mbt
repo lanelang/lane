@@ -609,6 +609,9 @@ fn BytecodeVerifier::verify_call_abi(
   destination : SlotId?,
   tail_result~ : ResultAbi?,
 ) -> Unit raise BytecodeVerificationError {
+  if tail_result is None && abi.result is Never {
+    self.fail(site, "Never call must use a terminating call form")
+  }
   if witnesses.length() != abi.witnesses.length() {
     self.fail(site, "call has the wrong witness count")
   }

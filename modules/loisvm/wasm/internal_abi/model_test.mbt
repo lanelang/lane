@@ -18,6 +18,11 @@ test "internal runtime ABI has one complete declaration table" {
       #|  ),
       #|  (
       #|    "lane.runtime.internal.v1",
+      #|    "fatal_string",
+      #|    { params: [I32, I32], results: [] },
+      #|  ),
+      #|  (
+      #|    "lane.runtime.internal.v1",
       #|    "host_object.release",
       #|    { params: [I64], results: [] },
       #|  ),

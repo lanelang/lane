@@ -340,6 +340,11 @@ fn render_terminator(terminator : Terminator) -> String {
       "tail_call_direct \{render_function(function)} env=\{render_optional_value(environment)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
     TailCallValue(callable, witnesses, arguments) =>
       "tail_call_value \{render_value(callable)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
+    CallNeverDirect(function, environment, witnesses, arguments) =>
+      "call_never_direct \{render_function(function)} env=\{render_optional_value(environment)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
+    CallNeverValue(callable, witnesses, arguments) =>
+      "call_never_value \{render_value(callable)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
+    Fatal(message) => "fatal \{render_value(message)}"
     Unreachable => "unreachable"
   }
 }
@@ -506,6 +511,7 @@ fn render_result(result : @bytecode.ResultAbi) -> String {
     Unit => "unit"
     Value(representation, cleanup, kind) =>
       "\{render_representation(representation)} + \{render_cleanup(cleanup)} + \{Repr(kind)}"
+    Never => "never"
   }
 }
 

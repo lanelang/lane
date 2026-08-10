@@ -91,11 +91,11 @@ ByteSequences, Data families, exact Environment shapes, external opaque
 references, and erased values. Equal bits and cleanup do not make different semantic kinds
 interchangeable.
 
-Every function result has one `ResultAbi`: `Unit` occupies no slot, while
-`Value(representation, cleanup, kind)` records physical representation,
-ownership cleanup, and semantic category. A return source, direct-call
-destination, or statically known tail-call target must match the complete
-result ABI.
+Every function result has one `ResultAbi`: `Unit` returns normally without a
+slot, `Value(representation, cleanup, kind)` returns normally with the complete
+value ABI, and `Never` cannot return normally. `Never` has no slot, layout,
+cleanup, or semantic value kind. A return source, direct-call destination, or
+statically known terminating-call target must match the complete result ABI.
 
 | Representation | Runtime contents |
 | --- | --- |
@@ -156,13 +156,14 @@ assembly operation.
 Environments, evidence inputs, callable values, and user arguments are
 transferred into calls. Transferring a trivial `LayoutValue` is physically a
 read; transferring an owned layout constructor moves or retains its callable
-owner. A non-`Unit` call must provide a destination matching the callee's
-complete result ABI; a `Unit` call must omit the destination. `RuntimeImport` parameters of
+owner. A `Value` call must provide a destination matching the callee's complete
+result ABI; a `Unit` call omits the destination; and a `Never` call must be a
+terminating direct or indirect call with no destination. `RuntimeImport` parameters of
 kind `Unit` are zero-width and do not consume an argument slot.
 
 ## Instruction encoding
 
-Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstI32`, `ConstChar`, and `ConstF32` use little-endian 32-bit payloads; `ConstI64` and `ConstF64` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements. A function result ABI uses tag `0x01` for `Unit`, or tag `0x02` followed by representation, cleanup, and semantic-kind tags for `Value`.
+Every ordinary instruction begins with the listed `u8` opcode. Operands follow in constructor order. IDs and collection lengths use little-endian `u32`; `ConstI32`, `ConstChar`, and `ConstF32` use little-endian 32-bit payloads; `ConstI64` and `ConstF64` use little-endian 64-bit payloads; an optional slot uses zero for `None` and `slot.value + 1` for `Some`; an array uses a `u32` count followed by its elements. A function result ABI uses tag `0x01` for `Unit`, tag `0x02` followed by representation, cleanup, and semantic-kind tags for `Value`, or tag `0x03` for `Never`.
 
 The constructor spelling is the public MoonBit API. The lowercase spelling shown in descriptions is the human-readable disassembly name.
 
@@ -373,6 +374,9 @@ Every terminator begins with the listed `u8` tag. Edge operands encode a target 
 | `0x05` | `TailCallDirect(function, environment, witnesses, arguments)` | Replaces the current frame with a direct call, transferring the optional environment, evidence inputs, and arguments while preserving the current return destination. |
 | `0x06` | `TailCallValue(callable, abi, witnesses, arguments)` | Validates the packed target against `abi`, then replaces the current frame with a callable-value call, transferring the callable, evidence inputs, and arguments while preserving the current return destination. |
 | `0x07` | `Unreachable` | Traps if execution reaches the terminator. |
+| `0x08` | `Fatal(message)` | Consumes one owned String, records `ExecutionError::Fatal`, performs fatal cleanup, and has no successor. |
+| `0x09` | `CallNeverDirect(function, environment, witnesses, arguments)` | Transfers the call inputs to a direct callable whose result ABI is exactly `Never`; it has no destination or normal successor. |
+| `0x0A` | `CallNeverValue(callable, abi, witnesses, arguments)` | Validates that the dynamic callable and call-site ABI both result in `Never`, transfers the call inputs, and has no destination or normal successor. |
 
 Edge arguments are logical transfers. Their count and representations must match the target block parameters exactly. Any owned value not transferred along the selected edge must already have been released.
 
@@ -398,7 +402,7 @@ borrow is rejected when a later read cannot find every possible root in a live
 owner. This provenance is verifier state only; it does not change the serialized
 slot or instruction format.
 
-Use `bytecode_image_to_disassembly` for human inspection and `bytecode_image_to_binary` plus `parse_bytecode_image_binary` for persistence. The binary format has no independent compatibility version; compatibility belongs to the enclosing Lane linked-program artifact.
+Use `bytecode_image_to_disassembly` for human inspection and `bytecode_image_to_binary` plus `parse_bytecode_image_binary` for persistence. The binary format has no independent compatibility version; compatibility belongs to the enclosing Lane linked-program artifact, whose schema was advanced when `Never` and `Fatal` were added.
 
 ## Development
 

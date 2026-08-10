@@ -92,6 +92,7 @@ pub(all) struct GlobalMetadata {
 pub(all) enum ResultAbi {
   Unit
   Value(Representation, Cleanup, SemanticValueKind)
+  Never
 } derive(Debug, Eq)
 
 ///|
@@ -322,6 +323,9 @@ pub(all) enum Terminator {
   Return(SlotId?)
   TailCallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId])
   TailCallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId])
+  CallNeverDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId])
+  CallNeverValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId])
+  Fatal(SlotId)
   Unreachable
 } derive(Debug, Eq)
 

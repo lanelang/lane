@@ -59,7 +59,7 @@ test "linked program inspection delegates to LoisVM" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 12
+      #|schema: 13
       #|
       #|LoisVM bytecode
       #|entry: f1
@@ -226,7 +226,7 @@ test "linked program roundtrips and inspects instance globals" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 12
+      #|schema: 13
       #|
       #|LoisVM bytecode
       #|entry: f2

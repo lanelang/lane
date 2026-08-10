@@ -1,63 +1,27 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Statement-oriented source panic
 
-Lane's initial fatal source operation is deliberately statement-oriented:
+This ADR recorded Lane's first, Unit-returning runtime-import panic contract.
+It is superseded by [Void-returning fatal control](../fatal-control-rfc.md).
+
+The implemented contract is compiler-owned:
 
 ```lane
-pub let panic : (String) -> Unit ! Io = extern("panic")
+pub let panic : (String) -> Void ! Io = builtin("%panic")
 ```
 
-`Unit` is the direct runtime-import ABI result carrier, not a claim that a
-conforming `panic` invocation returns normally. The host binding must terminate
-the current execution by raising the typed fatal outcome carrying the supplied
-message. The call therefore cannot be used as a bottom value to inhabit an
-arbitrary result type. A future `Never` type or polymorphic bottom operation
-would be a separate language change with its own typing, control-flow, ABI, and
-artifact decisions.
+`Void` remains an ordinary empty enum and callers use its explicit `absurd`
+eliminator when another source result is required. The execution ABI derives a
+result-only `Never` contract for empty-enum callable results, and `%panic`
+materializes a compiler-owned callable whose body ends in `Fatal(message)`.
+Neither the source operation nor its first-class callable form creates a
+Runtime Import or requires host registration.
 
-`Io` is required. It makes a discarded statement-position call observable and
-prevents effect-sensitive optimization from deleting, duplicating, merging, or
-reordering it. The compiler treats `panic` as an ordinary, structurally checked
-extern declaration. It does not infer fatality from the source name or runtime
-symbol and does not add a symbol-specific terminator or optimizer rule.
-
-## Runtime and embedding contract
-
-The public LoisVM host SDK provides `RuntimeBinding::fatal_string(symbol)`.
-This constructs the ordinary ABI `(String) -> Unit` at ABI major version 1 and
-an implementation that always raises `RuntimeImportFailure::Fatal` with the
-borrowed String as its message. An embedding chooses the symbol; the default
-Lane command registers this binding as `panic` alongside `println`.
-
-Both production backends report a failed call as
-`ExecutionError::Fatal(message)`, mark the execution instance terminal, and
-never execute its continuation. This classification is carried by the existing,
-sole out-of-band host-call failure channel; neither backend infers it from the
-runtime symbol. It is neither a Lane effect nor a recoverable `Result`, and it
-cannot be handled by source code. Ordinary host failures remain
-`RuntimeImportFailure::Failure` and become
-`ExecutionError::RuntimeImportFailure(symbol, message)`. Recoverable host errors
-remain deferred to the explicit host-ABI design tracked separately.
-
-Fatal host-call unwinding follows the existing cleanup contract. The
-interpreter and Wasm backend release owned values in live Lane frames and
-initialized roots as they unwind a cleanup-capable execution failure. Host
-Object finalization remains best effort under abnormal termination as specified
-by ADR 0001: fatal execution does not promise a sweep of every outstanding host
-resource, and deterministic cleanup still requires an explicit effectful API.
-
-## Compatibility and consequences
-
-The linked program contains an ordinary String-to-Unit Runtime Import. No
-Buslane, LoisVM bytecode, linked-artifact schema, decoder, or callable ABI
-version changes. Runtime linking continues to reject missing or incompatible
-bindings before execution.
-
-This smaller contract intentionally favors an honest, complete implementation
-over a partial bottom-type feature. It supports fatal statements such as
-assertion failure and unreachable test paths. Code needing a value-producing
-failure must model that failure with existing typed control flow rather than
-pretend that `Unit` is bottom.
+Interpreter and Wasm execution preserve the existing
+`ExecutionError::Fatal(message)` public outcome and cleanup contract. Ordinary
+host failures remain `ExecutionError::RuntimeImportFailure(symbol, message)`.
+The module-object and linked-program schemas were advanced for the new
+intrinsic and bytecode forms.

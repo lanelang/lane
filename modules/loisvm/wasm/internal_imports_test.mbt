@@ -78,7 +78,7 @@ test "compiler emits selected internal imports in canonical order" {
     (false, false, true, [HostObjectRelease]),
     (true, false, true, [F32ToString, HostObjectRelease]),
     (false, true, true, [F64ToString, HostObjectRelease]),
-    (true, true, true, @internal_abi.functions()),
+    (true, true, true, [F32ToString, F64ToString, HostObjectRelease]),
   ]
   let actual = []
   let expected = []
@@ -95,4 +95,36 @@ test "compiler emits selected internal imports in canonical order" {
     )
   }
   assert_eq(actual, expected)
+}
+
+///|
+test "Fatal selects the private fatal String import" {
+  let fatal_body : @bytecode.FunctionBody = {
+    slots: [wasm_bytes_owned_slot()],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Never,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [ConstString({ value: 0 }, { value: 0 })],
+        terminator: Fatal({ value: 0 }),
+      },
+    ],
+  }
+  let base = internal_import_image(
+    uses_f32=false,
+    uses_f64=false,
+    uses_host_objects=false,
+  )
+  let image = {
+    ..base,
+    callable_abis: base.callable_abis +
+    [{ witnesses: [], parameters: [], result: Never }],
+    functions: base.functions + [BytecodeBody(fatal_body)],
+    constants: [b"boom"],
+  }
+  let module_ = compile(image).unwrap()
+  assert_eq(internal_import_observation(module_), [
+    (@internal_abi.FatalString.name(), @internal_abi.FatalString.type_()),
+  ])
 }

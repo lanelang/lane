@@ -3,6 +3,9 @@ fn FunctionLowerer::fresh_optional_slot(
   self : FunctionLowerer,
   type_ : @buslane.Type,
 ) -> (@vmcfg.ValueId?, LocalValue) raise LoisvmLoweringError {
+  if self.image.result_abi(type_) is Never {
+    return (None, Never)
+  }
   if self.image.runtime_type(type_) is Concrete(Primitive(Unit)) {
     (None, Unit)
   } else {
@@ -292,6 +295,18 @@ fn ImageLowerer::result_abi(
   self : ImageLowerer,
   type_ : @buslane.Type,
 ) -> @bytecode.ResultAbi raise LoisvmLoweringError {
+  let normalized = type_.normalize() catch {
+    error => raise TypeNormalizationCompilerDefect(error)
+  }
+  let owner = match normalized {
+    Constructor(owner) | Apply(Constructor(owner), _) => Some(owner)
+    _ => None
+  }
+  if owner is Some(owner) &&
+    self.metadata.type_info(owner)
+    is Some({ flavor: Data, constructors: [], .. }) {
+    return Never
+  }
   match self.elaborate_runtime_representation(type_) {
     Unit => Unit
     Erased(_) => Value(I64, OwnedErased, ErasedValue)

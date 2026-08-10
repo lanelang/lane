@@ -16,6 +16,7 @@ pub(all) struct HostSignature {
 } derive(Eq, @debug.Debug)
 
 pub(all) enum Intrinsic {
+  Panic
   I64Add
   I64Sub
   I64Mul
@@ -84,6 +85,7 @@ pub fn Intrinsic::signature(Self) -> IntrinsicSignature
 pub(all) enum IntrinsicSignature {
   Value(IntrinsicValueKind)
   Function(parameters~ : Array[IntrinsicValueKind], result~ : IntrinsicValueKind)
+  NeverFunction(parameters~ : Array[IntrinsicValueKind])
 } derive(Eq, @debug.Debug)
 
 pub(all) enum IntrinsicValueKind {

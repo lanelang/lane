@@ -87,6 +87,7 @@ fn FunctionLowerer::lower_data_match(
   self.terminate(
     SwitchTag(tag, cases, { target: default_block, arguments: [] }),
   )
+  let mut has_normal_alternative = false
   for item in alternatives {
     let (
       block,
@@ -95,22 +96,30 @@ fn FunctionLowerer::lower_data_match(
       alternative,
       data_constructor,
     ) = item
-    self.lower_data_alternative(
-      block,
-      join_block,
-      match_.binder,
-      branch_scrutinee,
-      scrutinee_type,
-      data_constructor,
-      alternative,
-      branch_environment,
-      substitutions,
-    )
+    if self.lower_data_alternative(
+        block,
+        join_block,
+        match_.binder,
+        branch_scrutinee,
+        scrutinee_type,
+        data_constructor,
+        alternative,
+        branch_environment,
+        substitutions,
+      ) {
+      has_normal_alternative = true
+    }
   }
   self.enter_block(default_block)
   self.terminate(Unreachable)
-  self.enter_block(join_block)
-  join_value.1
+  if has_normal_alternative {
+    self.enter_block(join_block)
+    join_value.1
+  } else {
+    self.enter_block(join_block)
+    self.terminate(Unreachable)
+    Never
+  }
 }
 
 ///|
@@ -120,6 +129,9 @@ fn FunctionLowerer::lower_unreachable_match_result(
 ) -> LocalValue raise LoisvmLoweringError {
   self.terminate(Unreachable)
   let result = self.fresh_optional_slot(result_type)
+  if result.1 is Never {
+    return Never
+  }
   let parameters = match result.0 {
     Some(slot) => [slot]
     None => []
@@ -164,7 +176,7 @@ fn FunctionLowerer::lower_data_alternative(
   alternative : @anf.AnfAlternative,
   branch_environment : @vmcfg.ValueId?,
   substitutions : @buslane.TypeSubstitution,
-) -> Unit raise LoisvmLoweringError {
+) -> Bool raise LoisvmLoweringError {
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
   let witness_count = self.witnesses.length()
@@ -176,9 +188,10 @@ fn FunctionLowerer::lower_data_alternative(
     binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
   )
   let result = self.materialize_local(self.lower_expr(alternative.body))
-  let arguments = match result {
-    Unit => []
-    Slot(slot, _) => [slot]
+  let normal_arguments = match result {
+    Never => None
+    Unit => Some([])
+    Slot(slot, _) => Some([slot])
     Global(_)
     | RecursiveFunction(_, _, _)
     | TypeApplied(_, _)
@@ -187,11 +200,14 @@ fn FunctionLowerer::lower_data_alternative(
         detail="match alternative returns an unapplied callable",
       )
   }
-  self.terminate(Jump({ target: join, arguments }))
+  if normal_arguments is Some(arguments) {
+    self.terminate(Jump({ target: join, arguments }))
+  }
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
   self.substitutions = original_substitutions
   self.environment = original_environment
+  normal_arguments is Some(_)
 }
 
 ///|
@@ -318,7 +334,7 @@ fn FunctionLowerer::lower_bool_alternative(
   scrutinee : LocalValue,
   alternative : @anf.AnfAlternative,
   branch_environment : @vmcfg.ValueId?,
-) -> Unit raise LoisvmLoweringError {
+) -> Bool raise LoisvmLoweringError {
   if !alternative.type_binders.is_empty() ||
     !alternative.value_binders.is_empty() {
     raise UnsupportedExpression(detail="Bool alternatives cannot bind payloads")
@@ -330,9 +346,10 @@ fn FunctionLowerer::lower_bool_alternative(
   self.enter_branch_environment(original_environment, branch_environment)
   self.bindings.push({ value: binder, lowered: scrutinee })
   let result = self.materialize_local(self.lower_expr(alternative.body))
-  let arguments = match result {
-    Unit => []
-    Slot(slot, _) => [slot]
+  let normal_arguments = match result {
+    Never => None
+    Unit => Some([])
+    Slot(slot, _) => Some([slot])
     Global(_)
     | RecursiveFunction(_, _, _)
     | TypeApplied(_, _)
@@ -341,9 +358,12 @@ fn FunctionLowerer::lower_bool_alternative(
         detail="match alternative returns an unapplied callable",
       )
   }
-  self.terminate(Jump({ target: join, arguments }))
+  if normal_arguments is Some(arguments) {
+    self.terminate(Jump({ target: join, arguments }))
+  }
   self.restore_bindings(value_count, temp_count)
   self.environment = original_environment
+  normal_arguments is Some(_)
 }
 
 ///|

@@ -40,7 +40,6 @@ pub(all) suberror HostObjectFailure {
 
 pub(all) suberror RuntimeImportFailure {
   Failure(message~ : String)
-  Fatal(message~ : String)
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror RuntimeImportResolutionError {
@@ -142,7 +141,6 @@ pub struct RuntimeBinding {
 }
 pub fn RuntimeBinding::abi_major(Self) -> Int
 pub fn RuntimeBinding::call(Self, RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure
-pub fn RuntimeBinding::fatal_string(symbol~ : String) -> Self
 pub fn RuntimeBinding::new(symbol~ : String, abi_major~ : Int, parameters~ : Array[@bytecode.RuntimeValueKind], result~ : @bytecode.RuntimeValueKind, invoke~ : (RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure) -> Self
 pub fn RuntimeBinding::parameters(Self) -> Array[@bytecode.RuntimeValueKind]
 pub fn RuntimeBinding::result(Self) -> @bytecode.RuntimeValueKind

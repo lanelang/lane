@@ -314,7 +314,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 16
+      #|schema: 17
       #|
       #|imported interfaces:
       #|  (none)
@@ -845,7 +845,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 16
+      #|schema: 17
       #|
       #|imported interfaces:
       #|  (none)

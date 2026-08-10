@@ -502,6 +502,9 @@ fn map_terminator_edges(
     Return(_)
     | TailCallDirect(_, _, _, _)
     | TailCallValue(_, _, _)
+    | CallNeverDirect(_, _, _, _)
+    | CallNeverValue(_, _, _)
+    | Fatal(_)
     | Unreachable => terminator
   }
 }
@@ -539,6 +542,20 @@ fn map_terminator_values(
         witnesses.map(transform),
         arguments.map(transform),
       )
+    CallNeverDirect(target, environment, witnesses, arguments) =>
+      CallNeverDirect(
+        target,
+        environment.map(transform),
+        witnesses.map(transform),
+        arguments.map(transform),
+      )
+    CallNeverValue(callable, witnesses, arguments) =>
+      CallNeverValue(
+        transform(callable),
+        witnesses.map(transform),
+        arguments.map(transform),
+      )
+    Fatal(message) => Fatal(transform(message))
     Unreachable => Unreachable
   }
 }

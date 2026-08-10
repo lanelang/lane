@@ -113,7 +113,6 @@ pub fn ExecutionRuntime::context(self : ExecutionRuntime) -> RuntimeContext {
 ///|
 pub(all) suberror RuntimeImportFailure {
   Failure(message~ : String)
-  Fatal(message~ : String)
 } derive(Debug, Eq)
 
 ///|

@@ -5,6 +5,7 @@ fn FunctionLowerer::lower_match(
 ) -> LocalValue raise LoisvmLoweringError {
   let scrutinee = self.materialize_local(self.lower_atom(match_.scrutinee))
   match scrutinee {
+    Never => Never
     Unit => {
       let alternative = match find_unit_alternative(match_.alternatives) {
         Some(alternative) => alternative
@@ -137,27 +138,38 @@ fn FunctionLowerer::lower_literal_match(
   let default_block = self.current_block
   let default_scrutinee = scrutinee
   let default_environment = environment
+  let mut has_normal_alternative = false
   for branch in branches {
     let (block, branch_scrutinee, branch_environment, alternative) = branch
-    self.lower_bool_alternative(
-      block,
+    if self.lower_bool_alternative(
+        block,
+        join_block,
+        match_.binder,
+        Slot(branch_scrutinee, scrutinee_type),
+        alternative,
+        branch_environment,
+      ) {
+      has_normal_alternative = true
+    }
+  }
+  if self.lower_bool_alternative(
+      { value: default_block },
       join_block,
       match_.binder,
-      Slot(branch_scrutinee, scrutinee_type),
-      alternative,
-      branch_environment,
-    )
+      Slot(default_scrutinee, scrutinee_type),
+      default_alternative,
+      default_environment,
+    ) {
+    has_normal_alternative = true
   }
-  self.lower_bool_alternative(
-    { value: default_block },
-    join_block,
-    match_.binder,
-    Slot(default_scrutinee, scrutinee_type),
-    default_alternative,
-    default_environment,
-  )
-  self.enter_block(join_block)
-  join_value.1
+  if has_normal_alternative {
+    self.enter_block(join_block)
+    join_value.1
+  } else {
+    self.enter_block(join_block)
+    self.terminate(Unreachable)
+    Never
+  }
 }
 
 ///|
@@ -256,7 +268,7 @@ fn FunctionLowerer::lower_bool_match(
       },
     ),
   )
-  self.lower_bool_alternative(
+  let true_returns = self.lower_bool_alternative(
     true_block,
     join_block,
     match_.binder,
@@ -264,7 +276,7 @@ fn FunctionLowerer::lower_bool_match(
     if_true,
     true_environment,
   )
-  self.lower_bool_alternative(
+  let false_returns = self.lower_bool_alternative(
     false_block,
     join_block,
     match_.binder,
@@ -272,8 +284,14 @@ fn FunctionLowerer::lower_bool_match(
     if_false,
     false_environment,
   )
-  self.enter_block(join_block)
-  join_value.1
+  if true_returns || false_returns {
+    self.enter_block(join_block)
+    join_value.1
+  } else {
+    self.enter_block(join_block)
+    self.terminate(Unreachable)
+    Never
+  }
 }
 
 ///|

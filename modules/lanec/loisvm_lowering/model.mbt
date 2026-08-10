@@ -126,6 +126,7 @@ priv struct RecursiveFunctionPlan {
 
 ///|
 priv enum LocalValue {
+  Never
   Unit
   Slot(@vmcfg.ValueId, @buslane.Type)
   Global(GlobalValue)

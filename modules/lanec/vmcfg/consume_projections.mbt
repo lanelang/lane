@@ -230,10 +230,13 @@ fn terminator_consumes_value(terminator : Terminator, value : ValueId) -> Bool {
     SwitchTag(_, cases, default) =>
       cases.any(fn(edge) { edge.arguments.contains(value) }) ||
       default.arguments.contains(value)
-    TailCallDirect(_, environment, _, arguments) =>
+    TailCallDirect(_, environment, _, arguments)
+    | CallNeverDirect(_, environment, _, arguments) =>
       environment == Some(value) || arguments.contains(value)
-    TailCallValue(callable, _, arguments) =>
+    TailCallValue(callable, _, arguments)
+    | CallNeverValue(callable, _, arguments) =>
       callable == value || arguments.contains(value)
+    Fatal(message) => message == value
     Unreachable => false
   }
 }

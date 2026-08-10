@@ -931,6 +931,8 @@ fn compile_terminator(
   slots : Array[@bytecode.SlotMetadata],
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
+  runtime_functions : RuntimeFunctions,
+  internal_import_plan : InternalRuntimeImportPlan,
   terminator : @bytecode.Terminator,
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
   match terminator {
@@ -947,7 +949,8 @@ fn compile_terminator(
       instructions.push(Return)
       instructions
     }
-    TailCallDirect(target, environment, witnesses, arguments) => {
+    TailCallDirect(target, environment, witnesses, arguments)
+    | CallNeverDirect(target, environment, witnesses, arguments) => {
       let instructions : Array[@wasm_types.Instruction] = [
         GlobalGet(call_depth_global_index),
         I32Const(1),
@@ -976,7 +979,8 @@ fn compile_terminator(
       )
       instructions
     }
-    TailCallValue(callable, abi_id, witnesses, arguments) => {
+    TailCallValue(callable, abi_id, witnesses, arguments)
+    | CallNeverValue(callable, abi_id, witnesses, arguments) => {
       let instructions = validate_callable_abi(
         parameter_count, static_image, callable, abi_id,
       )
@@ -1007,6 +1011,22 @@ fn compile_terminator(
         static_image.callable_abi(abi_id),
       )
       instructions.push(ReturnCallIndirect(type_index, 0))
+      instructions
+    }
+    Fatal(message) => {
+      let fatal_import = internal_import_plan.index(FatalString).unwrap()
+      let instructions : Array[@wasm_types.Instruction] = [
+        LocalGet(slot_local(parameter_count, message)),
+        I32Const(12),
+        I32Add,
+        LocalGet(slot_local(parameter_count, message)),
+        I32Load(0, 2, 8L),
+        Call(fatal_import),
+        LocalGet(slot_local(parameter_count, message)),
+        Call(runtime_functions.release_ref),
+      ]
+      instructions.append(mark_slot_dead(live_base, slots, message))
+      instructions.push(Throw(0))
       instructions
     }
     Unreachable => [Unreachable]

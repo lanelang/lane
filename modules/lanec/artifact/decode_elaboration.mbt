@@ -100,6 +100,10 @@ fn @bytecodec.ByteReader::read_intrinsic(
       self.update_view(rest)
       F64Nan
     }
+    [u8be(18), .. rest] => {
+      self.update_view(rest)
+      Panic
+    }
     [u8be(19), .. rest] => {
       self.update_view(rest)
       ByteToI64

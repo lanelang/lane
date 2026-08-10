@@ -39,6 +39,8 @@ fn FunctionCompilationContext::compile_terminator(
     self.body.slots,
     self.wasm_module,
     self.static_image,
+    self.runtime_functions,
+    self.internal_import_plan,
     terminator,
   )
 }

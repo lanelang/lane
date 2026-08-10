@@ -95,6 +95,9 @@ fn block_successors(block : Block) -> Array[Int] {
     Return(_)
     | TailCallDirect(_, _, _, _)
     | TailCallValue(_, _, _)
+    | CallNeverDirect(_, _, _, _)
+    | CallNeverValue(_, _, _)
+    | Fatal(_)
     | Unreachable => []
   }
 }
@@ -121,6 +124,9 @@ fn append_threaded_edge_arguments(
     Return(_)
     | TailCallDirect(_, _, _, _)
     | TailCallValue(_, _, _)
+    | CallNeverDirect(_, _, _, _)
+    | CallNeverValue(_, _, _)
+    | Fatal(_)
     | Unreachable => terminator
   }
 }

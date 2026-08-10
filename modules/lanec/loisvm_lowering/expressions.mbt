@@ -7,6 +7,9 @@ fn FunctionLowerer::lower_expr(
     Atom(atom) => self.lower_atom(atom)
     Let(binding, body) => {
       let lowered = self.lower_rhs(binding.rhs())
+      if lowered is Never {
+        return Never
+      }
       match binding {
         Value(id~, ..) => self.bindings.push({ value: id, lowered })
         Temp(temp~, ..) => self.temps.push({ temp, lowered })

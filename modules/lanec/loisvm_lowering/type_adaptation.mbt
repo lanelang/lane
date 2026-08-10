@@ -302,6 +302,9 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
   target_type : @buslane.Type,
   substitutions : @buslane.TypeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
+  if value is Never {
+    return Never
+  }
   let source_value_type = match local_value_type(value) {
     Some(type_) => type_
     None => source_type
@@ -532,7 +535,7 @@ fn local_value_type(value : LocalValue) -> @buslane.Type? {
     | Global(InstanceGlobal(_, type_)) => Some(type_)
     RecursiveFunction(_, type_, _) | TypeAppliedCallable(_, type_, _) =>
       Some(type_)
-    Global(UnitValue) | Unit | TypeApplied(_, _) => None
+    Global(UnitValue) | Never | Unit | TypeApplied(_, _) => None
   }
 }
 
@@ -633,9 +636,15 @@ fn ImageLowerer::lower_callable_adapter(
     }
   }
   if self.types_definitionally_equal(source_result_type, target_result_type) {
-    lowerer.terminate(
-      TailCallValue(source_callable, call_witnesses, source_arguments),
-    )
+    if self.result_abi(source_result_type) is Never {
+      lowerer.terminate(
+        CallNeverValue(source_callable, call_witnesses, source_arguments),
+      )
+    } else {
+      lowerer.terminate(
+        TailCallValue(source_callable, call_witnesses, source_arguments),
+      )
+    }
   } else {
     let source_result = lowerer.fresh_optional_slot(source_result_type)
     lowerer.emit(
@@ -654,6 +663,7 @@ fn ImageLowerer::lower_callable_adapter(
     )
     lowerer.terminate(
       match result {
+        Never => abort("non-returning adapter call must terminate the block")
         Unit => Return(None)
         Slot(slot, _) => Return(Some(slot))
         _ =>

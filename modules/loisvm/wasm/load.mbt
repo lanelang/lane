@@ -139,6 +139,30 @@ fn LoadedImage::new_instance_or_raise(
       ),
     ]
   }
+  let fatal_string : (@wasmoon_runtime.Caller, Array[@wasm_types.Value]) -> Array[
+    @wasm_types.Value,
+  ] raise @wasmoon_runtime.RuntimeError = (caller, values) => {
+    guard values is [I32(pointer), I32(length)] else { raise TypeMismatch }
+    let memory = match caller.get_exported_memory("lane.memory") {
+      Some(value) => value
+      None => raise UndefinedElement
+    }
+    let bytes = @loisvm_runtime.HostStringView::new(length~, read_byte=index => {
+      memory.read_byte(pointer + index)
+    }).to_bytes()
+    let message = @utf8.decode(bytes) catch {
+      _ => {
+        record_runtime_failure(
+          caller,
+          failure,
+          InternalRuntimeFailure(detail="Fatal message is not valid UTF-8"),
+        )
+        return []
+      }
+    }
+    record_runtime_failure(caller, failure, Fatal(message~))
+    []
+  }
   let release_host_object : (@wasmoon_runtime.Caller, Array[@wasm_types.Value]) -> Array[
     @wasm_types.Value,
   ] raise @wasmoon_runtime.RuntimeError = (_caller, values) => {
@@ -166,6 +190,8 @@ fn LoadedImage::new_instance_or_raise(
         store.alloc_host_func_with_caller(format_f32, func_type=type_)
       F64ToString =>
         store.alloc_host_func_with_caller(format_f64, func_type=type_)
+      FatalString =>
+        store.alloc_host_func_with_caller(fatal_string, func_type=type_)
       HostObjectRelease =>
         store.alloc_host_func_with_caller(release_host_object, func_type=type_)
     }

@@ -36,10 +36,12 @@ pub(all) enum IntrinsicSignature {
     parameters~ : Array[IntrinsicValueKind],
     result~ : IntrinsicValueKind
   )
+  NeverFunction(parameters~ : Array[IntrinsicValueKind])
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum Intrinsic {
+  Panic
   I64Add
   I64Sub
   I64Mul
@@ -105,6 +107,7 @@ pub(all) enum Intrinsic {
 ///|
 pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
   match name {
+    "%panic" => Some(Panic)
     "%i64_add" => Some(I64Add)
     "%i64_sub" => Some(I64Sub)
     "%i64_mul" => Some(I64Mul)
@@ -172,6 +175,7 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
 ///|
 pub fn Intrinsic::name(self : Intrinsic) -> String {
   match self {
+    Panic => "%panic"
     I64Add => "%i64_add"
     I64Sub => "%i64_sub"
     I64Mul => "%i64_mul"
@@ -238,6 +242,7 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
 ///|
 pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
   match self {
+    Panic => NeverFunction(parameters=[String])
     I64Add | I64Sub | I64Mul | I64Div | I64Rem =>
       Function(parameters=[I64, I64], result=I64)
     I64Neg => Function(parameters=[I64], result=I64)

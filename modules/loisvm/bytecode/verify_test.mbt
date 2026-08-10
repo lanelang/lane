@@ -68,6 +68,112 @@ test "bytecode verifier accepts a complete minimal image" {
 }
 
 ///|
+test "bytecode verifier enforces Never and Fatal control" {
+  let message = verification_slot(
+    I32,
+    cleanup=OwnedRef,
+    kind=Some(ByteSequenceValue),
+  )
+  let fatal = {
+    ..verification_body(slots=[message], terminator=Fatal({ value: 0 })),
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }],
+    },
+    result: Never,
+  }
+  assert_eq(
+    verify_bytecode_image(
+      verification_image(verification_body(), functions=[BytecodeBody(fatal)]),
+    ),
+    Ok(()),
+  )
+  let returning = {
+    ..fatal,
+    blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+  }
+  assert_true(
+    verify_bytecode_image(
+      verification_image(verification_body(), functions=[
+        BytecodeBody(returning),
+      ]),
+    )
+    is Err(_),
+  )
+  let wrong_result = { ..fatal, result: Unit }
+  assert_true(
+    verify_bytecode_image(
+      verification_image(verification_body(), functions=[
+        BytecodeBody(wrong_result),
+      ]),
+    )
+    is Err(_),
+  )
+}
+
+///|
+test "Never calls are terminating and have no destination" {
+  let never_body : FunctionBody = {
+    slots: [],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Never,
+    blocks: [{ parameters: [], instructions: [], terminator: Unreachable }],
+  }
+  let ordinary_call = verification_body(instructions=[
+    CallDirect({ value: 2 }, None, [], [], None),
+  ])
+  assert_true(
+    verify_bytecode_image(
+      verification_image(ordinary_call, functions=[BytecodeBody(never_body)]),
+    )
+    is Err(_),
+  )
+  let terminating_call = verification_body(
+    terminator=CallNeverDirect({ value: 2 }, None, [], []),
+  )
+  assert_eq(
+    verify_bytecode_image(
+      verification_image(terminating_call, functions=[BytecodeBody(never_body)]),
+    ),
+    Ok(()),
+  )
+  let callable = verification_slot(
+    I64,
+    cleanup=OwnedCallable,
+    kind=Some(CallableValue),
+  )
+  let indirect_call = verification_body(
+    slots=[callable],
+    instructions=[ConstFunction({ value: 0 }, { value: 2 })],
+    terminator=CallNeverValue({ value: 0 }, { value: 1 }, [], []),
+  )
+  assert_eq(
+    verify_bytecode_image(
+      verification_image(indirect_call, functions=[BytecodeBody(never_body)]),
+    ),
+    Ok(()),
+  )
+  assert_true(
+    verify_bytecode_image(
+      verification_image(
+        {
+          ..indirect_call,
+          blocks: [
+            {
+              ..indirect_call.blocks[0],
+              terminator: CallNeverValue({ value: 0 }, { value: 0 }, [], []),
+            },
+          ],
+        },
+        functions=[BytecodeBody(never_body)],
+      ),
+    )
+    is Err(_),
+  )
+}
+
+///|
 test "bytecode verifier rejects scalar values used as object references" {
   let body = verification_body(
     slots=[verification_slot(I32), verification_slot(I32)],

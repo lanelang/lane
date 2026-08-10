@@ -733,8 +733,80 @@ test "result ABI round-trips" {
         parameters: [],
         result: Value(I32, OwnedRef, ByteSequenceValue),
       },
+      {
+        witnesses: [],
+        parameters: [
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+        ],
+        result: Never,
+      },
     ],
-    functions: [BytecodeBody(minimal_body()), BytecodeBody(owned_result)],
+    functions: [
+      BytecodeBody(minimal_body()),
+      BytecodeBody(owned_result),
+      BytecodeBody({
+        slots: [
+          {
+            representation: I32,
+            cleanup: OwnedRef,
+            kind: ByteSequenceValue,
+            erased_companion: None,
+          },
+        ],
+        inputs: { environment: None, witnesses: [], user_parameters: [slot(0)] },
+        result: Never,
+        blocks: [
+          { parameters: [], instructions: [], terminator: Fatal(slot(0)) },
+        ],
+      }),
+      BytecodeBody({
+        slots: [
+          {
+            representation: I32,
+            cleanup: OwnedRef,
+            kind: ByteSequenceValue,
+            erased_companion: None,
+          },
+        ],
+        inputs: { environment: None, witnesses: [], user_parameters: [] },
+        result: Unit,
+        blocks: [
+          {
+            parameters: [],
+            instructions: [ConstString(slot(0), { value: 0 })],
+            terminator: CallNeverDirect(function(3), None, [], [slot(0)]),
+          },
+        ],
+      }),
+      BytecodeBody({
+        slots: [
+          {
+            representation: I64,
+            cleanup: OwnedCallable,
+            kind: CallableValue,
+            erased_companion: None,
+          },
+          {
+            representation: I32,
+            cleanup: OwnedRef,
+            kind: ByteSequenceValue,
+            erased_companion: None,
+          },
+        ],
+        inputs: { environment: None, witnesses: [], user_parameters: [] },
+        result: Unit,
+        blocks: [
+          {
+            parameters: [],
+            instructions: [
+              ConstFunction(slot(0), function(3)),
+              ConstString(slot(1), { value: 0 }),
+            ],
+            terminator: CallNeverValue(slot(0), { value: 2 }, [], [slot(1)]),
+          },
+        ],
+      }),
+    ],
     constants: [b"owned"],
   }
   assert_eq(

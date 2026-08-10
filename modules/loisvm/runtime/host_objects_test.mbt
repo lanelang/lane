@@ -125,33 +125,6 @@ test "typed Host SDK projects Opaque through its Host Object Store" {
 }
 
 ///|
-test "fatal String binding preserves its ABI and typed failure" {
-  let runtime = ExecutionRuntime::new()
-  let binding = RuntimeBinding::fatal_string(symbol="lane.test.panic")
-  let bytes = @utf8.encode("boom")
-  let message = HostStringView::new(length=bytes.length(), read_byte=index => {
-    bytes[index]
-  })
-  let result : Result[HostValue, RuntimeImportFailure] = Ok(
-    binding.call(runtime.context(), [BorrowedString(message)]),
-  ) catch {
-    error => Err(error)
-  }
-  debug_inspect(
-    (
-      binding.symbol(),
-      binding.abi_major(),
-      binding.parameters(),
-      binding.result(),
-      result,
-    ),
-    content=(
-      #|("lane.test.panic", 1, [String], Unit, Err(Fatal(message="boom")))
-    ),
-  )
-}
-
-///|
 test "panic Host Object projection through another typed store is fatal" {
   let runtime = ExecutionRuntime::new()
   let first : HostObjectStore[TestHostObject] = HostObjectStore::new()

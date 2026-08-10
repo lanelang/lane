@@ -144,15 +144,18 @@ fn BytecodeVerifier::verify_terminator(
       self.verify_edge(site, body, default)
     }
     Return(source) =>
-      match (result_shape(body.result), source) {
-        (None, None) => ()
-        (Some((representation, cleanup, kind)), Some(source)) =>
+      match (body.result, result_shape(body.result), source) {
+        (Never, _, _) => self.fail(site, "Never function cannot return")
+        (Unit, None, None) => ()
+        (_, Some((representation, cleanup, kind)), Some(source)) =>
           self.expect_value_shape(
             site, body, source, representation, cleanup, kind,
           )
-        (None, Some(_)) => self.fail(site, "Unit function must return no slot")
-        (Some(_), None) =>
+        (Unit, None, Some(_)) =>
+          self.fail(site, "Unit function must return no slot")
+        (_, Some(_), None) =>
           self.fail(site, "non-Unit function must return a slot")
+        _ => self.fail(site, "invalid function result ABI")
       }
     TailCallDirect(target, environment, witnesses, arguments) =>
       self.verify_direct_call(
@@ -176,6 +179,43 @@ fn BytecodeVerifier::verify_terminator(
         arguments,
         None,
         tail_result=Some(body.result),
+      )
+    }
+    CallNeverDirect(target, environment, witnesses, arguments) =>
+      self.verify_direct_call(
+        site,
+        body,
+        target,
+        environment,
+        witnesses,
+        arguments,
+        None,
+        tail_result=Some(Never),
+      )
+    CallNeverValue(callable, abi_id, witnesses, arguments) => {
+      self.expect_slot(site, body, callable, I64, OwnedCallable)
+      let abi = self.callable_abi(site, abi_id)
+      self.verify_call_abi(
+        site,
+        body,
+        abi,
+        witnesses,
+        arguments,
+        None,
+        tail_result=Some(Never),
+      )
+    }
+    Fatal(message) => {
+      if body.result != Never {
+        self.fail(site, "Fatal terminator requires a Never function result")
+      }
+      self.expect_value_shape(
+        site,
+        body,
+        message,
+        I32,
+        OwnedRef,
+        ByteSequenceValue,
       )
     }
     Unreachable => ()
