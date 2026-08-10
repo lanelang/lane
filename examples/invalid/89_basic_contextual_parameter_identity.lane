@@ -1,0 +1,23 @@
+// invalid: omitted contextual arguments retain their parameter identities
+module Examples.Invalid89
+
+import Basic.Conv.I64.{ i64_impl_debug }
+import Basic.Data.I64.{ i64_impl_equal }
+import Basic.Data.List.{ List, list_impl_equal }
+import Basic.Trait.Debug.{ Debug }
+import Basic.Trait.Equal.{ Equal }
+
+fn[T] assert_equal(
+  left : T,
+  right : T,
+  auto debug_impl : Debug[T],
+  auto equal_impl : Equal[T]
+) -> String {
+  if equal_impl.equal(left, right) {
+    debug_impl(left)
+  } else {
+    debug_impl(right)
+  }
+}
+
+let answer : String = assert_equal([1], [1])

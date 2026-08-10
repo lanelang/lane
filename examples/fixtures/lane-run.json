@@ -1946,6 +1946,20 @@
           "expected `I32`, found `I64`"
         ]
       }
+    },
+    {
+      "name": "invalid 89 Basic contextual parameter identity",
+      "file": "examples/invalid/89_basic_contextual_parameter_identity.lane",
+      "mode": "check-error",
+      "expect": {
+        "contains": [
+          "error[E3013]",
+          "auto offer parameter `debug_impl` requires `(List[I64]) -> String`, but no visible offer matches",
+          "pass `debug_impl=...` explicitly or add a visible `offer` with type `(List[I64]) -> String`",
+          "auto offer parameter `equal_impl` requires `Equal[List[I64]]`, but no visible offer matches",
+          "pass `equal_impl=...` explicitly or add a visible `offer` with type `Equal[List[I64]]`"
+        ]
+      }
     }
   ]
 }
