@@ -38,5 +38,9 @@ type, or make fatal control handleable.
 
 The new effect tag advances the Buslane codec to version 8, the
 module-interface schema to version 12, and the module-object schema to version
-18. The linked-program schema is unchanged because the verified bytecode model
-already represents the resulting `Fatal` control flow.
+18. The same decision removes the persisted `ResultAbi::Never` tag and the
+`CallNeverDirect` and `CallNeverValue` terminator tags from the bytecode
+language. The existing `Fatal` terminator does not make those removals binary
+compatible. Because bytecode has no independent format version, the enclosing
+linked-program schema advances from version 13 to version 14, and version 13
+artifacts must be rejected rather than decoded under the new bytecode model.
