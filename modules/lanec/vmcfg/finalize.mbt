@@ -83,34 +83,6 @@ fn finalize_without_bytecode_verification_or_raise(
 }
 
 ///|
-fn finalized_callable_abi(
-  body : FunctionBody,
-  witnesses : Array[@bytecode.SlotId],
-  parameters : Array[@bytecode.SlotId],
-  result : @bytecode.ResultAbi,
-) -> @bytecode.CallableAbi {
-  {
-    witnesses: witnesses.map(witness => {
-      let metadata = value_metadata_to_slot(body.values[witness.value])
-      {
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-      }
-    }),
-    parameters: parameters.map(parameter => {
-      let metadata = value_metadata_to_slot(body.values[parameter.value])
-      {
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-      }
-    }),
-    result,
-  }
-}
-
-///|
 fn prepare_body(body : FunctionBody) -> FunctionBody raise FinalizeError {
   let body = simplify_body(body)
   let body = promote_cross_block_instruction_borrows(body)
@@ -193,6 +165,14 @@ fn value_metadata_to_slot(metadata : ValueMetadata) -> @bytecode.SlotMetadata {
 ///|
 fn value_to_slot(value : ValueId) -> @bytecode.SlotId {
   { value: value.value }
+}
+
+///|
+fn finalized_slot_metadata(
+  body : FunctionBody,
+  slots : Array[@bytecode.SlotId],
+) -> Array[@bytecode.SlotMetadata] {
+  slots.map(slot => value_metadata_to_slot(body.values[slot.value]))
 }
 
 ///|
@@ -385,17 +365,6 @@ fn finalize_instruction(
       )
     }
     CallValue(callable, witnesses, arguments, destination) => {
-      let result = match destination {
-        Some(value) => {
-          let metadata = value_metadata_to_slot(body.values[value.value])
-          @bytecode.ResultAbi::Value(
-            metadata.representation,
-            metadata.cleanup,
-            metadata.kind,
-          )
-        }
-        None => Unit
-      }
       let lowered_callable = value_to_slot(
         consume_value(body, block, live, remaining, prefix, callable),
       )
@@ -409,9 +378,16 @@ fn finalize_instruction(
           consume_value(body, block, live, remaining, prefix, value),
         )
       })
+      let result = match destination {
+        Some(value) =>
+          value_metadata_to_slot(body.values[value.value]).result_abi()
+        None => Unit
+      }
       let abi = callable_abis.intern(
-        finalized_callable_abi(
-          body, lowered_witnesses, lowered_arguments, result,
+        @bytecode.CallableAbi::from_slot_metadata(
+          finalized_slot_metadata(body, lowered_witnesses),
+          finalized_slot_metadata(body, lowered_arguments),
+          result,
         ),
       )
       CallValue(
@@ -1251,10 +1227,9 @@ fn finalize_terminator(
         )
       })
       let abi = callable_abis.intern(
-        finalized_callable_abi(
-          body,
-          lowered_witnesses,
-          lowered_arguments,
+        @bytecode.CallableAbi::from_slot_metadata(
+          finalized_slot_metadata(body, lowered_witnesses),
+          finalized_slot_metadata(body, lowered_arguments),
           body.result,
         ),
       )

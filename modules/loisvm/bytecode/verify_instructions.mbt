@@ -615,36 +615,27 @@ fn BytecodeVerifier::verify_call_abi(
   if arguments.length() != abi.parameters.length() {
     self.fail(site, "call has the wrong user argument count")
   }
-  let witness_abis : Array[ValueAbi] = []
+  let witness_slots : Array[SlotMetadata] = []
   for witness in witnesses {
-    let metadata = self.slot_metadata(site, body, witness)
-    witness_abis.push({
-      representation: metadata.representation,
-      cleanup: metadata.cleanup,
-      kind: metadata.kind,
-    })
+    witness_slots.push(self.slot_metadata(site, body, witness))
   }
-  let parameters : Array[ValueAbi] = []
+  let parameter_slots : Array[SlotMetadata] = []
   for argument in arguments {
-    let metadata = self.slot_metadata(site, body, argument)
-    parameters.push({
-      representation: metadata.representation,
-      cleanup: metadata.cleanup,
-      kind: metadata.kind,
-    })
+    parameter_slots.push(self.slot_metadata(site, body, argument))
   }
   let result = match tail_result {
     Some(result) => result
     None =>
       match destination {
-        Some(destination) => {
-          let metadata = self.slot_metadata(site, body, destination)
-          Value(metadata.representation, metadata.cleanup, metadata.kind)
-        }
+        Some(destination) =>
+          self.slot_metadata(site, body, destination).result_abi()
         None => Unit
       }
   }
-  match abi.callsite_mismatch({ witnesses: witness_abis, parameters, result }) {
+  let callsite = CallableAbi::from_slot_metadata(
+    witness_slots, parameter_slots, result,
+  )
+  match abi.callsite_mismatch(callsite) {
     None => ()
     Some(CallParameterMismatch(index)) =>
       self.fail(site, "call argument \{index} has the wrong value shape")

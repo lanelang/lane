@@ -143,6 +143,16 @@ and callee counts and complete value ABIs must agree. An unresolved source type
 is represented by `ErasedValue` plus explicit evidence; all bytecode call
 parameter and result kinds are closed.
 
+`CallableAbi::from_slot_metadata` is the single projection from ABI-final slot
+metadata to callable witness and parameter ABIs. ABI-final means that ownership
+lowering has already selected every retained or promoted operand. Subsequent
+physical-slot allocation may only renumber operands or coalesce slots with
+identical `SlotMetadata`; it cannot change their ABI. Producers select the
+applicable slots but do not independently reconstruct representation, cleanup,
+or semantic-kind fields. Runtime imports project their distinct
+`RuntimeValueKind` declarations inside this package and use the same ABI
+assembly operation.
+
 Environments, evidence inputs, callable values, and user arguments are
 transferred into calls. Transferring a trivial `LayoutValue` is physically a
 read; transferring an owned layout constructor moves or retains its callable

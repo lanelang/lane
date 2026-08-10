@@ -273,10 +273,12 @@ types, effect specialization policy, ARC dataflow, or bytecode verification.
 
 ## Callable ABI
 
-Every callable ABI is derived from finalized physical operands and results.
-ARC finalization may turn a borrowed input into an owned retained copy, so the
-ABI must be interned only after all consume, borrow, retain, erase, and unerase
-operations have selected the final slots.
+Every callable ABI is derived from ABI-final operands and results. ARC
+finalization may turn a borrowed input into an owned retained copy, so the ABI
+must be interned only after all consume, borrow, retain, erase, and unerase
+operations have selected the final operands. Subsequent physical-slot
+allocation may renumber those operands or coalesce slots only when their full
+`SlotMetadata` is identical; storage allocation cannot change an ABI.
 
 Direct calls, indirect calls, tail calls, callable adapters, runtime imports,
 and function returns consume the same `ValueAbi` projection. No call form may
@@ -401,7 +403,8 @@ of runtime representation decisions.
 6. No unresolved type application is classified from raw syntax alone.
 7. No source effect is used as a runtime layout witness.
 8. No object schema is built from an unsubstituted field or capture type.
-9. No callable ABI is built before its final operand slots exist.
+9. No callable ABI is built before ARC has selected its final operands, and
+   physical-slot allocation preserves their complete ABI metadata.
 10. LoisVM rejects missing, forged, out-of-scope, or provenance-incompatible
     evidence without reconstructing source type equality.
 

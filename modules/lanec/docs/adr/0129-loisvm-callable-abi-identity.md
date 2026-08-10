@@ -18,6 +18,14 @@ and optional environment reference; its function-table target therefore
 determines its actual ABI without duplicating an ABI identifier in the runtime
 value.
 
+The bytecode package owns the projection from finalized `SlotMetadata` into
+ordered `ValueAbi` witnesses and parameters. Compiler finalization selects the
+final retained or promoted operands for an occurrence and interns the resulting
+description; it does not reconstruct representation, cleanup, or semantic-kind
+fields. Later physical-slot allocation may only renumber operands or coalesce
+slots with identical metadata. Runtime imports use their bytecode-owned
+`RuntimeValueKind` projection and enter the same assembly and interning plan.
+
 The hidden environment is deliberately not part of `CallableAbi`. All Wasm
 callable entries use the same leading `env:i32` physical parameter, while the
 target function's context kind independently determines whether zero or a
@@ -72,5 +80,7 @@ artifact schema from 9 to 10. The later semantic-kind expansion raises it from
 - Dynamic target validation happens before ownership transfer.
 - Function context kind remains an independent invariant.
 - Call sites no longer reconstruct ABI identity from local slot syntax.
+- Finalized slot metadata has one bytecode-owned ABI projection operation.
+- Verification consumes that projection instead of rebuilding a comparison ABI.
 - ADR 0087's trusted call-shape decision and ADR 0128's absence of a callable
   signature table are superseded.

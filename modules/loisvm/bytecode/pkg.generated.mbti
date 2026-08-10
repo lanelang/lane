@@ -71,6 +71,7 @@ pub(all) struct CallableAbi {
   result : ResultAbi
 } derive(Eq, @debug.Debug)
 pub fn CallableAbi::accepts_callsite(Self, Self) -> Bool
+pub fn CallableAbi::from_slot_metadata(Array[SlotMetadata], Array[SlotMetadata], ResultAbi) -> Self
 
 pub(all) struct CallableAbiId {
   value : Int
@@ -356,6 +357,7 @@ pub(all) struct SlotMetadata {
   kind : SemanticValueKind
   erased_companion : SlotId?
 } derive(Eq, @debug.Debug)
+pub fn SlotMetadata::result_abi(Self) -> ResultAbi
 
 pub(all) enum Terminator {
   Jump(Edge)

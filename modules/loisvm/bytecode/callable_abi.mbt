@@ -1,24 +1,59 @@
 ///|
+fn SlotMetadata::value_abi(self : SlotMetadata) -> ValueAbi {
+  {
+    representation: self.representation,
+    cleanup: self.cleanup,
+    kind: self.kind,
+  }
+}
+
+///|
+fn ValueAbi::result_abi(self : ValueAbi) -> ResultAbi {
+  Value(self.representation, self.cleanup, self.kind)
+}
+
+///|
+fn CallableAbi::from_value_abis(
+  witnesses : Array[ValueAbi],
+  parameters : Array[ValueAbi],
+  result : ResultAbi,
+) -> CallableAbi {
+  { witnesses, parameters, result }
+}
+
+///|
+pub fn SlotMetadata::result_abi(self : SlotMetadata) -> ResultAbi {
+  self.value_abi().result_abi()
+}
+
+///|
+/// Projects finalized slot metadata into the callable ABI used by definitions
+/// and call sites.
+pub fn CallableAbi::from_slot_metadata(
+  witness_slots : Array[SlotMetadata],
+  parameter_slots : Array[SlotMetadata],
+  result : ResultAbi,
+) -> CallableAbi {
+  CallableAbi::from_value_abis(
+    witness_slots.map(slot => slot.value_abi()),
+    parameter_slots.map(slot => slot.value_abi()),
+    result,
+  )
+}
+
+///|
 pub fn FunctionBody::callable_abi(self : FunctionBody) -> CallableAbi? {
   let witnesses = []
   for witness in self.inputs.witnesses {
     guard self.slots.get(witness.value) is Some(metadata) else { return None }
-    witnesses.push({
-      representation: metadata.representation,
-      cleanup: metadata.cleanup,
-      kind: metadata.kind,
-    })
+    witnesses.push(metadata)
   }
   let parameters = []
   for parameter in self.inputs.user_parameters {
     guard self.slots.get(parameter.value) is Some(metadata) else { return None }
-    parameters.push({
-      representation: metadata.representation,
-      cleanup: metadata.cleanup,
-      kind: metadata.kind,
-    })
+    parameters.push(metadata)
   }
-  Some({ witnesses, parameters, result: self.result })
+  Some(CallableAbi::from_slot_metadata(witnesses, parameters, self.result))
 }
 
 ///|
@@ -29,14 +64,14 @@ pub fn RuntimeImport::callable_abi(self : RuntimeImport) -> CallableAbi {
       parameters.push(abi)
     }
   }
-  {
-    witnesses: [],
+  CallableAbi::from_value_abis(
+    [],
     parameters,
-    result: match runtime_value_abi(self.result) {
-      Some(abi) => Value(abi.representation, abi.cleanup, abi.kind)
+    match runtime_value_abi(self.result) {
+      Some(abi) => abi.result_abi()
       None => Unit
     },
-  }
+  )
 }
 
 ///|
