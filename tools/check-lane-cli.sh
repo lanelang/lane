@@ -80,8 +80,7 @@ panic_source="$workspace/Panic.lane"
 cat >"$panic_source" <<'EOF'
 module Panic
 
-pub let panic : (String) -> Unit ! Io = extern("panic")
-pub let println : (String) -> Unit ! Io = extern("println")
+import Basic.Io.{ panic, println }
 
 pub fn main() -> Unit ! Io {
   panic("boom")
@@ -90,7 +89,7 @@ pub fn main() -> Unit ! Io {
 EOF
 
 for mode in default no-jit; do
-  args=(run "$panic_source:main" --no-basic)
+  args=(run "$panic_source:main")
   if [ "$mode" = no-jit ]; then
     args+=(--no-jit)
   fi

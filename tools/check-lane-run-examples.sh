@@ -42,3 +42,6 @@ echo "basic fixture: ${fixture_rev:0:12}"
 
 LANE_HOME="$repo_root" LANE_SMOKE_BIN="$lane_bin" \
   moon run --target native tools/check-lane-run-examples.mbtx
+
+LANE_HOME="$repo_root" \
+  moon run --target native modules/lane/corpus_gate

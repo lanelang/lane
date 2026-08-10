@@ -1,6 +1,7 @@
 module Examples.Valid.Utf8StringCharI32
 
 import Basic.Data.Bytes as ByteSeq
+import Basic.Conv.I64.{ i64_impl_debug }
 import Basic.Data.Char as Char
 import Basic.Data.Option.{ Option }
 import Basic.Data.I32 as I32
@@ -8,12 +9,15 @@ import Basic.Data.String as String
 import Basic.Data.I64.{ i64_impl_equal }
 import Basic.Data.List.{ List }
 import Basic.Eff.Bound.{ OutOfBound }
-import Test.Assert.{ Assert, execute_all_tests }
+import Test.Assert.{ Assert, assert_equal, assert_true, execute_all_tests }
 
-fn assert_in_bounds(action : () -> Unit ! { OutOfBound, Assert }) -> Unit ! Assert {
+fn assert_in_bounds(
+  action : () -> Unit ! { OutOfBound, Assert },
+  auto offer info : String
+) -> Unit ! Assert {
   handle action() with {
-    out_of_min[R](_resume) => assert_true!(false)
-    out_of_max[R](_resume) => assert_true!(false)
+    out_of_min[R](_resume) => assert_true(false)
+    out_of_max[R](_resume) => assert_true(false)
   } final _value {
     ()
   }
@@ -29,17 +33,25 @@ fn string_equal(left : String, right : String) -> Bool {
   equal.equal(left, right)
 }
 
-fn assert_some_char(value : Option[Char], expected : Char) -> Unit ! Assert {
+fn assert_some_char(
+  value : Option[Char],
+  expected : Char,
+  auto offer info : String
+) -> Unit ! Assert {
   match value {
-    some(actual) => assert_true!(char_equal(actual, expected))
-    none() => assert_true!(false)
+    some(actual) => assert_true(char_equal(actual, expected))
+    none() => assert_true(false)
   }
 }
 
-fn assert_some_string(value : Option[String], expected : String) -> Unit ! Assert {
+fn assert_some_string(
+  value : Option[String],
+  expected : String,
+  auto offer info : String
+) -> Unit ! Assert {
   match value {
-    some(actual) => assert_true!(string_equal(actual, expected))
-    none() => assert_true!(false)
+    some(actual) => assert_true(string_equal(actual, expected))
+    none() => assert_true(false)
   }
 }
 
@@ -51,36 +63,37 @@ fn[T] is_none(value : Option[T]) -> Bool {
 }
 
 fn test_utf8_string_char_i32() -> Unit ! Assert {
+  offer source_info : String = "test_utf8_string_char_i32"
   let text = "Aé中😀\0"
   let encoded = String.encode_utf8(text)
   let maximum : I32 = 2147483647i32
   let one : I32 = 1i32
   let add = I32.i32_impl_add
   let minimum = add.add(maximum, one)
-  assert_eq!(String.byte_length(text), 11, i64_impl_equal)
-  assert_eq!(String.scalar_count(text), 5, i64_impl_equal)
-  assert_true!(ByteSeq.is_valid_utf8(encoded))
+  assert_equal(String.byte_length(text), 11)
+  assert_equal(String.scalar_count(text), 5)
+  assert_true(ByteSeq.is_valid_utf8(encoded))
   assert_some_string(String.decode_utf8(encoded), text)
   assert_in_bounds(
     fn() {
-      assert_true!(char_equal(String.scalar_at(text, 2), '中'))
-      assert_true!(string_equal(String.slice(text, 1, 3), "é中😀"))
+      assert_true(char_equal(String.scalar_at(text, 2), '中'))
+      assert_true(string_equal(String.slice(text, 1, 3), "é中😀"))
     }
   )
   let folded = String.foldl(
     text,
     "",
     fn(accumulator, scalar) {
-      assert_true!(true)
+      assert_true(true)
       String.concat(accumulator, Char.to_string(scalar))
     }
   )
-  assert_true!(string_equal(folded, text))
+  assert_true(string_equal(folded, text))
   assert_some_char(Char.from_i64(128512), '😀')
-  assert_true!(is_none(Char.from_i64(55296)))
-  assert_eq!(Char.to_i64('😀'), 128512, i64_impl_equal)
+  assert_true(is_none(Char.from_i64(55296)))
+  assert_equal(Char.to_i64('😀'), 128512)
   let i32_equal = I32.i32_impl_equal
-  assert_true!(i32_equal.equal(minimum, -2147483648i32))
+  assert_true(i32_equal.equal(minimum, -2147483648i32))
 }
 
 pub fn answer() -> Unit ! Io {

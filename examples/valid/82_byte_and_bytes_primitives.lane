@@ -2,15 +2,19 @@ module Examples.Valid.ByteAndBytesPrimitives
 
 import Basic.Data.Byte as Byte
 import Basic.Data.Bytes as ByteSeq
+import Basic.Conv.I64.{ i64_impl_debug }
 import Basic.Data.I64.{ i64_impl_equal }
 import Basic.Data.List.{ List }
 import Basic.Eff.Bound.{ OutOfBound }
-import Test.Assert.{ Assert, execute_all_tests }
+import Test.Assert.{ Assert, assert_equal, assert_true, execute_all_tests }
 
-fn assert_in_bounds(action : () -> Unit ! { OutOfBound, Assert }) -> Unit ! Assert {
+fn assert_in_bounds(
+  action : () -> Unit ! { OutOfBound, Assert },
+  auto offer info : String
+) -> Unit ! Assert {
   handle action() with {
-    out_of_min[R](_resume) => assert_true!(false)
-    out_of_max[R](_resume) => assert_true!(false)
+    out_of_min[R](_resume) => assert_true(false)
+    out_of_max[R](_resume) => assert_true(false)
   } final _value {
     ()
   }
@@ -26,6 +30,7 @@ fn[T] is_out_of_bounds(action : () -> T ! OutOfBound) -> Bool {
 }
 
 fn test_byte_and_bytes_primitives() -> Unit ! Assert {
+  offer source_info : String = "test_byte_and_bytes_primitives"
   assert_in_bounds(
     fn() {
       let original = ByteSeq.bytes_make(3, Byte.from_i64(65))
@@ -33,14 +38,14 @@ fn test_byte_and_bytes_primitives() -> Unit ! Assert {
       let updated = ByteSeq.bytes_set(with_b, 2, Byte.from_i64(67))
       let prefix = ByteSeq.bytes_slice(updated, 0, 1)
       let suffix = ByteSeq.bytes_slice(updated, 1, 2)
-      assert_eq!(Byte.to_i64(Byte.from_i64(511)), 255, i64_impl_equal)
-      assert_eq!(ByteSeq.bytes_length(original), 3, i64_impl_equal)
-      assert_eq!(Byte.to_i64(ByteSeq.bytes_get(original, 1)), 65, i64_impl_equal)
-      assert_true!(ByteSeq.bytes_equal(ByteSeq.bytes_concat(prefix, suffix), updated))
-      assert_true!(ByteSeq.is_valid_utf8(updated))
+      assert_equal(Byte.to_i64(Byte.from_i64(511)), 255)
+      assert_equal(ByteSeq.bytes_length(original), 3)
+      assert_equal(Byte.to_i64(ByteSeq.bytes_get(original, 1)), 65)
+      assert_true(ByteSeq.bytes_equal(ByteSeq.bytes_concat(prefix, suffix), updated))
+      assert_true(ByteSeq.is_valid_utf8(updated))
     }
   )
-  assert_true!(
+  assert_true(
     is_out_of_bounds[Bytes](
       fn() {
         let bytes = ByteSeq.bytes_make(3, Byte.from_i64(65))

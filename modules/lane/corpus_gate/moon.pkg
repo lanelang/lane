@@ -1,0 +1,12 @@
+import {
+  "Milky2018/lanec/artifact",
+  "Milky2018/lanec/compile",
+  "Milky2018/loisvm/wasm" @loisvm_wasm,
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/x/fs",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

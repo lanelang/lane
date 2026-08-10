@@ -5,9 +5,10 @@
 module Examples.Valid.I64SignedMinimum
 
 import Basic.Data.I64.*
+import Basic.Conv.I64.{ i64_impl_debug }
 import Basic.Data.List.{ List }
 import Basic.Ops.*
-import Test.Assert.{ Assert, execute_all_tests }
+import Test.Assert.{ Assert, assert_equal, assert_false, assert_true, execute_all_tests }
 
 pub let signed_minimum : I64 = -9223372036854775808
 
@@ -21,13 +22,14 @@ fn is_signed_minimum(value : I64) -> Bool {
 }
 
 fn test_i64_signed_minimum() -> Unit ! Assert {
+  offer source_info : String = "test_i64_signed_minimum"
   // Adding the maximum pins the minimum to -2^63: no other negative value,
   // including the I32 minimum, satisfies this.
-  assert_eq!(signed_minimum + signed_maximum, -1, i64_impl_equal)
-  assert_true!(signed_minimum < 0)
-  assert_true!(is_signed_minimum(signed_minimum))
-  assert_false!(is_signed_minimum(signed_minimum + 1))
-  assert_eq!(-42 + 42, 0, i64_impl_equal)
+  assert_equal(signed_minimum + signed_maximum, -1)
+  assert_true(signed_minimum < 0)
+  assert_true(is_signed_minimum(signed_minimum))
+  assert_false(is_signed_minimum(signed_minimum + 1))
+  assert_equal(-42 + 42, 0)
 }
 
 pub fn answer() -> Unit ! Io {
