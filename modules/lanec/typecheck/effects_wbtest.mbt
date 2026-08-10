@@ -1518,7 +1518,7 @@ test "typecheck resolves import-free built-in Io effect" {
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
-  debug_inspect(checked_function_effect(result, "run"), content="Io")
+  debug_inspect(checked_function_effect(result, "run"), content="Builtin(Io)")
 }
 
 ///|
@@ -1536,7 +1536,7 @@ test "typecheck does not let an effect alias shadow built-in Io" {
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
-  debug_inspect(checked_function_effect(result, "run"), content="Io")
+  debug_inspect(checked_function_effect(result, "run"), content="Builtin(Io)")
 }
 
 ///|

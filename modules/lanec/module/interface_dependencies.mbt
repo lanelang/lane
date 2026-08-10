@@ -147,7 +147,7 @@ fn collect_effect_dependencies(
   symbols : InterfaceDependencySymbols,
 ) -> Unit {
   match effect {
-    Empty | Io | Parameter(_) => ()
+    Empty | Builtin(_) | Parameter(_) => ()
     Singleton(symbol, arguments) => {
       push_unique_effect_symbol(symbols.effects, symbol)
       for argument in arguments {

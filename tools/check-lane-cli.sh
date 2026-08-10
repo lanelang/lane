@@ -82,7 +82,7 @@ module Panic
 
 import Basic.Io.{ panic, println }
 
-pub fn main() -> Unit ! Io {
+pub fn main() -> Unit ! { Io, Panic } {
   panic("boom")
   println("after")
 }

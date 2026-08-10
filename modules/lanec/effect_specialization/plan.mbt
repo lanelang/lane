@@ -719,7 +719,7 @@ fn SpecializationPlanner::visit_effect(
 ) -> Unit raise SpecializationError {
   let effect = raw_substitute_specialized_effect(effect, ambient_bindings)
   match effect {
-    Empty | Io | Parameter(_) => ()
+    Empty | Builtin(_) | Parameter(_) => ()
     Singleton(id, arguments) => {
       guard self.program.metadata.effect_info(id) is Some(info) else {
         raise InvalidInputMetadata(

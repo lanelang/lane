@@ -1,7 +1,7 @@
 ///|
 pub fn effect_has_parameter(effect : @buslane.Effect) -> Bool {
   match effect {
-    Empty | Io | Singleton(_, _) => false
+    Empty | Builtin(_) | Singleton(_, _) => false
     Parameter(_) => true
     Union(effects) => effects.any(effect_has_parameter)
   }

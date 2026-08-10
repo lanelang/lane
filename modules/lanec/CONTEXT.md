@@ -429,8 +429,12 @@ The final effect-lowering pass that removes non-monadic residual effects after a
 _Avoid_: monadic translation, extern-call deletion, early purity rewrite
 
 **Built-in Effect Atom**:
-The compiler-IR effect term for an intrinsically identified built-in effect such as `Io`; it is not represented by an EffectId and has no effect or operation metadata to remap across modules.
+The compiler-IR effect term for an intrinsically identified built-in effect such as `Io` or `Panic`; it is not represented by an EffectId and has no effect or operation metadata to remap across modules.
 _Avoid_: reserved EffectId, synthetic effect declaration, module-qualified nominal effect
+
+**Panic Effect**:
+The non-handleable built-in effect marking a documented source operation whose value-dependent failure follows compiler-owned fatal control. It preserves evaluation before residual-effect erasure but carries no runtime dictionary and is distinct from both `Io` and an execution-level trap.
+_Avoid_: I/O effect, algebraic exception, engine trap, resource failure
 
 **Answer-Type CPS**:
 The selective transformation of a function whose latent effect satisfies the **Monadic Effect Predicate** from `(args) -> A ! E` to the conceptual shape `[Answer, Residual](context, args, (A) -> Answer ! R) -> Answer ! R`, where `R` is the function's own **Non-Monadic Residual Effect** joined with the **Installed Residual Parameter**; functions whose effects do not satisfy the predicate remain direct style even when they are non-pure.

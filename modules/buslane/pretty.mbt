@@ -149,7 +149,8 @@ fn type_doc(type_ : Type, at~ : TypeLevel) -> Document {
 pub impl @prettyprinter.Pretty for Effect with fn pretty(effect : Effect) {
   match effect {
     Empty => text("{}")
-    Io => text("Io")
+    Builtin(Io) => text("Io")
+    Builtin(Panic) => text("Panic")
     Singleton(id, arguments) => id.pretty() + effect_arguments_doc(arguments)
     Parameter(parameter) => parameter.pretty()
     Union(effects) => braced_inline(effects.map(Effect::pretty))

@@ -269,7 +269,7 @@ fn BuslaneLinker::remap_effect(
 ) -> @buslane.Effect raise @buslane.MetadataAllocationError {
   match effect {
     Empty => Empty
-    Io => Io
+    Builtin(effect) => Builtin(effect)
     Singleton(id, arguments) =>
       Singleton(
         self.remap_effect_id(object, id),

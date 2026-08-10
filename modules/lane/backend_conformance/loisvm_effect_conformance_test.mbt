@@ -3,7 +3,7 @@ fn effect_conformance_basic_io() -> String {
   (
     #|module Basic.Io
     #|pub let println : (String) -> Unit ! Io = extern("println")
-    #|pub let panic : (String) -> Unit ! Io = builtin("%panic")
+    #|pub let panic : (String) -> Unit ! Panic = builtin("%panic")
   )
 }
 
@@ -146,7 +146,7 @@ test "struct fields evaluate in source order with reversed existential witnesses
       #|  println(label)
       #|  value
       #|}
-      #|pub fn main() -> Unit ! Io {
+      #|pub fn main() -> Unit ! { Io, Panic } {
       #|  let _hidden : Hide = Hide::{
       #|    B = Bool,
       #|    A = I64,
@@ -548,7 +548,7 @@ test "statement-position panic is fatal and does not continue on either backend"
     (
       #|module Main
       #|import Basic.Io.*
-      #|pub fn main() -> Unit ! Io {
+      #|pub fn main() -> Unit ! { Io, Panic } {
       #|  panic("boom")
       #|  println("after")
       #|}
@@ -578,11 +578,11 @@ test "first-class panic preserves fatal control on either backend" {
     (
       #|module Main
       #|import Basic.Io.*
-      #|fn invoke(abort : (String) -> Unit ! Io) -> Unit ! Io {
+      #|fn invoke(abort : (String) -> Unit ! Panic) -> Unit ! Panic {
       #|  abort("forwarded")
       #|  ()
       #|}
-      #|pub fn main() -> Unit ! Io {
+      #|pub fn main() -> Unit ! { Io, Panic } {
       #|  invoke(panic)
       #|  println("after")
       #|}

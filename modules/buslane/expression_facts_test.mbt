@@ -10,7 +10,7 @@ test "expression facts distinguish empty and non-empty call effects" {
   let effectful = metadata.define_value(
     "effectful",
     External,
-    Function([], unit_type, Io),
+    Function([], unit_type, Builtin(Io)),
   )
   let program : Program = {
     metadata,
@@ -25,7 +25,7 @@ test "expression facts distinguish empty and non-empty call effects" {
     content=(
       #|(
       #|  Ok({ type_: Primitive(Unit), effect: Empty }),
-      #|  Ok({ type_: Primitive(Unit), effect: Io }),
+      #|  Ok({ type_: Primitive(Unit), effect: Builtin(Io) }),
       #|)
     ),
   )
@@ -38,7 +38,7 @@ test "expression facts survive direct function effect widening" {
   let invoke = metadata.define_value(
     "invoke",
     External,
-    Function([Function([], unit_type, Io)], unit_type, Empty),
+    Function([Function([], unit_type, Builtin(Io))], unit_type, Empty),
   )
   let program : Program = { metadata, terms: [External(invoke)] }
   let expression = Expr::Call(Ref(invoke), [

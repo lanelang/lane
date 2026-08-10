@@ -27,12 +27,12 @@ test "selective CPS keeps Io-only definitions and calls direct" {
   let println = metadata.define_value(
     "println",
     External,
-    Function([Primitive(String)], Primitive(Unit), Io),
+    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
   )
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], Primitive(Unit), Io),
+    Function([], Primitive(Unit), Builtin(Io)),
   )
   let input = Program::{
     metadata,
@@ -54,7 +54,7 @@ test "selective CPS keeps Io-only definitions and calls direct" {
   assert_eq(output, input)
   debug_inspect(
     output.metadata.value_info(main).unwrap().type_,
-    content="Function([], Primitive(Unit), Io)",
+    content="Function([], Primitive(Unit), Builtin(Io))",
   )
 }
 
@@ -119,9 +119,12 @@ test "selective CPS preserves Io on mixed callable and continuation types" {
   let println = metadata.define_value(
     "println",
     External,
-    Function([Primitive(String)], Primitive(Unit), Io),
+    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
   )
-  let mixed_effect : @buslane.Effect = Union([Io, Singleton(handled, [])])
+  let mixed_effect : @buslane.Effect = Union([
+    Builtin(Io),
+    Singleton(handled, []),
+  ])
   let main = metadata.define_value(
     "main",
     Function,
@@ -157,7 +160,7 @@ test "selective CPS preserves Io on mixed callable and continuation types" {
     is Forall([answer, residual], Function([_, continuation], result, latent)) else {
     abort("expected mixed CPS callable type")
   }
-  let row = @buslane.Effect::Union([Io, Parameter(residual)])
+  let row = @buslane.Effect::Union([Builtin(Io), Parameter(residual)])
   assert_eq(latent, row)
   assert_eq(result, Parameter(answer))
   assert_eq(continuation, Function([Primitive(Unit)], Parameter(answer), row))
@@ -219,7 +222,7 @@ test "direct calls bridge Unit-specialized CPS callables" {
     Effect,
     flavor=External,
   )
-  let row = @buslane.Effect::Union([Io, Parameter(residual)])
+  let row = @buslane.Effect::Union([Builtin(Io), Parameter(residual)])
   let context_type = @buslane.Type::Apply(
     TypeLambda([context_answer, context_residual], Primitive(Unit)),
     [TypeArgument(Parameter(answer)), EffectArgument(row)],
@@ -253,7 +256,10 @@ test "direct calls bridge Unit-specialized CPS callables" {
   assert_eq(callee, encoded)
   assert_eq(identity.result_type, Primitive(I64))
   assert_eq(identity.body, Ref(identity.parameters[0]))
-  assert_eq(synthesize_expr_or_raise(program.metadata, bridged).effect, Io)
+  assert_eq(
+    synthesize_expr_or_raise(program.metadata, bridged).effect,
+    Builtin(Io),
+  )
 }
 
 ///|
@@ -649,7 +655,7 @@ test "callable shape divergence reports the originating binding" {
 ///|
 test "CPS binding validation accepts a narrower residual effect" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let expected : @buslane.Type = Function([], Primitive(Unit), Io)
+  let expected : @buslane.Type = Function([], Primitive(Unit), Builtin(Io))
   let binding = metadata.define_value("binding", Local, expected)
   validate_cps_binding_type(
     metadata,

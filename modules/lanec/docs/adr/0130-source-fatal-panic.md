@@ -5,9 +5,10 @@ status: superseded
 # Statement-oriented source panic
 
 This ADR recorded Lane's first Unit-returning runtime-import panic contract.
-It is superseded by [compiler-owned fatal control](../fatal-control-rfc.md).
+It is superseded by [compiler-owned fatal control](../fatal-control-rfc.md) and
+the dedicated [`Panic` effect](0131-panic-effect.md).
 
-The implemented contract is compiler-owned:
+The historical contract was compiler-owned:
 
 ```lane
 pub let panic : (String) -> Unit ! Io = builtin("%panic")
@@ -24,3 +25,6 @@ Interpreter and Wasm execution preserve the existing
 host failures remain `ExecutionError::RuntimeImportFailure(symbol, message)`.
 The module-object and linked-program schemas were advanced for the new
 intrinsic and bytecode forms.
+
+The current contract replaces `Io` with the built-in `Panic` effect while
+retaining the ordinary `Unit` result and `Fatal(message)` execution boundary.

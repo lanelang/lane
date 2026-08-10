@@ -240,7 +240,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 11
+      #|schema: 12
       #|
       #|imported interfaces:
       #|  (none)
@@ -314,7 +314,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 17
+      #|schema: 18
       #|
       #|imported interfaces:
       #|  (none)
@@ -352,6 +352,30 @@ test "built-in Io roundtrips through typed artifacts" {
       #|
     ),
   )
+}
+
+///|
+test "Panic and Bytes intrinsics roundtrip through object artifacts" {
+  let compiled = compile_modules_for_test(
+    (
+      #|module Main
+      #|pub let panic : (String) -> Unit ! Panic = builtin("%panic")
+      #|pub let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
+      #|pub let bytes_set : (Bytes, I64, Byte) -> Bytes = builtin("%bytes_set")
+    ),
+    [],
+  )
+  assert_eq(compiled.diagnostics, [])
+  guard compiled.modules is Some(modules) &&
+    modules.to_artifact().modules is [module_] else {
+    fail("expected one compiled module artifact")
+  }
+  let binary = @artifact.module_object_artifact_to_binary(module_.object)
+  let decoded = match @artifact.parse_module_object_artifact_binary(binary) {
+    Ok(object) => object
+    Err(message) => fail(message)
+  }
+  assert_eq(decoded, module_.object)
 }
 
 ///|
@@ -407,7 +431,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 11
+      #|schema: 12
       #|
       #|imported interfaces:
       #|  (none)
@@ -823,7 +847,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 11
+      #|schema: 12
       #|
       #|imported interfaces:
       #|  (none)
@@ -845,7 +869,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 17
+      #|schema: 18
       #|
       #|imported interfaces:
       #|  (none)
@@ -1023,14 +1047,14 @@ test "module binaries reject immediately preceding schema versions" {
   let interface_bytes = @artifact.module_interface_artifact_to_binary(
     module_.to_interface_artifact(),
   ).to_array()
-  interface_bytes[14] = b'\x0A'
+  interface_bytes[14] = b'\x0B'
   interface_bytes[15] = b'\x00'
   interface_bytes[16] = b'\x00'
   interface_bytes[17] = b'\x00'
   let object_bytes = @artifact.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   ).to_array()
-  object_bytes[14] = b'\x0F'
+  object_bytes[14] = b'\x11'
   object_bytes[15] = b'\x00'
   object_bytes[16] = b'\x00'
   object_bytes[17] = b'\x00'
@@ -1050,7 +1074,7 @@ test "module binaries reject immediately preceding schema versions" {
     Ok(_) => fail("expected old object schema failure")
   }
   assert_eq(messages, [
-    "unsupported interface artifact schema version 10", "unsupported object artifact schema version 15",
+    "unsupported interface artifact schema version 11", "unsupported object artifact schema version 17",
   ])
 }
 
@@ -1143,7 +1167,7 @@ test "tuple signatures use safe nominal artifact presentation" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 11
+      #|schema: 12
       #|
       #|imported interfaces:
       #|  Basic.Data.Tuple: sha256:cbb9a63c581a741a58c63dc459a58738814f9830bb4e1e80d0f8d8cdc6b717a0

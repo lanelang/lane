@@ -14,10 +14,10 @@ pub(all) struct ModuleInterfaceArtifact {
 } derive(Debug, Eq)
 
 ///|
-pub let module_interface_artifact_schema_version = 11
+pub let module_interface_artifact_schema_version = 12
 
 ///|
-pub let module_object_artifact_schema_version = 17
+pub let module_object_artifact_schema_version = 18
 
 ///|
 pub let linked_program_artifact_schema_version = 13

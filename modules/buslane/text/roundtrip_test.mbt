@@ -58,7 +58,7 @@ fn type_forms() -> Array[(String, @buslane.Type)] {
     ("apply", Apply(Constructor({ index: 7 }), [TypeArgument(Primitive(Bool))])),
     (
       "apply of an effect",
-      Apply(Constructor({ index: 7 }), [EffectArgument(Io)]),
+      Apply(Constructor({ index: 7 }), [EffectArgument(Builtin(Io))]),
     ),
     ("apply without arguments", Apply(Constructor({ index: 7 }), [])),
     ("type lambda", TypeLambda([{ index: 7 }], Parameter({ index: 7 }))),
@@ -67,7 +67,7 @@ fn type_forms() -> Array[(String, @buslane.Type)] {
     ("function without parameters", Function([], Primitive(Bool), Empty)),
     (
       "function with a latent effect",
-      Function([Primitive(I64)], Primitive(Bool), Io),
+      Function([Primitive(I64)], Primitive(Bool), Builtin(Io)),
     ),
     ("forall", Forall([{ index: 7 }], Parameter({ index: 7 }))),
     ("forall without parameters", Forall([], Primitive(Bool))),
@@ -94,7 +94,7 @@ fn type_contexts() -> Array[(String, (@buslane.Type) -> @buslane.Type)] {
     ("as a function result", hole => Function([Primitive(I64)], hole, Empty)),
     (
       "as a function result under a latent effect",
-      hole => Function([Primitive(I64)], hole, Io),
+      hole => Function([Primitive(I64)], hole, Builtin(Io)),
     ),
     ("as a forall body", hole => Forall([{ index: 1 }], hole)),
     ("as a type lambda body", hole => TypeLambda([{ index: 1 }], hole)),
@@ -143,16 +143,17 @@ test "buslane text round-trips every type constructor in every position" {
 fn effect_forms() -> Array[(String, @buslane.Effect)] {
   [
     ("empty", Empty),
-    ("io", Io),
+    ("io", Builtin(Io)),
+    ("panic", Builtin(Panic)),
     ("singleton", Singleton({ index: 7 }, [])),
     (
       "singleton with arguments",
       Singleton({ index: 7 }, [TypeArgument(Primitive(I64))]),
     ),
     ("parameter", Parameter({ index: 7 })),
-    ("union", Union([Io, Parameter({ index: 7 })])),
-    ("union of one", Union([Io])),
-    ("nested union", Union([Union([Io]), Empty])),
+    ("union", Union([Builtin(Io), Parameter({ index: 7 })])),
+    ("union of one", Union([Builtin(Io)])),
+    ("nested union", Union([Union([Builtin(Io)]), Empty])),
   ]
 }
 
@@ -175,7 +176,7 @@ fn effect_contexts() -> Array[(String, (@buslane.Effect) -> @buslane.Type)] {
     ("as a latent effect", hole => Function([], Primitive(Unit), hole)),
     (
       "as a union member",
-      hole => Function([], Primitive(Unit), Union([hole, Io])),
+      hole => Function([], Primitive(Unit), Union([hole, Builtin(Io)])),
     ),
     (
       "as an effect argument",

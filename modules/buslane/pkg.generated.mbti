@@ -47,6 +47,11 @@ pub(all) struct Alternative {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for Alternative
 
+pub(all) enum BuiltinEffect {
+  Io
+  Panic
+} derive(Eq, @debug.Debug)
+
 pub(all) struct BuslaneName {
   name_space : NameNamespace
   occurrence : String
@@ -82,7 +87,7 @@ pub impl @prettyprinter.Pretty for DataConInfo
 
 pub(all) enum Effect {
   Empty
-  Io
+  Builtin(BuiltinEffect)
   Singleton(EffectId, Array[GenericArgument])
   Parameter(TypeParameterId)
   Union(Array[Effect])

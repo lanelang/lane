@@ -391,7 +391,7 @@ fn DictionaryCpsSchema::context_term_type(
   residual_effect : @buslane.Effect,
 ) -> @buslane.Type raise SynthesisError {
   match term {
-    Io => abort("Io has no effect dictionary")
+    Builtin(_) => abort("builtin effects have no effect dictionary")
     Singleton(effect, arguments) => {
       let dictionary = self.dictionary(effect)
       guard self.metadata.effect_info(effect) is Some(info) else {
@@ -465,7 +465,7 @@ fn DictionaryCpsSchema::rewrite_residual_effect(
   effect : @buslane.Effect,
 ) -> @buslane.Effect raise SynthesisError {
   match effect {
-    Empty | Io => effect
+    Empty | Builtin(_) => effect
     Parameter(parameter) => Parameter(self.residual_parameter(parameter))
     Singleton(effect, arguments) => {
       guard self.metadata.effect_info(effect) is Some(info) else {

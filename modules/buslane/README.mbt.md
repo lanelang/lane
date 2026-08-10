@@ -15,7 +15,7 @@ It is used by the Lane compiler, but the module does not depend on Lane syntax, 
 - Typed expression-tree IR with explicit metadata and stable identities
 - Primitive, nominal, polymorphic, higher-kinded, and effect-aware types
 - Explicit functions, type abstraction and application, nominal construction, matching, algebraic operations, handlers, and resumptions
-- Built-in `Io` effect plus user-defined parameterized effects
+- Built-in `Io` and `Panic` effects plus user-defined parameterized effects
 - Pure verifier for metadata, scope, kind, type, effect, arity, and match invariants
 - One text language for diagnostics, snapshots, and round-trip
 - Round-trippable canonical text representation
@@ -93,7 +93,7 @@ test "canonicalize a Buslane effect set" {
   let effect = Effect::Union([
     Singleton(state, []),
     Empty,
-    Io,
+    Builtin(Io),
     Singleton(state, []),
   ])
 
@@ -104,7 +104,7 @@ test "canonicalize a Buslane effect set" {
   assert_true(
     metadata.effects_definitionally_equal(
       effect,
-      Union([Io, Singleton(state, [])]),
+      Union([Builtin(Io), Singleton(state, [])]),
     ),
   )
 }
@@ -177,7 +177,7 @@ test "substitute a polymorphic function body" {
   )
   let substitution = TypeSubstitution::TypeSubstitution()
   substitution.insert(value_parameter, Primitive(String))
-  substitution.insert_effect(effect_parameter, Io)
+  substitution.insert_effect(effect_parameter, Builtin(Io))
 
   inspect(
     @prettyprinter.render(function_type.substitute(substitution), width=80),
@@ -223,7 +223,8 @@ Type parameters have kind `Type`, `Effect`, or `Function(parameters, result)`. G
 Effects include:
 
 - `Empty` for no effects;
-- `Io` for the built-in runtime I/O effect;
+- `Builtin(Io)` for the built-in runtime I/O effect;
+- `Builtin(Panic)` for the built-in source fatal-control effect;
 - `Singleton(effect_id, arguments)` for a user-defined effect instance;
 - `Parameter(type_parameter_id)` for an open effect row;
 - `Union(effects)` for a set of effects.

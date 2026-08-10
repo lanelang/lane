@@ -257,6 +257,7 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "as" => AS
     "final" => FINAL
     "Io" => IO
+    "Panic" => PANIC
     "_" => UNDERSCORE
     "let" => LET
     "letrec" => LETREC

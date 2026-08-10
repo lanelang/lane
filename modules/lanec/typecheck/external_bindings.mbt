@@ -57,7 +57,8 @@ fn compiler_intrinsic_type(intrinsic : @abi.Intrinsic) -> @types.Type {
         Primitive(intrinsic_primitive_type(result)),
         match effect {
           Pure => Empty
-          Io => Io
+          BuiltinIo => Builtin(Io)
+          BuiltinPanic => Builtin(Panic)
         },
       )
   }
@@ -178,7 +179,7 @@ fn SemanticChecker::extern_effect_row(
   effect : @types.Effect,
 ) -> Bool {
   match effect {
-    Empty | Io => true
+    Empty | Builtin(_) => true
     Singleton(symbol, _) =>
       self.declarations.checked_effect(symbol) is Some(declaration) &&
       declaration.flavor is External

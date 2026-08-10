@@ -31,6 +31,11 @@ fn @syntax.Type::resolve_effect_type(
         arguments=resolve_default_generic_arguments(arguments, resolver, scope),
         loc~,
       )
+    Name(name="Panic", ..) =>
+      Panic(
+        arguments=resolve_default_generic_arguments(arguments, resolver, scope),
+        loc~,
+      )
     Name(name~, ..) =>
       match scope.type_parameter_info(name) {
         Some(parameter) =>

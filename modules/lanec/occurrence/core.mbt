@@ -395,7 +395,7 @@ fn type_has_effect(type_ : @buslane.Type) -> Bool {
 fn effect_has_effect(effect : @buslane.Effect) -> Bool {
   match effect {
     Empty => false
-    Io | Singleton(_, _) | Parameter(_) => true
+    Builtin(_) | Singleton(_, _) | Parameter(_) => true
     Union(effects) => effects.any(effect_has_effect)
   }
 }

@@ -118,7 +118,7 @@ fn collect_effect_symbols(
   symbols : Array[@symbol.SymbolId],
 ) -> Unit {
   match effect {
-    Empty | Io => ()
+    Empty | Builtin(_) => ()
     Singleton(symbol, arguments) => {
       symbols.push(Effect(symbol))
       for argument in arguments {

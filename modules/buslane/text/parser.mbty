@@ -43,6 +43,7 @@
 %token BYTE_TYPE "Byte"
 %token BYTES_TYPE "Bytes"
 %token IO "Io"
+%token PANIC "Panic"
 %token FORALL "forall"
 %token IN "in"
 %token AS "as"
@@ -351,7 +352,8 @@ atom_type -> Type
 
 effect -> Effect
   : "{" "}" { Empty }
-  | "Io" { Io }
+  | "Io" { Builtin(Io) }
+  | "Panic" { Builtin(Panic) }
   | type_parameter_id { Parameter($1) }
   | effect_id { Singleton($1, []) }
   | effect_id "[" non_empty_generic_arguments "]" { Singleton($1, $3) }

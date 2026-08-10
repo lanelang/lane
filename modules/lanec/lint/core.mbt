@@ -433,7 +433,7 @@ fn LintCollector::collect_checked_effect(
   effect : @types.Effect,
 ) -> Unit {
   match effect {
-    Empty | Io => ()
+    Empty | Builtin(_) => ()
     Singleton(symbol, arguments) => {
       self.use_import_symbol(EffectSymbol(symbol))
       self.add_top_level_reference(TopLevelEffect(symbol))
@@ -873,7 +873,7 @@ fn LintCollector::collect_effect(
 ) -> Unit {
   match effect {
     Empty(_) => ()
-    Io(arguments~, ..) | Unresolved(arguments~, ..) =>
+    Io(arguments~, ..) | Panic(arguments~, ..) | Unresolved(arguments~, ..) =>
       for argument in arguments {
         self.collect_generic_argument(argument)
       }

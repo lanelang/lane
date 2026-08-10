@@ -51,6 +51,12 @@ pub(all) enum Kind {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum BuiltinEffect {
+  Io
+  Panic
+} derive(Debug, Eq)
+
+///|
 pub(all) struct TypeParameter {
   id : TypeParameterId
   name : String
@@ -72,7 +78,7 @@ pub(all) enum Type {
 ///|
 pub(all) enum Effect {
   Empty
-  Io
+  Builtin(BuiltinEffect)
   Singleton(EffectSymbolId, Array[GenericArgument])
   Parameter(TypeParameterId)
   Union(Array[Effect])
@@ -270,7 +276,7 @@ fn Effect::substitute_with_bound(
   bound : Array[TypeParameterId],
 ) -> Effect {
   match self {
-    Empty | Io => self
+    Empty | Builtin(_) => self
     Singleton(symbol, arguments) =>
       Singleton(
         symbol,
@@ -507,7 +513,7 @@ fn collect_effect_terms(
 ) -> Unit {
   match effect {
     Empty => ()
-    Io => push_unique_effect_term(bindings, terms, Io)
+    Builtin(_) => push_unique_effect_term(bindings, terms, effect)
     Singleton(_, _) => push_unique_effect_term(bindings, terms, effect)
     Parameter(_) => push_unique_effect_term(bindings, terms, effect)
     Union(effects) =>
@@ -539,7 +545,7 @@ fn effect_term_alpha_equal_with(
 ) -> Bool {
   match (left, right) {
     (Empty, Empty) => true
-    (Io, Io) => true
+    (Builtin(left), Builtin(right)) => left == right
     (
       Singleton(left_symbol, left_arguments),
       Singleton(right_symbol, right_arguments),
@@ -739,7 +745,7 @@ fn Effect::normalize_with_fuel(
     raise EffectNormalizationFuelExhausted
   }
   match self {
-    Empty | Io | Parameter(_) => self
+    Empty | Builtin(_) | Parameter(_) => self
     Singleton(symbol, arguments) =>
       Singleton(
         symbol,

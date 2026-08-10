@@ -190,7 +190,7 @@ fn build_relay_bindings(
   let initializers = []
   for term in effect_terms(schema.metadata, unhandled.effect) {
     match term {
-      Io => ()
+      Builtin(_) => ()
       Singleton(effect, arguments) => {
         let value = build_concrete_relay_dictionary(
           schema, program, unhandled, effect, arguments,

@@ -13,7 +13,7 @@ test "function effect widening preserves checked expression contracts" {
   let widened_type = @types.Type::Function(
     [Parameter(parameter)],
     Parameter(parameter),
-    Io,
+    Builtin(Io),
   )
   let value = CheckedExpr::Value(
     name="target",
@@ -41,7 +41,7 @@ test "function effect widening preserves checked expression contracts" {
         type_=Function([Primitive(I64)], Primitive(I64), Empty),
         loc=location,
       ),
-      type_=Function([Primitive(I64)], Primitive(I64), Io),
+      type_=Function([Primitive(I64)], Primitive(I64), Builtin(Io)),
       loc=location,
     ),
   )

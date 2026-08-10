@@ -449,7 +449,8 @@ fn @bytecodec.ByteWriter::write_lane_effect(
 ) -> Unit {
   match effect {
     Empty => self.write_u8(0)
-    Io => self.write_u8(4)
+    Builtin(Io) => self.write_u8(4)
+    Builtin(Panic) => self.write_u8(5)
     Singleton(id, arguments) => {
       self.write_u8(1)
       self.write_effect_symbol_id(id)
@@ -493,7 +494,11 @@ fn @bytecodec.ByteReader::read_lane_effect(
     }
     [u8be(4), .. rest] => {
       self.update_view(rest)
-      Io
+      Builtin(Io)
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      Builtin(Panic)
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

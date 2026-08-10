@@ -24,7 +24,7 @@ pub fn entry_effect_is_executable(
     return false
   }
   match metadata.canonicalize_effect(effect) {
-    Empty | Io => true
+    Empty | Builtin(_) => true
     Singleton(effect_id, _) =>
       metadata
       .effect_info(effect_id)
@@ -38,7 +38,7 @@ pub fn entry_effect_is_executable(
 ///|
 fn entry_effect_is_closed(effect : @buslane.Effect) -> Bool {
   match effect {
-    Empty | Io => true
+    Empty | Builtin(_) => true
     Parameter(_) => false
     Singleton(_, arguments) => arguments.all(entry_argument_is_closed)
     Union(effects) => effects.all(entry_effect_is_closed)

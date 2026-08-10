@@ -84,7 +84,8 @@ pub fn Intrinsic::signature(Self) -> IntrinsicSignature
 
 pub(all) enum IntrinsicEffect {
   Pure
-  Io
+  BuiltinIo
+  BuiltinPanic
 } derive(Eq, @debug.Debug)
 
 pub(all) enum IntrinsicSignature {

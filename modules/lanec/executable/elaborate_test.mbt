@@ -50,8 +50,8 @@ test "whole-program elaboration records ordered reachable initializer roots" {
   let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let producer_type = @buslane.Type::Function([i64_type], i64_type, Empty)
-  let observe_type = @buslane.Type::Function([i64_type], unit_type, Io)
-  let function_type = @buslane.Type::Function([], unit_type, Io)
+  let observe_type = @buslane.Type::Function([i64_type], unit_type, Builtin(Io))
+  let function_type = @buslane.Type::Function([], unit_type, Builtin(Io))
   let first = metadata.define_value("first", Value, i64_type)
   let second = metadata.define_value("second", Value, i64_type)
   let unused = metadata.define_value("unused", Value, i64_type)
@@ -119,8 +119,12 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
   let string_type = @buslane.Type::Primitive(String)
-  let println_type = @buslane.Type::Function([string_type], unit_type, Io)
-  let main_type = @buslane.Type::Function([], unit_type, Io)
+  let println_type = @buslane.Type::Function(
+    [string_type],
+    unit_type,
+    Builtin(Io),
+  )
+  let main_type = @buslane.Type::Function([], unit_type, Builtin(Io))
   let println = metadata.define_value("println", External, println_type)
   let main = metadata.define_value("main", Function, main_type)
   let entry = executable_test_entry("main", main, main_type)
@@ -168,7 +172,7 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       #|    module_path_text: "Main",
       #|    name: "main",
       #|    value: { index: 1 },
-      #|    type_: Function([], Primitive(Unit), Io),
+      #|    type_: Function([], Primitive(Unit), Builtin(Io)),
       #|  },
       #|  {
       #|    builtins: [],
@@ -177,7 +181,7 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       #|        value: { index: 0 },
       #|        symbol: "println",
       #|        signature: { parameters: [String], result: Unit },
-      #|        type_: Function([Primitive(String)], Primitive(Unit), Io),
+      #|        type_: Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
       #|      },
       #|    ],
       #|  },

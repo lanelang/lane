@@ -41,7 +41,23 @@ fn TypeExpressionChecker::check_effect(
       for argument in arguments {
         ignore(self.check_generic_argument(Type, argument))
       }
-      Io
+      Builtin(Io)
+    }
+    Panic(arguments~, loc~) => {
+      if !arguments.is_empty() {
+        self.diagnostics.push({
+          kind: GenericArgumentArityMismatch(
+            subject=Named(name="Panic"),
+            expected=0,
+            actual=arguments.length(),
+          ),
+          loc,
+        })
+      }
+      for argument in arguments {
+        ignore(self.check_generic_argument(Type, argument))
+      }
+      Builtin(Panic)
     }
     Singleton(symbol~, name~, arguments~, loc~) => {
       self.check_effect_arity(
@@ -383,7 +399,7 @@ fn @types.Effect::substitute_effect_parameters_with_bound(
   bound : Array[TypeParameterId],
 ) -> @types.Effect {
   match self {
-    Empty | Io => self
+    Empty | Builtin(_) => self
     Singleton(symbol, arguments) =>
       Singleton(
         symbol,
@@ -484,6 +500,7 @@ fn resolved_effect_loc(effect : @resolve.ResolvedEffectTerm) -> SourceSpan {
   match effect {
     Empty(loc~) => loc
     Io(loc~, ..) => loc
+    Panic(loc~, ..) => loc
     Singleton(loc~, ..) => loc
     Parameter(loc~, ..) => loc
     Alias(loc~, ..) => loc

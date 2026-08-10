@@ -4,12 +4,12 @@ test "residual effect erasure preserves extern call structure" {
   let println = metadata.define_value(
     "println",
     External,
-    Function([Primitive(String)], Primitive(Unit), Io),
+    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
   )
   let main = metadata.define_value(
     "main",
     Function,
-    Function([], Primitive(Unit), Io),
+    Function([], Primitive(Unit), Builtin(Io)),
   )
   let first = metadata.define_value("first", Local, Primitive(Unit))
   let source : @buslane.Program = {

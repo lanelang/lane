@@ -344,7 +344,7 @@ fn effect_is_open(effect : @types.Effect) -> Bool {
   match effect.canonicalize() {
     Parameter(_) => true
     Union(items) => items.any(effect_is_open)
-    Empty | Io | Singleton(_, _) => false
+    Empty | Builtin(_) | Singleton(_, _) => false
   }
 }
 
@@ -355,7 +355,7 @@ fn effect_contains(
 ) -> Bool raise @types.TypeComputationError {
   match effect.canonicalize() {
     Empty | Parameter(_) => false
-    Io as item => item.equals(needle)
+    Builtin(_) as item => item.equals(needle)
     Singleton(_, _) as item => item.equals(needle)
     Union(items) => items.any(item => effect_contains(item, needle))
   }
@@ -368,7 +368,7 @@ fn effect_without(
 ) -> @types.Effect raise @types.TypeComputationError {
   match effect.canonicalize() {
     Empty => Empty
-    Io as item => if item.equals(removed) { Empty } else { item }
+    Builtin(_) as item => if item.equals(removed) { Empty } else { item }
     Singleton(_, _) as item => if item.equals(removed) { Empty } else { item }
     Parameter(_) as item => item
     Union(items) =>
@@ -600,7 +600,7 @@ fn handler_effect_has_nested_residual(
   residual : TypeParameterId,
 ) -> Bool {
   match effect.canonicalize() {
-    Empty | Io | Parameter(_) => false
+    Empty | Builtin(_) | Parameter(_) => false
     Singleton(_, arguments) =>
       arguments.any(argument => {
         argument.mentions_any_type_parameter_with_bound([residual], [])

@@ -12,7 +12,8 @@ _Avoid_: compiler library, language server
 **Single-File Run**:
 The command behavior that checks one root Lane module with the default Basic
 library and any explicitly supplied library modules, then executes a selected
-public `() -> Unit` or `() -> Unit ! Io` entry through LoisVM.
+public zero-parameter `Unit` entry with a closed residual row containing only
+built-in and External Effects through LoisVM.
 _Avoid_: language-level main, project execution
 
 **Executable Explore Command**:

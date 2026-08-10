@@ -539,21 +539,28 @@ test "buslane effect containment is independent from equality" {
 }
 
 ///|
-test "buslane preserves the built-in Io effect atom" {
+test "buslane preserves distinct built-in effect atoms" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let row = metadata.define_type_parameter("E", Effect)
-  let effect = Effect::Union([Io, Empty, Parameter(row), Io])
+  let effect = Effect::Union([
+    Builtin(Io),
+    Builtin(Panic),
+    Empty,
+    Parameter(row),
+    Builtin(Io),
+  ])
   inspect(
     @prettyprinter.render(metadata.canonicalize_effect(effect), width=100),
-    content="{Io, tparam#0}",
+    content="{Io, Panic, tparam#0}",
   )
   let substitution = TypeSubstitution::TypeSubstitution()
-  substitution.insert_effect(row, Io)
-  debug_inspect(
+  substitution.insert_effect(row, Builtin(Io))
+  assert_eq(
     metadata.canonicalize_effect(effect.substitute(substitution)),
-    content="Io",
+    Union([Builtin(Io), Builtin(Panic)]),
   )
-  assert_false(Effect::Io == Empty)
+  assert_false(Effect::Builtin(Io) == Empty)
+  assert_false(Effect::Builtin(Io) == Builtin(Panic))
 }
 
 ///|
@@ -1414,11 +1421,11 @@ test "consumable types widen a latent effect by residual terms" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let external = metadata.define_effect("Fd", [], flavor=External)
   let pure_ = Type::Function([], i64_type(), Empty)
-  let io = Type::Function([], i64_type(), Io)
+  let io = Type::Function([], i64_type(), Builtin(Io))
   let both = Type::Function(
     [],
     i64_type(),
-    Union([Io, Singleton(external, [])]),
+    Union([Builtin(Io), Singleton(external, [])]),
   )
   assert_true(metadata.type_is_consumable_as(pure_, io))
   assert_true(metadata.type_is_consumable_as(pure_, both))
@@ -1457,7 +1464,7 @@ test "consumable types classify effect row variables by flavor" {
 test "consumable types invert the direction under a parameter" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let pure_ = Type::Function([], i64_type(), Empty)
-  let io = Type::Function([], i64_type(), Io)
+  let io = Type::Function([], i64_type(), Builtin(Io))
   // A consumer that will be handed a pure callback cannot take one that only
   // accepts callbacks allowed to perform `Io`, and the reverse is fine.
   assert_true(
@@ -1480,7 +1487,7 @@ test "consumable types keep type arguments invariant" {
   let parameter = metadata.define_type_parameter("A", Type)
   let box = metadata.define_type("Box", [parameter])
   let pure_ = Type::Function([], i64_type(), Empty)
-  let io = Type::Function([], i64_type(), Io)
+  let io = Type::Function([], i64_type(), Builtin(Io))
   assert_false(
     metadata.type_is_consumable_as(
       Apply(Constructor(box), [TypeArgument(pure_)]),
@@ -1900,13 +1907,13 @@ test "substitution and alpha equality agree on shadowed binders" {
   // must then read it as the inner binder too.
   let applied : Type = Apply(
     TypeLambda([x], Forall([x], Function([], Primitive(Unit), Parameter(x)))),
-    [EffectArgument(Io)],
+    [EffectArgument(Builtin(Io))],
   )
   let untouched : Type = Forall(
     [y],
     Function([], Primitive(Unit), Parameter(y)),
   )
-  let captured : Type = Forall([y], Function([], Primitive(Unit), Io))
+  let captured : Type = Forall([y], Function([], Primitive(Unit), Builtin(Io)))
   assert_true(metadata.types_definitionally_equal(applied, untouched))
   assert_false(metadata.types_definitionally_equal(applied, captured))
 }
@@ -1932,8 +1939,12 @@ test "type application enforces an external row variable's flavor" {
   ])
   for
     admitted in (
-      [Empty, Io, Singleton(external, []), Union([Io, Singleton(external, [])])] :
-      Array[Effect]) {
+      [
+        Empty,
+        Builtin(Io),
+        Singleton(external, []),
+        Union([Builtin(Io), Singleton(external, [])]),
+      ] : Array[Effect]) {
     assert_true(
       query.synthesize(TypeApply(Ref(g), [EffectArgument(admitted)])) is Ok(_),
     )

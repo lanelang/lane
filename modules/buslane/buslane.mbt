@@ -87,6 +87,12 @@ pub(all) enum Kind {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum BuiltinEffect {
+  Io
+  Panic
+} derive(Debug, Eq)
+
+///|
 pub(all) enum PrimitiveType {
   Unit
   Bool
@@ -114,7 +120,7 @@ pub(all) enum Type {
 ///|
 pub(all) enum Effect {
   Empty
-  Io
+  Builtin(BuiltinEffect)
   Singleton(EffectId, Array[GenericArgument])
   Parameter(TypeParameterId)
   Union(Array[Effect])
@@ -674,7 +680,7 @@ pub fn MetadataRegistry::effect_term_is_algebraic(
   term : Effect,
 ) -> Bool {
   match term {
-    Empty | Io => false
+    Empty | Builtin(_) => false
     Singleton(effect, _) =>
       self
       .effect_info(effect)
@@ -988,7 +994,7 @@ fn collect_effect_terms(
 ) -> Unit {
   match effect {
     Empty => ()
-    Io => push_unique_effect_term(context, terms, Io)
+    Builtin(_) => push_unique_effect_term(context, terms, effect)
     Singleton(id, arguments) =>
       push_unique_effect_term(context, terms, Singleton(id, arguments))
     Parameter(_) => push_unique_effect_term(context, terms, effect)
@@ -1020,7 +1026,7 @@ fn alpha_equal_effect_term_with(
   right : Effect,
 ) -> Bool {
   match (left, right) {
-    (Io, Io) => true
+    (Builtin(left), Builtin(right)) => left == right
     (Singleton(left_id, left_arguments), Singleton(right_id, right_arguments)) =>
       left_id == right_id &&
       same_length_generic_argument_alpha_equal(
@@ -1302,7 +1308,7 @@ fn Type::mentions_free(self : Type, id : TypeParameterId) -> Bool {
 ///|
 fn Effect::mentions_free(self : Effect, id : TypeParameterId) -> Bool {
   match self {
-    Empty | Io => false
+    Empty | Builtin(_) => false
     Parameter(parameter) => parameter == id
     Singleton(_, arguments) =>
       arguments.any(argument => argument.mentions_free(id))
@@ -1451,7 +1457,7 @@ fn Effect::normalize_with_budget(
   budget : TypeNormalizationBudget,
 ) -> Effect raise TypeNormalizationError {
   match self {
-    Empty | Io | Parameter(_) => self
+    Empty | Builtin(_) | Parameter(_) => self
     Singleton(id, arguments) =>
       Singleton(
         id,
@@ -1551,7 +1557,7 @@ fn Effect::substitute_with_bound(
   bound : Array[TypeParameterId],
 ) -> Effect raise TypeSubstitutionError {
   match self {
-    Empty | Io => self
+    Empty | Builtin(_) => self
     Parameter(parameter) =>
       match substitution.lookup_effect(parameter, bound) {
         Some(replacement) => replacement

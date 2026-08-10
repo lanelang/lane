@@ -32,7 +32,8 @@ pub(all) enum IntrinsicValueKind {
 ///|
 pub(all) enum IntrinsicEffect {
   Pure
-  Io
+  BuiltinIo
+  BuiltinPanic
 } derive(Debug, Eq)
 
 ///|
@@ -256,7 +257,7 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
 ///|
 pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
   match self {
-    Panic => Function(parameters=[String], result=Unit, effect=Io)
+    Panic => Function(parameters=[String], result=Unit, effect=BuiltinPanic)
     I64Add | I64Sub | I64Mul | I64Div | I64Rem =>
       pure_intrinsic_function(parameters=[I64, I64], result=I64)
     I64Neg => pure_intrinsic_function(parameters=[I64], result=I64)

@@ -1,11 +1,48 @@
 ///|
-test "panic intrinsic owns its exact Io signature" {
+test "panic intrinsic owns its exact Panic signature" {
   assert_eq(
-    (Intrinsic::from_name("%panic"), Panic.name(), Panic.signature()),
     (
-      Some(Panic),
+      Intrinsic::from_name("%panic"),
+      Intrinsic::Panic.name(),
+      Intrinsic::Panic.signature(),
+    ),
+    (
+      Some(Intrinsic::Panic),
       "%panic",
-      Function(parameters=[String], result=Unit, effect=Io),
+      Function(
+        parameters=[IntrinsicValueKind::String],
+        result=IntrinsicValueKind::Unit,
+        effect=BuiltinPanic,
+      ),
+    ),
+  )
+}
+
+///|
+test "Bytes indexing has one precondition-based intrinsic contract" {
+  assert_eq(
+    (
+      [
+        (BytesGet.name(), BytesGet.signature()),
+        (BytesSet.name(), BytesSet.signature()),
+      ],
+      [
+        Intrinsic::from_name("%bytes_get_unchecked"),
+        Intrinsic::from_name("%bytes_set_unchecked"),
+      ],
+    ),
+    (
+      [
+        (
+          "%bytes_get",
+          Function(parameters=[Bytes, I64], result=Byte, effect=Pure),
+        ),
+        (
+          "%bytes_set",
+          Function(parameters=[Bytes, I64, Byte], result=Bytes, effect=Pure),
+        ),
+      ],
+      [None, None],
     ),
   )
 }

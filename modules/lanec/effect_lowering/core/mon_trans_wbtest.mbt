@@ -25,7 +25,7 @@ test "mon-trans keeps Io calls direct" {
   let println = metadata.define_value(
     "println",
     Value,
-    Function([Primitive(String)], Primitive(Unit), Io),
+    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
   )
   let local_value = metadata.define_value("local", Local, Primitive(Unit))
   let input = test_program(
@@ -46,29 +46,29 @@ test "mon effect classification separates Io from handled effects" {
   let external = metadata.define_effect("External", [], flavor=External)
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   assert_false(is_mon_effect(metadata, Empty))
-  assert_false(is_mon_effect(metadata, Io))
+  assert_false(is_mon_effect(metadata, Builtin(Io)))
   assert_false(is_mon_effect(metadata, Singleton(external, [])))
   assert_true(is_mon_effect(metadata, Singleton(handled, [])))
   assert_true(is_mon_effect(metadata, Parameter(effect_parameter)))
   assert_true(
     is_mon_effect(
       metadata,
-      Union([Io, Singleton(external, []), Singleton(handled, [])]),
+      Union([Builtin(Io), Singleton(external, []), Singleton(handled, [])]),
     ),
   )
   assert_eq(
     mon_effect_part(
       metadata,
-      Union([Io, Singleton(external, []), Singleton(handled, [])]),
+      Union([Builtin(Io), Singleton(external, []), Singleton(handled, [])]),
     ),
     Singleton(handled, []),
   )
   assert_eq(
     residual_effect_part(
       metadata,
-      Union([Io, Singleton(external, []), Singleton(handled, [])]),
+      Union([Builtin(Io), Singleton(external, []), Singleton(handled, [])]),
     ),
-    Union([Io, Singleton(external, [])]),
+    Union([Builtin(Io), Singleton(external, [])]),
   )
   debug_inspect(
     (

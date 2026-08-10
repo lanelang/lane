@@ -737,7 +737,7 @@ fn SemanticIndex::collect_resolved_effect(
 ) -> Unit {
   match effect {
     Empty(_) => ()
-    Io(arguments~, ..) | Unresolved(arguments~, ..) =>
+    Io(arguments~, ..) | Panic(arguments~, ..) | Unresolved(arguments~, ..) =>
       for argument in arguments {
         self.collect_resolved_generic_argument(argument)
       }

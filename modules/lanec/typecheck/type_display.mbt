@@ -73,7 +73,8 @@ pub fn TypeDisplayContext::effect_text(
 ) -> String {
   match effect {
     Empty => "{}"
-    Io => "Io"
+    Builtin(Io) => "Io"
+    Builtin(Panic) => "Panic"
     Singleton(symbol, arguments) => {
       let name = self.effect_symbol_text(symbol)
       if arguments.is_empty() {

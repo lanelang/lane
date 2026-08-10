@@ -119,8 +119,11 @@ test "effect application carries context and residual projections independently"
     ],
   )
   assert_true(
-    rewrite(Io)
-    is [TypeArgument(TypeLambda([_, _], Primitive(Unit))), EffectArgument(Io)],
+    rewrite(Builtin(Io))
+    is [
+      TypeArgument(TypeLambda([_, _], Primitive(Unit))),
+      EffectArgument(Builtin(Io)),
+    ],
   )
   assert_true(
     rewrite(Singleton(external, []))
@@ -138,10 +141,10 @@ test "effect application carries context and residual projections independently"
     ],
   )
   assert_true(
-    rewrite(Union([Singleton(handled, []), Io]))
+    rewrite(Union([Singleton(handled, []), Builtin(Io)]))
     is [
       TypeArgument(TypeLambda([_, _], Apply(Constructor(_), _))),
-      EffectArgument(Io),
+      EffectArgument(Builtin(Io)),
     ],
   )
   assert_eq(rewrite(Parameter(effect_parameter)), [
@@ -248,8 +251,10 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
     Function([Primitive(I64)], Primitive(I64), Empty),
   )
   assert_eq(
-    schema.rewrite_type(Function([Primitive(String)], Primitive(Unit), Io)),
-    Function([Primitive(String)], Primitive(Unit), Io),
+    schema.rewrite_type(
+      Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+    ),
+    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
   )
   assert_eq(
     schema.rewrite_type(
@@ -261,7 +266,7 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
     Function(
       [Primitive(String)],
       Primitive(Unit),
-      Union([Io, Singleton(handled, [])]),
+      Union([Builtin(Io), Singleton(handled, [])]),
     ),
   )
   guard mixed
@@ -277,7 +282,10 @@ test "type rewriting preserves residual effects and rewrites monadic effects" {
   }
   // The function performs `Io` itself and propagates whatever its dictionary
   // and continuation perform, so its row is both.
-  let mixed_row = @buslane.Effect::Union([Io, Parameter(mixed_residual)])
+  let mixed_row = @buslane.Effect::Union([
+    Builtin(Io),
+    Parameter(mixed_residual),
+  ])
   assert_eq(mixed_latent, mixed_row)
   assert_eq(mixed_result, Parameter(mixed_answer))
   assert_eq(

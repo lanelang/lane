@@ -4,13 +4,13 @@ test "compiler preserves Unit calls and compiler-owned fatal control" {
     (
       #|module Test
       #|
-      #|let panic : (String) -> Unit ! Io = builtin("%panic")
+      #|let panic : (String) -> Unit ! Panic = builtin("%panic")
       #|
-      #|fn invoke(abort : (String) -> Unit ! Io) -> Unit ! Io {
+      #|fn invoke(abort : (String) -> Unit ! Panic) -> Unit ! Panic {
       #|  abort("indirect")
       #|}
       #|
-      #|pub fn answer() -> Unit ! Io {
+      #|pub fn answer() -> Unit ! Panic {
       #|  invoke(panic)
       #|  ()
       #|}

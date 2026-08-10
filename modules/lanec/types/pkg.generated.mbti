@@ -21,9 +21,14 @@ pub(all) suberror TypeComputationError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum BuiltinEffect {
+  Io
+  Panic
+} derive(Eq, @debug.Debug)
+
 pub(all) enum Effect {
   Empty
-  Io
+  Builtin(BuiltinEffect)
   Singleton(@symbol.EffectSymbolId, Array[GenericArgument])
   Parameter(@symbol.TypeParameterId)
   Union(Array[Effect])

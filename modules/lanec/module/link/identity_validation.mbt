@@ -245,7 +245,7 @@ fn ModuleObjectIdentityValidator::validate_effect(
   effect : @buslane.Effect,
 ) -> Unit {
   match effect {
-    Empty | Io => ()
+    Empty | Builtin(_) => ()
     Singleton(id, arguments) => {
       self.require_effect(id)
       for argument in arguments {

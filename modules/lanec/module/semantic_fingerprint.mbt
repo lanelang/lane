@@ -398,7 +398,8 @@ fn CanonicalInterfaceEncoder::write_effect(
 ) -> Unit raise CanonicalInterfaceEncodingError {
   match effect {
     Empty => self.writer.write_u8(0)
-    Io => self.writer.write_u8(1)
+    Builtin(Io) => self.writer.write_u8(1)
+    Builtin(Panic) => self.writer.write_u8(5)
     Singleton(symbol, arguments) => {
       self.writer.write_u8(2)
       let (module_path, name) = self.effect_reference(symbol)

@@ -1899,7 +1899,7 @@ fn VerifyContext::verify_effect(
   scope : TypeScope,
 ) -> Unit {
   match effect {
-    Empty | Io => ()
+    Empty | Builtin(_) => ()
     Singleton(id, arguments) =>
       ignore(self.verify_effect_singleton(id, arguments, scope))
     Parameter(parameter) => self.verify_effect_parameter(parameter, scope)

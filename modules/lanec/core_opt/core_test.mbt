@@ -94,7 +94,7 @@ test "core optimizer eliminates compatible top-level and local aliases" {
 test "core optimizer removes dead pure lets but preserves effectful calls" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
-  let io_function_type = @buslane.Type::Function([], unit_type, Io)
+  let io_function_type = @buslane.Type::Function([], unit_type, Builtin(Io))
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let println = metadata.define_value("println", External, io_function_type)
   let dead = metadata.define_value("dead", Local, unit_type)

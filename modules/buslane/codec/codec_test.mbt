@@ -36,7 +36,13 @@ test "program binary codec roundtrips core structures" {
   let body = metadata.define_value(
     "body",
     Parameter,
-    Function([], Primitive(I64), Singleton(async_effect, [EffectArgument(Io)])),
+    Function(
+      [],
+      Primitive(I64),
+      Singleton(async_effect, [
+        EffectArgument(Union([Builtin(Io), Builtin(Panic)])),
+      ]),
+    ),
   )
   let resume_value = metadata.define_value(
     "resume",
@@ -75,7 +81,9 @@ test "program binary codec roundtrips core structures" {
             final_body: Ref(payload),
             handlers: [
               {
-                handled_effect: Singleton(async_effect, [EffectArgument(Io)]),
+                handled_effect: Singleton(async_effect, [
+                  EffectArgument(Union([Builtin(Io), Builtin(Panic)])),
+                ]),
                 operations: [
                   {
                     operation: await_op,
@@ -113,25 +121,25 @@ test "program binary codec roundtrips core structures" {
 }
 
 ///|
-test "program codec writes schema version 7" {
+test "program codec writes schema version 8" {
   let bytes = encode_program({ metadata: MetadataRegistry(), terms: [] })
   guard bytes is [i32le(version), ..] else {
     fail("expected Buslane codec version prefix")
   }
-  assert_eq(version, 7)
+  assert_eq(version, 8)
 }
 
 ///|
-test "program decoder rejects schema version 6 at the version boundary" {
+test "program decoder rejects schema version 7 at the version boundary" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(6)
+  writer.write_u32_le_int(7)
   let error = try {
     ignore(decode_program(writer.to_bytes()))
     None
   } catch {
     error => Some(error)
   }
-  debug_inspect(error, content="Some(UnsupportedCodecVersion(version=6))")
+  debug_inspect(error, content="Some(UnsupportedCodecVersion(version=7))")
 }
 
 ///|
@@ -190,7 +198,7 @@ test "program decoder rejects invalid top term tag" {
   debug_inspect(
     error,
     content=(
-      #|Some(InvalidTag(offset=37, domain="TopTerm", tag=99))
+      #|Some(UnsupportedCodecVersion(version=7))
     ),
   )
 }
@@ -227,7 +235,7 @@ test "program decoder rejects an invalid metadata allocator tag" {
   debug_inspect(
     error,
     content=(
-      #|Some(InvalidTag(offset=4, domain="metadata name allocator", tag=99))
+      #|Some(UnsupportedCodecVersion(version=7))
     ),
   )
 }

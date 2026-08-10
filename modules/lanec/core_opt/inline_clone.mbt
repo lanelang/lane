@@ -220,7 +220,7 @@ fn InlineCloneContext::substitute_effect(
   effect : @buslane.Effect,
 ) -> @buslane.Effect raise CoreOptimizeError {
   match effect {
-    Empty | Io => effect
+    Empty | Builtin(_) => effect
     Parameter(parameter) => {
       for binding in self.generic_bindings.rev_iter() {
         if binding.parameter == parameter &&

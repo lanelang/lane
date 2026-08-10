@@ -400,7 +400,8 @@ fn BuslaneLowerer::lower_effect(
 ) -> @buslane.Effect raise BuslaneLoweringError {
   match effect {
     Empty => Empty
-    Io => Io
+    Builtin(Io) => Builtin(Io)
+    Builtin(Panic) => Builtin(Panic)
     Singleton(symbol, arguments) =>
       Singleton(
         self.effect_id(symbol),

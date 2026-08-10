@@ -559,7 +559,7 @@ fn SemanticChecker::collect_resolved_public_interface_effect(
         )
       }
     }
-    Io(arguments~, ..) | Unresolved(arguments~, ..) =>
+    Io(arguments~, ..) | Panic(arguments~, ..) | Unresolved(arguments~, ..) =>
       for argument in arguments {
         self.collect_resolved_public_interface_generic_argument(
           argument, escapes,
@@ -688,7 +688,7 @@ fn SemanticChecker::collect_public_interface_effect(
   seen : Array[@symbol.TypeSymbolId],
 ) -> Unit {
   match effect {
-    Empty | Io | Parameter(_) => ()
+    Empty | Builtin(_) | Parameter(_) => ()
     Singleton(symbol, arguments) => {
       self.collect_public_interface_effect_symbol(symbol, loc, escapes)
       for argument in arguments {

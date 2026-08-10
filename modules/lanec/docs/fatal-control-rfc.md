@@ -7,19 +7,20 @@ Status: implemented
 Lane exposes fatal termination through the compiler-owned intrinsic `%panic`:
 
 ```lane
-pub let panic : (String) -> Unit ! Io = builtin("%panic")
+pub let panic : (String) -> Unit ! Panic = builtin("%panic")
 ```
 
 The source contract deliberately uses `Unit`, not a bottom type. `panic` is a
 statement-oriented operation: it does not need to inhabit arbitrary expression
-types. The `Io` effect makes the call observable to effect-sensitive compiler
-passes. The execution-level `Fatal(message)` terminator, rather than the source
-result type, states that the intrinsic implementation has no normal successor.
+types. The compiler-provided `Panic` effect makes the call observable to
+effect-sensitive compiler passes without claiming that it performs I/O. The
+execution-level `Fatal(message)` terminator, rather than the source result type,
+states that the intrinsic implementation has no normal successor.
 
 These are separate facts:
 
 - `Unit` is the ordinary source and callable result ABI;
-- `Io` prevents the call from being treated as pure or discarded;
+- `Panic` prevents the call from being treated as pure or discarded;
 - `Fatal` terminates execution and produces the typed fatal outcome.
 
 Lane does not introduce a source `Never` type, bottom subtyping, implicit
@@ -29,7 +30,7 @@ enums. A user-defined empty enum such as `Void` remains ordinary nominal data.
 ## Intrinsic ownership
 
 `%panic` is listed in the compiler intrinsic table with the canonical signature
-`(String) -> Unit ! Io`. The type checker synthesizes that signature and checks
+`(String) -> Unit ! Panic`. The type checker synthesizes that signature and checks
 annotations through the normal builtin-signature compatibility path. Neither
 the type checker nor a backend recognizes `Basic.Io.panic` by declaration name.
 
@@ -90,12 +91,12 @@ owned value is leaked on the terminating path.
 
 ## Optimization
 
-Source optimization observes the `Io` effect and must preserve the evaluation
+Source optimization observes the `Panic` effect and must preserve the evaluation
 of discarded panic calls. Later effect erasure may remove static effect syntax
 only after evaluation order and the compiler intrinsic have been preserved.
 CFG optimization treats `Fatal` as a terminator with no successor.
 
-No optimization may infer fatality from `Unit`, `Io`, an empty enum, a source
+No optimization may infer fatality from `Unit`, `Panic`, an empty enum, a source
 declaration name, or a Runtime Import symbol.
 
 ## Non-goals
@@ -115,7 +116,7 @@ statement-oriented API.
 
 ## Acceptance properties
 
-- Basic exports exactly `(String) -> Unit ! Io = builtin("%panic")`.
+- Basic exports exactly `(String) -> Unit ! Panic = builtin("%panic")`.
 - The intrinsic synthesizes the same canonical type without an annotation.
 - Wrong parameter, result, or effect annotations produce the ordinary builtin
   signature mismatch diagnostic.

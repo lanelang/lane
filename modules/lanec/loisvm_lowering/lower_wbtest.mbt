@@ -11,7 +11,7 @@ fn test_io_function_type(
   parameters : Array[@buslane.Type],
   result : @buslane.Type,
 ) -> @buslane.Type {
-  Function(parameters, result, Io)
+  Function(parameters, result, Builtin(Io))
 }
 
 ///|
@@ -2933,7 +2933,7 @@ test "adapter witness does not infer layout from a source effect" {
   ])
   let lowerer = test_function_lowerer(image)
   let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
-  substitutions.insert_effect(source, Io)
+  substitutions.insert_effect(source, Builtin(Io))
   try lowerer.adapter_witness(companion, substitutions) catch {
     InvalidTypeApplication(detail~) =>
       assert_eq(
@@ -3449,11 +3449,11 @@ test "callable adapter alignment beta-reduces effect companions" {
   ])
   let cases : Array[(@buslane.Effect, @buslane.Type, @buslane.Type, Array[Int])] = [
     (Empty, Primitive(Unit), source_without_context, [0, 2]),
-    (Io, Primitive(Unit), source_without_context, [0, 2]),
+    (Builtin(Io), Primitive(Unit), source_without_context, [0, 2]),
     (Singleton(external, []), Primitive(Unit), source_without_context, [0, 2]),
     (Singleton(algebraic, []), dictionary_type, source_with_context, [0, 1, 2]),
     (
-      Union([Io, Singleton(algebraic, [])]),
+      Union([Builtin(Io), Singleton(algebraic, [])]),
       dictionary_type,
       source_with_context,
       [0, 1, 2],

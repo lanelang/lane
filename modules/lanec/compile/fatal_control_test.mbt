@@ -1,9 +1,9 @@
 ///|
-test "fatal builtin has one canonical Unit and Io function type" {
+test "fatal builtin has one canonical Unit and Panic function type" {
   let valid = check_source(
     (
       #|module Main
-      #|pub let panic : (String) -> Unit ! Io = builtin("%panic")
+      #|pub let panic : (String) -> Unit ! Panic = builtin("%panic")
     ),
   )
   assert_true(valid is Succeeded(_))
@@ -11,7 +11,7 @@ test "fatal builtin has one canonical Unit and Io function type" {
   let invalid_sources = [
     (
       #|module Main
-      #|pub let panic : (I64) -> Unit ! Io = builtin("%panic")
+      #|pub let panic : (I64) -> Unit ! Panic = builtin("%panic")
     ),
     (
       #|module Main
@@ -20,7 +20,7 @@ test "fatal builtin has one canonical Unit and Io function type" {
     (
       #|module Main
       #|pub enum Void {}
-      #|pub let panic : (String) -> Void ! Io = builtin("%panic")
+      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
     ),
   ]
   for source in invalid_sources {
@@ -40,7 +40,7 @@ test "fatal builtin synthesizes its canonical type" {
       #|module Main
       #|pub fn answer() -> Unit {
       #|  let panic = builtin("%panic")
-      #|  let _typed : (String) -> Unit ! Io = panic
+      #|  let _typed : (String) -> Unit ! Panic = panic
       #|  ()
       #|}
     ),

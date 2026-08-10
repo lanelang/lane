@@ -124,22 +124,32 @@ test "pretty prints effectful function type" {
 }
 
 ///|
-test "Io is a canonical built-in effect atom" {
+test "built-in effect atoms canonicalize independently" {
   let registry = @symbol.SymbolRegistry::SymbolRegistry()
   let parameter_id = registry.define_type_parameter(
     "E",
     @basic.SourceSpan::dummy(),
   )
   let parameter = TypeParameter::{ id: parameter_id, name: "E", kind: Effect }
-  let effect = Effect::Union([Io, Empty, Io, Parameter(parameter.id)])
-  debug_inspect(
+  let effect = Effect::Union([
+    Builtin(Io),
+    Builtin(Panic),
+    Empty,
+    Builtin(Io),
+    Parameter(parameter.id),
+  ])
+  assert_eq(
     effect.canonicalize(),
-    content="Union([Io, Parameter({ index: 0 })])",
+    Union([Builtin(Io), Builtin(Panic), Parameter(parameter.id)]),
   )
   let substitution = TypeSubstitution::TypeSubstitution()
-  substitution.insert_effect(parameter.id, Io)
-  debug_inspect(effect.substitute(substitution).canonicalize(), content="Io")
-  assert_false(Effect::Io == Empty)
+  substitution.insert_effect(parameter.id, Builtin(Io))
+  assert_eq(
+    effect.substitute(substitution).canonicalize(),
+    Union([Builtin(Io), Builtin(Panic)]),
+  )
+  assert_false(Effect::Builtin(Io) == Empty)
+  assert_false(Effect::Builtin(Io) == Builtin(Panic))
 }
 
 ///|
