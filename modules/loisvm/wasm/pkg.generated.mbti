@@ -12,6 +12,8 @@ pub fn compile(@bytecode.BytecodeImage) -> Result[@types.Module, WasmCompileErro
 
 pub fn load(@bytecode.BytecodeImage, @Milky2018/loisvm/runtime.RuntimeRegistry, mode? : ExecutionMode) -> Result[LoadedImage, WasmLoadError]
 
+pub fn maximum_function_control_depth(@types.Module) -> Int
+
 // Errors
 pub(all) suberror WasmCompileError {
   InvalidBytecode(@bytecode.BytecodeVerificationError)

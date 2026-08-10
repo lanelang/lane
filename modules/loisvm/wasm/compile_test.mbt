@@ -104,32 +104,14 @@ fn contains_loop(instructions : Array[@wasm_types.Instruction]) -> Bool {
 }
 
 ///|
-fn maximum_control_depth(instructions : Array[@wasm_types.Instruction]) -> Int {
-  let mut maximum = 0
-  for instruction in instructions {
-    let nested = match instruction {
-      Block(_, body) | Loop(_, body) | TryTable(_, _, body) =>
-        1 + maximum_control_depth(body)
-      If(_, consequent, alternate) =>
-        1 +
-        maximum_int(
-          maximum_control_depth(consequent),
-          maximum_control_depth(alternate),
-        )
-      _ => 0
-    }
-    maximum = maximum_int(maximum, nested)
-  }
-  maximum
-}
-
-///|
-fn maximum_int(left : Int, right : Int) -> Int {
-  if left > right {
-    left
-  } else {
-    right
-  }
+test "control depth follows the structured instruction tree" {
+  let module_ = @wasm_types.Module::simple(
+    [],
+    [],
+    [Block(Empty, [If(Empty, [Loop(Empty, [Nop])], [])])],
+    "entry",
+  )
+  assert_eq(maximum_function_control_depth(module_), 3)
 }
 
 ///|
@@ -474,7 +456,7 @@ test "large straight-line CFG uses a logarithmic-depth dispatcher" {
   }
   assert_true(contains_loop(wasm_module.codes[0].body))
   assert_false(contains_br_table(wasm_module.codes[0].body))
-  assert_true(maximum_control_depth(wasm_module.codes[0].body) <= 10)
+  assert_true(maximum_function_control_depth(wasm_module) <= 10)
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
 }
