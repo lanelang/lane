@@ -95,7 +95,9 @@ fn SemanticIndex::inlay_hints_in_range(
   end_line : Int,
   end_column : Int,
 ) -> Array[InlayHintEntry] {
-  present_inlay_hints(self.inlay_hints).filter(fn(hint) {
+  self.inlay_hints
+  .present()
+  .filter(fn(hint) {
     hint.position.in_range(start_line, start_column, end_line, end_column)
   })
 }
@@ -248,28 +250,34 @@ fn location(source_id : String, span : @basic.SourceSpan) -> AnalysisLocation {
 }
 
 ///|
-fn add_inlay_hint(
-  inlay_hints : Array[InlayHintFact],
+fn InlayHintFacts::new() -> InlayHintFacts {
+  { facts: [], next_semantic_order: 0 }
+}
+
+///|
+fn InlayHintFacts::add(
+  self : InlayHintFacts,
   kind : InlayHintKind,
-  origin : @basic.SourceSpan,
   position : AnalysisPosition,
   label : String,
 ) -> Unit {
-  inlay_hints.push({ hint: { position, kind, label }, origin })
+  self.facts.push({
+    hint: { position, kind, label },
+    semantic_order: self.next_semantic_order,
+  })
+  self.next_semantic_order += 1
 }
 
 ///|
 fn add_type_inlay_hint(
-  inlay_hints : Array[InlayHintFact],
+  inlay_hints : InlayHintFacts,
   source_id : String,
   span : @basic.SourceSpan,
   display : @typecheck.TypeDisplayContext,
   type_ : @types.Type,
 ) -> Unit {
-  add_inlay_hint(
-    inlay_hints,
+  inlay_hints.add(
     TypeHint,
-    span,
     position_at_end(source_id, span),
     ": \{display.type_text(type_)}",
   )
@@ -277,33 +285,24 @@ fn add_type_inlay_hint(
 
 ///|
 fn add_parameter_inlay_hint(
-  inlay_hints : Array[InlayHintFact],
+  inlay_hints : InlayHintFacts,
   source_id : String,
   span : @basic.SourceSpan,
   name : String,
 ) -> Unit {
-  add_inlay_hint(
-    inlay_hints,
-    ParameterHint,
-    span,
-    position_at_start(source_id, span),
-    "\{name}=",
-  )
+  inlay_hints.add(ParameterHint, position_at_start(source_id, span), "\{name}=")
 }
 
 ///|
 fn add_implicit_argument_inlay_hint(
-  inlay_hints : Array[InlayHintFact],
+  inlay_hints : InlayHintFacts,
   source_id : String,
   insertion : @basic.SourceSpan,
-  origin : @basic.SourceSpan,
   prefix : String,
   arguments : Array[String],
 ) -> Unit {
-  add_inlay_hint(
-    inlay_hints,
+  inlay_hints.add(
     ImplicitArgumentHint,
-    origin,
     position_at_end(source_id, insertion),
     "\{prefix}\{arguments.join(", ")}",
   )

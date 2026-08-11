@@ -1,6 +1,6 @@
 ///|
-fn present_inlay_hints(facts : Array[InlayHintFact]) -> Array[InlayHintEntry] {
-  let ordered = facts.copy()
+fn InlayHintFacts::present(self : InlayHintFacts) -> Array[InlayHintEntry] {
+  let ordered = self.facts.copy()
   ordered.sort_by(compare_inlay_hint_facts)
   let hints : Array[InlayHintEntry] = []
   for fact in ordered {
@@ -43,21 +43,7 @@ fn compare_inlay_hint_facts(left : InlayHintFact, right : InlayHintFact) -> Int 
   if kind_order != 0 {
     return kind_order
   }
-  let size_order = inlay_hint_origin_size(left).compare(
-    inlay_hint_origin_size(right),
-  )
-  if size_order != 0 {
-    return size_order
-  }
-  let start_order = right.origin.start_offset.compare(left.origin.start_offset)
-  if start_order != 0 {
-    return start_order
-  }
-  let end_order = left.origin.end_offset.compare(right.origin.end_offset)
-  if end_order != 0 {
-    return end_order
-  }
-  left.hint.label.compare(right.hint.label)
+  left.semantic_order.compare(right.semantic_order)
 }
 
 ///|
@@ -67,9 +53,4 @@ fn inlay_hint_kind_rank(kind : InlayHintKind) -> Int {
     ParameterHint => 1
     ImplicitArgumentHint => 2
   }
-}
-
-///|
-fn inlay_hint_origin_size(fact : InlayHintFact) -> Int {
-  fact.origin.end_offset - fact.origin.start_offset
 }

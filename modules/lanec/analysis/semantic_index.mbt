@@ -89,7 +89,7 @@ priv struct SemanticIndex {
   definitions : Array[DefinitionEntry]
   references : Array[ReferenceEntry]
   hovers : Array[HoverEntry]
-  inlay_hints : Array[InlayHintFact]
+  inlay_hints : InlayHintFacts
   parameter_signatures : Map[Int, Array[ParameterHintParameter]]
 }
 
@@ -117,7 +117,7 @@ fn SemanticIndex::from_sources(
     definitions: [],
     references: [],
     hovers: [],
-    inlay_hints: [],
+    inlay_hints: InlayHintFacts::new(),
     parameter_signatures: Map([]),
   }
   index.add_module_bindings(resolved.module_binding_references)

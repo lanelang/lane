@@ -295,11 +295,12 @@ fn SemanticIndex::enrich_checked_expr(
       }
     }
     Call(callee~, arguments~, loc~, ..) => {
-      self.add_call_inlay_hints(callee, arguments, loc)
+      // Nested call facts precede the enclosing call in semantic inlay order.
       self.enrich_checked_expr(callee, display)
       for argument in arguments {
         self.enrich_checked_expr(argument.value, display)
       }
+      self.add_call_inlay_hints(callee, arguments, loc)
     }
     OperationCall(operation~, operation_loc~, arguments~, ..) => {
       self.add_operation_reference(operation, operation_loc)

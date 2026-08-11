@@ -75,7 +75,16 @@ pub(all) struct InlayHintEntry {
 ///|
 priv struct InlayHintFact {
   hint : InlayHintEntry
-  origin : @basic.SourceSpan
+  semantic_order : Int
+}
+
+///|
+/// Owns the order in which semantic inlay facts must be presented. Checked
+/// expression traversal assigns this order; presentation never reconstructs
+/// call topology from source spans or labels.
+priv struct InlayHintFacts {
+  facts : Array[InlayHintFact]
+  mut next_semantic_order : Int
 }
 
 ///|
@@ -99,7 +108,7 @@ fn SemanticIndex::append_analysis(
   definitions.append(self.definitions)
   references.append(self.references)
   hovers.append(self.hovers)
-  inlay_hints.append(present_inlay_hints(self.inlay_hints))
+  inlay_hints.append(self.inlay_hints.present())
 }
 
 ///|
