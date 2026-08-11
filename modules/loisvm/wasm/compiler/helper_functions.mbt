@@ -72,40 +72,62 @@ fn HelperFunctions::wasm_indices(self : HelperFunctions) -> Array[Int] {
 
 ///|
 fn append_helper_functions(
-  wasm_module : @wasm_types.Module,
+  emitter : WasmFunctionEmitter,
   static_image : StaticImage,
   runtime : RuntimeFunctions,
   helpers : HelperFunctions,
   host_object_release_import : Int?,
 ) -> Unit {
-  append_runtime_function(wasm_module, [I64], [], [], [])
-  append_runtime_function(wasm_module, [I64], [], [], [
-    LocalGet(0),
-    I32WrapI64,
-    Call(runtime.retain_ref),
-  ])
-  append_runtime_function(wasm_module, [I64], [], [], [
-    LocalGet(0),
-    I32WrapI64,
-    Call(runtime.release_ref),
-  ])
-  append_runtime_function(wasm_module, [I64], [], [], [
-    LocalGet(0),
-    I64Const(32L),
-    I64ShrU,
-    I32WrapI64,
-    Call(runtime.retain_ref),
-  ])
-  append_runtime_function(wasm_module, [I64], [], [], [
-    LocalGet(0),
-    I64Const(32L),
-    I64ShrU,
-    I32WrapI64,
-    Call(runtime.release_ref),
-  ])
-  append_runtime_function(wasm_module, [I32], [], [], [])
   append_runtime_function(
-    wasm_module,
+    emitter,
+    [I64],
+    [],
+    [],
+    [],
+    HelperFunction(NoopErased),
+  )
+  append_runtime_function(
+    emitter,
+    [I64],
+    [],
+    [],
+    [LocalGet(0), I32WrapI64, Call(runtime.retain_ref)],
+    HelperFunction(RetainReferenceErased),
+  )
+  append_runtime_function(
+    emitter,
+    [I64],
+    [],
+    [],
+    [LocalGet(0), I32WrapI64, Call(runtime.release_ref)],
+    HelperFunction(ReleaseReferenceErased),
+  )
+  append_runtime_function(
+    emitter,
+    [I64],
+    [],
+    [],
+    [LocalGet(0), I64Const(32L), I64ShrU, I32WrapI64, Call(runtime.retain_ref)],
+    HelperFunction(RetainCallable),
+  )
+  append_runtime_function(
+    emitter,
+    [I64],
+    [],
+    [],
+    [LocalGet(0), I64Const(32L), I64ShrU, I32WrapI64, Call(runtime.release_ref)],
+    HelperFunction(ReleaseCallable),
+  )
+  append_runtime_function(
+    emitter,
+    [I32],
+    [],
+    [],
+    [],
+    HelperFunction(DestroyNoop),
+  )
+  append_runtime_function(
+    emitter,
     [I32],
     [],
     [],
@@ -113,27 +135,29 @@ fn append_helper_functions(
       Some(import_) => [LocalGet(0), I64Load(0, 3, 8L), Call(import_)]
       None => []
     },
+    HelperFunction(DestroyHostObject),
   )
-  let erased_release_type = intern_function_type(wasm_module, [I64], [])
+  let erased_release_type = intern_function_type(emitter.module_, [I64], [])
   for shape_index in 0..<static_image.object_shapes.length() {
     append_runtime_function(
-      wasm_module,
+      emitter,
       [I32],
       [],
       [],
       destroy_shape_body(
         static_image, runtime, erased_release_type, shape_index,
       ),
+      HelperFunction(DestroyShape(shape=shape_index)),
     )
   }
-  append_runtime_function(wasm_module, [I32], [I32], [], [
-    LocalGet(0),
-    I32Load(0, 2, 8L),
-    I32Const(19),
-    I32Add,
-    I32Const(-8),
-    I32And,
-  ])
+  append_runtime_function(
+    emitter,
+    [I32],
+    [I32],
+    [],
+    [LocalGet(0), I32Load(0, 2, 8L), I32Const(19), I32Add, I32Const(-8), I32And],
+    HelperFunction(ByteSequenceSizer),
+  )
   ignore(helpers)
 }
 

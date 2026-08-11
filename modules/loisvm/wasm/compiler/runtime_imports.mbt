@@ -63,30 +63,33 @@ fn InternalRuntimeImportPlan::index(
 
 ///|
 fn append_internal_runtime_imports(
-  wasm_module : @wasm_types.Module,
+  emitter : WasmFunctionEmitter,
   plan : InternalRuntimeImportPlan,
 ) -> Unit {
   for entry in plan.entries {
-    append_internal_runtime_import(wasm_module, entry.function)
+    append_internal_runtime_import(emitter, entry.function)
   }
 }
 
 ///|
 fn append_internal_runtime_import(
-  wasm_module : @wasm_types.Module,
+  emitter : WasmFunctionEmitter,
   function : @internal_abi.InternalRuntimeFunction,
 ) -> Unit {
   let type_ = function.type_()
   let type_index = intern_function_type(
-    wasm_module,
+    emitter.module_,
     type_.params,
     type_.results,
   )
-  wasm_module.imports.push({
-    mod_name: @internal_abi.module_name(),
-    name: function.name(),
-    desc: Func(type_index),
-  })
+  ignore(
+    emitter.append_import(
+      @internal_abi.module_name(),
+      function.name(),
+      type_index,
+      InternalRuntimeImport(function),
+    ),
+  )
 }
 
 ///|
@@ -157,25 +160,28 @@ fn runtime_import_uses_host_objects(import_ : @bytecode.RuntimeImport) -> Bool {
 
 ///|
 fn append_physical_runtime_import(
-  wasm_module : @wasm_types.Module,
+  emitter : WasmFunctionEmitter,
   import_ : @bytecode.RuntimeImport,
-) -> Unit {
+  function : @bytecode.FunctionId,
+) -> Int {
   let type_index = intern_function_type(
-    wasm_module,
+    emitter.module_,
     physical_runtime_parameters(import_),
     runtime_results(import_),
   )
-  wasm_module.imports.push({
-    mod_name: "lane.runtime.v1",
-    name: import_.symbol,
-    desc: Func(type_index),
-  })
+  emitter.append_import(
+    "lane.runtime.v1",
+    import_.symbol,
+    type_index,
+    PhysicalRuntimeImport(function~, symbol=import_.symbol),
+  )
 }
 
 ///|
 fn append_runtime_import_adapter(
-  wasm_module : @wasm_types.Module,
+  emitter : WasmFunctionEmitter,
   import_ : @bytecode.RuntimeImport,
+  function : @bytecode.FunctionId,
   abi : @bytecode.CallableAbi,
   physical_import_index : Int,
   runtime : RuntimeFunctions,
@@ -227,6 +233,11 @@ fn append_runtime_import_adapter(
     instructions.push(LocalGet(parameters.length()))
   }
   append_runtime_function(
-    wasm_module, parameters, results, locals, instructions,
+    emitter,
+    parameters,
+    results,
+    locals,
+    instructions,
+    RuntimeImportAdapter(function~, symbol=import_.symbol),
   )
 }

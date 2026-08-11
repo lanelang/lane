@@ -43,41 +43,58 @@ fn runtime_function_indices(first_index : Int) -> RuntimeFunctions {
 
 ///|
 fn append_runtime_function(
-  wasm_module : @wasm_types.Module,
+  emitter : WasmFunctionEmitter,
   parameters : Array[@wasm_types.ValueType],
   results : Array[@wasm_types.ValueType],
   locals : Array[@wasm_types.ValueType],
   body : Array[@wasm_types.Instruction],
+  origin : WasmFunctionOrigin,
 ) -> Unit {
-  wasm_module.funcs.push(intern_function_type(wasm_module, parameters, results))
-  wasm_module.codes.push({ locals, body })
+  let type_index = intern_function_type(emitter.module_, parameters, results)
+  ignore(emitter.append_defined(type_index, { locals, body }, origin))
 }
 
 ///|
 fn append_runtime_functions(
-  wasm_module : @wasm_types.Module,
+  emitter : WasmFunctionEmitter,
   static_image : StaticImage,
   functions : RuntimeFunctions,
 ) -> Unit {
-  let destroy_type = intern_function_type(wasm_module, [I32], [])
+  let destroy_type = intern_function_type(emitter.module_, [I32], [])
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I32],
     [I32],
     [I32, I32, I32, I32, I32, I32, I32, I32],
     allocator_body(),
+    RuntimeFunction(Allocate),
   )
-  append_runtime_function(wasm_module, [I32], [], [], free_body())
-  append_runtime_function(wasm_module, [I32], [], [I32], retain_ref_body())
   append_runtime_function(
-    wasm_module,
+    emitter,
+    [I32],
+    [],
+    [],
+    free_body(),
+    RuntimeFunction(Free),
+  )
+  append_runtime_function(
+    emitter,
+    [I32],
+    [],
+    [I32],
+    retain_ref_body(),
+    RuntimeFunction(RetainReference),
+  )
+  append_runtime_function(
+    emitter,
     [I32],
     [],
     [I32],
     release_ref_body(functions.free, destroy_type),
+    RuntimeFunction(ReleaseReference),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I32],
     [I32],
     [I32],
@@ -85,23 +102,26 @@ fn append_runtime_functions(
       functions.allocate,
       static_image.byte_sequence_layout_id,
     ),
+    RuntimeFunction(ByteSequenceNew),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I32],
     [],
     [],
     require_byte_sequence_layout_body(static_image.byte_sequence_layout_id),
+    RuntimeFunction(RequireByteSequenceLayout),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I32, I32],
     [I32],
     [I32, I32],
     byte_sequence_equal_body(functions.require_byte_sequence_layout),
+    RuntimeFunction(ByteSequenceEqual),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I32, I32],
     [I32],
     [I32, I32, I32, I32],
@@ -110,9 +130,10 @@ fn append_runtime_functions(
       functions.byte_sequence_new,
       functions.release_ref,
     ),
+    RuntimeFunction(ByteSequenceConcat),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I32, I64, I64],
     [I32],
     [I64, I32, I32, I32],
@@ -121,37 +142,42 @@ fn append_runtime_functions(
       functions.byte_sequence_new,
       functions.release_ref,
     ),
+    RuntimeFunction(ByteSequenceSlice),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I64],
     [I32],
     [I32],
     host_object_new_body(functions.allocate, static_image.reference_layout_id),
+    RuntimeFunction(HostObjectNew),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I64, I32],
     [I32],
     [I32, I32, I32],
     byte_sequence_make_body(functions.byte_sequence_new),
+    RuntimeFunction(ByteSequenceMake),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I32, I64],
     [I32],
     [],
     byte_sequence_index_body(functions.require_byte_sequence_layout),
+    RuntimeFunction(ByteSequenceIndex),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I32, I64],
     [I32],
     [],
     byte_sequence_get_body(functions.byte_sequence_index),
+    RuntimeFunction(ByteSequenceGet),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I32, I64, I32],
     [I32],
     [I32, I32],
@@ -160,13 +186,15 @@ fn append_runtime_functions(
       functions.byte_sequence_index,
       functions.release_ref,
     ),
+    RuntimeFunction(ByteSequenceSet),
   )
   append_runtime_function(
-    wasm_module,
+    emitter,
     [I32],
     [I32],
     [I32, I32, I32, I32],
     byte_sequence_is_valid_utf8_body(functions.require_byte_sequence_layout),
+    RuntimeFunction(ByteSequenceIsValidUtf8),
   )
 }
 

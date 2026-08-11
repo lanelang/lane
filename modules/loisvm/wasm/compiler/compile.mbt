@@ -17,6 +17,16 @@ pub(all) suberror WasmCompileError {
 pub fn compile(
   image : @bytecode.BytecodeImage,
 ) -> Result[@wasm_types.Module, WasmCompileError] {
+  match compile_observed(image) {
+    Ok(observed) => Ok(observed.module_)
+    Err(error) => Err(error)
+  }
+}
+
+///|
+pub fn compile_observed(
+  image : @bytecode.BytecodeImage,
+) -> Result[WasmCompileObservation, WasmCompileError] {
   Ok(compile_or_raise(image)) catch {
     error => Err(error)
   }
@@ -25,12 +35,13 @@ pub fn compile(
 ///|
 fn compile_or_raise(
   image : @bytecode.BytecodeImage,
-) -> @wasm_types.Module raise WasmCompileError {
+) -> WasmCompileObservation raise WasmCompileError {
   match @bytecode.verify_bytecode_image(image) {
     Ok(_) => ()
     Err(error) => raise InvalidBytecode(error)
   }
   let wasm_module = @wasm_types.Module::empty()
+  let emitter = WasmFunctionEmitter::new(wasm_module)
   let imports = image.functions.filter_map(fn(entry) {
     match entry {
       RuntimeImport(import_) => Some(import_)
@@ -64,11 +75,18 @@ fn compile_or_raise(
     host_objects_enabled,
     callable_table.table_indices,
   )
-  append_internal_runtime_imports(wasm_module, internal_import_plan)
-  for import_ in imports {
-    append_physical_runtime_import(wasm_module, import_)
+  append_internal_runtime_imports(emitter, internal_import_plan)
+  let physical_import_indices : Array[Int?] = Array::make(
+    image.functions.length(),
+    None,
+  )
+  for index, entry in image.functions {
+    if entry is RuntimeImport(import_) {
+      physical_import_indices[index] = Some(
+        append_physical_runtime_import(emitter, import_, { value: index + 1 }),
+      )
+    }
   }
-  let mut import_index = 0
   for index, entry in image.functions {
     match entry {
       BytecodeBody(body) => {
@@ -78,33 +96,35 @@ fn compile_or_raise(
           wasm_callable_parameters(abi),
           wasm_function_results(abi.result),
         )
-        wasm_module.funcs.push(type_index)
-        wasm_module.codes.push(
-          compile_body(
-            index + 1,
-            body,
-            wasm_module,
-            static_image,
-            runtime_functions,
-            internal_import_plan,
+        ignore(
+          emitter.append_defined(
+            type_index,
+            compile_body(
+              index + 1,
+              body,
+              wasm_module,
+              static_image,
+              runtime_functions,
+              internal_import_plan,
+            ),
+            BytecodeFunction(function={ value: index + 1 }),
           ),
         )
       }
-      RuntimeImport(import_) => {
+      RuntimeImport(import_) =>
         append_runtime_import_adapter(
-          wasm_module,
+          emitter,
           import_,
+          { value: index + 1 },
           import_.callable_abi(),
-          internal_import_count + import_index,
+          physical_import_indices[index].unwrap(),
           runtime_functions,
         )
-        import_index += 1
-      }
     }
   }
-  append_runtime_functions(wasm_module, static_image, runtime_functions)
+  append_runtime_functions(emitter, static_image, runtime_functions)
   append_helper_functions(
-    wasm_module,
+    emitter,
     static_image,
     runtime_functions,
     helper_functions,
@@ -113,14 +133,16 @@ fn compile_or_raise(
   let fatal_tag_type = intern_function_type(wasm_module, [], [])
   wasm_module.tags.push({ type_idx: fatal_tag_type })
   let entry_wrapper_type = intern_function_type(wasm_module, [], [])
-  wasm_module.funcs.push(entry_wrapper_type)
-  wasm_module.codes.push({
-    locals: [],
-    body: compile_entry_lifecycle(
-      image, wasm_module, static_image, runtime_functions,
-    ),
-  })
-  let entry_wrapper_index = import_count + wasm_module.funcs.length() - 1
+  let entry_wrapper_index = emitter.append_defined(
+    entry_wrapper_type,
+    {
+      locals: [],
+      body: compile_entry_lifecycle(
+        image, wasm_module, static_image, runtime_functions,
+      ),
+    },
+    EntryWrapper,
+  )
   let initial_pages = (static_image.heap_base + 65535) / 65536
   wasm_module.memories.push({
     limits: { min: initial_pages.to_int64(), max: None },
@@ -169,7 +191,7 @@ fn compile_or_raise(
     name: "lane.runtime.host_object.new",
     desc: Func(runtime_functions.host_object_new),
   })
-  wasm_module
+  { module_: wasm_module, functions: emitter.functions }
 }
 
 ///|
