@@ -16,11 +16,31 @@ pub fn image_to_code(Image) -> String
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
+  ArcFinalVerificationCompilerDefect(ArcFinalBodyError)
   PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum ArcFinalBodyError {
+  EmptyControlFlowGraph
+  EntryBlockHasParameters
+  InvalidValue(ValueId)
+  InvalidBlock(@bytecode.BlockId)
+  UnreachableBlock(@bytecode.BlockId)
+  EdgeArityMismatch(@bytecode.BlockId, @bytecode.BlockId, Int, Int)
+  EdgeMetadataMismatch(@bytecode.BlockId, @bytecode.BlockId, Int)
+  MissingDefinition(ValueId)
+  UseBeforeDefinition(ValueId, @bytecode.BlockId)
+  BorrowedValueConsumed(ValueId, @bytecode.BlockId)
+  BorrowOwnerNotLive(ValueId, ValueId, @bytecode.BlockId)
+  OwnedValueNotLive(ValueId, @bytecode.BlockId)
+  OwnedValueOverwritten(ValueId, @bytecode.BlockId)
+  OwnedValueEscapes(ValueId, @bytecode.BlockId)
+  InconsistentOwnershipAtJoin(ValueId, @bytecode.BlockId)
+  InvalidRelease(ValueId, @bytecode.BlockId)
+} derive(Eq, @debug.Debug)
+
 pub(all) struct Block {
   parameters : Array[ValueId]
   instructions : Array[Instruction]
@@ -184,7 +204,6 @@ pub(all) enum Ownership {
 } derive(Eq, @debug.Debug)
 
 pub(all) enum PhysicalSlotPlanError {
-  MissingDefinition(ValueId)
   MissingAssignment(ValueId)
   MetadataMismatch(ValueId, @bytecode.SlotId)
   InterferenceConflict(ValueId, ValueId, @bytecode.SlotId)

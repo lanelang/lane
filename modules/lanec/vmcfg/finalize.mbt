@@ -98,8 +98,8 @@ fn finalize_prepared_body(
   body : FunctionBody,
   callable_abis : CallableAbiInterner,
 ) -> @bytecode.FunctionBody raise FinalizeError {
-  let body = insert_arc(body)
-  let slots = allocate_physical_slots(body)
+  let slots = allocate_physical_slots(insert_arc(body))
+  let body = slots.arc_final.body
   {
     slots: slots.slots,
     inputs: {

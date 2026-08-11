@@ -207,6 +207,11 @@ pub(all) struct FunctionBody {
 } derive(Debug, Eq)
 
 ///|
+priv struct ArcFinalBody {
+  body : FunctionBody
+}
+
+///|
 pub(all) enum FunctionEntry {
   Body(FunctionBody)
   RuntimeImport(@bytecode.RuntimeImport)
@@ -226,16 +231,36 @@ pub(all) struct Image {
 
 ///|
 pub(all) enum PhysicalSlotPlanError {
-  MissingDefinition(ValueId)
   MissingAssignment(ValueId)
   MetadataMismatch(ValueId, @bytecode.SlotId)
   InterferenceConflict(ValueId, ValueId, @bytecode.SlotId)
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum ArcFinalBodyError {
+  EmptyControlFlowGraph
+  EntryBlockHasParameters
+  InvalidValue(ValueId)
+  InvalidBlock(@bytecode.BlockId)
+  UnreachableBlock(@bytecode.BlockId)
+  EdgeArityMismatch(@bytecode.BlockId, @bytecode.BlockId, Int, Int)
+  EdgeMetadataMismatch(@bytecode.BlockId, @bytecode.BlockId, Int)
+  MissingDefinition(ValueId)
+  UseBeforeDefinition(ValueId, @bytecode.BlockId)
+  BorrowedValueConsumed(ValueId, @bytecode.BlockId)
+  BorrowOwnerNotLive(ValueId, ValueId, @bytecode.BlockId)
+  OwnedValueNotLive(ValueId, @bytecode.BlockId)
+  OwnedValueOverwritten(ValueId, @bytecode.BlockId)
+  OwnedValueEscapes(ValueId, @bytecode.BlockId)
+  InconsistentOwnershipAtJoin(ValueId, @bytecode.BlockId)
+  InvalidRelease(ValueId, @bytecode.BlockId)
+} derive(Debug, Eq)
+
+///|
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
+  ArcFinalVerificationCompilerDefect(ArcFinalBodyError)
   PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
 } derive(Debug, Eq)

@@ -1,5 +1,7 @@
 ///|
-fn insert_arc(body : FunctionBody) -> FunctionBody raise FinalizeError {
+fn insert_arc_unverified(
+  body : FunctionBody,
+) -> FunctionBody raise FinalizeError {
   let blocks = []
   let edge_blocks = []
   let original_block_count = body.blocks.length()
@@ -147,170 +149,23 @@ fn insert_arc_instruction(
   prefix : Array[Instruction],
   instruction : Instruction,
 ) -> Instruction raise FinalizeError {
-  let result = match instruction {
-    Move(destination, source) =>
-      Move(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    Release(source) =>
-      Release(consume_arc_value(body, block, live, remaining, prefix, source))
-    CallDirect(target, environment, witnesses, arguments, destination) =>
-      CallDirect(
-        target,
-        environment.map(value => {
+  let plan = arc_instruction_plan(instruction)
+  let operands = []
+  for operand in plan.operands {
+    let (value, mode) = operand
+    operands.push(
+      match mode {
+        Borrow => borrow_value(remaining, value)
+        Consume =>
           consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-        witnesses.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-        arguments.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-        destination,
-      )
-    CallValue(callable, witnesses, arguments, destination) =>
-      CallValue(
-        consume_arc_value(body, block, live, remaining, prefix, callable),
-        witnesses.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-        arguments.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-        destination,
-      )
-    MakeData(destination, shape, layout, witnesses, fields) =>
-      MakeData(
-        destination,
-        shape,
-        borrow_layout_operand(remaining, layout),
-        witnesses.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-        fields.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-      )
-    ConsumeFields(shape, source, selections) =>
-      ConsumeFields(
-        shape,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-        selections,
-      )
-    MakeEnv(destination, shape, layout, witnesses, captures) =>
-      MakeEnv(
-        destination,
-        shape,
-        borrow_layout_operand(remaining, layout),
-        witnesses.map(value => borrow_value(remaining, value)),
-        captures.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-      )
-    ConsumeCaptures(shape, source, selections) =>
-      ConsumeCaptures(
-        shape,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-        selections,
-      )
-    MakeClosure(destination, function, environment) =>
-      MakeClosure(
-        destination,
-        function,
-        consume_arc_value(body, block, live, remaining, prefix, environment),
-      )
-    ByteSequenceSet(destination, source, index, value) =>
-      ByteSequenceSet(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-        borrow_value(remaining, index),
-        borrow_value(remaining, value),
-      )
-    ByteSequenceConcat(destination, left, right) =>
-      ByteSequenceConcat(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, left),
-        consume_arc_value(body, block, live, remaining, prefix, right),
-      )
-    ByteSequenceSlice(destination, source, start, length) =>
-      ByteSequenceSlice(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-        borrow_value(remaining, start),
-        borrow_value(remaining, length),
-      )
-    EraseI32(destination, source) =>
-      EraseI32(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    UneraseI32(destination, source) =>
-      UneraseI32(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    EraseI64(destination, source) =>
-      EraseI64(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    UneraseI64(destination, source) =>
-      UneraseI64(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    EraseF32(destination, source) =>
-      EraseF32(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    UneraseF32(destination, source) =>
-      UneraseF32(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    EraseF64(destination, source) =>
-      EraseF64(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    UneraseF64(destination, source) =>
-      UneraseF64(
-        destination,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    UneraseUnit(source) =>
-      UneraseUnit(
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    InitGlobal(global, source) =>
-      InitGlobal(
-        global,
-        consume_arc_value(body, block, live, remaining, prefix, source),
-      )
-    _ => {
-      for value in instruction_uses(instruction) {
-        ignore(borrow_value(remaining, value))
-      }
-      instruction
-    }
+      },
+    )
   }
+  let result = (plan.materialize)(operands)
   for destination in instruction_destinations(instruction) {
     mark_destination(body, live, destination)
   }
   result
-}
-
-///|
-fn borrow_layout_operand(
-  remaining : Array[Int],
-  layout : LayoutOperand,
-) -> LayoutOperand {
-  match layout {
-    Immediate(_) => layout
-    Witness(value) => Witness(borrow_value(remaining, value))
-  }
 }
 
 ///|
@@ -325,12 +180,6 @@ fn insert_arc_terminator(
   edge_blocks : Array[Block],
 ) -> Terminator raise FinalizeError {
   match terminator {
-    Return(source) =>
-      Return(
-        source.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-      )
     Jump(edge) =>
       Jump(insert_arc_edge(body, block, live, remaining, prefix, edge))
     BranchBool(condition, if_true, if_false) => {
@@ -370,32 +219,25 @@ fn insert_arc_terminator(
       let lowered_default = lowered_edges.pop().unwrap()
       SwitchTag(tag, lowered_edges, lowered_default)
     }
-    TailCallDirect(target, environment, witnesses, arguments) =>
-      TailCallDirect(
-        target,
-        environment.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-        witnesses.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-        arguments.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-      )
-    TailCallValue(callable, witnesses, arguments) =>
-      TailCallValue(
-        consume_arc_value(body, block, live, remaining, prefix, callable),
-        witnesses.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-        arguments.map(value => {
-          consume_arc_value(body, block, live, remaining, prefix, value)
-        }),
-      )
-    Fatal(message) =>
-      Fatal(consume_arc_value(body, block, live, remaining, prefix, message))
-    Unreachable => Unreachable
+    Return(_)
+    | TailCallDirect(_, _, _, _)
+    | TailCallValue(_, _, _)
+    | Fatal(_)
+    | Unreachable => {
+      let plan = arc_terminal_plan(terminator).unwrap()
+      let operands = []
+      for operand in plan.operands {
+        let (value, mode) = operand
+        operands.push(
+          match mode {
+            Borrow => borrow_value(remaining, value)
+            Consume =>
+              consume_arc_value(body, block, live, remaining, prefix, value)
+          },
+        )
+      }
+      (plan.materialize)(operands)
+    }
   }
 }
 

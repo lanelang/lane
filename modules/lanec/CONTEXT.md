@@ -212,9 +212,16 @@ The VM CFG transformation that materializes ownership decisions as retain,
 release, and transfer operations.
 _Avoid_: runtime ARC optimization, implicit slot behavior
 
+**ARC-Final VM CFG**:
+The private, verifier-proven VM CFG state whose control-flow edges, value flow,
+borrow roots, and owned lifetimes satisfy the contract required by physical-slot
+planning.
+_Avoid_: an unverified `FunctionBody`, final LoisVM bytecode
+
 **Physical Slot Plan**:
-The validated mapping from ARC-final VM CFG values to compatible physical
-LoisVM slots, produced before bytecode construction.
+The validated mapping from an ARC-Final VM CFG to compatible physical LoisVM
+slots. The plan owns the verified body it maps and is produced before bytecode
+construction.
 _Avoid_: post-bytecode slot rewrite, Wasm local plan
 
 **Bytecode Emission**:

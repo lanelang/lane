@@ -7,28 +7,30 @@ test "physical slot plan follows peak compatible VM CFG liveness" {
     ownership: Trivial,
     erased_companion: None,
   }
-  let plan = allocate_physical_slots({
-    values: [scalar, scalar, scalar, scalar],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: @bytecode.Value(I64, Trivial, ScalarValue),
-    blocks: [
-      {
-        parameters: [],
-        instructions: [ConstI64({ value: 0 }, 42L)],
-        terminator: Jump({ target: { value: 1 }, arguments: [{ value: 0 }] }),
-      },
-      {
-        parameters: [{ value: 1 }],
-        instructions: [I64Neg({ value: 2 }, { value: 1 })],
-        terminator: Jump({ target: { value: 2 }, arguments: [{ value: 2 }] }),
-      },
-      {
-        parameters: [{ value: 3 }],
-        instructions: [],
-        terminator: Return(Some({ value: 3 })),
-      },
-    ],
-  })
+  let plan = allocate_physical_slots(
+    verify_arc_final_body({
+      values: [scalar, scalar, scalar, scalar],
+      inputs: { environment: None, witnesses: [], user_parameters: [] },
+      result: @bytecode.Value(I64, Trivial, ScalarValue),
+      blocks: [
+        {
+          parameters: [],
+          instructions: [ConstI64({ value: 0 }, 42L)],
+          terminator: Jump({ target: { value: 1 }, arguments: [{ value: 0 }] }),
+        },
+        {
+          parameters: [{ value: 1 }],
+          instructions: [I64Neg({ value: 2 }, { value: 1 })],
+          terminator: Jump({ target: { value: 2 }, arguments: [{ value: 2 }] }),
+        },
+        {
+          parameters: [{ value: 3 }],
+          instructions: [],
+          terminator: Return(Some({ value: 3 })),
+        },
+      ],
+    }),
+  )
   debug_inspect(
     (plan.slots, plan.values),
     content=(
@@ -59,7 +61,7 @@ test "physical slot plan follows peak compatible VM CFG liveness" {
 }
 
 ///|
-test "physical slot plan rejects an active value without a definition" {
+test "ARC-final boundary rejects an active value without a definition" {
   let scalar : ValueMetadata = {
     representation: I64,
     cleanup: Trivial,
@@ -68,7 +70,7 @@ test "physical slot plan rejects an active value without a definition" {
     erased_companion: None,
   }
   try
-    allocate_physical_slots({
+    verify_arc_final_body({
       values: [scalar],
       inputs: { environment: None, witnesses: [], user_parameters: [] },
       result: @bytecode.Value(I64, Trivial, ScalarValue),
@@ -85,7 +87,7 @@ test "physical slot plan rejects an active value without a definition" {
       debug_inspect(
         error,
         content=(
-          #|PhysicalSlotAllocationCompilerDefect(MissingDefinition({ value: 0 }))
+          #|ArcFinalVerificationCompilerDefect(MissingDefinition({ value: 0 }))
         ),
       )
   } noraise {
@@ -102,30 +104,32 @@ test "physical slot plan preserves simultaneous VM CFG definitions" {
     ownership: Trivial,
     erased_companion: None,
   }
-  let plan = allocate_physical_slots({
-    values: [scalar, scalar, scalar, scalar],
-    inputs: {
-      environment: None,
-      witnesses: [],
-      user_parameters: [{ value: 0 }, { value: 1 }],
-    },
-    result: @bytecode.Unit,
-    blocks: [
-      {
-        parameters: [],
-        instructions: [],
-        terminator: Jump({
-          target: { value: 1 },
-          arguments: [{ value: 0 }, { value: 1 }],
-        }),
+  let plan = allocate_physical_slots(
+    verify_arc_final_body({
+      values: [scalar, scalar, scalar, scalar],
+      inputs: {
+        environment: None,
+        witnesses: [],
+        user_parameters: [{ value: 0 }, { value: 1 }],
       },
-      {
-        parameters: [{ value: 2 }, { value: 3 }],
-        instructions: [],
-        terminator: Return(None),
-      },
-    ],
-  })
+      result: @bytecode.Unit,
+      blocks: [
+        {
+          parameters: [],
+          instructions: [],
+          terminator: Jump({
+            target: { value: 1 },
+            arguments: [{ value: 0 }, { value: 1 }],
+          }),
+        },
+        {
+          parameters: [{ value: 2 }, { value: 3 }],
+          instructions: [],
+          terminator: Return(None),
+        },
+      ],
+    }),
+  )
   debug_inspect(
     (plan.slots, plan.values),
     content=(
@@ -164,7 +168,7 @@ test "physical slot plan consumes ARC-final VM CFG values" {
     ownership: Owned,
     erased_companion: None,
   }
-  let body = insert_arc({
+  let arc_final = insert_arc({
     values: [owned],
     inputs: {
       environment: None,
@@ -183,7 +187,8 @@ test "physical slot plan consumes ARC-final VM CFG values" {
       },
     ],
   })
-  let plan = allocate_physical_slots(body)
+  let plan = allocate_physical_slots(arc_final)
+  let body = arc_final.body
   debug_inspect(
     (body, plan.slots, plan.values),
     content=(

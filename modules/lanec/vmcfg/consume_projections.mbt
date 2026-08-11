@@ -194,11 +194,11 @@ fn projection_result_requires_owner(
   guard body.values[value.value].ownership is Borrowed else { return false }
   for block in body.blocks {
     for instruction in block.instructions {
-      if instruction_consumes_value(instruction, value) {
+      if projection_use_requires_owner(instruction, value) {
         return true
       }
     }
-    if terminator_consumes_value(block.terminator, value) {
+    if projection_terminator_requires_owner(block.terminator, value) {
       return true
     }
   }
@@ -206,7 +206,7 @@ fn projection_result_requires_owner(
 }
 
 ///|
-fn instruction_consumes_value(
+fn projection_use_requires_owner(
   instruction : Instruction,
   value : ValueId,
 ) -> Bool {
@@ -236,7 +236,10 @@ fn instruction_consumes_value(
 }
 
 ///|
-fn terminator_consumes_value(terminator : Terminator, value : ValueId) -> Bool {
+fn projection_terminator_requires_owner(
+  terminator : Terminator,
+  value : ValueId,
+) -> Bool {
   match terminator {
     Return(result) => result == Some(value)
     Jump(edge) => edge.arguments.contains(value)

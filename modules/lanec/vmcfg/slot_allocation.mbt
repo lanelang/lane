@@ -1,13 +1,15 @@
 ///|
 priv struct PhysicalSlotPlan {
+  arc_final : ArcFinalBody
   slots : Array[@bytecode.SlotMetadata]
   values : Array[@bytecode.SlotId?]
 }
 
 ///|
 fn allocate_physical_slots(
-  body : FunctionBody,
+  arc_final : ArcFinalBody,
 ) -> PhysicalSlotPlan raise FinalizeError {
+  let body = arc_final.body
   let value_count = body.values.length()
   let active = Array::make(value_count, false)
   let use_def = analyze_use_def(body)
@@ -18,13 +20,6 @@ fn allocate_physical_slots(
   for value_index, metadata in body.values {
     if active[value_index] && metadata.erased_companion is Some(companion) {
       active[companion.value] = true
-    }
-  }
-  for value_index in 0..<value_count {
-    if active[value_index] && use_def.definitions[value_index] is None {
-      raise PhysicalSlotAllocationCompilerDefect(
-        MissingDefinition({ value: value_index }),
-      )
     }
   }
   let control_flow = analyze_control_flow(body.blocks)
@@ -108,6 +103,7 @@ fn allocate_physical_slots(
     values[value_index] = Some({ value: slot_index })
   }
   let plan = PhysicalSlotPlan::{
+    arc_final,
     values,
     slots: slots.map(metadata => {
       ..metadata,
