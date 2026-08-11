@@ -12,9 +12,23 @@ priv enum ValueUseSite {
 }
 
 ///|
+priv struct InstructionUseDefFacts {
+  definitions : Array[ValueId]
+  uses : Array[ValueId]
+}
+
+///|
+priv struct BlockUseDefFacts {
+  instructions : Array[InstructionUseDefFacts]
+  terminator_uses : Array[ValueId]
+  use_counts : Array[Int]
+}
+
+///|
 priv struct UseDefAnalysis {
   definitions : Array[ValueDefinition?]
   uses : Array[Array[ValueUseSite]]
+  blocks : Array[BlockUseDefFacts]
 }
 
 ///|
@@ -24,6 +38,7 @@ fn analyze_use_def(body : FunctionBody) -> UseDefAnalysis {
     None,
   )
   let uses : Array[Array[ValueUseSite]] = body.values.map(_ => [])
+  let blocks = []
   let mut input_index = 0
   if body.inputs.environment is Some(environment) {
     definitions[environment.value] = Some(FunctionInput(input_index))
@@ -38,26 +53,38 @@ fn analyze_use_def(body : FunctionBody) -> UseDefAnalysis {
     input_index += 1
   }
   for block_index, block in body.blocks {
+    let instruction_facts = []
+    let use_counts = Array::make(body.values.length(), 0)
     for parameter_index, parameter in block.parameters {
       definitions[parameter.value] = Some(
         BlockParameter(block_index, parameter_index),
       )
     }
     for instruction_index, instruction in block.instructions {
-      for destination in instruction_destinations(instruction) {
+      let instruction_definitions = instruction_destinations(instruction)
+      let instruction_uses = instruction_operand_values(instruction)
+      instruction_facts.push({
+        definitions: instruction_definitions,
+        uses: instruction_uses,
+      })
+      for destination in instruction_definitions {
         definitions[destination.value] = Some(
           InstructionResult(block_index, instruction_index),
         )
       }
-      for value in instruction_uses(instruction) {
+      for value in instruction_uses {
         uses[value.value].push(InstructionUse(block_index, instruction_index))
+        use_counts[value.value] += 1
       }
     }
-    for value in terminator_uses(block.terminator) {
+    let terminator_uses = terminator_operand_values(block.terminator)
+    for value in terminator_uses {
       uses[value.value].push(TerminatorUse(block_index))
+      use_counts[value.value] += 1
     }
+    blocks.push({ instructions: instruction_facts, terminator_uses, use_counts })
   }
-  { definitions, uses }
+  { definitions, uses, blocks }
 }
 
 ///|
@@ -66,9 +93,56 @@ fn UseDefAnalysis::use_count(self : UseDefAnalysis, value : ValueId) -> Int {
 }
 
 ///|
-fn body_value_use_counts(body : FunctionBody) -> Array[Int] {
-  let use_def = analyze_use_def(body)
-  body.values.mapi(fn(index, _) { use_def.use_count({ value: index }) })
+fn UseDefAnalysis::use_count_in_block(
+  self : UseDefAnalysis,
+  block : Int,
+  value : ValueId,
+) -> Int {
+  self.blocks[block].use_counts[value.value]
+}
+
+///|
+fn UseDefAnalysis::is_used_only_in_block(
+  self : UseDefAnalysis,
+  value : ValueId,
+  block : Int,
+) -> Bool {
+  let total = self.use_count(value)
+  total > 0 && total == self.use_count_in_block(block, value)
+}
+
+///|
+fn UseDefAnalysis::copy_block_use_counts(
+  self : UseDefAnalysis,
+  block : Int,
+) -> Array[Int] {
+  self.blocks[block].use_counts.copy()
+}
+
+///|
+fn UseDefAnalysis::instruction_definitions(
+  self : UseDefAnalysis,
+  block : Int,
+  instruction : Int,
+) -> ArrayView[ValueId] {
+  self.blocks[block].instructions[instruction].definitions[:]
+}
+
+///|
+fn UseDefAnalysis::instruction_uses(
+  self : UseDefAnalysis,
+  block : Int,
+  instruction : Int,
+) -> ArrayView[ValueId] {
+  self.blocks[block].instructions[instruction].uses[:]
+}
+
+///|
+fn UseDefAnalysis::terminator_uses(
+  self : UseDefAnalysis,
+  block : Int,
+) -> ArrayView[ValueId] {
+  self.blocks[block].terminator_uses[:]
 }
 
 ///|

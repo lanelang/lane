@@ -15,7 +15,7 @@ fn allocate_physical_slots(
   let use_def = analyze_use_def(body)
   for value_index in 0..<value_count {
     active[value_index] = use_def.definitions[value_index] is Some(_) ||
-      !use_def.uses[value_index].is_empty()
+      use_def.use_count({ value: value_index }) > 0
   }
   for value_index, metadata in body.values {
     if active[value_index] && metadata.erased_companion is Some(companion) {
@@ -27,14 +27,15 @@ fn allocate_physical_slots(
   let interference = body.values.map(_ => Array::make(value_count, false))
   for block_index, block in body.blocks {
     let live = liveness.live_out[block_index].copy()
-    for source in terminator_uses(block.terminator) {
+    for source in use_def.terminator_uses(block_index) {
       live[source.value] = true
     }
     let mut instruction_index = block.instructions.length() - 1
     while instruction_index >= 0 {
-      let instruction = block.instructions[instruction_index]
-      let destinations = instruction_destinations(instruction)
-      let sources = instruction_uses(instruction)
+      let destinations = use_def.instruction_definitions(
+        block_index, instruction_index,
+      )
+      let sources = use_def.instruction_uses(block_index, instruction_index)
       for destination in destinations {
         record_physical_interference(interference, destination.value, live)
         for source in sources {
@@ -112,13 +113,14 @@ fn allocate_physical_slots(
       }),
     }),
   }
-  validate_physical_slot_plan(body, plan, active, interference)
+  validate_physical_slot_plan(body, use_def, plan, active, interference)
   plan
 }
 
 ///|
 fn validate_physical_slot_plan(
   body : FunctionBody,
+  use_def : UseDefAnalysis,
   plan : PhysicalSlotPlan,
   active : Array[Bool],
   interference : Array[Array[Bool]],
@@ -126,19 +128,20 @@ fn validate_physical_slot_plan(
   for value in function_input_values(body.inputs) {
     ignore(plan.slot(value))
   }
-  for block in body.blocks {
+  for block_index, block in body.blocks {
     for value in block.parameters {
       ignore(plan.slot(value))
     }
-    for instruction in block.instructions {
-      for value in instruction_destinations(instruction) {
+    for instruction_index, _ in block.instructions {
+      for
+        value in use_def.instruction_definitions(block_index, instruction_index) {
         ignore(plan.slot(value))
       }
-      for value in instruction_uses(instruction) {
+      for value in use_def.instruction_uses(block_index, instruction_index) {
         ignore(plan.slot(value))
       }
     }
-    for value in terminator_uses(block.terminator) {
+    for value in use_def.terminator_uses(block_index) {
       ignore(plan.slot(value))
     }
   }

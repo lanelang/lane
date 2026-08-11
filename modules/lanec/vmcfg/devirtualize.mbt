@@ -101,7 +101,7 @@ fn collect_direct_environment_candidates(
   let candidates = []
   for entry in functions {
     guard entry is Body(body) else { continue }
-    let uses = body_value_use_counts(body)
+    let use_def = analyze_use_def(body)
     for block in body.blocks {
       let mut index = 0
       while index + 2 < block.instructions.length() {
@@ -117,8 +117,8 @@ fn collect_direct_environment_candidates(
             CallValue(invoked, _, _, _),
           ) if environment == closure_environment &&
             callable == invoked &&
-            uses[environment.value] == 1 &&
-            uses[callable.value] == 1 =>
+            use_def.use_count(environment) == 1 &&
+            use_def.use_count(callable) == 1 =>
             push_direct_environment_candidate(candidates, target, shape)
           _ => ()
         }
@@ -138,8 +138,8 @@ fn collect_direct_environment_candidates(
           MakeClosure(callable, target, closure_environment),
         ) if environment == closure_environment &&
           callable == invoked &&
-          uses[environment.value] == 1 &&
-          uses[callable.value] == 1 =>
+          use_def.use_count(environment) == 1 &&
+          use_def.use_count(callable) == 1 =>
           push_direct_environment_candidate(candidates, target, shape)
         _ => ()
       }
@@ -176,16 +176,19 @@ fn build_direct_environment_plan(
     return None
   }
   guard direct_environment_body_is_leaf(original) else { return None }
+  let use_def = analyze_use_def(original)
   let values = original.values.copy()
   let extra_witnesses = []
   let witness_ordinals = []
   let extra_arguments = []
   let member_indices = []
   let blocks = []
-  for block in original.blocks {
+  for block_index, block in original.blocks {
     let instructions = []
-    for instruction in block.instructions {
-      if !instruction_uses(instruction).contains(environment) {
+    for instruction_index, instruction in block.instructions {
+      if !use_def
+        .instruction_uses(block_index, instruction_index)
+        .contains(environment) {
         instructions.push(instruction)
         continue
       }
@@ -224,7 +227,7 @@ fn build_direct_environment_plan(
         _ => return None
       }
     }
-    if terminator_uses(block.terminator).contains(environment) {
+    if use_def.terminator_uses(block_index).contains(environment) {
       return None
     }
     blocks.push({ ..block, instructions, })
@@ -273,17 +276,19 @@ fn devirtualize_body_with_plans(
   body : FunctionBody,
   plans : Array[DirectEnvironmentPlan],
 ) -> FunctionBody {
-  let uses = body_value_use_counts(body)
+  let use_def = analyze_use_def(body)
   {
     ..body,
-    blocks: body.blocks.map(fn(block) { devirtualize_block(block, uses, plans) }),
+    blocks: body.blocks.map(fn(block) {
+      devirtualize_block(block, use_def, plans)
+    }),
   }
 }
 
 ///|
 fn devirtualize_block(
   block : Block,
-  uses : Array[Int],
+  use_def : UseDefAnalysis,
   plans : Array[DirectEnvironmentPlan],
 ) -> Block {
   let instructions = []
@@ -302,8 +307,8 @@ fn devirtualize_block(
           CallValue(invoked, call_witnesses, arguments, destination),
         ) if environment == closure_environment &&
           callable == invoked &&
-          uses[environment.value] == 1 &&
-          uses[callable.value] == 1 =>
+          use_def.use_count(environment) == 1 &&
+          use_def.use_count(callable) == 1 =>
           match find_direct_environment_plan(plans, target, shape) {
             Some(plan) => {
               instructions.push(
@@ -327,7 +332,7 @@ fn devirtualize_block(
         (
           ConstFunction(callable, target),
           CallValue(invoked, witnesses, arguments, destination),
-        ) if callable == invoked && uses[callable.value] == 1 => {
+        ) if callable == invoked && use_def.use_count(callable) == 1 => {
           instructions.push(
             CallDirect(target, None, witnesses, arguments, destination),
           )
@@ -337,7 +342,7 @@ fn devirtualize_block(
         (
           MakeClosure(callable, target, environment),
           CallValue(invoked, witnesses, arguments, destination),
-        ) if callable == invoked && uses[callable.value] == 1 => {
+        ) if callable == invoked && use_def.use_count(callable) == 1 => {
           instructions.push(
             CallDirect(
               target,
@@ -357,14 +362,15 @@ fn devirtualize_block(
     index += 1
   }
   let terminator = match block.terminator {
-    TailCallValue(callable, witnesses, arguments) if uses[callable.value] == 1 =>
+    TailCallValue(callable, witnesses, arguments) if use_def.use_count(callable) ==
+      1 =>
       direct_tail_terminator(
         block.terminator,
         callable,
         witnesses,
         arguments,
         instructions,
-        uses,
+        use_def,
         plans,
       )
     _ => block.terminator
@@ -379,7 +385,7 @@ fn direct_tail_terminator(
   witnesses : Array[ValueId],
   arguments : Array[ValueId],
   instructions : Array[Instruction],
-  uses : Array[Int],
+  use_def : UseDefAnalysis,
   plans : Array[DirectEnvironmentPlan],
 ) -> Terminator {
   if instructions.length() >= 2 &&
@@ -389,7 +395,7 @@ fn direct_tail_terminator(
     is MakeClosure(produced, target, closure_environment) &&
     produced == callable &&
     closure_environment == environment &&
-    uses[environment.value] == 1 &&
+    use_def.use_count(environment) == 1 &&
     find_direct_environment_plan(plans, target, shape) is Some(plan) {
     ignore(instructions.pop())
     ignore(instructions.pop())

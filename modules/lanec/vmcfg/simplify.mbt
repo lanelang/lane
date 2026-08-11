@@ -14,22 +14,19 @@ fn simplify_body(body : FunctionBody) -> FunctionBody {
 
 ///|
 fn simplify_body_once(body : FunctionBody) -> FunctionBody {
-  let blocks = propagate_local_scalar_values(body.values, body.blocks)
-  let blocks = blocks.map(fold_constant_terminator)
-  let blocks = remove_dead_scalar_instructions({ ..body, blocks, })
-  let blocks = remove_unused_block_parameters(body.values.length(), blocks)
-  let blocks = thread_empty_jump_blocks(body.values.length(), blocks)
-  let blocks = merge_linear_blocks(blocks)
-  { ..body, blocks: remove_unreachable_blocks(blocks) }
+  let body = { ..body, blocks: propagate_local_scalar_values(body) }
+  let body = { ..body, blocks: body.blocks.map(fold_constant_terminator) }
+  let body = { ..body, blocks: remove_dead_scalar_instructions(body) }
+  let body = { ..body, blocks: remove_unused_block_parameters(body) }
+  let body = { ..body, blocks: thread_empty_jump_blocks(body) }
+  let body = { ..body, blocks: merge_linear_blocks(body.blocks) }
+  { ..body, blocks: remove_unreachable_blocks(body.blocks) }
 }
 
 ///|
-fn propagate_local_scalar_values(
-  values : Array[ValueMetadata],
-  blocks : Array[Block],
-) -> Array[Block] {
-  let use_locations = value_use_locations(values, blocks)
-  blocks.mapi(fn(block_index, block) {
+fn propagate_local_scalar_values(body : FunctionBody) -> Array[Block] {
+  let use_def = analyze_use_def(body)
+  body.blocks.mapi(fn(block_index, block) {
     let aliases : Array[(ValueId, ValueId)] = []
     let constants : Array[(Instruction, ValueId)] = []
     let instructions = []
@@ -39,19 +36,23 @@ fn propagate_local_scalar_values(
       })
       let destinations = instruction_destinations(instruction)
       let local_destination = match destinations {
-        [destination] if use_locations[destination.value] == block_index &&
-          values[destination.value].ownership is Trivial => Some(destination)
+        [destination] if use_def.is_used_only_in_block(destination, block_index) &&
+          body.values[destination.value].ownership is Trivial &&
+          !value_is_erased_companion(body.values, destination) =>
+          Some(destination)
         _ => None
       }
       match instruction {
         Copy(destination, source) if local_destination == Some(destination) &&
-          compatible_trivial_values(values, destination, source) =>
+          compatible_trivial_values(body.values, destination, source) =>
           aliases.push((destination, source))
         _ if local_destination is Some(destination) &&
           instruction_is_scalar_constant(instruction) =>
           match find_equivalent_constant(instruction, constants) {
             Some(existing) if compatible_trivial_values(
-                values, destination, existing,
+                body.values,
+                destination,
+                existing,
               ) => aliases.push((destination, existing))
             _ => {
               constants.push((instruction, destination))
@@ -69,44 +70,6 @@ fn propagate_local_scalar_values(
       }),
     }
   })
-}
-
-///|
-fn value_use_locations(
-  values : Array[ValueMetadata],
-  blocks : Array[Block],
-) -> Array[Int] {
-  let locations = Array::make(values.length(), -1)
-  for block_index, block in blocks {
-    for instruction in block.instructions {
-      for value in instruction_uses(instruction) {
-        record_use_location(locations, value, block_index)
-      }
-    }
-    for value in terminator_uses(block.terminator) {
-      record_use_location(locations, value, block_index)
-    }
-  }
-  for metadata in values {
-    if metadata.erased_companion is Some(companion) {
-      locations[companion.value] = -2
-    }
-  }
-  locations
-}
-
-///|
-fn record_use_location(
-  locations : Array[Int],
-  value : ValueId,
-  block : Int,
-) -> Unit {
-  let current = locations[value.value]
-  if current == -1 {
-    locations[value.value] = block
-  } else if current != block {
-    locations[value.value] = -2
-  }
 }
 
 ///|
@@ -342,15 +305,12 @@ fn instruction_is_dead_scalar_candidate(instruction : Instruction) -> Bool {
 }
 
 ///|
-fn remove_unused_block_parameters(
-  value_count : Int,
-  blocks : Array[Block],
-) -> Array[Block] {
-  let uses = blocks_value_use_counts(value_count, blocks)
-  let kept_parameters = blocks.map(fn(block) {
-    block.parameters.map(fn(parameter) { uses[parameter.value] > 0 })
+fn remove_unused_block_parameters(body : FunctionBody) -> Array[Block] {
+  let use_def = analyze_use_def(body)
+  let kept_parameters = body.blocks.map(fn(block) {
+    block.parameters.map(fn(parameter) { use_def.use_count(parameter) > 0 })
   })
-  blocks.mapi(fn(block_index, block) {
+  body.blocks.mapi(fn(block_index, block) {
     {
       parameters: filter_values_by_mask(
         block.parameters,
@@ -363,25 +323,6 @@ fn remove_unused_block_parameters(
       }),
     }
   })
-}
-
-///|
-fn blocks_value_use_counts(
-  value_count : Int,
-  blocks : Array[Block],
-) -> Array[Int] {
-  let uses = Array::make(value_count, 0)
-  for block in blocks {
-    for instruction in block.instructions {
-      for value in instruction_uses(instruction) {
-        uses[value.value] += 1
-      }
-    }
-    for value in terminator_uses(block.terminator) {
-      uses[value.value] += 1
-    }
-  }
-  uses
 }
 
 ///|
@@ -413,16 +354,13 @@ fn filter_edge_arguments(
 }
 
 ///|
-fn thread_empty_jump_blocks(
-  value_count : Int,
-  blocks : Array[Block],
-) -> Array[Block] {
-  let uses = blocks_value_use_counts(value_count, blocks)
-  blocks.map(fn(block) {
+fn thread_empty_jump_blocks(body : FunctionBody) -> Array[Block] {
+  let use_def = analyze_use_def(body)
+  body.blocks.map(fn(block) {
     {
       ..block,
       terminator: map_terminator_edges(block.terminator, fn(edge) {
-        thread_edge(edge, blocks, uses, value_count)
+        thread_edge(edge, body.blocks, use_def)
       }),
     }
   })
@@ -432,8 +370,7 @@ fn thread_empty_jump_blocks(
 fn thread_edge(
   initial : Edge,
   blocks : Array[Block],
-  uses : Array[Int],
-  value_count : Int,
+  use_def : UseDefAnalysis,
 ) -> Edge {
   let mut edge = initial
   let visited = Array::make(blocks.length(), false)
@@ -441,12 +378,11 @@ fn thread_edge(
     let target_index = edge.target.value
     visited[target_index] = true
     let target = blocks[target_index]
-    let local_uses = block_use_counts(value_count, target)
     guard target.instructions.is_empty() &&
       target.terminator is Jump(next) &&
       target.parameters.length() == edge.arguments.length() &&
       target.parameters.all(parameter => {
-        uses[parameter.value] == local_uses[parameter.value]
+        use_def.is_used_only_in_block(parameter, target_index)
       }) else {
       break
     }

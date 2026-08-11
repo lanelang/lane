@@ -286,7 +286,9 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
     | EraseUnit(_)
     | BorrowGlobal(_, _) =>
       {
-        operands: instruction_uses(instruction).map(value => (value, Borrow)),
+        operands: instruction_operand_values(instruction).map(value => {
+          (value, Borrow)
+        }),
         materialize: _ => instruction,
       }
   }

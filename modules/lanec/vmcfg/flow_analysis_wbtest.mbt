@@ -85,6 +85,15 @@ test "VM CFG analyses describe a diamond and ignore unreachable dominance" {
       control_flow.immediate_dominators,
       use_def.definitions.map(definition => definition.map(flow_definition_text)),
       use_def.uses.map(sites => sites.map(flow_use_text)),
+      body.values.mapi(fn(index, _) { use_def.use_count({ value: index }) }),
+      body.blocks.mapi(fn(block_index, _) {
+        use_def.copy_block_use_counts(block_index)
+      }),
+      [
+        use_def.is_used_only_in_block({ value: 0 }, 0),
+        use_def.is_used_only_in_block({ value: 1 }, 1),
+        use_def.is_used_only_in_block({ value: 4 }, 3),
+      ],
       liveness.live_in,
       liveness.live_out,
       [
@@ -128,6 +137,15 @@ test "VM CFG analyses describe a diamond and ignore unreachable dominance" {
       #|    ["instruction:3:0"],
       #|    ["terminator:3"],
       #|  ],
+      #|  [1, 5, 1, 1, 1, 1],
+      #|  [
+      #|    [1, 0, 0, 0, 0, 0],
+      #|    [0, 2, 1, 0, 0, 0],
+      #|    [0, 2, 0, 1, 0, 0],
+      #|    [0, 1, 0, 0, 1, 1],
+      #|    [0, 0, 0, 0, 0, 0],
+      #|  ],
+      #|  [true, false, true],
       #|  [
       #|    [false, false, false, false, false, false],
       #|    [false, true, false, false, false, false],

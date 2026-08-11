@@ -195,8 +195,10 @@ and LoisVM bytecode.
 _Avoid_: persisted bytecode CFG, source control flow
 
 **VM CFG Use-Definition Analysis**:
-The authoritative index of every VM CFG value definition and use.
-_Avoid_: slot history, source reference graph
+The authoritative index of every VM CFG value definition and use, including
+whole-CFG counts, per-block counts, and instruction/terminator flow facts.
+Consumers derive policy from this index instead of rescanning VM CFG blocks.
+_Avoid_: slot history, source reference graph, consumer-owned use counts
 
 **VM CFG Liveness Analysis**:
 The value-flow analysis derived from VM CFG definitions, uses, and successors.

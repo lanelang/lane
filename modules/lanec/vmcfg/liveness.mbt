@@ -2,6 +2,7 @@
 priv struct LivenessAnalysis {
   live_in : Array[Array[Bool]]
   live_out : Array[Array[Bool]]
+  use_def : UseDefAnalysis
 }
 
 ///|
@@ -64,7 +65,7 @@ fn analyze_liveness(
       block_index -= 1
     }
   }
-  { live_in, live_out }
+  { live_in, live_out, use_def }
 }
 
 ///|
@@ -77,15 +78,15 @@ fn LivenessAnalysis::is_live_after_instruction(
 ) -> Bool {
   let live = self.live_out[block_index].copy()
   let block = body.blocks[block_index]
-  for used in terminator_uses(block.terminator) {
+  for used in self.use_def.terminator_uses(block_index) {
     live[used.value] = true
   }
   let mut index = block.instructions.length() - 1
   while index > instruction_index {
-    for destination in instruction_destinations(block.instructions[index]) {
+    for destination in self.use_def.instruction_definitions(block_index, index) {
       live[destination.value] = false
     }
-    for used in instruction_uses(block.instructions[index]) {
+    for used in self.use_def.instruction_uses(block_index, index) {
       live[used.value] = true
     }
     index -= 1

@@ -1,19 +1,5 @@
 ///|
-fn block_use_counts(value_count : Int, block : Block) -> Array[Int] {
-  let counts = Array::make(value_count, 0)
-  for instruction in block.instructions {
-    for value in instruction_uses(instruction) {
-      counts[value.value] += 1
-    }
-  }
-  for value in terminator_uses(block.terminator) {
-    counts[value.value] += 1
-  }
-  counts
-}
-
-///|
-fn instruction_uses(instruction : Instruction) -> Array[ValueId] {
+fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
   match instruction {
     Copy(_, source)
     | Move(_, source)
@@ -148,7 +134,7 @@ fn layout_uses(layout : LayoutOperand) -> Array[ValueId] {
 }
 
 ///|
-fn terminator_uses(terminator : Terminator) -> Array[ValueId] {
+fn terminator_operand_values(terminator : Terminator) -> Array[ValueId] {
   match terminator {
     Return(Some(value)) => [value]
     Return(None) | Unreachable => []

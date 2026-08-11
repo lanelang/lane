@@ -14,12 +14,14 @@ fn select_consuming_projections(image : Image) -> Image {
 ///|
 fn select_consuming_projections_in_body(body : FunctionBody) -> FunctionBody {
   let values = body.values.copy()
-  let uses = body_value_use_counts(body)
+  let use_def = analyze_use_def(body)
   {
     ..body,
     values,
-    blocks: body.blocks.map(fn(block) {
-      select_consuming_projections_in_block(body, values, uses, block)
+    blocks: body.blocks.mapi(fn(block_index, block) {
+      select_consuming_projections_in_block(
+        body, values, use_def, block_index, block,
+      )
     }),
   }
 }
@@ -28,7 +30,8 @@ fn select_consuming_projections_in_body(body : FunctionBody) -> FunctionBody {
 fn select_consuming_projections_in_block(
   body : FunctionBody,
   values : Array[ValueMetadata],
-  uses : Array[Int],
+  use_def : UseDefAnalysis,
+  block_index : Int,
   block : Block,
 ) -> Block {
   let instructions = []
@@ -44,7 +47,8 @@ fn select_consuming_projections_in_block(
         )
         if projection_group_can_consume(
             body,
-            uses,
+            use_def,
+            block_index,
             block.instructions,
             index,
             source,
@@ -66,7 +70,8 @@ fn select_consuming_projections_in_block(
         )
         if projection_group_can_consume(
             body,
-            uses,
+            use_def,
+            block_index,
             block.instructions,
             index,
             source,
@@ -135,19 +140,22 @@ fn collect_capture_projections(
 ///|
 fn projection_group_can_consume(
   body : FunctionBody,
-  uses : Array[Int],
+  use_def : UseDefAnalysis,
+  block_index : Int,
   instructions : Array[Instruction],
   start : Int,
   source : ValueId,
   selections : Array[ProjectionSelection],
 ) -> Bool {
-  let prior_uses = independent_prior_source_uses(instructions, start, source)
+  let prior_uses = independent_prior_source_uses(
+    use_def, block_index, instructions, start, source,
+  )
   body.values[source.value].ownership is Owned &&
   projection_members_are_unique(selections) &&
   prior_uses is Some(prior_uses) &&
-  uses[source.value] == prior_uses + selections.length() &&
+  use_def.use_count(source) == prior_uses + selections.length() &&
   selections.any(fn(selection) {
-    projection_result_requires_owner(body, selection.result)
+    projection_result_requires_owner(body, use_def, selection.result)
   })
 }
 
@@ -167,6 +175,8 @@ fn projection_members_are_unique(
 
 ///|
 fn independent_prior_source_uses(
+  use_def : UseDefAnalysis,
+  block_index : Int,
   instructions : Array[Instruction],
   end : Int,
   source : ValueId,
@@ -174,7 +184,7 @@ fn independent_prior_source_uses(
   let mut count = 0
   for index in 0..<end {
     let instruction = instructions[index]
-    let used_values = instruction_uses(instruction)
+    let used_values = use_def.instruction_uses(block_index, index)
     guard used_values.contains(source) else { continue }
     match instruction {
       LoadTag(_, selected) if selected == source => count += 1
@@ -188,18 +198,27 @@ fn independent_prior_source_uses(
 ///|
 fn projection_result_requires_owner(
   body : FunctionBody,
+  use_def : UseDefAnalysis,
   result : ProjectionResult,
 ) -> Bool {
   let value = result.value_destination
   guard body.values[value.value].ownership is Borrowed else { return false }
-  for block in body.blocks {
-    for instruction in block.instructions {
-      if projection_use_requires_owner(instruction, value) {
-        return true
-      }
-    }
-    if projection_terminator_requires_owner(block.terminator, value) {
-      return true
+  for site in use_def.uses[value.value] {
+    match site {
+      InstructionUse(block, instruction) =>
+        if projection_use_requires_owner(
+            body.blocks[block].instructions[instruction],
+            value,
+          ) {
+          return true
+        }
+      TerminatorUse(block) =>
+        if projection_terminator_requires_owner(
+            body.blocks[block].terminator,
+            value,
+          ) {
+          return true
+        }
     }
   }
   false

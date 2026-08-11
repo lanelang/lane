@@ -57,29 +57,21 @@ fn verify_arc_final_structure(body : FunctionBody) -> Unit raise FinalizeError {
         require_arc_value(body, destination)
         defined[destination.value] = true
       }
-      for value in instruction_uses(instruction) {
+      for value in instruction_operand_values(instruction) {
         require_arc_value(body, value)
       }
     }
-    for value in terminator_uses(block.terminator) {
+    for value in terminator_operand_values(block.terminator) {
       require_arc_value(body, value)
     }
     for edge in block_edges(block.terminator) {
       verify_arc_edge(body, source, edge)
     }
   }
-  for block in body.blocks {
-    for instruction in block.instructions {
-      for value in instruction_uses(instruction) {
-        if !defined[value.value] {
-          arc_final_fail(MissingDefinition(value))
-        }
-      }
-    }
-    for value in terminator_uses(block.terminator) {
-      if !defined[value.value] {
-        arc_final_fail(MissingDefinition(value))
-      }
+  let use_def = analyze_use_def(body)
+  for value_index, uses in use_def.uses {
+    if !uses.is_empty() && !defined[value_index] {
+      arc_final_fail(MissingDefinition({ value: value_index }))
     }
   }
   for metadata in body.values {

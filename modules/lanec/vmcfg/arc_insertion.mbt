@@ -2,13 +2,14 @@
 fn insert_arc_unverified(
   body : FunctionBody,
 ) -> FunctionBody raise FinalizeError {
+  let use_def = analyze_use_def(body)
   let blocks = []
   let edge_blocks = []
   let original_block_count = body.blocks.length()
   for block_index, block in body.blocks {
     blocks.push(
       insert_arc_block(
-        body, block_index, block, original_block_count, edge_blocks,
+        body, use_def, block_index, block, original_block_count, edge_blocks,
       ),
     )
   }
@@ -19,12 +20,13 @@ fn insert_arc_unverified(
 ///|
 fn insert_arc_block(
   body : FunctionBody,
+  use_def : UseDefAnalysis,
   block_index : Int,
   block : Block,
   original_block_count : Int,
   edge_blocks : Array[Block],
 ) -> Block raise FinalizeError {
-  let remaining = block_use_counts(body.values.length(), block)
+  let remaining = use_def.copy_block_use_counts(block_index)
   let live = Array::make(body.values.length(), false)
   if block_index == 0 {
     for value in function_input_values(body.inputs) {
