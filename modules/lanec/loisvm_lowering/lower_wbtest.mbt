@@ -80,15 +80,28 @@ fn lower_test_executable_to_bytecode(
   externals : @buslane_lowering.BuslaneExternalMap,
   entry : @buslane_lowering.BuslaneEntry,
 ) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
-  lower_executable_program_to_bytecode({
-    module_path_texts: [],
-    program,
-    externals,
-    entry,
-    initializers: [],
-    execution_roots: [Entry(entry.value)],
-    effect_companions: [],
-  })
+  lower_test_executable_to_bytecode_observed(program, externals, entry, _ => ())
+}
+
+///|
+fn lower_test_executable_to_bytecode_observed(
+  program : @buslane.Program,
+  externals : @buslane_lowering.BuslaneExternalMap,
+  entry : @buslane_lowering.BuslaneEntry,
+  observe : (LoisvmLoweringStage) -> Unit,
+) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
+  lower_executable_program_to_bytecode_observed(
+    {
+      module_path_texts: [],
+      program,
+      externals,
+      entry,
+      initializers: [],
+      execution_roots: [Entry(entry.value)],
+      effect_companions: [],
+    },
+    observe,
+  )
 }
 
 ///|
@@ -790,8 +803,10 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
       ),
     ],
   }
+  let mut initial_provenance : Array[LoisvmFunctionProvenance] = []
+  let mut final_provenance : Array[LoisvmFunctionProvenance] = []
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_test_executable_to_bytecode_observed(
       program,
       {
         builtins: [],
@@ -817,6 +832,13 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
         ],
       },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      fn(observed) {
+        match observed {
+          InitialVmcfg(_, provenance) => initial_provenance = provenance
+          FinalBytecode(_, provenance) => final_provenance = provenance
+          Anf(_) => ()
+        }
+      },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -844,6 +866,29 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
     }
   }
   assert_eq(direct_targets, [{ value: 3 }, { value: 2 }, { value: 3 }])
+  assert_eq(initial_provenance, final_provenance)
+  debug_inspect(
+    final_provenance,
+    content=(
+      #|[
+      #|  {
+      #|    function: { value: 1 },
+      #|    origins: [TopLevelFunction(function={ value: 0 }, source=Some({ index: 5 }))],
+      #|  },
+      #|  {
+      #|    function: { value: 2 },
+      #|    origins: [RuntimeImport(source={ index: 1 }, symbol="lane.test.a")],
+      #|  },
+      #|  {
+      #|    function: { value: 3 },
+      #|    origins: [
+      #|      RuntimeImport(source={ index: 0 }, symbol="lane.test.z"),
+      #|      RuntimeImport(source={ index: 2 }, symbol="lane.test.z"),
+      #|    ],
+      #|  },
+      #|]
+    ),
+  )
 }
 
 ///|

@@ -1,10 +1,20 @@
 ///|
-fn canonicalize_function_table(image : @vmcfg.Image) -> @vmcfg.Image {
+fn canonicalize_function_table(
+  image : @vmcfg.Image,
+  origins : Array[LoisvmFunctionOrigin],
+) -> CanonicalizedFunctionTable raise FunctionTableCanonicalizationError {
+  if image.functions.length() != origins.length() {
+    raise OriginCountMismatch(
+      functions=image.functions.length(),
+      origins=origins.length(),
+    )
+  }
   let mappings : Array[@bytecode.FunctionId?] = Array::make(
     image.functions.length(),
     None,
   )
   let bodies : Array[@vmcfg.FunctionBody] = []
+  let body_provenance : Array[LoisvmFunctionProvenance] = []
   let imports : Array[CanonicalRuntimeImport] = []
   for index, entry in image.functions {
     let old_id : @bytecode.FunctionId = { value: index + 1 }
@@ -13,6 +23,7 @@ fn canonicalize_function_table(image : @vmcfg.Image) -> @vmcfg.Image {
         let new_id : @bytecode.FunctionId = { value: bodies.length() + 1 }
         mappings[index] = Some(new_id)
         bodies.push(body)
+        body_provenance.push({ function: new_id, origins: [origins[index]] })
       }
       RuntimeImport(descriptor) => {
         let mut found = false
@@ -60,20 +71,26 @@ fn canonicalize_function_table(image : @vmcfg.Image) -> @vmcfg.Image {
     }
   }
   let functions : Array[@vmcfg.FunctionEntry] = []
+  let provenance = body_provenance
   for body in bodies {
     functions.push(Body(remap_function_body(body, mappings)))
   }
   for import_ in imports {
     functions.push(RuntimeImport(import_.descriptor))
+    let function : @bytecode.FunctionId = { value: provenance.length() + 1 }
+    let merged_origins = import_.old_ids.map(old_id => origins[old_id.value - 1])
+    provenance.push({ function, origins: merged_origins })
   }
-  {
+  let canonical_image = {
     ..image,
     entry: remap_function_id(image.entry, mappings),
-    initializer: image.initializer.map(function => {
-      remap_function_id(function, mappings)
-    }),
+    initializer: match image.initializer {
+      Some(function) => Some(remap_function_id(function, mappings))
+      None => None
+    },
     functions,
   }
+  { image: canonical_image, provenance }
 }
 
 ///|
@@ -113,7 +130,7 @@ fn runtime_value_kind_rank(kind : @bytecode.RuntimeValueKind) -> Int {
 fn remap_function_body(
   body : @vmcfg.FunctionBody,
   mappings : Array[@bytecode.FunctionId?],
-) -> @vmcfg.FunctionBody {
+) -> @vmcfg.FunctionBody raise FunctionTableCanonicalizationError {
   {
     ..body,
     blocks: body.blocks.map(block => {
@@ -130,7 +147,7 @@ fn remap_function_body(
 fn remap_instruction_function_ids(
   instruction : @vmcfg.Instruction,
   mappings : Array[@bytecode.FunctionId?],
-) -> @vmcfg.Instruction {
+) -> @vmcfg.Instruction raise FunctionTableCanonicalizationError {
   match instruction {
     ConstFunction(destination, function) =>
       ConstFunction(destination, remap_function_id(function, mappings))
@@ -156,7 +173,7 @@ fn remap_instruction_function_ids(
 fn remap_terminator_function_ids(
   terminator : @vmcfg.Terminator,
   mappings : Array[@bytecode.FunctionId?],
-) -> @vmcfg.Terminator {
+) -> @vmcfg.Terminator raise FunctionTableCanonicalizationError {
   match terminator {
     TailCallDirect(function, environment, witnesses, arguments) =>
       TailCallDirect(
@@ -173,10 +190,13 @@ fn remap_terminator_function_ids(
 fn remap_function_id(
   function : @bytecode.FunctionId,
   mappings : Array[@bytecode.FunctionId?],
-) -> @bytecode.FunctionId {
+) -> @bytecode.FunctionId raise FunctionTableCanonicalizationError {
+  if function.value <= 0 || function.value > mappings.length() {
+    raise InvalidFunctionReference(function~)
+  }
   match mappings[function.value - 1] {
     Some(mapped) => mapped
-    None => abort("missing canonical FunctionId mapping")
+    None => raise MissingFunctionMapping(function~)
   }
 }
 

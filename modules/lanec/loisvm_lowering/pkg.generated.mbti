@@ -20,6 +20,13 @@ pub fn lower_executable_program_to_bytecode_observed(@executable.ExecutableProgr
 pub fn lower_linked_program_to_bytecode(@buslane.Program, @buslane_lowering.BuslaneExternalMap, @buslane_lowering.BuslaneEntry) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
 
 // Errors
+pub(all) suberror FunctionTableCanonicalizationError {
+  OriginCountMismatch(functions~ : Int, origins~ : Int)
+  InvalidFunctionReference(function~ : @bytecode.FunctionId)
+  MissingFunctionMapping(function~ : @bytecode.FunctionId)
+  FinalizedFunctionCountMismatch(functions~ : Int, origins~ : Int)
+} derive(Eq, @debug.Debug)
+
 pub(all) suberror LoisvmLoweringError {
   MissingValueMetadata(value~ : @buslane.ValueId)
   MissingDataConstructorMetadata(data_constructor~ : @buslane.DataConId)
@@ -38,6 +45,7 @@ pub(all) suberror LoisvmLoweringError {
   UnterminatedBlock(block~ : Int)
   EffectLoweringError(@core.SynthesisError)
   VmcfgFinalizeError(@vmcfg.FinalizeError)
+  FunctionTableCanonicalizationCompilerDefect(FunctionTableCanonicalizationError)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -53,9 +61,15 @@ pub(all) enum LoisvmFunctionOrigin {
   RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
 } derive(Eq, @debug.Debug)
 
+pub(all) struct LoisvmFunctionProvenance {
+  function : @bytecode.FunctionId
+  origins : Array[LoisvmFunctionOrigin]
+} derive(Eq, @debug.Debug)
+
 pub(all) enum LoisvmLoweringStage {
   Anf(@anf.AnfProgram)
-  InitialVmcfg(@vmcfg.Image)
+  InitialVmcfg(@vmcfg.Image, Array[LoisvmFunctionProvenance])
+  FinalBytecode(@bytecode.BytecodeImage, Array[LoisvmFunctionProvenance])
 }
 
 // Type aliases

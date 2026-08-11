@@ -131,12 +131,19 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       match observed {
         Anf(program) =>
           stages.complete(Anf, render_anf_code(program), [], anf_scale(program))
-        InitialVmcfg(image) =>
+        InitialVmcfg(image, _) =>
           stages.complete(
             VmcfgInitial,
             @vmcfg.image_to_code(image),
             [],
             vmcfg_scale(image),
+          )
+        FinalBytecode(image, _) =>
+          stages.complete(
+            LoisvmBytecode,
+            @bytecode.bytecode_image_to_code(image),
+            [],
+            bytecode_scale(image),
           )
       }
     }) {
@@ -150,12 +157,6 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       )
     }
   }
-  stages.complete(
-    LoisvmBytecode,
-    @bytecode.bytecode_image_to_code(image),
-    [],
-    bytecode_scale(image),
-  )
   let wasm_module = match @wasm_compiler.compile(image) {
     Ok(wasm_module) => wasm_module
     Err(error) => {

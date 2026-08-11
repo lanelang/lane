@@ -56,7 +56,8 @@ pub fn lower_executable_program_to_bytecode(
 ///|
 pub(all) enum LoisvmLoweringStage {
   Anf(@anf.AnfProgram)
-  InitialVmcfg(@vmcfg.Image)
+  InitialVmcfg(@vmcfg.Image, Array[LoisvmFunctionProvenance])
+  FinalBytecode(@bytecode.BytecodeImage, Array[LoisvmFunctionProvenance])
 }
 
 ///|
@@ -127,19 +128,35 @@ fn lower_executable_program_to_bytecode_or_raise(
     }
     plan_index += 1
   }
-  let virtual_image = canonicalize_function_table({
-    entry: entry_function,
-    initializer,
-    functions,
-    data_family_count: lowerer.data_families.length(),
-    globals: lowerer.instance_globals,
-    layouts: lowerer.layouts,
-    object_shapes: lowerer.object_shapes,
-    constants: lowerer.constants,
-  })
-  observe(InitialVmcfg(virtual_image))
-  match @vmcfg.finalize(virtual_image) {
-    Ok(image) => image
+  let canonical = canonicalize_function_table(
+    {
+      entry: entry_function,
+      initializer,
+      functions,
+      data_family_count: lowerer.data_families.length(),
+      globals: lowerer.instance_globals,
+      layouts: lowerer.layouts,
+      object_shapes: lowerer.object_shapes,
+      constants: lowerer.constants,
+    },
+    lowerer.plans.origins(),
+  ) catch {
+    error => raise FunctionTableCanonicalizationCompilerDefect(error)
+  }
+  observe(InitialVmcfg(canonical.image, canonical.provenance))
+  match @vmcfg.finalize(canonical.image) {
+    Ok(image) => {
+      if image.functions.length() != canonical.provenance.length() {
+        raise FunctionTableCanonicalizationCompilerDefect(
+          FinalizedFunctionCountMismatch(
+            functions=image.functions.length(),
+            origins=canonical.provenance.length(),
+          ),
+        )
+      }
+      observe(FinalBytecode(image, canonical.provenance))
+      image
+    }
     Err(error) => raise VmcfgFinalizeError(error)
   }
 }

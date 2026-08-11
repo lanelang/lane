@@ -21,6 +21,17 @@ pub(all) suberror LoisvmLoweringError {
   UnterminatedBlock(block~ : Int)
   EffectLoweringError(@effect_lowering_core.SynthesisError)
   VmcfgFinalizeError(@vmcfg.FinalizeError)
+  FunctionTableCanonicalizationCompilerDefect(
+    FunctionTableCanonicalizationError
+  )
+} derive(Debug, Eq)
+
+///|
+pub(all) suberror FunctionTableCanonicalizationError {
+  OriginCountMismatch(functions~ : Int, origins~ : Int)
+  InvalidFunctionReference(function~ : @bytecode.FunctionId)
+  MissingFunctionMapping(function~ : @bytecode.FunctionId)
+  FinalizedFunctionCountMismatch(functions~ : Int, origins~ : Int)
 } derive(Debug, Eq)
 
 ///|
@@ -103,6 +114,13 @@ fn FunctionPlanTable::observations(
   self : FunctionPlanTable,
 ) -> Array[(@bytecode.FunctionId, LoisvmFunctionOrigin)] {
   self.entries.map(planned => (planned.function, planned.origin))
+}
+
+///|
+fn FunctionPlanTable::origins(
+  self : FunctionPlanTable,
+) -> Array[LoisvmFunctionOrigin] {
+  self.entries.map(planned => planned.origin)
 }
 
 ///|
@@ -195,6 +213,18 @@ priv struct LayoutConstructorPlan {
 priv struct CanonicalRuntimeImport {
   descriptor : @bytecode.RuntimeImport
   old_ids : Array[@bytecode.FunctionId]
+}
+
+///|
+pub(all) struct LoisvmFunctionProvenance {
+  function : @bytecode.FunctionId
+  origins : Array[LoisvmFunctionOrigin]
+} derive(Debug, Eq)
+
+///|
+priv struct CanonicalizedFunctionTable {
+  image : @vmcfg.Image
+  provenance : Array[LoisvmFunctionProvenance]
 }
 
 ///|
