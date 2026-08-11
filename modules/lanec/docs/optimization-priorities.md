@@ -59,6 +59,11 @@ instructions.
 Optimization work needs a deterministic, machine-readable feedback loop before
 the numbers above become targets.
 
+Explore Protocol v2 now delivers the first two requirements below: stage
+metrics are collected from typed IR, and function lineage is carried by ANF,
+LoisVM canonicalization, and Wasm emission owners. The remaining work starts
+with renderer completeness and a pinned clean Basic baseline.
+
 1. Add per-stage metrics to Explore without making the human-facing IR text a
    serialization format. At minimum, record function count, operation count,
    maximum function size, direct and indirect call counts, closure and
@@ -230,7 +235,8 @@ eagerly compile avoidable functions and representation plumbing.
 
 ## Recommended implementation order
 
-1. Add stable Explore metrics and provenance and pin a clean Basic baseline.
+1. Pin a clean Basic baseline using the delivered Explore v2 metrics and
+   provenance.
 2. Remove duplicated global runtime checks and compact entry lifecycle cleanup.
 3. Add the Core static-value summary and consume it in match and projection
    reduction.

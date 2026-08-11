@@ -4,14 +4,15 @@ test "explorer HTML escaping covers markup and attributes" {
 }
 
 ///|
-test "explorer HTML body contains only stage navigation and code" {
+test "explorer HTML renders stage navigation and escaped code" {
   let report : @driver.ExploreReport = {
-    schema_version: 1,
+    schema_version: 2,
     compiler: { name: "Milky2018/lanec", version: "0.1.0" },
     root: { source_id: "<root>", module_path_text: Some("Main") },
     selected_entry: None,
     status: Failed(Resolved),
     diagnostics: [],
+    functions: { nodes: [], edges: [] },
     stages: {
       syntax: Completed({
         domain: Compiler,
@@ -55,6 +56,8 @@ test "explorer HTML body contains only stage navigation and code" {
       #|button{display:block;width:100%;margin:0 0 8px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);text-align:left;cursor:pointer}
       #|button[aria-selected="true"]{border-color:var(--accent);color:#fff}.content{min-width:0;padding:20px 24px}.stage{display:none}.stage.active{display:block}
       #|pre{margin:0;padding:18px;border:1px solid var(--line);border-radius:10px;background:#080d1a;color:#dce5ff;overflow:auto;white-space:pre;tab-size:2}
+      #|.observations{display:grid;gap:14px;margin:0 0 16px}.metrics{display:flex;flex-wrap:wrap;gap:8px}.metric{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+      #|table{width:100%;border-collapse:collapse;background:var(--panel)}th,td{padding:8px 10px;border:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--accent)}
       #|@media(max-width:760px){main{grid-template-columns:1fr}nav{border-right:0;border-bottom:1px solid var(--line)}}
       #|</style>
       #|</head>
@@ -68,6 +71,40 @@ test "explorer HTML body contains only stage navigation and code" {
       #|</script>
       #|</body>
       #|</html>
+    ),
+  )
+}
+
+///|
+test "explorer renders typed metrics and explicit function lineage" {
+  let html = StringBuilder::new()
+  let stage : @driver.ExploreStage = {
+    id: "anf",
+    title: "ANF",
+    state: Completed({
+      domain: Compiler,
+      text_format: Anf,
+      text: "",
+      diagnostics: [],
+      scale: {
+        metrics: [{ id: FunctionCount, value: 1 }],
+        functions: [
+          { index: 7, block_count: 0, operation_count: 3, value_count: 1 },
+        ],
+      },
+    }),
+  }
+  let source : @driver.ExploreFunctionRef = { stage: Anf, index: 7 }
+  render_stage_observations(html, stage, {
+    nodes: [
+      { function: source, roles: [SourceFunction(value=4, name=Some("main"))] },
+    ],
+    edges: [{ source: { stage: Executable, index: 4 }, target: source }],
+  })
+  inspect(
+    html.to_string(),
+    content=(
+      #|<div class="observations"><div class="metrics"><span class="metric">functionCount: 1</span></div><table><thead><tr><th>Function</th><th>Blocks</th><th>Operations</th><th>Values/locals</th></tr></thead><tbody><tr><td>7</td><td>0</td><td>3</td><td>1</td></tr></tbody></table><table><thead><tr><th>Function lineage</th><th>Role</th><th>From</th></tr></thead><tbody><tr><td>anf#7</td><td>source main (value#4)</td><td>executable#4</td></tr></tbody></table></div>
     ),
   )
 }

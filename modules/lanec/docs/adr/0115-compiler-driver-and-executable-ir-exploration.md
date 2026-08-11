@@ -6,9 +6,9 @@ The driver supports two workflows. Artifact Entry Enumeration compiles the sourc
 
 Normal compilation and exploration share orchestration at the stage-owning package boundaries. A read-only Compilation Observer may receive snapshots at stable semantic boundaries. The observer cannot change IR, pass selection, error recovery, or compilation results. Ordinary compilation installs no observer and therefore does not retain exploration text.
 
-An Explore Stage contains a stable stage identifier, display label, and one of three states: completed with an Explore Snapshot, failed with diagnostics, or unavailable. An Explore Snapshot contains the compiler or backend domain, text format, human-readable text, and diagnostics. It contains rendered text rather than a typed compiler object. IR printers remain human-facing pretty printers and are not serialization formats. Before linking, snapshots display only the module that owns the selected entry; compilation still checks required dependencies and reports their diagnostics. Linking and every later stage display the complete whole-program IR consumed by the next transformation.
+An Explore Stage contains a stable stage identifier, display label, and one of three states: completed with an Explore Snapshot, failed with diagnostics, or unavailable. An Explore Snapshot contains the compiler or backend domain, text format, human-readable text, diagnostics, and stable structural scale metrics. It contains rendered text rather than a typed compiler object. IR printers remain human-facing pretty printers and are not serialization formats. Before linking, snapshots display only the module that owns the selected entry; compilation still checks required dependencies and reports their diagnostics. Linking and every later stage display the complete whole-program IR consumed by the next transformation.
 
-Explore Report Protocol version 1 contains compiler identity, root identity, the artifact-defined selected entry, overall status, diagnostics, and this fixed ordered stage sequence:
+Explore Report Protocol version 2 contains compiler identity, root identity, the artifact-defined selected entry, overall status, diagnostics, a structural function-provenance graph, and this fixed ordered stage sequence:
 
 1. `syntax`: Syntax AST;
 2. `resolved`: Resolved AST;
@@ -39,7 +39,7 @@ A failed compilation produces a Partial Explore Report containing all eighteen o
 
 The native command is `lane explore <file>:<entry> -o <report.html>` with the same library-input semantics as `lane run`: `$LANE_HOME/basic` is loaded by default, explicit `--lib` and `--lib-dir` inputs are appended, and `--no-basic` disables the default directory. The output path is required. The command never executes the entry, writes the report through atomic replacement, does not emit the report to stdout, and does not automatically open a browser.
 
-The native output is deterministic, self-contained offline HTML with one level of stage tabs, safely escaped IR source code, and inline styles and behavior. Each stage projects declarations, terms, functions, tables, or backend source directly; it does not render enclosing compiler objects, registries, entry or schema metadata, diagnostics, or image summaries. Those values remain available through the command outcome and compiler-owned Explore Report rather than being duplicated into the code viewer. It contains no CDN dependency or volatile timestamp. The HTML renderer uses MoonBit `StringBuilder`, `<+`, and multiline strings instead of repeated immutable string concatenation. Lane Wasm serializes the complete report model as versioned JSON; it does not reuse the native HTML renderer.
+The native output is deterministic, self-contained offline HTML with one level of stage tabs, safely escaped IR source code, per-stage structural metrics, explicit function lineage, and inline styles and behavior. Each stage projects declarations, terms, functions, tables, or backend source directly; it does not render enclosing compiler objects, registries, entry or schema metadata, or diagnostics. It contains no CDN dependency or volatile timestamp. The HTML renderer uses MoonBit `StringBuilder`, `<+`, and multiline strings instead of repeated immutable string concatenation. Lane Wasm serializes the complete report model as versioned JSON; it does not reuse the native HTML renderer. ADR-0132 defines the version 2 metric and provenance stability contract.
 
 ## Consequences
 
@@ -52,3 +52,5 @@ The native output is deterministic, self-contained offline HTML with one level o
 - Pure Wasm generation becomes cross-target and independent of Wasmoon execution.
 - Browser and native hosts present equivalent compiler information through different transports.
 - Partial reports make intermediate failures inspectable without weakening command failure status.
+- Structural metrics and explicit provenance make optimization evidence
+  machine-readable without turning pretty-printed IR into a protocol.

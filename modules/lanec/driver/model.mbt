@@ -92,6 +92,49 @@ pub(all) struct ExploreScaleObservation {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct ExploreFunctionRef {
+  stage : ExploreStageId
+  index : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ExploreFunctionRole {
+  SourceFunction(value~ : Int, name~ : String?)
+  AnonymousFunction
+  Initializer(value~ : Int, name~ : String?)
+  InitializerOrchestrator
+  IntrinsicWrapper(name~ : String)
+  CallableAdapter
+  LayoutConstructor
+  RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
+  InternalRuntimeImport(name~ : String)
+  PhysicalRuntimeImport(symbol~ : String)
+  WasmBytecodeFunction
+  RuntimeImportAdapter(symbol~ : String)
+  WasmRuntimeFunction(name~ : String)
+  WasmHelperFunction(name~ : String, ordinal~ : Int?)
+  EntryWrapper
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ExploreFunctionNode {
+  function : ExploreFunctionRef
+  roles : Array[ExploreFunctionRole]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ExploreFunctionEdge {
+  source : ExploreFunctionRef
+  target : ExploreFunctionRef
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ExploreFunctionGraph {
+  nodes : Array[ExploreFunctionNode]
+  edges : Array[ExploreFunctionEdge]
+} derive(Debug, Eq)
+
+///|
 /// Canonical total order of protocol stages. This order is also the execution
 /// order and is independent of map or source-pool iteration order.
 pub(all) enum ExploreStageId {
@@ -190,6 +233,7 @@ pub(all) struct ExploreReport {
   status : ExploreStatus
   diagnostics : Array[@compiler_diag.CompilerDiagnostic]
   stages : ExploreStages
+  functions : ExploreFunctionGraph
 } derive(Debug, Eq)
 
 ///|

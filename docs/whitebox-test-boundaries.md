@@ -88,6 +88,7 @@ private invariant, not merely the subsystem being tested.
 | `modules/lanec/executable/extended_verification_wbtest.mbt` | Inspects producer-stage provenance retained by the private extended verifier. |
 | `modules/lanec/format/format_internals_wbtest.mbt` | Observes trivia ownership, delimiter indexes, and unconsumed-comment detection. |
 | `modules/lanec/loisvm_lowering/f32_wbtest.mbt` | Inspects explicit runtime representation bridges for erased generic F32 calls. |
+| `modules/lanec/loisvm_lowering/function_table_wbtest.mbt` | Injects inconsistent private function-table inputs to verify canonicalization compiler-defect paths. |
 | `modules/lanec/loisvm_lowering/lower_wbtest.mbt` | Snapshots private ANF/VM CFG, slot layout, adapter plans, and emitted bytecode. |
 | `modules/lanec/loisvm_lowering/special_constants_wbtest.mbt` | Reads compiler-generated IEEE bit patterns before runtime execution. |
 | `modules/lanec/loisvm_lowering/uninhabited_match_wbtest.mbt` | Inspects unreachable bytecode emitted for an empty data match. |
@@ -118,6 +119,7 @@ private invariant, not merely the subsystem being tested.
 | `modules/lanec/typecheck/typecheck_support_wbtest.mbt` | Supplies private checker construction and checked-IR assertion helpers. |
 | `modules/lanec/typecheck/utf8_intrinsics_wbtest.mbt` | Inspects exact checked Char/UTF-8 intrinsic contracts and removed intrinsic rejection. |
 | `modules/lanec/types/types_wbtest.mbt` | Drives private normalization budgets and checked failure propagation at exact boundaries. |
+| `modules/lanec/vmcfg/arc_verification_wbtest.mbt` | Constructs private ARC-final CFG states to verify ownership and control-flow invariants before slot allocation. |
 | `modules/lanec/vmcfg/consume_projections_wbtest.mbt` | Inspects consuming projection selection and block-local borrow grouping. |
 | `modules/lanec/vmcfg/devirtualize_wbtest.mbt` | Observes callable escape analysis and direct-call/environment rewrites. |
 | `modules/lanec/vmcfg/finalize_wbtest.mbt` | Inspects ownership promotion, physical slots, callable ABI IDs, and finalized bodies. |

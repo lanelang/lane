@@ -20,7 +20,7 @@ pub fn explore() -> Int {
     Ok(request) => request
     Err(reason) =>
       return write_response(
-        invalid_request_response(reason).stringify(),
+        invalid_request_response(reason, schema_version=2).stringify(),
         status_invalid_request,
       )
   }
@@ -34,7 +34,7 @@ pub fn entries() -> Int {
     Ok(request) => request
     Err(reason) =>
       return write_response(
-        invalid_request_response(reason).stringify(),
+        invalid_request_response(reason, schema_version=1).stringify(),
         status_invalid_request,
       )
   }

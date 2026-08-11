@@ -32,6 +32,44 @@ pub(all) struct ExploreCompilerIdentity {
   version : String
 } derive(Eq, @debug.Debug)
 
+pub(all) struct ExploreFunctionEdge {
+  source : ExploreFunctionRef
+  target : ExploreFunctionRef
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreFunctionGraph {
+  nodes : Array[ExploreFunctionNode]
+  edges : Array[ExploreFunctionEdge]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreFunctionNode {
+  function : ExploreFunctionRef
+  roles : Array[ExploreFunctionRole]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreFunctionRef {
+  stage : ExploreStageId
+  index : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExploreFunctionRole {
+  SourceFunction(value~ : Int, name~ : String?)
+  AnonymousFunction
+  Initializer(value~ : Int, name~ : String?)
+  InitializerOrchestrator
+  IntrinsicWrapper(name~ : String)
+  CallableAdapter
+  LayoutConstructor
+  RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
+  InternalRuntimeImport(name~ : String)
+  PhysicalRuntimeImport(symbol~ : String)
+  WasmBytecodeFunction
+  RuntimeImportAdapter(symbol~ : String)
+  WasmRuntimeFunction(name~ : String)
+  WasmHelperFunction(name~ : String, ordinal~ : Int?)
+  EntryWrapper
+} derive(Eq, @debug.Debug)
+
 pub(all) struct ExploreFunctionScale {
   index : Int
   block_count : Int
@@ -82,6 +120,7 @@ pub(all) struct ExploreReport {
   status : ExploreStatus
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
   stages : ExploreStages
+  functions : ExploreFunctionGraph
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ExploreRequest {

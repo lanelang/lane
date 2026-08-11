@@ -90,6 +90,8 @@ fn render_explore_html(report : @driver.ExploreReport) -> String {
     #|button{display:block;width:100%;margin:0 0 8px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);text-align:left;cursor:pointer}
     #|button[aria-selected="true"]{border-color:var(--accent);color:#fff}.content{min-width:0;padding:20px 24px}.stage{display:none}.stage.active{display:block}
     #|pre{margin:0;padding:18px;border:1px solid var(--line);border-radius:10px;background:#080d1a;color:#dce5ff;overflow:auto;white-space:pre;tab-size:2}
+    #|.observations{display:grid;gap:14px;margin:0 0 16px}.metrics{display:flex;flex-wrap:wrap;gap:8px}.metric{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+    #|table{width:100%;border-collapse:collapse;background:var(--panel)}th,td{padding:8px 10px;border:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--accent)}
     #|@media(max-width:760px){main{grid-template-columns:1fr}nav{border-right:0;border-bottom:1px solid var(--line)}}
     #|</style>
     #|</head>
@@ -105,7 +107,10 @@ fn render_explore_html(report : @driver.ExploreReport) -> String {
   for index, stage in stages {
     let class_name = if index == 0 { "stage active" } else { "stage" }
     html <+
-      "<section class=\"\{class_name}\" data-stage=\"\{escape_html(stage.id)}\"><pre>\{escape_html(explore_stage_text(stage.state))}</pre></section>"
+      "<section class=\"\{class_name}\" data-stage=\"\{escape_html(stage.id)}\">"
+    render_stage_observations(html, stage, report.functions)
+    html <+
+      "<pre>\{escape_html(explore_stage_text(stage.state))}</pre></section>"
   }
   html <+
     #|</div></main>
@@ -117,6 +122,107 @@ fn render_explore_html(report : @driver.ExploreReport) -> String {
     #|</body>
     #|</html>
   html.to_string()
+}
+
+///|
+fn render_stage_observations(
+  html : StringBuilder,
+  stage : @driver.ExploreStage,
+  functions : @driver.ExploreFunctionGraph,
+) -> Unit {
+  guard stage.state is Completed(snapshot) else { return }
+  let nodes = functions.nodes.filter(node => {
+    node.function.stage.key() == stage.id
+  })
+  if snapshot.scale.metrics.is_empty() &&
+    snapshot.scale.functions.is_empty() &&
+    nodes.is_empty() {
+    return
+  }
+  html <+ "<div class=\"observations\">"
+  if !snapshot.scale.metrics.is_empty() {
+    html <+ "<div class=\"metrics\">"
+    for metric in snapshot.scale.metrics {
+      html <+
+        "<span class=\"metric\">\{escape_html(metric.id.key())}: \{metric.value}</span>"
+    }
+    html <+ "</div>"
+  }
+  if !snapshot.scale.functions.is_empty() {
+    html <+
+      "<table><thead><tr><th>Function</th><th>Blocks</th><th>Operations</th><th>Values/locals</th></tr></thead><tbody>"
+    for function in snapshot.scale.functions {
+      html <+
+        "<tr><td>\{function.index}</td><td>\{function.block_count}</td><td>\{function.operation_count}</td><td>\{function.value_count}</td></tr>"
+    }
+    html <+ "</tbody></table>"
+  }
+  if !nodes.is_empty() {
+    html <+
+      "<table><thead><tr><th>Function lineage</th><th>Role</th><th>From</th></tr></thead><tbody>"
+    for node in nodes {
+      let sources = functions.edges.filter_map(edge => {
+        if edge.target == node.function {
+          Some(function_ref_label(edge.source))
+        } else {
+          None
+        }
+      })
+      let source_text = if sources.is_empty() {
+        "root"
+      } else {
+        sources.join(", ")
+      }
+      html <+
+        "<tr><td>\{escape_html(function_ref_label(node.function))}</td><td>\{escape_html(node.roles.map(function_role_label).join(", "))}</td><td>\{escape_html(source_text)}</td></tr>"
+    }
+    html <+ "</tbody></table>"
+  }
+  html <+ "</div>"
+}
+
+///|
+fn function_ref_label(function : @driver.ExploreFunctionRef) -> String {
+  "\{function.stage.key()}#\{function.index}"
+}
+
+///|
+fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
+  match role {
+    SourceFunction(value~, name~) =>
+      match name {
+        Some(name) => "source \{name} (value#\{value})"
+        None => "source value#\{value}"
+      }
+    AnonymousFunction => "anonymous function"
+    Initializer(value~, name~) =>
+      match name {
+        Some(name) => "initializer for \{name} (value#\{value})"
+        None => "initializer for value#\{value}"
+      }
+    InitializerOrchestrator => "initializer orchestrator"
+    IntrinsicWrapper(name~) => "intrinsic wrapper \{name}"
+    CallableAdapter => "callable adapter"
+    LayoutConstructor => "layout constructor"
+    RuntimeImport(value~, name~, symbol~) => {
+      let source = match name {
+        Some(name) => "\{name} (value#\{value})"
+        None => "value#\{value}"
+      }
+      "runtime import \{symbol} for \{source}"
+    }
+    InternalRuntimeImport(name~) => "internal runtime import \{name}"
+    PhysicalRuntimeImport(symbol~) => "physical runtime import \{symbol}"
+    WasmBytecodeFunction => "Wasm body for bytecode function"
+    RuntimeImportAdapter(symbol~) => "runtime import adapter \{symbol}"
+    WasmRuntimeFunction(name~) => "Wasm runtime function \{name}"
+    WasmHelperFunction(name~, ordinal~) =>
+      match ordinal {
+        Some(ordinal) => "Wasm helper \{name} #\{ordinal}"
+        None => "Wasm helper \{name}"
+      }
+    EntryWrapper => "entry wrapper"
+  }
 }
 
 ///|

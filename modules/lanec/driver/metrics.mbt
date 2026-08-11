@@ -3,6 +3,7 @@ priv struct TreeScaleAccumulator {
   mut function_count : Int
   mut call_count : Int
   functions : Array[ExploreFunctionScale]
+  anf_functions : Array[ObservedAnfFunction]
 }
 
 ///|
@@ -21,6 +22,7 @@ fn buslane_scale(program : @buslane.Program) -> ExploreScaleObservation {
     function_count: 0,
     call_count: 0,
     functions: [],
+    anf_functions: [],
   }
   let mut nodes = 0
   for term in program.terms {
@@ -125,6 +127,7 @@ fn effect_lowering_scale(
     function_count: 0,
     call_count: 0,
     functions: [],
+    anf_functions: [],
   }
   let mut nodes = 0
   for term in program.terms {
@@ -240,11 +243,12 @@ fn observe_effect_lowering_expr(
 }
 
 ///|
-fn anf_scale(program : @anf.AnfProgram) -> ExploreScaleObservation {
+fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
   let accumulator : TreeScaleAccumulator = {
     function_count: 0,
     call_count: 0,
     functions: [],
+    anf_functions: [],
   }
   let mut nodes = 0
   for term in program.terms {
@@ -258,7 +262,11 @@ fn anf_scale(program : @anf.AnfProgram) -> ExploreScaleObservation {
       External(_) => ()
     }
   }
-  {
+  accumulator.functions.sort_by(fn(left, right) { left.index - right.index })
+  accumulator.anf_functions.sort_by(fn(left, right) {
+    left.function.value - right.function.value
+  })
+  let scale = {
     metrics: [
       metric(TopTermCount, program.terms.length()),
       metric(FunctionCount, accumulator.function_count),
@@ -267,6 +275,7 @@ fn anf_scale(program : @anf.AnfProgram) -> ExploreScaleObservation {
     ],
     functions: accumulator.functions,
   }
+  { scale, functions: accumulator.anf_functions }
 }
 
 ///|
@@ -276,10 +285,14 @@ fn observe_anf_function(
 ) -> Int {
   let body_nodes = observe_anf_expr(function.body, accumulator)
   accumulator.functions.push({
-    index: accumulator.function_count,
+    index: function.id.value,
     block_count: 0,
     operation_count: body_nodes,
     value_count: function.parameters.length(),
+  })
+  accumulator.anf_functions.push({
+    function: function.id,
+    source: function.source,
   })
   accumulator.function_count += 1
   body_nodes

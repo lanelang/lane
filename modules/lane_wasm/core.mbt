@@ -22,7 +22,10 @@ fn explore_request(request_text : String) -> ExploreResult {
     Ok(request) => request
     Err(reason) => {
       let status = status_invalid_request
-      return { status, json: invalid_request_response(reason).stringify() }
+      return {
+        status,
+        json: invalid_request_response(reason, schema_version=2).stringify(),
+      }
     }
   }
   let report = @driver.explore(request)
@@ -39,7 +42,10 @@ fn entries_request(request_text : String) -> ExploreResult {
     Ok(sources) => sources
     Err(reason) => {
       let status = status_invalid_request
-      return { status, json: invalid_request_response(reason).stringify() }
+      return {
+        status,
+        json: invalid_request_response(reason, schema_version=1).stringify(),
+      }
     }
   }
   let report = @driver.list_entries(sources.0, sources.1)
@@ -133,9 +139,9 @@ fn parse_source_input(json : Json) -> Result[@compile.SourceInput, String] {
 }
 
 ///|
-fn invalid_request_response(reason : String) -> Json {
+fn invalid_request_response(reason : String, schema_version~ : Int) -> Json {
   {
-    "schemaVersion": 1,
+    "schemaVersion": schema_version,
     "status": status_invalid_request,
     "diagnostics": [
       {
@@ -165,6 +171,7 @@ fn report_json(report : @driver.ExploreReport) -> Json {
     "status": report_status_json(report.status),
     "diagnostics": report.diagnostics.map(compile_diagnostic_json),
     "stages": report.stages.ordered().map(stage_json),
+    "functions": function_graph_json(report.functions),
   }
   if report.selected_entry is Some(entry) {
     fields["selectedEntry"] = {
@@ -188,6 +195,10 @@ fn stage_json(stage : @driver.ExploreStage) -> Json {
       fields["diagnostics"] = snapshot.diagnostics
         .map(compile_diagnostic_json)
         .to_json()
+      fields["metrics"] = snapshot.scale.metrics.map(metric_json).to_json()
+      fields["functions"] = snapshot.scale.functions
+        .map(function_scale_json)
+        .to_json()
     }
     Failed(diagnostics) => {
       fields["status"] = "failed"
@@ -196,6 +207,112 @@ fn stage_json(stage : @driver.ExploreStage) -> Json {
     Unavailable => fields["status"] = "unavailable"
   }
   fields.to_json()
+}
+
+///|
+fn function_graph_json(graph : @driver.ExploreFunctionGraph) -> Json {
+  {
+    "nodes": graph.nodes.map(function_node_json),
+    "edges": graph.edges.map(function_edge_json),
+  }
+}
+
+///|
+fn metric_json(metric : @driver.ExploreMetric) -> Json {
+  { "id": metric.id.key(), "value": metric.value }
+}
+
+///|
+fn function_scale_json(function : @driver.ExploreFunctionScale) -> Json {
+  {
+    "index": function.index,
+    "blockCount": function.block_count,
+    "operationCount": function.operation_count,
+    "valueCount": function.value_count,
+  }
+}
+
+///|
+fn function_node_json(node : @driver.ExploreFunctionNode) -> Json {
+  {
+    "function": function_ref_json(node.function),
+    "roles": node.roles.map(function_role_json).to_json(),
+  }
+}
+
+///|
+fn function_edge_json(edge : @driver.ExploreFunctionEdge) -> Json {
+  {
+    "source": function_ref_json(edge.source),
+    "target": function_ref_json(edge.target),
+  }
+}
+
+///|
+fn function_ref_json(function : @driver.ExploreFunctionRef) -> Json {
+  { "stage": function.stage.key(), "index": function.index }
+}
+
+///|
+fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
+  match role {
+    SourceFunction(value~, name~) => {
+      let fields : Map[String, Json] = {
+        "kind": "source".to_json(),
+        "value": value.to_json(),
+      }
+      if name is Some(name) {
+        fields["name"] = name.to_json()
+      }
+      fields.to_json()
+    }
+    AnonymousFunction => { "kind": "anonymous" }
+    Initializer(value~, name~) => {
+      let fields : Map[String, Json] = {
+        "kind": "initializer".to_json(),
+        "value": value.to_json(),
+      }
+      if name is Some(name) {
+        fields["name"] = name.to_json()
+      }
+      fields.to_json()
+    }
+    InitializerOrchestrator => { "kind": "initializerOrchestrator" }
+    IntrinsicWrapper(name~) => { "kind": "intrinsicWrapper", "name": name }
+    CallableAdapter => { "kind": "callableAdapter" }
+    LayoutConstructor => { "kind": "layoutConstructor" }
+    RuntimeImport(value~, name~, symbol~) => {
+      let fields : Map[String, Json] = {
+        "kind": "runtimeImport".to_json(),
+        "value": value.to_json(),
+        "symbol": symbol.to_json(),
+      }
+      if name is Some(name) {
+        fields["name"] = name.to_json()
+      }
+      fields.to_json()
+    }
+    InternalRuntimeImport(name~) =>
+      { "kind": "internalRuntimeImport", "name": name }
+    PhysicalRuntimeImport(symbol~) =>
+      { "kind": "physicalRuntimeImport", "symbol": symbol }
+    WasmBytecodeFunction => { "kind": "wasmBytecodeFunction" }
+    RuntimeImportAdapter(symbol~) =>
+      { "kind": "runtimeImportAdapter", "symbol": symbol }
+    WasmRuntimeFunction(name~) =>
+      { "kind": "wasmRuntimeFunction", "name": name }
+    WasmHelperFunction(name~, ordinal~) => {
+      let fields : Map[String, Json] = {
+        "kind": "wasmHelperFunction".to_json(),
+        "name": name.to_json(),
+      }
+      if ordinal is Some(ordinal) {
+        fields["ordinal"] = ordinal.to_json()
+      }
+      fields.to_json()
+    }
+    EntryWrapper => { "kind": "entryWrapper" }
+  }
 }
 
 ///|

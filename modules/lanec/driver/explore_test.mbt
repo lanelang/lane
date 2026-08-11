@@ -51,7 +51,7 @@ fn explore_stage_scale(
 }
 
 ///|
-test "explore protocol v1 exposes all eighteen ordered completed stages" {
+test "explore protocol v2 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -74,7 +74,7 @@ test "explore protocol v1 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  1,
+      #|  2,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -336,8 +336,8 @@ test "explore reports deterministic typed scale metrics" {
       #|  (
       #|    "anf",
       #|    [
-      #|      { index: 0, block_count: 0, operation_count: 2, value_count: 1 },
-      #|      { index: 1, block_count: 0, operation_count: 15, value_count: 0 },
+      #|      { index: 0, block_count: 0, operation_count: 15, value_count: 0 },
+      #|      { index: 1, block_count: 0, operation_count: 2, value_count: 1 },
       #|    ],
       #|  ),
       #|  (
@@ -748,5 +748,75 @@ test "explore ignores malformed libraries unreachable from the root" {
       report.diagnostics,
     ),
     content="(true, [], Succeeded, [])",
+  )
+}
+
+///|
+test "explore traces a named function and preserves synthetic roots" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|fn helper() -> Unit { () }
+        #|pub fn main() -> Unit { helper() }
+      ),
+    ),
+  )
+  let source_nodes = report.functions.nodes.filter(node => {
+    node.roles.any(role => role is SourceFunction(name=Some("main"), ..))
+  })
+  guard source_nodes is [source, ..] else {
+    fail("missing named source provenance root")
+  }
+  let lineage = [source.function]
+  for edge in report.functions.edges {
+    if lineage.contains(edge.source) && !lineage.contains(edge.target) {
+      lineage.push(edge.target)
+    }
+  }
+  let traced = lineage.map(function => {
+    let roles = report.functions.nodes.filter_map(node => {
+      if node.function == function {
+        Some(node.roles)
+      } else {
+        None
+      }
+    })
+    (function, roles)
+  })
+  let entry_wrappers = report.functions.nodes.filter(node => {
+    node.roles.contains(EntryWrapper)
+  })
+  debug_inspect(
+    (
+      report.schema_version,
+      traced,
+      entry_wrappers,
+      report.functions.edges.any(edge => {
+        entry_wrappers.any(node => edge.target == node.function)
+      }),
+    ),
+    content=(
+      #|(
+      #|  2,
+      #|  [
+      #|    (
+      #|      { stage: Anf, index: 0 },
+      #|      [[SourceFunction(value=1, name=Some("main"))]],
+      #|    ),
+      #|    (
+      #|      { stage: VmcfgInitial, index: 1 },
+      #|      [[SourceFunction(value=1, name=Some("main"))]],
+      #|    ),
+      #|    (
+      #|      { stage: LoisvmBytecode, index: 1 },
+      #|      [[SourceFunction(value=1, name=Some("main"))]],
+      #|    ),
+      #|    ({ stage: Wasm, index: 0 }, [[WasmBytecodeFunction]]),
+      #|  ],
+      #|  [{ function: { stage: Wasm, index: 24 }, roles: [EntryWrapper] }],
+      #|  false,
+      #|)
+    ),
   )
 }

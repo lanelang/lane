@@ -20,6 +20,11 @@ The versioned request and response representation for entry enumeration and
 Explore Reports.
 _Avoid_: canonical IR syntax, HTML report
 
+**Explore Function Graph**:
+The schema-version-2 set of stage-local function nodes and explicit
+transformation-owned lineage edges.
+_Avoid_: function-index arithmetic, rendered-name correlation
+
 **Explorer Streaming ABI**:
 The physical wasm boundary that transfers Explorer JSON in byte chunks through
 host callbacks.

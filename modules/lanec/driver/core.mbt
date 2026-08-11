@@ -33,6 +33,7 @@ pub fn list_entries(
 /// completed.
 pub fn explore(request : ExploreRequest) -> ExploreReport {
   let stages = ExploreStageBuilder::new()
+  let functions = ExploreFunctionGraphBuilder::new()
   let mut root_module_path_text : String? = None
   let compiled = @compile.compile_modules_observed(
     { root: request.root_source, libraries: request.library_sources },
@@ -66,6 +67,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         root_module_path_text,
         None,
         stages,
+        functions,
         diagnostics,
       )
   }
@@ -80,6 +82,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         root_module_path_text,
         None,
         stages,
+        functions,
         diagnostics,
       )
   }
@@ -95,6 +98,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       root_module_path_text,
       None,
       stages,
+      functions,
       diagnostics,
     )
   }
@@ -116,7 +120,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         exploration_error("executable elaboration failed", "\{Repr(error)}"),
       )
       return failed_report(
-        request, root_module_path_text, selected_entry, stages, diagnostics,
+        request, root_module_path_text, selected_entry, stages, functions, diagnostics,
       )
     }
   }
@@ -129,22 +133,29 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
   let image = match
     @loisvm_lowering.lower_executable_program_to_bytecode_observed(executable, observed => {
       match observed {
-        Anf(program) =>
-          stages.complete(Anf, render_anf_code(program), [], anf_scale(program))
-        InitialVmcfg(image, _) =>
+        Anf(program) => {
+          let observed = anf_observation(program)
+          functions.observe_anf(program.metadata, observed.functions)
+          stages.complete(Anf, render_anf_code(program), [], observed.scale)
+        }
+        InitialVmcfg(image, provenance) => {
+          functions.observe_vmcfg(provenance)
           stages.complete(
             VmcfgInitial,
             @vmcfg.image_to_code(image),
             [],
             vmcfg_scale(image),
           )
-        FinalBytecode(image, _) =>
+        }
+        FinalBytecode(image, provenance) => {
+          functions.observe_bytecode(provenance)
           stages.complete(
             LoisvmBytecode,
             @bytecode.bytecode_image_to_code(image),
             [],
             bytecode_scale(image),
           )
+        }
       }
     }) {
     Ok(image) => image
@@ -153,29 +164,30 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         exploration_error("LoisVM lowering failed", "\{Repr(error)}"),
       )
       return failed_report(
-        request, root_module_path_text, selected_entry, stages, diagnostics,
+        request, root_module_path_text, selected_entry, stages, functions, diagnostics,
       )
     }
   }
-  let wasm_module = match @wasm_compiler.compile(image) {
-    Ok(wasm_module) => wasm_module
+  let wasm = match @wasm_compiler.compile_observed(image) {
+    Ok(wasm) => wasm
     Err(error) => {
       diagnostics.push(
         exploration_error("Wasm lowering failed", "\{Repr(error)}"),
       )
       return failed_report(
-        request, root_module_path_text, selected_entry, stages, diagnostics,
+        request, root_module_path_text, selected_entry, stages, functions, diagnostics,
       )
     }
   }
+  functions.observe_wasm(wasm.functions)
   stages.complete(
     Wasm,
-    @wasm_compiler.module_to_wat(wasm_module),
+    @wasm_compiler.module_to_wat(wasm.module_),
     [],
-    wasm_scale(@wasm_compiler.measure_module(wasm_module)),
+    wasm_scale(@wasm_compiler.measure_module(wasm.module_)),
   )
   {
-    schema_version: 1,
+    schema_version: 2,
     compiler: explore_compiler_identity(),
     root: {
       source_id: request.root_source.source_id,
@@ -185,6 +197,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     status: Succeeded,
     diagnostics,
     stages: stages.finish(),
+    functions: functions.finish(),
   }
 }
 
@@ -293,11 +306,12 @@ fn failed_report(
   root_module_path_text : String?,
   selected_entry : EntrySummary?,
   stages : ExploreStageBuilder,
+  functions : ExploreFunctionGraphBuilder,
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
 ) -> ExploreReport {
   let failed_stage = stages.fail_next(diagnostics)
   {
-    schema_version: 1,
+    schema_version: 2,
     compiler: explore_compiler_identity(),
     root: {
       source_id: request.root_source.source_id,
@@ -307,6 +321,7 @@ fn failed_report(
     status: Failed(failed_stage),
     diagnostics,
     stages: stages.finish(),
+    functions: functions.finish(),
   }
 }
 

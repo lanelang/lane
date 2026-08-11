@@ -21,7 +21,7 @@ Entry enumeration uses this JSON request:
 }
 ```
 
-Call the exported `entries()` function. The response contains artifact-defined entries with `module`, `name`, and `type` fields.
+Call the exported `entries()` function. The schema-version-1 response contains artifact-defined entries with `module`, `name`, and `type` fields.
 
 Exploration adds the selected entry:
 
@@ -33,7 +33,7 @@ Exploration adds the selected entry:
 }
 ```
 
-Call the exported `explore()` function. A valid Explore Protocol v1 response contains `schemaVersion`, `compiler`, `root`, optional `selectedEntry`, typed `status`, `diagnostics`, and all eighteen ordered `stages`. Each stage has a stable `id`, display `title`, and one of three states: `completed` includes `domain`, `format`, `text`, and `diagnostics`; `failed` includes `diagnostics`; and `unavailable` has no snapshot payload. A failed report identifies its failed stage in `status.stage`, preserves earlier completed stages, and marks every later stage unavailable. The protocol has no fallback failure string.
+Call the exported `explore()` function. A valid Explore Protocol v2 response contains `schemaVersion`, `compiler`, `root`, optional `selectedEntry`, typed `status`, `diagnostics`, all eighteen ordered `stages`, and a report-level `functions` graph. Each completed stage includes `domain`, `format`, `text`, `diagnostics`, ordered `metrics`, and stage-local function scale observations. The graph contains typed nodes and explicit cross-stage edges; clients must not reconstruct lineage from numeric offsets or rendered text. A failed report identifies its failed stage in `status.stage`, preserves earlier completed stages and graph facts, and marks every later stage unavailable. The protocol has no fallback failure string.
 
 ## Streaming ABI
 

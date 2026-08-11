@@ -12,6 +12,7 @@ priv struct ResponseSummary {
 
 ///|
 priv struct EntryResponseSummary {
+  schema_version : Int
   status : Int
   entries : Array[String]
   diagnostic_messages : Array[String]
@@ -34,13 +35,18 @@ test "entry request enumerates artifact-defined entries" {
       ),
     ),
     content=(
-      #|{ status: 0, entries: ["Main.main"], diagnostic_messages: [] }
+      #|{
+      #|  schema_version: 1,
+      #|  status: 0,
+      #|  entries: ["Main.main"],
+      #|  diagnostic_messages: [],
+      #|}
     ),
   )
 }
 
 ///|
-test "explore request returns the complete protocol v1 report" {
+test "explore request returns the complete protocol v2 report" {
   debug_inspect(
     response_summary(
       parsed_response_json(
@@ -58,7 +64,7 @@ test "explore request returns the complete protocol v1 report" {
     ),
     content=(
       #|{
-      #|  schema_version: 1,
+      #|  schema_version: 2,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -136,6 +142,134 @@ test "explore request returns the complete protocol v1 report" {
 }
 
 ///|
+test "protocol v2 encodes ordered metrics and structured function lineage" {
+  let response = parsed_response_json(
+    (
+      #|{
+      #|  "root": {
+      #|    "sourceId": "main.lane",
+      #|    "text": "module Main\npub fn main() -> Unit { () }"
+      #|  },
+      #|  "libraries": [],
+      #|  "entry": "main"
+      #|}
+    ),
+  )
+  guard response
+    is {
+      "schemaVersion": Number(schema_version, ..),
+      "stages": Array(stages),
+      "functions": { "nodes": Array(nodes), "edges": Array(edges), .. },
+      ..
+    } else {
+    fail("missing protocol v2 observability fields")
+  }
+  let anf_observations = stages.filter_map(stage => {
+    match stage {
+      {
+        "id": String("anf"),
+        "metrics": Array(metrics),
+        "functions": Array(functions),
+        ..
+      } => Some((metrics, functions))
+      _ => None
+    }
+  })
+  let selected_nodes = nodes.filter(node => {
+    guard node is { "roles": Array(roles), .. } else { return false }
+    roles.any(role => {
+      role is { "kind": String("source"), "name": String("main"), .. } ||
+      role is { "kind": String("entryWrapper"), .. }
+    })
+  })
+  debug_inspect(
+    (schema_version.to_int(), anf_observations, selected_nodes, edges.length()),
+    content=(
+      #|(
+      #|  2,
+      #|  [
+      #|    (
+      #|      [
+      #|        Object({ "id": String("topTermCount"), "value": Number(1) }),
+      #|        Object({ "id": String("functionCount"), "value": Number(1) }),
+      #|        Object({ "id": String("nodeCount"), "value": Number(5) }),
+      #|        Object({ "id": String("callCount"), "value": Number(0) }),
+      #|      ],
+      #|      [
+      #|        Object(
+      #|          {
+      #|            "index": Number(0),
+      #|            "blockCount": Number(0),
+      #|            "operationCount": Number(2),
+      #|            "valueCount": Number(0),
+      #|          },
+      #|        ),
+      #|      ],
+      #|    ),
+      #|  ],
+      #|  [
+      #|    Object(
+      #|      {
+      #|        "function": Object({ "stage": String("anf"), "index": Number(0) }),
+      #|        "roles": Array(
+      #|          [
+      #|            Object(
+      #|              {
+      #|                "kind": String("source"),
+      #|                "value": Number(0),
+      #|                "name": String("main"),
+      #|              },
+      #|            ),
+      #|          ],
+      #|        ),
+      #|      },
+      #|    ),
+      #|    Object(
+      #|      {
+      #|        "function": Object({ "stage": String("vmcfg.initial"), "index": Number(1) }),
+      #|        "roles": Array(
+      #|          [
+      #|            Object(
+      #|              {
+      #|                "kind": String("source"),
+      #|                "value": Number(0),
+      #|                "name": String("main"),
+      #|              },
+      #|            ),
+      #|          ],
+      #|        ),
+      #|      },
+      #|    ),
+      #|    Object(
+      #|      {
+      #|        "function": Object({ "stage": String("loisvm.bytecode"), "index": Number(1) }),
+      #|        "roles": Array(
+      #|          [
+      #|            Object(
+      #|              {
+      #|                "kind": String("source"),
+      #|                "value": Number(0),
+      #|                "name": String("main"),
+      #|              },
+      #|            ),
+      #|          ],
+      #|        ),
+      #|      },
+      #|    ),
+      #|    Object(
+      #|      {
+      #|        "function": Object({ "stage": String("wasm"), "index": Number(24) }),
+      #|        "roles": Array([Object({ "kind": String("entryWrapper") })]),
+      #|      },
+      #|    ),
+      #|  ],
+      #|  3,
+      #|)
+    ),
+  )
+}
+
+///|
 test "explore request accepts multiple source files" {
   debug_inspect(
     response_summary(
@@ -159,7 +293,7 @@ test "explore request accepts multiple source files" {
     ),
     content=(
       #|{
-      #|  schema_version: 1,
+      #|  schema_version: 2,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -255,7 +389,7 @@ test "explore request preserves failed and unavailable stage states" {
     ),
     content=(
       #|{
-      #|  schema_version: 1,
+      #|  schema_version: 2,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: None,
@@ -294,7 +428,7 @@ test "explore request rejects malformed requests" {
     content=(
       #|Object(
       #|  {
-      #|    "schemaVersion": Number(1),
+      #|    "schemaVersion": Number(2),
       #|    "status": Number(3),
       #|    "diagnostics": Array(
       #|      [
@@ -338,6 +472,7 @@ fn parsed_entries_json(request_text : String) -> Json {
 fn entry_response_summary(response : Json) -> EntryResponseSummary {
   guard response
     is {
+      "schemaVersion": Number(schema_version, ..),
       "status": Number(status, ..),
       "diagnostics": Array(diagnostics),
       "entries": Array(entries),
@@ -357,7 +492,12 @@ fn entry_response_summary(response : Json) -> EntryResponseSummary {
     }
     message
   })
-  { status: status.to_int(), entries: entry_names, diagnostic_messages }
+  {
+    schema_version: schema_version.to_int(),
+    status: status.to_int(),
+    entries: entry_names,
+    diagnostic_messages,
+  }
 }
 
 ///|
