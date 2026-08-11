@@ -1,5 +1,5 @@
 ///|
-test "compiler preserves Unit calls and compiler-owned fatal control" {
+test "compiler-owned fatal control has the canonical callable ABI" {
   let image = compile_test_loisvm_image(
     (
       #|module Test
@@ -16,33 +16,38 @@ test "compiler preserves Unit calls and compiler-owned fatal control" {
       #|}
     ),
   )
-  let results = []
-  let terminators = []
-  let imports = []
+  assert_eq(@bytecode.verify_bytecode_image(image), Ok(()))
+  let string_slot : @bytecode.SlotMetadata = {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: ByteSequenceValue,
+    erased_companion: None,
+  }
+  let fatal_abi = @bytecode.CallableAbi::from_slot_metadata(
+    [],
+    [string_slot],
+    Unit,
+  )
+  assert_true(image.callable_abis.contains(fatal_abi))
+  let mut fatal_count = 0
+  let mut runtime_import_count = 0
   for entry in image.functions {
     match entry {
-      BytecodeBody(body) => {
-        results.push(body.result)
+      BytecodeBody(body) =>
         for block in body.blocks {
-          terminators.push(block.terminator)
+          if block.terminator is Fatal(message) {
+            fatal_count += 1
+            assert_eq(body.callable_abi(), Some(fatal_abi))
+            assert_eq(body.inputs, {
+              environment: None,
+              witnesses: [],
+              user_parameters: [message],
+            })
+          }
         }
-      }
-      RuntimeImport(import_) => imports.push(import_.symbol)
+      RuntimeImport(_) => runtime_import_count += 1
     }
   }
-  debug_inspect(
-    (results, terminators, imports),
-    content=(
-      #|(
-      #|  [Unit, Unit, Unit, Unit],
-      #|  [
-      #|    Fatal({ value: 0 }),
-      #|    TailCallValue({ value: 0 }, { value: 0 }, [], [{ value: 1 }]),
-      #|    TailCallDirect({ value: 2 }, None, [], [{ value: 0 }]),
-      #|    TailCallValue({ value: 1 }, { value: 0 }, [], [{ value: 2 }]),
-      #|  ],
-      #|  [],
-      #|)
-    ),
-  )
+  assert_eq(fatal_count, 1)
+  assert_eq(runtime_import_count, 0)
 }
