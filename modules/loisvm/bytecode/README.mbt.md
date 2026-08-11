@@ -145,11 +145,12 @@ parameter and result kinds are closed.
 
 `CallableAbi::from_slot_metadata` is the single projection from ABI-final slot
 metadata to callable witness and parameter ABIs. ABI-final means that ownership
-lowering has already selected every retained or promoted operand. Subsequent
-physical-slot allocation may only renumber operands or coalesce slots with
-identical `SlotMetadata`; it cannot change their ABI. Producers select the
-applicable slots but do not independently reconstruct representation, cleanup,
-or semantic-kind fields. Runtime imports project their distinct
+lowering has already selected every retained or promoted operand, and VM CFG
+slot allocation has assigned those operands to compatible physical slots.
+Bytecode emission consumes that plan once; it does not allocate or rewrite
+slots. Producers select the applicable slots but do not independently
+reconstruct representation, cleanup, or semantic-kind fields. Runtime imports
+project their distinct
 `RuntimeValueKind` declarations inside this package and use the same ABI
 assembly operation.
 

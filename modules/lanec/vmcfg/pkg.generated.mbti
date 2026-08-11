@@ -16,6 +16,7 @@ pub fn image_to_code(Image) -> String
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
+  PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
 } derive(Eq, @debug.Debug)
 
@@ -180,6 +181,13 @@ pub(all) enum Ownership {
   Trivial
   Owned
   Borrowed
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PhysicalSlotPlanError {
+  MissingDefinition(ValueId)
+  MissingAssignment(ValueId)
+  MetadataMismatch(ValueId, @bytecode.SlotId)
+  InterferenceConflict(ValueId, ValueId, @bytecode.SlotId)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ProjectionResult {

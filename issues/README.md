@@ -373,6 +373,7 @@ graph TD
   ISS_351["ISS-351: Compose colliding inlay hints from nested calls"]
   ISS_352["ISS-352: Preserve fatal execution as a typed user-facing outcome"]
   ISS_353["ISS-353: Preserve Wasm runtime failures without Linux longjmp aborts"]
+  ISS_354["ISS-354: Preserve escaping VM CFG block parameters during simplification"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

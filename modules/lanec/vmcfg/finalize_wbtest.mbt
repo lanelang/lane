@@ -135,6 +135,7 @@ test "finalize preserves erased companions for promoted global borrows" {
       {
         parameters: [],
         instructions: [
+          ConstLayout({ value: 0 }, { value: 1 }),
           BorrowGlobal({ value: 1 }, { value: 1 }),
           CallDirect({ value: 2 }, None, [], [{ value: 1 }], None),
         ],
@@ -182,6 +183,7 @@ test "finalize preserves erased companions for promoted global borrows" {
     },
   ])
   assert_eq(lowered.blocks[0].instructions, [
+    ConstLayout({ value: 0 }, { value: 1 }),
     BorrowGlobal({ value: 1 }, { value: 1 }),
     RetainCopy({ value: 2 }, { value: 1 }),
     CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),

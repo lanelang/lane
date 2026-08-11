@@ -177,3 +177,128 @@ fn terminator_uses(terminator : Terminator) -> Array[ValueId] {
       [callable] + witnesses + arguments
   }
 }
+
+///|
+fn projection_destinations(result : ProjectionResult) -> Array[ValueId] {
+  let destinations = [result.value_destination]
+  if result.witness_destination is Some(value) {
+    destinations.push(value)
+  }
+  destinations
+}
+
+///|
+fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
+  match instruction {
+    Copy(destination, _)
+    | Move(destination, _)
+    | RetainCopy(destination, _)
+    | ConstI64(destination, _)
+    | ConstI32(destination, _)
+    | ConstF32(destination, _)
+    | ConstChar(destination, _)
+    | ConstF64(destination, _)
+    | ConstBool(destination, _)
+    | ConstLayout(destination, _)
+    | ConstFunction(destination, _)
+    | ConstString(destination, _)
+    | MakeData(destination, _, _, _, _)
+    | LoadTag(destination, _)
+    | LoadObjectWitness(destination, _, _, _)
+    | MakeEnv(destination, _, _, _, _)
+    | MakeClosure(destination, _, _)
+    | ByteToI64(destination, _)
+    | I64ToByte(destination, _)
+    | ByteSequenceMake(destination, _, _)
+    | ByteSequenceLength(destination, _)
+    | ByteSequenceGet(destination, _, _)
+    | ByteSequenceSet(destination, _, _, _)
+    | ByteSequenceEqual(destination, _, _)
+    | ByteSequenceConcat(destination, _, _)
+    | ByteSequenceSlice(destination, _, _, _)
+    | ByteSequenceIsValidUtf8(destination, _)
+    | I32Add(destination, _, _)
+    | I32Sub(destination, _, _)
+    | I32Mul(destination, _, _)
+    | I32Neg(destination, _)
+    | I32Div(destination, _, _)
+    | I32Rem(destination, _, _)
+    | I32Eq(destination, _, _)
+    | I32Lt(destination, _, _)
+    | I32ToI64(destination, _)
+    | I64ToI32(destination, _)
+    | I64Add(destination, _, _)
+    | I64Sub(destination, _, _)
+    | I64Mul(destination, _, _)
+    | I64Neg(destination, _)
+    | I64Div(destination, _, _)
+    | I64Rem(destination, _, _)
+    | I64And(destination, _, _)
+    | I64Or(destination, _, _)
+    | I64Xor(destination, _, _)
+    | I64Not(destination, _)
+    | I64Shl(destination, _, _)
+    | I64ShrS(destination, _, _)
+    | I64Eq(destination, _, _)
+    | I64Ne(destination, _, _)
+    | I64Lt(destination, _, _)
+    | I64Le(destination, _, _)
+    | I64Gt(destination, _, _)
+    | I64Ge(destination, _, _)
+    | BoolNot(destination, _)
+    | BoolEq(destination, _, _)
+    | BoolNe(destination, _, _)
+    | F32Add(destination, _, _)
+    | F32Sub(destination, _, _)
+    | F32Mul(destination, _, _)
+    | F32Div(destination, _, _)
+    | F32Neg(destination, _)
+    | F32Eq(destination, _, _)
+    | F32Ne(destination, _, _)
+    | F32Lt(destination, _, _)
+    | F32Le(destination, _, _)
+    | F32Gt(destination, _, _)
+    | F32Ge(destination, _, _)
+    | I64ToF32(destination, _)
+    | F32ToI64(destination, _)
+    | F32ToF64(destination, _)
+    | F64ToF32(destination, _)
+    | F32ToString(destination, _)
+    | F64ToString(destination, _)
+    | F64Add(destination, _, _)
+    | F64Sub(destination, _, _)
+    | F64Mul(destination, _, _)
+    | F64Div(destination, _, _)
+    | F64Neg(destination, _)
+    | F64Eq(destination, _, _)
+    | F64Ne(destination, _, _)
+    | F64Lt(destination, _, _)
+    | F64Le(destination, _, _)
+    | F64Gt(destination, _, _)
+    | F64Ge(destination, _, _)
+    | I64ToF64(destination, _)
+    | F64ToI64(destination, _)
+    | EraseI32(destination, _)
+    | UneraseI32(destination, _)
+    | EraseI64(destination, _)
+    | UneraseI64(destination, _)
+    | EraseF32(destination, _)
+    | UneraseF32(destination, _)
+    | EraseF64(destination, _)
+    | UneraseF64(destination, _)
+    | EraseUnit(destination)
+    | BorrowGlobal(destination, _) => [destination]
+    CallDirect(_, _, _, _, destination) | CallValue(_, _, _, destination) =>
+      destination.map(value => [value]).unwrap_or([])
+    BorrowField(_, _, _, result) | BorrowCapture(_, _, _, result) =>
+      projection_destinations(result)
+    ConsumeFields(_, _, selections) | ConsumeCaptures(_, _, selections) => {
+      let destinations = []
+      for selection in selections {
+        destinations.append(projection_destinations(selection.result))
+      }
+      destinations
+    }
+    Release(_) | UneraseUnit(_) | InitGlobal(_, _) => []
+  }
+}

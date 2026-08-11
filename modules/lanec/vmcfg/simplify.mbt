@@ -18,7 +18,7 @@ fn simplify_body_once(body : FunctionBody) -> FunctionBody {
   let blocks = blocks.map(fold_constant_terminator)
   let blocks = remove_dead_scalar_instructions({ ..body, blocks, })
   let blocks = remove_unused_block_parameters(body.values.length(), blocks)
-  let blocks = thread_empty_jump_blocks(blocks)
+  let blocks = thread_empty_jump_blocks(body.values.length(), blocks)
   let blocks = merge_linear_blocks(blocks)
   { ..body, blocks: remove_unreachable_blocks(blocks) }
 }
@@ -346,8 +346,8 @@ fn remove_unused_block_parameters(
   value_count : Int,
   blocks : Array[Block],
 ) -> Array[Block] {
+  let uses = blocks_value_use_counts(value_count, blocks)
   let kept_parameters = blocks.map(fn(block) {
-    let uses = block_use_counts(value_count, block)
     block.parameters.map(fn(parameter) { uses[parameter.value] > 0 })
   })
   blocks.mapi(fn(block_index, block) {
@@ -363,6 +363,25 @@ fn remove_unused_block_parameters(
       }),
     }
   })
+}
+
+///|
+fn blocks_value_use_counts(
+  value_count : Int,
+  blocks : Array[Block],
+) -> Array[Int] {
+  let uses = Array::make(value_count, 0)
+  for block in blocks {
+    for instruction in block.instructions {
+      for value in instruction_uses(instruction) {
+        uses[value.value] += 1
+      }
+    }
+    for value in terminator_uses(block.terminator) {
+      uses[value.value] += 1
+    }
+  }
+  uses
 }
 
 ///|
@@ -394,28 +413,41 @@ fn filter_edge_arguments(
 }
 
 ///|
-fn thread_empty_jump_blocks(blocks : Array[Block]) -> Array[Block] {
+fn thread_empty_jump_blocks(
+  value_count : Int,
+  blocks : Array[Block],
+) -> Array[Block] {
+  let uses = blocks_value_use_counts(value_count, blocks)
   blocks.map(fn(block) {
     {
       ..block,
       terminator: map_terminator_edges(block.terminator, fn(edge) {
-        thread_edge(edge, blocks)
+        thread_edge(edge, blocks, uses, value_count)
       }),
     }
   })
 }
 
 ///|
-fn thread_edge(initial : Edge, blocks : Array[Block]) -> Edge {
+fn thread_edge(
+  initial : Edge,
+  blocks : Array[Block],
+  uses : Array[Int],
+  value_count : Int,
+) -> Edge {
   let mut edge = initial
   let visited = Array::make(blocks.length(), false)
   while edge.target.value != 0 && !visited[edge.target.value] {
     let target_index = edge.target.value
     visited[target_index] = true
     let target = blocks[target_index]
+    let local_uses = block_use_counts(value_count, target)
     guard target.instructions.is_empty() &&
       target.terminator is Jump(next) &&
-      target.parameters.length() == edge.arguments.length() else {
+      target.parameters.length() == edge.arguments.length() &&
+      target.parameters.all(parameter => {
+        uses[parameter.value] == local_uses[parameter.value]
+      }) else {
       break
     }
     edge = {

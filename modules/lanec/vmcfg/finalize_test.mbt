@@ -195,7 +195,7 @@ test "finalize shares callable ABIs across every callable occurrence" {
     ],
   }
   let indirect : FunctionBody = {
-    values: [callable, scalar, scalar],
+    values: [callable, scalar, scalar, scalar],
     inputs: {
       environment: None,
       witnesses: [],
@@ -206,9 +206,9 @@ test "finalize shares callable ABIs across every callable occurrence" {
       {
         parameters: [],
         instructions: [
-          CallValue({ value: 0 }, [], [{ value: 1 }], Some({ value: 2 })),
+          CallValue({ value: 0 }, [], [{ value: 1 }], Some({ value: 3 })),
         ],
-        terminator: Return(Some({ value: 2 })),
+        terminator: Return(Some({ value: 3 })),
       },
     ],
   }

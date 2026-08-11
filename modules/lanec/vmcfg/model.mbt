@@ -225,8 +225,17 @@ pub(all) struct Image {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum PhysicalSlotPlanError {
+  MissingDefinition(ValueId)
+  MissingAssignment(ValueId)
+  MetadataMismatch(ValueId, @bytecode.SlotId)
+  InterferenceConflict(ValueId, ValueId, @bytecode.SlotId)
+} derive(Debug, Eq)
+
+///|
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
+  PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
 } derive(Debug, Eq)

@@ -20,10 +20,11 @@ value.
 
 The bytecode package owns the projection from finalized `SlotMetadata` into
 ordered `ValueAbi` witnesses and parameters. Compiler finalization selects the
-final retained or promoted operands for an occurrence and interns the resulting
-description; it does not reconstruct representation, cleanup, or semantic-kind
-fields. Later physical-slot allocation may only renumber operands or coalesce
-slots with identical metadata. Runtime imports use their bytecode-owned
+final retained or promoted operands for an occurrence. VM CFG physical-slot
+allocation then assigns those operands to slots, coalescing only identical
+metadata. Bytecode emission interns the resulting description directly from
+that plan; it does not reconstruct representation, cleanup, or semantic-kind
+fields or rewrite an emitted body. Runtime imports use their bytecode-owned
 `RuntimeValueKind` projection and enter the same assembly and interning plan.
 
 The hidden environment is deliberately not part of `CallableAbi`. All Wasm

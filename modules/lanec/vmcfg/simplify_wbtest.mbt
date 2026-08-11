@@ -52,7 +52,12 @@ test "simplify preserves layout values named by erased companions" {
 ///|
 test "simplify VM CFG folds branches and threads empty blocks" {
   let body : FunctionBody = {
-    values: [scalar_metadata(), scalar_metadata(), scalar_metadata()],
+    values: [
+      scalar_metadata(),
+      scalar_metadata(),
+      scalar_metadata(),
+      scalar_metadata(),
+    ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
     result: Value(I64, Trivial, ScalarValue),
     blocks: [
@@ -94,6 +99,11 @@ test "simplify VM CFG folds branches and threads empty blocks" {
       #|  {
       #|    parameters: [{ value: 2 }],
       #|    instructions: [],
+      #|    terminator: Jump({ target: { value: 2 }, arguments: [{ value: 2 }] }),
+      #|  },
+      #|  {
+      #|    parameters: [{ value: 2 }],
+      #|    instructions: [],
       #|    terminator: Return(Some({ value: 2 })),
       #|  },
       #|]
@@ -104,7 +114,12 @@ test "simplify VM CFG folds branches and threads empty blocks" {
 ///|
 test "simplify VM CFG removes unused parameters and dead scalar work" {
   let body : FunctionBody = {
-    values: [scalar_metadata(), scalar_metadata(), scalar_metadata()],
+    values: [
+      scalar_metadata(),
+      scalar_metadata(),
+      scalar_metadata(),
+      scalar_metadata(),
+    ],
     inputs: {
       environment: None,
       witnesses: [],
@@ -124,7 +139,7 @@ test "simplify VM CFG removes unused parameters and dead scalar work" {
         }),
       },
       {
-        parameters: [{ value: 2 }, { value: 1 }],
+        parameters: [{ value: 2 }, { value: 3 }],
         instructions: [],
         terminator: Return(Some({ value: 2 })),
       },
@@ -199,6 +214,52 @@ test "simplify VM CFG reuses local constants" {
       #|      I64Add({ value: 6 }, { value: 4 }, { value: 5 }),
       #|    ],
       #|    terminator: Return(Some({ value: 6 })),
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "simplify preserves block parameters used in dominated successors" {
+  let body : FunctionBody = {
+    values: [scalar_metadata(), scalar_metadata()],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Value(I64, Trivial, ScalarValue),
+    blocks: [
+      {
+        parameters: [],
+        instructions: [ConstI64({ value: 1 }, 42L)],
+        terminator: Jump({ target: { value: 1 }, arguments: [{ value: 1 }] }),
+      },
+      {
+        parameters: [{ value: 0 }],
+        instructions: [],
+        terminator: Jump({ target: { value: 2 }, arguments: [] }),
+      },
+      {
+        parameters: [],
+        instructions: [],
+        terminator: Return(Some({ value: 0 })),
+      },
+    ],
+  }
+  let simplified = simplify_body(body)
+  let use_def = analyze_use_def(simplified)
+  assert_true(use_def.definitions[0] is Some(_))
+  debug_inspect(
+    simplified.blocks,
+    content=(
+      #|[
+      #|  {
+      #|    parameters: [],
+      #|    instructions: [ConstI64({ value: 1 }, 42)],
+      #|    terminator: Jump({ target: { value: 1 }, arguments: [{ value: 1 }] }),
+      #|  },
+      #|  {
+      #|    parameters: [{ value: 0 }],
+      #|    instructions: [],
+      #|    terminator: Return(Some({ value: 0 })),
       #|  },
       #|]
     ),

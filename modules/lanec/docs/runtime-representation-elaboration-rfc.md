@@ -276,9 +276,10 @@ types, effect specialization policy, ARC dataflow, or bytecode verification.
 Every callable ABI is derived from ABI-final operands and results. ARC
 finalization may turn a borrowed input into an owned retained copy, so the ABI
 must be interned only after all consume, borrow, retain, erase, and unerase
-operations have selected the final operands. Subsequent physical-slot
-allocation may renumber those operands or coalesce slots only when their full
-`SlotMetadata` is identical; storage allocation cannot change an ABI.
+operations have selected the final operands. VM CFG physical-slot allocation
+then assigns those operands to slots, coalescing only values whose full
+`SlotMetadata` is identical. Bytecode emission interns callable ABIs from the
+validated plan and never reconstructs or rewrites slot allocation.
 
 Direct calls, indirect calls, tail calls, callable adapters, runtime imports,
 and function returns consume the same `ValueAbi` projection. No call form may

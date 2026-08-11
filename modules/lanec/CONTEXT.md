@@ -332,8 +332,12 @@ _Avoid_: final-bytecode analysis, source ownership checker, bytecode verifier
 The compiler transformation that applies runtime ownership analysis by adding retain and release operations and recording ownership transfers in the VM CFG before slot allocation.
 _Avoid_: LoisVM interpreter behavior, Wasm-tier RC optimization, implicit slot semantics
 
+**Physical Slot Plan**:
+The validated compiler-private mapping from ARC-final VM CFG values to representation- and cleanup-compatible physical LoisVM slots. It is produced from VM CFG use-definition and liveness facts before bytecode construction; bytecode emission consumes it once and never reallocates or rewrites emitted opcodes.
+_Avoid_: bytecode peephole allocation, Wasm local plan, logical-value renumbering after emission
+
 **Finalized Callable ABI**:
-The callable value shape derived only after VM CFG simplification, ownership promotion, owned-value threading, and physical slot allocation. Finalized bytecode bodies and runtime imports are the sole definition-side owners; indirect call sites use the same prepared value metadata, and all shapes enter one image-local interner.
+The callable value shape derived only after VM CFG simplification, ownership promotion, owned-value threading, ARC insertion, and physical slot allocation. The bytecode emitter and runtime imports are the sole definition-side owners; indirect call sites use the same allocated slot metadata, and all shapes enter one image-local interner.
 _Avoid_: source-type ABI reconstruction, pre-finalization ABI snapshot, verifier-side ABI repair
 
 **ARC Flow Cleanup**:
