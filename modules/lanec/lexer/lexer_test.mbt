@@ -461,6 +461,59 @@ test "reject non ascii identifier character" {
 }
 
 ///|
+test "reject one supplementary Unicode scalar as one illegal character" {
+  let result = tokens_from_string("😀x")
+  debug_inspect(
+    result,
+    content=(
+      #|{
+      #|  concrete: {
+      #|    source_text: "😀x",
+      #|    tokens: [
+      #|      (
+      #|        IDENT("x"),
+      #|        {
+      #|          start_offset: 2,
+      #|          end_offset: 3,
+      #|          start_line: 1,
+      #|          start_column: 3,
+      #|          end_line: 1,
+      #|          end_column: 4,
+      #|        },
+      #|      ),
+      #|      (
+      #|        EOF,
+      #|        {
+      #|          start_offset: 3,
+      #|          end_offset: 3,
+      #|          start_line: 1,
+      #|          start_column: 4,
+      #|          end_line: 1,
+      #|          end_column: 4,
+      #|        },
+      #|      ),
+      #|    ],
+      #|    trivia: [],
+      #|  },
+      #|  errors: [
+      #|    {
+      #|      error: IllegalCharacter("😀"),
+      #|      span: {
+      #|        start_offset: 0,
+      #|        end_offset: 2,
+      #|        start_line: 1,
+      #|        start_column: 1,
+      #|        end_line: 1,
+      #|        end_column: 3,
+      #|      },
+      #|    },
+      #|  ],
+      #|}
+    ),
+  )
+}
+
+///|
 test "tokenize long sources without recursive token dispatch" {
   let source = Array::make(2000, "value").join(" ")
   let result = tokens_from_string(source)

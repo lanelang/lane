@@ -34,7 +34,7 @@ fn lex_token(
   base~ : StringView,
   env~ : LexEnv,
 ) -> StringView {
-  lexscan input with longest {
+  lexmatch input with longest {
     (re"^(\r\n|\r|\n)", after=rest) => {
       env.add_trivia(
         Newline,
@@ -308,15 +308,17 @@ fn lex_token(
     (re"^!", after=rest) => add_simple_token(BANG, input, rest, base~, env~)
     (re"^=", after=rest) => add_simple_token(EQUAL, input, rest, base~, env~)
     re"^$" => input
-    (re"^." as raw, after=rest) => {
+    _ => {
+      let scalar_end = input.offset_of_nth_char(1).unwrap_or(input.length())
+      let raw = input[:scalar_end]
+      let rest = input[scalar_end:]
       env.add_error(
-        IllegalCharacter(raw.to_string()),
+        IllegalCharacter(raw.to_owned()),
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
       )
       rest
     }
-    _ => panic()
   }
 }
 
