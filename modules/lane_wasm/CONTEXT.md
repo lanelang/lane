@@ -1,48 +1,36 @@
 # Lane Wasm
 
-Lane Wasm is the wasm-hosted compiler bridge intended for a website-based Lane IR Explorer.
+Lane Wasm is the browser host adapter for compiler-owned executable IR
+exploration.
 
 ## Language
 
 **Lane Wasm**:
-The browser-compatible host adapter for compiler-owned Artifact Entry Enumeration and Executable IR Exploration.
-_Avoid_: independent compiler pipeline, Lane Command, language server, execution engine
+The wasm-hosted adapter that exposes the same compiler exploration workflow as
+the native Lane Command.
+_Avoid_: browser compiler fork, execution engine
 
 **Website IR Explorer**:
-The page-driven interface that submits an Explore Source Set, enumerates artifact-defined entries, selects one entry, and presents the resulting Explore Report.
-_Avoid_: compiler front end, native command wrapper, runtime debugger
+A browser interface that supplies an in-memory source set, selects an entry,
+and presents an Explore Report.
+_Avoid_: runtime debugger, filesystem workspace
 
 **Explorer JSON**:
-The JSON encoding of Artifact Entry Enumeration requests and the versioned Explore Report Protocol.
-_Avoid_: stable IR syntax, compiler debug object, HTML report
+The versioned request and response representation for entry enumeration and
+Explore Reports.
+_Avoid_: canonical IR syntax, HTML report
 
 **Explorer Streaming ABI**:
-The wasm1 boundary that transfers UTF-8 Explorer JSON through bulk request-read and response-write callbacks instead of placing a complete request or response in a fixed linear-memory arena.
-_Avoid_: direct String ABI, wasm-gc string interop, fixed whole-report arena, per-byte accessor protocol
+The physical wasm boundary that transfers Explorer JSON in byte chunks through
+host callbacks.
+_Avoid_: semantic compiler API, fixed whole-report buffer
 
 **Explorer Transport State**:
-Temporary request, response, or chunk state used by the Explorer Streaming ABI. The public result of a request depends only on that request even when an implementation retains bounded transport state or reusable internal caches.
-_Avoid_: execution instance, semantically stateful compilation session, fixed report buffer
+Temporary request and response state whose lifetime is limited to transport and
+does not define a semantic compilation session.
+_Avoid_: compiler workspace, execution instance
 
 **Explorer JavaScript Wrapper**:
-The website helper that supplies request chunks, consumes response chunks, and performs UTF-8 encoding and decoding around the Explorer Streaming ABI.
-_Avoid_: compiler API, language server, MoonBit runtime
-
-## Relationships
-
-- Lane Wasm and the native Lane Command consume the same `lanec/driver` orchestration, Explore Stage order, diagnostics, and Partial Explore Report semantics.
-- Explorer JSON encodes all eighteen compiler-owned stage states; completed stages carry domain, format, text, and diagnostics, failed stages carry diagnostics, and later unavailable stages remain present.
-- The website supplies a complete in-memory Explore Source Set; Lane Wasm does not discover project files.
-- Artifact Entry Enumeration returns the root module artifact's existing entries and does not define a second entry model.
-- The website selects an entry before requesting an Explore Report.
-- Lane Wasm generates the same compiler and backend snapshots as `lane explore`, including Wasm text produced by the Pure Wasm Compiler Package.
-- Lane Wasm does not load, instantiate, JIT-compile, or execute the generated Wasm module.
-- Explorer JSON is the semantic website API; the Explorer Streaming ABI is its physical wasm1 transport.
-- Streaming chunks are byte sequences and may split UTF-8 code points; the JavaScript wrapper decodes only the assembled response stream.
-- Transport or callback failure never turns a truncated response into a successful Explore Report.
-- Lane Wasm remains separate from the native Lane Command and does not become a Lane source-language module.
-
-## Example dialogue
-
-> **Dev:** "Does the website need its own compiler pipeline?"
-> **Domain expert:** "No. Lane Wasm hosts the same compiler-owned exploration workflow as the Lane Command and differs only in input and output transport."
+The browser helper that performs chunk transfer and UTF-8 conversion around the
+Explorer Streaming ABI.
+_Avoid_: compiler implementation, language server

@@ -1,21 +1,21 @@
 # Lane Module Subsystem
 
-This directory groups packages that model, parse, and compile Lane modules.
-The directory root is also the module-interface package.
+This context names the dependency boundaries among the compiler packages that
+represent, discover, and compile Lane modules.
 
-## Packages
+## Language
 
-- `./` owns the public module interface model shared by resolver,
-  typechecker, lowering, artifact codecs, and module compilation.
-- `frontend/` owns source inputs, module headers, module input sets, and module
-  graph construction.
-- `compile/` owns module compilation, interface/object artifacts, fingerprints,
-  linking, and executable program assembly.
+**Module Interface Model**:
+The dependency-light package that owns the public semantic representation of a
+compiled Lane module interface.
+_Avoid_: source discovery, module compilation workflow
 
-## Dependency Boundaries
+**Module Frontend**:
+The package boundary that owns source inputs, module headers, module input sets,
+and dependency-graph construction.
+_Avoid_: interface model, linker
 
-- the root `module` package must not depend on `frontend` or `compile`.
-- `frontend` must not depend on `compile`.
-- `compile` may depend on `frontend` and the root `module` package.
-- Downstream packages should import the narrowest package they need instead of
-  treating this directory as one combined subsystem package.
+**Module Compilation**:
+The package boundary that owns module compilation, artifacts, fingerprints,
+linking, and executable-program assembly.
+_Avoid_: source input discovery, shared interface types

@@ -1,752 +1,233 @@
 # Lane Compiler
 
-This context defines compiler-front-end, analysis, and LoisVM-lowering vocabulary. Portable bytecode, VM runtime, host ABI, and Wasm execution terms are defined only in `modules/loisvm/CONTEXT.md`.
+This context owns compiler vocabulary from source elaboration through verified
+LoisVM image production. Persisted bytecode and runtime terms belong to the
+LoisVM context.
 
 ## Language
 
+### Compiler Boundaries
+
 **Compiler Front End**:
-The target-independent MoonBit implementation that accepts source text and
-produces checked semantic artifacts.
-_Avoid_: CLI tool, LSP server, Basic library
+The target-independent compiler that turns Lane source into checked semantic
+artifacts.
+_Avoid_: CLI tool, runtime, Basic library
 
 **Source Elaboration**:
-The compiler phase that resolves names, typechecks source constructs, supplies
-contextual arguments, and produces checked source.
-_Avoid_: pure parser, Buslane verifier
+Resolution, local type inference, contextual argument insertion, and checking
+that produces checked source.
+_Avoid_: parsing alone, Buslane verification
 
-**Semantic Lowering**:
-The boundary that translates checked source into Buslane.
-_Avoid_: source desugaring, ANF normalization
+**Checked Source**:
+The source-shaped semantic representation with resolved identities, explicit
+elaboration choices, and verified source types and effects.
+_Avoid_: syntax AST, Buslane, inferred side table
 
 **Pre-Buslane Contract**:
-The explicit invariant set that a successful checked source result satisfies before Buslane lowering, including resolved identities, filled contextual arguments, canonical type/effect objects, and source-only forms with known lowering rules.
-_Avoid_: Buslane verifier contract, whole-program optimization, ANF normalization
+The invariants Checked Source must satisfy before Semantic Lowering, documented
+in `docs/pre-buslane-contract.md`.
+_Avoid_: Buslane verifier contract, backend ABI
 
-**Compiler Analysis API**:
-An in-memory API used by tools and LSP code without owning file IO or process
-IO.
-_Avoid_: native command implementation, editor extension
-
-**Semantic Workspace**:
-The sole mutable owner of an identified in-memory source set, incremental parse
-state, the module dependency graph, the symbol registry, and reusable
-per-module semantic results. Source updates create a new Semantic Snapshot
-rather than running an independent analysis pipeline for each editor feature.
-Body-only edits rehydrate the cached graph order with the new parsed modules;
-module names, imports, header spans, or module availability invalidate it.
-_Avoid_: filesystem workspace, LSP document store, one-shot completion world
-
-**Semantic Snapshot**:
-A revisioned, read-only view of one Semantic Workspace state used consistently
-for diagnostics, definitions, hover, inlay hints, semantic tokens, and
-completion. Queries never rebuild the module graph or rerun resolution and type
-checking.
-_Avoid_: mutable analysis result, request-local compiler run, build artifact
-
-**Reverse-Dependency Invalidation**:
-The Semantic Workspace rule that reparses only changed sources and rebuilds a
-changed module plus its transitive importers while retaining unaffected module
-semantic results.
-_Avoid_: whole-workspace rebuild, entry-reachable pruning, textual import scan
-
-**Last Successful Module Interface**:
-The most recent successfully typechecked interface retained by the Semantic
-Workspace while the current text of that module has parse errors. Importers may
-continue to use it so the snapshot reports the primary parse error without
-cascading missing-import and unresolved-name diagnostics.
-_Avoid_: stale source diagnostics, stale module definitions, persisted artifact
-
-**Compiler Diagnostic Adapter**:
-A compiler-owned translation from Lane compiler diagnostics into generic diagnostic infrastructure.
-_Avoid_: terminal renderer, LSP diagnostic, command report
-
-**Source-Aware Diagnostic Rendering**:
-Diagnostic presentation that combines a compiler diagnostic with its source text before rendering source locations and guidance.
-_Avoid_: compact diagnostic pretty print, debug diagnostic output, command report
-
-**Width-Sensitive Formatting**:
-Formatter output that uses syntax-aware pretty-printing breakpoints to prefer lines within a configured width while allowing indivisible source atoms to exceed it.
-_Avoid_: hard line wrapping, post-render text wrapping, token splitting
-
-**Concrete Syntax Layer**:
-The formatter-facing source representation that preserves tokens, comments, whitespace, and source spans alongside parse structure.
-_Avoid_: semantic AST, checked source, resolved AST
-
-**Parsed Source**:
-The successful parser payload that pairs the syntax AST with concrete syntax sidecars for formatting and source-preserving tooling.
-_Avoid_: ParseResult, checked source, formatter output
-
-**Concrete Syntax**:
-The token and trivia sidecar produced with a parsed source file, without owning the semantic syntax AST.
-_Avoid_: SourceFile, resolved AST, checked source
-
-**Trivia Span**:
-A source span plus trivia kind that references text stored by **Concrete Syntax** rather than copying comment or whitespace text.
-_Avoid_: copied comment text, formatter string, AST span
-
-**Gap-Indexed Trivia**:
-A trivia fact that records its source span, kind, and position in the concrete token gap between two tokens, including EOF.
-_Avoid_: token-owned trivia arrays, AST-owned comments, inferred source gaps
-
-**Concrete Layout**:
-An immutable formatter-local index over concrete tokens, parser layout separators, and **Gap-Indexed Trivia**. It records leading, trailing, grammar-separator, delimiter, and EOF ownership without a punctuation denylist.
-_Avoid_: mutable render state, repeated whole-stream scans, AST-owned comments
-
-**Concrete Layout Session**:
-A one-format claim ledger over a **Concrete Layout** that verifies every indexed comment is emitted exactly once without mutating the layout itself.
-_Avoid_: attachment classification, width decisions, reusable formatter state
-
-**Source Grouping Node**:
-A syntax-only `Grouped` kind, type, or expression node that preserves authored parentheses for formatting and is erased when resolution constructs semantic syntax.
-_Avoid_: semantic parenthesis type, formatter reconstruction, precedence guess
-
-**EOF Token**:
-The non-printing end-of-file token kept in the concrete token stream as the anchor for final trivia.
-_Avoid_: printable token, boundary array, missing final trivia
-
-**Parse Result**:
-The parser domain result that is either a successfully **Parsed Source** or a structured parse failure.
-_Avoid_: optional parsed field, generic result, syntax AST
-
-**Parse Failure**:
-The parser domain failure that distinguishes lexical failure from grammar failure, preserving concrete syntax sidecars only when lexing succeeded.
-_Avoid_: nullable source, mixed error arrays, formatter diagnostic
-
-**Trivia-Preserving Formatting**:
-Full-file source formatting that requires successful parsing and renders canonical source text without dropping comments or comment-associated grouping gaps; pure blank-line-only gaps are syntax-canonicalized.
-_Avoid_: partial formatting, error-tolerant formatting, comment reinsertion
-
-**Trivia-Aware Pretty Printing**:
-Pretty-printing that renders syntax-owned documents through a formatting context capable of consuming attached trivia at token boundaries.
-_Avoid_: second formatter, string post-processing, comment merge pass
-
-**Formatter Verification Oracle**:
-The formatter test contract that combines comment no-loss checks, AST roundtrip equivalence, and formatting idempotence.
-_Avoid_: snapshot-only testing, visual inspection, string contains checks
-
-**Trivia Stream**:
-The ordered non-semantic source material between tokens, including line comments, blank lines, newlines, and spacing needed to preserve user-written layout intent.
-_Avoid_: AST comments, semantic nodes, formatter output
-
-**Line Comment Trivia**:
-A `//` source comment preserved by formatting without assigning declaration documentation semantics.
-_Avoid_: doc comment, block comment, AST attribute
-
-**Trivia Attachment**:
-The formatter relation that associates trivia from the **Trivia Stream** with token boundaries or syntax tree positions before rendering source text.
-_Avoid_: comment parsing, AST fields, post-render reinsertion
-
-**Token Boundary Trivia**:
-Trivia whose primary location is the gap between two concrete tokens, classified before formatting as leading, trailing, or detached material.
-_Avoid_: node-owned comments, post-render comments, semantic attachment
-
-**Trailing Comment**:
-A line comment that appears on the same source line as the preceding token and remains bound to that preceding token or syntax unit during formatting.
-_Avoid_: leading comment, detached comment, documentation comment
-
-**Line Comment Layout**:
-A pretty-printer document primitive that appends a `//` comment to the current line and forces the next text document to start on a new line at its own nesting indentation.
-_Avoid_: ordinary comment text, pipeline-specific newline checks, post-render rewriting
-
-**Meaningful Blank Line**:
-A blank line separating a comment group from adjacent syntax; pure blank-line-only gaps do not attach to AST nodes and are regenerated from syntax structure.
-_Avoid_: raw whitespace, vertical padding, empty statement
-
-**Parsed F64 Literal**:
-A source numeric literal selected as `F64` by its own spelling, retaining the original source text for diagnostics and a directly rounded binary64 value for semantic lowering.
-_Avoid_: string-only float literal, arbitrary-precision decimal constant, overloaded numeric literal
-
-**Parsed F32 Literal**:
-A source numeric literal selected by an `f32` suffix and rounded directly from its exact authored decimal value to binary32 while retaining the original source text for diagnostics.
-_Avoid_: expected-type-directed literal, implicit F64 conversion, binary64 payload labeled as F32
-
-**F64 Literal Pattern**:
-A refutable pattern that matches a `F64` value by floating-point equality without making `F64` an exhaustively enumerable primitive.
-_Avoid_: exhaustive numeric pattern set, NaN pattern literal, arbitrary-precision decimal pattern
-
-**F32 Literal Pattern**:
-A refutable pattern that matches an `F32` value by binary32 floating-point equality without making `F32` an exhaustively enumerable primitive.
-_Avoid_: exhaustive numeric pattern set, NaN pattern literal, binary64 comparison
-
-**Semantic Completion**:
-A compiler-analysis completion result derived from Lane symbols, types, effects, modules, and source context.
-_Avoid_: keyword snippet, editor-side text scan, LSP-only completion
-
-**Completion Trigger**:
-The user or editor event context supplied to a compiler completion query.
-_Avoid_: completion kind, parser recovery mode, LSP item category
-
-**Completion Entry**:
-A semantic candidate returned by a compiler completion query before any editor protocol mapping.
-_Avoid_: LSP completion item, text snippet, raw symbol
-
-**Completion Query**:
-A position-specific compiler analysis request that reads one Semantic Snapshot
-and computes candidates for one source location without rebuilding semantic
-state.
-_Avoid_: request-local module graph, editor-side scope reconstruction, editor request handler
-
-**Unused Local Value Binding**:
-A value binder introduced inside an executable expression body that has no resolved `ValueSymbolId` reference within its lexical scope after source elaboration.
-_Avoid_: unused private declaration, unused type parameter, unused import, unreachable code
-
-**Checked Value-Use Analysis**:
-A source-elaboration follow-up analysis over checked AST that records local value binders and resolved `ValueSymbolId` references with their definition-body origin.
-_Avoid_: type scope, lexical scope tree, dead-code elimination, textual name scan
-
-**Intentionally Ignored Local Binding**:
-A named local value binder whose source name starts with `_`; unused-local-value warnings do not fire for these binders.
-_Avoid_: wildcard pattern, dead binding, generated temporary
-
-**Generated Local Symbol**:
-A compiler-created local value whose registry metadata carries explicit `GeneratedLocal` provenance. Semantic analysis excludes these symbols by provenance; absent metadata remains an internal invariant failure.
-_Avoid_: missing metadata sentinel, authored local binding, source name convention
-
-**Explore Stage**:
-A compiler-owned, named, and intentionally stable observation point exposed by Executable IR Exploration. Its identity combines the represented IR with the semantic transformation boundary, so one IR form may appear in multiple stages. Every report contains all eighteen ordered Explore Stages, each completed with a snapshot, failed with diagnostics, or unavailable. An Explore Stage represents a useful semantic boundary and does not automatically correspond to every internal compiler pass.
-_Avoid_: arbitrary pass output, compiler trace event, private helper boundary
-
-**Executable IR Exploration**:
-A non-executing compilation of one selected top-level entry from a multi-module source set that records its Explore Stages from source-level representations through the final execution image and the selected execution backend's lowering result. Compiler stages and backend stages are presented as separate domains. The Lane Command and Lane Wasm expose the same stages and failure semantics for this workflow.
-_Avoid_: module-only inspection, artifact inspection, program execution, compiler event tracing
-
-**Explore Source Set**:
-The complete in-memory collection of identified Lane source inputs supplied to IR exploration, together with the selected root source. Host adapters collect files, while the compiler builds the module graph without performing host file-system discovery. Entry selection happens after the source set is known.
-_Avoid_: source directory, compiler-owned file discovery, anonymous concatenated source
-
-**Backend Explore Stage**:
-An Explore Stage owned by an execution backend after the Lane execution image has been produced, such as `Wasm (LoisVM Backend Lowering)`. It is identified as backend output rather than Lane compiler IR.
-_Avoid_: Lane IR, loaded runtime instance, execution state
-
-**Partial Explore Report**:
-A failed Executable IR Exploration result that preserves every completed Explore Stage, identifies the stage that failed with its diagnostics, and marks later stages as unavailable. Producing a Partial Explore Report does not turn a failed compilation into a successful command.
-_Avoid_: successful compilation, empty fallback report, recovered execution image
-
-**Compilation Observer**:
-An optional read-only recipient of Explore Stage snapshots emitted by the canonical compilation orchestrator. Installing an observer may record completed stages but cannot alter IR, select passes, recover failures, or otherwise change compilation semantics.
-_Avoid_: alternate explore pipeline, compiler plugin, pass manager, transformation callback
-
-**Explore Snapshot**:
-A single human-readable textual document emitted for one completed Explore Stage, together with its compiler or backend domain, text format, and diagnostics. The enclosing Explore Stage owns stable identity and display metadata. Pre-link snapshots show only the module that owns the selected entry; linked and later snapshots show the complete whole-program IR consumed by the next stage. It is an observation payload rather than the stage's typed compiler IR.
-_Avoid_: typed IR ownership transfer, serialization contract, mutable compiler state
-
-**Explore Report**:
-The versioned result for one selected entry, containing compiler identity, root identity, optional artifact-selected entry, typed overall status, diagnostics, and exactly eighteen ordered Explore Stage states. Hosts present the stages as one level of tabs; they do not introduce a second module-selection level.
-_Avoid_: entry chooser, module tree, mutable compilation session, runtime trace
-
-**Explore Report Protocol**:
-The explicitly versioned public data schema for an Explore Report, including compiler identity, root, selected entry, typed status, diagnostics, and ordered completed, failed, or unavailable stages with stable machine identities. The protocol does not make IR pretty text a machine-readable serialization format and has no untyped fallback failure string.
-_Avoid_: IR interchange format, HTML template, unversioned ad hoc JSON, compiler debug object
-
-**Artifact Entry Enumeration**:
-A stateless compiler query over an Explore Source Set that returns the root module artifact's existing entries and diagnostics without redefining entry identity or executable eligibility. Executable IR Exploration is a separate stateless request that resubmits the source set with one selected artifact entry.
-_Avoid_: new entry model, persistent compilation session, host-side symbol scan
-
-**Compiler Driver Package**:
-The platform-neutral `lanec/driver` package that owns Artifact Entry Enumeration and Explore Report assembly for native and browser exploration hosts. It invokes the same stage-owning module compilation, executable elaboration, and LoisVM lowering entrypoints used by direct execution, accepts in-memory source inputs, and does not own file discovery, HTML, JSON transport, or execution.
-_Avoid_: Lane CLI, alternate explore pipeline, Wasmoon loader, browser wrapper
-
-**Execution Image Lowering**:
-The lowering from linked and optimized Buslane/core into a target execution image such as portable bytecode.
-_Avoid_: semantic lowering, source elaboration, module interface generation
-
-**Module Link Package**:
-The target-independent `lanec/module/link` package that owns module-linking algorithms and the Linked Program model consumed by Whole-Program Elaboration.
-_Avoid_: compilation orchestrator, artifact codec, execution-image target
+**Semantic Lowering**:
+The translation from Checked Source into Buslane.
+_Avoid_: source elaboration, ANF normalization
 
 **Whole-Program Elaboration**:
-The post-link compiler phase that validates one program's selected entry and makes ordered top-level initialization, effect-lowering companions, and execution roots explicit before execution-image lowering.
-_Avoid_: source elaboration, linking, LoisVM bytecode emission
+The post-link phase that validates the selected entry and makes initialization,
+execution roots, effect companions, and externals explicit.
+_Avoid_: module linking, target lowering
 
 **Executable Program**:
-The compiler-owned result of Whole-Program Elaboration, containing one selected entry, explicit execution roots, ordered initializers, lowered core, externals, and effect companions needed for execution-image lowering without consulting the original link product.
-_Avoid_: shallow linked-program wrapper, LoisVM bytecode image, loaded execution instance
-
-**Executable Program Package**:
-The target-independent `lanec/executable` package that owns Whole-Program Elaboration and the Executable Program model consumed by execution-image targets.
-_Avoid_: LoisVM lowering subpackage, link implementation, command orchestration
+The target-independent result of Whole-Program Elaboration consumed by execution
+image lowerers.
+_Avoid_: linked core wrapper, LoisVM image
 
 **Execution Root Set**:
-The selected entry and every ordered top-level initializer computation that Execution Image Reachability Collection must preserve and traverse.
-_Avoid_: exported symbol set, already-computed dependency closure, bytecode function table
+The selected entry and initializer computations whose reachable definitions an
+execution image must preserve.
+_Avoid_: exported symbol set, precomputed closure
 
-### LoisVM Lowering
+**Execution Image Lowering**:
+The target-specific translation from an Executable Program to a verified
+execution image.
+_Avoid_: semantic lowering, artifact encoding
 
-**Register Bytecode Lowering**:
-The execution-image lowering strategy that maps ANF values and temporaries to bytecode frame local slots instead of rebuilding an operand-stack program.
-_Avoid_: stack bytecode lowering, source lowering, Buslane verification
+### Source Analysis And Formatting
 
-**Execution Image Reachability Collection**:
-The execution-image-lowering analysis that starts from an Executable Program's Execution Root Set and retains only transitively required functions, externals, and runtime imports for code generation.
-_Avoid_: Whole-Program Elaboration, source unused-declaration analysis, linker export selection
+**Compiler Analysis API**:
+The platform-neutral query surface for diagnostics, navigation, hover, semantic
+tokens, inlay hints, and completion.
+_Avoid_: LSP protocol adapter, filesystem workspace
 
-**Flat Bytecode Control Flow**:
-The execution-image control-flow strategy that lowers ANF control constructs into labeled blocks and explicit jumps.
-_Avoid_: structured ANF nodes, expression-tree bytecode, source control flow
+**Semantic Workspace**:
+The mutable owner of identified sources, module dependencies, symbol identity,
+and reusable per-module semantic state.
+_Avoid_: editor document store, request-local compilation
 
-**Bytecode Block Parameter**:
-A function-local destination slot declared by a bytecode block and assigned from the corresponding edge argument whenever control enters that block.
-_Avoid_: source parameter, function parameter, implicit phi node
+**Semantic Snapshot**:
+A revisioned read-only view of one Semantic Workspace used consistently by all
+analysis queries.
+_Avoid_: mutable cache, build artifact
 
-**Bytecode Edge Argument**:
-A source slot supplied by a jump or branch edge for the corresponding target block parameter.
-_Avoid_: call argument, operand-stack merge, hidden slot mutation
+**Reverse-Dependency Invalidation**:
+The workspace rule that rebuilds a changed module and its transitive importers
+while retaining unaffected semantic state.
+_Avoid_: whole-workspace rebuild, textual dependency scan
 
-**Erased Bytecode Image**:
-An execution image that removes Lane source types, source-level type arguments, and debug metadata while retaining only representation signatures and hidden layout witnesses required for Wasm lowering and generic ownership operations.
-_Avoid_: source-typed bytecode, full runtime type reflection, debug metadata payload
+**Last Successful Module Interface**:
+Recovery state that lets importers continue using the latest valid interface of
+a module whose current source cannot be parsed.
+_Avoid_: stale source diagnostics, persisted artifact
 
-**Mid-Level Bytecode Instruction**:
-A bytecode instruction that makes primitive operations explicit while keeping functions, data constructors, closures, and ordinary calls as VM-level semantic operations after effect erasure.
-_Avoid_: source operator call, builtin dispatch call, machine-layout instruction
+**Semantic Analysis Fact**:
+A compiler-produced definition, reference, hover, token, or inlay record carrying
+semantic identity and source location before protocol presentation.
+_Avoid_: LSP payload, editor-side inference
 
-**Compiler-Private VM CFG**:
-The `lanec`-owned virtual-value control-flow representation produced after effect erasure and closure lowering and before physical slot allocation or LoisVM bytecode construction.
-_Avoid_: persisted bytecode, `loisvm/bytecode` data model, WebAssembly module
+**Call Argument Provenance**:
+Checked-call metadata identifying authored, pipeline, operator, or inserted
+arguments and their semantic order.
+_Avoid_: span-based call reconstruction, label heuristic
 
-**VM CFG Simplification**:
-The pre-ARC compiler pass that folds known branches, threads empty jumps, removes unreachable blocks and unused block parameters, merges compatible linear blocks, propagates block-local trivial copies and constants, deletes dead non-trapping scalar instructions, and coalesces compatible non-overlapping trivial values. It does not merge owned or borrowed value identities.
-_Avoid_: Buslane optimization, ARC peephole optimization, Wasm local allocation
+**Producer-Ordered Inlay Fact**:
+An inlay fact whose presentation order is assigned during checked expression
+traversal rather than inferred from source ranges or labels.
+_Avoid_: span-size ordering, label tie-breaker
 
-**VM CFG Dominator Analysis**:
-The compiler-private control-flow analysis that records predecessor edges, entry reachability, block dominator sets, and immediate dominators for one VM CFG function. Block zero is the sole entry, and unreachable blocks have no dominator or immediate-dominator claim.
-_Avoid_: source lexical scope, Wasm structured nesting, ownership liveness
+**Semantic Completion**:
+Position-specific completion derived from the same Semantic Snapshot as other
+analysis features.
+_Avoid_: keyword scan, LSP-owned candidate model
 
-**VM CFG Use-Definition Analysis**:
-The compiler-private index from every VM CFG value to its function-input, block-parameter, or instruction-result definition and to each deterministic instruction or terminator use. Edge arguments are uses in the predecessor terminator; target block parameters are definitions in the target block.
-_Avoid_: mutable slot history, bytecode verification, source variable references
+**Concrete Syntax**:
+The formatter-facing token, trivia, span, and grouping sidecar paired with a
+parsed syntax tree.
+_Avoid_: checked source, semantic AST
 
-**VM CFG Liveness Analysis**:
-The backward value-flow analysis derived from VM CFG use-definition and successor facts. It records block live-in and live-out sets and answers instruction live-after queries; ownership analysis may filter these ordinary value facts but does not redefine them.
-_Avoid_: reference count, owned-value threading policy, source borrow checking
+**Concrete Layout**:
+The immutable formatter index that assigns comments and separators to concrete
+token gaps.
+_Avoid_: mutable render state, AST comment fields
 
-**Closure Devirtualization**:
-The pre-ARC VM CFG rewrite that replaces uniquely and immediately invoked known callable values with direct calls. An environment allocation may be scalar-replaced only when its lifted target has no other function reference and is a leaf body with no calls, nested environment or closure construction, or tail call; otherwise the environment ABI remains unchanged.
-_Avoid_: first-class callable erasure, single-shot continuation assumption, arbitrary function ABI rewriting
+**Trivia-Preserving Formatting**:
+Canonical full-file formatting that preserves comments while maintaining syntax
+round-trip equivalence and idempotence.
+_Avoid_: post-render comment insertion, error recovery formatter
 
-**Runtime Ownership Analysis**:
-The analysis over the compiler-private VM CFG that classifies reference-bearing uses as borrowed, retained copies, releases, or ownership transfers.
-_Avoid_: final-bytecode analysis, source ownership checker, bytecode verifier
+### Exploration
 
-**ARC Insertion**:
-The compiler transformation that applies runtime ownership analysis by adding retain and release operations and recording ownership transfers in the VM CFG before slot allocation.
-_Avoid_: LoisVM interpreter behavior, Wasm-tier RC optimization, implicit slot semantics
+**Explore Stage**:
+A stable compiler-owned observation point at a useful semantic transformation
+boundary.
+_Avoid_: every internal pass, mutable compiler hook
 
-**Physical Slot Plan**:
-The validated compiler-private mapping from ARC-final VM CFG values to representation- and cleanup-compatible physical LoisVM slots. It is produced from VM CFG use-definition and liveness facts before bytecode construction; bytecode emission consumes it once and never reallocates or rewrites emitted opcodes.
-_Avoid_: bytecode peephole allocation, Wasm local plan, logical-value renumbering after emission
+**Explore Snapshot**:
+The human-readable projection recorded for one completed Explore Stage.
+_Avoid_: typed IR transfer, serialization format
 
-**Finalized Callable ABI**:
-The callable value shape derived only after VM CFG simplification, ownership promotion, owned-value threading, ARC insertion, and physical slot allocation. The bytecode emitter and runtime imports are the sole definition-side owners; indirect call sites use the same allocated slot metadata, and all shapes enter one image-local interner.
-_Avoid_: source-type ABI reconstruction, pre-finalization ABI snapshot, verifier-side ABI repair
+**Explore Report**:
+The versioned result for one selected entry, containing ordered completed,
+failed, or unavailable Explore Stages and diagnostics.
+_Avoid_: runtime trace, compiler session
 
-**ARC Flow Cleanup**:
-The compiler-finalization policy that removes redundant ARC at the highest ownership-aware representation capable of proving the transfer. It prefers consuming projection selection and direct ownership flow before insertion; a post-insertion retain/release peephole is used only when no call, alias, branch, or destructor-visible action separates the pair.
-_Avoid_: refcount algebra without ownership provenance, runtime ARC optimization, destructor reordering
+**Partial Explore Report**:
+A failed Explore Report that preserves completed stages and identifies the first
+failed stage without converting failure into success.
+_Avoid_: fallback success report, empty diagnostics
 
-**Block-Local Borrow**:
-A compiler-private VM CFG value use that does not own its referenced object, remains dominated by a live owner, and cannot cross the current basic-block boundary.
-_Avoid_: owned block parameter, bytecode ownership annotation, source borrow
+**Compilation Observer**:
+A read-only recipient of stage snapshots emitted by the canonical compiler
+pipeline.
+_Avoid_: compiler plugin, alternate pass manager
 
-**Borrow Promotion**:
-The ARC insertion step that establishes owned lifetime for a borrowed reference, normally by retaining it before a consuming or cross-boundary use.
-_Avoid_: ownership transfer from an owned last use, implicit retain, source clone
+**Compiler Driver**:
+The platform-neutral orchestration boundary shared by native and browser
+exploration hosts.
+_Avoid_: CLI command, filesystem discovery, browser transport
 
-**Consuming Projection Selection**:
-The pre-ARC VM CFG rewrite that groups consecutive field or capture borrows into one consuming projection when an owned source has no other remaining use and at least one selected borrowed result requires ownership. Selected nontrivial results become owned transfers; sources that remain live and results used only as block-local borrows retain ordinary borrow projections.
-_Avoid_: unconditional destructive projection, source uniqueness assumption, post-bytecode peephole
-
-**Cycle-Free Recursive Closure Lowering**:
-The closure-conversion rule that represents recursive group member references through known function identifiers plus the shared environment rather than storing strong group-closure references inside that environment.
-_Avoid_: EnvRef-to-closure ownership cycle, runtime cycle collector, weak-reference source semantics
-
-**Effect-Erasure Pipeline**:
-The pre-ANF handler elaboration, `mon-trans`, `open-resolve`, `monadic-lift`, and residual-effect-erasure sequence that converts source effects through explicit compiler-private dictionaries and selective answer-type CPS, preserves non-monadic residual effects through effect-sensitive optimization, and finally removes all effect-specific forms before compiler-private VM CFG lowering.
-_Avoid_: LoisVM effect instruction, bytecode handler lowering, runtime stack capture
-
-**Handler Dictionary**:
-The compiler-private immutable product of ordinary operation-clause callables supplied for one concrete effect during effect erasure; its fields are selected statically and lose handler identity before VM CFG lowering.
-_Avoid_: runtime operation table, dynamic effect map, LoisVM handler object
-
-**Effect Context Argument**:
-An ordered compiler-private ordinary value argument carrying either one concrete Handler Dictionary or one opaque companion context for an abstract effect parameter during selective CPS lowering.
-_Avoid_: global evidence vector, LoisVM hidden ABI field, runtime handler lookup
-
-**Effect Context Companion**:
-The compiler-generated type-level function parameter of kind `[Type, Effect] -> Type` that forms the runtime-bearing half of a source effect parameter's CPS representation. The other half is a compiler-generated External Effect parameter carrying only the source effect's non-algebraic residual projection. Each context use applies the type-level function to the Answer-Type CPS answer and complete residual in scope there, while an instantiation supplies both a type lambda that produces the packed context and the corresponding residual effect. This lets an enclosing dictionary and a nested CPS callable share one context abstraction without forcing them to share answer or local residual binders, and prevents runtime layout from being inferred from static effect syntax.
-_Avoid_: one fixed dictionary type, source type parameter, layout witness, universal operation table
+### Effect Elaboration
 
 **Effect Specialization Demand**:
-A canonical request attached to one reachable source definition site after applying the lexical effect substitution at a use. A symbolic or incomplete use requests retention of the generic definition; a concrete use requests one instance keyed by definitionally canonical effect bindings. The two demands may coexist for the same source definition.
-_Avoid_: definition-global runtime-polymorphic flag, raw call syntax, optimizer specialization candidate
+A canonical request to retain a generic definition or create one concrete
+effect-specialized instance at a reachable source definition site.
+_Avoid_: rewrite-time discovery, optimizer hint
 
 **Effect Specialization Plan**:
-The immutable, read-only fixed point of reachable callable and nominal-data Effect Specialization Demands, the source-ordered top-level values and externals retained in the output, and the exact reachable constructor and operation declarations whose retained metadata types require rewriting. It is computed before target metadata is allocated. Allocation and output rewriting consume the plan exactly once; neither phase may add a demand, choose retention through a second reachability analysis, or scan unrelated metadata declarations.
-_Avoid_: rewrite-time instance discovery, metadata-mutating analysis, forwarding-edge closure
-
-**Effect Specialization Definition Site**:
-The stable identity of a top-level definition or a local definition paired with its lexical owner. A local demand records only bindings for effect parameters visible where that definition was declared, preventing a sibling callable's own instance parameters from being mistaken for captured ambient bindings.
-_Avoid_: bare local ValueId without owner, dynamic call stack, source-text location
+The immutable fixed point that owns specialization demand, declaration
+retention, and source-ordered output before allocation and rewriting.
+_Avoid_: second reachability analysis, mutable rewrite policy
 
 **Monadic Effect Predicate**:
-The conservative classification used by `mon-trans` that holds when an effect row has an open tail or contains any handled operation. Every handled operation is potentially multi-shot, so the predicate does not analyze or infer resume counts. It determines whether monadic translation is required, independently of whether the computation is pure or otherwise observable.
-_Avoid_: nonempty-effect test, `Io` special case, optimizer purity test, resume-count analysis
+The classification that requires monadic translation for an open effect row or
+one containing handleable operations.
+_Avoid_: nonempty-effect test, `Io` special case
 
 **Non-Monadic Residual Effect**:
-The portion of an effect row that does not require monadic translation and therefore remains on direct and CPS-transformed function types until residual effect erasure. It consists of built-in and user-declared External Effects.
-_Avoid_: pure effect, discarded CPS effect, handler context
+The built-in and External portion of an effect row retained through selective
+CPS until effect-sensitive optimization is complete.
+_Avoid_: pure effect, handler dictionary
 
-**External Effect**:
-A nominal kind-Effect identity declared with `extern type E : Effect` that marks observable dependency on a synchronous host call without defining operations or exposing a continuation. It is non-handleable, does not require monadic translation, and is erased only after effect-sensitive optimization.
-_Avoid_: algebraic effect, host effect handler, runtime effect operation, `Io` alias
+**Effect Context Companion**:
+The higher-kinded type component paired with a source effect parameter to carry
+its runtime handler context across different answer and residual scopes.
+_Avoid_: source effect syntax as layout evidence, fixed dictionary type
 
-**External Type**:
-An opaque zero-parameter nominal kind-Type identity declared with `extern type T : Type` whose values are created and interpreted only by host bindings while remaining storable, passable, and embeddable in ordinary Lane-managed data as a shared-reference value. Distinct External Types remain distinct in Lane typing but erase to one `Opaque` host ABI kind and receive no implicit equality, hashing, ordering, formatting, or identity operations.
-_Avoid_: primitive alias, user-defined layout, integer handle type, foreign struct declaration
+**Selective CPS**:
+The compiler transformation that converts only computations satisfying the
+Monadic Effect Predicate into answer-type continuation form.
+_Avoid_: whole-program CPS, VM stack capture
 
-**External Type Flavor**:
-The explicit semantic classification retained through checking, Buslane, and whole-program linking that distinguishes an External Type from an ordinary abstract nominal type and permits it to lower to the `Opaque` host ABI kind.
-_Avoid_: constructor absence inference, runtime payload tag, serialized bytecode identity
-
-**Direct Host Type**:
-A type whose fully expanded transparent-alias target is one supported primitive or one External Type, allowing it to appear as a top-level extern parameter or result.
-_Avoid_: nominal wrapper, nested host type, unexpanded alias name
-
-**Callable Effect Contract**:
-The single latent-effect upper bound shared by Lane-defined and extern-bound functions for calls, branching, aliases, higher-order typing, and effect propagation. A Lane body must produce a subeffect of the contract, while an extern binding supplies it as an unsafe assertion because no Lane body is visible.
-_Avoid_: extern effect rules, host-only effect subtyping, symbol-derived effect
-
-**Function Effect Widening**:
-The checked conversion from an already-typed function value to the same parameter and result types with a larger latent-effect upper bound. Checked AST records the conversion explicitly, and Buslane lowering generates a target-ABI adapter rather than relabeling the original callable.
-_Avoid_: pure-function special case, general function variance, erased ABI cast
-
-**Effect Origin**:
-The identity provenance that determines how an effect is linked and serialized: compiler-provided for built-in names such as `Io`, or declaration-owned for source External and Algebraic Effects. Origin does not determine lowering behavior.
-_Avoid_: effect flavor, runtime provider, module convention
-
-**Effect Flavor**:
-The semantic classification of an effect identity as External or Algebraic, used to decide handleability, monadic translation, extern eligibility, and residual erasure independently of its origin.
-_Avoid_: effect origin, built-in flag, runtime ABI
+**Effect-Aware Core Optimization**:
+Optimization over lowered Buslane while residual effects still describe
+observable behavior.
+_Avoid_: effect-blind DCE, bytecode optimization
 
 **Residual Effect Erasure**:
-The final effect-lowering pass that removes non-monadic residual effects after all effect-sensitive optimization while preserving their ordinary extern calls and other observable operations.
-_Avoid_: monadic translation, extern-call deletion, early purity rewrite
+The final removal of non-monadic residual effect information after effect-aware
+optimization.
+_Avoid_: deletion of observable host calls, monadic translation
 
-**Built-in Effect Atom**:
-The compiler-IR effect term for an intrinsically identified built-in effect such as `Io` or `Panic`; it is not represented by an EffectId and has no effect or operation metadata to remap across modules.
-_Avoid_: reserved EffectId, synthetic effect declaration, module-qualified nominal effect
+### VM CFG And Bytecode Production
 
-**Panic Effect**:
-The non-handleable built-in effect marking a documented source operation whose value-dependent failure follows compiler-owned fatal control. It preserves evaluation before residual-effect erasure but carries no runtime dictionary and is distinct from both `Io` and an execution-level trap.
-_Avoid_: I/O effect, algebraic exception, engine trap, resource failure
+**VM CFG**:
+The compiler-private value-based control-flow graph between lower semantic IR
+and LoisVM bytecode.
+_Avoid_: persisted bytecode CFG, source control flow
 
-**Answer-Type CPS**:
-The selective transformation of a function whose latent effect satisfies the **Monadic Effect Predicate** from `(args) -> A ! E` to the conceptual shape `[Answer, Residual](context, args, (A) -> Answer ! R) -> Answer ! R`, where `R` is the function's own **Non-Monadic Residual Effect** joined with the **Installed Residual Parameter**; functions whose effects do not satisfy the predicate remain direct style even when they are non-pure.
-_Avoid_: whole-program CPS, VM stack capture, yielding side channel
+**VM CFG Use-Definition Analysis**:
+The authoritative index of every VM CFG value definition and use.
+_Avoid_: slot history, source reference graph
 
-**Unhandled Computation**:
-The still-monadic computation an installation produces when the effects it does not handle escape to an enclosing handler. Selective CPS gives it the same shape as any other CPS'd callable, so a handler's `resume` needs no special case at a call site. Named apart from **Non-Monadic Residual Effect** deliberately: the two are opposite halves of the same row.
-_Avoid_: residual computation, handled expression, resume closure
+**VM CFG Liveness Analysis**:
+The value-flow analysis derived from VM CFG definitions, uses, and successors.
+_Avoid_: ownership policy, reference count
 
-**Installed Residual Parameter**:
-The **Effect Row Variable** an Answer-Type CPS callable binds beside its answer type, standing for what the dictionary and continuation it is handed perform. A call site instantiates it with the residual it is itself running under, so a handler arm's effects reach the row of every call the handled expression makes. It has External **Effect Flavor**, which is what distinguishes it from a source effect parameter the transformation still has to discharge into a dictionary.
-_Avoid_: per-residual dictionary specialization, source effect parameter, whole-program monomorphization
+**Runtime Ownership Analysis**:
+The VM CFG analysis that classifies reference-bearing uses as borrows, retained
+copies, releases, or ownership transfers.
+_Avoid_: source borrow checker, bytecode verifier
 
-**Effect Lowering Core Package**:
-The `lanec/effect_lowering/core` package that owns the shared effect-lowering IR, synthesis and error semantics, and the complete non-CPS effect-erasure pipeline; all compiler consumers depend on this package directly.
-_Avoid_: duplicated semantic helpers, compatibility facades, sibling-to-parent dependency cycles
+**ARC Insertion**:
+The VM CFG transformation that materializes ownership decisions as retain,
+release, and transfer operations.
+_Avoid_: runtime ARC optimization, implicit slot behavior
 
-**Selective CPS Package**:
-The `lanec/effect_lowering/cps` package that owns dictionary schema generation, selective CPS ABI rewriting, context selection, relay dictionaries, and CPS-specific integration tests behind the `rewrite_selective_cps_abis` entrypoint.
-_Avoid_: `cps_*.mbt` files in the parent effect-lowering package, LoisVM callable ABI, runtime continuation machinery
+**Physical Slot Plan**:
+The validated mapping from ARC-final VM CFG values to compatible physical
+LoisVM slots, produced before bytecode construction.
+_Avoid_: post-bytecode slot rewrite, Wasm local plan
 
-**Open Context Plan**:
-The compiler-private effect-subsumption proof marker recording source contexts consumed by a generated call and ambient target contexts claimed to supply them; selective CPS materializes the arguments, and `open-resolve` validates the claim before erasing the marker.
-_Avoid_: lexical operation dispatch, dynamic evidence search, bytecode metadata
+**Bytecode Emission**:
+The one-pass projection of finalized VM CFG through a Physical Slot Plan into
+LoisVM bytecode.
+_Avoid_: allocation pass, emitted-opcode remapping
 
-**Resume Closure**:
-The ordinary reusable continuation closure produced by effect erasure whose captured inner context reinstalls a deep handler when called and whose repeated uses are managed by ordinary ARC insertion.
-_Avoid_: captured VM stack, dedicated continuation object, one-shot assumption
+**Finalized Callable ABI**:
+The canonical callable shape derived from finalized slot metadata and interned
+once for functions, runtime imports, and indirect call sites.
+_Avoid_: source-type reconstruction, verifier repair
 
-**One-Shot Continuation Analysis**:
-A conservative analysis that may classify a resume continuation as linearly used only when repeated or escaping resume is impossible.
-_Avoid_: heuristic one-shot guess, effect typing, dead-code analysis
-
-**Closure Lifting**:
-The pre-bytecode lowering pass that turns nested functions and continuation closures into lifted bytecode functions plus explicit captured context.
-_Avoid_: runtime code generation, nested bytecode function, source lambda lifting
-
-**Bytecode Lowering Pipeline**:
-The ordered compiler path from linked Buslane/core through the effect-erasure pipeline, ordinary ANF, closure lifting, compiler-private VM CFG lowering and simplification, runtime ownership analysis, ARC insertion, slot allocation, bytecode emission, and complete LoisVM verification before the image is returned or persisted.
-_Avoid_: source elaboration pipeline, runtime execution loop, artifact parser
-
-**LoisVM Bytecode Target**:
-The compiler execution-image target that emits bytecode owned by the independent `loisvm/bytecode` package.
-_Avoid_: lanec-owned bytecode model, lane command runtime, Buslane artifact payload
-
-**Wasm Backend Path**:
-The compiled execution path that consumes decoded LoisVM bytecode, lowers it into a WebAssembly module, and executes it with a WebAssembly engine, using Milky2018/wasmoon by default.
-_Avoid_: direct Buslane-to-Wasm lowering, direct ANF-to-Wasm lowering, MilkIR backend
-
-**Callable Table Compaction**:
-The Wasm-local lowering step that assigns deterministic dense table indices only to Lane functions whose callable value is materialized by bytecode, followed by required runtime helper entries. Direct-only Lane functions remain ordinary Wasm functions but are absent from the indirect-call table; packed callable values use the dense remapping rather than raw bytecode function identifiers.
-_Avoid_: whole-program reachability, function deletion, source-level devirtualization, raw FunctionId table index
-
-**Extensible Wasmoon Backend**:
-The Lane-controlled default WebAssembly execution backend whose interpreter, JIT, runtime integration, and supported WebAssembly capabilities may be extended as Lane's Wasm lowering evolves.
-_Avoid_: current third-party engine feature floor, automatic browser portability, unspecified non-Wasm execution format
-
-## Relationships
-
-- Executable IR Exploration exposes this fixed initial Explore Stage order:
-  Syntax AST; Resolved AST; Checked Source AST; Buslane (Module Lowering);
-  Buslane (Linking); Buslane (Reachable Effect Specialization); Buslane
-  (Handler Elaboration); Buslane (Monadic Transformation); Buslane (Selective
-  CPS); Buslane (Open Context Resolution); Buslane (Monadic Lift); Buslane
-  (Effect-Aware Core Optimization); Buslane (Effect Erasure); Executable
-  Program (Whole-Program Elaboration); ANF; VM CFG (Initial Lowering); LoisVM
-  Bytecode (ARC and Slot Finalization); and Wasm (LoisVM Backend Lowering).
-- Whole-Program Elaboration is the enclosing process that produces an
-  Executable Program; it is not itself one Buslane transformation stage.
-- Exploration observes existing transformation outputs and does not split a
-  fused compiler pass solely to create another display stage.
-- Wasm exploration code generation uses the checked signatures of reachable
-  `extern` bindings and does not require resolving or invoking host runtime
-  bindings.
-- Compilation still checks required dependencies and reports their diagnostics;
-  the entry-module focus changes only pre-link snapshot presentation.
-
-- `lanec` implements the language contract from `spec`.
-- `lanec` consumes `buslane` as the semantic core target.
-- The **Pre-Buslane Contract** is documented in
-  `modules/lanec/docs/pre-buslane-contract.md`; it separates source
-  elaboration and canonicalization from Buslane, ANF, and execution
-  optimization.
-- `lane` and future tools should call compiler APIs instead of importing
-  internal packages when possible.
-- The **Executable Program Package** owns Lane execution semantics between
-  linking and target-specific execution-image lowering; target lowerers depend
-  on it, never the reverse.
-- The **Module Link Package** owns Linked Program construction independently of
-  compilation orchestration and execution-image targets; the executable package
-  depends on this link model.
-- Platform services such as filesystem access belong in tools, not in the
-  compiler core.
-- A **Compiler Diagnostic Adapter** may depend on **Diagnostic Infrastructure**
-  but must not own terminal, JSON-RPC, or editor presentation.
-- **Source-Aware Diagnostic Rendering** is the only user-facing presentation
-  path for compiler and formatter source diagnostics.
-- **Width-Sensitive Formatting** belongs to compiler syntax pretty-printing,
-  not to command-line post-processing.
-- **Width-Sensitive Formatting** applies first to syntax-owned list and head
-  structures; it does not split source atoms such as identifiers, module paths,
-  comments, or string literals.
-- A complete comment-preserving formatter consumes a **Concrete Syntax Layer**
-  and **Trivia Stream** rather than adding comment fields to semantic AST nodes.
-- **Parse Result** is a domain enum rather than an optional parsed field; a
-  successful **Parsed Source** carries syntax plus **Concrete Syntax**, while a
-  failure carries lexical and parse diagnostics.
-- **Parse Failure** distinguishes lexical and grammar failures: grammar
-  failures may still carry reliable **Concrete Syntax**, while lexical failures
-  do not.
-- **Concrete Syntax** keeps token and trivia sidecars beside the syntax AST;
-  yacc grammar actions should not carry formatter trivia through semantic AST
-  fields.
-- The lexer owns **Concrete Syntax** token and **Gap-Indexed Trivia**
-  extraction; the parser consumes a trivia-free token view and produces syntax
-  AST or parse diagnostics.
-- **Concrete Syntax** owns the original source text used for formatting;
-  **Gap-Indexed Trivia** values reference that text by source span and
-  classified trivia kind instead of copying comment text.
-- **Concrete Layout** is derived from concrete tokens, parser-produced layout
-  separator gaps, and **Gap-Indexed Trivia** at formatting time. Its ordered
-  comment and anchor indexes avoid repeated whole-stream scans. A **Concrete
-  Layout Session** records one render's claims separately from that index.
-- The concrete token stream includes an **EOF Token**; formatting consumes its
-  attached trivia but renders no token text for EOF.
-- **Trivia Attachment** is a formatting concern; source elaboration, type
-  checking, and semantic lowering should continue to consume comment-free AST
-  data.
-- **Trivia Attachment** is based first on **Token Boundary Trivia**. Grammar
-  separators own comments around comma, item, top-level, and struct-field
-  boundaries; syntax nodes own leading, trailing, operator, delimiter, and EOF
-  boundaries. AST nodes do not store comments directly.
-- A **Trailing Comment** remains trailing on the syntax unit it originally
-  followed unless a grammar separator owns its concrete gap; the separator then
-  renders before the comment so line-comment layout cannot hide punctuation.
-- A **Trailing Comment** renders through **Line Comment Layout**. Expression
-  printers query structural operand and member boundaries; they must not infer
-  ownership from token-category lists or rendered strings.
-- Explicit parentheses are represented by **Source Grouping Nodes** in the
-  source AST. Resolution erases them, so semantic consumers remain independent
-  of authored grouping while formatting never has to reconstruct it.
-- The formatter preserves comments and comment-associated grouping gaps from
-  the **Trivia Stream**. Pure blank-line-only gaps, ordinary spacing,
-  indentation, and line breaks are generated from syntax structure by
-  **Width-Sensitive Formatting**.
-- **Line Comment Trivia** is source layout trivia for formatter purposes; doc
-  comment binding is a separate language/tooling feature and should not be
-  introduced implicitly by comment preservation.
-- A **Meaningful Blank Line** records comment-group separation, not exact
-  vertical padding; pure or repeated blank-line-only gaps are canonicalized
-  from syntax structure before rendering.
-- **Trivia-Preserving Formatting** still requires parse success; preserving
-  trivia does not imply partial or error-tolerant formatting.
-- **Trivia-Preserving Formatting** is a full-file operation in v1; range
-  formatting requires separate boundary-expansion rules and is out of scope for
-  this formatter architecture.
-- **Trivia-Aware Pretty Printing** extends the current width-sensitive syntax
-  pretty-printer; comment preservation should not be implemented as a second
-  formatter or as post-render string merging.
-- A **Formatter Verification Oracle** is required for trivia-preserving
-  formatting so comment preservation, AST equivalence, and idempotence are
-  checked structurally rather than by snapshots alone.
-- **Semantic Completion** belongs to the **Compiler Analysis API**; LSP adapters
-  only transport it as protocol-specific completion items.
-- A **Semantic Workspace** is the shared compiler-analysis cache boundary for
-  all editor features; an LSP server must not maintain a second completion or
-  diagnostics cache.
-- Every editor request reads one **Semantic Snapshot**, so diagnostics and
-  navigation cannot observe different compiler revisions.
-- **Reverse-Dependency Invalidation** preserves symbol identity for unaffected
-  modules and rebuilds importers whenever a dependency is rebuilt.
-- A **Last Successful Module Interface** is recovery state only: the broken
-  module contributes its current parse diagnostics, not stale definitions or
-  stale source locations.
-- A **Completion Trigger** informs a **Semantic Completion** query but does not
-  decide completion semantics outside the compiler analysis layer.
-- A **Completion Entry** carries Lane semantic identity, display text, and edit
-  range without depending on editor protocol fields.
-- A **Completion Query** consumes the same **Semantic Snapshot** as diagnostics,
-  navigation, and inlay hints.
-- **Call Argument Provenance** is assigned when ordinary, labeled, pipeline,
-  operator, or inserted contextual arguments are constructed and is preserved
-  in checked calls. Source spans locate hints but never reconstruct authorship.
-- An **Unused Local Value Binding** warning is a compiler semantic diagnostic,
-  not a control-flow reachability analysis or an API export check.
-- **Checked Value-Use Analysis** may be reused by future optimization work, but
-  warning policy such as underscore suppression must stay outside the reusable
-  use-collection core.
-- **Checked Value-Use Analysis** is a symbol identity graph over resolved
-  binders and references; reference origin identifies the local binder whose
-  definition body contains the reference, when any, so self-recursive and
-  mutually recursive local definitions can be distinguished from external uses.
-  It should not grow a lexical scope tree unless a separate source-tooling
-  problem explicitly requires one.
-- **Core Occurrence Analysis** is a core optimization analysis over linked
-  Buslane/core identities; it is not an extension point for source-level unused
-  warnings or editor facts owned by **Checked Value-Use Analysis**.
-- **Core Occurrence Analysis** runs after link-time entry validation and before
-  final executable artifact emission, while optimization still has access to
-  type, effect, entry, and root metadata.
-- **Reachable Effect Specialization** is owned by the
-  `lanec/effect_specialization` package. It first classifies substituted uses,
-  computes an immutable **Effect Specialization Plan**, allocates every planned
-  target declaration, and then mechanically rewrites the reachable program.
-- Effect-specialization planning is read-only. Allocation is the sole owner of
-  specialized callable, type, and constructor metadata; lowered bodies may
-  validate and consume those declarations but cannot replace them or discover
-  additional instances.
-- Retained constructor and operation metadata is rewritten only when its
-  identity occurs in the **Effect Specialization Plan**. Unreachable metadata
-  declarations remain untouched and cannot introduce specialization demand
-  during allocation.
-- Top-level values, recursive binding groups, and externals are emitted only
-  from the source-ordered retention entries in the **Effect Specialization
-  Plan**. Core occurrence facts cannot select or reject specialization output.
-- A source callable may be retained generically and also receive concrete
-  clones. Dead symbolic uses contribute no demand, and concrete use sites do
-  not lose specialization merely because another use forwards an effect
-  parameter.
-- Source-effect substitution establishes static definition equivalence only.
-  Runtime representation is selected from the normalized companion type or an
-  explicit in-scope layout witness, never from `Empty`, `Io`, an algebraic row,
-  or any other source-effect syntax.
-- **Effect-Aware Core Optimization** is the `lanec/core_opt` phase after
-  monadic continuation lifting and before residual effect erasure. It owns
-  optimizer pass order and fixpoint mechanics, receives the selected entry and
-  additional roots explicitly, and preserves the compiler-private lowered-core
-  contract until residual effect erasure restores ordinary verifiable Buslane.
-- **Effect-Aware Core Optimization** must consult the remaining effect rows and
-  observable extern calls before removing or reordering computations; later
-  administrative cleanup may simplify only forms whose effect semantics have
-  already been discharged.
-- After selective CPS, a call whose remaining latent effect is definitionally
-  empty may be removed when its result is unused, even if the callee body is not
-  exposed. An extern call with observable host behavior must therefore carry an
-  appropriate non-empty **External Effect**; unresolved call identity alone is
-  not an effect barrier.
-- What makes the rule above sound is that selective CPS keeps effect rows an
-  over-approximation of what running a term performs. A CPS'd call performs
-  whatever the dictionary and continuation it is handed perform, so its callee
-  binds an **Installed Residual Parameter** and the call site instantiates it.
-  Fixing a dictionary's residual per install site instead would make the row of
-  a call using that dictionary silently understate the handler's effects.
-- **Core Partial Evaluation** specializes small known direct calls with atomic
-  arguments, including generic calls and structurally known operation
-  dictionaries. It is selected by Core shape rather than source symbols.
-- **Core Partial Evaluation** skips every callable in a direct or mutual
-  recursive cycle. Escaping callables remain available as values but may still
-  be specialized at known direct call sites under a tighter size limit.
-- **Core Partial Evaluation** clones local binders and substitutes concrete type
-  or effect arguments before simplification. It accepts only callables with an
-  empty latent effect and no residual perform, handle, or resume form.
-- A whole-program expansion budget, per-callee expansion counts, and separate
-  escaping/non-escaping size limits bound Core Partial Evaluation. A candidate
-  is committed only when recursive simplification strictly reduces Core node
-  count. Reachability pruning runs before the pass to exclude dead code from its
-  budget and after it to remove obsolete callables and dictionaries.
-- **Core Occurrence Analysis** results are optimizer-local derived facts, not
-  persisted linked-artifact semantic payload.
-- **Core Occurrence Analysis** tracks value-level Buslane/core bindings and
-  references; source type and effect symbol analysis belongs to checked-source
-  diagnostics, not to core occurrence.
-- **Core Occurrence Analysis** records structured occurrence facts for
-  optimization, including use counts, call-position use, non-call escape,
-  effectful-context use, reachable incomplete type application, and
-  selected-entry reachability. Type-application completeness is collected only
-  while traversing entry- or root-reachable definitions, so dead references
-  cannot change executable specialization strategy.
-- **Core Call Graph Analysis** is compiler-private analysis in `lanec/core_opt`
-  that discovers top-level callable definitions, resolves immutable local and
-  top-level value-alias chains, records known direct callable edges, and detects
-  direct or mutual recursion conservatively across nested callable bodies.
-- A **Core Function Summary** combines one callable's call-graph edges,
-  occurrence facts, expression cost, and recursion classification. Existing
-  optimization rewrites consume summaries without exporting them through
-  Buslane artifacts or the public `core_opt` interface.
-- **Core Occurrence Analysis** runs on linked Buslane/core rather than ANF; ANF
-  may have separate lower-level liveness or occurrence analyses later.
-- **Core Occurrence Analysis** belongs to `lanec` in its own package; it should
-  not be mixed into Buslane language infrastructure or the compile/link command
-  orchestration package.
-- The package name for **Core Occurrence Analysis** is `occurrence`; the term
-  still refers to linked Buslane/core occurrence, not source unused analysis.
-- The `occurrence` package analyzes a link-pipeline internal linked core value
-  and returns an occurrence summary; it does not read CLI arguments, `.lbp`
-  files, or serialized artifacts directly.
-- Link should first build an internal linked core with a selected exported
-  entry, then validate executability, run occurrence and later optimization
-  passes, and only then emit the linked executable artifact.
-- An **Intentionally Ignored Local Binding** is still a normal resolved value
-  binding when referenced; the leading `_` only suppresses unused-local-value
-  warnings.
-- `lanec` follows **GHC-Like Artifact Layering**: `.lmi` records interface
-  semantics and optimization hints, `.lmo` records linkable Buslane/core, and
-  `.lbp` may carry a final execution image after linking and optimization.
-- `.lmi`, `.lmo`, and `.lbp` use **Binary Artifact Payloads** as their official
-  serialized contract; text artifact parsing is not part of the production
-  artifact load path.
-- The link step selects the executable entry before **Core Occurrence
-  Analysis**; `exec` executes the selected linked program rather than
-  selecting an entry.
-- A linked executable artifact stores a single selected entry; public entry
-  catalogs belong to module objects and inspection, not to `exec` selection.
-- A link-time executable entry is resolved from an exported module symbol, not
-  from private lowered definitions or Buslane implementation names.
-- Link validates the selected entry's executable type and supported runtime
-  effects before writing a linked executable artifact; `exec` must not depend
-  on source-level type metadata being present in `.lbp`.
-- **Execution Image Lowering** is below Buslane/core and below any
-  whole-program core optimization; ANF and bytecode are not the public semantic
-  artifact boundary.
+**Bytecode Finalization**:
+The boundary that produces a complete LoisVM image only after ownership,
+physical-slot, callable-ABI, and bytecode verification succeed.
+_Avoid_: partially valid image, backend-specific repair

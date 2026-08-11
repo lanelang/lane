@@ -1,636 +1,265 @@
 # LoisVM
 
-LoisVM owns Lane's portable bytecode image, bytecode interpreter, runtime representation, host-call boundary, and bytecode-to-Wasm execution contract. Encoding and implementation detail belongs in ADRs; this file contains only the canonical vocabulary.
+LoisVM owns Lane's portable execution image, bytecode verification and
+interpretation, runtime representation, host-call boundary, and bytecode-to-Wasm
+contract.
 
 ## Language
 
 ### Boundaries
 
-**LoisVM**:
-The independent MoonBit module that owns Lane's portable bytecode definition,
-bytecode codec, and bytecode interpreter.
-_Avoid_: lanec internal package, lane command implementation, Buslane core language
-
 **LoisVM Bytecode**:
-The register-style, erased, portable bytecode image consumed by the LoisVM
-interpreter.
-_Avoid_: Buslane/core, ANF, source syntax tree
+The register-style erased portable execution language consumed by LoisVM
+implementations.
+_Avoid_: Buslane, ANF, compiler-private VM CFG
 
-**LoisVM Bytecode Package**:
-The `loisvm/bytecode` package that owns bytecode image data structures,
-instructions, function tables, layouts, and bytecode serialization.
-_Avoid_: compiler lowering pass, command runtime handler, artifact wrapper
-
-**LoisVM Bytecode Section**:
-The execution-only current-format bytecode payload occupying every byte after the linked-program schema version inside a Lane `.lbp` payload and decoded by `loisvm/bytecode`.
-_Avoid_: whole `.lbp` artifact, Lane artifact header, section directory, source map section
-
-**LoisVM Interpreter Package**:
-The `loisvm/interp` package that owns bytecode execution, VM values, call
-frames, closures, and runtime-import invocation.
-_Avoid_: bytecode data model, compiler optimization pass, CLI command parser
+**Bytecode Image**:
+A closed executable image containing functions, globals, layouts, object shapes,
+constants, callable ABIs, and a selected entry.
+_Avoid_: linked semantic core, loaded runtime instance
 
 **Verified Bytecode Image**:
-A LoisVM image accepted by the bytecode package's semantic verifier after it
-checks identities, runtime representations, instruction contracts, CFG edge
-shapes, initialization dataflow, and linear ownership. Compiler finalization,
-binary encoding and decoding, interpreter loading, and Wasm compilation all
-require this verification before publishing a producer or consumer result.
-_Avoid_: implicitly trusted compiler output, sandbox safety proof, backend-specific validation
+A Bytecode Image accepted by the LoisVM semantic verifier as complete and
+internally consistent.
+_Avoid_: trusted compiler output, decoded bytes alone
 
-**LoisVM Bytecode Format Compatibility**:
-The lockstep producer-consumer contract in which a bytecode section contains only the current canonical layout and carries no independent version field or backward-compatibility discriminator. Persisted `.lbp` compatibility is owned by the enclosing linked-program schema version.
-_Avoid_: bytecode version negotiation, legacy bytecode decoder, optional old-format branch
+**Bytecode Format Compatibility**:
+The current-only bytecode contract whose persistence version is owned by the
+enclosing linked-program artifact schema.
+_Avoid_: independent bytecode version negotiation, legacy fallback decoder
 
 **Loaded Executable Image**:
-The reusable successfully decoded and bound bytecode product, including optional reusable backend compilation state, used to create fresh executions.
-_Avoid_: active execution heap, partial load result, mutable call stack
+A reusable Verified Bytecode Image with host imports resolved and optional
+backend compilation prepared.
+_Avoid_: active heap, partial load result
 
-**Single-Shot Execution Instance**:
-The thread-confined frames, dynamic heap, allocator state, runtime context, and limits used by one selected-entry attempt and never reused afterward.
-_Avoid_: loaded image, resumable failure, concurrent VM
+**Execution Instance**:
+The single-shot frames, heap, globals, runtime context, and limits used by one
+execution attempt.
+_Avoid_: loaded image, resumable failed VM
 
-### Image Model
+### Runtime Value Model
 
-**VM Value**:
-The uniform tagged runtime value stored in bytecode local slots, including
-primitive cases such as `F64`.
-_Avoid_: Lane type object, typed unboxed slot, Buslane interpreter value
+**Representation**:
+The physical scalar form used to store or pass a bytecode value.
+_Avoid_: Lane source type, semantic value category
+
+**Cleanup Category**:
+The ownership action associated with a stored value: trivial or one of the
+owned reference forms.
+_Avoid_: source lifetime, borrow provenance
 
 **Semantic Value Kind**:
-The immutable bytecode metadata category that distinguishes scalar, layout,
-layout-constructor, callable, ByteSequence, Data-family, exact
-Environment-shape, opaque external reference, and erased values even
-when their physical representation and cleanup are equal.
-_Avoid_: source type, Wasm value type, cleanup policy
+The bytecode category distinguishing scalars, layouts, callables, byte
+sequences, data families, environments, opaque references, and erased values
+even when their Representation and Cleanup Category coincide.
+_Avoid_: source type, physical representation
+
+**Value ABI**:
+The complete runtime value contract formed by Representation, Cleanup Category,
+and Semantic Value Kind.
+_Avoid_: representation alone, source type
+
+**Result ABI**:
+The function result contract: zero-width `Unit` or one complete Value ABI.
+_Avoid_: destination-owned cleanup, representation-only result
+
+**Slot Metadata**:
+The fixed Value ABI of a physical function-local slot plus any erased ownership
+companion it requires.
+_Avoid_: logical compiler value, mutable runtime tag
 
 **Data Family**:
-The dense bytecode identity shared by the constructor shapes of one nominal
-data boundary. Dataflow uses the family for tag switching and separately tracks
-the exact shape proven for a constructed or refined value.
-_Avoid_: ObjectShapeId, constructor tag, source TypeId persisted in bytecode
-
-**Image Constant Pool**:
-The single image-wide table of deduplicated valid UTF-8 String constants referenced through zero-based `ConstantId` values.
-_Avoid_: per-function constant table, function table, debug metadata
-
-**Unified Function Table**:
-The image-global `FunctionId` index space containing tagged bytecode-body and
-runtime-import entries.
-_Avoid_: bytecode-only function index, separate runtime-call table, operation table
-
-**Selected Bytecode Entry**:
-The nonzero FunctionId stored in executable bytecode for the link-validated
-no-context, witness-free, zero-argument Unit body invoked by execution.
-_Avoid_: source export symbol, runtime entry selection, runtime import
-
-**Instance Global**:
-An immutable per-execution value initialized exactly once before the selected entry and rooted outside ordinary call frames until instance lifecycle cleanup.
-_Avoid_: Wasm global, mutable static variable, image constant
-
-**GlobalId**:
-The zero-based dense identifier of one Instance Global in a LoisVM bytecode image.
-_Avoid_: Wasm global index, SlotId, source value symbol
-
-**Instance Initializer**:
-The optional no-context, witness-free, zero-argument Unit bytecode body that initializes all dynamic Instance Globals before the selected entry may run.
-_Avoid_: Wasm start function, source effect handler, lazy global initializer
-
-**Initialization Phase**:
-The execution phase rooted at the Instance Initializer during which initializer code and its callees may initialize Instance Globals.
-_Avoid_: Wasm instantiation, source module loading, selected-entry execution
-
-**Instance Root Table**:
-The per-execution linear-memory or interpreter-owned storage that roots initialized Instance Globals independently of ordinary call frames.
-_Avoid_: bytecode local slots, Wasm global section, image constant pool
-
-**Runtime Import Entry**:
-A unified function-table entry produced from a Lane extern binding and containing
-a stable runtime symbol and erased ABI descriptor instead of a LoisVM bytecode body.
-_Avoid_: effect operation entry, per-call symbol lookup, synthetic bytecode stub
-
-**Build-Local FunctionId**:
-A dense execution-image function index reproducible for identical build inputs but permitted to change whenever the final optimized body list changes.
-_Avoid_: stable ABI name, persisted function reference, call-graph hash
-
-**Dense Bytecode Identifier Space**:
-An ordered bytecode table whose entry position supplies its identifier, reserving zero for `FunctionId` and `LayoutId` but not for block, slot, constant, or object-shape identifiers.
-_Avoid_: sparse map, repeated serialized ID, instruction offset
-
-**Fixed-Shape Opcode Encoding**:
-The instruction representation where one `u8` opcode or terminator tag selects an exact operand sequence and unknown tags are malformed bytecode.
-_Avoid_: instruction byte length, unknown-opcode preservation, self-describing record
-
-**Structured Bytecode Addressing**:
-The serialized model where functions own ordered `BlockId` and `SlotId` spaces,
-fix `BlockId = 0` as entry, and encode control-flow
-targets as block identifiers rather than instruction byte offsets.
-_Avoid_: relative PC, byte address, Wasm label depth
-
-**Canonical Bytecode Function Body**:
-The byte-length-delimited body payload ordered as slot table, inputs, result descriptor, then nonempty block table, with no entry-block field.
-_Avoid_: entry BlockId operand, block length, extensible field map
-
-**Function Result ABI**:
-The single function-owned result contract: either zero-width `Unit`, or one
-value with an exact representation, cleanup category, and semantic value kind.
-Returns and calls must agree on the complete closed ABI. Representation-
-polymorphic source values reach this boundary as erased payloads with explicit
-evidence rather than as abstract reference kinds.
-_Avoid_: representation-only result, destination-owned result semantics,
-inferred cleanup, physical-shape casts
-
-**Block Parameter Transfer**:
-The control-flow operation that assigns a target block's ordered parameter
-slots from an incoming edge's ordered source slots in parallel.
-_Avoid_: sequential move semantics, function call, operand-stack merge
-
-**Representation-Homogeneous Slot**:
-A `SlotId` with one fixed erased Wasm representation and ownership category.
-Slot reuse is allowed only between compatible logical values.
-_Avoid_: Lane source type, arbitrary tagged reuse, Wasm memory frame requirement
-
-**Slot Cleanup Category**:
-The serialized runtime cleanup behavior `Trivial`, `OwnedRef`, `OwnedCallable`, or `OwnedErased`, without encoding a source ownership type or borrow region.
-_Avoid_: borrow checker state, implicit retain, source lifetime
-
-**Erased Ownership Companion**:
-The immutable `I32 + Trivial` layout-witness slot referenced by an `I64 + OwnedErased` slot for descriptor-directed cleanup.
-_Avoid_: source type argument, owned metadata, dynamic typecase
+The bytecode identity shared by all constructor Object Shapes of one nominal
+data boundary.
+_Avoid_: constructor tag, source type identity
 
 **Object Shape**:
-The zero-based canonical member schema whose Data variant includes constructor tag and fields and whose Environment variant includes captures without a tag, with stored-witness ordinals but no raw offsets or alignment fields.
-_Avoid_: runtime LayoutId, raw offset list, source-specific object layout
+The exact semantic member schema of one data constructor or closure environment.
+_Avoid_: raw memory offset list, nominal source type
+
+**Layout Recipe**:
+The portable image-owned description from which a backend derives storage and
+ownership behavior.
+_Avoid_: source type descriptor, backend address
+
+**Layout Witness**:
+A runtime-selected Layout Recipe carried across representation-polymorphic
+boundaries.
+_Avoid_: source effect syntax, full runtime type object
 
 **Checked Object Unerasure**:
-The `UneraseI32` boundary that validates an erased reference against the exact
-ObjectShapeId uniquely determined by its destination semantic kind before
-transferring ownership. The verifier may use that instruction to establish
-exact shape provenance. Member and witness projections consume this provenance
-without adding another runtime guard. Tag loading separately validates the
-complete Data family before reading its tag.
-_Avoid_: projection-owned shape refinement, unchecked erasure cast, backend-only trust
+The boundary that validates an erased reference against the exact Object Shape
+required by its destination before establishing shape provenance.
+_Avoid_: unchecked cast, projection-time shape guess
 
-**Layout Operand**:
-The five-byte operand selecting Immediate `0x01` with nonzero LayoutId or Witness `0x02` with a trivial `I32` witness SlotId.
-For object construction, verifier dataflow proves that either form names the
-Data or Environment recipe for the instruction's exact ObjectShapeId.
-_Avoid_: unproven dynamic layout, descriptor address, source type witness
+**Unified Function Table**:
+The image-wide identifier space containing both bytecode bodies and runtime
+imports.
+_Avoid_: separate import table, source symbol table
 
-**Image Layout Table**:
-The image-owned static table of backend-independent Layout Recipes indexed by
-immediate `LayoutId` values and used to derive representation, sizing, alignment,
-and ownership behavior.
-_Avoid_: dynamic type object, heap descriptor, reference-counted metadata
+**Instance Global**:
+An immutable value initialized once per Execution Instance and rooted outside
+ordinary call frames.
+_Avoid_: image constant, mutable global variable
 
-**Portable Layout Recipe**:
-The tagged Unit, Bool, I64, I32, Char, F64, F32, Callable, ByteSequence, Byte, Data, Environment, or Reference recipe serialized for one LayoutId before backend-specific descriptor materialization.
-_Avoid_: source type descriptor, Wasm helper index, raw member offset
-
-**Erased Reference Layout**:
-The canonical witness-only Reference recipe shared by nominal values at erased
-generic boundaries; retain and release follow the referenced object's own
-header LayoutId, and the recipe is never installed in an object header.
-_Avoid_: representative constructor shape, String descriptor reuse, source nominal type
-
-**Representation Layout Witness**:
-A hidden `LayoutId` descriptor retained in erased bytecode for a generic runtime
-representation. It provides the layout and ownership operations needed when the
-Wasm tier lowers a generic value to an `i64` erased payload.
-_Avoid_: full Lane type, source type argument, dynamic typecase
-
-**Representation Erasure Bridge**:
-A compiler-internal consuming operation between a natural representation and
-erased `I64` that transfers ownership and any proven ObjectShapeId while
-changing width, bit interpretation, or cleanup interpretation. Unerasure
-preserves compatible provenance when present. When the source has no exact
-provenance and the destination semantic kind uniquely determines a shape,
-`UneraseI32` performs Checked Object Unerasure before establishing that proof.
-_Avoid_: source conversion, generic heap box, projection-time typecase
+**Instance Initializer**:
+The optional bytecode function that initializes Instance Globals before the
+selected entry executes.
+_Avoid_: source module loader, Wasm start policy
 
 ### Calls And Closures
 
-**Direct Call**:
-A returning non-terminating LoisVM instruction that calls an immediate function-table identifier, supplies a hidden closure environment exactly when required, and carries a destination only for a non-`Unit` result.
-_Avoid_: closure-value call, dynamic function reference, tail call, source call
-
-**Value Call**:
-A fused returning non-terminating LoisVM instruction that calls a callable value
-from a local slot, names its expected Callable ABI, carries a destination only
-for a non-`Unit` result, and does not expose callable-tag dispatch or
-closure-environment extraction to bytecode.
-_Avoid_: closure unpack instruction, direct immediate target, closure-only call, tail call
-
 **Callable ABI**:
-The canonical execution signature of a callable: layout-witness count, ordered
-parameter value ABIs, and complete result ABI. Each value ABI includes
-representation, cleanup, and semantic value kind. Functions, runtime imports,
-indirect call sites, interpreter validation, and Wasm function types all
-project through this one description.
-_Avoid_: source function type, call-site slot reconstruction, arity-only signature
+The canonical execution signature formed by layout-witness Value ABIs, user
+parameter Value ABIs, and one Result ABI.
+_Avoid_: source function type, arity-only signature
 
 **Callable ABI ID**:
-A zero-based identifier into one Bytecode Image's duplicate-free Callable ABI
-table, carried by value calls and value tail calls as their expected dynamic
-target contract.
-_Avoid_: Function ID, runtime type tag, closure context kind
+An image-local identity into the duplicate-free Callable ABI table used by
+indirect calls.
+_Avoid_: Function ID, runtime type tag
 
 **Callable Value**:
-A first-class function value represented by an immediate capture-free
-`FunctionId` or a reference-counted closure pair of `FunctionId` and environment.
-_Avoid_: separate runtime-function value, mandatory empty closure, source function
+A first-class function represented by a target function and optional owned
+closure environment.
+_Avoid_: source lambda, mandatory closure object
 
-**Callable Construction**:
-The creation of a no-context callable by `const_function` or a context-requiring
-callable by consuming one nonzero environment owner in `make_closure`.
-_Avoid_: implicit environment retain, closure layout operand, mandatory shell allocation
+**Direct Call**:
+A call whose target function is fixed by the instruction.
+_Avoid_: callable-value call, source call expression
 
-**Erased Callable Adapter**:
-A compiler-generated ordinary closure that recursively converts callable
-parameters and results when representation erasure changes their physical call
-ABI, capturing the source callable and any free layout witnesses it requires.
-_Avoid_: bytecode typecase, universal monomorphic callable ABI, implicit call conversion
-
-**Function Context Kind**:
-Function-table metadata declaring whether a function has no hidden context or
-requires an opaque closure environment reference.
-_Avoid_: Lane user arity, runtime inference, capture field layout
-
-**Closure Environment Reference**:
-The opaque hidden context used by a capturing lifted function to access its
-captured values.
-_Avoid_: closure value, user parameter, flattened captures
-
-**Environment Construction**:
-A consuming LoisVM instruction that fully initializes an immutable closure
-environment from an Environment Object Shape, runtime layout, stored witnesses,
-and captures before publication.
-_Avoid_: separate uninitialized allocation, general mutation, closure creation
-
-**Capture Projection**:
-A borrowing or consuming LoisVM operation that explicitly names an Environment
-Object Shape, environment source slot, and shape-local capture index.
-_Avoid_: implicit current-frame access, raw heap offset, source lookup
+**Value Call**:
+An indirect call through a Callable Value that declares the expected Callable
+ABI ID.
+_Avoid_: unchecked dynamic dispatch, closure unpack sequence
 
 **Tail Call**:
-A direct or callable-value call terminator with no normal return continuation in the
-current bytecode function.
-_Avoid_: value-producing call instruction, return, ordinary jump
+A direct or value call that transfers control without a return continuation in
+the current frame.
+_Avoid_: ordinary call followed by return, jump
 
-**Return Terminator**:
-The function terminator carrying one source OptionalSlot, consuming a non-Unit result owner or returning Unit when the field is zero.
-_Avoid_: ordinary call, tail call, implicit frame cleanup
-
-**Effect-Erased Image**:
-A LoisVM bytecode image produced only after `mon-trans`, `open-resolve`, and
-`monadic-lift` have eliminated effect-specific forms and dispatch structures.
-_Avoid_: perform instruction, handler context, operation table
-
-**Continuation Closure**:
-A reusable lowered continuation represented by the ordinary LoisVM closure
-pair of a function identifier and reference-counted environment.
-_Avoid_: dedicated continuation object, captured VM stack, host closure
+**Closure Environment**:
+The immutable Object Shape-backed capture record owned by a Callable Value.
+_Avoid_: user parameter tuple, implicit current frame
 
 ### Ownership
 
 **Reference-Counted Object**:
-A dynamically allocated LoisVM value whose lifetime is controlled by explicit
-compiler-inserted retain-copy and release instructions.
-_Avoid_: tracing-GC object, unmanaged pointer, source ownership annotation
+A dynamic object whose lifetime is controlled by explicit compiler-inserted
+retain and release operations.
+_Avoid_: tracing-GC object, unmanaged pointer
 
 **Ownership Transfer**:
-A compiler-proven last-use movement that consumes an existing owned reference
-without incrementing its count.
-_Avoid_: retained copy, borrowed use, raw pointer move
-
-**Trivial Slot Copy**:
-The `copy(dst, src)` instruction that duplicates equal-representation `Trivial` slot bits without consuming the source.
-_Avoid_: owned copy, implicit retain, generic assignment
-
-**Ownership Move**:
-The `move(dst, src)` instruction that transfers a compatible logical value and ownership to a dead destination without ARC or source-bit clearing.
-_Avoid_: retained copy, overwrite cleanup, memory move
-
-**Retain Copy**:
-The `retain_copy(dst, src)` instruction that copies equal-representation bits and uses the destination cleanup category to establish one new owner.
-_Avoid_: unary retain, trivial copy, ownership transfer
-
-**Release**:
-A LoisVM instruction that removes one strong owner and destroys the object when
-its count reaches zero.
-_Avoid_: tracing collection, cycle collection, source destructor
-
-**Callee-Owned Call ABI**:
-The LoisVM calling convention where reference-bearing arguments and any required
-closure environment are consumed by the callee and a return produces an owned
-result.
-_Avoid_: borrowed-argument ABI, caller-owned parameters, ownership-neutral return
-
-**Owning Block Parameter**:
-A LoisVM block parameter that receives ownership from the selected incoming
-control-flow edge.
-_Avoid_: borrowed block input, implicit retained copy, source binder
-
-**Edge Ownership Transfer**:
-The parallel transfer that consumes owned edge arguments and establishes owned
-target block parameters without implicit reference-count operations.
-_Avoid_: retained jump copy, borrowed edge value, sequential move
+A proven last-use movement of an existing owner without incrementing its
+reference count.
+_Avoid_: retained copy, borrowed use
 
 **Borrowing Read**:
-A LoisVM read operation whose reference-bearing result does not establish a new
-strong owner and is valid only while its compiler-preserved owner remains live.
-_Avoid_: owned projection, retained copy, serialized borrow-region metadata
+A read that creates no new owner and remains valid only while an owning root is
+live.
+_Avoid_: retained projection, serialized lifetime
 
 **Verifier Borrow Provenance**:
-The verifier-only ownership origin and object-shape/member path that connects a
-borrowed slot to every possible live runtime owner across moves, projections,
-aggregate transfers, retained aliases, and control-flow joins.
-_Avoid_: serialized borrow region, runtime ownership tag, source-language lifetime
+The verifier's owner root and member path for a borrowed value across moves,
+projections, transfers, and control-flow joins.
+_Avoid_: runtime ownership tag, source lifetime
 
-**Consuming Object Construction**:
-The LoisVM convention where an object-building operation consumes each
-reference-bearing operand into an owned field without an implicit retain.
-_Avoid_: borrowed field storage, constructor-internal retain, ownership-neutral allocation
-
-**Borrowing Data Projection**:
-A LoisVM data-field read that preserves the object owner and yields a
-non-owning block-local reference for a reference-bearing field.
-_Avoid_: owned projection, consuming match, destructive field read
-
-**Consuming Data Projection**:
-A LoisVM data operation that consumes one object ownership and returns selected
-payload fields as owned values using a unique move path or shared retain path.
-_Avoid_: compiler-assumed uniqueness, borrow-only access, raw heap mutation
-
-**Image-Owned Static Object**:
-An immutable constant-pool object whose lifetime is owned by the loaded LoisVM
-image and whose retain and release operations are omitted or no-ops.
-_Avoid_: dynamic RC object, copied literal, independently unloadable object
-
-**Immortal Refcount Sentinel**:
-The `0xFFFF_FFFF` count stored in image-owned static object headers. Generic
-retain and release leave such objects unchanged.
-_Avoid_: dynamic count value, saturating ARC, pointer-range ownership test
-
-**Thread-Confined Heap**:
-The dynamic heap owned by one LoisVM instance and accessed by only one thread,
-allowing reference counts and uniqueness checks to be non-atomic.
-_Avoid_: shared concurrent heap, atomic RC, cross-thread value
+**Callee-Owned Call ABI**:
+The convention that consumes reference-bearing arguments and returns an owned
+result.
+_Avoid_: borrowed-argument ABI, ownership-neutral call
 
 **Ownership-Empty Exit**:
-A return or tail transfer reached after explicit releases remove every current-frame owner not transferred by that exit.
-_Avoid_: frame scan, unconsumed owned local, fatal unwind
+A return or tail transfer after every current-frame owner has been released or
+transferred.
+_Avoid_: implicit frame scan, leaked local owner
+
+**Image-Owned Static Object**:
+An immutable object whose lifetime is owned by the Loaded Executable Image and
+does not participate in dynamic reference-count changes.
+_Avoid_: dynamic ARC object, independently freed constant
 
 ### Runtime Imports
 
-**Runtime Import ABI V1**:
-The fixed-arity host-call ABI that receives an implicit runtime context followed
-by direct primitive or `Opaque` values and returns exactly one direct owned
-primitive or `Opaque` value.
-_Avoid_: Lane source signature, varargs, nested Lane aggregate ABI
+**Runtime Import**:
+A Unified Function Table entry naming a synchronous host operation and its
+direct erased ABI.
+_Avoid_: algebraic effect operation, bytecode stub
 
 **Runtime Symbol Registry**:
-The runtime-owned mapping from a stable symbol and ABI major version to its
-direct-value signature and resolved host implementation.
-_Avoid_: bytecode type metadata, per-call symbol lookup, duplicated signature table, host effect handler registry
-
-**Reusable Runtime Symbol Registry**:
-A process-reusable collection of stateless host function implementations and ABI descriptors that owns no execution Runtime Context, Host Object payload, or borrowed call value.
-_Avoid_: execution object store, retained payload cache, implicit cross-instance service
-
-**Erased Host Call Core**:
-The runtime-import invocation boundary that represents every supported parameter and result with one direct-value model independently of source External Type identities.
-_Avoid_: typed source callable, per-symbol custom ABI, host SDK registration surface
-
-**Typed Host Registration Adapter**:
-A host SDK layer that converts between the Erased Host Call Core and an ordinary typed host-language function without changing the serialized Runtime Import ABI.
-_Avoid_: bytecode adapter, source extern wrapper, manually indexed dynamic binding
-
-**Typed Host Object Store**:
-An embedding-owned secondary map from private generational keys to values of one fixed host-language type. All bindings for that capability share the same `HostObjectStore[T]`, so parameter projection is an ordinary typed lookup rather than an erased cast.
-_Avoid_: heterogeneous `Any` store, unchecked payload cast, serialized External Type fingerprint
-
-**Borrowed Host String**:
-An immutable UTF-8 String byte view valid only during one synchronous runtime-import call and requiring an explicit host copy for retention.
-_Avoid_: host-owned Lane String, persistent VM byte view, mutable string argument
-
-**Copied Host String Result**:
-A host-provided UTF-8 byte sequence validated and copied into a newly owned Lane String before a runtime import returns.
-_Avoid_: borrowed result bytes, host-finalized string, zero-copy external string
-
-**Runtime Import Contract Validation**:
-The pre-execution runtime-linking check that matches an image Runtime Import's complete host ABI signature against the registered host binding before any initializer or selected entry executes.
-_Avoid_: source effect inference, per-call dynamic type check, arity-only resolution
-
-**Opaque Host ABI Kind**:
-The single non-null runtime-import parameter and result kind to which every source External Type erases. It refers to a live Host Object Table entry backed by a Typed Host Object Store, distinguishes host objects from primitive values, and does not serialize nominal External Type identity.
-_Avoid_: External Type fingerprint, wrapper type tag, host finalizer registry
-
-**Thread-Affine Host Object**:
-A Host Object whose use and finalization remain on the execution thread that created its Lane wrapper. The initial host ABI provides no cross-thread transfer capability.
-_Avoid_: thread-safe opaque value, shared host registry object, implicit `Send`
-
-**Host Object Table**:
-The execution-instance-owned table that stores Typed Host Object Store keys and release closures. Lane wrappers and runtime imports refer to entries through execution-local integer handles, while the embedding-owned typed stores retain the actual host values.
-_Avoid_: serialized object registry, process-global handle table, host pointer in linear memory
-
-**Generational Host Handle**:
-An execution-local Host Object Table reference containing a slot index and generation so reused slots reject stale or forged handles without encoding External Type identity.
-_Avoid_: raw table index, source type fingerprint, persistent object identifier
-
-**Opaque Physical Encoding**:
-The backend-private machine representation of a Generational Host Handle, intentionally excluded from source semantics and serialized Runtime Import signatures.
-_Avoid_: stable `i32` ABI, bytecode handle layout, cross-backend bit allocation
-
-**Host Object Limit**:
-The execution configuration limit on simultaneously live Host Object Table entries, consumed by owned `Opaque` results and restored by final wrapper release.
-_Avoid_: artifact-declared quota, process-global object cap, allocation byte limit
-
-**Resolved Host Payload**:
-The borrowed host-language object supplied to a runtime import after Runtime Context resolves an internal `Opaque` handle. Host bindings never observe or manipulate the handle itself.
-_Avoid_: public object handle, host-owned table slot, persistent VM reference
-
-**Owned Opaque Result**:
-An `Opaque` runtime-import result that transfers one independently releasable Host Object lifetime into a new Lane ARC wrapper rather than borrowing an argument wrapper.
-_Avoid_: borrowed result, wrapper alias without retain, host-retained Lane value
-
-**Atomic Opaque Adoption**:
-The transactional creation of a Host Object Table entry and Lane ARC wrapper for an owned host result, with immediate finalization on partial failure and no live unowned table entry.
-_Avoid_: split ownership transfer, leaked pending payload, wrapperless table slot
-
-**Shared Opaque Reference**:
-One of potentially many Lane values retaining the same ARC wrapper and therefore observing the same mutable Host Object without uniqueness or automatic cloning.
-_Avoid_: host value copy, exclusive opaque borrow, copy-on-write object
-
-**Host Ownership Share**:
-One independently releasable host-side lifetime acquired explicitly when a runtime import returns a resource already referenced by an `Opaque` argument.
-_Avoid_: Lane ARC retain, borrowed payload return, inferred host sharing
-
-**Host Object Finalizer**:
-The synchronous, no-result, non-retriable callback stored with a typed Host Object Store entry and invoked exactly once with only its host payload when that owned lifetime ends. It receives no Runtime Context and cannot re-enter Lane; a finalizer panic is a fatal runtime error.
-_Avoid_: Lane destructor effect, recoverable cleanup, global External Type finalizer
-
-**Explicit Host Cleanup**:
-An observable External-Effect runtime import used when a program requires deterministic resource release; unlike a Host Object Finalizer, its source-level execution point is semantic.
-_Avoid_: observable ARC release, destructor effect, guaranteed finalizer order
-
-**Closed Host Object**:
-A shared Host Object state produced by explicit cleanup while its Lane wrapper and aliases remain live. Later invalid operations panic, and finalization must not repeat the underlying cleanup.
-_Avoid_: consumed Lane value, compile-time use-after-close error, removed table entry
-
-**Best-Effort Abnormal Cleanup**:
-The runtime policy that guarantees Host Object finalization on normal ARC release and normal execution shutdown but does not promise a complete wrapper sweep after fatal runtime panic.
-_Avoid_: unwind guarantee, transactional cleanup, leak-free process abort
-
-**Direct Host ABI Value**:
-A primitive or `Opaque` value passed as one top-level runtime-import parameter or result without nesting inside a Lane-managed aggregate.
-_Avoid_: marshalled Lane data, nested External Type, host-visible VM aggregate
-
-**Host Call Panic**:
-A fatal execution failure raised when a runtime import cannot produce its declared direct result. It terminates the current execution and is neither a Lane effect nor a recoverable host ABI result.
-_Avoid_: External Effect operation, `Result` return, resumable host failure
+The host-owned map from versioned runtime symbols to ABI descriptions and host
+implementations.
+_Avoid_: per-call lookup policy, source extern table
 
 **Runtime Context**:
-Borrowed non-Lane host state supplied implicitly to runtime imports for services
-such as allocation and I/O.
-_Avoid_: local slot, handler context, reference-counted value
+Borrowed execution-local host services supplied implicitly to Runtime Imports.
+_Avoid_: Lane value, closure environment
 
-**Synchronous Direct Host Call**:
-A runtime import that returns before VM execution continues, cannot re-enter
-Lane program execution, retains no VM values after return, and crosses only
-direct primitive or `Opaque` value kinds; approved runtime-service nested calls
-are not Lane reentry.
-_Avoid_: asynchronous import, VM callback, closure argument, opaque handle result
+**Runtime Import Contract Validation**:
+The load-time comparison of each Runtime Import's complete ABI with its resolved
+host binding before execution begins.
+_Avoid_: source type checking, arity-only check
+
+**Opaque Host Object**:
+A host-owned value represented in Lane by a managed execution-local opaque
+reference.
+_Avoid_: serialized host pointer, source nominal layout
+
+**Host Object Table**:
+The Execution Instance-owned table that connects opaque Lane references to
+typed host payloads and cleanup behavior.
+_Avoid_: process-global registry, persistent object identity
 
 **Runtime Import Failure**:
-A fatal out-of-band error from a runtime binding that returns no VM value and
-terminates the current LoisVM execution without a bytecode exception edge.
-_Avoid_: Lane exception, effect operation, recoverable primitive status
+A fatal out-of-band host-call failure that produces no Lane value and ends the
+current execution.
+_Avoid_: Lane effect operation, recoverable result
 
-**Resolved Runtime Binding**:
-The loaded-image target obtained by resolving one runtime import entry before
-execution begins.
-_Avoid_: serialized host pointer, per-call plugin lookup, FunctionId
-
-**Runtime Service Nested Call**:
-A RuntimeContext call to an approved non-Lane service export such as
-`"lane.runtime.string.new"` while a host import is active, without permission to
-invoke entry, closures, or ordinary `FunctionId` targets.
-_Avoid_: Lane callback, general same-instance reentry, asynchronous host call
-
-**Runtime Byte Sequence Object**:
-An exact-length ARC object containing packed bytes and serving as the shared runtime representation of statically distinct String and Bytes values. String references guarantee valid UTF-8, while a pure Bytes update may reuse uniquely owned storage or copy shared storage without changing any previously observable value.
-_Avoid_: unified source type, mutable String, separate String and Bytes layouts, capacity-bearing vector
-
-**Borrowed Host String View**:
-A temporary non-owning view of a VM String's UTF-8 bytes exposed only during one
-synchronous runtime-import invocation.
-_Avoid_: retained host pointer, copied input, owned string result
-
-### Loading And Failure
-
-**Bytecode Binary Adapter**:
-The LoisVM-owned current-format decoder that composes the domain-independent Bytecodec reader, maps primitive framing failures into bytecode-relative MalformedEncoding or ResourceLimit failures, retains all LoisVM tag and table semantics, and submits the decoded image to the Bytecode Verifier.
-_Avoid_: duplicated byte cursor, Bytecodec-owned instruction schema, signed u32 interpretation
+### Verification And Failure
 
 **Bytecode Verifier**:
-The `loisvm/bytecode`-owned semantic boundary that accepts a complete image or
-returns a structured error with image, function, block, instruction, or
-terminator provenance. Direct-call target signatures are statically known and
-checked here; indirect call sites are checked for physical operand shape, while
-their dynamically selected target ABI remains an execution check.
-_Avoid_: decoder framing rule, source typechecker, Wasm validator
+The LoisVM-owned semantic trust boundary for identities, value shapes, call
+contracts, control flow, initialization, and ownership.
+_Avoid_: decoder framing, source typechecker, backend repair
 
 **Atomic Bytecode Load**:
-The all-or-nothing path from complete section decoding through import binding and backend construction to publication of one reusable loaded executable image.
-_Avoid_: partial execution image, cached failed binding, Lane callback during load
-
-**Implementation Resource Limit**:
-A host-specific resource ceiling below the schema's `u32` capacity that rejects loading without declaring the image malformed.
-_Avoid_: bytecode-declared quota, universal host maximum, type verifier
+The all-or-nothing path from decode through verification, import binding, and
+backend preparation to a Loaded Executable Image.
+_Avoid_: partially published image, recoverable load state
 
 **Execution Resource Limit**:
-A configured logical call-depth or live-heap-byte boundary whose exhaustion uses private fatal cleanup and terminates the current execution.
-_Avoid_: load-time ResourceLimit, native stack trap, serialized bytecode limit
-
-**Execution Interruption**:
-An out-of-band stop requested by the host or engine, with no guaranteed ownership unwind and no permission to resume the instance.
-_Avoid_: Lane exception, runtime import result, bytecode fuel instruction
+A configured execution bound whose exhaustion terminates the current Execution
+Instance as a structured runtime failure.
+_Avoid_: malformed bytecode, source effect
 
 **Engine Trap**:
-A non-unwinding backend failure such as native stack exhaustion or a direct Wasm trap, reported with non-portable best-effort detail.
-_Avoid_: private fatal cleanup, recoverable result, reusable instance
-
-**Private Wasm Fatal Exception**:
-The backend-only `exnref` signal for runtime-import failure, OOM, ARC overflow,
-and other fatal execution errors requiring ownership cleanup.
-_Avoid_: Lane value, effect, recoverable status
+A backend failure outside portable Lane execution semantics, reported with
+best-effort engine detail.
+_Avoid_: Runtime Import Failure, recoverable Lane value
 
 ### Wasm Backend
 
-**Pure Wasm Compiler Package**:
-The cross-target `loisvm/wasm/compiler` package that lowers a LoisVM Bytecode Image into a WebAssembly module without loading, instantiating, JIT-compiling, or executing it. The native `loisvm/wasm` package owns Wasmoon integration and delegates code generation to this package.
-_Avoid_: Wasmoon loader, execution instance, browser host, direct Buslane-to-Wasm lowering
+**Pure Wasm Compiler**:
+The cross-target lowering from a Verified Bytecode Image to a WebAssembly module
+without loading or executing it.
+_Avoid_: Wasmoon loader, direct Buslane-to-Wasm lowering
 
 **Wasm Compiled Tier**:
-The compiled execution path that lowers decoded LoisVM bytecode into a
-WebAssembly module and executes it with Milky2018/wasmoon by default.
-_Avoid_: direct Buslane-to-Wasm backend, direct ANF-to-Wasm backend, MilkIR tier
-
-**Default Wasmoon Engine**:
-The project-controlled WebAssembly engine used by default for Lane compiled
-execution. Lane prepares Wasmoon JIT code by default and selects Wasmoon's
-instruction interpreter only when the embedding policy requests
-`ExecutionMode::Interpreter`, including `lane run --no-jit` and
-`lane exec --no-jit`. Runtime integration and supported WebAssembly
-capabilities may evolve with Lane.
-_Avoid_: fixed third-party feature matrix, browser portability guarantee, LoisVM interpreter
+The execution path that runs Pure Wasm Compiler output through a WebAssembly
+engine.
+_Avoid_: LoisVM interpreter, native code backend
 
 **Lane Wasm Feature Profile**:
-The Lane v1 compiled-output contract using one canonical non-shared wasm32
-linear memory. The emitter may use Multi-value, Reference Types, Typed Function
-References, Tail Call, Bulk Memory, Exception Handling with `exnref`,
-Sign-extension Operators, and Extended Constant Expressions. It excludes Stack
-Switching, Relaxed SIMD, Threads, Atomics, Multiple Memories, Memory64, Wasm GC,
-and Wasmoon-specific module semantics.
-_Avoid_: plain WebAssembly 1.0 label, Wasm GC profile, private Wasmoon opcode
-
-**Wasm Linear-Memory ARC Heap**:
-The Lane-owned dynamic object heap implemented in wasm32 linear memory,
-including allocation, object layout, non-atomic counts, destruction, and
-recursive release.
-_Avoid_: Wasm GC object, host-managed object graph, tracing collector
-
-**Packed Wasm Callable**:
-The Wasm `i64` lowering of one callable value: low 32 bits are the `FunctionId`
-or Wasm table index and high 32 bits are the wasm32 environment offset. Zero
-environment denotes a capture-free function.
-_Avoid_: LoisVM closure heap layout, tag-payload pair, Wasm GC reference
-
-**Canonical Wasm Lane Entry ABI**:
-The typed Wasm ABI with hidden `env:i32` first, hidden `LayoutId:i32` witnesses
-next, and user values in erased Wasm representations after them. V1 returns zero
-or one result, and full signatures are interned for typed indirect calls.
-_Avoid_: LoisVM VMValue ABI, result memory cell, untyped table call
+The explicit WebAssembly feature contract required by Lane-generated modules.
+_Avoid_: generic WebAssembly 1.0 claim, Wasmoon-specific semantics
 
 **Lane Wasm Module ABI**:
-The external module contract exporting `"lane.entry":() -> ()`, canonical
-memory, and restricted runtime-service helpers while importing registry symbols
-from `"lane.runtime.v1"`.
-_Avoid_: source module exports, arbitrary Lane function exports, Component ABI
+The external contract between generated Lane Wasm modules and their execution
+host.
+_Avoid_: source module exports, Component Model ABI
 
-**Lane Wasm Internal Runtime ABI V1**:
-The compiler-private `"lane.runtime.internal.v1"` namespace whose executable
-description is owned by `loisvm/wasm/internal_abi`; both Wasm lowering and the
-loader consume that single namespace, symbol, and physical-signature table. It
-is implemented by the selected LoisVM backend, is not resolved through the
-embedding Runtime Registry, and may only be referenced by Wasm modules produced
-by the matching compiler. Its V1 functions are
-`f32_to_string:(f32)->i32`, `f64_to_string:(f64)->i32`, and
-`host_object.release:(i64)->()`. The float helpers allocate the canonical Lane
-String spelling: `NaN`, `inf`, and `-inf`; signed zero is preserved; finite
-values use the shortest round-tripping decimal; and integral values retain
-`.0`. Any incompatible signature or meaning requires a new internal namespace
-major, while implementation-only compatible changes do not affect
-`lane.runtime.v1`.
-_Avoid_: Runtime Import ABI V1, host extension API, user-provided import
+**Lane Wasm Internal Runtime ABI**:
+The compiler-private versioned contract shared by Wasm lowering and the matching
+LoisVM backend for internal runtime helpers.
+_Avoid_: public Runtime Symbol Registry, user-provided import API
