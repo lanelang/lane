@@ -199,12 +199,36 @@ fn FunctionLowerer::make_callable_adapter(
   let (source_parameter_targets, adapter_substitutions) = self.image.align_callable_parameters(
     source_type, target_type, substitutions,
   )
-  let plan = self.image.callable_adapter(
-    source_type, target_type, source_parameter_targets, adapter_substitutions,
+  let captured_parameters = free_runtime_type_parameters(
+    self.image,
+    source_type,
+    target_type,
   )
-  let witnesses = plan.captured_parameters.map(parameter => {
-    self.adapter_witness(parameter, adapter_substitutions)
+  AdaptedCallable({
+    source,
+    source_type,
+    target_type,
+    source_parameter_targets,
+    substitutions: adapter_substitutions,
+    captured_witnesses: captured_parameters.map(parameter => {
+      parameter,
+      value: self.adapter_witness(parameter, adapter_substitutions),
+    }),
   })
+}
+
+///|
+fn FunctionLowerer::materialize_callable_adapter(
+  self : FunctionLowerer,
+  adaptation : DeferredCallableAdapter,
+) -> LocalValue raise LoisvmLoweringError {
+  let plan = self.image.callable_adapter(
+    adaptation.source_type,
+    adaptation.target_type,
+    adaptation.source_parameter_targets,
+    adaptation.substitutions,
+  )
+  let witnesses = adaptation.captured_witnesses.map(binding => binding.value)
   let environment = self.fresh_metadata(
     environment_metadata(plan.environment_shape),
   )
@@ -217,12 +241,12 @@ fn FunctionLowerer::make_callable_adapter(
       plan.environment_shape,
       Immediate(environment_layout),
       [],
-      witnesses + [source],
+      witnesses + [adaptation.source],
     ),
   )
-  let callable = self.fresh_slot(target_type)
+  let callable = self.fresh_slot(adaptation.target_type)
   self.emit(MakeClosure(callable, plan.function, environment))
-  Slot(callable, target_type)
+  Slot(callable, adaptation.target_type)
 }
 
 ///|
@@ -372,15 +396,9 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
           detail="callable value is not materialized",
         )
       }
-      guard self.make_callable_adapter(
-          source, source_callable_type, target_callable_type, substitutions,
-        )
-        is Slot(adapter, _) else {
-        raise InvalidTypeApplication(
-          detail="callable adapter is not materialized",
-        )
-      }
-      Slot(adapter, target_callable_type)
+      self.make_callable_adapter(
+        source, source_callable_type, target_callable_type, substitutions,
+      )
     }
     _ => {
       if self.image.types_definitionally_equal(source_shape, target_shape) {
@@ -536,6 +554,8 @@ fn local_value_type(value : LocalValue) -> @buslane.Type? {
     Global(Intrinsic(contract)) => Some(contract.type_())
     RecursiveFunction(_, type_, _) | TypeAppliedCallable(_, type_, _) =>
       Some(type_)
+    AdaptedCallable(adaptation) | TypeAppliedAdaptedCallable(adaptation, _) =>
+      Some(adaptation.target_type)
     Global(UnitValue) | Unit | TypeApplied(_, _) => None
   }
 }
@@ -620,11 +640,13 @@ fn ImageLowerer::lower_callable_adapter(
   let source_arguments = []
   for index, source_parameter_type in source_parameter_types {
     let target_index = plan.source_parameter_targets[index]
-    let adapted = lowerer.adapt_local_value_with_substitutions(
-      target_parameters[target_index],
-      target_parameter_types[target_index],
-      source_parameter_type,
-      plan.substitutions,
+    let adapted = lowerer.materialize_local(
+      lowerer.adapt_local_value_with_substitutions(
+        target_parameters[target_index],
+        target_parameter_types[target_index],
+        source_parameter_type,
+        plan.substitutions,
+      ),
     )
     if adapted is Slot(slot, _) {
       source_arguments.push(slot)
@@ -650,11 +672,13 @@ fn ImageLowerer::lower_callable_adapter(
         source_result.0,
       ),
     )
-    let result = lowerer.adapt_local_value_with_substitutions(
-      source_result.1,
-      source_result_type,
-      target_result_type,
-      plan.substitutions,
+    let result = lowerer.materialize_local(
+      lowerer.adapt_local_value_with_substitutions(
+        source_result.1,
+        source_result_type,
+        target_result_type,
+        plan.substitutions,
+      ),
     )
     lowerer.terminate(
       match result {

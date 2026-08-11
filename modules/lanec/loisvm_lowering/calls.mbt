@@ -23,6 +23,12 @@ fn FunctionLowerer::lower_call(
       self.lower_generic_value_call(
         callable, type_, type_arguments, lowered_arguments,
       )
+    AdaptedCallable(adaptation) =>
+      self.lower_adapted_callable_call(adaptation, [], lowered_arguments)
+    TypeAppliedAdaptedCallable(adaptation, type_arguments) =>
+      self.lower_adapted_callable_call(
+        adaptation, type_arguments, lowered_arguments,
+      )
     TypeApplied(_, _) =>
       raise InvalidTypeApplication(
         detail="type application target is not a generic function",
@@ -71,12 +77,107 @@ fn FunctionLowerer::materialize_local(
       }
       Slot(destination, type_)
     }
+    AdaptedCallable(adaptation) => self.materialize_callable_adapter(adaptation)
     TypeApplied(_, _) | TypeAppliedCallable(_, _, _) =>
+      raise InvalidTypeApplication(
+        detail="a type-applied callable must be called before materialization",
+      )
+    TypeAppliedAdaptedCallable(_, _) =>
       raise InvalidTypeApplication(
         detail="a type-applied callable must be called before materialization",
       )
     _ => value
   }
+}
+
+///|
+fn FunctionLowerer::lower_adapted_callable_call(
+  self : FunctionLowerer,
+  adaptation : DeferredCallableAdapter,
+  type_arguments : Array[@buslane.GenericArgument],
+  arguments : Array[LocalValue],
+) -> LocalValue raise LoisvmLoweringError {
+  let witness_count = self.witnesses.length()
+  self.witnesses.append(adaptation.captured_witnesses)
+  let (source_type_parameters, source_parameter_types, source_result_type) = function_type_parts(
+    adaptation.source_type,
+  )
+  let (target_type_parameters, target_parameter_types, target_result_type) = function_type_parts(
+    adaptation.target_type,
+  )
+  if source_type_parameters.length() != target_type_parameters.length() ||
+    type_arguments.length() != target_type_parameters.length() ||
+    arguments.length() != target_parameter_types.length() ||
+    adaptation.source_parameter_targets.length() !=
+    source_parameter_types.length() {
+    raise InvalidTypeApplication(
+      detail="adapted callable invocation does not match its function type",
+    )
+  }
+  let substituted_arguments = type_arguments.map(argument => {
+    self.substitute_generic_argument(argument)
+  })
+  let target_substitutions = self.image.type_substitution(
+    target_type_parameters, substituted_arguments,
+  )
+  let source_substitutions = self.image.type_substitution(
+    source_type_parameters, substituted_arguments,
+  )
+  let substitutions = adaptation.substitutions
+    .overlay(target_substitutions)
+    .overlay(source_substitutions)
+  let source_arguments = []
+  for index, source_parameter_type in source_parameter_types {
+    let target_index = adaptation.source_parameter_targets[index]
+    let target_parameter_type = target_parameter_types[target_index]
+    let adapted = self.adapt_local_value_with_substitutions(
+      arguments[target_index],
+      apply_type_substitution(target_parameter_type, substitutions),
+      source_parameter_type,
+      substitutions,
+    )
+    match self.materialize_local(adapted) {
+      Unit => ()
+      Slot(slot, _) => source_arguments.push(slot)
+      _ =>
+        raise UnsupportedExpression(
+          detail="adapted callable argument is not materialized",
+        )
+    }
+  }
+  let witnesses = []
+  for parameter in source_type_parameters {
+    if self.image.requires_runtime_evidence(parameter) {
+      witnesses.push(
+        self.runtime_evidence(
+          parameter,
+          required_type_substitution_argument(substitutions, parameter),
+        ),
+      )
+    }
+  }
+  let actual_source_result = apply_type_substitution(
+    source_result_type, substitutions,
+  )
+  let source_result = if self.image.runtime_type(source_result_type)
+    is Erased(_) {
+    let witness = self.layout_witness(actual_source_result)
+    let slot = self.fresh_erased_slot(witness, Owned)
+    (Some(slot), LocalValue::Slot(slot, source_result_type))
+  } else {
+    self.fresh_optional_slot(source_result_type)
+  }
+  self.emit(
+    CallValue(adaptation.source, witnesses, source_arguments, source_result.0),
+  )
+  let result = self.adapt_local_value_with_substitutions(
+    source_result.1,
+    source_result_type,
+    apply_type_substitution(target_result_type, substitutions),
+    substitutions,
+  )
+  self.restore_witnesses(witness_count)
+  result
 }
 
 ///|
@@ -124,11 +225,13 @@ fn FunctionLowerer::adapt_call_arguments(
     let source_type = local_value_type(argument).unwrap_or(
       parameter_types[index],
     )
-    let adapted = self.adapt_local_value_with_substitutions(
-      argument,
-      source_type,
-      parameter_types[index],
-      substitutions,
+    let adapted = self.materialize_local(
+      self.adapt_local_value_with_substitutions(
+        argument,
+        source_type,
+        parameter_types[index],
+        substitutions,
+      ),
     )
     match adapted {
       Unit => ()
@@ -167,11 +270,13 @@ fn FunctionLowerer::lower_generic_direct_call(
   let argument_slots = []
   for index, formal in formal_parameters {
     let actual = apply_type_substitution(formal, substitutions)
-    let adapted = self.adapt_local_value_with_substitutions(
-      values[index],
-      actual,
-      formal,
-      substitutions,
+    let adapted = self.materialize_local(
+      self.adapt_local_value_with_substitutions(
+        values[index],
+        actual,
+        formal,
+        substitutions,
+      ),
     )
     match adapted {
       Unit => ()
@@ -229,11 +334,13 @@ fn FunctionLowerer::lower_generic_value_call(
   let argument_slots = []
   for index, formal in formal_parameters {
     let actual = apply_type_substitution(formal, substitutions)
-    let adapted = self.adapt_local_value_with_substitutions(
-      values[index],
-      actual,
-      formal,
-      substitutions,
+    let adapted = self.materialize_local(
+      self.adapt_local_value_with_substitutions(
+        values[index],
+        actual,
+        formal,
+        substitutions,
+      ),
     )
     match adapted {
       Unit => ()

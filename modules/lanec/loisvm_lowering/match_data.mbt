@@ -182,7 +182,9 @@ fn FunctionLowerer::lower_data_alternative(
     Global(_)
     | RecursiveFunction(_, _, _)
     | TypeApplied(_, _)
-    | TypeAppliedCallable(_, _, _) =>
+    | TypeAppliedCallable(_, _, _)
+    | AdaptedCallable(_)
+    | TypeAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(
         detail="match alternative returns an unapplied callable",
       )
@@ -336,7 +338,9 @@ fn FunctionLowerer::lower_bool_alternative(
     Global(_)
     | RecursiveFunction(_, _, _)
     | TypeApplied(_, _)
-    | TypeAppliedCallable(_, _, _) =>
+    | TypeAppliedCallable(_, _, _)
+    | AdaptedCallable(_)
+    | TypeAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(
         detail="match alternative returns an unapplied callable",
       )

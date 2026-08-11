@@ -200,6 +200,18 @@ whole-CFG counts, per-block counts, and instruction/terminator flow facts.
 Consumers derive policy from this index instead of rescanning VM CFG blocks.
 _Avoid_: slot history, source reference graph, consumer-owned use counts
 
+**VM CFG Callable-Flow Analysis**:
+The authoritative whole-image fixed point for callable alternatives,
+environments, aggregate members, immutable globals, and known function results.
+Devirtualization and environment-ABI planning consume this fact directly.
+_Avoid_: instruction-adjacency pattern, reference-count eligibility, rewrite fallback
+
+**Deferred Callable Adaptation**:
+The lowering-local structural conversion between two callable representations.
+Direct invocation fuses the conversion into the call; only first-class escape
+materializes an adapter function, environment, and closure.
+_Avoid_: eager adapter allocation, runtime-layout-only type alignment
+
 **VM CFG Liveness Analysis**:
 The value-flow analysis derived from VM CFG definitions, uses, and successors.
 _Avoid_: ownership policy, reference count

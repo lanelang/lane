@@ -53,7 +53,9 @@ fn FunctionLowerer::lower_match(
     Global(_)
     | RecursiveFunction(_, _, _)
     | TypeApplied(_, _)
-    | TypeAppliedCallable(_, _, _) =>
+    | TypeAppliedCallable(_, _, _)
+    | AdaptedCallable(_)
+    | TypeAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(detail="match scrutinee is not materialized")
   }
 }

@@ -1,41 +1,50 @@
 ///|
-priv struct DirectEnvironmentCandidate {
-  target : @bytecode.FunctionId
-  shape : @bytecode.ObjectShapeId
-}
-
-///|
 priv struct DirectEnvironmentPlan {
   target : @bytecode.FunctionId
   shape : @bytecode.ObjectShapeId
-  function : @bytecode.FunctionId
   witness_ordinals : Array[Int]
   member_indices : Array[Int]
   body : FunctionBody
 }
 
 ///|
+priv struct EnvironmentPlanCandidate {
+  mut shape : @bytecode.ObjectShapeId?
+  mut invalid : Bool
+}
+
+///|
 fn devirtualize_image(image : Image) -> Image {
-  let candidates = collect_direct_environment_candidates(image.functions)
-  let reference_counts = function_reference_counts(image)
-  let plans : Array[DirectEnvironmentPlan] = []
-  for candidate in candidates {
-    guard reference_counts[candidate.target.value - 1] == 1 else { continue }
-    if build_direct_environment_plan(image, candidate, candidate.target)
-      is Some(plan) {
-      plans.push(plan)
-    }
-  }
+  let flow = analyze_callable_flow(image)
+  apply_devirtualization(
+    image,
+    flow,
+    build_direct_environment_plans(image, flow),
+  )
+}
+
+///|
+fn apply_devirtualization(
+  image : Image,
+  flow : CallableFlowAnalysis,
+  plans : Array[DirectEnvironmentPlan],
+) -> Image {
   let functions = image.functions.mapi(fn(index, entry) {
     match entry {
       Body(body) => {
-        let function : @bytecode.FunctionId = { value: index + 1 }
         let selected = match
-          replacement_direct_environment_body(plans, function) {
-          Some(replacement) => replacement
+          direct_environment_plan(plans, { value: index + 1 }) {
+          Some(plan) => plan.body
           None => body
         }
-        Body(devirtualize_body_with_plans(selected, plans))
+        guard flow.body_facts(index) is Some(facts) else {
+          return Body(selected)
+        }
+        Body(
+          remove_dead_callable_construction(
+            devirtualize_body(selected, facts.values, plans),
+          ),
+        )
       }
       RuntimeImport(_) => entry
     }
@@ -44,138 +53,243 @@ fn devirtualize_image(image : Image) -> Image {
 }
 
 ///|
-fn function_reference_counts(image : Image) -> Array[Int] {
-  let counts = Array::make(image.functions.length(), 0)
-  record_function_reference(counts, image.entry)
+fn build_direct_environment_plans(
+  image : Image,
+  flow : CallableFlowAnalysis,
+) -> Array[DirectEnvironmentPlan] {
+  let candidates : Array[EnvironmentPlanCandidate] = image.functions.map(_ => {
+    shape: None,
+    invalid: false,
+  })
+  reject_root_environment_plan(image, candidates, image.entry)
   if image.initializer is Some(initializer) {
-    record_function_reference(counts, initializer)
+    reject_root_environment_plan(image, candidates, initializer)
   }
-  for entry in image.functions {
-    guard entry is Body(body) else { continue }
+  for function_index, entry in image.functions {
+    guard entry is Body(body) && flow.body_facts(function_index) is Some(facts) else {
+      continue
+    }
     for block in body.blocks {
       for instruction in block.instructions {
-        match instruction {
-          ConstFunction(_, function)
-          | CallDirect(function, _, _, _, _)
-          | MakeClosure(_, function, _) =>
-            record_function_reference(counts, function)
-          _ => ()
-        }
+        collect_environment_instruction_candidate(
+          image,
+          candidates,
+          facts.values,
+          instruction,
+        )
       }
-      if block.terminator is TailCallDirect(function, _, _, _) {
-        record_function_reference(counts, function)
-      }
+      collect_environment_terminator_candidate(
+        image,
+        candidates,
+        facts.values,
+        block.terminator,
+      )
     }
   }
-  counts
-}
-
-///|
-fn record_function_reference(
-  counts : Array[Int],
-  function : @bytecode.FunctionId,
-) -> Unit {
-  let index = function.value - 1
-  if index >= 0 && index < counts.length() {
-    counts[index] += 1
-  }
-}
-
-///|
-fn replacement_direct_environment_body(
-  plans : Array[DirectEnvironmentPlan],
-  function : @bytecode.FunctionId,
-) -> FunctionBody? {
-  for plan in plans {
-    if plan.target == function && plan.function == function {
-      return Some(plan.body)
+  let plans = []
+  for index, candidate in candidates {
+    guard !candidate.invalid && candidate.shape is Some(shape) else { continue }
+    let target : @bytecode.FunctionId = { value: index + 1 }
+    if build_direct_environment_plan(image, target, shape) is Some(plan) {
+      plans.push(plan)
     }
   }
-  None
+  plans
 }
 
 ///|
-fn collect_direct_environment_candidates(
-  functions : Array[FunctionEntry],
-) -> Array[DirectEnvironmentCandidate] {
-  let candidates = []
-  for entry in functions {
-    guard entry is Body(body) else { continue }
-    let use_def = analyze_use_def(body)
-    for block in body.blocks {
-      let mut index = 0
-      while index + 2 < block.instructions.length() {
-        match
-          (
-            block.instructions[index],
-            block.instructions[index + 1],
-            block.instructions[index + 2],
-          ) {
-          (
-            MakeEnv(environment, shape, _, _, _),
-            MakeClosure(callable, target, closure_environment),
-            CallValue(invoked, _, _, _),
-          ) if environment == closure_environment &&
-            callable == invoked &&
-            use_def.use_count(environment) == 1 &&
-            use_def.use_count(callable) == 1 =>
-            push_direct_environment_candidate(candidates, target, shape)
-          _ => ()
-        }
-        index += 1
-      }
-      guard block.instructions.length() >= 2 &&
-        block.terminator is TailCallValue(invoked, _, _) else {
-        continue
-      }
-      let environment_instruction = block.instructions[block.instructions.length() -
-        2]
-      let closure_instruction = block.instructions[block.instructions.length() -
-        1]
-      match (environment_instruction, closure_instruction) {
-        (
-          MakeEnv(environment, shape, _, _, _),
-          MakeClosure(callable, target, closure_environment),
-        ) if environment == closure_environment &&
-          callable == invoked &&
-          use_def.use_count(environment) == 1 &&
-          use_def.use_count(callable) == 1 =>
-          push_direct_environment_candidate(candidates, target, shape)
-        _ => ()
-      }
-    }
-  }
-  candidates
-}
-
-///|
-fn push_direct_environment_candidate(
-  candidates : Array[DirectEnvironmentCandidate],
+fn reject_root_environment_plan(
+  image : Image,
+  candidates : Array[EnvironmentPlanCandidate],
   target : @bytecode.FunctionId,
-  shape : @bytecode.ObjectShapeId,
 ) -> Unit {
-  if !candidates.any(fn(candidate) {
-      candidate.target == target && candidate.shape == shape
-    }) {
-    candidates.push({ target, shape })
+  let index = target.value - 1
+  if index >= 0 &&
+    index < image.functions.length() &&
+    image.functions[index] is Body({ inputs: { environment: Some(_), .. }, .. }) {
+    candidates[index].invalid = true
+  }
+}
+
+///|
+fn collect_environment_instruction_candidate(
+  image : Image,
+  candidates : Array[EnvironmentPlanCandidate],
+  facts : Array[CallableFlowFact],
+  instruction : Instruction,
+) -> Unit {
+  match instruction {
+    ConstFunction(_, target) =>
+      reject_capture_free_reference(image, candidates, target)
+    MakeClosure(_, target, environment) =>
+      record_environment_candidate(candidates, target, facts[environment.value])
+    MakeData(_, _, _, witnesses, fields)
+    | MakeEnv(_, _, _, witnesses, fields) =>
+      invalidate_callable_values(candidates, facts, witnesses + fields)
+    CallDirect(target, environment, witnesses, arguments, _) => {
+      match environment {
+        Some(environment) =>
+          record_environment_candidate(
+            candidates,
+            target,
+            facts[environment.value],
+          )
+        None => reject_capture_free_reference(image, candidates, target)
+      }
+      invalidate_callable_values(candidates, facts, witnesses + arguments)
+    }
+    CallValue(callable, witnesses, arguments, _) => {
+      record_callable_candidate(candidates, facts, facts[callable.value])
+      invalidate_callable_values(candidates, facts, witnesses + arguments)
+    }
+    Copy(_, _)
+    | Move(_, _)
+    | RetainCopy(_, _)
+    | BorrowField(_, _, _, _)
+    | ConsumeFields(_, _, _)
+    | BorrowCapture(_, _, _, _)
+    | ConsumeCaptures(_, _, _) => ()
+    _ =>
+      invalidate_callable_values(
+        candidates,
+        facts,
+        instruction_operand_values(instruction),
+      )
+  }
+}
+
+///|
+fn collect_environment_terminator_candidate(
+  image : Image,
+  candidates : Array[EnvironmentPlanCandidate],
+  facts : Array[CallableFlowFact],
+  terminator : Terminator,
+) -> Unit {
+  match terminator {
+    TailCallDirect(target, environment, witnesses, arguments) => {
+      match environment {
+        Some(environment) =>
+          record_environment_candidate(
+            candidates,
+            target,
+            facts[environment.value],
+          )
+        None => reject_capture_free_reference(image, candidates, target)
+      }
+      invalidate_callable_values(candidates, facts, witnesses + arguments)
+    }
+    TailCallValue(callable, witnesses, arguments) => {
+      record_callable_candidate(candidates, facts, facts[callable.value])
+      invalidate_callable_values(candidates, facts, witnesses + arguments)
+    }
+    Jump(_) | BranchBool(_, _, _) | SwitchTag(_, _, _) | Unreachable => ()
+    Return(Some(value)) | Fatal(value) =>
+      invalidate_callable_fact(candidates, facts[value.value])
+    Return(None) => ()
+  }
+}
+
+///|
+fn invalidate_callable_values(
+  candidates : Array[EnvironmentPlanCandidate],
+  facts : Array[CallableFlowFact],
+  values : Array[ValueId],
+) -> Unit {
+  for value in values {
+    invalidate_callable_fact(candidates, facts[value.value])
+  }
+}
+
+///|
+fn invalidate_callable_fact(
+  candidates : Array[EnvironmentPlanCandidate],
+  fact : CallableFlowFact,
+) -> Unit {
+  for alternative in callable_alternatives(fact) {
+    invalidate_environment_candidate(candidates, alternative.target)
+  }
+}
+
+///|
+fn record_callable_candidate(
+  candidates : Array[EnvironmentPlanCandidate],
+  facts : Array[CallableFlowFact],
+  fact : CallableFlowFact,
+) -> Unit {
+  match fact {
+    KnownCallables([{ target, environment: LocalEnvironment(environment) }]) =>
+      record_environment_candidate(candidates, target, facts[environment.value])
+    KnownCallables([{ target, environment: CaptureFree | PackedEnvironment }]) =>
+      invalidate_environment_candidate(candidates, target)
+    KnownCallables(alternatives) | Unknown(alternatives) =>
+      for alternative in alternatives {
+        invalidate_environment_candidate(candidates, alternative.target)
+      }
+    Unreached | KnownAggregate(_, _, _, _, _) => ()
+  }
+}
+
+///|
+fn record_environment_candidate(
+  candidates : Array[EnvironmentPlanCandidate],
+  target : @bytecode.FunctionId,
+  environment : CallableFlowFact,
+) -> Unit {
+  let index = target.value - 1
+  guard index >= 0 && index < candidates.length() else { return }
+  guard environment is KnownAggregate(shape, _, _, Some(_), Some(_)) &&
+    shape.value >= 0 else {
+    candidates[index].invalid = true
+    return
+  }
+  match candidates[index].shape {
+    None => candidates[index].shape = Some(shape)
+    Some(existing) if existing == shape => ()
+    Some(_) => candidates[index].invalid = true
+  }
+}
+
+///|
+fn reject_capture_free_reference(
+  image : Image,
+  candidates : Array[EnvironmentPlanCandidate],
+  target : @bytecode.FunctionId,
+) -> Unit {
+  let index = target.value - 1
+  if index >= 0 &&
+    index < image.functions.length() &&
+    image.functions[index] is Body({ inputs: { environment: Some(_), .. }, .. }) {
+    candidates[index].invalid = true
+  }
+}
+
+///|
+fn invalidate_environment_candidate(
+  candidates : Array[EnvironmentPlanCandidate],
+  target : @bytecode.FunctionId,
+) -> Unit {
+  let index = target.value - 1
+  if index >= 0 && index < candidates.length() {
+    candidates[index].invalid = true
   }
 }
 
 ///|
 fn build_direct_environment_plan(
   image : Image,
-  candidate : DirectEnvironmentCandidate,
-  function : @bytecode.FunctionId,
+  target : @bytecode.FunctionId,
+  shape_id : @bytecode.ObjectShapeId,
 ) -> DirectEnvironmentPlan? {
-  let function_index = candidate.target.value - 1
+  let function_index = target.value - 1
   guard function_index >= 0 &&
     function_index < image.functions.length() &&
     image.functions[function_index] is Body(original) &&
     original.inputs.environment is Some(environment) &&
-    image.object_shapes[candidate.shape.value] is Environment(shape) else {
+    shape_id.value >= 0 &&
+    shape_id.value < image.object_shapes.length() &&
+    image.object_shapes[shape_id.value] is Environment(shape) else {
     return None
   }
-  guard direct_environment_body_is_leaf(original) else { return None }
   let use_def = analyze_use_def(original)
   let values = original.values.copy()
   let extra_witnesses = []
@@ -195,7 +309,7 @@ fn build_direct_environment_plan(
       match instruction {
         LoadObjectWitness(destination, selected_shape, source, ordinal) if source ==
           environment &&
-          selected_shape == candidate.shape &&
+          selected_shape == shape_id &&
           ordinal >= 0 &&
           ordinal < shape.stored_witness_count => {
           extra_witnesses.push(destination)
@@ -203,7 +317,7 @@ fn build_direct_environment_plan(
         }
         BorrowCapture(selected_shape, source, member_index, result) if source ==
           environment &&
-          selected_shape == candidate.shape &&
+          selected_shape == shape_id &&
           member_index >= 0 &&
           member_index < shape.members.length() => {
           let destination = result.value_destination
@@ -224,6 +338,24 @@ fn build_direct_environment_plan(
             witness_ordinals.push(ordinal)
           }
         }
+        ConsumeCaptures(selected_shape, source, selections) if source ==
+          environment &&
+          selected_shape == shape_id =>
+          for selection in selections {
+            let member_index = selection.member_index
+            guard member_index >= 0 && member_index < shape.members.length() else {
+              return None
+            }
+            extra_arguments.push(selection.result.value_destination)
+            member_indices.push(member_index)
+            if selection.result.witness_destination is Some(witness) {
+              guard shape.members[member_index].witness_ordinal is Some(ordinal) else {
+                return None
+              }
+              extra_witnesses.push(witness)
+              witness_ordinals.push(ordinal)
+            }
+          }
         _ => return None
       }
     }
@@ -233,9 +365,8 @@ fn build_direct_environment_plan(
     blocks.push({ ..block, instructions, })
   }
   Some({
-    target: candidate.target,
-    shape: candidate.shape,
-    function,
+    target,
+    shape: shape_id,
     witness_ordinals,
     member_indices,
     body: {
@@ -252,178 +383,144 @@ fn build_direct_environment_plan(
 }
 
 ///|
-fn direct_environment_body_is_leaf(body : FunctionBody) -> Bool {
-  for block in body.blocks {
-    for instruction in block.instructions {
-      match instruction {
-        CallDirect(_, _, _, _, _)
-        | CallValue(_, _, _, _)
-        | MakeEnv(_, _, _, _, _)
-        | MakeClosure(_, _, _) => return false
-        _ => ()
-      }
-    }
-    match block.terminator {
-      TailCallDirect(_, _, _, _) | TailCallValue(_, _, _) => return false
-      _ => ()
-    }
-  }
-  true
-}
-
-///|
-fn devirtualize_body_with_plans(
+fn devirtualize_body(
   body : FunctionBody,
+  facts : Array[CallableFlowFact],
   plans : Array[DirectEnvironmentPlan],
 ) -> FunctionBody {
-  let use_def = analyze_use_def(body)
   {
     ..body,
-    blocks: body.blocks.map(fn(block) {
-      devirtualize_block(block, use_def, plans)
+    blocks: body.blocks.map(block => {
+      ..block,
+      instructions: block.instructions.map(instruction => {
+        devirtualize_instruction(instruction, facts, plans)
+      }),
+      terminator: devirtualize_terminator(block.terminator, facts, plans),
     }),
   }
 }
 
 ///|
-fn devirtualize_block(
-  block : Block,
-  use_def : UseDefAnalysis,
+fn devirtualize_instruction(
+  instruction : Instruction,
+  facts : Array[CallableFlowFact],
   plans : Array[DirectEnvironmentPlan],
-) -> Block {
-  let instructions = []
-  let mut index = 0
-  while index < block.instructions.length() {
-    if index + 2 < block.instructions.length() {
-      match
-        (
-          block.instructions[index],
-          block.instructions[index + 1],
-          block.instructions[index + 2],
-        ) {
-        (
-          MakeEnv(environment, shape, _, environment_witnesses, captures),
-          MakeClosure(callable, target, closure_environment),
-          CallValue(invoked, call_witnesses, arguments, destination),
-        ) if environment == closure_environment &&
-          callable == invoked &&
-          use_def.use_count(environment) == 1 &&
-          use_def.use_count(callable) == 1 =>
-          match find_direct_environment_plan(plans, target, shape) {
-            Some(plan) => {
-              instructions.push(
-                direct_environment_call(
-                  plan, environment_witnesses, captures, call_witnesses, arguments,
-                  destination,
-                ),
-              )
-              index += 3
-              continue
-            }
-            None => ()
-          }
-        _ => ()
-      }
-    }
-    if index + 1 < block.instructions.length() {
-      let producer = block.instructions[index]
-      let invocation = block.instructions[index + 1]
-      match (producer, invocation) {
-        (
-          ConstFunction(callable, target),
-          CallValue(invoked, witnesses, arguments, destination),
-        ) if callable == invoked && use_def.use_count(callable) == 1 => {
-          instructions.push(
-            CallDirect(target, None, witnesses, arguments, destination),
+) -> Instruction {
+  match instruction {
+    CallValue(callable, witnesses, arguments, destination) =>
+      match facts[callable.value] {
+        KnownCallables([{ target, environment: CaptureFree }]) =>
+          CallDirect(target, None, witnesses, arguments, destination)
+        KnownCallables([{ target, environment: LocalEnvironment(environment) }]) =>
+          materialize_direct_call(
+            target, environment, witnesses, arguments, destination, facts, plans,
           )
-          index += 2
-          continue
-        }
-        (
-          MakeClosure(callable, target, environment),
-          CallValue(invoked, witnesses, arguments, destination),
-        ) if callable == invoked && use_def.use_count(callable) == 1 => {
-          instructions.push(
-            CallDirect(
-              target,
-              Some(environment),
-              witnesses,
-              arguments,
-              destination,
-            ),
-          )
-          index += 2
-          continue
-        }
-        _ => ()
+        _ => instruction
       }
-    }
-    instructions.push(block.instructions[index])
-    index += 1
-  }
-  let terminator = match block.terminator {
-    TailCallValue(callable, witnesses, arguments) if use_def.use_count(callable) ==
-      1 =>
-      direct_tail_terminator(
-        block.terminator,
-        callable,
-        witnesses,
-        arguments,
-        instructions,
-        use_def,
-        plans,
+    CallDirect(target, Some(environment), witnesses, arguments, destination) =>
+      materialize_direct_call(
+        target, environment, witnesses, arguments, destination, facts, plans,
       )
-    _ => block.terminator
+    _ => instruction
   }
-  { ..block, instructions, terminator }
 }
 
 ///|
-fn direct_tail_terminator(
-  original : Terminator,
-  callable : ValueId,
+fn materialize_direct_call(
+  target : @bytecode.FunctionId,
+  environment : ValueId,
   witnesses : Array[ValueId],
   arguments : Array[ValueId],
-  instructions : Array[Instruction],
-  use_def : UseDefAnalysis,
+  destination : ValueId?,
+  facts : Array[CallableFlowFact],
   plans : Array[DirectEnvironmentPlan],
-) -> Terminator {
-  if instructions.length() >= 2 &&
-    instructions[instructions.length() - 2]
-    is MakeEnv(environment, shape, _, environment_witnesses, captures) &&
-    instructions[instructions.length() - 1]
-    is MakeClosure(produced, target, closure_environment) &&
-    produced == callable &&
-    closure_environment == environment &&
-    use_def.use_count(environment) == 1 &&
-    find_direct_environment_plan(plans, target, shape) is Some(plan) {
-    ignore(instructions.pop())
-    ignore(instructions.pop())
-    return direct_environment_tail_call(
-      plan, environment_witnesses, captures, witnesses, arguments,
+) -> Instruction {
+  guard direct_environment_plan(plans, target) is Some(plan) &&
+    local_aggregate_values(facts[environment.value], plan.shape)
+    is Some(environment_values) else {
+    return CallDirect(
+      target,
+      Some(environment),
+      witnesses,
+      arguments,
+      destination,
     )
   }
-  match instructions.last() {
-    Some(ConstFunction(produced, target)) if produced == callable => {
-      ignore(instructions.pop())
-      TailCallDirect(target, None, witnesses, arguments)
-    }
-    Some(MakeClosure(produced, target, environment)) if produced == callable => {
-      ignore(instructions.pop())
-      TailCallDirect(target, Some(environment), witnesses, arguments)
-    }
-    _ => original
+  CallDirect(
+    target,
+    None,
+    witnesses + select_values(environment_values.0, plan.witness_ordinals),
+    arguments + select_values(environment_values.1, plan.member_indices),
+    destination,
+  )
+}
+
+///|
+fn devirtualize_terminator(
+  terminator : Terminator,
+  facts : Array[CallableFlowFact],
+  plans : Array[DirectEnvironmentPlan],
+) -> Terminator {
+  match terminator {
+    TailCallValue(callable, witnesses, arguments) =>
+      match facts[callable.value] {
+        KnownCallables([{ target, environment: CaptureFree }]) =>
+          TailCallDirect(target, None, witnesses, arguments)
+        KnownCallables([{ target, environment: LocalEnvironment(environment) }]) =>
+          materialize_direct_tail_call(
+            target, environment, witnesses, arguments, facts, plans,
+          )
+        _ => terminator
+      }
+    TailCallDirect(target, Some(environment), witnesses, arguments) =>
+      materialize_direct_tail_call(
+        target, environment, witnesses, arguments, facts, plans,
+      )
+    _ => terminator
   }
 }
 
 ///|
-fn find_direct_environment_plan(
+fn materialize_direct_tail_call(
+  target : @bytecode.FunctionId,
+  environment : ValueId,
+  witnesses : Array[ValueId],
+  arguments : Array[ValueId],
+  facts : Array[CallableFlowFact],
+  plans : Array[DirectEnvironmentPlan],
+) -> Terminator {
+  guard direct_environment_plan(plans, target) is Some(plan) &&
+    local_aggregate_values(facts[environment.value], plan.shape)
+    is Some(environment_values) else {
+    return TailCallDirect(target, Some(environment), witnesses, arguments)
+  }
+  TailCallDirect(
+    target,
+    None,
+    witnesses + select_values(environment_values.0, plan.witness_ordinals),
+    arguments + select_values(environment_values.1, plan.member_indices),
+  )
+}
+
+///|
+fn local_aggregate_values(
+  fact : CallableFlowFact,
+  shape : @bytecode.ObjectShapeId,
+) -> (Array[ValueId], Array[ValueId])? {
+  match fact {
+    KnownAggregate(selected, _, _, Some(witnesses), Some(members)) if selected ==
+      shape => Some((witnesses, members))
+    _ => None
+  }
+}
+
+///|
+fn direct_environment_plan(
   plans : Array[DirectEnvironmentPlan],
   target : @bytecode.FunctionId,
-  shape : @bytecode.ObjectShapeId,
 ) -> DirectEnvironmentPlan? {
   for plan in plans {
-    if plan.target == target && plan.shape == shape {
+    if plan.target == target {
       return Some(plan)
     }
   }
@@ -431,43 +528,49 @@ fn find_direct_environment_plan(
 }
 
 ///|
-fn direct_environment_call(
-  plan : DirectEnvironmentPlan,
-  environment_witnesses : Array[ValueId],
-  captures : Array[ValueId],
-  call_witnesses : Array[ValueId],
-  arguments : Array[ValueId],
-  destination : ValueId?,
-) -> Instruction {
-  CallDirect(
-    plan.function,
-    None,
-    call_witnesses + select_values(environment_witnesses, plan.witness_ordinals),
-    arguments + select_values(captures, plan.member_indices),
-    destination,
-  )
-}
-
-///|
-fn direct_environment_tail_call(
-  plan : DirectEnvironmentPlan,
-  environment_witnesses : Array[ValueId],
-  captures : Array[ValueId],
-  call_witnesses : Array[ValueId],
-  arguments : Array[ValueId],
-) -> Terminator {
-  TailCallDirect(
-    plan.function,
-    None,
-    call_witnesses + select_values(environment_witnesses, plan.witness_ordinals),
-    arguments + select_values(captures, plan.member_indices),
-  )
-}
-
-///|
 fn select_values(
   values : Array[ValueId],
   indices : Array[Int],
 ) -> Array[ValueId] {
-  indices.map(fn(index) { values[index] })
+  indices.map(index => values[index])
+}
+
+///|
+fn remove_dead_callable_construction(body : FunctionBody) -> FunctionBody {
+  let mut body = body
+  let mut changed = true
+  while changed {
+    changed = false
+    let use_def = analyze_use_def(body)
+    let blocks = body.blocks.map(block => {
+      let instructions = []
+      for instruction in block.instructions {
+        if dead_callable_construction(instruction, body, use_def) {
+          changed = true
+        } else {
+          instructions.push(instruction)
+        }
+      }
+      { ..block, instructions, }
+    })
+    body = { ..body, blocks, }
+  }
+  body
+}
+
+///|
+fn dead_callable_construction(
+  instruction : Instruction,
+  body : FunctionBody,
+  use_def : UseDefAnalysis,
+) -> Bool {
+  match instruction {
+    ConstFunction(destination, _)
+    | MakeClosure(destination, _, _)
+    | MakeEnv(destination, _, _, _, _) => use_def.use_count(destination) == 0
+    Copy(destination, _) | Move(destination, _) | RetainCopy(destination, _) =>
+      body.values[destination.value].kind is CallableValue &&
+      use_def.use_count(destination) == 0
+    _ => false
+  }
 }

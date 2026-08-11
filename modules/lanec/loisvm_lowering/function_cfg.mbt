@@ -105,7 +105,9 @@ fn ImageLowerer::lower_function_body(
         Global(_)
         | RecursiveFunction(_, _, _)
         | TypeApplied(_, _)
-        | TypeAppliedCallable(_, _, _) =>
+        | TypeAppliedCallable(_, _, _)
+        | AdaptedCallable(_)
+        | TypeAppliedAdaptedCallable(_, _) =>
           raise UnsupportedExpression(
             detail="function returns an unapplied callable",
           )

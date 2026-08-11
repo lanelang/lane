@@ -84,6 +84,10 @@ fn FunctionLowerer::lower_type_apply(
     TypeApplied(global, applied) => TypeApplied(global, applied + arguments)
     TypeAppliedCallable(callable, type_, applied) =>
       TypeAppliedCallable(callable, type_, applied + arguments)
+    AdaptedCallable(adaptation) =>
+      TypeAppliedAdaptedCallable(adaptation, arguments)
+    TypeAppliedAdaptedCallable(adaptation, applied) =>
+      TypeAppliedAdaptedCallable(adaptation, applied + arguments)
     RecursiveFunction(_, _, _) as recursive => {
       guard self.materialize_local(recursive) is Slot(callable, type_) else {
         abort("recursive callable was not materialized")

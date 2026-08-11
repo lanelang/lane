@@ -258,6 +258,16 @@ priv struct RecursiveFunctionPlan {
 }
 
 ///|
+priv struct DeferredCallableAdapter {
+  source : @vmcfg.ValueId
+  source_type : @buslane.Type
+  target_type : @buslane.Type
+  source_parameter_targets : Array[Int]
+  substitutions : @buslane.TypeSubstitution
+  captured_witnesses : Array[WitnessBinding]
+}
+
+///|
 priv enum LocalValue {
   Unit
   Slot(@vmcfg.ValueId, @buslane.Type)
@@ -267,6 +277,11 @@ priv enum LocalValue {
   TypeAppliedCallable(
     @vmcfg.ValueId,
     @buslane.Type,
+    Array[@buslane.GenericArgument]
+  )
+  AdaptedCallable(DeferredCallableAdapter)
+  TypeAppliedAdaptedCallable(
+    DeferredCallableAdapter,
     Array[@buslane.GenericArgument]
   )
 }

@@ -169,6 +169,8 @@ fn FunctionLowerer::captured_runtime_parameters(
       Slot(_, type_)
       | RecursiveFunction(_, type_, _)
       | TypeAppliedCallable(_, type_, _) => types.push(type_)
+      AdaptedCallable(adaptation) | TypeAppliedAdaptedCallable(adaptation, _) =>
+        types.push(adaptation.target_type)
       Global(_) | Unit | TypeApplied(_, _) => ()
     }
   }

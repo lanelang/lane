@@ -42,6 +42,25 @@ source program justified:
 | Shape destructor functions | 126 |
 | Distinct rendered shape destructor bodies | 72 |
 
+## Callable-flow and adapter result
+
+The 2026-08-11 callable-flow and deferred-adaptation implementation was
+measured against clean Basic revision `8a7be0e`. The immediately preceding
+compiler produced 705 bytecode functions, 7,192 bytecode instructions, 438
+indirect calls, 646 closures, and 650 environments. Its Wasm contained 848
+functions, 144,733 instructions, 11,372 locals, and 671 table entries.
+
+With exact callable flow and non-escaping callable-adapter fusion, the same
+program produces 702 bytecode functions, 6,453 bytecode instructions, 411
+indirect calls, 486 closures, and 486 environments. The Wasm contains 845
+functions, 134,655 instructions, 11,041 locals, and 659 table entries. Three
+complete `test.sh` runs took 6.81, 6.95, and 6.66 seconds, compared with the
+preceding 8.43 to 9.27 second range. Non-executing Explore took 0.40 seconds.
+
+These results demonstrate removal of callable representation plumbing. They do
+not demonstrate general generic-representation specialization: the resulting
+bytecode still contains 601 erase and 375 unerase operations.
+
 Layout witnesses and erasure bridges account for 1,954 of 8,168 bytecode
 operations, about 24 percent. The current VM CFG devirtualizer changes only 11
 indirect calls to direct calls and removes only 6 of 652 initial closure
@@ -107,19 +126,16 @@ and enable the later priorities without inventing another fact producer.
 
 ### 2. Replace peephole devirtualization with callable-flow analysis
 
-The current VM CFG pass recognizes only a few adjacent instruction sequences
-and additionally restricts environment elimination to single-reference leaf
-functions. That seam cannot describe a callable flowing through aliases, block
-edges, immutable constructor fields, or a known global dictionary.
+Delivered on 2026-08-11. VM CFG now computes one exact whole-image callable-flow
+fixed point across aliases, block edges, immutable aggregate fields, globals,
+and known function results. Closed singleton facts become direct calls.
+Environment ABI elimination consumes the same fact and is rejected before
+rewriting when any use requires a packed callable. The implementation has no
+reference-count restriction, numeric budget, profitability score, speculative
+rewrite, or fallback path.
 
-Build interprocedural known-callable and escape facts over ANF or VM CFG. A call
-becomes direct when all reaching definitions identify the same function and
-compatible environment shape. A non-escaping environment is passed as explicit
-captures or scalar-replaced; an escaping closure remains allocated. Function
-table planning and unreachable-function removal must consume the result.
-
-This work should subsume the narrow adjacency rules rather than add more local
-patterns to them.
+Function-table pruning remains a downstream consumer to add after the new flow
+facts have removed all corresponding references.
 
 ### 3. Specialize concrete runtime representations and cancel adapters
 
@@ -138,6 +154,13 @@ when it removes concrete ABI work. It must:
 
 The optimization owns representation specialization. Effect specialization and
 source type substitution remain separate semantic operations.
+
+The callable-adapter portion was delivered on 2026-08-11: callable adaptation
+is now a deferred structural lowering value, direct invocation fuses it into
+the source call, and only first-class escape materializes an adapter closure.
+This removes non-escaping representation adapters without pretending to solve
+general erased-value specialization. Concrete generic-body specialization and
+general `erase_*`/`unerase_*` cancellation remain open in this priority.
 
 ### 4. Trust verified bytecode facts in the Wasm compiler
 
@@ -240,8 +263,11 @@ eagerly compile avoidable functions and representation plumbing.
 2. Remove duplicated global runtime checks and compact entry lifecycle cleanup.
 3. Add the Core static-value summary and consume it in match and projection
    reduction.
-4. Rebuild callable propagation and devirtualization on that summary.
-5. Add representation specialization and adapter cancellation.
+4. Consume the delivered callable-flow analysis from later reachability and
+   function-table pruning.
+5. Extend the delivered non-escaping callable-adapter elimination with
+   demand-driven generic representation specialization and general bridge
+   cancellation.
 6. Add constructor scalar replacement, pair-aware witness propagation, and
    immutable-global borrow reuse.
 7. Coalesce residual ARC operations.

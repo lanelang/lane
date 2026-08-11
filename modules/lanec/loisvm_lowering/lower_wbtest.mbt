@@ -1387,7 +1387,7 @@ test "capture-free functions lower as callable values for higher-order calls" {
 }
 
 ///|
-test "nested functions lift with explicit reference-counted environments" {
+test "nonescaping nested functions pass captures directly" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
@@ -1458,24 +1458,46 @@ test "nested functions lift with explicit reference-counted environments" {
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
   }
-  assert_true(
-    contains_instruction(main_body, instruction => {
-      instruction is MakeEnv(_, _, _, [], _)
-    }),
-  )
-  assert_true(
-    contains_instruction(main_body, instruction => {
-      instruction is MakeClosure(_, { value: 2 }, _)
-    }),
-  )
   guard image.functions[1] is BytecodeBody(lifted_body) else {
     fail("expected lifted bytecode body")
   }
-  assert_true(lifted_body.inputs.environment is Some(_))
-  assert_true(
-    contains_instruction(lifted_body, instruction => {
-      instruction is BorrowCapture(_, _, 0, _)
-    }),
+  debug_inspect(
+    (main_body.blocks, lifted_body.inputs, lifted_body.blocks),
+    content=(
+      #|(
+      #|  [
+      #|    {
+      #|      parameters: [],
+      #|      instructions: [
+      #|        ConstI64({ value: 0 }, 40),
+      #|        ConstI64({ value: 1 }, 0),
+      #|        I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
+      #|        ConstI64({ value: 0 }, 2),
+      #|        CallDirect(
+      #|          { value: 2 },
+      #|          None,
+      #|          [],
+      #|          [{ value: 0 }, { value: 2 }],
+      #|          Some({ value: 1 }),
+      #|        ),
+      #|      ],
+      #|      terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 1 }]),
+      #|    },
+      #|  ],
+      #|  {
+      #|    environment: None,
+      #|    witnesses: [],
+      #|    user_parameters: [{ value: 1 }, { value: 0 }],
+      #|  },
+      #|  [
+      #|    {
+      #|      parameters: [],
+      #|      instructions: [I64Add({ value: 2 }, { value: 0 }, { value: 1 })],
+      #|      terminator: Return(Some({ value: 2 })),
+      #|    },
+      #|  ],
+      #|)
+    ),
   )
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
@@ -2894,7 +2916,7 @@ test "primitive literal matches lower to comparison decision chains" {
 }
 
 ///|
-test "generic nested functions lower as type-applied callable values" {
+test "generic nonescaping nested functions call their target directly" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let generic_type = @buslane.Type::Parameter(type_parameter)
@@ -2968,10 +2990,31 @@ test "generic nested functions lower as type-applied callable values" {
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
   }
-  assert_true(
-    contains_instruction(main_body, instruction => {
-      instruction is CallValue(_, _, [_], [_], _)
-    }),
+  debug_inspect(
+    main_body.blocks,
+    content=(
+      #|[
+      #|  {
+      #|    parameters: [],
+      #|    instructions: [
+      #|      ConstI64({ value: 0 }, 42),
+      #|      ConstLayout({ value: 1 }, { value: 1 }),
+      #|      ConstLayout({ value: 2 }, { value: 1 }),
+      #|      EraseI64({ value: 3 }, { value: 0 }),
+      #|      ConstLayout({ value: 4 }, { value: 1 }),
+      #|      CallDirect(
+      #|        { value: 2 },
+      #|        None,
+      #|        [{ value: 1 }],
+      #|        [{ value: 3 }],
+      #|        Some({ value: 5 }),
+      #|      ),
+      #|      UneraseI64({ value: 0 }, { value: 5 }),
+      #|    ],
+      #|    terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 0 }]),
+      #|  },
+      #|]
+    ),
   )
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
@@ -3164,6 +3207,52 @@ test "forwarded companion substitution reuses the outer layout witness" {
 }
 
 ///|
+test "nonescaping callable adaptation is fused into its call" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let image = test_image_lowerer(metadata, [])
+  let lowerer = test_function_lowerer(image)
+  let source_type = test_function_type([Primitive(I64)], Primitive(I64))
+  let target_type = test_function_type(
+    [Primitive(Unit), Primitive(I64)],
+    Primitive(I64),
+  )
+  let source = lowerer.fresh_slot(source_type)
+  let argument = lowerer.fresh_slot(Primitive(I64))
+  let adapted = lowerer.make_callable_adapter(
+    source,
+    source_type,
+    target_type,
+    @buslane.TypeSubstitution::TypeSubstitution(),
+  )
+  guard adapted is AdaptedCallable(adaptation) else {
+    fail("expected deferred callable adaptation")
+  }
+  let result = lowerer.lower_adapted_callable_call(adaptation, [], [
+    Unit,
+    Slot(argument, Primitive(I64)),
+  ])
+  guard result is Slot(result_slot, result_type) else {
+    fail("expected a materialized adapted-call result")
+  }
+  debug_inspect(
+    (
+      image.layouts,
+      image.callable_adapters,
+      lowerer.blocks[0].instructions,
+      (result_slot, result_type),
+    ),
+    content=(
+      #|(
+      #|  [],
+      #|  [],
+      #|  [CallValue({ value: 0 }, [], [{ value: 1 }], Some({ value: 2 }))],
+      #|  ({ value: 2 }, Primitive(I64)),
+      #|)
+    ),
+  )
+}
+
+///|
 test "callable adapter owns its final substitution" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let source = metadata.define_type_parameter("E", Effect)
@@ -3206,8 +3295,10 @@ test "callable adapter owns its final substitution" {
   )
   let callable = lowerer.fresh_slot(source_type)
   ignore(
-    lowerer.make_callable_adapter(
-      callable, source_type, target_type, substitutions,
+    lowerer.materialize_local(
+      lowerer.make_callable_adapter(
+        callable, source_type, target_type, substitutions,
+      ),
     ),
   )
   guard image.callable_adapters is [plan] else {
@@ -3226,7 +3317,7 @@ test "callable adapter owns its final substitution" {
       #|  [Environment({ value: 0 }), Reference],
       #|  [
       #|    {
-      #|      function: { value: 1 },
+      #|      function: { value: 2 },
       #|      source_type: Function(
       #|        [
       #|          Apply(
@@ -3259,7 +3350,7 @@ test "callable adapter owns its final substitution" {
       #|    },
       #|  ],
       #|  [
-      #|    ConstFunction({ value: 1 }, { value: 2 }),
+      #|    ConstFunction({ value: 1 }, { value: 1 }),
       #|    MakeEnv(
       #|      { value: 2 },
       #|      { value: 0 },
@@ -3267,7 +3358,7 @@ test "callable adapter owns its final substitution" {
       #|      [],
       #|      [{ value: 1 }, { value: 0 }],
       #|    ),
-      #|    MakeClosure({ value: 3 }, { value: 1 }, { value: 2 }),
+      #|    MakeClosure({ value: 3 }, { value: 2 }, { value: 2 }),
       #|  ],
       #|  [
       #|    {
@@ -3353,7 +3444,7 @@ test "higher-kinded formal applications retain their erased generic ABI" {
     ),
     content=(
       #|(
-      #|  [Callable, Environment({ value: 0 }), ByteSequence],
+      #|  [Callable, ByteSequence, Environment({ value: 0 })],
       #|  [
       #|    {
       #|      function: { value: 1 },
@@ -3418,11 +3509,11 @@ test "higher-kinded formal applications retain their erased generic ABI" {
       #|  ],
       #|  [
       #|    ConstLayout({ value: 1 }, { value: 1 }),
-      #|    ConstLayout({ value: 3 }, { value: 3 }),
+      #|    ConstLayout({ value: 3 }, { value: 2 }),
       #|    MakeEnv(
       #|      { value: 4 },
       #|      { value: 0 },
-      #|      Immediate({ value: 2 }),
+      #|      Immediate({ value: 3 }),
       #|      [],
       #|      [{ value: 3 }, { value: 0 }],
       #|    ),
