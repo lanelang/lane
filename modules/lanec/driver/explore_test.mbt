@@ -314,7 +314,7 @@ test "explore reports deterministic typed scale metrics" {
       #|    [
       #|      ("functionCount", 27),
       #|      ("importCount", 1),
-      #|      ("instructionCount", 810),
+      #|      ("instructionCount", 806),
       #|      ("localCount", 34),
       #|      ("tableEntryCount", 8),
       #|    ],

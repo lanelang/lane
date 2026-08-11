@@ -58,7 +58,7 @@ priv struct FunctionFlowState {
   object_shapes : Array[ObjectShapeId?]
   layout_recipes : Array[LayoutRecipe?]
   tag_sources : Array[SlotId?]
-  globals : Array[Bool]
+  mut initialized_global_prefix : Int
 }
 
 ///|
@@ -68,7 +68,7 @@ fn FunctionFlowState::copy(self : FunctionFlowState) -> FunctionFlowState {
     object_shapes: self.object_shapes.copy(),
     layout_recipes: self.layout_recipes.copy(),
     tag_sources: self.tag_sources.copy(),
-    globals: self.globals.copy(),
+    initialized_global_prefix: self.initialized_global_prefix,
   }
 }
 
@@ -150,6 +150,7 @@ fn BytecodeVerifier::verify_function_flow(
   function : FunctionId,
   body : FunctionBody,
   global_dependencies : Array[Array[Bool]],
+  global_lifecycle : GlobalLifecyclePlan,
 ) -> Unit raise BytecodeVerificationError {
   let initial_slots = Array::make(
     body.slots.length(),
@@ -195,10 +196,11 @@ fn BytecodeVerifier::verify_function_flow(
     )
   }
   let is_initializer = self.image.initializer == Some(function)
-  let initial_globals = Array::make(
-    self.image.globals.length(),
-    !is_initializer,
-  )
+  let initialized_global_prefix = if is_initializer {
+    0
+  } else {
+    global_lifecycle.roots.length()
+  }
   let entries : Array[FunctionFlowState?] = Array::make(
     body.blocks.length(),
     None,
@@ -208,7 +210,7 @@ fn BytecodeVerifier::verify_function_flow(
     object_shapes: initial_object_shapes,
     layout_recipes: initial_layout_recipes,
     tag_sources: initial_tag_sources,
-    globals: initial_globals,
+    initialized_global_prefix,
   })
   let queue = [0]
   let mut cursor = 0
@@ -226,7 +228,7 @@ fn BytecodeVerifier::verify_function_flow(
         function, block_id, instruction_index,
       )
       self.apply_instruction_flow(
-        site, function, body, state, instruction, global_dependencies,
+        site, function, body, state, instruction, global_dependencies, global_lifecycle,
       )
     }
     let site = BytecodeVerificationSite::Terminator(function, block_id)
@@ -237,6 +239,7 @@ fn BytecodeVerifier::verify_function_flow(
       state,
       block.terminator,
       global_dependencies,
+      global_lifecycle,
       is_initializer~,
     )
     for successor in successors {
@@ -262,7 +265,7 @@ fn BytecodeVerifier::merge_predecessor_flow(
   destination : FunctionFlowState,
   incoming : FunctionFlowState,
 ) -> Bool raise BytecodeVerificationError {
-  if destination.globals != incoming.globals {
+  if destination.initialized_global_prefix != incoming.initialized_global_prefix {
     self.fail(
       site, "control-flow predecessors disagree on global initialization state",
     )
@@ -887,6 +890,7 @@ fn BytecodeVerifier::apply_instruction_flow(
   state : FunctionFlowState,
   instruction : Instruction,
   global_dependencies : Array[Array[Bool]],
+  global_lifecycle : GlobalLifecyclePlan,
 ) -> Unit raise BytecodeVerificationError {
   match instruction {
     Copy(destination, source) => {
@@ -981,6 +985,7 @@ fn BytecodeVerifier::apply_instruction_flow(
         site,
         state,
         global_dependencies[target.value - 1],
+        global_lifecycle,
       )
       if environment is Some(environment) {
         ignore(self.consume_owner(site, body, state, environment))
@@ -1165,10 +1170,14 @@ fn BytecodeVerifier::apply_instruction_flow(
       if self.image.initializer != Some(function) {
         self.fail(site, "InitGlobal appears outside the instance initializer")
       }
-      self.initialize_global_flow(site, body, state, global, source)
+      self.initialize_global_flow(
+        site, body, state, global, source, global_lifecycle,
+      )
     }
     BorrowGlobal(destination, global) =>
-      self.borrow_global_flow(site, body, state, destination, global)
+      self.borrow_global_flow(
+        site, body, state, destination, global, global_lifecycle,
+      )
     unary_or_binary =>
       self.apply_trivial_instruction_flow(site, body, state, unary_or_binary)
   }
@@ -1373,23 +1382,30 @@ fn BytecodeVerifier::initialize_global_flow(
   state : FunctionFlowState,
   global : GlobalId,
   source : SlotId,
+  global_lifecycle : GlobalLifecyclePlan,
 ) -> Unit raise BytecodeVerificationError {
-  if state.globals[global.value] {
+  if state.initialized_global_prefix >= global_lifecycle.roots.length() {
     self.fail(site, "GlobalId \{global.value} is initialized twice")
   }
-  ignore(self.consume_flow(site, body, state, source))
-  let metadata = self.image.globals[global.value]
-  if metadata.erased_companion is Some(global_companion) {
-    if state.globals[global_companion.value] {
-      self.fail(site, "erased companion global is initialized twice")
+  let expected = global_lifecycle.roots[state.initialized_global_prefix]
+  if expected.global != global {
+    if global_lifecycle.root_ordinals[global.value] <
+      state.initialized_global_prefix {
+      self.fail(site, "GlobalId \{global.value} is initialized twice")
     }
+    self.fail(
+      site,
+      "GlobalId \{global.value} is out of initialization order; expected GlobalId \{expected.global.value}",
+    )
+  }
+  ignore(self.consume_flow(site, body, state, source))
+  if expected.companion is Some(_) {
     guard body.slots[source.value].erased_companion is Some(source_companion) else {
       self.fail(site, "OwnedErased source lacks a companion")
     }
     ignore(self.read_flow(site, state, source_companion))
-    state.globals[global_companion.value] = true
   }
-  state.globals[global.value] = true
+  state.initialized_global_prefix += 1
 }
 
 ///|
@@ -1400,15 +1416,14 @@ fn BytecodeVerifier::borrow_global_flow(
   state : FunctionFlowState,
   destination : SlotId,
   global : GlobalId,
+  global_lifecycle : GlobalLifecyclePlan,
 ) -> Unit raise BytecodeVerificationError {
-  if !state.globals[global.value] {
+  if global_lifecycle.root_ordinals[global.value] >=
+    state.initialized_global_prefix {
     self.fail(site, "read from uninitialized GlobalId \{global.value}")
   }
   let metadata = self.image.globals[global.value]
-  if metadata.erased_companion is Some(global_companion) {
-    if !state.globals[global_companion.value] {
-      self.fail(site, "erased companion global is uninitialized")
-    }
+  if metadata.erased_companion is Some(_) {
     guard body.slots[destination.value].erased_companion
       is Some(destination_companion) else {
       self.fail(site, "OwnedErased global borrow destination lacks a companion")
@@ -1438,9 +1453,11 @@ fn BytecodeVerifier::require_global_dependencies(
   site : BytecodeVerificationSite,
   state : FunctionFlowState,
   dependencies : Array[Bool],
+  global_lifecycle : GlobalLifecyclePlan,
 ) -> Unit raise BytecodeVerificationError {
   for index, required in dependencies {
-    if required && !state.globals[index] {
+    if required &&
+      global_lifecycle.root_ordinals[index] >= state.initialized_global_prefix {
       self.fail(site, "call may read uninitialized GlobalId \{index}")
     }
   }
@@ -1451,11 +1468,14 @@ fn BytecodeVerifier::require_initializer_globals_complete(
   self : BytecodeVerifier,
   site : BytecodeVerificationSite,
   state : FunctionFlowState,
+  global_lifecycle : GlobalLifecyclePlan,
 ) -> Unit raise BytecodeVerificationError {
-  for index, initialized in state.globals {
-    if !initialized {
-      self.fail(site, "initializer leaves GlobalId \{index} uninitialized")
-    }
+  if state.initialized_global_prefix != global_lifecycle.roots.length() {
+    let expected = global_lifecycle.roots[state.initialized_global_prefix]
+    self.fail(
+      site,
+      "initializer leaves GlobalId \{expected.global.value} uninitialized",
+    )
   }
 }
 
@@ -1468,6 +1488,7 @@ fn BytecodeVerifier::apply_terminator_flow(
   state : FunctionFlowState,
   terminator : Terminator,
   global_dependencies : Array[Array[Bool]],
+  global_lifecycle : GlobalLifecyclePlan,
   is_initializer~ : Bool,
 ) -> Array[(Int, FunctionFlowState)] raise BytecodeVerificationError {
   match terminator {
@@ -1500,7 +1521,7 @@ fn BytecodeVerifier::apply_terminator_flow(
       }
       self.require_no_live_owners(site, state)
       if is_initializer {
-        self.require_initializer_globals_complete(site, state)
+        self.require_initializer_globals_complete(site, state, global_lifecycle)
       }
       []
     }
@@ -1512,6 +1533,7 @@ fn BytecodeVerifier::apply_terminator_flow(
         site,
         state,
         global_dependencies[target.value - 1],
+        global_lifecycle,
       )
       if environment is Some(environment) {
         ignore(self.consume_owner(site, body, state, environment))

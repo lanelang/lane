@@ -103,6 +103,7 @@ pub(all) enum WasmRuntimeFunctionRole {
   ByteSequenceGet
   ByteSequenceSet
   ByteSequenceIsValidUtf8
+  InstanceGlobalCleanup
 } derive(Eq, @debug.Debug)
 
 // Type aliases

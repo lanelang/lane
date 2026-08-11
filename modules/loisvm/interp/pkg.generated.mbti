@@ -23,8 +23,7 @@ pub struct ExecutionInstance {
   heap : Heap
   frames : Array[Frame]
   globals : Array[VMValue?]
-  initialized_globals : Array[@bytecode.GlobalId]
-  mut initializing : Bool
+  mut initialized_owned_root_count : Int
   mut state : InstanceState
   // private fields
 }
@@ -65,6 +64,7 @@ pub enum InstanceState {
 
 pub struct LoadedImage {
   image : @bytecode.BytecodeImage
+  global_lifecycle : @bytecode.GlobalLifecyclePlan
   bindings : Array[@runtime.RuntimeBinding?]
 }
 pub fn LoadedImage::new_instance(Self, config? : @runtime.ExecutionConfig) -> ExecutionInstance

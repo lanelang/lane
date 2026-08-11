@@ -7,6 +7,7 @@ pub(all) suberror LoadError {
 ///|
 pub struct LoadedImage {
   image : @bytecode.BytecodeImage
+  global_lifecycle : @bytecode.GlobalLifecyclePlan
   bindings : Array[@runtime.RuntimeBinding?]
 }
 
@@ -15,8 +16,8 @@ pub fn load(
   image : @bytecode.BytecodeImage,
   registry : @runtime.RuntimeRegistry,
 ) -> Result[LoadedImage, LoadError] {
-  match @bytecode.verify_bytecode_image(image) {
-    Ok(_) => ()
+  let verified = match @bytecode.verify_bytecode_image_for_execution(image) {
+    Ok(verified) => verified
     Err(error) => return Err(InvalidBytecode(error))
   }
   let bindings : Array[@runtime.RuntimeBinding?] = []
@@ -38,5 +39,9 @@ pub fn load(
       }
     }
   }
-  Ok({ image, bindings })
+  Ok({
+    image: verified.image,
+    global_lifecycle: verified.global_lifecycle,
+    bindings,
+  })
 }

@@ -21,7 +21,17 @@ priv struct BytecodeVerifier {
 pub fn verify_bytecode_image(
   image : BytecodeImage,
 ) -> Result[Unit, BytecodeVerificationError] {
-  Ok(BytecodeVerifier::{ image, }.verify()) catch {
+  match verify_bytecode_image_for_execution(image) {
+    Ok(_) => Ok(())
+    Err(error) => Err(error)
+  }
+}
+
+///|
+pub fn verify_bytecode_image_for_execution(
+  image : BytecodeImage,
+) -> Result[VerifiedBytecodeImage, BytecodeVerificationError] {
+  Ok({ image, global_lifecycle: BytecodeVerifier::{ image, }.verify() }) catch {
     error => Err(error)
   }
 }
@@ -29,7 +39,7 @@ pub fn verify_bytecode_image(
 ///|
 fn BytecodeVerifier::verify(
   self : BytecodeVerifier,
-) -> Unit raise BytecodeVerificationError {
+) -> GlobalLifecyclePlan raise BytecodeVerificationError {
   let image_site = BytecodeVerificationSite::Image
   if self.image.functions.is_empty() {
     self.fail(image_site, "function table must be nonempty")
@@ -60,15 +70,19 @@ fn BytecodeVerifier::verify(
       }
   }
   self.verify_globals()
+  let global_lifecycle = self.image.global_lifecycle_plan()
   self.verify_layouts_and_shapes()
   let global_dependencies = self.global_dependencies()
   for index, entry in self.image.functions {
     if entry is BytecodeBody(body) {
       let function : FunctionId = { value: index + 1 }
       self.verify_function(function, body)
-      self.verify_function_flow(function, body, global_dependencies)
+      self.verify_function_flow(
+        function, body, global_dependencies, global_lifecycle,
+      )
     }
   }
+  global_lifecycle
 }
 
 ///|

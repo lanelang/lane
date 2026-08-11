@@ -405,15 +405,10 @@ test "Wasm global cleanup releases reference callable and erased roots" {
     instance.store.get_global(instance.instance.global_addrs[4]).get(),
     I32(0),
   )
-  guard instance.store.get_global(instance.instance.global_addrs[1]).get()
-    is I32(heap_base) else {
-    fail("expected I32 heap base")
-  }
-  let root_base = heap_base - 5 * 16
-  let memory = instance.store.get_mem(instance.instance.mem_addrs[0])
-  for index in 0..<5 {
-    assert_eq(memory.load_i32(root_base + index * 16), 0)
-  }
+  assert_eq(
+    instance.store.get_global(instance.instance.global_addrs[10]).get(),
+    I32(0),
+  )
 }
 
 ///|
@@ -495,4 +490,78 @@ test "Wasm reports invalid instance-global initialization" {
       is Err(InvalidBytecode(_)),
     )
   }
+}
+
+///|
+fn wasm_linear_global_image(count : Int) -> @bytecode.BytecodeImage {
+  let slots = Array::make(count, wasm_global_slot(I64, cleanup=OwnedCallable))
+  let instructions : Array[@bytecode.Instruction] = []
+  let globals : Array[@bytecode.GlobalMetadata] = []
+  for index in 0..<count {
+    instructions.push(ConstFunction({ value: index }, { value: 2 }))
+    instructions.push(InitGlobal({ value: index }, { value: index }))
+    globals.push({
+      representation: I64,
+      cleanup: OwnedCallable,
+      kind: CallableValue,
+      erased_companion: None,
+    })
+  }
+  {
+    entry: { value: 2 },
+    initializer: Some({ value: 1 }),
+    data_family_count: 0,
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    functions: [
+      BytecodeBody(wasm_global_body(slots, instructions)),
+      BytecodeBody(wasm_global_body([], [])),
+    ],
+    globals,
+    layouts: [],
+    object_shapes: [],
+    constants: [],
+  }
+}
+
+///|
+fn lifecycle_function_scale(count : Int) -> (Int, Int) {
+  let observed = @compiler.compile_observed(wasm_linear_global_image(count)).unwrap()
+  let scale = @compiler.measure_module(observed.module_)
+  let mut cleanup_size = -1
+  let mut entry_size = -1
+  for provenance in observed.functions {
+    let mut selected = false
+    match provenance.origin {
+      RuntimeFunction(InstanceGlobalCleanup) => {
+        cleanup_size = 0
+        selected = true
+      }
+      EntryWrapper => {
+        entry_size = 0
+        selected = true
+      }
+      _ => ()
+    }
+    if selected {
+      for function in scale.functions {
+        if function.index == provenance.index {
+          match provenance.origin {
+            RuntimeFunction(InstanceGlobalCleanup) =>
+              cleanup_size = function.instruction_count
+            EntryWrapper => entry_size = function.instruction_count
+            _ => ()
+          }
+        }
+      }
+    }
+  }
+  (cleanup_size, entry_size)
+}
+
+///|
+test "Wasm instance-global lifecycle code is independent of global count" {
+  let one = lifecycle_function_scale(1)
+  let many = lifecycle_function_scale(64)
+  assert_eq(one, many)
+  debug_inspect(one, content="(65, 11)")
 }

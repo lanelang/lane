@@ -204,6 +204,13 @@ Wasm compilation may consume a successfully verified image without repeating
 them. Dynamic checks whose result depends on runtime data, such as bounds,
 allocation failure, and indirect-call ABI identity, remain required.
 
+Delivered on 2026-08-11. Successful verification now produces one canonical
+`GlobalLifecyclePlan`; initializer state is a table-order prefix rather than a
+set of Boolean flags. Interpreter and Wasm execution consume that plan. Wasm
+`InitGlobal` and `BorrowGlobal` no longer emit initializer, duplicate,
+initialized-read, or completeness guards. The linked-program schema advances
+to 15 because the verifier now rejects non-canonical initialization order.
+
 ### 5. Make instance-global cleanup data-driven
 
 Normal and exceptional cleanup currently unroll one conditional release per
@@ -212,6 +219,12 @@ Instance Root Table and cleanup metadata. The loop must preserve reverse
 initialization order and the cleanup guarantees of ADR-0113. Removing the
 redundant normal-path completeness scan and sharing cleanup should make entry
 lifecycle code independent of the number of globals.
+
+Delivered on 2026-08-11. Wasm root cells shrink from 16 bytes to 8 bytes. Each
+owned root adds one packed 4-byte cleanup descriptor, while trivial roots add
+none. A single 65-instruction cleanup helper and 11-instruction entry wrapper
+serve both one and 64 owned roots in the structural regression. Programs with
+no owned roots emit neither the helper nor cleanup exception scaffolding.
 
 ### 6. Measure profitability in lowering-relevant units
 

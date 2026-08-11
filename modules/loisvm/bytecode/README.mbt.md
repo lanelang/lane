@@ -17,7 +17,7 @@ layout recipes, object shapes, and a valid UTF-8 String constant pool.
 `CallableAbiId`, `GlobalId`, `BlockId`, `SlotId`, `ConstantId`, and
 `DataFamilyId` and `ObjectShapeId` are zero-based dense table indices.
 
-Each `FunctionEntry` is either a `BytecodeBody` or a `RuntimeImport`. The selected `entry` and optional `initializer` must name no-context, witness-free, zero-argument bytecode bodies returning `Unit`. A nonempty global table requires an initializer, and the initializer must initialize every global exactly once before the selected entry begins.
+Each `FunctionEntry` is either a `BytecodeBody` or a `RuntimeImport`. The selected `entry` and optional `initializer` must name no-context, witness-free, zero-argument bytecode bodies returning `Unit`. A nonempty global table requires an initializer. The initializer must initialize every non-companion global exactly once in global-table order before the selected entry begins; an `OwnedErased` owner initializes its immediately preceding layout companion atomically.
 
 A `FunctionBody` owns its slot table and ordered blocks. Block zero is the entry block and has no block parameters. Every block contains ordinary instructions followed by exactly one terminator. An `Edge` transfers its arguments to the target block parameters in parallel.
 
@@ -356,10 +356,10 @@ An `OwnedErased` destination must name the layout companion governing the payloa
 
 | Opcode | Constructor | Semantics |
 | --- | --- | --- |
-| `0x44` | `InitGlobal(global, source)` | `init_global`; during the initializer only, consumes `source` into a previously uninitialized non-companion global and copies an erased layout companion when required. |
+| `0x44` | `InitGlobal(global, source)` | `init_global`; during the initializer only, consumes `source` into the next non-companion global in canonical table order and copies an erased layout companion when required. |
 | `0x45` | `BorrowGlobal(destination, global)` | `borrow_global`; reads an initialized global into a borrowed destination without retaining it and copies its erased layout companion when required. |
 
-Global metadata follows the same legal representation and cleanup combinations as slots. Every `OwnedErased` global must be immediately preceded by its `I32 + Trivial` companion global, and only the owning global is explicitly initialized.
+Global metadata follows the same legal representation and cleanup combinations as slots. Every `OwnedErased` global must be immediately preceded by its `I32 + Trivial` companion global, and only the owning global is explicitly initialized. Canonical order makes initialized state a prefix, gives every backend the same reverse cleanup order, and permits execution tiers to consume verifier-owned lifecycle facts without repeating dynamic initialization guards.
 
 ## Terminators
 

@@ -19,6 +19,8 @@ pub fn statically_known_object_shape(Array[ObjectShape], SemanticValueKind) -> O
 
 pub fn verify_bytecode_image(BytecodeImage) -> Result[Unit, BytecodeVerificationError]
 
+pub fn verify_bytecode_image_for_execution(BytecodeImage) -> Result[VerifiedBytecodeImage, BytecodeVerificationError]
+
 // Errors
 pub(all) suberror BytecodeDecodeError {
   MalformedEncoding(offset~ : Int, detail~ : String)
@@ -136,6 +138,19 @@ pub(all) struct FunctionInputs {
 pub(all) struct GlobalId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+
+pub(all) struct GlobalLifecyclePlan {
+  roots : Array[GlobalLifecycleRoot]
+  root_ordinals : Array[Int]
+  owned_roots : Array[GlobalLifecycleRoot]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct GlobalLifecycleRoot {
+  global : GlobalId
+  companion : GlobalId?
+  cleanup : Cleanup
+  owned_ordinal : Int?
+} derive(Eq, @debug.Debug)
 
 pub(all) struct GlobalMetadata {
   representation : Representation
@@ -375,6 +390,11 @@ pub(all) struct ValueAbi {
   cleanup : Cleanup
   kind : SemanticValueKind
 } derive(Eq, @debug.Debug)
+
+pub(all) struct VerifiedBytecodeImage {
+  image : BytecodeImage
+  global_lifecycle : GlobalLifecyclePlan
+}
 
 // Type aliases
 

@@ -218,8 +218,8 @@ test "instance globals clean trivial reference callable and erased roots" {
   let instance = loaded.new_instance()
   assert_eq(instance.execute(), Ok(()))
   assert_eq(instance.heap.live_bytes, 0)
-  assert_true(instance.globals.all(value => value is None))
-  assert_true(instance.initialized_globals.is_empty())
+  assert_true(instance.globals is [Some(I64(42L)), None, None, None, None])
+  assert_eq(instance.initialized_owned_root_count, 0)
 }
 
 ///|
@@ -235,8 +235,8 @@ test "cleanup-capable entry failures release initialized global roots" {
     Err(RuntimeImportFailure(symbol="lane.test.fail", message="boom")),
   )
   assert_eq(instance.heap.live_bytes, 0)
-  assert_true(instance.globals.all(value => value is None))
-  assert_true(instance.initialized_globals.is_empty())
+  assert_true(instance.globals is [Some(I64(42L)), None, None, None, None])
+  assert_eq(instance.initialized_owned_root_count, 0)
 }
 
 ///|
@@ -257,6 +257,6 @@ test "cleanup-capable initializer failures release initialized global roots" {
     Err(RuntimeImportFailure(symbol="lane.test.fail", message="boom")),
   )
   assert_eq(instance.heap.live_bytes, 0)
-  assert_true(instance.globals.all(value => value is None))
-  assert_true(instance.initialized_globals.is_empty())
+  assert_true(instance.globals is [Some(I64(42L)), None, None, None, None])
+  assert_eq(instance.initialized_owned_root_count, 0)
 }

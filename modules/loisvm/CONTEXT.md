@@ -108,6 +108,11 @@ The optional bytecode function that initializes Instance Globals before the
 selected entry executes.
 _Avoid_: source module loader, Wasm start policy
 
+**Global Lifecycle Plan**:
+The verifier-owned canonical root order, companion mapping, owned-root order,
+and cleanup facts consumed by every execution tier.
+_Avoid_: backend-reconstructed initialization flags, runtime metadata guess
+
 ### Calls And Closures
 
 **Callable ABI**:

@@ -216,6 +216,7 @@ fn wasm_runtime_name(role : @wasm_compiler.WasmRuntimeFunctionRole) -> String {
     ByteSequenceGet => "byte sequence get"
     ByteSequenceSet => "byte sequence set"
     ByteSequenceIsValidUtf8 => "byte sequence is valid UTF-8"
+    InstanceGlobalCleanup => "instance global cleanup"
   }
 }
 

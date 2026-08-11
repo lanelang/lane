@@ -317,7 +317,11 @@ test "CallValue validates dynamic target and environment before consumption" {
     object_shapes: [],
     constants: [],
   }
-  let loaded = LoadedImage::{ image, bindings: [None, None] }
+  let loaded = LoadedImage::{
+    image,
+    global_lifecycle: { roots: [], root_ordinals: [], owned_roots: [] },
+    bindings: [None, None],
+  }
   let instance = loaded.new_instance()
   let frame = make_frame(entry, None, [], [], None)
   frame.write({ value: 0 }, I64(callable({ value: 99 }, 0)))

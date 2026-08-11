@@ -23,8 +23,7 @@ pub struct ExecutionInstance {
   heap : Heap
   frames : Array[Frame]
   globals : Array[VMValue?]
-  initialized_globals : Array[@bytecode.GlobalId]
-  mut initializing : Bool
+  mut initialized_owned_root_count : Int
   mut state : InstanceState
 }
 
@@ -41,8 +40,7 @@ pub fn LoadedImage::new_instance(
     heap: Heap::new(self.image, runtime, config.max_live_heap_bytes),
     frames: [],
     globals: Array::make(self.image.globals.length(), None),
-    initialized_globals: [],
-    initializing: false,
+    initialized_owned_root_count: 0,
     state: Ready,
   }
 }
@@ -99,16 +97,8 @@ fn ExecutionInstance::run(
     raise ResourceLimit(CallDepth)
   }
   match self.loaded.image.initializer {
-    Some(initializer) => {
-      self.initializing = true
-      self.run_root(initializer, cancel)
-      self.validate_initialized_globals()
-      self.initializing = false
-    }
-    None =>
-      if !self.loaded.image.globals.is_empty() {
-        raise InternalFailure(detail="instance globals require an initializer")
-      }
+    Some(initializer) => self.run_root(initializer, cancel)
+    None => ()
   }
   self.run_root(self.loaded.image.entry, cancel)
 }

@@ -12,7 +12,7 @@ let artifact_binary_kind_program = 3
 
 ///|
 /// Selects the only linked-program payload accepted or emitted by this codec.
-let linked_program_artifact_schema_version = 14
+let linked_program_artifact_schema_version = 15
 
 ///|
 priv struct BinaryArtifactPayload {

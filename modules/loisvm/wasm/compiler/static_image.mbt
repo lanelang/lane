@@ -18,6 +18,8 @@ priv struct StaticImage {
   callable_abis : Array[@bytecode.CallableAbi]
   callable_abi_table_base : Int
   callable_table_size : Int
+  global_lifecycle : @bytecode.GlobalLifecyclePlan
+  global_cleanup_table_base : Int
 }
 
 ///|
@@ -158,6 +160,7 @@ fn image_requires_byte_sequence_layout(image : @bytecode.BytecodeImage) -> Bool 
 ///|
 fn build_static_image(
   image : @bytecode.BytecodeImage,
+  global_lifecycle : @bytecode.GlobalLifecyclePlan,
   helper_functions : HelperFunctions,
   wasm_function_offset : Int,
   host_objects_enabled : Bool,
@@ -317,7 +320,17 @@ fn build_static_image(
   }
   pad_to(writer, 8)
   let global_table_base = writer.length()
-  write_zeroes(writer, image.globals.length() * 16)
+  write_zeroes(writer, image.globals.length() * 8)
+  let global_cleanup_table_base = writer.length()
+  for root in global_lifecycle.owned_roots {
+    let cleanup_tag = match root.cleanup {
+      OwnedRef => 1
+      OwnedCallable => 2
+      OwnedErased => 3
+      Trivial => abort("owned root has trivial cleanup")
+    }
+    writer.write_i32_le((root.global.value << 2) | cleanup_tag)
+  }
   pad_to(writer, 8)
   let heap_base = writer.length()
   {
@@ -339,6 +352,8 @@ fn build_static_image(
     callable_abis: image.callable_abis,
     callable_abi_table_base,
     callable_table_size,
+    global_lifecycle,
+    global_cleanup_table_base,
   }
 }
 

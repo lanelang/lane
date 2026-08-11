@@ -482,6 +482,7 @@ fn write_instruction(
     Throw(index) => write_named_index(builder, "throw", index)
     LocalGet(index) => write_named_index(builder, "local.get", index)
     LocalSet(index) => write_named_index(builder, "local.set", index)
+    LocalTee(index) => write_named_index(builder, "local.tee", index)
     GlobalGet(index) => write_named_index(builder, "global.get", index)
     GlobalSet(index) => write_named_index(builder, "global.set", index)
     I32Load(memory, align, offset) =>
@@ -530,6 +531,7 @@ fn write_instruction(
     I32GeU => builder.write_string("i32.ge_u")
     I32Add => builder.write_string("i32.add")
     I32Sub => builder.write_string("i32.sub")
+    I32Mul => builder.write_string("i32.mul")
     I32And => builder.write_string("i32.and")
     I32Or => builder.write_string("i32.or")
     I32Shl => builder.write_string("i32.shl")

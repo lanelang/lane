@@ -36,7 +36,7 @@ test "linked program contains only current LoisVM bytecode" {
     ] else {
     fail("expected linked-program artifact framing")
   }
-  assert_eq(schema_version, 14)
+  assert_eq(schema_version, 15)
 }
 
 ///|
@@ -65,7 +65,7 @@ test "linked program inspection delegates to LoisVM" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 14
+      #|schema: 15
       #|
       #|LoisVM bytecode
       #|entry: f1
@@ -96,7 +96,7 @@ test "linked program inspection delegates to LoisVM" {
 }
 
 ///|
-test "linked program decoder rejects schema 13" {
+test "linked program decoder rejects schema 14" {
   let bytecode = @loisvm_bytecode.bytecode_image_to_binary(
     minimal_loisvm_image(),
   ).unwrap()
@@ -107,11 +107,11 @@ test "linked program decoder rejects schema 13" {
   writer.write_u8(1)
   writer.write_u8(3)
   writer.write_u32_le_int(4 + bytecode.length())
-  writer.write_u32_le_int(13)
+  writer.write_u32_le_int(14)
   writer.write_raw_bytes(bytecode)
   assert_eq(
     parse_loisvm_linked_program_binary(writer.to_bytes()),
-    Err("unsupported program artifact schema version 13"),
+    Err("unsupported program artifact schema version 14"),
   )
 }
 
@@ -238,7 +238,7 @@ test "linked program roundtrips and inspects instance globals" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 14
+      #|schema: 15
       #|
       #|LoisVM bytecode
       #|entry: f2

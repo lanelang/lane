@@ -68,6 +68,63 @@ test "bytecode verifier accepts a complete minimal image" {
 }
 
 ///|
+fn ordered_global_image(initialization_order : Array[Int]) -> BytecodeImage {
+  let slots = initialization_order.map(_ => verification_slot(I64))
+  let instructions : Array[Instruction] = []
+  for slot, global in initialization_order {
+    instructions.push(ConstI64({ value: slot }, global.to_int64()))
+    instructions.push(InitGlobal({ value: global }, { value: slot }))
+  }
+  let initializer = verification_body(slots~, instructions~)
+  {
+    ..verification_image(verification_body(), functions=[
+      BytecodeBody(initializer),
+    ]),
+    initializer: Some({ value: 2 }),
+    globals: Array::make(2, {
+      representation: I64,
+      cleanup: Trivial,
+      kind: ScalarValue,
+      erased_companion: None,
+    }),
+  }
+}
+
+///|
+test "bytecode verifier owns canonical instance-global initialization order" {
+  let verified = verify_bytecode_image_for_execution(
+    ordered_global_image([0, 1]),
+  )
+  guard verified is Ok(verified) else {
+    fail("ordered global initialization should verify")
+  }
+  debug_inspect(
+    verified.global_lifecycle,
+    content=(
+      #|{
+      #|  roots: [
+      #|    {
+      #|      global: { value: 0 },
+      #|      companion: None,
+      #|      cleanup: Trivial,
+      #|      owned_ordinal: None,
+      #|    },
+      #|    {
+      #|      global: { value: 1 },
+      #|      companion: None,
+      #|      cleanup: Trivial,
+      #|      owned_ordinal: None,
+      #|    },
+      #|  ],
+      #|  root_ordinals: [0, 1],
+      #|  owned_roots: [],
+      #|}
+    ),
+  )
+  assert_true(verify_bytecode_image(ordered_global_image([1, 0])) is Err(_))
+}
+
+///|
 test "bytecode verifier enforces Fatal message shape" {
   let message = verification_slot(
     I32,

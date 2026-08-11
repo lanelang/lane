@@ -15,6 +15,7 @@ pub(all) enum WasmRuntimeFunctionRole {
   ByteSequenceGet
   ByteSequenceSet
   ByteSequenceIsValidUtf8
+  InstanceGlobalCleanup
 } derive(Debug, Eq)
 
 ///|

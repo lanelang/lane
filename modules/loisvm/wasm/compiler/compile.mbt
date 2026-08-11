@@ -36,10 +36,11 @@ pub fn compile_observed(
 fn compile_or_raise(
   image : @bytecode.BytecodeImage,
 ) -> WasmCompileObservation raise WasmCompileError {
-  match @bytecode.verify_bytecode_image(image) {
-    Ok(_) => ()
+  let verified = match @bytecode.verify_bytecode_image_for_execution(image) {
+    Ok(verified) => verified
     Err(error) => raise InvalidBytecode(error)
   }
+  let image = verified.image
   let wasm_module = @wasm_types.Module::empty()
   let emitter = WasmFunctionEmitter::new(wasm_module)
   let imports = image.functions.filter_map(fn(entry) {
@@ -70,6 +71,7 @@ fn compile_or_raise(
   )
   let static_image = build_static_image(
     image,
+    verified.global_lifecycle,
     helper_functions,
     import_count,
     host_objects_enabled,
@@ -130,6 +132,13 @@ fn compile_or_raise(
     helper_functions,
     internal_import_plan.index(HostObjectRelease),
   )
+  let cleanup_function = if verified.global_lifecycle.owned_roots.is_empty() {
+    None
+  } else {
+    Some(
+      append_global_cleanup_function(emitter, static_image, runtime_functions),
+    )
+  }
   let fatal_tag_type = intern_function_type(wasm_module, [], [])
   wasm_module.tags.push({ type_idx: fatal_tag_type })
   let entry_wrapper_type = intern_function_type(wasm_module, [], [])
@@ -137,9 +146,7 @@ fn compile_or_raise(
     entry_wrapper_type,
     {
       locals: [],
-      body: compile_entry_lifecycle(
-        image, wasm_module, static_image, runtime_functions,
-      ),
+      body: compile_entry_lifecycle(image, static_image, cleanup_function),
     },
     EntryWrapper,
   )

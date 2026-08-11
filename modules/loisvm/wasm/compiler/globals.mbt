@@ -29,7 +29,7 @@ let failure_code_global_index = 8
 let runtime_import_failed_global_index = 9
 
 ///|
-let initializing_global_index = 10
+let initialized_owned_root_count_global_index = 10
 
 ///|
 pub fn max_live_heap_bytes_global() -> Int {
@@ -118,7 +118,7 @@ fn append_runtime_globals(
   )
   append_i32_global(
     wasm_module,
-    index=initializing_global_index,
+    index=initialized_owned_root_count_global_index,
     is_mutable=true,
     initial=0,
   )
