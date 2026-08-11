@@ -47,6 +47,17 @@ The selected entry and initializer computations whose reachable definitions an
 execution image must preserve.
 _Avoid_: exported symbol set, precomputed closure
 
+**Linked Core Retention Root Set**:
+All entry candidates admitted by the link policy, value-bearing exports, and
+external values after cross-module identities have been remapped. Runtime type,
+effect, and operation metadata remains intact and does not create value roots.
+_Avoid_: per-module reachability, selected-entry execution roots
+
+**Linked Core Tree Shaking**:
+The exact post-link removal of private top-level definitions outside the
+transitive closure of the Linked Core Retention Root Set.
+_Avoid_: heuristic inlining, metadata pruning, per-module DCE
+
 **Execution Image Lowering**:
 The target-specific translation from an Executable Program to a verified
 execution image.

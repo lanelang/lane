@@ -31,15 +31,9 @@ priv enum UsePosition {
 }
 
 ///|
-priv struct TopDefinition {
-  id : @buslane.ValueId
-  rhs : @buslane.Expr
-}
-
-///|
 priv struct OccurrenceAnalyzer {
   program : @buslane.Program
-  top_definitions : Array[TopDefinition]
+  top_definitions : Array[@buslane.Expr?]
   facts : Array[ValueOccurrenceFact]
 }
 
@@ -47,8 +41,38 @@ priv struct OccurrenceAnalyzer {
 pub fn analyze(input : OccurrenceInput) -> OccurrenceSummary {
   let analyzer = OccurrenceAnalyzer::from_program(input.program)
   analyzer.record_occurrences()
-  analyzer.record_reachability(input.entry, input.roots)
+  analyzer.record_reachability([input.entry] + input.roots)
   { entry: input.entry, roots: input.roots, facts: analyzer.facts }
+}
+
+///|
+/// Retains exactly the top-level definitions reachable from `roots`.
+///
+/// Metadata remains intact: type, effect, operation, and value identities are
+/// program-wide facts rather than executable top-level definitions.
+pub fn retain_reachable_top_terms(
+  program : @buslane.Program,
+  roots : Array[@buslane.ValueId],
+) -> @buslane.Program {
+  let analyzer = OccurrenceAnalyzer::from_program(program)
+  analyzer.record_reachability(roots)
+  let terms = []
+  for term in program.terms {
+    match term {
+      Let(value, _) if analyzer.value_is_reachable(value) => terms.push(term)
+      LetRec(bindings) => {
+        let reachable = bindings.filter(binding => {
+          analyzer.value_is_reachable(binding.id)
+        })
+        if !reachable.is_empty() {
+          terms.push(LetRec(reachable))
+        }
+      }
+      External(value) if analyzer.value_is_reachable(value) => terms.push(term)
+      _ => ()
+    }
+  }
+  { ..program, terms, }
 }
 
 ///|
@@ -67,13 +91,16 @@ fn OccurrenceAnalyzer::from_program(
   for index in 0..<program.metadata.values.length() {
     facts.push(ValueOccurrenceFact::empty({ index, }))
   }
-  let top_definitions = []
+  let top_definitions : Array[@buslane.Expr?] = Array::make(
+    program.metadata.values.length(),
+    None,
+  )
   for term in program.terms {
     match term {
-      Let(id, rhs) => top_definitions.push({ id, rhs })
+      Let(id, rhs) => top_definitions[id.index] = Some(rhs)
       LetRec(bindings) =>
         for binding in bindings {
-          top_definitions.push({ id: binding.id, rhs: binding.rhs })
+          top_definitions[binding.id.index] = Some(binding.rhs)
         }
       External(_) => ()
     }
@@ -98,19 +125,30 @@ fn ValueOccurrenceFact::empty(id : @buslane.ValueId) -> ValueOccurrenceFact {
 ///|
 fn OccurrenceAnalyzer::record_occurrences(self : OccurrenceAnalyzer) -> Unit {
   for definition in self.top_definitions {
-    self.visit_expr(definition.rhs, NonCallee, effectful=false)
+    if definition is Some(rhs) {
+      self.visit_expr(rhs, NonCallee, effectful=false)
+    }
   }
 }
 
 ///|
 fn OccurrenceAnalyzer::record_reachability(
   self : OccurrenceAnalyzer,
-  entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
 ) -> Unit {
-  self.mark_reachable(entry)
   for root in roots {
     self.mark_reachable(root)
+  }
+}
+
+///|
+fn OccurrenceAnalyzer::value_is_reachable(
+  self : OccurrenceAnalyzer,
+  value : @buslane.ValueId,
+) -> Bool {
+  match self.facts.get(value.index) {
+    Some(fact) => fact.reachable_from_entry
+    None => false
   }
 }
 
@@ -234,22 +272,20 @@ fn OccurrenceAnalyzer::mark_reachable(
     return
   }
   self.facts[id.index] = { ..fact, reachable_from_entry: true }
-  if self.find_top_definition(id) is Some(definition) {
-    self.mark_reachable_expr(definition.rhs, 0)
+  if self.top_definition(id) is Some(rhs) {
+    self.mark_reachable_expr(rhs, 0)
   }
 }
 
 ///|
-fn OccurrenceAnalyzer::find_top_definition(
+fn OccurrenceAnalyzer::top_definition(
   self : OccurrenceAnalyzer,
   id : @buslane.ValueId,
-) -> TopDefinition? {
-  for definition in self.top_definitions {
-    if definition.id == id {
-      return Some(definition)
-    }
+) -> @buslane.Expr? {
+  match self.top_definitions.get(id.index) {
+    Some(Some(rhs)) => Some(rhs)
+    _ => None
   }
-  None
 }
 
 ///|

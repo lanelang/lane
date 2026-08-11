@@ -121,7 +121,7 @@ fn exported_value_modules(
 }
 
 ///|
-test "reachable linking remains deterministic for many modules and symbols" {
+test "linked tree shaking remains deterministic for many modules and symbols" {
   let module_count = 48
   let values_per_module = 48
   let modules = []
@@ -155,7 +155,7 @@ test "reachable linking remains deterministic for many modules and symbols" {
       program.program.terms.length(),
       @buslane.verify_program(program.program).is_ok(),
     ),
-    (module_count * values_per_module, module_count * values_per_module, true),
+    (module_count * values_per_module, 0, true),
   )
 }
 
@@ -177,7 +177,201 @@ test "symbol-rich imports reuse indexed provider exports" {
       program.program.terms.length(),
       @buslane.verify_program(program.program).is_ok(),
     ),
-    (["Provider", "Importer"], value_count * 2, value_count * 2, true),
+    (["Provider", "Importer"], value_count * 2, value_count, true),
+  )
+}
+
+///|
+fn linked_term_names(program : @buslane.Program) -> Array[String] {
+  let names = []
+  let push_name = fn(prefix : String, value : @buslane.ValueId) {
+    guard program.metadata.value_info(value) is Some(info) else { return }
+    names.push(prefix + info.name.occurrence)
+  }
+  for term in program.terms {
+    match term {
+      Let(value, _) => push_name("let ", value)
+      LetRec(bindings) =>
+        for binding in bindings {
+          push_name("letrec ", binding.id)
+        }
+      External(value) => push_name("external ", value)
+    }
+  }
+  names
+}
+
+///|
+fn test_entry(
+  module_path_text : String,
+  name : String,
+  value : @buslane.ValueId,
+) -> @buslane_lowering.BuslaneEntry {
+  { module_path_text, name, value, type_: Primitive(I64) }
+}
+
+///|
+test "linked tree shaking retains exports entries externals and metadata" {
+  let provider_metadata = @buslane.MetadataRegistry()
+  let effect = provider_metadata.define_effect("Runtime", [])
+  let signal = provider_metadata.define_operation(
+    "signal",
+    effect,
+    [],
+    [],
+    Primitive(Unit),
+  )
+  let helper = provider_metadata.define_value("helper", Value, Primitive(I64))
+  let api = provider_metadata.define_value("api", Value, Primitive(I64))
+  let provider_dead = provider_metadata.define_value(
+    "provider_dead",
+    Value,
+    Primitive(I64),
+  )
+  let add = provider_metadata.define_value(
+    "add",
+    External,
+    Function([Primitive(I64), Primitive(I64)], Primitive(I64), Empty),
+  )
+  let host_log = provider_metadata.define_value(
+    "host_log",
+    External,
+    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+  )
+  let provider : LinkModuleObject = {
+    ..test_link_object("Provider", [], 0),
+    metadata: provider_metadata,
+    terms: [
+      Let(helper, Literal(I64(1L))),
+      Let(api, Ref(helper)),
+      Let(provider_dead, Literal(I64(2L))),
+      External(add),
+      External(host_log),
+    ],
+    externals: {
+      builtins: [
+        @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+          add,
+          @abi.I64Add,
+        ),
+      ],
+      runtime_imports: [
+        {
+          value: host_log,
+          symbol: "host_log",
+          signature: { parameters: [String], result: Unit },
+          type_: Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+        },
+      ],
+    },
+    exports: [
+      { name: "api", reference: Value(api) },
+      { name: "Runtime", reference: Effect(effect) },
+      { name: "signal", reference: Operation(signal) },
+    ],
+  }
+  let root_metadata = @buslane.MetadataRegistry()
+  let imported_api = root_metadata.define_value(
+    "imported_api",
+    External,
+    Primitive(I64),
+  )
+  let main = root_metadata.define_value("main", Value, Primitive(I64))
+  let root_dead = root_metadata.define_value("root_dead", Value, Primitive(I64))
+  let root : LinkModuleObject = {
+    ..test_link_object("Root", ["Provider"], 0),
+    metadata: root_metadata,
+    terms: [Let(main, Ref(imported_api)), Let(root_dead, Literal(I64(3L)))],
+    entries: [test_entry("Root", "main", main)],
+    imports: [
+      {
+        module_path_text: "Provider",
+        name: "api",
+        fingerprint: module_fingerprint("Provider"),
+        reference: Value(imported_api),
+      },
+    ],
+  }
+  let result = link_reachable_modules([root, provider], "Root")
+  assert_eq(result.diagnostics, [])
+  guard result.program is Some(linked) else { abort("expected linked program") }
+  debug_inspect(
+    (
+      linked.module_path_texts,
+      linked_term_names(linked.program),
+      linked.entries.map(entry => (entry.module_path_text, entry.name)),
+      linked.externals.builtins.map(builtin => builtin.intrinsic()),
+      linked.externals.runtime_imports.map(import_ => import_.symbol),
+      linked.program.metadata.effects.map(info => info.name.occurrence),
+      linked.program.metadata.operations.map(info => info.name.occurrence),
+      @buslane.verify_program(linked.program).is_ok(),
+    ),
+    content=(
+      #|(
+      #|  ["Provider", "Root"],
+      #|  [
+      #|    "let helper",
+      #|    "let api",
+      #|    "external add",
+      #|    "external host_log",
+      #|    "let main",
+      #|  ],
+      #|  [("Root", "main")],
+      #|  [I64Add],
+      #|  ["host_log"],
+      #|  ["Runtime"],
+      #|  ["signal"],
+      #|  true,
+      #|)
+    ),
+  )
+}
+
+///|
+test "linked entry policy determines whole-program retention roots" {
+  let dependency_metadata = @buslane.MetadataRegistry()
+  let helper = dependency_metadata.define_value(
+    "dependency_helper",
+    Value,
+    Primitive(I64),
+  )
+  let dependency_entry = dependency_metadata.define_value(
+    "dependency_entry",
+    Value,
+    Primitive(I64),
+  )
+  let dependency : LinkModuleObject = {
+    ..test_link_object("Dependency", [], 0),
+    metadata: dependency_metadata,
+    terms: [Let(helper, Literal(I64(1L))), Let(dependency_entry, Ref(helper))],
+    entries: [test_entry("Dependency", "run", dependency_entry)],
+  }
+  let root_metadata = @buslane.MetadataRegistry()
+  let root_entry = root_metadata.define_value(
+    "root_entry",
+    Value,
+    Primitive(I64),
+  )
+  let root : LinkModuleObject = {
+    ..test_link_object("Root", ["Dependency"], 0),
+    metadata: root_metadata,
+    terms: [Let(root_entry, Literal(I64(0L)))],
+    entries: [test_entry("Root", "run", root_entry)],
+  }
+  let reachable = link_reachable_modules([root, dependency], "Root")
+  let complete = link_modules([root, dependency])
+  guard reachable.program is Some(reachable) else {
+    abort("expected reachable linked program")
+  }
+  guard complete.program is Some(complete) else {
+    abort("expected complete linked program")
+  }
+  assert_eq(
+    (linked_term_names(reachable.program), linked_term_names(complete.program)),
+    (
+      ["let root_entry"],
+      ["let dependency_helper", "let dependency_entry", "let root_entry"],
+    ),
   )
 }
 

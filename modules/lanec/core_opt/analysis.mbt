@@ -75,33 +75,5 @@ fn prune_unreachable(
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
 ) -> @buslane.Program {
-  let summary = @occurrence.analyze({ program, entry, roots })
-  let terms = []
-  for term in program.terms {
-    match term {
-      Let(value, _) if value_is_reachable(summary, value) => terms.push(term)
-      LetRec(bindings) => {
-        let reachable = bindings.filter(binding => {
-          value_is_reachable(summary, binding.id)
-        })
-        if !reachable.is_empty() {
-          terms.push(LetRec(reachable))
-        }
-      }
-      External(value) if value_is_reachable(summary, value) => terms.push(term)
-      _ => ()
-    }
-  }
-  { ..program, terms, }
-}
-
-///|
-fn value_is_reachable(
-  summary : @occurrence.OccurrenceSummary,
-  value : @buslane.ValueId,
-) -> Bool {
-  match summary.facts.get(value.index) {
-    Some(fact) => fact.reachable_from_entry
-    None => false
-  }
+  @occurrence.retain_reachable_top_terms(program, [entry] + roots)
 }

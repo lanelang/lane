@@ -91,15 +91,46 @@ fn link_ordered_modules_with_remapper(
       QualifiedEntries => entries.append(object.entries)
     }
   }
+  let complete_program : @buslane.Program = {
+    metadata: remapper.metadata,
+    terms,
+  }
+  let retained_program = @occurrence.retain_reachable_top_terms(
+    complete_program,
+    linked_top_term_roots(remapped_objects, entries),
+  )
   {
     program: Some({
       module_path_texts,
-      program: { metadata: remapper.metadata, terms },
+      program: retained_program,
       externals: { builtins, runtime_imports },
       entries,
     }),
     diagnostics: [],
   }
+}
+
+///|
+fn linked_top_term_roots(
+  objects : Array[RemappedModuleObject],
+  entries : Array[@buslane_lowering.BuslaneEntry],
+) -> Array[@buslane.ValueId] {
+  let roots = entries.map(entry => entry.value)
+  for object in objects {
+    for export_ in object.exports {
+      match export_.reference {
+        Value(value) | FieldSelector(value) => roots.push(value)
+        Type(_) | DataConstructor(_) | Effect(_) | Operation(_) => ()
+      }
+    }
+    for builtin in object.externals.builtins {
+      roots.push(builtin.value())
+    }
+    for runtime_import in object.externals.runtime_imports {
+      roots.push(runtime_import.value)
+    }
+  }
+  roots
 }
 
 ///|

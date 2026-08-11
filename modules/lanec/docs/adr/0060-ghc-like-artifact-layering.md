@@ -23,6 +23,15 @@ still useful, but it should be late and local: instruction selection,
 peepholes, slot allocation, jump cleanup, constant-pool layout, and similar
 execution-layout work.
 
+The first whole-program transformation is exact linked-core tree shaking.
+After imported identities are remapped, the linker retains the transitive
+closure of the entry candidates admitted by its entry policy, value-bearing
+exports, and external values. It removes other private top-level definitions.
+The linked metadata registry remains intact: type, effect, and operation
+metadata is semantic context rather than executable top-level code. Occurrence
+analysis owns the reachability traversal and top-term retention operation used
+both here and by later selected-entry optimization.
+
 The linked program artifact stores the final optimized bytecode image. The
 selected entry and runtime-import descriptors are stored only inside the
 image's unified `FunctionId` table rather than duplicated by the outer artifact

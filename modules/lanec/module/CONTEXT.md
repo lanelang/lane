@@ -19,3 +19,9 @@ _Avoid_: interface model, linker
 The package boundary that owns module compilation, artifacts, fingerprints,
 linking, and executable-program assembly.
 _Avoid_: source input discovery, shared interface types
+
+**Linked Core Retention**:
+The linker policy that computes whole-program roots only after import identity
+remapping and entry selection policy are known, then delegates exact top-term
+reachability and retention to occurrence analysis.
+_Avoid_: per-module dead-code elimination, downstream root reconstruction

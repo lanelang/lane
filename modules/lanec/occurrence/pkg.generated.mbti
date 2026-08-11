@@ -11,6 +11,8 @@ pub fn analyze(OccurrenceInput) -> OccurrenceSummary
 
 pub fn analyze_program(@buslane.Program, @buslane.ValueId) -> OccurrenceSummary
 
+pub fn retain_reachable_top_terms(@buslane.Program, Array[@buslane.ValueId]) -> @buslane.Program
+
 // Errors
 
 // Types and methods
