@@ -11,14 +11,13 @@ pub fn lower_executable_to_loisvm_bytecode(
 }
 
 ///|
-/// Lowers and wraps an executable in the current linked-program artifact schema.
-/// The result is deterministic for an equal executable program.
+/// Lowers and wraps an executable for linked-program persistence. The artifact
+/// codec selects the current schema when this value is encoded.
 pub fn executable_to_loisvm_artifact(
   program : @executable.ExecutableProgram,
 ) -> Result[LinkedProgramArtifact, @loisvm_lowering.LoisvmLoweringError] {
   match lower_executable_to_loisvm_bytecode(program) {
-    Ok(bytecode) =>
-      Ok({ schema_version: linked_program_artifact_schema_version, bytecode })
+    Ok(bytecode) => Ok({ bytecode, })
     Err(error) => Err(error)
   }
 }
@@ -45,10 +44,7 @@ pub fn executable_to_loisvm_binary(
 pub fn loisvm_linked_program_to_binary(
   image : @loisvm_bytecode.BytecodeImage,
 ) -> Result[Bytes, @loisvm_bytecode.BytecodeVerificationError] {
-  linked_program_artifact_to_binary({
-    schema_version: linked_program_artifact_schema_version,
-    bytecode: image,
-  })
+  linked_program_artifact_to_binary({ bytecode: image })
 }
 
 ///|

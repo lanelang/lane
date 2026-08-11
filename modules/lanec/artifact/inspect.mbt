@@ -74,7 +74,7 @@ pub impl @prettyprinter.Pretty for LinkedProgramArtifact with fn pretty(
     .collect()
   ignore(disassembly.pop())
   text(
-    "Lane program artifact\nschema: \{artifact.schema_version}\n\n" +
+    "Lane program artifact\nschema: \{linked_program_artifact_schema_version}\n\n" +
     disassembly.join("\n"),
   )
 }

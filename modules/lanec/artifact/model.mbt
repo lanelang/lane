@@ -20,9 +20,6 @@ pub let module_interface_artifact_schema_version = 12
 pub let module_object_artifact_schema_version = 19
 
 ///|
-pub let linked_program_artifact_schema_version = 13
-
-///|
 pub let compiled_module_artifact_schema_version = 2
 
 ///|
@@ -49,10 +46,10 @@ pub(all) struct ModuleObjectArtifact {
 } derive(Debug, Eq)
 
 ///|
-/// Persisted complete LoisVM image. Encoding and decoding both pass through the
-/// LoisVM-owned semantic verifier before bytes or an image are returned.
+/// Complete LoisVM image at the linked-program persistence boundary. The
+/// artifact codec owns the persisted schema version; it is not caller state.
+/// Encoding and decoding both pass through the LoisVM-owned semantic verifier.
 pub(all) struct LinkedProgramArtifact {
-  schema_version : Int
   bytecode : @loisvm_bytecode.BytecodeImage
 } derive(Debug, Eq)
 

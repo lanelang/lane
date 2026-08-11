@@ -34,8 +34,6 @@ pub fn link_module_artifacts(CompiledModuleSetArtifact) -> @link.LinkResult
 
 pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> @link.LinkResult
 
-pub let linked_program_artifact_schema_version : Int
-
 pub fn linked_program_artifact_to_binary(LinkedProgramArtifact) -> Result[Bytes, @bytecode.BytecodeVerificationError]
 
 pub fn loisvm_linked_program_to_binary(@bytecode.BytecodeImage) -> Result[Bytes, @bytecode.BytecodeVerificationError]
@@ -82,7 +80,6 @@ pub(all) struct CompiledModuleSetArtifact {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LinkedProgramArtifact {
-  schema_version : Int
   bytecode : @bytecode.BytecodeImage
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact

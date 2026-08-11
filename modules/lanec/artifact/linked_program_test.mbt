@@ -25,6 +25,18 @@ test "linked program contains only current LoisVM bytecode" {
   let binary = loisvm_linked_program_to_binary(image).unwrap()
   assert_eq(parse_loisvm_linked_program_binary(binary), Ok(image))
   assert_eq(binary.length(), 102)
+  guard binary[:]
+    is [
+      .. b"LANEART\x00",
+      u8be(1),
+      u8be(3),
+      i32le(_),
+      i32le(schema_version),
+      ..,
+    ] else {
+    fail("expected linked-program artifact framing")
+  }
+  assert_eq(schema_version, 14)
 }
 
 ///|
@@ -37,13 +49,7 @@ test "linked program persistence rejects invalid bytecode" {
     ),
   )
   assert_eq(loisvm_linked_program_to_binary(invalid), expected)
-  assert_eq(
-    linked_program_artifact_to_binary({
-      schema_version: linked_program_artifact_schema_version,
-      bytecode: invalid,
-    }),
-    expected,
-  )
+  assert_eq(linked_program_artifact_to_binary({ bytecode: invalid }), expected)
 }
 
 ///|
@@ -59,7 +65,7 @@ test "linked program inspection delegates to LoisVM" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 13
+      #|schema: 14
       #|
       #|LoisVM bytecode
       #|entry: f1
@@ -90,17 +96,23 @@ test "linked program inspection delegates to LoisVM" {
 }
 
 ///|
-test "schema 12 rejects schema 11 linked program payload" {
+test "linked program decoder rejects schema 13" {
+  let bytecode = @loisvm_bytecode.bytecode_image_to_binary(
+    minimal_loisvm_image(),
+  ).unwrap()
   let writer = @bytecodec.ByteWriter::new()
   writer.write_raw_bytes(
     Bytes::from_array([b'L', b'A', b'N', b'E', b'A', b'R', b'T', b'\x00']),
   )
   writer.write_u8(1)
   writer.write_u8(3)
-  writer.write_u32_le_int(11)
-  writer.write_u32_le_int(4)
-  let result = parse_loisvm_linked_program_binary(writer.to_bytes())
-  assert_true(result is Err(_))
+  writer.write_u32_le_int(4 + bytecode.length())
+  writer.write_u32_le_int(13)
+  writer.write_raw_bytes(bytecode)
+  assert_eq(
+    parse_loisvm_linked_program_binary(writer.to_bytes()),
+    Err("unsupported program artifact schema version 13"),
+  )
 }
 
 ///|
@@ -226,7 +238,7 @@ test "linked program roundtrips and inspects instance globals" {
     text,
     content=(
       #|Lane program artifact
-      #|schema: 13
+      #|schema: 14
       #|
       #|LoisVM bytecode
       #|entry: f2

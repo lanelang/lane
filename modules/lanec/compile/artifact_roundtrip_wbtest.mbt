@@ -116,10 +116,6 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
     Err(message) => abort(message)
   }
   assert_eq(linked_decoded, linked_artifact)
-  assert_eq(
-    linked_decoded.schema_version,
-    @artifact.linked_program_artifact_schema_version,
-  )
   inspect(
     @prettyprinter.render(@buslane.verify_program(program.program), width=100),
     content="verify_result {}",

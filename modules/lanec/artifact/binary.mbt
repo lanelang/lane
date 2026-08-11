@@ -11,6 +11,10 @@ let artifact_binary_kind_object = 2
 let artifact_binary_kind_program = 3
 
 ///|
+/// Selects the only linked-program payload accepted or emitted by this codec.
+let linked_program_artifact_schema_version = 14
+
+///|
 priv struct BinaryArtifactPayload {
   kind : Int
   payload : Bytes
@@ -119,7 +123,7 @@ pub fn linked_program_artifact_to_binary(
   match @loisvm_bytecode.bytecode_image_to_binary(artifact.bytecode) {
     Ok(bytecode) => {
       let writer = @bytecodec.ByteWriter::new()
-      writer.write_u32_le_int(artifact.schema_version)
+      writer.write_u32_le_int(linked_program_artifact_schema_version)
       writer.write_raw_bytes(bytecode)
       Ok(
         artifact_payload_to_binary(
@@ -370,5 +374,5 @@ fn decode_linked_program_artifact_payload(
     Ok(bytecode) => bytecode
     Err(error) => raise LoisvmBytecodeError(error)
   }
-  { schema_version, bytecode }
+  { bytecode, }
 }

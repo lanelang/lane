@@ -126,14 +126,6 @@ test "artifact decoders reject pre UTF-8 schema versions" {
   }
   let interface = module_.to_interface_artifact()
   let object = module_.to_object_artifact()
-  let bytecode = compile_test_loisvm_image(
-    (
-      #|module Test
-      #|pub fn answer() -> Unit {
-      #|  ()
-      #|}
-    ),
-  )
   assert_eq(
     (
       @artifact.parse_module_interface_artifact_binary(
@@ -148,17 +140,10 @@ test "artifact decoders reject pre UTF-8 schema versions" {
           schema_version: 12,
         }),
       ),
-      @artifact.parse_linked_program_artifact_binary(
-        @artifact.linked_program_artifact_to_binary({
-          schema_version: 6,
-          bytecode,
-        }).unwrap(),
-      ),
     ),
     (
       Err("unsupported interface artifact schema version 9"),
       Err("unsupported object artifact schema version 12"),
-      Err("unsupported program artifact schema version 6"),
     ),
   )
 }
