@@ -286,6 +286,8 @@ fn ImageLowerer::lower_function(
     [],
     None,
     [],
+    TypeSubstitution(),
+    [],
   )
 }
 
@@ -304,6 +306,7 @@ fn ImageLowerer::lower_initializer_step(
     environment: None,
     witnesses: [],
     substitutions: TypeSubstitution(),
+    specialized_parameters: [],
   }
   let result = lowerer.materialize_local(lowerer.lower_expr(step.expression))
   let (result_abi, returned) = match (self.find_global(step.value), result) {
@@ -351,6 +354,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
     environment: None,
     witnesses: [],
     substitutions: TypeSubstitution(),
+    specialized_parameters: [],
   }
   for step in steps {
     match self.find_global(step.value) {
@@ -399,6 +403,8 @@ fn ImageLowerer::lower_lifted_function(
     plan.captures,
     plan.environment_shape,
     plan.recursive_functions,
+    plan.substitutions,
+    plan.specialized_parameters,
   )
 }
 
@@ -421,6 +427,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
       environment: None,
       witnesses: [],
       substitutions: TypeSubstitution(),
+      specialized_parameters: [],
     }
     let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
     guard parameter_slots is [message] else {
@@ -448,6 +455,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     environment: None,
     witnesses: [],
     substitutions: TypeSubstitution(),
+    specialized_parameters: [],
   }
   let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
   let arguments = []

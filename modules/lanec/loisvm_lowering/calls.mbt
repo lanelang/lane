@@ -259,7 +259,18 @@ fn FunctionLowerer::lower_generic_direct_call(
       detail="generic call argument count does not match its function type",
     )
   }
-  let substitutions = self.call_type_substitution(parameters, arguments)
+  let arguments = arguments.map(argument => {
+    self.substitute_generic_argument(argument)
+  })
+  let substitutions = self.image.call_type_substitution(parameters, arguments)
+  if self.image.representation_specialization(
+      function, parameters, formal_parameters, formal_result, arguments,
+    )
+    is Some((plan, actual_result)) {
+    return self.lower_representation_specialized_call(
+      plan, actual_result, values,
+    )
+  }
   let witnesses = []
   for parameter in parameters {
     if self.image.requires_runtime_evidence(parameter) {
@@ -292,7 +303,9 @@ fn FunctionLowerer::lower_generic_direct_call(
     self.emit(
       CallDirect(function, None, witnesses, argument_slots, Some(erased_result)),
     )
-    self.unerase_value(erased_result, actual_result)
+    self.unerase_value(
+      erased_result, formal_result, actual_result, substitutions,
+    )
   } else {
     let destination = self.fresh_optional_slot(formal_result)
     self.emit(
@@ -305,6 +318,49 @@ fn FunctionLowerer::lower_generic_direct_call(
       substitutions,
     )
   }
+}
+
+///|
+fn FunctionLowerer::lower_representation_specialized_call(
+  self : FunctionLowerer,
+  plan : RepresentationSpecializationPlan,
+  actual_result : @buslane.Type,
+  values : Array[LocalValue],
+) -> LocalValue raise LoisvmLoweringError {
+  if values.length() != plan.parameter_types.length() {
+    raise RepresentationSpecializationInvariant(
+      detail="representation-specialized call arguments do not match its worker",
+    )
+  }
+  let arguments = []
+  for index, type_ in plan.parameter_types {
+    match self.image.elaborate_runtime_representation(type_) {
+      Unit => ()
+      Concrete(_, expected) => {
+        guard self.materialize_local(values[index]) is Slot(value, _) else {
+          raise RepresentationSpecializationInvariant(
+            detail="representation-specialized argument is not materialized",
+          )
+        }
+        let actual = self.values[value.value]
+        if actual.representation != expected.representation ||
+          actual.cleanup != expected.cleanup ||
+          actual.kind != expected.kind {
+          raise RepresentationSpecializationInvariant(
+            detail="representation-specialized argument ABI does not match its worker",
+          )
+        }
+        arguments.push(value)
+      }
+      Erased(_) =>
+        raise RepresentationSpecializationInvariant(
+          detail="representation-specialized worker contains an erased parameter",
+        )
+    }
+  }
+  let destination = self.fresh_optional_slot(actual_result)
+  self.emit(CallDirect(plan.worker, None, [], arguments, destination.0))
+  destination.1
 }
 
 ///|
@@ -356,7 +412,9 @@ fn FunctionLowerer::lower_generic_value_call(
     self.emit(
       CallValue(callable, witnesses, argument_slots, Some(erased_result)),
     )
-    self.unerase_value(erased_result, actual_result)
+    self.unerase_value(
+      erased_result, formal_result, actual_result, substitutions,
+    )
   } else {
     let destination = self.fresh_optional_slot(formal_result)
     self.emit(CallValue(callable, witnesses, argument_slots, destination.0))
@@ -432,13 +490,22 @@ fn FunctionLowerer::call_type_substitution(
   let arguments = arguments.map(argument => {
     self.substitute_generic_argument(argument)
   })
-  let substitutions = self.image.type_substitution(parameters, arguments)
+  self.image.call_type_substitution(parameters, arguments)
+}
+
+///|
+fn ImageLowerer::call_type_substitution(
+  self : ImageLowerer,
+  parameters : Array[@buslane.TypeParameterId],
+  arguments : Array[@buslane.GenericArgument],
+) -> @buslane.TypeSubstitution raise LoisvmLoweringError {
+  let substitutions = self.type_substitution(parameters, arguments)
   let companion_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
   for index, parameter in parameters {
     let argument = arguments[index]
     if argument is TypeArgument(Parameter(actual_companion)) &&
-      self.image.effect_source(parameter) is Some(formal_source) &&
-      self.image.effect_source(actual_companion) is Some(actual_source) {
+      self.effect_source(parameter) is Some(formal_source) &&
+      self.effect_source(actual_companion) is Some(actual_source) {
       companion_substitutions.insert_effect(
         formal_source,
         Parameter(actual_source),

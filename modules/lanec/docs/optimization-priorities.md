@@ -61,6 +61,27 @@ These results demonstrate removal of callable representation plumbing. They do
 not demonstrate general generic-representation specialization: the resulting
 bytecode still contains 601 erase and 375 unerase operations.
 
+## Representation-specialization result
+
+Demand-driven first-order representation workers were measured on 2026-08-11
+against the same clean Basic revision `8a7be0e`. The plan deduplicates by
+canonical runtime ABI, proves recursive demand closure, retains generic
+fallbacks for open uses, and relies on exact whole-image reachability to remove
+only physically unreachable functions.
+
+Relative to the callable-flow baseline, Lane bytecode functions increase from
+702 to 731 while instructions decrease from 6,453 to 5,933. Erase operations
+fall from 601 to 440 and unerase operations from 375 to 325. Closures and
+environments each fall from 486 to 456. The Wasm image increases from 845 to 876
+functions, but rendered instructions decrease from 134,655 to 129,753, locals
+from 11,041 to 10,623, and table entries from 659 to 633. Thus Explore exposes
+the multiversioning cost rather than hiding it, while both executable code size
+and representation plumbing decrease.
+
+Three complete `test.sh` runs took 5.45, 5.47, and 5.44 seconds. Non-executing
+Explore took 0.39 seconds. The preceding callable-flow baseline took 6.66 to
+6.95 seconds for `test.sh` and 0.40 seconds for Explore.
+
 Layout witnesses and erasure bridges account for 1,954 of 8,168 bytecode
 operations, about 24 percent. The current VM CFG devirtualizer changes only 11
 indirect calls to direct calls and removes only 6 of 652 initial closure
@@ -134,8 +155,10 @@ rewriting when any use requires a packed callable. The implementation has no
 reference-count restriction, numeric budget, profitability score, speculative
 rewrite, or fallback path.
 
-Function-table pruning remains a downstream consumer to add after the new flow
-facts have removed all corresponding references.
+Function-table pruning is now an exact downstream consumer. After lowering, it
+starts from the entry and initializer and retains the transitive closure of
+direct calls, tail calls, function constants, and closure construction. It
+uses no reference-count or size policy.
 
 ### 3. Specialize concrete runtime representations and cancel adapters
 
@@ -158,9 +181,16 @@ source type substitution remain separate semantic operations.
 The callable-adapter portion was delivered on 2026-08-11: callable adaptation
 is now a deferred structural lowering value, direct invocation fuses it into
 the source call, and only first-class escape materializes an adapter closure.
-This removes non-escaping representation adapters without pretending to solve
-general erased-value specialization. Concrete generic-body specialization and
-general `erase_*`/`unerase_*` cancellation remain open in this priority.
+Demand-driven first-order generic representation specialization is now also
+delivered. One immutable plan owns canonical runtime-ABI keys, one worker per
+key, and exact recursive-SCC closure; the generic body remains available for
+all other calls. Explore regression gates show one worker shared by `Bool` and
+`I32`, zero erase/unerase operations on those concrete paths, and rejection of
+the expanding `T -> Box[T]` recursive family. Erased callable payloads now use
+the ABI declared by their formal erased position in both directions, so CPS
+answer specialization cannot silently change a continuation's dynamic call
+contract. Higher-kinded layout-constructor evidence and general bridge
+cancellation outside planned direct calls remain open in this priority.
 
 ### 4. Trust verified bytecode facts in the Wasm compiler
 
@@ -263,16 +293,13 @@ eagerly compile avoidable functions and representation plumbing.
 2. Remove duplicated global runtime checks and compact entry lifecycle cleanup.
 3. Add the Core static-value summary and consume it in match and projection
    reduction.
-4. Consume the delivered callable-flow analysis from later reachability and
-   function-table pruning.
-5. Extend the delivered non-escaping callable-adapter elimination with
-   demand-driven generic representation specialization and general bridge
-   cancellation.
-6. Add constructor scalar replacement, pair-aware witness propagation, and
+4. Extend the delivered first-order representation workers with canonical
+   higher-kinded evidence keys and general bridge cancellation.
+5. Add constructor scalar replacement, pair-aware witness propagation, and
    immutable-global borrow reuse.
-7. Coalesce residual ARC operations.
-8. Intern identical shape destructor plans.
-9. Apply conventional CFG and Wasm cleanup to the smaller program.
+6. Coalesce residual ARC operations.
+7. Intern identical shape destructor plans.
+8. Apply conventional CFG and Wasm cleanup to the smaller program.
 
 Each completed item must update the pinned Explore metrics and the end-to-end
 Basic timing. A smaller source-level IR without a smaller executable image is

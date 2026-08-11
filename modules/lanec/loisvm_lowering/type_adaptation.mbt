@@ -351,13 +351,20 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
     }
     (false, true) => {
       let witness = self.layout_witness(source_shape)
-      return Slot(self.erase_value(value, source_shape, witness), target_type)
+      return Slot(
+        self.erase_value(
+          value, source_shape, target_type, substitutions, witness,
+        ),
+        target_type,
+      )
     }
     (true, false) => {
       guard value is Slot(slot, _) else {
         raise InvalidTypeApplication(detail="erased value is not materialized")
       }
-      return self.unerase_value(slot, target_shape)
+      return self.unerase_value(
+        slot, source_value_type, target_type, substitutions,
+      )
     }
     _ => ()
   }
@@ -425,122 +432,14 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
 }
 
 ///|
-priv struct RuntimeValueAbi {
-  representation : @bytecode.Representation
-  cleanup : @bytecode.Cleanup
-} derive(Eq)
-
-///|
-fn ImageLowerer::runtime_value_abi(
-  self : ImageLowerer,
-  type_ : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
-) -> RuntimeValueAbi? raise LoisvmLoweringError {
-  match self.runtime_type(type_) {
-    Erased(_) => Some({ representation: I64, cleanup: OwnedErased })
-    Concrete(_) => {
-      let type_ = apply_type_substitution(type_, substitutions)
-      match self.runtime_type(type_) {
-        Erased(_) => Some({ representation: I64, cleanup: OwnedErased })
-        Concrete(Primitive(Unit)) => None
-        Concrete(type_) => {
-          let metadata = self.slot_metadata(type_)
-          Some({
-            representation: metadata.representation,
-            cleanup: metadata.cleanup,
-          })
-        }
-      }
-    }
-  }
-}
-
-///|
 fn ImageLowerer::callable_types_share_runtime_abi(
   self : ImageLowerer,
   source_type : @buslane.Type,
   target_type : @buslane.Type,
   substitutions : @buslane.TypeSubstitution,
 ) -> Bool raise LoisvmLoweringError {
-  let (source_type_parameters, source_parameters, source_result) = function_type_parts(
-    source_type,
-  )
-  let (target_type_parameters, target_parameters, target_result) = function_type_parts(
-    target_type,
-  )
-  let source_witnesses : Array[@bytecode.ValueAbi] = []
-  for parameter in source_type_parameters {
-    if self.requires_runtime_evidence(parameter) {
-      let metadata = self.runtime_evidence_metadata(parameter)
-      source_witnesses.push({
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-      })
-    }
-  }
-  let target_witnesses : Array[@bytecode.ValueAbi] = []
-  for parameter in target_type_parameters {
-    if self.requires_runtime_evidence(parameter) {
-      let metadata = self.runtime_evidence_metadata(parameter)
-      target_witnesses.push({
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-      })
-    }
-  }
-  if source_witnesses != target_witnesses ||
-    source_parameters.length() != target_parameters.length() {
-    return false
-  }
-  for index in 0..<source_parameters.length() {
-    if !self.runtime_values_share_abi(
-        source_parameters[index],
-        target_parameters[index],
-        substitutions,
-      ) {
-      return false
-    }
-  }
-  self.runtime_values_share_abi(source_result, target_result, substitutions)
-}
-
-///|
-fn ImageLowerer::runtime_values_share_abi(
-  self : ImageLowerer,
-  source_type : @buslane.Type,
-  target_type : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
-) -> Bool raise LoisvmLoweringError {
-  match (self.runtime_type(source_type), self.runtime_type(target_type)) {
-    (Erased(_), Erased(_)) => true
-    (Erased(_), _) | (_, Erased(_)) => false
-    (
-      Concrete(Function(_, _, _) | Forall(_, _) as source_type),
-      Concrete(Function(_, _, _) | Forall(_, _) as target_type),
-    ) =>
-      self.callable_types_share_runtime_abi(
-        source_type, target_type, substitutions,
-      )
-    (Concrete(Function(_, _, _) | Forall(_, _)), Concrete(_))
-    | (Concrete(_), Concrete(Function(_, _, _) | Forall(_, _))) => {
-      let source_type = apply_type_substitution(source_type, substitutions)
-      let target_type = apply_type_substitution(target_type, substitutions)
-      guard self.runtime_type(source_type)
-        is Concrete(Function(_, _, _) | Forall(_, _) as source_type) &&
-        self.runtime_type(target_type)
-        is Concrete(Function(_, _, _) | Forall(_, _) as target_type) else {
-        return false
-      }
-      self.callable_types_share_runtime_abi(
-        source_type, target_type, substitutions,
-      )
-    }
-    (Concrete(_), Concrete(_)) =>
-      self.runtime_value_abi(source_type, substitutions) ==
-      self.runtime_value_abi(target_type, substitutions)
-  }
+  self.canonical_callable_abi_under(source_type, substitutions) ==
+  self.canonical_callable_abi_under(target_type, substitutions)
 }
 
 ///|
@@ -587,6 +486,7 @@ fn ImageLowerer::lower_callable_adapter(
     environment: None,
     witnesses: [],
     substitutions: plan.substitutions,
+    specialized_parameters: [],
   }
   let input_witnesses = []
   for index, parameter in target_type_parameters {

@@ -120,6 +120,7 @@ fn test_image_lowerer(
     object_shapes: [],
     intrinsic_wrappers: [],
     callable_adapters: [],
+    representation_specializations: [],
     data_families: [],
     effect_companions,
     next_synthetic_parameter: -1,
@@ -138,6 +139,7 @@ fn test_function_lowerer(image : ImageLowerer) -> FunctionLowerer {
     environment: None,
     witnesses: [],
     substitutions: TypeSubstitution(),
+    specialized_parameters: [],
   }
 }
 
@@ -1771,6 +1773,123 @@ test "generic identity calls cross explicit representation erasure bridges" {
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_generic",
+      abi_major=1,
+      parameters=[I64],
+      result=Unit,
+      invoke=fn(_context, arguments) {
+        if arguments is [I64(value)] {
+          observed = value
+        }
+        Unit
+      },
+    ),
+  )
+  let loaded = match @interp.load(image, registry) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{Repr(error)}")
+  }
+  assert_eq(loaded.new_instance().execute(), Ok(()))
+  assert_eq(observed, 42L)
+}
+
+///|
+test "direct generic calls use one planned concrete worker" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let type_parameter = metadata.define_type_parameter("T", Type)
+  let generic_type = @buslane.Type::Parameter(type_parameter)
+  let identity_type = @buslane.Type::Forall(
+    [type_parameter],
+    test_function_type([generic_type], generic_type),
+  )
+  let parameter = metadata.define_value("value", Parameter, generic_type)
+  let identity = metadata.define_value("identity", Function, identity_type)
+  let i64_type = @buslane.Type::Primitive(I64)
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let observe_type = test_function_type([i64_type], unit_type)
+  let observe = metadata.define_value("observe", External, observe_type)
+  let result = metadata.define_value("result", Local, i64_type)
+  let main_type = test_function_type([], unit_type)
+  let main = metadata.define_value("main", Function, main_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      External(observe),
+      Let(
+        identity,
+        TypeLambda(
+          [type_parameter],
+          Function({
+            parameters: [parameter],
+            result_type: generic_type,
+            body: Ref(parameter),
+          }),
+        ),
+      ),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Let(
+            result,
+            Call(TypeApply(Ref(identity), [TypeArgument(i64_type)]), [
+              Literal(I64(42L)),
+            ]),
+            Call(Ref(observe), [Ref(result)]),
+          ),
+        }),
+      ),
+    ],
+  }
+  let image = match
+    lower_test_executable_to_bytecode(
+      program,
+      {
+        builtins: [],
+        runtime_imports: [
+          {
+            value: observe,
+            symbol: "lane.test.observe_specialized_generic",
+            signature: test_host_signature(observe_type),
+            type_: observe_type,
+          },
+        ],
+      },
+      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+    ) {
+    Ok(value) => value
+    Err(error) => fail("lowering failed: \{Repr(error)}")
+  }
+  let bodies = image.functions.filter_map(function => {
+    if function is BytecodeBody(body) {
+      Some(body)
+    } else {
+      None
+    }
+  })
+  assert_eq(bodies.length(), 2)
+  assert_true(
+    bodies.any(body => {
+      body.inputs.witnesses.is_empty() &&
+      body.inputs.user_parameters.length() == 1 &&
+      body.result == Value(I64, Trivial, ScalarValue) &&
+      body.blocks.all(block => block.instructions.is_empty())
+    }),
+  )
+  assert_false(
+    bodies.any(body => {
+      contains_instruction(body, instruction => {
+        instruction is ConstLayout(_, _) ||
+        instruction is EraseI64(_, _) ||
+        instruction is UneraseI64(_, _)
+      })
+    }),
+  )
+  let mut observed = 0L
+  let registry = @loisvm_runtime.RuntimeRegistry::new()
+  registry.register(
+    @loisvm_runtime.RuntimeBinding::new(
+      symbol="lane.test.observe_specialized_generic",
       abi_major=1,
       parameters=[I64],
       result=Unit,
@@ -3592,6 +3711,73 @@ test "callable ABI comparison preserves nested formal erasure" {
   assert_false(
     image.callable_types_share_runtime_abi(
       source_type, target_type, substitutions,
+    ),
+  )
+}
+
+///|
+test "callable erasure uses the formal erased-position ABI" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let answer = metadata.define_type_parameter("Answer", Type)
+  let image = test_image_lowerer(metadata, [])
+  let erased_callable = image.fresh_synthetic_parameter()
+  let lowerer = test_function_lowerer(image)
+  let concrete_type = test_function_type([Primitive(Unit)], Primitive(Unit))
+  let formal_type = test_function_type([Primitive(Unit)], Parameter(answer))
+  let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  substitutions.insert(answer, Primitive(Unit))
+  substitutions.insert(erased_callable, formal_type)
+  let source = lowerer.fresh_slot(concrete_type)
+  let witness = lowerer.layout_witness(concrete_type)
+  ignore(
+    lowerer.erase_value(
+      Slot(source, concrete_type),
+      concrete_type,
+      Parameter(erased_callable),
+      substitutions,
+      witness,
+    ),
+  )
+  debug_inspect(
+    (image.callable_adapters, lowerer.blocks[0].instructions),
+    content=(
+      #|(
+      #|  [
+      #|    {
+      #|      function: { value: 1 },
+      #|      source_type: Function([Primitive(Unit)], Primitive(Unit), Empty),
+      #|      target_type: Function([Primitive(Unit)], Parameter({ index: 0 }), Empty),
+      #|      source_parameter_targets: [0],
+      #|      substitutions: {
+      #|        entries: [
+      #|          {
+      #|            parameter: { index: 0 },
+      #|            replacement: TypeArgument(Primitive(Unit)),
+      #|          },
+      #|          {
+      #|            parameter: { index: -1 },
+      #|            replacement: TypeArgument(Function([Primitive(Unit)], Parameter({ index: 0 }), Empty)),
+      #|          },
+      #|        ],
+      #|      },
+      #|      captured_parameters: [{ index: 0 }],
+      #|      environment_shape: { value: 0 },
+      #|    },
+      #|  ],
+      #|  [
+      #|    ConstLayout({ value: 1 }, { value: 1 }),
+      #|    ConstLayout({ value: 3 }, { value: 2 }),
+      #|    MakeEnv(
+      #|      { value: 4 },
+      #|      { value: 0 },
+      #|      Immediate({ value: 3 }),
+      #|      [],
+      #|      [{ value: 3 }, { value: 0 }],
+      #|    ),
+      #|    MakeClosure({ value: 5 }, { value: 1 }, { value: 4 }),
+      #|    EraseI64({ value: 2 }, { value: 5 }),
+      #|  ],
+      #|)
     ),
   )
 }

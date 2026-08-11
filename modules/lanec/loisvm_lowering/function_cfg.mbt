@@ -9,6 +9,8 @@ fn ImageLowerer::lower_function_body(
   captures : Array[CapturePlan],
   environment_shape : @bytecode.ObjectShapeId?,
   recursive_functions : Array[RecursiveFunctionPlan],
+  substitutions : @buslane.TypeSubstitution,
+  specialized_parameters : Array[@buslane.TypeParameterId],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
@@ -19,7 +21,8 @@ fn ImageLowerer::lower_function_body(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: TypeSubstitution(),
+    substitutions,
+    specialized_parameters,
   }
   let input_witnesses = []
   for parameter in type_parameters {

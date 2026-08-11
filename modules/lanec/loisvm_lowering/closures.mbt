@@ -15,6 +15,7 @@ fn FunctionLowerer::lower_nested_function_with_type(
   function : @anf.AnfFunction,
   function_type : @buslane.Type,
 ) -> LocalValue raise LoisvmLoweringError {
+  let function_type = apply_type_substitution(function_type, self.substitutions)
   let capture_bindings = free_capture_bindings(function)
   let captured_parameters = self.captured_runtime_parameters(
     [function_type],
@@ -33,6 +34,8 @@ fn FunctionLowerer::lower_nested_function_with_type(
         LiftedFunction({
           function,
           type_: function_type,
+          substitutions: self.substitutions,
+          specialized_parameters: self.specialized_parameters,
           captured_parameters,
           captures: capture_plans,
           environment_shape,
@@ -80,7 +83,7 @@ fn FunctionLowerer::lower_recursive_group(
     }
     functions.push(function)
     recursive_values.push(binding.id)
-    recursive_types.push(type_)
+    recursive_types.push(apply_type_substitution(type_, self.substitutions))
   }
   let capture_bindings = []
   for function in functions {
@@ -124,6 +127,8 @@ fn FunctionLowerer::lower_recursive_group(
         LiftedFunction({
           function: functions[index],
           type_: recursive_types[index],
+          substitutions: self.substitutions,
+          specialized_parameters: self.specialized_parameters,
           captured_parameters,
           captures: capture_plans,
           environment_shape,
@@ -174,7 +179,9 @@ fn FunctionLowerer::captured_runtime_parameters(
       Global(_) | Unit | TypeApplied(_, _) => ()
     }
   }
-  free_runtime_type_parameters_in_types(self.image, types)
+  free_runtime_type_parameters_in_types(self.image, types).filter(parameter => {
+    !self.specialized_parameters.contains(parameter)
+  })
 }
 
 ///|

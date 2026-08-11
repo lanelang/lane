@@ -203,6 +203,13 @@ fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
     InitializerOrchestrator => "initializer orchestrator"
     IntrinsicWrapper(name~) => "intrinsic wrapper \{name}"
     CallableAdapter => "callable adapter"
+    RepresentationWorker(value~, name~) =>
+      match (value, name) {
+        (Some(value), Some(name)) =>
+          "representation worker for \{name} (value#\{value})"
+        (Some(value), None) => "representation worker for value#\{value}"
+        (None, _) => "representation worker for anonymous function"
+      }
     LayoutConstructor => "layout constructor"
     RuntimeImport(value~, name~, symbol~) => {
       let source = match name {

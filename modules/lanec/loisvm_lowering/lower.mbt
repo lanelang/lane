@@ -11,6 +11,7 @@ priv struct ImageLowerer {
   object_shapes : Array[@bytecode.ObjectShape]
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
   callable_adapters : Array[CallableAdapterPlan]
+  representation_specializations : Array[RepresentationSpecializationPlan]
   effect_companions : Array[@effect_lowering_cps.EffectCompanionBinding]
   mut next_synthetic_parameter : Int
 }
@@ -26,6 +27,7 @@ priv struct FunctionLowerer {
   mut environment : @vmcfg.ValueId?
   witnesses : Array[WitnessBinding]
   mut substitutions : @buslane.TypeSubstitution
+  specialized_parameters : Array[@buslane.TypeParameterId]
 }
 
 ///|
@@ -97,10 +99,12 @@ fn lower_executable_program_to_bytecode_or_raise(
     object_shapes: [],
     intrinsic_wrappers: [],
     callable_adapters: [],
+    representation_specializations: [],
     effect_companions: executable.effect_companions,
     next_synthetic_parameter: -1,
   }
   let initializer = lowerer.plan(anf, occurrence)
+  lowerer.plan_representation_specializations(anf)
   let entry_function = match lowerer.find_global(entry.value) {
     Some(Function(function, _)) => function
     _ => raise MissingEntry(value=entry.value)
@@ -122,6 +126,8 @@ fn lower_executable_program_to_bytecode_or_raise(
         functions.push(Body(lowerer.lower_intrinsic_wrapper(plan)))
       CallableAdapter(plan) =>
         functions.push(Body(lowerer.lower_callable_adapter(plan)))
+      RepresentationWorker(plan) =>
+        functions.push(Body(lowerer.lower_representation_worker(plan)))
       LayoutConstructor(plan) =>
         functions.push(Body(lowerer.lower_layout_constructor(plan)))
       RuntimeImport(import_) => functions.push(RuntimeImport(import_))

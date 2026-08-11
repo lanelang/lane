@@ -3,6 +3,7 @@ fn FunctionLowerer::fresh_optional_slot(
   self : FunctionLowerer,
   type_ : @buslane.Type,
 ) -> (@vmcfg.ValueId?, LocalValue) raise LoisvmLoweringError {
+  let type_ = self.instantiate_runtime_type(type_)
   if self.image.runtime_type(type_) is Concrete(Primitive(Unit)) {
     (None, Unit)
   } else {
@@ -16,6 +17,7 @@ fn FunctionLowerer::fresh_slot(
   self : FunctionLowerer,
   type_ : @buslane.Type,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
+  let type_ = self.instantiate_runtime_type(type_)
   if self.image.runtime_type(type_) is Erased(_) {
     return self.fresh_erased_slot(self.layout_witness(type_), Owned)
   }
@@ -39,6 +41,7 @@ fn FunctionLowerer::fresh_borrowed_slot(
   self : FunctionLowerer,
   type_ : @buslane.Type,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
+  let type_ = self.instantiate_runtime_type(type_)
   if self.image.runtime_type(type_) is Erased(_) {
     return self.fresh_erased_slot(self.layout_witness(type_), Borrowed)
   }
@@ -50,6 +53,78 @@ fn FunctionLowerer::fresh_borrowed_slot(
   let slot : @vmcfg.ValueId = { value: self.values.length() }
   self.values.push({ ..metadata, ownership, })
   slot
+}
+
+///|
+fn FunctionLowerer::instantiate_runtime_type(
+  self : FunctionLowerer,
+  type_ : @buslane.Type,
+) -> @buslane.Type raise LoisvmLoweringError {
+  if type_mentions_specialized_parameter(type_, self.specialized_parameters, []) {
+    apply_type_substitution(type_, self.substitutions)
+  } else {
+    type_
+  }
+}
+
+///|
+fn type_mentions_specialized_parameter(
+  type_ : @buslane.Type,
+  specialized : Array[@buslane.TypeParameterId],
+  bound : Array[@buslane.TypeParameterId],
+) -> Bool {
+  match type_ {
+    Primitive(_) | Constructor(_) => false
+    Parameter(parameter) =>
+      !bound.contains(parameter) && specialized.contains(parameter)
+    Apply(callee, arguments) =>
+      type_mentions_specialized_parameter(callee, specialized, bound) ||
+      arguments.any(argument => {
+        match argument {
+          TypeArgument(type_) =>
+            type_mentions_specialized_parameter(type_, specialized, bound)
+          EffectArgument(effect) =>
+            effect_mentions_specialized_parameter(effect, specialized, bound)
+        }
+      })
+    TypeLambda(parameters, body) | Forall(parameters, body) => {
+      let nested = bound.copy()
+      nested.append(parameters)
+      type_mentions_specialized_parameter(body, specialized, nested)
+    }
+    Function(parameters, result, effect) =>
+      parameters.any(type_ => {
+        type_mentions_specialized_parameter(type_, specialized, bound)
+      }) ||
+      type_mentions_specialized_parameter(result, specialized, bound) ||
+      effect_mentions_specialized_parameter(effect, specialized, bound)
+  }
+}
+
+///|
+fn effect_mentions_specialized_parameter(
+  effect : @buslane.Effect,
+  specialized : Array[@buslane.TypeParameterId],
+  bound : Array[@buslane.TypeParameterId],
+) -> Bool {
+  match effect {
+    Empty | Builtin(_) => false
+    Parameter(parameter) =>
+      !bound.contains(parameter) && specialized.contains(parameter)
+    Singleton(_, arguments) =>
+      arguments.any(argument => {
+        match argument {
+          TypeArgument(type_) =>
+            type_mentions_specialized_parameter(type_, specialized, bound)
+          EffectArgument(effect) =>
+            effect_mentions_specialized_parameter(effect, specialized, bound)
+        }
+      })
+    Union(effects) =>
+      effects.any(effect => {
+        effect_mentions_specialized_parameter(effect, specialized, bound)
+      })
+  }
 }
 
 ///|

@@ -59,6 +59,7 @@ pub(all) enum ExploreFunctionRole {
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
   CallableAdapter
+  RepresentationWorker(value~ : Int?, name~ : String?)
   LayoutConstructor
   RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
   InternalRuntimeImport(name~ : String)

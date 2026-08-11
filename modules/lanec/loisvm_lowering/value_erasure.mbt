@@ -18,6 +18,7 @@ fn FunctionLowerer::layout_witness(
   self : FunctionLowerer,
   type_ : @buslane.Type,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
+  let type_ = self.instantiate_runtime_type(type_)
   let type_ = match self.image.layout_runtime_type(type_) {
     Erased(Parameter(parameter)) => return self.find_witness(parameter)
     Erased(Apply(Parameter(constructor_parameter), arguments)) =>
@@ -50,12 +51,14 @@ fn FunctionLowerer::layout_witness(
 fn FunctionLowerer::erase_value(
   self : FunctionLowerer,
   value : LocalValue,
-  type_ : @buslane.Type,
+  source_type : @buslane.Type,
+  erased_type : @buslane.Type,
+  substitutions : @buslane.TypeSubstitution,
   witness : @vmcfg.ValueId,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   let destination = self.fresh_erased_slot(witness, Owned)
   let materialized = self.materialize_local(value)
-  let type_ = local_value_type(materialized).unwrap_or(type_)
+  let type_ = local_value_type(materialized).unwrap_or(source_type)
   match self.image.runtime_type(type_) {
     Erased(_) => {
       guard materialized is Slot(source, _) else {
@@ -84,7 +87,9 @@ fn FunctionLowerer::erase_value(
         (Slot(source, _), Primitive(F32)) =>
           self.emit(EraseF32(destination, source))
         (Slot(source, _), Function(_, _, _) | Forall(_, _)) => {
-          let (canonical_type, bindings) = self.canonical_callable_type(type_)
+          let (canonical_type, bindings) = self.erased_callable_abi(
+            erased_type, type_, substitutions,
+          )
           guard self.materialize_local(
               self.make_callable_adapter(
                 source, type_, canonical_type, bindings,
@@ -110,10 +115,13 @@ fn FunctionLowerer::erase_value(
 fn FunctionLowerer::unerase_value(
   self : FunctionLowerer,
   source : @vmcfg.ValueId,
-  type_ : @buslane.Type,
+  erased_type : @buslane.Type,
+  target_type : @buslane.Type,
+  substitutions : @buslane.TypeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
-  match self.image.runtime_type(type_) {
-    Erased(_) => Slot(source, type_)
+  let target_type = apply_type_substitution(target_type, substitutions)
+  match self.image.runtime_type(target_type) {
+    Erased(_) => Slot(source, target_type)
     Concrete(runtime_type) =>
       match runtime_type {
         Primitive(Unit) => {
@@ -130,21 +138,21 @@ fn FunctionLowerer::unerase_value(
         | Apply(_, _) => {
           let destination = self.fresh_slot(runtime_type)
           self.emit(UneraseI32(destination, source))
-          Slot(destination, type_)
+          Slot(destination, target_type)
         }
         Primitive(I64) => {
           let destination = self.fresh_slot(runtime_type)
           self.emit(UneraseI64(destination, source))
-          Slot(destination, type_)
+          Slot(destination, target_type)
         }
         Primitive(F32) => {
           let destination = self.fresh_slot(runtime_type)
           self.emit(UneraseF32(destination, source))
-          Slot(destination, type_)
+          Slot(destination, target_type)
         }
         Function(_, _, _) | Forall(_, _) => {
-          let (canonical_type, bindings) = self.canonical_callable_type(
-            runtime_type,
+          let (canonical_type, bindings) = self.erased_callable_abi(
+            erased_type, runtime_type, substitutions,
           )
           let canonical = self.fresh_slot(canonical_type)
           self.emit(UneraseI64(canonical, source))
@@ -155,10 +163,44 @@ fn FunctionLowerer::unerase_value(
         Primitive(F64) => {
           let destination = self.fresh_slot(runtime_type)
           self.emit(UneraseF64(destination, source))
-          Slot(destination, type_)
+          Slot(destination, target_type)
         }
         _ => raise UnsupportedType(type_=runtime_type)
       }
+  }
+}
+
+///|
+fn FunctionLowerer::erased_callable_abi(
+  self : FunctionLowerer,
+  erased_type : @buslane.Type,
+  concrete_type : @buslane.Type,
+  substitutions : @buslane.TypeSubstitution,
+) -> (@buslane.Type, @buslane.TypeSubstitution) raise LoisvmLoweringError {
+  match erased_position_callable_type(erased_type, substitutions, []) {
+    Some(callable) => (callable, substitutions)
+    None => self.canonical_callable_type(concrete_type)
+  }
+}
+
+///|
+fn erased_position_callable_type(
+  type_ : @buslane.Type,
+  substitutions : @buslane.TypeSubstitution,
+  visited : Array[@buslane.TypeParameterId],
+) -> @buslane.Type? raise LoisvmLoweringError {
+  match type_ {
+    Function(_, _, _) | Forall(_, _) => Some(type_)
+    Parameter(parameter) if parameter.index < 0 && !visited.contains(parameter) => {
+      guard type_substitution_type_argument(substitutions, parameter)
+        is Some(type_) else {
+        return None
+      }
+      let visited = visited.copy()
+      visited.push(parameter)
+      erased_position_callable_type(type_, substitutions, visited)
+    }
+    _ => None
   }
 }
 

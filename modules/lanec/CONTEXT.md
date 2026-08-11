@@ -212,6 +212,26 @@ Direct invocation fuses the conversion into the call; only first-class escape
 materializes an adapter function, environment, and closure.
 _Avoid_: eager adapter allocation, runtime-layout-only type alignment
 
+**Runtime Representation Specialization Plan**:
+The immutable, demand-driven plan mapping one original generic function and one
+canonical runtime ABI key to at most one concrete representation worker. It
+also proves recursive demand closure before lowering begins.
+_Avoid_: lowering-time worker discovery, source-type-spelling key, size heuristic
+
+**Representation Worker**:
+A concrete-ABI implementation of a generic function that consumes no
+first-order layout witnesses and introduces no erased-value bridges at its
+planned direct call sites. The generic fallback remains whenever the finalized
+image has an open or indirect use.
+_Avoid_: specialization-time deletion of the generic fallback, unrestricted monomorph
+
+**Erased Callable Position ABI**:
+The invocation contract declared by a callable-shaped erased position or by a
+lowering-owned canonical callable placeholder. It governs both erasure and
+unerasure; an opaque source type parameter does not gain such a contract from
+its eventual substitution.
+_Avoid_: deriving the payload ABI independently from the concrete value
+
 **VM CFG Liveness Analysis**:
 The value-flow analysis derived from VM CFG definitions, uses, and successors.
 _Avoid_: ownership policy, reference count

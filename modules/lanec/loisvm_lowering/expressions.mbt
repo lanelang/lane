@@ -159,7 +159,12 @@ fn FunctionLowerer::lower_construct(
         _ => {
           let witness = self.layout_witness(actual_type)
           witnesses.push(witness)
-          Slot(self.erase_value(source, actual_type, witness), formal_type)
+          Slot(
+            self.erase_value(
+              source, actual_type, formal_type, substitutions, witness,
+            ),
+            formal_type,
+          )
         }
       }
     } else {

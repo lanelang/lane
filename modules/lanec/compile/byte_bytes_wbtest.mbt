@@ -96,15 +96,20 @@ test "compiler preserves Byte and Bytes through executable lowering" {
     bytecode,
     content=(
       #|{
-      #|  entry: { value: 2 },
+      #|  entry: { value: 1 },
       #|  initializer: None,
       #|  callable_abis: [
-      #|    {
-      #|      witnesses: [{ representation: I32, cleanup: Trivial, kind: LayoutValue }],
-      #|      parameters: [{ representation: I64, cleanup: OwnedErased, kind: ErasedValue }],
-      #|      result: Value(I64, OwnedErased, ErasedValue),
-      #|    },
       #|    { witnesses: [], parameters: [], result: Unit },
+      #|    {
+      #|      witnesses: [],
+      #|      parameters: [{ representation: I32, cleanup: Trivial, kind: ScalarValue }],
+      #|      result: Value(I32, Trivial, ScalarValue),
+      #|    },
+      #|    {
+      #|      witnesses: [],
+      #|      parameters: [{ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue }],
+      #|      result: Value(I32, OwnedRef, ByteSequenceValue),
+      #|    },
       #|    {
       #|      witnesses: [],
       #|      parameters: [{ representation: I64, cleanup: Trivial, kind: ScalarValue }],
@@ -117,37 +122,6 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|      {
       #|        slots: [
       #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: LayoutValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I64,
-      #|            cleanup: OwnedErased,
-      #|            kind: ErasedValue,
-      #|            erased_companion: Some({ value: 0 }),
-      #|          },
-      #|        ],
-      #|        inputs: {
-      #|          environment: None,
-      #|          witnesses: [{ value: 0 }],
-      #|          user_parameters: [{ value: 1 }],
-      #|        },
-      #|        result: Value(I64, OwnedErased, ErasedValue),
-      #|        blocks: [
-      #|          {
-      #|            parameters: [],
-      #|            instructions: [],
-      #|            terminator: Return(Some({ value: 1 })),
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
-      #|    BytecodeBody(
-      #|      {
-      #|        slots: [
-      #|          {
       #|            representation: I64,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
@@ -162,50 +136,14 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|          {
       #|            representation: I32,
       #|            cleanup: Trivial,
-      #|            kind: LayoutValue,
+      #|            kind: ScalarValue,
       #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: LayoutValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I64,
-      #|            cleanup: OwnedErased,
-      #|            kind: ErasedValue,
-      #|            erased_companion: Some({ value: 3 }),
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: LayoutValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I64,
-      #|            cleanup: OwnedErased,
-      #|            kind: ErasedValue,
-      #|            erased_companion: Some({ value: 5 }),
       #|          },
       #|          {
       #|            representation: I32,
       #|            cleanup: OwnedRef,
       #|            kind: ByteSequenceValue,
       #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I64,
-      #|            cleanup: OwnedErased,
-      #|            kind: ErasedValue,
-      #|            erased_companion: Some({ value: 3 }),
-      #|          },
-      #|          {
-      #|            representation: I64,
-      #|            cleanup: OwnedErased,
-      #|            kind: ErasedValue,
-      #|            erased_companion: Some({ value: 5 }),
       #|          },
       #|          {
       #|            representation: I32,
@@ -228,48 +166,68 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|            instructions: [
       #|              ConstI64({ value: 0 }, 255),
       #|              I64ToByte({ value: 1 }, { value: 0 }),
-      #|              ConstLayout({ value: 2 }, { value: 1 }),
-      #|              ConstLayout({ value: 3 }, { value: 1 }),
-      #|              EraseI32({ value: 4 }, { value: 1 }),
-      #|              ConstLayout({ value: 5 }, { value: 1 }),
-      #|              CallDirect(
-      #|                { value: 1 },
-      #|                None,
-      #|                [{ value: 2 }],
-      #|                [{ value: 4 }],
-      #|                Some({ value: 6 }),
-      #|              ),
-      #|              UneraseI32({ value: 1 }, { value: 6 }),
+      #|              CallDirect({ value: 2 }, None, [], [{ value: 1 }], Some({ value: 2 })),
       #|              ConstI64({ value: 0 }, 2),
-      #|              ByteSequenceMake({ value: 7 }, { value: 0 }, { value: 1 }),
-      #|              ConstLayout({ value: 2 }, { value: 2 }),
-      #|              ConstLayout({ value: 3 }, { value: 2 }),
-      #|              EraseI32({ value: 8 }, { value: 7 }),
-      #|              ConstLayout({ value: 5 }, { value: 2 }),
-      #|              CallDirect(
-      #|                { value: 1 },
-      #|                None,
-      #|                [{ value: 2 }],
-      #|                [{ value: 8 }],
-      #|                Some({ value: 9 }),
-      #|              ),
-      #|              UneraseI32({ value: 7 }, { value: 9 }),
+      #|              ByteSequenceMake({ value: 3 }, { value: 0 }, { value: 2 }),
+      #|              CallDirect({ value: 3 }, None, [], [{ value: 3 }], Some({ value: 4 })),
       #|              ConstI64({ value: 0 }, 0),
       #|              I64ToByte({ value: 1 }, { value: 0 }),
       #|              ConstI64({ value: 0 }, 1),
       #|              ByteSequenceSet(
-      #|                { value: 10 },
-      #|                { value: 7 },
+      #|                { value: 3 },
+      #|                { value: 4 },
       #|                { value: 0 },
       #|                { value: 1 },
       #|              ),
-      #|              ByteSequenceLength({ value: 11 }, { value: 10 }),
-      #|              CallDirect({ value: 3 }, None, [], [{ value: 11 }], None),
-      #|              ByteSequenceGet({ value: 1 }, { value: 10 }, { value: 0 }),
+      #|              ByteSequenceLength({ value: 5 }, { value: 3 }),
+      #|              CallDirect({ value: 4 }, None, [], [{ value: 5 }], None),
+      #|              ByteSequenceGet({ value: 1 }, { value: 3 }, { value: 0 }),
       #|              ByteToI64({ value: 0 }, { value: 1 }),
-      #|              Release({ value: 10 }),
+      #|              Release({ value: 3 }),
       #|            ],
-      #|            terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 0 }]),
+      #|            terminator: TailCallDirect({ value: 4 }, None, [], [{ value: 0 }]),
+      #|          },
+      #|        ],
+      #|      },
+      #|    ),
+      #|    BytecodeBody(
+      #|      {
+      #|        slots: [
+      #|          {
+      #|            representation: I32,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            erased_companion: None,
+      #|          },
+      #|        ],
+      #|        inputs: { environment: None, witnesses: [], user_parameters: [{ value: 0 }] },
+      #|        result: Value(I32, Trivial, ScalarValue),
+      #|        blocks: [
+      #|          {
+      #|            parameters: [],
+      #|            instructions: [],
+      #|            terminator: Return(Some({ value: 0 })),
+      #|          },
+      #|        ],
+      #|      },
+      #|    ),
+      #|    BytecodeBody(
+      #|      {
+      #|        slots: [
+      #|          {
+      #|            representation: I32,
+      #|            cleanup: OwnedRef,
+      #|            kind: ByteSequenceValue,
+      #|            erased_companion: None,
+      #|          },
+      #|        ],
+      #|        inputs: { environment: None, witnesses: [], user_parameters: [{ value: 0 }] },
+      #|        result: Value(I32, OwnedRef, ByteSequenceValue),
+      #|        blocks: [
+      #|          {
+      #|            parameters: [],
+      #|            instructions: [],
+      #|            terminator: Return(Some({ value: 0 })),
       #|          },
       #|        ],
       #|      },
@@ -284,7 +242,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|    ),
       #|  ],
       #|  globals: [],
-      #|  layouts: [Byte, ByteSequence],
+      #|  layouts: [ByteSequence],
       #|  object_shapes: [],
       #|  constants: [],
       #|}

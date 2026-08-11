@@ -183,6 +183,7 @@ fn ImageLowerer::lower_layout_constructor(
     environment: None,
     witnesses: [],
     substitutions: TypeSubstitution(),
+    specialized_parameters: [],
   }
   let evidence_parameters = []
   for parameter in plan.parameters {

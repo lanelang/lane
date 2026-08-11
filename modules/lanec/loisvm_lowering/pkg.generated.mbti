@@ -41,6 +41,7 @@ pub(all) suberror LoisvmLoweringError {
   UnsupportedGenericData(data_constructor~ : @buslane.DataConId)
   InvalidDataPayloadCount(data_constructor~ : @buslane.DataConId, expected~ : Int, actual~ : Int)
   InvalidTypeApplication(detail~ : String)
+  RepresentationSpecializationInvariant(detail~ : String)
   UnsupportedIntrinsic(name~ : String)
   UnterminatedBlock(block~ : Int)
   EffectLoweringError(@core.SynthesisError)
@@ -57,6 +58,7 @@ pub(all) enum LoisvmFunctionOrigin {
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
   CallableAdapter
+  RepresentationSpecialization(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
   LayoutConstructor
   RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
 } derive(Eq, @debug.Debug)

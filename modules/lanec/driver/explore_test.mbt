@@ -360,6 +360,208 @@ test "explore reports deterministic typed scale metrics" {
 }
 
 ///|
+test "explore gates direct generic representation specialization" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|let read_flag : () -> Bool ! Io = extern("read_flag")
+        #|let touch : () -> Unit ! Io = extern("touch")
+        #|
+        #|fn[T] consume(flag : Bool, value : T) -> Unit ! Io {
+        #|  if flag {
+        #|    touch()
+        #|  } else {
+        #|    consume[T](true, value)
+        #|  }
+        #|}
+        #|
+        #|pub fn main() -> Unit ! Io {
+        #|  consume[Bool](read_flag(), true)
+        #|  consume[I32](read_flag(), 42i32)
+        #|}
+      ),
+    ),
+  )
+  let selected = report.stages
+    .ordered()
+    .filter_map(stage => {
+      guard stage.id == "vmcfg.initial" || stage.id == "loisvm.bytecode" else {
+        return None
+      }
+      explore_stage_scale(stage)
+    })
+  debug_inspect(
+    (report.status, report.diagnostics, selected),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [],
+      #|  [
+      #|    (
+      #|      "vmcfg.initial",
+      #|      [
+      #|        ("functionCount", 2),
+      #|        ("importCount", 2),
+      #|        ("blockCount", 5),
+      #|        ("instructionCount", 6),
+      #|        ("valueCount", 7),
+      #|        ("directCallCount", 6),
+      #|        ("indirectCallCount", 0),
+      #|        ("functionReferenceCount", 0),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("eraseCount", 0),
+      #|        ("uneraseCount", 0),
+      #|        ("retainCount", 0),
+      #|        ("releaseCount", 0),
+      #|        ("globalCount", 0),
+      #|        ("layoutCount", 0),
+      #|        ("objectShapeCount", 0),
+      #|        ("constantCount", 0),
+      #|      ],
+      #|      [
+      #|        { index: 1, block_count: 1, operation_count: 5, value_count: 4 },
+      #|        { index: 2, block_count: 4, operation_count: 1, value_count: 3 },
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "loisvm.bytecode",
+      #|      [
+      #|        ("functionCount", 2),
+      #|        ("importCount", 2),
+      #|        ("blockCount", 4),
+      #|        ("instructionCount", 6),
+      #|        ("slotCount", 4),
+      #|        ("directCallCount", 6),
+      #|        ("indirectCallCount", 0),
+      #|        ("functionReferenceCount", 0),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("eraseCount", 0),
+      #|        ("uneraseCount", 0),
+      #|        ("retainCount", 0),
+      #|        ("releaseCount", 0),
+      #|        ("callableAbiCount", 3),
+      #|        ("globalCount", 0),
+      #|        ("layoutCount", 0),
+      #|        ("objectShapeCount", 0),
+      #|        ("constantCount", 0),
+      #|      ],
+      #|      [
+      #|        { index: 1, block_count: 1, operation_count: 5, value_count: 2 },
+      #|        { index: 2, block_count: 3, operation_count: 1, value_count: 2 },
+      #|      ],
+      #|    ),
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
+test "explore keeps expanding recursive representation SCC generic" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|let read_flag : () -> Bool ! Io = extern("read_flag")
+        #|
+        #|enum Box[T] {
+        #|  box(T)
+        #|}
+        #|
+        #|fn[T] grow(flag : Bool, value : T) -> Unit {
+        #|  if flag {
+        #|    ()
+        #|  } else {
+        #|    grow[Box[T]](true, Box::box(value))
+        #|  }
+        #|}
+        #|
+        #|pub fn main() -> Unit ! Io {
+        #|  grow[I64](read_flag(), 42)
+        #|}
+      ),
+    ),
+  )
+  let selected = report.stages
+    .ordered()
+    .filter_map(stage => {
+      guard stage.id == "vmcfg.initial" || stage.id == "loisvm.bytecode" else {
+        return None
+      }
+      explore_stage_scale(stage)
+    })
+  debug_inspect(
+    (report.status, report.diagnostics, selected),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [],
+      #|  [
+      #|    (
+      #|      "vmcfg.initial",
+      #|      [
+      #|        ("functionCount", 2),
+      #|        ("importCount", 1),
+      #|        ("blockCount", 5),
+      #|        ("instructionCount", 10),
+      #|        ("valueCount", 13),
+      #|        ("directCallCount", 3),
+      #|        ("indirectCallCount", 0),
+      #|        ("functionReferenceCount", 0),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("eraseCount", 2),
+      #|        ("uneraseCount", 0),
+      #|        ("retainCount", 0),
+      #|        ("releaseCount", 0),
+      #|        ("globalCount", 0),
+      #|        ("layoutCount", 3),
+      #|        ("objectShapeCount", 1),
+      #|        ("constantCount", 0),
+      #|      ],
+      #|      [
+      #|        { index: 1, block_count: 4, operation_count: 5, value_count: 8 },
+      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 5 },
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "loisvm.bytecode",
+      #|      [
+      #|        ("functionCount", 2),
+      #|        ("importCount", 1),
+      #|        ("blockCount", 5),
+      #|        ("instructionCount", 11),
+      #|        ("slotCount", 11),
+      #|        ("directCallCount", 3),
+      #|        ("indirectCallCount", 0),
+      #|        ("functionReferenceCount", 0),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("eraseCount", 2),
+      #|        ("uneraseCount", 0),
+      #|        ("retainCount", 0),
+      #|        ("releaseCount", 1),
+      #|        ("callableAbiCount", 3),
+      #|        ("globalCount", 0),
+      #|        ("layoutCount", 3),
+      #|        ("objectShapeCount", 1),
+      #|        ("constantCount", 0),
+      #|      ],
+      #|      [
+      #|        { index: 1, block_count: 4, operation_count: 6, value_count: 6 },
+      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 5 },
+      #|      ],
+      #|    ),
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
 test "explore parse failure marks syntax failed and later stages unavailable" {
   let report = explore(
     explore_test_request(

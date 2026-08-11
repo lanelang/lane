@@ -16,6 +16,18 @@ fn test_function_table_image(
 }
 
 ///|
+fn test_function_body(
+  instructions : Array[@vmcfg.Instruction],
+) -> @vmcfg.FunctionEntry {
+  Body({
+    values: [],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [{ parameters: [], instructions, terminator: Return(None) }],
+  })
+}
+
+///|
 test "function-table canonicalization rejects provenance cardinality drift" {
   let result : Result[
     CanonicalizedFunctionTable,
@@ -50,4 +62,60 @@ test "function-table canonicalization rejects an invalid function reference" {
     error => Err(error)
   }
   assert_true(result is Err(InvalidFunctionReference(function={ value: 2 })))
+}
+
+///|
+test "function-table canonicalization retains only the transitive function closure" {
+  let canonical = canonicalize_function_table(
+    test_function_table_image({ value: 1 }, [
+      test_function_body([CallDirect({ value: 3 }, None, [], [], None)]),
+      test_function_body([]),
+      test_function_body([]),
+    ]),
+    [InitializerOrchestrator, CallableAdapter, LayoutConstructor],
+  )
+  debug_inspect(
+    (canonical.image, canonical.provenance),
+    content=(
+      #|(
+      #|  {
+      #|    entry: { value: 1 },
+      #|    initializer: None,
+      #|    functions: [
+      #|      Body(
+      #|        {
+      #|          values: [],
+      #|          inputs: { environment: None, witnesses: [], user_parameters: [] },
+      #|          result: Unit,
+      #|          blocks: [
+      #|            {
+      #|              parameters: [],
+      #|              instructions: [CallDirect({ value: 2 }, None, [], [], None)],
+      #|              terminator: Return(None),
+      #|            },
+      #|          ],
+      #|        },
+      #|      ),
+      #|      Body(
+      #|        {
+      #|          values: [],
+      #|          inputs: { environment: None, witnesses: [], user_parameters: [] },
+      #|          result: Unit,
+      #|          blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+      #|        },
+      #|      ),
+      #|    ],
+      #|    data_family_count: 0,
+      #|    globals: [],
+      #|    layouts: [],
+      #|    object_shapes: [],
+      #|    constants: [],
+      #|  },
+      #|  [
+      #|    { function: { value: 1 }, origins: [InitializerOrchestrator] },
+      #|    { function: { value: 2 }, origins: [LayoutConstructor] },
+      #|  ],
+      #|)
+    ),
+  )
 }

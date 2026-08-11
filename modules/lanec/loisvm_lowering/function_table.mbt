@@ -9,6 +9,7 @@ fn canonicalize_function_table(
       origins=origins.length(),
     )
   }
+  let reachable = reachable_functions(image)
   let mappings : Array[@bytecode.FunctionId?] = Array::make(
     image.functions.length(),
     None,
@@ -17,6 +18,7 @@ fn canonicalize_function_table(
   let body_provenance : Array[LoisvmFunctionProvenance] = []
   let imports : Array[CanonicalRuntimeImport] = []
   for index, entry in image.functions {
+    guard reachable[index] else { continue }
     let old_id : @bytecode.FunctionId = { value: index + 1 }
     match entry {
       Body(body) => {
@@ -91,6 +93,58 @@ fn canonicalize_function_table(
     functions,
   }
   { image: canonical_image, provenance }
+}
+
+///|
+fn reachable_functions(
+  image : @vmcfg.Image,
+) -> Array[Bool] raise FunctionTableCanonicalizationError {
+  let reachable = Array::make(image.functions.length(), false)
+  let worklist : Array[@bytecode.FunctionId] = []
+  mark_reachable_function(image.functions, reachable, worklist, image.entry)
+  if image.initializer is Some(initializer) {
+    mark_reachable_function(image.functions, reachable, worklist, initializer)
+  }
+  while worklist.pop() is Some(function) {
+    guard image.functions[function.value - 1] is Body(body) else { continue }
+    for block in body.blocks {
+      for instruction in block.instructions {
+        match instruction {
+          ConstFunction(_, target)
+          | CallDirect(target, _, _, _, _)
+          | MakeClosure(_, target, _) =>
+            mark_reachable_function(
+              image.functions,
+              reachable,
+              worklist,
+              target,
+            )
+          _ => ()
+        }
+      }
+      if block.terminator is TailCallDirect(target, _, _, _) {
+        mark_reachable_function(image.functions, reachable, worklist, target)
+      }
+    }
+  }
+  reachable
+}
+
+///|
+fn mark_reachable_function(
+  functions : Array[@vmcfg.FunctionEntry],
+  reachable : Array[Bool],
+  worklist : Array[@bytecode.FunctionId],
+  function : @bytecode.FunctionId,
+) -> Unit raise FunctionTableCanonicalizationError {
+  if function.value <= 0 || function.value > functions.length() {
+    raise InvalidFunctionReference(function~)
+  }
+  let index = function.value - 1
+  if !reachable[index] {
+    reachable[index] = true
+    worklist.push(function)
+  }
 }
 
 ///|

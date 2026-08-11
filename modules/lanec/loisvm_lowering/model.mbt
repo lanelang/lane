@@ -17,6 +17,7 @@ pub(all) suberror LoisvmLoweringError {
     actual~ : Int
   )
   InvalidTypeApplication(detail~ : String)
+  RepresentationSpecializationInvariant(detail~ : String)
   UnsupportedIntrinsic(name~ : String)
   UnterminatedBlock(block~ : Int)
   EffectLoweringError(@effect_lowering_core.SynthesisError)
@@ -58,6 +59,7 @@ priv enum PlannedEntry {
   LiftedFunction(LiftedFunctionPlan)
   IntrinsicWrapper(IntrinsicWrapperPlan)
   CallableAdapter(CallableAdapterPlan)
+  RepresentationWorker(RepresentationSpecializationPlan)
   LayoutConstructor(LayoutConstructorPlan)
   RuntimeImport(@bytecode.RuntimeImport)
 }
@@ -74,6 +76,10 @@ pub(all) enum LoisvmFunctionOrigin {
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
   CallableAdapter
+  RepresentationSpecialization(
+    function~ : @anf.AnfFunctionId,
+    source~ : @buslane.ValueId?
+  )
   LayoutConstructor
   RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
 } derive(Debug, Eq)
@@ -199,6 +205,39 @@ priv struct CallableAdapterPlan {
 } derive(Debug)
 
 ///|
+priv enum CanonicalRuntimeTypeKey {
+  Unit
+  Value(@bytecode.ValueAbi)
+  Callable(CanonicalCallableAbi)
+} derive(Eq)
+
+///|
+priv struct CanonicalCallableAbi {
+  witnesses : Array[@bytecode.ValueAbi]
+  parameters : Array[CanonicalRuntimeTypeKey]
+  result : CanonicalRuntimeTypeKey
+} derive(Eq)
+
+///|
+priv struct RepresentationSpecializationKey {
+  source_function : @bytecode.FunctionId
+  evidence : Array[CanonicalRuntimeTypeKey]
+  parameters : Array[CanonicalRuntimeTypeKey]
+  result : CanonicalRuntimeTypeKey
+} derive(Eq)
+
+///|
+priv struct RepresentationSpecializationPlan {
+  worker : @bytecode.FunctionId
+  key : RepresentationSpecializationKey
+  function : @anf.AnfFunction
+  substitutions : @buslane.TypeSubstitution
+  type_parameters : Array[@buslane.TypeParameterId]
+  parameter_types : Array[@buslane.Type]
+  result_type : @buslane.Type
+}
+
+///|
 priv struct LayoutConstructorPlan {
   function : @bytecode.FunctionId
   type_ : @buslane.Type
@@ -244,6 +283,8 @@ priv struct CapturePlan {
 priv struct LiftedFunctionPlan {
   function : @anf.AnfFunction
   type_ : @buslane.Type
+  substitutions : @buslane.TypeSubstitution
+  specialized_parameters : Array[@buslane.TypeParameterId]
   captured_parameters : Array[@buslane.TypeParameterId]
   captures : Array[CapturePlan]
   environment_shape : @bytecode.ObjectShapeId?

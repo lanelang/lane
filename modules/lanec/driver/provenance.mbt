@@ -120,7 +120,8 @@ fn @loisvm_lowering.LoisvmFunctionOrigin::anf_function(
   match self {
     TopLevelFunction(function~, ..)
     | LiftedFunction(function~, ..)
-    | LiftedRecursiveFunction(function~, ..) => Some(function)
+    | LiftedRecursiveFunction(function~, ..)
+    | RepresentationSpecialization(function~, ..) => Some(function)
     _ => None
   }
 }
@@ -139,6 +140,15 @@ fn ExploreFunctionGraphBuilder::loisvm_role(
     InitializerOrchestrator => InitializerOrchestrator
     IntrinsicWrapper(name~) => IntrinsicWrapper(name~)
     CallableAdapter => CallableAdapter
+    RepresentationSpecialization(source~, ..) =>
+      match source {
+        Some(source) =>
+          RepresentationWorker(
+            value=Some(source.index),
+            name=self.source_name(source),
+          )
+        None => RepresentationWorker(value=None, name=None)
+      }
     LayoutConstructor => LayoutConstructor
     RuntimeImport(source~, symbol~) =>
       RuntimeImport(value=source.index, name=self.source_name(source), symbol~)
