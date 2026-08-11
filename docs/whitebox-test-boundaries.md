@@ -123,6 +123,7 @@ private invariant, not merely the subsystem being tested.
 | `modules/lanec/vmcfg/finalize_wbtest.mbt` | Inspects ownership promotion, physical slots, callable ABI IDs, and finalized bodies. |
 | `modules/lanec/vmcfg/flow_analysis_wbtest.mbt` | Observes private dominator and value-flow fixed points over synthetic CFGs. |
 | `modules/lanec/vmcfg/simplify_wbtest.mbt` | Snapshots private CFG threading, parameter removal, constant reuse, and layout liveness. |
+| `modules/lanec/vmcfg/slot_allocation_wbtest.mbt` | Inspects private finalized-CFG interference and complete physical-slot remapping. |
 | `modules/loisvm/bytecode/instruction_codec_wbtest.mbt` | Enumerates private instruction constructors to prove codec symmetry exhaustively. |
 | `modules/loisvm/bytecode/malformed_codec_wbtest.mbt` | Constructs malformed binary tables and framing states unavailable through the public verified encoder. |
 | `modules/loisvm/interp/execute_wbtest.mbt` | Observes interpreter frame, singleton, ARC, trap, and host-value internals. |
@@ -130,4 +131,5 @@ private invariant, not merely the subsystem being tested.
 | `modules/loisvm/interp/heap_wbtest.mbt` | Injects impossible capacities into private heap allocation arithmetic. |
 | `modules/loisvm/interp/host_objects_wbtest.mbt` | Constructs stale private host-object handles inside an interpreter instance. |
 | `modules/loisvm/runtime/host_objects_wbtest.mbt` | Constructs out-of-range host-object slot handles before public runtime dispatch. |
-| `modules/loisvm/wasm/compiler/callable_table_wbtest.mbt` | Inspects private address-taken callable tables and frame-liveness locals. |
+| `modules/loisvm/wasm/compiler/callable_table_wbtest.mbt` | Inspects private address-taken callable-table planning. |
+| `modules/loisvm/wasm/compiler/function_locals_wbtest.mbt` | Inspects private value, CFG-transfer, dispatcher, and cleanup-liveness local planning. |

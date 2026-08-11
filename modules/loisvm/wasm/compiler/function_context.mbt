@@ -1,8 +1,7 @@
 ///|
 priv struct FunctionCompilationContext {
   function_id : Int
-  parameter_count : Int
-  live_base : Int
+  locals : FunctionLocalPlan
   body : @bytecode.FunctionBody
   wasm_module : @wasm_types.Module
   static_image : StaticImage
@@ -16,8 +15,7 @@ fn FunctionCompilationContext::compile_instruction(
   instruction : @bytecode.Instruction,
 ) -> Array[@wasm_types.Instruction] {
   compile_instruction(
-    self.parameter_count,
-    self.live_base,
+    self.locals,
     self.body.slots,
     self.wasm_module,
     self.static_image,
@@ -34,9 +32,7 @@ fn FunctionCompilationContext::compile_terminator(
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
   compile_terminator(
     self.function_id,
-    self.parameter_count,
-    self.live_base,
-    self.body.slots,
+    self.locals,
     self.wasm_module,
     self.static_image,
     self.runtime_functions,
@@ -50,15 +46,23 @@ fn FunctionCompilationContext::slot_local(
   self : FunctionCompilationContext,
   slot : @bytecode.SlotId,
 ) -> Int {
-  slot_local(self.parameter_count, slot)
+  self.locals.slot_local(slot)
 }
 
 ///|
 fn FunctionCompilationContext::transfer_local(
   self : FunctionCompilationContext,
-  slot : @bytecode.SlotId,
+  block : @bytecode.BlockId,
+  parameter_index : Int,
 ) -> Int {
-  transfer_local(self.parameter_count, self.body.slots.length(), slot)
+  self.locals.transfer_local(block, parameter_index)
+}
+
+///|
+fn FunctionCompilationContext::dispatcher_state_local(
+  self : FunctionCompilationContext,
+) -> Int {
+  self.locals.dispatcher_state_local()
 }
 
 ///|
@@ -66,7 +70,7 @@ fn FunctionCompilationContext::mark_slot_dead(
   self : FunctionCompilationContext,
   slot : @bytecode.SlotId,
 ) -> Array[@wasm_types.Instruction] {
-  mark_slot_dead(self.live_base, self.body.slots, slot)
+  self.locals.mark_slot_dead(slot)
 }
 
 ///|
@@ -74,5 +78,5 @@ fn FunctionCompilationContext::mark_slot_live(
   self : FunctionCompilationContext,
   slot : @bytecode.SlotId,
 ) -> Array[@wasm_types.Instruction] {
-  mark_slot_live(self.live_base, self.body.slots, slot)
+  self.locals.mark_slot_live(slot)
 }

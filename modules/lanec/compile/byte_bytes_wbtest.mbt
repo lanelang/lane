@@ -584,12 +584,6 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            representation: I32,
       #|            cleanup: OwnedRef,
-      #|            kind: ByteSequenceValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
       #|            kind: DataValue({ value: 0 }),
       #|            erased_companion: None,
       #|          },
@@ -602,16 +596,16 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|            instructions: [
       #|              BorrowGlobal({ value: 0 }, { value: 0 }),
       #|              BorrowGlobal({ value: 1 }, { value: 1 }),
-      #|              RetainCopy({ value: 7 }, { value: 1 }),
+      #|              RetainCopy({ value: 3 }, { value: 1 }),
       #|              MakeData(
       #|                { value: 2 },
       #|                { value: 0 },
       #|                Immediate({ value: 1 }),
       #|                [],
-      #|                [{ value: 0 }, { value: 7 }],
+      #|                [{ value: 0 }, { value: 3 }],
       #|              ),
-      #|              RetainCopy({ value: 8 }, { value: 2 }),
-      #|              CallDirect({ value: 1 }, None, [], [{ value: 8 }], Some({ value: 0 })),
+      #|              RetainCopy({ value: 7 }, { value: 2 }),
+      #|              CallDirect({ value: 1 }, None, [], [{ value: 7 }], Some({ value: 0 })),
       #|              CallDirect({ value: 2 }, None, [], [{ value: 2 }], Some({ value: 3 })),
       #|              MakeData(
       #|                { value: 4 },

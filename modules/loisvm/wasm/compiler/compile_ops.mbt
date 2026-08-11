@@ -1,7 +1,6 @@
 ///|
 fn compile_instruction(
-  parameter_count : Int,
-  live_base : Int,
+  locals : FunctionLocalPlan,
   slots : Array[@bytecode.SlotMetadata],
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
@@ -12,31 +11,31 @@ fn compile_instruction(
   match instruction {
     Copy(destination, source) =>
       [
-        LocalGet(slot_local(parameter_count, source)),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalGet(locals.slot_local(source)),
+        LocalSet(locals.slot_local(destination)),
       ]
     Move(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, source)),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalGet(locals.slot_local(source)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_dead(live_base, slots, source))
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_dead(source))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     RetainCopy(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, source)),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalGet(locals.slot_local(source)),
+        LocalSet(locals.slot_local(destination)),
       ]
       match slots[destination.value].cleanup {
         Trivial => ()
         OwnedRef => {
-          result.push(LocalGet(slot_local(parameter_count, destination)))
+          result.push(LocalGet(locals.slot_local(destination)))
           result.push(Call(runtime_functions.retain_ref))
         }
         OwnedCallable => {
-          result.push(LocalGet(slot_local(parameter_count, destination)))
+          result.push(LocalGet(locals.slot_local(destination)))
           result.push(I64Const(32L))
           result.push(I64ShrU)
           result.push(I32WrapI64)
@@ -46,12 +45,12 @@ fn compile_instruction(
           let witness = slots[destination.value].erased_companion.unwrap()
           result.append(
             compile_erased_ownership_call(
-              parameter_count, wasm_module, destination, witness, 16,
+              locals, wasm_module, destination, witness, 16,
             ),
           )
         }
       }
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     Release(source) => {
@@ -60,12 +59,12 @@ fn compile_instruction(
         Trivial => []
         OwnedRef =>
           [
-            LocalGet(slot_local(parameter_count, source)),
+            LocalGet(locals.slot_local(source)),
             Call(runtime_functions.release_ref),
           ]
         OwnedCallable =>
           [
-            LocalGet(slot_local(parameter_count, source)),
+            LocalGet(locals.slot_local(source)),
             I64Const(32L),
             I64ShrU,
             I32WrapI64,
@@ -74,101 +73,96 @@ fn compile_instruction(
         OwnedErased => {
           let witness = slots[source.value].erased_companion.unwrap()
           compile_erased_ownership_call(
-            parameter_count, wasm_module, source, witness, 20,
+            locals, wasm_module, source, witness, 20,
           )
         }
       }
-      result.append(mark_slot_dead(live_base, slots, source))
+      result.append(locals.mark_slot_dead(source))
       result
     }
     ConstI64(destination, value) =>
-      [I64Const(value), LocalSet(slot_local(parameter_count, destination))]
+      [I64Const(value), LocalSet(locals.slot_local(destination))]
     ConstI32(destination, value) =>
-      [I32Const(value), LocalSet(slot_local(parameter_count, destination))]
+      [I32Const(value), LocalSet(locals.slot_local(destination))]
     ConstChar(destination, value) =>
-      [I32Const(value), LocalSet(slot_local(parameter_count, destination))]
+      [I32Const(value), LocalSet(locals.slot_local(destination))]
     ConstF64(destination, bits) =>
       [
         F64Const(bits.reinterpret_as_double()),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     ConstF32(destination, bits) =>
       [
         F32Const(Float::reinterpret_from_int(bits)),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     ConstBool(destination, value) =>
       [
         I32Const(if value { 1 } else { 0 }),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     ConstLayout(destination, layout) =>
-      [
-        I32Const(layout.value),
-        LocalSet(slot_local(parameter_count, destination)),
-      ]
+      [I32Const(layout.value), LocalSet(locals.slot_local(destination))]
     ConstFunction(destination, target) => {
       let result : Array[@wasm_types.Instruction] = [
         I64Const(static_image.callable_table_index(target).to_int64()),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     ConstString(destination, constant) => {
       let result : Array[@wasm_types.Instruction] = [
         I32Const(static_image.constant_refs[constant.value]),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     CallDirect(target, environment, witnesses, arguments, destination) => {
       let result : Array[@wasm_types.Instruction] = []
       match environment {
-        Some(slot) => result.push(LocalGet(slot_local(parameter_count, slot)))
+        Some(slot) => result.push(LocalGet(locals.slot_local(slot)))
         None => result.push(I32Const(0))
       }
       for slot in witnesses {
-        result.push(LocalGet(slot_local(parameter_count, slot)))
+        result.push(LocalGet(locals.slot_local(slot)))
       }
       for slot in arguments {
-        result.push(LocalGet(slot_local(parameter_count, slot)))
+        result.push(LocalGet(locals.slot_local(slot)))
       }
       if environment is Some(slot) {
-        result.append(mark_slot_dead(live_base, slots, slot))
+        result.append(locals.mark_slot_dead(slot))
       }
       for slot in arguments {
-        result.append(mark_slot_dead(live_base, slots, slot))
+        result.append(locals.mark_slot_dead(slot))
       }
       result.push(Call(static_image.wasm_function_offset + target.value - 1))
       if destination is Some(slot) {
-        result.push(LocalSet(slot_local(parameter_count, slot)))
-        result.append(mark_slot_live(live_base, slots, slot))
+        result.push(LocalSet(locals.slot_local(slot)))
+        result.append(locals.mark_slot_live(slot))
       }
       result
     }
     CallValue(callable, abi_id, witnesses, arguments, destination) => {
-      let result = validate_callable_abi(
-        parameter_count, static_image, callable, abi_id,
-      )
+      let result = validate_callable_abi(locals, static_image, callable, abi_id)
       result.append([
-        LocalGet(slot_local(parameter_count, callable)),
+        LocalGet(locals.slot_local(callable)),
         I64Const(32L),
         I64ShrU,
         I32WrapI64,
       ])
       for slot in witnesses {
-        result.push(LocalGet(slot_local(parameter_count, slot)))
+        result.push(LocalGet(locals.slot_local(slot)))
       }
       for slot in arguments {
-        result.push(LocalGet(slot_local(parameter_count, slot)))
+        result.push(LocalGet(locals.slot_local(slot)))
       }
-      result.push(LocalGet(slot_local(parameter_count, callable)))
+      result.push(LocalGet(locals.slot_local(callable)))
       result.push(I32WrapI64)
-      result.append(mark_slot_dead(live_base, slots, callable))
+      result.append(locals.mark_slot_dead(callable))
       for slot in arguments {
-        result.append(mark_slot_dead(live_base, slots, slot))
+        result.append(locals.mark_slot_dead(slot))
       }
       let type_index = indirect_type(
         wasm_module,
@@ -176,23 +170,23 @@ fn compile_instruction(
       )
       result.push(CallIndirect(type_index, 0))
       if destination is Some(slot) {
-        result.push(LocalSet(slot_local(parameter_count, slot)))
-        result.append(mark_slot_live(live_base, slots, slot))
+        result.push(LocalSet(locals.slot_local(slot)))
+        result.append(locals.mark_slot_live(slot))
       }
       result
     }
     MakeClosure(destination, target, environment) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, environment)),
+        LocalGet(locals.slot_local(environment)),
         I64ExtendI32U,
         I64Const(32L),
         I64Shl,
         I64Const(static_image.callable_table_index(target).to_int64()),
         I64Or,
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_dead(live_base, slots, environment))
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_dead(environment))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     MakeData(destination, shape, layout, witnesses, fields) => {
@@ -207,29 +201,29 @@ fn compile_instruction(
       let result : Array[@wasm_types.Instruction] = if use_singleton {
         [
           I32Const(static_image.singleton_refs[shape.value]),
-          LocalSet(slot_local(parameter_count, destination)),
+          LocalSet(locals.slot_local(destination)),
         ]
       } else {
         compile_object_construction(
-          parameter_count, static_image, runtime_functions, destination, shape, layout,
-          witnesses, fields,
+          locals, static_image, runtime_functions, destination, shape, layout, witnesses,
+          fields,
         )
       }
       for field in fields {
-        result.append(mark_slot_dead(live_base, slots, field))
+        result.append(locals.mark_slot_dead(field))
       }
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     MakeEnv(destination, shape, layout, witnesses, captures) => {
       let result = compile_object_construction(
-        parameter_count, static_image, runtime_functions, destination, shape, layout,
-        witnesses, captures,
+        locals, static_image, runtime_functions, destination, shape, layout, witnesses,
+        captures,
       )
       for capture in captures {
-        result.append(mark_slot_dead(live_base, slots, capture))
+        result.append(locals.mark_slot_dead(capture))
       }
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     LoadTag(destination, object) => {
@@ -237,374 +231,328 @@ fn compile_instruction(
         abort("verified LoadTag source lost its Data family")
       }
       let result = compile_data_family_guard(
-        parameter_count, static_image, object, family,
+        locals, static_image, object, family,
       )
       result.append([
-        LocalGet(slot_local(parameter_count, object)),
+        LocalGet(locals.slot_local(object)),
         I32Load(0, 2, 8L),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ])
       result
     }
     LoadObjectWitness(destination, shape, object, ordinal) =>
       [
-        LocalGet(slot_local(parameter_count, object)),
+        LocalGet(locals.slot_local(object)),
         I32Load(
           0,
           2,
           (static_image.shape_layouts[shape.value].witness_base + ordinal * 4).to_int64(),
         ),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     BorrowField(shape, object, field_index, result) =>
       compile_projection(
-        parameter_count, static_image, shape, object, field_index, result,
+        locals, static_image, shape, object, field_index, result,
       )
     BorrowCapture(shape, environment, capture_index, result) =>
       compile_projection(
-        parameter_count, static_image, shape, environment, capture_index, result,
+        locals, static_image, shape, environment, capture_index, result,
       )
     ConsumeFields(shape, object, selections)
     | ConsumeCaptures(shape, object, selections) => {
       let result = compile_consuming_projection(
-        parameter_count, static_image, runtime_functions, wasm_module, shape, object,
-        selections,
+        locals, static_image, runtime_functions, wasm_module, shape, object, selections,
       )
-      result.append(mark_slot_dead(live_base, slots, object))
+      result.append(locals.mark_slot_dead(object))
       for selection in selections {
-        result.append(
-          mark_slot_live(live_base, slots, selection.result.value_destination),
-        )
+        result.append(locals.mark_slot_live(selection.result.value_destination))
       }
       result
     }
     ByteToI64(destination, source) =>
       [
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         I64ExtendI32U,
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     I64ToByte(destination, source) =>
       [
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         I64Const(255L),
         I64And,
         I32WrapI64,
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     ByteSequenceMake(destination, length, fill) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, length)),
-        LocalGet(slot_local(parameter_count, fill)),
+        LocalGet(locals.slot_local(length)),
+        LocalGet(locals.slot_local(fill)),
         Call(runtime_functions.byte_sequence_make),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     ByteSequenceLength(destination, source) =>
       [
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         Call(runtime_functions.require_byte_sequence_layout),
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         I32Load(0, 2, 8L),
         I64ExtendI32U,
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     ByteSequenceGet(destination, source, index) =>
       [
-        LocalGet(slot_local(parameter_count, source)),
-        LocalGet(slot_local(parameter_count, index)),
+        LocalGet(locals.slot_local(source)),
+        LocalGet(locals.slot_local(index)),
         Call(runtime_functions.byte_sequence_get),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     ByteSequenceSet(destination, source, index, value) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, source)),
-        LocalGet(slot_local(parameter_count, index)),
-        LocalGet(slot_local(parameter_count, value)),
+        LocalGet(locals.slot_local(source)),
+        LocalGet(locals.slot_local(index)),
+        LocalGet(locals.slot_local(value)),
         Call(runtime_functions.byte_sequence_set),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_dead(live_base, slots, source))
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_dead(source))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     ByteSequenceConcat(destination, left, right) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, left)),
-        LocalGet(slot_local(parameter_count, right)),
+        LocalGet(locals.slot_local(left)),
+        LocalGet(locals.slot_local(right)),
         Call(runtime_functions.byte_sequence_concat),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_dead(live_base, slots, left))
-      result.append(mark_slot_dead(live_base, slots, right))
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_dead(left))
+      result.append(locals.mark_slot_dead(right))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     ByteSequenceSlice(destination, string, start, length) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, string)),
-        LocalGet(slot_local(parameter_count, start)),
-        LocalGet(slot_local(parameter_count, length)),
+        LocalGet(locals.slot_local(string)),
+        LocalGet(locals.slot_local(start)),
+        LocalGet(locals.slot_local(length)),
         Call(runtime_functions.byte_sequence_slice),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_dead(live_base, slots, string))
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_dead(string))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     ByteSequenceEqual(destination, left, right) =>
       [
-        LocalGet(slot_local(parameter_count, left)),
-        LocalGet(slot_local(parameter_count, right)),
+        LocalGet(locals.slot_local(left)),
+        LocalGet(locals.slot_local(right)),
         Call(runtime_functions.byte_sequence_equal),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     ByteSequenceIsValidUtf8(destination, source) =>
       [
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         Call(runtime_functions.byte_sequence_is_valid_utf8),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     I32Add(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I32Add)
+      binary(locals, destination, left, right, I32Add)
     I32Sub(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I32Sub)
+      binary(locals, destination, left, right, I32Sub)
     I32Mul(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I32Mul)
+      binary(locals, destination, left, right, I32Mul)
     I32Neg(destination, source) =>
       [
         I32Const(0),
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         I32Sub,
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     I32Div(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I32DivS)
+      binary(locals, destination, left, right, I32DivS)
     I32Rem(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I32RemS)
+      binary(locals, destination, left, right, I32RemS)
     I32Eq(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I32Eq)
+      binary(locals, destination, left, right, I32Eq)
     I32Lt(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I32LtS)
+      binary(locals, destination, left, right, I32LtS)
     I32ToI64(destination, source) =>
-      unary(parameter_count, destination, source, I64ExtendI32S)
+      unary(locals, destination, source, I64ExtendI32S)
     I64ToI32(destination, source) =>
-      unary(parameter_count, destination, source, I32WrapI64)
+      unary(locals, destination, source, I32WrapI64)
     I64Add(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64Add)
+      binary(locals, destination, left, right, I64Add)
     I64Sub(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64Sub)
+      binary(locals, destination, left, right, I64Sub)
     I64Mul(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64Mul)
+      binary(locals, destination, left, right, I64Mul)
     I64Neg(destination, source) =>
       [
         I64Const(0L),
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         I64Sub,
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     I64Div(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64DivS)
+      binary(locals, destination, left, right, I64DivS)
     I64Rem(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64RemS)
+      binary(locals, destination, left, right, I64RemS)
     I64And(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64And)
+      binary(locals, destination, left, right, I64And)
     I64Or(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64Or)
+      binary(locals, destination, left, right, I64Or)
     I64Xor(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64Xor)
+      binary(locals, destination, left, right, I64Xor)
     I64Not(destination, source) =>
       [
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         I64Const(-1L),
         I64Xor,
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
     I64Shl(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64Shl)
+      binary(locals, destination, left, right, I64Shl)
     I64ShrS(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64ShrS)
+      binary(locals, destination, left, right, I64ShrS)
     I64Eq(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64Eq)
+      binary(locals, destination, left, right, I64Eq)
     I64Ne(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64Ne)
+      binary(locals, destination, left, right, I64Ne)
     I64Lt(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64LtS)
+      binary(locals, destination, left, right, I64LtS)
     I64Le(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64LeS)
+      binary(locals, destination, left, right, I64LeS)
     I64Gt(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64GtS)
+      binary(locals, destination, left, right, I64GtS)
     I64Ge(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I64GeS)
-    BoolNot(destination, source) =>
-      unary(parameter_count, destination, source, I32Eqz)
+      binary(locals, destination, left, right, I64GeS)
+    BoolNot(destination, source) => unary(locals, destination, source, I32Eqz)
     BoolEq(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I32Eq)
+      binary(locals, destination, left, right, I32Eq)
     BoolNe(destination, left, right) =>
-      binary(parameter_count, destination, left, right, I32Ne)
+      binary(locals, destination, left, right, I32Ne)
     F64Add(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F64Add)
+      binary(locals, destination, left, right, F64Add)
     F64Sub(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F64Sub)
+      binary(locals, destination, left, right, F64Sub)
     F64Mul(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F64Mul)
+      binary(locals, destination, left, right, F64Mul)
     F64Div(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F64Div)
-    F64Neg(destination, source) =>
-      unary(parameter_count, destination, source, F64Neg)
+      binary(locals, destination, left, right, F64Div)
+    F64Neg(destination, source) => unary(locals, destination, source, F64Neg)
     F64Eq(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F64Eq)
+      binary(locals, destination, left, right, F64Eq)
     F64Ne(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F64Ne)
+      binary(locals, destination, left, right, F64Ne)
     F64Lt(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F64Lt)
+      binary(locals, destination, left, right, F64Lt)
     F64Le(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F64Le)
+      binary(locals, destination, left, right, F64Le)
     F64Gt(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F64Gt)
+      binary(locals, destination, left, right, F64Gt)
     F64Ge(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F64Ge)
+      binary(locals, destination, left, right, F64Ge)
     I64ToF64(destination, source) =>
-      unary(parameter_count, destination, source, F64ConvertI64S)
+      unary(locals, destination, source, F64ConvertI64S)
     F64ToI64(destination, source) =>
-      unary(parameter_count, destination, source, I64TruncF64S)
+      unary(locals, destination, source, I64TruncF64S)
     F32Add(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F32Add)
+      binary(locals, destination, left, right, F32Add)
     F32Sub(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F32Sub)
+      binary(locals, destination, left, right, F32Sub)
     F32Mul(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F32Mul)
+      binary(locals, destination, left, right, F32Mul)
     F32Div(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F32Div)
-    F32Neg(destination, source) =>
-      unary(parameter_count, destination, source, F32Neg)
+      binary(locals, destination, left, right, F32Div)
+    F32Neg(destination, source) => unary(locals, destination, source, F32Neg)
     F32Eq(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F32Eq)
+      binary(locals, destination, left, right, F32Eq)
     F32Ne(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F32Ne)
+      binary(locals, destination, left, right, F32Ne)
     F32Lt(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F32Lt)
+      binary(locals, destination, left, right, F32Lt)
     F32Le(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F32Le)
+      binary(locals, destination, left, right, F32Le)
     F32Gt(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F32Gt)
+      binary(locals, destination, left, right, F32Gt)
     F32Ge(destination, left, right) =>
-      binary(parameter_count, destination, left, right, F32Ge)
+      binary(locals, destination, left, right, F32Ge)
     I64ToF32(destination, source) =>
-      unary(parameter_count, destination, source, F32ConvertI64S)
+      unary(locals, destination, source, F32ConvertI64S)
     F32ToI64(destination, source) =>
-      unary(parameter_count, destination, source, I64TruncF32S)
+      unary(locals, destination, source, I64TruncF32S)
     F32ToF64(destination, source) =>
-      unary(parameter_count, destination, source, F64PromoteF32)
+      unary(locals, destination, source, F64PromoteF32)
     F64ToF32(destination, source) =>
-      unary(parameter_count, destination, source, F32DemoteF64)
+      unary(locals, destination, source, F32DemoteF64)
     F32ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         Call(internal_import_plan.index(F32ToString).unwrap()),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     F64ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         Call(internal_import_plan.index(F64ToString).unwrap()),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     EraseI32(destination, source) =>
-      compile_erasure_transfer(
-        parameter_count,
-        live_base,
-        slots,
-        destination,
-        source,
-        [I64ExtendI32U],
-      )
+      compile_erasure_transfer(locals, destination, source, [I64ExtendI32U])
     UneraseI32(destination, source) => {
       let result = compile_unerasure_shape_guard(
-        parameter_count, static_image, slots, destination, source,
+        locals, static_image, slots, destination, source,
       )
       result.append(
-        compile_erasure_transfer(
-          parameter_count,
-          live_base,
-          slots,
-          destination,
-          source,
-          [I32WrapI64],
-        ),
+        compile_erasure_transfer(locals, destination, source, [I32WrapI64]),
       )
       result
     }
     EraseI64(destination, source) | UneraseI64(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, source)),
-        LocalSet(slot_local(parameter_count, destination)),
+        LocalGet(locals.slot_local(source)),
+        LocalSet(locals.slot_local(destination)),
       ]
-      result.append(mark_slot_dead(live_base, slots, source))
-      result.append(mark_slot_live(live_base, slots, destination))
+      result.append(locals.mark_slot_dead(source))
+      result.append(locals.mark_slot_live(destination))
       result
     }
     EraseF64(destination, source) =>
-      compile_erasure_transfer(
-        parameter_count,
-        live_base,
-        slots,
-        destination,
-        source,
-        [I64ReinterpretF64],
-      )
+      compile_erasure_transfer(locals, destination, source, [I64ReinterpretF64])
     UneraseF64(destination, source) =>
-      compile_erasure_transfer(
-        parameter_count,
-        live_base,
-        slots,
-        destination,
-        source,
-        [F64ReinterpretI64],
-      )
+      compile_erasure_transfer(locals, destination, source, [F64ReinterpretI64])
     EraseF32(destination, source) =>
-      compile_erasure_transfer(
-        parameter_count,
-        live_base,
-        slots,
-        destination,
-        source,
-        [I32ReinterpretF32, I64ExtendI32U],
-      )
+      compile_erasure_transfer(locals, destination, source, [
+        I32ReinterpretF32,
+        I64ExtendI32U,
+      ])
     UneraseF32(destination, source) =>
-      compile_erasure_transfer(
-        parameter_count,
-        live_base,
-        slots,
-        destination,
-        source,
-        [I32WrapI64, F32ReinterpretI32],
-      )
+      compile_erasure_transfer(locals, destination, source, [
+        I32WrapI64,
+        F32ReinterpretI32,
+      ])
     EraseUnit(destination) =>
-      [I64Const(0L), LocalSet(slot_local(parameter_count, destination))]
+      [I64Const(0L), LocalSet(locals.slot_local(destination))]
     UneraseUnit(_) => []
     InitGlobal(global, source) =>
-      compile_global_initialization(
-        parameter_count, live_base, slots, static_image, global, source,
-      )
+      compile_global_initialization(locals, slots, static_image, global, source)
     BorrowGlobal(destination, global) =>
-      compile_global_borrow(
-        parameter_count, slots, static_image, destination, global,
-      )
+      compile_global_borrow(locals, slots, static_image, destination, global)
   }
 }
 
 ///|
 fn compile_erased_ownership_call(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   wasm_module : @wasm_types.Module,
   payload : @bytecode.SlotId,
   witness : @bytecode.SlotId,
@@ -612,8 +560,8 @@ fn compile_erased_ownership_call(
 ) -> Array[@wasm_types.Instruction] {
   let type_index = intern_function_type(wasm_module, [I64], [])
   [
-    LocalGet(slot_local(parameter_count, payload)),
-    LocalGet(slot_local(parameter_count, witness)),
+    LocalGet(locals.slot_local(payload)),
+    LocalGet(locals.slot_local(witness)),
     I32Const(5),
     I32Shl,
     GlobalGet(layout_table_base_global_index),
@@ -625,8 +573,7 @@ fn compile_erased_ownership_call(
 
 ///|
 fn compile_frame_cleanup(
-  parameter_count : Int,
-  live_base : Int,
+  locals : FunctionLocalPlan,
   slots : Array[@bytecode.SlotMetadata],
   wasm_module : @wasm_types.Module,
   runtime_functions : RuntimeFunctions,
@@ -635,12 +582,12 @@ fn compile_frame_cleanup(
   for index, slot in slots {
     if !(slot.cleanup is Trivial) {
       let slot_id : @bytecode.SlotId = { value: index }
-      instructions.push(LocalGet(live_local(live_base, slot_id)))
+      instructions.push(LocalGet(locals.liveness_local(slot_id).unwrap()))
       instructions.push(
         If(
           Empty,
           compile_slot_release(
-            parameter_count, slots, wasm_module, runtime_functions, slot_id,
+            locals, slots, wasm_module, runtime_functions, slot_id,
           ),
           [],
         ),
@@ -652,7 +599,7 @@ fn compile_frame_cleanup(
 
 ///|
 fn compile_slot_release(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   slots : Array[@bytecode.SlotMetadata],
   wasm_module : @wasm_types.Module,
   runtime_functions : RuntimeFunctions,
@@ -661,13 +608,10 @@ fn compile_slot_release(
   match slots[source.value].cleanup {
     Trivial => []
     OwnedRef =>
-      [
-        LocalGet(slot_local(parameter_count, source)),
-        Call(runtime_functions.release_ref),
-      ]
+      [LocalGet(locals.slot_local(source)), Call(runtime_functions.release_ref)]
     OwnedCallable =>
       [
-        LocalGet(slot_local(parameter_count, source)),
+        LocalGet(locals.slot_local(source)),
         I64Const(32L),
         I64ShrU,
         I32WrapI64,
@@ -675,16 +619,14 @@ fn compile_slot_release(
       ]
     OwnedErased => {
       let witness = slots[source.value].erased_companion.unwrap()
-      compile_erased_ownership_call(
-        parameter_count, wasm_module, source, witness, 20,
-      )
+      compile_erased_ownership_call(locals, wasm_module, source, witness, 20)
     }
   }
 }
 
 ///|
 fn compile_consuming_projection(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   static_image : StaticImage,
   runtime_functions : RuntimeFunctions,
   wasm_module : @wasm_types.Module,
@@ -700,7 +642,7 @@ fn compile_consuming_projection(
   for selection in selections {
     instructions.append(
       compile_projection(
-        parameter_count,
+        locals,
         static_image,
         shape,
         object,
@@ -712,11 +654,11 @@ fn compile_consuming_projection(
     match schemas[selection.member_index].cleanup {
       Trivial => ()
       OwnedRef => {
-        instructions.push(LocalGet(slot_local(parameter_count, destination)))
+        instructions.push(LocalGet(locals.slot_local(destination)))
         instructions.push(Call(runtime_functions.retain_ref))
       }
       OwnedCallable => {
-        instructions.push(LocalGet(slot_local(parameter_count, destination)))
+        instructions.push(LocalGet(locals.slot_local(destination)))
         instructions.push(I64Const(32L))
         instructions.push(I64ShrU)
         instructions.push(I32WrapI64)
@@ -726,39 +668,39 @@ fn compile_consuming_projection(
         let witness = selection.result.witness_destination.unwrap()
         instructions.append(
           compile_erased_ownership_call(
-            parameter_count, wasm_module, destination, witness, 16,
+            locals, wasm_module, destination, witness, 16,
           ),
         )
       }
     }
   }
-  instructions.push(LocalGet(slot_local(parameter_count, object)))
+  instructions.push(LocalGet(locals.slot_local(object)))
   instructions.push(Call(runtime_functions.release_ref))
   instructions
 }
 
 ///|
 fn compile_layout_operand(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   operand : @bytecode.LayoutOperand,
 ) -> Array[@wasm_types.Instruction] {
   match operand {
     Immediate(layout) => [I32Const(layout.value)]
-    Witness(slot) => [LocalGet(slot_local(parameter_count, slot))]
+    Witness(slot) => [LocalGet(locals.slot_local(slot))]
   }
 }
 
 ///|
 fn compile_store(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   object : @bytecode.SlotId,
   source : @bytecode.SlotId,
   offset : Int,
   representation : @bytecode.Representation,
 ) -> Array[@wasm_types.Instruction] {
   let instructions : Array[@wasm_types.Instruction] = [
-    LocalGet(slot_local(parameter_count, object)),
-    LocalGet(slot_local(parameter_count, source)),
+    LocalGet(locals.slot_local(object)),
+    LocalGet(locals.slot_local(source)),
   ]
   instructions.push(
     match representation {
@@ -773,7 +715,7 @@ fn compile_store(
 
 ///|
 fn compile_object_construction(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   static_image : StaticImage,
   runtime_functions : RuntimeFunctions,
   destination : @bytecode.SlotId,
@@ -786,24 +728,24 @@ fn compile_object_construction(
   let instructions : Array[@wasm_types.Instruction] = [
     I32Const(shape_layout.size),
     Call(runtime_functions.allocate),
-    LocalSet(slot_local(parameter_count, destination)),
-    LocalGet(slot_local(parameter_count, destination)),
+    LocalSet(locals.slot_local(destination)),
+    LocalGet(locals.slot_local(destination)),
     I32Const(1),
     I32Store(0, 2, 0L),
-    LocalGet(slot_local(parameter_count, destination)),
+    LocalGet(locals.slot_local(destination)),
   ]
-  instructions.append(compile_layout_operand(parameter_count, layout))
+  instructions.append(compile_layout_operand(locals, layout))
   instructions.push(I32Store(0, 2, 4L))
   let shape = static_image.object_shapes[shape_id.value]
   if shape is Data(data_shape) {
-    instructions.push(LocalGet(slot_local(parameter_count, destination)))
+    instructions.push(LocalGet(locals.slot_local(destination)))
     instructions.push(I32Const(data_shape.constructor_tag))
     instructions.push(I32Store(0, 2, 8L))
   }
   for index, witness in witnesses {
     instructions.append(
       compile_store(
-        parameter_count,
+        locals,
         destination,
         witness,
         shape_layout.witness_base + index * 4,
@@ -818,7 +760,7 @@ fn compile_object_construction(
   for index, field in fields {
     instructions.append(
       compile_store(
-        parameter_count,
+        locals,
         destination,
         field,
         shape_layout.member_offsets[index],
@@ -831,7 +773,7 @@ fn compile_object_construction(
 
 ///|
 fn compile_projection(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   static_image : StaticImage,
   shape : @bytecode.ObjectShapeId,
   object : @bytecode.SlotId,
@@ -844,7 +786,7 @@ fn compile_projection(
     Environment(environment_shape) => environment_shape.members[member_index]
   }
   let instructions : Array[@wasm_types.Instruction] = [
-    LocalGet(slot_local(parameter_count, object)),
+    LocalGet(locals.slot_local(object)),
   ]
   instructions.push(
     match schema.representation {
@@ -854,23 +796,21 @@ fn compile_projection(
       F32 => F32Load(0, 2, shape_layout.member_offsets[member_index].to_int64())
     },
   )
-  instructions.push(
-    LocalSet(slot_local(parameter_count, result.value_destination)),
-  )
+  instructions.push(LocalSet(locals.slot_local(result.value_destination)))
   if result.witness_destination is Some(destination) &&
     schema.witness_ordinal is Some(ordinal) {
-    instructions.push(LocalGet(slot_local(parameter_count, object)))
+    instructions.push(LocalGet(locals.slot_local(object)))
     instructions.push(
       I32Load(0, 2, (shape_layout.witness_base + ordinal * 4).to_int64()),
     )
-    instructions.push(LocalSet(slot_local(parameter_count, destination)))
+    instructions.push(LocalSet(locals.slot_local(destination)))
   }
   instructions
 }
 
 ///|
 fn compile_unerasure_shape_guard(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   static_image : StaticImage,
   slots : Array[@bytecode.SlotMetadata],
   destination : @bytecode.SlotId,
@@ -884,7 +824,7 @@ fn compile_unerasure_shape_guard(
     return []
   }
   [
-    LocalGet(slot_local(parameter_count, source)),
+    LocalGet(locals.slot_local(source)),
     I32WrapI64,
     I32Load(0, 2, 4L),
     I32Const(static_image.shape_layout_ids[shape.value]),
@@ -895,7 +835,7 @@ fn compile_unerasure_shape_guard(
 
 ///|
 fn compile_data_family_guard(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   static_image : StaticImage,
   object : @bytecode.SlotId,
   family : @bytecode.DataFamilyId,
@@ -905,7 +845,7 @@ fn compile_data_family_guard(
   for shape_index, shape in static_image.object_shapes {
     if shape is Data({ family: actual, .. }) && actual == family {
       instructions.append([
-        LocalGet(slot_local(parameter_count, object)),
+        LocalGet(locals.slot_local(object)),
         I32Load(0, 2, 4L),
         I32Const(static_image.shape_layout_ids[shape_index]),
         I32Eq,
@@ -926,9 +866,7 @@ fn compile_data_family_guard(
 ///|
 fn compile_terminator(
   function_id : Int,
-  parameter_count : Int,
-  live_base : Int,
-  slots : Array[@bytecode.SlotMetadata],
+  locals : FunctionLocalPlan,
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
   runtime_functions : RuntimeFunctions,
@@ -944,7 +882,7 @@ fn compile_terminator(
         GlobalSet(call_depth_global_index),
       ]
       if source is Some(slot) {
-        instructions.push(LocalGet(slot_local(parameter_count, slot)))
+        instructions.push(LocalGet(locals.slot_local(slot)))
       }
       instructions.push(Return)
       instructions
@@ -957,21 +895,20 @@ fn compile_terminator(
         GlobalSet(call_depth_global_index),
       ]
       match environment {
-        Some(slot) =>
-          instructions.push(LocalGet(slot_local(parameter_count, slot)))
+        Some(slot) => instructions.push(LocalGet(locals.slot_local(slot)))
         None => instructions.push(I32Const(0))
       }
       for slot in witnesses {
-        instructions.push(LocalGet(slot_local(parameter_count, slot)))
+        instructions.push(LocalGet(locals.slot_local(slot)))
       }
       for slot in arguments {
-        instructions.push(LocalGet(slot_local(parameter_count, slot)))
+        instructions.push(LocalGet(locals.slot_local(slot)))
       }
       if environment is Some(slot) {
-        instructions.append(mark_slot_dead(live_base, slots, slot))
+        instructions.append(locals.mark_slot_dead(slot))
       }
       for slot in arguments {
-        instructions.append(mark_slot_dead(live_base, slots, slot))
+        instructions.append(locals.mark_slot_dead(slot))
       }
       instructions.push(
         ReturnCall(static_image.wasm_function_offset + target.value - 1),
@@ -980,29 +917,29 @@ fn compile_terminator(
     }
     TailCallValue(callable, abi_id, witnesses, arguments) => {
       let instructions = validate_callable_abi(
-        parameter_count, static_image, callable, abi_id,
+        locals, static_image, callable, abi_id,
       )
       instructions.append([
         GlobalGet(call_depth_global_index),
         I32Const(1),
         I32Sub,
         GlobalSet(call_depth_global_index),
-        LocalGet(slot_local(parameter_count, callable)),
+        LocalGet(locals.slot_local(callable)),
         I64Const(32L),
         I64ShrU,
         I32WrapI64,
       ])
       for slot in witnesses {
-        instructions.push(LocalGet(slot_local(parameter_count, slot)))
+        instructions.push(LocalGet(locals.slot_local(slot)))
       }
       for slot in arguments {
-        instructions.push(LocalGet(slot_local(parameter_count, slot)))
+        instructions.push(LocalGet(locals.slot_local(slot)))
       }
-      instructions.push(LocalGet(slot_local(parameter_count, callable)))
+      instructions.push(LocalGet(locals.slot_local(callable)))
       instructions.push(I32WrapI64)
-      instructions.append(mark_slot_dead(live_base, slots, callable))
+      instructions.append(locals.mark_slot_dead(callable))
       for slot in arguments {
-        instructions.append(mark_slot_dead(live_base, slots, slot))
+        instructions.append(locals.mark_slot_dead(slot))
       }
       let type_index = indirect_type(
         wasm_module,
@@ -1014,16 +951,16 @@ fn compile_terminator(
     Fatal(message) => {
       let fatal_import = internal_import_plan.index(FatalString).unwrap()
       let instructions : Array[@wasm_types.Instruction] = [
-        LocalGet(slot_local(parameter_count, message)),
+        LocalGet(locals.slot_local(message)),
         I32Const(12),
         I32Add,
-        LocalGet(slot_local(parameter_count, message)),
+        LocalGet(locals.slot_local(message)),
         I32Load(0, 2, 8L),
         Call(fatal_import),
-        LocalGet(slot_local(parameter_count, message)),
+        LocalGet(locals.slot_local(message)),
         Call(runtime_functions.release_ref),
       ]
-      instructions.append(mark_slot_dead(live_base, slots, message))
+      instructions.append(locals.mark_slot_dead(message))
       instructions.push(Throw(0))
       instructions
     }
@@ -1038,20 +975,18 @@ fn compile_terminator(
 
 ///|
 fn compile_erasure_transfer(
-  parameter_count : Int,
-  live_base : Int,
-  slots : Array[@bytecode.SlotMetadata],
+  locals : FunctionLocalPlan,
   destination : @bytecode.SlotId,
   source : @bytecode.SlotId,
   operations : Array[@wasm_types.Instruction],
 ) -> Array[@wasm_types.Instruction] {
   let instructions : Array[@wasm_types.Instruction] = [
-    LocalGet(slot_local(parameter_count, source)),
+    LocalGet(locals.slot_local(source)),
   ]
   instructions.append(operations)
-  instructions.push(LocalSet(slot_local(parameter_count, destination)))
-  instructions.append(mark_slot_dead(live_base, slots, source))
-  instructions.append(mark_slot_live(live_base, slots, destination))
+  instructions.push(LocalSet(locals.slot_local(destination)))
+  instructions.append(locals.mark_slot_dead(source))
+  instructions.append(locals.mark_slot_live(destination))
   instructions
 }
 
@@ -1069,23 +1004,23 @@ fn indirect_type(
 
 ///|
 fn validate_callable_abi(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   static_image : StaticImage,
   callable : @bytecode.SlotId,
   expected : @bytecode.CallableAbiId,
 ) -> Array[@wasm_types.Instruction] {
   [
-    LocalGet(slot_local(parameter_count, callable)),
+    LocalGet(locals.slot_local(callable)),
     I32WrapI64,
     I32Eqz,
-    LocalGet(slot_local(parameter_count, callable)),
+    LocalGet(locals.slot_local(callable)),
     I32WrapI64,
     I32Const(static_image.callable_table_size),
     I32GeU,
     I32Or,
     If(Empty, [Unreachable], []),
     I32Const(static_image.callable_abi_table_base),
-    LocalGet(slot_local(parameter_count, callable)),
+    LocalGet(locals.slot_local(callable)),
     I32WrapI64,
     I32Const(static_image.callable_abis.length()),
     I32Mul,
@@ -1102,30 +1037,30 @@ fn validate_callable_abi(
 
 ///|
 fn unary(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   destination : @bytecode.SlotId,
   source : @bytecode.SlotId,
   operation : @wasm_types.Instruction,
 ) -> Array[@wasm_types.Instruction] {
   [
-    LocalGet(slot_local(parameter_count, source)),
+    LocalGet(locals.slot_local(source)),
     operation,
-    LocalSet(slot_local(parameter_count, destination)),
+    LocalSet(locals.slot_local(destination)),
   ]
 }
 
 ///|
 fn binary(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   destination : @bytecode.SlotId,
   left : @bytecode.SlotId,
   right : @bytecode.SlotId,
   operation : @wasm_types.Instruction,
 ) -> Array[@wasm_types.Instruction] {
   [
-    LocalGet(slot_local(parameter_count, left)),
-    LocalGet(slot_local(parameter_count, right)),
+    LocalGet(locals.slot_local(left)),
+    LocalGet(locals.slot_local(right)),
     operation,
-    LocalSet(slot_local(parameter_count, destination)),
+    LocalSet(locals.slot_local(destination)),
   ]
 }

@@ -14,28 +14,11 @@ fn terminator_transfers_control(terminator : @bytecode.Terminator) -> Bool {
 }
 
 ///|
-fn transfer_local(
-  parameter_count : Int,
-  slot_count : Int,
-  slot : @bytecode.SlotId,
-) -> Int {
-  parameter_count + slot_count + slot.value
-}
-
-///|
-fn dispatcher_state_local(parameter_count : Int, slot_count : Int) -> Int {
-  parameter_count + slot_count * 2
-}
-
-///|
 fn compile_dispatcher(
   context : FunctionCompilationContext,
 ) -> @wasm_types.Instruction raise WasmCompileError {
   let block_count = context.body.blocks.length()
-  let state_local = dispatcher_state_local(
-    context.parameter_count,
-    context.body.slots.length(),
-  )
+  let state_local = context.dispatcher_state_local()
   let labels : Array[Int] = []
   for index in 0..<block_count {
     labels.push(index)
@@ -70,10 +53,7 @@ fn compile_dispatcher(
 fn compile_balanced_dispatcher(
   context : FunctionCompilationContext,
 ) -> @wasm_types.Instruction raise WasmCompileError {
-  let state_local = dispatcher_state_local(
-    context.parameter_count,
-    context.body.slots.length(),
-  )
+  let state_local = context.dispatcher_state_local()
   Loop(
     Empty,
     compile_balanced_dispatch_range(
@@ -224,15 +204,15 @@ fn compile_edge(
     )
   }
   let instructions : Array[@wasm_types.Instruction] = []
-  for index, destination in target_parameters {
+  for index, _ in target_parameters {
     instructions.push(LocalGet(context.slot_local(edge.arguments[index])))
-    instructions.push(LocalSet(context.transfer_local(destination)))
+    instructions.push(LocalSet(context.transfer_local(edge.target, index)))
   }
   for source in edge.arguments {
     instructions.append(context.mark_slot_dead(source))
   }
-  for destination in target_parameters {
-    instructions.push(LocalGet(context.transfer_local(destination)))
+  for index, destination in target_parameters {
+    instructions.push(LocalGet(context.transfer_local(edge.target, index)))
     instructions.push(LocalSet(context.slot_local(destination)))
     instructions.append(context.mark_slot_live(destination))
   }

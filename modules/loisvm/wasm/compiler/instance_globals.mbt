@@ -37,8 +37,7 @@ fn compile_entry_lifecycle(
 
 ///|
 fn compile_global_initialization(
-  parameter_count : Int,
-  live_base : Int,
+  locals : FunctionLocalPlan,
   slots : Array[@bytecode.SlotMetadata],
   static_image : StaticImage,
   global : @bytecode.GlobalId,
@@ -66,7 +65,7 @@ fn compile_global_initialization(
       I32Load(0, 2, 0L),
       If(Empty, global_failure(), []),
       I32Const(companion_address),
-      LocalGet(slot_local(parameter_count, source_companion)),
+      LocalGet(locals.slot_local(source_companion)),
       I32Store(0, 2, 8L),
       I32Const(companion_address),
       I32Const(1),
@@ -74,16 +73,16 @@ fn compile_global_initialization(
     ])
   }
   instructions.push(I32Const(address))
-  instructions.push(LocalGet(slot_local(parameter_count, source)))
+  instructions.push(LocalGet(locals.slot_local(source)))
   instructions.push(global_store(metadata.representation, 8L))
   instructions.append([I32Const(address), I32Const(1), I32Store(0, 2, 0L)])
-  instructions.append(mark_slot_dead(live_base, slots, source))
+  instructions.append(locals.mark_slot_dead(source))
   instructions
 }
 
 ///|
 fn compile_global_borrow(
-  parameter_count : Int,
+  locals : FunctionLocalPlan,
   slots : Array[@bytecode.SlotMetadata],
   static_image : StaticImage,
   destination : @bytecode.SlotId,
@@ -108,12 +107,12 @@ fn compile_global_borrow(
       If(Empty, global_failure(), []),
       I32Const(companion_address),
       I32Load(0, 2, 8L),
-      LocalSet(slot_local(parameter_count, destination_companion)),
+      LocalSet(locals.slot_local(destination_companion)),
     ])
   }
   instructions.push(I32Const(address))
   instructions.push(global_load(metadata.representation, 8L))
-  instructions.push(LocalSet(slot_local(parameter_count, destination)))
+  instructions.push(LocalSet(locals.slot_local(destination)))
   instructions
 }
 

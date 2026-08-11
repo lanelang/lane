@@ -2,70 +2,145 @@
 fn allocate_finalized_slots(
   body : @bytecode.FunctionBody,
 ) -> @bytecode.FunctionBody {
-  guard body.blocks is [block] else { return body }
   let slot_count = body.slots.length()
   if slot_count < 2 {
     return body
   }
-  let first = Array::make(slot_count, -1)
-  let last = Array::make(slot_count, -1)
-  if body.inputs.environment is Some(environment) {
-    record_finalized_slot_definition(first, last, environment, 0)
+  let active = Array::make(slot_count, false)
+  let definitions = body.blocks.map(_ => Array::make(slot_count, false))
+  let upward_uses = body.blocks.map(_ => Array::make(slot_count, false))
+  for block_index, block in body.blocks {
+    let defined = Array::make(slot_count, false)
+    if block_index == 0 {
+      for input in finalized_input_slots(body.inputs) {
+        active[input.value] = true
+        defined[input.value] = true
+        definitions[block_index][input.value] = true
+      }
+    }
+    for parameter in block.parameters {
+      active[parameter.value] = true
+      defined[parameter.value] = true
+      definitions[block_index][parameter.value] = true
+    }
+    for instruction in block.instructions {
+      for source in finalized_instruction_sources(instruction) {
+        active[source.value] = true
+        if !defined[source.value] {
+          upward_uses[block_index][source.value] = true
+        }
+      }
+      for destination in finalized_instruction_destinations(instruction) {
+        active[destination.value] = true
+        defined[destination.value] = true
+        definitions[block_index][destination.value] = true
+      }
+    }
+    for source in finalized_terminator_sources(block.terminator) {
+      active[source.value] = true
+      if !defined[source.value] {
+        upward_uses[block_index][source.value] = true
+      }
+    }
   }
-  for witness in body.inputs.witnesses {
-    record_finalized_slot_definition(first, last, witness, 0)
-  }
-  for parameter in body.inputs.user_parameters {
-    record_finalized_slot_definition(first, last, parameter, 0)
-  }
-  for parameter in block.parameters {
-    record_finalized_slot_definition(first, last, parameter, 0)
-  }
-  for index, instruction in block.instructions {
-    let position = index + 1
-    ignore(
-      map_finalized_instruction_slots(
-        instruction,
-        fn(destination) {
-          record_finalized_slot_definition(first, last, destination, position)
-          destination
-        },
-        fn(source) {
-          record_finalized_slot_occurrence(first, last, source, position)
-          source
-        },
-      ),
-    )
-  }
-  let terminator_position = block.instructions.length() + 1
-  ignore(
-    map_finalized_terminator_slots(block.terminator, fn(slot) {
-      record_finalized_slot_occurrence(first, last, slot, terminator_position)
-      slot
-    }),
-  )
   for index, metadata in body.slots {
-    if metadata.erased_companion is Some(companion) && first[index] >= 0 {
-      record_finalized_slot_occurrence(first, last, companion, last[index])
+    if active[index] && metadata.erased_companion is Some(companion) {
+      active[companion.value] = true
+    }
+  }
+  let live_in = body.blocks.map(_ => Array::make(slot_count, false))
+  let live_out = body.blocks.map(_ => Array::make(slot_count, false))
+  let mut changed = true
+  while changed {
+    changed = false
+    let mut block_index = body.blocks.length() - 1
+    while block_index >= 0 {
+      let next_out = Array::make(slot_count, false)
+      for successor in finalized_successors(body.blocks[block_index].terminator) {
+        for slot_index in 0..<slot_count {
+          next_out[slot_index] = next_out[slot_index] ||
+            live_in[successor][slot_index]
+        }
+      }
+      let next_in = upward_uses[block_index].copy()
+      for slot_index in 0..<slot_count {
+        if next_out[slot_index] && !definitions[block_index][slot_index] {
+          next_in[slot_index] = true
+        }
+      }
+      if next_in != live_in[block_index] || next_out != live_out[block_index] {
+        live_in[block_index] = next_in
+        live_out[block_index] = next_out
+        changed = true
+      }
+      block_index -= 1
+    }
+  }
+  let interference = body.slots.map(_ => Array::make(slot_count, false))
+  for block_index, block in body.blocks {
+    let live = live_out[block_index].copy()
+    for source in finalized_terminator_sources(block.terminator) {
+      live[source.value] = true
+    }
+    let mut instruction_index = block.instructions.length() - 1
+    while instruction_index >= 0 {
+      let instruction = block.instructions[instruction_index]
+      let destinations = finalized_instruction_destinations(instruction)
+      let sources = finalized_instruction_sources(instruction)
+      for destination in destinations {
+        record_finalized_interference(interference, destination.value, live)
+        for source in sources {
+          if destination != source {
+            interference[destination.value][source.value] = true
+            interference[source.value][destination.value] = true
+          }
+        }
+      }
+      for destination in destinations {
+        live[destination.value] = false
+      }
+      for source in sources {
+        live[source.value] = true
+      }
+      instruction_index -= 1
+    }
+    let entry_definitions = if block_index == 0 {
+      block.parameters + finalized_input_slots(body.inputs)
+    } else {
+      block.parameters
+    }
+    for definition in entry_definitions {
+      record_finalized_interference(interference, definition.value, live)
+    }
+    record_finalized_simultaneous_definitions(interference, entry_definitions)
+  }
+  for owner, metadata in body.slots {
+    if active[owner] && metadata.erased_companion is Some(companion) {
+      for other in 0..<slot_count {
+        if interference[owner][other] {
+          interference[companion.value][other] = true
+          interference[other][companion.value] = true
+        }
+      }
     }
   }
   let remap = Array::make(slot_count, -1)
   let allocated : Array[@bytecode.SlotMetadata] = []
-  let allocated_ends : Array[Int] = []
+  let allocated_values : Array[Array[Int]] = []
   for logical_index in 0..<slot_count {
-    let value_first = first[logical_index]
-    if value_first < 0 {
+    if !active[logical_index] {
       continue
     }
     let metadata = body.slots[logical_index]
-    let value_last = last[logical_index]
     let reusable = !(metadata.cleanup is OwnedErased) &&
       metadata.erased_companion is None
     let mut physical_index = -1
     if reusable {
       for candidate, candidate_metadata in allocated {
-        if allocated_ends[candidate] < value_first &&
-          candidate_metadata == metadata {
+        if candidate_metadata == metadata &&
+          allocated_values[candidate].all(fn(other) {
+            !interference[logical_index][other]
+          }) {
           physical_index = candidate
           break
         }
@@ -74,10 +149,9 @@ fn allocate_finalized_slots(
     if physical_index < 0 {
       physical_index = allocated.length()
       allocated.push(metadata)
-      allocated_ends.push(value_last)
-    } else {
-      allocated_ends[physical_index] = value_last
+      allocated_values.push([])
     }
+    allocated_values[physical_index].push(logical_index)
     remap[logical_index] = physical_index
   }
   if allocated.length() == slot_count {
@@ -99,45 +173,121 @@ fn allocate_finalized_slots(
       user_parameters: body.inputs.user_parameters.map(remap_slot),
     },
     result: body.result,
-    blocks: [
+    blocks: body.blocks.map(fn(block) {
       {
         parameters: block.parameters.map(remap_slot),
         instructions: block.instructions.map(fn(instruction) {
           map_finalized_instruction_slots(instruction, remap_slot, remap_slot)
         }),
         terminator: map_finalized_terminator_slots(block.terminator, remap_slot),
+      }
+    }),
+  }
+}
+
+///|
+fn finalized_input_slots(
+  inputs : @bytecode.FunctionInputs,
+) -> Array[@bytecode.SlotId] {
+  let slots : Array[@bytecode.SlotId] = []
+  if inputs.environment is Some(environment) {
+    slots.push(environment)
+  }
+  slots.append(inputs.witnesses)
+  slots.append(inputs.user_parameters)
+  slots
+}
+
+///|
+fn finalized_instruction_destinations(
+  instruction : @bytecode.Instruction,
+) -> Array[@bytecode.SlotId] {
+  let destinations : Array[@bytecode.SlotId] = []
+  ignore(
+    map_finalized_instruction_slots(
+      instruction,
+      fn(slot) {
+        destinations.push(slot)
+        slot
       },
-    ],
+      fn(slot) { slot },
+    ),
+  )
+  destinations
+}
+
+///|
+fn finalized_instruction_sources(
+  instruction : @bytecode.Instruction,
+) -> Array[@bytecode.SlotId] {
+  let sources : Array[@bytecode.SlotId] = []
+  ignore(
+    map_finalized_instruction_slots(instruction, fn(slot) { slot }, fn(slot) {
+      sources.push(slot)
+      slot
+    }),
+  )
+  sources
+}
+
+///|
+fn finalized_terminator_sources(
+  terminator : @bytecode.Terminator,
+) -> Array[@bytecode.SlotId] {
+  let sources : Array[@bytecode.SlotId] = []
+  ignore(
+    map_finalized_terminator_slots(terminator, fn(slot) {
+      sources.push(slot)
+      slot
+    }),
+  )
+  sources
+}
+
+///|
+fn finalized_successors(terminator : @bytecode.Terminator) -> Array[Int] {
+  match terminator {
+    Jump(edge) => [edge.target.value]
+    BranchBool(_, if_true, if_false) =>
+      [if_true.target.value, if_false.target.value]
+    SwitchTag(_, cases, default) =>
+      cases.map(fn(edge) { edge.target.value }) + [default.target.value]
+    Return(_)
+    | TailCallDirect(_, _, _, _)
+    | TailCallValue(_, _, _, _)
+    | Fatal(_)
+    | Unreachable => []
   }
 }
 
 ///|
-fn record_finalized_slot_definition(
-  first : Array[Int],
-  last : Array[Int],
-  slot : @bytecode.SlotId,
-  position : Int,
+fn record_finalized_interference(
+  interference : Array[Array[Bool]],
+  definition : Int,
+  live : Array[Bool],
 ) -> Unit {
-  if first[slot.value] < 0 {
-    first[slot.value] = position
-  }
-  if last[slot.value] < position {
-    last[slot.value] = position
+  for other, is_live in live {
+    if is_live && other != definition {
+      interference[definition][other] = true
+      interference[other][definition] = true
+    }
   }
 }
 
 ///|
-fn record_finalized_slot_occurrence(
-  first : Array[Int],
-  last : Array[Int],
-  slot : @bytecode.SlotId,
-  position : Int,
+fn record_finalized_simultaneous_definitions(
+  interference : Array[Array[Bool]],
+  definitions : Array[@bytecode.SlotId],
 ) -> Unit {
-  if first[slot.value] < 0 {
-    first[slot.value] = 0
-  }
-  if last[slot.value] < position {
-    last[slot.value] = position
+  for left_index in 0..<definitions.length() {
+    for right_index in (left_index + 1)..<definitions.length() {
+      let left = definitions[left_index].value
+      let right = definitions[right_index].value
+      if left != right {
+        interference[left][right] = true
+        interference[right][left] = true
+      }
+    }
   }
 }
 

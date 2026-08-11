@@ -247,16 +247,12 @@ fn compile_body(
     None
   }
   let use_dispatcher = uses_cfg && structured is None
-  let live_base = frame_live_base(
-    parameter_count,
-    body.slots.length(),
-    uses_cfg,
-    use_dispatcher,
+  let locals = plan_function_locals(
+    body, parameter_count, uses_cfg, use_dispatcher,
   )
   let context : FunctionCompilationContext = {
     function_id,
-    parameter_count,
-    live_base,
+    locals,
     body,
     wasm_module,
     static_image,
@@ -270,18 +266,18 @@ fn compile_body(
   let mut parameter_index = 1
   if body.inputs.environment is Some(slot) {
     instructions.push(LocalGet(0))
-    instructions.push(LocalSet(parameter_count + slot.value))
+    instructions.push(LocalSet(locals.slot_local(slot)))
     instructions.append(context.mark_slot_live(slot))
   }
   for slot in body.inputs.witnesses {
     instructions.push(LocalGet(parameter_index))
-    instructions.push(LocalSet(parameter_count + slot.value))
+    instructions.push(LocalSet(locals.slot_local(slot)))
     instructions.append(context.mark_slot_live(slot))
     parameter_index += 1
   }
   for slot in body.inputs.user_parameters {
     instructions.push(LocalGet(parameter_index))
-    instructions.push(LocalSet(parameter_count + slot.value))
+    instructions.push(LocalSet(locals.slot_local(slot)))
     instructions.append(context.mark_slot_live(slot))
     parameter_index += 1
   }
@@ -303,13 +299,7 @@ fn compile_body(
   )
   if needs_frame_cleanup {
     instructions.append(
-      compile_frame_cleanup(
-        parameter_count,
-        live_base,
-        body.slots,
-        wasm_module,
-        runtime_functions,
-      ),
+      compile_frame_cleanup(locals, body.slots, wasm_module, runtime_functions),
     )
   }
   instructions.append([
@@ -319,23 +309,7 @@ fn compile_body(
     GlobalSet(call_depth_global_index),
     Throw(0),
   ])
-  let locals = body.slots.map(fn(slot) {
-    wasm_representation(slot.representation)
-  })
-  if uses_cfg {
-    locals.append(
-      body.slots.map(fn(slot) { wasm_representation(slot.representation) }),
-    )
-  }
-  if use_dispatcher {
-    locals.push(I32)
-  }
-  if needs_frame_cleanup {
-    for _ in body.slots {
-      locals.push(I32)
-    }
-  }
-  { locals, body: instructions }
+  { locals: locals.locals, body: instructions }
 }
 
 ///|
@@ -353,49 +327,3 @@ fn call_depth_prologue() -> Array[@wasm_types.Instruction] {
 }
 
 ///|
-fn slot_local(parameter_count : Int, slot : @bytecode.SlotId) -> Int {
-  parameter_count + slot.value
-}
-
-///|
-fn frame_live_base(
-  parameter_count : Int,
-  slot_count : Int,
-  uses_transfer_locals : Bool,
-  use_dispatcher : Bool,
-) -> Int {
-  let transfer_local_count = if uses_transfer_locals { slot_count } else { 0 }
-  let dispatcher_local_count = if use_dispatcher { 1 } else { 0 }
-  parameter_count + slot_count + transfer_local_count + dispatcher_local_count
-}
-
-///|
-fn live_local(live_base : Int, slot : @bytecode.SlotId) -> Int {
-  live_base + slot.value
-}
-
-///|
-fn mark_slot_live(
-  live_base : Int,
-  slots : Array[@bytecode.SlotMetadata],
-  slot : @bytecode.SlotId,
-) -> Array[@wasm_types.Instruction] {
-  if slots[slot.value].cleanup is Trivial {
-    []
-  } else {
-    [I32Const(1), LocalSet(live_local(live_base, slot))]
-  }
-}
-
-///|
-fn mark_slot_dead(
-  live_base : Int,
-  slots : Array[@bytecode.SlotMetadata],
-  slot : @bytecode.SlotId,
-) -> Array[@wasm_types.Instruction] {
-  if slots[slot.value].cleanup is Trivial {
-    []
-  } else {
-    [I32Const(0), LocalSet(live_local(live_base, slot))]
-  }
-}

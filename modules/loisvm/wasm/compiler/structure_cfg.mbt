@@ -453,15 +453,15 @@ fn compile_structured_edge(
     )
   }
   let instructions : Array[@wasm_types.Instruction] = []
-  for index, destination in target_parameters {
+  for index, _ in target_parameters {
     instructions.push(LocalGet(context.slot_local(edge.arguments[index])))
-    instructions.push(LocalSet(context.transfer_local(destination)))
+    instructions.push(LocalSet(context.transfer_local(edge.target, index)))
   }
   for source in edge.arguments {
     instructions.append(context.mark_slot_dead(source))
   }
-  for destination in target_parameters {
-    instructions.push(LocalGet(context.transfer_local(destination)))
+  for index, destination in target_parameters {
+    instructions.push(LocalGet(context.transfer_local(edge.target, index)))
     instructions.push(LocalSet(context.slot_local(destination)))
     instructions.append(context.mark_slot_live(destination))
   }
