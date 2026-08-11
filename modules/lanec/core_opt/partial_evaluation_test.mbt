@@ -406,7 +406,7 @@ test "core optimizer does not unfold a recursive call through an alias" {
 }
 
 ///|
-test "core optimizer keeps a known call when its body exceeds the size budget" {
+test "core optimizer keeps a known call when contextual expansion is not profitable" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)
   let function_type = @buslane.Type::Function([i64_type], i64_type, Empty)
@@ -440,7 +440,7 @@ test "core optimizer keeps a known call when its body exceeds the size budget" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [helper] }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -654,7 +654,7 @@ test "core optimizer preserves an escaping callable while specializing its direc
 }
 
 ///|
-test "core optimizer keeps dictionary projection behind a dynamic parameter" {
+test "core optimizer eliminates a single-use call with a dynamic projection" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)
   let operation_type = @buslane.Type::Function([i64_type], i64_type, Empty)
@@ -736,36 +736,26 @@ test "core optimizer keeps dictionary projection behind a dynamic parameter" {
       #|(
       #|  [
       #|    Let(
-      #|      { index: 3 },
-      #|      Function(
-      #|        {
-      #|          parameters: [{ index: 0 }],
-      #|          result_type: Primitive(I64),
-      #|          body: Match(
-      #|            {
-      #|              scrutinee: Ref({ index: 0 }),
-      #|              binder: { index: 1 },
-      #|              result_type: Primitive(I64),
-      #|              alternatives: [
-      #|                {
-      #|                  alt_constructor: DataCon({ index: 0 }),
-      #|                  type_binders: [],
-      #|                  value_binders: [{ index: 2 }],
-      #|                  body: Call(Ref({ index: 2 }), [Literal(I64(0))]),
-      #|                },
-      #|              ],
-      #|            },
-      #|          ),
-      #|        },
-      #|      ),
-      #|    ),
-      #|    Let(
       #|      { index: 5 },
       #|      Function(
       #|        {
       #|          parameters: [{ index: 4 }],
       #|          result_type: Primitive(I64),
-      #|          body: Call(Ref({ index: 3 }), [Ref({ index: 4 })]),
+      #|          body: Match(
+      #|            {
+      #|              scrutinee: Ref({ index: 4 }),
+      #|              binder: { index: 7 },
+      #|              result_type: Primitive(I64),
+      #|              alternatives: [
+      #|                {
+      #|                  alt_constructor: DataCon({ index: 0 }),
+      #|                  type_binders: [],
+      #|                  value_binders: [{ index: 8 }],
+      #|                  body: Call(Ref({ index: 8 }), [Literal(I64(0))]),
+      #|                },
+      #|              ],
+      #|            },
+      #|          ),
       #|        },
       #|      ),
       #|    ),

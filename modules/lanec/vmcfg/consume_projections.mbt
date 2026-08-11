@@ -143,11 +143,26 @@ fn projection_group_can_consume(
 ) -> Bool {
   let prior_uses = independent_prior_source_uses(instructions, start, source)
   body.values[source.value].ownership is Owned &&
+  projection_members_are_unique(selections) &&
   prior_uses is Some(prior_uses) &&
   uses[source.value] == prior_uses + selections.length() &&
   selections.any(fn(selection) {
     projection_result_requires_owner(body, selection.result)
   })
+}
+
+///|
+fn projection_members_are_unique(
+  selections : Array[ProjectionSelection],
+) -> Bool {
+  for index, selection in selections {
+    for previous in 0..<index {
+      if selections[previous].member_index == selection.member_index {
+        return false
+      }
+    }
+  }
+  true
 }
 
 ///|

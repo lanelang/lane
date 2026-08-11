@@ -162,3 +162,37 @@ test "group consuming captures and preserve block-local borrows" {
   }
   assert_eq(select_consuming_projections_in_body(borrowed_only), borrowed_only)
 }
+
+///|
+test "repeated member projections remain borrowed" {
+  let body : FunctionBody = {
+    values: [
+      owned_string_value(),
+      borrowed_string_value(),
+      borrowed_string_value(),
+    ],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }],
+    },
+    result: Value(I32, OwnedRef, ByteSequenceValue),
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          BorrowField({ value: 0 }, { value: 0 }, 1, {
+            value_destination: { value: 1 },
+            witness_destination: None,
+          }),
+          BorrowField({ value: 0 }, { value: 0 }, 1, {
+            value_destination: { value: 2 },
+            witness_destination: None,
+          }),
+        ],
+        terminator: Return(Some({ value: 2 })),
+      },
+    ],
+  }
+  assert_eq(select_consuming_projections_in_body(body), body)
+}
