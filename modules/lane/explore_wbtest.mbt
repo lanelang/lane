@@ -18,6 +18,7 @@ test "explorer HTML body contains only stage navigation and code" {
         text_format: Lane,
         text: "let answer = 42\n<&>",
         diagnostics: [],
+        scale: { metrics: [], functions: [] },
       }),
       resolved: Failed([]),
       checked: Unavailable,

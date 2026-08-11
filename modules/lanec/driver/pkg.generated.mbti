@@ -32,6 +32,48 @@ pub(all) struct ExploreCompilerIdentity {
   version : String
 } derive(Eq, @debug.Debug)
 
+pub(all) struct ExploreFunctionScale {
+  index : Int
+  block_count : Int
+  operation_count : Int
+  value_count : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreMetric {
+  id : ExploreMetricId
+  value : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExploreMetricId {
+  TopTermCount
+  FunctionCount
+  ImportCount
+  NodeCount
+  BlockCount
+  InstructionCount
+  CallCount
+  ValueCount
+  SlotCount
+  DirectCallCount
+  IndirectCallCount
+  FunctionReferenceCount
+  ClosureCount
+  EnvironmentCount
+  CallableAbiCount
+  GlobalCount
+  LayoutCount
+  ObjectShapeCount
+  ConstantCount
+  EraseCount
+  UneraseCount
+  RetainCount
+  ReleaseCount
+  LocalCount
+  TableEntryCount
+} derive(Eq, @debug.Debug)
+pub fn ExploreMetricId::key(Self) -> String
+pub fn ExploreMetricId::title(Self) -> String
+
 pub(all) struct ExploreReport {
   schema_version : Int
   compiler : ExploreCompilerIdentity
@@ -53,11 +95,17 @@ pub(all) struct ExploreRootIdentity {
   module_path_text : String?
 } derive(Eq, @debug.Debug)
 
+pub(all) struct ExploreScaleObservation {
+  metrics : Array[ExploreMetric]
+  functions : Array[ExploreFunctionScale]
+} derive(Eq, @debug.Debug)
+
 pub(all) struct ExploreSnapshot {
   domain : ExploreStageDomain
   text_format : ExploreTextFormat
   text : String
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
+  scale : ExploreScaleObservation
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ExploreStage {

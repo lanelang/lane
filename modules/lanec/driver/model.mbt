@@ -38,6 +38,60 @@ pub(all) enum ExploreTextFormat {
 } derive(Debug, Eq)
 
 ///|
+/// Stable structural quantities reported by Explore. Each identifier has one
+/// meaning across every stage that emits it; stages omit identifiers that do
+/// not apply to their IR.
+pub(all) enum ExploreMetricId {
+  TopTermCount
+  FunctionCount
+  ImportCount
+  NodeCount
+  BlockCount
+  InstructionCount
+  CallCount
+  ValueCount
+  SlotCount
+  DirectCallCount
+  IndirectCallCount
+  FunctionReferenceCount
+  ClosureCount
+  EnvironmentCount
+  CallableAbiCount
+  GlobalCount
+  LayoutCount
+  ObjectShapeCount
+  ConstantCount
+  EraseCount
+  UneraseCount
+  RetainCount
+  ReleaseCount
+  LocalCount
+  TableEntryCount
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ExploreMetric {
+  id : ExploreMetricId
+  value : Int
+} derive(Debug, Eq)
+
+///|
+/// A stage-local function size observation. `index` belongs to the observed IR
+/// and is not a cross-stage identity; function provenance supplies that link.
+pub(all) struct ExploreFunctionScale {
+  index : Int
+  block_count : Int
+  operation_count : Int
+  value_count : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ExploreScaleObservation {
+  metrics : Array[ExploreMetric]
+  functions : Array[ExploreFunctionScale]
+} derive(Debug, Eq)
+
+///|
 /// Canonical total order of protocol stages. This order is also the execution
 /// order and is independent of map or source-pool iteration order.
 pub(all) enum ExploreStageId {
@@ -68,6 +122,7 @@ pub(all) struct ExploreSnapshot {
   text_format : ExploreTextFormat
   text : String
   diagnostics : Array[@compiler_diag.CompilerDiagnostic]
+  scale : ExploreScaleObservation
 } derive(Debug, Eq)
 
 ///|
@@ -307,5 +362,67 @@ pub fn ExploreTextFormat::name(self : ExploreTextFormat) -> String {
     Vmcfg => "vmcfg"
     LoisvmBytecode => "loisvm-bytecode"
     Wat => "wat"
+  }
+}
+
+///|
+pub fn ExploreMetricId::key(self : ExploreMetricId) -> String {
+  match self {
+    TopTermCount => "topTermCount"
+    FunctionCount => "functionCount"
+    ImportCount => "importCount"
+    NodeCount => "nodeCount"
+    BlockCount => "blockCount"
+    InstructionCount => "instructionCount"
+    CallCount => "callCount"
+    ValueCount => "valueCount"
+    SlotCount => "slotCount"
+    DirectCallCount => "directCallCount"
+    IndirectCallCount => "indirectCallCount"
+    FunctionReferenceCount => "functionReferenceCount"
+    ClosureCount => "closureCount"
+    EnvironmentCount => "environmentCount"
+    CallableAbiCount => "callableAbiCount"
+    GlobalCount => "globalCount"
+    LayoutCount => "layoutCount"
+    ObjectShapeCount => "objectShapeCount"
+    ConstantCount => "constantCount"
+    EraseCount => "eraseCount"
+    UneraseCount => "uneraseCount"
+    RetainCount => "retainCount"
+    ReleaseCount => "releaseCount"
+    LocalCount => "localCount"
+    TableEntryCount => "tableEntryCount"
+  }
+}
+
+///|
+pub fn ExploreMetricId::title(self : ExploreMetricId) -> String {
+  match self {
+    TopTermCount => "Top terms"
+    FunctionCount => "Functions"
+    ImportCount => "Imports"
+    NodeCount => "IR nodes"
+    BlockCount => "Blocks"
+    InstructionCount => "Instructions"
+    CallCount => "Calls"
+    ValueCount => "Virtual values"
+    SlotCount => "Physical slots"
+    DirectCallCount => "Direct calls"
+    IndirectCallCount => "Indirect calls"
+    FunctionReferenceCount => "Function references"
+    ClosureCount => "Closures"
+    EnvironmentCount => "Environments"
+    CallableAbiCount => "Callable ABIs"
+    GlobalCount => "Globals"
+    LayoutCount => "Layouts"
+    ObjectShapeCount => "Object shapes"
+    ConstantCount => "Constants"
+    EraseCount => "Erasures"
+    UneraseCount => "Unerasures"
+    RetainCount => "Retains"
+    ReleaseCount => "Releases"
+    LocalCount => "Wasm locals"
+    TableEntryCount => "Table entries"
   }
 }

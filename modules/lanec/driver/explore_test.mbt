@@ -33,6 +33,24 @@ fn explore_stage_evidence(
 }
 
 ///|
+fn explore_stage_scale(
+  stage : ExploreStage,
+) -> (String, Array[(String, Int)], Array[ExploreFunctionScale])? {
+  guard stage.state is Completed(snapshot) else { return None }
+  if snapshot.scale.metrics.is_empty() {
+    None
+  } else {
+    Some(
+      (
+        stage.id,
+        snapshot.scale.metrics.map(metric => (metric.id.key(), metric.value)),
+        snapshot.scale.functions,
+      ),
+    )
+  }
+}
+
+///|
 test "explore protocol v1 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
@@ -179,6 +197,164 @@ test "explore protocol v1 exposes all eighteen ordered completed stages" {
       #|    ("wasm", "completed", Some("backend"), Some("wat"), Some("(module")),
       #|  ],
       #|)
+    ),
+  )
+}
+
+///|
+test "explore reports deterministic typed scale metrics" {
+  let request = explore_test_request(
+    (
+      #|module Main
+      #|let observe : (I64) -> Unit ! Io = extern("observe")
+      #|
+      #|fn apply(f : (I64) -> I64, value : I64) -> I64 {
+      #|  f(value)
+      #|}
+      #|pub fn main() -> Unit ! Io {
+      #|  observe(apply(fn(value) { value }, 42))
+      #|}
+    ),
+  )
+  let first = explore(request)
+  let second = explore(request)
+  let first_scales = first.stages.ordered().filter_map(explore_stage_scale)
+  let second_scales = second.stages.ordered().filter_map(explore_stage_scale)
+  assert_eq(first_scales, second_scales)
+  let selected = first_scales.filter_map(fn(scale) {
+    if [
+        "buslane.effect-specialized", "buslane.core-optimized", "anf", "vmcfg.initial",
+        "loisvm.bytecode", "wasm",
+      ].contains(scale.0) {
+      Some((scale.0, scale.1))
+    } else {
+      None
+    }
+  })
+  debug_inspect(
+    selected,
+    content=(
+      #|[
+      #|  (
+      #|    "buslane.effect-specialized",
+      #|    [
+      #|      ("topTermCount", 3),
+      #|      ("functionCount", 3),
+      #|      ("nodeCount", 21),
+      #|      ("callCount", 3),
+      #|    ],
+      #|  ),
+      #|  (
+      #|    "buslane.core-optimized",
+      #|    [
+      #|      ("topTermCount", 2),
+      #|      ("functionCount", 2),
+      #|      ("nodeCount", 13),
+      #|      ("callCount", 2),
+      #|    ],
+      #|  ),
+      #|  (
+      #|    "anf",
+      #|    [
+      #|      ("topTermCount", 2),
+      #|      ("functionCount", 2),
+      #|      ("nodeCount", 19),
+      #|      ("callCount", 2),
+      #|    ],
+      #|  ),
+      #|  (
+      #|    "vmcfg.initial",
+      #|    [
+      #|      ("functionCount", 2),
+      #|      ("importCount", 1),
+      #|      ("blockCount", 2),
+      #|      ("instructionCount", 2),
+      #|      ("valueCount", 3),
+      #|      ("directCallCount", 2),
+      #|      ("indirectCallCount", 0),
+      #|      ("functionReferenceCount", 0),
+      #|      ("closureCount", 0),
+      #|      ("environmentCount", 0),
+      #|      ("eraseCount", 0),
+      #|      ("uneraseCount", 0),
+      #|      ("retainCount", 0),
+      #|      ("releaseCount", 0),
+      #|      ("globalCount", 0),
+      #|      ("layoutCount", 0),
+      #|      ("objectShapeCount", 0),
+      #|      ("constantCount", 0),
+      #|    ],
+      #|  ),
+      #|  (
+      #|    "loisvm.bytecode",
+      #|    [
+      #|      ("functionCount", 2),
+      #|      ("importCount", 1),
+      #|      ("blockCount", 2),
+      #|      ("instructionCount", 2),
+      #|      ("slotCount", 3),
+      #|      ("directCallCount", 2),
+      #|      ("indirectCallCount", 0),
+      #|      ("functionReferenceCount", 0),
+      #|      ("closureCount", 0),
+      #|      ("environmentCount", 0),
+      #|      ("eraseCount", 0),
+      #|      ("uneraseCount", 0),
+      #|      ("retainCount", 0),
+      #|      ("releaseCount", 0),
+      #|      ("callableAbiCount", 3),
+      #|      ("globalCount", 0),
+      #|      ("layoutCount", 0),
+      #|      ("objectShapeCount", 0),
+      #|      ("constantCount", 0),
+      #|    ],
+      #|  ),
+      #|  (
+      #|    "wasm",
+      #|    [
+      #|      ("functionCount", 27),
+      #|      ("importCount", 1),
+      #|      ("instructionCount", 810),
+      #|      ("localCount", 34),
+      #|      ("tableEntryCount", 8),
+      #|    ],
+      #|  ),
+      #|]
+    ),
+  )
+  let lowered_functions = first_scales.filter_map(fn(scale) {
+    if ["anf", "vmcfg.initial", "loisvm.bytecode"].contains(scale.0) {
+      Some((scale.0, scale.2))
+    } else {
+      None
+    }
+  })
+  debug_inspect(
+    lowered_functions,
+    content=(
+      #|[
+      #|  (
+      #|    "anf",
+      #|    [
+      #|      { index: 0, block_count: 0, operation_count: 2, value_count: 1 },
+      #|      { index: 1, block_count: 0, operation_count: 15, value_count: 0 },
+      #|    ],
+      #|  ),
+      #|  (
+      #|    "vmcfg.initial",
+      #|    [
+      #|      { index: 1, block_count: 1, operation_count: 2, value_count: 2 },
+      #|      { index: 2, block_count: 1, operation_count: 0, value_count: 1 },
+      #|    ],
+      #|  ),
+      #|  (
+      #|    "loisvm.bytecode",
+      #|    [
+      #|      { index: 1, block_count: 1, operation_count: 2, value_count: 2 },
+      #|      { index: 2, block_count: 1, operation_count: 0, value_count: 1 },
+      #|    ],
+      #|  ),
+      #|]
     ),
   )
 }

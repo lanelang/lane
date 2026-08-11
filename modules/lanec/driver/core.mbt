@@ -40,19 +40,19 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       match observed {
         Syntax(snapshot) => {
           root_module_path_text = Some(snapshot.module_path_text)
-          stages.complete(Syntax, snapshot.text, [])
+          stages.complete(Syntax, snapshot.text, [], empty_scale())
         }
         Resolved(snapshot) =>
           if root_module_path_text == Some(snapshot.module_path_text) {
-            stages.complete(Resolved, snapshot.text, [])
+            stages.complete(Resolved, snapshot.text, [], empty_scale())
           }
         Checked(snapshot) =>
           if root_module_path_text == Some(snapshot.module_path_text) {
-            stages.complete(Checked, snapshot.text, [])
+            stages.complete(Checked, snapshot.text, [], empty_scale())
           }
         BuslaneModule(snapshot) =>
           if root_module_path_text == Some(snapshot.module_path_text) {
-            stages.complete(BuslaneModule, snapshot.text, [])
+            stages.complete(BuslaneModule, snapshot.text, [], empty_scale())
           }
       }
     },
@@ -102,12 +102,13 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     BuslaneLinked,
     linked_program.buslane_text(),
     linked.diagnostics(),
+    empty_scale(),
   )
   let selected_entry = Some(entry_summary(entry))
   let executable = match
     linked_program.elaborate_entry_observed(entry, observed => {
       let observed = executable_stage(observed)
-      stages.complete(observed.0, observed.1, [])
+      stages.complete(observed.0, observed.1, [], observed.2)
     }) {
     Ok(executable) => executable
     Err(error) => {
@@ -119,13 +120,24 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       )
     }
   }
-  stages.complete(Executable, render_buslane_code(executable.program), [])
+  stages.complete(
+    Executable,
+    render_buslane_code(executable.program),
+    [],
+    buslane_scale(executable.program),
+  )
   let image = match
     @loisvm_lowering.lower_executable_program_to_bytecode_observed(executable, observed => {
       match observed {
-        Anf(program) => stages.complete(Anf, render_anf_code(program), [])
+        Anf(program) =>
+          stages.complete(Anf, render_anf_code(program), [], anf_scale(program))
         InitialVmcfg(image) =>
-          stages.complete(VmcfgInitial, @vmcfg.image_to_code(image), [])
+          stages.complete(
+            VmcfgInitial,
+            @vmcfg.image_to_code(image),
+            [],
+            vmcfg_scale(image),
+          )
       }
     }) {
     Ok(image) => image
@@ -138,7 +150,12 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       )
     }
   }
-  stages.complete(LoisvmBytecode, @bytecode.bytecode_image_to_code(image), [])
+  stages.complete(
+    LoisvmBytecode,
+    @bytecode.bytecode_image_to_code(image),
+    [],
+    bytecode_scale(image),
+  )
   let wasm_module = match @wasm_compiler.compile(image) {
     Ok(wasm_module) => wasm_module
     Err(error) => {
@@ -150,7 +167,12 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       )
     }
   }
-  stages.complete(Wasm, @wasm_compiler.module_to_wat(wasm_module), [])
+  stages.complete(
+    Wasm,
+    @wasm_compiler.module_to_wat(wasm_module),
+    [],
+    wasm_scale(@wasm_compiler.measure_module(wasm_module)),
+  )
   {
     schema_version: 1,
     compiler: explore_compiler_identity(),
@@ -180,12 +202,14 @@ fn ExploreStageBuilder::complete(
   id : ExploreStageId,
   text : String,
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
+  scale : ExploreScaleObservation,
 ) -> Unit {
   self.states[id.index()] = Completed({
     domain: id.domain(),
     text_format: id.text_format(),
     text,
     diagnostics,
+    scale,
   })
 }
 
@@ -308,24 +332,56 @@ fn exploration_error(
 ///|
 fn executable_stage(
   observed : @executable.ExecutableElaborationStage,
-) -> (ExploreStageId, String) {
+) -> (ExploreStageId, String, ExploreScaleObservation) {
   match observed {
     EffectSpecialized(program) =>
-      (BuslaneEffectSpecialized, render_buslane_code(program))
+      (
+        BuslaneEffectSpecialized,
+        render_buslane_code(program),
+        buslane_scale(program),
+      )
     HandlersElaborated(program) =>
-      (BuslaneHandlersElaborated, render_effect_lowering_code(program))
+      (
+        BuslaneHandlersElaborated,
+        render_effect_lowering_code(program),
+        effect_lowering_scale(program),
+      )
     MonadicTransformed(program) =>
-      (BuslaneMonadic, render_effect_lowering_code(program))
+      (
+        BuslaneMonadic,
+        render_effect_lowering_code(program),
+        effect_lowering_scale(program),
+      )
     SelectiveCpsRewritten(program) =>
-      (BuslaneSelectiveCps, render_effect_lowering_code(program))
+      (
+        BuslaneSelectiveCps,
+        render_effect_lowering_code(program),
+        effect_lowering_scale(program),
+      )
     OpenContextsResolved(program) =>
-      (BuslaneOpenContextResolved, render_effect_lowering_code(program))
+      (
+        BuslaneOpenContextResolved,
+        render_effect_lowering_code(program),
+        effect_lowering_scale(program),
+      )
     MonadicContinuationsLifted(program) =>
-      (BuslaneMonadicLifted, render_buslane_code(program))
+      (
+        BuslaneMonadicLifted,
+        render_buslane_code(program),
+        buslane_scale(program),
+      )
     CoreOptimized(program) =>
-      (BuslaneCoreOptimized, render_buslane_code(program))
+      (
+        BuslaneCoreOptimized,
+        render_buslane_code(program),
+        buslane_scale(program),
+      )
     EffectsErased(program) =>
-      (BuslaneEffectsErased, render_buslane_code(program))
+      (
+        BuslaneEffectsErased,
+        render_buslane_code(program),
+        buslane_scale(program),
+      )
   }
 }
 
