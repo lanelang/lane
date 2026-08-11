@@ -36,17 +36,21 @@ fn ImageLowerer::callable_adapter(
   let environment_shape = self.intern_object_shape(
     Environment({ stored_witness_count: 0, members }),
   )
-  let adapter : CallableAdapterPlan = {
-    function: { value: self.plans.length() + 1 },
-    source_type,
-    target_type,
-    source_parameter_targets,
-    substitutions,
-    captured_parameters,
-    environment_shape,
-  }
-  self.callable_adapters.push(adapter)
-  self.plans.push(CallableAdapter(adapter))
+  let (_, adapter) = self.plans.append_with_result(CallableAdapter, fn(
+    function,
+  ) {
+    let adapter : CallableAdapterPlan = {
+      function,
+      source_type,
+      target_type,
+      source_parameter_targets,
+      substitutions,
+      captured_parameters,
+      environment_shape,
+    }
+    self.callable_adapters.push(adapter)
+    (CallableAdapter(adapter), adapter)
+  })
   adapter
 }
 

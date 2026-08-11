@@ -41,6 +41,18 @@ pub(all) suberror LoisvmLoweringError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum LoisvmFunctionOrigin {
+  TopLevelFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  LiftedFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  LiftedRecursiveFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  Initializer(source~ : @buslane.ValueId)
+  InitializerOrchestrator
+  IntrinsicWrapper(name~ : String)
+  CallableAdapter
+  LayoutConstructor
+  RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
+} derive(Eq, @debug.Debug)
+
 pub(all) enum LoisvmLoweringStage {
   Anf(@anf.AnfProgram)
   InitialVmcfg(@vmcfg.Image)

@@ -15,17 +15,22 @@ fn ImageLowerer::plan(
         match extract_top_function(expression) {
           Some(function) =>
             if occurrence.is_reachable(value) {
-              self.add_plan(value, Function(value, function))
+              self.add_plan(
+                value,
+                Function(value, function),
+                TopLevelFunction(function=function.id, source=function.source),
+              )
             }
           None =>
             if occurrence.is_reachable(value) {
               self.add_instance_global(value)
-              let function : @bytecode.FunctionId = {
-                value: self.plans.length() + 1,
-              }
-              let step = { function, value, expression }
-              self.plans.push(InitializerStep(step))
-              initializers.push(step)
+              ignore(
+                self.plans.append(Initializer(source=value), fn(function) {
+                  let step = { function, value, expression }
+                  initializers.push(step)
+                  InitializerStep(step)
+                }),
+              )
             }
         }
       LetRec(bindings) =>
@@ -33,7 +38,11 @@ fn ImageLowerer::plan(
           if occurrence.is_reachable(binding.id) {
             match extract_top_atom_function(binding.rhs) {
               Some(function) =>
-                self.add_plan(binding.id, Function(binding.id, function))
+                self.add_plan(
+                  binding.id,
+                  Function(binding.id, function),
+                  TopLevelFunction(function=function.id, source=function.source),
+                )
               None => raise UnsupportedTopLevel(value=binding.id)
             }
           }
@@ -43,8 +52,9 @@ fn ImageLowerer::plan(
   if initializers.is_empty() {
     None
   } else {
-    let initializer : @bytecode.FunctionId = { value: self.plans.length() + 1 }
-    self.plans.push(InitializerOrchestrator(initializers))
+    let initializer = self.plans.append(InitializerOrchestrator, _ => {
+        InitializerOrchestrator(initializers)
+      }).function
     Some(initializer)
   }
 }
@@ -179,6 +189,7 @@ fn ImageLowerer::plan_runtime_import(
       result: result_kind,
       symbol: import_.symbol,
     }),
+    RuntimeImport(source=value, symbol=import_.symbol),
   )
 }
 
@@ -187,13 +198,13 @@ fn ImageLowerer::add_plan(
   self : ImageLowerer,
   value : @buslane.ValueId,
   plan : PlannedEntry,
+  origin : LoisvmFunctionOrigin,
 ) -> Unit raise LoisvmLoweringError {
-  let function : @bytecode.FunctionId = { value: self.plans.length() + 1 }
+  let function = self.plans.append(origin, _ => plan).function
   let type_ = match self.metadata.value_info(value) {
     Some(info) => info.type_
     None => raise MissingValueMetadata(value~)
   }
-  self.plans.push(plan)
   self.globals.push({ value, lowered: Function(function, type_) })
 }
 
@@ -476,10 +487,14 @@ fn ImageLowerer::intrinsic_wrapper(
       return wrapper.function
     }
   }
-  let function : @bytecode.FunctionId = { value: self.plans.length() + 1 }
-  let wrapper = { function, contract }
-  self.intrinsic_wrappers.push(wrapper)
-  self.plans.push(IntrinsicWrapper(wrapper))
+  let function = self.plans.append(
+      IntrinsicWrapper(name=contract.intrinsic().name()),
+      fn(function) {
+        let wrapper = { function, contract }
+        self.intrinsic_wrappers.push(wrapper)
+        IntrinsicWrapper(wrapper)
+      },
+    ).function
   function
 }
 

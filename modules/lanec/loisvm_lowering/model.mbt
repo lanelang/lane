@@ -52,6 +52,110 @@ priv enum PlannedEntry {
 }
 
 ///|
+pub(all) enum LoisvmFunctionOrigin {
+  TopLevelFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  LiftedFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  LiftedRecursiveFunction(
+    function~ : @anf.AnfFunctionId,
+    source~ : @buslane.ValueId?
+  )
+  Initializer(source~ : @buslane.ValueId)
+  InitializerOrchestrator
+  IntrinsicWrapper(name~ : String)
+  CallableAdapter
+  LayoutConstructor
+  RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
+} derive(Debug, Eq)
+
+///|
+priv struct PlannedFunction {
+  function : @bytecode.FunctionId
+  entry : PlannedEntry
+  origin : LoisvmFunctionOrigin
+}
+
+///|
+priv struct FunctionPlanTable {
+  entries : Array[PlannedFunction]
+}
+
+///|
+fn FunctionPlanTable::new() -> FunctionPlanTable {
+  { entries: [] }
+}
+
+///|
+fn FunctionPlanTable::length(self : FunctionPlanTable) -> Int {
+  self.entries.length()
+}
+
+///|
+fn FunctionPlanTable::get(
+  self : FunctionPlanTable,
+  index : Int,
+) -> PlannedFunction {
+  self.entries[index]
+}
+
+///|
+#warnings("-unused_value")
+fn FunctionPlanTable::observations(
+  self : FunctionPlanTable,
+) -> Array[(@bytecode.FunctionId, LoisvmFunctionOrigin)] {
+  self.entries.map(planned => (planned.function, planned.origin))
+}
+
+///|
+fn FunctionPlanTable::append(
+  self : FunctionPlanTable,
+  origin : LoisvmFunctionOrigin,
+  make_entry : (@bytecode.FunctionId) -> PlannedEntry,
+) -> PlannedFunction {
+  let (planned, _) = self.append_with_result(origin, fn(function) {
+    (make_entry(function), ())
+  })
+  planned
+}
+
+///|
+fn[T] FunctionPlanTable::append_with_result(
+  self : FunctionPlanTable,
+  origin : LoisvmFunctionOrigin,
+  make_entry : (@bytecode.FunctionId) -> (PlannedEntry, T),
+) -> (PlannedFunction, T) {
+  let function : @bytecode.FunctionId = { value: self.entries.length() + 1 }
+  let (entry, result) = make_entry(function)
+  let planned = { function, entry, origin }
+  self.entries.push(planned)
+  (planned, result)
+}
+
+///|
+fn FunctionPlanTable::append_group(
+  self : FunctionPlanTable,
+  origins : Array[LoisvmFunctionOrigin],
+  prepare_entries : (Array[@bytecode.FunctionId]) -> (Int) -> PlannedEntry,
+) -> Array[PlannedFunction] {
+  let first = self.entries.length() + 1
+  let functions : Array[@bytecode.FunctionId] = []
+  for index = 0; index < origins.length(); index = index + 1 {
+    functions.push({ value: first + index })
+  }
+  let make_entry = prepare_entries(functions)
+  let planned_functions : Array[PlannedFunction] = []
+  for index = 0; index < origins.length(); index = index + 1 {
+    let planned = {
+      function: functions[index],
+      entry: make_entry(index),
+      origin: origins[index],
+    }
+    self.entries.push(planned)
+    planned_functions.push(planned)
+  }
+  planned_functions
+}
+
+///|
 priv struct InitializerStepPlan {
   function : @bytecode.FunctionId
   value : @buslane.ValueId

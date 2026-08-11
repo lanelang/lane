@@ -4,7 +4,7 @@ priv struct ImageLowerer {
   externals : @buslane_lowering.BuslaneExternalMap
   globals : Array[GlobalBinding]
   instance_globals : Array[@bytecode.GlobalMetadata]
-  plans : Array[PlannedEntry]
+  plans : FunctionPlanTable
   constants : Array[Bytes]
   data_families : Array[@buslane.TypeId]
   layouts : Array[@bytecode.LayoutRecipe]
@@ -89,7 +89,7 @@ fn lower_executable_program_to_bytecode_or_raise(
     externals,
     globals: [],
     instance_globals: [],
-    plans: [],
+    plans: FunctionPlanTable::new(),
     constants: [],
     data_families: [],
     layouts: [],
@@ -107,8 +107,8 @@ fn lower_executable_program_to_bytecode_or_raise(
   let functions : Array[@vmcfg.FunctionEntry] = []
   let mut plan_index = 0
   while plan_index < lowerer.plans.length() {
-    let plan = lowerer.plans[plan_index]
-    match plan {
+    let planned = lowerer.plans.get(plan_index)
+    match planned.entry {
       Function(value, function) =>
         functions.push(Body(lowerer.lower_function(value, function)))
       InitializerStep(step) =>

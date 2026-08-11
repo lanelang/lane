@@ -27,19 +27,19 @@ fn FunctionLowerer::lower_nested_function_with_type(
     stored_layouts.length(),
     members,
   )
-  let function_id : @bytecode.FunctionId = {
-    value: self.image.plans.length() + 1,
-  }
-  self.image.plans.push(
-    LiftedFunction({
-      function,
-      type_: function_type,
-      captured_parameters,
-      captures: capture_plans,
-      environment_shape,
-      recursive_functions: [],
-    }),
-  )
+  let function_id = self.image.plans.append(
+      LiftedFunction(function=function.id, source=function.source),
+      _ => {
+        LiftedFunction({
+          function,
+          type_: function_type,
+          captured_parameters,
+          captures: capture_plans,
+          environment_shape,
+          recursive_functions: [],
+        })
+      },
+    ).function
   match
     self.make_capture_environment(
       environment_shape, stored_layouts, capture_slots,
@@ -64,9 +64,9 @@ fn FunctionLowerer::lower_recursive_group(
   body : @anf.AnfExpr,
 ) -> LocalValue raise LoisvmLoweringError {
   let functions : Array[@anf.AnfFunction] = []
-  let recursive_functions : Array[RecursiveFunctionPlan] = []
-  let first_function_id = self.image.plans.length() + 1
-  for index, binding in bindings {
+  let recursive_values : Array[@buslane.ValueId] = []
+  let recursive_types : Array[@buslane.Type] = []
+  for binding in bindings {
     let function = match extract_top_atom_function(binding.rhs) {
       Some(function) => function
       None =>
@@ -79,24 +79,20 @@ fn FunctionLowerer::lower_recursive_group(
       None => raise MissingValueMetadata(value=binding.id)
     }
     functions.push(function)
-    recursive_functions.push({
-      value: binding.id,
-      function: { value: first_function_id + index },
-      type_,
-    })
+    recursive_values.push(binding.id)
+    recursive_types.push(type_)
   }
   let capture_bindings = []
   for function in functions {
     for capture in free_capture_bindings(function) {
-      if !recursive_functions_contain_capture(recursive_functions, capture) &&
+      if !recursive_values_contain_capture(recursive_values, capture) &&
         !capture_bindings.contains(capture) {
         capture_bindings.push(capture)
       }
     }
   }
   let captured_parameters = self.captured_runtime_parameters(
-    recursive_functions.map(recursive => recursive.type_),
-    capture_bindings,
+    recursive_types, capture_bindings,
   )
   let (capture_plans, stored_layouts, capture_slots, members) = self.prepare_captures(
     capture_bindings, captured_parameters,
@@ -108,18 +104,34 @@ fn FunctionLowerer::lower_recursive_group(
   let environment = self.make_capture_environment(
     environment_shape, stored_layouts, capture_slots,
   )
-  for index, function in functions {
-    self.image.plans.push(
-      LiftedFunction({
-        function,
-        type_: recursive_functions[index].type_,
-        captured_parameters,
-        captures: capture_plans,
-        environment_shape,
-        recursive_functions,
-      }),
+  let origins : Array[LoisvmFunctionOrigin] = []
+  for function in functions {
+    origins.push(
+      LiftedRecursiveFunction(function=function.id, source=function.source),
     )
   }
+  let recursive_functions : Array[RecursiveFunctionPlan] = []
+  ignore(
+    self.image.plans.append_group(origins, fn(function_ids) {
+      for index, function_id in function_ids {
+        recursive_functions.push({
+          value: recursive_values[index],
+          function: function_id,
+          type_: recursive_types[index],
+        })
+      }
+      fn(index) {
+        LiftedFunction({
+          function: functions[index],
+          type_: recursive_types[index],
+          captured_parameters,
+          captures: capture_plans,
+          environment_shape,
+          recursive_functions,
+        })
+      }
+    }),
+  )
   let value_count = self.bindings.length()
   for recursive in recursive_functions {
     self.bindings.push({
@@ -137,12 +149,12 @@ fn FunctionLowerer::lower_recursive_group(
 }
 
 ///|
-fn recursive_functions_contain_capture(
-  recursive_functions : Array[RecursiveFunctionPlan],
+fn recursive_values_contain_capture(
+  recursive_values : Array[@buslane.ValueId],
   capture : CaptureBinding,
 ) -> Bool {
   guard capture is Value(value) else { return false }
-  recursive_functions.any(recursive => recursive.value == value)
+  recursive_values.contains(value)
 }
 
 ///|

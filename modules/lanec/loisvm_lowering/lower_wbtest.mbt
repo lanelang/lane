@@ -101,7 +101,7 @@ fn test_image_lowerer(
     externals: { builtins: [], runtime_imports: [] },
     globals: [],
     instance_globals: [],
-    plans: [],
+    plans: FunctionPlanTable::new(),
     constants: [],
     layouts: [],
     object_shapes: [],
@@ -126,6 +126,47 @@ fn test_function_lowerer(image : ImageLowerer) -> FunctionLowerer {
     witnesses: [],
     substitutions: TypeSubstitution(),
   }
+}
+
+///|
+test "function plans allocate source and synthetic origins atomically" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let initialized = metadata.define_value("initialized", Value, Primitive(I64))
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], Primitive(I64), Empty),
+  )
+  let program = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(initialized, Literal(I64(42L))),
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: Primitive(I64),
+          body: Ref(initialized),
+        }),
+      ),
+    ],
+  }
+  let lowerer = test_image_lowerer(metadata, [])
+  let anf = @anf.lower_buslane_program_to_anf(program)
+  ignore(lowerer.plan(anf, @occurrence.analyze({ program, entry, roots: [] })))
+  debug_inspect(
+    lowerer.plans.observations(),
+    content=(
+      #|[
+      #|  ({ value: 1 }, Initializer(source={ index: 0 })),
+      #|  (
+      #|    { value: 2 },
+      #|    TopLevelFunction(function={ value: 0 }, source=Some({ index: 1 })),
+      #|  ),
+      #|  ({ value: 3 }, InitializerOrchestrator),
+      #|]
+    ),
+  )
 }
 
 ///|

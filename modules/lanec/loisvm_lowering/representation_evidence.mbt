@@ -125,8 +125,8 @@ fn ImageLowerer::plan_layout_constructor(
   self : ImageLowerer,
   type_ : @buslane.Type,
 ) -> LayoutConstructorPlan raise LoisvmLoweringError {
-  for entry in self.plans {
-    if entry is LayoutConstructor(plan) && plan.type_ == type_ {
+  for planned in self.plans.entries {
+    if planned.entry is LayoutConstructor(plan) && plan.type_ == type_ {
       return plan
     }
   }
@@ -151,16 +151,20 @@ fn ImageLowerer::plan_layout_constructor(
       None => @buslane.Kind::Type
     }
   })
-  let plan : LayoutConstructorPlan = {
-    function: { value: self.plans.length() + 1 },
-    type_,
-    parameters,
-    body,
-    captured_parameters,
-    environment_shape,
-    arity: runtime_evidence_arity(parameter_kinds),
-  }
-  self.plans.push(LayoutConstructor(plan))
+  let (_, plan) = self.plans.append_with_result(LayoutConstructor, fn(
+    function,
+  ) {
+    let plan = {
+      function,
+      type_,
+      parameters,
+      body,
+      captured_parameters,
+      environment_shape,
+      arity: runtime_evidence_arity(parameter_kinds),
+    }
+    (LayoutConstructor(plan), plan)
+  })
   plan
 }
 
