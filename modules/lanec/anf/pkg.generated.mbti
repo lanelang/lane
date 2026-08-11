@@ -52,11 +52,17 @@ pub(all) enum AnfExpr {
 pub impl @prettyprinter.Pretty for AnfExpr
 
 pub(all) struct AnfFunction {
+  id : AnfFunctionId
+  source : @buslane.ValueId?
   parameters : Array[@buslane.ValueId]
   result_type : @buslane.Type
   body : AnfExpr
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfFunction
+
+pub(all) struct AnfFunctionId {
+  value : Int
+} derive(Eq, Hash, @debug.Debug)
 
 pub(all) struct AnfHandle {
   body : AnfExpr

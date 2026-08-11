@@ -1,12 +1,13 @@
 ///|
 priv struct AnfLowerer {
   mut next_temp : Int
+  mut next_function : Int
 }
 
 ///|
 /// Lowers Buslane expression-tree core into ANF.
 pub fn lower_buslane_program_to_anf(program : @buslane.Program) -> AnfProgram {
-  let lowerer = AnfLowerer::{ next_temp: 0 }
+  let lowerer = AnfLowerer::{ next_temp: 0, next_function: 0 }
   simplify_anf_program({
     metadata: program.metadata,
     terms: program.terms.map(fn(term) { lowerer.lower_top_term(term) }),
@@ -21,12 +22,19 @@ fn AnfLowerer::fresh_temp(self : AnfLowerer) -> AnfTempId {
 }
 
 ///|
+fn AnfLowerer::fresh_function(self : AnfLowerer) -> AnfFunctionId {
+  let function = AnfFunctionId::{ value: self.next_function }
+  self.next_function = self.next_function + 1
+  function
+}
+
+///|
 fn AnfLowerer::lower_top_term(
   self : AnfLowerer,
   term : @buslane.TopTerm,
 ) -> AnfTopTerm {
   match term {
-    Let(id, expr) => Let(id, self.lower_expr(expr))
+    Let(id, expr) => Let(id, self.lower_bound_expr(expr, Some(id)))
     LetRec(bindings) =>
       LetRec(
         bindings.map(fn(binding) { self.lower_recursive_binding(binding) }),
@@ -40,34 +48,47 @@ fn AnfLowerer::lower_recursive_binding(
   self : AnfLowerer,
   binding : @buslane.RecursiveBinding,
 ) -> AnfRecursiveBinding {
-  { id: binding.id, rhs: self.lower_recursable_atom(binding.rhs) }
+  { id: binding.id, rhs: self.lower_recursable_atom(binding.rhs, binding.id) }
 }
 
 ///|
 fn AnfLowerer::lower_expr(self : AnfLowerer, expr : @buslane.Expr) -> AnfExpr {
-  self.lower_to_atom(expr, fn(atom) { Atom(atom) })
+  self.lower_bound_expr(expr, None)
+}
+
+///|
+fn AnfLowerer::lower_bound_expr(
+  self : AnfLowerer,
+  expr : @buslane.Expr,
+  source : @buslane.ValueId?,
+) -> AnfExpr {
+  self.lower_to_atom(expr, source, fn(atom) { Atom(atom) })
 }
 
 ///|
 fn AnfLowerer::lower_to_atom(
   self : AnfLowerer,
   expr : @buslane.Expr,
+  source : @buslane.ValueId?,
   continuation : (AnfAtom) -> AnfExpr,
 ) -> AnfExpr {
   match expr {
     Ref(id) => continuation(Ref(id))
     Literal(literal) => continuation(Literal(literal))
-    Function(function) => continuation(Function(self.lower_function(function)))
+    Function(function) =>
+      continuation(Function(self.lower_function(function, source)))
     TypeLambda(type_parameters, body) =>
-      continuation(TypeLambda(type_parameters~, body=self.lower_expr(body)))
+      continuation(
+        TypeLambda(type_parameters~, body=self.lower_bound_expr(body, source)),
+      )
     Call(callee, arguments) =>
-      self.lower_to_atom(callee, fn(callee) {
+      self.lower_to_atom(callee, None, fn(callee) {
         self.lower_exprs_to_atoms(arguments, 0, [], fn(arguments) {
           self.bind_temp(Call(callee~, arguments~), continuation)
         })
       })
     TypeApply(callee, arguments) =>
-      self.lower_to_atom(callee, fn(callee) {
+      self.lower_to_atom(callee, None, fn(callee) {
         self.bind_temp(TypeApply(callee~, arguments~), continuation)
       })
     Construct(construct) =>
@@ -83,19 +104,19 @@ fn AnfLowerer::lower_to_atom(
         )
       })
     Let(id, initializer, body) =>
-      self.lower_to_atom(initializer, fn(initializer) {
+      self.lower_to_atom(initializer, Some(id), fn(initializer) {
         Let(
           Value(id~, rhs=Atom(initializer)),
-          self.lower_to_atom(body, continuation),
+          self.lower_to_atom(body, source, continuation),
         )
       })
     LetRec(bindings, body) =>
       LetRec(
         bindings.map(fn(binding) { self.lower_recursive_binding(binding) }),
-        self.lower_to_atom(body, continuation),
+        self.lower_to_atom(body, source, continuation),
       )
     Match(match_) =>
-      self.lower_to_atom(match_.scrutinee, fn(scrutinee) {
+      self.lower_to_atom(match_.scrutinee, None, fn(scrutinee) {
         self.bind_temp(
           Match({
             scrutinee,
@@ -106,7 +127,7 @@ fn AnfLowerer::lower_to_atom(
                 alt_constructor: alternative.alt_constructor,
                 type_binders: alternative.type_binders,
                 value_binders: alternative.value_binders,
-                body: self.lower_expr(alternative.body),
+                body: self.lower_bound_expr(alternative.body, source),
               }
             }),
           }),
@@ -173,8 +194,12 @@ fn AnfLowerer::lower_operation_alternative(
 fn AnfLowerer::lower_function(
   self : AnfLowerer,
   function : @buslane.FunctionExpr,
+  source : @buslane.ValueId?,
 ) -> AnfFunction {
+  let id = self.fresh_function()
   {
+    id,
+    source,
     parameters: function.parameters,
     result_type: function.result_type,
     body: self.lower_expr(function.body),
@@ -185,11 +210,15 @@ fn AnfLowerer::lower_function(
 fn AnfLowerer::lower_recursable_atom(
   self : AnfLowerer,
   expr : @buslane.Expr,
+  source : @buslane.ValueId,
 ) -> AnfAtom {
   match expr {
-    Function(function) => Function(self.lower_function(function))
+    Function(function) => Function(self.lower_function(function, Some(source)))
     TypeLambda(type_parameters, body) =>
-      TypeLambda(type_parameters~, body=self.lower_expr(body))
+      TypeLambda(
+        type_parameters~,
+        body=self.lower_bound_expr(body, Some(source)),
+      )
     _ => abort("Buslane letrec rhs is not recursable")
   }
 }
@@ -215,7 +244,7 @@ fn AnfLowerer::lower_exprs_to_atoms(
   if index >= expressions.length() {
     continuation(atoms)
   } else {
-    self.lower_to_atom(expressions[index], fn(atom) {
+    self.lower_to_atom(expressions[index], None, fn(atom) {
       let next_atoms = atoms.copy()
       next_atoms.push(atom)
       self.lower_exprs_to_atoms(

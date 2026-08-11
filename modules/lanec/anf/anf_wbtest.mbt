@@ -29,7 +29,7 @@ test "lower buslane function call to ANF" {
     content=(
       #|anf {
       #|  letrec {
-      #|    value#1 = fn(value#2) -> I64 {
+      #|    value#1 = fn@0(value#2) -> I64 {
       #|      value#2
       #|    }
       #|  }

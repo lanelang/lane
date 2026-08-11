@@ -5,6 +5,11 @@ pub(all) struct AnfProgram {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct AnfFunctionId {
+  value : Int
+} derive(Debug, Eq, Hash)
+
+///|
 pub(all) enum AnfTopTerm {
   Let(@buslane.ValueId, AnfExpr)
   LetRec(Array[AnfRecursiveBinding])
@@ -95,6 +100,8 @@ pub(all) enum AnfAtom {
 
 ///|
 pub(all) struct AnfFunction {
+  id : AnfFunctionId
+  source : @buslane.ValueId?
   parameters : Array[@buslane.ValueId]
   result_type : @buslane.Type
   body : AnfExpr

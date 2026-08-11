@@ -179,6 +179,8 @@ fn simplify_atom(atom : AnfAtom, scope : AnfRewriteScope) -> AnfAtom {
         scope.without_value(parameter)
       })
       Function({
+        id: function.id,
+        source: function.source,
         parameters: function.parameters,
         result_type: function.result_type,
         body: simplify_expr(function.body, function_scope),

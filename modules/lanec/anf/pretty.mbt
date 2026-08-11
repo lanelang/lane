@@ -135,7 +135,7 @@ pub impl @prettyprinter.Pretty for AnfAtom with fn pretty(atom : AnfAtom) {
 pub impl @prettyprinter.Pretty for AnfFunction with fn pretty(
   function : AnfFunction,
 ) {
-  text("fn") +
+  text("fn@\{function.id.value}") +
   @pretty.parenthesized_inline(
     function.parameters.map(@buslane.ValueId::pretty),
   ) +

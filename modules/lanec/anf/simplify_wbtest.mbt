@@ -73,6 +73,8 @@ test "simplify ANF aliases inside function and match scopes" {
   )
   let match_result = AnfTempId::{ index: 0 }
   let function = Function({
+    id: { value: 0 },
+    source: Some(result),
     parameters: [parameter],
     result_type: Primitive(I64),
     body: Let(
@@ -108,6 +110,8 @@ test "simplify ANF aliases inside function and match scopes" {
       #|    Atom(
       #|      Function(
       #|        {
+      #|          id: { value: 0 },
+      #|          source: Some({ index: 3 }),
       #|          parameters: [{ index: 0 }],
       #|          result_type: Primitive(I64),
       #|          body: Let(
