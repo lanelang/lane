@@ -187,7 +187,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     wasm_scale(@wasm_compiler.measure_module(wasm.module_)),
   )
   {
-    schema_version: 2,
+    schema_version: explore_report_schema_version,
     compiler: explore_compiler_identity(),
     root: {
       source_id: request.root_source.source_id,
@@ -261,12 +261,12 @@ fn ExploreStageBuilder::finish(self : ExploreStageBuilder) -> ExploreStages {
     buslane_module: self.states[3],
     buslane_linked: self.states[4],
     buslane_effect_specialized: self.states[5],
-    buslane_handlers_elaborated: self.states[6],
-    buslane_monadic: self.states[7],
-    buslane_selective_cps: self.states[8],
-    buslane_open_context_resolved: self.states[9],
-    buslane_monadic_lifted: self.states[10],
-    buslane_core_optimized: self.states[11],
+    buslane_core_optimized: self.states[6],
+    buslane_handlers_elaborated: self.states[7],
+    buslane_monadic: self.states[8],
+    buslane_selective_cps: self.states[9],
+    buslane_open_context_resolved: self.states[10],
+    buslane_monadic_lifted: self.states[11],
     buslane_effects_erased: self.states[12],
     executable: self.states[13],
     anf: self.states[14],
@@ -285,12 +285,12 @@ fn explore_stage_ids() -> Array[ExploreStageId] {
     BuslaneModule,
     BuslaneLinked,
     BuslaneEffectSpecialized,
+    BuslaneCoreOptimized,
     BuslaneHandlersElaborated,
     BuslaneMonadic,
     BuslaneSelectiveCps,
     BuslaneOpenContextResolved,
     BuslaneMonadicLifted,
-    BuslaneCoreOptimized,
     BuslaneEffectsErased,
     Executable,
     Anf,
@@ -311,7 +311,7 @@ fn failed_report(
 ) -> ExploreReport {
   let failed_stage = stages.fail_next(diagnostics)
   {
-    schema_version: 2,
+    schema_version: explore_report_schema_version,
     compiler: explore_compiler_identity(),
     root: {
       source_id: request.root_source.source_id,

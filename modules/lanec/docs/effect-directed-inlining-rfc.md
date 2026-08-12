@@ -1,19 +1,22 @@
 # Effect-directed application reduction and inlining
 
-Status: proposed
+Status: implemented (2026-08-12)
 
 ## Summary
 
-Lane will replace its two substitution-only application reducers with one
+Lane replaces its two substitution-only application reducers with one
 effect-directed reduction module owned by `lanec/core_opt`.
 
-The module will reduce both an immediately available function value and a
-cloned known callable through the same operation. For each argument, it will
-use the authoritative expression-effect fact to choose between direct
+The module reduces both an immediately available function value and a
+cloned known callable through the same operation. For each argument, it
+uses the authoritative expression-effect fact to choose between direct
 substitution and an ordered local binding:
 
-- an `Empty` argument may be substituted, duplicated, delayed, reordered, or
-  removed, subject only to profitability;
+- an `Empty` argument whose type is definitionally equal to its parameter type
+  may be substituted, duplicated, delayed, reordered, or removed, subject only
+  to profitability;
+- an argument whose parameter boundary performs type or callable adaptation is
+  retained in a local binding even when evaluating the argument is `Empty`;
 - an argument with any nonempty effect is evaluated exactly once through a
   `Let`, and nonempty-effect arguments retain their source relative order;
 - a failed effect query is a structured Core optimization failure, not an
@@ -74,6 +77,11 @@ These permissions do not require a particular effect declaration for
 termination. A source author who needs potential divergence to remain
 observable places a nonempty effect in the function contract. The optimizer
 uses the resulting row exactly as it uses every other nonempty row.
+
+These permissions govern evaluation, not representation conversion. If the
+argument is only consumable as the parameter type rather than definitionally
+equal to it, application reduction retains the parameter binding that owns the
+conversion.
 
 The compiler does not recognize the declaration name or prove termination. It
 trusts the checked effect contract. Omitting a required divergence effect gives
@@ -136,31 +144,31 @@ simplify
 reachable-definition pruning
 ```
 
-There are two application reducers:
+`application_reduction.mbt` is the single owner of parameter application
+semantics. Both immediate `Function` reduction and interprocedural known-call
+inlining submit their materialized parameters, ordered arguments, and body to
+that operation. The reducer consumes `ExpressionFactsQuery`, substitutes
+`Empty` arguments whose type is definitionally equal to the parameter type,
+and materializes every nonempty or representation-adapting argument once in
+source order. Parameter binding remains the owner of callable and runtime
+representation adaptation; effect-directed reduction does not bypass it.
 
-1. `simplify_call` reduces an immediately present `Function` only when all
-   arguments are `Ref` or `Literal`.
-2. `PartialEvaluator::try_inline_known_call` clones a known top-level callable,
-   also requires atomic arguments, requires the callee's latent effect to be
-   `Empty`, substitutes the arguments, and then performs contextual
-   simplification and profitability analysis.
+`InlineCloneContext` freshens every value and type binder in a legal Buslane
+callable body. Recursive callable headers are alpha-renamed before their value
+metadata is allocated, so the expression, metadata type, and runtime layout
+witness scope share the same binder identities. Capture-rejecting Buslane
+substitution remains separate and is used only after this clone-owned
+alpha-renaming step.
 
-The duplicate atom check is also a duplicate owner of application semantics.
-Future argument or effect rules can drift between direct beta reduction and
-interprocedural inlining.
-
-`InlineCloneContext` correctly clones ordinary value binders and substitutes
-the outer generic application. It deliberately rejects bodies containing
-nested `TypeLambda` binders or match-alternative type binders because those
-binders are not yet freshened. This makes cloning partial and leaves a second
-eligibility predicate describing which legal Buslane bodies the cloner happens
-to support.
+`optimize_observed` exposes typed considered, accepted, rejected, argument, and
+net program-change observations. The original `optimize` interface remains the
+non-observing convenience entry.
 
 ## Design
 
 ### One application-reduction module
 
-`lanec/core_opt` will own one private application-reduction module. Its
+`lanec/core_opt` owns one private application-reduction module. Its
 interface accepts:
 
 - the already materialized parameter identities;
@@ -170,14 +178,16 @@ interface accepts:
 - the authoritative `ExpressionFactsQuery` and Core analysis.
 
 It returns one reduced Buslane expression or a structured Core optimization
-error. Callers do not classify arguments, build binding order, or perform
-parameter substitution themselves.
+error. Callers do not classify arguments, build binding order, perform
+parameter substitution, or decide whether a parameter adaptation boundary can
+be removed.
 
 The module owns these invariants:
 
 1. parameter and argument arities are equal;
-2. every `Empty` argument becomes a substitution candidate;
-3. every nonempty argument is bound exactly once;
+2. every `Empty` argument with a definitionally equal parameter type becomes a
+   substitution candidate;
+3. every nonempty or adaptation-requiring argument is bound exactly once;
 4. nonempty bindings preserve their original relative order;
 5. every binding encloses the function body;
 6. contextual simplification runs only after this application shape exists;
@@ -196,9 +206,16 @@ body
 Pure parameter substitutions are installed before simplifying the resulting
 body and bindings.
 
+Parameter bindings also own type adaptation. Removing such a binding is valid
+only when the synthesized argument type and parameter metadata type are
+definitionally equal. Consumability alone is insufficient: a narrower callable
+effect can be consumed as a wider callable effect while still requiring a
+runtime adapter. The reducer therefore materializes non-equal argument types
+and lets the ordinary lowering boundary produce that adapter.
+
 ### Existing fact owners
 
-The refactor will consume existing facts rather than introduce parallel
+The implementation consumes existing facts rather than introducing parallel
 analyses:
 
 - `ExpressionFactsQuery` owns whether an argument effect is `Empty`;
@@ -215,7 +232,7 @@ a rendered string.
 
 ### Complete hygienic cloning
 
-`InlineCloneContext` will be extended to clone every legal binder introduced by
+`InlineCloneContext` clones every legal binder introduced by
 a Buslane callable body:
 
 - function parameters;
@@ -225,11 +242,11 @@ a Buslane callable body:
 - match-alternative type binders;
 - handler result, payload, resume, and type binders.
 
-Fresh type binders will retain their kind and receive a local substitution used
+Fresh type binders retain their kind and receive a local substitution used
 by all nested types, effects, generic arguments, and metadata. Once every
-Buslane expression constructor is supported, `callable_body_can_be_cloned`
-will be deleted. Legal nonrecursive bodies will no longer be rejected because
-of an implementation gap in the cloner.
+Buslane expression constructor was supported, `callable_body_can_be_cloned`
+was deleted. Legal nonrecursive bodies are not rejected because of an
+implementation gap in the cloner.
 
 This RFC does not make recursive callables eligible. Recursive-SCC exclusion is
 an explicit optimization policy that prevents unbounded expansion, not a clone
@@ -237,22 +254,22 @@ implementation fallback.
 
 ### Direct and interprocedural callers
 
-The immediate-function path will materialize its existing parameters and body,
-then call the shared reducer.
+The immediate-function path materializes its existing parameters and body,
+then calls the shared reducer.
 
-The interprocedural path will:
+The interprocedural path:
 
-1. resolve the known callable and complete generic application;
-2. reject recursive SCCs;
-3. hygienically clone and instantiate the callable;
-4. call the shared reducer for all value arguments;
-5. recursively optimize the reduced candidate;
-6. compare the complete original and candidate plans;
-7. commit the candidate and rerun affected analysis when profitable.
+1. resolves the known callable and complete generic application;
+2. rejects recursive SCCs;
+3. hygienically clones and instantiates the callable;
+4. calls the shared reducer for all value arguments;
+5. recursively optimizes the reduced candidate;
+6. compares the complete original and candidate plans;
+7. commits the candidate and reruns affected analysis when profitable.
 
-It will delete both `arguments.all(is_substitutable_atom)` and
-`callable_effect_is_empty` from semantic eligibility. The helper
-`is_substitutable_atom` will disappear if it has no independent consumer.
+Both `arguments.all(is_substitutable_atom)` and `callable_effect_is_empty` have
+been deleted from semantic eligibility. `is_substitutable_atom` had no
+independent consumer and was removed.
 
 ### Profitability remains separate
 
@@ -269,23 +286,29 @@ simplification.
 
 The current `8/16/2` call, branch, and allocation weights and the current work
 and growth constants are not made semantic by this RFC. Replacing them with
-lowering-relevant cost is tracked by the optimization plan. This refactor will
-preserve the policy seam so that work can proceed independently.
+lowering-relevant cost is tracked by the optimization plan. This refactor
+preserves the policy seam so that work can proceed independently.
 
 ## Pipeline placement
 
-Application reduction remains in effect-aware Buslane Core optimization after
-linking, executable entry selection, effect specialization, handler
-elaboration, selective CPS, open-context resolution, and monadic continuation
-lifting. It remains before residual-effect erasure and ANF lowering.
+Application reduction runs in effect-aware Buslane Core optimization after
+linking, executable entry selection, and effect specialization. It runs before
+handler elaboration, monadic transformation, selective CPS, open-context
+resolution, continuation lifting, residual-effect erasure, and ANF lowering.
 
 This placement provides:
 
 - a whole-program known-call graph;
-- explicit, normalized residual effects for observability decisions;
+- authoritative source-level effects for observability decisions;
 - concrete effect-specialized callables where available;
 - high-level constructors and matches for contextual reduction;
 - no need to reconstruct source semantics from ANF or VM CFG.
+
+This is the final whole-program boundary where `Empty` means source-level
+unobservability. After effect lowering begins, generated context and
+continuation calls can have an empty residual effect while still implementing
+observable source computations. Core optimization therefore must not infer
+source purity from post-CPS residual effects.
 
 ANF continues to make the surviving execution order mechanically explicit for
 lowering. It is not duplicated inside Core optimization.
@@ -322,9 +345,10 @@ tests must remain unchanged at this intermediate point.
 ### Phase 3: make reduction effect-directed
 
 Replace syntactic atom classification with the authoritative expression-effect
-query. Substitute all `Empty` arguments. Bind all nonempty arguments once in
-their original relative order. Remove the atom-only guard and prove the mixed
-argument cases through complete optimized-program observations.
+query. Substitute `Empty` arguments only when their type is definitionally
+equal to the parameter type. Bind all nonempty and representation-adapting
+arguments once in their original relative order. Remove the atom-only guard and
+prove the mixed argument cases through complete optimized-program observations.
 
 ### Phase 4: admit nonempty callees
 
@@ -357,6 +381,26 @@ rendered Core text. Remove the old atom predicate, empty-callee eligibility
 helper, duplicate beta-reduction loop, and tests that inspect superseded private
 mechanics.
 
+## Implementation status
+
+All six phases are complete:
+
+- direct and interprocedural applications consume the shared reducer;
+- semantic eligibility uses the authoritative `Empty`/nonempty effect
+  distinction together with definitional type equality at the parameter
+  adaptation boundary;
+- nonempty callee bodies may be inlined;
+- nested type lambdas, existential alternatives, handler operations, and
+  recursive callable metadata are freshened hygienically;
+- atom-only, empty-callee, and cloneability guards have been deleted;
+- typed observations report application decisions and net program changes.
+
+Public Core optimizer regressions cover zero, one, and multiple parameter uses,
+complex pure arguments, pure callable adaptation, `Io`, operationless user
+effects, effectful callees, clone hygiene, and structured failure propagation.
+Backend conformance checks observable ordering and callable adaptation on the
+direct interpreter, Wasm interpreter, and Wasm JIT.
+
 ## Test matrix
 
 The final suite must cover these independent dimensions:
@@ -383,18 +427,32 @@ On 2026-08-11, the current compiler was measured against clean Basic revision
 `test/entry.lane:test_entry`. An isolated compiler build with
 `partially_evaluate_program` disabled produced the following comparison:
 
-| Metric | Partial evaluation disabled | Current compiler |
-| --- | ---: | ---: |
-| Core top terms | 199 | 164 |
-| Core functions | 352 | 311 |
-| Core call nodes | 824 | 687 |
-| Bytecode functions | 798 | 731 |
-| Bytecode instructions | 6,674 | 5,933 |
-| Bytecode indirect calls | 505 | 408 |
-| Bytecode closures/environments | 508 | 456 |
-| Wasm functions | 942 | 877 |
-| Wasm instructions | 141,839 | 125,486 |
-| Wasm locals | 11,905 | 10,626 |
+| Metric | Partial evaluation disabled | Pre-refactor compiler | Implemented reducer |
+| --- | ---: | ---: | ---: |
+| Core top terms | 199 | 164 | 161 |
+| Core functions | 352 | 311 | 191 |
+| Core call nodes | 824 | 687 | 663 |
+| Bytecode functions | 798 | 731 | 700 |
+| Bytecode instructions | 6,674 | 5,933 | 5,909 |
+| Bytecode indirect calls | 505 | 408 | 363 |
+| Bytecode closures | 508 | 456 | 420 |
+| Bytecode environments | - | 456 | 434 |
+| Bytecode erase operations | - | 440 | 425 |
+| Bytecode unerase operations | - | 325 | 334 |
+| Wasm functions | 942 | 877 | 849 |
+| Wasm instructions | 141,839 | 125,486 | 124,761 |
+| Wasm locals | 11,905 | 10,626 | 10,661 |
+
+The implemented Core stage now occurs before effect lowering, whereas the two
+older Core columns were observed after monadic continuation lifting. Their Core
+counts therefore describe different semantic boundaries; bytecode and Wasm
+remain directly comparable. Moving to the sound source-effect boundary removes
+31 bytecode functions, 45 indirect calls, 36 closures, 22 environments, and
+725 Wasm instructions relative to the pre-refactor compiler. Unerase operations
+increase by 9 and Wasm locals by 35, while total erase/unerase operations,
+bytecode instructions, and Wasm instructions all decrease. These measured
+changes are the explicit representation tradeoff for no longer running
+source-purity rewrites over generated CPS calls.
 
 These are net partial-evaluation results, not an accepted-inline count. The new
 typed observations will make future attribution exact.
@@ -414,14 +472,16 @@ The refactor is accepted only if:
 
 ## Persistence and interfaces
 
-The refactor changes compiler-private Core optimization only. It does not
-change Lane syntax, source typing, Buslane syntax, module interfaces, module
-objects, linked-program artifacts, LoisVM bytecode, or Wasm ABI. No persisted
-schema version changes.
+The refactor changes Core optimization and its typed compiler-observation
+interface. It does not change Lane syntax, source typing, Buslane syntax,
+module interfaces, module objects, linked-program artifacts, LoisVM bytecode,
+or Wasm ABI. No persisted artifact schema version changes.
 
-Adding typed Explore observations changes the compiler observation interface.
-Its protocol version must be reviewed according to the existing Explore schema
-policy; this RFC does not silently add fields to a closed persisted format.
+Moving the observed Core stage before effect lowering changes the ordered
+Explore contract, so Explore Report Protocol version 3 owns the new stage
+order. The protocol does not infer application decisions from rendered IR;
+future presentation of typed optimization observations requires another
+explicit protocol review.
 
 ## Non-goals
 

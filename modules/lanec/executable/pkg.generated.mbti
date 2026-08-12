@@ -35,12 +35,12 @@ pub(all) suberror ExecutableElaborationError {
 // Types and methods
 pub(all) enum ExecutableElaborationStage {
   EffectSpecialized(@buslane.Program)
+  CoreOptimized(@buslane.Program)
   HandlersElaborated(@core.Program)
   MonadicTransformed(@core.Program)
   SelectiveCpsRewritten(@core.Program)
   OpenContextsResolved(@core.Program)
   MonadicContinuationsLifted(@buslane.Program)
-  CoreOptimized(@buslane.Program)
   EffectsErased(@buslane.Program)
 }
 

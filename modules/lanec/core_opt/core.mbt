@@ -6,8 +6,36 @@ pub(all) struct CoreOptimizeRequest {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum ApplicationReductionSite {
+  DirectFunction
+  KnownCallable(@buslane.ValueId)
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ApplicationReductionRejection {
+  Recursive
+  ResourceBudget
+  Profitability
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CoreOptimizationObservation {
+  ApplicationConsidered(ApplicationReductionSite)
+  ApplicationAccepted(
+    site~ : ApplicationReductionSite,
+    empty_arguments~ : Int,
+    materialized_arguments~ : Int
+  )
+  ApplicationRejected(ApplicationReductionSite, ApplicationReductionRejection)
+  ProgramChanged(net_calls_removed~ : Int, net_top_terms_removed~ : Int)
+} derive(Debug, Eq)
+
+///|
 pub(all) suberror CoreOptimizeError {
   UnknownRoot(@buslane.ValueId)
+  ApplicationArityCompilerDefect(expected~ : Int, actual~ : Int)
+  MissingApplicationParameterMetadataCompilerDefect(@buslane.ValueId)
+  ExpressionFactsCompilerDefect(@buslane.VerifyResult)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
 } derive(Debug, Eq)
@@ -34,10 +62,31 @@ fn core_canonicalize_effect(
 }
 
 ///|
+fn core_effects_definitionally_equal(
+  metadata : @buslane.MetadataRegistry,
+  left : @buslane.Effect,
+  right : @buslane.Effect,
+) -> Bool raise CoreOptimizeError {
+  metadata.effects_definitionally_equal(left, right) catch {
+    error => raise TypeNormalizationCompilerDefect(error)
+  }
+}
+
+///|
 pub fn optimize(
   request : CoreOptimizeRequest,
 ) -> Result[@buslane.Program, CoreOptimizeError] {
-  try optimize_or_raise(request) catch {
+  optimize_observed(request, _ => ())
+}
+
+///|
+/// Optimizes while reporting typed semantic and profitability decisions.
+/// Observations are synchronous, ordered, and stop at the first failure.
+pub fn optimize_observed(
+  request : CoreOptimizeRequest,
+  observe : (CoreOptimizationObservation) -> Unit,
+) -> Result[@buslane.Program, CoreOptimizeError] {
+  try optimize_or_raise(request, observe) catch {
     error => Err(error)
   } noraise {
     program => Ok(program)
@@ -47,6 +96,7 @@ pub fn optimize(
 ///|
 fn optimize_or_raise(
   request : CoreOptimizeRequest,
+  observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
   if request.program.metadata.value_info(request.entry) is None {
     raise UnknownRoot(request.entry)
@@ -56,17 +106,37 @@ fn optimize_or_raise(
       raise UnknownRoot(root)
     }
   }
+  let program : @buslane.Program = {
+    metadata: request.program.metadata.snapshot(),
+    terms: request.program.terms,
+  }
   let simplified = simplify_program(
-    request.program,
+    program,
     request.entry,
     request.roots,
+    observe,
   )
   let reachable = prune_unreachable(simplified, request.entry, request.roots)
   let evaluated = partially_evaluate_program(
     reachable,
     request.entry,
     request.roots,
+    observe,
   )
-  let simplified = simplify_program(evaluated, request.entry, request.roots)
-  prune_unreachable(simplified, request.entry, request.roots)
+  let simplified = simplify_program(
+    evaluated,
+    request.entry,
+    request.roots,
+    observe,
+  )
+  let optimized = prune_unreachable(simplified, request.entry, request.roots)
+  observe(
+    ProgramChanged(
+      net_calls_removed=core_program_call_count(request.program) -
+        core_program_call_count(optimized),
+      net_top_terms_removed=request.program.terms.length() -
+        optimized.terms.length(),
+    ),
+  )
+  optimized
 }

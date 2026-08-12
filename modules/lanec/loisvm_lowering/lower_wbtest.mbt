@@ -2868,7 +2868,7 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_test_executable_to_bytecode(
       program,
       {
         builtins: [],

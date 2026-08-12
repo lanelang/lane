@@ -7,10 +7,10 @@ priv struct KnownCall {
 ///|
 priv struct PartialEvaluator {
   program : @buslane.Program
-  facts : @buslane.ExpressionFactsQuery
   analysis : InterproceduralAnalysis
   preserved_roots : Array[@buslane.ValueId]
   budget : PartialEvaluationBudget
+  observations : Array[CoreOptimizationObservation]
 }
 
 ///|
@@ -18,6 +18,7 @@ fn partially_evaluate_program(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
+  observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
   let initial_size = core_program_size(program)
   let budget = PartialEvaluationBudget::new(initial_size)
@@ -27,7 +28,6 @@ fn partially_evaluate_program(
   let pending : Array[@buslane.ValueId] = []
   let queued = Array::make(program.metadata.values.length(), false)
   let mut analysis = analyze_interprocedural(current, entry, roots)
-  let mut facts = @buslane.ExpressionFactsQuery::new(current)
   enqueue_definition_order(analysis.core, pending, queued)
   while pending.pop() is Some(value) {
     queued[value.index] = false
@@ -37,25 +37,38 @@ fn partially_evaluate_program(
     if !budget.consume(core_expression_size(expression)) {
       break
     }
+    let observations : Array[CoreOptimizationObservation] = []
     let evaluator : PartialEvaluator = {
       program: current,
-      facts,
       analysis,
       preserved_roots,
       budget,
+      observations,
     }
     let rewritten = evaluator.rewrite_expr(expression)
     if rewritten == expression {
+      for observation in observations {
+        observe(observation)
+      }
       continue
     }
     let candidate = replace_top_definition(current, value, rewritten)
     let candidate = prune_unreachable(candidate, entry, roots)
     if !budget.accepts_program_size(core_program_size(candidate)) {
+      for observation in observations {
+        match observation {
+          ApplicationAccepted(site~, ..) =>
+            observe(ApplicationRejected(site, ResourceBudget))
+          _ => observe(observation)
+        }
+      }
       continue
+    }
+    for observation in observations {
+      observe(observation)
     }
     current = candidate
     analysis = analyze_interprocedural(current, entry, roots)
-    facts = @buslane.ExpressionFactsQuery::new(current)
     enqueue_changed_definition(analysis.core, value, pending, queued)
   }
   current
@@ -141,18 +154,23 @@ fn PartialEvaluator::try_inline_known_call(
   arguments : Array[@buslane.Expr],
 ) -> @buslane.Expr? raise CoreOptimizeError {
   guard known_call(callee) is Some(call) &&
-    self.analysis.find_callable(call.value) is Some(callable) &&
-    !callable.recursive &&
-    callable_effect_is_empty(self.program, callable.value) &&
-    callable_body_can_be_cloned(callable.function.body) &&
-    arguments.all(is_substitutable_atom) &&
-    callable.function.parameters.length() == arguments.length() &&
-    callable.type_parameters.length() == call.generic_arguments.length() else {
+    self.analysis.find_callable(call.value) is Some(callable) else {
+    return None
+  }
+  if callable.type_parameters.length() != call.generic_arguments.length() {
+    return None
+  }
+  let site = ApplicationReductionSite::KnownCallable(call.value)
+  self.observations.push(ApplicationConsidered(site))
+  if callable.recursive {
+    self.observations.push(ApplicationRejected(site, Recursive))
     return None
   }
   if !self.budget.consume(callable.expression_size) {
+    self.observations.push(ApplicationRejected(site, ResourceBudget))
     return None
   }
+  let nested_observation_start = self.observations.length()
   guard InlineCloneContext::from_application(
       self.program.metadata,
       callable.type_parameters,
@@ -162,21 +180,18 @@ fn PartialEvaluator::try_inline_known_call(
     return None
   }
   let cloned = clone_context.clone_function(callable.function)
-  let substitutions = []
-  for index in 0..<arguments.length() {
-    substitutions.push({
-      value: cloned.parameters[index],
-      replacement: arguments[index],
-    })
-  }
-  let reduced = simplify_expr(
+  let facts = @buslane.ExpressionFactsQuery::new(self.program)
+  let reduced = reduce_application(
     self.program,
-    self.facts,
+    facts,
     self.analysis.core,
-    substitutions,
+    [],
+    cloned.parameters,
+    arguments,
     cloned.body,
+    observation => self.observations.push(observation),
   )
-  let candidate = self.rewrite_expr(reduced)
+  let candidate = self.rewrite_expr(reduced.expression)
   let original = @buslane.Expr::Call(callee, arguments)
   if !partial_evaluation_is_profitable(
       original,
@@ -185,8 +200,19 @@ fn PartialEvaluator::try_inline_known_call(
       self.analysis,
       self.preserved_roots,
     ) {
+    while self.observations.length() > nested_observation_start {
+      ignore(self.observations.pop())
+    }
+    self.observations.push(ApplicationRejected(site, Profitability))
     return None
   }
+  self.observations.push(
+    ApplicationAccepted(
+      site~,
+      empty_arguments=reduced.empty_argument_count,
+      materialized_arguments=reduced.materialized_argument_count,
+    ),
+  )
   Some(candidate)
 }
 
@@ -206,56 +232,3 @@ fn known_call(expression : @buslane.Expr) -> KnownCall? {
 }
 
 ///|
-fn callable_effect_is_empty(
-  program : @buslane.Program,
-  value : @buslane.ValueId,
-) -> Bool {
-  guard program.metadata.value_info(value) is Some(info) else { return false }
-  match strip_type_quantifiers(info.type_) {
-    Function(_, _, Empty) => true
-    _ => false
-  }
-}
-
-///|
-fn strip_type_quantifiers(type_ : @buslane.Type) -> @buslane.Type {
-  match type_ {
-    Forall(_, body) | TypeLambda(_, body) => strip_type_quantifiers(body)
-    _ => type_
-  }
-}
-
-///|
-fn callable_body_can_be_cloned(expression : @buslane.Expr) -> Bool {
-  match expression {
-    Ref(_) | Literal(_) | Resume(_) => true
-    Function(function) => callable_body_can_be_cloned(function.body)
-    Call(callee, arguments) =>
-      callable_body_can_be_cloned(callee) &&
-      arguments.all(callable_body_can_be_cloned)
-    TypeLambda(_, _) => false
-    TypeApply(body, _) => callable_body_can_be_cloned(body)
-    Construct(construct) => construct.payloads.all(callable_body_can_be_cloned)
-    Let(_, initializer, body) =>
-      callable_body_can_be_cloned(initializer) &&
-      callable_body_can_be_cloned(body)
-    LetRec(bindings, body) =>
-      bindings.all(binding => callable_body_can_be_cloned(binding.rhs)) &&
-      callable_body_can_be_cloned(body)
-    Match(match_) =>
-      match_.alternatives.all(alternative => {
-        alternative.type_binders.is_empty() &&
-        callable_body_can_be_cloned(alternative.body)
-      }) &&
-      callable_body_can_be_cloned(match_.scrutinee)
-    Perform(perform) => perform.payloads.all(callable_body_can_be_cloned)
-    Handle(handle) =>
-      callable_body_can_be_cloned(handle.body) &&
-      callable_body_can_be_cloned(handle.final_body) &&
-      handle.handlers.all(table => {
-        table.operations.all(operation => {
-          callable_body_can_be_cloned(operation.body)
-        })
-      })
-  }
-}

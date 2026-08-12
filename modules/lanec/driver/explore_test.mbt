@@ -51,7 +51,7 @@ fn explore_stage_scale(
 }
 
 ///|
-test "explore protocol v2 exposes all eighteen ordered completed stages" {
+test "explore protocol v3 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -74,7 +74,7 @@ test "explore protocol v2 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  2,
+      #|  3,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -124,6 +124,13 @@ test "explore protocol v2 exposes all eighteen ordered completed stages" {
       #|      Some("letrec {"),
       #|    ),
       #|    (
+      #|      "buslane.core-optimized",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|      Some("letrec {"),
+      #|    ),
+      #|    (
       #|      "buslane.handlers-elaborated",
       #|      "completed",
       #|      Some("compiler"),
@@ -153,13 +160,6 @@ test "explore protocol v2 exposes all eighteen ordered completed stages" {
       #|    ),
       #|    (
       #|      "buslane.monadic-lifted",
-      #|      "completed",
-      #|      Some("compiler"),
-      #|      Some("buslane"),
-      #|      Some("letrec {"),
-      #|    ),
-      #|    (
-      #|      "buslane.core-optimized",
       #|      "completed",
       #|      Some("compiler"),
       #|      Some("buslane"),
@@ -635,12 +635,12 @@ test "explore parse failure marks syntax failed and later stages unavailable" {
       #|    ("buslane.module", "unavailable"),
       #|    ("buslane.linked", "unavailable"),
       #|    ("buslane.effect-specialized", "unavailable"),
+      #|    ("buslane.core-optimized", "unavailable"),
       #|    ("buslane.handlers-elaborated", "unavailable"),
       #|    ("buslane.monadic", "unavailable"),
       #|    ("buslane.selective-cps", "unavailable"),
       #|    ("buslane.open-context-resolved", "unavailable"),
       #|    ("buslane.monadic-lifted", "unavailable"),
-      #|    ("buslane.core-optimized", "unavailable"),
       #|    ("buslane.effects-erased", "unavailable"),
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
@@ -730,12 +730,12 @@ test "explore graph failure preserves syntax and fails resolved" {
       #|    ("buslane.module", "unavailable"),
       #|    ("buslane.linked", "unavailable"),
       #|    ("buslane.effect-specialized", "unavailable"),
+      #|    ("buslane.core-optimized", "unavailable"),
       #|    ("buslane.handlers-elaborated", "unavailable"),
       #|    ("buslane.monadic", "unavailable"),
       #|    ("buslane.selective-cps", "unavailable"),
       #|    ("buslane.open-context-resolved", "unavailable"),
       #|    ("buslane.monadic-lifted", "unavailable"),
-      #|    ("buslane.core-optimized", "unavailable"),
       #|    ("buslane.effects-erased", "unavailable"),
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
@@ -818,12 +818,12 @@ test "explore resolve failure preserves syntax and fails resolved" {
       #|    ("buslane.module", "unavailable"),
       #|    ("buslane.linked", "unavailable"),
       #|    ("buslane.effect-specialized", "unavailable"),
+      #|    ("buslane.core-optimized", "unavailable"),
       #|    ("buslane.handlers-elaborated", "unavailable"),
       #|    ("buslane.monadic", "unavailable"),
       #|    ("buslane.selective-cps", "unavailable"),
       #|    ("buslane.open-context-resolved", "unavailable"),
       #|    ("buslane.monadic-lifted", "unavailable"),
-      #|    ("buslane.core-optimized", "unavailable"),
       #|    ("buslane.effects-erased", "unavailable"),
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
@@ -881,12 +881,12 @@ test "explore typecheck and entry-selection failures retain completed stages" {
       #|      ("buslane.module", "unavailable"),
       #|      ("buslane.linked", "unavailable"),
       #|      ("buslane.effect-specialized", "unavailable"),
+      #|      ("buslane.core-optimized", "unavailable"),
       #|      ("buslane.handlers-elaborated", "unavailable"),
       #|      ("buslane.monadic", "unavailable"),
       #|      ("buslane.selective-cps", "unavailable"),
       #|      ("buslane.open-context-resolved", "unavailable"),
       #|      ("buslane.monadic-lifted", "unavailable"),
-      #|      ("buslane.core-optimized", "unavailable"),
       #|      ("buslane.effects-erased", "unavailable"),
       #|      ("executable", "unavailable"),
       #|      ("anf", "unavailable"),
@@ -904,12 +904,12 @@ test "explore typecheck and entry-selection failures retain completed stages" {
       #|      ("buslane.module", "completed"),
       #|      ("buslane.linked", "failed"),
       #|      ("buslane.effect-specialized", "unavailable"),
+      #|      ("buslane.core-optimized", "unavailable"),
       #|      ("buslane.handlers-elaborated", "unavailable"),
       #|      ("buslane.monadic", "unavailable"),
       #|      ("buslane.selective-cps", "unavailable"),
       #|      ("buslane.open-context-resolved", "unavailable"),
       #|      ("buslane.monadic-lifted", "unavailable"),
-      #|      ("buslane.core-optimized", "unavailable"),
       #|      ("buslane.effects-erased", "unavailable"),
       #|      ("executable", "unavailable"),
       #|      ("anf", "unavailable"),
@@ -1000,7 +1000,7 @@ test "explore traces a named function and preserves synthetic roots" {
     ),
     content=(
       #|(
-      #|  2,
+      #|  3,
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },

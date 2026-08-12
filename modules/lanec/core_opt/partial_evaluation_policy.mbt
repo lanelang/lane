@@ -86,21 +86,32 @@ fn partial_evaluation_is_profitable(
   analysis : InterproceduralAnalysis,
   preserved_roots : Array[@buslane.ValueId],
 ) -> Bool {
-  let mut original_cost = partial_evaluation_cost(original, analysis)
+  let mut original_cost = partial_evaluation_cost(original, analysis.core)
   if callable.occurrence.use_count == 1 &&
     !preserved_roots.contains(callable.value) &&
     analysis.core.find_top_definition(callable.value) is Some(definition) {
     original_cost = original_cost.plus(
-      partial_evaluation_cost(definition, analysis),
+      partial_evaluation_cost(definition, analysis.core),
     )
   }
-  partial_evaluation_cost(candidate, analysis).score() < original_cost.score()
+  partial_evaluation_cost(candidate, analysis.core).score() <
+  original_cost.score()
+}
+
+///|
+fn application_reduction_is_profitable(
+  original : @buslane.Expr,
+  candidate : @buslane.Expr,
+  analysis : CoreAnalysis,
+) -> Bool {
+  partial_evaluation_cost(candidate, analysis).score() <
+  partial_evaluation_cost(original, analysis).score()
 }
 
 ///|
 fn partial_evaluation_cost(
   expression : @buslane.Expr,
-  analysis : InterproceduralAnalysis,
+  analysis : CoreAnalysis,
 ) -> PartialEvaluationCost {
   let own : PartialEvaluationCost = {
     nodes: 1,
@@ -118,7 +129,9 @@ fn partial_evaluation_cost(
         cost = cost.plus(partial_evaluation_cost(argument, analysis))
       }
       let call_overhead = match known_call(callee) {
-        Some(call) if analysis.find_callable(call.value) is Some(_) => 8
+        Some(call) if analysis.find_top_definition(call.value)
+          is Some(definition) &&
+          callable_parts(definition) is Some(_) => 8
         _ => 16
       }
       { ..cost, call_overhead: cost.call_overhead + call_overhead }

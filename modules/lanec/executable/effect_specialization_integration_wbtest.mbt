@@ -64,7 +64,7 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
   }
   let mut lifted_generic_type = None
   let mut lifted_verification = None
-  let lowered = lower_effects(specialized, entry, stage => {
+  let lowered = lower_effects(specialized, stage => {
     if stage is MonadicContinuationsLifted(lifted) {
       lifted_generic_type = lifted.metadata
         .value_info(generic)

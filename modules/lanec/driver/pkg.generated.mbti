@@ -10,6 +10,8 @@ import {
 // Values
 pub fn explore(ExploreRequest) -> ExploreReport
 
+pub let explore_report_schema_version : Int
+
 pub fn list_entries(@compile.SourceInput, Array[@compile.SourceInput]) -> EntryReport
 
 // Errors
@@ -167,12 +169,12 @@ pub(all) enum ExploreStageId {
   BuslaneModule
   BuslaneLinked
   BuslaneEffectSpecialized
+  BuslaneCoreOptimized
   BuslaneHandlersElaborated
   BuslaneMonadic
   BuslaneSelectiveCps
   BuslaneOpenContextResolved
   BuslaneMonadicLifted
-  BuslaneCoreOptimized
   BuslaneEffectsErased
   Executable
   Anf
@@ -195,12 +197,12 @@ pub(all) struct ExploreStages {
   buslane_module : ExploreStageState
   buslane_linked : ExploreStageState
   buslane_effect_specialized : ExploreStageState
+  buslane_core_optimized : ExploreStageState
   buslane_handlers_elaborated : ExploreStageState
   buslane_monadic : ExploreStageState
   buslane_selective_cps : ExploreStageState
   buslane_open_context_resolved : ExploreStageState
   buslane_monadic_lifted : ExploreStageState
-  buslane_core_optimized : ExploreStageState
   buslane_effects_erased : ExploreStageState
   executable : ExploreStageState
   anf : ExploreStageState

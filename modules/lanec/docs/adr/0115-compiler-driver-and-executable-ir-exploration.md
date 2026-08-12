@@ -8,7 +8,7 @@ Normal compilation and exploration share orchestration at the stage-owning packa
 
 An Explore Stage contains a stable stage identifier, display label, and one of three states: completed with an Explore Snapshot, failed with diagnostics, or unavailable. An Explore Snapshot contains the compiler or backend domain, text format, human-readable text, diagnostics, and stable structural scale metrics. It contains rendered text rather than a typed compiler object. IR printers remain human-facing pretty printers and are not serialization formats. Before linking, snapshots display only the module that owns the selected entry; compilation still checks required dependencies and reports their diagnostics. Linking and every later stage display the complete whole-program IR consumed by the next transformation.
 
-Explore Report Protocol version 2 contains compiler identity, root identity, the artifact-defined selected entry, overall status, diagnostics, a structural function-provenance graph, and this fixed ordered stage sequence:
+Explore Report Protocol version 3 contains compiler identity, root identity, the artifact-defined selected entry, overall status, diagnostics, a structural function-provenance graph, and this fixed ordered stage sequence:
 
 1. `syntax`: Syntax AST;
 2. `resolved`: Resolved AST;
@@ -16,12 +16,12 @@ Explore Report Protocol version 2 contains compiler identity, root identity, the
 4. `buslane.module`: Buslane (Module Lowering);
 5. `buslane.linked`: Buslane (Linking);
 6. `buslane.effect-specialized`: Buslane (Reachable Effect Specialization);
-7. `buslane.handlers-elaborated`: Buslane (Handler Elaboration);
-8. `buslane.monadic`: Buslane (Monadic Transformation);
-9. `buslane.selective-cps`: Buslane (Selective CPS);
-10. `buslane.open-context-resolved`: Buslane (Open Context Resolution);
-11. `buslane.monadic-lifted`: Buslane (Monadic Lift);
-12. `buslane.core-optimized`: Buslane (Effect-Aware Core Optimization);
+7. `buslane.core-optimized`: Buslane (Effect-Aware Core Optimization);
+8. `buslane.handlers-elaborated`: Buslane (Handler Elaboration);
+9. `buslane.monadic`: Buslane (Monadic Transformation);
+10. `buslane.selective-cps`: Buslane (Selective CPS);
+11. `buslane.open-context-resolved`: Buslane (Open Context Resolution);
+12. `buslane.monadic-lifted`: Buslane (Monadic Lift);
 13. `buslane.effects-erased`: Buslane (Effect Erasure);
 14. `executable`: Executable Program (Whole-Program Elaboration);
 15. `anf`: ANF;
@@ -39,7 +39,7 @@ A failed compilation produces a Partial Explore Report containing all eighteen o
 
 The native command is `lane explore <file>:<entry> -o <report.html>` with the same library-input semantics as `lane run`: `$LANE_HOME/basic` is loaded by default, explicit `--lib` and `--lib-dir` inputs are appended, and `--no-basic` disables the default directory. The output path is required. The command never executes the entry, writes the report through atomic replacement, does not emit the report to stdout, and does not automatically open a browser.
 
-The native output is deterministic, self-contained offline HTML with one level of stage tabs, safely escaped IR source code, per-stage structural metrics, explicit function lineage, and inline styles and behavior. Each stage projects declarations, terms, functions, tables, or backend source directly; it does not render enclosing compiler objects, registries, entry or schema metadata, or diagnostics. It contains no CDN dependency or volatile timestamp. The HTML renderer uses MoonBit `StringBuilder`, `<+`, and multiline strings instead of repeated immutable string concatenation. Lane Wasm serializes the complete report model as versioned JSON; it does not reuse the native HTML renderer. ADR-0132 defines the version 2 metric and provenance stability contract.
+The native output is deterministic, self-contained offline HTML with one level of stage tabs, safely escaped IR source code, per-stage structural metrics, explicit function lineage, and inline styles and behavior. Each stage projects declarations, terms, functions, tables, or backend source directly; it does not render enclosing compiler objects, registries, entry or schema metadata, or diagnostics. It contains no CDN dependency or volatile timestamp. The HTML renderer uses MoonBit `StringBuilder`, `<+`, and multiline strings instead of repeated immutable string concatenation. Lane Wasm serializes the complete report model as versioned JSON; it does not reuse the native HTML renderer. Protocol version 3 retains the metric and provenance contract introduced by ADR-0132 for version 2, and moves effect-aware Core optimization before effect lowering so `Empty` still denotes source-level unobservability.
 
 ## Consequences
 

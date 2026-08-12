@@ -20,7 +20,10 @@ pub fn explore() -> Int {
     Ok(request) => request
     Err(reason) =>
       return write_response(
-        invalid_request_response(reason, schema_version=2).stringify(),
+        invalid_request_response(
+          reason,
+          schema_version=@driver.explore_report_schema_version,
+        ).stringify(),
         status_invalid_request,
       )
   }

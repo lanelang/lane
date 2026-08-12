@@ -136,6 +136,10 @@ pub(all) struct ExploreFunctionGraph {
 } derive(Debug, Eq)
 
 ///|
+/// Current Explore Report Protocol schema owned by the compiler driver.
+pub let explore_report_schema_version : Int = 3
+
+///|
 /// Canonical total order of protocol stages. This order is also the execution
 /// order and is independent of map or source-pool iteration order.
 pub(all) enum ExploreStageId {
@@ -145,12 +149,12 @@ pub(all) enum ExploreStageId {
   BuslaneModule
   BuslaneLinked
   BuslaneEffectSpecialized
+  BuslaneCoreOptimized
   BuslaneHandlersElaborated
   BuslaneMonadic
   BuslaneSelectiveCps
   BuslaneOpenContextResolved
   BuslaneMonadicLifted
-  BuslaneCoreOptimized
   BuslaneEffectsErased
   Executable
   Anf
@@ -193,12 +197,12 @@ pub(all) struct ExploreStages {
   buslane_module : ExploreStageState
   buslane_linked : ExploreStageState
   buslane_effect_specialized : ExploreStageState
+  buslane_core_optimized : ExploreStageState
   buslane_handlers_elaborated : ExploreStageState
   buslane_monadic : ExploreStageState
   buslane_selective_cps : ExploreStageState
   buslane_open_context_resolved : ExploreStageState
   buslane_monadic_lifted : ExploreStageState
-  buslane_core_optimized : ExploreStageState
   buslane_effects_erased : ExploreStageState
   executable : ExploreStageState
   anf : ExploreStageState
@@ -257,6 +261,7 @@ pub fn ExploreStages::ordered(self : ExploreStages) -> Array[ExploreStage] {
     explore_stage(BuslaneModule, self.buslane_module),
     explore_stage(BuslaneLinked, self.buslane_linked),
     explore_stage(BuslaneEffectSpecialized, self.buslane_effect_specialized),
+    explore_stage(BuslaneCoreOptimized, self.buslane_core_optimized),
     explore_stage(BuslaneHandlersElaborated, self.buslane_handlers_elaborated),
     explore_stage(BuslaneMonadic, self.buslane_monadic),
     explore_stage(BuslaneSelectiveCps, self.buslane_selective_cps),
@@ -265,7 +270,6 @@ pub fn ExploreStages::ordered(self : ExploreStages) -> Array[ExploreStage] {
       self.buslane_open_context_resolved,
     ),
     explore_stage(BuslaneMonadicLifted, self.buslane_monadic_lifted),
-    explore_stage(BuslaneCoreOptimized, self.buslane_core_optimized),
     explore_stage(BuslaneEffectsErased, self.buslane_effects_erased),
     explore_stage(Executable, self.executable),
     explore_stage(Anf, self.anf),
@@ -292,12 +296,12 @@ pub fn ExploreStageId::key(self : ExploreStageId) -> String {
     BuslaneModule => "buslane.module"
     BuslaneLinked => "buslane.linked"
     BuslaneEffectSpecialized => "buslane.effect-specialized"
+    BuslaneCoreOptimized => "buslane.core-optimized"
     BuslaneHandlersElaborated => "buslane.handlers-elaborated"
     BuslaneMonadic => "buslane.monadic"
     BuslaneSelectiveCps => "buslane.selective-cps"
     BuslaneOpenContextResolved => "buslane.open-context-resolved"
     BuslaneMonadicLifted => "buslane.monadic-lifted"
-    BuslaneCoreOptimized => "buslane.core-optimized"
     BuslaneEffectsErased => "buslane.effects-erased"
     Executable => "executable"
     Anf => "anf"
@@ -316,12 +320,12 @@ fn ExploreStageId::title(self : ExploreStageId) -> String {
     BuslaneModule => "Buslane (Module Lowering)"
     BuslaneLinked => "Buslane (Linking)"
     BuslaneEffectSpecialized => "Buslane (Reachable Effect Specialization)"
+    BuslaneCoreOptimized => "Buslane (Effect-Aware Core Optimization)"
     BuslaneHandlersElaborated => "Buslane (Handler Elaboration)"
     BuslaneMonadic => "Buslane (Monadic Transformation)"
     BuslaneSelectiveCps => "Buslane (Selective CPS)"
     BuslaneOpenContextResolved => "Buslane (Open Context Resolution)"
     BuslaneMonadicLifted => "Buslane (Monadic Lift)"
-    BuslaneCoreOptimized => "Buslane (Effect-Aware Core Optimization)"
     BuslaneEffectsErased => "Buslane (Effect Erasure)"
     Executable => "Executable Program (Whole-Program Elaboration)"
     Anf => "ANF"
@@ -340,12 +344,12 @@ fn ExploreStageId::index(self : ExploreStageId) -> Int {
     BuslaneModule => 3
     BuslaneLinked => 4
     BuslaneEffectSpecialized => 5
-    BuslaneHandlersElaborated => 6
-    BuslaneMonadic => 7
-    BuslaneSelectiveCps => 8
-    BuslaneOpenContextResolved => 9
-    BuslaneMonadicLifted => 10
-    BuslaneCoreOptimized => 11
+    BuslaneCoreOptimized => 6
+    BuslaneHandlersElaborated => 7
+    BuslaneMonadic => 8
+    BuslaneSelectiveCps => 9
+    BuslaneOpenContextResolved => 10
+    BuslaneMonadicLifted => 11
     BuslaneEffectsErased => 12
     Executable => 13
     Anf => 14

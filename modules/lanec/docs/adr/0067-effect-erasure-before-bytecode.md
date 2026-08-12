@@ -5,11 +5,12 @@ Lane lowers algebraic effects entirely before ANF and LoisVM bytecode. The pipel
 ## Pipeline contract
 
 1. Reachable-effect specialization runs after linking and entry selection. Executable control flow cannot depend on unresolved concrete effect arguments.
-2. Handler elaboration replaces source `Handle` and `Resume` forms with compiler-private install/invoke forms and ordinary reusable resume callables.
-3. `mon-trans` applies when an effect row is open or contains any handled operation. Every handled operation is potentially multi-shot; resume counts are not analyzed.
-4. `open-resolve` validates that generated context adaptations are actually supplied by the ambient row, then removes the proof markers.
-5. `monadic-lift` turns generated local continuations into ordinary nested Buslane functions; the existing ANF lowering remains the sole owner of physical closure conversion and ARC representation.
-6. Residual effect erasure removes remaining non-monadic latent effects only after effect-sensitive optimization, producing ordinary effect-free Buslane for ANF.
+2. Effect-aware Core optimization runs over the specialized whole program while `Empty` still denotes source-level unobservability.
+3. Handler elaboration replaces source `Handle` and `Resume` forms with compiler-private install/invoke forms and ordinary reusable resume callables.
+4. `mon-trans` applies when an effect row is open or contains any handled operation. Every handled operation is potentially multi-shot; resume counts are not analyzed.
+5. `open-resolve` validates that generated context adaptations are actually supplied by the ambient row, then removes the proof markers.
+6. `monadic-lift` turns generated local continuations into ordinary nested Buslane functions; the existing ANF lowering remains the sole owner of physical closure conversion and ARC representation.
+7. Residual effect erasure removes remaining non-monadic latent effects after effect lowering, producing ordinary effect-free Buslane for ANF. Generated CPS calls are never reclassified as source-pure from their residual effects.
 
 For monadic residual contexts `M`, non-monadic residual effect `R`, and handled result `H`, the local residual computation has the conceptual shape:
 
@@ -31,6 +32,6 @@ Consequences:
 
 - Pure and `Io`-only functions retain direct-style source ABIs through `mon-trans`.
 - Algebraic effects are represented only by compiler-generated ordinary values and calls before bytecode.
-- Effect-sensitive optimization observes non-monadic residual effects until their explicit erasure.
+- Effect-sensitive optimization consumes authoritative source effects before effect lowering; generated residual effects remain lowering facts until their explicit erasure.
 - LoisVM runtime imports are ordinary extern targets, not effect operations or host handlers.
 - A future Host Effect Handler requires a separate interface and does not alter this pipeline implicitly.

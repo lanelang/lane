@@ -6,7 +6,7 @@ This directory contains compiler-owned design and planning material.
 - `pre-buslane-contract.md`: checked-source invariants and Buslane lowering boundary contract.
 - `existential-types.md`: source feature design kept here because the compiler still tracks implementation tasks for it.
 - `fatal-control-rfc.md`: implemented Unit-returning, compiler-owned fatal-control design.
-- `effect-directed-inlining-rfc.md`: proposed effect-directed application-reduction and inlining refactor.
+- `effect-directed-inlining-rfc.md`: implemented effect-directed application-reduction and inlining design.
 - `adr/`: decisions that affect compiler representation, resolution, typechecking, source elaboration, Buslane lowering, ANF, and diagnostics.
 - `contexts/`: glossary slices used by compiler work.
 

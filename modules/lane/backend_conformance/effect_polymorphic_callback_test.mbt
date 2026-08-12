@@ -358,6 +358,73 @@ test "higher-kinded mappable factory forwards its callback effect" {
 }
 
 ///|
+test "inlined nonempty arguments execute once in source order" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|
+      #|fn first() -> Unit ! Io {
+      #|  observe(1)
+      #|}
+      #|
+      #|fn second() -> Unit ! Io {
+      #|  observe(2)
+      #|}
+      #|
+      #|fn discard(_left : Unit, _right : Unit) -> Unit {
+      #|  ()
+      #|}
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  discard(first(), second())
+      #|}
+    ),
+  )
+  let expected = [DirectInterpreter, WasmInterpreter, WasmJit].map(backend => {
+    backend,
+    result: Ok(()),
+    i64_values: [1L, 2L],
+    f64_bits: [],
+    callback_calls: 0,
+  })
+  assert_eq(actual, expected)
+}
+
+///|
+test "inlining preserves a pure callable parameter adaptation" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|
+      #|fn invoke(action : () -> Unit ! Io) -> Unit ! Io {
+      #|  action()
+      #|}
+      #|
+      #|fn pure_action() -> Unit {
+      #|  ()
+      #|}
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  invoke(pure_action)
+      #|  observe(42)
+      #|}
+    ),
+  )
+  let expected = [DirectInterpreter, WasmInterpreter, WasmJit].map(backend => {
+    backend,
+    result: Ok(()),
+    i64_values: [42L],
+    f64_bits: [],
+    callback_calls: 0,
+  })
+  assert_eq(actual, expected)
+}
+
+///|
 /// The same generic definition is demanded in two ways: `main` applies it to
 /// `Io` directly, while `forward` passes its still-symbolic effect parameter.
 /// Both paths must execute identically regardless of whether specialization

@@ -102,16 +102,6 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|    { witnesses: [], parameters: [], result: Unit },
       #|    {
       #|      witnesses: [],
-      #|      parameters: [{ representation: I32, cleanup: Trivial, kind: ScalarValue }],
-      #|      result: Value(I32, Trivial, ScalarValue),
-      #|    },
-      #|    {
-      #|      witnesses: [],
-      #|      parameters: [{ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue }],
-      #|      result: Value(I32, OwnedRef, ByteSequenceValue),
-      #|    },
-      #|    {
-      #|      witnesses: [],
       #|      parameters: [{ representation: I64, cleanup: Trivial, kind: ScalarValue }],
       #|      result: Unit,
       #|    },
@@ -123,12 +113,6 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|        slots: [
       #|          {
       #|            representation: I64,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
       #|            erased_companion: None,
@@ -166,68 +150,24 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|            instructions: [
       #|              ConstI64({ value: 0 }, 255),
       #|              I64ToByte({ value: 1 }, { value: 0 }),
-      #|              CallDirect({ value: 2 }, None, [], [{ value: 1 }], Some({ value: 2 })),
       #|              ConstI64({ value: 0 }, 2),
-      #|              ByteSequenceMake({ value: 3 }, { value: 0 }, { value: 2 }),
-      #|              CallDirect({ value: 3 }, None, [], [{ value: 3 }], Some({ value: 4 })),
+      #|              ByteSequenceMake({ value: 2 }, { value: 0 }, { value: 1 }),
       #|              ConstI64({ value: 0 }, 0),
       #|              I64ToByte({ value: 1 }, { value: 0 }),
       #|              ConstI64({ value: 0 }, 1),
       #|              ByteSequenceSet(
       #|                { value: 3 },
-      #|                { value: 4 },
+      #|                { value: 2 },
       #|                { value: 0 },
       #|                { value: 1 },
       #|              ),
-      #|              ByteSequenceLength({ value: 5 }, { value: 3 }),
-      #|              CallDirect({ value: 4 }, None, [], [{ value: 5 }], None),
+      #|              ByteSequenceLength({ value: 4 }, { value: 3 }),
+      #|              CallDirect({ value: 2 }, None, [], [{ value: 4 }], None),
       #|              ByteSequenceGet({ value: 1 }, { value: 3 }, { value: 0 }),
       #|              ByteToI64({ value: 0 }, { value: 1 }),
       #|              Release({ value: 3 }),
       #|            ],
-      #|            terminator: TailCallDirect({ value: 4 }, None, [], [{ value: 0 }]),
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
-      #|    BytecodeBody(
-      #|      {
-      #|        slots: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
-      #|        ],
-      #|        inputs: { environment: None, witnesses: [], user_parameters: [{ value: 0 }] },
-      #|        result: Value(I32, Trivial, ScalarValue),
-      #|        blocks: [
-      #|          {
-      #|            parameters: [],
-      #|            instructions: [],
-      #|            terminator: Return(Some({ value: 0 })),
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
-      #|    BytecodeBody(
-      #|      {
-      #|        slots: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: ByteSequenceValue,
-      #|            erased_companion: None,
-      #|          },
-      #|        ],
-      #|        inputs: { environment: None, witnesses: [], user_parameters: [{ value: 0 }] },
-      #|        result: Value(I32, OwnedRef, ByteSequenceValue),
-      #|        blocks: [
-      #|          {
-      #|            parameters: [],
-      #|            instructions: [],
-      #|            terminator: Return(Some({ value: 0 })),
+      #|            terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 0 }]),
       #|          },
       #|        ],
       #|      },
@@ -295,9 +235,10 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
     bytecode,
     content=(
       #|{
-      #|  entry: { value: 2 },
-      #|  initializer: Some({ value: 5 }),
+      #|  entry: { value: 1 },
+      #|  initializer: Some({ value: 4 }),
       #|  callable_abis: [
+      #|    { witnesses: [], parameters: [], result: Unit },
       #|    {
       #|      witnesses: [],
       #|      parameters: [],
@@ -305,17 +246,19 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|    },
       #|    {
       #|      witnesses: [],
-      #|      parameters: [
-      #|        { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
-      #|        { representation: I32, cleanup: Trivial, kind: ScalarValue },
-      #|      ],
-      #|      result: Value(I64, OwnedCallable, CallableValue),
-      #|    },
-      #|    { witnesses: [], parameters: [], result: Unit },
-      #|    {
-      #|      witnesses: [],
       #|      parameters: [],
       #|      result: Value(I32, OwnedRef, ByteSequenceValue),
+      #|    },
+      #|    {
+      #|      witnesses: [],
+      #|      parameters: [
+      #|        {
+      #|          representation: I32,
+      #|          cleanup: OwnedRef,
+      #|          kind: DataValue({ value: 1 }),
+      #|        },
+      #|      ],
+      #|      result: Value(I32, Trivial, ScalarValue),
       #|    },
       #|    {
       #|      witnesses: [],
@@ -325,58 +268,6 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|  ],
       #|  data_family_count: 2,
       #|  functions: [
-      #|    BytecodeBody(
-      #|      {
-      #|        slots: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: ByteSequenceValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: EnvironmentValue({ value: 0 }),
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I64,
-      #|            cleanup: OwnedCallable,
-      #|            kind: CallableValue,
-      #|            erased_companion: None,
-      #|          },
-      #|        ],
-      #|        inputs: {
-      #|          environment: None,
-      #|          witnesses: [],
-      #|          user_parameters: [{ value: 0 }, { value: 1 }],
-      #|        },
-      #|        result: Value(I64, OwnedCallable, CallableValue),
-      #|        blocks: [
-      #|          {
-      #|            parameters: [],
-      #|            instructions: [
-      #|              MakeEnv(
-      #|                { value: 2 },
-      #|                { value: 0 },
-      #|                Immediate({ value: 1 }),
-      #|                [],
-      #|                [{ value: 1 }, { value: 0 }],
-      #|              ),
-      #|              MakeClosure({ value: 3 }, { value: 6 }, { value: 2 }),
-      #|            ],
-      #|            terminator: Return(Some({ value: 3 })),
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
       #|    BytecodeBody(
       #|      {
       #|        slots: [
@@ -411,21 +302,15 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|            erased_companion: None,
       #|          },
       #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: ByteSequenceValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
       #|            representation: I64,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
       #|            erased_companion: None,
       #|          },
       #|          {
-      #|            representation: I64,
-      #|            cleanup: OwnedCallable,
-      #|            kind: CallableValue,
+      #|            representation: I32,
+      #|            cleanup: OwnedRef,
+      #|            kind: ByteSequenceValue,
       #|            erased_companion: None,
       #|          },
       #|        ],
@@ -437,74 +322,51 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|            instructions: [
       #|              BorrowGlobal({ value: 0 }, { value: 0 }),
       #|              BorrowGlobal({ value: 1 }, { value: 1 }),
-      #|              RetainCopy({ value: 5 }, { value: 1 }),
+      #|              RetainCopy({ value: 6 }, { value: 1 }),
       #|              MakeData(
       #|                { value: 2 },
-      #|                { value: 1 },
-      #|                Immediate({ value: 2 }),
+      #|                { value: 0 },
+      #|                Immediate({ value: 1 }),
       #|                [],
-      #|                [{ value: 0 }, { value: 5 }],
+      #|                [{ value: 0 }, { value: 6 }],
       #|              ),
       #|              BorrowField(
-      #|                { value: 1 },
+      #|                { value: 0 },
       #|                { value: 2 },
       #|                0,
       #|                { value_destination: { value: 0 }, witness_destination: None },
       #|              ),
       #|              BorrowField(
-      #|                { value: 1 },
+      #|                { value: 0 },
       #|                { value: 2 },
       #|                1,
       #|                { value_destination: { value: 1 }, witness_destination: None },
       #|              ),
       #|              BorrowField(
-      #|                { value: 1 },
+      #|                { value: 0 },
       #|                { value: 2 },
       #|                0,
       #|                { value_destination: { value: 3 }, witness_destination: None },
       #|              ),
       #|              BorrowField(
-      #|                { value: 1 },
+      #|                { value: 0 },
       #|                { value: 2 },
       #|                1,
       #|                { value_destination: { value: 1 }, witness_destination: None },
       #|              ),
-      #|              RetainCopy({ value: 5 }, { value: 1 }),
+      #|              RetainCopy({ value: 6 }, { value: 1 }),
       #|              MakeData(
       #|                { value: 4 },
-      #|                { value: 2 },
-      #|                Immediate({ value: 3 }),
-      #|                [],
-      #|                [{ value: 0 }, { value: 5 }],
-      #|              ),
-      #|              ConsumeFields(
-      #|                { value: 2 },
-      #|                { value: 4 },
-      #|                [
-      #|                  {
-      #|                    member_index: 0,
-      #|                    result: { value_destination: { value: 0 }, witness_destination: None },
-      #|                  },
-      #|                  {
-      #|                    member_index: 1,
-      #|                    result: { value_destination: { value: 5 }, witness_destination: None },
-      #|                  },
-      #|                ],
-      #|              ),
-      #|              ConstI64({ value: 6 }, 0),
-      #|              I64ToByte({ value: 0 }, { value: 6 }),
-      #|              CallDirect(
       #|                { value: 1 },
-      #|                None,
+      #|                Immediate({ value: 2 }),
       #|                [],
-      #|                [{ value: 5 }, { value: 0 }],
-      #|                Some({ value: 7 }),
+      #|                [{ value: 0 }, { value: 6 }],
       #|              ),
-      #|              CallValue({ value: 7 }, { value: 0 }, [], [], Some({ value: 0 })),
-      #|              ByteToI64({ value: 6 }, { value: 0 }),
+      #|              CallDirect({ value: 5 }, None, [], [{ value: 4 }], Some({ value: 0 })),
+      #|              ByteToI64({ value: 5 }, { value: 0 }),
       #|              Release({ value: 2 }),
       #|            ],
-      #|            terminator: TailCallDirect({ value: 7 }, None, [], [{ value: 6 }]),
+      #|            terminator: TailCallDirect({ value: 6 }, None, [], [{ value: 5 }]),
       #|          },
       #|        ],
       #|      },
@@ -595,9 +457,9 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            parameters: [],
       #|            instructions: [
-      #|              CallDirect({ value: 3 }, None, [], [], Some({ value: 0 })),
+      #|              CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
       #|              InitGlobal({ value: 0 }, { value: 0 }),
-      #|              CallDirect({ value: 4 }, None, [], [], Some({ value: 1 })),
+      #|              CallDirect({ value: 3 }, None, [], [], Some({ value: 1 })),
       #|              InitGlobal({ value: 1 }, { value: 1 }),
       #|            ],
       #|            terminator: Return(None),
@@ -611,7 +473,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            representation: I32,
       #|            cleanup: OwnedRef,
-      #|            kind: EnvironmentValue({ value: 0 }),
+      #|            kind: DataValue({ value: 1 }),
       #|            erased_companion: None,
       #|          },
       #|          {
@@ -633,28 +495,26 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|            erased_companion: None,
       #|          },
       #|        ],
-      #|        inputs: {
-      #|          environment: Some({ value: 0 }),
-      #|          witnesses: [],
-      #|          user_parameters: [],
-      #|        },
+      #|        inputs: { environment: None, witnesses: [], user_parameters: [{ value: 0 }] },
       #|        result: Value(I32, Trivial, ScalarValue),
       #|        blocks: [
       #|          {
       #|            parameters: [],
       #|            instructions: [
-      #|              BorrowCapture(
-      #|                { value: 0 },
+      #|              BorrowField(
+      #|                { value: 1 },
       #|                { value: 0 },
       #|                0,
       #|                { value_destination: { value: 1 }, witness_destination: None },
       #|              ),
-      #|              BorrowCapture(
-      #|                { value: 0 },
+      #|              BorrowField(
+      #|                { value: 1 },
       #|                { value: 0 },
       #|                1,
       #|                { value_destination: { value: 2 }, witness_destination: None },
       #|              ),
+      #|              ConstI64({ value: 3 }, 0),
+      #|              I64ToByte({ value: 1 }, { value: 3 }),
       #|              ByteToI64({ value: 3 }, { value: 1 }),
       #|              ByteSequenceGet({ value: 1 }, { value: 2 }, { value: 3 }),
       #|              Release({ value: 0 }),
@@ -688,31 +548,12 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|    },
       #|  ],
       #|  layouts: [
-      #|    Environment({ value: 0 }),
+      #|    Data({ value: 0 }),
       #|    Data({ value: 1 }),
-      #|    Data({ value: 2 }),
+      #|    Environment({ value: 2 }),
       #|    ByteSequence,
       #|  ],
       #|  object_shapes: [
-      #|    Environment(
-      #|      {
-      #|        stored_witness_count: 0,
-      #|        members: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: ByteSequenceValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
       #|    Data(
       #|      {
       #|        family: { value: 0 },
@@ -750,6 +591,19 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|            representation: I32,
       #|            cleanup: OwnedRef,
       #|            kind: ByteSequenceValue,
+      #|            witness_ordinal: None,
+      #|          },
+      #|        ],
+      #|      },
+      #|    ),
+      #|    Environment(
+      #|      {
+      #|        stored_witness_count: 0,
+      #|        members: [
+      #|          {
+      #|            representation: I32,
+      #|            cleanup: OwnedRef,
+      #|            kind: DataValue({ value: 1 }),
       #|            witness_ordinal: None,
       #|          },
       #|        ],

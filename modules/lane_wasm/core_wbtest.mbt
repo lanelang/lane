@@ -46,7 +46,7 @@ test "entry request enumerates artifact-defined entries" {
 }
 
 ///|
-test "explore request returns the complete protocol v2 report" {
+test "explore request returns the complete protocol v3 report" {
   debug_inspect(
     response_summary(
       parsed_response_json(
@@ -64,7 +64,7 @@ test "explore request returns the complete protocol v2 report" {
     ),
     content=(
       #|{
-      #|  schema_version: 2,
+      #|  schema_version: 3,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -78,6 +78,12 @@ test "explore request returns the complete protocol v2 report" {
       #|    ("buslane.linked", "completed", Some("compiler"), Some("buslane")),
       #|    (
       #|      "buslane.effect-specialized",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|    ),
+      #|    (
+      #|      "buslane.core-optimized",
       #|      "completed",
       #|      Some("compiler"),
       #|      Some("buslane"),
@@ -113,12 +119,6 @@ test "explore request returns the complete protocol v2 report" {
       #|      Some("buslane"),
       #|    ),
       #|    (
-      #|      "buslane.core-optimized",
-      #|      "completed",
-      #|      Some("compiler"),
-      #|      Some("buslane"),
-      #|    ),
-      #|    (
       #|      "buslane.effects-erased",
       #|      "completed",
       #|      Some("compiler"),
@@ -142,7 +142,7 @@ test "explore request returns the complete protocol v2 report" {
 }
 
 ///|
-test "protocol v2 encodes ordered metrics and structured function lineage" {
+test "protocol v3 encodes ordered metrics and structured function lineage" {
   let response = parsed_response_json(
     (
       #|{
@@ -162,7 +162,7 @@ test "protocol v2 encodes ordered metrics and structured function lineage" {
       "functions": { "nodes": Array(nodes), "edges": Array(edges), .. },
       ..
     } else {
-    fail("missing protocol v2 observability fields")
+    fail("missing protocol v3 observability fields")
   }
   let anf_observations = stages.filter_map(stage => {
     match stage {
@@ -186,7 +186,7 @@ test "protocol v2 encodes ordered metrics and structured function lineage" {
     (schema_version.to_int(), anf_observations, selected_nodes, edges.length()),
     content=(
       #|(
-      #|  2,
+      #|  3,
       #|  [
       #|    (
       #|      [
@@ -293,7 +293,7 @@ test "explore request accepts multiple source files" {
     ),
     content=(
       #|{
-      #|  schema_version: 2,
+      #|  schema_version: 3,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -307,6 +307,12 @@ test "explore request accepts multiple source files" {
       #|    ("buslane.linked", "completed", Some("compiler"), Some("buslane")),
       #|    (
       #|      "buslane.effect-specialized",
+      #|      "completed",
+      #|      Some("compiler"),
+      #|      Some("buslane"),
+      #|    ),
+      #|    (
+      #|      "buslane.core-optimized",
       #|      "completed",
       #|      Some("compiler"),
       #|      Some("buslane"),
@@ -337,12 +343,6 @@ test "explore request accepts multiple source files" {
       #|    ),
       #|    (
       #|      "buslane.monadic-lifted",
-      #|      "completed",
-      #|      Some("compiler"),
-      #|      Some("buslane"),
-      #|    ),
-      #|    (
-      #|      "buslane.core-optimized",
       #|      "completed",
       #|      Some("compiler"),
       #|      Some("buslane"),
@@ -389,7 +389,7 @@ test "explore request preserves failed and unavailable stage states" {
     ),
     content=(
       #|{
-      #|  schema_version: 2,
+      #|  schema_version: 3,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: None,
@@ -402,12 +402,12 @@ test "explore request preserves failed and unavailable stage states" {
       #|    ("buslane.module", "unavailable", None, None),
       #|    ("buslane.linked", "unavailable", None, None),
       #|    ("buslane.effect-specialized", "unavailable", None, None),
+      #|    ("buslane.core-optimized", "unavailable", None, None),
       #|    ("buslane.handlers-elaborated", "unavailable", None, None),
       #|    ("buslane.monadic", "unavailable", None, None),
       #|    ("buslane.selective-cps", "unavailable", None, None),
       #|    ("buslane.open-context-resolved", "unavailable", None, None),
       #|    ("buslane.monadic-lifted", "unavailable", None, None),
-      #|    ("buslane.core-optimized", "unavailable", None, None),
       #|    ("buslane.effects-erased", "unavailable", None, None),
       #|    ("executable", "unavailable", None, None),
       #|    ("anf", "unavailable", None, None),
@@ -428,7 +428,7 @@ test "explore request rejects malformed requests" {
     content=(
       #|Object(
       #|  {
-      #|    "schemaVersion": Number(2),
+      #|    "schemaVersion": Number(3),
       #|    "status": Number(3),
       #|    "diagnostics": Array(
       #|      [

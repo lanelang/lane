@@ -24,7 +24,10 @@ fn explore_request(request_text : String) -> ExploreResult {
       let status = status_invalid_request
       return {
         status,
-        json: invalid_request_response(reason, schema_version=2).stringify(),
+        json: invalid_request_response(
+          reason,
+          schema_version=@driver.explore_report_schema_version,
+        ).stringify(),
       }
     }
   }

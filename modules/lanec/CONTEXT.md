@@ -189,14 +189,15 @@ Monadic Effect Predicate into answer-type continuation form.
 _Avoid_: whole-program CPS, VM stack capture
 
 **Effect-Aware Core Optimization**:
-Optimization over lowered Buslane while residual effects still describe
-observable behavior.
+Whole-program optimization over effect-specialized Buslane before effect
+lowering, at the final boundary where `Empty` still denotes source-level
+unobservability.
 _Avoid_: effect-blind DCE, bytecode optimization
 
 **Effect-Directed Application Reduction**:
 The Core optimization operation that reduces one materialized application by
-substituting `Empty` arguments and binding nonempty arguments once in observable
-order.
+substituting definitionally aligned `Empty` arguments and binding nonempty or
+representation-adapting arguments once in observable order.
 _Avoid_: atom-only beta reduction, effect-name special case, local ANF copy
 
 **Residual Effect Erasure**:

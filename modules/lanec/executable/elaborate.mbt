@@ -14,12 +14,12 @@ pub fn elaborate(
 /// A variant is emitted only after that stage has passed its verifier.
 pub(all) enum ExecutableElaborationStage {
   EffectSpecialized(@buslane.Program)
+  CoreOptimized(@buslane.Program)
   HandlersElaborated(@effect_lowering_core.Program)
   MonadicTransformed(@effect_lowering_core.Program)
   SelectiveCpsRewritten(@effect_lowering_core.Program)
   OpenContextsResolved(@effect_lowering_core.Program)
   MonadicContinuationsLifted(@buslane.Program)
-  CoreOptimized(@buslane.Program)
   EffectsErased(@buslane.Program)
 }
 
@@ -54,7 +54,18 @@ fn elaborate_or_raise(
   }
   require_verified("effect specialization", program)
   observe(EffectSpecialized(program))
-  let lowered = lower_effects(program, entry.value, observe)
+  let initializer_roots = collect_reachable_initializer_roots(
+    program,
+    entry.value,
+  )
+  let program = match
+    @core_opt.optimize({ program, entry: entry.value, roots: initializer_roots }) {
+    Ok(program) => program
+    Err(error) => raise CoreOptimizationError(error)
+  }
+  require_verified("core optimization", program)
+  observe(CoreOptimized(program))
+  let lowered = lower_effects(program, observe)
   let program = lowered.program
   let initializers = collect_top_level_initializers(program)
   let execution_roots = initializers.mapi((index, _) => Initializer(index))
@@ -90,7 +101,6 @@ priv struct LoweredEffects {
 ///|
 fn lower_effects(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> LoweredEffects raise ExecutableElaborationError {
   let elaborated = @effect_lowering_core.elaborate_handlers(program)
@@ -116,15 +126,7 @@ fn lower_effects(
   )
   require_verified("monadic-lift", lifted)
   observe(MonadicContinuationsLifted(lifted))
-  let initializer_roots = collect_reachable_initializer_roots(lifted, entry)
-  let optimized = match
-    @core_opt.optimize({ program: lifted, entry, roots: initializer_roots }) {
-    Ok(program) => program
-    Err(error) => raise CoreOptimizationError(error)
-  }
-  require_verified("core optimization", optimized)
-  observe(CoreOptimized(optimized))
-  let erased = @effect_lowering_core.erase_residual_effects(optimized)
+  let erased = @effect_lowering_core.erase_residual_effects(lifted)
   require_verified("residual-effect erasure", erased)
   observe(EffectsErased(erased))
   { program: erased, effect_companions: transformed.effect_companions }

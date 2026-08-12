@@ -9,14 +9,37 @@ import {
 // Values
 pub fn optimize(CoreOptimizeRequest) -> Result[@buslane.Program, CoreOptimizeError]
 
+pub fn optimize_observed(CoreOptimizeRequest, (CoreOptimizationObservation) -> Unit) -> Result[@buslane.Program, CoreOptimizeError]
+
 // Errors
 pub(all) suberror CoreOptimizeError {
   UnknownRoot(@buslane.ValueId)
+  ApplicationArityCompilerDefect(expected~ : Int, actual~ : Int)
+  MissingApplicationParameterMetadataCompilerDefect(@buslane.ValueId)
+  ExpressionFactsCompilerDefect(@buslane.VerifyResult)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum ApplicationReductionRejection {
+  Recursive
+  ResourceBudget
+  Profitability
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ApplicationReductionSite {
+  DirectFunction
+  KnownCallable(@buslane.ValueId)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CoreOptimizationObservation {
+  ApplicationConsidered(ApplicationReductionSite)
+  ApplicationAccepted(site~ : ApplicationReductionSite, empty_arguments~ : Int, materialized_arguments~ : Int)
+  ApplicationRejected(ApplicationReductionSite, ApplicationReductionRejection)
+  ProgramChanged(net_calls_removed~ : Int, net_top_terms_removed~ : Int)
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CoreOptimizeRequest {
   program : @buslane.Program
   entry : @buslane.ValueId

@@ -9,13 +9,16 @@ fn simplify_program(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
+  observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
   let preserved_roots = roots.copy()
   preserved_roots.push(entry)
   let mut current = program
   for _ in 0..<4 {
     let analysis = analyze_core(current)
-    let next = simplify_program_once(current, analysis, preserved_roots)
+    let next = simplify_program_once(
+      current, analysis, preserved_roots, observe,
+    )
     if next.terms == current.terms {
       return next
     }
@@ -29,6 +32,7 @@ fn simplify_program_once(
   program : @buslane.Program,
   analysis : CoreAnalysis,
   preserved_roots : Array[@buslane.ValueId],
+  observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
   let facts = @buslane.ExpressionFactsQuery::new(program)
   let substitutions = collect_top_aliases(program, preserved_roots)
@@ -40,7 +44,7 @@ fn simplify_program_once(
         terms.push(
           @buslane.TopTerm::Let(
             value,
-            simplify_expr(program, facts, analysis, substitutions, rhs),
+            simplify_expr(program, facts, analysis, substitutions, rhs, observe),
           ),
         )
       LetRec(bindings) =>
@@ -54,6 +58,7 @@ fn simplify_program_once(
                 analysis,
                 substitutions,
                 binding.rhs,
+                observe,
               ),
             }),
           ),
@@ -106,6 +111,7 @@ fn simplify_expr(
   analysis : CoreAnalysis,
   substitutions : Array[ValueSubstitution],
   expression : @buslane.Expr,
+  observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Expr raise CoreOptimizeError {
   match expression {
     Ref(value) => substitutions.resolve_ref(value)
@@ -119,38 +125,45 @@ fn simplify_expr(
           analysis,
           substitutions,
           function.body,
+          observe,
         ),
       })
     Call(callee, arguments) => {
       let callee = simplify_expr(
-        program, facts, analysis, substitutions, callee,
+        program, facts, analysis, substitutions, callee, observe,
       )
       let arguments = arguments.map(argument => {
-        simplify_expr(program, facts, analysis, substitutions, argument)
+        simplify_expr(
+          program, facts, analysis, substitutions, argument, observe,
+        )
       })
-      simplify_call(program, facts, analysis, substitutions, callee, arguments)
+      simplify_call(
+        program, facts, analysis, substitutions, callee, arguments, observe,
+      )
     }
     TypeLambda(parameters, body) =>
       TypeLambda(
         parameters,
-        simplify_expr(program, facts, analysis, substitutions, body),
+        simplify_expr(program, facts, analysis, substitutions, body, observe),
       )
     TypeApply(callee, arguments) =>
       TypeApply(
-        simplify_expr(program, facts, analysis, substitutions, callee),
+        simplify_expr(program, facts, analysis, substitutions, callee, observe),
         arguments,
       )
     Construct(construct) =>
       Construct({
         ..construct,
         payloads: construct.payloads.map(payload => {
-          simplify_expr(program, facts, analysis, substitutions, payload)
+          simplify_expr(
+            program, facts, analysis, substitutions, payload, observe,
+          )
         }),
       })
     Let(value, initializer, body) => {
       let original_initializer = initializer
       let initializer = simplify_expr(
-        program, facts, analysis, substitutions, initializer,
+        program, facts, analysis, substitutions, initializer, observe,
       )
       let can_substitute = match initializer {
         Ref(target) => compatible_alias(program, value, target)
@@ -160,9 +173,11 @@ fn simplify_expr(
       if can_substitute {
         let nested = substitutions.copy()
         nested.push({ value, replacement: initializer })
-        simplify_expr(program, facts, analysis, nested, body)
+        simplify_expr(program, facts, analysis, nested, body, observe)
       } else {
-        let body = simplify_expr(program, facts, analysis, substitutions, body)
+        let body = simplify_expr(
+          program, facts, analysis, substitutions, body, observe,
+        )
         if count_value_uses(body, value) == 0 &&
           expression_has_empty_effect(facts, original_initializer) {
           body
@@ -181,9 +196,10 @@ fn simplify_expr(
             analysis,
             substitutions,
             binding.rhs,
+            observe,
           ),
         }),
-        simplify_expr(program, facts, analysis, substitutions, body),
+        simplify_expr(program, facts, analysis, substitutions, body, observe),
       )
     Match(match_) => {
       let scrutinee = simplify_expr(
@@ -192,6 +208,7 @@ fn simplify_expr(
         analysis,
         substitutions,
         match_.scrutinee,
+        observe,
       )
       let alternatives = match_.alternatives.map(alternative => {
         ..alternative,
@@ -201,12 +218,15 @@ fn simplify_expr(
           analysis,
           substitutions,
           alternative.body,
+          observe,
         ),
       })
       let rewritten = @buslane.Expr::Match({ ..match_, scrutinee, alternatives })
       match known_match_reduction(facts, analysis, rewritten) {
         Some(reduced) =>
-          simplify_expr(program, facts, analysis, substitutions, reduced)
+          simplify_expr(
+            program, facts, analysis, substitutions, reduced, observe,
+          )
         None => rewritten
       }
     }
@@ -214,7 +234,9 @@ fn simplify_expr(
       Perform({
         ..perform,
         payloads: perform.payloads.map(payload => {
-          simplify_expr(program, facts, analysis, substitutions, payload)
+          simplify_expr(
+            program, facts, analysis, substitutions, payload, observe,
+          )
         }),
       })
     Handle(handle) =>
@@ -226,6 +248,7 @@ fn simplify_expr(
           analysis,
           substitutions,
           handle.body,
+          observe,
         ),
         final_body: simplify_expr(
           program,
@@ -233,6 +256,7 @@ fn simplify_expr(
           analysis,
           substitutions,
           handle.final_body,
+          observe,
         ),
         handlers: handle.handlers.map(table => {
           ..table,
@@ -244,6 +268,7 @@ fn simplify_expr(
               analysis,
               substitutions,
               operation.body,
+              observe,
             ),
           }),
         }),
@@ -260,25 +285,39 @@ fn simplify_call(
   substitutions : Array[ValueSubstitution],
   callee : @buslane.Expr,
   arguments : Array[@buslane.Expr],
+  observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Expr raise CoreOptimizeError {
-  guard callee is Function(function) &&
-    function.parameters.length() == arguments.length() &&
-    arguments.all(is_substitutable_atom) else {
-    return Call(callee, arguments)
+  guard callee is Function(function) else { return Call(callee, arguments) }
+  let site = ApplicationReductionSite::DirectFunction
+  observe(ApplicationConsidered(site))
+  let original = @buslane.Expr::Call(callee, arguments)
+  let nested_observations : Array[CoreOptimizationObservation] = []
+  let reduced = reduce_application(
+    program,
+    facts,
+    analysis,
+    substitutions,
+    function.parameters,
+    arguments,
+    function.body,
+    observation => nested_observations.push(observation),
+  )
+  if application_reduction_is_profitable(original, reduced.expression, analysis) {
+    for observation in nested_observations {
+      observe(observation)
+    }
+    observe(
+      ApplicationAccepted(
+        site~,
+        empty_arguments=reduced.empty_argument_count,
+        materialized_arguments=reduced.materialized_argument_count,
+      ),
+    )
+    reduced.expression
+  } else {
+    observe(ApplicationRejected(site, Profitability))
+    original
   }
-  let nested = substitutions.copy()
-  for index in 0..<arguments.length() {
-    nested.push({
-      value: function.parameters[index],
-      replacement: arguments[index],
-    })
-  }
-  simplify_expr(program, facts, analysis, nested, function.body)
-}
-
-///|
-fn is_substitutable_atom(expression : @buslane.Expr) -> Bool {
-  expression is Ref(_) || expression is Literal(_)
 }
 
 ///|
@@ -345,7 +384,7 @@ fn known_match_reduction(
   facts : @buslane.ExpressionFactsQuery,
   analysis : CoreAnalysis,
   expression : @buslane.Expr,
-) -> @buslane.Expr? {
+) -> @buslane.Expr? raise CoreOptimizeError {
   guard expression is Match(match_) else { return None }
   match match_.scrutinee {
     Construct(construct) => reduce_constructor_match(match_, construct)
