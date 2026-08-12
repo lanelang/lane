@@ -19,6 +19,6 @@ import {
   "Milky2018/loisvm@0.1.0",
   "gmlewis/jsonrpc2@0.0.34",
   "moonbit-community/prettyprinter@0.4.10",
-  "moonbitlang/async@0.20.4",
+  "moonbitlang/async@0.20.5",
   "moonbitlang/x@0.4.49",
 }
