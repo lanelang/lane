@@ -8,18 +8,11 @@ These files are conformance fixtures for the parser, resolver, type checker, ela
 
 The examples follow the language specification rather than the current implementation. Rejecting a `valid` example or accepting an `invalid` example is an implementation discrepancy unless the specification changes.
 
-The complete repository integration gate builds one release executable and
-runs both the examples and LSP CLI checks against it:
+Initialize the pinned Basic fixture, build one release executable, and pass it
+to the examples checker:
 
 ```sh
 git submodule update --init --checkout basic
-tools/check-lane-integration.sh
-```
-
-To run only the examples checker, build the executable explicitly and pass its
-path:
-
-```sh
 moon build --target native --release modules/lane
 tools/check-lane-run-examples.sh \
   "$PWD/_build/native/release/build/Milky2018/lane/lane.exe"

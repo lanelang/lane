@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   native:
-    name: Native compiler and integration
+    name: Native compiler and examples
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -45,5 +45,10 @@ jobs:
       - name: Test
         run: moon test --target native
 
-      - name: Check Lane integration (includes examples)
-        run: tools/check-lane-integration.sh
+      - name: Build Lane executable
+        run: moon build --target native --release modules/lane
+
+      - name: Check examples
+        run: |
+          tools/check-lane-run-examples.sh \
+            "$PWD/_build/native/release/build/Milky2018/lane/lane.exe"

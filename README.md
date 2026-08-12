@@ -20,14 +20,14 @@ Run the workspace checks from the repository root:
 moon check --target native --warn-list +73
 moon fmt --check
 moon test --target native
-tools/check-lane-integration.sh
+moon build --target native --release modules/lane
+tools/check-lane-run-examples.sh \
+  "$PWD/_build/native/release/build/Milky2018/lane/lane.exe"
 ```
 
-The integration gate builds `lane.exe` once, then runs the examples/Basic and
-LSP CLI checkers against that exact executable. The two checkers can also be
-run independently by passing an existing `lane.exe` path to
-`tools/check-lane-run-examples.sh` or `tools/check-lane-lsp-cli.sh`.
+The final two commands build one release `lane.exe` and run the examples and
+pinned Basic fixture against that exact executable.
 
 The repository CI initializes the pinned `basic` submodule recursively. Do not
-set `LANE_HOME` or `LANE_SMOKE_BIN` globally for these checks; the integration
-gate supplies both values only to the examples checker process.
+set `LANE_HOME` or `LANE_SMOKE_BIN` globally for these checks; the examples
+checker supplies both values only to its child process.

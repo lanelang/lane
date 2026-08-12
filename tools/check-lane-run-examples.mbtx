@@ -193,9 +193,13 @@ fn fail_missing_basic(reason : String) -> Unit {
   println("FAILED lane example fixture setup")
   println("  reason: " + reason)
   println("  Lane examples need the Basic library at LANE_HOME/basic.")
-  println("  Initialize the pinned fixture and run the repository gate:")
+  println("  Initialize the pinned fixture, build Lane, and run the examples:")
   println("    git submodule update --init --checkout basic")
-  println("    tools/check-lane-integration.sh")
+  println("    moon build --target native --release modules/lane")
+  println(
+    "    tools/check-lane-run-examples.sh " +
+    "\"$PWD/_build/native/release/build/Milky2018/lane/lane.exe\"",
+  )
   @sys.exit(1)
 }
 
