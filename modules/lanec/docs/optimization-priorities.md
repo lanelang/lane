@@ -233,6 +233,12 @@ costs to calls, branches, and allocations. It cannot see that a small Core
 expression may generate multiple closures, layout witnesses, ARC operations,
 or thousands of Wasm instructions.
 
+The semantic refactor that broadens inlining from atom-only substitution to
+effect-directed application reduction is specified separately in
+[Effect-directed application reduction and inlining](effect-directed-inlining-rfc.md).
+That refactor keeps semantic eligibility independent from the profitability
+model described here.
+
 Replace arbitrary source-only weights with a stable structural estimate derived
 from lowering facts. The estimate should account for:
 

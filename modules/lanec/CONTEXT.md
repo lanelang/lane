@@ -193,6 +193,12 @@ Optimization over lowered Buslane while residual effects still describe
 observable behavior.
 _Avoid_: effect-blind DCE, bytecode optimization
 
+**Effect-Directed Application Reduction**:
+The Core optimization operation that reduces one materialized application by
+substituting `Empty` arguments and binding nonempty arguments once in observable
+order.
+_Avoid_: atom-only beta reduction, effect-name special case, local ANF copy
+
 **Residual Effect Erasure**:
 The final removal of non-monadic residual effect information after effect-aware
 optimization.
