@@ -1,0 +1,225 @@
+module Examples.Valid.DataTypesALaCarte
+
+import Basic.Io.{ println }
+import Basic.Ops.*
+import Basic.Data.I64.*
+
+enum Fix[F : [Type] -> Type] {
+  roll(F[Fix[F]])
+}
+
+enum SumF[F : [Type] -> Type, G : [Type] -> Type, A] {
+  left(F[A])
+  right(G[A])
+}
+
+enum LiteralF[_A] {
+  literal(I64)
+}
+
+enum AddF[A] {
+  add(A, A)
+}
+
+enum MultiplyF[A] {
+  multiply(A, A)
+}
+
+struct Functor[F : [Type] -> Type] {
+  map : [A, B]((A) -> B, F[A]) -> F[B]
+}
+
+struct Inject[Fragment : [Type] -> Type, Signature : [Type] -> Type] {
+  inject : [A](Fragment[A]) -> Signature[A]
+}
+
+fn[A, B] literal_map(_transform : (A) -> B, layer : LiteralF[A]) -> LiteralF[B] {
+  match layer {
+    literal(value) => literal(value)
+  }
+}
+
+fn[A, B] add_map(transform : (A) -> B, layer : AddF[A]) -> AddF[B] {
+  match layer {
+    add(left, right) => add(transform(left), transform(right))
+  }
+}
+
+fn[A, B] multiply_map(transform : (A) -> B, layer : MultiplyF[A]) -> MultiplyF[B] {
+  match layer {
+    multiply(left, right) => multiply(transform(left), transform(right))
+  }
+}
+
+let literal_functor : Functor[LiteralF] = Functor::{ map: literal_map }
+
+let add_functor : Functor[AddF] = Functor::{ map: add_map }
+
+let multiply_functor : Functor[MultiplyF] = Functor::{ map: multiply_map }
+
+fn[F : [Type] -> Type, G : [Type] -> Type] sum_functor(
+  left_functor : Functor[F],
+  right_functor : Functor[G]
+) -> Functor[type[A] => SumF[F, G, A]] {
+  Functor::{
+    map: fn[A, B](transform, layer) {
+      match layer {
+        left(value) => SumF::left(left_functor.map(transform, value))
+        right(value) => SumF::right(right_functor.map(transform, value))
+      }
+    }
+  }
+}
+
+fn[F : [Type] -> Type, A] cata(functor : Functor[F], algebra : (F[A]) -> A, term : Fix[F]) -> A {
+  match term {
+    roll(layer) => algebra(
+      functor.map(
+        fn(child) {
+          cata(functor, algebra, child)
+        },
+        layer
+      )
+    )
+  }
+}
+
+fn[Fragment : [Type] -> Type, Signature : [Type] -> Type] inject_fix(
+  injection : Inject[Fragment, Signature],
+  layer : Fragment[Fix[Signature]]
+) -> Fix[Signature] {
+  Fix::roll(injection.inject(layer))
+}
+
+fn[Signature : [Type] -> Type] literal_expr(
+  injection : Inject[LiteralF, Signature],
+  value : I64
+) -> Fix[Signature] {
+  inject_fix(injection, LiteralF::literal(value))
+}
+
+fn[Signature : [Type] -> Type] add_expr(
+  injection : Inject[AddF, Signature],
+  left : Fix[Signature],
+  right : Fix[Signature]
+) -> Fix[Signature] {
+  inject_fix(injection, AddF::add(left, right))
+}
+
+fn[Signature : [Type] -> Type] multiply_expr(
+  injection : Inject[MultiplyF, Signature],
+  left : Fix[Signature],
+  right : Fix[Signature]
+) -> Fix[Signature] {
+  inject_fix(injection, MultiplyF::multiply(left, right))
+}
+
+fn literal_algebra(layer : LiteralF[I64]) -> I64 {
+  match layer {
+    literal(value) => value
+  }
+}
+
+fn add_algebra(layer : AddF[I64]) -> I64 {
+  match layer {
+    add(left, right) => left + right
+  }
+}
+
+fn multiply_algebra(layer : MultiplyF[I64]) -> I64 {
+  match layer {
+    multiply(left, right) => left * right
+  }
+}
+
+fn[F : [Type] -> Type, G : [Type] -> Type, A] sum_algebra(
+  left_algebra : (F[A]) -> A,
+  right_algebra : (G[A]) -> A
+) -> (SumF[F, G, A]) -> A {
+  fn(layer) {
+    match layer {
+      left(value) => left_algebra(value)
+      right(value) => right_algebra(value)
+    }
+  }
+}
+
+type Arithmetic : [Type] -> Type = type[A] => SumF[LiteralF, AddF, A]
+
+let arithmetic_functor : Functor[Arithmetic] = sum_functor(literal_functor, add_functor)
+
+let arithmetic_literal : Inject[LiteralF, Arithmetic] = Inject::{
+  inject: fn[A](layer) {
+    SumF::left(layer)
+  }
+}
+
+let arithmetic_add : Inject[AddF, Arithmetic] = Inject::{
+  inject: fn[A](layer) {
+    SumF::right(layer)
+  }
+}
+
+let arithmetic : Fix[Arithmetic] =
+  add_expr(
+    arithmetic_add,
+    literal_expr(arithmetic_literal, 20),
+    literal_expr(arithmetic_literal, 22)
+  )
+
+let arithmetic_value : I64 =
+  cata(arithmetic_functor, sum_algebra(literal_algebra, add_algebra), arithmetic)
+
+type AddMultiply : [Type] -> Type = type[A] => SumF[AddF, MultiplyF, A]
+
+type ExtendedArithmetic : [Type] -> Type = type[A] => SumF[LiteralF, AddMultiply, A]
+
+let add_multiply_functor : Functor[AddMultiply] = sum_functor(add_functor, multiply_functor)
+
+let extended_functor : Functor[ExtendedArithmetic] =
+  sum_functor(literal_functor, add_multiply_functor)
+
+let extended_literal : Inject[LiteralF, ExtendedArithmetic] = Inject::{
+  inject: fn[A](layer) {
+    SumF::left(layer)
+  }
+}
+
+let extended_add : Inject[AddF, ExtendedArithmetic] = Inject::{
+  inject: fn[A](layer) {
+    SumF::right(SumF::left(layer))
+  }
+}
+
+let extended_multiply : Inject[MultiplyF, ExtendedArithmetic] = Inject::{
+  inject: fn[A](layer) {
+    SumF::right(SumF::right(layer))
+  }
+}
+
+let extended : Fix[ExtendedArithmetic] =
+  multiply_expr(
+    extended_multiply,
+    add_expr(extended_add, literal_expr(extended_literal, 20), literal_expr(extended_literal, 1)),
+    literal_expr(extended_literal, 2)
+  )
+
+let add_multiply_algebra : (AddMultiply[I64]) -> I64 =
+  sum_algebra[AddF, MultiplyF, I64](add_algebra, multiply_algebra)
+
+let extended_algebra : (ExtendedArithmetic[I64]) -> I64 =
+  sum_algebra[LiteralF, AddMultiply, I64](literal_algebra, add_multiply_algebra)
+
+let extended_value : I64 = cata(extended_functor, extended_algebra, extended)
+
+pub fn answer() -> Unit ! Io {
+  if arithmetic_value == 42 {
+    if extended_value == 42 {
+      println("data types a la carte=42")
+    } else {
+      println("data types a la carte failed")
+    }
+  } else {
+    println("data types a la carte failed")
+  }
+}

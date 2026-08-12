@@ -1889,6 +1889,15 @@
       }
     },
     {
+      "name": "94 data types a la carte",
+      "file": "examples/valid/94_data_types_a_la_carte.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "data types a la carte=42"
+      }
+    },
+    {
       "name": "invalid 84 initialization cycle",
       "file": "examples/invalid/84_initialization_cycle.lane",
       "mode": "check-error",
