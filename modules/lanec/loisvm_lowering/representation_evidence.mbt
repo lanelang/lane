@@ -148,7 +148,7 @@ fn ImageLowerer::plan_layout_constructor(
   let parameter_kinds = parameters.map(parameter => {
     match self.metadata.type_parameter_info(parameter) {
       Some(info) => info.kind
-      None => @buslane.Kind::Type
+      None => Type
     }
   })
   let (_, plan) = self.plans.append_with_result(LayoutConstructor, fn(

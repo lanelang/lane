@@ -19,10 +19,7 @@ test "finalize rejects an invalid complete bytecode image" {
     }),
     Err(
       BytecodeVerificationCompilerDefect(
-        @bytecode.BytecodeVerificationError::InvalidBytecode(
-          site=Image,
-          detail="FunctionId 2 is out of range",
-        ),
+        InvalidBytecode(site=Image, detail="FunctionId 2 is out of range"),
       ),
     ),
   )

@@ -359,9 +359,9 @@ fn BytecodeVerifier::require_object_layout_witness(
   witness : SlotId,
   shape : ObjectShapeId,
 ) -> Unit raise BytecodeVerificationError {
-  let expected = match self.image.object_shapes[shape.value] {
-    Data(_) => LayoutRecipe::Data(shape)
-    Environment(_) => LayoutRecipe::Environment(shape)
+  let expected : LayoutRecipe = match self.image.object_shapes[shape.value] {
+    Data(_) => Data(shape)
+    Environment(_) => Environment(shape)
   }
   match state.layout_recipes[witness.value] {
     Some(actual) if actual == expected => ()

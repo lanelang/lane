@@ -7,13 +7,9 @@ test "panic intrinsic owns its exact Panic signature" {
       Intrinsic::Panic.signature(),
     ),
     (
-      Some(Intrinsic::Panic),
+      Some(Panic),
       "%panic",
-      Function(
-        parameters=[IntrinsicValueKind::String],
-        result=IntrinsicValueKind::Unit,
-        effect=BuiltinPanic,
-      ),
+      Function(parameters=[String], result=Unit, effect=BuiltinPanic),
     ),
   )
 }

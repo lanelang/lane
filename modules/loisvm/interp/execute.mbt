@@ -62,7 +62,7 @@ pub fn ExecutionInstance::execute(
   } catch {
     FatalExecution(message~) => Err(@runtime.ExecutionError::Fatal(message~))
     ImportFailure(symbol~, message~) =>
-      Err(@runtime.ExecutionError::RuntimeImportFailure(symbol~, message~))
+      Err(RuntimeImportFailure(symbol~, message~))
     ResourceLimit(kind) => Err(ExecutionResourceLimit(kind~))
     InterruptedExecution => {
       should_cleanup = false

@@ -332,7 +332,7 @@ fn ImageLowerer::runtime_evidence_metadata(
 ) -> @vmcfg.ValueMetadata raise LoisvmLoweringError {
   let kind = match self.metadata.type_parameter_info(parameter) {
     Some(info) => info.kind
-    None if parameter.index < 0 => @buslane.Kind::Type
+    None if parameter.index < 0 => Type
     None => raise UnsupportedType(type_=Parameter(parameter))
   }
   match kind {

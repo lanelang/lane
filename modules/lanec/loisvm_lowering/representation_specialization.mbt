@@ -58,7 +58,7 @@ fn ImageLowerer::plan_representation_specializations(
             self.collect_representation_seeds(
               definitions,
               seeds,
-              @anf.AnfExpr::Atom(binding.rhs),
+              Atom(binding.rhs),
             )
           }
         }
@@ -154,11 +154,7 @@ fn ImageLowerer::collect_representation_seeds(
   seeds : Array[Array[RepresentationDemand]],
   expression : @anf.AnfExpr,
 ) -> Unit raise LoisvmLoweringError {
-  for
-    call in collect_direct_generic_calls(
-      expression,
-      @buslane.TypeSubstitution::TypeSubstitution(),
-    ) {
+  for call in collect_direct_generic_calls(expression, TypeSubstitution()) {
     if self.representation_demand(definitions, call) is Some(demand) {
       push_representation_demand(seeds[demand.definition], demand)
     }
@@ -379,7 +375,7 @@ fn generic_call_adjacency(
     for
       call in collect_direct_generic_calls(
         definitions[index].function.body,
-        @buslane.TypeSubstitution::TypeSubstitution(),
+        TypeSubstitution(),
       ) {
       if find_generic_definition(definitions, call.target) is Some(target) &&
         !adjacent.contains(target) {
@@ -480,7 +476,7 @@ fn ImageLowerer::representation_specialization_key(
     guard arguments[index] is TypeArgument(argument) else { return None }
     let kind = match self.metadata.type_parameter_info(parameter) {
       Some(info) => info.kind
-      None if parameter.index < 0 => @buslane.Kind::Type
+      None if parameter.index < 0 => Type
       None => return None
     }
     match kind {
@@ -535,10 +531,7 @@ fn ImageLowerer::canonical_runtime_type_key(
   self : ImageLowerer,
   type_ : @buslane.Type,
 ) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
-  self.canonical_runtime_type_key_under(
-    type_,
-    @buslane.TypeSubstitution::TypeSubstitution(),
-  )
+  self.canonical_runtime_type_key_under(type_, TypeSubstitution())
 }
 
 ///|
@@ -579,10 +572,7 @@ fn ImageLowerer::canonical_callable_abi(
   self : ImageLowerer,
   type_ : @buslane.Type,
 ) -> CanonicalCallableAbi raise LoisvmLoweringError {
-  self.canonical_callable_abi_under(
-    type_,
-    @buslane.TypeSubstitution::TypeSubstitution(),
-  )
+  self.canonical_callable_abi_under(type_, TypeSubstitution())
 }
 
 ///|

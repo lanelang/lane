@@ -149,8 +149,8 @@ fn replace_top_definition(
   let terms = program.terms.map(term => {
     match term {
       Let(id, _) if id == value => @buslane.TopTerm::Let(id, replacement)
-      LetRec(bindings) =>
-        @buslane.TopTerm::LetRec(
+      LetRec(bindings) => {
+        let rewritten : @buslane.TopTerm = LetRec(
           bindings.map(binding => {
             if binding.id == value {
               { ..binding, rhs: replacement }
@@ -159,6 +159,8 @@ fn replace_top_definition(
             }
           }),
         )
+        rewritten
+      }
       _ => term
     }
   })

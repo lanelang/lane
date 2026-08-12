@@ -44,8 +44,8 @@ fn ImageLowerer::intern_object_shape(
   ignore(
     self.intern_layout(
       match shape {
-        Data(_) => @bytecode.LayoutRecipe::Data(id)
-        Environment(_) => @bytecode.LayoutRecipe::Environment(id)
+        Data(_) => Data(id)
+        Environment(_) => Environment(id)
       },
     ),
   )

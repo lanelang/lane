@@ -3318,7 +3318,7 @@ test "runtime-ABI-identical callable adaptation needs no adapter" {
     source,
     source_type,
     target_type,
-    @buslane.TypeSubstitution::TypeSubstitution(),
+    TypeSubstitution(),
   )
   guard adapted is Slot(adapted_source, adapted_type) else {
     fail("expected the original callable slot")
@@ -3361,7 +3361,7 @@ test "equal-width callable values do not bypass semantic alignment" {
       source,
       source_type,
       target_type,
-      @buslane.TypeSubstitution::TypeSubstitution(),
+      TypeSubstitution(),
     ),
   ) catch {
     error => Err(error)

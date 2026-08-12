@@ -297,8 +297,8 @@ test "initializer orchestration is bounded by peak live owned results" {
               value: consume,
               symbol: "lane.test.consume_many",
               signature: {
-                parameters: Array::make(count, @abi.ValueKind::String),
-                result: @abi.ValueKind::Unit,
+                parameters: Array::make(count, String),
+                result: Unit,
               },
               type_: consume_type,
             },

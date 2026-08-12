@@ -443,10 +443,10 @@ test "function, layout, shape, and constant tables roundtrip" {
           {
             representation: I32,
             cleanup: OwnedRef,
-            kind: @bytecode.DataValue({ value: 0 }),
+            kind: DataValue({ value: 0 }),
           },
         ],
-        result: Value(I32, OwnedRef, @bytecode.DataValue({ value: 0 })),
+        result: Value(I32, OwnedRef, DataValue({ value: 0 })),
       },
     ],
     data_family_count: 1,

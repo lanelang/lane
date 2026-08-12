@@ -236,9 +236,9 @@ fn BytecodeVerifier::object_layout_id(
   site : BytecodeVerificationSite,
   shape : ObjectShapeId,
 ) -> LayoutId raise BytecodeVerificationError {
-  let expected = match self.object_shape(site, shape) {
-    Data(_) => LayoutRecipe::Data(shape)
-    Environment(_) => LayoutRecipe::Environment(shape)
+  let expected : LayoutRecipe = match self.object_shape(site, shape) {
+    Data(_) => Data(shape)
+    Environment(_) => Environment(shape)
   }
   for index, layout in self.image.layouts {
     if layout == expected {

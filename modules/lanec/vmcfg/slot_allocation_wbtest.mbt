@@ -11,7 +11,7 @@ test "physical slot plan follows peak compatible VM CFG liveness" {
     verify_arc_final_body({
       values: [scalar, scalar, scalar, scalar],
       inputs: { environment: None, witnesses: [], user_parameters: [] },
-      result: @bytecode.Value(I64, Trivial, ScalarValue),
+      result: Value(I64, Trivial, ScalarValue),
       blocks: [
         {
           parameters: [],
@@ -73,7 +73,7 @@ test "ARC-final boundary rejects an active value without a definition" {
     verify_arc_final_body({
       values: [scalar],
       inputs: { environment: None, witnesses: [], user_parameters: [] },
-      result: @bytecode.Value(I64, Trivial, ScalarValue),
+      result: Value(I64, Trivial, ScalarValue),
       blocks: [
         {
           parameters: [],
@@ -112,7 +112,7 @@ test "physical slot plan preserves simultaneous VM CFG definitions" {
         witnesses: [],
         user_parameters: [{ value: 0 }, { value: 1 }],
       },
-      result: @bytecode.Unit,
+      result: Unit,
       blocks: [
         {
           parameters: [],
@@ -175,7 +175,7 @@ test "physical slot plan consumes ARC-final VM CFG values" {
       witnesses: [],
       user_parameters: [{ value: 0 }],
     },
-    result: @bytecode.Unit,
+    result: Unit,
     blocks: [
       {
         parameters: [],
