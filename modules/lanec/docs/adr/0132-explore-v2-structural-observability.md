@@ -14,12 +14,21 @@ start at zero, while VM CFG and bytecode identities are their one-based
 `FunctionId` values. Consumers must treat these as opaque within the named
 stage, not as cross-stage arithmetic.
 
+Tree-shaped Buslane and effect-lowering IRs do not assign function identities.
+Those stages therefore publish aggregate function, node, and call metrics but
+no per-function scale observations. A traversal ordinal is not an identity.
+Publishing per-function scale for one of these stages requires its
+transformation owner to produce an identity sidecar in the same operation that
+constructs the observed IR.
+
 The report-level function graph contains typed nodes and explicit directed
 edges. ANF function identities are assigned when ANF functions are constructed.
 LoisVM function-table canonicalization remaps body origins and merges every
 origin of a deduplicated runtime import. VM CFG finalization preserves that
-canonical order. The Wasm compiler records imports and definitions at its sole
-function-emission boundary. A bytecode-backed Wasm body, physical runtime
+canonical identity sidecar, and both VM CFG and bytecode metrics consume it.
+The Wasm compiler records imports and definitions at its sole function-emission
+boundary and derives function scale from the same sidecar. A bytecode-backed
+Wasm body, physical runtime
 import, or runtime-import adapter carries its actual bytecode `FunctionId`;
 compiler-generated functions carry closed runtime or helper roles.
 

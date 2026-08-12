@@ -51,7 +51,7 @@ fn explore_stage_scale(
 }
 
 ///|
-test "explore protocol v3 exposes all eighteen ordered completed stages" {
+test "explore protocol v4 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -74,7 +74,7 @@ test "explore protocol v3 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  3,
+      #|  4,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -1000,7 +1000,7 @@ test "explore traces a named function and preserves synthetic roots" {
     ),
     content=(
       #|(
-      #|  3,
+      #|  4,
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },
@@ -1019,6 +1019,65 @@ test "explore traces a named function and preserves synthetic roots" {
       #|  [{ function: { stage: Wasm, index: 24 }, roles: [EntryWrapper] }],
       #|  false,
       #|)
+    ),
+  )
+}
+
+///|
+test "every Explore function scale consumes an IR-owned identity" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|let observe : (I64) -> Unit ! Io = extern("observe")
+        #|fn apply(f : (I64) -> I64, value : I64) -> I64 { f(value) }
+        #|pub fn main() -> Unit ! Io {
+        #|  observe(apply(fn(value) { value }, 42))
+        #|}
+      ),
+    ),
+  )
+  let missing = []
+  for stage in report.stages.ordered() {
+    guard stage.state is Completed(snapshot) else { continue }
+    for function in snapshot.scale.functions {
+      if !report.functions.nodes.any(node => {
+          node.function.stage.key() == stage.id &&
+          node.function.index == function.index
+        }) {
+        missing.push((stage.id, function.index))
+      }
+    }
+  }
+  debug_inspect(missing, content="[]")
+  let identityless_stages = [
+    "buslane.module", "buslane.linked", "buslane.effect-specialized", "buslane.core-optimized",
+    "buslane.handlers-elaborated", "buslane.monadic", "buslane.selective-cps", "buslane.open-context-resolved",
+    "buslane.monadic-lifted", "buslane.effects-erased", "executable",
+  ]
+  let identityless_function_scales = report.stages
+    .ordered()
+    .filter_map(stage => {
+      guard identityless_stages.contains(stage.id) else { return None }
+      guard stage.state is Completed(snapshot) else { return None }
+      Some((stage.id, snapshot.scale.functions))
+    })
+  debug_inspect(
+    identityless_function_scales,
+    content=(
+      #|[
+      #|  ("buslane.module", []),
+      #|  ("buslane.linked", []),
+      #|  ("buslane.effect-specialized", []),
+      #|  ("buslane.core-optimized", []),
+      #|  ("buslane.handlers-elaborated", []),
+      #|  ("buslane.monadic", []),
+      #|  ("buslane.selective-cps", []),
+      #|  ("buslane.open-context-resolved", []),
+      #|  ("buslane.monadic-lifted", []),
+      #|  ("buslane.effects-erased", []),
+      #|  ("executable", []),
+      #|]
     ),
   )
 }

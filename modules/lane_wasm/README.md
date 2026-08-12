@@ -33,7 +33,7 @@ Exploration adds the selected entry:
 }
 ```
 
-Call the exported `explore()` function. A valid Explore Protocol v3 response contains `schemaVersion`, `compiler`, `root`, optional `selectedEntry`, typed `status`, `diagnostics`, all eighteen ordered `stages`, and a report-level `functions` graph. Each completed stage includes `domain`, `format`, `text`, `diagnostics`, ordered `metrics`, and stage-local function scale observations. The graph contains typed nodes and explicit cross-stage edges; clients must not reconstruct lineage from numeric offsets or rendered text. A failed report identifies its failed stage in `status.stage`, preserves earlier completed stages and graph facts, and marks every later stage unavailable. The protocol has no fallback failure string.
+Call the exported `explore()` function. A valid Explore Protocol v4 response contains `schemaVersion`, `compiler`, `root`, optional `selectedEntry`, typed `status`, `diagnostics`, all eighteen ordered `stages`, and a report-level `functions` graph. Each completed stage includes `domain`, `format`, `text`, `diagnostics`, ordered `metrics`, and stage-local function scale observations where the IR owner assigns function identities. Identity-less tree stages publish aggregate metrics only. The graph contains typed nodes and explicit cross-stage edges; clients must not reconstruct lineage from numeric offsets or rendered text. A failed report identifies its failed stage in `status.stage`, preserves earlier completed stages and graph facts, and marks every later stage unavailable. The protocol has no fallback failure string.
 
 ## Streaming ABI
 

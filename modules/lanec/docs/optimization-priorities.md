@@ -99,11 +99,13 @@ instructions.
 Optimization work needs a deterministic, machine-readable feedback loop before
 the numbers above become targets.
 
-Explore Protocol v3 retains the structural observability introduced in v2 and
+Explore Protocol v4 retains the structural observability introduced in v2 and
 now delivers the first two requirements below: stage
 metrics are collected from typed IR, and function lineage is carried by ANF,
-LoisVM canonicalization, and Wasm emission owners. The remaining work starts
-with renderer completeness and a pinned clean Basic baseline.
+LoisVM canonicalization, and Wasm emission owners. Per-function scale is
+published only at those identity-owning stages; earlier tree stages remain
+aggregate-only. The remaining work starts with renderer completeness and a
+pinned clean Basic baseline.
 
 1. Add per-stage metrics to Explore without making the human-facing IR text a
    serialization format. At minimum, record function count, operation count,

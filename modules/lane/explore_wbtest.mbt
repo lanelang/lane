@@ -6,7 +6,7 @@ test "explorer HTML escaping covers markup and attributes" {
 ///|
 test "explorer HTML renders stage navigation and escaped code" {
   let report : @driver.ExploreReport = {
-    schema_version: 3,
+    schema_version: 4,
     compiler: { name: "Milky2018/lanec", version: "0.1.0" },
     root: { source_id: "<root>", module_path_text: Some("Main") },
     selected_entry: None,

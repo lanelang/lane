@@ -2,6 +2,12 @@
 priv struct TreeScaleAccumulator {
   mut function_count : Int
   mut call_count : Int
+}
+
+///|
+priv struct AnfScaleAccumulator {
+  mut function_count : Int
+  mut call_count : Int
   functions : Array[ExploreFunctionScale]
   anf_functions : Array[ObservedAnfFunction]
 }
@@ -18,12 +24,7 @@ fn metric(id : ExploreMetricId, value : Int) -> ExploreMetric {
 
 ///|
 fn buslane_scale(program : @buslane.Program) -> ExploreScaleObservation {
-  let accumulator : TreeScaleAccumulator = {
-    function_count: 0,
-    call_count: 0,
-    functions: [],
-    anf_functions: [],
-  }
+  let accumulator : TreeScaleAccumulator = { function_count: 0, call_count: 0 }
   let mut nodes = 0
   for term in program.terms {
     nodes += 1
@@ -44,7 +45,7 @@ fn buslane_scale(program : @buslane.Program) -> ExploreScaleObservation {
       metric(NodeCount, nodes),
       metric(CallCount, accumulator.call_count),
     ],
-    functions: accumulator.functions,
+    functions: [],
   }
 }
 
@@ -57,12 +58,6 @@ fn observe_buslane_expr(
     Ref(_) | Literal(_) | Resume(_) => 1
     Function(function) => {
       let body_nodes = observe_buslane_expr(function.body, accumulator)
-      accumulator.functions.push({
-        index: accumulator.function_count,
-        block_count: 0,
-        operation_count: body_nodes,
-        value_count: function.parameters.length(),
-      })
       accumulator.function_count += 1
       1 + body_nodes
     }
@@ -123,12 +118,7 @@ fn observe_buslane_expr(
 fn effect_lowering_scale(
   program : @effect_lowering_core.Program,
 ) -> ExploreScaleObservation {
-  let accumulator : TreeScaleAccumulator = {
-    function_count: 0,
-    call_count: 0,
-    functions: [],
-    anf_functions: [],
-  }
+  let accumulator : TreeScaleAccumulator = { function_count: 0, call_count: 0 }
   let mut nodes = 0
   for term in program.terms {
     nodes += 1
@@ -149,7 +139,7 @@ fn effect_lowering_scale(
       metric(NodeCount, nodes),
       metric(CallCount, accumulator.call_count),
     ],
-    functions: accumulator.functions,
+    functions: [],
   }
 }
 
@@ -159,12 +149,6 @@ fn observe_effect_function(
   accumulator : TreeScaleAccumulator,
 ) -> Int {
   let body_nodes = observe_effect_lowering_expr(function.body, accumulator)
-  accumulator.functions.push({
-    index: accumulator.function_count,
-    block_count: 0,
-    operation_count: body_nodes,
-    value_count: function.parameters.length(),
-  })
   accumulator.function_count += 1
   body_nodes
 }
@@ -244,7 +228,7 @@ fn observe_effect_lowering_expr(
 
 ///|
 fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
-  let accumulator : TreeScaleAccumulator = {
+  let accumulator : AnfScaleAccumulator = {
     function_count: 0,
     call_count: 0,
     functions: [],
@@ -281,7 +265,7 @@ fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
 ///|
 fn observe_anf_function(
   function : @anf.AnfFunction,
-  accumulator : TreeScaleAccumulator,
+  accumulator : AnfScaleAccumulator,
 ) -> Int {
   let body_nodes = observe_anf_expr(function.body, accumulator)
   accumulator.functions.push({
@@ -301,7 +285,7 @@ fn observe_anf_function(
 ///|
 fn observe_anf_expr(
   expression : @anf.AnfExpr,
-  accumulator : TreeScaleAccumulator,
+  accumulator : AnfScaleAccumulator,
 ) -> Int {
   match expression {
     Atom(atom) => 1 + observe_anf_atom(atom, accumulator)
@@ -324,10 +308,7 @@ fn observe_anf_expr(
 }
 
 ///|
-fn observe_anf_rhs(
-  rhs : @anf.AnfRhs,
-  accumulator : TreeScaleAccumulator,
-) -> Int {
+fn observe_anf_rhs(rhs : @anf.AnfRhs, accumulator : AnfScaleAccumulator) -> Int {
   match rhs {
     Atom(atom) => 1 + observe_anf_atom(atom, accumulator)
     Call(callee~, arguments~) => {
@@ -374,7 +355,7 @@ fn observe_anf_rhs(
 ///|
 fn observe_anf_atom(
   atom : @anf.AnfAtom,
-  accumulator : TreeScaleAccumulator,
+  accumulator : AnfScaleAccumulator,
 ) -> Int {
   match atom {
     Literal(_) | Ref(_) | Temp(_) => 1
@@ -446,7 +427,10 @@ fn lowered_metrics(
 }
 
 ///|
-fn vmcfg_scale(image : @vmcfg.Image) -> ExploreScaleObservation {
+fn vmcfg_scale(
+  image : @vmcfg.Image,
+  functions : Array[@loisvm_lowering.LoisvmFunctionProvenance],
+) -> ExploreScaleObservation {
   let accumulator = lowered_accumulator()
   let mut body_count = 0
   let mut import_count = 0
@@ -461,7 +445,7 @@ fn vmcfg_scale(image : @vmcfg.Image) -> ExploreScaleObservation {
         accumulator.instruction_count += instruction_count
         accumulator.value_count += body.values.length()
         accumulator.functions.push({
-          index: index + 1,
+          index: functions[index].function.value,
           block_count: body.blocks.length(),
           operation_count: instruction_count,
           value_count: body.values.length(),
@@ -537,7 +521,10 @@ fn observe_vmcfg_terminator(
 }
 
 ///|
-fn bytecode_scale(image : @bytecode.BytecodeImage) -> ExploreScaleObservation {
+fn bytecode_scale(
+  image : @bytecode.BytecodeImage,
+  functions : Array[@loisvm_lowering.LoisvmFunctionProvenance],
+) -> ExploreScaleObservation {
   let accumulator = lowered_accumulator()
   let mut body_count = 0
   let mut import_count = 0
@@ -553,7 +540,7 @@ fn bytecode_scale(image : @bytecode.BytecodeImage) -> ExploreScaleObservation {
         accumulator.block_count += body.blocks.length()
         accumulator.instruction_count += instruction_count
         accumulator.functions.push({
-          index: index + 1,
+          index: functions[index].function.value,
           block_count: body.blocks.length(),
           operation_count: instruction_count,
           value_count: body.slots.length(),

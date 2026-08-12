@@ -102,4 +102,10 @@ test "Wasm compilation records every function at its emission boundary" {
       #|]
     ),
   )
+  assert_eq(
+    observed.scale.functions.map(function => function.index),
+    observed.functions[observed.scale.imported_function_count:].map(function => {
+      function.index
+    }),
+  )
 }

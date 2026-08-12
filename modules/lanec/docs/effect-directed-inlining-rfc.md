@@ -481,7 +481,8 @@ Moving the observed Core stage before effect lowering changes the ordered
 Explore contract, so Explore Report Protocol version 3 owns the new stage
 order. The protocol does not infer application decisions from rendered IR;
 future presentation of typed optimization observations requires another
-explicit protocol review.
+explicit protocol review. Protocol version 4 retains this order while tightening
+the function-identity ownership contract.
 
 ## Non-goals
 

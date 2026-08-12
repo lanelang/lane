@@ -198,7 +198,9 @@ fn compile_or_raise(
     name: "lane.runtime.host_object.new",
     desc: Func(runtime_functions.host_object_new),
   })
-  { module_: wasm_module, functions: emitter.functions }
+  let scale = emitter.scale()
+  let functions = emitter.functions
+  { module_: wasm_module, functions, scale }
 }
 
 ///|

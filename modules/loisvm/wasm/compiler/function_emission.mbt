@@ -52,19 +52,22 @@ pub(all) struct WasmFunctionProvenance {
 pub(all) struct WasmCompileObservation {
   module_ : @wasm_types.Module
   functions : Array[WasmFunctionProvenance]
+  scale : WasmModuleScale
 } derive(Debug)
 
 ///|
 priv struct WasmFunctionEmitter {
   module_ : @wasm_types.Module
   functions : Array[WasmFunctionProvenance]
+  function_scales : Array[WasmFunctionScale]
+  mut imported_function_count : Int
 }
 
 ///|
 fn WasmFunctionEmitter::new(
   module_ : @wasm_types.Module,
 ) -> WasmFunctionEmitter {
-  { module_, functions: [] }
+  { module_, functions: [], function_scales: [], imported_function_count: 0 }
 }
 
 ///|
@@ -82,6 +85,7 @@ fn WasmFunctionEmitter::append_import(
     desc: Func(type_index),
   })
   self.functions.push({ index, origin })
+  self.imported_function_count += 1
   index
 }
 
@@ -96,5 +100,10 @@ fn WasmFunctionEmitter::append_defined(
   self.module_.funcs.push(type_index)
   self.module_.codes.push(code)
   self.functions.push({ index, origin })
+  self.function_scales.push({
+    index,
+    instruction_count: wasm_instruction_array_size(code.body),
+    local_count: code.locals.length(),
+  })
   index
 }

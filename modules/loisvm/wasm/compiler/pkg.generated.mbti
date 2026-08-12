@@ -19,8 +19,6 @@ pub fn max_call_depth_global() -> Int
 
 pub fn max_live_heap_bytes_global() -> Int
 
-pub fn measure_module(@types.Module) -> WasmModuleScale
-
 pub fn module_to_wat(@types.Module) -> String
 
 pub fn physical_runtime_parameters_for_import(@bytecode.RuntimeImport) -> Array[@types.ValueType]
@@ -43,6 +41,7 @@ pub(all) suberror WasmCompileError {
 pub(all) struct WasmCompileObservation {
   module_ : @types.Module
   functions : Array[WasmFunctionProvenance]
+  scale : WasmModuleScale
 } derive(@debug.Debug)
 
 pub(all) enum WasmFunctionOrigin {

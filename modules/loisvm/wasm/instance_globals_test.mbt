@@ -526,7 +526,7 @@ fn wasm_linear_global_image(count : Int) -> @bytecode.BytecodeImage {
 ///|
 fn lifecycle_function_scale(count : Int) -> (Int, Int) {
   let observed = @compiler.compile_observed(wasm_linear_global_image(count)).unwrap()
-  let scale = @compiler.measure_module(observed.module_)
+  let scale = observed.scale
   let mut cleanup_size = -1
   let mut entry_size = -1
   for provenance in observed.functions {

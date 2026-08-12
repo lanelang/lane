@@ -144,7 +144,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
             VmcfgInitial,
             @vmcfg.image_to_code(image),
             [],
-            vmcfg_scale(image),
+            vmcfg_scale(image, provenance),
           )
         }
         FinalBytecode(image, provenance) => {
@@ -153,7 +153,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
             LoisvmBytecode,
             @bytecode.bytecode_image_to_code(image),
             [],
-            bytecode_scale(image),
+            bytecode_scale(image, provenance),
           )
         }
       }
@@ -184,7 +184,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     Wasm,
     @wasm_compiler.module_to_wat(wasm.module_),
     [],
-    wasm_scale(@wasm_compiler.measure_module(wasm.module_)),
+    wasm_scale(wasm.scale),
   )
   {
     schema_version: explore_report_schema_version,

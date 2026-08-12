@@ -76,8 +76,10 @@ pub(all) struct ExploreMetric {
 } derive(Debug, Eq)
 
 ///|
-/// A stage-local function size observation. `index` belongs to the observed IR
-/// and is not a cross-stage identity; function provenance supplies that link.
+/// A stage-local function size observation. `index` is the function identity
+/// assigned by the observed IR owner and names a node in the report provenance
+/// graph. Stages without owner-assigned function identities omit these
+/// observations and publish aggregate metrics only.
 pub(all) struct ExploreFunctionScale {
   index : Int
   block_count : Int
@@ -137,7 +139,7 @@ pub(all) struct ExploreFunctionGraph {
 
 ///|
 /// Current Explore Report Protocol schema owned by the compiler driver.
-pub let explore_report_schema_version : Int = 3
+pub let explore_report_schema_version : Int = 4
 
 ///|
 /// Canonical total order of protocol stages. This order is also the execution

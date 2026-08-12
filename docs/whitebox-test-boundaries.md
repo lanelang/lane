@@ -135,3 +135,4 @@ private invariant, not merely the subsystem being tested.
 | `modules/loisvm/runtime/host_objects_wbtest.mbt` | Constructs out-of-range host-object slot handles before public runtime dispatch. |
 | `modules/loisvm/wasm/compiler/callable_table_wbtest.mbt` | Inspects private address-taken callable-table planning. |
 | `modules/loisvm/wasm/compiler/function_locals_wbtest.mbt` | Inspects private value, CFG-transfer, dispatcher, and cleanup-liveness local planning. |
+| `modules/loisvm/wasm/compiler/metrics_wbtest.mbt` | Verifies that private Wasm emission records function identity and scale in the same operation. |

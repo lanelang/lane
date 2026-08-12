@@ -136,6 +136,12 @@ _Avoid_: every internal pass, mutable compiler hook
 The human-readable projection recorded for one completed Explore Stage.
 _Avoid_: typed IR transfer, serialization format
 
+**Explore Function Identity**:
+The stage-local identity assigned by an IR construction or function-emission
+owner and consumed by both provenance and per-function scale observations.
+Stages without such an identity publish aggregate scale only.
+_Avoid_: traversal ordinal, array position, rendered label
+
 **Explore Report**:
 The versioned result for one selected entry, containing ordered completed,
 failed, or unavailable Explore Stages and diagnostics.
