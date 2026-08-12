@@ -57,6 +57,8 @@ test "simplify VM CFG folds branches and threads empty blocks" {
       scalar_metadata(),
       scalar_metadata(),
       scalar_metadata(),
+      scalar_metadata(),
+      scalar_metadata(),
     ],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
     result: Value(I64, Trivial, ScalarValue),
@@ -71,19 +73,19 @@ test "simplify VM CFG folds branches and threads empty blocks" {
         ),
       },
       {
-        parameters: [{ value: 2 }],
+        parameters: [{ value: 3 }],
         instructions: [],
-        terminator: Jump({ target: { value: 3 }, arguments: [{ value: 2 }] }),
+        terminator: Jump({ target: { value: 3 }, arguments: [{ value: 3 }] }),
       },
       {
-        parameters: [{ value: 2 }],
+        parameters: [{ value: 4 }],
         instructions: [],
-        terminator: Return(Some({ value: 2 })),
+        terminator: Return(Some({ value: 4 })),
       },
       {
-        parameters: [{ value: 2 }],
+        parameters: [{ value: 5 }],
         instructions: [],
-        terminator: Return(Some({ value: 2 })),
+        terminator: Return(Some({ value: 5 })),
       },
     ],
   }
@@ -97,14 +99,9 @@ test "simplify VM CFG folds branches and threads empty blocks" {
       #|    terminator: Jump({ target: { value: 1 }, arguments: [{ value: 1 }] }),
       #|  },
       #|  {
-      #|    parameters: [{ value: 2 }],
+      #|    parameters: [{ value: 5 }],
       #|    instructions: [],
-      #|    terminator: Jump({ target: { value: 2 }, arguments: [{ value: 2 }] }),
-      #|  },
-      #|  {
-      #|    parameters: [{ value: 2 }],
-      #|    instructions: [],
-      #|    terminator: Return(Some({ value: 2 })),
+      #|    terminator: Return(Some({ value: 5 })),
       #|  },
       #|]
     ),
@@ -115,6 +112,7 @@ test "simplify VM CFG folds branches and threads empty blocks" {
 test "simplify VM CFG removes unused parameters and dead scalar work" {
   let body : FunctionBody = {
     values: [
+      scalar_metadata(),
       scalar_metadata(),
       scalar_metadata(),
       scalar_metadata(),
@@ -139,9 +137,9 @@ test "simplify VM CFG removes unused parameters and dead scalar work" {
         }),
       },
       {
-        parameters: [{ value: 2 }, { value: 3 }],
+        parameters: [{ value: 3 }, { value: 4 }],
         instructions: [],
-        terminator: Return(Some({ value: 2 })),
+        terminator: Return(Some({ value: 3 })),
       },
     ],
   }
@@ -158,9 +156,9 @@ test "simplify VM CFG removes unused parameters and dead scalar work" {
       #|    terminator: Jump({ target: { value: 1 }, arguments: [{ value: 2 }] }),
       #|  },
       #|  {
-      #|    parameters: [{ value: 2 }],
+      #|    parameters: [{ value: 3 }],
       #|    instructions: [],
-      #|    terminator: Return(Some({ value: 2 })),
+      #|    terminator: Return(Some({ value: 3 })),
       #|  },
       #|]
     ),

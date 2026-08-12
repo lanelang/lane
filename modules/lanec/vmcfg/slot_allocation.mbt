@@ -12,7 +12,7 @@ fn allocate_physical_slots(
   let body = arc_final.body
   let value_count = body.values.length()
   let active = Array::make(value_count, false)
-  let use_def = analyze_use_def(body)
+  let use_def = arc_final.use_def
   for value_index in 0..<value_count {
     active[value_index] = use_def.definitions[value_index] is Some(_) ||
       use_def.use_count({ value: value_index }) > 0

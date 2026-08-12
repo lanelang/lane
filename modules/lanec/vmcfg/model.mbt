@@ -209,6 +209,7 @@ pub(all) struct FunctionBody {
 ///|
 priv struct ArcFinalBody {
   body : FunctionBody
+  use_def : UseDefAnalysis
 }
 
 ///|
@@ -257,9 +258,22 @@ pub(all) enum ArcFinalBodyError {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum ValueDefinitionSite {
+  FunctionInput(Int)
+  BlockParameter(Int, Int)
+  InstructionResult(Int, Int)
+} derive(Debug, Eq)
+
+///|
+pub(all) enum UseDefAnalysisError {
+  DuplicateDefinition(ValueId, ValueDefinitionSite, ValueDefinitionSite)
+} derive(Debug, Eq)
+
+///|
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
+  UseDefAnalysisCompilerDefect(UseDefAnalysisError)
   ArcFinalVerificationCompilerDefect(ArcFinalBodyError)
   PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)

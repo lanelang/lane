@@ -13,6 +13,154 @@ fn arc_test_value(
 }
 
 ///|
+test "ARC-final boundary rejects duplicate trivial definitions" {
+  let scalar : ValueMetadata = {
+    representation: I64,
+    cleanup: Trivial,
+    kind: ScalarValue,
+    ownership: Trivial,
+    erased_companion: None,
+  }
+  try
+    verify_arc_final_body({
+      values: [scalar],
+      inputs: { environment: None, witnesses: [], user_parameters: [] },
+      result: Unit,
+      blocks: [
+        {
+          parameters: [],
+          instructions: [ConstI64({ value: 0 }, 1L), ConstI64({ value: 0 }, 2L)],
+          terminator: Return(None),
+        },
+      ],
+    })
+  catch {
+    error =>
+      debug_inspect(
+        error,
+        content=(
+          #|UseDefAnalysisCompilerDefect(
+          #|  DuplicateDefinition(
+          #|    { value: 0 },
+          #|    InstructionResult(0, 0),
+          #|    InstructionResult(0, 1),
+          #|  ),
+          #|)
+        ),
+      )
+  } noraise {
+    _ =>
+      fail("expected the ARC-final boundary to reject a duplicate definition")
+  }
+}
+
+///|
+test "ARC-final boundary rejects a borrowed input redefinition" {
+  let borrowed = arc_test_value(Borrowed, OwnedRef)
+  let owned = arc_test_value(Owned, OwnedRef)
+  try
+    verify_arc_final_body({
+      values: [borrowed, owned],
+      inputs: {
+        environment: None,
+        witnesses: [],
+        user_parameters: [{ value: 0 }, { value: 1 }],
+      },
+      result: Unit,
+      blocks: [
+        {
+          parameters: [],
+          instructions: [
+            BorrowField({ value: 0 }, { value: 1 }, 0, {
+              value_destination: { value: 0 },
+              witness_destination: None,
+            }),
+            Release({ value: 1 }),
+          ],
+          terminator: Return(None),
+        },
+      ],
+    })
+  catch {
+    error =>
+      debug_inspect(
+        error,
+        content=(
+          #|UseDefAnalysisCompilerDefect(
+          #|  DuplicateDefinition(
+          #|    { value: 0 },
+          #|    FunctionInput(0),
+          #|    InstructionResult(0, 0),
+          #|  ),
+          #|)
+        ),
+      )
+  } noraise {
+    _ =>
+      fail("expected the ARC-final boundary to reject a borrowed redefinition")
+  }
+}
+
+///|
+test "ARC-final boundary rejects duplicate block-parameter definitions" {
+  let scalar : ValueMetadata = {
+    representation: I32,
+    cleanup: Trivial,
+    kind: ScalarValue,
+    ownership: Trivial,
+    erased_companion: None,
+  }
+  try
+    verify_arc_final_body({
+      values: [scalar, scalar],
+      inputs: {
+        environment: None,
+        witnesses: [],
+        user_parameters: [{ value: 0 }],
+      },
+      result: Unit,
+      blocks: [
+        {
+          parameters: [],
+          instructions: [],
+          terminator: BranchBool(
+            { value: 0 },
+            { target: { value: 1 }, arguments: [{ value: 0 }] },
+            { target: { value: 2 }, arguments: [{ value: 0 }] },
+          ),
+        },
+        {
+          parameters: [{ value: 1 }],
+          instructions: [],
+          terminator: Return(None),
+        },
+        {
+          parameters: [{ value: 1 }],
+          instructions: [],
+          terminator: Return(None),
+        },
+      ],
+    })
+  catch {
+    error =>
+      debug_inspect(
+        error,
+        content=(
+          #|UseDefAnalysisCompilerDefect(
+          #|  DuplicateDefinition(
+          #|    { value: 1 },
+          #|    BlockParameter(1, 0),
+          #|    BlockParameter(2, 0),
+          #|  ),
+          #|)
+        ),
+      )
+  } noraise {
+    _ => fail("expected duplicate block parameters to be rejected")
+  }
+}
+
+///|
 test "ARC-final boundary rejects an owner that reaches return" {
   let owned = arc_test_value(Owned, OwnedRef)
   try

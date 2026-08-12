@@ -17,7 +17,7 @@ fn flow_edge(target : Int, arguments : Array[ValueId]) -> Edge {
 }
 
 ///|
-fn flow_definition_text(definition : ValueDefinition) -> String {
+fn flow_definition_text(definition : ValueDefinitionSite) -> String {
   match definition {
     FunctionInput(index) => "input:\{index}"
     BlockParameter(block, index) => "parameter:\{block}:\{index}"

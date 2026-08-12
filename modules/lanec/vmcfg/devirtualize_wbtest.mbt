@@ -1,5 +1,7 @@
 ///|
-fn devirtualize_test_body(body : FunctionBody) -> FunctionBody {
+fn devirtualize_test_body(
+  body : FunctionBody,
+) -> FunctionBody raise FinalizeError {
   let image = devirtualize_image({
     entry: { value: 1 },
     initializer: None,

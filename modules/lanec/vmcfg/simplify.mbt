@@ -1,5 +1,5 @@
 ///|
-fn simplify_body(body : FunctionBody) -> FunctionBody {
+fn simplify_body(body : FunctionBody) -> FunctionBody raise FinalizeError {
   let mut simplified = body
   let iteration_limit = body.blocks.length() + body.values.length() + 1
   for _ in 0..<iteration_limit {
@@ -13,7 +13,7 @@ fn simplify_body(body : FunctionBody) -> FunctionBody {
 }
 
 ///|
-fn simplify_body_once(body : FunctionBody) -> FunctionBody {
+fn simplify_body_once(body : FunctionBody) -> FunctionBody raise FinalizeError {
   let body = { ..body, blocks: propagate_local_scalar_values(body) }
   let body = { ..body, blocks: body.blocks.map(fold_constant_terminator) }
   let body = { ..body, blocks: remove_dead_scalar_instructions(body) }
@@ -24,7 +24,9 @@ fn simplify_body_once(body : FunctionBody) -> FunctionBody {
 }
 
 ///|
-fn propagate_local_scalar_values(body : FunctionBody) -> Array[Block] {
+fn propagate_local_scalar_values(
+  body : FunctionBody,
+) -> Array[Block] raise FinalizeError {
   let use_def = analyze_use_def(body)
   body.blocks.mapi(fn(block_index, block) {
     let aliases : Array[(ValueId, ValueId)] = []
@@ -190,7 +192,9 @@ fn find_int_constant(
 }
 
 ///|
-fn remove_dead_scalar_instructions(body : FunctionBody) -> Array[Block] {
+fn remove_dead_scalar_instructions(
+  body : FunctionBody,
+) -> Array[Block] raise FinalizeError {
   let control_flow = analyze_control_flow(body.blocks)
   let use_def = analyze_use_def(body)
   let liveness = analyze_liveness(body, control_flow, use_def)
@@ -305,7 +309,9 @@ fn instruction_is_dead_scalar_candidate(instruction : Instruction) -> Bool {
 }
 
 ///|
-fn remove_unused_block_parameters(body : FunctionBody) -> Array[Block] {
+fn remove_unused_block_parameters(
+  body : FunctionBody,
+) -> Array[Block] raise FinalizeError {
   let use_def = analyze_use_def(body)
   let kept_parameters = body.blocks.map(fn(block) {
     block.parameters.map(fn(parameter) { use_def.use_count(parameter) > 0 })
@@ -354,7 +360,9 @@ fn filter_edge_arguments(
 }
 
 ///|
-fn thread_empty_jump_blocks(body : FunctionBody) -> Array[Block] {
+fn thread_empty_jump_blocks(
+  body : FunctionBody,
+) -> Array[Block] raise FinalizeError {
   let use_def = analyze_use_def(body)
   body.blocks.map(fn(block) {
     {

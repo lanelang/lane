@@ -213,9 +213,11 @@ and LoisVM bytecode.
 _Avoid_: persisted bytecode CFG, source control flow
 
 **VM CFG Use-Definition Analysis**:
-The authoritative index of every VM CFG value definition and use, including
-whole-CFG counts, per-block counts, and instruction/terminator flow facts.
-Consumers derive policy from this index instead of rescanning VM CFG blocks.
+The authoritative checked index of every VM CFG value definition and use,
+including whole-CFG counts, per-block counts, and instruction/terminator flow
+facts. Construction rejects a second definition of any `ValueId` and preserves
+both definition sites in the structured compiler defect. Consumers derive
+policy from this index instead of rescanning VM CFG blocks.
 _Avoid_: slot history, source reference graph, consumer-owned use counts
 
 **VM CFG Callable-Flow Analysis**:
@@ -265,9 +267,11 @@ release, and transfer operations.
 _Avoid_: runtime ARC optimization, implicit slot behavior
 
 **ARC-Final VM CFG**:
-The private, verifier-proven VM CFG state whose control-flow edges, value flow,
-borrow roots, and owned lifetimes satisfy the contract required by physical-slot
-planning.
+The private, verifier-proven VM CFG state whose control-flow edges, unique SSA
+definitions, borrow roots, and owned lifetimes satisfy the contract required by
+physical-slot planning. It carries its checked Use-Definition Analysis for the
+slot planner to consume directly. Ownership threading creates fresh block
+parameter values and rewrites each block to its local SSA version.
 _Avoid_: an unverified `FunctionBody`, final LoisVM bytecode
 
 **Physical Slot Plan**:

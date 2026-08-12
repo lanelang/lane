@@ -14,7 +14,7 @@ priv struct EnvironmentPlanCandidate {
 }
 
 ///|
-fn devirtualize_image(image : Image) -> Image {
+fn devirtualize_image(image : Image) -> Image raise FinalizeError {
   let flow = analyze_callable_flow(image)
   apply_devirtualization(
     image,
@@ -28,8 +28,8 @@ fn apply_devirtualization(
   image : Image,
   flow : CallableFlowAnalysis,
   plans : Array[DirectEnvironmentPlan],
-) -> Image {
-  let functions = image.functions.mapi(fn(index, entry) {
+) -> Image raise FinalizeError {
+  let functions = image.functions.mapi((index, entry) => {
     match entry {
       Body(body) => {
         let selected = match
@@ -56,7 +56,7 @@ fn apply_devirtualization(
 fn build_direct_environment_plans(
   image : Image,
   flow : CallableFlowAnalysis,
-) -> Array[DirectEnvironmentPlan] {
+) -> Array[DirectEnvironmentPlan] raise FinalizeError {
   let candidates : Array[EnvironmentPlanCandidate] = image.functions.map(_ => {
     shape: None,
     invalid: false,
@@ -279,7 +279,7 @@ fn build_direct_environment_plan(
   image : Image,
   target : @bytecode.FunctionId,
   shape_id : @bytecode.ObjectShapeId,
-) -> DirectEnvironmentPlan? {
+) -> DirectEnvironmentPlan? raise FinalizeError {
   let function_index = target.value - 1
   guard function_index >= 0 &&
     function_index < image.functions.length() &&
@@ -536,7 +536,9 @@ fn select_values(
 }
 
 ///|
-fn remove_dead_callable_construction(body : FunctionBody) -> FunctionBody {
+fn remove_dead_callable_construction(
+  body : FunctionBody,
+) -> FunctionBody raise FinalizeError {
   let mut body = body
   let mut changed = true
   while changed {

@@ -15,9 +15,9 @@ fn insert_arc(body : FunctionBody) -> ArcFinalBody raise FinalizeError {
 fn verify_arc_final_body(
   body : FunctionBody,
 ) -> ArcFinalBody raise FinalizeError {
-  verify_arc_final_structure(body)
+  let use_def = verify_arc_final_structure(body)
   verify_arc_final_flow(body)
-  { body, }
+  { body, use_def }
 }
 
 ///|
@@ -26,17 +26,17 @@ fn[T] arc_final_fail(error : ArcFinalBodyError) -> T raise FinalizeError {
 }
 
 ///|
-fn verify_arc_final_structure(body : FunctionBody) -> Unit raise FinalizeError {
+fn verify_arc_final_structure(
+  body : FunctionBody,
+) -> UseDefAnalysis raise FinalizeError {
   if body.blocks.is_empty() {
     arc_final_fail(EmptyControlFlowGraph)
   }
   if !body.blocks[0].parameters.is_empty() {
     arc_final_fail(EntryBlockHasParameters)
   }
-  let defined = Array::make(body.values.length(), false)
   for value in function_input_values(body.inputs) {
     require_arc_value(body, value)
-    defined[value.value] = true
   }
   for index, metadata in body.values {
     if metadata.erased_companion is Some(companion) {
@@ -50,12 +50,10 @@ fn verify_arc_final_structure(body : FunctionBody) -> Unit raise FinalizeError {
     let source : @bytecode.BlockId = { value: source_index }
     for parameter in block.parameters {
       require_arc_value(body, parameter)
-      defined[parameter.value] = true
     }
     for instruction in block.instructions {
       for destination in instruction_destinations(instruction) {
         require_arc_value(body, destination)
-        defined[destination.value] = true
       }
       for value in instruction_operand_values(instruction) {
         require_arc_value(body, value)
@@ -70,12 +68,13 @@ fn verify_arc_final_structure(body : FunctionBody) -> Unit raise FinalizeError {
   }
   let use_def = analyze_use_def(body)
   for value_index, uses in use_def.uses {
-    if !uses.is_empty() && !defined[value_index] {
+    if !uses.is_empty() && use_def.definitions[value_index] is None {
       arc_final_fail(MissingDefinition({ value: value_index }))
     }
   }
   for metadata in body.values {
-    if metadata.erased_companion is Some(companion) && !defined[companion.value] {
+    if metadata.erased_companion is Some(companion) &&
+      use_def.definitions[companion.value] is None {
       arc_final_fail(MissingDefinition(companion))
     }
   }
@@ -97,6 +96,7 @@ fn verify_arc_final_structure(body : FunctionBody) -> Unit raise FinalizeError {
       arc_final_fail(UnreachableBlock({ value: block_index }))
     }
   }
+  use_def
 }
 
 ///|

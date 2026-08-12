@@ -1,8 +1,8 @@
 ///|
-fn select_consuming_projections(image : Image) -> Image {
+fn select_consuming_projections(image : Image) -> Image raise FinalizeError {
   {
     ..image,
-    functions: image.functions.map(fn(entry) {
+    functions: image.functions.map(entry => {
       match entry {
         Body(body) => Body(select_consuming_projections_in_body(body))
         RuntimeImport(_) => entry
@@ -12,7 +12,9 @@ fn select_consuming_projections(image : Image) -> Image {
 }
 
 ///|
-fn select_consuming_projections_in_body(body : FunctionBody) -> FunctionBody {
+fn select_consuming_projections_in_body(
+  body : FunctionBody,
+) -> FunctionBody raise FinalizeError {
   let values = body.values.copy()
   let use_def = analyze_use_def(body)
   {

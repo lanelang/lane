@@ -53,32 +53,59 @@ fn promote_cross_block_instruction_borrows(
 }
 
 ///|
-fn thread_owned_block_values(body : FunctionBody) -> FunctionBody {
+fn thread_owned_block_values(
+  body : FunctionBody,
+) -> FunctionBody raise FinalizeError {
   let block_count = body.blocks.length()
   let value_count = body.values.length()
   let control_flow = analyze_control_flow(body.blocks)
   let use_def = analyze_use_def(body)
   let liveness = analyze_liveness(body, control_flow, use_def)
-  let threaded : Array[Array[ValueId]] = body.blocks.map(_ => [])
+  let values = body.values.copy()
+  let threaded : Array[Array[(ValueId, ValueId)]] = body.blocks.map(_ => [])
   for block_index in 1..<block_count {
     for value_index in 0..<value_count {
       if body.values[value_index].ownership is Owned &&
         liveness.live_in[block_index][value_index] {
-        threaded[block_index].push({ value: value_index })
+        let source : ValueId = { value: value_index }
+        let parameter : ValueId = { value: values.length() }
+        values.push(body.values[value_index])
+        threaded[block_index].push((source, parameter))
       }
     }
   }
   {
     ..body,
+    values,
     blocks: body.blocks.mapi(fn(block_index, block) {
       let carried = threaded[block_index]
+      let rewrite = fn(value) { threaded_value(value, carried) }
       {
-        ..block,
-        parameters: block.parameters + carried,
-        terminator: append_threaded_edge_arguments(block.terminator, threaded),
+        parameters: block.parameters + carried.map(pair => pair.1),
+        instructions: block.instructions.map(instruction => {
+          map_instruction_values(instruction, rewrite)
+        }),
+        terminator: append_threaded_edge_arguments(
+          map_terminator_values(block.terminator, rewrite),
+          threaded,
+          carried,
+        ),
       }
     }),
   }
+}
+
+///|
+fn threaded_value(
+  value : ValueId,
+  threaded : Array[(ValueId, ValueId)],
+) -> ValueId {
+  for pair in threaded {
+    if value == pair.0 {
+      return pair.1
+    }
+  }
+  value
 }
 
 ///|
@@ -103,21 +130,22 @@ fn block_successors(block : Block) -> Array[Int] {
 ///|
 fn append_threaded_edge_arguments(
   terminator : Terminator,
-  threaded : Array[Array[ValueId]],
+  threaded : Array[Array[(ValueId, ValueId)]],
+  source_threading : Array[(ValueId, ValueId)],
 ) -> Terminator {
   match terminator {
-    Jump(edge) => Jump(append_threaded_edge(edge, threaded))
+    Jump(edge) => Jump(append_threaded_edge(edge, threaded, source_threading))
     BranchBool(condition, if_true, if_false) =>
       BranchBool(
         condition,
-        append_threaded_edge(if_true, threaded),
-        append_threaded_edge(if_false, threaded),
+        append_threaded_edge(if_true, threaded, source_threading),
+        append_threaded_edge(if_false, threaded, source_threading),
       )
     SwitchTag(tag, cases, default) =>
       SwitchTag(
         tag,
-        cases.map(edge => append_threaded_edge(edge, threaded)),
-        append_threaded_edge(default, threaded),
+        cases.map(edge => append_threaded_edge(edge, threaded, source_threading)),
+        append_threaded_edge(default, threaded, source_threading),
       )
     Return(_)
     | TailCallDirect(_, _, _, _)
@@ -128,6 +156,16 @@ fn append_threaded_edge_arguments(
 }
 
 ///|
-fn append_threaded_edge(edge : Edge, threaded : Array[Array[ValueId]]) -> Edge {
-  { ..edge, arguments: edge.arguments + threaded[edge.target.value] }
+fn append_threaded_edge(
+  edge : Edge,
+  threaded : Array[Array[(ValueId, ValueId)]],
+  source_threading : Array[(ValueId, ValueId)],
+) -> Edge {
+  {
+    ..edge,
+    arguments: edge.arguments +
+    threaded[edge.target.value].map(pair => {
+      threaded_value(pair.0, source_threading)
+    }),
+  }
 }

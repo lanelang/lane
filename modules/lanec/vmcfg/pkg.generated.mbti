@@ -16,6 +16,7 @@ pub fn image_to_code(Image) -> String
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
+  UseDefAnalysisCompilerDefect(UseDefAnalysisError)
   ArcFinalVerificationCompilerDefect(ArcFinalBodyError)
   PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
@@ -228,6 +229,16 @@ pub(all) enum Terminator {
   TailCallValue(ValueId, Array[ValueId], Array[ValueId])
   Fatal(ValueId)
   Unreachable
+} derive(Eq, @debug.Debug)
+
+pub(all) enum UseDefAnalysisError {
+  DuplicateDefinition(ValueId, ValueDefinitionSite, ValueDefinitionSite)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ValueDefinitionSite {
+  FunctionInput(Int)
+  BlockParameter(Int, Int)
+  InstructionResult(Int, Int)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ValueId {
