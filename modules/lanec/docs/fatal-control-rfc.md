@@ -97,8 +97,9 @@ owned value is leaked on the terminating path.
 ## Optimization
 
 Source optimization observes the `Panic` effect and must preserve the evaluation
-of discarded panic calls. Later effect erasure may remove static effect syntax
-only after evaluation order and the compiler intrinsic have been preserved.
+of discarded panic calls. Runtime ANF projection removes static effect syntax
+only after effect-aware optimization and lowering have preserved evaluation
+order and the compiler intrinsic.
 CFG optimization treats `Fatal` as a terminator with no successor.
 
 No optimization may infer fatality from `Unit`, `Panic`, an empty enum, a source

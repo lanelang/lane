@@ -9,7 +9,7 @@ test "special float intrinsics use deterministic IEEE bit patterns" {
   let f64_inf = metadata.define_value("f64_inf", External, f64_type)
   let f64_ninf = metadata.define_value("f64_ninf", External, f64_type)
   let f64_nan = metadata.define_value("f64_nan", External, f64_type)
-  let image = test_image_lowerer(metadata, [])
+  let image = test_image_lowerer(metadata)
   image.plan_intrinsic(
     f32_inf,
     @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(f32_inf, F32Inf),

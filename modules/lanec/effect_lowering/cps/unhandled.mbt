@@ -339,7 +339,10 @@ fn build_relay_field(
       operation,
       effect_arguments: arguments,
       hidden_witnesses: type_binders.map(parameter => {
-        TypeArgument(Parameter(parameter))
+        match schema.metadata.type_parameter_info(parameter) {
+          Some({ kind: Effect, .. }) => EffectArgument(Parameter(parameter))
+          _ => TypeArgument(Parameter(parameter))
+        }
       }),
       payloads,
     },

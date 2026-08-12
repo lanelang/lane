@@ -20,7 +20,7 @@ pub(all) enum ExecutableElaborationStage {
   SelectiveCpsRewritten(@effect_lowering_core.Program)
   OpenContextsResolved(@effect_lowering_core.Program)
   MonadicContinuationsLifted(@buslane.Program)
-  EffectsErased(@buslane.Program)
+  CpsCoreOptimized(@buslane.Program)
 }
 
 ///|
@@ -65,8 +65,7 @@ fn elaborate_or_raise(
   }
   require_verified("core optimization", program)
   observe(CoreOptimized(program))
-  let lowered = lower_effects(program, observe)
-  let program = lowered.program
+  let program = lower_effects(program, entry.value, observe)
   let initializers = collect_top_level_initializers(program)
   let execution_roots = initializers.mapi((index, _) => Initializer(index))
   execution_roots.push(Entry(entry.value))
@@ -77,7 +76,6 @@ fn elaborate_or_raise(
     entry,
     initializers,
     execution_roots,
-    effect_companions: lowered.effect_companions,
   }
 }
 
@@ -93,16 +91,11 @@ fn effect_specialization_elaboration_error(
 }
 
 ///|
-priv struct LoweredEffects {
-  program : @buslane.Program
-  effect_companions : Array[@effect_lowering_cps.EffectCompanionBinding]
-}
-
-///|
 fn lower_effects(
   program : @buslane.Program,
+  entry : @buslane.ValueId,
   observe : (ExecutableElaborationStage) -> Unit,
-) -> LoweredEffects raise ExecutableElaborationError {
+) -> @buslane.Program raise ExecutableElaborationError {
   let elaborated = @effect_lowering_core.elaborate_handlers(program)
   require_extended_verified("handler elaboration", elaborated)
   observe(HandlersElaborated(elaborated))
@@ -112,12 +105,12 @@ fn lower_effects(
   require_extended_verified("monadic transformation", bound)
   observe(MonadicTransformed(bound))
   let transformed = unwrap_effect_lowering(
-    @effect_lowering_cps.rewrite_selective_cps_abis_with_companions(bound),
+    @effect_lowering_cps.rewrite_selective_cps_abis(bound),
   )
-  require_extended_verified("selective CPS", transformed.program)
-  observe(SelectiveCpsRewritten(transformed.program))
+  require_extended_verified("selective CPS", transformed)
+  observe(SelectiveCpsRewritten(transformed))
   let resolved = unwrap_effect_lowering(
-    @effect_lowering_core.resolve_open_contexts(transformed.program),
+    @effect_lowering_core.resolve_open_contexts(transformed),
   )
   require_extended_verified("open-context resolution", resolved)
   observe(OpenContextsResolved(resolved))
@@ -126,10 +119,15 @@ fn lower_effects(
   )
   require_verified("monadic-lift", lifted)
   observe(MonadicContinuationsLifted(lifted))
-  let erased = @effect_lowering_core.erase_residual_effects(lifted)
-  require_verified("residual-effect erasure", erased)
-  observe(EffectsErased(erased))
-  { program: erased, effect_companions: transformed.effect_companions }
+  let initializer_roots = collect_reachable_initializer_roots(lifted, entry)
+  let optimized = match
+    @core_opt.optimize({ program: lifted, entry, roots: initializer_roots }) {
+    Ok(program) => program
+    Err(error) => raise CoreOptimizationError(error)
+  }
+  require_verified("CPS core optimization", optimized)
+  observe(CpsCoreOptimized(optimized))
+  optimized
 }
 
 ///|

@@ -143,10 +143,7 @@ fn lower_cps_monadic_match(
     result_type: answer_type,
     alternatives: match_.alternatives.map(alternative => {
       alt_constructor: alternative.alt_constructor,
-      // An opened binder stays as it is. An effect-kind existential is erased
-      // outright rather than given a dictionary companion, which is why the
-      // witness that produced it carries nothing at runtime.
-      type_binders: alternative.type_binders,
+      type_binders: schema.rewrite_cps_parameters(alternative.type_binders),
       value_binders: alternative.value_binders,
       body: lower_cps_with_continuation(
         schema,

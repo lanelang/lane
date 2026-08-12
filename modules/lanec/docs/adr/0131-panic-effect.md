@@ -8,7 +8,7 @@ Lane defines `Panic` as a compiler-provided built-in effect atom distinct from
 `Io`. It marks source operations whose documented, value-dependent failure
 terminates execution through compiler-owned fatal control. `Panic` is not
 algebraic, cannot be handled, carries no dictionary, and remains a static
-residual effect until residual-effect erasure. The corresponding execution
+residual effect until runtime ANF projection. The corresponding execution
 path ends in the verified `Fatal(message)` terminator and produces
 `ExecutionError::Fatal(message)` on every backend.
 

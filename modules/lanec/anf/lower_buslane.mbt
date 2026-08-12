@@ -15,6 +15,19 @@ pub fn lower_buslane_program_to_anf(program : @buslane.Program) -> AnfProgram {
 }
 
 ///|
+/// Lowers verified effect-aware CPS Core directly to runtime ANF.
+///
+/// Effect projection is intentionally fused into this seam. The source
+/// metadata is snapshotted, so observing or retaining the CPS Core program
+/// cannot be affected by the one-way runtime projection.
+pub fn lower_cps_core_to_runtime_anf(
+  program : @buslane.Program,
+) -> RuntimeAnfProgram {
+  let runtime_program = runtime_buslane_projection(program)
+  { program: lower_buslane_program_to_anf(runtime_program) }
+}
+
+///|
 fn AnfLowerer::fresh_temp(self : AnfLowerer) -> AnfTempId {
   let temp = AnfTempId::{ index: self.next_temp }
   self.next_temp = self.next_temp + 1

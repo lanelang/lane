@@ -82,4 +82,5 @@ Consequences:
 - Capture-free callable values use immediate `FunctionId` values rather than empty closures.
 - Runtime symbols resolve at load time, never by per-call string lookup.
 - The host ABI is direct-value-only, synchronous, non-reentrant, and ownership-explicit; it supports primitives plus `Opaque`.
-- Runtime imports remain opaque observable calls after source effect erasure.
+- Runtime imports remain opaque observable calls after runtime effect
+  projection.

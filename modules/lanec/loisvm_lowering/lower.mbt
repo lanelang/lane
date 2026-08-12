@@ -12,7 +12,6 @@ priv struct ImageLowerer {
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
   callable_adapters : Array[CallableAdapterPlan]
   representation_specializations : Array[RepresentationSpecializationPlan]
-  effect_companions : Array[@effect_lowering_cps.EffectCompanionBinding]
   mut next_synthetic_parameter : Int
 }
 
@@ -80,7 +79,8 @@ fn lower_executable_program_to_bytecode_or_raise(
   let program = executable.program
   let externals = executable.externals
   let entry = executable.entry
-  let anf = @anf.lower_buslane_program_to_anf(program)
+  let runtime_anf = @anf.lower_cps_core_to_runtime_anf(program)
+  let anf = runtime_anf.anf()
   observe(Anf(anf))
   let occurrence = @occurrence.analyze({
     program,
@@ -88,7 +88,7 @@ fn lower_executable_program_to_bytecode_or_raise(
     roots: executable_initializer_roots(executable),
   })
   let lowerer : ImageLowerer = {
-    metadata: program.metadata,
+    metadata: anf.metadata,
     externals,
     globals: [],
     instance_globals: [],
@@ -100,7 +100,6 @@ fn lower_executable_program_to_bytecode_or_raise(
     intrinsic_wrappers: [],
     callable_adapters: [],
     representation_specializations: [],
-    effect_companions: executable.effect_companions,
     next_synthetic_parameter: -1,
   }
   let initializer = lowerer.plan(anf, occurrence)

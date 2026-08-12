@@ -79,7 +79,7 @@ test "monadic-lift exposes generic continuation captures to ANF" {
 }
 
 ///|
-test "monadic-lift preserves erased effect-kind existentials" {
+test "monadic-lift preserves explicit companion and residual existentials" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let hidden = metadata.define_type_parameter("HiddenEffect", Effect)
   let opened = metadata.define_type_parameter("OpenedEffect", Effect)
@@ -139,11 +139,15 @@ test "monadic-lift preserves erased effect-kind existentials" {
   let lifted = lift_monadic_continuations(
     resolve_open_contexts(transformed).unwrap(),
   ).unwrap()
-  assert_eq(metadata.type_parameter_info(hidden).unwrap().kind, Effect)
+  guard metadata.data_constructor_info(make_token).unwrap().hidden_type_parameters
+    is [hidden_companion, hidden_residual] else {
+    abort("expected the hidden effect binder to expand into two CPS facts")
+  }
   assert_eq(
-    metadata.data_constructor_info(make_token).unwrap().hidden_type_parameters,
-    [hidden],
+    metadata.type_parameter_info(hidden_companion).unwrap().kind,
+    Function([Type, Effect], Type),
   )
+  assert_eq(metadata.type_parameter_info(hidden_residual).unwrap().kind, Effect)
   guard lifted.terms[0]
     is Let(
       _,
@@ -151,15 +155,36 @@ test "monadic-lift preserves erased effect-kind existentials" {
         {
           body: Let(
             _,
-            Construct({ hidden_witnesses: [EffectArgument(Empty)], .. }),
-            Match({ alternatives: [{ type_binders: [opened_binder], .. }], .. })
+            Construct(
+              {
+                hidden_witnesses: [
+                  TypeArgument(TypeLambda(_, Primitive(Unit))),
+                  EffectArgument(Empty),
+                ],
+                ..,
+              }
+            ),
+            Match(
+              {
+                alternatives: [
+                  { type_binders: [opened_companion, opened_residual], .. },
+                ],
+                ..,
+              }
+            )
           ),
           ..,
         }
       )
     ) else {
-    abort("expected erased effect existential to remain in nominal data")
+    abort("expected explicit CPS facts in nominal data")
   }
-  assert_eq(opened_binder, opened)
+  assert_true(opened_companion != opened)
+  assert_true(opened_residual != opened)
+  assert_eq(
+    metadata.type_parameter_info(opened_companion).unwrap().kind,
+    Function([Type, Effect], Type),
+  )
+  assert_eq(metadata.type_parameter_info(opened_residual).unwrap().kind, Effect)
   assert_true(@buslane.verify_program(lifted).is_ok())
 }

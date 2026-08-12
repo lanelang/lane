@@ -185,8 +185,8 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       #|      },
       #|    ],
       #|  },
-      #|  Function([Primitive(String)], Primitive(Unit), Empty),
-      #|  Function([], Primitive(Unit), Empty),
+      #|  Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+      #|  Function([], Primitive(Unit), Builtin(Io)),
       #|)
     ),
   )
@@ -226,7 +226,7 @@ test "whole-program elaboration accepts a closed external effect entry" {
       #|(
       #|  Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
       #|  Some(External),
-      #|  Some(Function([], Primitive(Unit), Empty)),
+      #|  Some(Function([], Primitive(Unit), Singleton({ index: 0 }, []))),
       #|)
     ),
   )

@@ -8,7 +8,7 @@ Normal compilation and exploration share orchestration at the stage-owning packa
 
 An Explore Stage contains a stable stage identifier, display label, and one of three states: completed with an Explore Snapshot, failed with diagnostics, or unavailable. An Explore Snapshot contains the compiler or backend domain, text format, human-readable text, diagnostics, and stable structural scale metrics. It contains rendered text rather than a typed compiler object. IR printers remain human-facing pretty printers and are not serialization formats. Before linking, snapshots display only the module that owns the selected entry; compilation still checks required dependencies and reports their diagnostics. Linking and every later stage display the complete whole-program IR consumed by the next transformation.
 
-Explore Report Protocol version 4 contains compiler identity, root identity, the artifact-defined selected entry, overall status, diagnostics, a structural function-provenance graph, and this fixed ordered stage sequence:
+Explore Report Protocol version 5 contains compiler identity, root identity, the artifact-defined selected entry, overall status, diagnostics, a structural function-provenance graph, and this fixed ordered stage sequence:
 
 1. `syntax`: Syntax AST;
 2. `resolved`: Resolved AST;
@@ -22,9 +22,9 @@ Explore Report Protocol version 4 contains compiler identity, root identity, the
 10. `buslane.selective-cps`: Buslane (Selective CPS);
 11. `buslane.open-context-resolved`: Buslane (Open Context Resolution);
 12. `buslane.monadic-lifted`: Buslane (Monadic Lift);
-13. `buslane.effects-erased`: Buslane (Effect Erasure);
-14. `executable`: Executable Program (Whole-Program Elaboration);
-15. `anf`: ANF;
+13. `buslane.cps-core-optimized`: Buslane (CPS Core Optimization);
+14. `executable`: Executable Program (Effect-Aware CPS Core);
+15. `anf`: Runtime ANF (Effect Projection);
 16. `vmcfg.initial`: VM CFG (Initial Lowering);
 17. `loisvm.bytecode`: LoisVM Bytecode (ARC and Slot Finalization);
 18. `wasm`: Wasm (LoisVM Backend Lowering).
@@ -39,7 +39,7 @@ A failed compilation produces a Partial Explore Report containing all eighteen o
 
 The native command is `lane explore <file>:<entry> -o <report.html>` with the same library-input semantics as `lane run`: `$LANE_HOME/basic` is loaded by default, explicit `--lib` and `--lib-dir` inputs are appended, and `--no-basic` disables the default directory. The output path is required. The command never executes the entry, writes the report through atomic replacement, does not emit the report to stdout, and does not automatically open a browser.
 
-The native output is deterministic, self-contained offline HTML with one level of stage tabs, safely escaped IR source code, per-stage structural metrics, explicit function lineage, and inline styles and behavior. Each stage projects declarations, terms, functions, tables, or backend source directly; it does not render enclosing compiler objects, registries, entry or schema metadata, or diagnostics. It contains no CDN dependency or volatile timestamp. The HTML renderer uses MoonBit `StringBuilder`, `<+`, and multiline strings instead of repeated immutable string concatenation. Lane Wasm serializes the complete report model as versioned JSON; it does not reuse the native HTML renderer. Protocol version 4 retains the stage order introduced in version 3 and requires every per-function scale observation to consume the identity emitted by the observed IR owner. Identity-less tree stages publish aggregate metrics only.
+The native output is deterministic, self-contained offline HTML with one level of stage tabs, safely escaped IR source code, per-stage structural metrics, explicit function lineage, and inline styles and behavior. Each stage projects declarations, terms, functions, tables, or backend source directly; it does not render enclosing compiler objects, registries, entry or schema metadata, or diagnostics. It contains no CDN dependency or volatile timestamp. The HTML renderer uses MoonBit `StringBuilder`, `<+`, and multiline strings instead of repeated immutable string concatenation. Lane Wasm serializes the complete report model as versioned JSON; it does not reuse the native HTML renderer. Protocol version 5 adds the post-CPS effect-aware optimization boundary, removes the semantically misleading effect-erased Buslane snapshot, and requires every per-function scale observation to consume the identity emitted by the observed IR owner. Identity-less tree stages publish aggregate metrics only.
 
 ## Consequences
 

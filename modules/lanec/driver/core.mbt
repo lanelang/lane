@@ -267,7 +267,7 @@ fn ExploreStageBuilder::finish(self : ExploreStageBuilder) -> ExploreStages {
     buslane_selective_cps: self.states[9],
     buslane_open_context_resolved: self.states[10],
     buslane_monadic_lifted: self.states[11],
-    buslane_effects_erased: self.states[12],
+    buslane_cps_core_optimized: self.states[12],
     executable: self.states[13],
     anf: self.states[14],
     vmcfg_initial: self.states[15],
@@ -291,7 +291,7 @@ fn explore_stage_ids() -> Array[ExploreStageId] {
     BuslaneSelectiveCps,
     BuslaneOpenContextResolved,
     BuslaneMonadicLifted,
-    BuslaneEffectsErased,
+    BuslaneCpsCoreOptimized,
     Executable,
     Anf,
     VmcfgInitial,
@@ -386,15 +386,15 @@ fn executable_stage(
         render_buslane_code(program),
         buslane_scale(program),
       )
-    CoreOptimized(program) =>
+    CpsCoreOptimized(program) =>
       (
-        BuslaneCoreOptimized,
+        BuslaneCpsCoreOptimized,
         render_buslane_code(program),
         buslane_scale(program),
       )
-    EffectsErased(program) =>
+    CoreOptimized(program) =>
       (
-        BuslaneEffectsErased,
+        BuslaneCoreOptimized,
         render_buslane_code(program),
         buslane_scale(program),
       )

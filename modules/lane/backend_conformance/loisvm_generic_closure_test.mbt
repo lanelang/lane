@@ -14,7 +14,6 @@ fn lower_unoptimized_test_program(
     entry,
     initializers: [],
     execution_roots: [Entry(entry.value)],
-    effect_companions: [],
   })
 }
 

@@ -51,7 +51,7 @@ fn explore_stage_scale(
 }
 
 ///|
-test "explore protocol v4 exposes all eighteen ordered completed stages" {
+test "explore protocol v5 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -74,7 +74,7 @@ test "explore protocol v4 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  4,
+      #|  5,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -166,7 +166,7 @@ test "explore protocol v4 exposes all eighteen ordered completed stages" {
       #|      Some("letrec {"),
       #|    ),
       #|    (
-      #|      "buslane.effects-erased",
+      #|      "buslane.cps-core-optimized",
       #|      "completed",
       #|      Some("compiler"),
       #|      Some("buslane"),
@@ -460,6 +460,116 @@ test "explore gates direct generic representation specialization" {
 }
 
 ///|
+test "explore gates concrete-answer CPS normalization" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|effect Probe {
+        #|  ping(I64) -> I64
+        #|}
+        #|
+        #|let add : (I64, I64) -> I64 = extern("add")
+        #|let observe : (I64) -> Unit ! Io = extern("observe")
+        #|
+        #|fn computation() -> I64 ! Probe {
+        #|  Probe::ping!(40)
+        #|}
+        #|
+        #|pub fn main() -> Unit ! Io {
+        #|  let result = handle computation() with {
+        #|    Probe::ping(value, resume) => resume(add(value, 2))
+        #|  } final value {
+        #|    value
+        #|  }
+        #|  observe(result)
+        #|}
+      ),
+    ),
+  )
+  let selected = report.stages
+    .ordered()
+    .filter_map(stage => {
+      guard stage.id == "buslane.monadic-lifted" ||
+        stage.id == "buslane.cps-core-optimized" ||
+        stage.id == "vmcfg.initial" ||
+        stage.id == "loisvm.bytecode" else {
+        return None
+      }
+      guard explore_stage_scale(stage) is Some((id, metrics, _)) else {
+        return None
+      }
+      Some(
+        (
+          id,
+          metrics.filter(metric => {
+            [
+              "topTermCount", "nodeCount", "callCount", "functionCount", "instructionCount",
+              "directCallCount", "indirectCallCount", "closureCount", "environmentCount",
+              "eraseCount", "uneraseCount",
+            ].contains(metric.0)
+          }),
+        ),
+      )
+    })
+  debug_inspect(
+    (report.status, report.diagnostics, selected),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [],
+      #|  [
+      #|    (
+      #|      "buslane.monadic-lifted",
+      #|      [
+      #|        ("topTermCount", 3),
+      #|        ("functionCount", 7),
+      #|        ("nodeCount", 40),
+      #|        ("callCount", 8),
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "buslane.cps-core-optimized",
+      #|      [
+      #|        ("topTermCount", 3),
+      #|        ("functionCount", 4),
+      #|        ("nodeCount", 31),
+      #|        ("callCount", 5),
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "vmcfg.initial",
+      #|      [
+      #|        ("functionCount", 7),
+      #|        ("instructionCount", 37),
+      #|        ("directCallCount", 2),
+      #|        ("indirectCallCount", 6),
+      #|        ("closureCount", 4),
+      #|        ("environmentCount", 4),
+      #|        ("eraseCount", 2),
+      #|        ("uneraseCount", 2),
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "loisvm.bytecode",
+      #|      [
+      #|        ("functionCount", 7),
+      #|        ("instructionCount", 31),
+      #|        ("directCallCount", 4),
+      #|        ("indirectCallCount", 4),
+      #|        ("closureCount", 3),
+      #|        ("environmentCount", 3),
+      #|        ("eraseCount", 2),
+      #|        ("uneraseCount", 2),
+      #|      ],
+      #|    ),
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
 test "explore keeps expanding recursive representation SCC generic" {
   let report = explore(
     explore_test_request(
@@ -562,7 +672,7 @@ test "explore keeps expanding recursive representation SCC generic" {
 }
 
 ///|
-test "explore shares alpha-renamed callable adapter workers" {
+test "explore removes alpha-renamed adapters during CPS core normalization" {
   let report = explore(
     explore_test_request(
       (
@@ -598,7 +708,7 @@ test "explore shares alpha-renamed callable adapter workers" {
   debug_inspect(
     (report.status, report.diagnostics, adapter_roles),
     content=(
-      #|(Succeeded, [], [[CallableAdapter, CallableAdapter]])
+      #|(Succeeded, [], [])
     ),
   )
 }
@@ -683,7 +793,7 @@ test "explore parse failure marks syntax failed and later stages unavailable" {
       #|    ("buslane.selective-cps", "unavailable"),
       #|    ("buslane.open-context-resolved", "unavailable"),
       #|    ("buslane.monadic-lifted", "unavailable"),
-      #|    ("buslane.effects-erased", "unavailable"),
+      #|    ("buslane.cps-core-optimized", "unavailable"),
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
       #|    ("vmcfg.initial", "unavailable"),
@@ -778,7 +888,7 @@ test "explore graph failure preserves syntax and fails resolved" {
       #|    ("buslane.selective-cps", "unavailable"),
       #|    ("buslane.open-context-resolved", "unavailable"),
       #|    ("buslane.monadic-lifted", "unavailable"),
-      #|    ("buslane.effects-erased", "unavailable"),
+      #|    ("buslane.cps-core-optimized", "unavailable"),
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
       #|    ("vmcfg.initial", "unavailable"),
@@ -866,7 +976,7 @@ test "explore resolve failure preserves syntax and fails resolved" {
       #|    ("buslane.selective-cps", "unavailable"),
       #|    ("buslane.open-context-resolved", "unavailable"),
       #|    ("buslane.monadic-lifted", "unavailable"),
-      #|    ("buslane.effects-erased", "unavailable"),
+      #|    ("buslane.cps-core-optimized", "unavailable"),
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
       #|    ("vmcfg.initial", "unavailable"),
@@ -929,7 +1039,7 @@ test "explore typecheck and entry-selection failures retain completed stages" {
       #|      ("buslane.selective-cps", "unavailable"),
       #|      ("buslane.open-context-resolved", "unavailable"),
       #|      ("buslane.monadic-lifted", "unavailable"),
-      #|      ("buslane.effects-erased", "unavailable"),
+      #|      ("buslane.cps-core-optimized", "unavailable"),
       #|      ("executable", "unavailable"),
       #|      ("anf", "unavailable"),
       #|      ("vmcfg.initial", "unavailable"),
@@ -952,7 +1062,7 @@ test "explore typecheck and entry-selection failures retain completed stages" {
       #|      ("buslane.selective-cps", "unavailable"),
       #|      ("buslane.open-context-resolved", "unavailable"),
       #|      ("buslane.monadic-lifted", "unavailable"),
-      #|      ("buslane.effects-erased", "unavailable"),
+      #|      ("buslane.cps-core-optimized", "unavailable"),
       #|      ("executable", "unavailable"),
       #|      ("anf", "unavailable"),
       #|      ("vmcfg.initial", "unavailable"),
@@ -1042,7 +1152,7 @@ test "explore traces a named function and preserves synthetic roots" {
     ),
     content=(
       #|(
-      #|  4,
+      #|  5,
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },
@@ -1095,7 +1205,7 @@ test "every Explore function scale consumes an IR-owned identity" {
   let identityless_stages = [
     "buslane.module", "buslane.linked", "buslane.effect-specialized", "buslane.core-optimized",
     "buslane.handlers-elaborated", "buslane.monadic", "buslane.selective-cps", "buslane.open-context-resolved",
-    "buslane.monadic-lifted", "buslane.effects-erased", "executable",
+    "buslane.monadic-lifted", "buslane.cps-core-optimized", "executable",
   ]
   let identityless_function_scales = report.stages
     .ordered()
@@ -1117,7 +1227,7 @@ test "every Explore function scale consumes an IR-owned identity" {
       #|  ("buslane.selective-cps", []),
       #|  ("buslane.open-context-resolved", []),
       #|  ("buslane.monadic-lifted", []),
-      #|  ("buslane.effects-erased", []),
+      #|  ("buslane.cps-core-optimized", []),
       #|  ("executable", []),
       #|]
     ),

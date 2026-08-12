@@ -1,6 +1,6 @@
 # Effect erasure before bytecode
 
-Lane lowers algebraic effects entirely before ANF and LoisVM bytecode. The pipeline uses compiler-private handler dictionaries and selective answer-type CPS; LoisVM contains no perform, resume, handler, effect-row, or handler-context instruction. Workspace ADR-0001 amends this ADR with built-in `Io`, extern bindings, and residual effect erasure.
+Lane lowers algebraic effects entirely before ANF and LoisVM bytecode. The pipeline uses compiler-private handler dictionaries and selective answer-type CPS; LoisVM contains no perform, resume, handler, effect-row, or handler-context instruction. Workspace ADR-0001 amends this ADR with built-in `Io`, extern bindings, and runtime effect projection.
 
 ## Pipeline contract
 
@@ -10,7 +10,12 @@ Lane lowers algebraic effects entirely before ANF and LoisVM bytecode. The pipel
 4. `mon-trans` applies when an effect row is open or contains any handled operation. Every handled operation is potentially multi-shot; resume counts are not analyzed.
 5. `open-resolve` validates that generated context adaptations are actually supplied by the ambient row, then removes the proof markers.
 6. `monadic-lift` turns generated local continuations into ordinary nested Buslane functions; the existing ANF lowering remains the sole owner of physical closure conversion and ARC representation.
-7. Residual effect erasure removes remaining non-monadic latent effects after effect lowering, producing ordinary effect-free Buslane for ANF. Generated CPS calls are never reclassified as source-pure from their residual effects.
+7. The ordinary effect-aware Core optimizer runs again after monadic lift.
+   `Empty` remains the authoritative purity fact: observable continuation and
+   dictionary calls retain their residual effects.
+8. Core-to-runtime-ANF lowering snapshots metadata and projects away the
+   remaining effect syntax while constructing ANF. It never publishes an
+   ordinary Buslane program whose semantic `Empty` means “information absent.”
 
 For monadic residual contexts `M`, non-monadic residual effect `R`, and handled result `H`, the local residual computation has the conceptual shape:
 
@@ -18,7 +23,7 @@ For monadic residual contexts `M`, non-monadic residual effect `R`, and handled 
 M_(M,R)<H> = [Answer](context_arguments(M, Answer)..., continuation : (H) -> Answer ! R) -> Answer ! R
 ```
 
-`mon-trans` removes the monadic portion while preserving `R`. Thus an `Io`-only function stays direct, an algebraic-effect function becomes CPS with no residual effect, and a function carrying both retains `Io` on its CPS ABI until residual effect erasure.
+`mon-trans` removes the monadic portion while preserving `R`. Thus an `Io`-only function stays direct, an algebraic-effect function becomes CPS with no residual effect, and a function carrying both retains `Io` on its CPS ABI until runtime ANF projection.
 
 ## Handler semantics
 
@@ -32,6 +37,8 @@ Consequences:
 
 - Pure and `Io`-only functions retain direct-style source ABIs through `mon-trans`.
 - Algebraic effects are represented only by compiler-generated ordinary values and calls before bytecode.
-- Effect-sensitive optimization consumes authoritative source effects before effect lowering; generated residual effects remain lowering facts until their explicit erasure.
+- Effect-sensitive optimization consumes authoritative effects both before
+  lowering and after monadic lift; CPS residual effects remain semantic until
+  the one-way runtime-ANF projection.
 - LoisVM runtime imports are ordinary extern targets, not effect operations or host handlers.
 - A future Host Effect Handler requires a separate interface and does not alter this pipeline implicitly.

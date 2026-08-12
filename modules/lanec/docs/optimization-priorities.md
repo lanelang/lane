@@ -99,7 +99,7 @@ instructions.
 Optimization work needs a deterministic, machine-readable feedback loop before
 the numbers above become targets.
 
-Explore Protocol v4 retains the structural observability introduced in v2 and
+Explore Protocol v5 retains the structural observability introduced in v2 and
 now delivers the first two requirements below: stage
 metrics are collected from typed IR, and function lineage is carried by ANF,
 LoisVM canonicalization, and Wasm emission owners. Per-function scale is
@@ -152,7 +152,9 @@ and enable the later priorities without inventing another fact producer.
 
 Delivered on 2026-08-11. VM CFG now computes one exact whole-image callable-flow
 fixed point across aliases, block edges, immutable aggregate fields, globals,
-and known function results. Closed singleton facts become direct calls.
+known function inputs, and known function results. Environment, witness, and
+ordinary argument facts cross direct and closed indirect calls. Closed singleton
+facts become direct calls.
 Environment ABI elimination consumes the same fact and is rejected before
 rewriting when any use requires a packed callable. The implementation has no
 reference-count restriction, numeric budget, profitability score, speculative
@@ -212,6 +214,18 @@ Deleting them locally would change ownership or call ABI. Removing those
 boundaries requires a future exact higher-kinded/CPS representation
 specialization whose plan proves the finite answer-ABI demand set. It is not
 adapter deduplication or peephole cancellation.
+
+The first CPS-aware follow-up runs the ordinary effect-aware Core optimizer
+again after monadic lift. Selective CPS preserves `Empty` as observational
+purity; runtime effect projection now occurs only while constructing ANF. On
+example 37 this reduces the initial VM CFG from 76 to 62 functions, 428 to 388
+instructions, 52 to 44 indirect calls, 51 to 46 closures/environments, and 29
+to 26 representation bridges. Final bytecode has 337 instructions, and Wasm
+has 116 functions, 10,419 instructions, and 87 table entries. A deep-ABI
+consumer-only worker experiment was rejected because its small bridge reduction
+increased closures, layouts, and Wasm size. The remaining work is therefore the
+typed producer-and-consumer instance plan in ADR-0136, not another local
+lowering trigger.
 
 ### 4. Trust verified bytecode facts in the Wasm compiler
 

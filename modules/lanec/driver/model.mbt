@@ -139,7 +139,7 @@ pub(all) struct ExploreFunctionGraph {
 
 ///|
 /// Current Explore Report Protocol schema owned by the compiler driver.
-pub let explore_report_schema_version : Int = 4
+pub let explore_report_schema_version : Int = 5
 
 ///|
 /// Canonical total order of protocol stages. This order is also the execution
@@ -157,7 +157,7 @@ pub(all) enum ExploreStageId {
   BuslaneSelectiveCps
   BuslaneOpenContextResolved
   BuslaneMonadicLifted
-  BuslaneEffectsErased
+  BuslaneCpsCoreOptimized
   Executable
   Anf
   VmcfgInitial
@@ -205,7 +205,7 @@ pub(all) struct ExploreStages {
   buslane_selective_cps : ExploreStageState
   buslane_open_context_resolved : ExploreStageState
   buslane_monadic_lifted : ExploreStageState
-  buslane_effects_erased : ExploreStageState
+  buslane_cps_core_optimized : ExploreStageState
   executable : ExploreStageState
   anf : ExploreStageState
   vmcfg_initial : ExploreStageState
@@ -272,7 +272,7 @@ pub fn ExploreStages::ordered(self : ExploreStages) -> Array[ExploreStage] {
       self.buslane_open_context_resolved,
     ),
     explore_stage(BuslaneMonadicLifted, self.buslane_monadic_lifted),
-    explore_stage(BuslaneEffectsErased, self.buslane_effects_erased),
+    explore_stage(BuslaneCpsCoreOptimized, self.buslane_cps_core_optimized),
     explore_stage(Executable, self.executable),
     explore_stage(Anf, self.anf),
     explore_stage(VmcfgInitial, self.vmcfg_initial),
@@ -304,7 +304,7 @@ pub fn ExploreStageId::key(self : ExploreStageId) -> String {
     BuslaneSelectiveCps => "buslane.selective-cps"
     BuslaneOpenContextResolved => "buslane.open-context-resolved"
     BuslaneMonadicLifted => "buslane.monadic-lifted"
-    BuslaneEffectsErased => "buslane.effects-erased"
+    BuslaneCpsCoreOptimized => "buslane.cps-core-optimized"
     Executable => "executable"
     Anf => "anf"
     VmcfgInitial => "vmcfg.initial"
@@ -328,9 +328,9 @@ fn ExploreStageId::title(self : ExploreStageId) -> String {
     BuslaneSelectiveCps => "Buslane (Selective CPS)"
     BuslaneOpenContextResolved => "Buslane (Open Context Resolution)"
     BuslaneMonadicLifted => "Buslane (Monadic Lift)"
-    BuslaneEffectsErased => "Buslane (Effect Erasure)"
-    Executable => "Executable Program (Whole-Program Elaboration)"
-    Anf => "ANF"
+    BuslaneCpsCoreOptimized => "Buslane (CPS Core Optimized)"
+    Executable => "Executable Program (Effect-Aware CPS Core)"
+    Anf => "Runtime ANF (Effect Projection)"
     VmcfgInitial => "VM CFG (Initial Lowering)"
     LoisvmBytecode => "LoisVM Bytecode (ARC and Slot Finalization)"
     Wasm => "Wasm (LoisVM Backend Lowering)"
@@ -352,7 +352,7 @@ fn ExploreStageId::index(self : ExploreStageId) -> Int {
     BuslaneSelectiveCps => 9
     BuslaneOpenContextResolved => 10
     BuslaneMonadicLifted => 11
-    BuslaneEffectsErased => 12
+    BuslaneCpsCoreOptimized => 12
     Executable => 13
     Anf => 14
     VmcfgInitial => 15
@@ -379,8 +379,8 @@ fn ExploreStageId::text_format(self : ExploreStageId) -> ExploreTextFormat {
     | BuslaneLinked
     | BuslaneEffectSpecialized
     | BuslaneMonadicLifted
+    | BuslaneCpsCoreOptimized
     | BuslaneCoreOptimized
-    | BuslaneEffectsErased
     | Executable => Buslane
     BuslaneHandlersElaborated
     | BuslaneMonadic

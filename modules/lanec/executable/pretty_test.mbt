@@ -46,7 +46,6 @@ test "executable pretty output emphasizes execution structure" {
     entry,
     initializers: [Value(initialized, Literal(I64(42)))],
     execution_roots: [Initializer(0), Entry(main)],
-    effect_companions: [],
   }
   inspect(
     @prettyprinter.render(executable, width=80),
@@ -67,7 +66,6 @@ test "executable pretty output emphasizes execution structure" {
       #|    init#0
       #|    entry value#2
       #|  }
-      #|  effect_companions {}
       #|  program {
       #|    buslane {
       #|      metadata {

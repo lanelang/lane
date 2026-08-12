@@ -98,17 +98,13 @@ fn lower_test_executable_to_bytecode_observed(
       entry,
       initializers: [],
       execution_roots: [Entry(entry.value)],
-      effect_companions: [],
     },
     observe,
   )
 }
 
 ///|
-fn test_image_lowerer(
-  metadata : @buslane.MetadataRegistry,
-  effect_companions : Array[@effect_lowering_cps.EffectCompanionBinding],
-) -> ImageLowerer {
+fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
   {
     metadata,
     externals: { builtins: [], runtime_imports: [] },
@@ -122,7 +118,6 @@ fn test_image_lowerer(
     callable_adapters: [],
     representation_specializations: [],
     data_families: [],
-    effect_companions,
     next_synthetic_parameter: -1,
   }
 }
@@ -166,7 +161,7 @@ test "function plans allocate source and synthetic origins atomically" {
       ),
     ],
   }
-  let lowerer = test_image_lowerer(metadata, [])
+  let lowerer = test_image_lowerer(metadata)
   let anf = @anf.lower_buslane_program_to_anf(program)
   ignore(lowerer.plan(anf, @occurrence.analyze({ program, entry, roots: [] })))
   debug_inspect(
@@ -2714,7 +2709,7 @@ test "payload-free existential data still opens its hidden witness" {
 }
 
 ///|
-test "effect-kind existential binders remain fully erased" {
+test "effect-kind existentials carry explicit companion evidence" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let hidden = metadata.define_type_parameter("HiddenEffect", Effect)
   let opened = metadata.define_type_parameter("OpenedEffect", Effect)
@@ -2776,7 +2771,21 @@ test "effect-kind existential binders remain fully erased" {
   }
   assert_true(
     image.object_shapes.any(shape => {
-      shape is Data({ stored_witness_count: 0, members: [], .. })
+      shape
+      is Data(
+        {
+          stored_witness_count: 0,
+          members: [
+            {
+              representation: I64,
+              cleanup: OwnedCallable,
+              kind: LayoutConstructorValue(1),
+              witness_ordinal: None,
+            },
+          ],
+          ..,
+        }
+      )
     }),
   )
   guard image.functions[0] is BytecodeBody(main_body) else {
@@ -3182,14 +3191,7 @@ test "adapter witness does not infer layout from a source effect" {
     "E%context",
     Function([Type, Effect], Type),
   )
-  let source_residual = metadata.define_type_parameter(
-    "E%residual",
-    Effect,
-    flavor=External,
-  )
-  let image = test_image_lowerer(metadata, [
-    { source, companion, residual: source_residual },
-  ])
+  let image = test_image_lowerer(metadata)
   let lowerer = test_function_lowerer(image)
   let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
   substitutions.insert_effect(source, Builtin(Io))
@@ -3208,21 +3210,13 @@ test "adapter witness does not infer layout from a source effect" {
 ///|
 test "concrete companion substitution determines its layout witness" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let source = metadata.define_type_parameter("E", Effect)
   let companion = metadata.define_type_parameter(
     "E%context",
     Function([Type, Effect], Type),
   )
-  let source_residual = metadata.define_type_parameter(
-    "E%residual",
-    Effect,
-    flavor=External,
-  )
   let answer = metadata.define_type_parameter("Answer", Type)
   let residual = metadata.define_type_parameter("Residual", Effect)
-  let image = test_image_lowerer(metadata, [
-    { source, companion, residual: source_residual },
-  ])
+  let image = test_image_lowerer(metadata)
   let lowerer = test_function_lowerer(image)
   let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
   substitutions.insert(
@@ -3246,12 +3240,10 @@ test "concrete companion substitution determines its layout witness" {
 ///|
 test "forwarded companion substitution reuses the outer layout witness" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let formal_source = metadata.define_type_parameter("FormalE", Effect)
   let formal_companion = metadata.define_type_parameter(
     "FormalE%context",
     Function([Type, Effect], Type),
   )
-  let actual_source = metadata.define_type_parameter("ActualE", Effect)
   let actual_companion = metadata.define_type_parameter(
     "ActualE%context",
     Function([Type, Effect], Type),
@@ -3268,18 +3260,7 @@ test "forwarded companion substitution reuses the outer layout witness" {
   )
   let source_answer = metadata.define_type_parameter("SourceAnswer", Type)
   let target_answer = metadata.define_type_parameter("TargetAnswer", Type)
-  let image = test_image_lowerer(metadata, [
-    {
-      source: formal_source,
-      companion: formal_companion,
-      residual: formal_residual,
-    },
-    {
-      source: actual_source,
-      companion: actual_companion,
-      residual: actual_residual,
-    },
-  ])
+  let image = test_image_lowerer(metadata)
   let lowerer = test_function_lowerer(image)
   let outer_witness : @vmcfg.ValueId = { value: 17 }
   lowerer.witnesses.push({ parameter: actual_companion, value: outer_witness })
@@ -3293,10 +3274,6 @@ test "forwarded companion substitution reuses the outer layout witness" {
   assert_eq(
     substitutions.type_argument(formal_companion),
     Some(Parameter(actual_companion)),
-  )
-  assert_eq(
-    substitutions.effect_argument(formal_source),
-    Some(Parameter(actual_source)),
   )
   assert_eq(
     substitutions.effect_argument(formal_residual),
@@ -3328,7 +3305,7 @@ test "forwarded companion substitution reuses the outer layout witness" {
 ///|
 test "runtime-ABI-identical callable adaptation needs no adapter" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let image = test_image_lowerer(metadata, [])
+  let image = test_image_lowerer(metadata)
   let lowerer = test_function_lowerer(image)
   let source_type = test_function_type([Primitive(I64)], Primitive(I64))
   let target_type = test_function_type(
@@ -3374,7 +3351,7 @@ test "runtime-ABI-identical callable adaptation needs no adapter" {
 ///|
 test "equal-width callable values do not bypass semantic alignment" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let image = test_image_lowerer(metadata, [])
+  let image = test_image_lowerer(metadata)
   let lowerer = test_function_lowerer(image)
   let source_type = test_function_type([Primitive(I32)], Primitive(I32))
   let target_type = test_function_type([Primitive(Bool)], Primitive(Bool))
@@ -3403,7 +3380,7 @@ test "equal-width callable values do not bypass semantic alignment" {
 test "nonescaping representation-changing adapter is fused into its call" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let parameter = metadata.define_type_parameter("T", Type)
-  let image = test_image_lowerer(metadata, [])
+  let image = test_image_lowerer(metadata)
   let lowerer = test_function_lowerer(image)
   let source_type = test_function_type(
     [Primitive(I64), Primitive(I64)],
@@ -3462,7 +3439,6 @@ test "nonescaping representation-changing adapter is fused into its call" {
 ///|
 test "callable adapter owns its final substitution" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let source = metadata.define_type_parameter("E", Effect)
   let companion = metadata.define_type_parameter(
     "E%context",
     Function([Type, Effect], Type),
@@ -3477,9 +3453,7 @@ test "callable adapter owns its final substitution" {
   let dictionary_type : @buslane.Type = Constructor(
     metadata.define_type("Dictionary", []),
   )
-  let image = test_image_lowerer(metadata, [
-    { source, companion, residual: source_residual },
-  ])
+  let image = test_image_lowerer(metadata)
   let lowerer = test_function_lowerer(image)
   let companion_type : @buslane.Type = Apply(Parameter(companion), [
     TypeArgument(Primitive(I64)),
@@ -3528,10 +3502,10 @@ test "callable adapter owns its final substitution" {
       #|      source_type: Function(
       #|        [
       #|          Apply(
-      #|            Parameter({ index: 1 }),
+      #|            Parameter({ index: 0 }),
       #|            [
       #|              TypeArgument(Primitive(I64)),
-      #|              EffectArgument(Parameter({ index: 2 })),
+      #|              EffectArgument(Parameter({ index: 1 })),
       #|            ],
       #|          ),
       #|        ],
@@ -3547,12 +3521,12 @@ test "callable adapter owns its final substitution" {
       #|      substitutions: {
       #|        entries: [
       #|          {
-      #|            parameter: { index: 1 },
-      #|            replacement: TypeArgument(TypeLambda([{ index: 3 }, { index: 4 }], Constructor({ index: 0 }))),
+      #|            parameter: { index: 0 },
+      #|            replacement: TypeArgument(TypeLambda([{ index: 2 }, { index: 3 }], Constructor({ index: 0 }))),
       #|          },
       #|        ],
       #|      },
-      #|      captured_parameters: [{ index: 1 }],
+      #|      captured_parameters: [{ index: 0 }],
       #|      environment_shape: { value: 0 },
       #|    },
       #|  ],
@@ -3612,7 +3586,7 @@ test "higher-kinded formal applications retain their erased generic ABI" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let capability = metadata.define_type_parameter("C", Function([Type], Type))
   let element = metadata.define_type_parameter("T", Type)
-  let image = test_image_lowerer(metadata, [])
+  let image = test_image_lowerer(metadata)
   let lowerer = test_function_lowerer(image)
   let source_type : @buslane.Type = Function(
     [Primitive(Unit)],
@@ -3735,7 +3709,7 @@ test "higher-kinded formal applications retain their erased generic ABI" {
 ///|
 test "ordinary calls adapt erased slots to concrete parameters" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let image = test_image_lowerer(metadata, [])
+  let image = test_image_lowerer(metadata)
   let callable_type : @buslane.Type = Function(
     [Primitive(String)],
     Primitive(Unit),
@@ -3783,7 +3757,7 @@ test "ordinary calls adapt erased slots to concrete parameters" {
 test "callable ABI comparison preserves nested formal erasure" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let parameter = metadata.define_type_parameter("T", Type)
-  let image = test_image_lowerer(metadata, [])
+  let image = test_image_lowerer(metadata)
   let source_type : @buslane.Type = Function(
     [Function([Primitive(Unit)], Primitive(String), Empty)],
     Primitive(Unit),
@@ -3807,7 +3781,7 @@ test "callable ABI comparison preserves nested formal erasure" {
 test "callable erasure uses the formal erased-position ABI" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let answer = metadata.define_type_parameter("Answer", Type)
-  let image = test_image_lowerer(metadata, [])
+  let image = test_image_lowerer(metadata)
   let erased_callable = image.fresh_synthetic_parameter()
   let lowerer = test_function_lowerer(image)
   let concrete_type = test_function_type([Primitive(Unit)], Primitive(Unit))
@@ -3889,7 +3863,7 @@ test "callable adapter alignment beta-reduces effect companions" {
   let other_dictionary_type : @buslane.Type = Constructor(
     metadata.define_type("OtherDictionary", []),
   )
-  let image = test_image_lowerer(metadata, [])
+  let image = test_image_lowerer(metadata)
   let source_continuation : @buslane.Type = Function(
     [Primitive(I64)],
     Parameter(source_answer),

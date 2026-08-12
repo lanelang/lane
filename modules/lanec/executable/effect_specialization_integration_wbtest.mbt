@@ -64,7 +64,7 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
   }
   let mut lifted_generic_type = None
   let mut lifted_verification = None
-  let lowered = lower_effects(specialized, stage => {
+  let lowered = lower_effects(specialized, entry, stage => {
     if stage is MonadicContinuationsLifted(lifted) {
       lifted_generic_type = lifted.metadata
         .value_info(generic)
@@ -79,7 +79,7 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
   if !verified_lifted.is_ok() {
     fail("monadic-lift program did not verify: \{Repr(verified_lifted)}")
   }
-  let verified = @buslane.verify_program(lowered.program)
+  let verified = @buslane.verify_program(lowered)
   if !verified.is_ok() {
     fail("lowered program did not verify: \{Repr(verified)}")
   }
@@ -105,4 +105,258 @@ test "specialization adapter exposes only source limitations as unsupported" {
     effect_specialization_elaboration_error(invariant),
     EffectSpecializationCompilerDefect(invariant),
   )
+}
+
+///|
+test "CPS Core optimization preserves handler-arm residual effects" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let probe = metadata.define_effect("Probe", [])
+  let ping = metadata.define_operation("ping", probe, [], [], Primitive(Unit))
+  let println = metadata.define_value(
+    "println",
+    External,
+    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+  )
+  let handled_result = metadata.define_value(
+    "handled_result",
+    MatchBinder,
+    Primitive(Unit),
+  )
+  let resume_value = metadata.define_value(
+    "resume",
+    Parameter,
+    Function([Primitive(Unit)], Primitive(Unit), Empty),
+  )
+  let discarded = metadata.define_value("discarded", Local, Primitive(Unit))
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], Primitive(Unit), Builtin(Io)),
+  )
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      External(println),
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Let(
+            discarded,
+            Handle({
+              body: Perform({
+                operation: ping,
+                effect_arguments: [],
+                hidden_witnesses: [],
+                payloads: [],
+              }),
+              result_binder: handled_result,
+              result_type: Primitive(Unit),
+              final_body: Ref(handled_result),
+              handlers: [
+                {
+                  handled_effect: Singleton(probe, []),
+                  operations: [
+                    {
+                      operation: ping,
+                      type_binders: [],
+                      payload_binders: [],
+                      resume_binder: resume_value,
+                      body: Call(Ref(println), [Literal(String("handled"))]),
+                    },
+                  ],
+                },
+              ],
+            }),
+            Literal(Unit),
+          ),
+        }),
+      ),
+    ],
+  }
+  assert_true(@buslane.verify_program(source).is_ok())
+  assert_cps_stage_entry_effect(source, entry, Builtin(Io))
+}
+
+///|
+test "CPS Core optimization preserves final-clause residual effects" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let probe = metadata.define_effect("Probe", [])
+  let ping = metadata.define_operation("ping", probe, [], [], Primitive(Unit))
+  let println = metadata.define_value(
+    "println",
+    External,
+    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+  )
+  let handled_result = metadata.define_value(
+    "handled_result",
+    MatchBinder,
+    Primitive(Unit),
+  )
+  let resume_value = metadata.define_value(
+    "resume",
+    Parameter,
+    Function([Primitive(Unit)], Primitive(Unit), Builtin(Io)),
+  )
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], Primitive(Unit), Builtin(Io)),
+  )
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      External(println),
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Handle({
+            body: Perform({
+              operation: ping,
+              effect_arguments: [],
+              hidden_witnesses: [],
+              payloads: [],
+            }),
+            result_binder: handled_result,
+            result_type: Primitive(Unit),
+            final_body: Call(Ref(println), [Literal(String("finalized"))]),
+            handlers: [
+              {
+                handled_effect: Singleton(probe, []),
+                operations: [
+                  {
+                    operation: ping,
+                    type_binders: [],
+                    payload_binders: [],
+                    resume_binder: resume_value,
+                    body: Call(Resume(resume_value), [Literal(Unit)]),
+                  },
+                ],
+              },
+            ],
+          }),
+        }),
+      ),
+    ],
+  }
+  assert_true(@buslane.verify_program(source).is_ok())
+  assert_cps_stage_entry_effect(source, entry, Builtin(Io))
+}
+
+///|
+test "CPS Core optimization preserves continuation-suffix residual effects" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let probe = metadata.define_effect("Probe", [])
+  let ping = metadata.define_operation("ping", probe, [], [], Primitive(Unit))
+  let println = metadata.define_value(
+    "println",
+    External,
+    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+  )
+  let performed = metadata.define_value("performed", Local, Primitive(Unit))
+  let handled_result = metadata.define_value(
+    "handled_result",
+    MatchBinder,
+    Primitive(Unit),
+  )
+  let resume_value = metadata.define_value(
+    "resume",
+    Parameter,
+    Function([Primitive(Unit)], Primitive(Unit), Builtin(Io)),
+  )
+  let entry = metadata.define_value(
+    "entry",
+    Function,
+    Function([], Primitive(Unit), Builtin(Io)),
+  )
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      External(println),
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Handle({
+            body: Let(
+              performed,
+              Perform({
+                operation: ping,
+                effect_arguments: [],
+                hidden_witnesses: [],
+                payloads: [],
+              }),
+              Call(Ref(println), [Literal(String("continued"))]),
+            ),
+            result_binder: handled_result,
+            result_type: Primitive(Unit),
+            final_body: Ref(handled_result),
+            handlers: [
+              {
+                handled_effect: Singleton(probe, []),
+                operations: [
+                  {
+                    operation: ping,
+                    type_binders: [],
+                    payload_binders: [],
+                    resume_binder: resume_value,
+                    body: Call(Resume(resume_value), [Literal(Unit)]),
+                  },
+                ],
+              },
+            ],
+          }),
+        }),
+      ),
+    ],
+  }
+  assert_true(@buslane.verify_program(source).is_ok())
+  assert_cps_stage_entry_effect(source, entry, Builtin(Io))
+}
+
+///|
+fn assert_cps_stage_entry_effect(
+  source : @buslane.Program,
+  entry : @buslane.ValueId,
+  expected_effect : @buslane.Effect,
+) -> Unit raise {
+  let mut lifted_actual = None
+  let mut optimized_actual = None
+  ignore(
+    lower_effects(source, entry, stage => {
+      match stage {
+        MonadicContinuationsLifted(program) =>
+          lifted_actual = synthesized_top_function_type(program, entry)
+        CpsCoreOptimized(program) =>
+          optimized_actual = synthesized_top_function_type(program, entry)
+        _ => ()
+      }
+    }),
+  )
+  let expected = Some(
+    @buslane.Type::Function([], Primitive(Unit), expected_effect),
+  )
+  assert_eq(lifted_actual, expected)
+  assert_eq(optimized_actual, expected)
+}
+
+///|
+fn synthesized_top_function_type(
+  program : @buslane.Program,
+  value : @buslane.ValueId,
+) -> @buslane.Type? {
+  for term in program.terms {
+    if term is Let(id, expression) && id == value {
+      return match
+        @buslane.ExpressionFactsQuery::new(program).synthesize(expression) {
+        Ok(facts) => Some(facts.type_())
+        Err(_) => None
+      }
+    }
+  }
+  None
 }

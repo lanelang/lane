@@ -16,8 +16,6 @@ pub fn effect_terms(@buslane.MetadataRegistry, @buslane.Effect) -> Array[@buslan
 
 pub fn elaborate_handlers(@buslane.Program) -> Program
 
-pub fn erase_residual_effects(@buslane.Program) -> @buslane.Program
-
 pub fn introduce_monadic_binds(Program) -> Result[Program, SynthesisError]
 
 pub fn is_mon_effect(@buslane.MetadataRegistry, @buslane.Effect) -> Bool raise SynthesisError
@@ -52,11 +50,13 @@ pub(all) suberror SynthesisError {
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
   UnknownValue(@buslane.ValueId)
   UnknownType(@buslane.TypeId)
+  UnknownTypeParameter(@buslane.TypeParameterId)
   UnknownDataConstructor(@buslane.DataConId)
   UnknownEffect(@buslane.EffectId)
   UnknownOperation(@buslane.OperationId)
   ExpectedFunction(@buslane.Type)
   ExpectedForall(@buslane.Type)
+  ExpectedKindFunction(@buslane.Kind)
   ArityMismatch(expected~ : Int, actual~ : Int)
   EffectfulTypeLambda(@buslane.Effect)
   EffectfulRecursiveBinding(@buslane.ValueId, @buslane.Effect)
@@ -175,6 +175,7 @@ pub(all) struct ProgramDeclarations {
   // private fields
 }
 pub fn ProgramDeclarations::data_constructor_ids(Self) -> Array[@buslane.DataConId]
+pub fn ProgramDeclarations::type_ids(Self) -> Array[@buslane.TypeId]
 pub fn ProgramDeclarations::value_ids(Self) -> Array[@buslane.ValueId]
 
 pub(all) struct RecursiveBinding {

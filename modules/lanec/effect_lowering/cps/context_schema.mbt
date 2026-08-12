@@ -1,9 +1,9 @@
 ///|
-pub(all) struct EffectCompanionBinding {
+priv struct EffectCompanionBinding {
   source : @buslane.TypeParameterId
   companion : @buslane.TypeParameterId
   residual : @buslane.TypeParameterId
-} derive(Debug, Eq)
+}
 
 // A source effect parameter becomes two independent CPS facts: a context type
 // function, which alone determines runtime representation, and an external
@@ -32,6 +32,7 @@ priv struct ContextPackSchema {
 
 ///|
 priv struct DictionaryCpsSchema {
+  source_metadata : @buslane.MetadataRegistry
   metadata : @buslane.MetadataRegistry
   companions : Array[EffectCompanionBinding]
   dictionaries : Array[DictionaryHeader]
@@ -43,13 +44,16 @@ priv struct DictionaryCpsSchema {
 fn build_dictionary_cps_schema_or_raise(
   metadata : @buslane.MetadataRegistry,
 ) -> DictionaryCpsSchema raise SynthesisError {
-  let companions = define_effect_companions(metadata)
+  let source_metadata = metadata.snapshot()
+  let companions = define_effect_companions(metadata, source_metadata)
+  rewrite_source_parameter_kinds(metadata, source_metadata)
   let headers = []
   let effect_count = metadata.effects.length()
   for index in 0..<effect_count {
     headers.push(define_dictionary_header(metadata, companions, { index, }))
   }
   let schema = DictionaryCpsSchema::{
+    source_metadata,
     metadata,
     companions,
     dictionaries: headers,
@@ -73,12 +77,13 @@ fn build_dictionary_cps_schema_or_raise(
 ///|
 fn define_effect_companions(
   metadata : @buslane.MetadataRegistry,
+  source_metadata : @buslane.MetadataRegistry,
 ) -> Array[EffectCompanionBinding] raise SynthesisError {
   let companions = []
-  let source_parameter_count = metadata.type_parameters.length()
+  let source_parameter_count = source_metadata.type_parameters.length()
   for index in 0..<source_parameter_count {
     let source = @buslane.TypeParameterId::{ index, }
-    let info = metadata.type_parameters[index]
+    let info = source_metadata.type_parameters[index]
     if info.kind == Effect {
       companions.push(EffectCompanionBinding::{
         source,
@@ -95,6 +100,50 @@ fn define_effect_companions(
     }
   }
   companions
+}
+
+///|
+fn rewrite_source_parameter_kinds(
+  metadata : @buslane.MetadataRegistry,
+  source_metadata : @buslane.MetadataRegistry,
+) -> Unit {
+  for index, info in source_metadata.type_parameters {
+    if info.kind != Effect {
+      metadata.type_parameters[index] = {
+        ..info,
+        kind: rewrite_cps_kind(info.kind),
+      }
+    }
+  }
+}
+
+///|
+fn rewrite_cps_kind(kind : @buslane.Kind) -> @buslane.Kind {
+  match kind {
+    Type | Effect => kind
+    Function(parameters, result) =>
+      Function(
+        rewrite_cps_parameter_kinds(parameters),
+        rewrite_cps_kind(result),
+      )
+  }
+}
+
+///|
+fn rewrite_cps_parameter_kinds(
+  parameters : Array[@buslane.Kind],
+) -> Array[@buslane.Kind] {
+  let rewritten : Array[@buslane.Kind] = []
+  for parameter in parameters {
+    match parameter {
+      Effect => {
+        rewritten.push(Function([Type, Effect], Type))
+        rewritten.push(Effect)
+      }
+      parameter => rewritten.push(rewrite_cps_kind(parameter))
+    }
+  }
+  rewritten
 }
 
 ///|
@@ -268,7 +317,7 @@ fn DictionaryCpsSchema::rewrite_type(
     Apply(callee, arguments) =>
       Apply(
         self.rewrite_type(callee),
-        arguments.map(argument => self.rewrite_generic_argument(argument)),
+        self.rewrite_application_arguments(callee, arguments),
       )
     TypeLambda(parameters, body) =>
       TypeLambda(
@@ -278,6 +327,117 @@ fn DictionaryCpsSchema::rewrite_type(
     Function(_, _, _) => self.plan_callable_shape(type_).target_type
     Forall(parameters, body) =>
       Forall(self.rewrite_cps_parameters(parameters), self.rewrite_type(body))
+  }
+}
+
+///|
+fn DictionaryCpsSchema::rewrite_application_arguments(
+  self : DictionaryCpsSchema,
+  callee : @buslane.Type,
+  arguments : Array[@buslane.GenericArgument],
+) -> Array[@buslane.GenericArgument] raise SynthesisError {
+  let parameter_kinds = self.source_application_parameter_kinds(callee)
+  if arguments.length() > parameter_kinds.length() {
+    raise ArityMismatch(
+      expected=parameter_kinds.length(),
+      actual=arguments.length(),
+    )
+  }
+  let rewritten = []
+  for index, argument in arguments {
+    rewritten.append(
+      self.rewrite_application_argument(parameter_kinds[index], argument),
+    )
+  }
+  rewritten
+}
+
+///|
+fn DictionaryCpsSchema::rewrite_application_argument(
+  self : DictionaryCpsSchema,
+  parameter_kind : @buslane.Kind,
+  argument : @buslane.GenericArgument,
+) -> Array[@buslane.GenericArgument] raise SynthesisError {
+  match (parameter_kind, argument) {
+    (Effect, EffectArgument(Parameter(source))) =>
+      [
+        TypeArgument(Parameter(self.companion_parameter(source))),
+        EffectArgument(Parameter(self.residual_parameter(source))),
+      ]
+    (Effect, EffectArgument(effect)) =>
+      [
+        TypeArgument(self.companion_context_argument(effect)),
+        EffectArgument(self.rewrite_residual_effect(effect)),
+      ]
+    (_, argument) => [self.rewrite_generic_argument(argument)]
+  }
+}
+
+///|
+fn DictionaryCpsSchema::source_application_parameter_kinds(
+  self : DictionaryCpsSchema,
+  callee : @buslane.Type,
+) -> Array[@buslane.Kind] raise SynthesisError {
+  match self.source_type_kind(callee) {
+    Function(parameters, _) => parameters
+    kind => raise ExpectedKindFunction(kind)
+  }
+}
+
+///|
+fn DictionaryCpsSchema::source_type_kind(
+  self : DictionaryCpsSchema,
+  type_ : @buslane.Type,
+) -> @buslane.Kind raise SynthesisError {
+  match type_ {
+    Primitive(_) | Function(_, _, _) | Forall(_, _) => Type
+    Parameter(parameter) => self.source_parameter_kind(parameter)
+    Constructor(type_id) => {
+      guard self.source_metadata.type_info(type_id) is Some(info) else {
+        raise UnknownType(type_id)
+      }
+      if info.parameters.is_empty() {
+        Type
+      } else {
+        Function(
+          info.parameters.map(parameter => self.source_parameter_kind(parameter)),
+          Type,
+        )
+      }
+    }
+    Apply(callee, arguments) =>
+      match self.source_type_kind(callee) {
+        Function(parameters, result) => {
+          if arguments.length() > parameters.length() {
+            raise ArityMismatch(
+              expected=parameters.length(),
+              actual=arguments.length(),
+            )
+          }
+          if arguments.length() < parameters.length() {
+            Function(parameters[arguments.length():].to_owned(), result)
+          } else {
+            result
+          }
+        }
+        kind => raise ExpectedKindFunction(kind)
+      }
+    TypeLambda(parameters, body) =>
+      Function(
+        parameters.map(parameter => self.source_parameter_kind(parameter)),
+        self.source_type_kind(body),
+      )
+  }
+}
+
+///|
+fn DictionaryCpsSchema::source_parameter_kind(
+  self : DictionaryCpsSchema,
+  parameter : @buslane.TypeParameterId,
+) -> @buslane.Kind raise SynthesisError {
+  match self.source_metadata.type_parameter_info(parameter) {
+    Some(info) => info.kind
+    None => raise UnknownTypeParameter(parameter)
   }
 }
 

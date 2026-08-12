@@ -175,7 +175,7 @@ pub(all) enum ExploreStageId {
   BuslaneSelectiveCps
   BuslaneOpenContextResolved
   BuslaneMonadicLifted
-  BuslaneEffectsErased
+  BuslaneCpsCoreOptimized
   Executable
   Anf
   VmcfgInitial
@@ -203,7 +203,7 @@ pub(all) struct ExploreStages {
   buslane_selective_cps : ExploreStageState
   buslane_open_context_resolved : ExploreStageState
   buslane_monadic_lifted : ExploreStageState
-  buslane_effects_erased : ExploreStageState
+  buslane_cps_core_optimized : ExploreStageState
   executable : ExploreStageState
   anf : ExploreStageState
   vmcfg_initial : ExploreStageState

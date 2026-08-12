@@ -5,6 +5,19 @@ pub(all) struct AnfProgram {
 } derive(Debug, Eq)
 
 ///|
+/// Runtime ANF owns the one-way projection from effect-aware CPS Core into
+/// representation lowering. Its metadata contains runtime types only and must
+/// not be interpreted by Buslane effect analyses.
+pub struct RuntimeAnfProgram {
+  program : AnfProgram
+} derive(Debug, Eq)
+
+///|
+pub fn RuntimeAnfProgram::anf(self : RuntimeAnfProgram) -> AnfProgram {
+  self.program
+}
+
+///|
 pub(all) struct AnfFunctionId {
   value : Int
 } derive(Debug, Eq, Hash)

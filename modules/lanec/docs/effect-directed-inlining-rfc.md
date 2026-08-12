@@ -294,7 +294,8 @@ preserves the policy seam so that work can proceed independently.
 Application reduction runs in effect-aware Buslane Core optimization after
 linking, executable entry selection, and effect specialization. It runs before
 handler elaboration, monadic transformation, selective CPS, open-context
-resolution, continuation lifting, residual-effect erasure, and ANF lowering.
+resolution, continuation lifting, and runtime ANF lowering. The same optimizer
+runs again after continuation lifting and before runtime projection.
 
 This placement provides:
 
@@ -304,14 +305,20 @@ This placement provides:
 - high-level constructors and matches for contextual reduction;
 - no need to reconstruct source semantics from ANF or VM CFG.
 
-This is the final whole-program boundary where `Empty` means source-level
-unobservability. After effect lowering begins, generated context and
-continuation calls can have an empty residual effect while still implementing
-observable source computations. Core optimization therefore must not infer
-source purity from post-CPS residual effects.
+This optimization runs both before effect lowering and after monadic
+continuations have been lifted. Selective CPS changes which effects remain in
+the row, but not what `Empty` means: the target computation is observationally
+pure. A generated context or continuation call that can perform `Io`, `Panic`,
+or another residual effect must carry that effect in its CPS ABI. Losing it is
+an effect-lowering defect, not a reason to weaken the optimizer's purity rule.
 
 ANF continues to make the surviving execution order mechanically explicit for
 lowering. It is not duplicated inside Core optimization.
+
+Residual effect projection occurs only while constructing runtime ANF. The
+runtime IR is not accepted by this optimizer, so “effect
+information is unavailable” is never represented as semantic `Empty` at an
+optimization seam.
 
 ## Implementation plan
 

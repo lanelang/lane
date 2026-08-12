@@ -77,14 +77,11 @@ test "effect parameters receive one stable higher-kinded companion" {
 }
 
 ///|
-test "selective CPS exposes effect companion identities" {
+test "selective CPS schema owns effect companion identities" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect_parameter = metadata.define_type_parameter("E", Effect)
-  let result = rewrite_selective_cps_abis_with_companions({
-    metadata,
-    terms: [],
-  }).unwrap()
-  guard result.effect_companions is [{ source, companion, residual }] else {
+  let schema = build_dictionary_cps_schema_or_raise(metadata)
+  guard schema.companions is [{ source, companion, residual }] else {
     abort("expected one effect companion binding")
   }
   assert_eq(source, effect_parameter)
@@ -151,6 +148,32 @@ test "effect application carries context and residual projections independently"
     TypeArgument(Parameter(companion)),
     EffectArgument(Parameter(residual)),
   ])
+}
+
+///|
+test "higher-kinded effect positions expand into explicit CPS facts" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let source = metadata.define_type_parameter("E", Effect)
+  let type_function = metadata.define_type_parameter(
+    "F",
+    Function([Effect], Type),
+  )
+  let schema = build_dictionary_cps_schema_or_raise(metadata)
+  let companion = schema.companion_parameter(source)
+  let residual = schema.residual_parameter(source)
+  assert_eq(
+    metadata.type_parameter_info(type_function).unwrap().kind,
+    Function([Function([Type, Effect], Type), Effect], Type),
+  )
+  assert_eq(
+    schema.rewrite_type(
+      Apply(Parameter(type_function), [EffectArgument(Parameter(source))]),
+    ),
+    Apply(Parameter(type_function), [
+      TypeArgument(Parameter(companion)),
+      EffectArgument(Parameter(residual)),
+    ]),
+  )
 }
 
 ///|

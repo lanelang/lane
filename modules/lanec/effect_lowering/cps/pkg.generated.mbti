@@ -2,29 +2,15 @@
 package "Milky2018/lanec/effect_lowering/cps"
 
 import {
-  "Milky2018/buslane",
   "Milky2018/lanec/effect_lowering/core",
-  "moonbitlang/core/debug",
 }
 
 // Values
 pub fn rewrite_selective_cps_abis(@core.Program) -> Result[@core.Program, @core.SynthesisError]
 
-pub fn rewrite_selective_cps_abis_with_companions(@core.Program) -> Result[SelectiveCpsRewrite, @core.SynthesisError]
-
 // Errors
 
 // Types and methods
-pub(all) struct EffectCompanionBinding {
-  source : @buslane.TypeParameterId
-  companion : @buslane.TypeParameterId
-  residual : @buslane.TypeParameterId
-} derive(Eq, @debug.Debug)
-
-pub(all) struct SelectiveCpsRewrite {
-  program : @core.Program
-  effect_companions : Array[EffectCompanionBinding]
-} derive(Eq, @debug.Debug)
 
 // Type aliases
 

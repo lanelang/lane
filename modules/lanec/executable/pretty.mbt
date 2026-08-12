@@ -13,7 +13,6 @@ pub impl @prettyprinter.Pretty for ExecutableProgram with fn pretty(
     executable_externals_doc(executable.externals),
     executable_initializers_doc(executable.initializers),
     executable_roots_doc(executable.execution_roots),
-    executable_companions_doc(executable.effect_companions),
     @lanec_pretty.section("program", [executable.program.pretty()]),
   ])
 }
@@ -105,26 +104,6 @@ fn executable_roots_doc(roots : Array[ExecutionRoot]) -> Document {
         Initializer(index) => text("init#\{index}")
         Entry(value) => text("entry") + space + value.pretty()
       }
-    }),
-  )
-}
-
-///|
-fn executable_companions_doc(
-  companions : Array[@effect_lowering_cps.EffectCompanionBinding],
-) -> Document {
-  @lanec_pretty.section(
-    "effect_companions",
-    companions.map(companion => {
-      companion.source.pretty() +
-      space +
-      text("=>") +
-      space +
-      companion.companion.pretty() +
-      space +
-      text("+") +
-      space +
-      companion.residual.pretty()
     }),
   )
 }

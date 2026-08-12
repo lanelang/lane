@@ -4,18 +4,28 @@
 /// Only the ones the program mentions. A declaration effect specialization made
 /// dead is legal Buslane already and stays legal by being left alone; rewriting
 /// the types under it while its binders stay as they were is what would make it
-/// illegal. Type declarations are untouched either way, since nothing in a
-/// `TypeInfo` needs the companion form.
+/// illegal. Effect-kinded nominal parameters are expanded with the same
+/// companion/residual ABI as callable binders, so their declarations and every
+/// constructor in the family are committed together.
 fn rewrite_cps_source_metadata(
   schema : DictionaryCpsSchema,
   declarations : @effect_lowering_core.ProgramDeclarations,
 ) -> Unit raise SynthesisError {
+  for type_id in declarations.type_ids() {
+    let info = schema.metadata.types[type_id.index]
+    schema.metadata.types[type_id.index] = {
+      ..info,
+      parameters: schema.rewrite_cps_parameters(info.parameters),
+    }
+  }
   for data_constructor in declarations.data_constructor_ids() {
     let info = schema.metadata.data_constructors[data_constructor.index]
     schema.metadata.data_constructors[data_constructor.index] = {
       name: info.name,
       owner: info.owner,
-      hidden_type_parameters: info.hidden_type_parameters,
+      hidden_type_parameters: schema.rewrite_cps_parameters(
+        info.hidden_type_parameters,
+      ),
       payload_types: info.payload_types.map(type_ => schema.rewrite_type(type_)),
     }
   }

@@ -39,22 +39,6 @@ fn CpsEnvironment::answer(
 pub fn rewrite_selective_cps_abis(
   program : Program,
 ) -> Result[Program, SynthesisError] {
-  match rewrite_selective_cps_abis_with_companions(program) {
-    Ok(result) => Ok(result.program)
-    Err(error) => Err(error)
-  }
-}
-
-///|
-pub(all) struct SelectiveCpsRewrite {
-  program : Program
-  effect_companions : Array[EffectCompanionBinding]
-} derive(Debug, Eq)
-
-///|
-pub fn rewrite_selective_cps_abis_with_companions(
-  program : Program,
-) -> Result[SelectiveCpsRewrite, SynthesisError] {
   Ok(rewrite_selective_cps_abis_or_raise(program)) catch {
     error => Err(error)
   }
@@ -63,7 +47,7 @@ pub fn rewrite_selective_cps_abis_with_companions(
 ///|
 fn rewrite_selective_cps_abis_or_raise(
   program : Program,
-) -> SelectiveCpsRewrite raise SynthesisError {
+) -> Program raise SynthesisError {
   let source = Program::{
     metadata: program.metadata.snapshot(),
     terms: program.terms,
@@ -74,7 +58,7 @@ fn rewrite_selective_cps_abis_or_raise(
   let terms = source.terms.map(term => lower_cps_top_term(schema, source, term))
   let output = Program::{ metadata: program.metadata, terms }
   validate_mon_trans_output_or_raise(output)
-  { program: output, effect_companions: schema.companions }
+  output
 }
 
 ///|
@@ -283,19 +267,29 @@ fn lower_cps_direct_expr(
         expression,
         answer_or_unit(current_answer),
       )
-    Construct(construct) =>
+    Construct(construct) => {
+      guard program.metadata.data_constructor_info(construct.data_constructor)
+        is Some(data_info) else {
+        raise UnknownDataConstructor(construct.data_constructor)
+      }
+      guard program.metadata.type_info(data_info.owner) is Some(owner_info) else {
+        raise UnknownType(data_info.owner)
+      }
       Construct({
         data_constructor: construct.data_constructor,
-        type_arguments: construct.type_arguments.map(argument => {
-          schema.rewrite_generic_argument(argument)
-        }),
-        hidden_witnesses: construct.hidden_witnesses.map(argument => {
-          schema.rewrite_generic_argument(argument)
-        }),
+        type_arguments: schema.rewrite_cps_application_argument_list(
+          owner_info.parameters,
+          construct.type_arguments,
+        ),
+        hidden_witnesses: schema.rewrite_cps_application_argument_list(
+          data_info.hidden_type_parameters,
+          construct.hidden_witnesses,
+        ),
         payloads: construct.payloads.map(payload => {
           lower_cps_direct_expr(schema, program, payload, current_answer)
         }),
       })
+    }
     Let(id, initializer, body) => {
       let lowered_initializer = lower_cps_binding_initializer(
         schema, program, id, initializer, current_answer,
@@ -325,7 +319,7 @@ fn lower_cps_direct_expr(
         result_type: schema.rewrite_type(match_.result_type),
         alternatives: match_.alternatives.map(alternative => {
           alt_constructor: alternative.alt_constructor,
-          type_binders: alternative.type_binders,
+          type_binders: schema.rewrite_cps_parameters(alternative.type_binders),
           value_binders: alternative.value_binders,
           body: lower_cps_direct_expr(
             schema,

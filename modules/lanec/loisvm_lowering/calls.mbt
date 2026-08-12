@@ -453,20 +453,7 @@ fn ImageLowerer::data_type_substitutions(
   parameters : Array[@buslane.TypeParameterId],
   arguments : Array[@buslane.GenericArgument],
 ) -> @buslane.TypeSubstitution raise LoisvmLoweringError {
-  let substitutions = self.type_substitution(parameters, arguments)
-  let companion_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
-  for index, parameter in parameters {
-    let argument = arguments[index]
-    if argument is EffectArgument(Parameter(actual)) &&
-      self.effect_companion(parameter) is Some(formal_companion) &&
-      self.effect_companion(actual) is Some(actual_companion) {
-      companion_substitutions.insert(
-        formal_companion,
-        Parameter(actual_companion),
-      )
-    }
-  }
-  substitutions.overlay(companion_substitutions)
+  self.type_substitution(parameters, arguments)
 }
 
 ///|
@@ -499,20 +486,7 @@ fn ImageLowerer::call_type_substitution(
   parameters : Array[@buslane.TypeParameterId],
   arguments : Array[@buslane.GenericArgument],
 ) -> @buslane.TypeSubstitution raise LoisvmLoweringError {
-  let substitutions = self.type_substitution(parameters, arguments)
-  let companion_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
-  for index, parameter in parameters {
-    let argument = arguments[index]
-    if argument is TypeArgument(Parameter(actual_companion)) &&
-      self.effect_source(parameter) is Some(formal_source) &&
-      self.effect_source(actual_companion) is Some(actual_source) {
-      companion_substitutions.insert_effect(
-        formal_source,
-        Parameter(actual_source),
-      )
-    }
-  }
-  substitutions.overlay(companion_substitutions)
+  self.type_substitution(parameters, arguments)
 }
 
 ///|
@@ -579,32 +553,6 @@ fn type_substitution_error(
       "type substitution for \{Repr(parameter)} would be captured by \{Repr(binder)}"
   }
   InvalidTypeApplication(detail~)
-}
-
-///|
-fn ImageLowerer::effect_companion(
-  self : ImageLowerer,
-  parameter : @buslane.TypeParameterId,
-) -> @buslane.TypeParameterId? {
-  for binding in self.effect_companions {
-    if binding.source == parameter {
-      return Some(binding.companion)
-    }
-  }
-  None
-}
-
-///|
-fn ImageLowerer::effect_source(
-  self : ImageLowerer,
-  companion : @buslane.TypeParameterId,
-) -> @buslane.TypeParameterId? {
-  for binding in self.effect_companions {
-    if binding.companion == companion {
-      return Some(binding.source)
-    }
-  }
-  None
 }
 
 ///|

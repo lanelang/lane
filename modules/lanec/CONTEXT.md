@@ -34,7 +34,7 @@ _Avoid_: source elaboration, ANF normalization
 
 **Whole-Program Elaboration**:
 The post-link phase that validates the selected entry and makes initialization,
-execution roots, effect companions, and externals explicit.
+execution roots, effect-aware CPS Core, and externals explicit.
 _Avoid_: module linking, target lowering
 
 **Executable Program**:
@@ -185,8 +185,11 @@ CPS until effect-sensitive optimization is complete.
 _Avoid_: pure effect, handler dictionary
 
 **Effect Context Companion**:
-The higher-kinded type component paired with a source effect parameter to carry
-its runtime handler context across different answer and residual scopes.
+The explicit higher-kinded CPS parameter that carries a source effect's runtime
+handler context across different answer and residual scopes. Every source
+effect binder becomes this parameter plus one residual parameter at callable,
+nominal, and existential binding sites; the source binder does not survive in
+CPS Core.
 _Avoid_: source effect syntax as layout evidence, fixed dictionary type
 
 **Selective CPS**:
@@ -195,9 +198,10 @@ Monadic Effect Predicate into answer-type continuation form.
 _Avoid_: whole-program CPS, VM stack capture
 
 **Effect-Aware Core Optimization**:
-Whole-program optimization over effect-specialized Buslane before effect
-lowering, at the final boundary where `Empty` still denotes source-level
-unobservability.
+Whole-program optimization over verified Buslane before effect lowering and
+again over verified CPS Core after monadic lift. At both seams `Empty` denotes
+observational purity; effect information is projected away only while
+constructing runtime ANF.
 _Avoid_: effect-blind DCE, bytecode optimization
 
 **Effect-Directed Application Reduction**:

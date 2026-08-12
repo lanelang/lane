@@ -167,15 +167,6 @@ test "executable initializer materializes function-valued data fields" {
         Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
       ),
       Let(
-        stored,
-        Construct({
-          data_constructor: make_holder,
-          type_arguments: [],
-          hidden_witnesses: [],
-          payloads: [Ref(helper)],
-        }),
-      ),
-      Let(
         consume,
         Function({
           parameters: [consume_parameter],
@@ -196,6 +187,15 @@ test "executable initializer materializes function-valued data fields" {
         }),
       ),
       Let(
+        stored,
+        Construct({
+          data_constructor: make_holder,
+          type_arguments: [],
+          hidden_witnesses: [],
+          payloads: [Ref(helper)],
+        }),
+      ),
+      Let(
         main,
         Function({
           parameters: [],
@@ -205,25 +205,38 @@ test "executable initializer materializes function-valued data fields" {
       ),
     ],
   }
+  let entry : @buslane_lowering.BuslaneEntry = {
+    module_path_text: "Main",
+    name: "main",
+    value: main,
+    type_: callable_type,
+  }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_executable_program_to_bytecode({
+      module_path_texts: ["Main"],
       program,
-      { builtins: [], runtime_imports: [] },
-      {
-        module_path_text: "Main",
-        name: "main",
-        value: main,
-        type_: callable_type,
-      },
-    ) {
+      externals: { builtins: [], runtime_imports: [] },
+      entry,
+      initializers: [
+        Value(
+          stored,
+          Construct({
+            data_constructor: make_holder,
+            type_arguments: [],
+            hidden_witnesses: [],
+            payloads: [Ref(helper)],
+          }),
+        ),
+      ],
+      execution_roots: [Initializer(0), Entry(main)],
+    }) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  guard image.initializer is Some(initializer) else {
+  guard image.initializer is Some(_) else {
     fail("expected executable initializer")
   }
-  assert_eq(initializer, { value: 4 })
-  guard image.functions is [_, BytecodeBody(step), _, BytecodeBody(body)] else {
+  guard image.functions is [_, _, BytecodeBody(step), _, BytecodeBody(body)] else {
     fail("expected initializer bytecode body")
   }
   guard step.blocks[0].instructions

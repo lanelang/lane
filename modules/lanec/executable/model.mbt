@@ -1,8 +1,9 @@
 ///|
-/// Owns the verified, effect-erased whole-program input to LoisVM lowering.
+/// Owns the verified, effect-aware CPS Core input to runtime ANF lowering.
 ///
 /// Initializers and execution roots are in deterministic dependency order;
 /// `entry` belongs to the linked program from which this value was elaborated.
+/// Runtime ANF lowering is the sole boundary that projects away effect syntax.
 pub(all) struct ExecutableProgram {
   module_path_texts : Array[String]
   program : @buslane.Program
@@ -10,7 +11,6 @@ pub(all) struct ExecutableProgram {
   entry : @buslane_lowering.BuslaneEntry
   initializers : Array[TopLevelInitializer]
   execution_roots : Array[ExecutionRoot]
-  effect_companions : Array[@effect_lowering_cps.EffectCompanionBinding]
 } derive(Debug, Eq)
 
 ///|

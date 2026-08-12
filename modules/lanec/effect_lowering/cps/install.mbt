@@ -194,7 +194,11 @@ fn lower_handler_operation_clause(
     Polymorphic(parameters, function) => (parameters, function)
   }
   let type_binders = schema.rewrite_cps_parameters(source_type_binders)
-  let function_type = instantiate_clause_field_type(field_type, type_binders)
+  let function_type = instantiate_clause_field_type(
+    schema.metadata,
+    field_type,
+    type_binders,
+  )
   guard function_type is Function(parameter_types, result_type, function_effect) &&
     cps_effects_definitionally_equal(
       schema.metadata,
@@ -267,6 +271,7 @@ fn lower_handler_operation_clause(
 
 ///|
 fn instantiate_clause_field_type(
+  metadata : @buslane.MetadataRegistry,
   field_type : @buslane.Type,
   type_binders : Array[@buslane.TypeParameterId],
 ) -> @buslane.Type raise SynthesisError {
@@ -275,7 +280,13 @@ fn instantiate_clause_field_type(
       require_arity(parameters.length(), type_binders.length())
       let substitution = @buslane.TypeSubstitution::TypeSubstitution()
       for index in 0..<parameters.length() {
-        substitution.insert(parameters[index], Parameter(type_binders[index]))
+        let binder = type_binders[index]
+        let argument : @buslane.GenericArgument = match
+          metadata.type_parameter_info(parameters[index]) {
+          Some({ kind: Effect, .. }) => EffectArgument(Parameter(binder))
+          _ => TypeArgument(Parameter(binder))
+        }
+        substitution.insert_argument(parameters[index], argument)
       }
       body.substitute(substitution)
     }

@@ -9,9 +9,12 @@
 ///|
 /// The declarations a program mentions.
 pub(all) struct ProgramDeclarations {
+  priv metadata : @buslane.MetadataRegistry
   priv value_ids : Array[@buslane.ValueId]
+  priv type_ids : Array[@buslane.TypeId]
   priv data_constructor_ids : Array[@buslane.DataConId]
   priv seen_values : Array[Bool]
+  priv seen_types : Array[Bool]
   priv seen_data_constructors : Array[Bool]
 }
 
@@ -30,12 +33,22 @@ pub fn ProgramDeclarations::data_constructor_ids(
 }
 
 ///|
-/// Collects every value and data constructor the program's terms name.
+pub fn ProgramDeclarations::type_ids(
+  self : ProgramDeclarations,
+) -> Array[@buslane.TypeId] {
+  self.type_ids.copy()
+}
+
+///|
+/// Collects every value and transitive nominal declaration the program names.
 pub fn collect_program_declarations(program : Program) -> ProgramDeclarations {
   let declarations = ProgramDeclarations::{
+    metadata: program.metadata,
     value_ids: [],
+    type_ids: [],
     data_constructor_ids: [],
     seen_values: Array::make(program.metadata.values.length(), false),
+    seen_types: Array::make(program.metadata.types.length(), false),
     seen_data_constructors: Array::make(
       program.metadata.data_constructors.length(),
       false,
@@ -68,6 +81,27 @@ fn ProgramDeclarations::mark_value(
     !self.seen_values[value.index] {
     self.seen_values[value.index] = true
     self.value_ids.push(value)
+    if self.metadata.value_info(value) is Some(info) {
+      self.walk_type(info.type_)
+    }
+  }
+}
+
+///|
+fn ProgramDeclarations::mark_type(
+  self : ProgramDeclarations,
+  type_id : @buslane.TypeId,
+) -> Unit {
+  if type_id.index >= 0 &&
+    type_id.index < self.seen_types.length() &&
+    !self.seen_types[type_id.index] {
+    self.seen_types[type_id.index] = true
+    self.type_ids.push(type_id)
+    if self.metadata.type_info(type_id) is Some(info) {
+      for data_constructor in info.constructors {
+        self.mark_data_constructor(data_constructor)
+      }
+    }
   }
 }
 
@@ -81,6 +115,66 @@ fn ProgramDeclarations::mark_data_constructor(
     !self.seen_data_constructors[data_constructor.index] {
     self.seen_data_constructors[data_constructor.index] = true
     self.data_constructor_ids.push(data_constructor)
+    if self.metadata.data_constructor_info(data_constructor) is Some(info) {
+      self.mark_type(info.owner)
+      for payload_type in info.payload_types {
+        self.walk_type(payload_type)
+      }
+    }
+  }
+}
+
+///|
+fn ProgramDeclarations::walk_type(
+  self : ProgramDeclarations,
+  type_ : @buslane.Type,
+) -> Unit {
+  match type_ {
+    Primitive(_) | Parameter(_) => ()
+    Constructor(type_id) => self.mark_type(type_id)
+    Apply(callee, arguments) => {
+      self.walk_type(callee)
+      for argument in arguments {
+        self.walk_generic_argument(argument)
+      }
+    }
+    TypeLambda(_, body) | Forall(_, body) => self.walk_type(body)
+    Function(parameters, result, effect) => {
+      for parameter in parameters {
+        self.walk_type(parameter)
+      }
+      self.walk_type(result)
+      self.walk_effect(effect)
+    }
+  }
+}
+
+///|
+fn ProgramDeclarations::walk_generic_argument(
+  self : ProgramDeclarations,
+  argument : @buslane.GenericArgument,
+) -> Unit {
+  match argument {
+    TypeArgument(type_) => self.walk_type(type_)
+    EffectArgument(effect) => self.walk_effect(effect)
+  }
+}
+
+///|
+fn ProgramDeclarations::walk_effect(
+  self : ProgramDeclarations,
+  effect : @buslane.Effect,
+) -> Unit {
+  match effect {
+    Empty | Builtin(_) | Parameter(_) => ()
+    Singleton(_, arguments) =>
+      for argument in arguments {
+        self.walk_generic_argument(argument)
+      }
+    Union(effects) =>
+      for effect in effects {
+        self.walk_effect(effect)
+      }
   }
 }
 
