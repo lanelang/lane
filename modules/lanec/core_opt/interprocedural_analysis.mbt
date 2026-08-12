@@ -4,15 +4,21 @@ priv struct KnownCallable {
   type_parameters : Array[@buslane.TypeParameterId]
   function : @buslane.FunctionExpr
   callees : Array[@buslane.ValueId]
-  expression_size : Int
   occurrence : @occurrence.ValueOccurrenceFact
-  recursive : Bool
+  scc : Int
 }
 
 ///|
 priv struct InterproceduralAnalysis {
   core : CoreAnalysis
   callables : Array[KnownCallable]
+  sccs : Array[CallGraphScc]
+}
+
+///|
+priv struct CallGraphScc {
+  members : Array[@buslane.ValueId]
+  recursive : Bool
 }
 
 ///|
@@ -46,21 +52,106 @@ fn analyze_interprocedural(
       type_parameters,
       function,
       callees,
-      expression_size: core_expression_size(function.body),
       occurrence,
-      recursive: false,
+      scc: -1,
     })
   }
-  for index, callable in callables {
-    callables[index] = {
-      ..callable,
-      recursive: callable.callees.any(callee => {
-        callee == callable.value ||
-        call_graph_reaches(callables, callee, callable.value, [])
-      }),
+  let sccs = build_call_graph_sccs(callables)
+  for scc_index, scc in sccs {
+    for value in scc.members {
+      for callable_index, callable in callables {
+        if callable.value == value {
+          callables[callable_index] = { ..callable, scc: scc_index }
+        }
+      }
     }
   }
-  { core, callables }
+  { core, callables, sccs }
+}
+
+///|
+/// Computes the strongly-connected components of the immutable known-call
+/// graph with deterministic Kosaraju traversals.
+fn build_call_graph_sccs(
+  callables : Array[KnownCallable],
+) -> Array[CallGraphScc] {
+  let count = callables.length()
+  let adjacency : Array[Array[Int]] = Array::makei(count, _ => [])
+  let reverse : Array[Array[Int]] = Array::makei(count, _ => [])
+  for caller_index, callable in callables {
+    for callee in callable.callees {
+      guard callable_index(callables, callee) is Some(callee_index) else {
+        continue
+      }
+      adjacency[caller_index].push(callee_index)
+      reverse[callee_index].push(caller_index)
+    }
+  }
+  let visited = Array::make(count, false)
+  let order : Array[Int] = []
+  for index in 0..<count {
+    finish_call_graph_node(index, adjacency, visited, order)
+  }
+  let assigned = Array::make(count, false)
+  let sccs : Array[CallGraphScc] = []
+  for index in order.rev_iter() {
+    if assigned[index] {
+      continue
+    }
+    let component : Array[Int] = []
+    collect_call_graph_component(index, reverse, assigned, component)
+    let members = component.map(member_index => callables[member_index].value)
+    let recursive = component.length() > 1 || adjacency[index].contains(index)
+    sccs.push({ members, recursive })
+  }
+  sccs
+}
+
+///|
+fn callable_index(
+  callables : Array[KnownCallable],
+  value : @buslane.ValueId,
+) -> Int? {
+  for index, callable in callables {
+    if callable.value == value {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn finish_call_graph_node(
+  index : Int,
+  adjacency : Array[Array[Int]],
+  visited : Array[Bool],
+  order : Array[Int],
+) -> Unit {
+  if visited[index] {
+    return
+  }
+  visited[index] = true
+  for callee in adjacency[index] {
+    finish_call_graph_node(callee, adjacency, visited, order)
+  }
+  order.push(index)
+}
+
+///|
+fn collect_call_graph_component(
+  index : Int,
+  reverse : Array[Array[Int]],
+  assigned : Array[Bool],
+  component : Array[Int],
+) -> Unit {
+  if assigned[index] {
+    return
+  }
+  assigned[index] = true
+  component.push(index)
+  for caller in reverse[index] {
+    collect_call_graph_component(caller, reverse, assigned, component)
+  }
 }
 
 ///|
@@ -219,42 +310,6 @@ fn referenced_value(expression : @buslane.Expr) -> @buslane.ValueId? {
     TypeApply(callee, _) => referenced_value(callee)
     _ => None
   }
-}
-
-///|
-fn call_graph_reaches(
-  callables : Array[KnownCallable],
-  from : @buslane.ValueId,
-  target : @buslane.ValueId,
-  visited : Array[@buslane.ValueId],
-) -> Bool {
-  if from == target {
-    return true
-  }
-  if visited.contains(from) {
-    return false
-  }
-  let next_visited = visited.copy()
-  next_visited.push(from)
-  guard find_known_callable(callables, from) is Some(callable) else {
-    return false
-  }
-  callable.callees.any(callee => {
-    call_graph_reaches(callables, callee, target, next_visited)
-  })
-}
-
-///|
-fn find_known_callable(
-  callables : Array[KnownCallable],
-  value : @buslane.ValueId,
-) -> KnownCallable? {
-  for callable in callables {
-    if callable.value == value {
-      return Some(callable)
-    }
-  }
-  None
 }
 
 ///|

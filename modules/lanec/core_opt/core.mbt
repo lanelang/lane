@@ -14,7 +14,6 @@ pub(all) enum ApplicationReductionSite {
 ///|
 pub(all) enum ApplicationReductionRejection {
   Recursive
-  ResourceBudget
   Profitability
 } derive(Debug, Eq)
 
@@ -110,26 +109,13 @@ fn optimize_or_raise(
     metadata: request.program.metadata.snapshot(),
     terms: request.program.terms,
   }
-  let simplified = simplify_program(
-    program,
+  let simplified = cleanup_core(program, request.entry, request.roots, observe)
+  let optimized = execute_inline_pipeline(
+    simplified,
     request.entry,
     request.roots,
     observe,
   )
-  let reachable = prune_unreachable(simplified, request.entry, request.roots)
-  let evaluated = partially_evaluate_program(
-    reachable,
-    request.entry,
-    request.roots,
-    observe,
-  )
-  let simplified = simplify_program(
-    evaluated,
-    request.entry,
-    request.roots,
-    observe,
-  )
-  let optimized = prune_unreachable(simplified, request.entry, request.roots)
   observe(
     ProgramChanged(
       net_calls_removed=core_program_call_count(request.program) -

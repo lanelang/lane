@@ -336,3 +336,64 @@ test "core optimizer revisits dependents until semantic facts stabilize" {
   assert_eq(optimized_main_body(optimized, main), Literal(I64(1L)))
   assert_true(@buslane.verify_program(optimized).is_ok())
 }
+
+///|
+test "inline executor defers calls exposed by a clone to the next plan" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let i64_type = @buslane.Type::Primitive(I64)
+  let unary = @buslane.Type::Function([i64_type], i64_type, Empty)
+  let leaf_parameter = metadata.define_value("value", Parameter, i64_type)
+  let leaf = metadata.define_value("leaf", Function, unary)
+  let outer_parameter = metadata.define_value("value", Parameter, i64_type)
+  let outer = metadata.define_value("outer", Function, unary)
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], i64_type, Empty),
+  )
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        leaf,
+        Function({
+          parameters: [leaf_parameter],
+          result_type: i64_type,
+          body: Ref(leaf_parameter),
+        }),
+      ),
+      Let(
+        outer,
+        Function({
+          parameters: [outer_parameter],
+          result_type: i64_type,
+          body: Call(Ref(leaf), [Ref(outer_parameter)]),
+        }),
+      ),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: i64_type,
+          body: Call(Ref(outer), [Literal(I64(42L))]),
+        }),
+      ),
+    ],
+  }
+  let observations : Array[CoreOptimizationObservation] = []
+  guard optimize_observed({ program, entry: main, roots: [] }, observation => {
+      observations.push(observation)
+    })
+    is Ok(optimized) else {
+    fail("expected core optimization to succeed")
+  }
+  let accepted = observations.filter_map(observation => {
+    match observation {
+      ApplicationAccepted(site=KnownCallable(value), ..) => Some(value)
+      _ => None
+    }
+  })
+  assert_eq(accepted, [leaf, outer, leaf])
+  assert_eq(optimized_main_body(optimized, main), Literal(I64(42L)))
+  assert_true(@buslane.verify_program(optimized).is_ok())
+}

@@ -24,7 +24,6 @@ pub(all) suberror CoreOptimizeError {
 // Types and methods
 pub(all) enum ApplicationReductionRejection {
   Recursive
-  ResourceBudget
   Profitability
 } derive(Eq, @debug.Debug)
 

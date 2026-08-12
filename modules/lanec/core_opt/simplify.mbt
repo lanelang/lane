@@ -5,26 +5,251 @@ priv struct ValueSubstitution {
 }
 
 ///|
+priv struct CoreSimplifier {
+  entry : @buslane.ValueId
+  roots : Array[@buslane.ValueId]
+  observe : (CoreOptimizationObservation) -> Unit
+}
+
+///|
 fn simplify_program(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
-  let preserved_roots = roots.copy()
-  preserved_roots.push(entry)
-  let mut current = program
-  for _ in 0..<4 {
+  CoreSimplifier::{ entry, roots, observe }.run(program)
+}
+
+///|
+fn CoreSimplifier::run(
+  self : CoreSimplifier,
+  program : @buslane.Program,
+) -> @buslane.Program raise CoreOptimizeError {
+  let preserved_roots = self.roots.copy()
+  preserved_roots.push(self.entry)
+  for current = program {
     let analysis = analyze_core(current)
     let next = simplify_program_once(
-      current, analysis, preserved_roots, observe,
+      current,
+      analysis,
+      preserved_roots,
+      self.observe,
     )
     if next.terms == current.terms {
       return next
     }
-    current = next
+    continue next
   }
-  current
+}
+
+///|
+priv struct CoreCleanup {
+  entry : @buslane.ValueId
+  roots : Array[@buslane.ValueId]
+  observe : (CoreOptimizationObservation) -> Unit
+}
+
+///|
+/// Runs the local, effect-aware simplifier and removes unreachable terms.
+/// This is the only cleanup boundary used before and after interprocedural
+/// inlining.
+fn cleanup_core(
+  program : @buslane.Program,
+  entry : @buslane.ValueId,
+  roots : Array[@buslane.ValueId],
+  observe : (CoreOptimizationObservation) -> Unit,
+) -> @buslane.Program raise CoreOptimizeError {
+  CoreCleanup::{ entry, roots, observe }.run(program)
+}
+
+///|
+fn CoreCleanup::run(
+  self : CoreCleanup,
+  program : @buslane.Program,
+) -> @buslane.Program raise CoreOptimizeError {
+  for current = program {
+    let simplified = simplify_program(
+      current,
+      self.entry,
+      self.roots,
+      self.observe,
+    )
+    let commoned = eliminate_local_common_subexpressions(simplified)
+    if commoned.terms == current.terms {
+      break prune_unreachable(commoned, self.entry, self.roots)
+    }
+    continue commoned
+  }
+}
+
+///|
+priv struct CommonLocalInitializer {
+  value : @buslane.ValueId
+  initializer : @buslane.Expr
+}
+
+///|
+/// Shares definitionally identical pure initializers only within one local
+/// evaluation region. Top-level initializers remain distinct because their
+/// ownership lifetime belongs to initializer orchestration.
+fn eliminate_local_common_subexpressions(
+  program : @buslane.Program,
+) -> @buslane.Program raise CoreOptimizeError {
+  let facts = @buslane.ExpressionFactsQuery::new(program)
+  let terms = program.terms.map(term => {
+    match term {
+      Let(value, expression) =>
+        @buslane.TopTerm::Let(
+          value,
+          eliminate_local_common_expr(program, facts, [], expression),
+        )
+      LetRec(bindings) =>
+        LetRec(
+          bindings.map(binding => {
+            ..binding,
+            rhs: eliminate_local_common_expr(program, facts, [], binding.rhs),
+          }),
+        )
+      External(_) => term
+    }
+  })
+  { ..program, terms, }
+}
+
+///|
+fn eliminate_local_common_expr(
+  program : @buslane.Program,
+  facts : @buslane.ExpressionFactsQuery,
+  available : Array[CommonLocalInitializer],
+  expression : @buslane.Expr,
+) -> @buslane.Expr raise CoreOptimizeError {
+  match expression {
+    Ref(_) | Literal(_) | Resume(_) => expression
+    Function(function) =>
+      Function({
+        ..function,
+        body: eliminate_local_common_expr(program, facts, [], function.body),
+      })
+    Call(callee, arguments) =>
+      Call(
+        eliminate_local_common_expr(program, facts, available, callee),
+        arguments.map(argument => {
+          eliminate_local_common_expr(program, facts, available, argument)
+        }),
+      )
+    TypeLambda(parameters, body) =>
+      TypeLambda(
+        parameters,
+        eliminate_local_common_expr(program, facts, [], body),
+      )
+    TypeApply(callee, arguments) =>
+      TypeApply(
+        eliminate_local_common_expr(program, facts, available, callee),
+        arguments,
+      )
+    Construct(construct) =>
+      Construct({
+        ..construct,
+        payloads: construct.payloads.map(payload => {
+          eliminate_local_common_expr(program, facts, available, payload)
+        }),
+      })
+    Let(value, initializer, body) => {
+      let rewritten_initializer = eliminate_local_common_expr(
+        program, facts, available, initializer,
+      )
+      let is_pure = expression_has_empty_effect(facts, initializer)
+      if is_pure {
+        for common in available {
+          if common.initializer == rewritten_initializer &&
+            compatible_alias(program, value, common.value) {
+            return Let(
+              value,
+              Ref(common.value),
+              eliminate_local_common_expr(program, facts, available, body),
+            )
+          }
+        }
+      }
+      let body_available = available.copy()
+      if is_pure {
+        body_available.push({ value, initializer: rewritten_initializer })
+      }
+      Let(
+        value,
+        rewritten_initializer,
+        eliminate_local_common_expr(program, facts, body_available, body),
+      )
+    }
+    LetRec(bindings, body) =>
+      LetRec(
+        bindings.map(binding => {
+          ..binding,
+          rhs: eliminate_local_common_expr(
+            program,
+            facts,
+            available,
+            binding.rhs,
+          ),
+        }),
+        eliminate_local_common_expr(program, facts, available, body),
+      )
+    Match(match_) =>
+      Match({
+        ..match_,
+        scrutinee: eliminate_local_common_expr(
+          program,
+          facts,
+          available,
+          match_.scrutinee,
+        ),
+        alternatives: match_.alternatives.map(alternative => {
+          ..alternative,
+          body: eliminate_local_common_expr(
+            program,
+            facts,
+            available,
+            alternative.body,
+          ),
+        }),
+      })
+    Perform(perform) =>
+      Perform({
+        ..perform,
+        payloads: perform.payloads.map(payload => {
+          eliminate_local_common_expr(program, facts, available, payload)
+        }),
+      })
+    Handle(handle) =>
+      Handle({
+        ..handle,
+        body: eliminate_local_common_expr(
+          program,
+          facts,
+          available,
+          handle.body,
+        ),
+        final_body: eliminate_local_common_expr(
+          program,
+          facts,
+          available,
+          handle.final_body,
+        ),
+        handlers: handle.handlers.map(table => {
+          ..table,
+          operations: table.operations.map(operation => {
+            ..operation,
+            body: eliminate_local_common_expr(
+              program,
+              facts,
+              [],
+              operation.body,
+            ),
+          }),
+        }),
+      })
+  }
 }
 
 ///|

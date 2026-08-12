@@ -219,11 +219,17 @@ The implementation consumes existing facts rather than introducing parallel
 analyses:
 
 - `ExpressionFactsQuery` owns whether an argument effect is `Empty`;
-- `InterproceduralAnalysis` owns known-callable discovery and recursive-SCC
-  classification;
+- `InterproceduralAnalysis` owns known-callable discovery and the immutable call
+  graph;
+- `InlinePlan` owns deterministic SCC classification, stable call-site keys,
+  legality, and profitability;
+- `InlineExecutor` owns hygienic materialization of accepted plan entries;
 - `InlineCloneContext` owns fresh metadata and hygienic body materialization;
 - application reduction owns parameter evaluation semantics;
-- `partial_evaluation_policy` owns profitability, work, and growth limits;
+- `CoreSimplifier` owns local effect-aware reduction and never clones a
+  top-level callable;
+- `CoreCleanup` owns local propagation, dead-code elimination, and reachability
+  cleanup between plans;
 - occurrence analysis owns post-rewrite reachability and term retention.
 
 Effect normalization failure must cross the existing Core optimization error
@@ -257,15 +263,20 @@ implementation fallback.
 The immediate-function path materializes its existing parameters and body,
 then calls the shared reducer.
 
-The interprocedural path:
+The interprocedural path is split into an immutable plan and an executor:
 
-1. resolves the known callable and complete generic application;
-2. rejects recursive SCCs;
-3. hygienically clones and instantiates the callable;
-4. calls the shared reducer for all value arguments;
-5. recursively optimizes the reduced candidate;
-6. compares the complete original and candidate plans;
-7. commits the candidate and reruns affected analysis when profitable.
+1. assigns each call in a caller a deterministic `CallSiteKey`;
+2. resolves known callables and computes call-graph SCCs;
+3. rejects recursive SCCs and decides profitability after contextual local
+   reduction;
+4. freezes those decisions in `InlinePlan`;
+5. executes every accepted plan entry at most once;
+6. runs `CoreCleanup`;
+7. plans newly exposed calls from the resulting program.
+
+The executor never recursively visits a cloned body. A call exposed by an
+accepted rewrite belongs to a later immutable plan, so one source call site
+cannot trigger an unbounded tree of speculative intermediate programs.
 
 Both `arguments.all(is_substitutable_atom)` and `callable_effect_is_empty` have
 been deleted from semantic eligibility. `is_substitutable_atom` had no
@@ -277,17 +288,17 @@ Semantic eligibility answers whether a rewrite is observationally valid.
 Profitability answers whether the compiler should commit that valid rewrite.
 The two decisions must remain separate.
 
-Direct substitution may duplicate a large pure expression. The existing
-candidate-cost comparison and whole-program growth budget must see the fully
-reduced candidate, including every duplicated node and every callee definition
-that becomes unreachable. No pre-reduction size rule may reject a candidate
-whose branches, constructors, or adapters disappear after contextual
-simplification.
+Direct substitution may duplicate a large pure expression. Profitability sees
+the fully contextually reduced candidate, including every branch or adapter
+that disappears. It uses structural program size, plus the exact removal of a
+single-use non-root definition. Straight-line values are accepted because they
+remove a call boundary without duplicating dynamic calls, branches, operations,
+or handler dispatch.
 
-The current `8/16/2` call, branch, and allocation weights and the current work
-and growth constants are not made semantic by this RFC. Replacing them with
-lowering-relevant cost is tracked by the optimization plan. This refactor
-preserves the policy seam so that work can proceed independently.
+There is no expansion quota, per-callee quota, arbitrary work budget, or
+weighted source-node score. Termination follows from rejecting recursive SCCs,
+executing each immutable plan entry once, and placing newly exposed call sites
+in a later plan.
 
 ## Pipeline placement
 
@@ -380,7 +391,7 @@ Expose typed optimization observations for:
 - empty arguments substituted;
 - nonempty arguments bound;
 - candidates rejected for recursion;
-- candidates rejected by profitability or resource budget;
+- candidates rejected by profitability;
 - net Core calls and top terms removed.
 
 Explore presentation may consume these facts but must not reconstruct them from
@@ -421,7 +432,7 @@ The final suite must cover these independent dimensions:
 | Generic shape | monomorphic, ordinary generic, effect generic after specialization, nested type lambda |
 | Callability | direct reference, complete type application, alias resolved by Core analysis, first-class escape retained |
 | Recursion | direct recursion, mutual recursion, nonrecursive dependency chain |
-| Failure | normalization failure, metadata allocation exhaustion, growth-budget rejection |
+| Failure | normalization failure, metadata allocation exhaustion, profitability rejection |
 
 At least one executable conformance test must compare interpreter and Wasm
 traces for mixed nonempty arguments. The trace, not an internal ID or opcode
@@ -429,10 +440,10 @@ sequence, owns the ordering assertion.
 
 ## Measurement baseline and gates
 
-On 2026-08-11, the current compiler was measured against clean Basic revision
+On 2026-08-11, the compiler was measured against clean Basic revision
 `8a7be0e619a611ae3c2189278ae548d5353db5cc`, entry
-`test/entry.lane:test_entry`. An isolated compiler build with
-`partially_evaluate_program` disabled produced the following comparison:
+`test/entry.lane:test_entry`. An isolated compiler build with the former
+interprocedural evaluator disabled produced the following comparison:
 
 | Metric | Partial evaluation disabled | Pre-refactor compiler | Implemented reducer |
 | --- | ---: | ---: | ---: |

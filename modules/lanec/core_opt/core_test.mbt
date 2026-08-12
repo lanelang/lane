@@ -258,3 +258,72 @@ test "core optimizer reduces trivial beta calls and known constructor matches" {
     ),
   )
 }
+
+///|
+test "core cleanup shares identical pure local initializers" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let item = metadata.define_type("Item", [])
+  let make_item = metadata.define_data_constructor("item", item, [], [])
+  let item_type = @buslane.Type::Constructor(item)
+  let pair = metadata.define_type("Pair", [])
+  let make_pair = metadata.define_data_constructor("pair", pair, [], [
+    item_type, item_type,
+  ])
+  let pair_type = @buslane.Type::Constructor(pair)
+  let left = metadata.define_value("left", Local, item_type)
+  let right = metadata.define_value("right", Local, item_type)
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], pair_type, Empty),
+  )
+  let item_value = @buslane.Expr::Construct({
+    data_constructor: make_item,
+    type_arguments: [],
+    hidden_witnesses: [],
+    payloads: [],
+  })
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: pair_type,
+          body: Let(
+            left,
+            item_value,
+            Let(
+              right,
+              item_value,
+              Construct({
+                data_constructor: make_pair,
+                type_arguments: [],
+                hidden_witnesses: [],
+                payloads: [Ref(left), Ref(right)],
+              }),
+            ),
+          ),
+        }),
+      ),
+    ],
+  }
+  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+    fail("expected core optimization to succeed")
+  }
+  guard optimized.terms
+    is [
+      Let(
+        _,
+        Function(
+          { body: Let(retained, Construct(_), Construct({ payloads, .. })), .. }
+        )
+      ),
+    ] else {
+    fail("expected one shared local initializer")
+  }
+  assert_eq(retained, left)
+  assert_eq(payloads, [Ref(left), Ref(left)])
+  assert_true(@buslane.verify_program(optimized).is_ok())
+}

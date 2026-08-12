@@ -274,8 +274,11 @@ effect-directed application reduction is specified separately in
 That refactor keeps semantic eligibility independent from the profitability
 model described here.
 
-Replace arbitrary source-only weights with a stable structural estimate derived
-from lowering facts. The estimate should account for:
+The Core optimizer no longer uses source-node weights or numeric work and
+growth budgets. Its immutable `InlinePlan` compares complete contextually
+reduced candidates, executes each accepted call site once, and replans newly
+exposed calls only after cleanup. Future lowering-aware profitability may
+account for:
 
 - generated callable and environment count;
 - direct versus indirect ABI;
@@ -284,8 +287,9 @@ from lowering facts. The estimate should account for:
 - expected ARC work;
 - retained versus eliminated function bodies.
 
-The model should compare the complete before and after plans. Numeric work and
-growth budgets remain safety limits, not the definition of profitability.
+Any future model must compare complete before and after plans. It must not
+change semantic legality or reintroduce a traversal budget as a hidden
+optimization policy.
 
 ## Priority two: remove residual allocation and ownership work
 
