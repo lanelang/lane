@@ -10,22 +10,36 @@ fn canonicalize_function_table(
     )
   }
   let reachable = reachable_functions(image)
+  let equivalence_classes = callable_adapter_structural_classes(
+    image, origins, reachable,
+  )
   let mappings : Array[@bytecode.FunctionId?] = Array::make(
     image.functions.length(),
     None,
   )
   let bodies : Array[@vmcfg.FunctionBody] = []
-  let body_provenance : Array[LoisvmFunctionProvenance] = []
+  let body_classes : Array[Int] = []
+  let body_old_ids : Array[Array[@bytecode.FunctionId]] = []
   let imports : Array[CanonicalRuntimeImport] = []
   for index, entry in image.functions {
     guard reachable[index] else { continue }
     let old_id : @bytecode.FunctionId = { value: index + 1 }
     match entry {
       Body(body) => {
-        let new_id : @bytecode.FunctionId = { value: bodies.length() + 1 }
-        mappings[index] = Some(new_id)
-        bodies.push(body)
-        body_provenance.push({ function: new_id, origins: [origins[index]] })
+        let class = equivalence_classes[index]
+        match find_function_class(body_classes, class) {
+          Some(body_index) => {
+            mappings[index] = Some({ value: body_index + 1 })
+            body_old_ids[body_index].push(old_id)
+          }
+          None => {
+            let new_id : @bytecode.FunctionId = { value: bodies.length() + 1 }
+            mappings[index] = Some(new_id)
+            bodies.push(body)
+            body_classes.push(class)
+            body_old_ids.push([old_id])
+          }
+        }
       }
       RuntimeImport(descriptor) => {
         let mut found = false
@@ -73,7 +87,10 @@ fn canonicalize_function_table(
     }
   }
   let functions : Array[@vmcfg.FunctionEntry] = []
-  let provenance = body_provenance
+  let provenance = body_old_ids.mapi((index, old_ids) => {
+    function: { value: index + 1 },
+    origins: old_ids.map(old_id => origins[old_id.value - 1]),
+  })
   for body in bodies {
     functions.push(Body(remap_function_body(body, mappings)))
   }
@@ -93,6 +110,77 @@ fn canonicalize_function_table(
     functions,
   }
   { image: canonical_image, provenance }
+}
+
+///|
+fn find_function_class(classes : Array[Int], class : Int) -> Int? {
+  for index, candidate in classes {
+    if candidate == class {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn callable_adapter_structural_classes(
+  image : @vmcfg.Image,
+  origins : Array[LoisvmFunctionOrigin],
+  reachable : Array[Bool],
+) -> Array[Int] raise FunctionTableCanonicalizationError {
+  let initial_classes = reachable.mapi((index, is_reachable) => {
+    if !is_reachable {
+      -1
+    } else if origins[index] is CallableAdapter {
+      0
+    } else {
+      index + 1
+    }
+  })
+  for classes = initial_classes {
+    let mappings : Array[@bytecode.FunctionId?] = classes.map(class => {
+      if class >= 0 {
+        Some(({ value: class + 1 } : @bytecode.FunctionId))
+      } else {
+        None
+      }
+    })
+    let normalized : Array[@vmcfg.FunctionEntry?] = image.functions.mapi((
+      index,
+      entry,
+    ) => {
+      guard reachable[index] else { return None }
+      Some(
+        match entry {
+          Body(body) => Body(remap_function_body(body, mappings))
+          RuntimeImport(_) => entry
+        },
+      )
+    })
+    let next = classes.copy()
+    let representatives : Array[Int] = []
+    for index, entry in normalized {
+      guard entry is Some(entry) && origins[index] is CallableAdapter else {
+        continue
+      }
+      let mut class = -1
+      for candidate_class, representative in representatives {
+        if normalized[representative] == Some(entry) {
+          class = image.functions.length() + candidate_class + 1
+          break
+        }
+      }
+      if class < 0 {
+        class = image.functions.length() + representatives.length() + 1
+        representatives.push(index)
+      }
+      next[index] = class
+    }
+    if next == classes {
+      break classes
+    }
+    continue next
+  }
 }
 
 ///|

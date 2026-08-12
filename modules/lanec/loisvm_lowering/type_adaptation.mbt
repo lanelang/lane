@@ -199,6 +199,17 @@ fn FunctionLowerer::make_callable_adapter(
   let (source_parameter_targets, adapter_substitutions) = self.image.align_callable_parameters(
     source_type, target_type, substitutions,
   )
+  let (_, _, source_result) = function_type_parts(source_type)
+  let (_, _, target_result) = function_type_parts(target_type)
+  if self.image.types_definitionally_equal(
+      apply_type_substitution(source_result, adapter_substitutions),
+      apply_type_substitution(target_result, adapter_substitutions),
+    ) &&
+    self.image.callable_types_share_runtime_abi(
+      source_type, target_type, adapter_substitutions,
+    ) {
+    return Slot(source, target_type)
+  }
   let captured_parameters = free_runtime_type_parameters(
     self.image,
     source_type,

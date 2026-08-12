@@ -562,6 +562,48 @@ test "explore keeps expanding recursive representation SCC generic" {
 }
 
 ///|
+test "explore shares alpha-renamed callable adapter workers" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|struct Left[T] {
+        #|  apply : (T, T) -> T
+        #|}
+        #|
+        #|struct Right[T] {
+        #|  apply : (T, T) -> T
+        #|}
+        #|
+        #|let add : (I64, I64) -> I64 = builtin("%i64_add")
+        #|let sink : (I64) -> Unit ! Io = extern("sink")
+        #|
+        #|let left : Left[I64] = Left::{ apply: add }
+        #|let right : Right[I64] = Right::{ apply: add }
+        #|
+        #|pub fn main() -> Unit ! Io {
+        #|  sink(add(left.apply(20, 1), right.apply(20, 1)))
+        #|}
+      ),
+    ),
+  )
+  let adapter_roles = report.functions.nodes.filter_map(node => {
+    guard node.function.stage == VmcfgInitial &&
+      node.roles.any(role => role is CallableAdapter) else {
+      return None
+    }
+    Some(node.roles)
+  })
+  debug_inspect(
+    (report.status, report.diagnostics, adapter_roles),
+    content=(
+      #|(Succeeded, [], [[CallableAdapter, CallableAdapter]])
+    ),
+  )
+}
+
+///|
 test "explore parse failure marks syntax failed and later stages unavailable" {
   let report = explore(
     explore_test_request(

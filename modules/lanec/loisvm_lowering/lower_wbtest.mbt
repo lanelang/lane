@@ -3326,7 +3326,7 @@ test "forwarded companion substitution reuses the outer layout witness" {
 }
 
 ///|
-test "nonescaping callable adaptation is fused into its call" {
+test "runtime-ABI-identical callable adaptation needs no adapter" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let image = test_image_lowerer(metadata, [])
   let lowerer = test_function_lowerer(image)
@@ -3343,10 +3343,10 @@ test "nonescaping callable adaptation is fused into its call" {
     target_type,
     @buslane.TypeSubstitution::TypeSubstitution(),
   )
-  guard adapted is AdaptedCallable(adaptation) else {
-    fail("expected deferred callable adaptation")
+  guard adapted is Slot(adapted_source, adapted_type) else {
+    fail("expected the original callable slot")
   }
-  let result = lowerer.lower_adapted_callable_call(adaptation, [], [
+  let result = lowerer.lower_value_call(adapted_source, adapted_type, [
     Unit,
     Slot(argument, Primitive(I64)),
   ])
@@ -3366,6 +3366,94 @@ test "nonescaping callable adaptation is fused into its call" {
       #|  [],
       #|  [CallValue({ value: 0 }, [], [{ value: 1 }], Some({ value: 2 }))],
       #|  ({ value: 2 }, Primitive(I64)),
+      #|)
+    ),
+  )
+}
+
+///|
+test "equal-width callable values do not bypass semantic alignment" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let image = test_image_lowerer(metadata, [])
+  let lowerer = test_function_lowerer(image)
+  let source_type = test_function_type([Primitive(I32)], Primitive(I32))
+  let target_type = test_function_type([Primitive(Bool)], Primitive(Bool))
+  let source = lowerer.fresh_slot(source_type)
+  let result : Result[LocalValue, LoisvmLoweringError] = Ok(
+    lowerer.make_callable_adapter(
+      source,
+      source_type,
+      target_type,
+      @buslane.TypeSubstitution::TypeSubstitution(),
+    ),
+  ) catch {
+    error => Err(error)
+  }
+  assert_true(
+    result
+    is Err(
+      InvalidTypeApplication(
+        detail="callable adapter source parameter 0/1 does not align with target parameter 0/1"
+      )
+    ),
+  )
+}
+
+///|
+test "nonescaping representation-changing adapter is fused into its call" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let parameter = metadata.define_type_parameter("T", Type)
+  let image = test_image_lowerer(metadata, [])
+  let lowerer = test_function_lowerer(image)
+  let source_type = test_function_type(
+    [Primitive(I64), Primitive(I64)],
+    Primitive(I64),
+  )
+  let target_type = test_function_type(
+    [Parameter(parameter), Parameter(parameter)],
+    Parameter(parameter),
+  )
+  let witness = lowerer.fresh_metadata(layout_witness_metadata())
+  lowerer.witnesses.push({ parameter, value: witness })
+  let substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  substitutions.insert(parameter, Primitive(I64))
+  let source = lowerer.fresh_slot(source_type)
+  let left = lowerer.fresh_erased_slot(witness, Owned)
+  let right = lowerer.fresh_erased_slot(witness, Owned)
+  let adapted = lowerer.make_callable_adapter(
+    source, source_type, target_type, substitutions,
+  )
+  guard adapted is AdaptedCallable(adaptation) else {
+    fail("expected deferred callable adaptation")
+  }
+  let result = lowerer.lower_adapted_callable_call(adaptation, [], [
+    Slot(left, Parameter(parameter)),
+    Slot(right, Parameter(parameter)),
+  ])
+  guard result is Slot(result_slot, result_type) else {
+    fail("expected a materialized adapted-call result")
+  }
+  debug_inspect(
+    (
+      image.callable_adapters,
+      lowerer.blocks[0].instructions,
+      (result_slot, result_type),
+    ),
+    content=(
+      #|(
+      #|  [],
+      #|  [
+      #|    ConstLayout({ value: 4 }, { value: 1 }),
+      #|    UneraseI64({ value: 5 }, { value: 2 }),
+      #|    UneraseI64({ value: 6 }, { value: 3 }),
+      #|    CallValue(
+      #|      { value: 1 },
+      #|      [],
+      #|      [{ value: 5 }, { value: 6 }],
+      #|      Some({ value: 7 }),
+      #|    ),
+      #|  ],
+      #|  ({ value: 7 }, Primitive(I64)),
       #|)
     ),
   )

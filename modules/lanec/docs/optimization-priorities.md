@@ -195,6 +195,24 @@ answer specialization cannot silently change a continuation's dynamic call
 contract. Higher-kinded layout-constructor evidence and general bridge
 cancellation outside planned direct calls remain open in this priority.
 
+The Coroutine Scheduler follow-up classified the remaining lowering artifacts
+instead of treating every erased operation as interchangeable. Of its 48
+`erase_*`/`unerase_*` instructions, 44 were inside 30 callable-adapter workers.
+Those workers represented only 20 distinct structural contracts: synthetic
+parameter identities had caused ten duplicate physical bodies, and one further
+worker was a definitionally aligned identity conversion. Exact structural adapter
+equivalence and identity elimination reduce the VM CFG to 19 adapter workers
+and 29 total representation bridges. VM CFG functions fall from 87 to 76,
+instructions from 500 to 428, and indirect calls from 63 to 52; finalized
+bytecode instructions fall from 426 to 373.
+
+The remaining 25 adapter-local bridges cross real CPS answer-type
+erased/concrete ABI boundaries; the other four occur in ordinary functions.
+Deleting them locally would change ownership or call ABI. Removing those
+boundaries requires a future exact higher-kinded/CPS representation
+specialization whose plan proves the finite answer-ABI demand set. It is not
+adapter deduplication or peephole cancellation.
+
 ### 4. Trust verified bytecode facts in the Wasm compiler
 
 Bytecode verification already proves global initialization order, rejects
