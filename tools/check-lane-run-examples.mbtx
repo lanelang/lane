@@ -549,7 +549,13 @@ fn matches_expectation(output : String, expectation : FixtureExpectation) -> Boo
 }
 
 fn diagnostic_count(output : String, prefix : String) -> Int {
-  output.split(prefix).count() - 1
+  let mut count = 0
+  for line in output.split("\n") {
+    if line.has_prefix(prefix) {
+      count += 1
+    }
+  }
+  count
 }
 
 fn matches_case_result(case : FixtureCase, result : LaneRunResult) -> Bool {

@@ -369,13 +369,10 @@ test "typecheck reports ambiguous unqualified enum variant" {
       #|]
     ),
   )
-  let result = typecheck_source_file(resolution.source)
-  inspect(
-    @prettyprinter.render(result.diagnostics, width=100),
-    content=(
-      #|[variant_reference_failure ambiguous variant reference same @ 9:3-9:10]
-    ),
-  )
+  guard typecheck_source_file(resolution.source)
+    is Err(InvalidInputMetadata([InvalidVariantReference(..)])) else {
+    fail("expected ambiguous variant to be rejected as invalid input metadata")
+  }
 }
 
 ///|
@@ -494,7 +491,7 @@ test "typecheck rejects unqualified enum variant without enum expected type" {
     content=(
       #|[
       #|  unqualified_variant_pattern_needs_expected_enum some @ 4:5-4:12,
-      #|  unresolved_value x @ 4:16-4:17,
+      #|  internal_typecheck_failure resolved value `x` is absent from the type scope @ 4:16-4:17,
       #|  internal_typecheck_failure checked match arm @ 4:16-4:17
       #|]
     ),

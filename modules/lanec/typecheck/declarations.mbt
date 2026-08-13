@@ -15,11 +15,17 @@ priv struct TypeExpressionResult {
 /// Checks nominal declarations and returns the checked declaration environment.
 pub fn typecheck_declarations(
   source : @resolve.ResolvedSourceFile,
-) -> DeclarationTypeCheckResult {
-  typecheck_declarations_with_imported_environment(
+) -> Result[DeclarationTypeCheckResult, TypeCheckError] {
+  let result = typecheck_declarations_with_imported_environment(
     source,
     empty_imported_environment(),
   )
+  let errors = invalid_input_metadata_errors(result.diagnostics)
+  if errors.is_empty() {
+    Ok(result)
+  } else {
+    Err(InvalidInputMetadata(errors))
+  }
 }
 
 ///|

@@ -197,6 +197,26 @@ fn lex_token(
       )
     (re"^[0-9]+[eE]([+]|-)?[0-9]+" as body, after=rest) =>
       add_numeric_literal(input, body, "", rest, base~, env~, floating=true)
+    (re"^" + (re"[0-9]+" as body) + re"[.]", after=rest) => {
+      let start = env.calc_offset(input, base~)
+      let end = env.calc_offset(rest, base~)
+      if starts_with_identifier_character(rest) {
+        let body_end = end - 1
+        env.add_token(
+          INT({ body: body.to_owned(), suffix: None }),
+          start~,
+          end=body_end,
+        )
+        env.add_token(DOT, start=body_end, end~)
+      } else {
+        env.add_error(
+          IncompleteFloatingLiteral(body.to_owned() + "."),
+          start~,
+          end~,
+        )
+      }
+      rest
+    }
     (
       re"^" +
       (re"[0-9]+" as body) +
@@ -388,6 +408,18 @@ fn starts_with_non_whitespace(input : StringView) -> Bool {
     unit != 0x0C &&
     unit != 0x0D &&
     unit != 0x20
+  }
+}
+
+///|
+fn starts_with_identifier_character(input : StringView) -> Bool {
+  if input.is_empty() {
+    false
+  } else {
+    let unit = input.unsafe_get(0)
+    unit == 0x5F ||
+    (unit >= 0x41 && unit <= 0x5A) ||
+    (unit >= 0x61 && unit <= 0x7A)
   }
 }
 

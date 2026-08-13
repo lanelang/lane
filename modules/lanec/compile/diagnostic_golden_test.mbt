@@ -143,7 +143,7 @@ test "golden function literal parameter diagnostic is specific" {
     ),
   )
   assert_diagnostic_headline(
-    diagnostic, "E3010", "function literal parameter needs a type annotation",
+    diagnostic, "E3017", "function literal parameter needs a type annotation",
   )
   assert_single_help(diagnostic, "write the parameter as `name : Type`")
 }
@@ -163,7 +163,7 @@ test "golden empty match missing expected type diagnostic is specific" {
     ),
   )
   assert_diagnostic_headline(
-    diagnostic, "E3010", "empty match needs an expected result type",
+    diagnostic, "E3018", "empty match needs an expected result type",
   )
   assert_single_help(
     diagnostic, "add an expected type with a binding annotation or use the empty match where a result type is already known",
@@ -183,7 +183,7 @@ test "golden unqualified variant pattern diagnostic is specific" {
     ),
   )
   assert_diagnostic_headline(
-    diagnostic, "E3010", "unqualified variant pattern `some` needs an expected enum type",
+    diagnostic, "E3019", "unqualified variant pattern `some` needs an expected enum type",
   )
   assert_single_help(
     diagnostic, "add a scrutinee type annotation or qualify the variant with its enum owner",
@@ -264,6 +264,38 @@ test "golden ambiguous effect row inference requests explicit arguments" {
   )
   assert_single_help(
     diagnostic, "pass explicit generic arguments for `consume` to choose the intended effect instantiation",
+  )
+}
+
+///|
+test "golden unresolved operation diagnostic belongs to resolution" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|effect Console {
+      #|  read() -> I64
+      #|}
+      #|fn bad() -> Unit ! Console {
+      #|  write!()
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E2011", "cannot find effect operation `write`",
+  )
+  debug_inspect(
+    (
+      diagnostic.labels.map(fn(label) { label.message }),
+      diagnostic.notes,
+      diagnostic.helps,
+    ),
+    content=(
+      #|(
+      #|  ["no effect operation named `write` is visible here"],
+      #|  ["unqualified operation calls search the operation namespace, not ordinary values"],
+      #|  ["define the operation on an effect or call an existing operation with `Effect::write!`"],
+      #|)
+    ),
   )
 }
 
@@ -351,7 +383,7 @@ test "golden ambiguous contextual offer diagnostic is specific" {
       #|}
     ),
   )
-  assert_diagnostic_headline(diagnostic, "E3013", "ambiguous contextual offer")
+  assert_diagnostic_headline(diagnostic, "E3037", "ambiguous contextual offer")
   debug_inspect(
     (diagnostic.labels.map(fn(label) { label.message }), diagnostic.helps),
     content=(
@@ -378,11 +410,46 @@ test "golden named compiler intrinsic argument uses ordinary call diagnostic" {
     ),
   )
   assert_diagnostic_headline(
-    diagnostic, "E3012", "named argument `value` is not accepted here",
+    diagnostic, "E3038", "named argument `value` is not accepted here",
   )
   assert_single_help(
     diagnostic, "remove the name or call a function with an auto parameter named `value`",
   )
+}
+
+///|
+test "contextual call action categories have independent diagnostic codes" {
+  let add_prefix =
+    #|module Test
+    #|struct Add[A] {
+    #|  add : (A, A) -> A
+    #|}
+    #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+    #|  op.add(a, b)
+    #|}
+    #|let custom : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
+    #|
+  let sources = [
+    (
+      #|module Test
+      #|struct Add[A] {
+      #|  add : (A, A) -> A
+      #|}
+      #|fn bad(a : I64, auto op : Add[I64], b : I64) -> I64 {
+      #|  a
+      #|}
+      #|let answer : I64 = bad(1, 2)
+    ),
+    add_prefix + "let answer : I64 = op_add(1, 2, custom)",
+    add_prefix + "let answer : I64 = op_add(1, 2, op=custom, op=custom)",
+    add_prefix + "let answer : I64 = op_add(1, 2, missing=custom)",
+  ]
+  assert_eq(sources.map(fn(source) { single_check_diagnostic(source).code }), [
+    Some("E3021"),
+    Some("E3022"),
+    Some("E3023"),
+    Some("E3024"),
+  ])
 }
 
 ///|
@@ -876,13 +943,83 @@ test "golden handler operation pattern diagnostic uses its source name" {
     ),
   )
   assert_diagnostic_headline(
-    diagnostic, "E3203", "wrong number of fields for pattern `Console::write`",
+    diagnostic, "E3208", "wrong number of fields for pattern `Console::write`",
   )
   debug_inspect(
     diagnostic.labels.map(fn(label) { label.message }),
     content=(
       #|["`Console::write` expects 2 payload field(s), but 1 were provided"]
     ),
+  )
+}
+
+///|
+test "handler operation arity failure does not report missing coverage" {
+  let diagnostics = check_source(
+    (
+      #|module Test
+      #|effect Console {
+      #|  write(String, I64) -> Unit
+      #|}
+      #|pub fn program() -> Unit {
+      #|  handle Console::write!("message", 1) with {
+      #|    Console::write(_, resume) => resume(())
+      #|  } final value {
+      #|    value
+      #|  }
+      #|}
+    ),
+  ).diagnostics()
+  debug_inspect(
+    diagnostics.map(fn(diagnostic) { (diagnostic.code, diagnostic.message) }),
+    content=(
+      #|[(Some("E3208"), "wrong number of fields for pattern `Console::write`")]
+    ),
+  )
+}
+
+///|
+test "duplicate pattern binder has its own diagnostic code" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|enum Pair {
+      #|  pair(I64, I64)
+      #|}
+      #|pub fn first(value : Pair) -> I64 {
+      #|  match value {
+      #|    Pair::pair(x, x) => x
+      #|  }
+      #|}
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3207", "duplicate pattern binder `x`",
+  )
+  debug_inspect(
+    diagnostic.labels.map(fn(label) { (label.message, label.style) }),
+    content=(
+      #|[
+      #|  ("`x` is bound more than once in the same pattern", Primary),
+      #|  ("the first `x` binder is here", Secondary),
+      #|]
+    ),
+  )
+}
+
+///|
+test "golden incomplete source is an end-of-input diagnostic" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|pub struct Value {
+      #|  field : I64
+    ),
+  )
+  assert_diagnostic_headline(diagnostic, "E1101", "unexpected end of input")
+  debug_inspect(
+    diagnostic.labels.map(fn(label) { label.message }),
+    content="[\"the source file ended while parsing this construct\"]",
   )
 }
 

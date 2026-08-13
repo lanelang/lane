@@ -71,6 +71,8 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
   match kind {
     UnresolvedType(name) => text("unresolved_type") + space + text(name)
     UnresolvedValue(name) => text("unresolved_value") + space + text(name)
+    UnresolvedEffectOperation(name) =>
+      text("unresolved_effect_operation") + space + text(name)
     UnresolvedField(type_name~, field~) =>
       text("unresolved_field") +
       space +

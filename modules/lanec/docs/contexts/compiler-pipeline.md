@@ -373,6 +373,16 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
   expressions.
 - A **Checked Source AST** preserves **Source-Level Structure** while removing source-only syntax and unresolved or ambiguous references.
 - A **Compiler Facade** exposes stable parse, check, and compile entrypoints for the **Tools Project**.
+- A **Diagnostic Code** identifies one stable action category that tools may
+  explain or suppress independently; different producer variants share a code
+  only when they require the same user action.
+- Structured diagnostics returned by the **Compiler Facade** own semantic
+  diagnostic contracts. Command-line tests own exit status and rendered-text
+  contracts, not a second semantic classification.
+- The resolver owns unresolved-name source diagnostics. Public typechecker APIs
+  accept a **Resolved AST** and reject unresolved or otherwise invalid input as
+  structured **Invalid Input Metadata**; compiler pipelines render that failure
+  as a compiler defect rather than a second source diagnostic.
 - **Semantic Lowering** transforms a **Checked Source AST** into **Buslane Core Language**.
 - A **Buslane Program** is the root value consumed by Buslane pretty printing, ANF lowering, and execution-oriented passes.
 - A **Buslane Verifier** verifies a whole **Buslane Program** and checks Buslane core invariants without checking Lane-front-end lowering quality.

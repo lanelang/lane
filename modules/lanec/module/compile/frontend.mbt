@@ -48,10 +48,19 @@ fn compile_one_module(
     return Err(resolve_diagnostics)
   }
   observe(input.header.module_path_text, Resolved(resolved.source))
-  let checked = @typecheck.typecheck_checked_source_file_with_imported_environment(
-    resolved.source,
-    environments.typecheck_environment(),
-  )
+  let checked = match
+    @typecheck.typecheck_checked_source_file_with_imported_environment(
+      resolved.source,
+      environments.typecheck_environment(),
+    ) {
+    Ok(checked) => checked
+    Err(error) =>
+      return Err([
+        compile_boundary_diagnostic(TypecheckInvalidInputMetadata(error), None).with_source_id(
+          input.source_id,
+        ),
+      ])
+  }
   let typecheck_diagnostics = checked.diagnostics.map(fn(diagnostic) {
     typecheck_diagnostic(diagnostic, display).with_source_id(input.source_id)
   })

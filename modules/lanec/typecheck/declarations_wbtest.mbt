@@ -599,13 +599,10 @@ test "typecheck reports forward top level value use" {
       #|]
     ),
   )
-  let result = typecheck_source_file(resolution.source)
-  inspect(
-    @prettyprinter.render(result.diagnostics, width=100),
-    content=(
-      #|[unresolved_value second @ 2:19-2:25]
-    ),
-  )
+  guard typecheck_source_file(resolution.source)
+    is Err(InvalidInputMetadata([UnresolvedValue(name="second", ..)])) else {
+    fail("expected unresolved value to be rejected as invalid input metadata")
+  }
 }
 
 ///|

@@ -3,7 +3,7 @@
 /// every top-level body can currently be represented in `lanec/checked`.
 pub fn typecheck_checked_source_file(
   source : @resolve.ResolvedSourceFile,
-) -> CheckedSourceTypeCheckResult {
+) -> Result[CheckedSourceTypeCheckResult, TypeCheckError] {
   typecheck_checked_source_file_with_imported_environment(
     source,
     empty_imported_environment(),
@@ -15,7 +15,7 @@ pub fn typecheck_checked_source_file(
 pub fn typecheck_checked_source_file_with_imported_environment(
   source : @resolve.ResolvedSourceFile,
   imported_environment : @module_interface.ImportedEnvironment,
-) -> CheckedSourceTypeCheckResult {
+) -> Result[CheckedSourceTypeCheckResult, TypeCheckError] {
   let declaration_result = typecheck_declarations_with_imported_environment(
     source, imported_environment,
   )
@@ -57,10 +57,16 @@ pub fn typecheck_checked_source_file_with_imported_environment(
       Some(checker.module_interface(checked_source))
     _ => None
   }
-  {
+  let result = {
     source: checked_source,
     module_interface,
     diagnostics: deduplicate_typecheck_diagnostics(checker.diagnostics),
+  }
+  let errors = invalid_input_metadata_errors(result.diagnostics)
+  if errors.is_empty() {
+    Ok(result)
+  } else {
+    Err(InvalidInputMetadata(errors))
   }
 }
 
@@ -386,7 +392,7 @@ fn SemanticChecker::check_checked_local_pattern_let(
     )
     (checked_initializer.type_, checked_initializer)
   }
-  let pattern = self.check_pattern(scope, declaration.pattern, type_, [])
+  let pattern = self.check_pattern(scope, declaration.pattern, type_, Map([]))
   self.check_irrefutable_pattern_let(pattern)
   guard self.require_checked_expression(
       checked_initializer,

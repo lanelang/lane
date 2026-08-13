@@ -40,7 +40,7 @@ fn expect_declaration_typecheck_result(
   if !resolution.diagnostics.is_empty() {
     abort(@prettyprinter.render(resolution.diagnostics, width=100))
   }
-  typecheck_declarations(resolution.source)
+  typecheck_declarations(resolution.source).unwrap()
 }
 
 ///|
@@ -50,7 +50,7 @@ fn expect_typecheck_result(source : String) -> TypeCheckResult {
   if !resolution.diagnostics.is_empty() {
     abort(@prettyprinter.render(resolution.diagnostics, width=100))
   }
-  typecheck_source_file(resolution.source)
+  typecheck_source_file(resolution.source).unwrap()
 }
 
 ///|
@@ -62,7 +62,7 @@ fn expect_checked_source_result(
   if !resolution.diagnostics.is_empty() {
     abort(@prettyprinter.render(resolution.diagnostics, width=100))
   }
-  typecheck_checked_source_file(resolution.source)
+  typecheck_checked_source_file(resolution.source).unwrap()
 }
 
 ///|
@@ -89,7 +89,7 @@ fn semantic_checker_for_test_source(source : String) -> SemanticChecker {
     abort(@prettyprinter.render(resolution.diagnostics, width=100))
   }
   let resolved = resolution.source
-  let declaration_result = typecheck_declarations(resolved)
+  let declaration_result = typecheck_declarations(resolved).unwrap()
   let source = @desugar.desugar_source_file(resolved)
   let checker = SemanticChecker::{
     resolved_source: resolved,

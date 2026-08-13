@@ -43,6 +43,25 @@ pub impl @compiler_diag.ToCompilerDiagnostic for ResolveDiagnostic with fn to_co
         ],
         context~,
       )
+    UnresolvedEffectOperation(name) =>
+      @compiler_diag.compiler_error(
+        "cannot find effect operation `\{name}`",
+        span~,
+        code=Some("E2011"),
+        labels=[
+          @compiler_diag.compiler_primary_label(
+            diagnostic.loc,
+            "no effect operation named `\{name}` is visible here",
+          ),
+        ],
+        notes=[
+          "unqualified operation calls search the operation namespace, not ordinary values",
+        ],
+        helps=[
+          "define the operation on an effect or call an existing operation with `Effect::\{name}!`",
+        ],
+        context~,
+      )
     UnresolvedField(type_name~, field~) =>
       @compiler_diag.compiler_error(
         "cannot find field `\{field}` on `\{type_name}`",
@@ -218,7 +237,7 @@ pub impl @compiler_diag.ToCompilerDiagnostic for ResolveDiagnostic with fn to_co
       @compiler_diag.compiler_error(
         "ambiguous variant `\{name}`",
         span~,
-        code=Some("E2007"),
+        code=Some("E2010"),
         labels=[
           @compiler_diag.compiler_primary_label(
             diagnostic.loc,

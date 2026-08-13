@@ -106,6 +106,7 @@ pub(all) struct ResolvedOperatorTarget {
 pub(all) enum ResolveDiagnosticKind {
   UnresolvedType(String)
   UnresolvedValue(String)
+  UnresolvedEffectOperation(String)
   UnresolvedField(type_name~ : String, field~ : String)
   UnresolvedQualifiedVariant(type_name~ : String, variant~ : String)
   UnresolvedImportItem(module_path~ : String, name~ : String)

@@ -50,8 +50,11 @@ fn SemanticChecker::checked_variant(
 /// Checks a resolved source file and returns checked declarations, values, and diagnostics.
 pub fn typecheck_source_file(
   source : @resolve.ResolvedSourceFile,
-) -> TypeCheckResult {
-  let declaration_result = typecheck_declarations(source)
+) -> Result[TypeCheckResult, TypeCheckError] {
+  let declaration_result = typecheck_declarations_with_imported_environment(
+    source,
+    empty_imported_environment(),
+  )
   let resolved_source = source
   let source = @desugar.desugar_source_file(resolved_source)
   let checker = SemanticChecker::{
@@ -74,10 +77,16 @@ pub fn typecheck_source_file(
       _ => ()
     }
   }
-  {
+  let result = {
     declarations: checker.declarations,
     values: { values: checker.values },
     diagnostics: deduplicate_typecheck_diagnostics(checker.diagnostics),
+  }
+  let errors = invalid_input_metadata_errors(result.diagnostics)
+  if errors.is_empty() {
+    Ok(result)
+  } else {
+    Err(InvalidInputMetadata(errors))
   }
 }
 

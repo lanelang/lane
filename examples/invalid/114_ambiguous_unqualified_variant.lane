@@ -1,0 +1,14 @@
+// invalid: an unqualified variant name cannot select between two enum owners
+module Examples.Invalid.AmbiguousUnqualifiedVariant
+
+enum Left {
+  same(I64)
+}
+
+enum Right {
+  same(I64)
+}
+
+pub fn choose(value : I64) -> Left {
+  same(value)
+}

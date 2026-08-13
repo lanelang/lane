@@ -751,13 +751,10 @@ test "typecheck reports local function forward reference" {
       #|]
     ),
   )
-  let result = typecheck_source_file(resolution.source)
-  inspect(
-    @prettyprinter.render(result.diagnostics, width=100),
-    content=(
-      #|[unresolved_value local @ 4:18-4:23, internal_typecheck_failure checked call callee @ 4:18-4:23]
-    ),
-  )
+  guard typecheck_source_file(resolution.source)
+    is Err(InvalidInputMetadata([UnresolvedValue(name="local", ..)])) else {
+    fail("expected unresolved value to be rejected as invalid input metadata")
+  }
 }
 
 ///|

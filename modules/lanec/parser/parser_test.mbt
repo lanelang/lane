@@ -72,6 +72,20 @@ test "parse rejects noncanonical numeric literal suffix forms" {
 }
 
 ///|
+test "lexer owns incomplete floating literals" {
+  let incomplete = parse_string("module Test\npub let answer = 1.")
+  assert_eq(
+    incomplete
+    .lexical_errors()
+    .map(fn(error) {
+      let presentation = error.error.presentation()
+      (presentation.code, presentation.title)
+    }),
+    [("E1010", "floating literal needs fractional digits")],
+  )
+}
+
+///|
 test "parse rejects exponent-shaped literals with integer suffixes" {
   let result = parse_string("module Test\npub let answer : I64 = 1e3i64")
   assert_eq(

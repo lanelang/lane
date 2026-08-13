@@ -430,11 +430,11 @@ fn SemanticChecker::check_handler_table_data(
   body_effect : @types.Effect,
 ) -> Array[HandlerTableCheck] raise @types.TypeComputationError {
   let checked = []
-  let handled_effects = []
+  let handled_effects : Array[(@types.Effect, SourceSpan)] = []
   for handler in handlers {
     if self.check_handler_table(scope, handler, handled_effects, body_effect)
       is Some(table) {
-      handled_effects.push(table.checked.handled_effect)
+      handled_effects.push((table.checked.handled_effect, table.checked.loc))
       checked.push(table)
     }
   }
@@ -446,7 +446,7 @@ fn SemanticChecker::check_handler_table(
   self : SemanticChecker,
   scope : TypeScope,
   handler : @desugar.DesugaredHandlerWithBlock,
-  handled_effects : Array[@types.Effect],
+  handled_effects : Array[(@types.Effect, SourceSpan)],
   body_effect : @types.Effect,
 ) -> HandlerTableCheck? raise @types.TypeComputationError {
   // A `with` block handles exactly one singleton effect. All operation arms in
@@ -484,19 +484,16 @@ fn SemanticChecker::check_handler_table(
     operations.push({ source: arm, signature, checked })
   }
   guard handled_effect is Some(effect) else { return None }
-  for previous in handled_effects {
+  for entry in handled_effects {
+    let (previous, existing_loc) = entry
     if previous.equals(effect) {
       self.diagnostics.push({
-        kind: DuplicateHandledEffect(effect),
+        kind: DuplicateHandledEffect(effect, existing_loc~),
         loc: handler.loc,
       })
     }
   }
-  self.check_handler_operation_coverage(
-    effect,
-    checked_handler_operations(operations),
-    handler.loc,
-  )
+  self.check_handler_operation_coverage(effect, operations, handler.loc)
   Some({
     checked: {
       handled_effect: effect,
@@ -543,7 +540,7 @@ fn SemanticChecker::check_handler_operation_arm(
     })
   }
   let arm_scope = scope.copy()
-  let binders : Array[String] = []
+  let binders : Map[String, SourceSpan] = Map([])
   let length = if signature.payload.length() < arm.payload_patterns.length() {
     signature.payload.length()
   } else {
@@ -614,7 +611,7 @@ fn handler_effect_has_nested_residual(
 fn SemanticChecker::check_handler_operation_coverage(
   self : SemanticChecker,
   handled_effect : @types.Effect,
-  arms : Array[@checked.CheckedHandlerOperationArm],
+  arms : Array[HandlerOperationCheck],
   loc : SourceSpan,
 ) -> Unit {
   // Coverage is per operation and reuses the pattern matrix:
@@ -632,20 +629,28 @@ fn SemanticChecker::check_handler_operation_coverage(
       handled_effect, operation,
     )
     let matrix = PatternMatrix::PatternMatrix()
+    let mut structurally_valid = true
     for arm in arms {
-      if arm.operation == operation.symbol &&
-        arm.payload_patterns.length() == payload_types.length() {
+      if arm.checked.operation == operation.symbol {
+        if arm.source.payload_patterns.length() != payload_types.length() {
+          structurally_valid = false
+          continue
+        }
         if !matrix.is_row_useful(
             self.declarations,
-            arm.payload_patterns,
+            arm.checked.payload_patterns,
             payload_types,
           ) {
-          self.diagnostics.push({ kind: UnreachableMatchArm, loc: arm.loc })
+          self.diagnostics.push({
+            kind: UnreachableMatchArm,
+            loc: arm.checked.loc,
+          })
         }
-        matrix.add_row(arm.payload_patterns)
+        matrix.add_row(arm.checked.payload_patterns)
       }
     }
-    if !matrix.is_row_exhaustive(self.declarations, payload_types) {
+    if structurally_valid &&
+      !matrix.is_row_exhaustive(self.declarations, payload_types) {
       self.diagnostics.push({
         kind: MissingHandlerOperation(owner=effect.name, name=operation.name),
         loc,

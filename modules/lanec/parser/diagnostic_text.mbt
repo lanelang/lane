@@ -26,7 +26,7 @@ pub fn ParseErrorKind::diagnostic_title(self : ParseErrorKind) -> String {
       "type alias has one parameter list"
     UnexpectedToken(_, _) if self.is_struct_spread() =>
       "struct spread is not supported"
-    UnexpectedToken(_, _) if self.is_missing_variant_constructor_parens() =>
+    _ if self.is_missing_variant_constructor_parens() =>
       "variant constructor needs parentheses"
     UnexpectedToken(_, _) if self.is_leading_double_colon_pattern() =>
       "variant patterns do not use leading `::`"
@@ -55,7 +55,7 @@ pub fn ParseErrorKind::diagnostic_label(self : ParseErrorKind) -> String {
       "put every type parameter in the first `[...]` list"
     UnexpectedToken(_, _) if self.is_struct_spread() =>
       "`..` spread is not part of Lane struct literals"
-    UnexpectedToken(_, _) if self.is_missing_variant_constructor_parens() =>
+    _ if self.is_missing_variant_constructor_parens() =>
       "write empty parentheses after this payloadless constructor"
     UnexpectedToken(_, _) if self.is_leading_double_colon_pattern() =>
       "write the variant pattern without leading `::`"
@@ -94,7 +94,7 @@ pub fn ParseErrorKind::diagnostic_notes(self : ParseErrorKind) -> Array[String] 
       ["Lane declarations use one generic parameter list before `=`"]
     UnexpectedToken(_, _) if self.is_struct_spread() =>
       ["Lane struct literals list their fields explicitly"]
-    UnexpectedToken(_, _) if self.is_missing_variant_constructor_parens() =>
+    _ if self.is_missing_variant_constructor_parens() =>
       ["all enum variant constructors use parentheses in expressions"]
     UnexpectedToken(_, _) if self.is_leading_double_colon_pattern() =>
       ["unqualified variant patterns are written as `variant(...)`"]
@@ -134,7 +134,7 @@ pub fn ParseErrorKind::diagnostic_helps(self : ParseErrorKind) -> Array[String] 
       ["write all parameters together, for example `Result[E, A]`"]
     UnexpectedToken(_, _) if self.is_struct_spread() =>
       ["write each field explicitly, for example `Point::{ x: 3, y: point.y }`"]
-    UnexpectedToken(_, _) if self.is_missing_variant_constructor_parens() =>
+    _ if self.is_missing_variant_constructor_parens() =>
       ["write the constructor call with `()`"]
     UnexpectedToken(_, _) if self.is_leading_double_colon_pattern() =>
       ["use `none()` instead of `::none()`"]
@@ -232,6 +232,8 @@ fn ParseErrorKind::is_missing_variant_constructor_parens(
       token.label == "end of file" &&
       expected.contains_label("`(`") &&
       expected.contains_label("`[`")
+    UnexpectedEndOfInput(expected) =>
+      expected.contains_label("`(`") && expected.contains_label("`[`")
     _ => false
   }
 }

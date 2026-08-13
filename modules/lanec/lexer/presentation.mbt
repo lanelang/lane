@@ -16,6 +16,7 @@ pub fn LexicalError::presentation(
       IllegalCharacter(_) => "E1000"
       UnknownNumericLiteralSuffix(_) => "E1008"
       IntegerSuffixOnFloatingLiteral(_) => "E1009"
+      IncompleteFloatingLiteral(_) => "E1010"
       UnterminatedString => "E1002"
       InvalidLiteralEscape(_) => "E1003"
       InvalidUnicodeEscape(_, _) => "E1004"
@@ -28,6 +29,7 @@ pub fn LexicalError::presentation(
       UnknownNumericLiteralSuffix(_) => "unknown numeric literal suffix"
       IntegerSuffixOnFloatingLiteral(_) =>
         "integer suffix requires an integer literal body"
+      IncompleteFloatingLiteral(_) => "floating literal needs fractional digits"
       UnterminatedString => "unterminated string literal"
       UnterminatedChar => "unterminated character literal"
       InvalidLiteralEscape(_) => "invalid literal escape"
@@ -41,6 +43,8 @@ pub fn LexicalError::presentation(
         "`\{value}` ends with an unsupported numeric literal suffix"
       IntegerSuffixOnFloatingLiteral(value) =>
         "`\{value}` has a fractional or exponent form with an integer suffix"
+      IncompleteFloatingLiteral(value) =>
+        "`\{value}` ends before its fractional digits"
       UnterminatedString => "this string literal is never closed"
       UnterminatedChar => "this character literal is never closed"
       InvalidLiteralEscape(value) =>
@@ -63,6 +67,8 @@ pub fn LexicalError::presentation(
         ["use one of the lowercase suffixes `i32`, `i64`, `f32`, or `f64`"]
       IntegerSuffixOnFloatingLiteral(_) =>
         ["remove the fractional or exponent part, or use `f32` or `f64`"]
+      IncompleteFloatingLiteral(_) =>
+        ["write at least one digit after the decimal point, such as `1.0`"]
       UnterminatedString => ["add a closing `\"` before the end of the line"]
       UnterminatedChar => ["add a closing `'` before the end of the line"]
       InvalidLiteralEscape(_) =>

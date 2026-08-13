@@ -17,6 +17,11 @@ import {
 
 import {
   "Milky2018/lanec/parser",
+  "Milky2018/lanec/resolve",
+} for "test"
+
+import {
+  "Milky2018/lanec/parser",
   "Milky2018/lanec/syntax",
   "moonbitlang/core/test",
 } for "wbtest"

@@ -420,10 +420,10 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       type_.pretty()
     UnknownField(name~) => text("unknown_field") + space + text(name)
     MissingField(name~) => text("missing_field") + space + text(name)
-    DuplicateField(name~) => text("duplicate_field") + space + text(name)
+    DuplicateField(name~, ..) => text("duplicate_field") + space + text(name)
     UnknownTypeMember(name~) => text("unknown_type_member") + space + text(name)
     MissingTypeMember(name~) => text("missing_type_member") + space + text(name)
-    DuplicateTypeMember(name~) =>
+    DuplicateTypeMember(name~, ..) =>
       text("duplicate_type_member") + space + text(name)
     DuplicateTypeParameter(name~) =>
       text("duplicate_type_parameter") + space + text(name)
@@ -441,7 +441,7 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
     RefutablePatternLet(type_) =>
       text("refutable_pattern_let") + space + type_.pretty()
     MixedHandlerEffects => text("mixed_handler_effects")
-    DuplicateHandledEffect(effect) =>
+    DuplicateHandledEffect(effect, ..) =>
       text("duplicate_handled_effect") + space + effect.pretty()
     MissingHandlerOperation(owner~, name~) =>
       text("missing_handler_operation") +
@@ -451,7 +451,7 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       text(name)
     RecursiveHandlerResidualEffect(effect) =>
       text("recursive_handler_residual_effect") + space + effect.pretty()
-    DuplicatePatternBinder(name~) =>
+    DuplicatePatternBinder(name~, ..) =>
       text("duplicate_pattern_binder") + space + text(name)
     PatternArityMismatch(name~, expected~, actual~) =>
       text("pattern_arity_mismatch") +

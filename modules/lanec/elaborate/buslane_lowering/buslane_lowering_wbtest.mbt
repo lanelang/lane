@@ -14,7 +14,7 @@ fn elaborate_buslane_source(
     abort(@prettyprinter.render(resolution.diagnostics, width=100))
   }
   let resolved = resolution.source
-  let result = @typecheck.typecheck_checked_source_file(resolved)
+  let result = @typecheck.typecheck_checked_source_file(resolved).unwrap()
   let program = match result.source {
     Some(source) => Some(lower_checked_source_file_to_buslane(source))
     None => None
@@ -73,7 +73,7 @@ fn checked_source_for_elaborate_test(
     abort(@prettyprinter.render(resolution.diagnostics, width=100))
   }
   let resolved = resolution.source
-  let result = @typecheck.typecheck_checked_source_file(resolved)
+  let result = @typecheck.typecheck_checked_source_file(resolved).unwrap()
   guard result.source is Some(source) else {
     abort(@prettyprinter.render(result.diagnostics, width=100))
   }
@@ -96,7 +96,7 @@ fn checked_module_for_elaborate_test(
   let resolved = resolution.source
   @typecheck.typecheck_checked_source_file_with_imported_environment(
     resolved, imported,
-  )
+  ).unwrap()
 }
 
 ///|

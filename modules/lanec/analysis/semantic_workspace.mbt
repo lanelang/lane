@@ -695,12 +695,28 @@ fn build_cached_semantic_module(
     resolve_diagnostic(diagnostic, display).with_source_id(input.source_id)
   })
   let checked = if resolved.diagnostics.is_empty() {
-    Some(
+    match
       @typecheck.typecheck_checked_source_file_with_imported_environment(
         resolved.source,
         imports.typecheck_environment(),
-      ),
-    )
+      ) {
+      Ok(checked) => Some(checked)
+      Err(error) => {
+        diagnostics.push(
+          @compiler_diag.compiler_error(
+            "internal compiler error while checking resolved source",
+            span=None,
+            code=Some("E4599"),
+            labels=[],
+            notes=[
+              "the resolver/typechecker phase contract failed: \{Repr(error)}",
+            ],
+            helps=["report this compiler defect with the input module sources"],
+          ).with_source_id(input.source_id),
+        )
+        None
+      }
+    }
   } else {
     None
   }

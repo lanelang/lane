@@ -326,7 +326,7 @@ test "value use analysis excludes struct sequencing temporaries" {
   if !resolution.diagnostics.is_empty() {
     abort(@prettyprinter.render(resolution.diagnostics, width=100))
   }
-  let result = typecheck_checked_source_file(resolution.source)
+  let result = typecheck_checked_source_file(resolution.source).unwrap()
   guard result.source is Some(source) else {
     abort(@prettyprinter.render(result.diagnostics, width=100))
   }
@@ -1026,27 +1026,8 @@ test "typecheck keeps unresolved type as error type" {
       #|]
     ),
   )
-  let result = typecheck_declarations(resolution.source)
-  inspect(
-    @prettyprinter.render(result, width=100),
-    content=(
-      #|declaration_typecheck_result {
-      #|  checked_declarations {
-      #|    types {
-      #|      struct Bad#0 {
-      #|        missing#0 : <error>
-      #|      }
-      #|    }
-      #|    type_members {}
-      #|    fields {
-      #|      missing#0 : <error>
-      #|    }
-      #|    variants {}
-      #|  }
-      #|  diagnostics {
-      #|    unresolved_type Missing @ 3:13-3:20
-      #|  }
-      #|}
-    ),
-  )
+  guard typecheck_declarations(resolution.source)
+    is Err(InvalidInputMetadata([UnresolvedType(name="Missing", ..)])) else {
+    fail("expected unresolved type to be rejected as invalid input metadata")
+  }
 }

@@ -19,6 +19,39 @@ pub(all) struct CheckedSourceTypeCheckResult {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum TypeCheckInputMetadataError {
+  UnresolvedType(name~ : String, loc~ : SourceSpan)
+  UnresolvedValue(name~ : String, loc~ : SourceSpan)
+  UnresolvedEffectOperation(name~ : String, loc~ : SourceSpan)
+  InvalidVariantReference(label~ : String, loc~ : SourceSpan)
+  MissingTopLevelLetAnnotation(loc~ : SourceSpan)
+} derive(Debug, Eq)
+
+///|
+pub(all) enum TypeCheckError {
+  InvalidInputMetadata(Array[TypeCheckInputMetadataError])
+} derive(Debug, Eq)
+
+///|
+fn invalid_input_metadata_errors(
+  diagnostics : Array[TypeCheckDiagnostic],
+) -> Array[TypeCheckInputMetadataError] {
+  diagnostics.filter_map(fn(diagnostic) {
+    match diagnostic.kind {
+      UnresolvedType(name) => Some(UnresolvedType(name~, loc=diagnostic.loc))
+      UnresolvedValue(name) => Some(UnresolvedValue(name~, loc=diagnostic.loc))
+      UnresolvedEffectOperation(name) =>
+        Some(UnresolvedEffectOperation(name~, loc=diagnostic.loc))
+      VariantReferenceFailure(label~) =>
+        Some(InvalidVariantReference(label~, loc=diagnostic.loc))
+      MissingTopLevelLetAnnotation =>
+        Some(MissingTopLevelLetAnnotation(loc=diagnostic.loc))
+      _ => None
+    }
+  })
+}
+
+///|
 pub(all) struct CheckedDeclarationEnvironment {
   types : Array[CheckedTypeDeclaration]
   type_members : Array[CheckedTypeMemberDeclaration]
@@ -275,10 +308,10 @@ pub(all) enum TypeCheckDiagnosticKind {
   )
   UnknownField(name~ : String)
   MissingField(name~ : String)
-  DuplicateField(name~ : String)
+  DuplicateField(name~ : String, existing_loc~ : SourceSpan)
   UnknownTypeMember(name~ : String)
   MissingTypeMember(name~ : String)
-  DuplicateTypeMember(name~ : String)
+  DuplicateTypeMember(name~ : String, existing_loc~ : SourceSpan)
   DuplicateTypeParameter(name~ : String)
   ExternalTypeParametersNotSupported(name~ : String)
   NotAStruct(@types.Type)
@@ -286,10 +319,10 @@ pub(all) enum TypeCheckDiagnosticKind {
   UnreachableMatchArm
   RefutablePatternLet(@types.Type)
   MixedHandlerEffects
-  DuplicateHandledEffect(@types.Effect)
+  DuplicateHandledEffect(@types.Effect, existing_loc~ : SourceSpan)
   MissingHandlerOperation(owner~ : String, name~ : String)
   RecursiveHandlerResidualEffect(@types.Effect)
-  DuplicatePatternBinder(name~ : String)
+  DuplicatePatternBinder(name~ : String, existing_loc~ : SourceSpan)
   PatternArityMismatch(name~ : String, expected~ : Int, actual~ : Int)
   HiddenTypeEscape(type_~ : @types.Type)
   PrivateTypeEscape(name~ : String)

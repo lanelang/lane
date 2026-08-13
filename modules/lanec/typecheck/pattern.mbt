@@ -169,7 +169,7 @@ fn SemanticChecker::check_match_pattern(
   // synthesize the scrutinee type and do not create non-local type variables.
   // The binder set is per-pattern and rejects repeated names before the arm
   // body is checked under the extended scope.
-  let binders : Array[String] = []
+  let binders : Map[String, SourceSpan] = Map([])
   self.check_pattern(scope, pattern, expected, binders)
 }
 
@@ -251,15 +251,18 @@ fn SemanticChecker::check_pattern(
   scope : TypeScope,
   pattern : @resolve.ResolvedPattern,
   expected : @types.Type,
-  binders : Array[String],
+  binders : Map[String, SourceSpan],
 ) -> @checked.CheckedPattern {
   match pattern {
     Wildcard(loc) => Wildcard(type_=expected, loc~)
     Binding(name~, symbol~, loc~) => {
-      if binders.contains(name) {
-        self.diagnostics.push({ kind: DuplicatePatternBinder(name~), loc })
+      if binders.get(name) is Some(existing_loc) {
+        self.diagnostics.push({
+          kind: DuplicatePatternBinder(name~, existing_loc~),
+          loc,
+        })
       } else {
-        binders.push(name)
+        binders[name] = loc
       }
       scope.bind(symbol, name, expected)
       Binding(name~, symbol~, type_=expected, loc~)
@@ -336,7 +339,7 @@ fn SemanticChecker::check_variant_pattern(
   reference : @resolve.ResolvedVariantReference,
   arguments : Array[@resolve.ResolvedPattern],
   expected : @types.Type,
-  binders : Array[String],
+  binders : Map[String, SourceSpan],
   loc : SourceSpan,
 ) -> @checked.CheckedPattern {
   match reference {
@@ -382,7 +385,7 @@ fn SemanticChecker::check_variant_symbol_pattern(
   type_binders : Array[@resolve.ResolvedTypeParameter],
   arguments : Array[@resolve.ResolvedPattern],
   expected : @types.Type,
-  binders : Array[String],
+  binders : Map[String, SourceSpan],
   loc : SourceSpan,
 ) -> @checked.CheckedPattern {
   // Variant pattern rule:
@@ -537,7 +540,7 @@ fn SemanticChecker::check_unqualified_variant_pattern(
   type_binders : Array[@resolve.ResolvedTypeParameter],
   arguments : Array[@resolve.ResolvedPattern],
   expected : @types.Type,
-  binders : Array[String],
+  binders : Map[String, SourceSpan],
   loc : SourceSpan,
 ) -> @checked.CheckedPattern {
   let owner = match
@@ -596,7 +599,7 @@ fn SemanticChecker::check_struct_pattern(
   reference : @resolve.ResolvedTypeReference,
   fields : Array[@resolve.ResolvedStructPatternField],
   expected : @types.Type,
-  binders : Array[String],
+  binders : Map[String, SourceSpan],
   loc : SourceSpan,
 ) -> @checked.CheckedPattern {
   // Struct pattern rule:
@@ -639,13 +642,16 @@ fn SemanticChecker::check_struct_pattern(
     })
     return Wildcard(type_=Error, loc~)
   }
-  let seen = []
+  let seen : Map[String, SourceSpan] = Map([])
   for field in fields {
     if field is Value(name~, loc~, ..) {
-      if seen.contains(name) {
-        self.diagnostics.push({ kind: DuplicateField(name~), loc })
+      if seen.get(name) is Some(existing_loc) {
+        self.diagnostics.push({
+          kind: DuplicateField(name~, existing_loc~),
+          loc,
+        })
       } else {
-        seen.push(name)
+        seen[name] = loc
       }
       if declaration.field_named(name) is None {
         self.diagnostics.push({ kind: UnknownField(name~), loc })
@@ -765,13 +771,16 @@ fn SemanticChecker::check_struct_pattern_type_binder_names(
   declaration : CheckedStructDeclaration,
   fields : Array[@resolve.ResolvedStructPatternField],
 ) -> Unit {
-  let seen = []
+  let seen : Map[String, SourceSpan] = Map([])
   for field in fields {
     if field is TypeBinder(name~, loc~, ..) {
-      if seen.contains(name) {
-        self.diagnostics.push({ kind: DuplicateTypeMember(name~), loc })
+      if seen.get(name) is Some(existing_loc) {
+        self.diagnostics.push({
+          kind: DuplicateTypeMember(name~, existing_loc~),
+          loc,
+        })
       } else {
-        seen.push(name)
+        seen[name] = loc
       }
       if declaration.type_member_named(name) is None {
         self.diagnostics.push({ kind: UnknownTypeMember(name~), loc })

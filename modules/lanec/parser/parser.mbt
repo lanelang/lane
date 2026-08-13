@@ -23,7 +23,10 @@ pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
         ),
       )
     UnexpectedToken(token, (start, end), expected) => {
-      let kind = unexpected_token_error_kind(token, expected)
+      let kind = match token {
+        EOF => UnexpectedEndOfInput(expected_syntax(expected))
+        _ => unexpected_token_error_kind(token, expected)
+      }
       let loc = SourceSpan::join(start, end)
       return Failed(
         Grammar(

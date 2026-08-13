@@ -9,6 +9,7 @@ priv enum CompileBoundaryDiagnosticKind {
   ImportCycle(String)
   InitializationCycle(names~ : Array[String])
   CheckedSourceConstructionFailed
+  TypecheckInvalidInputMetadata(@typecheck.TypeCheckError)
 }
 
 ///|
@@ -80,6 +81,20 @@ fn buslane_lowering_diagnostic(
 }
 
 ///|
+fn typecheck_invalid_input_metadata_diagnostic(
+  error : @typecheck.TypeCheckError,
+) -> CompilerDiagnostic {
+  compile_report(
+    "internal compiler error while checking resolved source",
+    None,
+    code="E4599",
+    label="type checking received invalid resolved metadata",
+    note="the resolver/typechecker phase contract failed: \{Repr(error)}",
+    help="report this compiler defect with the input module sources",
+  )
+}
+
+///|
 impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn to_compiler_diagnostic(
   diagnostic_ : CompileBoundaryDiagnostic,
   _context : @compiler_diag.DiagnosticContext,
@@ -94,6 +109,8 @@ impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn t
         note="Lane compile/check needs exactly one root source module",
         help="pass a source file that starts with a `module` declaration",
       )
+    TypecheckInvalidInputMetadata(error) =>
+      typecheck_invalid_input_metadata_diagnostic(error)
     MissingImportWithCandidates(module_~, source_modules~, interface_modules~) =>
       missing_import_diagnostic(
         module_,

@@ -469,7 +469,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   let existential_substitution = struct_declaration.existential_substitution(
     witnesses,
   )
-  let seen = []
+  let seen : Map[String, SourceSpan] = Map([])
   let checked_fields : Array[@checked.CheckedStructLiteralField?] = Array::make(
     struct_declaration.fields.length(),
     None,
@@ -481,11 +481,14 @@ fn SemanticChecker::synthesize_checked_struct_literal(
   let mut complete = witness_check.complete
   for field in fields {
     guard field is Value(name~, value~, loc=field_loc) else { continue }
-    if seen.contains(name) {
-      self.diagnostics.push({ kind: DuplicateField(name~), loc: field_loc })
+    if seen.get(name) is Some(existing_loc) {
+      self.diagnostics.push({
+        kind: DuplicateField(name~, existing_loc~),
+        loc: field_loc,
+      })
       complete = false
     } else {
-      seen.push(name)
+      seen[name] = field_loc
     }
     if struct_declaration.field_named(name) is Some(field_declaration) {
       let field_symbol = field_declaration.symbol
@@ -679,7 +682,7 @@ fn SemanticChecker::check_struct_type_witnesses(
   fields : Array[@desugar.DesugaredStructLiteralField],
   loc : SourceSpan,
 ) -> StructTypeWitnessCheck {
-  let seen = []
+  let seen : Map[String, SourceSpan] = Map([])
   let witnesses : Array[@checked.CheckedStructTypeWitness?] = Array::make(
     declaration.type_members.length(),
     None,
@@ -687,11 +690,14 @@ fn SemanticChecker::check_struct_type_witnesses(
   let mut complete = true
   for field in fields {
     guard field is TypeWitness(name~, witness~, loc=field_loc) else { continue }
-    if seen.contains(name) {
-      self.diagnostics.push({ kind: DuplicateTypeMember(name~), loc: field_loc })
+    if seen.get(name) is Some(existing_loc) {
+      self.diagnostics.push({
+        kind: DuplicateTypeMember(name~, existing_loc~),
+        loc: field_loc,
+      })
       complete = false
     } else {
-      seen.push(name)
+      seen[name] = field_loc
     }
     match declaration.type_member_named(name) {
       Some(type_member) => {

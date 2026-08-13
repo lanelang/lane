@@ -238,7 +238,7 @@ fn @syntax.EffectOperationName::resolve_effect_operation_name(
             resolver.effect_import_origin(symbol),
             operation_loc,
           )
-          resolver.operation_reference(symbol, operation)
+          resolver.operation_reference(symbol, operation, operation_loc)
         }
         _ => Unresolved(operation)
       }

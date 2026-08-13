@@ -655,7 +655,7 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E1100]",
+          "error[E1101]",
           "variant constructor needs parentheses",
           "write empty parentheses after this payloadless constructor"
         ]
@@ -727,7 +727,7 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E3010]",
+          "error[E3017]",
           "function literal parameter needs a type annotation",
           "write the parameter as `name : Type`"
         ]
@@ -750,8 +750,10 @@
       "file": "examples/invalid/15_method_call_syntax.lane",
       "mode": "check-error",
       "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
         "contains": [
-          "error[E3007]",
+          "--> examples/invalid/15_method_call_syntax.lane:9:3",
+          "error[E3036]",
           "value is not callable",
           "`I64` is not a function type"
         ]
@@ -787,8 +789,10 @@
       "file": "examples/invalid/18_existential_hidden_type_escape.lane",
       "mode": "check-error",
       "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
         "contains": [
-          "error[E3107]",
+          "--> examples/invalid/18_existential_hidden_type_escape.lane:10:31",
+          "error[E3110]",
           "hidden existential type escapes its scope",
           "this expression exposes hidden type `T`"
         ]
@@ -800,7 +804,7 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E3013]",
+          "error[E3037]",
           "ambiguous contextual offer",
           "candidate `custom_impl_add` has type `Add[I64]`",
           "candidate `i64_impl_add` has type `Add[I64]`",
@@ -897,7 +901,7 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E3010]",
+          "error[E3019]",
           "unqualified variant pattern `some` needs an expected enum type",
           "add a scrutinee type annotation or qualify the variant with its enum owner"
         ]
@@ -1144,7 +1148,7 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E3015]",
+          "error[E2011]",
           "cannot find effect operation `write`",
           "no effect operation named `write` is visible here",
           "unqualified operation calls search the operation namespace"
@@ -1183,9 +1187,9 @@
       "mode": "check-error",
       "expect": {
         "contains": [
-          "error[E1100]",
-          "unexpected token",
-          "the parser did not expect end of file"
+          "error[E1010]",
+          "floating literal needs fractional digits",
+          "write at least one digit after the decimal point, such as `1.0`"
         ]
       }
     },
@@ -2088,9 +2092,9 @@
         "diagnostics": { "errors": 1, "warnings": 0 },
         "contains": [
           "--> examples/invalid/95_incomplete_source.lane:6:1",
-          "error[E1100]",
-          "unexpected token",
-          "the parser did not expect end of file",
+          "error[E1101]",
+          "unexpected end of input",
+          "the source file ended while parsing this construct",
           "expected one of: `}`, `[`, `;`, `.`"
         ]
       }
@@ -2219,6 +2223,7 @@
           "error[E3102]",
           "duplicate field `x`",
           "`x` is provided more than once",
+          "the first `x` field is here",
           "each struct field may appear at most once",
           "remove the duplicate field entry",
           "suggestion: remove the duplicate field entry (machine-applicable)"
@@ -2252,6 +2257,7 @@
           "error[E3105]",
           "duplicate type member `Value`",
           "`Value` is provided more than once",
+          "the first `Value` type member is here",
           "each type member may appear at most once",
           "remove the duplicate type member entry"
         ]
@@ -2294,15 +2300,14 @@
       "file": "examples/invalid/108_handler_pattern_arity.lane",
       "mode": "check-error",
       "expect": {
-        "diagnostics": { "errors": 2, "warnings": 0 },
+        "diagnostics": { "errors": 1, "warnings": 0 },
         "contains": [
           "--> examples/invalid/108_handler_pattern_arity.lane:10:5",
-          "error[E3203]",
+          "error[E3208]",
           "wrong number of fields for pattern `Console::write`",
           "`Console::write` expects 2 payload field(s), but 1 were provided",
           "constructor patterns must match the variant payload arity",
-          "add or remove pattern arguments so the count is 2",
-          "error[E3204]"
+          "add or remove pattern arguments so the count is 2"
         ]
       }
     },
@@ -2349,6 +2354,7 @@
           "error[E3203]",
           "duplicate handled effect",
           "this handler already has a `with` block for `Console`",
+          "the first `with` block for this effect is here",
           "a handler expression may handle each concrete effect once",
           "merge these operation arms into the existing `with` block"
         ]
@@ -2362,9 +2368,10 @@
         "diagnostics": { "errors": 1, "warnings": 0 },
         "contains": [
           "--> examples/invalid/112_duplicate_pattern_binder.lane:10:19",
-          "error[E3202]",
+          "error[E3207]",
           "duplicate pattern binder `x`",
           "`x` is bound more than once in the same pattern",
+          "the first `x` binder is here",
           "Lane patterns do not use repeated names as equality constraints",
           "rename one binder or match the second position with `_`"
         ]
@@ -2384,6 +2391,22 @@
           "required by: Pair.first, Pair.second",
           "candidates: first_i64, second_i64",
           "hide or rename offers so exactly one candidate is visible"
+        ]
+      }
+    },
+    {
+      "name": "invalid 114 ambiguous unqualified variant",
+      "file": "examples/invalid/114_ambiguous_unqualified_variant.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/114_ambiguous_unqualified_variant.lane:13:3",
+          "error[E2010]",
+          "ambiguous variant `same`",
+          "`same` matches more than one visible enum variant",
+          "candidates: Left::same, Right::same",
+          "qualify the variant with its enum type, for example `Enum::same`"
         ]
       }
     }

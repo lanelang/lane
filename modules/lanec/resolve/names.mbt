@@ -828,10 +828,14 @@ fn Resolver::operation_reference(
   self : Resolver,
   owner : EffectSymbolId,
   name : String,
+  loc : SourceSpan,
 ) -> ResolvedOperationReference {
   match self.operation_binding(owner, name) {
     Some(symbol) => Symbol(symbol)
-    None => Unresolved(name)
+    None => {
+      self.report(UnresolvedEffectOperation(name), loc)
+      Unresolved(name)
+    }
   }
 }
 
@@ -850,7 +854,10 @@ fn Resolver::unqualified_operation_reference(
     }
   }
   match candidates.length() {
-    0 => Unresolved(name)
+    0 => {
+      self.report(UnresolvedEffectOperation(name), loc)
+      Unresolved(name)
+    }
     1 => {
       if self.registry.operation_metadata(candidates[0]) is Some(metadata) {
         self.record_import_use(self.effect_import_origin(metadata.owner), loc)

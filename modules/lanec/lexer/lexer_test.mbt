@@ -11,6 +11,14 @@ fn token_values(source : String) -> Array[Token] {
 }
 
 ///|
+test "incomplete float detection preserves numeric field tokenization" {
+  debug_inspect(
+    token_values("1.field"),
+    content="[INT({ body: \"1\", suffix: None }), DOT, IDENT(\"field\"), EOF]",
+  )
+}
+
+///|
 test "tokenize keywords identifiers and literals" {
   let tokens = token_values(
     "fn add(value : I64) -> Bool { handle true with final false }",

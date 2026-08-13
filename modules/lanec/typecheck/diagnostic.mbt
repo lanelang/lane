@@ -88,59 +88,53 @@ fn typecheck_diagnostic(
   match diagnostic_.kind {
     UnresolvedType(name) =>
       diagnostic(
-        "cannot find type `\{name}`",
+        "internal typecheck input failure",
         span~,
         severity=Error,
-        code=Some("E3000"),
+        code=Some("E4599"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "type checking could not resolve `\{name}`",
+            message: "unresolved type `\{name}` crossed the resolver/typechecker boundary",
             style: Primary,
           },
         ],
-        notes=[
-          "this name survived resolution but has no usable type declaration",
-        ],
-        helps=["declare the type or fix the import that should provide it"],
+        notes=["resolved source must not contain unresolved type references"],
+        helps=["report this compiler defect with the input module sources"],
       )
     UnresolvedValue(name) =>
       diagnostic(
-        "cannot find value `\{name}`",
+        "internal typecheck input failure",
         span~,
         severity=Error,
-        code=Some("E3001"),
+        code=Some("E4599"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "type checking could not resolve `\{name}`",
+            message: "unresolved value `\{name}` crossed the resolver/typechecker boundary",
             style: Primary,
           },
         ],
-        notes=[
-          "this name survived resolution but has no usable value declaration",
-        ],
-        helps=["define the value or fix the import that should provide it"],
+        notes=["resolved source must not contain unresolved value references"],
+        helps=["report this compiler defect with the input module sources"],
       )
     UnresolvedEffectOperation(name) =>
       diagnostic(
-        "cannot find effect operation `\{name}`",
+        "internal typecheck input failure",
         span~,
         severity=Error,
-        code=Some("E3015"),
+        code=Some("E4599"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "no effect operation named `\{name}` is visible here",
+            message: "unresolved effect operation `\{name}` crossed the resolver/typechecker boundary",
             style: Primary,
           },
         ],
         notes=[
-          "unqualified operation calls search the operation namespace, not ordinary values",
+          "resolved source must not contain unresolved effect operation references",
         ],
-        helps=[
-          "define the operation on an effect or call an existing operation with `Effect::\{name}!`",
-        ],
+        helps=["report this compiler defect with the input module sources"],
       )
     AmbiguousEffectOperation(name~, candidates~) =>
       diagnostic(
@@ -167,21 +161,21 @@ fn typecheck_diagnostic(
       )
     MissingTopLevelLetAnnotation =>
       diagnostic(
-        "top-level `let` needs a type annotation",
+        "internal typecheck input failure",
         span~,
         severity=Error,
-        code=Some("E3002"),
+        code=Some("E4599"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "this compilation boundary cannot infer a top-level `let` type",
+            message: "a top-level `let` without an annotation crossed the parser/typechecker boundary",
             style: Primary,
           },
         ],
         notes=[
-          "Lane requires top-level `let` declarations to state their interface type explicitly",
+          "the source grammar requires top-level `let` declarations to state their interface type",
         ],
-        helps=["write the declaration as `let name : Type = expression`"],
+        helps=["report this compiler defect with the input module sources"],
       )
     GenericArgumentArityMismatch(subject~, expected~, actual~) =>
       generic_argument_arity_diagnostic(
@@ -191,28 +185,29 @@ fn typecheck_diagnostic(
       application_arity_mismatch_diagnostic(diagnostic_, span, label)
     VariantReferenceFailure(label~) =>
       simple_typecheck_diagnostic(
-        diagnostic_, span, "invalid variant reference", label, "check the variant name and enum owner",
+        diagnostic_, span, "E4599", "internal typecheck input failure", label, "report this compiler defect with the input module sources",
       )
     InternalTypecheckFailure(label~) =>
       simple_typecheck_diagnostic(
-        diagnostic_, span, "internal typecheck failure", label, "report this compiler bug with a minimal reproduction",
+        diagnostic_, span, "E4599", "internal typecheck failure", label, "report this compiler bug with a minimal reproduction",
       )
     CallArityMismatch(expected~, actual~) =>
       call_arity_mismatch_diagnostic(diagnostic_, span, expected, actual)
     AutoParametersMustBeTrailing =>
       simple_typecheck_diagnostic(
-        diagnostic_, span, "auto parameters must be trailing", "a non-auto parameter appears after an auto parameter",
+        diagnostic_, span, "E3021", "auto parameters must be trailing", "a non-auto parameter appears after an auto parameter",
         "move all auto parameters to the end of the parameter list",
       )
     AutoArgumentMustBeNamed =>
       simple_typecheck_diagnostic(
-        diagnostic_, span, "auto argument must be named", "positional arguments cannot fill auto parameters",
+        diagnostic_, span, "E3022", "auto argument must be named", "positional arguments cannot fill auto parameters",
         "pass the auto argument by name or let contextual offer insertion fill it",
       )
     DuplicateNamedArgument(name~) =>
       simple_typecheck_diagnostic(
         diagnostic_,
         span,
+        "E3023",
         "duplicate named argument `\{name}`",
         "`\{name}` was provided more than once",
         "remove the duplicate named argument",
@@ -221,6 +216,7 @@ fn typecheck_diagnostic(
       simple_typecheck_diagnostic(
         diagnostic_,
         span,
+        "E3024",
         "unknown contextual argument `\{name}`",
         "no auto parameter named `\{name}` is available here",
         "check the argument name or remove it",
@@ -229,6 +225,7 @@ fn typecheck_diagnostic(
       simple_typecheck_diagnostic(
         diagnostic_,
         span,
+        "E3038",
         "named argument `\{name}` is not accepted here",
         "this call position only accepts positional arguments",
         "remove the name or call a function with an auto parameter named `\{name}`",
@@ -433,7 +430,7 @@ fn typecheck_diagnostic(
         "value is not callable",
         span~,
         severity=Error,
-        code=Some("E3007"),
+        code=Some("E3036"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
@@ -495,7 +492,7 @@ fn typecheck_diagnostic(
           },
         ],
       )
-    DuplicateField(name~) =>
+    DuplicateField(name~, existing_loc~) =>
       diagnostic(
         "duplicate field `\{name}`",
         span~,
@@ -506,6 +503,11 @@ fn typecheck_diagnostic(
             span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` is provided more than once",
             style: Primary,
+          },
+          {
+            span: compiler_local_span(existing_loc),
+            message: "the first `\{name}` field is here",
+            style: Secondary,
           },
         ],
         notes=["each struct field may appear at most once"],
@@ -558,7 +560,7 @@ fn typecheck_diagnostic(
         ],
         helps=["add a `type \{name} = ...` member entry"],
       )
-    DuplicateTypeMember(name~) =>
+    DuplicateTypeMember(name~, existing_loc~) =>
       diagnostic(
         "duplicate type member `\{name}`",
         span~,
@@ -569,6 +571,11 @@ fn typecheck_diagnostic(
             span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` is provided more than once",
             style: Primary,
+          },
+          {
+            span: compiler_local_span(existing_loc),
+            message: "the first `\{name}` type member is here",
+            style: Secondary,
           },
         ],
         notes=["each type member may appear at most once"],
@@ -701,7 +708,7 @@ fn typecheck_diagnostic(
           "split operations from different effects into separate `with` blocks",
         ],
       )
-    DuplicateHandledEffect(effect) =>
+    DuplicateHandledEffect(effect, existing_loc~) =>
       diagnostic(
         "duplicate handled effect",
         span~,
@@ -712,6 +719,11 @@ fn typecheck_diagnostic(
             span: compiler_local_span(diagnostic_.loc),
             message: "this handler already has a `with` block for `\{display.effect_text(effect)}`",
             style: Primary,
+          },
+          {
+            span: compiler_local_span(existing_loc),
+            message: "the first `with` block for this effect is here",
+            style: Secondary,
           },
         ],
         notes=["a handler expression may handle each concrete effect once"],
@@ -755,17 +767,22 @@ fn typecheck_diagnostic(
           "remove the recursive dependency on `resume` from this handler arm",
         ],
       )
-    DuplicatePatternBinder(name~) =>
+    DuplicatePatternBinder(name~, existing_loc~) =>
       diagnostic(
         "duplicate pattern binder `\{name}`",
         span~,
         severity=Error,
-        code=Some("E3202"),
+        code=Some("E3207"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
             message: "`\{name}` is bound more than once in the same pattern",
             style: Primary,
+          },
+          {
+            span: compiler_local_span(existing_loc),
+            message: "the first `\{name}` binder is here",
+            style: Secondary,
           },
         ],
         notes=[
@@ -778,7 +795,7 @@ fn typecheck_diagnostic(
         "wrong number of fields for pattern `\{name}`",
         span~,
         severity=Error,
-        code=Some("E3203"),
+        code=Some("E3208"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
@@ -794,7 +811,7 @@ fn typecheck_diagnostic(
         "hidden existential type escapes its scope",
         span~,
         severity=Error,
-        code=Some("E3107"),
+        code=Some("E3110"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
@@ -1002,7 +1019,7 @@ fn typecheck_diagnostic(
         "function literal parameter needs a type annotation",
         span~,
         severity=Error,
-        code=Some("E3010"),
+        code=Some("E3017"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
@@ -1021,7 +1038,7 @@ fn typecheck_diagnostic(
         "empty match needs an expected result type",
         span~,
         severity=Error,
-        code=Some("E3010"),
+        code=Some("E3018"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
@@ -1041,7 +1058,7 @@ fn typecheck_diagnostic(
         "unqualified variant pattern `\{variant}` needs an expected enum type",
         span~,
         severity=Error,
-        code=Some("E3010"),
+        code=Some("E3019"),
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
@@ -1138,6 +1155,7 @@ fn application_arity_mismatch_diagnostic(
 fn simple_typecheck_diagnostic(
   diagnostic_ : TypeCheckDiagnostic,
   span : @basic.SourceSpan?,
+  code : String,
   title : String,
   label : String,
   help : String,
@@ -1146,7 +1164,7 @@ fn simple_typecheck_diagnostic(
     title,
     span~,
     severity=Error,
-    code=Some("E3012"),
+    code=Some(code),
     labels=[
       {
         span: compiler_local_span(diagnostic_.loc),
@@ -1204,7 +1222,7 @@ fn contextual_offer_diagnostic(
       "ambiguous contextual offer",
       span~,
       severity=Error,
-      code=Some("E3013"),
+      code=Some("E3037"),
       labels=contextual_offer_labels(
         diagnostic_.loc,
         display,
