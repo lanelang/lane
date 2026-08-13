@@ -1907,6 +1907,15 @@
       }
     },
     {
+      "name": "96 integer set ADT",
+      "file": "examples/valid/96_integer_set_adt.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "integer set ADT implementations=2"
+      }
+    },
+    {
       "name": "invalid 84 initialization cycle",
       "file": "examples/invalid/84_initialization_cycle.lane",
       "mode": "check-error",

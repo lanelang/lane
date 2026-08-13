@@ -1,0 +1,152 @@
+module Examples.Valid.IntegerSetAdt
+
+import Basic.Io.{ println }
+import Basic.Ops.*
+import Basic.Data.Bool.*
+import Basic.Data.I64.*
+
+// Figure 6 of "On Understanding Data Abstraction, Revisited". Each ADT value
+// chooses a Set type that remains abstract when a client opens the package.
+struct IntegerSetADT {
+  type Set
+  empty : Set
+  is_empty : (Set) -> Bool
+  insert : (Set, I64) -> Set
+  contains : (Set, I64) -> Bool
+  union : (Set, Set) -> Set
+}
+
+enum UnsortedSet {
+  unsorted_empty()
+  unsorted_inserted(I64, UnsortedSet)
+}
+
+fn unsorted_is_empty(set : UnsortedSet) -> Bool {
+  match set {
+    unsorted_empty() => true
+    unsorted_inserted(_value, _rest) => false
+  }
+}
+
+fn unsorted_contains(set : UnsortedSet, value : I64) -> Bool {
+  match set {
+    unsorted_empty() => false
+    unsorted_inserted(head, rest) =>
+      if value == head {
+        true
+      } else {
+        unsorted_contains(rest, value)
+      }
+  }
+}
+
+fn unsorted_insert(set : UnsortedSet, value : I64) -> UnsortedSet {
+  if unsorted_contains(set, value) {
+    set
+  } else {
+    unsorted_inserted(value, set)
+  }
+}
+
+fn unsorted_union(left : UnsortedSet, right : UnsortedSet) -> UnsortedSet {
+  match left {
+    unsorted_empty() => right
+    unsorted_inserted(value, rest) => unsorted_insert(unsorted_union(rest, right), value)
+  }
+}
+
+let unsorted_adt : IntegerSetADT = IntegerSetADT::{
+  Set = UnsortedSet,
+  empty: unsorted_empty(),
+  is_empty: unsorted_is_empty,
+  insert: unsorted_insert,
+  contains: unsorted_contains,
+  union: unsorted_union
+}
+
+enum SortedSet {
+  sorted_empty()
+  sorted_inserted(I64, SortedSet)
+}
+
+fn sorted_is_empty(set : SortedSet) -> Bool {
+  match set {
+    sorted_empty() => true
+    sorted_inserted(_value, _rest) => false
+  }
+}
+
+fn sorted_contains(set : SortedSet, value : I64) -> Bool {
+  match set {
+    sorted_empty() => false
+    sorted_inserted(head, rest) =>
+      if value == head {
+        true
+      } else if value < head {
+        false
+      } else {
+        sorted_contains(rest, value)
+      }
+  }
+}
+
+fn sorted_insert(set : SortedSet, value : I64) -> SortedSet {
+  match set {
+    sorted_empty() => sorted_inserted(value, sorted_empty())
+    sorted_inserted(head, rest) =>
+      if value == head {
+        set
+      } else if value < head {
+        sorted_inserted(value, set)
+      } else {
+        sorted_inserted(head, sorted_insert(rest, value))
+      }
+  }
+}
+
+fn sorted_union(left : SortedSet, right : SortedSet) -> SortedSet {
+  match left {
+    sorted_empty() => right
+    sorted_inserted(left_head, left_rest) =>
+      match right {
+        sorted_empty() => left
+        sorted_inserted(right_head, right_rest) =>
+          if left_head == right_head {
+            sorted_inserted(left_head, sorted_union(left_rest, right_rest))
+          } else if left_head < right_head {
+            sorted_inserted(left_head, sorted_union(left_rest, right))
+          } else {
+            sorted_inserted(right_head, sorted_union(left, right_rest))
+          }
+      }
+  }
+}
+
+let sorted_adt : IntegerSetADT = IntegerSetADT::{
+  Set = SortedSet,
+  empty: sorted_empty(),
+  is_empty: sorted_is_empty,
+  insert: sorted_insert,
+  contains: sorted_contains,
+  union: sorted_union
+}
+
+fn satisfies_example(adt : IntegerSetADT) -> Bool {
+  {
+    let IntegerSetADT::{ Set, empty, is_empty, insert, contains, union } = adt
+    let left : Set = insert(insert(insert(empty, 3), 5), 3)
+    let right : Set = insert(insert(empty, 5), 8)
+    let combined : Set = union(left, right)
+    is_empty(empty) && !is_empty(combined) && contains(combined, 3) && contains(combined, 5)
+      && contains(combined, 8)
+      && !contains(combined, 2)
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if satisfies_example(unsorted_adt) && satisfies_example(sorted_adt) {
+    println("integer set ADT implementations=2")
+  } else {
+    println("integer set ADT failed")
+  }
+}
