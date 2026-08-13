@@ -1,0 +1,14 @@
+// invalid: an operation pattern must bind the complete operation payload
+module Examples.Invalid.HandlerPatternArity
+
+effect Console {
+  write(String, I64) -> Unit
+}
+
+pub fn program() -> Unit {
+  handle Console::write!("message", 1) with {
+    Console::write(_message, resume) => resume(())
+  } final value {
+    value
+  }
+}

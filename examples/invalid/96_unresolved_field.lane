@@ -1,0 +1,10 @@
+// invalid: Point has no field named z
+module Examples.Invalid.UnresolvedField
+
+struct Point {
+  x : I64
+}
+
+pub let point : Point = Point::{ x: 1 }
+
+pub let value : I64 = point.z

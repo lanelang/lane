@@ -1,0 +1,4 @@
+// invalid: string literals must have a closing quote
+module Examples.Invalid.UnterminatedString
+
+pub let value : String = "unterminated

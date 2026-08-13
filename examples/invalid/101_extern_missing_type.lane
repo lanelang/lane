@@ -1,0 +1,7 @@
+// invalid: an extern expression needs a complete expected function type
+module Examples.Invalid.ExternMissingType
+
+pub fn value() -> Bool {
+  let host = extern("host")
+  true
+}

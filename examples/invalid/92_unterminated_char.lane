@@ -1,0 +1,4 @@
+// invalid: character literals must have a closing quote
+module Examples.Invalid.UnterminatedChar
+
+pub let value : Char = 'a

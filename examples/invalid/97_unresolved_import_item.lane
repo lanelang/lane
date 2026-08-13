@@ -1,0 +1,4 @@
+// invalid: Basic.Builtins does not export `missing`
+module Examples.Invalid.UnresolvedImportItem
+
+import Basic.Builtins.{ missing }

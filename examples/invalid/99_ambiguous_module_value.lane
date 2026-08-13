@@ -1,0 +1,12 @@
+// invalid: `core.i64_impl_add` is both a field chain and a module-qualified value
+module Examples.Invalid.AmbiguousModuleValue
+
+import Basic.Data.I64 as core
+
+struct Core {
+  i64_impl_add : I64
+}
+
+let core : Core = Core::{ i64_impl_add: 0 }
+
+pub let value : I64 = core.i64_impl_add

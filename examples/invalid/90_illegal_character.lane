@@ -1,0 +1,4 @@
+// invalid: `@` is not a Lane source character
+module Examples.Invalid.IllegalCharacter
+
+pub let value : I64 = @

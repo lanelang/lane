@@ -1,0 +1,15 @@
+// invalid: a handler must cover every operation of its handled effect
+module Examples.Invalid.MissingHandlerOperation
+
+effect Console {
+  read() -> I64
+  choose() -> Unit
+}
+
+pub fn program() -> I64 {
+  handle Console::read!() with {
+    Console::read(_resume) => 0
+  } final value {
+    value
+  }
+}

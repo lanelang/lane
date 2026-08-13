@@ -1,0 +1,16 @@
+// invalid: one handler expression cannot handle the same effect twice
+module Examples.Invalid.DuplicateHandledEffect
+
+effect Console {
+  read() -> I64
+}
+
+pub fn program() -> I64 {
+  handle Console::read!() with {
+    Console::read(_resume) => 0
+  } with {
+    Console::read(_resume) => 1
+  } final value {
+    value
+  }
+}

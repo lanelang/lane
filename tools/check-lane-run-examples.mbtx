@@ -39,7 +39,12 @@ struct LaneRunResult {
 
 enum FixtureExpectation {
   Equals(String)
-  Contains(Array[String])
+  Contains(Array[String], DiagnosticCounts?)
+}
+
+struct DiagnosticCounts {
+  errors : Int
+  warnings : Int
 }
 
 enum FixtureMode {
@@ -51,6 +56,7 @@ enum FixtureMode {
 async fn main raise {
   require_basic_library()
   let manifest = read_fixture_manifest("examples/fixtures/lane-run.json")
+  validate_corpus_coverage(manifest)
   let mut failure_count = 0
   for case in manifest.cases {
     let result = @async.with_timeout_opt(
@@ -288,9 +294,26 @@ fn decode_expectation(json : Json, path : String) -> FixtureExpectation {
       Contains(
         items.mapi(fn(index, item) {
           decode_string(item, path + ".contains[" + index.to_string() + "]")
-        })
+        }),
+        decode_diagnostic_counts(json, path),
       )
     _ => abort(path + " must contain exactly one of equals or contains")
+  }
+}
+
+fn decode_diagnostic_counts(json : Json, path : String) -> DiagnosticCounts? {
+  match json {
+    { "diagnostics": { "errors": Number(errors, ..), "warnings": Number(warnings, ..), .. }, .. } => {
+      let errors = errors.to_int()
+      let warnings = warnings.to_int()
+      if errors < 0 || warnings < 0 {
+        abort(path + ".diagnostics counts must be non-negative")
+      }
+      Some({ errors, warnings })
+    }
+    { "diagnostics": _, .. } =>
+      abort(path + ".diagnostics must contain integer errors and warnings")
+    _ => None
   }
 }
 
@@ -509,15 +532,24 @@ async fn run_lane_process(
 fn matches_expectation(output : String, expectation : FixtureExpectation) -> Bool {
   match expectation {
     Equals(expected) => output == expected
-    Contains(fragments) => {
+    Contains(fragments, counts) => {
       for fragment in fragments {
         if !output.contains(fragment) {
           return false
         }
       }
-      true
+      match counts {
+        None => true
+        Some(counts) =>
+          diagnostic_count(output, "error[") == counts.errors &&
+          diagnostic_count(output, "warning[") == counts.warnings
+      }
     }
   }
+}
+
+fn diagnostic_count(output : String, prefix : String) -> Int {
+  output.split(prefix).count() - 1
 }
 
 fn matches_case_result(case : FixtureCase, result : LaneRunResult) -> Bool {
@@ -527,10 +559,35 @@ fn matches_case_result(case : FixtureCase, result : LaneRunResult) -> Bool {
 fn print_expectation(expectation : FixtureExpectation) -> Unit {
   match expectation {
     Equals(expected) => println("  expected: " + expected)
-    Contains(fragments) => {
+    Contains(fragments, counts) => {
       for fragment in fragments {
         println("  expected fragment: " + fragment)
       }
+      if counts is Some(counts) {
+        println("  expected errors: " + counts.errors.to_string())
+        println("  expected warnings: " + counts.warnings.to_string())
+      }
+    }
+  }
+}
+
+fn validate_corpus_coverage(manifest : FixtureManifest) -> Unit raise {
+  let registered = manifest.cases.map(FixtureCase::file)
+  validate_directory_coverage("examples/invalid", registered)
+  validate_directory_coverage("examples/warnings", registered)
+}
+
+fn validate_directory_coverage(
+  directory : String,
+  registered : Array[String],
+) -> Unit raise {
+  for entry in @fs.read_dir(directory) {
+    if !entry.has_suffix(".lane") {
+      continue
+    }
+    let file = directory + "/" + entry
+    if !registered.contains(file) {
+      raise FixtureRunFailure("example is missing from fixture manifest: " + file)
     }
   }
 }

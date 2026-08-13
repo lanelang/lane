@@ -1,0 +1,4 @@
+// invalid: a character literal cannot contain multiple Unicode scalars
+module Examples.Invalid.MultipleCharLiteral
+
+pub let value : Char = 'ab'

@@ -1,0 +1,19 @@
+// invalid: structural derivation requires exactly one component capability
+module Examples.Invalid.AmbiguousDerivationEvidence
+
+import Basic.Trait.Derive.{ Deriver }
+
+pub struct Witness[_T] {}
+
+pub struct Pair {
+  first : I64
+  second : I64
+}
+
+pub offer first_i64 : Witness[I64] = Witness[I64]::{}
+
+pub offer second_i64 : Witness[I64] = Witness[I64]::{}
+
+pub fn ambiguous(deriver : Deriver[Witness]) -> Witness[Pair] {
+  derive[Witness, Pair](deriver=deriver)
+}

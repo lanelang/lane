@@ -1,0 +1,4 @@
+// invalid: builtin signatures are fixed by the compiler
+module Examples.Invalid.BuiltinSignatureMismatch
+
+pub let add : (I64) -> I64 = builtin("%i64_add")

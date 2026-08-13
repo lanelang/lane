@@ -1,0 +1,8 @@
+// invalid: struct literal syntax requires a struct type
+module Examples.Invalid.EnumUsedAsStruct
+
+enum Choice {
+  first()
+}
+
+pub let choice : Choice = Choice::{}

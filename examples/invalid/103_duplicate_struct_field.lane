@@ -1,0 +1,8 @@
+// invalid: each struct field may be supplied only once
+module Examples.Invalid.DuplicateStructField
+
+struct Point {
+  x : I64
+}
+
+pub let point : Point = Point::{ x: 1, x: 2 }

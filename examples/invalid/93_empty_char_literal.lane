@@ -1,0 +1,4 @@
+// invalid: a character literal must contain one Unicode scalar
+module Examples.Invalid.EmptyCharLiteral
+
+pub let value : Char = ''

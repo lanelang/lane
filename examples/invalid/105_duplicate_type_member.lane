@@ -1,0 +1,9 @@
+// invalid: each existential type member may be supplied only once
+module Examples.Invalid.DuplicateTypeMember
+
+struct Box {
+  type Value
+  value : Value
+}
+
+pub let box : Box = Box::{ Value = I64, Value = I64, value: 1 }

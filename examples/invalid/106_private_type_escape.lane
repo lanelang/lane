@@ -1,0 +1,10 @@
+// invalid: a public signature cannot expose a private nominal type
+module Examples.Invalid.PrivateTypeEscape
+
+struct Hidden {
+  value : I64
+}
+
+pub fn hidden() -> Hidden {
+  Hidden::{ value: 1 }
+}

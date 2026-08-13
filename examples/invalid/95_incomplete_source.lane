@@ -1,0 +1,5 @@
+// invalid: the struct body is incomplete at end of input
+module Examples.Invalid.IncompleteSource
+
+pub struct Value {
+  field : I64

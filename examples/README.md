@@ -8,6 +8,15 @@ These files are conformance fixtures for the parser, resolver, type checker, ela
 
 The examples follow the language specification rather than the current implementation. Rejecting a `valid` example or accepting an `invalid` example is an implementation discrepancy unless the specification changes.
 
+Every invalid and warning source belongs in `fixtures/lane-run.json`. The
+examples checker rejects unregistered files. Diagnostic expectations record
+the stable public contract: code, primary source position, title, label, notes,
+and help; fixtures with a `diagnostics` object also require the exact error and
+warning counts.
+Compiler-defect diagnostics and artifact, linker, and runtime failures that
+cannot arise from one source file remain package-level API tests rather than
+source examples.
+
 Initialize the pinned Basic fixture, build one release executable, and pass it
 to the examples checker:
 

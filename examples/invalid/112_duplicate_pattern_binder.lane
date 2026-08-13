@@ -1,0 +1,12 @@
+// invalid: repeated pattern names are not equality constraints
+module Examples.Invalid.DuplicatePatternBinder
+
+enum Pair {
+  pair(I64, I64)
+}
+
+pub fn first(value : Pair) -> I64 {
+  match value {
+    Pair::pair(x, x) => x
+  }
+}

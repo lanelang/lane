@@ -1,0 +1,8 @@
+// invalid: Point construction names a field that Point does not declare
+module Examples.Invalid.UnknownStructField
+
+struct Point {
+  x : I64
+}
+
+pub let point : Point = Point::{ x: 1, z: 2 }

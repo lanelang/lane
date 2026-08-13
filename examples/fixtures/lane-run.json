@@ -514,7 +514,9 @@
       "file": "examples/warnings/01_unused_local_value_binding.lane",
       "mode": "check-error",
       "expect": {
+        "diagnostics": { "errors": 0, "warnings": 1 },
         "contains": [
+          "--> examples/warnings/01_unused_local_value_binding.lane:5:7",
           "warning[W2001]",
           "unused local value binding",
           "`unused` is never used",
@@ -527,7 +529,9 @@
       "file": "examples/warnings/02_unused_private_top_level_declaration.lane",
       "mode": "check-error",
       "expect": {
+        "diagnostics": { "errors": 0, "warnings": 7 },
         "contains": [
+          "--> examples/warnings/02_unused_private_top_level_declaration.lane:3:4",
           "warning[W2002]",
           "unused private top-level declaration",
           "private function `dead_function` is never used",
@@ -545,7 +549,9 @@
       "file": "examples/warnings/03_unused_generic_parameter.lane",
       "mode": "check-error",
       "expect": {
+        "diagnostics": { "errors": 0, "warnings": 6 },
         "contains": [
+          "--> examples/warnings/03_unused_generic_parameter.lane:3:19",
           "warning[W2003]",
           "unused type parameter",
           "unused effect parameter",
@@ -559,7 +565,9 @@
       "file": "examples/warnings/04_unused_imports_and_opens.lane",
       "mode": "check-error",
       "expect": {
+        "diagnostics": { "errors": 0, "warnings": 3 },
         "contains": [
+          "--> examples/warnings/04_unused_imports_and_opens.lane:3:1",
           "warning[W2004]",
           "unused import",
           "imported module `Basic.Builtins` is never used",
@@ -1994,6 +2002,388 @@
           "pass `debug_impl=...` explicitly or add a visible `offer` with type `(List[I64]) -> String`",
           "auto offer parameter `equal_impl` requires `Equal[List[I64]]`, but no visible offer matches",
           "pass `equal_impl=...` explicitly or add a visible `offer` with type `Equal[List[I64]]`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 90 illegal character",
+      "file": "examples/invalid/90_illegal_character.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/90_illegal_character.lane:4:23",
+          "error[E1000]",
+          "illegal character in source",
+          "`@` is not valid Lane syntax",
+          "remove this character or replace it with a valid Lane token"
+        ]
+      }
+    },
+    {
+      "name": "invalid 91 unterminated string",
+      "file": "examples/invalid/91_unterminated_string.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/91_unterminated_string.lane:4:26",
+          "error[E1002]",
+          "unterminated string literal",
+          "this string literal is never closed",
+          "add a closing `\"` before the end of the line"
+        ]
+      }
+    },
+    {
+      "name": "invalid 92 unterminated character",
+      "file": "examples/invalid/92_unterminated_char.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/92_unterminated_char.lane:4:24",
+          "error[E1005]",
+          "unterminated character literal",
+          "this character literal is never closed",
+          "add a closing `'` before the end of the line"
+        ]
+      }
+    },
+    {
+      "name": "invalid 93 empty character",
+      "file": "examples/invalid/93_empty_char_literal.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/93_empty_char_literal.lane:4:24",
+          "error[E1006]",
+          "empty character literal",
+          "a character literal must contain one Unicode scalar",
+          "write exactly one direct or escaped Unicode scalar"
+        ]
+      }
+    },
+    {
+      "name": "invalid 94 multiple-character literal",
+      "file": "examples/invalid/94_multiple_char_literal.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/94_multiple_char_literal.lane:4:24",
+          "error[E1007]",
+          "character literal has multiple scalars",
+          "a character literal must contain exactly one Unicode scalar",
+          "write exactly one direct or escaped Unicode scalar"
+        ]
+      }
+    },
+    {
+      "name": "invalid 95 incomplete source",
+      "file": "examples/invalid/95_incomplete_source.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/95_incomplete_source.lane:6:1",
+          "error[E1100]",
+          "unexpected token",
+          "the parser did not expect end of file",
+          "expected one of: `}`, `[`, `;`, `.`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 96 unresolved field",
+      "file": "examples/invalid/96_unresolved_field.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/96_unresolved_field.lane:10:23",
+          "error[E2002]",
+          "cannot find field `z` on `Point`",
+          "`Point` has no visible field named `z`",
+          "field lookup only sees fields declared by the resolved struct type",
+          "check the field spelling or change the expression to a struct type that declares `z`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 97 unresolved import item",
+      "file": "examples/invalid/97_unresolved_import_item.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/97_unresolved_import_item.lane:4:25",
+          "error[E2009]",
+          "cannot import `missing` from `Basic.Builtins`",
+          "`Basic.Builtins` has no exported declaration named `missing`",
+          "selective imports can name only top-level declarations exported by the imported module",
+          "check the name spelling or select a declaration exported by `Basic.Builtins`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 98 ambiguous module binding",
+      "file": "examples/invalid/98_ambiguous_module_binding.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/98_ambiguous_module_binding.lane:5:27",
+          "error[E2008]",
+          "ambiguous module binding `Shared`",
+          "this import also binds `Shared`",
+          "`Shared` was first bound here",
+          "Lane module bindings do not shadow one another or use import-order priority",
+          "choose a distinct alias or remove one of the imports"
+        ]
+      }
+    },
+    {
+      "name": "invalid 99 ambiguous module value",
+      "file": "examples/invalid/99_ambiguous_module_value.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/99_ambiguous_module_value.lane:12:23",
+          "error[E2006]",
+          "ambiguous module-qualified value `core.i64_impl_add`",
+          "`core.i64_impl_add` can refer to more than one imported value",
+          "Lane does not choose between ambiguous imports because doing so would make name resolution order-dependent",
+          "import only one matching module or use a more specific module path before the value name"
+        ]
+      }
+    },
+    {
+      "name": "invalid 100 builtin signature mismatch",
+      "file": "examples/invalid/100_builtin_signature_mismatch.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/100_builtin_signature_mismatch.lane:4:30",
+          "error[E3027]",
+          "builtin `%i64_add` has the wrong type",
+          "expected `(I64) -> I64`, but `%i64_add` has compiler type `(I64, I64) -> I64`",
+          "builtin signatures and effects are fixed by the compiler",
+          "change the annotation or use the builtin with its canonical type"
+        ]
+      }
+    },
+    {
+      "name": "invalid 101 extern missing type",
+      "file": "examples/invalid/101_extern_missing_type.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/101_extern_missing_type.lane:5:14",
+          "error[E3028]",
+          "extern `host` needs a complete expected function type",
+          "the host signature cannot be inferred here",
+          "extern declarations are unsafe signature assertions and never infer parameters, results, or effects from use",
+          "add a complete function type annotation next to this extern"
+        ]
+      }
+    },
+    {
+      "name": "invalid 102 unknown struct field",
+      "file": "examples/invalid/102_unknown_struct_field.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/102_unknown_struct_field.lane:8:40",
+          "error[E3100]",
+          "unknown field `z`",
+          "this struct does not have a visible field named `z`",
+          "field names are checked against the resolved struct declaration",
+          "check the field spelling or update the struct declaration"
+        ]
+      }
+    },
+    {
+      "name": "invalid 103 duplicate struct field",
+      "file": "examples/invalid/103_duplicate_struct_field.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/103_duplicate_struct_field.lane:8:40",
+          "error[E3102]",
+          "duplicate field `x`",
+          "`x` is provided more than once",
+          "each struct field may appear at most once",
+          "remove the duplicate field entry",
+          "suggestion: remove the duplicate field entry (machine-applicable)"
+        ]
+      }
+    },
+    {
+      "name": "invalid 104 unknown type member",
+      "file": "examples/invalid/104_unknown_type_member.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/104_unknown_type_member.lane:9:28",
+          "error[E3103]",
+          "unknown type member `Other`",
+          "this existential struct has no visible type member named `Other`",
+          "type members are checked against the resolved struct declaration",
+          "check the type member spelling or update the struct declaration"
+        ]
+      }
+    },
+    {
+      "name": "invalid 105 duplicate type member",
+      "file": "examples/invalid/105_duplicate_type_member.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/105_duplicate_type_member.lane:9:41",
+          "error[E3105]",
+          "duplicate type member `Value`",
+          "`Value` is provided more than once",
+          "each type member may appear at most once",
+          "remove the duplicate type member entry"
+        ]
+      }
+    },
+    {
+      "name": "invalid 106 private type escape",
+      "file": "examples/invalid/106_private_type_escape.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/106_private_type_escape.lane:8:20",
+          "error[E3108]",
+          "private type `Hidden` in public interface",
+          "public interface exposes private type `Hidden`",
+          "downstream modules need public type information to compile against this item",
+          "make `Hidden` public or change the public signature to hide it"
+        ]
+      }
+    },
+    {
+      "name": "invalid 107 missing handler operation",
+      "file": "examples/invalid/107_missing_handler_operation.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/107_missing_handler_operation.lane:10:27",
+          "error[E3204]",
+          "missing handler operation",
+          "this handler does not cover operation `Console::choose`",
+          "every operation declared by a handled effect must have exhaustive handler arms",
+          "add an arm for the missing operation"
+        ]
+      }
+    },
+    {
+      "name": "invalid 108 handler pattern arity",
+      "file": "examples/invalid/108_handler_pattern_arity.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 2, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/108_handler_pattern_arity.lane:10:5",
+          "error[E3203]",
+          "wrong number of fields for pattern `Console::write`",
+          "`Console::write` expects 2 payload field(s), but 1 were provided",
+          "constructor patterns must match the variant payload arity",
+          "add or remove pattern arguments so the count is 2",
+          "error[E3204]"
+        ]
+      }
+    },
+    {
+      "name": "invalid 109 enum used as struct",
+      "file": "examples/invalid/109_enum_used_as_struct.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/109_enum_used_as_struct.lane:8:27",
+          "error[E3008]",
+          "expected a struct type",
+          "`Choice` is not a struct type",
+          "field access, struct literals, and struct patterns require a struct type",
+          "use a struct value here or change the surrounding type annotation"
+        ]
+      }
+    },
+    {
+      "name": "invalid 110 mixed handler effects",
+      "file": "examples/invalid/110_mixed_handler_effects.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/110_mixed_handler_effects.lane:15:5",
+          "error[E3202]",
+          "handler block mixes effects",
+          "all operation arms in one `with` block must belong to the same effect",
+          "Lane handlers group operation alternatives by concrete effect",
+          "split operations from different effects into separate `with` blocks"
+        ]
+      }
+    },
+    {
+      "name": "invalid 111 duplicate handled effect",
+      "file": "examples/invalid/111_duplicate_handled_effect.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/111_duplicate_handled_effect.lane:11:5",
+          "error[E3203]",
+          "duplicate handled effect",
+          "this handler already has a `with` block for `Console`",
+          "a handler expression may handle each concrete effect once",
+          "merge these operation arms into the existing `with` block"
+        ]
+      }
+    },
+    {
+      "name": "invalid 112 duplicate pattern binder",
+      "file": "examples/invalid/112_duplicate_pattern_binder.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/112_duplicate_pattern_binder.lane:10:19",
+          "error[E3202]",
+          "duplicate pattern binder `x`",
+          "`x` is bound more than once in the same pattern",
+          "Lane patterns do not use repeated names as equality constraints",
+          "rename one binder or match the second position with `_`"
+        ]
+      }
+    },
+    {
+      "name": "invalid 113 ambiguous derivation evidence",
+      "file": "examples/invalid/113_ambiguous_derivation_evidence.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/113_ambiguous_derivation_evidence.lane:18:3",
+          "error[E3031]",
+          "ambiguous structural derivation evidence",
+          "multiple contextual offers match `Witness[I64]`",
+          "required by: Pair.first, Pair.second",
+          "candidates: first_i64, second_i64",
+          "hide or rename offers so exactly one candidate is visible"
         ]
       }
     }

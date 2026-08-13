@@ -1,0 +1,19 @@
+// invalid: one handler table cannot mix operation owners
+module Examples.Invalid.MixedHandlerEffects
+
+effect Console {
+  read() -> I64
+}
+
+effect State {
+  get() -> I64
+}
+
+pub fn program() -> I64 {
+  handle Console::read!() with {
+    Console::read(_resume) => 0
+    State::get(_resume) => 1
+  } final value {
+    value
+  }
+}

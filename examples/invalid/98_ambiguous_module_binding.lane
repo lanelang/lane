@@ -1,0 +1,7 @@
+// invalid: two imports cannot introduce the same module alias
+module Examples.Invalid.AmbiguousModuleBinding
+
+import Basic.Data.I64 as Shared
+import Basic.Data.Bool as Shared
+
+pub let value : I64 = 0
