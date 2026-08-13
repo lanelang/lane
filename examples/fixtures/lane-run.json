@@ -1916,6 +1916,15 @@
       }
     },
     {
+      "name": "97 integer set objects",
+      "file": "examples/valid/97_integer_set_objects.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "integer set objects interoperate=ok"
+      }
+    },
+    {
       "name": "invalid 84 initialization cycle",
       "file": "examples/invalid/84_initialization_cycle.lane",
       "mode": "check-error",

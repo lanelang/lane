@@ -1,0 +1,145 @@
+module Examples.Valid.IntegerSetObjects
+
+import Basic.Io.{ println }
+import Basic.Ops.*
+import Basic.Data.Bool.*
+import Basic.Data.I64.*
+
+// Figure 7 of "On Understanding Data Abstraction, Revisited". An IntegerSet
+// value is its behavioral interface: it contains observations and operations,
+// not a hidden representation type shared by all sets.
+struct IntegerSet {
+  is_empty : Bool
+  contains : (I64) -> Bool
+  insert : (I64) -> IntegerSet
+  union : (IntegerSet) -> IntegerSet
+}
+
+// Empty, Insert, and Union correspond to the three classes in Figure 8. Lane
+// has recursive functions rather than general recursive values, so self()
+// reconstructs an observationally equivalent recursive object.
+fn empty_set() -> IntegerSet {
+  fn self() -> IntegerSet {
+    IntegerSet::{
+      is_empty: true,
+      contains: fn(_value) {
+        false
+      },
+      insert: fn(value) {
+        inserted_set(self(), value)
+      },
+      union: fn(other) {
+        other
+      }
+    }
+  }
+  self()
+}
+
+fn inserted_set(set : IntegerSet, value : I64) -> IntegerSet {
+  if set.contains(value) {
+    set
+  } else {
+    fn self() -> IntegerSet {
+      IntegerSet::{
+        is_empty: false,
+        contains: fn(candidate) {
+          candidate == value || set.contains(candidate)
+        },
+        insert: fn(candidate) {
+          inserted_set(self(), candidate)
+        },
+        union: fn(other) {
+          union_set(self(), other)
+        }
+      }
+    }
+    self()
+  }
+}
+
+fn union_set(left : IntegerSet, right : IntegerSet) -> IntegerSet {
+  fn self() -> IntegerSet {
+    IntegerSet::{
+      is_empty: false,
+      contains: fn(value) {
+        left.contains(value) || right.contains(value)
+      },
+      insert: fn(value) {
+        inserted_set(self(), value)
+      },
+      union: fn(other) {
+        union_set(self(), other)
+      }
+    }
+  }
+  self()
+}
+
+// Section 3.4 adds new classes without changing IntegerSet. These objects can
+// be combined directly with the objects above because every operation sees
+// other sets only through the same behavioral interface.
+fn even_set() -> IntegerSet {
+  fn self() -> IntegerSet {
+    IntegerSet::{
+      is_empty: false,
+      contains: fn(value) {
+        value % 2 == 0
+      },
+      insert: fn(value) {
+        inserted_set(self(), value)
+      },
+      union: fn(other) {
+        union_set(self(), other)
+      }
+    }
+  }
+  self()
+}
+
+fn interval_set(lower : I64, upper : I64) -> IntegerSet {
+  fn self() -> IntegerSet {
+    IntegerSet::{
+      is_empty: lower > upper,
+      contains: fn(value) {
+        lower <= value && value <= upper
+      },
+      insert: fn(value) {
+        inserted_set(self(), value)
+      },
+      union: fn(other) {
+        union_set(self(), other)
+      }
+    }
+  }
+  self()
+}
+
+fn paper_client() -> Bool {
+  !empty_set().insert(3).union(empty_set().insert(1)).insert(5).contains(4)
+}
+
+fn heterogeneous_objects_interoperate() -> Bool {
+  let finite = empty_set().insert(3).insert(5)
+  let interval = interval_set(4, 6)
+  let finite_interval = finite.union(interval)
+  let interval_finite = interval.union(finite)
+  let even_and_three = even_set().union(empty_set().insert(3))
+  (!finite_interval.is_empty) && finite_interval.contains(3) && finite_interval.contains(4)
+    && finite_interval.contains(6)
+    && !finite_interval.contains(2)
+    && interval_finite.contains(3)
+    && interval_finite.contains(4)
+    && interval_finite.contains(6)
+    && even_and_three.contains(100)
+    && even_and_three.contains(3)
+    && !even_and_three.contains(5)
+}
+
+pub fn answer() -> Unit ! Io {
+  if paper_client() && heterogeneous_objects_interoperate() {
+    println("integer set objects interoperate=ok")
+  } else {
+    println("integer set objects failed")
+  }
+}
