@@ -489,6 +489,8 @@ fn write_instruction(
       write_memory_instruction(builder, "i32.load", memory, align, offset, 2)
     I64Load(memory, align, offset) =>
       write_memory_instruction(builder, "i64.load", memory, align, offset, 3)
+    F32Load(memory, align, offset) =>
+      write_memory_instruction(builder, "f32.load", memory, align, offset, 2)
     F64Load(memory, align, offset) =>
       write_memory_instruction(builder, "f64.load", memory, align, offset, 3)
     I32Load8U(memory, align, offset) =>
@@ -499,6 +501,8 @@ fn write_instruction(
       write_memory_instruction(builder, "i32.store", memory, align, offset, 2)
     I64Store(memory, align, offset) =>
       write_memory_instruction(builder, "i64.store", memory, align, offset, 3)
+    F32Store(memory, align, offset) =>
+      write_memory_instruction(builder, "f32.store", memory, align, offset, 2)
     F64Store(memory, align, offset) =>
       write_memory_instruction(builder, "f64.store", memory, align, offset, 3)
     MemorySize(memory) => write_optional_index(builder, "memory.size", memory)
@@ -521,17 +525,22 @@ fn write_instruction(
       write_named_value(builder, "i32.const", value.to_string())
     I64Const(value) =>
       write_named_value(builder, "i64.const", value.to_string())
+    F32Const(value) =>
+      write_named_value(builder, "f32.const", wat_f32_literal(value))
     F64Const(value) =>
-      write_named_value(builder, "f64.const", value.to_string())
+      write_named_value(builder, "f64.const", wat_f64_literal(value))
     I32Eqz => builder.write_string("i32.eqz")
     I32Eq => builder.write_string("i32.eq")
     I32Ne => builder.write_string("i32.ne")
+    I32LtS => builder.write_string("i32.lt_s")
     I32LtU => builder.write_string("i32.lt_u")
     I32GtU => builder.write_string("i32.gt_u")
     I32GeU => builder.write_string("i32.ge_u")
     I32Add => builder.write_string("i32.add")
     I32Sub => builder.write_string("i32.sub")
     I32Mul => builder.write_string("i32.mul")
+    I32DivS => builder.write_string("i32.div_s")
+    I32RemS => builder.write_string("i32.rem_s")
     I32And => builder.write_string("i32.and")
     I32Or => builder.write_string("i32.or")
     I32Shl => builder.write_string("i32.shl")
@@ -554,6 +563,17 @@ fn write_instruction(
     I64Shl => builder.write_string("i64.shl")
     I64ShrS => builder.write_string("i64.shr_s")
     I64ShrU => builder.write_string("i64.shr_u")
+    F32Eq => builder.write_string("f32.eq")
+    F32Ne => builder.write_string("f32.ne")
+    F32Lt => builder.write_string("f32.lt")
+    F32Gt => builder.write_string("f32.gt")
+    F32Le => builder.write_string("f32.le")
+    F32Ge => builder.write_string("f32.ge")
+    F32Neg => builder.write_string("f32.neg")
+    F32Add => builder.write_string("f32.add")
+    F32Sub => builder.write_string("f32.sub")
+    F32Mul => builder.write_string("f32.mul")
+    F32Div => builder.write_string("f32.div")
     F64Eq => builder.write_string("f64.eq")
     F64Ne => builder.write_string("f64.ne")
     F64Lt => builder.write_string("f64.lt")
@@ -568,9 +588,15 @@ fn write_instruction(
     I32WrapI64 => builder.write_string("i32.wrap_i64")
     I64ExtendI32S => builder.write_string("i64.extend_i32_s")
     I64ExtendI32U => builder.write_string("i64.extend_i32_u")
+    I64TruncF32S => builder.write_string("i64.trunc_f32_s")
     I64TruncF64S => builder.write_string("i64.trunc_f64_s")
+    F32ConvertI64S => builder.write_string("f32.convert_i64_s")
     F64ConvertI64S => builder.write_string("f64.convert_i64_s")
+    F32DemoteF64 => builder.write_string("f32.demote_f64")
+    F64PromoteF32 => builder.write_string("f64.promote_f32")
+    I32ReinterpretF32 => builder.write_string("i32.reinterpret_f32")
     I64ReinterpretF64 => builder.write_string("i64.reinterpret_f64")
+    F32ReinterpretI32 => builder.write_string("f32.reinterpret_i32")
     F64ReinterpretI64 => builder.write_string("f64.reinterpret_i64")
     // An unhandled instruction must break the text rather than disappear from
     // it. Rendering one as a comment kept the output parseable while silently
@@ -796,6 +822,32 @@ fn write_named_value(
   builder.write_string(name)
   builder.write_string(" ")
   builder.write_string(value)
+}
+
+///|
+fn wat_f32_literal(value : Float) -> String {
+  let bits = value.reinterpret_as_uint()
+  let exponent = bits & 0x7f800000
+  let mantissa = bits & 0x007fffff
+  if exponent == 0x7f800000 && mantissa != 0 {
+    let sign = if bits >> 31 == 0 { "" } else { "-" }
+    sign + "nan:0x" + mantissa.to_string(radix=16)
+  } else {
+    @float_format.format_f32(value)
+  }
+}
+
+///|
+fn wat_f64_literal(value : Double) -> String {
+  let bits = value.reinterpret_as_uint64()
+  let exponent = bits & 0x7ff0000000000000UL
+  let mantissa = bits & 0x000fffffffffffffUL
+  if exponent == 0x7ff0000000000000UL && mantissa != 0UL {
+    let sign = if bits >> 63 == 0UL { "" } else { "-" }
+    sign + "nan:0x" + mantissa.to_string(radix=16)
+  } else {
+    @float_format.format_f64(value)
+  }
 }
 
 ///|

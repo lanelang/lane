@@ -104,8 +104,7 @@ now delivers the first two requirements below: stage
 metrics are collected from typed IR, and function lineage is carried by ANF,
 LoisVM canonicalization, and Wasm emission owners. Per-function scale is
 published only at those identity-owning stages; earlier tree stages remain
-aggregate-only. The remaining work starts with renderer completeness and a
-pinned clean Basic baseline.
+aggregate-only. The remaining work starts with a pinned clean Basic baseline.
 
 1. Add per-stage metrics to Explore without making the human-facing IR text a
    serialization format. At minimum, record function count, operation count,
@@ -115,9 +114,9 @@ pinned clean Basic baseline.
 2. Preserve function provenance from Buslane values through ANF, VM CFG,
    bytecode, and Wasm. Presentation consumes this relationship; it must not
    infer it from function order or rendered identifiers.
-3. Complete the Wasm text renderer. The current report renders `I32Mul` as
-   `unsupported.instruction`; this is an Explore observability defect rather
-   than the instruction emitted to the executable module.
+3. The Wasm text renderer now explicitly covers every instruction emitted by
+   LoisVM. Public round-trip tests parse and validate the complete text and
+   preserve special floating-point constant bits.
 4. Pin a clean Basic revision and record compilation, JIT, and execution time
    separately. Image-size gates must accompany the timing gate so a runtime
    change cannot hide compiler output growth.
