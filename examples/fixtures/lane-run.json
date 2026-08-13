@@ -1898,6 +1898,15 @@
       }
     },
     {
+      "name": "95 recursive parser combinators",
+      "file": "examples/valid/95_recursive_parser_combinators.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "ast=add(lit(2),mul(add(lit(3),lit(5)),lit(5)))"
+      }
+    },
+    {
       "name": "invalid 84 initialization cycle",
       "file": "examples/invalid/84_initialization_cycle.lane",
       "mode": "check-error",

@@ -1,0 +1,307 @@
+module Examples.Valid.RecursiveParserCombinators
+
+import Basic.Io.{ println }
+import Basic.Ops.*
+import Basic.Data.Bool.*
+import Basic.Data.I64.*
+import Basic.Builtins.{ byte_to_i64, bytes_get, bytes_length, string_to_bytes }
+
+enum Expr {
+  literal(I64)
+  add(Expr, Expr)
+  multiply(Expr, Expr)
+}
+
+struct Input {
+  source : Bytes
+  offset : I64
+}
+
+enum Expectation {
+  expected_integer()
+  expected_ascii(I64)
+  expected_either(Expectation, Expectation)
+  expected_end()
+}
+
+struct ParseError {
+  offset : I64
+  expected : Expectation
+}
+
+enum Reply[A] {
+  accepted(A, Input)
+  rejected(ParseError)
+}
+
+struct Parser[A] {
+  run : (Input) -> Reply[A]
+}
+
+// The expression grammar is ASCII, so parser offsets are UTF-8 byte offsets.
+// A failure beyond the starting offset is committed; choice retries only an
+// alternative that failed without consuming input.
+type ExprOperator = (Expr, Expr) -> Expr
+
+fn merge_errors(left : ParseError, right : ParseError) -> ParseError {
+  if left.offset < right.offset {
+    right
+  } else if right.offset < left.offset {
+    left
+  } else {
+    ParseError::{ offset: left.offset, expected: expected_either(left.expected, right.expected) }
+  }
+}
+
+fn[A, B] map(parser : Parser[A], transform : (A) -> B) -> Parser[B] {
+  Parser::{
+    run: fn(input) {
+      match parser.run(input) {
+        accepted(value, rest) => accepted(transform(value), rest)
+        rejected(error) => rejected(error)
+      }
+    }
+  }
+}
+
+fn[A, B] flat_map(parser : Parser[A], transform : (A) -> Parser[B]) -> Parser[B] {
+  Parser::{
+    run: fn(input) {
+      match parser.run(input) {
+        accepted(value, rest) => transform(value).run(rest)
+        rejected(error) => rejected(error)
+      }
+    }
+  }
+}
+
+fn[A] or_else(left : Parser[A], right : Parser[A]) -> Parser[A] {
+  Parser::{
+    run: fn(input) {
+      match left.run(input) {
+        accepted(value, rest) => accepted(value, rest)
+        rejected(left_error) => {
+          if left_error.offset == input.offset {
+            match right.run(input) {
+              accepted(value, rest) => accepted(value, rest)
+              rejected(right_error) => rejected(merge_errors(left_error, right_error))
+            }
+          } else {
+            rejected(left_error)
+          }
+        }
+      }
+    }
+  }
+}
+
+fn[A] delay(build : () -> Parser[A]) -> Parser[A] {
+  Parser::{
+    run: fn(input) {
+      build().run(input)
+    }
+  }
+}
+
+fn ascii(expected_value : I64) -> Parser[Unit] {
+  Parser::{
+    run: fn(input) {
+      if input.offset == bytes_length(input.source) {
+        rejected(ParseError::{ offset: input.offset, expected: expected_ascii(expected_value) })
+      } else if byte_to_i64(bytes_get(input.source, input.offset)) == expected_value {
+        accepted((), Input::{ source: input.source, offset: input.offset + 1 })
+      } else {
+        rejected(ParseError::{ offset: input.offset, expected: expected_ascii(expected_value) })
+      }
+    }
+  }
+}
+
+fn skip_spaces(input : Input) -> Input {
+  if input.offset == bytes_length(input.source) {
+    input
+  } else if byte_to_i64(bytes_get(input.source, input.offset)) == 32 {
+    skip_spaces(Input::{ source: input.source, offset: input.offset + 1 })
+  } else {
+    input
+  }
+}
+
+fn[A] lexeme(parser : Parser[A]) -> Parser[A] {
+  Parser::{
+    run: fn(input) {
+      match parser.run(input) {
+        accepted(value, rest) => accepted(value, skip_spaces(rest))
+        rejected(error) => rejected(error)
+      }
+    }
+  }
+}
+
+fn symbol(expected_value : I64) -> Parser[Unit] {
+  lexeme(ascii(expected_value))
+}
+
+fn parse_digits(input : Input, value : I64, count : I64) -> Reply[I64] {
+  if input.offset == bytes_length(input.source) {
+    if count == 0 {
+      rejected(ParseError::{ offset: input.offset, expected: expected_integer() })
+    } else {
+      accepted(value, input)
+    }
+  } else {
+    let next = byte_to_i64(bytes_get(input.source, input.offset))
+    if 48 <= next && next <= 57 {
+      parse_digits(
+        Input::{ source: input.source, offset: input.offset + 1 },
+        value * 10 + (next - 48),
+        count + 1
+      )
+    } else if count == 0 {
+      rejected(ParseError::{ offset: input.offset, expected: expected_integer() })
+    } else {
+      accepted(value, input)
+    }
+  }
+}
+
+fn integer() -> Parser[I64] {
+  lexeme(
+    Parser::{
+      run: fn(input) {
+        parse_digits(input, 0, 0)
+      }
+    }
+  )
+}
+
+fn[A] between(open : Parser[Unit], body : Parser[A], close : Parser[Unit]) -> Parser[A] {
+  flat_map(
+    open,
+    fn(_open) {
+      flat_map(
+        body,
+        fn(value) {
+          map(
+            close,
+            fn(_close) {
+              value
+            }
+          )
+        }
+      )
+    }
+  )
+}
+
+fn parse_chain_tail(
+  accumulator : Expr,
+  operand : Parser[Expr],
+  operator : Parser[ExprOperator],
+  input : Input
+) -> Reply[Expr] {
+  match operator.run(input) {
+    rejected(error) =>
+      if error.offset == input.offset {
+        accepted(accumulator, input)
+      } else {
+        rejected(error)
+      }
+    accepted(combine, after_operator) =>
+      match operand.run(after_operator) {
+        accepted(value, rest) => parse_chain_tail(
+          combine(accumulator, value),
+          operand,
+          operator,
+          rest
+        )
+        rejected(error) => rejected(error)
+      }
+  }
+}
+
+fn chain_left(operand : Parser[Expr], operator : Parser[ExprOperator]) -> Parser[Expr] {
+  Parser::{
+    run: fn(input) {
+      match operand.run(input) {
+        accepted(first, rest) => parse_chain_tail(first, operand, operator, rest)
+        rejected(error) => rejected(error)
+      }
+    }
+  }
+}
+
+fn add_operator() -> Parser[ExprOperator] {
+  map(
+    symbol(43),
+    fn(_symbol) {
+      fn(left, right) {
+        add(left, right)
+      }
+    }
+  )
+}
+
+fn multiply_operator() -> Parser[ExprOperator] {
+  map(
+    symbol(42),
+    fn(_symbol) {
+      fn(left, right) {
+        multiply(left, right)
+      }
+    }
+  )
+}
+
+fn expression() -> Parser[Expr] {
+  chain_left(term(), add_operator())
+}
+
+fn term() -> Parser[Expr] {
+  chain_left(factor(), multiply_operator())
+}
+
+fn factor() -> Parser[Expr] {
+  or_else(
+    map(
+      integer(),
+      fn(value) {
+        literal(value)
+      }
+    ),
+    between(symbol(40), delay(expression), symbol(41))
+  )
+}
+
+fn[A] complete(parser : Parser[A]) -> Parser[A] {
+  Parser::{
+    run: fn(input) {
+      let input = skip_spaces(input)
+      match parser.run(input) {
+        rejected(error) => rejected(error)
+        accepted(value, rest) => {
+          if rest.offset == bytes_length(rest.source) {
+            accepted(value, rest)
+          } else {
+            rejected(ParseError::{ offset: rest.offset, expected: expected_end() })
+          }
+        }
+      }
+    }
+  }
+}
+
+fn[A] parse(parser : Parser[A], source : String) -> Reply[A] {
+  parser.run(Input::{ source: string_to_bytes(source), offset: 0 })
+}
+
+pub fn answer() -> Unit ! Io {
+  let valid_result = parse(complete(expression()), "2 + (3 + 5) * 5")
+  match valid_result {
+    accepted(
+      add(literal(2), multiply(add(literal(3), literal(5)), literal(5))),
+      Input::{ source: _source, offset: 15 }
+    ) => println("ast=add(lit(2),mul(add(lit(3),lit(5)),lit(5)))")
+    _ => println("unexpected parser AST")
+  }
+}
