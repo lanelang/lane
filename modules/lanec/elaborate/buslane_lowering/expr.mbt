@@ -6,8 +6,8 @@ fn BuslaneLowerer::lower_expr(
   match expression {
     Literal(literal~, ..) => Literal(lower_literal(literal))
     Value(symbol~, ..) => Ref(self.value_id(symbol))
-    CompilerIntrinsic(intrinsic~, ..) =>
-      Ref(self.define_builtin_external(intrinsic))
+    CompilerIntrinsic(intrinsic~, type_~, ..) =>
+      Ref(self.define_builtin_external(intrinsic, self.lower_type(type_)))
     ExternBinding(name~, signature~, type_~, ..) =>
       Ref(self.define_runtime_import(name, signature, self.lower_type(type_)))
     ErrorRecovery(_) =>

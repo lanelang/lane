@@ -31,7 +31,7 @@ Handler dictionaries are immutable ordinary products selected statically. Resume
 
 ## Extern boundary
 
-The selected entry is `() -> Unit` or `() -> Unit ! Io`. `Io` requires no dictionary or root handler. Extern calls lower to synchronous primitive runtime imports without `OperationId`, continuation, handler record, or runtime-effect table. Runtime-import failures are fatal execution errors rather than Lane effects.
+The selected entry is `() -> Unit ! E`, where `E` is closed and admitted by the selected execution profile. The Lane CLI profile admits `Io`, `Panic`, and closed External Effects; none requires a dictionary or root handler. Extern calls lower to synchronous primitive runtime imports without `OperationId`, continuation, handler record, or runtime-effect table. Runtime-import failures are fatal execution errors rather than Lane effects.
 
 Consequences:
 

@@ -10,6 +10,30 @@ import {
 // Errors
 
 // Types and methods
+pub(all) enum BasicTypeProvider {
+  Tuple
+  List
+  Void
+  Deriver
+  Product
+  Sum
+  Iso
+  TypeInfo
+  FieldInfo
+  VariantInfo
+} derive(Eq, @debug.Debug)
+pub fn BasicTypeProvider::module_path(Self) -> String
+pub fn BasicTypeProvider::qualified_name(Self) -> String
+pub fn BasicTypeProvider::type_name(Self) -> String
+
+pub(all) enum BasicVariantProvider {
+  TupleValue
+  ListEmpty
+  ListCons
+} derive(Eq, @debug.Debug)
+pub fn BasicVariantProvider::owner(Self) -> BasicTypeProvider
+pub fn BasicVariantProvider::variant_name(Self) -> String
+
 pub(all) struct HostSignature {
   parameters : Array[ValueKind]
   result : ValueKind
@@ -82,6 +106,11 @@ pub fn Intrinsic::from_name(String) -> Self?
 pub fn Intrinsic::name(Self) -> String
 pub fn Intrinsic::signature(Self) -> IntrinsicSignature
 
+pub(all) enum IntrinsicControl {
+  Returns
+  Terminal
+} derive(Eq, @debug.Debug)
+
 pub(all) enum IntrinsicEffect {
   Pure
   BuiltinIo
@@ -89,11 +118,11 @@ pub(all) enum IntrinsicEffect {
 } derive(Eq, @debug.Debug)
 
 pub(all) enum IntrinsicSignature {
-  Value(IntrinsicValueKind)
-  Function(parameters~ : Array[IntrinsicValueKind], result~ : IntrinsicValueKind, effect~ : IntrinsicEffect)
+  Value(IntrinsicType)
+  Function(parameters~ : Array[IntrinsicType], result~ : IntrinsicType, effect~ : IntrinsicEffect, control~ : IntrinsicControl)
 } derive(Eq, @debug.Debug)
 
-pub(all) enum IntrinsicValueKind {
+pub(all) enum IntrinsicType {
   Unit
   Bool
   I64
@@ -104,6 +133,7 @@ pub(all) enum IntrinsicValueKind {
   String
   Byte
   Bytes
+  CanonicalBasicVoid
 } derive(Eq, @debug.Debug)
 
 pub(all) enum ValueKind {

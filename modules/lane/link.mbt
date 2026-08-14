@@ -26,11 +26,12 @@ async fn lane_link(
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  match validate_executable_entry(entry, program) {
+  let profile = @executable.ExecutionProfile::lane_cli()
+  match validate_executable_entry(entry, program, profile) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let executable = match program.elaborate_entry(entry) {
+  let executable = match program.elaborate_entry(entry, profile) {
     Ok(executable) => executable
     Err(error) =>
       return LaneCommandOutcome::user_error(

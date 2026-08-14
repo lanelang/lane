@@ -4,132 +4,110 @@ Status: implemented
 
 ## Decision
 
-Lane exposes fatal termination through the compiler-owned intrinsic `%panic`:
+Lane exposes fatal termination through the canonical Basic binding:
 
 ```lane
-pub let panic : (String) -> Unit ! Panic = builtin("%panic")
+module Basic.Io
+
+import Basic.Data.Void.{ Void }
+
+pub let panic : (String) -> Void ! Panic = builtin("%panic")
 ```
 
-The source contract deliberately uses `Unit`, not a bottom type. `panic` is a
-statement-oriented operation: it does not need to inhabit arbitrary expression
-types. The compiler-provided `Panic` effect makes the call observable to
-effect-sensitive compiler passes without claiming that it performs I/O. The
-execution-level `Fatal(message)` terminator, rather than the source result type,
-states that the intrinsic implementation has no normal successor.
+`Void`, `Panic`, and `Fatal` own different facts:
 
-These are separate facts:
+- `Basic.Data.Void.Void` is the ordinary nominal empty result type;
+- `Panic` makes possible fatal behavior visible to effect-sensitive passes;
+- the verified intrinsic contract marks `%panic` as `Terminal`;
+- `Fatal(message)` ends VM CFG and bytecode control with no successor.
 
-- `Unit` is the ordinary source and callable result ABI;
-- `Panic` prevents the call from being treated as pure or discarded;
-- `Fatal` terminates execution and produces the typed fatal outcome.
+Lane has no built-in bottom type, implicit bottom conversion, no-result callable
+ABI, or special representation for empty enums. A value context uses the
+ordinary Basic eliminator explicitly:
 
-Lane does not introduce a source `Never` type, bottom subtyping, implicit
-bottom conversion, a no-return callable ABI, or special handling for empty
-enums. A user-defined empty enum such as `Void` remains ordinary nominal data.
+```lane
+absurd[I64](panic("missing integer"))
+```
 
-## Intrinsic ownership
+## Canonical Basic and intrinsic ownership
 
-`%panic` is listed in the compiler intrinsic table with the canonical signature
-`(String) -> Unit ! Panic`. The type checker synthesizes that signature and checks
-annotations through the normal builtin-signature compatibility path. Neither
-the type checker nor a backend recognizes `Basic.Io.panic` by declaration name.
+The compiler-owned Basic provider catalog names `Basic.Data.Void.Void` together
+with the providers for tuple, list, and structural-derivation features. Semantic
+checking resolves the provider from the explicit module closure and proves that
+it is a public enum with no parameters or variants. Later phases carry its
+resolved nominal identity and never rediscover Void by spelling or shape.
 
-The intrinsic signature table is the sole owner of its source type and effect.
-Buslane elaboration materializes that entry as an opaque intrinsic contract;
-module objects persist only the intrinsic identity, and linking validates its
-metadata type against the contract reconstructed from the table. Later phases
-consume the contract rather than accepting an independently supplied intrinsic
-type. The lowering phase creates a normal Unit-returning callable wrapper whose
-body ends in `Fatal(message)`. Calls to the wrapper use the same direct,
-first-class, tail-call, and adapter machinery as every other Unit-returning
-callable.
+The intrinsic table owns the complete symbolic `%panic` contract:
 
-## Control-flow contract
+```text
+parameters = [String]
+result = CanonicalBasicVoid
+effect = Panic
+control = Terminal
+```
 
-`Fatal(message)` is a terminator in VM CFG and LoisVM bytecode. It:
+Type checking materializes the resolved function type once. Buslane lowering,
+module objects, linking, function planning, and LoisVM lowering carry that full
+verified type rather than reconstructing it from the intrinsic name. Module
+objects persist the resolved type with the intrinsic identity.
 
-1. consumes one owned String;
-2. has no CFG successor;
-3. initiates fatal cleanup;
-4. produces `ExecutionError::Fatal(message)`.
+## Callable and control-flow contract
 
-`Fatal` is legal in a function body with any declared result ABI because it
-does not return a result. In the `%panic` wrapper that ABI is Unit. `Return`
-continues to obey the declared result ABI; `Fatal` is a control-flow alternative
-to returning, not a result value.
+The panic wrapper uses the ordinary callable ABI derived from
+`(String) -> Void ! Panic`. Its result is therefore the normal nominal-data ABI
+for Void. The wrapper has no `Return`; its body ends in `Fatal(message)`.
 
-An ordinary call instruction may syntactically have a continuation when the
-callee is known only through the Unit callable ABI. Invoking `%panic` never
-reaches that continuation because its wrapper executes `Fatal`. This is the
-same observable behavior for direct and first-class calls.
+`Fatal` is legal in a function with any declared result ABI because it produces
+no value and has no successor. Direct calls, first-class calls, tail positions,
+and adapters use ordinary callable machinery. There is no Never result, fake
+Void value, or terminal-call opcode.
 
-## Backend contract
+An arbitrary function carrying `Panic` may return normally. Only the verified
+intrinsic contract's `Terminal` classification permits the compiler to remove a
+normal continuation.
 
-The interpreter decodes the owned String, releases it, performs fatal cleanup,
-and returns `ExecutionError::Fatal(message)`.
+## Execution profiles
 
-The Wasm backend calls the closed internal `FatalString` transport, releases
-the String wrapper, and throws through the backend's fatal unwind path. The
-embedding does not register a public `panic` Runtime Import.
+Entry validation consumes an explicit execution profile. The Lane CLI profile
+admits `Io`, `Panic`, and closed external effects. A future built-in effect is
+rejected until a profile deliberately includes it; no `Builtin(_)` admission
+rule exists.
 
-Both backends must:
+The selected entry still has shape `() -> Unit ! E`. Its result is unrelated to
+panic's Void result: callers use `absurd[Unit]` when a fatal branch occurs in a
+Unit context.
 
-- preserve the exact message;
-- stop before any normal continuation;
-- release live owned values according to the fatal-unwind contract;
-- return the same public typed execution error.
+## Backend and persistence contract
 
-Ordinary host failures remain
-`ExecutionError::RuntimeImportFailure(symbol, message)` and are never inferred
-to be panic from a symbol spelling.
+Both interpreter and Wasm/JIT execution preserve the message, perform fatal
+cleanup, skip the normal continuation, and return the typed
+`ExecutionError::Fatal(message)` outcome. Runtime import failures remain a
+separate typed error.
 
-## Persistence
-
-The module-object schema persists the `Panic` compiler intrinsic. The linked
-program schema persists the `Fatal` bytecode terminator. `ResultAbi` remains
-`Unit | Value(...)`; no persisted no-return result or special call opcode
-exists.
-
-The decoder owns framing and tag validity. The bytecode verifier owns semantic
-validation, including that the Fatal operand is an owned String and that no
-owned value is leaked on the terminating path.
+The migration advances module-interface schema 12 to 13, module-object schema
+19 to 20, and linked-program schema 15 to 16. The bytecode instruction language
+does not change: `Fatal` and ordinary value result ABIs already express the
+required execution contract. Decoders reject the immediately preceding schema
+versions.
 
 ## Optimization
 
-Source optimization observes the `Panic` effect and must preserve the evaluation
-of discarded panic calls. Runtime ANF projection removes static effect syntax
-only after effect-aware optimization and lowering have preserved evaluation
-order and the compiler intrinsic.
-CFG optimization treats `Fatal` as a terminator with no successor.
+Before runtime projection, `Panic` is a nonempty semantic effect. Optimizers
+must preserve panic-capable evaluation. They may infer terminal control only
+from the verified `%panic` contract, never from Void, another empty enum, the
+`Panic` effect alone, a declaration name, or a runtime symbol.
 
-No optimization may infer fatality from `Unit`, `Panic`, an empty enum, a source
-declaration name, or a Runtime Import symbol.
-
-## Non-goals
-
-This RFC does not add:
-
-- expression-polymorphic `panic`;
-- a source bottom type;
-- implicit coercion from fatal calls to unrelated result types;
-- recoverable exceptions or handled fatal effects;
-- host-defined panic registration;
-- a general no-return function annotation.
-
-If Lane later needs bottom typing or control-flow refinement, that feature must
-be designed independently. It must not be reconstructed from this
-statement-oriented API.
+After `%panic` becomes `Fatal`, CFG analyses consume its empty successor set.
 
 ## Acceptance properties
 
-- Basic exports exactly `(String) -> Unit ! Panic = builtin("%panic")`.
-- The intrinsic synthesizes the same canonical type without an annotation.
-- Wrong parameter, result, or effect annotations produce the ordinary builtin
-  signature mismatch diagnostic.
-- Direct and first-class calls use the ordinary Unit callable ABI.
-- The compiler emits no Runtime Import for panic.
-- The wrapper body ends in verified `Fatal(message)`.
-- Interpreter and Wasm/JIT return `ExecutionError::Fatal(message)` and do not
-  execute the continuation.
-- A statement-position panic remains observable.
-- Ordinary empty enums retain ordinary data representation and control flow.
+- Basic exports exactly `(String) -> Void ! Panic`.
+- Wrong parameter, result, effect, or canonical Void provider is rejected.
+- `absurd[T](panic(message))` works for arbitrary result types.
+- Void retains ordinary nominal-data representation.
+- The panic wrapper has the ordinary Void result ABI and ends in `Fatal`.
+- Direct and first-class panic calls never execute their continuation.
+- `Panic` on another function does not imply terminal control.
+- CLI entry admission is owned by an explicit profile.
+- interpreter and Wasm/JIT expose the same typed fatal outcome.
+- stale interface, object, and linked schemas are rejected.

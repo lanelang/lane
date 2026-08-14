@@ -250,7 +250,11 @@ test "linked tree shaking retains exports entries externals and metadata" {
     ],
     externals: {
       builtins: [
-        @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
+        @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+          add,
+          I64Add,
+          Function([Primitive(I64), Primitive(I64)], Primitive(I64), Empty),
+        ),
       ],
       runtime_imports: [
         {

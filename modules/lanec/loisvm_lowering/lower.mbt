@@ -30,7 +30,7 @@ priv struct FunctionLowerer {
 }
 
 ///|
-pub fn lower_linked_program_to_bytecode(
+pub fn lower_lane_cli_program_to_bytecode(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
   entry : @buslane_lowering.BuslaneEntry,
@@ -41,7 +41,12 @@ pub fn lower_linked_program_to_bytecode(
     externals,
     entries: [entry],
   }
-  match @executable.elaborate(linked, entry) {
+  match
+    @executable.elaborate(
+      linked,
+      entry,
+      @executable.ExecutionProfile::lane_cli(),
+    ) {
     Ok(executable) => lower_executable_program_to_bytecode(executable)
     Err(error) => Err(executable_elaboration_error(error))
   }

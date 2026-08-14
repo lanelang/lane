@@ -26,5 +26,6 @@ host failures remain `ExecutionError::RuntimeImportFailure(symbol, message)`.
 The module-object and linked-program schemas were advanced for the new
 intrinsic and bytecode forms.
 
-The current contract replaces `Io` with the built-in `Panic` effect while
-retaining the ordinary `Unit` result and `Fatal(message)` execution boundary.
+The current contract replaces `Io` with the built-in `Panic` effect, uses the
+ordinary canonical `Basic.Data.Void.Void` result, and retains the
+`Fatal(message)` execution boundary.

@@ -27,15 +27,16 @@ fn SemanticChecker::structural_derive_abi(
   self : SemanticChecker,
   loc : SourceSpan,
 ) -> @checked.CheckedDeriveAbi? {
-  guard self.module_struct("Basic.Trait.Derive", "Deriver") is Some(deriver) &&
-    self.module_struct("Basic.Trait.Derive", "Product") is Some(product) &&
-    self.module_enum("Basic.Trait.Derive", "Sum") is Some(sum) &&
-    self.module_struct("Basic.Trait.Iso", "Iso") is Some(iso) &&
-    self.module_struct("Basic.Trait.Derive", "TypeInfo") is Some(type_info) &&
-    self.module_struct("Basic.Trait.Derive", "FieldInfo") is Some(field_info) &&
-    self.module_struct("Basic.Trait.Derive", "VariantInfo")
-    is Some(variant_info) &&
-    self.module_enum("Basic.Data.Void", "Void") is Some(void_declaration) else {
+  guard self.canonical_basic_void_declaration(loc) is Some(void_declaration) else {
+    return None
+  }
+  guard self.canonical_basic_struct(Deriver) is Some(deriver) &&
+    self.canonical_basic_struct(Product) is Some(product) &&
+    self.canonical_basic_enum(Sum) is Some(sum) &&
+    self.canonical_basic_struct(Iso) is Some(iso) &&
+    self.canonical_basic_struct(TypeInfo) is Some(type_info) &&
+    self.canonical_basic_struct(FieldInfo) is Some(field_info) &&
+    self.canonical_basic_struct(VariantInfo) is Some(variant_info) else {
     self.report_invalid_derive_abi(
       "required canonical declarations are missing", loc,
     )
@@ -58,67 +59,6 @@ fn SemanticChecker::structural_derive_abi(
       None
     }
   }
-}
-
-///|
-fn SemanticChecker::module_struct(
-  self : SemanticChecker,
-  module_path : String,
-  name : String,
-) -> CheckedStructDeclaration? {
-  guard self.module_type_symbol(module_path, name) is Some(symbol) else {
-    return None
-  }
-  self.declarations.checked_struct(symbol)
-}
-
-///|
-fn SemanticChecker::module_enum(
-  self : SemanticChecker,
-  module_path : String,
-  name : String,
-) -> CheckedEnumDeclaration? {
-  guard self.module_type_symbol(module_path, name) is Some(symbol) else {
-    return None
-  }
-  self.declarations.checked_enum(symbol)
-}
-
-///|
-fn SemanticChecker::module_type_symbol(
-  self : SemanticChecker,
-  module_path : String,
-  name : String,
-) -> TypeSymbolId? {
-  if self.resolved_source.module_path.components.join(".") == module_path {
-    for declaration in self.resolved_source.declarations {
-      match declaration {
-        Struct(declaration) if declaration.name == name =>
-          return Some(declaration.symbol)
-        Enum(declaration) if declaration.name == name =>
-          return Some(declaration.symbol)
-        ExternalType(declaration) if declaration.name == name =>
-          return Some(declaration.symbol)
-        _ => ()
-      }
-    }
-    return None
-  }
-  guard self.imported_environment.find(module_path) is Some(interface) else {
-    return None
-  }
-  for type_ in interface.types {
-    match type_ {
-      Struct(declaration) if declaration.name == name =>
-        return Some(declaration.symbol)
-      Enum(declaration) if declaration.name == name =>
-        return Some(declaration.symbol)
-      External(declaration) if declaration.name == name =>
-        return Some(declaration.symbol)
-      _ => ()
-    }
-  }
-  None
 }
 
 ///|
@@ -150,10 +90,6 @@ fn StructuralDeriveDeclarations::validate(
     if !declaration.type_members.is_empty() {
       return Err("`\{name}` must not declare hidden type members")
     }
-  }
-  guard self.void_declaration.type_parameters.is_empty() &&
-    self.void_declaration.variants.is_empty() else {
-    return Err("`Basic.Data.Void.Void` must be an empty enum")
   }
   guard self.product.type_parameters is [product_a, product_b] &&
     product_a.kind == Type &&

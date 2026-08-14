@@ -24,7 +24,7 @@ enum EntryExecutableError {
   EntryIsNotFunction
   EntryHasParameters(count~ : Int)
   EntryReturnsNonUnit(result~ : @buslane.Type)
-  EntryHasUnsupportedEffects(effect~ : @buslane.Effect)
+  EntryHasUnsupportedEffects(effects~ : Array[@buslane.Effect])
 } derive(Debug)
 
 ///|
@@ -272,13 +272,13 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         fields=[
           command_report_field("requested type", render_buslane_type(type_)),
           command_report_field(
-            "expected", "() -> Unit with a closed External Effect row",
+            "expected", "() -> Unit with only effects supported by the Lane CLI",
           ),
         ],
         details=[reason.to_human_note()],
         suggestions=[
           command_suggestion(
-            "Export a zero-parameter `pub fn` that returns `Unit` with only External Effects.",
+            "Export a zero-parameter `pub fn` that returns `Unit` with only `Io`, `Panic`, or closed External Effects.",
           ),
           command_suggestion(
             "Use `lane inspect <artifact>` to inspect public entries and artifact metadata.",
@@ -331,8 +331,10 @@ fn EntryExecutableError::to_human_note(self : EntryExecutableError) -> String {
       "The selected function expects \{count} argument(s)."
     EntryReturnsNonUnit(result~) =>
       "The selected function returns `\{render_buslane_type(result)}`, not `Unit`."
-    EntryHasUnsupportedEffects(effect~) =>
-      "The selected function has unsupported effect set `\{render_buslane_effect(effect)}`."
+    EntryHasUnsupportedEffects(effects~) =>
+      "The selected function requires unsupported effect(s): " +
+      effects.map(render_buslane_effect).join(", ") +
+      "."
   }
 }
 

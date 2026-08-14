@@ -9,7 +9,9 @@ fn SemanticChecker::check_compiler_intrinsic(
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return undetermined_checked_expression(Error)
   }
-  let actual = compiler_intrinsic_type(intrinsic)
+  guard self.compiler_intrinsic_type(intrinsic, loc) is Some(actual) else {
+    return undetermined_checked_expression(Error)
+  }
   let synthesis = checked_expression(
     CompilerIntrinsic(intrinsic~, type_=actual, loc~),
     actual,
@@ -43,42 +45,64 @@ fn SemanticChecker::synthesize_compiler_intrinsic(
     self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
     return checked_expression_none_reported(Error)
   }
-  let type_ = compiler_intrinsic_type(intrinsic)
+  guard self.compiler_intrinsic_type(intrinsic, loc) is Some(type_) else {
+    return checked_expression_none_reported(Error)
+  }
   checked_expression(CompilerIntrinsic(intrinsic~, type_~, loc~), type_)
 }
 
 ///|
-fn compiler_intrinsic_type(intrinsic : @abi.Intrinsic) -> @types.Type {
+fn SemanticChecker::compiler_intrinsic_type(
+  self : SemanticChecker,
+  intrinsic : @abi.Intrinsic,
+  loc : SourceSpan,
+) -> @types.Type? {
   match intrinsic.signature() {
-    Value(kind) => Primitive(intrinsic_primitive_type(kind))
-    Function(parameters~, result~, effect~) =>
-      Function(
-        parameters.map(fn(kind) { Primitive(intrinsic_primitive_type(kind)) }),
-        Primitive(intrinsic_primitive_type(result)),
-        match effect {
-          Pure => Empty
-          BuiltinIo => Builtin(Io)
-          BuiltinPanic => Builtin(Panic)
-        },
+    Value(kind) => self.intrinsic_value_type(kind, loc)
+    Function(parameters~, result~, effect~, ..) => {
+      let checked_parameters = []
+      for parameter in parameters {
+        guard self.intrinsic_value_type(parameter, loc) is Some(type_) else {
+          return None
+        }
+        checked_parameters.push(type_)
+      }
+      guard self.intrinsic_value_type(result, loc) is Some(result_type) else {
+        return None
+      }
+      Some(
+        Function(
+          checked_parameters,
+          result_type,
+          match effect {
+            Pure => Empty
+            BuiltinIo => Builtin(Io)
+            BuiltinPanic => Builtin(Panic)
+          },
+        ),
       )
+    }
   }
 }
 
 ///|
-fn intrinsic_primitive_type(
-  kind : @abi.IntrinsicValueKind,
-) -> @types.PrimitiveType {
+fn SemanticChecker::intrinsic_value_type(
+  self : SemanticChecker,
+  kind : @abi.IntrinsicType,
+  loc : SourceSpan,
+) -> @types.Type? {
   match kind {
-    Unit => Unit
-    Bool => Bool
-    I64 => I64
-    I32 => I32
-    Char => Char
-    F32 => F32
-    F64 => F64
-    String => String
-    Byte => Byte
-    Bytes => Bytes
+    Unit => Some(Primitive(Unit))
+    Bool => Some(Primitive(Bool))
+    I64 => Some(Primitive(I64))
+    I32 => Some(Primitive(I32))
+    Char => Some(Primitive(Char))
+    F32 => Some(Primitive(F32))
+    F64 => Some(Primitive(F64))
+    String => Some(Primitive(String))
+    Byte => Some(Primitive(Byte))
+    Bytes => Some(Primitive(Bytes))
+    CanonicalBasicVoid => self.canonical_basic_void_type(loc)
   }
 }
 

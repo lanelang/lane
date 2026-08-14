@@ -16,7 +16,7 @@ pub(all) struct HostSignature {
 } derive(Debug, Eq)
 
 ///|
-pub(all) enum IntrinsicValueKind {
+pub(all) enum IntrinsicType {
   Unit
   Bool
   I64
@@ -27,6 +27,7 @@ pub(all) enum IntrinsicValueKind {
   String
   Byte
   Bytes
+  CanonicalBasicVoid
 } derive(Debug, Eq)
 
 ///|
@@ -37,21 +38,103 @@ pub(all) enum IntrinsicEffect {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum IntrinsicControl {
+  Returns
+  Terminal
+} derive(Debug, Eq)
+
+///|
 pub(all) enum IntrinsicSignature {
-  Value(IntrinsicValueKind)
+  Value(IntrinsicType)
   Function(
-    parameters~ : Array[IntrinsicValueKind],
-    result~ : IntrinsicValueKind,
-    effect~ : IntrinsicEffect
+    parameters~ : Array[IntrinsicType],
+    result~ : IntrinsicType,
+    effect~ : IntrinsicEffect,
+    control~ : IntrinsicControl
   )
 } derive(Debug, Eq)
 
 ///|
 fn pure_intrinsic_function(
-  parameters~ : Array[IntrinsicValueKind],
-  result~ : IntrinsicValueKind,
+  parameters~ : Array[IntrinsicType],
+  result~ : IntrinsicType,
 ) -> IntrinsicSignature {
-  Function(parameters~, result~, effect=Pure)
+  Function(parameters~, result~, effect=Pure, control=Returns)
+}
+
+///|
+pub(all) enum BasicTypeProvider {
+  Tuple
+  List
+  Void
+  Deriver
+  Product
+  Sum
+  Iso
+  TypeInfo
+  FieldInfo
+  VariantInfo
+} derive(Debug, Eq)
+
+///|
+pub fn BasicTypeProvider::module_path(self : BasicTypeProvider) -> String {
+  match self {
+    Tuple => "Basic.Data.Tuple"
+    List => "Basic.Data.List"
+    Void => "Basic.Data.Void"
+    Deriver | Product | Sum | TypeInfo | FieldInfo | VariantInfo =>
+      "Basic.Trait.Derive"
+    Iso => "Basic.Trait.Iso"
+  }
+}
+
+///|
+pub fn BasicTypeProvider::type_name(self : BasicTypeProvider) -> String {
+  match self {
+    Tuple => "Tuple"
+    List => "List"
+    Void => "Void"
+    Deriver => "Deriver"
+    Product => "Product"
+    Sum => "Sum"
+    Iso => "Iso"
+    TypeInfo => "TypeInfo"
+    FieldInfo => "FieldInfo"
+    VariantInfo => "VariantInfo"
+  }
+}
+
+///|
+pub fn BasicTypeProvider::qualified_name(self : BasicTypeProvider) -> String {
+  self.module_path() + "." + self.type_name()
+}
+
+///|
+pub(all) enum BasicVariantProvider {
+  TupleValue
+  ListEmpty
+  ListCons
+} derive(Debug, Eq)
+
+///|
+pub fn BasicVariantProvider::owner(
+  self : BasicVariantProvider,
+) -> BasicTypeProvider {
+  match self {
+    TupleValue => Tuple
+    ListEmpty | ListCons => List
+  }
+}
+
+///|
+pub fn BasicVariantProvider::variant_name(
+  self : BasicVariantProvider,
+) -> String {
+  match self {
+    TupleValue => "tuple"
+    ListEmpty => "empty"
+    ListCons => "cons"
+  }
 }
 
 ///|
@@ -257,7 +340,13 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
 ///|
 pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
   match self {
-    Panic => Function(parameters=[String], result=Unit, effect=BuiltinPanic)
+    Panic =>
+      Function(
+        parameters=[String],
+        result=CanonicalBasicVoid,
+        effect=BuiltinPanic,
+        control=Terminal,
+      )
     I64Add | I64Sub | I64Mul | I64Div | I64Rem =>
       pure_intrinsic_function(parameters=[I64, I64], result=I64)
     I64Neg => pure_intrinsic_function(parameters=[I64], result=I64)

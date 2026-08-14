@@ -187,11 +187,12 @@ pub fn CompiledProgram::buslane_text(
 pub fn CompiledProgram::elaborate_entry(
   self : CompiledProgram,
   entry : CompiledEntry,
+  profile : @executable.ExecutionProfile,
 ) -> Result[
   @executable.ExecutableProgram,
   @executable.ExecutableElaborationError,
 ] {
-  @executable.elaborate(self.linked, entry.entry)
+  @executable.elaborate(self.linked, entry.entry, profile)
 }
 
 ///|
@@ -200,30 +201,33 @@ pub fn CompiledProgram::elaborate_entry(
 pub fn CompiledProgram::elaborate_entry_observed(
   self : CompiledProgram,
   entry : CompiledEntry,
+  profile : @executable.ExecutionProfile,
   observe : (@executable.ExecutableElaborationStage) -> Unit,
 ) -> Result[
   @executable.ExecutableProgram,
   @executable.ExecutableElaborationError,
 ] {
-  @executable.elaborate_observed(self.linked, entry.entry, observe)
+  @executable.elaborate_observed(self.linked, entry.entry, profile, observe)
 }
 
 ///|
-pub fn CompiledProgram::entry_effect_is_executable(
+pub fn CompiledProgram::unsupported_entry_effects(
   self : CompiledProgram,
   entry : CompiledEntry,
-) -> Result[Bool, @executable.ExecutableElaborationError] {
+  profile : @executable.ExecutionProfile,
+) -> Result[Array[@buslane.Effect], @executable.ExecutableElaborationError] {
   match entry.entry.type_ {
     Function(_, _, effect) =>
       Ok(
-        @executable.entry_effect_is_executable(
+        @executable.unsupported_entry_effects(
           self.linked.program.metadata,
           effect,
+          profile,
         ),
       ) catch {
         error => Err(EntryTypeNormalizationCompilerDefect(error))
       }
-    _ => Ok(false)
+    _ => Ok([])
   }
 }
 

@@ -45,11 +45,15 @@ fn lifted_fixture_diagnostics(
     abort("expected fixture to expose answer")
   }
   let mut lifted_verification = None
-  let elaborated = compiled.elaborate_entry_observed(entry, stage => {
-    if stage is MonadicContinuationsLifted(lifted) {
-      lifted_verification = Some(@buslane.verify_program(lifted))
-    }
-  })
+  let elaborated = compiled.elaborate_entry_observed(
+    entry,
+    @executable.ExecutionProfile::lane_cli(),
+    stage => {
+      if stage is MonadicContinuationsLifted(lifted) {
+        lifted_verification = Some(@buslane.verify_program(lifted))
+      }
+    },
+  )
   guard elaborated is Ok(_) else {
     abort("expected executable elaboration to complete: \{Repr(elaborated)}")
   }

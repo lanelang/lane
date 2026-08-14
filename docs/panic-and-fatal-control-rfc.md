@@ -1,6 +1,6 @@
 # RFC: Void-returning panic and explicit fatal execution
 
-Status: Accepted design; implementation pending
+Status: Implemented
 
 ## Summary
 
@@ -56,14 +56,12 @@ validated Basic ABI already used by tuple and list sugar and structural
 derivation. No backend discovers Void by spelling, empty-enum shape, or runtime
 layout.
 
-This RFC is the authoritative target design. The currently implemented
-Unit-returning panic contract and wildcard built-in entry policy remain current
-behavior only until the migration in this RFC is complete.
+This RFC is the authoritative implemented design.
 
 ## Motivation
 
-The existing panic design was assembled from backend requirements instead of a
-complete source-language model. It currently gives `%panic` the type:
+The previous panic design was assembled from backend requirements instead of a
+complete source-language model. It gave `%panic` the type:
 
 ```lane
 (String) -> Unit ! Panic
@@ -577,7 +575,7 @@ execution profile is the stable owner of target support.
 
 ## Supersession
 
-When implemented, this RFC supersedes the Unit-result portions of:
+This RFC supersedes the Unit-result portions of:
 
 - `modules/lanec/docs/fatal-control-rfc.md`;
 - `modules/lanec/docs/adr/0130-source-fatal-panic.md`;

@@ -5,8 +5,9 @@
 pub fn elaborate(
   linked : @module_link.LinkedProgram,
   selected_entry : @buslane_lowering.BuslaneEntry,
+  profile : ExecutionProfile,
 ) -> Result[ExecutableProgram, ExecutableElaborationError] {
-  elaborate_observed(linked, selected_entry, _ => ())
+  elaborate_observed(linked, selected_entry, profile, _ => ())
 }
 
 ///|
@@ -29,9 +30,10 @@ pub(all) enum ExecutableElaborationStage {
 pub fn elaborate_observed(
   linked : @module_link.LinkedProgram,
   selected_entry : @buslane_lowering.BuslaneEntry,
+  profile : ExecutionProfile,
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> Result[ExecutableProgram, ExecutableElaborationError] {
-  Ok(elaborate_or_raise(linked, selected_entry, observe)) catch {
+  Ok(elaborate_or_raise(linked, selected_entry, profile, observe)) catch {
     error => Err(error)
   }
 }
@@ -40,12 +42,13 @@ pub fn elaborate_observed(
 fn elaborate_or_raise(
   linked : @module_link.LinkedProgram,
   selected_entry : @buslane_lowering.BuslaneEntry,
+  profile : ExecutionProfile,
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> ExecutableProgram raise ExecutableElaborationError {
   if !linked.entries.any(entry => entry == selected_entry) {
     raise EntryNotLinked(selected_entry.value)
   }
-  validate_executable_entry(linked.program.metadata, selected_entry)
+  validate_executable_entry(linked.program.metadata, selected_entry, profile)
   let program = linked.program
   let externals = linked.externals
   let entry = selected_entry

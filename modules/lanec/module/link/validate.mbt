@@ -59,6 +59,14 @@ fn validate_object_side_tables(
         "builtin external",
       ),
     )
+    if !builtin_contract_matches(object, builtin) {
+      diagnostics.push(
+        invalid_module_object(
+          object,
+          "builtin `\{builtin.intrinsic().name()}` does not match its canonical source contract",
+        ),
+      )
+    }
     if external_values.contains(builtin.value()) {
       diagnostics.push(
         invalid_module_object(
@@ -129,6 +137,105 @@ fn validate_object_side_tables(
     diagnostics.append(validate_import_reference(object, import_))
   }
   diagnostics
+}
+
+///|
+fn builtin_contract_matches(
+  object : LinkModuleObject,
+  builtin : @buslane_lowering.BuslaneBuiltinExternal,
+) -> Bool {
+  match (builtin.intrinsic().signature(), builtin.type_()) {
+    (Value(kind), type_) => intrinsic_value_type_matches(object, kind, type_)
+    (
+      Function(parameters~, result~, effect~, ..),
+      @buslane.Type::Function(actual_parameters, actual_result, actual_effect),
+    ) =>
+      intrinsic_parameters_match(object, parameters, actual_parameters) &&
+      intrinsic_value_type_matches(object, result, actual_result) &&
+      intrinsic_effect_matches(effect, actual_effect)
+    _ => false
+  }
+}
+
+///|
+fn intrinsic_parameters_match(
+  object : LinkModuleObject,
+  expected : Array[@abi.IntrinsicType],
+  actual : Array[@buslane.Type],
+) -> Bool {
+  if expected.length() != actual.length() {
+    return false
+  }
+  for index, kind in expected {
+    if !intrinsic_value_type_matches(object, kind, actual[index]) {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn intrinsic_value_type_matches(
+  object : LinkModuleObject,
+  kind : @abi.IntrinsicType,
+  type_ : @buslane.Type,
+) -> Bool {
+  match kind {
+    Unit => type_ == Primitive(Unit)
+    Bool => type_ == Primitive(Bool)
+    I64 => type_ == Primitive(I64)
+    I32 => type_ == Primitive(I32)
+    Char => type_ == Primitive(Char)
+    F64 => type_ == Primitive(F64)
+    F32 => type_ == Primitive(F32)
+    String => type_ == Primitive(String)
+    Byte => type_ == Primitive(Byte)
+    Bytes => type_ == Primitive(Bytes)
+    CanonicalBasicVoid =>
+      match type_ {
+        Constructor(id) => canonical_basic_void_identity(object, id)
+        _ => false
+      }
+  }
+}
+
+///|
+fn canonical_basic_void_identity(
+  object : LinkModuleObject,
+  id : @buslane.TypeId,
+) -> Bool {
+  let provider = @abi.BasicTypeProvider::Void
+  let names_identity = if object.module_path_text == provider.module_path() {
+    object.exports.any(export_ => {
+      export_.name == provider.type_name() && export_.reference == Type(id)
+    })
+  } else {
+    object.imports.any(import_ => {
+      import_.module_path_text == provider.module_path() &&
+      import_.name == provider.type_name() &&
+      import_.reference == Type(id)
+    })
+  }
+  names_identity &&
+  object.metadata
+  .type_info(id)
+  .map_or(false, info => {
+    info.flavor is Data &&
+    info.parameters.is_empty() &&
+    info.constructors.is_empty()
+  })
+}
+
+///|
+fn intrinsic_effect_matches(
+  expected : @abi.IntrinsicEffect,
+  actual : @buslane.Effect,
+) -> Bool {
+  match expected {
+    Pure => actual == Empty
+    BuiltinIo => actual == Builtin(Io)
+    BuiltinPanic => actual == Builtin(Panic)
+  }
 }
 
 ///|

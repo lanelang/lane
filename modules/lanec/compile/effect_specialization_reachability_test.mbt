@@ -15,7 +15,8 @@ fn assert_entry_elaborates(source : String, entry_name : String) -> Unit raise {
   guard selected is Some(entry) else {
     fail("compiled program has no `\{entry_name}` entry")
   }
-  match program.elaborate_entry(entry) {
+  match
+    program.elaborate_entry(entry, @executable.ExecutionProfile::lane_cli()) {
     Ok(_) => ()
     Err(error) => fail("entry elaboration failed: \{Repr(error)}")
   }
@@ -61,30 +62,34 @@ fn observe_effect_specialized_top_terms(
   }
   let observed = []
   match
-    program.elaborate_entry_observed(entry, stage => {
-      if stage is EffectSpecialized(specialized) {
-        for term in specialized.terms {
-          match term {
-            Let(id, _) =>
-              observed.push(
-                Value(effect_specialized_value_name(specialized, id)),
-              )
-            LetRec(bindings) =>
-              observed.push(
-                RecursiveValues(
-                  bindings.map(binding => {
-                    effect_specialized_value_name(specialized, binding.id)
-                  }),
-                ),
-              )
-            External(id) =>
-              observed.push(
-                External(effect_specialized_value_name(specialized, id)),
-              )
+    program.elaborate_entry_observed(
+      entry,
+      @executable.ExecutionProfile::lane_cli(),
+      stage => {
+        if stage is EffectSpecialized(specialized) {
+          for term in specialized.terms {
+            match term {
+              Let(id, _) =>
+                observed.push(
+                  Value(effect_specialized_value_name(specialized, id)),
+                )
+              LetRec(bindings) =>
+                observed.push(
+                  RecursiveValues(
+                    bindings.map(binding => {
+                      effect_specialized_value_name(specialized, binding.id)
+                    }),
+                  ),
+                )
+              External(id) =>
+                observed.push(
+                  External(effect_specialized_value_name(specialized, id)),
+                )
+            }
           }
         }
-      }
-    }) {
+      },
+    ) {
     Ok(_) => observed
     Err(error) => fail("entry elaboration failed: \{Repr(error)}")
   }

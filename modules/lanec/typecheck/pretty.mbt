@@ -367,6 +367,12 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
       )
     InvalidStructuralDerivationInterface(reason~) =>
       text("invalid_structural_derivation_interface") + space + text(reason)
+    InvalidCanonicalBasicProvider(provider~, reason~) =>
+      text("invalid_canonical_basic_provider") +
+      space +
+      text(provider) +
+      space +
+      text(reason)
     UnrepresentableStructuralDerivationTarget(target~, reason~) =>
       text("unrepresentable_structural_derivation_target") +
       space +

@@ -17,7 +17,7 @@ pub fn lower_executable_program_to_bytecode(@executable.ExecutableProgram) -> Re
 
 pub fn lower_executable_program_to_bytecode_observed(@executable.ExecutableProgram, (LoisvmLoweringStage) -> Unit) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
 
-pub fn lower_linked_program_to_bytecode(@buslane.Program, @buslane_lowering.BuslaneExternalMap, @buslane_lowering.BuslaneEntry) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
+pub fn lower_lane_cli_program_to_bytecode(@buslane.Program, @buslane_lowering.BuslaneExternalMap, @buslane_lowering.BuslaneEntry) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
 
 // Errors
 pub(all) suberror FunctionTableCanonicalizationError {

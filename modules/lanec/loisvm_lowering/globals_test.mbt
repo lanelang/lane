@@ -46,7 +46,7 @@ test "executable lowering emits reachable instance globals in source order" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -288,7 +288,7 @@ test "initializer orchestration is bounded by peak live owned results" {
     )
     let program : @buslane.Program = { metadata, terms }
     let image = match
-      lower_linked_program_to_bytecode(
+      lower_lane_cli_program_to_bytecode(
         program,
         {
           builtins: [],

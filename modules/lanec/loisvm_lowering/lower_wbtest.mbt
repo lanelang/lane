@@ -236,7 +236,11 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
       program,
       {
         builtins: [
-          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            add,
+            I64Add,
+            add_type,
+          ),
         ],
         runtime_imports: [],
       },
@@ -296,7 +300,7 @@ test "runtime import origin wins over intrinsic-looking symbol" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -392,7 +396,11 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
       program,
       {
         builtins: [
-          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            add,
+            I64Add,
+            add_type,
+          ),
         ],
         runtime_imports: [
           {
@@ -479,7 +487,7 @@ test "effect forms fail before bytecode emission" {
     ],
   }
   debug_inspect(
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       { builtins: [], runtime_imports: [] },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -557,7 +565,7 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
   }
   assert_true(@buslane.verify_program(program).is_ok())
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -623,7 +631,7 @@ test "primitive external functions become runtime imports" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -694,7 +702,7 @@ test "external host types erase to Opaque runtime import kinds" {
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       {
         metadata,
         terms: [
@@ -908,7 +916,7 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
   let main_type = test_io_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       {
         metadata,
         terms: [
@@ -1000,7 +1008,7 @@ test "owned String arguments are transferred through VM CFG ARC insertion" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -1096,7 +1104,7 @@ test "Bool matches lower to explicit CFG branches" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -1216,7 +1224,7 @@ test "non-generic data construction and matching lower through object shapes" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -1331,7 +1339,11 @@ test "capture-free functions lower as callable values for higher-order calls" {
       program,
       {
         builtins: [
-          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            add,
+            I64Add,
+            add_type,
+          ),
         ],
         runtime_imports: [
           {
@@ -1431,11 +1443,15 @@ test "nonescaping nested functions pass captures directly" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [
-          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            add,
+            I64Add,
+            add_type,
+          ),
         ],
         runtime_imports: [
           {
@@ -1595,14 +1611,19 @@ test "local recursive functions share a cycle-free captured environment" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [
-          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(sub, I64Sub),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            sub,
+            I64Sub,
+            sub_type,
+          ),
           @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
             equal,
             I64Equal,
+            equal_type,
           ),
         ],
         runtime_imports: [
@@ -1991,7 +2012,7 @@ test "generic calls adapt callable arguments and callable results" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -2121,7 +2142,7 @@ test "generic nested closures capture erased values and layout witnesses" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -2242,7 +2263,7 @@ test "single-constructor matches keep owned captures in the current block" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -2351,7 +2372,7 @@ test "generic data stores layout witnesses beside erased payloads" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -2761,7 +2782,7 @@ test "effect-kind existentials carry explicit companion evidence" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       { builtins: [], runtime_imports: [] },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -2980,7 +3001,7 @@ test "primitive literal matches lower to comparison decision chains" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -3097,7 +3118,7 @@ test "generic nonescaping nested functions call their target directly" {
     ],
   }
   let image = match
-    lower_linked_program_to_bytecode(
+    lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],

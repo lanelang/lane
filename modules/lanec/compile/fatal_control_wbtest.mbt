@@ -4,10 +4,13 @@ test "compiler-owned fatal control has the canonical callable ABI" {
     (
       #|module Test
       #|
-      #|let panic : (String) -> Unit ! Panic = builtin("%panic")
+      #|import Basic.Data.Void.{ Void, absurd }
       #|
-      #|fn invoke(abort : (String) -> Unit ! Panic) -> Unit ! Panic {
-      #|  abort("indirect")
+      #|let panic : (String) -> Void ! Panic = builtin("%panic")
+      #|
+      #|fn invoke(abort : (String) -> Void ! Panic) -> Unit ! Panic {
+      #|  absurd[Unit](abort("indirect"))
+      #|  ()
       #|}
       #|
       #|pub fn answer() -> Unit ! Panic {
@@ -15,20 +18,15 @@ test "compiler-owned fatal control has the canonical callable ABI" {
       #|  ()
       #|}
     ),
+    library_sources=[
+      (
+        #|module Basic.Data.Void
+        #|pub enum Void {}
+        #|pub fn[T] absurd(value : Void) -> T { match value {} }
+      ),
+    ],
   )
   assert_eq(@bytecode.verify_bytecode_image(image), Ok(()))
-  let string_slot : @bytecode.SlotMetadata = {
-    representation: I32,
-    cleanup: OwnedRef,
-    kind: ByteSequenceValue,
-    erased_companion: None,
-  }
-  let fatal_abi = @bytecode.CallableAbi::from_slot_metadata(
-    [],
-    [string_slot],
-    Unit,
-  )
-  assert_true(image.callable_abis.contains(fatal_abi))
   let mut fatal_count = 0
   let mut runtime_import_count = 0
   for entry in image.functions {
@@ -37,7 +35,22 @@ test "compiler-owned fatal control has the canonical callable ABI" {
         for block in body.blocks {
           if block.terminator is Fatal(message) {
             fatal_count += 1
-            assert_eq(body.callable_abi(), Some(fatal_abi))
+            guard body.callable_abi()
+              is Some(
+                {
+                  witnesses: [],
+                  parameters: [
+                    {
+                      representation: I32,
+                      cleanup: OwnedRef,
+                      kind: ByteSequenceValue,
+                    },
+                  ],
+                  result: Value(I32, OwnedRef, DataValue(_)),
+                }
+              ) else {
+              fail("fatal wrapper did not use the ordinary Void data ABI")
+            }
             assert_eq(body.inputs, {
               environment: None,
               witnesses: [],

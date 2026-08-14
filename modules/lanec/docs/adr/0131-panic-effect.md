@@ -15,7 +15,7 @@ path ends in the verified `Fatal(message)` terminator and produces
 `panic` has the canonical source type:
 
 ```lane
-(String) -> Unit ! Panic
+(String) -> Basic.Data.Void.Void ! Panic
 ```
 
 `Panic` is reserved for operations that explicitly promise source-level fatal
@@ -33,8 +33,9 @@ marker for fatal source control.
 
 This decision supersedes the `Io` source effect in the compiler-owned fatal
 control RFC without changing ADR 0123's single precondition-based Bytes
-primitive family. It does not change `Unit` result typing, introduce a bottom
-type, or make fatal control handleable.
+primitive family. The later Void-returning panic RFC changes the successful
+result to the ordinary canonical Basic empty type without introducing a bottom
+type or making fatal control handleable.
 
 The new effect tag advances the Buslane codec to version 8, the
 module-interface schema to version 12, and the module-object schema to version
@@ -44,3 +45,7 @@ language. The existing `Fatal` terminator does not make those removals binary
 compatible. Because bytecode has no independent format version, the enclosing
 linked-program schema advances from version 13 to version 14, and version 13
 artifacts must be rejected rather than decoded under the new bytecode model.
+
+The Void-result migration subsequently advances the module-interface schema
+from 12 to 13, module-object schema from 19 to 20, and linked-program schema
+from 15 to 16. It does not add another bytecode instruction or result tag.

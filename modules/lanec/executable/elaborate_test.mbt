@@ -36,7 +36,8 @@ test "whole-program elaboration preserves the selected entry" {
     externals: { builtins: [], runtime_imports: [] },
     entries: [first_entry, second_entry],
   }
-  guard elaborate(linked, second_entry) is Ok(executable) else {
+  guard elaborate(linked, second_entry, test_execution_profile())
+    is Ok(executable) else {
     abort("expected executable elaboration to succeed")
   }
   assert_eq(executable.entry, second_entry)
@@ -97,7 +98,7 @@ test "whole-program elaboration records ordered reachable initializer roots" {
     },
     entries: [entry],
   }
-  guard elaborate(linked, entry) is Ok(executable) else {
+  guard elaborate(linked, entry, test_execution_profile()) is Ok(executable) else {
     abort("expected executable elaboration to succeed")
   }
   debug_inspect(
@@ -156,7 +157,7 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
     },
     entries: [entry],
   }
-  guard elaborate(linked, entry) is Ok(executable) else {
+  guard elaborate(linked, entry, test_execution_profile()) is Ok(executable) else {
     abort("expected Io entry elaboration to succeed")
   }
   debug_inspect(
@@ -211,7 +212,7 @@ test "whole-program elaboration accepts a closed external effect entry" {
     externals: { builtins: [], runtime_imports: [] },
     entries: [entry],
   }
-  guard elaborate(linked, entry) is Ok(executable) else {
+  guard elaborate(linked, entry, test_execution_profile()) is Ok(executable) else {
     abort("expected external-effect entry elaboration to succeed")
   }
   debug_inspect(
@@ -265,7 +266,9 @@ test "whole-program elaboration rejects unverified effect specialization before 
     entries: [entry],
   }
   let observed = []
-  let result = elaborate_observed(linked, entry, stage => observed.push(stage))
+  let result = elaborate_observed(linked, entry, test_execution_profile(), stage => {
+    observed.push(stage)
+  })
   assert_eq(observed.length(), 0)
   debug_inspect(
     result,
@@ -327,7 +330,7 @@ test "whole-program elaboration rejects an algebraic entry effect" {
     entries: [entry],
   }
   debug_inspect(
-    elaborate(linked, entry),
+    elaborate(linked, entry, test_execution_profile()),
     content=(
       #|Err(
       #|  InvalidEntryFunction(
@@ -386,7 +389,7 @@ test "whole-program elaboration identifies specialization metadata defects" {
     externals: { builtins: [], runtime_imports: [] },
     entries: [entry],
   }
-  guard elaborate(linked, entry)
+  guard elaborate(linked, entry, test_execution_profile())
     is Err(EffectSpecializationCompilerDefect(InvalidInputMetadata(context))) else {
     fail("expected an effect-specialization compiler defect")
   }
@@ -397,3 +400,40 @@ test "whole-program elaboration identifies specialization metadata defects" {
     specialization_key: [],
   })
 }
+
+///|
+fn test_execution_profile() -> ExecutionProfile {
+  ExecutionProfile::lane_cli()
+}
+
+///|
+test "execution profiles explicitly own built-in effect admission" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let io_only = ExecutionProfile::new(
+    builtin_effects=[Io],
+    supports_external_effects=false,
+  )
+  assert_eq(entry_effect_is_executable(metadata, Builtin(Io), io_only), true)
+  assert_eq(
+    entry_effect_is_executable(metadata, Builtin(Panic), io_only),
+    false,
+  )
+  assert_eq(
+    unsupported_entry_effects(
+      metadata,
+      Union([Builtin(Io), Builtin(Panic)]),
+      ExecutionProfile::new(builtin_effects=[], supports_external_effects=false),
+    ),
+    [Builtin(Io), Builtin(Panic)],
+  )
+  assert_eq(
+    entry_effect_is_executable(
+      metadata,
+      Union([Builtin(Io), Builtin(Panic)]),
+      ExecutionProfile::lane_cli(),
+    ),
+    true,
+  )
+}
+
+///|

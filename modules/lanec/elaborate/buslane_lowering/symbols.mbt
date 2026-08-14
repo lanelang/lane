@@ -24,8 +24,9 @@ fn BuslaneLowerer::define_external(
 fn BuslaneLowerer::define_builtin_external(
   self : BuslaneLowerer,
   intrinsic : @abi.Intrinsic,
+  type_ : @buslane.Type,
 ) -> @buslane.ValueId raise BuslaneLoweringError {
-  let contract = BuslaneIntrinsicContract::from_intrinsic(intrinsic)
+  let contract : BuslaneIntrinsicContract = { intrinsic, type_ }
   let value = self.define_external(intrinsic.name(), contract.type_())
   self.builtin_externals.push(
     BuslaneBuiltinExternal::from_contract(value, contract),

@@ -1,16 +1,39 @@
 ///|
+pub struct ExecutionProfile {
+  priv builtin_effects : Array[@buslane.BuiltinEffect]
+  priv supports_external_effects : Bool
+} derive(Debug, Eq)
+
+///|
+pub fn ExecutionProfile::new(
+  builtin_effects~ : Array[@buslane.BuiltinEffect],
+  supports_external_effects~ : Bool,
+) -> ExecutionProfile {
+  { builtin_effects: builtin_effects.copy(), supports_external_effects }
+}
+
+///|
+pub fn ExecutionProfile::lane_cli() -> ExecutionProfile {
+  ExecutionProfile::new(
+    builtin_effects=[Io, Panic],
+    supports_external_effects=true,
+  )
+}
+
+///|
 fn validate_executable_entry(
   metadata : @buslane.MetadataRegistry,
   entry : @buslane_lowering.BuslaneEntry,
+  profile : ExecutionProfile,
 ) -> Unit raise ExecutableElaborationError {
   guard entry.type_ is Function(parameters, Primitive(Unit), effect) &&
     parameters.is_empty() else {
     raise InvalidEntryFunction(value=entry.value, type_=entry.type_)
   }
-  let executable = entry_effect_is_executable(metadata, effect) catch {
+  let unsupported = unsupported_entry_effects(metadata, effect, profile) catch {
     error => raise EntryTypeNormalizationCompilerDefect(error)
   }
-  if !executable {
+  if !unsupported.is_empty() {
     raise InvalidEntryFunction(value=entry.value, type_=entry.type_)
   }
 }
@@ -19,19 +42,45 @@ fn validate_executable_entry(
 pub fn entry_effect_is_executable(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
+  profile : ExecutionProfile,
 ) -> Bool raise @buslane.TypeNormalizationError {
+  unsupported_entry_effects(metadata, effect, profile).is_empty()
+}
+
+///|
+pub fn unsupported_entry_effects(
+  metadata : @buslane.MetadataRegistry,
+  effect : @buslane.Effect,
+  profile : ExecutionProfile,
+) -> Array[@buslane.Effect] raise @buslane.TypeNormalizationError {
   if !entry_effect_is_closed(effect) {
-    return false
+    return [effect]
   }
   match metadata.canonicalize_effect(effect) {
-    Empty | Builtin(_) => true
-    Singleton(effect_id, _) =>
-      metadata
-      .effect_info(effect_id)
-      .map_or(false, info => info.flavor is External)
-    Union(effects) =>
-      effects.all(effect => entry_effect_is_executable(metadata, effect))
-    Parameter(_) => false
+    Empty => []
+    Builtin(effect) as item =>
+      if profile.builtin_effects.contains(effect) {
+        []
+      } else {
+        [item]
+      }
+    Singleton(effect_id, _) as item =>
+      if profile.supports_external_effects &&
+        metadata
+        .effect_info(effect_id)
+        .map_or(false, info => info.flavor is External) {
+        []
+      } else {
+        [item]
+      }
+    Union(effects) => {
+      let unsupported = []
+      for effect in effects {
+        unsupported.append(unsupported_entry_effects(metadata, effect, profile))
+      }
+      unsupported
+    }
+    Parameter(_) as item => [item]
   }
 }
 

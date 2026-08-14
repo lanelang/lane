@@ -9,7 +9,12 @@ test "panic intrinsic owns its exact Panic signature" {
     (
       Some(Panic),
       "%panic",
-      Function(parameters=[String], result=Unit, effect=BuiltinPanic),
+      Function(
+        parameters=[String],
+        result=CanonicalBasicVoid,
+        effect=BuiltinPanic,
+        control=Terminal,
+      ),
     ),
   )
 }
@@ -31,11 +36,21 @@ test "Bytes indexing has one precondition-based intrinsic contract" {
       [
         (
           "%bytes_get",
-          Function(parameters=[Bytes, I64], result=Byte, effect=Pure),
+          Function(
+            parameters=[Bytes, I64],
+            result=Byte,
+            effect=Pure,
+            control=Returns,
+          ),
         ),
         (
           "%bytes_set",
-          Function(parameters=[Bytes, I64, Byte], result=Bytes, effect=Pure),
+          Function(
+            parameters=[Bytes, I64, Byte],
+            result=Bytes,
+            effect=Pure,
+            control=Returns,
+          ),
         ),
       ],
       [None, None],
@@ -81,31 +96,62 @@ test "UTF-8 and Char intrinsics have one exact name and signature" {
       (BytesSlice.name(), BytesSlice.signature()),
     ],
     [
-      ("%char_to_i32", Function(parameters=[Char], result=I32, effect=Pure)),
-      ("%i32_to_char", Function(parameters=[I32], result=Char, effect=Pure)),
+      (
+        "%char_to_i32",
+        Function(parameters=[Char], result=I32, effect=Pure, control=Returns),
+      ),
+      (
+        "%i32_to_char",
+        Function(parameters=[I32], result=Char, effect=Pure, control=Returns),
+      ),
       (
         "%string_to_bytes",
-        Function(parameters=[String], result=Bytes, effect=Pure),
+        Function(
+          parameters=[String],
+          result=Bytes,
+          effect=Pure,
+          control=Returns,
+        ),
       ),
       (
         "%bytes_is_valid_utf8",
-        Function(parameters=[Bytes], result=Bool, effect=Pure),
+        Function(parameters=[Bytes], result=Bool, effect=Pure, control=Returns),
       ),
       (
         "%bytes_to_string",
-        Function(parameters=[Bytes], result=String, effect=Pure),
+        Function(
+          parameters=[Bytes],
+          result=String,
+          effect=Pure,
+          control=Returns,
+        ),
       ),
       (
         "%bytes_equal",
-        Function(parameters=[Bytes, Bytes], result=Bool, effect=Pure),
+        Function(
+          parameters=[Bytes, Bytes],
+          result=Bool,
+          effect=Pure,
+          control=Returns,
+        ),
       ),
       (
         "%bytes_concat",
-        Function(parameters=[Bytes, Bytes], result=Bytes, effect=Pure),
+        Function(
+          parameters=[Bytes, Bytes],
+          result=Bytes,
+          effect=Pure,
+          control=Returns,
+        ),
       ),
       (
         "%bytes_slice",
-        Function(parameters=[Bytes, I64, I64], result=Bytes, effect=Pure),
+        Function(
+          parameters=[Bytes, I64, I64],
+          result=Bytes,
+          effect=Pure,
+          control=Returns,
+        ),
       ),
     ],
   )
@@ -124,8 +170,14 @@ test "I64 and F64 conversion intrinsics have exact names and signatures" {
     (
       [Some(I64ToF64), Some(F64ToI64)],
       [
-        ("%i64_to_f64", Function(parameters=[I64], result=F64, effect=Pure)),
-        ("%f64_to_i64", Function(parameters=[F64], result=I64, effect=Pure)),
+        (
+          "%i64_to_f64",
+          Function(parameters=[I64], result=F64, effect=Pure, control=Returns),
+        ),
+        (
+          "%f64_to_i64",
+          Function(parameters=[F64], result=I64, effect=Pure, control=Returns),
+        ),
       ],
     ),
   )
@@ -149,11 +201,21 @@ test "floating-point string intrinsics have exact names and signatures" {
       [
         (
           "%f32_to_string",
-          Function(parameters=[F32], result=String, effect=Pure),
+          Function(
+            parameters=[F32],
+            result=String,
+            effect=Pure,
+            control=Returns,
+          ),
         ),
         (
           "%f64_to_string",
-          Function(parameters=[F64], result=String, effect=Pure),
+          Function(
+            parameters=[F64],
+            result=String,
+            effect=Pure,
+            control=Returns,
+          ),
         ),
       ],
     ),

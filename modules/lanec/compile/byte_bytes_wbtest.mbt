@@ -1,6 +1,9 @@
 ///|
-fn compile_test_loisvm_image(source : String) -> @bytecode.BytecodeImage raise {
-  let compiled = compile_modules_for_test(source, [])
+fn compile_test_loisvm_image(
+  source : String,
+  library_sources? : Array[String] = [],
+) -> @bytecode.BytecodeImage raise {
+  let compiled = compile_modules_for_test(source, library_sources)
   assert_eq(compiled.diagnostics, [])
   guard compiled.modules is Some(modules) else {
     fail("expected compiled modules")
@@ -11,7 +14,12 @@ fn compile_test_loisvm_image(source : String) -> @bytecode.BytecodeImage raise {
     fail("expected linked Buslane program")
   }
   guard program.entries is [entry] else { fail("expected one public entry") }
-  let executable = match @executable.elaborate(program, entry) {
+  let executable = match
+    @executable.elaborate(
+      program,
+      entry,
+      @executable.ExecutionProfile::lane_cli(),
+    ) {
     Ok(executable) => executable
     Err(error) => fail("executable elaboration failed: \{Repr(error)}")
   }

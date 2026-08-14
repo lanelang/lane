@@ -1,6 +1,7 @@
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/compile",
+  "Milky2018/lanec/executable",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/loisvm_lowering",
   "Milky2018/loisvm/bytecode" @loisvm_bytecode,

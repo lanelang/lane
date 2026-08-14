@@ -191,7 +191,7 @@ test "derive rejects a nonempty canonical void type" {
       #|[
       #|  {
       #|    source_id: Some("<root>"),
-      #|    message: "invalid structural derivation interface",
+      #|    message: "invalid canonical Basic provider `Basic.Data.Void.Void`",
       #|    span: Some(
       #|      Source(
       #|        source_id="<root>",
@@ -206,7 +206,7 @@ test "derive rejects a nonempty canonical void type" {
       #|      ),
       #|    ),
       #|    severity: Error,
-      #|    code: Some("E3032"),
+      #|    code: Some("E3039"),
       #|    labels: [
       #|      {
       #|        span: Source(
@@ -220,12 +220,12 @@ test "derive rejects a nonempty canonical void type" {
       #|            end_column: 38,
       #|          },
       #|        ),
-      #|        message: "`Basic.Data.Void.Void` must be an empty enum",
+      #|        message: "the declaration must be a public enum with no type parameters or variants",
       #|        style: Primary,
       #|      },
       #|    ],
-      #|    notes: [],
-      #|    helps: ["provide the canonical structural derivation interfaces required by the language"],
+      #|    notes: ["compiler-owned language features require the declared canonical Basic ABI"],
+      #|    helps: ["provide the canonical Basic module and declaration with the required public shape"],
       #|    facts: [],
       #|    suggestions: [],
       #|  },

@@ -12,33 +12,51 @@ test "special float intrinsics use deterministic IEEE bit patterns" {
   let image = test_image_lowerer(metadata)
   image.plan_intrinsic(
     f32_inf,
-    @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(f32_inf, F32Inf),
+    @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+      f32_inf,
+      F32Inf,
+      f32_type,
+    ),
   )
   image.plan_intrinsic(
     f32_ninf,
     @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
       f32_ninf,
       F32NegativeInf,
+      f32_type,
     ),
   )
   image.plan_intrinsic(
     f32_nan,
-    @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(f32_nan, F32Nan),
+    @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+      f32_nan,
+      F32Nan,
+      f32_type,
+    ),
   )
   image.plan_intrinsic(
     f64_inf,
-    @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(f64_inf, F64Inf),
+    @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+      f64_inf,
+      F64Inf,
+      f64_type,
+    ),
   )
   image.plan_intrinsic(
     f64_ninf,
     @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
       f64_ninf,
       F64NegativeInf,
+      f64_type,
     ),
   )
   image.plan_intrinsic(
     f64_nan,
-    @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(f64_nan, F64Nan),
+    @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+      f64_nan,
+      F64Nan,
+      f64_type,
+    ),
   )
   assert_true(
     image.globals

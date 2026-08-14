@@ -118,24 +118,25 @@ fn ImageLowerer::plan_intrinsic(
   let contract = external.contract()
   let intrinsic = contract.intrinsic()
   let type_ = contract.type_()
-  match intrinsic {
-    Panic => {
+  match (contract.control(), intrinsic) {
+    (Terminal, Panic) => {
       guard contract.function_contract() is Some(function_contract) else {
         raise UnsupportedIntrinsic(name=intrinsic.name())
       }
       let function = self.intrinsic_wrapper(function_contract)
       self.globals.push({ value, lowered: Function(function, type_) })
     }
-    F32Inf =>
+    (Terminal, _) => raise UnsupportedIntrinsic(name=intrinsic.name())
+    (Returns, F32Inf) =>
       self.globals.push({ value, lowered: FloatConstant(0x7f800000, type_) })
-    F32NegativeInf =>
+    (Returns, F32NegativeInf) =>
       self.globals.push({
         value,
         lowered: FloatConstant(0xff800000U.reinterpret_as_int(), type_),
       })
-    F32Nan =>
+    (Returns, F32Nan) =>
       self.globals.push({ value, lowered: FloatConstant(0x7fc00000, type_) })
-    F64Inf =>
+    (Returns, F64Inf) =>
       self.globals.push({
         value,
         lowered: DoubleConstant(
@@ -143,7 +144,7 @@ fn ImageLowerer::plan_intrinsic(
           type_,
         ),
       })
-    F64NegativeInf =>
+    (Returns, F64NegativeInf) =>
       self.globals.push({
         value,
         lowered: DoubleConstant(
@@ -151,7 +152,7 @@ fn ImageLowerer::plan_intrinsic(
           type_,
         ),
       })
-    F64Nan =>
+    (Returns, F64Nan) =>
       self.globals.push({
         value,
         lowered: DoubleConstant(
@@ -159,7 +160,7 @@ fn ImageLowerer::plan_intrinsic(
           type_,
         ),
       })
-    _ => {
+    (Returns, _) => {
       guard contract.function_contract() is Some(function_contract) else {
         raise UnsupportedIntrinsic(name=intrinsic.name())
       }
@@ -416,7 +417,10 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   let intrinsic = plan.contract.intrinsic()
   let parameter_types = plan.contract.parameter_types()
   let result_type = plan.contract.result_type()
-  if intrinsic is Panic {
+  if plan.contract.control() is Terminal {
+    guard intrinsic is Panic else {
+      raise UnsupportedIntrinsic(name=intrinsic.name())
+    }
     let lowerer : FunctionLowerer = {
       image: self,
       values: [],

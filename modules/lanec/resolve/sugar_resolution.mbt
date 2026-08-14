@@ -1,64 +1,27 @@
 ///|
-priv struct CanonicalNominalTarget {
-  module_path : String
-  type_name : String
-}
-
-///|
-priv struct CanonicalVariantTarget {
-  owner : CanonicalNominalTarget
-  variant : String
-}
-
-///|
-fn tuple_type_target() -> CanonicalNominalTarget {
-  { module_path: "Basic.Data.Tuple", type_name: "Tuple" }
-}
-
-///|
-fn tuple_variant_target() -> CanonicalVariantTarget {
-  { owner: tuple_type_target(), variant: "tuple" }
-}
-
-///|
-fn list_type_target() -> CanonicalNominalTarget {
-  { module_path: "Basic.Data.List", type_name: "List" }
-}
-
-///|
-fn list_empty_target() -> CanonicalVariantTarget {
-  { owner: list_type_target(), variant: "empty" }
-}
-
-///|
-fn list_cons_target() -> CanonicalVariantTarget {
-  { owner: list_type_target(), variant: "cons" }
-}
-
-///|
-fn CanonicalNominalTarget::qualified_name(
-  self : CanonicalNominalTarget,
+fn @abi.BasicTypeProvider::resolved_name(
+  self : @abi.BasicTypeProvider,
 ) -> ResolvedNominalName {
-  Qualified({ module_binding: self.module_path, name: self.type_name })
+  Qualified({ module_binding: self.module_path(), name: self.type_name() })
 }
 
 ///|
 fn Resolver::canonical_module_type_binding(
   self : Resolver,
-  target : CanonicalNominalTarget,
+  target : @abi.BasicTypeProvider,
 ) -> ModuleTypeBinding? {
-  if target.module_path == self.local_module.path_text {
+  if target.module_path() == self.local_module.path_text {
     return ModuleNamespaceSource::LocalModule(self.local_module).type_binding(
-      target.type_name,
+      target.type_name(),
     )
   }
-  match self.imported_module(target.module_path) {
+  match self.imported_module(target.module_path()) {
     Some(imported) =>
       ModuleNamespaceSource::ImportedModule(
         imported~,
         import_origins=imported.provider_origins,
         authored_binding_origin=None,
-      ).type_binding(target.type_name)
+      ).type_binding(target.type_name())
     None => None
   }
 }
@@ -66,10 +29,10 @@ fn Resolver::canonical_module_type_binding(
 ///|
 fn Resolver::resolve_canonical_type(
   self : Resolver,
-  target : CanonicalNominalTarget,
+  target : @abi.BasicTypeProvider,
   loc : SourceSpan,
 ) -> ResolvedType {
-  let name = target.qualified_name()
+  let name = target.resolved_name()
   match self.canonical_module_type_binding(target) {
     Some(binding) => {
       self.record_import_uses(binding.import_origins, loc)
@@ -98,15 +61,16 @@ fn Resolver::resolve_canonical_type(
 ///|
 fn Resolver::resolve_canonical_variant(
   self : Resolver,
-  target : CanonicalVariantTarget,
+  target : @abi.BasicVariantProvider,
   loc : SourceSpan,
 ) -> ResolvedVariantReference {
-  let type_name = target.owner.qualified_name()
-  match self.canonical_module_type_binding(target.owner) {
+  let owner = target.owner()
+  let type_name = owner.resolved_name()
+  match self.canonical_module_type_binding(owner) {
     Some({ kind: NominalType(variants~, ..), import_origins, .. }) => {
       self.record_import_uses(import_origins, loc)
       for variant in variants {
-        if variant.name == target.variant {
+        if variant.name == target.variant_name() {
           return Symbol(variant.symbol)
         }
       }
@@ -116,11 +80,11 @@ fn Resolver::resolve_canonical_variant(
   self.report(
     UnresolvedQualifiedVariant(
       type_name=type_name.display_text(),
-      variant=target.variant,
+      variant=target.variant_name(),
     ),
     loc,
   )
-  Unresolved(type_name~, variant=target.variant)
+  Unresolved(type_name~, variant=target.variant_name())
 }
 
 ///|
@@ -142,7 +106,7 @@ fn @syntax.Type::resolve_tuple_type(
   scope : ResolveScope,
 ) -> ResolvedType {
   guard self is Tuple(items~, loc~) else { abort("expected tuple type sugar") }
-  let callee = resolver.resolve_canonical_type(tuple_type_target(), loc)
+  let callee = resolver.resolve_canonical_type(Tuple, loc)
   let items = items.map(fn(item) { item.resolve_type(resolver, scope) })
   right_nested(items, fn(left, right) {
     Apply(callee~, arguments=[TypeArgument(left), TypeArgument(right)], loc~)
@@ -151,16 +115,16 @@ fn @syntax.Type::resolve_tuple_type(
 
 ///|
 fn resolved_canonical_variant_expr(
-  target : CanonicalVariantTarget,
+  target : @abi.BasicVariantProvider,
   reference : ResolvedVariantReference,
   arguments : Array[ResolvedExpr],
   loc : SourceSpan,
 ) -> ResolvedExpr {
   QualifiedVariant(
-    type_name=target.owner.qualified_name(),
+    type_name=target.owner().resolved_name(),
     type_name_loc=loc,
     generic_arguments=[],
-    variant=target.variant,
+    variant=target.variant_name(),
     variant_loc=loc,
     variant_generic_arguments=[],
     reference~,
@@ -178,7 +142,7 @@ fn @syntax.Expr::resolve_tuple_literal(
   guard self is TupleLiteral(items~, loc~) else {
     abort("expected tuple expression sugar")
   }
-  let target = tuple_variant_target()
+  let target = @abi.BasicVariantProvider::TupleValue
   let reference = resolver.resolve_canonical_variant(target, loc)
   let items = items.map(fn(item) { item.resolve_expr(resolver, scope) })
   right_nested(items, fn(left, right) {
@@ -196,14 +160,14 @@ fn @syntax.Expr::resolve_list_literal(
     abort("expected list expression sugar")
   }
   if items.is_empty() {
-    let target = list_empty_target()
+    let target = @abi.BasicVariantProvider::ListEmpty
     let reference = resolver.resolve_canonical_variant(target, loc)
     return resolved_canonical_variant_expr(target, reference, [], loc)
   }
-  let cons_target = list_cons_target()
+  let cons_target = @abi.BasicVariantProvider::ListCons
   let cons_reference = resolver.resolve_canonical_variant(cons_target, loc)
   let items = items.map(fn(item) { item.resolve_expr(resolver, scope) })
-  let empty_target = list_empty_target()
+  let empty_target = @abi.BasicVariantProvider::ListEmpty
   let empty_reference = resolver.resolve_canonical_variant(empty_target, loc)
   let mut result = resolved_canonical_variant_expr(
     empty_target,
@@ -224,15 +188,15 @@ fn @syntax.Expr::resolve_list_literal(
 
 ///|
 fn resolved_canonical_variant_pattern(
-  target : CanonicalVariantTarget,
+  target : @abi.BasicVariantProvider,
   reference : ResolvedVariantReference,
   arguments : Array[ResolvedPattern],
   loc : SourceSpan,
 ) -> ResolvedPattern {
   QualifiedVariant(
-    type_name=target.owner.qualified_name(),
+    type_name=target.owner().resolved_name(),
     type_name_loc=loc,
-    variant=target.variant,
+    variant=target.variant_name(),
     variant_loc=loc,
     type_binders=[],
     reference~,
@@ -250,7 +214,7 @@ fn @syntax.Pattern::resolve_tuple_pattern(
   guard self is Tuple(items~, loc~) else {
     abort("expected tuple pattern sugar")
   }
-  let target = tuple_variant_target()
+  let target = @abi.BasicVariantProvider::TupleValue
   let reference = resolver.resolve_canonical_variant(target, loc)
   let items = items.map(fn(item) { item.resolve_pattern(resolver, scope) })
   right_nested(items, fn(left, right) {

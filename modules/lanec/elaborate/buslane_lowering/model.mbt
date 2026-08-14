@@ -1,17 +1,7 @@
 ///|
-priv enum BuslaneIntrinsicContractShape {
-  ValueContract(@buslane.Type)
-  FunctionContract(
-    parameters~ : Array[@buslane.Type],
-    result~ : @buslane.Type,
-    effect~ : @buslane.Effect
-  )
-} derive(Debug, Eq)
-
-///|
 pub struct BuslaneIntrinsicContract {
   priv intrinsic : @abi.Intrinsic
-  priv shape : BuslaneIntrinsicContractShape
+  priv type_ : @buslane.Type
 } derive(Debug, Eq)
 
 ///|
@@ -32,8 +22,9 @@ pub struct BuslaneBuiltinExternal {
 pub fn BuslaneBuiltinExternal::from_intrinsic(
   value : @buslane.ValueId,
   intrinsic : @abi.Intrinsic,
+  type_ : @buslane.Type,
 ) -> BuslaneBuiltinExternal {
-  { value, contract: BuslaneIntrinsicContract::from_intrinsic(intrinsic) }
+  { value, contract: { intrinsic, type_ } }
 }
 
 ///|
@@ -73,24 +64,6 @@ pub fn BuslaneBuiltinExternal::type_(
 }
 
 ///|
-fn BuslaneIntrinsicContract::from_intrinsic(
-  intrinsic : @abi.Intrinsic,
-) -> BuslaneIntrinsicContract {
-  let shape = match intrinsic.signature() {
-    Value(kind) => ValueContract(Primitive(buslane_intrinsic_primitive(kind)))
-    Function(parameters~, result~, effect~) =>
-      FunctionContract(
-        parameters=parameters.map(kind => {
-          Primitive(buslane_intrinsic_primitive(kind))
-        }),
-        result=Primitive(buslane_intrinsic_primitive(result)),
-        effect=buslane_intrinsic_effect(effect),
-      )
-  }
-  { intrinsic, shape }
-}
-
-///|
 pub fn BuslaneIntrinsicContract::intrinsic(
   self : BuslaneIntrinsicContract,
 ) -> @abi.Intrinsic {
@@ -101,10 +74,16 @@ pub fn BuslaneIntrinsicContract::intrinsic(
 pub fn BuslaneIntrinsicContract::type_(
   self : BuslaneIntrinsicContract,
 ) -> @buslane.Type {
-  match self.shape {
-    ValueContract(type_) => type_
-    FunctionContract(parameters~, result~, effect~) =>
-      Function(parameters.copy(), result, effect)
+  self.type_
+}
+
+///|
+pub fn BuslaneIntrinsicContract::control(
+  self : BuslaneIntrinsicContract,
+) -> @abi.IntrinsicControl {
+  match self.intrinsic.signature() {
+    Value(_) => Returns
+    Function(control~, ..) => control
   }
 }
 
@@ -112,15 +91,16 @@ pub fn BuslaneIntrinsicContract::type_(
 pub fn BuslaneIntrinsicContract::function_contract(
   self : BuslaneIntrinsicContract,
 ) -> BuslaneIntrinsicFunctionContract? {
-  match self.shape {
-    FunctionContract(parameters~, result~, effect~) =>
+  match (self.type_, self.intrinsic.signature()) {
+    (Function(parameters, result, effect), @abi.IntrinsicSignature::Function(..)
+    ) =>
       Some({
         intrinsic: self.intrinsic,
         parameters: parameters.copy(),
         result,
         effect,
       })
-    ValueContract(_) => None
+    _ => None
   }
 }
 
@@ -129,6 +109,16 @@ pub fn BuslaneIntrinsicFunctionContract::intrinsic(
   self : BuslaneIntrinsicFunctionContract,
 ) -> @abi.Intrinsic {
   self.intrinsic
+}
+
+///|
+pub fn BuslaneIntrinsicFunctionContract::control(
+  self : BuslaneIntrinsicFunctionContract,
+) -> @abi.IntrinsicControl {
+  match self.intrinsic.signature() {
+    Function(control~, ..) => control
+    Value(_) => abort("function contract references a value intrinsic")
+  }
 }
 
 ///|
@@ -150,33 +140,6 @@ pub fn BuslaneIntrinsicFunctionContract::type_(
   self : BuslaneIntrinsicFunctionContract,
 ) -> @buslane.Type {
   Function(self.parameters.copy(), self.result, self.effect)
-}
-
-///|
-fn buslane_intrinsic_primitive(
-  kind : @abi.IntrinsicValueKind,
-) -> @buslane.PrimitiveType {
-  match kind {
-    Unit => Unit
-    Bool => Bool
-    I64 => I64
-    I32 => I32
-    Char => Char
-    F64 => F64
-    F32 => F32
-    String => String
-    Byte => Byte
-    Bytes => Bytes
-  }
-}
-
-///|
-fn buslane_intrinsic_effect(effect : @abi.IntrinsicEffect) -> @buslane.Effect {
-  match effect {
-    Pure => Empty
-    BuiltinIo => Builtin(Io)
-    BuiltinPanic => Builtin(Panic)
-  }
 }
 
 ///|

@@ -290,6 +290,26 @@ fn typecheck_diagnostic(
           "provide the canonical structural derivation interfaces required by the language",
         ],
       )
+    InvalidCanonicalBasicProvider(provider~, reason~) =>
+      diagnostic(
+        "invalid canonical Basic provider `\{provider}`",
+        span~,
+        severity=Error,
+        code=Some("E3039"),
+        labels=[
+          {
+            span: compiler_local_span(diagnostic_.loc),
+            message: reason,
+            style: Primary,
+          },
+        ],
+        notes=[
+          "compiler-owned language features require the declared canonical Basic ABI",
+        ],
+        helps=[
+          "provide the canonical Basic module and declaration with the required public shape",
+        ],
+      )
     UnrepresentableStructuralDerivationTarget(target~, reason~) =>
       diagnostic(
         "cannot structurally derive this type",

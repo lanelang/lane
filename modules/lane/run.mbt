@@ -74,11 +74,12 @@ fn execute_entry_with_output(
   write_line : (String) -> Unit,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
-  match validate_executable_entry(entry, program) {
+  let profile = @executable.ExecutionProfile::lane_cli()
+  match validate_executable_entry(entry, program, profile) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let executable = match program.elaborate_entry(entry) {
+  let executable = match program.elaborate_entry(entry, profile) {
     Ok(executable) => executable
     Err(error) =>
       return LaneCommandOutcome::user_error(
@@ -106,6 +107,7 @@ fn lower_executable_image(
 fn validate_executable_entry(
   entry : @compile.CompiledEntry,
   program : @compile.CompiledProgram,
+  profile : @executable.ExecutionProfile,
 ) -> Result[Unit, CliError] {
   let type_ = entry.type_()
   guard type_ is Function(parameters, result, _) else {
@@ -135,21 +137,17 @@ fn validate_executable_entry(
       ),
     )
   }
-  let executable_effect = match program.entry_effect_is_executable(entry) {
-    Ok(executable) => executable
+  let unsupported_effects = match
+    program.unsupported_entry_effects(entry, profile) {
+    Ok(effects) => effects
     Err(error) => return Err(Internal(message="\{Repr(error)}"))
   }
-  if !executable_effect {
+  if !unsupported_effects.is_empty() {
     return Err(
       EntryNotExecutable(
         name=display_entry(entry),
         type_~,
-        reason=EntryHasUnsupportedEffects(
-          effect=match type_ {
-            Function(_, _, effect) => effect
-            _ => abort("function entry lost its effect")
-          },
-        ),
+        reason=EntryHasUnsupportedEffects(effects=unsupported_effects),
       ),
     )
   }

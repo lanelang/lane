@@ -11,6 +11,7 @@ fn BuslaneLinker::remap_module_object(
         @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
           self.remap_value_id(object, builtin.value()),
           builtin.intrinsic(),
+          self.remap_type(object, builtin.type_()),
         )
       }),
       runtime_imports: object.externals.runtime_imports.map(import_ => {

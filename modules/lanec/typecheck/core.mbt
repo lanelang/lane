@@ -287,6 +287,7 @@ pub(all) enum TypeCheckDiagnosticKind {
     candidates~ : Array[ContextualOfferDiagnosticCandidate]
   )
   InvalidStructuralDerivationInterface(reason~ : String)
+  InvalidCanonicalBasicProvider(provider~ : String, reason~ : String)
   UnrepresentableStructuralDerivationTarget(
     target~ : @types.Type,
     reason~ : String

@@ -136,7 +136,7 @@ test "existential lowering executes through Wasm with opened ARC witnesses" {
     ],
   }
   let image = match
-    @loisvm_lowering.lower_linked_program_to_bytecode(
+    @loisvm_lowering.lower_lane_cli_program_to_bytecode(
       program,
       { builtins: [], runtime_imports: [] },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -266,7 +266,7 @@ test "existential callable fields adapt covariant results and contravariant para
     ],
   }
   let image = match
-    @loisvm_lowering.lower_linked_program_to_bytecode(
+    @loisvm_lowering.lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -451,7 +451,7 @@ test "existential callable adapters recurse through callable parameters" {
     ],
   }
   let image = match
-    @loisvm_lowering.lower_linked_program_to_bytecode(
+    @loisvm_lowering.lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -657,7 +657,7 @@ test "generic container fields round-trip callable values through erasure" {
     ],
   }
   let image = match
-    @loisvm_lowering.lower_linked_program_to_bytecode(
+    @loisvm_lowering.lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -831,7 +831,7 @@ test "existential callable adapters forward explicit forall witnesses" {
     ],
   }
   let image = match
-    @loisvm_lowering.lower_linked_program_to_bytecode(
+    @loisvm_lowering.lower_lane_cli_program_to_bytecode(
       program,
       {
         builtins: [],

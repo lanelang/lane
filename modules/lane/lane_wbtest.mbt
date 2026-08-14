@@ -299,7 +299,11 @@ async test "native module artifacts are binary and readable" {
     cleanup_library_fixture(workspace)
     abort("expected main entry")
   }
-  let executable = match program.elaborate_entry(main_entry) {
+  let executable = match
+    program.elaborate_entry(
+      main_entry,
+      @executable.ExecutionProfile::lane_cli(),
+    ) {
     Ok(executable) => executable
     Err(error) => {
       cleanup_library_fixture(workspace)
@@ -499,11 +503,11 @@ async test "link rejects non-function selected entry" {
     content=(
       #|error[E6009]: entry `Main.main` is not executable
       #|  requested type: I64
-      #|  expected: () -> Unit with a closed External Effect row
+      #|  expected: () -> Unit with only effects supported by the Lane CLI
       #|
       #|The selected public entry is a value, not a function.
       #|
-      #|Export a zero-parameter `pub fn` that returns `Unit` with only External Effects.
+      #|Export a zero-parameter `pub fn` that returns `Unit` with only `Io`, `Panic`, or closed External Effects.
       #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
     ),
   )
@@ -544,11 +548,11 @@ async test "link rejects unsupported selected entry effects" {
     content=(
       #|error[E6009]: entry `Main.main` is not executable
       #|  requested type: () -> Unit ! effect#0
-      #|  expected: () -> Unit with a closed External Effect row
+      #|  expected: () -> Unit with only effects supported by the Lane CLI
       #|
-      #|The selected function has unsupported effect set `effect#0`.
+      #|The selected function requires unsupported effect(s): effect#0.
       #|
-      #|Export a zero-parameter `pub fn` that returns `Unit` with only External Effects.
+      #|Export a zero-parameter `pub fn` that returns `Unit` with only `Io`, `Panic`, or closed External Effects.
       #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
     ),
   )
@@ -584,7 +588,11 @@ test "run rejects public value entries" {
   let entry = find_entry(program.entries(), "answer")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry, program),
+    validate_executable_entry(
+      entry,
+      program,
+      @executable.ExecutionProfile::lane_cli(),
+    ),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -610,7 +618,11 @@ test "run rejects functions with parameters" {
   let entry = find_entry(program.entries(), "id")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry, program),
+    validate_executable_entry(
+      entry,
+      program,
+      @executable.ExecutionProfile::lane_cli(),
+    ),
     content=(
       #|Err(
       #|  EntryNotExecutable(
@@ -661,7 +673,14 @@ test "run accepts built-in Io through an explicit Basic extern" {
   let program = successful_compilation(result)
   let entry = find_entry(program.entries(), "main")
   guard entry is Ok(entry) else { abort("expected entry") }
-  debug_inspect(validate_executable_entry(entry, program), content="Ok(())")
+  debug_inspect(
+    validate_executable_entry(
+      entry,
+      program,
+      @executable.ExecutionProfile::lane_cli(),
+    ),
+    content="Ok(())",
+  )
   let output : Array[String] = []
   guard execute_entry_with_output(program, entry, line => output.push(line))
     is Succeeded else {
@@ -726,18 +745,27 @@ test "run rejects residual algebraic entry effects" {
   let entry = find_entry(program.entries(), "main")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(entry, program),
+    validate_executable_entry(
+      entry,
+      program,
+      @executable.ExecutionProfile::lane_cli(),
+    ),
     content=(
       #|Err(
       #|  EntryNotExecutable(
       #|    name="Test.main",
       #|    type_=Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
-      #|    reason=EntryHasUnsupportedEffects(effect=Singleton({ index: 0 }, [])),
+      #|    reason=EntryHasUnsupportedEffects(effects=[Singleton({ index: 0 }, [])]),
       #|  ),
       #|)
     ),
   )
-  guard validate_executable_entry(entry, program) is Err(error) else {
+  guard validate_executable_entry(
+      entry,
+      program,
+      @executable.ExecutionProfile::lane_cli(),
+    )
+    is Err(error) else {
     abort("expected unsupported effect diagnostic")
   }
   inspect(
@@ -745,11 +773,11 @@ test "run rejects residual algebraic entry effects" {
     content=(
       #|error[E6009]: entry `Test.main` is not executable
       #|  requested type: () -> Unit ! effect#0
-      #|  expected: () -> Unit with a closed External Effect row
+      #|  expected: () -> Unit with only effects supported by the Lane CLI
       #|
-      #|The selected function has unsupported effect set `effect#0`.
+      #|The selected function requires unsupported effect(s): effect#0.
       #|
-      #|Export a zero-parameter `pub fn` that returns `Unit` with only External Effects.
+      #|Export a zero-parameter `pub fn` that returns `Unit` with only `Io`, `Panic`, or closed External Effects.
       #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
     ),
   )

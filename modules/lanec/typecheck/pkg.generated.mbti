@@ -247,6 +247,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   MissingDeriveEvidence(required~ : @types.Type, paths~ : Array[String])
   AmbiguousDeriveEvidence(required~ : @types.Type, paths~ : Array[String], candidates~ : Array[ContextualOfferDiagnosticCandidate])
   InvalidStructuralDerivationInterface(reason~ : String)
+  InvalidCanonicalBasicProvider(provider~ : String, reason~ : String)
   UnrepresentableStructuralDerivationTarget(target~ : @types.Type, reason~ : String)
   TypeAliasCycle(name~ : String)
   KindMismatch(expected~ : @types.Kind, actual~ : @types.Kind)

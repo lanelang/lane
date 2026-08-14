@@ -19,23 +19,30 @@ fn refingerprint_test_object(
 }
 
 ///|
-fn compiled_test_object(source : String) -> @artifact.ModuleObjectArtifact {
-  let compiled = compile_modules_for_test(source, [])
+fn compiled_test_object(
+  source : String,
+  library_sources? : Array[String] = [],
+) -> @artifact.ModuleObjectArtifact {
+  let compiled = compile_modules_for_test(source, library_sources)
   guard compiled.modules is Some(modules) else {
     abort("expected compiled modules")
   }
-  guard modules.modules.get(0) is Some(module_) else {
-    abort("expected compiled module")
+  for module_ in modules.modules {
+    let object = module_.to_object_artifact()
+    if object.module_path_text == modules.root_module_path_text {
+      return object
+    }
   }
-  module_.to_object_artifact()
+  abort("expected compiled root module")
 }
 
 ///|
 test "builtin external contract rejects metadata signature drift" {
   let object = compiled_test_object(
     (
-      #|module Invalid
-      #|pub let panic : (String) -> Unit ! Panic = builtin("%panic")
+      #|module Basic.Data.Void
+      #|pub enum Void {}
+      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
     ),
   )
   guard object.externals.builtins is [builtin] else {
@@ -54,12 +61,67 @@ test "builtin external contract rejects metadata signature drift" {
       #|  diagnostics: [
       #|    {
       #|      source_id: None,
-      #|      message: "invalid module object `Invalid`",
+      #|      message: "invalid module object `Basic.Data.Void`",
       #|      span: None,
       #|      severity: Error,
       #|      code: Some("E4208"),
       #|      labels: [],
       #|      notes: ["builtin external type does not match metadata for { index: 1 }; module objects must be internally valid before identity remapping begins"],
+      #|      helps: ["recompile the module object from valid Lane source"],
+      #|      facts: [],
+      #|      suggestions: [],
+      #|    },
+      #|  ],
+      #|}
+    ),
+  )
+}
+
+///|
+test "builtin external rejects a self-consistent stale Unit panic contract" {
+  let object = compiled_test_object(
+    (
+      #|module Basic.Data.Void
+      #|pub enum Void {}
+      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+    ),
+  )
+  guard object.externals.builtins is [builtin] else {
+    abort("expected one builtin external")
+  }
+  let stale_type = @buslane.Type::Function(
+    [Primitive(String)],
+    Primitive(Unit),
+    Builtin(Panic),
+  )
+  let metadata = object.metadata.snapshot()
+  let value = builtin.value()
+  let info = metadata.values[value.index]
+  metadata.values[value.index] = { ..info, type_: stale_type }
+  let stale_builtin = @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+    value,
+    builtin.intrinsic(),
+    stale_type,
+  )
+  let malformed = refingerprint_test_object({
+    ..object,
+    metadata,
+    externals: { ..object.externals, builtins: [stale_builtin] },
+  })
+  debug_inspect(
+    @artifact.link_module_object_artifacts([malformed]),
+    content=(
+      #|{
+      #|  program: None,
+      #|  diagnostics: [
+      #|    {
+      #|      source_id: None,
+      #|      message: "invalid module object `Basic.Data.Void`",
+      #|      span: None,
+      #|      severity: Error,
+      #|      code: Some("E4208"),
+      #|      labels: [],
+      #|      notes: ["builtin `%panic` does not match its canonical source contract; module objects must be internally valid before identity remapping begins"],
       #|      helps: ["recompile the module object from valid Lane source"],
       #|      facts: [],
       #|      suggestions: [],
@@ -247,6 +309,7 @@ test "object artifact validation rejects malformed side table references" {
   builtins[0] = @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
     unknown_value,
     builtins[0].intrinsic(),
+    builtins[0].type_(),
   )
   let entries = object.entries.copy()
   entries[0] = { ..entries[0], value: unknown_value }

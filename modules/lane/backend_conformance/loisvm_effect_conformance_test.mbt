@@ -2,8 +2,18 @@
 fn effect_conformance_basic_io() -> String {
   (
     #|module Basic.Io
+    #|import Basic.Data.Void.{ Void }
     #|pub let println : (String) -> Unit ! Io = extern("println")
-    #|pub let panic : (String) -> Unit ! Panic = builtin("%panic")
+    #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+  )
+}
+
+///|
+fn effect_conformance_basic_void() -> String {
+  (
+    #|module Basic.Data.Void
+    #|pub enum Void {}
+    #|pub fn[T] absurd(value : Void) -> T { match value {} }
   )
 }
 
@@ -11,7 +21,10 @@ fn effect_conformance_basic_io() -> String {
 fn compile_effect_conformance_image(
   source : String,
 ) -> @loisvm_bytecode.BytecodeImage raise {
-  let result = compile_program_for_test(source, [effect_conformance_basic_io()])
+  let result = compile_program_for_test(source, [
+    effect_conformance_basic_io(),
+    effect_conformance_basic_void(),
+  ])
   if !result.diagnostics().is_empty() {
     fail("effect conformance compilation failed: \{Repr(result.diagnostics())}")
   }
@@ -25,7 +38,8 @@ fn compile_effect_conformance_image(
   guard main is Some(entry) else {
     fail("effect conformance source produced no main entry")
   }
-  let executable = match program.elaborate_entry(entry) {
+  let executable = match
+    program.elaborate_entry(entry, @executable.ExecutionProfile::lane_cli()) {
     Ok(executable) => executable
     Err(error) => fail("effect conformance elaboration failed: \{Repr(error)}")
   }
@@ -548,8 +562,9 @@ test "statement-position panic is fatal and does not continue on either backend"
     (
       #|module Main
       #|import Basic.Io.*
+      #|import Basic.Data.Void.{ absurd }
       #|pub fn main() -> Unit ! { Io, Panic } {
-      #|  panic("boom")
+      #|  absurd[Unit](panic("boom"))
       #|  println("after")
       #|}
     ),
@@ -578,8 +593,9 @@ test "first-class panic preserves fatal control on either backend" {
     (
       #|module Main
       #|import Basic.Io.*
-      #|fn invoke(abort : (String) -> Unit ! Panic) -> Unit ! Panic {
-      #|  abort("forwarded")
+      #|import Basic.Data.Void.{ Void, absurd }
+      #|fn invoke(abort : (String) -> Void ! Panic) -> Unit ! Panic {
+      #|  absurd[Unit](abort("forwarded"))
       #|  ()
       #|}
       #|pub fn main() -> Unit ! { Io, Panic } {
@@ -602,6 +618,20 @@ test "first-class panic preserves fatal control on either backend" {
     (interpreter, interpreter_output, wasm, wasm_output),
     (Err(Fatal(message="forwarded")), [], Err(Fatal(message="forwarded")), []),
   )
+}
+
+///|
+test "Panic effect alone does not imply terminal control" {
+  let image = compile_effect_conformance_image(
+    (
+      #|module Main
+      #|pub fn main() -> Unit ! Panic {
+      #|  ()
+      #|}
+    ),
+  )
+  assert_eq(run_effect_conformance_interpreter(image), [])
+  assert_eq(run_effect_conformance_wasm(image), [])
 }
 
 ///|

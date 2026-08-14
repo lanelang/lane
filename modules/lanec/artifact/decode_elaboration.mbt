@@ -8,6 +8,7 @@ fn @bytecodec.ByteReader::read_externals(
       @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
         self.read_buslane_value_id(),
         self.read_intrinsic(),
+        self.read_buslane_type(),
       ),
     )
   }
