@@ -106,20 +106,20 @@ pub fn Intrinsic::from_name(String) -> Self?
 pub fn Intrinsic::name(Self) -> String
 pub fn Intrinsic::signature(Self) -> IntrinsicSignature
 
-pub(all) enum IntrinsicControl {
-  Returns
-  Terminal
-} derive(Eq, @debug.Debug)
-
 pub(all) enum IntrinsicEffect {
   Pure
   BuiltinIo
   BuiltinPanic
 } derive(Eq, @debug.Debug)
 
+pub(all) enum IntrinsicFunctionImplementation {
+  Direct
+  Fatal(message_parameter~ : Int)
+} derive(Eq, @debug.Debug)
+
 pub(all) enum IntrinsicSignature {
   Value(IntrinsicType)
-  Function(parameters~ : Array[IntrinsicType], result~ : IntrinsicType, effect~ : IntrinsicEffect, control~ : IntrinsicControl)
+  Function(parameters~ : Array[IntrinsicType], result~ : IntrinsicType, effect~ : IntrinsicEffect, implementation~ : IntrinsicFunctionImplementation)
 } derive(Eq, @debug.Debug)
 
 pub(all) enum IntrinsicType {

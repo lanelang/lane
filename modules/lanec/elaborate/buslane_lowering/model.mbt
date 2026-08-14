@@ -10,6 +10,7 @@ pub struct BuslaneIntrinsicFunctionContract {
   priv parameters : Array[@buslane.Type]
   priv result : @buslane.Type
   priv effect : @buslane.Effect
+  priv implementation : @abi.IntrinsicFunctionImplementation
 } derive(Debug, Eq)
 
 ///|
@@ -78,27 +79,20 @@ pub fn BuslaneIntrinsicContract::type_(
 }
 
 ///|
-pub fn BuslaneIntrinsicContract::control(
-  self : BuslaneIntrinsicContract,
-) -> @abi.IntrinsicControl {
-  match self.intrinsic.signature() {
-    Value(_) => Returns
-    Function(control~, ..) => control
-  }
-}
-
-///|
 pub fn BuslaneIntrinsicContract::function_contract(
   self : BuslaneIntrinsicContract,
 ) -> BuslaneIntrinsicFunctionContract? {
   match (self.type_, self.intrinsic.signature()) {
-    (Function(parameters, result, effect), @abi.IntrinsicSignature::Function(..)
+    (
+      Function(parameters, result, effect),
+      @abi.IntrinsicSignature::Function(implementation~, ..),
     ) =>
       Some({
         intrinsic: self.intrinsic,
         parameters: parameters.copy(),
         result,
         effect,
+        implementation,
       })
     _ => None
   }
@@ -112,13 +106,10 @@ pub fn BuslaneIntrinsicFunctionContract::intrinsic(
 }
 
 ///|
-pub fn BuslaneIntrinsicFunctionContract::control(
+pub fn BuslaneIntrinsicFunctionContract::implementation(
   self : BuslaneIntrinsicFunctionContract,
-) -> @abi.IntrinsicControl {
-  match self.intrinsic.signature() {
-    Function(control~, ..) => control
-    Value(_) => abort("function contract references a value intrinsic")
-  }
+) -> @abi.IntrinsicFunctionImplementation {
+  self.implementation
 }
 
 ///|

@@ -118,25 +118,17 @@ fn ImageLowerer::plan_intrinsic(
   let contract = external.contract()
   let intrinsic = contract.intrinsic()
   let type_ = contract.type_()
-  match (contract.control(), intrinsic) {
-    (Terminal, Panic) => {
-      guard contract.function_contract() is Some(function_contract) else {
-        raise UnsupportedIntrinsic(name=intrinsic.name())
-      }
-      let function = self.intrinsic_wrapper(function_contract)
-      self.globals.push({ value, lowered: Function(function, type_) })
-    }
-    (Terminal, _) => raise UnsupportedIntrinsic(name=intrinsic.name())
-    (Returns, F32Inf) =>
+  match intrinsic {
+    F32Inf =>
       self.globals.push({ value, lowered: FloatConstant(0x7f800000, type_) })
-    (Returns, F32NegativeInf) =>
+    F32NegativeInf =>
       self.globals.push({
         value,
         lowered: FloatConstant(0xff800000U.reinterpret_as_int(), type_),
       })
-    (Returns, F32Nan) =>
+    F32Nan =>
       self.globals.push({ value, lowered: FloatConstant(0x7fc00000, type_) })
-    (Returns, F64Inf) =>
+    F64Inf =>
       self.globals.push({
         value,
         lowered: DoubleConstant(
@@ -144,7 +136,7 @@ fn ImageLowerer::plan_intrinsic(
           type_,
         ),
       })
-    (Returns, F64NegativeInf) =>
+    F64NegativeInf =>
       self.globals.push({
         value,
         lowered: DoubleConstant(
@@ -152,7 +144,7 @@ fn ImageLowerer::plan_intrinsic(
           type_,
         ),
       })
-    (Returns, F64Nan) =>
+    F64Nan =>
       self.globals.push({
         value,
         lowered: DoubleConstant(
@@ -160,11 +152,18 @@ fn ImageLowerer::plan_intrinsic(
           type_,
         ),
       })
-    (Returns, _) => {
+    _ => {
       guard contract.function_contract() is Some(function_contract) else {
         raise UnsupportedIntrinsic(name=intrinsic.name())
       }
-      self.globals.push({ value, lowered: Intrinsic(function_contract) })
+      match function_contract.implementation() {
+        Direct =>
+          self.globals.push({ value, lowered: Intrinsic(function_contract) })
+        Fatal(..) => {
+          let function = self.intrinsic_wrapper(function_contract)
+          self.globals.push({ value, lowered: Function(function, type_) })
+        }
+      }
     }
   }
 }
@@ -417,38 +416,6 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   let intrinsic = plan.contract.intrinsic()
   let parameter_types = plan.contract.parameter_types()
   let result_type = plan.contract.result_type()
-  if plan.contract.control() is Terminal {
-    guard intrinsic is Panic else {
-      raise UnsupportedIntrinsic(name=intrinsic.name())
-    }
-    let lowerer : FunctionLowerer = {
-      image: self,
-      values: [],
-      blocks: [{ parameters: [], instructions: [], terminator: None }],
-      current_block: 0,
-      bindings: [],
-      temps: [],
-      environment: None,
-      witnesses: [],
-      substitutions: TypeSubstitution(),
-      specialized_parameters: [],
-    }
-    let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
-    guard parameter_slots is [message] else {
-      abort("invalid canonical Panic contract")
-    }
-    lowerer.terminate(Fatal(message))
-    return {
-      values: lowerer.values,
-      inputs: {
-        environment: None,
-        witnesses: [],
-        user_parameters: parameter_slots,
-      },
-      result: self.result_abi(result_type),
-      blocks: [{ parameters: [], instructions: [], terminator: Fatal(message) }],
-    }
-  }
   let lowerer : FunctionLowerer = {
     image: self,
     values: [],
@@ -462,30 +429,50 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     specialized_parameters: [],
   }
   let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
-  let arguments = []
-  for index, slot in parameter_slots {
-    arguments.push(Slot(slot, parameter_types[index]))
-  }
-  let result = lowerer.lower_intrinsic(plan.contract, arguments)
-  guard result is Slot(result_slot, _) else {
-    raise UnsupportedIntrinsic(name=intrinsic.name())
-  }
-  lowerer.terminate(Return(Some(result_slot)))
-  {
-    values: lowerer.values,
-    inputs: {
-      environment: None,
-      witnesses: [],
-      user_parameters: parameter_slots,
-    },
-    result: self.result_abi(result_type),
-    blocks: [
+  match plan.contract.implementation() {
+    Fatal(message_parameter~) => {
+      let message = parameter_slots[message_parameter]
+      lowerer.terminate(Fatal(message))
       {
-        parameters: [],
-        instructions: lowerer.blocks[0].instructions,
-        terminator: Return(Some(result_slot)),
-      },
-    ],
+        values: lowerer.values,
+        inputs: {
+          environment: None,
+          witnesses: [],
+          user_parameters: parameter_slots,
+        },
+        result: self.result_abi(result_type),
+        blocks: [
+          { parameters: [], instructions: [], terminator: Fatal(message) },
+        ],
+      }
+    }
+    Direct => {
+      let arguments = []
+      for index, slot in parameter_slots {
+        arguments.push(Slot(slot, parameter_types[index]))
+      }
+      let result = lowerer.lower_intrinsic(plan.contract, arguments)
+      guard result is Slot(result_slot, _) else {
+        raise UnsupportedIntrinsic(name=intrinsic.name())
+      }
+      lowerer.terminate(Return(Some(result_slot)))
+      {
+        values: lowerer.values,
+        inputs: {
+          environment: None,
+          witnesses: [],
+          user_parameters: parameter_slots,
+        },
+        result: self.result_abi(result_type),
+        blocks: [
+          {
+            parameters: [],
+            instructions: lowerer.blocks[0].instructions,
+            terminator: Return(Some(result_slot)),
+          },
+        ],
+      }
+    }
   }
 }
 

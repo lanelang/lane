@@ -18,7 +18,8 @@ pub let panic : (String) -> Void ! Panic = builtin("%panic")
 
 - `Basic.Data.Void.Void` is the ordinary nominal empty result type;
 - `Panic` makes possible fatal behavior visible to effect-sensitive passes;
-- the verified intrinsic contract marks `%panic` as `Terminal`;
+- the verified intrinsic contract implements `%panic` as
+  `Fatal(message_parameter=0)`;
 - `Fatal(message)` ends VM CFG and bytecode control with no successor.
 
 Lane has no built-in bottom type, implicit bottom conversion, no-result callable
@@ -43,7 +44,7 @@ The intrinsic table owns the complete symbolic `%panic` contract:
 parameters = [String]
 result = CanonicalBasicVoid
 effect = Panic
-control = Terminal
+implementation = Fatal(message_parameter=0)
 ```
 
 Type checking materializes the resolved function type once. Buslane lowering,
@@ -63,8 +64,9 @@ and adapters use ordinary callable machinery. There is no Never result, fake
 Void value, or terminal-call opcode.
 
 An arbitrary function carrying `Panic` may return normally. Only the verified
-intrinsic contract's `Terminal` classification permits the compiler to remove a
-normal continuation.
+intrinsic contract's `Fatal` implementation permits the compiler to remove a
+normal continuation; its parameter index is also the sole source of the fatal
+message operand.
 
 ## Execution profiles
 
@@ -94,8 +96,9 @@ versions.
 
 Before runtime projection, `Panic` is a nonempty semantic effect. Optimizers
 must preserve panic-capable evaluation. They may infer terminal control only
-from the verified `%panic` contract, never from Void, another empty enum, the
-`Panic` effect alone, a declaration name, or a runtime symbol.
+from the verified `%panic` contract's `Fatal` implementation, never from Void,
+another empty enum, the `Panic` effect alone, a declaration name, or a runtime
+symbol.
 
 After `%panic` becomes `Fatal`, CFG analyses consume its empty successor set.
 

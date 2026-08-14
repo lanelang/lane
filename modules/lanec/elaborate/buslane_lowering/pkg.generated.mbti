@@ -55,7 +55,6 @@ pub(all) struct BuslaneExternalMap {
 pub struct BuslaneIntrinsicContract {
   // private fields
 } derive(Eq, @debug.Debug)
-pub fn BuslaneIntrinsicContract::control(Self) -> @abi.IntrinsicControl
 pub fn BuslaneIntrinsicContract::function_contract(Self) -> BuslaneIntrinsicFunctionContract?
 pub fn BuslaneIntrinsicContract::intrinsic(Self) -> @abi.Intrinsic
 pub fn BuslaneIntrinsicContract::type_(Self) -> @buslane.Type
@@ -63,7 +62,7 @@ pub fn BuslaneIntrinsicContract::type_(Self) -> @buslane.Type
 pub struct BuslaneIntrinsicFunctionContract {
   // private fields
 } derive(Eq, @debug.Debug)
-pub fn BuslaneIntrinsicFunctionContract::control(Self) -> @abi.IntrinsicControl
+pub fn BuslaneIntrinsicFunctionContract::implementation(Self) -> @abi.IntrinsicFunctionImplementation
 pub fn BuslaneIntrinsicFunctionContract::intrinsic(Self) -> @abi.Intrinsic
 pub fn BuslaneIntrinsicFunctionContract::parameter_types(Self) -> Array[@buslane.Type]
 pub fn BuslaneIntrinsicFunctionContract::result_type(Self) -> @buslane.Type

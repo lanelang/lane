@@ -38,9 +38,9 @@ pub(all) enum IntrinsicEffect {
 } derive(Debug, Eq)
 
 ///|
-pub(all) enum IntrinsicControl {
-  Returns
-  Terminal
+pub(all) enum IntrinsicFunctionImplementation {
+  Direct
+  Fatal(message_parameter~ : Int)
 } derive(Debug, Eq)
 
 ///|
@@ -50,7 +50,7 @@ pub(all) enum IntrinsicSignature {
     parameters~ : Array[IntrinsicType],
     result~ : IntrinsicType,
     effect~ : IntrinsicEffect,
-    control~ : IntrinsicControl
+    implementation~ : IntrinsicFunctionImplementation
   )
 } derive(Debug, Eq)
 
@@ -59,7 +59,7 @@ fn pure_intrinsic_function(
   parameters~ : Array[IntrinsicType],
   result~ : IntrinsicType,
 ) -> IntrinsicSignature {
-  Function(parameters~, result~, effect=Pure, control=Returns)
+  Function(parameters~, result~, effect=Pure, implementation=Direct)
 }
 
 ///|
@@ -345,7 +345,7 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
         parameters=[String],
         result=CanonicalBasicVoid,
         effect=BuiltinPanic,
-        control=Terminal,
+        implementation=Fatal(message_parameter=0),
       )
     I64Add | I64Sub | I64Mul | I64Div | I64Rem =>
       pure_intrinsic_function(parameters=[I64, I64], result=I64)

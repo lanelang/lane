@@ -101,7 +101,7 @@ residual effects it can interpret.
 - Make the fixed Basic ABI the sole owner of canonical Basic declaration
   identities and shape requirements.
 - Make the intrinsic contract the sole owner of `%panic` parameters, result,
-  effect, and terminal-control classification.
+  effect, and fatal implementation.
 - Make the selected execution profile the sole owner of executable-entry
   effect admission.
 - Preserve identical fatal behavior, cleanup, messages, and typed outcomes in
@@ -281,7 +281,7 @@ IntrinsicContract {
   parameters: [Primitive(String)],
   result: CanonicalBasicType(Void),
   effect: Builtin(Panic),
-  control: Terminal,
+  implementation: Fatal { message_parameter: 0 },
 }
 ```
 
@@ -290,11 +290,12 @@ checking materializes the complete function type. The intrinsic table remains
 the sole owner of the contract; the Basic source annotation is checked against
 it rather than becoming a second signature producer.
 
-### Terminal is not a result ABI
+### The Fatal implementation is not a result ABI
 
-`Terminal` describes the implementation of a compiler-owned intrinsic. It is
-not a source type, effect, callable-result representation, or public no-return
-annotation.
+`Fatal { message_parameter: 0 }` completely describes how the compiler-owned
+intrinsic is implemented: the selected parameter supplies the message to a
+`Fatal` terminator. It is not a source type, effect, callable-result
+representation, or public no-return annotation.
 
 The `%panic` wrapper uses the ordinary callable ABI derived from its resolved
 function type, including the ordinary nominal-data result ABI for Void. Its
@@ -312,8 +313,8 @@ fallback is introduced.
 Type checking, module-object validation, linking, function planning, and
 lowering consume the same verified intrinsic contract. They must not
 independently reconstruct String parameters, Void result, Panic effect, or
-terminal control. Any phase that cannot receive the verified contract has the
-wrong interface.
+the fatal operation or its message operand. Any phase that cannot receive the
+verified contract has the wrong interface.
 
 ## Executable entry and execution profiles
 
@@ -402,8 +403,9 @@ Before runtime effect projection, `Panic` is an ordinary nonempty semantic
 effect. Therefore effect-aware optimization must not delete, duplicate, merge,
 or reorder a panic-capable call as if it were total.
 
-Only the `%panic` intrinsic contract permits a pass to replace a call's normal
-continuation with terminal control. The following are insufficient evidence:
+Only the `%panic` intrinsic contract's `Fatal` implementation permits a pass to
+replace a call's normal continuation with fatal control. The following are
+insufficient evidence:
 
 - result type `Void`;
 - any other empty enum;
@@ -466,7 +468,8 @@ or guess the original cause from rendered detail.
 1. Establish one resolved Basic ABI catalog and migrate existing tuple, list,
    Void, and structural-derivation provider lookup to consume it.
 2. Extend the canonical intrinsic contract so its result can reference the
-   resolved Basic Void declaration and so terminal control is explicit.
+   resolved Basic Void declaration and its fatal implementation names the
+   message parameter explicitly.
 3. Change semantic checking and builtin synthesis to produce exactly
    `(String) -> Void ! Panic` from that contract.
 4. Change Basic.Io to import Void and expose the new signature. Push the Basic
