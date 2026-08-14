@@ -1,10 +1,11 @@
 import {
-  "moonbitlang/async@0.20.3",
-  "moonbitlang/async@0.20.3/process",
-  "moonbitlang/async@0.20.3/io",
+  "moonbitlang/async@0.20.5",
+  "moonbitlang/async@0.20.5/process",
+  "moonbitlang/async@0.20.5/io",
+  "moonbitlang/core/env",
   "moonbitlang/core/json",
-  "moonbitlang/x@0.4.47/fs",
-  "moonbitlang/x@0.4.47/sys",
+  "moonbitlang/x@0.4.49/fs",
+  "moonbitlang/x@0.4.49/sys",
 }
 
 priv suberror FixtureRunFailure {
@@ -170,7 +171,7 @@ fn decode_manifest(json : Json) -> FixtureManifest {
 }
 
 fn require_basic_library() -> Unit {
-  match @sys.get_env_var("LANE_HOME") {
+  match @env.get_env_var("LANE_HOME") {
     Some(home) => {
       let home = home.trim().to_owned()
       if home == "" {
@@ -519,7 +520,7 @@ async fn run_moon_lane(lane_args : Array[String]) -> LaneRunResult {
 async fn run_lane_process(
   lane_args : Array[String],
 ) -> (Int, &@io.Data) {
-  guard @sys.get_env_var("LANE_SMOKE_BIN") is Some(lane_bin) else {
+  guard @env.get_env_var("LANE_SMOKE_BIN") is Some(lane_bin) else {
     abort("LANE_SMOKE_BIN is not set")
   }
   let args = []
