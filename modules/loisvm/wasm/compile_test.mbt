@@ -160,6 +160,39 @@ fn edge(
 }
 
 ///|
+fn straight_line_cfg(block_count : Int) -> @bytecode.FunctionBody {
+  let blocks : Array[@bytecode.Block] = []
+  for index in 0..<block_count {
+    blocks.push({
+      parameters: [],
+      instructions: [],
+      terminator: if index + 1 == block_count {
+        Return(None)
+      } else {
+        Jump(edge(index + 1))
+      },
+    })
+  }
+  {
+    slots: [],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks,
+  }
+}
+
+///|
+fn ceiling_log2(value : Int) -> Int {
+  let mut power = 1
+  let mut exponent = 0
+  while power < value {
+    power *= 2
+    exponent += 1
+  }
+  exponent
+}
+
+///|
 fn run_entry(body : @bytecode.FunctionBody) -> Unit raise {
   let wasm_module = match compile(image([BytecodeBody(body)])) {
     Ok(value) => value
@@ -431,34 +464,42 @@ test "irreducible CFG uses the dispatcher fallback" {
 }
 
 ///|
-test "large straight-line CFG uses a logarithmic-depth dispatcher" {
-  let blocks : Array[@bytecode.Block] = []
-  for index in 0..<64 {
-    blocks.push({
-      parameters: [],
-      instructions: [],
-      terminator: if index + 1 == 64 {
-        Return(None)
-      } else {
-        Jump(edge(index + 1))
-      },
-    })
-  }
-  let linear : @bytecode.FunctionBody = {
-    slots: [],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
-    result: Unit,
-    blocks,
-  }
-  let wasm_module = match compile(image([BytecodeBody(linear)])) {
+test "straight-line CFG selects the balanced dispatcher above the cutoff" {
+  let small_module = match
+    compile(image([BytecodeBody(straight_line_cfg(16))])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
-  assert_true(contains_loop(wasm_module.codes[0].body))
-  assert_false(contains_br_table(wasm_module.codes[0].body))
-  assert_true(maximum_function_control_depth(wasm_module) <= 10)
-  let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
+  assert_false(contains_loop(small_module.codes[0].body))
+  assert_false(contains_br_table(small_module.codes[0].body))
+  let large_module = match
+    compile(image([BytecodeBody(straight_line_cfg(17))])) {
+    Ok(value) => value
+    Err(error) => fail("compile failed: \{Repr(error)}")
+  }
+  assert_true(contains_loop(large_module.codes[0].body))
+  assert_false(contains_br_table(large_module.codes[0].body))
+  let (store, instance) = @executor.instantiate_module_with_init(large_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+}
+
+///|
+test "balanced dispatcher control depth grows logarithmically" {
+  for block_count in [17, 64, 257] {
+    let wasm_module = match
+      compile(image([BytecodeBody(straight_line_cfg(block_count))])) {
+      Ok(value) => value
+      Err(error) => fail("compile failed: \{Repr(error)}")
+    }
+    assert_true(contains_loop(wasm_module.codes[0].body))
+    assert_false(contains_br_table(wasm_module.codes[0].body))
+    // The outer failure block, try table, and dispatcher loop each add one.
+    let fixed_wrapper_depth = 3
+    assert_true(
+      maximum_function_control_depth(wasm_module) <=
+      fixed_wrapper_depth + ceiling_log2(block_count),
+    )
+  }
 }
 
 ///|
