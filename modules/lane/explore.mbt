@@ -28,6 +28,7 @@ async fn lane_explore(
     root_source: root.to_compile_input(),
     library_sources: LaneSourceInput::array_to_compile_inputs(libraries),
     entry,
+    execution_profile: lane_command_execution_profile(),
   })
   let html = render_explore_html(report)
   match write_explore_report_atomic(output, html) {

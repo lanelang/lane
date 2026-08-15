@@ -104,6 +104,27 @@ fn lower_test_executable_to_bytecode_observed(
 }
 
 ///|
+fn lower_test_linked_program_to_bytecode(
+  program : @buslane.Program,
+  externals : @buslane_lowering.BuslaneExternalMap,
+  entry : @buslane_lowering.BuslaneEntry,
+) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
+  let executable = match
+    @executable.elaborate(
+      { module_path_texts: [], program, externals, entries: [entry] },
+      entry,
+      @executable.ExecutionProfile::new(
+        builtin_effects=[Io, Panic],
+        supports_external_effects=true,
+      ),
+    ) {
+    Ok(executable) => executable
+    Err(error) => abort("test executable elaboration failed: \{Repr(error)}")
+  }
+  lower_executable_program_to_bytecode(executable)
+}
+
+///|
 fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
   {
     metadata,
@@ -300,7 +321,7 @@ test "runtime import origin wins over intrinsic-looking symbol" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -461,7 +482,7 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
 }
 
 ///|
-test "effect forms fail before bytecode emission" {
+test "entry admission rejects residual algebraic effects before lowering" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
   let effect = metadata.define_effect("Test", [])
@@ -486,17 +507,32 @@ test "effect forms fail before bytecode emission" {
       ),
     ],
   }
+  let entry : @buslane_lowering.BuslaneEntry = {
+    module_path_text: "Main",
+    name: "main",
+    value: main,
+    type_: main_type,
+  }
   debug_inspect(
-    lower_lane_cli_program_to_bytecode(
-      program,
-      { builtins: [], runtime_imports: [] },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+    @executable.elaborate(
+      {
+        module_path_texts: [],
+        program,
+        externals: { builtins: [], runtime_imports: [] },
+        entries: [entry],
+      },
+      entry,
+      @executable.ExecutionProfile::new(
+        builtin_effects=[Io, Panic],
+        supports_external_effects=true,
+      ),
     ),
     content=(
       #|Err(
-      #|  InvalidFunctionType(
+      #|  EntryAdmissionRejected(
       #|    value={ index: 0 },
       #|    type_=Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
+      #|    reason=HasUnsupportedEffects(effects=[Singleton({ index: 0 }, [])]),
       #|  ),
       #|)
     ),
@@ -565,7 +601,7 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
   }
   assert_true(@buslane.verify_program(program).is_ok())
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -631,7 +667,7 @@ test "primitive external functions become runtime imports" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -702,7 +738,7 @@ test "external host types erase to Opaque runtime import kinds" {
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       {
         metadata,
         terms: [
@@ -916,7 +952,7 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
   let main_type = test_io_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       {
         metadata,
         terms: [
@@ -1008,7 +1044,7 @@ test "owned String arguments are transferred through VM CFG ARC insertion" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -1104,7 +1140,7 @@ test "Bool matches lower to explicit CFG branches" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -1224,7 +1260,7 @@ test "non-generic data construction and matching lower through object shapes" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -1443,7 +1479,7 @@ test "nonescaping nested functions pass captures directly" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [
@@ -1611,7 +1647,7 @@ test "local recursive functions share a cycle-free captured environment" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [
@@ -2012,7 +2048,7 @@ test "generic calls adapt callable arguments and callable results" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -2142,7 +2178,7 @@ test "generic nested closures capture erased values and layout witnesses" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -2263,7 +2299,7 @@ test "single-constructor matches keep owned captures in the current block" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -2372,7 +2408,7 @@ test "generic data stores layout witnesses beside erased payloads" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -2782,7 +2818,7 @@ test "effect-kind existentials carry explicit companion evidence" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       { builtins: [], runtime_imports: [] },
       { module_path_text: "Main", name: "main", value: main, type_: main_type },
@@ -3001,7 +3037,7 @@ test "primitive literal matches lower to comparison decision chains" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -3118,7 +3154,7 @@ test "generic nonescaping nested functions call their target directly" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],

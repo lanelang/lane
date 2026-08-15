@@ -4,11 +4,9 @@ pub(all) suberror LoisvmLoweringError {
   MissingDataConstructorMetadata(data_constructor~ : @buslane.DataConId)
   MissingExternal(value~ : @buslane.ValueId)
   MissingEntry(value~ : @buslane.ValueId)
-  InvalidFunctionType(value~ : @buslane.ValueId, type_~ : @buslane.Type)
   UnsupportedType(type_~ : @buslane.Type)
   UnsupportedTopLevel(value~ : @buslane.ValueId)
   UnsupportedExpression(detail~ : String)
-  CompilerDefect(@executable.ExecutableElaborationError)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   UnsupportedGenericData(data_constructor~ : @buslane.DataConId)
   InvalidDataPayloadCount(
@@ -20,7 +18,6 @@ pub(all) suberror LoisvmLoweringError {
   RepresentationSpecializationInvariant(detail~ : String)
   UnsupportedIntrinsic(name~ : String)
   UnterminatedBlock(block~ : Int)
-  EffectLoweringError(@effect_lowering_core.SynthesisError)
   VmcfgFinalizeError(@vmcfg.FinalizeError)
   FunctionTableCanonicalizationCompilerDefect(
     FunctionTableCanonicalizationError

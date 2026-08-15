@@ -17,14 +17,10 @@ pub fn elaborate(@link.LinkedProgram, @buslane_lowering.BuslaneEntry, ExecutionP
 
 pub fn elaborate_observed(@link.LinkedProgram, @buslane_lowering.BuslaneEntry, ExecutionProfile, (ExecutableElaborationStage) -> Unit) -> Result[ExecutableProgram, ExecutableElaborationError]
 
-pub fn entry_effect_is_executable(@buslane.MetadataRegistry, @buslane.Effect, ExecutionProfile) -> Bool raise @buslane.TypeNormalizationError
-
-pub fn unsupported_entry_effects(@buslane.MetadataRegistry, @buslane.Effect, ExecutionProfile) -> Array[@buslane.Effect] raise @buslane.TypeNormalizationError
-
 // Errors
 pub(all) suberror ExecutableElaborationError {
   EntryNotLinked(@buslane.ValueId)
-  InvalidEntryFunction(value~ : @buslane.ValueId, type_~ : @buslane.Type)
+  EntryAdmissionRejected(value~ : @buslane.ValueId, type_~ : @buslane.Type, reason~ : EntryAdmissionFailure)
   EntryTypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   UnsupportedEffectSpecialization(detail~ : String)
   EffectSpecializationCompilerDefect(@effect_specialization.SpecializationError)
@@ -34,6 +30,13 @@ pub(all) suberror ExecutableElaborationError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum EntryAdmissionFailure {
+  NotFunction
+  HasParameters(count~ : Int)
+  ReturnsNonUnit(result~ : @buslane.Type)
+  HasUnsupportedEffects(effects~ : Array[@buslane.Effect])
+} derive(Eq, @debug.Debug)
+
 pub(all) enum ExecutableElaborationStage {
   EffectSpecialized(@buslane.Program)
   CoreOptimized(@buslane.Program)
@@ -58,7 +61,6 @@ pub impl @prettyprinter.Pretty for ExecutableProgram
 pub struct ExecutionProfile {
   // private fields
 } derive(Eq, @debug.Debug)
-pub fn ExecutionProfile::lane_cli() -> Self
 pub fn ExecutionProfile::new(builtin_effects~ : Array[@buslane.BuiltinEffect], supports_external_effects~ : Bool) -> Self
 
 pub(all) enum ExecutionRoot {

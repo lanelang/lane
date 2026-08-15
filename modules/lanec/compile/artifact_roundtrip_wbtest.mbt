@@ -6,7 +6,10 @@ fn test_executable_program(
     @executable.elaborate(
       program,
       program.entries[0],
-      @executable.ExecutionProfile::lane_cli(),
+      @executable.ExecutionProfile::new(
+        builtin_effects=[Io, Panic],
+        supports_external_effects=true,
+      ),
     ) {
     Ok(executable) => executable
     Err(error) =>

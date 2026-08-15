@@ -14,8 +14,6 @@ type CliError derive(@debug.Debug)
 
 type CliFileAction derive(Eq, @debug.Debug)
 
-type EntryExecutableError derive(@debug.Debug)
-
 type HostFileErrorReason derive(Eq, @debug.Debug)
 
 type LaneCommand

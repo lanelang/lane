@@ -39,7 +39,7 @@ fn compile_effect_conformance_image(
     fail("effect conformance source produced no main entry")
   }
   let executable = match
-    program.elaborate_entry(entry, @executable.ExecutionProfile::lane_cli()) {
+    program.elaborate_entry(entry, conformance_execution_profile()) {
     Ok(executable) => executable
     Err(error) => fail("effect conformance elaboration failed: \{Repr(error)}")
   }

@@ -20,6 +20,14 @@ fn minimal_loisvm_image() -> @loisvm_bytecode.BytecodeImage {
 }
 
 ///|
+fn linked_program_test_execution_profile() -> @executable.ExecutionProfile {
+  @executable.ExecutionProfile::new(
+    builtin_effects=[Io, Panic],
+    supports_external_effects=true,
+  )
+}
+
+///|
 test "linked program contains only current LoisVM bytecode" {
   let image = minimal_loisvm_image()
   let binary = loisvm_linked_program_to_binary(image).unwrap()
@@ -149,7 +157,7 @@ test "linked executable lowers through the LoisVM boundary" {
     @executable.elaborate(
       linked,
       entry,
-      @executable.ExecutionProfile::lane_cli(),
+      linked_program_test_execution_profile(),
     ) {
     Ok(executable) => executable
     Err(error) => fail("elaboration failed: \{Repr(error)}")
@@ -219,7 +227,7 @@ test "linked program roundtrips and inspects instance globals" {
     @executable.elaborate(
       linked,
       entry,
-      @executable.ExecutionProfile::lane_cli(),
+      linked_program_test_execution_profile(),
     ) {
     Ok(executable) => executable
     Err(error) => fail("elaboration failed: \{Repr(error)}")

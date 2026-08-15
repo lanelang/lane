@@ -110,14 +110,10 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
   )
   let selected_entry = Some(entry_summary(entry))
   let executable = match
-    linked_program.elaborate_entry_observed(
-      entry,
-      @executable.ExecutionProfile::lane_cli(),
-      observed => {
-        let observed = executable_stage(observed)
-        stages.complete(observed.0, observed.1, [], observed.2)
-      },
-    ) {
+    linked_program.elaborate_entry_observed(entry, request.execution_profile, observed => {
+      let observed = executable_stage(observed)
+      stages.complete(observed.0, observed.1, [], observed.2)
+    }) {
     Ok(executable) => executable
     Err(error) => {
       diagnostics.push(

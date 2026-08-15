@@ -19,6 +19,12 @@ Compilation and execution of one selected public entry from a Root Source and
 its [Library Inputs](../../CONTEXT.md).
 _Avoid_: language-level `main`, project build
 
+**Command Execution Profile**:
+The Lane Command-owned declaration of residual effects supported by its native
+runtime environment and compiler-controlled fatal path. The compiler consumes
+this profile but does not choose it.
+_Avoid_: compiler default, backend capability guess
+
 **Executable Explore Command**:
 The non-executing command that requests compiler-owned IR exploration for one
 selected entry and writes an Explore Report as HTML.

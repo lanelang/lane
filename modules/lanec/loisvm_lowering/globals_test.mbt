@@ -7,6 +7,27 @@ fn global_test_function_type(
 }
 
 ///|
+fn lower_test_linked_program_to_bytecode(
+  program : @buslane.Program,
+  externals : @buslane_lowering.BuslaneExternalMap,
+  entry : @buslane_lowering.BuslaneEntry,
+) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
+  let executable = match
+    @executable.elaborate(
+      { module_path_texts: [], program, externals, entries: [entry] },
+      entry,
+      @executable.ExecutionProfile::new(
+        builtin_effects=[Io, Panic],
+        supports_external_effects=true,
+      ),
+    ) {
+    Ok(executable) => executable
+    Err(error) => abort("test executable elaboration failed: \{Repr(error)}")
+  }
+  lower_executable_program_to_bytecode(executable)
+}
+
+///|
 test "executable lowering emits reachable instance globals in source order" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let string_type = @buslane.Type::Primitive(String)
@@ -46,7 +67,7 @@ test "executable lowering emits reachable instance globals in source order" {
     ],
   }
   let image = match
-    lower_lane_cli_program_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -288,7 +309,7 @@ test "initializer orchestration is bounded by peak live owned results" {
     )
     let program : @buslane.Program = { metadata, terms }
     let image = match
-      lower_lane_cli_program_to_bytecode(
+      lower_test_linked_program_to_bytecode(
         program,
         {
           builtins: [],

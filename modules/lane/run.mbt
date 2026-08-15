@@ -74,17 +74,9 @@ fn execute_entry_with_output(
   write_line : (String) -> Unit,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
-  let profile = @executable.ExecutionProfile::lane_cli()
-  match validate_executable_entry(entry, program, profile) {
-    Ok(_) => ()
-    Err(error) => return LaneCommandOutcome::user_error(error)
-  }
-  let executable = match program.elaborate_entry(entry, profile) {
+  let executable = match elaborate_command_entry(program, entry) {
     Ok(executable) => executable
-    Err(error) =>
-      return LaneCommandOutcome::user_error(
-        ExecutionImageLowering(message="\{Repr(error)}"),
-      )
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   let image = match lower_executable_image(executable) {
     Ok(image) => image
@@ -104,54 +96,19 @@ fn lower_executable_image(
 }
 
 ///|
-fn validate_executable_entry(
-  entry : @compile.CompiledEntry,
+fn elaborate_command_entry(
   program : @compile.CompiledProgram,
-  profile : @executable.ExecutionProfile,
-) -> Result[Unit, CliError] {
-  let type_ = entry.type_()
-  guard type_ is Function(parameters, result, _) else {
-    return Err(
-      EntryNotExecutable(
-        name=display_entry(entry),
-        type_~,
-        reason=EntryIsNotFunction,
-      ),
-    )
+  entry : @compile.CompiledEntry,
+) -> Result[@executable.ExecutableProgram, CliError] {
+  match program.elaborate_entry(entry, lane_command_execution_profile()) {
+    Ok(executable) => Ok(executable)
+    Err(EntryAdmissionRejected(type_~, reason~, ..)) =>
+      Err(EntryNotExecutable(name=display_entry(entry), type_~, reason~))
+    Err(UnsupportedEffectSpecialization(detail~)) =>
+      Err(ExecutionImageLowering(message=detail))
+    Err(error) =>
+      Err(Internal(message="executable elaboration failed: \{Repr(error)}"))
   }
-  if !parameters.is_empty() {
-    return Err(
-      EntryNotExecutable(
-        name=display_entry(entry),
-        type_~,
-        reason=EntryHasParameters(count=parameters.length()),
-      ),
-    )
-  }
-  if result != Primitive(Unit) {
-    return Err(
-      EntryNotExecutable(
-        name=display_entry(entry),
-        type_~,
-        reason=EntryReturnsNonUnit(result~),
-      ),
-    )
-  }
-  let unsupported_effects = match
-    program.unsupported_entry_effects(entry, profile) {
-    Ok(effects) => effects
-    Err(error) => return Err(Internal(message="\{Repr(error)}"))
-  }
-  if !unsupported_effects.is_empty() {
-    return Err(
-      EntryNotExecutable(
-        name=display_entry(entry),
-        type_~,
-        reason=EntryHasUnsupportedEffects(effects=unsupported_effects),
-      ),
-    )
-  }
-  Ok(())
 }
 
 ///|

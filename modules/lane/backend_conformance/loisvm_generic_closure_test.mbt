@@ -87,7 +87,7 @@ test "generic nested closures preserve erased captures in both backends" {
     ],
   }
   let image = match
-    @loisvm_lowering.lower_lane_cli_program_to_bytecode(
+    lower_conformance_program_to_bytecode(
       program,
       {
         builtins: [],

@@ -18,7 +18,10 @@ fn compile_test_loisvm_image(
     @executable.elaborate(
       program,
       entry,
-      @executable.ExecutionProfile::lane_cli(),
+      @executable.ExecutionProfile::new(
+        builtin_effects=[Io, Panic],
+        supports_external_effects=true,
+      ),
     ) {
     Ok(executable) => executable
     Err(error) => fail("executable elaboration failed: \{Repr(error)}")

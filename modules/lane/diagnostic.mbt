@@ -20,14 +20,6 @@ enum HostFileErrorReason {
 } derive(Debug, Eq)
 
 ///|
-enum EntryExecutableError {
-  EntryIsNotFunction
-  EntryHasParameters(count~ : Int)
-  EntryReturnsNonUnit(result~ : @buslane.Type)
-  EntryHasUnsupportedEffects(effects~ : Array[@buslane.Effect])
-} derive(Debug)
-
-///|
 priv struct CommandReportField {
   name : String
   value : String
@@ -68,7 +60,7 @@ enum CliError {
   EntryNotExecutable(
     name~ : String,
     type_~ : @buslane.Type,
-    reason~ : EntryExecutableError
+    reason~ : @executable.EntryAdmissionFailure
   )
   NotFormatted(path~ : String)
   Internal(message~ : String)
@@ -323,15 +315,16 @@ fn execution_failure_report(
 }
 
 ///|
-fn EntryExecutableError::to_human_note(self : EntryExecutableError) -> String {
+fn @executable.EntryAdmissionFailure::to_human_note(
+  self : @executable.EntryAdmissionFailure,
+) -> String {
   match self {
-    EntryIsNotFunction =>
-      "The selected public entry is a value, not a function."
-    EntryHasParameters(count~) =>
+    NotFunction => "The selected public entry is a value, not a function."
+    HasParameters(count~) =>
       "The selected function expects \{count} argument(s)."
-    EntryReturnsNonUnit(result~) =>
+    ReturnsNonUnit(result~) =>
       "The selected function returns `\{render_buslane_type(result)}`, not `Unit`."
-    EntryHasUnsupportedEffects(effects~) =>
+    HasUnsupportedEffects(effects~) =>
       "The selected function requires unsupported effect(s): " +
       effects.map(render_buslane_effect).join(", ") +
       "."

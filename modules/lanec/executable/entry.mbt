@@ -1,4 +1,6 @@
 ///|
+/// Residual-effect admission selected by an embedding execution target. The
+/// compiler deliberately provides no default profile.
 pub struct ExecutionProfile {
   priv builtin_effects : Array[@buslane.BuiltinEffect]
   priv supports_external_effects : Bool
@@ -13,42 +15,49 @@ pub fn ExecutionProfile::new(
 }
 
 ///|
-pub fn ExecutionProfile::lane_cli() -> ExecutionProfile {
-  ExecutionProfile::new(
-    builtin_effects=[Io, Panic],
-    supports_external_effects=true,
-  )
-}
-
-///|
 fn validate_executable_entry(
   metadata : @buslane.MetadataRegistry,
   entry : @buslane_lowering.BuslaneEntry,
   profile : ExecutionProfile,
 ) -> Unit raise ExecutableElaborationError {
-  guard entry.type_ is Function(parameters, Primitive(Unit), effect) &&
-    parameters.is_empty() else {
-    raise InvalidEntryFunction(value=entry.value, type_=entry.type_)
+  let normalized = entry.type_.normalize() catch {
+    error => raise EntryTypeNormalizationCompilerDefect(error)
+  }
+  guard normalized is Function(parameters, result, effect) else {
+    raise EntryAdmissionRejected(
+      value=entry.value,
+      type_=entry.type_,
+      reason=NotFunction,
+    )
+  }
+  if !parameters.is_empty() {
+    raise EntryAdmissionRejected(
+      value=entry.value,
+      type_=entry.type_,
+      reason=HasParameters(count=parameters.length()),
+    )
+  }
+  if result != Primitive(Unit) {
+    raise EntryAdmissionRejected(
+      value=entry.value,
+      type_=entry.type_,
+      reason=ReturnsNonUnit(result~),
+    )
   }
   let unsupported = unsupported_entry_effects(metadata, effect, profile) catch {
     error => raise EntryTypeNormalizationCompilerDefect(error)
   }
   if !unsupported.is_empty() {
-    raise InvalidEntryFunction(value=entry.value, type_=entry.type_)
+    raise EntryAdmissionRejected(
+      value=entry.value,
+      type_=entry.type_,
+      reason=HasUnsupportedEffects(effects=unsupported),
+    )
   }
 }
 
 ///|
-pub fn entry_effect_is_executable(
-  metadata : @buslane.MetadataRegistry,
-  effect : @buslane.Effect,
-  profile : ExecutionProfile,
-) -> Bool raise @buslane.TypeNormalizationError {
-  unsupported_entry_effects(metadata, effect, profile).is_empty()
-}
-
-///|
-pub fn unsupported_entry_effects(
+fn unsupported_entry_effects(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
   profile : ExecutionProfile,

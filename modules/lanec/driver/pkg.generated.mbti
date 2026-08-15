@@ -4,6 +4,7 @@ package "Milky2018/lanec/driver"
 import {
   "Milky2018/lanec/compile",
   "Milky2018/lanec/diagnostic",
+  "Milky2018/lanec/executable",
   "moonbitlang/core/debug",
 }
 
@@ -130,6 +131,7 @@ pub(all) struct ExploreRequest {
   root_source : @compile.SourceInput
   library_sources : Array[@compile.SourceInput]
   entry : String
+  execution_profile : @executable.ExecutionProfile
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ExploreRootIdentity {

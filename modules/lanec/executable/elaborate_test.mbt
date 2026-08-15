@@ -333,9 +333,10 @@ test "whole-program elaboration rejects an algebraic entry effect" {
     elaborate(linked, entry, test_execution_profile()),
     content=(
       #|Err(
-      #|  InvalidEntryFunction(
+      #|  EntryAdmissionRejected(
       #|    value={ index: 0 },
       #|    type_=Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
+      #|    reason=HasUnsupportedEffects(effects=[Singleton({ index: 0 }, [])]),
       #|  ),
       #|)
     ),
@@ -403,36 +404,75 @@ test "whole-program elaboration identifies specialization metadata defects" {
 
 ///|
 fn test_execution_profile() -> ExecutionProfile {
-  ExecutionProfile::lane_cli()
+  ExecutionProfile::new(
+    builtin_effects=[Io, Panic],
+    supports_external_effects=true,
+  )
+}
+
+///|
+fn elaborate_entry_with_effect(
+  effect : @buslane.Effect,
+  profile : ExecutionProfile,
+) -> Result[ExecutableProgram, ExecutableElaborationError] raise {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let main_type = @buslane.Type::Function([], unit_type, effect)
+  let main = metadata.define_value("main", Function, main_type)
+  let entry = executable_test_entry("main", main, main_type)
+  elaborate(
+    {
+      module_path_texts: ["Main"],
+      program: {
+        metadata,
+        terms: [
+          Let(
+            main,
+            Function({
+              parameters: [],
+              result_type: unit_type,
+              body: Literal(Unit),
+            }),
+          ),
+        ],
+      },
+      externals: { builtins: [], runtime_imports: [] },
+      entries: [entry],
+    },
+    entry,
+    profile,
+  )
 }
 
 ///|
 test "execution profiles explicitly own built-in effect admission" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let io_only = ExecutionProfile::new(
     builtin_effects=[Io],
     supports_external_effects=false,
   )
-  assert_eq(entry_effect_is_executable(metadata, Builtin(Io), io_only), true)
-  assert_eq(
-    entry_effect_is_executable(metadata, Builtin(Panic), io_only),
-    false,
-  )
-  assert_eq(
-    unsupported_entry_effects(
-      metadata,
+  assert_true(elaborate_entry_with_effect(Builtin(Io), io_only) is Ok(_))
+  guard elaborate_entry_with_effect(Builtin(Panic), io_only)
+    is Err(EntryAdmissionRejected(reason~, ..)) else {
+    fail("expected Panic to be rejected by the Io-only profile")
+  }
+  assert_eq(reason, HasUnsupportedEffects(effects=[Builtin(Panic)]))
+  guard elaborate_entry_with_effect(
       Union([Builtin(Io), Builtin(Panic)]),
       ExecutionProfile::new(builtin_effects=[], supports_external_effects=false),
-    ),
-    [Builtin(Io), Builtin(Panic)],
-  )
+    )
+    is Err(EntryAdmissionRejected(reason~, ..)) else {
+    fail("expected an empty profile to reject both built-in effects")
+  }
   assert_eq(
-    entry_effect_is_executable(
-      metadata,
+    reason,
+    HasUnsupportedEffects(effects=[Builtin(Io), Builtin(Panic)]),
+  )
+  assert_true(
+    elaborate_entry_with_effect(
       Union([Builtin(Io), Builtin(Panic)]),
-      ExecutionProfile::lane_cli(),
-    ),
-    true,
+      test_execution_profile(),
+    )
+    is Ok(_),
   )
 }
 

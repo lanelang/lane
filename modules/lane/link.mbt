@@ -26,17 +26,9 @@ async fn lane_link(
     Ok(entry) => entry
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let profile = @executable.ExecutionProfile::lane_cli()
-  match validate_executable_entry(entry, program, profile) {
-    Ok(_) => ()
-    Err(error) => return LaneCommandOutcome::user_error(error)
-  }
-  let executable = match program.elaborate_entry(entry, profile) {
+  let executable = match elaborate_command_entry(program, entry) {
     Ok(executable) => executable
-    Err(error) =>
-      return LaneCommandOutcome::user_error(
-        ExecutionImageLowering(message="\{Repr(error)}"),
-      )
+    Err(error) => return LaneCommandOutcome::user_error(error)
   }
   match write_linked_program_artifact(output, executable) {
     Ok(_) => ()

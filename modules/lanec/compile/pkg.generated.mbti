@@ -82,7 +82,6 @@ pub fn CompiledProgram::elaborate_entry(Self, CompiledEntry, @executable.Executi
 pub fn CompiledProgram::elaborate_entry_observed(Self, CompiledEntry, @executable.ExecutionProfile, (@executable.ExecutableElaborationStage) -> Unit) -> Result[@executable.ExecutableProgram, @executable.ExecutableElaborationError]
 pub fn CompiledProgram::entries(Self) -> Array[CompiledEntry]
 pub fn CompiledProgram::module_path_texts(Self) -> Array[String]
-pub fn CompiledProgram::unsupported_entry_effects(Self, CompiledEntry, @executable.ExecutionProfile) -> Result[Array[@buslane.Effect], @executable.ExecutableElaborationError]
 
 pub(all) struct InterfaceCompilationRequest {
   root : SourceInput

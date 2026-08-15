@@ -300,10 +300,7 @@ async test "native module artifacts are binary and readable" {
     abort("expected main entry")
   }
   let executable = match
-    program.elaborate_entry(
-      main_entry,
-      @executable.ExecutionProfile::lane_cli(),
-    ) {
+    program.elaborate_entry(main_entry, lane_command_execution_profile()) {
     Ok(executable) => executable
     Err(error) => {
       cleanup_library_fixture(workspace)
@@ -588,17 +585,13 @@ test "run rejects public value entries" {
   let entry = find_entry(program.entries(), "answer")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(
-      entry,
-      program,
-      @executable.ExecutionProfile::lane_cli(),
-    ),
+    elaborate_command_entry(program, entry),
     content=(
       #|Err(
       #|  EntryNotExecutable(
       #|    name="Test.answer",
       #|    type_=Primitive(I64),
-      #|    reason=EntryIsNotFunction,
+      #|    reason=NotFunction,
       #|  ),
       #|)
     ),
@@ -618,17 +611,39 @@ test "run rejects functions with parameters" {
   let entry = find_entry(program.entries(), "id")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(
-      entry,
-      program,
-      @executable.ExecutionProfile::lane_cli(),
-    ),
+    elaborate_command_entry(program, entry),
     content=(
       #|Err(
       #|  EntryNotExecutable(
       #|    name="Test.id",
       #|    type_=Function([Primitive(I64)], Primitive(I64), Empty),
-      #|    reason=EntryHasParameters(count=1),
+      #|    reason=HasParameters(count=1),
+      #|  ),
+      #|)
+    ),
+  )
+}
+
+///|
+test "run rejects functions with non-Unit results" {
+  let result = @compile.compile_source(
+    (
+      #|module Test
+      #|pub fn answer() -> I64 { 42 }
+    ),
+  )
+  debug_inspect(result.diagnostics(), content="[]")
+  let program = successful_compilation(result)
+  let entry = find_entry(program.entries(), "answer")
+  guard entry is Ok(entry) else { abort("expected entry") }
+  debug_inspect(
+    elaborate_command_entry(program, entry),
+    content=(
+      #|Err(
+      #|  EntryNotExecutable(
+      #|    name="Test.answer",
+      #|    type_=Function([], Primitive(I64), Empty),
+      #|    reason=ReturnsNonUnit(result=Primitive(I64)),
       #|  ),
       #|)
     ),
@@ -673,14 +688,9 @@ test "run accepts built-in Io through an explicit Basic extern" {
   let program = successful_compilation(result)
   let entry = find_entry(program.entries(), "main")
   guard entry is Ok(entry) else { abort("expected entry") }
-  debug_inspect(
-    validate_executable_entry(
-      entry,
-      program,
-      @executable.ExecutionProfile::lane_cli(),
-    ),
-    content="Ok(())",
-  )
+  guard elaborate_command_entry(program, entry) is Ok(_) else {
+    abort("expected Io entry admission to succeed")
+  }
   let output : Array[String] = []
   guard execute_entry_with_output(program, entry, line => output.push(line))
     is Succeeded else {
@@ -745,27 +755,18 @@ test "run rejects residual algebraic entry effects" {
   let entry = find_entry(program.entries(), "main")
   guard entry is Ok(entry) else { abort("expected entry") }
   debug_inspect(
-    validate_executable_entry(
-      entry,
-      program,
-      @executable.ExecutionProfile::lane_cli(),
-    ),
+    elaborate_command_entry(program, entry),
     content=(
       #|Err(
       #|  EntryNotExecutable(
       #|    name="Test.main",
       #|    type_=Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
-      #|    reason=EntryHasUnsupportedEffects(effects=[Singleton({ index: 0 }, [])]),
+      #|    reason=HasUnsupportedEffects(effects=[Singleton({ index: 0 }, [])]),
       #|  ),
       #|)
     ),
   )
-  guard validate_executable_entry(
-      entry,
-      program,
-      @executable.ExecutionProfile::lane_cli(),
-    )
-    is Err(error) else {
+  guard elaborate_command_entry(program, entry) is Err(error) else {
     abort("expected unsupported effect diagnostic")
   }
   inspect(

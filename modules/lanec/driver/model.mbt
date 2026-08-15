@@ -215,11 +215,13 @@ pub(all) struct ExploreStages {
 
 ///|
 /// Input to the Explore Protocol. Library sources form an unordered import pool;
-/// `entry` must uniquely select one linked artifact-defined entry.
+/// `entry` must uniquely select one linked artifact-defined entry, and the
+/// embedding environment must state its execution admission policy explicitly.
 pub(all) struct ExploreRequest {
   root_source : @compile.SourceInput
   library_sources : Array[@compile.SourceInput]
   entry : String
+  execution_profile : @executable.ExecutionProfile
 } derive(Debug, Eq)
 
 ///|

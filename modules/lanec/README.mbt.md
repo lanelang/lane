@@ -156,7 +156,12 @@ test "enumerate exported compiler entries" {
 }
 ```
 
-After selecting an entry, call `driver.explore` with an `ExploreRequest`. The resulting report contains the curated stages from Syntax AST through linked and effect-lowered Buslane, Executable Program, ANF, VM CFG, LoisVM bytecode, and generated WebAssembly. Exploration compiles but never executes the entry.
+After selecting an entry, call `driver.explore` with an `ExploreRequest` and an
+execution profile supplied by the embedding target. The compiler never chooses
+a default target policy. The resulting report contains the curated stages from
+Syntax AST through linked and effect-lowered Buslane, Executable Program, ANF,
+VM CFG, LoisVM bytecode, and generated WebAssembly. Exploration compiles but
+never executes the entry.
 
 ## Main packages
 

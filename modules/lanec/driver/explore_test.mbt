@@ -11,6 +11,10 @@ fn explore_test_request(
       text,
     }),
     entry,
+    execution_profile: @executable.ExecutionProfile::new(
+      builtin_effects=[Io, Panic],
+      supports_external_effects=true,
+    ),
   }
 }
 

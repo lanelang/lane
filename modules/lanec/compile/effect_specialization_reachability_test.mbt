@@ -16,7 +16,13 @@ fn assert_entry_elaborates(source : String, entry_name : String) -> Unit raise {
     fail("compiled program has no `\{entry_name}` entry")
   }
   match
-    program.elaborate_entry(entry, @executable.ExecutionProfile::lane_cli()) {
+    program.elaborate_entry(
+      entry,
+      @executable.ExecutionProfile::new(
+        builtin_effects=[Io, Panic],
+        supports_external_effects=true,
+      ),
+    ) {
     Ok(_) => ()
     Err(error) => fail("entry elaboration failed: \{Repr(error)}")
   }
@@ -64,7 +70,10 @@ fn observe_effect_specialized_top_terms(
   match
     program.elaborate_entry_observed(
       entry,
-      @executable.ExecutionProfile::lane_cli(),
+      @executable.ExecutionProfile::new(
+        builtin_effects=[Io, Panic],
+        supports_external_effects=true,
+      ),
       stage => {
         if stage is EffectSpecialized(specialized) {
           for term in specialized.terms {

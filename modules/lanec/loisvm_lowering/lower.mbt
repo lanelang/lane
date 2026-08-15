@@ -30,29 +30,8 @@ priv struct FunctionLowerer {
 }
 
 ///|
-pub fn lower_lane_cli_program_to_bytecode(
-  program : @buslane.Program,
-  externals : @buslane_lowering.BuslaneExternalMap,
-  entry : @buslane_lowering.BuslaneEntry,
-) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
-  let linked : @module_link.LinkedProgram = {
-    module_path_texts: [],
-    program,
-    externals,
-    entries: [entry],
-  }
-  match
-    @executable.elaborate(
-      linked,
-      entry,
-      @executable.ExecutionProfile::lane_cli(),
-    ) {
-    Ok(executable) => lower_executable_program_to_bytecode(executable)
-    Err(error) => Err(executable_elaboration_error(error))
-  }
-}
-
-///|
+/// Lowers a program whose entry has already been admitted and whose effect
+/// pipeline has already completed. This package does not choose target policy.
 pub fn lower_executable_program_to_bytecode(
   executable : @executable.ExecutableProgram,
 ) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
@@ -188,26 +167,3 @@ fn executable_initializer_roots(
   }
   roots
 }
-
-///|
-fn executable_elaboration_error(
-  error : @executable.ExecutableElaborationError,
-) -> LoisvmLoweringError {
-  match error {
-    EntryNotLinked(value) => MissingEntry(value~)
-    InvalidEntryFunction(value~, type_~) => InvalidFunctionType(value~, type_~)
-    EntryTypeNormalizationCompilerDefect(error) =>
-      TypeNormalizationCompilerDefect(error)
-    UnsupportedEffectSpecialization(detail~) => UnsupportedExpression(detail~)
-    EffectSpecializationCompilerDefect(error) =>
-      CompilerDefect(EffectSpecializationCompilerDefect(error))
-    CoreOptimizationError(error) => CompilerDefect(CoreOptimizationError(error))
-    EffectLoweringError(error) => EffectLoweringError(error)
-    UnverifiedProgram(stage~, result~) =>
-      UnsupportedExpression(
-        detail="the \{stage} program does not verify: \{@prettyprinter.render(result, width=100)}",
-      )
-  }
-}
-
-///|

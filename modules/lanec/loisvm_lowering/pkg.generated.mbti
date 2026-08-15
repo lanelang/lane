@@ -4,8 +4,6 @@ package "Milky2018/lanec/loisvm_lowering"
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/anf",
-  "Milky2018/lanec/effect_lowering/core",
-  "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/executable",
   "Milky2018/lanec/vmcfg",
   "Milky2018/loisvm/bytecode",
@@ -16,8 +14,6 @@ import {
 pub fn lower_executable_program_to_bytecode(@executable.ExecutableProgram) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
 
 pub fn lower_executable_program_to_bytecode_observed(@executable.ExecutableProgram, (LoisvmLoweringStage) -> Unit) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
-
-pub fn lower_lane_cli_program_to_bytecode(@buslane.Program, @buslane_lowering.BuslaneExternalMap, @buslane_lowering.BuslaneEntry) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
 
 // Errors
 pub(all) suberror FunctionTableCanonicalizationError {
@@ -32,11 +28,9 @@ pub(all) suberror LoisvmLoweringError {
   MissingDataConstructorMetadata(data_constructor~ : @buslane.DataConId)
   MissingExternal(value~ : @buslane.ValueId)
   MissingEntry(value~ : @buslane.ValueId)
-  InvalidFunctionType(value~ : @buslane.ValueId, type_~ : @buslane.Type)
   UnsupportedType(type_~ : @buslane.Type)
   UnsupportedTopLevel(value~ : @buslane.ValueId)
   UnsupportedExpression(detail~ : String)
-  CompilerDefect(@executable.ExecutableElaborationError)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   UnsupportedGenericData(data_constructor~ : @buslane.DataConId)
   InvalidDataPayloadCount(data_constructor~ : @buslane.DataConId, expected~ : Int, actual~ : Int)
@@ -44,7 +38,6 @@ pub(all) suberror LoisvmLoweringError {
   RepresentationSpecializationInvariant(detail~ : String)
   UnsupportedIntrinsic(name~ : String)
   UnterminatedBlock(block~ : Int)
-  EffectLoweringError(@core.SynthesisError)
   VmcfgFinalizeError(@vmcfg.FinalizeError)
   FunctionTableCanonicalizationCompilerDefect(FunctionTableCanonicalizationError)
 } derive(Eq, @debug.Debug)

@@ -211,27 +211,6 @@ pub fn CompiledProgram::elaborate_entry_observed(
 }
 
 ///|
-pub fn CompiledProgram::unsupported_entry_effects(
-  self : CompiledProgram,
-  entry : CompiledEntry,
-  profile : @executable.ExecutionProfile,
-) -> Result[Array[@buslane.Effect], @executable.ExecutableElaborationError] {
-  match entry.entry.type_ {
-    Function(_, _, effect) =>
-      Ok(
-        @executable.unsupported_entry_effects(
-          self.linked.program.metadata,
-          effect,
-          profile,
-        ),
-      ) catch {
-        error => Err(EntryTypeNormalizationCompilerDefect(error))
-      }
-    _ => Ok([])
-  }
-}
-
-///|
 pub fn CompiledEntry::module_path_text(self : CompiledEntry) -> String {
   self.entry.module_path_text
 }

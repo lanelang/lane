@@ -17,6 +17,16 @@ priv struct ExploreResult {
 }
 
 ///|
+/// Browser exploration owns the policy used to elaborate the executable stages
+/// it requests from the platform-neutral compiler driver.
+fn browser_explore_execution_profile() -> @executable.ExecutionProfile {
+  @executable.ExecutionProfile::new(
+    builtin_effects=[Io, Panic],
+    supports_external_effects=true,
+  )
+}
+
+///|
 fn explore_request(request_text : String) -> ExploreResult {
   let request = match parse_explore_request(request_text) {
     Ok(request) => request
@@ -88,7 +98,12 @@ fn parse_explore_request(
       if entry.is_empty() {
         return Err("entry must not be empty")
       }
-      Ok({ root_source: sources.0, library_sources: sources.1, entry })
+      Ok({
+        root_source: sources.0,
+        library_sources: sources.1,
+        entry,
+        execution_profile: browser_explore_execution_profile(),
+      })
     }
     _ =>
       Err(
