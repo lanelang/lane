@@ -101,6 +101,49 @@ test "semantic workspace names explicit arguments of imported functions" {
 }
 
 ///|
+test "semantic workspace keeps parameter hints through a public facade" {
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      {
+        source_id: "file:///Main.lane",
+        text: (
+          #|module Main
+          #|import Facade.{ choose }
+          #|
+          #|pub let answer : I64 = choose(1, 2)
+        ),
+      },
+      {
+        source_id: "file:///Facade.lane",
+        text: (
+          #|module Facade
+          #|pub import Provider.{ choose }
+        ),
+      },
+      {
+        source_id: "file:///Provider.lane",
+        text: (
+          #|module Provider
+          #|pub fn choose(left : I64, right : I64) -> I64 {
+          #|  if true { left } else { right }
+          #|}
+        ),
+      },
+    ])
+    is Some(snapshot) else {
+    fail("expected semantic snapshot")
+  }
+  assert_eq(snapshot.diagnostics(), [])
+  assert_eq(
+    snapshot
+    .inlay_hints_in_range("file:///Main.lane", 1, 1, 6, 1)
+    .filter(fn(hint) { hint.kind is ParameterHint })
+    .map(fn(hint) { hint.label }),
+    ["left=", "right="],
+  )
+}
+
+///|
 test "semantic workspace keeps imported pipeline parameter hints position-unique" {
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([

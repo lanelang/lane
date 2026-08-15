@@ -102,8 +102,8 @@
 %%
 
 source_file -> SourceFile
-  : module_declaration layout_semicolons import_declarations top_level_declarations EOF {
-    { module_path: $1, imports: $3, declarations: $4, loc: span($sloc) }
+  : module_declaration layout_semicolons module_body EOF {
+    { module_path: $1, imports: $3.imports, declarations: $3.declarations, loc: span($sloc) }
   }
   ;
 
@@ -140,9 +140,23 @@ non_empty_module_path -> Array[String]
   | non_empty_module_path "." IDENT { comma_push($1, $3) }
   ;
 
-import_declarations -> Array[ImportDeclaration]
-  : { [] }
-  | import_declarations import_declaration layout_semicolons { comma_push($1, $2) }
+module_body -> ModuleBody
+  : { { imports: [], declarations: [] } }
+  | import_declaration layout_semicolons module_body {
+    { imports: prepend($1, $3.imports), declarations: $3.declarations }
+  }
+  | public_import_declaration layout_semicolons module_body {
+    { imports: prepend($1, $3.imports), declarations: $3.declarations }
+  }
+  | top_level_declaration layout_semicolons top_level_declarations {
+    { imports: [], declarations: prepend($1, $3) }
+  }
+  ;
+
+public_import_declaration -> ImportDeclaration
+  : "pub" "import" module_path ".{" import_item_list "}" {
+    Selective(module_path=$3, items=$5, is_public=true, loc=span($sloc))
+  }
   ;
 
 import_declaration -> ImportDeclaration
@@ -156,7 +170,7 @@ import_declaration -> ImportDeclaration
     Open(module_path=$2, loc=span($sloc))
   }
   | "import" module_path ".{" import_item_list "}" {
-    Selective(module_path=$2, items=$4, loc=span($sloc))
+    Selective(module_path=$2, items=$4, is_public=false, loc=span($sloc))
   }
   ;
 
@@ -191,6 +205,11 @@ top_level_declarations -> Array[TopLevelDeclaration]
   ;
 
 top_level_declaration -> TopLevelDeclaration
+  : non_public_top_level_declaration { $1 }
+  | "pub" public_top_level_declaration { with_public_loc($2, span($sloc)) }
+  ;
+
+non_public_top_level_declaration -> TopLevelDeclaration
   : struct_declaration { Struct($1) }
   | enum_declaration { Enum($1) }
   | effect_declaration { Effect($1) }
@@ -199,7 +218,6 @@ top_level_declaration -> TopLevelDeclaration
   | function_declaration { Function($1) }
   | top_level_let_declaration { Let($1) }
   | offer_value_declaration { Let($1) }
-  | "pub" public_top_level_declaration { with_public_loc($2, span($sloc)) }
   ;
 
 public_top_level_declaration -> TopLevelDeclaration

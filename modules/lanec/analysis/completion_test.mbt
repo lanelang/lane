@@ -326,6 +326,42 @@ test "completion returns imported module surface entries" {
 }
 
 ///|
+test "completion returns a public facade surface" {
+  let entries = complete_test_source_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module Main
+        #|import Facade
+        #|pub let answer : I64 = Facade.value
+      ),
+    },
+    [
+      {
+        source_id: "file:///Facade.lane",
+        text: (
+          #|module Facade
+          #|pub import Provider.{ Box, value }
+        ),
+      },
+      {
+        source_id: "file:///Provider.lane",
+        text: (
+          #|module Provider
+          #|pub struct Box { value : I64 }
+          #|pub let value : I64 = 42
+        ),
+      },
+    ],
+    "file:///Main.lane",
+    3,
+    31,
+    TriggerCharacter("."),
+  )
+  assert_eq(entries.map(fn(entry) { entry.label }), ["Box", "value"])
+}
+
+///|
 test "completion keeps offeredness orthogonal to semantic binding kind" {
   let source =
     #|module Main

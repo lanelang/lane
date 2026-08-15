@@ -1,15 +1,29 @@
 ///|
-fn BuslaneLowerer::seed_imported_dependency_headers(
+fn BuslaneLowerer::seed_imported_declaration_dependency_headers(
   self : BuslaneLowerer,
-  interface : @module_interface.ModuleInterface,
-  available : @module_interface.ImportedEnvironment,
+  provider : @module_interface.ModuleInterface,
+  declaration : @module_interface.ModuleInterfaceDeclaration,
+  available : @module_interface.ModuleInterfaceCatalog,
 ) -> Unit raise BuslaneLoweringError {
-  let { types: type_symbols, effects: effect_symbols } = interface.dependency_symbols()
-  for symbol in type_symbols {
+  self.seed_dependency_symbols(
+    provider,
+    declaration.dependency_symbols(),
+    available,
+  )
+}
+
+///|
+fn BuslaneLowerer::seed_dependency_symbols(
+  self : BuslaneLowerer,
+  provider : @module_interface.ModuleInterface,
+  symbols : @module_interface.InterfaceDependencySymbols,
+  available : @module_interface.ModuleInterfaceCatalog,
+) -> Unit raise BuslaneLoweringError {
+  for symbol in symbols.types {
     if self.registry.find_type(symbol) is Some(_) {
       continue
     }
-    guard find_interface_type_reference(interface, symbol) is Some(reference) else {
+    guard find_interface_type_reference(provider, symbol) is Some(reference) else {
       raise MissingTypeReference(symbol)
     }
     guard find_available_interface_type(
@@ -22,11 +36,11 @@ fn BuslaneLowerer::seed_imported_dependency_headers(
     }
     self.seed_imported_type_dependency(reference.module_path, type_, available)
   }
-  for symbol in effect_symbols {
+  for symbol in symbols.effects {
     if self.registry.find_effect(symbol) is Some(_) {
       continue
     }
-    guard find_interface_effect_reference(interface, symbol) is Some(reference) else {
+    guard find_interface_effect_reference(provider, symbol) is Some(reference) else {
       raise MissingEffectReference(symbol)
     }
     guard find_available_interface_effect(
@@ -46,7 +60,7 @@ fn BuslaneLowerer::seed_imported_type_dependency(
   self : BuslaneLowerer,
   module_path : String,
   type_ : @module_interface.ModuleInterfaceType,
-  available : @module_interface.ImportedEnvironment,
+  available : @module_interface.ModuleInterfaceCatalog,
 ) -> Unit raise BuslaneLoweringError {
   self.seed_imported_type_header(module_path, type_)
   guard available.find(module_path) is Some(interface) else {
@@ -123,7 +137,7 @@ fn BuslaneLowerer::seed_unimported_owner_visible_members(
 fn BuslaneLowerer::seed_structural_derive_dependencies(
   self : BuslaneLowerer,
   source : @checked.CheckedSourceFile,
-  available : @module_interface.ImportedEnvironment,
+  available : @module_interface.ModuleInterfaceCatalog,
 ) -> Unit raise BuslaneLoweringError {
   let symbols : Array[@symbol.TypeSymbolId] = []
   for declaration in source.declarations {
@@ -245,7 +259,7 @@ fn find_interface_effect_reference(
 
 ///|
 fn find_available_interface_type(
-  available : @module_interface.ImportedEnvironment,
+  available : @module_interface.ModuleInterfaceCatalog,
   module_path : String,
   name : String,
 ) -> @module_interface.ModuleInterfaceType? {
@@ -265,7 +279,7 @@ fn find_available_interface_type(
 
 ///|
 fn find_available_interface_type_by_symbol(
-  available : @module_interface.ImportedEnvironment,
+  available : @module_interface.ModuleInterfaceCatalog,
   symbol : @symbol.TypeSymbolId,
 ) -> (String, @module_interface.ModuleInterfaceType)? {
   for interface in available.modules {
@@ -280,7 +294,7 @@ fn find_available_interface_type_by_symbol(
 
 ///|
 fn find_available_interface_effect(
-  available : @module_interface.ImportedEnvironment,
+  available : @module_interface.ModuleInterfaceCatalog,
   module_path : String,
   name : String,
 ) -> @module_interface.ModuleInterfaceEffect? {

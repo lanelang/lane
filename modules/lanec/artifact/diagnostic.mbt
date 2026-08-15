@@ -32,6 +32,15 @@ priv enum ArtifactDiagnosticKind {
   DuplicateModuleInterfaceArtifact(String)
   UnsupportedModuleInterfaceArtifactSchema(String)
   InvalidModuleInterfaceArtifact(module_path_text~ : String, reason~ : String)
+  DuplicateModuleInterfaceExport(
+    module_path_text~ : String,
+    exposed_name~ : String
+  )
+  InvalidModuleInterfaceExport(
+    module_path_text~ : String,
+    exposed_name~ : String,
+    reason~ : String
+  )
   DuplicateModuleObjectArtifact(String)
   UnsupportedModuleObjectArtifactSchema(
     schema~ : Int,
@@ -96,6 +105,24 @@ impl @compiler_diag.ToCompilerDiagnostic for ArtifactDiagnostic with fn to_compi
         label="module interface artifact \{reason} \{module_path_text}",
         note="the interface artifact metadata does not match its embedded module interface",
         help="recompile the provider module and pass the fresh `.lmi` file",
+      )
+    DuplicateModuleInterfaceExport(module_path_text~, exposed_name~) =>
+      artifact_report(
+        "duplicate module interface export",
+        diagnostic_.span,
+        code="E4104",
+        label="`\{module_path_text}` exports `\{exposed_name}` more than once in one namespace",
+        note="each public export key must have exactly one declaration target",
+        help="remove the duplicate export and recompile the module",
+      )
+    InvalidModuleInterfaceExport(module_path_text~, exposed_name~, reason~) =>
+      artifact_report(
+        "invalid module interface export",
+        diagnostic_.span,
+        code="E4105",
+        label="export `\{module_path_text}.\{exposed_name}` \{reason}",
+        note="public exports must resolve to the exact provider declaration recorded by the interface",
+        help="recompile the facade and provider modules together",
       )
     DuplicateModuleObjectArtifact(module_) =>
       artifact_report(

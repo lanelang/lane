@@ -13,7 +13,7 @@ fn qualified_import_binding(
 fn Resolver::publish_imported_bindings(
   self : Resolver,
   source : @syntax.SourceFile,
-  imported_environment : @module_interface.ImportedEnvironment,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
 ) -> Unit {
   let conflicting_qualified_imports = self.validate_qualified_imports(source)
   for import_ in source.imports {
@@ -29,49 +29,47 @@ fn Resolver::publish_imported_bindings(
           )
         }
       }
-      Open(module_path~, loc~) =>
-        match
-          imported_environment.find(
-            @module_interface.module_path_text(module_path),
-          ) {
-          Some(imported) => {
-            let module_path_text = @module_interface.module_path_text(
-              module_path,
-            )
-            let open_origin = self.define_import_exposure(
+      Open(module_path~, loc~) => {
+        let module_path_text = @module_interface.module_path_text(module_path)
+        let bindings = imported_environment.public_exports(module_path_text)
+        if imported_environment.find(module_path_text) is Some(_) {
+          let open_origin = self.define_import_exposure(
+            module_path_text,
+            OpenBinding,
+            loc,
+          )
+          ignore(
+            self.register_imported_module(
               module_path_text,
-              OpenBinding,
-              loc,
-            )
-            ignore(
-              self.register_imported_module(
-                imported,
-                provider_origin=Some(open_origin),
-              ),
-            )
-            self.publish_imported_public_types(imported, Some(open_origin))
-            self.publish_imported_public_effects(imported, Some(open_origin))
-            self.publish_imported_public_values(
-              imported,
-              loc,
-              Some(open_origin),
-            )
-          }
-          None => ()
+              bindings,
+              provider_origin=Some(open_origin),
+            ),
+          )
+          self.publish_imported_public_bindings(
+            bindings,
+            loc,
+            Some(open_origin),
+          )
         }
-      Selective(module_path~, items~, loc~) =>
-        match
-          imported_environment.find(
-            @module_interface.module_path_text(module_path),
-          ) {
-          Some(imported) => {
-            ignore(
-              self.register_imported_module(imported, provider_origin=None),
-            )
-            self.publish_selective_import(imported, items)
-          }
-          None => ignore(loc)
+      }
+      Selective(module_path~, items~, is_public~, loc~) => {
+        let module_path_text = @module_interface.module_path_text(module_path)
+        if imported_environment.find(module_path_text) is Some(_) {
+          let bindings = imported_environment.public_exports(module_path_text)
+          ignore(
+            self.register_imported_module(
+              module_path_text,
+              bindings,
+              provider_origin=None,
+            ),
+          )
+          self.publish_selective_import(
+            module_path_text, bindings, items, is_public,
+          )
+        } else {
+          ignore(loc)
         }
+      }
     }
   }
 }
@@ -192,67 +190,66 @@ fn Resolver::record_import_symbol(
 
 ///|
 fn selective_import_bindings(
-  interface : @module_interface.ModuleInterface,
+  bindings : Array[@module_interface.ResolvedModuleInterfaceExport],
   name : String,
-) -> Array[SelectiveImportBinding] {
-  let bindings = []
-  for type_ in interface.types {
-    let type_name = match type_ {
-      Struct(declaration) => declaration.name
-      Enum(declaration) => declaration.name
-      External(declaration) => declaration.name
-    }
-    if type_name == name {
-      bindings.push(ImportedType(type_))
-    }
-  }
-  for type_alias in interface.type_aliases {
-    if type_alias.name == name {
-      bindings.push(ImportedTypeAlias(type_alias))
-    }
-  }
-  for effect in interface.effects {
-    if effect.name == name {
-      bindings.push(ImportedEffect(effect))
-    }
-  }
-  for value in interface.values {
-    if value.name == name {
-      bindings.push(ImportedValue(value))
-    }
-  }
-  bindings
+) -> Array[@module_interface.ResolvedModuleInterfaceExport] {
+  bindings.filter(fn(binding) { binding.export_.exposed_name == name })
 }
 
 ///|
 fn Resolver::publish_selective_import(
   self : Resolver,
-  interface : @module_interface.ModuleInterface,
+  module_path_text : String,
+  public_bindings : Array[@module_interface.ResolvedModuleInterfaceExport],
   items : Array[@syntax.ImportItem],
+  is_public : Bool,
 ) -> Unit {
   for item in items {
-    let bindings = selective_import_bindings(interface, item.name)
+    let bindings = selective_import_bindings(public_bindings, item.name)
     if bindings.is_empty() {
       self.report(
-        UnresolvedImportItem(module_path=interface.module_path, name=item.name),
+        UnresolvedImportItem(module_path=module_path_text, name=item.name),
         item.loc,
       )
       continue
     }
     let origin = self.define_import_exposure(
-      interface.module_path,
-      SelectiveBinding(name=item.name),
+      module_path_text,
+      SelectiveBinding(name=item.name, is_public~),
       item.loc,
     )
     for binding in bindings {
-      self.publish_selective_import_binding(
-        interface,
-        binding,
-        origin,
-        item.loc,
-      )
+      self.publish_selective_import_binding(binding, Some(origin), item.loc)
+      if is_public {
+        self.publish_public_export(binding, item.loc)
+        self.record_import_use(Some(origin), item.loc)
+      }
     }
   }
+}
+
+///|
+fn Resolver::publish_public_export(
+  self : Resolver,
+  binding : @module_interface.ResolvedModuleInterfaceExport,
+  loc : SourceSpan,
+) -> Unit {
+  let export_ = binding.export_
+  for existing in self.public_exports {
+    if existing.export_.export_space == export_.export_space &&
+      existing.export_.exposed_name == export_.exposed_name {
+      self.report(
+        ConflictingPublicExport(
+          name=export_.exposed_name,
+          export_space=export_.export_space,
+          existing_loc=existing.loc,
+        ),
+        loc,
+      )
+      return
+    }
+  }
+  self.public_exports.push({ export_, declaration: binding.declaration, loc })
 }
 
 ///|
@@ -262,17 +259,19 @@ fn Resolver::publish_qualified_import(
   binding_loc : SourceSpan,
   module_path : @syntax.ModulePath,
   import_loc : SourceSpan,
-  imported_environment : @module_interface.ImportedEnvironment,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
 ) -> Unit {
   let path_text = @module_interface.module_path_text(module_path)
-  guard imported_environment.find(path_text) is Some(interface) else { return }
+  guard imported_environment.find(path_text) is Some(_) else { return }
+  let bindings = imported_environment.public_exports(path_text)
   let import_origin = self.define_import_exposure(
     path_text,
     QualifiedModuleBinding(name=binding_name, name_loc=binding_loc),
     import_loc,
   )
   let imported = self.register_imported_module(
-    interface,
+    path_text,
+    bindings,
     provider_origin=Some(import_origin),
   )
   self.module_bindings.push({
@@ -285,15 +284,16 @@ fn Resolver::publish_qualified_import(
 ///|
 fn Resolver::register_imported_module(
   self : Resolver,
-  interface : @module_interface.ModuleInterface,
+  module_path_text : String,
+  bindings : Array[@module_interface.ResolvedModuleInterfaceExport],
   provider_origin~ : Int?,
 ) -> ImportedModule {
-  let imported = match self.imported_module(interface.module_path) {
+  let imported = match self.imported_module(module_path_text) {
     Some(imported) => imported
     None => {
       let imported = ImportedModule::{
-        path_text: interface.module_path,
-        interface,
+        path_text: module_path_text,
+        bindings,
         provider_origins: [],
       }
       self.imported_modules.push(imported)
@@ -308,20 +308,14 @@ fn Resolver::register_imported_module(
 }
 
 ///|
-fn Resolver::publish_imported_public_types(
+fn Resolver::publish_imported_public_bindings(
   self : Resolver,
-  interface : @module_interface.ModuleInterface,
+  bindings : Array[@module_interface.ResolvedModuleInterfaceExport],
+  loc : SourceSpan,
   import_origin : Int?,
 ) -> Unit {
-  for type_ in interface.types {
-    self.publish_imported_type(type_, import_origin)
-  }
-  for type_alias in interface.type_aliases {
-    self.publish_imported_type_alias(
-      interface.module_path,
-      type_alias,
-      import_origin,
-    )
+  for binding in bindings {
+    self.publish_selective_import_binding(binding, import_origin, loc)
   }
 }
 
@@ -381,17 +375,6 @@ fn Resolver::publish_imported_type_alias(
 }
 
 ///|
-fn Resolver::publish_imported_public_effects(
-  self : Resolver,
-  interface : @module_interface.ModuleInterface,
-  import_origin : Int?,
-) -> Unit {
-  for effect in interface.effects {
-    self.publish_imported_effect(effect, import_origin)
-  }
-}
-
-///|
 fn interface_type_parameter_kinds(
   parameters : Array[@types.TypeParameter],
 ) -> Array[@types.Kind] {
@@ -442,27 +425,16 @@ fn Resolver::publish_imported_effect(
 }
 
 ///|
-fn Resolver::publish_imported_public_values(
-  self : Resolver,
-  interface : @module_interface.ModuleInterface,
-  loc : SourceSpan,
-  import_origin : Int?,
-) -> Unit {
-  for value in interface.values {
-    self.publish_imported_value(interface, value, loc, import_origin)
-  }
-}
-
-///|
 fn Resolver::publish_imported_value(
   self : Resolver,
-  interface : @module_interface.ModuleInterface,
+  provider_module : String,
+  provider_source_id : String?,
   value : @module_interface.ModuleInterfaceValue,
   loc : SourceSpan,
   import_origin : Int?,
 ) -> Unit {
   let binding = imported_interface_value_binding(
-    interface, value, import_origin,
+    provider_module, provider_source_id, value, import_origin,
   )
   self.publish_complete_top_level_binding(binding, loc)
   self.publish_ordered_top_level_binding(binding, loc)
@@ -472,34 +444,40 @@ fn Resolver::publish_imported_value(
 ///|
 fn Resolver::publish_selective_import_binding(
   self : Resolver,
-  interface : @module_interface.ModuleInterface,
-  binding : SelectiveImportBinding,
-  origin : Int,
+  binding : @module_interface.ResolvedModuleInterfaceExport,
+  origin : Int?,
   loc : SourceSpan,
 ) -> Unit {
-  match binding {
-    ImportedType(type_) => self.publish_imported_type(type_, Some(origin))
-    ImportedTypeAlias(type_alias) =>
+  match binding.declaration {
+    NominalType(type_) => self.publish_imported_type(type_, origin)
+    TypeAlias(type_alias) =>
       self.publish_imported_type_alias(
-        interface.module_path,
+        binding.export_.target.provider_module,
         type_alias,
-        Some(origin),
+        origin,
       )
-    ImportedEffect(effect) => self.publish_imported_effect(effect, Some(origin))
-    ImportedValue(value) =>
-      self.publish_imported_value(interface, value, loc, Some(origin))
+    Effect(effect) => self.publish_imported_effect(effect, origin)
+    Value(value) =>
+      self.publish_imported_value(
+        binding.export_.target.provider_module,
+        binding.provider_source_id,
+        value,
+        loc,
+        origin,
+      )
   }
 }
 
 ///|
 fn imported_interface_value_binding(
-  interface : @module_interface.ModuleInterface,
+  provider_module : String,
+  provider_source_id : String?,
   value : @module_interface.ModuleInterfaceValue,
   import_origin : Int?,
 ) -> ValueBinding {
-  let source = match interface.source_id {
+  let source = match provider_source_id {
     Some(source_id) => ExternalSource(source_id~)
-    None => NoSource(origin="module `\{interface.module_path}`")
+    None => NoSource(origin="module `\{provider_module}`")
   }
   {
     name: value.name,

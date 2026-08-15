@@ -196,8 +196,9 @@ fn Resolver::resolve_module_value_field_chain(
         self.report(AmbiguousModuleValue(full_name), loc)
         return Some(Var(name=full_name, reference=Unresolved(full_name), loc~))
       }
-      for value in module_.imported.interface.values {
-        if value.name == value_name {
+      for binding in module_.imported.bindings {
+        if binding.declaration is Value(value) &&
+          binding.export_.exposed_name == value_name {
           return Some(Var(name=full_name, reference=Symbol(value.symbol), loc~))
         }
       }
@@ -348,45 +349,50 @@ fn ModuleNamespaceSource::type_binding(
       None
     }
     ImportedModule(imported~, import_origins~, ..) => {
-      for type_ in imported.interface.types {
-        match type_ {
-          Struct(declaration) if declaration.name == name =>
-            return Some({
-              owner_module_path: imported.path_text,
-              parameter_kinds: interface_type_parameter_kinds(
-                declaration.type_parameters,
-              ),
-              kind: NominalType(symbol=declaration.symbol, variants=[]),
-              import_origins,
-            })
-          Enum(declaration) if declaration.name == name =>
-            return Some({
-              owner_module_path: imported.path_text,
-              parameter_kinds: interface_type_parameter_kinds(
-                declaration.type_parameters,
-              ),
-              kind: NominalType(
-                symbol=declaration.symbol,
-                variants=declaration.variants.map(fn(variant) {
-                  { name: variant.name, symbol: variant.symbol }
-                }),
-              ),
-              import_origins,
-            })
-          External(declaration) if declaration.name == name =>
-            return Some({
-              owner_module_path: imported.path_text,
-              parameter_kinds: [],
-              kind: NominalType(symbol=declaration.symbol, variants=[]),
-              import_origins,
-            })
+      for binding in imported.bindings {
+        match binding.declaration {
+          NominalType(type_) =>
+            match type_ {
+              Struct(declaration) if declaration.name == name =>
+                return Some({
+                  owner_module_path: binding.export_.target.provider_module,
+                  parameter_kinds: interface_type_parameter_kinds(
+                    declaration.type_parameters,
+                  ),
+                  kind: NominalType(symbol=declaration.symbol, variants=[]),
+                  import_origins,
+                })
+              Enum(declaration) if declaration.name == name =>
+                return Some({
+                  owner_module_path: binding.export_.target.provider_module,
+                  parameter_kinds: interface_type_parameter_kinds(
+                    declaration.type_parameters,
+                  ),
+                  kind: NominalType(
+                    symbol=declaration.symbol,
+                    variants=declaration.variants.map(fn(variant) {
+                      { name: variant.name, symbol: variant.symbol }
+                    }),
+                  ),
+                  import_origins,
+                })
+              External(declaration) if declaration.name == name =>
+                return Some({
+                  owner_module_path: binding.export_.target.provider_module,
+                  parameter_kinds: [],
+                  kind: NominalType(symbol=declaration.symbol, variants=[]),
+                  import_origins,
+                })
+              _ => ()
+            }
           _ => ()
         }
       }
-      for effect in imported.interface.effects {
-        if effect.name == name {
+      for binding in imported.bindings {
+        if binding.declaration is Effect(effect) &&
+          binding.export_.exposed_name == name {
           return Some({
-            owner_module_path: imported.path_text,
+            owner_module_path: binding.export_.target.provider_module,
             parameter_kinds: interface_type_parameter_kinds(
               effect.type_parameters,
             ),
@@ -395,10 +401,11 @@ fn ModuleNamespaceSource::type_binding(
           })
         }
       }
-      for type_alias in imported.interface.type_aliases {
-        if type_alias.name == name {
+      for binding in imported.bindings {
+        if binding.declaration is TypeAlias(type_alias) &&
+          binding.export_.exposed_name == name {
           return Some({
-            owner_module_path: imported.path_text,
+            owner_module_path: binding.export_.target.provider_module,
             parameter_kinds: interface_type_parameter_kinds(
               type_alias.type_parameters,
             ),
@@ -664,8 +671,9 @@ fn Resolver::field_symbol_opt(
     }
   }
   for imported in self.imported_modules {
-    for type_ in imported.interface.types {
-      if type_ is Struct(declaration) && declaration.symbol == owner {
+    for binding in imported.bindings {
+      if binding.declaration is NominalType(Struct(declaration)) &&
+        declaration.symbol == owner {
         for field in declaration.fields {
           if field.name == name {
             return Some(field.symbol)
@@ -696,8 +704,9 @@ fn Resolver::type_has_member(
     return binding.type_members.contains(name)
   }
   for imported in self.imported_modules {
-    for type_ in imported.interface.types {
-      if type_ is Struct(declaration) && declaration.symbol == owner {
+    for binding in imported.bindings {
+      if binding.declaration is NominalType(Struct(declaration)) &&
+        declaration.symbol == owner {
         return declaration.type_members.any(fn(item) { item.name == name })
       }
     }
@@ -891,8 +900,8 @@ fn Resolver::operation_binding(
     }
   }
   for imported in self.imported_modules {
-    for effect in imported.interface.effects {
-      if effect.symbol == owner {
+    for binding in imported.bindings {
+      if binding.declaration is Effect(effect) && effect.symbol == owner {
         for operation in effect.operations {
           if operation.name == name {
             return Some(operation.symbol)

@@ -79,7 +79,7 @@ fn ModuleInterface::fingerprints_result(
     Ok(encoding) => {
       let semantic : ModuleInterfaceSemanticFingerprint = {
         value: fingerprint_hash(
-          "lane-interface-fingerprint-v2",
+          "lane-interface-fingerprint-v3",
           encoding.semantic,
         ),
       }
@@ -88,7 +88,7 @@ fn ModuleInterface::fingerprints_result(
       presentation_payload.write_raw_bytes(encoding.presentation)
       let presentation : ModuleInterfacePresentationFingerprint = {
         value: fingerprint_hash(
-          "lane-interface-presentation-fingerprint-v2",
+          "lane-interface-presentation-fingerprint-v3",
           presentation_payload.to_bytes(),
         ),
       }
@@ -135,10 +135,90 @@ fn CanonicalInterfaceEncoder::write_interface(
   self.write_effects(self.interface.effects)
   self.write_type_aliases(self.interface.type_aliases)
   self.write_values(self.interface.values)
+  self.write_exports(self.interface.exports)
   self.writer.write_u32_le_int(self.interface.optimization_hints.length())
   for hint in self.interface.optimization_hints {
     self.writer.write_string(hint.name)
   }
+}
+
+///|
+pub fn ModuleInterface::declaration_fingerprint(
+  self : ModuleInterface,
+  declaration : ModuleInterfaceDeclaration,
+) -> Result[DeclarationFingerprint, String] {
+  try {
+    let writer = @bytecodec.ByteWriter::new()
+    let encoder = CanonicalInterfaceEncoder::{
+      writer,
+      presentation: @bytecodec.ByteWriter::new(),
+      interface: self,
+      type_parameters: [],
+    }
+    match declaration {
+      NominalType(type_) => {
+        writer.write_u8(0)
+        encoder.write_types([type_])
+      }
+      TypeAlias(alias_) => {
+        writer.write_u8(1)
+        encoder.write_type_aliases([alias_])
+      }
+      Effect(effect) => {
+        writer.write_u8(2)
+        encoder.write_effects([effect])
+      }
+      Value(value) => {
+        writer.write_u8(3)
+        encoder.write_values([value])
+        let hints = self.optimization_hints.filter(fn(hint) {
+          hint.name == value.name
+        })
+        writer.write_u32_le_int(hints.length())
+        for hint in hints {
+          writer.write_string(hint.name)
+        }
+      }
+    }
+    Ok({
+      value: fingerprint_hash(
+        "lane-interface-declaration-fingerprint-v1",
+        writer.to_bytes(),
+      ),
+    })
+  } catch {
+    InvalidCanonicalInterface(message) => Err(message)
+  }
+}
+
+///|
+fn CanonicalInterfaceEncoder::write_exports(
+  self : CanonicalInterfaceEncoder,
+  exports : Array[ModuleInterfaceExport],
+) -> Unit {
+  self.writer.write_u32_le_int(exports.length())
+  for export_ in exports {
+    self.write_export_namespace(export_.export_space)
+    self.writer.write_string(export_.exposed_name)
+    self.writer.write_string(export_.target.provider_module)
+    self.write_export_namespace(export_.target.export_space)
+    self.writer.write_string(export_.target.declaration_name)
+    self.writer.write_string(export_.expected_target_fingerprint.value)
+  }
+}
+
+///|
+fn CanonicalInterfaceEncoder::write_export_namespace(
+  self : CanonicalInterfaceEncoder,
+  export_space : ModuleInterfaceExportNamespace,
+) -> Unit {
+  self.writer.write_u8(
+    match export_space {
+      TypeNamespace => 0
+      EffectNamespace => 1
+      ValueNamespace => 2
+    },
+  )
 }
 
 ///|

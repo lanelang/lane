@@ -298,7 +298,7 @@ fn ImportDeclaration::to_doc(
     }
     Open(module_path~, ..) =>
       keyword("import") + space + module_path.to_doc() + text(".*")
-    Selective(module_path~, items~, ..) => {
+    Selective(module_path~, items~, is_public~, ..) => {
       let item_docs = items.map(fn(item) { item.to_doc(trivia~) })
       let start_offset = module_path.loc.end_offset
       let end_offset = self.loc().end_offset
@@ -308,6 +308,7 @@ fn ImportDeclaration::to_doc(
         end_offset,
         child_spans=items.map(fn(item) { item.loc }),
       )
+      (if is_public { keyword("pub") + space } else { empty }) +
       keyword("import") +
       space +
       module_path.to_doc() +

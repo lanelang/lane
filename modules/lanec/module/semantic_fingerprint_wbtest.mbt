@@ -13,6 +13,7 @@ fn empty_module_interface(
     effects: [],
     type_aliases: [],
     values: [],
+    exports: [],
     optimization_hints: hints,
   }
 }
@@ -72,6 +73,48 @@ fn generic_identity_interface(binder_name : String) -> ModuleInterface {
 }
 
 ///|
+fn provider_interface(
+  selected_type : @types.Type,
+  unrelated_type : @types.Type,
+) -> ModuleInterface {
+  let interface = {
+    ..empty_module_interface("Provider", None),
+    values: [
+      {
+        symbol: { index: 0 },
+        kind: Let,
+        is_offered: false,
+        name: "selected",
+        type_: selected_type,
+        parameters: None,
+        loc: @basic.SourceSpan::dummy(),
+      },
+      {
+        symbol: { index: 1 },
+        kind: Let,
+        is_offered: false,
+        name: "unrelated",
+        type_: unrelated_type,
+        parameters: None,
+        loc: @basic.SourceSpan::dummy(),
+      },
+    ],
+  }
+  { ..interface, exports: interface.owned_exports() }
+}
+
+///|
+fn facade_for_selected(provider : ModuleInterface) -> ModuleInterface {
+  for selected in provider.exports {
+    if selected.exposed_name == "selected" &&
+      selected.export_space == ValueNamespace {
+      return { ..empty_module_interface("Facade", None), exports: [selected] }
+    }
+  }
+  abort("expected provider export")
+}
+
+///|
 test "semantic fingerprint ignores source identity" {
   let old_fingerprint = empty_module_interface("A", Some("old-A.lane")).semantic_fingerprint()
   let new_fingerprint = empty_module_interface("A", Some("new-A.lane")).semantic_fingerprint()
@@ -116,6 +159,26 @@ test "semantic fingerprint result reports invalid interface references" {
   assert_eq(
     invalid_reference_interface().semantic_fingerprint_result(),
     Err("unresolved interface type reference"),
+  )
+}
+
+///|
+test "facade fingerprint tracks only selected provider declarations" {
+  let initial = facade_for_selected(
+    provider_interface(Primitive(I64), Primitive(Bool)),
+  )
+  let unrelated_change = facade_for_selected(
+    provider_interface(Primitive(I64), Primitive(String)),
+  )
+  let selected_change = facade_for_selected(
+    provider_interface(Primitive(Bool), Primitive(String)),
+  )
+  assert_eq(
+    initial.semantic_fingerprint(),
+    unrelated_change.semantic_fingerprint(),
+  )
+  assert_false(
+    initial.semantic_fingerprint() == selected_change.semantic_fingerprint(),
   )
 }
 

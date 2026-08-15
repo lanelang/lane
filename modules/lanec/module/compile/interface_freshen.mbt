@@ -33,7 +33,7 @@ priv struct InterfaceSymbolFreshener {
 fn freshen_module_interface_artifacts(
   registry : @symbol.SymbolRegistry,
   artifacts : Array[@artifact.ModuleInterfaceArtifact],
-) -> @module_interface.ImportedEnvironment {
+) -> @module_interface.ModuleInterfaceCatalog {
   let environment = InterfaceFresheningEnvironment::{
     registry,
     types: [],
@@ -83,6 +83,7 @@ fn freshen_module_interface(
       freshener.freshen_type_alias(type_alias)
     }),
     values: interface.values.map(fn(value) { freshener.freshen_value(value) }),
+    exports: interface.exports,
     optimization_hints: interface.optimization_hints,
   }
 }

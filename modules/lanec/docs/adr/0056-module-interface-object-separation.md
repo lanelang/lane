@@ -6,7 +6,7 @@ This mirrors the mature separate-compilation split between compiler-readable int
 
 ## Consequences
 
-- `ImportedEnvironment` contains **Module Interfaces**, not **Module Objects**.
+- `ModuleInterfaceCatalog` contains **Module Interfaces**, not **Module Objects**.
 - Source name resolution consults only directly imported interfaces. Type checking and Buslane lowering may additionally consult the transitive interface closure for nominal type, effect, and required field-selector identities, but that closure does not make transitive names, values, constructors, operations, or contextual offers source-visible.
 - `ModuleInterface` records exported symbols, types, offers, public nominal shapes, and transparent public aliases, but not Buslane identities.
 - `ModuleObject` may contain lowered private definitions and Buslane metadata needed for linking and execution.

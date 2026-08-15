@@ -16,6 +16,7 @@ test "panic interface freshening rejects an unmapped type parameter" {
     effects: [],
     type_aliases: [],
     values: [],
+    exports: [],
     optimization_hints: [],
   }
   let freshener = InterfaceSymbolFreshener(environment, interface)
@@ -47,6 +48,7 @@ test "interface freshening reuses type alias identities by module path" {
       },
     ],
     values: [],
+    exports: [],
     optimization_hints: [],
   }
   let environment = InterfaceFresheningEnvironment::{

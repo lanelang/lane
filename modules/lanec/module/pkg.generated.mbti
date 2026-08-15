@@ -15,11 +15,9 @@ pub fn module_path_text(@syntax.ModulePath) -> String
 // Errors
 
 // Types and methods
-pub(all) struct ImportedEnvironment {
-  modules : Array[ModuleInterface]
+pub(all) struct DeclarationFingerprint {
+  value : String
 } derive(Eq, @debug.Debug)
-pub fn ImportedEnvironment::ImportedEnvironment() -> Self
-pub fn ImportedEnvironment::find(Self, String) -> ModuleInterface?
 
 pub(all) struct InterfaceDependencySymbols {
   types : Array[@symbol.TypeSymbolId]
@@ -27,11 +25,11 @@ pub(all) struct InterfaceDependencySymbols {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleImportEnvironments {
-  direct : ImportedEnvironment
-  available : ImportedEnvironment
+  direct : ModuleInterfaceCatalog
+  available : ModuleInterfaceCatalog
 } derive(Eq, @debug.Debug)
-pub fn ModuleImportEnvironments::from_pool(Array[String], ImportedEnvironment) -> Self
-pub fn ModuleImportEnvironments::typecheck_environment(Self) -> ImportedEnvironment
+pub fn ModuleImportEnvironments::from_pool(Array[String], ModuleInterfaceCatalog) -> Self
+pub fn ModuleImportEnvironments::typecheck_environment(Self) -> ModuleInterfaceCatalog
 
 pub(all) struct ModuleInterface {
   module_path : String
@@ -42,14 +40,39 @@ pub(all) struct ModuleInterface {
   effects : Array[ModuleInterfaceEffect]
   type_aliases : Array[ModuleInterfaceTypeAlias]
   values : Array[ModuleInterfaceValue]
+  exports : Array[ModuleInterfaceExport]
   optimization_hints : Array[OptimizationHint]
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterface::declaration(Self, ModuleInterfaceDeclarationRef) -> ModuleInterfaceDeclaration?
+pub fn ModuleInterface::declaration_fingerprint(Self, ModuleInterfaceDeclaration) -> Result[DeclarationFingerprint, String]
 pub fn ModuleInterface::dependency_module_paths(Self) -> Array[String]
 pub fn ModuleInterface::dependency_symbols(Self) -> InterfaceDependencySymbols
 pub fn ModuleInterface::exported_symbol_metadata(Self, @symbol.SymbolRegistry) -> @symbol.SymbolMetadataArena
+pub fn ModuleInterface::owned_exports(Self) -> Array[ModuleInterfaceExport]
 pub fn ModuleInterface::presentation_fingerprint(Self) -> ModuleInterfacePresentationFingerprint
 pub fn ModuleInterface::semantic_fingerprint(Self) -> ModuleInterfaceSemanticFingerprint
 pub fn ModuleInterface::semantic_fingerprint_result(Self) -> Result[ModuleInterfaceSemanticFingerprint, String]
+
+pub(all) struct ModuleInterfaceCatalog {
+  modules : Array[ModuleInterface]
+} derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceCatalog::ModuleInterfaceCatalog() -> Self
+pub fn ModuleInterfaceCatalog::find(Self, String) -> ModuleInterface?
+pub fn ModuleInterfaceCatalog::public_exports(Self, String) -> Array[ResolvedModuleInterfaceExport]
+
+pub(all) enum ModuleInterfaceDeclaration {
+  NominalType(ModuleInterfaceType)
+  TypeAlias(ModuleInterfaceTypeAlias)
+  Effect(ModuleInterfaceEffect)
+  Value(ModuleInterfaceValue)
+} derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceDeclaration::dependency_symbols(Self) -> InterfaceDependencySymbols
+
+pub(all) struct ModuleInterfaceDeclarationRef {
+  provider_module : String
+  export_space : ModuleInterfaceExportNamespace
+  declaration_name : String
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleInterfaceEffect {
   symbol : @symbol.EffectSymbolId
@@ -72,6 +95,19 @@ pub(all) struct ModuleInterfaceEnum {
   type_parameters : Array[@types.TypeParameter]
   variants : Array[ModuleInterfaceVariant]
   loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ModuleInterfaceExport {
+  export_space : ModuleInterfaceExportNamespace
+  exposed_name : String
+  target : ModuleInterfaceDeclarationRef
+  expected_target_fingerprint : DeclarationFingerprint
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModuleInterfaceExportNamespace {
+  TypeNamespace
+  EffectNamespace
+  ValueNamespace
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleInterfaceExternalType {
@@ -186,6 +222,12 @@ pub(all) struct ModuleInterfaceVariant {
 
 pub(all) struct OptimizationHint {
   name : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ResolvedModuleInterfaceExport {
+  export_ : ModuleInterfaceExport
+  declaration : ModuleInterfaceDeclaration
+  provider_source_id : String?
 } derive(Eq, @debug.Debug)
 
 // Type aliases

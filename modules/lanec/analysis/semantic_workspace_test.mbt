@@ -166,3 +166,55 @@ test "local hover uses nominal tuple presentation" {
   }
   assert_eq(hover.contents, "pair : Tuple[I64, Bool]")
 }
+
+///|
+test "definition through a public facade resolves to the provider" {
+  let workspace = SemanticWorkspace::new()
+  guard workspace.replace_sources([
+      {
+        source_id: "file:///Main.lane",
+        text: (
+          #|module Main
+          #|import Facade
+          #|pub let answer : I64 = Facade.value
+        ),
+      },
+      {
+        source_id: "file:///Facade.lane",
+        text: (
+          #|module Facade
+          #|pub import Provider.{ value }
+        ),
+      },
+      {
+        source_id: "file:///Provider.lane",
+        text: (
+          #|module Provider
+          #|pub let value : I64 = 42
+        ),
+      },
+    ])
+    is Some(snapshot) else {
+    abort("expected semantic snapshot")
+  }
+  assert_eq(snapshot.diagnostics(), [])
+  guard snapshot.definition_at("file:///Main.lane", 3, 33) is Some(location) else {
+    abort("expected provider definition")
+  }
+  assert_eq(
+    (location.source_id, location.span.start_line, location.span.start_column),
+    ("file:///Provider.lane", 2, 9),
+  )
+  guard snapshot.definition_at("file:///Facade.lane", 2, 25)
+    is Some(export_target) else {
+    abort("expected public import item definition")
+  }
+  assert_eq(
+    (
+      export_target.source_id,
+      export_target.span.start_line,
+      export_target.span.start_column,
+    ),
+    ("file:///Provider.lane", 2, 9),
+  )
+}

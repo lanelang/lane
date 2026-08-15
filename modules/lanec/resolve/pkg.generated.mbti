@@ -15,7 +15,7 @@ import {
 // Values
 pub fn resolve_source_file_result(@syntax.SourceFile) -> ResolveResult
 
-pub fn resolve_source_file_with_imports_result(@syntax.SourceFile, @symbol.SymbolRegistry, @module.ImportedEnvironment, previous_declarations? : @symbol.DeclarationIdentities?) -> ResolveResult
+pub fn resolve_source_file_with_imports_result(@syntax.SourceFile, @symbol.SymbolRegistry, @module.ModuleInterfaceCatalog, previous_declarations? : @symbol.DeclarationIdentities?) -> ResolveResult
 
 // Errors
 
@@ -34,6 +34,7 @@ pub(all) enum ResolveDiagnosticKind {
   UnresolvedField(type_name~ : String, field~ : String)
   UnresolvedQualifiedVariant(type_name~ : String, variant~ : String)
   UnresolvedImportItem(module_path~ : String, name~ : String)
+  ConflictingPublicExport(name~ : String, export_space~ : @module.ModuleInterfaceExportNamespace, existing_loc~ : @basic.SourceSpan)
   PayloadlessVariantWithoutParens(String)
   ConflictingTopLevelValue(name~ : String, existing~ : String, incoming~ : String, existing_source_id~ : String?, existing_loc~ : @basic.SourceSpan?, existing_origin~ : String?)
   AmbiguousModuleBinding(name~ : String, existing_loc~ : @basic.SourceSpan)
@@ -260,7 +261,7 @@ pub(all) struct ResolvedImportExposure {
 pub(all) enum ResolvedImportExposureKind {
   QualifiedModuleBinding(name~ : String, name_loc~ : @basic.SourceSpan)
   OpenBinding
-  SelectiveBinding(name~ : String)
+  SelectiveBinding(name~ : String, is_public~ : Bool)
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ResolvedImportExposureSymbol {
@@ -359,6 +360,12 @@ pub(all) struct ResolvedPatternLetDeclaration {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ResolvedPatternLetDeclaration
 
+pub(all) struct ResolvedPublicExport {
+  export_ : @module.ModuleInterfaceExport
+  declaration : @module.ModuleInterfaceDeclaration
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+
 pub(all) struct ResolvedQualifiedName {
   module_binding : String
   name : String
@@ -370,6 +377,7 @@ pub(all) struct ResolvedSourceFile {
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
+  public_exports : Array[ResolvedPublicExport]
   module_binding_references : Array[ResolvedModuleBindingReference]
   declarations : Array[ResolvedTopLevelDeclaration]
   loc : @basic.SourceSpan

@@ -97,7 +97,7 @@ priv struct SemanticIndex {
 fn SemanticIndex::from_sources(
   resolved : @resolve.ResolvedSourceFile,
   checked : @checked.CheckedSourceFile?,
-  direct_imports : @module_interface.ImportedEnvironment,
+  imports : @module_interface.ModuleImportEnvironments,
   display : @typecheck.TypeDisplayContext,
   source_id : String,
   _source_text : String,
@@ -121,9 +121,11 @@ fn SemanticIndex::from_sources(
     parameter_signatures: Map([]),
   }
   index.add_module_bindings(resolved.module_binding_references)
-  for interface in direct_imports.modules {
-    for value in interface.values {
-      if value.parameters is Some(parameters) {
+  index.add_public_export_references(resolved.public_exports)
+  for interface in imports.direct.modules {
+    for binding in imports.available.public_exports(interface.module_path) {
+      if binding.declaration is Value(value) &&
+        value.parameters is Some(parameters) {
         index.add_parameter_signature(
           value.symbol,
           parameters.map(parameter => {
@@ -146,6 +148,30 @@ fn SemanticIndex::from_sources(
     }
   }
   index
+}
+
+///|
+fn SemanticIndex::add_public_export_references(
+  self : SemanticIndex,
+  exports : Array[@resolve.ResolvedPublicExport],
+) -> Unit {
+  for export_ in exports {
+    let symbol : AnalysisSymbol = match export_.declaration {
+      NominalType(Struct(declaration)) => Type(declaration.symbol)
+      NominalType(Enum(declaration)) => Type(declaration.symbol)
+      NominalType(External(declaration)) => Type(declaration.symbol)
+      TypeAlias(declaration) => TypeAlias(declaration.symbol)
+      Effect(declaration) => Effect(declaration.symbol)
+      Value(declaration) => Value(declaration.symbol)
+    }
+    self.add_reference(
+      symbol,
+      export_.loc,
+      Some(
+        "public import of \{export_.export_.target.provider_module}.\{export_.export_.target.declaration_name}",
+      ),
+    )
+  }
 }
 
 ///|

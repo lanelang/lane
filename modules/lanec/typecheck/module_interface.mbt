@@ -30,6 +30,7 @@ fn SemanticChecker::module_interface(
     values: checked_source.declarations.filter_map(fn(declaration) {
       self.interface_value(declaration)
     }),
+    exports: [],
     optimization_hints: [],
   }
   let dependencies = surface.dependency_symbols()
@@ -47,6 +48,16 @@ fn SemanticChecker::module_interface(
     ),
   }
   self.check_public_interface(interface)
+  if !self.diagnostics.is_empty() {
+    return interface
+  }
+  let exports = interface.owned_exports()
+  exports.append(
+    self.resolved_source.public_exports.map(fn(public_export) {
+      public_export.export_
+    }),
+  )
+  let interface = { ..interface, exports, }
   interface
 }
 
@@ -87,7 +98,7 @@ fn SemanticChecker::interface_type_references(
 
 ///|
 fn find_imported_type_reference(
-  imported : @module_interface.ImportedEnvironment,
+  imported : @module_interface.ModuleInterfaceCatalog,
   symbol : TypeSymbolId,
 ) -> @module_interface.ModuleInterfaceTypeReference? {
   for interface in imported.modules {
@@ -148,7 +159,7 @@ fn SemanticChecker::interface_effect_references(
 
 ///|
 fn find_imported_effect_reference(
-  imported : @module_interface.ImportedEnvironment,
+  imported : @module_interface.ModuleInterfaceCatalog,
   symbol : EffectSymbolId,
 ) -> @module_interface.ModuleInterfaceEffectReference? {
   for interface in imported.modules {

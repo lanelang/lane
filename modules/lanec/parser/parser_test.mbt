@@ -403,6 +403,18 @@ test "parse aliased qualified import with binder spans" {
 }
 
 ///|
+test "parse selective public import as an explicit import property" {
+  let file = expect_parse_ok("pub import Basic.Data.List.{ List, empty }")
+  guard file.imports is [Selective(module_path~, items~, is_public~, ..)] else {
+    abort("expected one selective public import")
+  }
+  assert_eq(
+    (module_path.components, items.map(fn(item) { item.name }), is_public),
+    (["Basic", "Data", "List"], ["List", "empty"], true),
+  )
+}
+
+///|
 test "import aliases are rejected on open and selective imports" {
   debug_inspect(
     parse_error_kinds("import Basic.Data.List.* as List"),

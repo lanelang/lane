@@ -730,6 +730,7 @@ test "compile module rejects interface artifact name mismatch" {
     effects: interface.effects,
     type_aliases: interface.type_aliases,
     values: interface.values,
+    exports: interface.exports,
     optimization_hints: interface.optimization_hints,
   }
   let damaged : @artifact.ModuleInterfaceArtifact = {

@@ -1,7 +1,7 @@
 ///|
 priv struct ImportAliasFixture {
   registry : SymbolRegistry
-  imported : @module_interface.ImportedEnvironment
+  imported : @module_interface.ModuleInterfaceCatalog
   value : ValueSymbolId
   empty : VariantSymbolId
   tuple : VariantSymbolId
@@ -36,12 +36,16 @@ fn import_alias_fixture() -> ImportAliasFixture {
         loc,
       },
     ],
+    exports: [],
     optimization_hints: [],
   }
+  let library = { ..library, exports: library.owned_exports() }
   let list_module = @module_interface.ModuleInterface::{
     module_path: "Basic.Data.List",
     source_id: Some("file:///List.lane"),
-    type_references: [],
+    type_references: [
+      { symbol: list, module_path: "Basic.Data.List", name: "List" },
+    ],
     effect_references: [],
     types: [
       Enum({
@@ -72,8 +76,10 @@ fn import_alias_fixture() -> ImportAliasFixture {
     effects: [],
     type_aliases: [],
     values: [],
+    exports: [],
     optimization_hints: [],
   }
+  let list_module = { ..list_module, exports: list_module.owned_exports() }
   let tuple_module = @module_interface.ModuleInterface::{
     module_path: "Basic.Data.Tuple",
     source_id: Some("file:///Tuple.lane"),
@@ -100,8 +106,10 @@ fn import_alias_fixture() -> ImportAliasFixture {
     effects: [],
     type_aliases: [],
     values: [],
+    exports: [],
     optimization_hints: [],
   }
+  let tuple_module = { ..tuple_module, exports: tuple_module.owned_exports() }
   {
     registry,
     imported: { modules: [library, list_module, tuple_module] },
@@ -230,7 +238,7 @@ test "selective import does not conflict with a qualified module binding" {
       #|      end_column: 11,
       #|    },
       #|  ),
-      #|  SelectiveBinding(name="value"),
+      #|  SelectiveBinding(name="value", is_public=false),
       #|]
     ),
   )
@@ -404,7 +412,7 @@ test "missing selective item does not discard a valid sibling" {
       #|    {
       #|      id: 0,
       #|      module_path_text: "Lib",
-      #|      kind: SelectiveBinding(name="value"),
+      #|      kind: SelectiveBinding(name="value", is_public=false),
       #|      loc: {
       #|        start_offset: 25,
       #|        end_offset: 30,

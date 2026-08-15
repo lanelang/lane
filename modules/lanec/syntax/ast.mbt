@@ -23,6 +23,7 @@ pub(all) enum ImportDeclaration {
   Selective(
     module_path~ : ModulePath,
     items~ : Array[ImportItem],
+    is_public~ : Bool,
     loc~ : SourceSpan
   )
 } derive(Debug, Eq)

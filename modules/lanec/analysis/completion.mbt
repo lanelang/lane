@@ -381,24 +381,27 @@ fn CompletionIndex::add_module_surface_entries(
   replace : @basic.SourceSpan,
   display : @typecheck.TypeDisplayContext,
 ) -> Unit {
-  guard imported_interface_for_owner(module_, owner) is Some(interface) else {
+  guard imported_exports_for_owner(module_, owner) is Some((_, bindings)) else {
     return
   }
   self.add_interface_surface_entries(
-    entries, source_id, prefix, replace, interface, display,
+    entries, source_id, prefix, replace, bindings, display,
   )
 }
 
 ///|
-fn imported_interface_for_owner(
+fn imported_exports_for_owner(
   module_ : CachedSemanticModule,
   owner : String,
-) -> @module_interface.ModuleInterface? {
+) -> (String, Array[@module_interface.ResolvedModuleInterfaceExport])? {
   for _, binding in module_.index.module_bindings {
     if binding.name == owner {
-      // Module-qualified completion offers only what the module bound by name,
-      // so this stays on the direct environment.
-      return module_.imports.direct.find(binding.module_path)
+      return Some(
+        (
+          binding.module_path,
+          module_.imports.available.public_exports(binding.module_path),
+        ),
+      )
     }
   }
   None
@@ -411,91 +414,75 @@ fn CompletionIndex::add_interface_surface_entries(
   source_id : String,
   prefix : String,
   replace : @basic.SourceSpan,
-  interface : @module_interface.ModuleInterface,
+  bindings : Array[@module_interface.ResolvedModuleInterfaceExport],
   display : @typecheck.TypeDisplayContext,
 ) -> Unit {
-  for value in interface.values {
-    let kind = match value.kind {
-      Function => Function
-      Let => Value
-    }
-    let type_text = display.type_text(value.type_)
-    add_completion_entry(
-      entries,
-      source_id,
-      prefix,
-      replace,
-      value.name,
-      kind,
-      Some("\{value.name} : \{type_text}"),
-      "20",
-      is_offered=value.is_offered,
-    )
-  }
-  for type_ in interface.types {
-    match type_ {
-      Struct(struct_) =>
+  for binding in bindings {
+    let exposed_name = binding.export_.exposed_name
+    match binding.declaration {
+      Value(value) => {
+        let kind = match value.kind {
+          Function => Function
+          Let => Value
+        }
+        let type_text = display.type_text(value.type_)
         add_completion_entry(
           entries,
           source_id,
           prefix,
           replace,
-          struct_.name,
-          Type,
-          Some("struct \{struct_.name}"),
-          "30",
+          exposed_name,
+          kind,
+          Some("\{exposed_name} : \{type_text}"),
+          "20",
+          is_offered=value.is_offered,
         )
-      Enum(enum_) =>
+      }
+      NominalType(type_) => {
+        let detail = match type_ {
+          Struct(_) => "struct \{exposed_name}"
+          Enum(_) => "enum \{exposed_name}"
+          External(_) => "extern type \{exposed_name} : Type"
+        }
         add_completion_entry(
           entries,
           source_id,
           prefix,
           replace,
-          enum_.name,
+          exposed_name,
           Type,
-          Some("enum \{enum_.name}"),
+          Some(detail),
           "30",
         )
-      External(external) =>
+      }
+      TypeAlias(type_alias) => {
+        let kind = match type_alias.kind {
+          Effect => CompletionKind::Effect
+          _ => Type
+        }
         add_completion_entry(
           entries,
           source_id,
           prefix,
           replace,
-          external.name,
-          Type,
-          Some("extern type \{external.name} : Type"),
+          exposed_name,
+          kind,
+          Some("type \{exposed_name}"),
           "30",
         )
+      }
+      Effect(effect) =>
+        add_completion_entry(
+          entries,
+          source_id,
+          prefix,
+          replace,
+          exposed_name,
+          Effect,
+          Some(effect_completion_detail(exposed_name, effect.flavor)),
+          "32",
+        )
     }
-  }
-  for type_alias in interface.type_aliases {
-    let kind = match type_alias.kind {
-      Effect => CompletionKind::Effect
-      _ => Type
-    }
-    add_completion_entry(
-      entries,
-      source_id,
-      prefix,
-      replace,
-      type_alias.name,
-      kind,
-      Some("type \{type_alias.name}"),
-      "30",
-    )
-  }
-  for effect in interface.effects {
-    add_completion_entry(
-      entries,
-      source_id,
-      prefix,
-      replace,
-      effect.name,
-      Effect,
-      Some(effect_completion_detail(effect.name, effect.flavor)),
-      "32",
-    )
   }
 }
 
@@ -512,14 +499,15 @@ fn CompletionIndex::add_owner_entries(
 ) -> Unit {
   match owner {
     Qualified(owner) =>
-      if imported_interface_for_owner(module_, owner.module_binding)
-        is Some(interface) {
+      if imported_exports_for_owner(module_, owner.module_binding)
+        is Some((module_path, bindings)) {
         self.add_interface_owner_entries(
           entries,
           source_id,
           prefix,
           replace,
-          interface,
+          module_path,
+          bindings,
           owner.name,
           display,
         )
@@ -538,59 +526,66 @@ fn CompletionIndex::add_interface_owner_entries(
   source_id : String,
   prefix : String,
   replace : @basic.SourceSpan,
-  interface : @module_interface.ModuleInterface,
+  module_path : String,
+  bindings : Array[@module_interface.ResolvedModuleInterfaceExport],
   owner : String,
   display : @typecheck.TypeDisplayContext,
 ) -> Unit {
-  for type_ in interface.types {
-    match type_ {
-      Enum(enum_) if enum_.name == owner =>
-        for variant in enum_.variants {
-          add_completion_entry_with_insert_text(
-            entries,
-            source_id,
-            prefix,
-            replace,
-            variant.name,
-            Variant,
-            Some("variant \{interface.module_path}.\{owner}::\{variant.name}"),
-            insert_text=payloadless_variant_insert_text(
-              variant.name,
-              variant.payload.length(),
-            ),
-            "20",
-          )
+  for binding in bindings {
+    if binding.export_.exposed_name != owner {
+      continue
+    }
+    match binding.declaration {
+      NominalType(type_) =>
+        match type_ {
+          Enum(enum_) if enum_.name == owner =>
+            for variant in enum_.variants {
+              add_completion_entry_with_insert_text(
+                entries,
+                source_id,
+                prefix,
+                replace,
+                variant.name,
+                Variant,
+                Some("variant \{module_path}.\{owner}::\{variant.name}"),
+                insert_text=payloadless_variant_insert_text(
+                  variant.name,
+                  variant.payload.length(),
+                ),
+                "20",
+              )
+            }
+          Struct(struct_) if struct_.name == owner =>
+            for type_member in struct_.type_members {
+              add_completion_entry(
+                entries,
+                source_id,
+                prefix,
+                replace,
+                type_member.name,
+                TypeParameter,
+                Some(
+                  "\{type_member.name} : \{display.kind_text(type_member.kind)}",
+                ),
+                "21",
+              )
+            }
+          _ => ()
         }
-      Struct(struct_) if struct_.name == owner =>
-        for type_member in struct_.type_members {
+      Effect(effect) =>
+        for operation in effect.operations {
           add_completion_entry(
             entries,
             source_id,
             prefix,
             replace,
-            type_member.name,
-            TypeParameter,
-            Some("\{type_member.name} : \{display.kind_text(type_member.kind)}"),
-            "21",
+            operation.name,
+            Operation,
+            Some(operation_detail(display, owner, operation)),
+            "20",
           )
         }
-      _ => ()
-    }
-  }
-  for effect in interface.effects {
-    if effect.name == owner {
-      for operation in effect.operations {
-        add_completion_entry(
-          entries,
-          source_id,
-          prefix,
-          replace,
-          operation.name,
-          Operation,
-          Some(operation_detail(display, effect.name, operation)),
-          "20",
-        )
-      }
+      TypeAlias(_) | Value(_) => ()
     }
   }
 }

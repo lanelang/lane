@@ -23,7 +23,7 @@ priv struct CheckedModuleSet {
 ///|
 fn checked_module_interfaces(
   modules : Array[CheckedModule],
-) -> @module_interface.ImportedEnvironment {
+) -> @module_interface.ModuleInterfaceCatalog {
   { modules: modules.map(fn(module_) { module_.interface }) }
 }
 
@@ -39,7 +39,7 @@ fn compile_one_module(
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,
     registry,
-    direct,
+    environments.available,
   )
   let resolve_diagnostics = resolved.diagnostics.map(fn(diagnostic) {
     resolve_diagnostic(diagnostic, display).with_source_id(input.source_id)

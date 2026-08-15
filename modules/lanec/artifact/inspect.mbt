@@ -119,9 +119,7 @@ fn interface_summary_doc(
 ) -> Document {
   let context = ArtifactInspectContext::from_interface(interface)
   let display = context.type_display_context()
-  text("interface \{interface.module_path}:") +
-  @prettyprinter.hardline +
-  separate(@prettyprinter.hardline, [
+  let sections = [
     section_doc(
       "types:",
       interface.types.map(fn(type_) {
@@ -146,7 +144,33 @@ fn interface_summary_doc(
         text(context.interface_value_text(value, display))
       }),
     ),
-  ])
+  ]
+  let re_exports = interface.exports.filter(fn(export_) {
+    export_.target.provider_module != interface.module_path
+  })
+  if !re_exports.is_empty() {
+    sections.push(
+      section_doc(
+        "re-exports:",
+        re_exports.map(fn(export_) { text(interface_export_text(export_)) }),
+      ),
+    )
+  }
+  text("interface \{interface.module_path}:") +
+  @prettyprinter.hardline +
+  separate(@prettyprinter.hardline, sections)
+}
+
+///|
+fn interface_export_text(
+  export_ : @module_interface.ModuleInterfaceExport,
+) -> String {
+  let export_space = match export_.export_space {
+    TypeNamespace => "type"
+    EffectNamespace => "effect"
+    ValueNamespace => "value"
+  }
+  "\{export_space} \{export_.exposed_name} -> \{export_.target.provider_module}.\{export_.target.declaration_name}"
 }
 
 ///|

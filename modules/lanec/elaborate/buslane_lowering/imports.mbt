@@ -13,32 +13,54 @@ fn BuslaneLowerer::seed_imported_interfaces_or_raise(
   self : BuslaneLowerer,
   imported : @module_interface.ModuleImportEnvironments,
 ) -> Unit raise BuslaneLoweringError {
+  let bindings : Array[@module_interface.ResolvedModuleInterfaceExport] = []
   for interface in imported.direct.modules {
-    for type_ in interface.types {
-      self.seed_imported_type_header(interface.module_path, type_)
+    bindings.append(imported.available.public_exports(interface.module_path))
+  }
+  for binding in bindings {
+    match binding.declaration {
+      NominalType(type_) =>
+        self.seed_imported_type_header(
+          binding.export_.target.provider_module,
+          type_,
+        )
+      Effect(effect) =>
+        self.seed_imported_effect_header(
+          binding.export_.target.provider_module,
+          effect,
+        )
+      TypeAlias(_) | Value(_) => ()
     }
   }
-  for interface in imported.direct.modules {
-    for effect in interface.effects {
-      self.seed_imported_effect_header(interface.module_path, effect)
+  for binding in bindings {
+    guard imported.available.find(binding.export_.target.provider_module)
+      is Some(provider) else {
+      abort("validated public export provider is unavailable during lowering")
+    }
+    self.seed_imported_declaration_dependency_headers(
+      provider,
+      binding.declaration,
+      imported.available,
+    )
+  }
+  for binding in bindings {
+    match binding.declaration {
+      NominalType(type_) =>
+        self.seed_imported_type_constructors(
+          binding.export_.target.provider_module,
+          type_,
+        )
+      Effect(effect) =>
+        self.seed_imported_effect_operations(
+          binding.export_.target.provider_module,
+          effect,
+        )
+      TypeAlias(_) | Value(_) => ()
     }
   }
-  for interface in imported.direct.modules {
-    self.seed_imported_dependency_headers(interface, imported.available)
-  }
-  for interface in imported.direct.modules {
-    for type_ in interface.types {
-      self.seed_imported_type_constructors(interface.module_path, type_)
-    }
-  }
-  for interface in imported.direct.modules {
-    for effect in interface.effects {
-      self.seed_imported_effect_operations(interface.module_path, effect)
-    }
-  }
-  for interface in imported.direct.modules {
-    for value in interface.values {
-      self.seed_imported_value(interface.module_path, value)
+  for binding in bindings {
+    if binding.declaration is Value(value) {
+      self.seed_imported_value(binding.export_.target.provider_module, value)
     }
   }
 }

@@ -16,7 +16,7 @@ import {
 // Values
 pub fn typecheck_checked_source_file(@resolve.ResolvedSourceFile) -> Result[CheckedSourceTypeCheckResult, TypeCheckError]
 
-pub fn typecheck_checked_source_file_with_imported_environment(@resolve.ResolvedSourceFile, @module.ImportedEnvironment) -> Result[CheckedSourceTypeCheckResult, TypeCheckError]
+pub fn typecheck_checked_source_file_with_imported_environment(@resolve.ResolvedSourceFile, @module.ModuleInterfaceCatalog) -> Result[CheckedSourceTypeCheckResult, TypeCheckError]
 
 pub fn typecheck_declarations(@resolve.ResolvedSourceFile) -> Result[DeclarationTypeCheckResult, TypeCheckError]
 

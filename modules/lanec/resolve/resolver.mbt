@@ -14,6 +14,7 @@ priv struct Resolver {
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
+  public_exports : Array[ResolvedPublicExport]
   module_binding_references : Array[ResolvedModuleBindingReference]
   diagnostics : Array[ResolveDiagnostic]
 }
@@ -21,7 +22,7 @@ priv struct Resolver {
 ///|
 priv struct ImportedModule {
   path_text : String
-  interface : @module_interface.ModuleInterface
+  bindings : Array[@module_interface.ResolvedModuleInterfaceExport]
   provider_origins : Array[Int]
 }
 
@@ -115,12 +116,6 @@ priv struct TypeAliasBinding {
 }
 
 ///|
-priv enum SelectiveImportBinding {
-  ImportedType(@module_interface.ModuleInterfaceType)
-  ImportedTypeAlias(@module_interface.ModuleInterfaceTypeAlias)
-  ImportedEffect(@module_interface.ModuleInterfaceEffect)
-  ImportedValue(@module_interface.ModuleInterfaceValue)
-}
 
 ///|
 /// Resolves a syntax source file and returns diagnostics with the result.
@@ -135,11 +130,13 @@ pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult 
 
 ///|
 /// Resolves a source file inside one compiler invocation registry and with
-/// directly imported module interfaces already available.
+/// imported module interfaces and their reachable declaration providers
+/// available. Only modules named by the source are published; the wider
+/// catalog exists so flattened public exports can resolve their providers.
 pub fn resolve_source_file_with_imports_result(
   source : @syntax.SourceFile,
   registry : SymbolRegistry,
-  imported_environment : @module_interface.ImportedEnvironment,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
   previous_declarations? : @symbol.DeclarationIdentities? = None,
 ) -> ResolveResult {
   let resolver = Resolver::Resolver(
@@ -159,6 +156,7 @@ fn Resolver::resolve_source_file_result(
   // Headers and nominal members are collected before declaration bodies so
   // top-level functions, structs, enums, fields, and variants can be recursive.
   self.collect_top_level_headers(source)
+  self.validate_local_public_export_collisions(source)
   self.collect_nominal_members(source)
   let declarations = source.declarations.map(fn(declaration) {
     declaration.resolve_top_level(self)
@@ -169,11 +167,81 @@ fn Resolver::resolve_source_file_result(
     import_exposures: self.import_exposures,
     import_uses: self.import_uses,
     import_symbols: self.import_symbols,
+    public_exports: self.public_exports,
     module_binding_references: self.module_binding_references,
     declarations,
     loc: source.loc,
   }
   { source: resolved, diagnostics: self.diagnostics }
+}
+
+///|
+fn Resolver::validate_local_public_export_collisions(
+  self : Resolver,
+  source : @syntax.SourceFile,
+) -> Unit {
+  for declaration in source.declarations {
+    guard syntax_public_export_key(declaration)
+      is Some((export_space, name, loc)) else {
+      continue
+    }
+    for existing in self.public_exports {
+      if existing.export_.export_space == export_space &&
+        existing.export_.exposed_name == name {
+        self.report(
+          ConflictingPublicExport(
+            name~,
+            export_space~,
+            existing_loc=existing.loc,
+          ),
+          loc,
+        )
+      }
+    }
+  }
+}
+
+///|
+fn syntax_public_export_key(
+  declaration : @syntax.TopLevelDeclaration,
+) -> (@module_interface.ModuleInterfaceExportNamespace, String, SourceSpan)? {
+  match declaration {
+    Struct(declaration) if declaration.is_public =>
+      Some((TypeNamespace, declaration.name, declaration.name_loc))
+    Enum(declaration) if declaration.is_public =>
+      Some((TypeNamespace, declaration.name, declaration.name_loc))
+    Effect(declaration) if declaration.is_public =>
+      Some((EffectNamespace, declaration.name, declaration.name_loc))
+    ExternalType(declaration) if declaration.is_public =>
+      Some(
+        (
+          if declaration.result_kind is Type(_) {
+            TypeNamespace
+          } else {
+            EffectNamespace
+          },
+          declaration.name,
+          declaration.name_loc,
+        ),
+      )
+    TypeAlias(declaration) if declaration.is_public =>
+      Some(
+        (
+          if declaration.body is EffectBody(_) {
+            EffectNamespace
+          } else {
+            TypeNamespace
+          },
+          declaration.name,
+          declaration.name_loc,
+        ),
+      )
+    Function(declaration) if declaration.is_public =>
+      Some((ValueNamespace, declaration.name, declaration.name_loc))
+    Let(declaration) if declaration.is_public =>
+      Some((ValueNamespace, declaration.name, declaration.name_loc))
+    _ => None
+  }
 }
 
 ///|
@@ -205,6 +273,7 @@ fn Resolver::Resolver(
     import_exposures: [],
     import_uses: [],
     import_symbols: [],
+    public_exports: [],
     module_binding_references: [],
     diagnostics: [],
   }

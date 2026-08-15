@@ -1,6 +1,6 @@
 ///|
 pub fn imported_environment_fingerprints(
-  imported : @module_interface.ImportedEnvironment,
+  imported : @module_interface.ModuleInterfaceCatalog,
 ) -> Array[@artifact_model.ImportedInterfaceFingerprint] {
   imported.modules.map(fn(interface) {
     {

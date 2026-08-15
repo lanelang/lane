@@ -84,7 +84,7 @@ fn checked_source_for_elaborate_test(
 fn checked_module_for_elaborate_test(
   source : String,
   registry : @symbol.SymbolRegistry,
-  imported : @module_interface.ImportedEnvironment,
+  imported : @module_interface.ModuleInterfaceCatalog,
 ) -> @typecheck.CheckedSourceTypeCheckResult {
   let file = expect_parse_module_ok(source)
   let resolution = @resolve.resolve_source_file_with_imports_result(
@@ -747,7 +747,7 @@ test "buslane lowering registry covers imported references" {
   guard lib.module_interface is Some(lib_interface) else {
     abort("expected lib interface")
   }
-  let imported : @module_interface.ImportedEnvironment = {
+  let imported : @module_interface.ModuleInterfaceCatalog = {
     modules: [lib_interface],
   }
   let main = checked_module_for_elaborate_test(

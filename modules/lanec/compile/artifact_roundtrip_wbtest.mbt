@@ -243,7 +243,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 13
+      #|schema: 14
       #|
       #|imported interfaces:
       #|  (none)
@@ -435,7 +435,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 13
+      #|schema: 14
       #|
       #|imported interfaces:
       #|  (none)
@@ -851,7 +851,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 13
+      #|schema: 14
       #|
       #|imported interfaces:
       #|  (none)
@@ -1051,7 +1051,7 @@ test "module binaries reject immediately preceding schema versions" {
   let interface_bytes = @artifact.module_interface_artifact_to_binary(
     module_.to_interface_artifact(),
   ).to_array()
-  interface_bytes[14] = b'\x0C'
+  interface_bytes[14] = b'\x0D'
   interface_bytes[15] = b'\x00'
   interface_bytes[16] = b'\x00'
   interface_bytes[17] = b'\x00'
@@ -1078,7 +1078,7 @@ test "module binaries reject immediately preceding schema versions" {
     Ok(_) => fail("expected old object schema failure")
   }
   assert_eq(messages, [
-    "unsupported interface artifact schema version 12", "unsupported object artifact schema version 19",
+    "unsupported interface artifact schema version 13", "unsupported object artifact schema version 19",
   ])
 }
 
@@ -1171,10 +1171,10 @@ test "tuple signatures use safe nominal artifact presentation" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 13
+      #|schema: 14
       #|
       #|imported interfaces:
-      #|  Basic.Data.Tuple: sha256:cbb9a63c581a741a58c63dc459a58738814f9830bb4e1e80d0f8d8cdc6b717a0
+      #|  Basic.Data.Tuple: sha256:b8cc828dc42a4df958a95aea3b3d1a2f0d7ba5b4ed5818057621e3c69bd99885
       #|
       #|interface Main:
       #|types:

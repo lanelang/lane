@@ -1,5 +1,5 @@
 ///|
-pub(all) struct ImportedEnvironment {
+pub(all) struct ModuleInterfaceCatalog {
   modules : Array[ModuleInterface]
 } derive(Debug, Eq)
 
@@ -13,7 +13,35 @@ pub(all) struct ModuleInterface {
   effects : Array[ModuleInterfaceEffect]
   type_aliases : Array[ModuleInterfaceTypeAlias]
   values : Array[ModuleInterfaceValue]
+  exports : Array[ModuleInterfaceExport]
   optimization_hints : Array[OptimizationHint]
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ModuleInterfaceExportNamespace {
+  TypeNamespace
+  EffectNamespace
+  ValueNamespace
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ModuleInterfaceDeclarationRef {
+  provider_module : String
+  export_space : ModuleInterfaceExportNamespace
+  declaration_name : String
+} derive(Debug, Eq)
+
+///|
+pub(all) struct DeclarationFingerprint {
+  value : String
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ModuleInterfaceExport {
+  export_space : ModuleInterfaceExportNamespace
+  exposed_name : String
+  target : ModuleInterfaceDeclarationRef
+  expected_target_fingerprint : DeclarationFingerprint
 } derive(Debug, Eq)
 
 ///|
@@ -162,13 +190,13 @@ pub(all) struct OptimizationHint {
 } derive(Debug, Eq)
 
 ///|
-pub fn ImportedEnvironment::ImportedEnvironment() -> ImportedEnvironment {
+pub fn ModuleInterfaceCatalog::ModuleInterfaceCatalog() -> ModuleInterfaceCatalog {
   { modules: [] }
 }
 
 ///|
-pub fn ImportedEnvironment::find(
-  self : ImportedEnvironment,
+pub fn ModuleInterfaceCatalog::find(
+  self : ModuleInterfaceCatalog,
   module_path : String,
 ) -> ModuleInterface? {
   for interface in self.modules {

@@ -687,7 +687,7 @@ fn build_cached_semantic_module(
   let resolved = @resolve.resolve_source_file_with_imports_result(
     input.source,
     registry,
-    imports.direct,
+    imports.available,
     previous_declarations~,
   )
   let display = @typecheck.TypeDisplayContext::from_registry(registry)
@@ -745,7 +745,7 @@ fn build_cached_semantic_module(
   let index = SemanticIndex::from_sources(
     resolved.source,
     checked_source,
-    imports.direct,
+    imports,
     display,
     input.source_id,
     input.text,

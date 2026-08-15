@@ -10,6 +10,7 @@ fn @bytecodec.ByteWriter::write_module_interface(
   self.write_module_interface_effects(interface.effects)
   self.write_module_interface_type_aliases(interface.type_aliases)
   self.write_module_interface_values(interface.values)
+  self.write_module_interface_exports(interface.exports)
   self.write_optimization_hints(interface.optimization_hints)
 }
 
@@ -26,7 +27,88 @@ fn @bytecodec.ByteReader::read_module_interface(
     effects: self.read_module_interface_effects(),
     type_aliases: self.read_module_interface_type_aliases(),
     values: self.read_module_interface_values(),
+    exports: self.read_module_interface_exports(),
     optimization_hints: self.read_optimization_hints(),
+  }
+}
+
+///|
+fn @bytecodec.ByteWriter::write_module_interface_exports(
+  self : @bytecodec.ByteWriter,
+  exports : Array[@module_interface.ModuleInterfaceExport],
+) -> Unit {
+  self.write_u32_le_int(exports.length())
+  for export_ in exports {
+    self.write_module_interface_export_space(export_.export_space)
+    self.write_string(export_.exposed_name)
+    self.write_string(export_.target.provider_module)
+    self.write_module_interface_export_space(export_.target.export_space)
+    self.write_string(export_.target.declaration_name)
+    self.write_string(export_.expected_target_fingerprint.value)
+  }
+}
+
+///|
+fn @bytecodec.ByteReader::read_module_interface_exports(
+  self : @bytecodec.ByteReader,
+) -> Array[@module_interface.ModuleInterfaceExport] raise {
+  let exports : Array[@module_interface.ModuleInterfaceExport] = []
+  for _ in 0..<self.read_u32_le_int() {
+    exports.push({
+      export_space: self.read_module_interface_export_space(),
+      exposed_name: self.read_string(),
+      target: {
+        provider_module: self.read_string(),
+        export_space: self.read_module_interface_export_space(),
+        declaration_name: self.read_string(),
+      },
+      expected_target_fingerprint: { value: self.read_string() },
+    })
+  }
+  exports
+}
+
+///|
+fn @bytecodec.ByteWriter::write_module_interface_export_space(
+  self : @bytecodec.ByteWriter,
+  export_space : @module_interface.ModuleInterfaceExportNamespace,
+) -> Unit {
+  self.write_u8(
+    match export_space {
+      TypeNamespace => 0
+      EffectNamespace => 1
+      ValueNamespace => 2
+    },
+  )
+}
+
+///|
+fn @bytecodec.ByteReader::read_module_interface_export_space(
+  self : @bytecodec.ByteReader,
+) -> @module_interface.ModuleInterfaceExportNamespace raise {
+  let offset = self.offset()
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      TypeNamespace
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      EffectNamespace
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      ValueNamespace
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="ModuleInterfaceExportNamespace",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
   }
 }
 

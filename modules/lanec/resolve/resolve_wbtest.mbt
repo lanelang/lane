@@ -260,38 +260,38 @@ test "resolve module-qualified effect alias references" {
   let registry = SymbolRegistry()
   let console = registry.define_effect("Console", 0, @basic.SourceSpan::dummy())
   let ui = registry.define_type_alias("UI", @basic.SourceSpan::dummy())
-  let imported : @module_interface.ImportedEnvironment = {
-    modules: [
+  let interface : @module_interface.ModuleInterface = {
+    module_path: "Lib",
+    source_id: None,
+    type_references: [],
+    effect_references: [],
+    types: [],
+    effects: [
       {
-        module_path: "Lib",
-        source_id: None,
-        type_references: [],
-        effect_references: [],
-        types: [],
-        effects: [
-          {
-            symbol: console,
-            name: "Console",
-            flavor: Algebraic,
-            type_parameters: [],
-            operations: [],
-            loc: @basic.SourceSpan::dummy(),
-          },
-        ],
-        type_aliases: [
-          {
-            symbol: ui,
-            name: "UI",
-            type_parameters: [],
-            body: EffectBody(Empty),
-            kind: Effect,
-            loc: @basic.SourceSpan::dummy(),
-          },
-        ],
-        values: [],
-        optimization_hints: [],
+        symbol: console,
+        name: "Console",
+        flavor: Algebraic,
+        type_parameters: [],
+        operations: [],
+        loc: @basic.SourceSpan::dummy(),
       },
     ],
+    type_aliases: [
+      {
+        symbol: ui,
+        name: "UI",
+        type_parameters: [],
+        body: EffectBody(Empty),
+        kind: Effect,
+        loc: @basic.SourceSpan::dummy(),
+      },
+    ],
+    values: [],
+    exports: [],
+    optimization_hints: [],
+  }
+  let imported : @module_interface.ModuleInterfaceCatalog = {
+    modules: [{ ..interface, exports: interface.owned_exports() }],
   }
   let file = expect_parse_ok(
     (

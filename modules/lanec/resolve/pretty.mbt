@@ -91,6 +91,12 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
       text(module_path) +
       text(".") +
       text(name)
+    ConflictingPublicExport(name~, export_space~, ..) =>
+      text("conflicting_public_export") +
+      space +
+      text(public_export_space_name(export_space)) +
+      space +
+      text(name)
     PayloadlessVariantWithoutParens(name) =>
       text("payloadless_variant_without_parens") + space + text(name)
     ConflictingTopLevelValue(name~, existing~, incoming~, ..) =>
@@ -123,6 +129,17 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
       text(name) +
       space +
       @pretty.bracketed_inline(candidates.map(ResolveVariantCandidate::pretty))
+  }
+}
+
+///|
+fn public_export_space_name(
+  export_space : @module_interface.ModuleInterfaceExportNamespace,
+) -> String {
+  match export_space {
+    TypeNamespace => "type"
+    EffectNamespace => "effect"
+    ValueNamespace => "value"
   }
 }
 

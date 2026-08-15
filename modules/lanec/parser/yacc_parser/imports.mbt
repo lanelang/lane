@@ -119,6 +119,12 @@ priv struct ReturnAnnotation {
 }
 
 ///|
+priv struct ModuleBody {
+  imports : Array[ImportDeclaration]
+  declarations : Array[TopLevelDeclaration]
+}
+
+///|
 priv struct OwnerExpression {
   expr : Expr
   owner : Type
@@ -255,6 +261,13 @@ fn with_public_loc(
 fn[T] comma_push(items : Array[T], item : T) -> Array[T] {
   items.push(item)
   items
+}
+
+///|
+fn[T] prepend(item : T, items : Array[T]) -> Array[T] {
+  let result = [item]
+  result.append(items)
+  result
 }
 
 ///|

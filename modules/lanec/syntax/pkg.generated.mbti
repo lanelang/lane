@@ -220,7 +220,7 @@ pub(all) struct HandlerWithBlock {
 pub(all) enum ImportDeclaration {
   Qualified(module_path~ : ModulePath, module_alias~ : ModuleAlias?, loc~ : @basic.SourceSpan)
   Open(module_path~ : ModulePath, loc~ : @basic.SourceSpan)
-  Selective(module_path~ : ModulePath, items~ : Array[ImportItem], loc~ : @basic.SourceSpan)
+  Selective(module_path~ : ModulePath, items~ : Array[ImportItem], is_public~ : Bool, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
 pub fn ImportDeclaration::loc(Self) -> @basic.SourceSpan
 pub impl @source_prettyprinter.Pretty for ImportDeclaration

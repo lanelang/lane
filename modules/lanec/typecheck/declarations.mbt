@@ -1,7 +1,7 @@
 ///|
 priv struct DeclarationChecker {
   source : @resolve.ResolvedSourceFile
-  imported_environment : @module_interface.ImportedEnvironment
+  imported_environment : @module_interface.ModuleInterfaceCatalog
   diagnostics : Array[TypeCheckDiagnostic]
 }
 
@@ -31,7 +31,7 @@ pub fn typecheck_declarations(
 ///|
 fn typecheck_declarations_with_imported_environment(
   source : @resolve.ResolvedSourceFile,
-  imported_environment : @module_interface.ImportedEnvironment,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
 ) -> DeclarationTypeCheckResult {
   // Declaration checking builds Delta from imported module interfaces and local
   // nominal/effect declarations before expression bodies are checked.
@@ -509,7 +509,7 @@ fn DeclarationChecker::check_kind(
 ///|
 fn check_resolved_type_with_imported_environment(
   source : @resolve.ResolvedSourceFile,
-  imported_environment : @module_interface.ImportedEnvironment,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
   diagnostics : Array[TypeCheckDiagnostic],
   scope : TypeKindScope,
   type_ : @resolve.ResolvedType,
@@ -527,7 +527,7 @@ fn check_resolved_type_with_imported_environment(
 ///|
 fn check_resolved_nominal_generic_arguments(
   source : @resolve.ResolvedSourceFile,
-  imported_environment : @module_interface.ImportedEnvironment,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
   diagnostics : Array[TypeCheckDiagnostic],
   scope : TypeKindScope,
   parameters : Array[@types.TypeParameter],
@@ -562,7 +562,7 @@ fn check_resolved_nominal_generic_arguments(
 ///|
 fn check_resolved_generic_arguments(
   source : @resolve.ResolvedSourceFile,
-  imported_environment : @module_interface.ImportedEnvironment,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
   diagnostics : Array[TypeCheckDiagnostic],
   scope : TypeKindScope,
   parameters : Array[@types.TypeParameter],
@@ -600,7 +600,7 @@ fn check_resolved_generic_arguments(
 ///|
 fn check_resolved_generic_argument(
   source : @resolve.ResolvedSourceFile,
-  imported_environment : @module_interface.ImportedEnvironment,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
   diagnostics : Array[TypeCheckDiagnostic],
   scope : TypeKindScope,
   expected : @types.Kind,
@@ -670,7 +670,7 @@ fn check_resolved_generic_argument(
 ///|
 priv struct TypeExpressionChecker {
   source : @resolve.ResolvedSourceFile
-  imported_environment : @module_interface.ImportedEnvironment
+  imported_environment : @module_interface.ModuleInterfaceCatalog
   diagnostics : Array[TypeCheckDiagnostic]
   expanding : Array[String]
   scope : TypeKindScope

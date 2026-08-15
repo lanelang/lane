@@ -5,6 +5,7 @@ pub(all) struct ResolvedSourceFile {
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
+  public_exports : Array[ResolvedPublicExport]
   module_binding_references : Array[ResolvedModuleBindingReference]
   declarations : Array[ResolvedTopLevelDeclaration]
   loc : SourceSpan
@@ -14,7 +15,14 @@ pub(all) struct ResolvedSourceFile {
 pub(all) enum ResolvedImportExposureKind {
   QualifiedModuleBinding(name~ : String, name_loc~ : SourceSpan)
   OpenBinding
-  SelectiveBinding(name~ : String)
+  SelectiveBinding(name~ : String, is_public~ : Bool)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ResolvedPublicExport {
+  export_ : @module_interface.ModuleInterfaceExport
+  declaration : @module_interface.ModuleInterfaceDeclaration
+  loc : SourceSpan
 } derive(Debug, Eq)
 
 ///|
@@ -110,6 +118,11 @@ pub(all) enum ResolveDiagnosticKind {
   UnresolvedField(type_name~ : String, field~ : String)
   UnresolvedQualifiedVariant(type_name~ : String, variant~ : String)
   UnresolvedImportItem(module_path~ : String, name~ : String)
+  ConflictingPublicExport(
+    name~ : String,
+    export_space~ : @module_interface.ModuleInterfaceExportNamespace,
+    existing_loc~ : SourceSpan
+  )
   PayloadlessVariantWithoutParens(String)
   ConflictingTopLevelValue(
     name~ : String,

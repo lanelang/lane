@@ -18,8 +18,8 @@
 /// nominal dependencies. Value *visibility* is a separate rule applied by
 /// `typecheck_environment`.
 pub(all) struct ModuleImportEnvironments {
-  direct : ImportedEnvironment
-  available : ImportedEnvironment
+  direct : ModuleInterfaceCatalog
+  available : ModuleInterfaceCatalog
 } derive(Debug, Eq)
 
 ///|
@@ -41,7 +41,7 @@ pub(all) struct ModuleImportEnvironments {
 /// compilation from interface artifacts, and the semantic workspace alike.
 pub fn ModuleImportEnvironments::from_pool(
   direct_module_paths : Array[String],
-  pool : ImportedEnvironment,
+  pool : ModuleInterfaceCatalog,
 ) -> ModuleImportEnvironments {
   let direct = []
   for module_path in direct_module_paths {
@@ -60,7 +60,7 @@ pub fn ModuleImportEnvironments::from_pool(
 /// Appends the interface named by `module_path` and everything it reaches.
 fn collect_reachable_interfaces(
   module_path : String,
-  pool : ImportedEnvironment,
+  pool : ModuleInterfaceCatalog,
   collected : Array[ModuleInterface],
 ) -> Unit {
   if collected.any(interface => interface.module_path == module_path) {
@@ -76,19 +76,11 @@ fn collect_reachable_interfaces(
 ///|
 /// The environment type checking resolves declarations against.
 ///
-/// Non-direct interfaces keep their nominal shapes, effects, and type aliases
-/// so that **Owner-Visible Members** stay reachable, but lose values and
-/// optimization hints: a module must not name a value it did not import.
+/// Name visibility is already fixed by the resolver's import symbols. Keeping
+/// the complete catalog here lets later semantic phases follow declaration
+/// owners without reconstructing a second, filtered interface model.
 pub fn ModuleImportEnvironments::typecheck_environment(
   self : ModuleImportEnvironments,
-) -> ImportedEnvironment {
-  {
-    modules: self.available.modules.map(interface => {
-      if self.direct.find(interface.module_path) is Some(_) {
-        interface
-      } else {
-        { ..interface, values: [], optimization_hints: [] }
-      }
-    }),
-  }
+) -> ModuleInterfaceCatalog {
+  self.available
 }

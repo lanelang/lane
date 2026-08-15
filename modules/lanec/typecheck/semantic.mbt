@@ -2,7 +2,7 @@
 priv struct SemanticChecker {
   resolved_source : @resolve.ResolvedSourceFile
   source : @desugar.DesugaredSourceFile
-  imported_environment : @module_interface.ImportedEnvironment
+  imported_environment : @module_interface.ModuleInterfaceCatalog
   declarations : CheckedDeclarationEnvironment
   diagnostics : Array[TypeCheckDiagnostic]
   values : Array[CheckedValueDeclaration]
@@ -106,7 +106,7 @@ fn SemanticChecker::collect_top_level_value_types(
 ///|
 fn SemanticChecker::seed_imported_top_level_value_types(
   self : SemanticChecker,
-  imported_environment : @module_interface.ImportedEnvironment,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
 ) -> Unit {
   for module_ in imported_environment.modules {
     for value in module_.values {

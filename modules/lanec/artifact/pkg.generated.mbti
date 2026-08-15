@@ -26,7 +26,7 @@ pub fn executable_to_loisvm_artifact(@executable.ExecutableProgram) -> Result[Li
 
 pub fn executable_to_loisvm_binary(@executable.ExecutableProgram) -> Result[Bytes, LoisvmBinaryError]
 
-pub fn imported_environment_fingerprints(@module.ImportedEnvironment) -> Array[@model.ImportedInterfaceFingerprint]
+pub fn imported_environment_fingerprints(@module.ModuleInterfaceCatalog) -> Array[@model.ImportedInterfaceFingerprint]
 
 pub fn interface_fingerprint(@module.ModuleInterface) -> @model.CompilationFingerprint
 

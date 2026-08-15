@@ -6,7 +6,13 @@ Linking is unchanged and still requires the full **Implementation Closure**: an 
 
 The two closures being different is the point. Before this decision the compile-time requirement followed the source import graph, so a caller of `Y` had to supply `Z` merely because `Y` imported it, even when `Y`'s surface never mentioned `Z`. That leaked `Y`'s implementation detail into every downstream build command and gave interface artifacts no encapsulating power.
 
-The language makes this narrowing possible: a module cannot re-export an imported type, so any module naming `Z.TypeZ` in its public signature must import `Z` directly. The set of modules a surface depends on is therefore computable from the surface alone.
+The set of modules a surface depends on is computable from the surface itself.
+Owned declaration descriptors contribute their stable type and effect owner
+references. A selective public import contributes a flattened
+`ModuleInterfaceExport` target whose provider is the original declaration owner,
+not the intermediate facade. The closure follows both facts and then follows the
+provider descriptor's dependencies. It does not follow an implementation-only
+source import.
 
 ## Considered Options
 
@@ -19,3 +25,8 @@ An interface-artifact search directory on the CLI (`--interface-dir`, GHC's `-i`
 - `lane compile` can now succeed on an input set that `lane link` rejects as incomplete. That asymmetry is intended and is why the two closures are named separately.
 - `optimization_hints` are covered by the content rule even though they carry no symbols yet, so a hint that later embeds a body cannot silently escape the closure.
 - Interface reference tables shrank, so interface fingerprints changed and existing artifacts must be regenerated.
+- Selective module re-exports preserve this decision: they add the original
+  provider to the Reachable Interface Closure without copying its descriptor or
+  turning unrelated imports of the facade into interface dependencies.
+- Interface artifact schema 14 persists the public export table and rejects
+  schema 13 at the decoder boundary.

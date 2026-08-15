@@ -1019,6 +1019,22 @@ test "format source keeps selective imports parseable" {
 }
 
 ///|
+test "format source preserves selective public imports" {
+  assert_format(
+    (
+      #|module Facade
+      #|pub   import   Provider.{Box,value}
+    ),
+    (
+      #|module Facade
+      #|
+      #|pub import Provider.{ Box, value }
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves selective import comments" {
   assert_format(
     (

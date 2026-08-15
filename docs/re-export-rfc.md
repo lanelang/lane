@@ -1,6 +1,6 @@
 # RFC: Selective module re-exports
 
-Status: Accepted
+Status: Implemented (2026-08-15)
 
 ## Summary
 
@@ -268,14 +268,17 @@ compiled. This value is an integrity and invalidation assertion, not another
 producer of declaration semantics. Catalog validation compares it with the
 provider-owned fingerprint and rejects a stale or incompatible facade.
 
-The facade's semantic Module Fingerprint includes, for each export:
+The facade's `ModuleInterfaceSemanticFingerprint` includes, for each export:
 
 - the namespace and exposed name;
 - the complete stable `DeclarationRef`;
 - the expected target fingerprint.
 
-Consequently, changing the selected declaration changes the facade fingerprint,
-while changing an unrelated provider declaration does not. A change in an
+Consequently, changing the selected declaration changes the facade interface
+fingerprint, while changing an unrelated provider declaration does not. The
+facade's compilation fingerprint still includes the full interface fingerprint
+of every direct import, so rebuilding the facade itself remains conservative
+when any part of a directly imported interface changes. A change in an
 intermediate facade also changes a downstream facade only when it changes the
 resolved target, exposed surface, or selected target fingerprint.
 
@@ -361,6 +364,12 @@ original provider definitions.
 
 ## Compiler changes
 
+The implementation uses `ModuleInterfaceCatalog` as the cross-interface lookup
+owner, `ModuleInterfaceExport` as the single public-access representation, and
+interface artifact schema 14. `ResolvedPublicExport` retains authored source
+spans only in the live semantic pipeline; those spans are not encoded in `.lmi`
+artifacts.
+
 ### Syntax and formatting
 
 - Record public visibility on selective `ImportDeclaration` nodes and retain the
@@ -424,10 +433,9 @@ original provider definitions.
 
 ## Compatibility with existing architecture decisions
 
-ADR-0126 currently relies on the statement that a Module cannot re-export an
-imported type. Implementing this RFC supersedes that premise. The implementation
-change must update ADR-0126 at the same time rather than leaving two authoritative
-but contradictory descriptions.
+ADR-0126 formerly relied on the statement that a Module could not re-export an
+imported type. This implementation supersedes that premise and updates ADR-0126
+to follow flattened public export targets instead.
 
 The Reachable Interface Closure decision remains valid after that update. Its
 content rule changes from relying only on surface descriptors owned by the current

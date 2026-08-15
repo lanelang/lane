@@ -14,7 +14,7 @@ pub fn typecheck_checked_source_file(
 /// Checks one resolved module against already checked imported module interfaces.
 pub fn typecheck_checked_source_file_with_imported_environment(
   source : @resolve.ResolvedSourceFile,
-  imported_environment : @module_interface.ImportedEnvironment,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
 ) -> Result[CheckedSourceTypeCheckResult, TypeCheckError] {
   let declaration_result = typecheck_declarations_with_imported_environment(
     source, imported_environment,

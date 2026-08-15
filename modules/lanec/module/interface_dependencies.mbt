@@ -67,6 +67,9 @@ pub fn ModuleInterface::dependency_module_paths(
   for reference in self.effect_references {
     push_unique_path(paths, self.module_path, reference.module_path)
   }
+  for export_ in self.exports {
+    push_unique_path(paths, self.module_path, export_.target.provider_module)
+  }
   paths
 }
 
@@ -92,6 +95,30 @@ pub fn ModuleInterfaceType::dependency_symbols(
 ) -> InterfaceDependencySymbols {
   let symbols = { types: [], effects: [] }
   collect_nominal_dependencies(self, symbols)
+  symbols
+}
+
+///|
+pub fn ModuleInterfaceDeclaration::dependency_symbols(
+  self : ModuleInterfaceDeclaration,
+) -> InterfaceDependencySymbols {
+  let symbols = { types: [], effects: [] }
+  match self {
+    NominalType(type_) => collect_nominal_dependencies(type_, symbols)
+    TypeAlias(alias_) =>
+      match alias_.body {
+        TypeBody(type_) => collect_type_dependencies(type_, symbols)
+        EffectBody(effect) => collect_effect_dependencies(effect, symbols)
+      }
+    Effect(effect) =>
+      for operation in effect.operations {
+        for payload in operation.payload {
+          collect_type_dependencies(payload, symbols)
+        }
+        collect_type_dependencies(operation.result, symbols)
+      }
+    Value(value) => collect_type_dependencies(value.type_, symbols)
+  }
   symbols
 }
 
