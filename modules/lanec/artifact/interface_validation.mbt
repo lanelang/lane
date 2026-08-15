@@ -44,7 +44,7 @@ fn validate_interface_exports(
   for index, export_ in exports {
     for other_index in (index + 1)..<exports.length() {
       let other = exports[other_index]
-      if export_.export_space == other.export_space &&
+      if export_.export_namespace == other.export_namespace &&
         export_.exposed_name == other.exposed_name {
         diagnostics.push(
           artifact_diagnostic(
@@ -57,7 +57,7 @@ fn validate_interface_exports(
         )
       }
     }
-    if export_.export_space != export_.target.export_space {
+    if export_.export_namespace != export_.target.export_namespace {
       diagnostics.push(
         invalid_interface_export_diagnostic(
           artifact, export_, "uses a different namespace from its target",

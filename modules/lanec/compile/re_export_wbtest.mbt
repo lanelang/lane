@@ -46,7 +46,7 @@ test "public export targets stay provider-owned without forwarding terms" {
     (
       facade.interface.exports.map(fn(export_) {
         (
-          export_.export_space,
+          export_.export_namespace,
           export_.exposed_name,
           export_.target.provider_module,
           export_.target.declaration_name,

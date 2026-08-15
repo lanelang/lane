@@ -183,12 +183,6 @@ checking validates provider kind and shape once, after which consumers carry
 resolved identities.
 _Avoid_: configurable provider, shape-based discovery, unqualified lookup, backend name comparison
 
-**Execution Profile**:
-An explicit immutable policy value that admits a closed set of built-in effects
-and determines whether closed External Effects may remain at an executable
-entry. The Lane CLI profile admits `Io`, `Panic`, and External Effects.
-_Avoid_: Builtin wildcard admission, effect flavor as execution support, implicit target default
-
 **Tuple Pattern**:
 Parenthesized comma pattern syntax that destructures a Right-Nested Tuple Chain
 without introducing numeric tuple projection.

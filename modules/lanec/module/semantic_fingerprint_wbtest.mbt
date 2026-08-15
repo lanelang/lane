@@ -107,7 +107,7 @@ fn provider_interface(
 fn facade_for_selected(provider : ModuleInterface) -> ModuleInterface {
   for selected in provider.exports {
     if selected.exposed_name == "selected" &&
-      selected.export_space == ValueNamespace {
+      selected.export_namespace == ValueNamespace {
       return { ..empty_module_interface("Facade", None), exports: [selected] }
     }
   }

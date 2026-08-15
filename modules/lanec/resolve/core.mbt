@@ -120,7 +120,7 @@ pub(all) enum ResolveDiagnosticKind {
   UnresolvedImportItem(module_path~ : String, name~ : String)
   ConflictingPublicExport(
     name~ : String,
-    export_space~ : @module_interface.ModuleInterfaceExportNamespace,
+    export_namespace~ : @module_interface.ModuleInterfaceExportNamespace,
     existing_loc~ : SourceSpan
   )
   PayloadlessVariantWithoutParens(String)

@@ -65,8 +65,9 @@ implementations.
 _Avoid_: reachable interface closure, exported API surface
 
 **Module Interface**:
-The compiler-readable public semantic surface of one Module, including exported
-declarations and downstream optimization metadata.
+The compiler-readable public semantic surface of one Module, organized as
+provider-owned declaration descriptors, Public Exports, and downstream
+optimization metadata.
 _Avoid_: checked source body, private definitions
 
 **Module Object**:

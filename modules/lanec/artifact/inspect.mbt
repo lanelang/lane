@@ -165,12 +165,12 @@ fn interface_summary_doc(
 fn interface_export_text(
   export_ : @module_interface.ModuleInterfaceExport,
 ) -> String {
-  let export_space = match export_.export_space {
+  let export_namespace = match export_.export_namespace {
     TypeNamespace => "type"
     EffectNamespace => "effect"
     ValueNamespace => "value"
   }
-  "\{export_space} \{export_.exposed_name} -> \{export_.target.provider_module}.\{export_.target.declaration_name}"
+  "\{export_namespace} \{export_.exposed_name} -> \{export_.target.provider_module}.\{export_.target.declaration_name}"
 }
 
 ///|

@@ -27,7 +27,7 @@ pub(all) enum ModuleInterfaceExportNamespace {
 ///|
 pub(all) struct ModuleInterfaceDeclarationRef {
   provider_module : String
-  export_space : ModuleInterfaceExportNamespace
+  export_namespace : ModuleInterfaceExportNamespace
   declaration_name : String
 } derive(Debug, Eq)
 
@@ -38,7 +38,7 @@ pub(all) struct DeclarationFingerprint {
 
 ///|
 pub(all) struct ModuleInterfaceExport {
-  export_space : ModuleInterfaceExportNamespace
+  export_namespace : ModuleInterfaceExportNamespace
   exposed_name : String
   target : ModuleInterfaceDeclarationRef
   expected_target_fingerprint : DeclarationFingerprint

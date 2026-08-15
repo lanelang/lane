@@ -182,16 +182,16 @@ fn Resolver::validate_local_public_export_collisions(
 ) -> Unit {
   for declaration in source.declarations {
     guard syntax_public_export_key(declaration)
-      is Some((export_space, name, loc)) else {
+      is Some((export_namespace, name, loc)) else {
       continue
     }
     for existing in self.public_exports {
-      if existing.export_.export_space == export_space &&
+      if existing.export_.export_namespace == export_namespace &&
         existing.export_.exposed_name == name {
         self.report(
           ConflictingPublicExport(
             name~,
-            export_space~,
+            export_namespace~,
             existing_loc=existing.loc,
           ),
           loc,

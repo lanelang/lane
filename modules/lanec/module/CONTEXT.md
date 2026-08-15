@@ -10,6 +10,32 @@ The dependency-light package that owns the public semantic representation of a
 compiled Lane module interface.
 _Avoid_: source discovery, module compilation workflow
 
+**Module Interface Catalog**:
+The semantic-snapshot owner of available Module Interfaces and canonical
+resolution of their provider-owned Declaration References.
+_Avoid_: source module graph, copied interface map, linker symbol table
+
+**Module Interface Export Namespace**:
+The Type, Effect, or Value namespace in which a Public Export is visible and
+its target declaration must belong.
+_Avoid_: export space, artifact-only namespace, runtime symbol class
+
+**Declaration Reference**:
+The stable cross-interface identity of a provider-owned top-level declaration,
+formed from its provider Module, Module Interface Export Namespace, and name.
+_Avoid_: facade access path, compilation-local symbol ID, runtime address
+
+**Declaration Fingerprint**:
+The provider-owned semantic digest of one declaration descriptor used to detect
+stale or incompatible Public Export targets.
+_Avoid_: Module Fingerprint, facade-produced declaration identity, source hash
+
+**Public Export**:
+A Module Interface access binding that maps an exposed name and Module
+Interface Export Namespace to a Declaration Reference and expected Declaration
+Fingerprint.
+_Avoid_: copied declaration, runtime export, forwarding definition
+
 **Module Frontend**:
 The package boundary that owns source inputs, module headers, module input sets,
 and dependency-graph construction.

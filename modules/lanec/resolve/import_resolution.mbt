@@ -236,12 +236,12 @@ fn Resolver::publish_public_export(
 ) -> Unit {
   let export_ = binding.export_
   for existing in self.public_exports {
-    if existing.export_.export_space == export_.export_space &&
+    if existing.export_.export_namespace == export_.export_namespace &&
       existing.export_.exposed_name == export_.exposed_name {
       self.report(
         ConflictingPublicExport(
           name=export_.exposed_name,
-          export_space=export_.export_space,
+          export_namespace=export_.export_namespace,
           existing_loc=existing.loc,
         ),
         loc,

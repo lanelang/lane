@@ -198,10 +198,10 @@ fn CanonicalInterfaceEncoder::write_exports(
 ) -> Unit {
   self.writer.write_u32_le_int(exports.length())
   for export_ in exports {
-    self.write_export_namespace(export_.export_space)
+    self.write_export_namespace(export_.export_namespace)
     self.writer.write_string(export_.exposed_name)
     self.writer.write_string(export_.target.provider_module)
-    self.write_export_namespace(export_.target.export_space)
+    self.write_export_namespace(export_.target.export_namespace)
     self.writer.write_string(export_.target.declaration_name)
     self.writer.write_string(export_.expected_target_fingerprint.value)
   }
@@ -210,10 +210,10 @@ fn CanonicalInterfaceEncoder::write_exports(
 ///|
 fn CanonicalInterfaceEncoder::write_export_namespace(
   self : CanonicalInterfaceEncoder,
-  export_space : ModuleInterfaceExportNamespace,
+  export_namespace : ModuleInterfaceExportNamespace,
 ) -> Unit {
   self.writer.write_u8(
-    match export_space {
+    match export_namespace {
       TypeNamespace => 0
       EffectNamespace => 1
       ValueNamespace => 2

@@ -119,7 +119,7 @@ pub impl @compiler_diag.ToCompilerDiagnostic for ResolveDiagnostic with fn to_co
         ],
         context~,
       )
-    ConflictingPublicExport(name~, export_space~, existing_loc~) =>
+    ConflictingPublicExport(name~, export_namespace~, existing_loc~) =>
       @compiler_diag.compiler_error(
         "conflicting public export `\{name}`",
         span~,
@@ -127,7 +127,7 @@ pub impl @compiler_diag.ToCompilerDiagnostic for ResolveDiagnostic with fn to_co
         labels=[
           @compiler_diag.compiler_primary_label(
             diagnostic.loc,
-            "this \{public_export_space_name(export_space)} export duplicates an existing public export",
+            "this \{public_export_namespace_name(export_namespace)} export duplicates an existing public export",
           ),
           @compiler_diag.compiler_secondary_label(
             existing_loc,

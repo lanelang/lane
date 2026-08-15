@@ -39,10 +39,12 @@ fn @bytecodec.ByteWriter::write_module_interface_exports(
 ) -> Unit {
   self.write_u32_le_int(exports.length())
   for export_ in exports {
-    self.write_module_interface_export_space(export_.export_space)
+    self.write_module_interface_export_namespace(export_.export_namespace)
     self.write_string(export_.exposed_name)
     self.write_string(export_.target.provider_module)
-    self.write_module_interface_export_space(export_.target.export_space)
+    self.write_module_interface_export_namespace(
+      export_.target.export_namespace,
+    )
     self.write_string(export_.target.declaration_name)
     self.write_string(export_.expected_target_fingerprint.value)
   }
@@ -55,11 +57,11 @@ fn @bytecodec.ByteReader::read_module_interface_exports(
   let exports : Array[@module_interface.ModuleInterfaceExport] = []
   for _ in 0..<self.read_u32_le_int() {
     exports.push({
-      export_space: self.read_module_interface_export_space(),
+      export_namespace: self.read_module_interface_export_namespace(),
       exposed_name: self.read_string(),
       target: {
         provider_module: self.read_string(),
-        export_space: self.read_module_interface_export_space(),
+        export_namespace: self.read_module_interface_export_namespace(),
         declaration_name: self.read_string(),
       },
       expected_target_fingerprint: { value: self.read_string() },
@@ -69,12 +71,12 @@ fn @bytecodec.ByteReader::read_module_interface_exports(
 }
 
 ///|
-fn @bytecodec.ByteWriter::write_module_interface_export_space(
+fn @bytecodec.ByteWriter::write_module_interface_export_namespace(
   self : @bytecodec.ByteWriter,
-  export_space : @module_interface.ModuleInterfaceExportNamespace,
+  export_namespace : @module_interface.ModuleInterfaceExportNamespace,
 ) -> Unit {
   self.write_u8(
-    match export_space {
+    match export_namespace {
       TypeNamespace => 0
       EffectNamespace => 1
       ValueNamespace => 2
@@ -83,7 +85,7 @@ fn @bytecodec.ByteWriter::write_module_interface_export_space(
 }
 
 ///|
-fn @bytecodec.ByteReader::read_module_interface_export_space(
+fn @bytecodec.ByteReader::read_module_interface_export_namespace(
   self : @bytecodec.ByteReader,
 ) -> @module_interface.ModuleInterfaceExportNamespace raise {
   let offset = self.offset()

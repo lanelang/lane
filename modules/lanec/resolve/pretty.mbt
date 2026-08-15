@@ -91,10 +91,10 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
       text(module_path) +
       text(".") +
       text(name)
-    ConflictingPublicExport(name~, export_space~, ..) =>
+    ConflictingPublicExport(name~, export_namespace~, ..) =>
       text("conflicting_public_export") +
       space +
-      text(public_export_space_name(export_space)) +
+      text(public_export_namespace_name(export_namespace)) +
       space +
       text(name)
     PayloadlessVariantWithoutParens(name) =>
@@ -133,10 +133,10 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
 }
 
 ///|
-fn public_export_space_name(
-  export_space : @module_interface.ModuleInterfaceExportNamespace,
+fn public_export_namespace_name(
+  export_namespace : @module_interface.ModuleInterfaceExportNamespace,
 ) -> String {
-  match export_space {
+  match export_namespace {
     TypeNamespace => "type"
     EffectNamespace => "effect"
     ValueNamespace => "value"

@@ -15,6 +15,11 @@ A browser interface that supplies an in-memory source set, selects an entry,
 and presents an Explore Report.
 _Avoid_: runtime debugger, filesystem workspace
 
+**Browser Explore Execution Profile**:
+The Lane Wasm-owned Execution Profile used to admit executable stages requested
+by the Website IR Explorer.
+_Avoid_: Lane Command profile, compiler default, browser runtime guarantee
+
 **Explorer JSON**:
 The versioned request and response representation for entry enumeration and
 Explore Reports.

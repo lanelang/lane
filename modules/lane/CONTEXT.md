@@ -19,11 +19,11 @@ Compilation and execution of one selected public entry from a Root Source and
 its [Library Inputs](../../CONTEXT.md).
 _Avoid_: language-level `main`, project build
 
-**Command Execution Profile**:
-The Lane Command-owned declaration of residual effects supported by its native
-runtime environment and compiler-controlled fatal path. The compiler consumes
-this profile but does not choose it.
-_Avoid_: compiler default, backend capability guess
+**Execution Profile**:
+The execution-target-owned immutable policy admitting closed residual effects
+at an Executable Entry. The Lane Command profile admits `Io`, `Panic`, and
+closed External Effects; the compiler consumes this policy but never chooses it.
+_Avoid_: source effect semantics, compiler default, built-in wildcard admission
 
 **Executable Explore Command**:
 The non-executing command that requests compiler-owned IR exploration for one

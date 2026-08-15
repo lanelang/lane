@@ -70,7 +70,7 @@ pub fn ModuleInterfaceDeclaration::dependency_symbols(Self) -> InterfaceDependen
 
 pub(all) struct ModuleInterfaceDeclarationRef {
   provider_module : String
-  export_space : ModuleInterfaceExportNamespace
+  export_namespace : ModuleInterfaceExportNamespace
   declaration_name : String
 } derive(Eq, @debug.Debug)
 
@@ -98,7 +98,7 @@ pub(all) struct ModuleInterfaceEnum {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ModuleInterfaceExport {
-  export_space : ModuleInterfaceExportNamespace
+  export_namespace : ModuleInterfaceExportNamespace
   exposed_name : String
   target : ModuleInterfaceDeclarationRef
   expected_target_fingerprint : DeclarationFingerprint

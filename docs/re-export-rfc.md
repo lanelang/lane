@@ -124,11 +124,11 @@ current public export table under that item name. As with an ordinary selective
 import, one spelling may identify bindings in multiple existing Lane namespaces;
 each binding then receives its own export entry.
 
-The public export table is keyed by `(namespace, exposed_name)`. That key is
-unique across locally owned public declarations and re-exports. Publishing the
-same key twice is an error even if both entries target the same canonical
-declaration. This is an explicit public-surface invariant; it must not be inferred
-from incidental behavior of local name resolution.
+The public export table is keyed by `(export_namespace, exposed_name)`. That key
+is unique across locally owned public declarations and re-exports. Publishing
+the same key twice is an error even if both entries target the same canonical
+declaration. This is an explicit public-surface invariant; it must not be
+inferred from incidental behavior of local name resolution.
 
 An item that resolves to no public binding reports the ordinary unresolved import
 item diagnostic. Re-export provides no route to a private declaration. Local
@@ -199,53 +199,56 @@ bindings:
 
 ```text
 ModuleInterface {
-  declarations: ProviderDeclarationTable
-  exports: PublicExportTable
+  types: Array[ModuleInterfaceType]
+  effects: Array[ModuleInterfaceEffect]
+  type_aliases: Array[ModuleInterfaceTypeAlias]
+  values: Array[ModuleInterfaceValue]
+  exports: Array[ModuleInterfaceExport]
 }
 
-DeclarationRef {
-  provider_module: ModulePath
-  namespace: ExportNamespace
+ModuleInterfaceDeclarationRef {
+  provider_module: String
+  export_namespace: ModuleInterfaceExportNamespace
   declaration_name: String
 }
 
-PublicExport {
-  namespace: ExportNamespace
+ModuleInterfaceExport {
+  export_namespace: ModuleInterfaceExportNamespace
   exposed_name: String
-  target: DeclarationRef
+  target: ModuleInterfaceDeclarationRef
   expected_target_fingerprint: DeclarationFingerprint
 }
 ```
 
-`ExportNamespace` uses Lane's semantic namespaces; it does not create a second
-namespace system for artifacts. The target kind recorded by the provider
-descriptor must be compatible with the namespace of the export entry.
-`declaration_name` is the provider-owned top-level name in that namespace. Since
-only named public declarations can be re-exported, the complete triple is unique
-without persisting a compilation-local symbol ID.
+`ModuleInterfaceExportNamespace` uses Lane's semantic namespaces; it does not
+create a second namespace system for artifacts. The target kind recorded by the
+provider descriptor must be compatible with the export namespace of the export
+entry. `declaration_name` is the provider-owned top-level name in that export
+namespace. Since only named public declarations can be re-exported, the complete
+triple is unique without persisting a compilation-local symbol ID.
 
-`ProviderDeclarationTable` contains semantic descriptors owned by that Module.
-It is the only place that stores type parameters, struct fields, enum variants,
-effect operations, type alias bodies, value types, offer flags, function
-parameter metadata, and optimization metadata for those declarations.
+The provider-declaration fields contain semantic descriptors owned by that
+Module. They are the only place that stores type parameters, struct fields, enum
+variants, effect operations, type alias bodies, value types, offer flags,
+function parameter metadata, and optimization metadata for those declarations.
 
-`PublicExportTable` maps names visible through the current Module to stable
-declaration references. A locally declared public binding has an export entry
-that targets its own provider declaration. A re-export has the same shape but
-targets another provider Module. Public lookup therefore has one path without
-duplicating the target descriptor.
+`ModuleInterface.exports` stores the Public Exports visible through the current
+Module. A locally declared public binding has an export that targets its own
+provider declaration. A re-export has the same shape but targets another
+provider Module. Public lookup therefore has one path without duplicating the
+target descriptor.
 
-The concrete representation may partition declaration and export tables by
-namespace, but it must retain these ownership and lookup rules. In particular, a
-re-export entry must not embed a freshened or serialized copy of the target
-descriptor.
+The concrete representation may partition declarations by Module Interface
+Export Namespace, but it must retain these ownership and lookup rules. In
+particular, a re-export entry must not embed a freshened or serialized copy of
+the target descriptor.
 
 ### Interface catalog seam
 
 A `ModuleInterfaceCatalog` conceptually owns cross-interface resolution for one
 semantic snapshot. It consumes the Reachable Interface Closure and provides one
-operation that resolves a `DeclarationRef` to its locally interned descriptor and
-semantic identity.
+operation that resolves a `ModuleInterfaceDeclarationRef` to its locally
+interned descriptor and semantic identity.
 
 Resolution, type checking, elaboration, optimization metadata lookup, lowering,
 and tooling consume that operation. They must not independently freshen export
@@ -270,8 +273,8 @@ provider-owned fingerprint and rejects a stale or incompatible facade.
 
 The facade's `ModuleInterfaceSemanticFingerprint` includes, for each export:
 
-- the namespace and exposed name;
-- the complete stable `DeclarationRef`;
+- the export namespace and exposed name;
+- the complete stable `ModuleInterfaceDeclarationRef`;
 - the expected target fingerprint.
 
 Consequently, changing the selected declaration changes the facade interface
@@ -289,10 +292,11 @@ persist `SourceId`, source URI, provider source identity, or export span. Those
 values belong to the live workspace presentation model.
 
 The workspace may index the local `pub import` span by
-`(facade module, namespace, exposed name)` and the provider definition span by
-`DeclarationRef`. Diagnostics and navigation combine those presentation facts
-with semantic catalog results. Artifact round trips are required to preserve
-semantic identity and integrity, not machine-specific source provenance.
+`(facade module, export namespace, exposed name)` and the provider definition
+span by `ModuleInterfaceDeclarationRef`. Diagnostics and navigation combine
+those presentation facts with semantic catalog results. Artifact round trips
+are required to preserve semantic identity and integrity, not machine-specific
+source provenance.
 
 ## Reachable Interface Closure and artifact validation
 
@@ -308,7 +312,7 @@ been loaded. It must reject:
 - duplicate public export keys;
 - a target absent from the provider's declaration table;
 - a target that is private or otherwise not exportable;
-- namespace or declaration-kind mismatch;
+- export-namespace or declaration-kind mismatch;
 - target fingerprint mismatch;
 - an export target that designates another export rather than a provider-owned
   declaration; and
@@ -347,11 +351,11 @@ forwarding value, function, global, type, constructor, effect, or operation for 
 re-exported binding.
 
 Lowering consumes a resolved binding that already carries the original
-`DeclarationRef`; it must not use the access-path Module as the implementation
-provider. References compiled through a facade therefore import the original
-provider symbol. The Implementation Closure includes that provider when the
-target requires an implementation, and the linker validates the reference
-against the original provider's Module Object.
+`ModuleInterfaceDeclarationRef`; it must not use the access-path Module as the
+implementation provider. References compiled through a facade therefore import
+the original provider symbol. The Implementation Closure includes that provider
+when the target requires an implementation, and the linker validates the
+reference against the original provider's Module Object.
 
 The linker must distinguish public interface access from Module Object ownership.
 It must not require every public export entry to have a same-Module runtime
@@ -385,9 +389,10 @@ artifacts.
 - Publish the selected bindings locally exactly as for an ordinary selective
   import.
 - Add public export entries containing only the local access key, flattened
-  `DeclarationRef`, and expected provider fingerprint.
-- Build one namespace-keyed public export table containing both owned declarations
-  and re-exports, and diagnose duplicate keys at the authored source site.
+  `ModuleInterfaceDeclarationRef`, and expected provider fingerprint.
+- Build one export-namespace-keyed public export table containing both owned
+  declarations and re-exports, and diagnose duplicate keys at the authored
+  source site.
 - Mark successful public selective items as intrinsically used.
 - Route all cross-interface target resolution and local identity interning through
   the interface catalog.
@@ -507,7 +512,7 @@ unless `Api` explicitly re-exports them.
   converge to one catalog entry rather than separately freshened descriptors.
 - Re-exported offers preserve provider-owned offer and parameter behavior under
   ordinary downstream activation rules.
-- Duplicate, unresolved, private, and namespace-incompatible items produce
+- Duplicate, unresolved, private, and export-namespace-incompatible items produce
   deterministic diagnostics at the re-export site.
 - Signature dependencies enter the Reachable Interface Closure without becoming
   facade access names.

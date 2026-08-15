@@ -28,6 +28,10 @@ runtime concepts. Each term has one owning context.
   Buslane programs through VM CFG into verified LoisVM bytecode.
 - The Lane Command and Lane Wasm are hosts of compiler APIs; neither owns
   compiler semantics.
+- Each execution host owns the Execution Profile it supplies to compiler
+  admission; the compiler never selects a host policy.
+- The Lane Module Subsystem owns Module Interface Catalog, Public Export,
+  Declaration Reference, Declaration Fingerprint, and export-namespace terms.
 - Lane artifacts and LoisVM codecs use Bytecodec primitives while retaining
   ownership of their domain schemas and validation.
 - Source-language and artifact terms belong to Lane Workspace; compiler-only

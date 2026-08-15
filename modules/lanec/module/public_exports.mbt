@@ -14,7 +14,7 @@ pub(all) struct ResolvedModuleInterfaceExport {
 } derive(Debug, Eq)
 
 ///|
-fn ModuleInterfaceDeclaration::export_space(
+fn ModuleInterfaceDeclaration::export_namespace(
   self : ModuleInterfaceDeclaration,
 ) -> ModuleInterfaceExportNamespace {
   match self {
@@ -51,7 +51,7 @@ pub fn ModuleInterface::declaration(
   if reference.provider_module != self.module_path {
     return None
   }
-  match reference.export_space {
+  match reference.export_namespace {
     TypeNamespace => {
       for type_ in self.types {
         let name = match type_ {
@@ -137,7 +137,7 @@ pub fn ModuleInterface::owned_exports(
 ) -> Array[ModuleInterfaceExport] {
   let exports = []
   for declaration in self.owned_declarations() {
-    let export_space = declaration.export_space()
+    let export_namespace = declaration.export_namespace()
     let name = declaration.name()
     let fingerprint = match self.declaration_fingerprint(declaration) {
       Ok(fingerprint) => fingerprint
@@ -147,11 +147,11 @@ pub fn ModuleInterface::owned_exports(
         )
     }
     exports.push({
-      export_space,
+      export_namespace,
       exposed_name: name,
       target: {
         provider_module: self.module_path,
-        export_space,
+        export_namespace,
         declaration_name: name,
       },
       expected_target_fingerprint: fingerprint,
