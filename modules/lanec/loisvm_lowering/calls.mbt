@@ -599,9 +599,6 @@ fn FunctionLowerer::lower_intrinsic(
       return Slot(source, result_type)
     _ => ()
   }
-  if intrinsic is Panic {
-    raise UnsupportedIntrinsic(name=intrinsic.name())
-  }
   match intrinsic {
     BytesMake
     | BytesLength
