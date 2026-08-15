@@ -83,10 +83,7 @@ pub fn BuslaneIntrinsicContract::function_contract(
   self : BuslaneIntrinsicContract,
 ) -> BuslaneIntrinsicFunctionContract? {
   match (self.type_, self.intrinsic.signature()) {
-    (
-      Function(parameters, result, effect),
-      @abi.IntrinsicSignature::Function(implementation~, ..),
-    ) =>
+    (Function(parameters, result, effect), Function(implementation~, ..)) =>
       Some({
         intrinsic: self.intrinsic,
         parameters: parameters.copy(),

@@ -148,7 +148,7 @@ fn builtin_contract_matches(
     (Value(kind), type_) => intrinsic_value_type_matches(object, kind, type_)
     (
       Function(parameters~, result~, effect~, ..),
-      @buslane.Type::Function(actual_parameters, actual_result, actual_effect),
+      Function(actual_parameters, actual_result, actual_effect),
     ) =>
       intrinsic_parameters_match(object, parameters, actual_parameters) &&
       intrinsic_value_type_matches(object, result, actual_result) &&
