@@ -69,6 +69,12 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
   kind : ResolveDiagnosticKind,
 ) {
   match kind {
+    InvalidCanonicalBasicProvider(provider~, reason~) =>
+      text("invalid_canonical_basic_provider") +
+      space +
+      text(provider) +
+      space +
+      text(reason)
     UnresolvedType(name) => text("unresolved_type") + space + text(name)
     UnresolvedValue(name) => text("unresolved_value") + space + text(name)
     UnresolvedEffectOperation(name) =>

@@ -2,6 +2,8 @@
 priv struct Resolver {
   registry : SymbolRegistry
   declaration_symbols : @symbol.DeclarationSymbolScope
+  canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiIdentityCatalogBuilder
+  canonical_basic_abi_demands : Array[CanonicalBasicAbiDemand]
   local_module : LocalModuleNamespace
   imported_modules : Array[ImportedModule]
   module_bindings : Array[ModuleBinding]
@@ -124,7 +126,12 @@ priv struct TypeAliasBinding {
 /// type diagnostic while still returning a resolved tree for later phases.
 pub fn resolve_source_file_result(source : @syntax.SourceFile) -> ResolveResult {
   let registry = SymbolRegistry()
-  let resolver = Resolver::Resolver(registry, None, source.module_path)
+  let resolver = Resolver::Resolver(
+    registry,
+    None,
+    source.module_path,
+    ModuleInterfaceCatalog(),
+  )
   resolver.resolve_source_file_result(source)
 }
 
@@ -143,6 +150,7 @@ pub fn resolve_source_file_with_imports_result(
     registry,
     previous_declarations,
     source.module_path,
+    imported_environment,
   )
   resolver.publish_imported_bindings(source, imported_environment)
   resolver.resolve_source_file_result(source)
@@ -164,6 +172,8 @@ fn Resolver::resolve_source_file_result(
   let resolved = {
     module_path: source.module_path,
     symbols: self.registry,
+    canonical_basic_abi: self.canonical_basic_abi.build(),
+    canonical_basic_abi_demands: self.canonical_basic_abi_demands.copy(),
     import_exposures: self.import_exposures,
     import_uses: self.import_uses,
     import_symbols: self.import_symbols,
@@ -249,12 +259,17 @@ fn Resolver::Resolver(
   registry : SymbolRegistry,
   previous_declarations : @symbol.DeclarationIdentities?,
   current_module : @syntax.ModulePath,
+  imported_environment : @module_interface.ModuleInterfaceCatalog,
 ) -> Resolver {
   {
     registry,
     declaration_symbols: registry.declaration_scope(
       previous=previous_declarations,
     ),
+    canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiIdentityCatalogBuilder::from_interfaces(
+      imported_environment,
+    ),
+    canonical_basic_abi_demands: [],
     local_module: {
       path_text: @module_interface.module_path_text(current_module),
       name_loc: current_module.loc,

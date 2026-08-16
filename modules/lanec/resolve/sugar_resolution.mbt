@@ -6,23 +6,39 @@ fn @abi.BasicTypeProvider::resolved_name(
 }
 
 ///|
-fn Resolver::canonical_module_type_binding(
+fn Resolver::demand_canonical_basic_provider(
   self : Resolver,
-  target : @abi.BasicTypeProvider,
-) -> ModuleTypeBinding? {
-  if target.module_path() == self.local_module.path_text {
-    return ModuleNamespaceSource::LocalModule(self.local_module).type_binding(
-      target.type_name(),
-    )
+  provider : @abi.BasicTypeProvider,
+  loc : SourceSpan,
+) -> Bool {
+  if !self.canonical_basic_abi_demands.any(fn(demand) {
+      demand.provider == provider
+    }) {
+    self.canonical_basic_abi_demands.push({ provider, loc })
+    return true
   }
-  match self.imported_module(target.module_path()) {
-    Some(imported) =>
-      ModuleNamespaceSource::ImportedModule(
-        imported~,
-        import_origins=imported.provider_origins,
-        authored_binding_origin=None,
-      ).type_binding(target.type_name())
-    None => None
+  false
+}
+
+///|
+fn Resolver::record_canonical_basic_import_uses(
+  self : Resolver,
+  symbol : TypeSymbolId,
+  loc : SourceSpan,
+) -> Unit {
+  for imported in self.imported_modules {
+    for binding in imported.bindings {
+      let matches = match binding.declaration {
+        NominalType(Struct(declaration)) => declaration.symbol == symbol
+        NominalType(Enum(declaration)) => declaration.symbol == symbol
+        NominalType(External(declaration)) => declaration.symbol == symbol
+        _ => false
+      }
+      if matches {
+        self.record_import_uses(imported.provider_origins, loc)
+        return
+      }
+    }
   }
 }
 
@@ -33,26 +49,22 @@ fn Resolver::resolve_canonical_type(
   loc : SourceSpan,
 ) -> ResolvedType {
   let name = target.resolved_name()
-  match self.canonical_module_type_binding(target) {
-    Some(binding) => {
-      self.record_import_uses(binding.import_origins, loc)
-      match binding.kind {
-        NominalType(symbol~, ..) => Constructor(symbol~, name~, loc~)
-        TypeAlias(symbol~, ..) =>
-          Alias(
-            symbol~,
-            owner_module_path=Some(binding.owner_module_path),
-            name~,
-            loc~,
-          )
-        EffectType(_) => {
-          self.report(UnresolvedType(name.display_text()), loc)
-          Unresolved(name=name.display_text(), arguments=[], loc~)
-        }
-      }
+  let first_demand = self.demand_canonical_basic_provider(target, loc)
+  match self.canonical_basic_abi.type_symbol(target) {
+    Some(symbol) => {
+      self.record_canonical_basic_import_uses(symbol, loc)
+      Constructor(symbol~, name~, loc~)
     }
     None => {
-      self.report(UnresolvedType(name.display_text()), loc)
+      if first_demand {
+        self.report(
+          InvalidCanonicalBasicProvider(
+            provider=target.qualified_name(),
+            reason="the required public declaration is missing",
+          ),
+          loc,
+        )
+      }
       Unresolved(name=name.display_text(), arguments=[], loc~)
     }
   }
@@ -66,25 +78,27 @@ fn Resolver::resolve_canonical_variant(
 ) -> ResolvedVariantReference {
   let owner = target.owner()
   let type_name = owner.resolved_name()
-  match self.canonical_module_type_binding(owner) {
-    Some({ kind: NominalType(variants~, ..), import_origins, .. }) => {
-      self.record_import_uses(import_origins, loc)
-      for variant in variants {
-        if variant.name == target.variant_name() {
-          return Symbol(variant.symbol)
-        }
+  let first_demand = self.demand_canonical_basic_provider(owner, loc)
+  match self.canonical_basic_abi.variant_symbol(target) {
+    Some(symbol) => {
+      if self.canonical_basic_abi.type_symbol(owner) is Some(owner_symbol) {
+        self.record_canonical_basic_import_uses(owner_symbol, loc)
       }
+      Symbol(symbol)
     }
-    _ => ()
+    None => {
+      if first_demand {
+        self.report(
+          InvalidCanonicalBasicProvider(
+            provider=owner.qualified_name(),
+            reason="the required public declaration is missing",
+          ),
+          loc,
+        )
+      }
+      Unresolved(type_name~, variant=target.variant_name())
+    }
   }
-  self.report(
-    UnresolvedQualifiedVariant(
-      type_name=type_name.display_text(),
-      variant=target.variant_name(),
-    ),
-    loc,
-  )
-  Unresolved(type_name~, variant=target.variant_name())
 }
 
 ///|

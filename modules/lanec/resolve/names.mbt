@@ -753,9 +753,16 @@ fn Resolver::publish_local_type_binding(
   name : String,
   symbol : TypeSymbolId,
   parameter_kinds : Array[@types.Kind],
+  is_public : Bool,
 ) -> Unit {
   self.publish_type_binding(name, symbol, parameter_kinds, None)
   self.local_module.types.push(self.types[self.types.length() - 1])
+  self.canonical_basic_abi.register_local_type(
+    self.local_module.path_text,
+    name,
+    symbol,
+    is_public,
+  )
 }
 
 ///|

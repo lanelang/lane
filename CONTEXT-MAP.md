@@ -32,6 +32,9 @@ runtime concepts. Each term has one owning context.
   admission; the compiler never selects a host policy.
 - The Lane Module Subsystem owns Module Interface Catalog, Public Export,
   Declaration Reference, Declaration Fingerprint, and export-namespace terms.
+- The Canonical Basic ABI package owns the module-input adapter and its identity
+  and certification states; resolution and type checking consume them without
+  rediscovering providers.
 - Lane artifacts and LoisVM codecs use Bytecodec primitives while retaining
   ownership of their domain schemas and validation.
 - Source-language and artifact terms belong to Lane Workspace; compiler-only

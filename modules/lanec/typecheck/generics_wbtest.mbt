@@ -1373,18 +1373,23 @@ test "generic inference reports a missing failure reason as internal" {
   let file = expect_parse_ok("")
   let resolution = @resolve.resolve_source_file_result(file)
   let source = @desugar.desugar_source_file(resolution.source)
+  let declarations : CheckedDeclarationEnvironment = {
+    types: [],
+    type_members: [],
+    fields: [],
+    variants: [],
+    effects: [],
+    operations: [],
+  }
   let checker = SemanticChecker::{
     resolved_source: resolution.source,
     source,
     imported_environment: empty_imported_environment(),
-    declarations: {
-      types: [],
-      type_members: [],
-      fields: [],
-      variants: [],
-      effects: [],
-      operations: [],
-    },
+    declarations,
+    canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbi::from_identities(
+      resolution.source.canonical_basic_abi,
+      declarations.canonical_basic_abi_types(),
+    ),
     diagnostics: [],
     values: [],
     value_types: [],

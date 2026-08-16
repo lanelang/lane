@@ -175,14 +175,6 @@ applications and constructions of `Basic.Data.Tuple.Tuple`, associating to the
 right.
 _Avoid_: flat n-tuple, arity-specific tuple type, singleton tuple
 
-**Canonical Basic ABI**:
-The compiler-owned catalog of fully qualified Basic declarations required by
-language features. It includes tuple and list syntax providers, canonical
-`Basic.Data.Void.Void`, and the structural-derivation providers. Semantic
-checking validates provider kind and shape once, after which consumers carry
-resolved identities.
-_Avoid_: configurable provider, shape-based discovery, unqualified lookup, backend name comparison
-
 **Tuple Pattern**:
 Parenthesized comma pattern syntax that destructures a Right-Nested Tuple Chain
 without introducing numeric tuple projection.

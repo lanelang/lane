@@ -239,18 +239,23 @@ needed by language features. It includes at least:
 - `Basic.Data.Void.Void`;
 - the structural-derivation declarations already required by the checker.
 
-The catalog stores symbolic, fully qualified provider requirements. A single
-semantic adapter resolves those requirements against the imported module
-closure and validates their public declarations and shapes. For Void it proves:
+The catalog stores symbolic, fully qualified provider requirements. One semantic
+adapter owns their complete interpretation at the module-input seam. It resolves
+identities against the complete imported interface closure plus the current
+module, then certifies the corresponding public declarations and shapes before
+expression checking. The adapter exposes an immutable identity catalog while
+resolution is being assembled and a certified semantic catalog to later
+consumers; neither state may be reconstructed outside the adapter. For Void,
+certification proves:
 
 - the declaration is the canonical `Basic.Data.Void.Void` nominal type;
 - it is an enum;
 - it has no type parameters;
 - it has no variants.
 
-Missing or incompatible providers produce one source diagnostic owned by this
-adapter. Consumers do not repeat name lookup, shape validation, or diagnostic
-policy.
+Missing or incompatible demanded providers produce one source diagnostic owned
+by this adapter. Consumers receive only catalog identities or certified semantic
+results; they do not repeat name lookup, shape validation, or diagnostic policy.
 
 ### Resolved identities cross the compiler
 
@@ -285,10 +290,11 @@ IntrinsicContract {
 }
 ```
 
-The Basic ABI adapter resolves `CanonicalBasicType(Void)` before semantic
-checking materializes the complete function type. The intrinsic table remains
-the sole owner of the contract; the Basic source annotation is checked against
-it rather than becoming a second signature producer.
+The Basic ABI identity catalog resolves `CanonicalBasicType(Void)`, and the
+semantic adapter certifies that identity before materializing the complete
+function type. The intrinsic table remains the sole owner of the contract; the
+Basic source annotation is checked against it rather than becoming a second
+signature producer.
 
 ### The Fatal implementation is not a result ABI
 

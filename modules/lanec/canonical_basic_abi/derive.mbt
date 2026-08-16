@@ -1,46 +1,52 @@
 ///|
 priv struct StructuralDeriveDeclarations {
-  deriver : CheckedStructDeclaration
-  product : CheckedStructDeclaration
-  sum : CheckedEnumDeclaration
-  iso : CheckedStructDeclaration
-  type_info : CheckedStructDeclaration
-  field_info : CheckedStructDeclaration
-  variant_info : CheckedStructDeclaration
-  void_declaration : CheckedEnumDeclaration
+  deriver : @module_interface.ModuleInterfaceStruct
+  product : @module_interface.ModuleInterfaceStruct
+  sum : @module_interface.ModuleInterfaceEnum
+  iso : @module_interface.ModuleInterfaceStruct
+  type_info : @module_interface.ModuleInterfaceStruct
+  field_info : @module_interface.ModuleInterfaceStruct
+  variant_info : @module_interface.ModuleInterfaceStruct
+  void_declaration : @module_interface.ModuleInterfaceEnum
 }
 
 ///|
 priv struct StructuralDeriveMethods {
-  unit : CheckedFieldDeclaration
-  product : CheckedFieldDeclaration
-  void_method : CheckedFieldDeclaration
-  sum : CheckedFieldDeclaration
-  field : CheckedFieldDeclaration
-  variant : CheckedFieldDeclaration
-  record : CheckedFieldDeclaration
-  enumeration : CheckedFieldDeclaration
+  unit : @module_interface.ModuleInterfaceField
+  product : @module_interface.ModuleInterfaceField
+  void_method : @module_interface.ModuleInterfaceField
+  sum : @module_interface.ModuleInterfaceField
+  field : @module_interface.ModuleInterfaceField
+  variant : @module_interface.ModuleInterfaceField
+  record : @module_interface.ModuleInterfaceField
+  enumeration : @module_interface.ModuleInterfaceField
 }
 
 ///|
-fn SemanticChecker::structural_derive_abi(
-  self : SemanticChecker,
-  loc : SourceSpan,
-) -> @checked.CheckedDeriveAbi? {
-  guard self.canonical_basic_void_declaration(loc) is Some(void_declaration) else {
-    return None
+fn validate_structural_derive_abi(
+  identities : CanonicalBasicAbiIdentityCatalog,
+  checked : Array[@module_interface.ModuleInterfaceType],
+  void_result : Result[
+    @module_interface.ModuleInterfaceEnum,
+    CanonicalBasicAbiError,
+  ],
+) -> Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError] {
+  let void_declaration = match void_result {
+    Ok(declaration) => declaration
+    Err(error) => return Err(error)
   }
-  guard self.canonical_basic_struct(Deriver) is Some(deriver) &&
-    self.canonical_basic_struct(Product) is Some(product) &&
-    self.canonical_basic_enum(Sum) is Some(sum) &&
-    self.canonical_basic_struct(Iso) is Some(iso) &&
-    self.canonical_basic_struct(TypeInfo) is Some(type_info) &&
-    self.canonical_basic_struct(FieldInfo) is Some(field_info) &&
-    self.canonical_basic_struct(VariantInfo) is Some(variant_info) else {
-    self.report_invalid_derive_abi(
-      "required canonical declarations are missing", loc,
+  guard canonical_basic_struct(identities, checked, Deriver) is Ok(deriver) &&
+    canonical_basic_struct(identities, checked, Product) is Ok(product) &&
+    canonical_basic_enum(identities, checked, Sum) is Ok(sum) &&
+    canonical_basic_struct(identities, checked, Iso) is Ok(iso) &&
+    canonical_basic_struct(identities, checked, TypeInfo) is Ok(type_info) &&
+    canonical_basic_struct(identities, checked, FieldInfo) is Ok(field_info) &&
+    canonical_basic_struct(identities, checked, VariantInfo) is Ok(variant_info) else {
+    return Err(
+      InvalidStructuralDerivation(
+        reason="required canonical declarations are missing",
+      ),
     )
-    return None
   }
   let declarations = {
     deriver,
@@ -53,24 +59,9 @@ fn SemanticChecker::structural_derive_abi(
     void_declaration,
   }
   match declarations.validate() {
-    Ok(abi) => Some(abi)
-    Err(reason) => {
-      self.report_invalid_derive_abi(reason, loc)
-      None
-    }
+    Ok(abi) => Ok(abi)
+    Err(reason) => Err(InvalidStructuralDerivation(reason~))
   }
-}
-
-///|
-fn SemanticChecker::report_invalid_derive_abi(
-  self : SemanticChecker,
-  reason : String,
-  loc : SourceSpan,
-) -> Unit {
-  self.diagnostics.push({
-    kind: InvalidStructuralDerivationInterface(reason~),
-    loc,
-  })
 }
 
 ///|
@@ -219,7 +210,7 @@ fn StructuralDeriveDeclarations::validate_deriver(
 
 ///|
 fn metadata_struct_valid(
-  declaration : CheckedStructDeclaration,
+  declaration : @module_interface.ModuleInterfaceStruct,
   expected : Array[(String, @types.Type)],
 ) -> Bool {
   if !declaration.type_parameters.is_empty() ||
@@ -240,7 +231,7 @@ fn metadata_struct_valid(
 fn validate_binary_deriver_method(
   type_ : @types.Type,
   capability : @types.Type,
-  result_constructor : TypeSymbolId,
+  result_constructor : @symbol.TypeSymbolId,
 ) -> Bool {
   guard type_ is Forall([a, b], body) && a.kind == Type && b.kind == Type else {
     return false
@@ -265,7 +256,7 @@ fn validate_binary_deriver_method(
 fn validate_named_deriver_method(
   type_ : @types.Type,
   capability : @types.Type,
-  info_symbol : TypeSymbolId,
+  info_symbol : @symbol.TypeSymbolId,
 ) -> Bool {
   guard type_ is Forall([a], body) && a.kind == Type else { return false }
   let a_type = @types.Type::Parameter(a.id)
@@ -277,8 +268,8 @@ fn validate_named_deriver_method(
 fn validate_nominal_deriver_method(
   type_ : @types.Type,
   capability : @types.Type,
-  type_info_symbol : TypeSymbolId,
-  iso_symbol : TypeSymbolId,
+  type_info_symbol : @symbol.TypeSymbolId,
+  iso_symbol : @symbol.TypeSymbolId,
 ) -> Bool {
   guard type_ is Forall([t, r], body) && t.kind == Type && r.kind == Type else {
     return false

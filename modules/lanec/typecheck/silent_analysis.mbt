@@ -13,6 +13,7 @@ fn SemanticChecker::copy_for_silent_analysis(
     source: self.source,
     imported_environment: self.imported_environment,
     declarations: self.declarations,
+    canonical_basic_abi: self.canonical_basic_abi,
     diagnostics: [],
     values: self.values.copy(),
     value_types: self.value_types.copy(),

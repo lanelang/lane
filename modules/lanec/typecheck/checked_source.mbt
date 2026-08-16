@@ -21,17 +21,29 @@ pub fn typecheck_checked_source_file_with_imported_environment(
   )
   let resolved_source = source
   let current_source = @desugar.desugar_source_file(source)
+  let canonical_basic_abi = @canonical_basic_abi.CanonicalBasicAbi::from_identities(
+    resolved_source.canonical_basic_abi,
+    declaration_result.declarations.canonical_basic_abi_types(),
+  )
   let checker = SemanticChecker::{
     resolved_source,
     source: current_source,
     imported_environment,
     declarations: declaration_result.declarations,
+    canonical_basic_abi,
     diagnostics: declaration_result.diagnostics.copy(),
     values: [],
     value_types: [],
     ordered_value_types: [],
     offers: ContextualOfferScope(),
     ordered_offers: ContextualOfferScope(),
+  }
+  if !checker.validate_canonical_basic_abi_demands() {
+    return Ok({
+      source: None,
+      module_interface: None,
+      diagnostics: deduplicate_typecheck_diagnostics(checker.diagnostics),
+    })
   }
   checker.seed_imported_top_level_value_types(imported_environment)
   checker.collect_top_level_value_types()

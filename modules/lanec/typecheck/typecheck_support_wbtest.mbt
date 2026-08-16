@@ -96,6 +96,10 @@ fn semantic_checker_for_test_source(source : String) -> SemanticChecker {
     source,
     imported_environment: empty_imported_environment(),
     declarations: declaration_result.declarations,
+    canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbi::from_identities(
+      resolved.canonical_basic_abi,
+      declaration_result.declarations.canonical_basic_abi_types(),
+    ),
     diagnostics: declaration_result.diagnostics.copy(),
     values: [],
     value_types: [],

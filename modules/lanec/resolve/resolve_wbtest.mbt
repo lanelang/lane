@@ -1072,7 +1072,12 @@ test "report unresolved operator operation name" {
 ///|
 test "resolver reports repeated diagnostics independently" {
   let file = expect_parse_ok("fn value() -> I64 { 0 }")
-  let resolver = Resolver::Resolver(SymbolRegistry(), None, file.module_path)
+  let resolver = Resolver::Resolver(
+    SymbolRegistry(),
+    None,
+    file.module_path,
+    ModuleInterfaceCatalog(),
+  )
   resolver.report(UnresolvedValue("missing"), file.loc)
   resolver.report(UnresolvedValue("missing"), file.loc)
   inspect(
@@ -1119,13 +1124,10 @@ test "sugar resolution resolves each canonical provider once" {
     ),
     content=(
       #|[
-      #|  unresolved_type Basic.Data.Tuple.Tuple,
-      #|  unresolved_variant Basic.Data.Tuple.Tuple::tuple,
-      #|  unresolved_variant Basic.Data.Tuple.Tuple::tuple,
-      #|  unresolved_variant Basic.Data.List.List::cons,
-      #|  unresolved_variant Basic.Data.List.List::empty,
-      #|  unresolved_variant Basic.Data.List.List::empty
+      #|  invalid_canonical_basic_provider Basic.Data.Tuple.Tuple the required public declaration is missing,
+      #|  invalid_canonical_basic_provider Basic.Data.List.List the required public declaration is missing
       #|]
+
     ),
   )
 }

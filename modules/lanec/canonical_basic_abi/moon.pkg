@@ -1,0 +1,7 @@
+import {
+  "Milky2018/lanec/abi",
+  "Milky2018/lanec/checked",
+  "Milky2018/lanec/module" @module_interface,
+  "Milky2018/lanec/symbol",
+  "Milky2018/lanec/types",
+}

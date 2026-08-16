@@ -201,7 +201,7 @@ test "tuple ABI module cannot borrow declarations from an open import" {
       #|[
       #|  {
       #|    source_id: Some("<root>"),
-      #|    message: "cannot find type `Basic.Data.Tuple.Tuple`",
+      #|    message: "invalid canonical Basic provider `Basic.Data.Tuple.Tuple`",
       #|    span: Some(
       #|      Source(
       #|        source_id="<root>",
@@ -216,7 +216,7 @@ test "tuple ABI module cannot borrow declarations from an open import" {
       #|      ),
       #|    ),
       #|    severity: Error,
-      #|    code: Some("E2000"),
+      #|    code: Some("E3039"),
       #|    labels: [
       #|      {
       #|        span: Source(
@@ -230,52 +230,12 @@ test "tuple ABI module cannot borrow declarations from an open import" {
       #|            end_column: 27,
       #|          },
       #|        ),
-      #|        message: "no type named `Basic.Data.Tuple.Tuple` is visible here",
+      #|        message: "the required public declaration is missing",
       #|        style: Primary,
       #|      },
       #|    ],
-      #|    notes: ["Lane resolves type names from the current module and explicitly imported public types"],
-      #|    helps: ["declare `Basic.Data.Tuple.Tuple`, import the module that exports it, or qualify the type as `Module.Basic.Data.Tuple.Tuple`"],
-      #|    facts: [],
-      #|    suggestions: [],
-      #|  },
-      #|  {
-      #|    source_id: Some("<root>"),
-      #|    message: "cannot find variant `Basic.Data.Tuple.Tuple::tuple`",
-      #|    span: Some(
-      #|      Source(
-      #|        source_id="<root>",
-      #|        span={
-      #|          start_offset: 65,
-      #|          end_offset: 74,
-      #|          start_line: 3,
-      #|          start_column: 30,
-      #|          end_line: 3,
-      #|          end_column: 39,
-      #|        },
-      #|      ),
-      #|    ),
-      #|    severity: Error,
-      #|    code: Some("E2003"),
-      #|    labels: [
-      #|      {
-      #|        span: Source(
-      #|          source_id="<root>",
-      #|          span={
-      #|            start_offset: 65,
-      #|            end_offset: 74,
-      #|            start_line: 3,
-      #|            start_column: 30,
-      #|            end_line: 3,
-      #|            end_column: 39,
-      #|          },
-      #|        ),
-      #|        message: "this enum type does not expose a variant named `tuple`",
-      #|        style: Primary,
-      #|      },
-      #|    ],
-      #|    notes: ["qualified variant lookup first resolves the enum type, then its variants"],
-      #|    helps: ["check the variant spelling or use a variant declared by `Basic.Data.Tuple.Tuple`"],
+      #|    notes: ["compiler-owned language features require the declared canonical Basic ABI"],
+      #|    helps: ["provide the canonical Basic module and declaration with the required public shape"],
       #|    facts: [],
       #|    suggestions: [],
       #|  },
@@ -295,10 +255,7 @@ test "tuple and list sugar do not use unqualified fallback providers" {
   debug_inspect(
     tuple_result.diagnostics.map(fn(diagnostic) { diagnostic.message }),
     content=(
-      #|[
-      #|  "cannot find type `Basic.Data.Tuple.Tuple`",
-      #|  "cannot find variant `Basic.Data.Tuple.Tuple::tuple`",
-      #|]
+      #|["invalid canonical Basic provider `Basic.Data.Tuple.Tuple`"]
     ),
   )
   let list_result = check_source_for_test(
@@ -317,7 +274,7 @@ test "tuple and list sugar do not use unqualified fallback providers" {
       #|[
       #|  {
       #|    source_id: Some("<root>"),
-      #|    message: "cannot find variant `Basic.Data.List.List::cons`",
+      #|    message: "invalid canonical Basic provider `Basic.Data.List.List`",
       #|    span: Some(
       #|      Source(
       #|        source_id="<root>",
@@ -332,7 +289,7 @@ test "tuple and list sugar do not use unqualified fallback providers" {
       #|      ),
       #|    ),
       #|    severity: Error,
-      #|    code: Some("E2003"),
+      #|    code: Some("E3039"),
       #|    labels: [
       #|      {
       #|        span: Source(
@@ -346,52 +303,12 @@ test "tuple and list sugar do not use unqualified fallback providers" {
       #|            end_column: 42,
       #|          },
       #|        ),
-      #|        message: "this enum type does not expose a variant named `cons`",
+      #|        message: "the required public declaration is missing",
       #|        style: Primary,
       #|      },
       #|    ],
-      #|    notes: ["qualified variant lookup first resolves the enum type, then its variants"],
-      #|    helps: ["check the variant spelling or use a variant declared by `Basic.Data.List.List`"],
-      #|    facts: [],
-      #|    suggestions: [],
-      #|  },
-      #|  {
-      #|    source_id: Some("<root>"),
-      #|    message: "cannot find variant `Basic.Data.List.List::empty`",
-      #|    span: Some(
-      #|      Source(
-      #|        source_id="<root>",
-      #|        span={
-      #|          start_offset: 103,
-      #|          end_offset: 109,
-      #|          start_line: 6,
-      #|          start_column: 36,
-      #|          end_line: 6,
-      #|          end_column: 42,
-      #|        },
-      #|      ),
-      #|    ),
-      #|    severity: Error,
-      #|    code: Some("E2003"),
-      #|    labels: [
-      #|      {
-      #|        span: Source(
-      #|          source_id="<root>",
-      #|          span={
-      #|            start_offset: 103,
-      #|            end_offset: 109,
-      #|            start_line: 6,
-      #|            start_column: 36,
-      #|            end_line: 6,
-      #|            end_column: 42,
-      #|          },
-      #|        ),
-      #|        message: "this enum type does not expose a variant named `empty`",
-      #|        style: Primary,
-      #|      },
-      #|    ],
-      #|    notes: ["qualified variant lookup first resolves the enum type, then its variants"],
-      #|    helps: ["check the variant spelling or use a variant declared by `Basic.Data.List.List`"],
+      #|    notes: ["compiler-owned language features require the declared canonical Basic ABI"],
+      #|    helps: ["provide the canonical Basic module and declaration with the required public shape"],
       #|    facts: [],
       #|    suggestions: [],
       #|  },

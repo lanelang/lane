@@ -549,3 +549,11 @@ fn SemanticChecker::checked_derive_evidence(
     None
   }
 }
+
+///|
+fn apply_unary_type_constructor(
+  type_constructor : @types.Type,
+  argument : @types.Type,
+) -> @types.Type {
+  Apply(type_constructor, [TypeArgument(argument)])
+}

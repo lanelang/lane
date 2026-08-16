@@ -21,6 +21,7 @@ fn Resolver::collect_top_level_headers(
             declaration.name_loc,
           ),
           syntax_type_parameter_kinds(declaration.type_parameters),
+          declaration.is_public,
         )
       }
       Enum(declaration) => {
@@ -38,6 +39,7 @@ fn Resolver::collect_top_level_headers(
             declaration.name_loc,
           ),
           syntax_type_parameter_kinds(declaration.type_parameters),
+          declaration.is_public,
         )
       }
       Effect(declaration) => {
@@ -72,6 +74,7 @@ fn Resolver::collect_top_level_headers(
                 declaration.name_loc,
               ),
               syntax_type_parameter_kinds(declaration.type_parameters),
+              declaration.is_public,
             )
           }
           Effect(_) => {
@@ -203,6 +206,12 @@ fn Resolver::collect_nominal_members(
             name: variant.name,
             symbol,
           })
+          self.canonical_basic_abi.register_local_variant(
+            self.local_module.path_text,
+            declaration.name,
+            variant.name,
+            symbol,
+          )
         }
       }
       Effect(declaration) => {

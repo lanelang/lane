@@ -5,6 +5,20 @@ pub impl @compiler_diag.ToCompilerDiagnostic for ResolveDiagnostic with fn to_co
 ) -> @compiler_diag.CompilerDiagnostic {
   let span = Some(diagnostic.loc)
   match diagnostic.kind {
+    InvalidCanonicalBasicProvider(provider~, reason~) =>
+      @compiler_diag.compiler_error(
+        "invalid canonical Basic provider `\{provider}`",
+        span~,
+        code=Some("E3039"),
+        labels=[@compiler_diag.compiler_primary_label(diagnostic.loc, reason)],
+        notes=[
+          "compiler-owned language features require the declared canonical Basic ABI",
+        ],
+        helps=[
+          "provide the canonical Basic module and declaration with the required public shape",
+        ],
+        context~,
+      )
     UnresolvedType(name) =>
       @compiler_diag.compiler_error(
         "cannot find type `\{name}`",

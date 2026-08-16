@@ -1,6 +1,7 @@
 import {
   "Milky2018/lanec/abi",
   "Milky2018/lanec/basic",
+  "Milky2018/lanec/canonical_basic_abi",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/desugar",
   "Milky2018/lanec/diagnostic" @compiler_diag,
