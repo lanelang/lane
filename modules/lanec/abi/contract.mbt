@@ -74,7 +74,37 @@ pub(all) enum BasicTypeProvider {
   TypeInfo
   FieldInfo
   VariantInfo
-} derive(Debug, Eq)
+} derive(Debug, Eq, Hash)
+
+///|
+pub fn BasicTypeProvider::all() -> Array[BasicTypeProvider] {
+  [
+    Tuple,
+    List,
+    Void,
+    Deriver,
+    Product,
+    Sum,
+    Iso,
+    TypeInfo,
+    FieldInfo,
+    VariantInfo,
+  ]
+}
+
+///|
+pub fn BasicTypeProvider::find(
+  module_path : String,
+  type_name : String,
+) -> BasicTypeProvider? {
+  for provider in BasicTypeProvider::all() {
+    if provider.module_path() == module_path &&
+      provider.type_name() == type_name {
+      return Some(provider)
+    }
+  }
+  None
+}
 
 ///|
 pub fn BasicTypeProvider::module_path(self : BasicTypeProvider) -> String {
@@ -114,7 +144,25 @@ pub(all) enum BasicVariantProvider {
   TupleValue
   ListEmpty
   ListCons
-} derive(Debug, Eq)
+} derive(Debug, Eq, Hash)
+
+///|
+pub fn BasicVariantProvider::all() -> Array[BasicVariantProvider] {
+  [TupleValue, ListEmpty, ListCons]
+}
+
+///|
+pub fn BasicVariantProvider::find(
+  owner : BasicTypeProvider,
+  variant_name : String,
+) -> BasicVariantProvider? {
+  for provider in BasicVariantProvider::all() {
+    if provider.owner() == owner && provider.variant_name() == variant_name {
+      return Some(provider)
+    }
+  }
+  None
+}
 
 ///|
 pub fn BasicVariantProvider::owner(

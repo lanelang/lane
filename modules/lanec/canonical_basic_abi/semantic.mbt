@@ -6,8 +6,10 @@ pub(all) enum CanonicalBasicAbiError {
 
 ///|
 pub struct CanonicalBasicAbi {
-  tuple : Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
-  list : Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
+  providers : Map[
+    @abi.BasicTypeProvider,
+    Result[@symbol.TypeSymbolId, CanonicalBasicAbiError],
+  ]
   void_declaration : Result[
     @module_interface.ModuleInterfaceEnum,
     CanonicalBasicAbiError,
@@ -27,13 +29,45 @@ pub fn CanonicalBasicAbi::from_module_input(
   }
   declarations.append(current)
   let void_declaration = validate_canonical_void(identities, declarations)
-  {
-    tuple: validate_canonical_tuple(identities, declarations),
-    list: validate_canonical_list(identities, declarations),
-    void_declaration,
-    structural_derive: validate_structural_derive_abi(
-      identities, declarations, void_declaration,
-    ),
+  let tuple = validate_canonical_tuple(identities, declarations)
+  let list = validate_canonical_list(identities, declarations)
+  let structural_derive = validate_structural_derive_abi(
+    identities, declarations, void_declaration,
+  )
+  let providers : Map[
+    @abi.BasicTypeProvider,
+    Result[@symbol.TypeSymbolId, CanonicalBasicAbiError],
+  ] = Map([])
+  for provider in @abi.BasicTypeProvider::all() {
+    providers[provider] = certified_provider_type(
+      provider, tuple, list, void_declaration, structural_derive,
+    )
+  }
+  { providers, void_declaration, structural_derive }
+}
+
+///|
+fn certified_provider_type(
+  provider : @abi.BasicTypeProvider,
+  tuple : Result[@symbol.TypeSymbolId, CanonicalBasicAbiError],
+  list : Result[@symbol.TypeSymbolId, CanonicalBasicAbiError],
+  void_declaration : Result[
+    @module_interface.ModuleInterfaceEnum,
+    CanonicalBasicAbiError,
+  ],
+  structural_derive : Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError],
+) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError] {
+  match provider {
+    Tuple => tuple
+    List => list
+    Void => void_declaration.map(declaration => declaration.symbol)
+    Deriver => structural_derive.map(abi => abi.deriver)
+    Product => structural_derive.map(abi => abi.product)
+    Sum => structural_derive.map(abi => abi.sum)
+    Iso => structural_derive.map(abi => abi.iso)
+    TypeInfo => structural_derive.map(abi => abi.type_info)
+    FieldInfo => structural_derive.map(abi => abi.field_info)
+    VariantInfo => structural_derive.map(abi => abi.variant_info)
   }
 }
 
@@ -42,17 +76,15 @@ pub fn CanonicalBasicAbi::validate_provider(
   self : CanonicalBasicAbi,
   provider : @abi.BasicTypeProvider,
 ) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError] {
-  match provider {
-    Tuple => self.tuple
-    List => self.list
-    Void => self.void_type_symbol()
-    Deriver => self.structural_derive.map(fn(abi) { abi.deriver })
-    Product => self.structural_derive.map(fn(abi) { abi.product })
-    Sum => self.structural_derive.map(fn(abi) { abi.sum })
-    Iso => self.structural_derive.map(fn(abi) { abi.iso })
-    TypeInfo => self.structural_derive.map(fn(abi) { abi.type_info })
-    FieldInfo => self.structural_derive.map(fn(abi) { abi.field_info })
-    VariantInfo => self.structural_derive.map(fn(abi) { abi.variant_info })
+  match self.providers.get(provider) {
+    Some(result) => result
+    None =>
+      Err(
+        InvalidProvider(
+          provider~,
+          reason="the provider is absent from the canonical Basic ABI contract",
+        ),
+      )
   }
 }
 
@@ -78,7 +110,7 @@ pub fn CanonicalBasicAbi::checked_contract(
   self : CanonicalBasicAbi,
 ) -> @checked.CheckedCanonicalBasicAbi {
   let types = []
-  for provider in basic_type_providers() {
+  for provider in @abi.BasicTypeProvider::all() {
     if self.validate_provider(provider) is Ok(symbol) {
       types.push(@checked.CheckedCanonicalBasicType::{ provider, symbol })
     }

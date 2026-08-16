@@ -20,8 +20,7 @@ pub fn lower_runtime_contract(@checked.CheckedCanonicalBasicAbi, (@symbol.TypeSy
 
 // Types and methods
 pub struct CanonicalBasicAbi {
-  tuple : Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
-  list : Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
+  providers : Map[@abi.BasicTypeProvider, Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]]
   void_declaration : Result[@module.ModuleInterfaceEnum, CanonicalBasicAbiError]
   structural_derive : Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError]
 }
@@ -45,8 +44,8 @@ pub fn CanonicalBasicAbiError::at(Self, @basic.SourceSpan) -> CanonicalBasicAbiD
 pub impl @prettyprinter.Pretty for CanonicalBasicAbiError
 
 pub struct CanonicalBasicAbiIdentityCatalog {
-  types : Array[@symbol.TypeSymbolId?]
-  variants : Array[@symbol.VariantSymbolId?]
+  types : Map[@abi.BasicTypeProvider, @symbol.TypeSymbolId]
+  variants : Map[@abi.BasicVariantProvider, @symbol.VariantSymbolId]
 } derive(Eq, @debug.Debug)
 pub fn CanonicalBasicAbiIdentityCatalog::require_type_symbol(Self, @abi.BasicTypeProvider) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbiIdentityCatalog::require_variant_symbol(Self, @abi.BasicVariantProvider) -> Result[@symbol.VariantSymbolId, CanonicalBasicAbiError]
@@ -54,8 +53,8 @@ pub fn CanonicalBasicAbiIdentityCatalog::type_symbol(Self, @abi.BasicTypeProvide
 pub fn CanonicalBasicAbiIdentityCatalog::variant_symbol(Self, @abi.BasicVariantProvider) -> @symbol.VariantSymbolId?
 
 pub struct CanonicalBasicAbiIdentityCatalogBuilder {
-  types : Array[@symbol.TypeSymbolId?]
-  variants : Array[@symbol.VariantSymbolId?]
+  types : Map[@abi.BasicTypeProvider, @symbol.TypeSymbolId]
+  variants : Map[@abi.BasicVariantProvider, @symbol.VariantSymbolId]
 }
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::build(Self) -> CanonicalBasicAbiIdentityCatalog
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::from_interfaces(@module.ModuleInterfaceCatalog) -> Self

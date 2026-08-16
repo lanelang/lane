@@ -22,3 +22,9 @@ resolved declaration and variant identities from the current Module and
 Reachable Interface Closure. It carries no independent shape policy and can be
 certified only by the Canonical Basic ABI adapter.
 _Avoid_: semantic validation result, string-keyed lookup, backend ABI
+
+**Canonical Basic Provider Universe**:
+The closed type-provider and variant-provider sets declared by the ABI Contract.
+The ABI Contract alone owns enumeration and qualified-identity lookup; this
+package consumes that universe when collecting and certifying identities.
+_Avoid_: package-local provider arrays, numeric provider indexes, repeated provider switches

@@ -21,7 +21,9 @@ pub(all) enum BasicTypeProvider {
   TypeInfo
   FieldInfo
   VariantInfo
-} derive(Eq, @debug.Debug)
+} derive(Eq, Hash, @debug.Debug)
+pub fn BasicTypeProvider::all() -> Array[Self]
+pub fn BasicTypeProvider::find(String, String) -> Self?
 pub fn BasicTypeProvider::module_path(Self) -> String
 pub fn BasicTypeProvider::qualified_name(Self) -> String
 pub fn BasicTypeProvider::type_name(Self) -> String
@@ -30,7 +32,9 @@ pub(all) enum BasicVariantProvider {
   TupleValue
   ListEmpty
   ListCons
-} derive(Eq, @debug.Debug)
+} derive(Eq, Hash, @debug.Debug)
+pub fn BasicVariantProvider::all() -> Array[Self]
+pub fn BasicVariantProvider::find(BasicTypeProvider, String) -> Self?
 pub fn BasicVariantProvider::owner(Self) -> BasicTypeProvider
 pub fn BasicVariantProvider::variant_name(Self) -> String
 

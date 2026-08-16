@@ -229,10 +229,10 @@ _Avoid_: F64-mediated literal conversion, double rounding
   `Basic.Data.Tuple` all make the canonical module target available to
   **Tuple Syntax**. The sugar does not depend on the local module binding name
   or on which declarations the import also exposes as unqualified names.
-- **Sugar Resolution** targets the exact declarations in the **Sugar
-  Provider ABI**. Missing imports, declarations, or incompatible signatures use
-  ordinary resolution and typechecking diagnostics; the compiler neither
-  configures providers nor searches for structurally similar declarations.
+- **Sugar Resolution** consumes exact declaration identities certified by the
+  **Canonical Basic ABI**. Missing imports, declarations, or incompatible
+  signatures use that adapter's diagnostics; the compiler neither configures
+  providers nor searches for structurally similar declarations.
 - A **Right-Nested Tuple Chain** makes `(A, B, C)` and `(A, (B, C))`
   semantically identical; `()` remains `Unit`, `(A)` remains grouping, and
   singleton tuple syntax is invalid.
