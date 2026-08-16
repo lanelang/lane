@@ -1,4 +1,84 @@
 ///|
+priv struct ModuleInterfaceDeclarationSurface {
+  types : Array[@module_interface.ModuleInterfaceType]
+  effects : Array[@module_interface.ModuleInterfaceEffect]
+}
+
+///|
+fn module_interface_declaration_surface(
+  source : @resolve.ResolvedSourceFile,
+  declarations : CheckedDeclarationEnvironment,
+  diagnostics : Array[TypeCheckDiagnostic],
+) -> ModuleInterfaceDeclarationSurface {
+  let types = []
+  let effects = []
+  for declaration in source.declarations {
+    match declaration {
+      Struct(source_declaration) if source_declaration.is_public =>
+        match declarations.checked_struct(source_declaration.symbol) {
+          Some(declaration) =>
+            types.push(
+              @module_interface.ModuleInterfaceType::Struct(
+                module_interface_struct(declaration),
+              ),
+            )
+          None =>
+            diagnostics.push({
+              kind: InternalTypecheckFailure(
+                label="checked public struct " + source_declaration.name,
+              ),
+              loc: source_declaration.loc,
+            })
+        }
+      Enum(source_declaration) if source_declaration.is_public =>
+        match declarations.checked_enum(source_declaration.symbol) {
+          Some(declaration) =>
+            types.push(Enum(module_interface_enum(declaration)))
+          None =>
+            diagnostics.push({
+              kind: InternalTypecheckFailure(
+                label="checked public enum " + source_declaration.name,
+              ),
+              loc: source_declaration.loc,
+            })
+        }
+      ExternalType(source_declaration) if source_declaration.is_public =>
+        match declarations.checked_external_type(source_declaration.symbol) {
+          Some(declaration) =>
+            types.push(
+              External({
+                symbol: declaration.symbol,
+                name: declaration.name,
+                loc: declaration.loc,
+              }),
+            )
+          None =>
+            diagnostics.push({
+              kind: InternalTypecheckFailure(
+                label="checked public external type " + source_declaration.name,
+              ),
+              loc: source_declaration.loc,
+            })
+        }
+      Effect(source_declaration) if source_declaration.is_public =>
+        match declarations.checked_effect(source_declaration.symbol) {
+          Some(declaration) =>
+            effects.push(module_interface_effect(declaration))
+          None =>
+            diagnostics.push({
+              kind: InternalTypecheckFailure(
+                label="checked public effect " + source_declaration.name,
+              ),
+              loc: source_declaration.loc,
+            })
+        }
+      _ => ()
+    }
+  }
+  { types, effects }
+}
+
+///|
 fn SemanticChecker::module_interface(
   self : SemanticChecker,
   checked_source : @checked.CheckedSourceFile,
@@ -9,12 +89,8 @@ fn SemanticChecker::module_interface(
   let module_path = @module_interface.module_path_text(
     checked_source.module_path,
   )
-  let types = checked_source.declarations.filter_map(fn(declaration) {
-    interface_type(declaration)
-  })
-  let effects = checked_source.declarations.filter_map(fn(declaration) {
-    interface_effect_entry(declaration)
-  })
+  let types = self.interface_declarations.types
+  let effects = self.interface_declarations.effects
   // References name the owner of every symbol the surface mentions, so the
   // surface has to exist before they can be resolved. Recording owners for
   // anything else would make the interface describe modules it does not depend
@@ -188,54 +264,22 @@ fn append_interface_effect_reference(
 }
 
 ///|
-fn interface_type(
-  declaration : @checked.CheckedTopLevelDeclaration,
-) -> @module_interface.ModuleInterfaceType? {
-  match declaration {
-    Struct(declaration) if declaration.is_public =>
-      Some(Struct(interface_struct(declaration)))
-    Enum(declaration) if declaration.is_public =>
-      Some(Enum(interface_enum(declaration)))
-    ExternalType(declaration) if declaration.is_public =>
-      Some(
-        External({
-          symbol: declaration.symbol,
-          name: declaration.name,
-          loc: declaration.loc,
-        }),
-      )
-    _ => None
-  }
-}
-
-///|
-fn interface_effect_entry(
-  declaration : @checked.CheckedTopLevelDeclaration,
-) -> @module_interface.ModuleInterfaceEffect? {
-  match declaration {
-    Effect(declaration) if declaration.is_public =>
-      Some(interface_effect(declaration))
-    _ => None
-  }
-}
-
-///|
-fn interface_effect(
-  declaration : @checked.CheckedEffectDeclaration,
+fn module_interface_effect(
+  declaration : CheckedEffectDeclaration,
 ) -> @module_interface.ModuleInterfaceEffect {
   {
     symbol: declaration.symbol,
     name: declaration.name,
     flavor: declaration.flavor,
     type_parameters: declaration.type_parameters,
-    operations: declaration.operations.map(interface_operation),
+    operations: declaration.operations.map(module_interface_operation),
     loc: declaration.loc,
   }
 }
 
 ///|
-fn interface_operation(
-  operation : @checked.CheckedEffectOperationDeclaration,
+fn module_interface_operation(
+  operation : CheckedEffectOperationDeclaration,
 ) -> @module_interface.ModuleInterfaceOperation {
   {
     symbol: operation.symbol,
@@ -249,22 +293,22 @@ fn interface_operation(
 }
 
 ///|
-fn interface_struct(
-  declaration : @checked.CheckedStructDeclaration,
+fn module_interface_struct(
+  declaration : CheckedStructDeclaration,
 ) -> @module_interface.ModuleInterfaceStruct {
   {
     symbol: declaration.symbol,
     name: declaration.name,
     type_parameters: declaration.type_parameters,
-    type_members: declaration.type_members.map(interface_type_member),
-    fields: declaration.fields.map(interface_field),
+    type_members: declaration.type_members.map(module_interface_type_member),
+    fields: declaration.fields.map(module_interface_field),
     loc: declaration.loc,
   }
 }
 
 ///|
-fn interface_type_member(
-  declaration : @checked.CheckedTypeMemberDeclaration,
+fn module_interface_type_member(
+  declaration : CheckedTypeMemberDeclaration,
 ) -> @module_interface.ModuleInterfaceTypeMember {
   {
     symbol: declaration.symbol,
@@ -277,8 +321,8 @@ fn interface_type_member(
 }
 
 ///|
-fn interface_field(
-  declaration : @checked.CheckedFieldDeclaration,
+fn module_interface_field(
+  declaration : CheckedFieldDeclaration,
 ) -> @module_interface.ModuleInterfaceField {
   {
     symbol: declaration.symbol,
@@ -290,21 +334,21 @@ fn interface_field(
 }
 
 ///|
-fn interface_enum(
-  declaration : @checked.CheckedEnumDeclaration,
+fn module_interface_enum(
+  declaration : CheckedEnumDeclaration,
 ) -> @module_interface.ModuleInterfaceEnum {
   {
     symbol: declaration.symbol,
     name: declaration.name,
     type_parameters: declaration.type_parameters,
-    variants: declaration.variants.map(interface_variant),
+    variants: declaration.variants.map(module_interface_variant),
     loc: declaration.loc,
   }
 }
 
 ///|
-fn interface_variant(
-  declaration : @checked.CheckedVariantDeclaration,
+fn module_interface_variant(
+  declaration : CheckedVariantDeclaration,
 ) -> @module_interface.ModuleInterfaceVariant {
   {
     symbol: declaration.symbol,

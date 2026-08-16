@@ -1127,7 +1127,6 @@ test "sugar resolution resolves each canonical provider once" {
       #|  invalid_canonical_basic_provider Basic.Data.Tuple.Tuple the required public declaration is missing,
       #|  invalid_canonical_basic_provider Basic.Data.List.List the required public declaration is missing
       #|]
-
     ),
   )
 }

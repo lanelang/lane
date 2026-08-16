@@ -10,6 +10,13 @@ The dependency-light package that owns the public semantic representation of a
 compiled Lane module interface.
 _Avoid_: source discovery, module compilation workflow
 
+**Module Interface Declaration Surface**:
+The single projection of a module's checked public nominal types and effects
+into Module Interface descriptors. It is formed before expression checking so
+module-input semantic adapters can certify it, then reused unchanged when the
+complete Module Interface adds values, aliases, references, and exports.
+_Avoid_: consumer-specific type projection, reconstructed interface type, ABI-owned declaration descriptor
+
 **Module Interface Catalog**:
 The semantic-snapshot owner of available Module Interfaces and canonical
 resolution of their provider-owned Declaration References.

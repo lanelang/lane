@@ -16,10 +16,16 @@ pub struct CanonicalBasicAbi {
 }
 
 ///|
-pub fn CanonicalBasicAbi::from_identities(
+pub fn CanonicalBasicAbi::from_module_input(
   identities : CanonicalBasicAbiIdentityCatalog,
-  declarations : Array[@module_interface.ModuleInterfaceType],
+  imported : @module_interface.ModuleInterfaceCatalog,
+  current : Array[@module_interface.ModuleInterfaceType],
 ) -> CanonicalBasicAbi {
+  let declarations = []
+  for interface in imported.modules {
+    declarations.append(interface.types)
+  }
+  declarations.append(current)
   let void_declaration = validate_canonical_void(identities, declarations)
   {
     tuple: validate_canonical_tuple(identities, declarations),

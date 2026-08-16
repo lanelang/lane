@@ -245,8 +245,10 @@ identities against the complete imported interface closure plus the current
 module, then certifies the corresponding public declarations and shapes before
 expression checking. The adapter exposes an immutable identity catalog while
 resolution is being assembled and a certified semantic catalog to later
-consumers; neither state may be reconstructed outside the adapter. For Void,
-certification proves:
+consumers; neither state may be reconstructed outside the adapter. Public type
+descriptors come exclusively from the Module Interface declaration projection
+and are reused by final interface construction; the ABI adapter never rebuilds
+them. For Void, certification proves:
 
 - the declaration is the canonical `Basic.Data.Void.Void` nominal type;
 - it is an enum;

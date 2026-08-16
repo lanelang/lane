@@ -21,7 +21,7 @@ pub struct CanonicalBasicAbi {
   structural_derive : Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError]
 }
 pub fn CanonicalBasicAbi::derive_abi(Self) -> Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError]
-pub fn CanonicalBasicAbi::from_identities(CanonicalBasicAbiIdentityCatalog, Array[@module.ModuleInterfaceType]) -> Self
+pub fn CanonicalBasicAbi::from_module_input(CanonicalBasicAbiIdentityCatalog, @module.ModuleInterfaceCatalog, Array[@module.ModuleInterfaceType]) -> Self
 pub fn CanonicalBasicAbi::validate_provider(Self, @abi.BasicTypeProvider) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbi::void_type_symbol(Self) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
 

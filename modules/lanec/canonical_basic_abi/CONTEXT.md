@@ -11,8 +11,9 @@ requirements as declaration identities and validates their semantic shapes.
 **Canonical Basic ABI**:
 The certified module-input catalog for Tuple, List, Void, and structural-
 derivation providers. It is constructed once from a Canonical Basic ABI Identity
-Catalog and checked public module-interface declarations; later consumers receive
-only its resolved identities and semantic results.
+Catalog, imported Module Interfaces, and the current Module Interface Declaration
+Surface; later consumers receive only its resolved identities and semantic
+results. This package certifies interface descriptors but never constructs them.
 _Avoid_: provider symbol directory, consumer name lookup, repeated shape validation, implicit Basic import
 
 **Canonical Basic ABI Identity Catalog**:

@@ -4,6 +4,7 @@ priv struct SemanticChecker {
   source : @desugar.DesugaredSourceFile
   imported_environment : @module_interface.ModuleInterfaceCatalog
   declarations : CheckedDeclarationEnvironment
+  interface_declarations : ModuleInterfaceDeclarationSurface
   canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbi
   diagnostics : Array[TypeCheckDiagnostic]
   values : Array[CheckedValueDeclaration]
@@ -58,17 +59,25 @@ pub fn typecheck_source_file(
   )
   let resolved_source = source
   let source = @desugar.desugar_source_file(resolved_source)
-  let canonical_basic_abi = @canonical_basic_abi.CanonicalBasicAbi::from_identities(
+  let diagnostics = declaration_result.diagnostics.copy()
+  let interface_declarations = module_interface_declaration_surface(
+    resolved_source,
+    declaration_result.declarations,
+    diagnostics,
+  )
+  let canonical_basic_abi = @canonical_basic_abi.CanonicalBasicAbi::from_module_input(
     resolved_source.canonical_basic_abi,
-    declaration_result.declarations.canonical_basic_abi_types(),
+    empty_imported_environment(),
+    interface_declarations.types,
   )
   let checker = SemanticChecker::{
     resolved_source,
     source,
     imported_environment: empty_imported_environment(),
     declarations: declaration_result.declarations,
+    interface_declarations,
     canonical_basic_abi,
-    diagnostics: declaration_result.diagnostics.copy(),
+    diagnostics,
     values: [],
     value_types: [],
     ordered_value_types: [],

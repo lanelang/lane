@@ -91,16 +91,24 @@ fn semantic_checker_for_test_source(source : String) -> SemanticChecker {
   let resolved = resolution.source
   let declaration_result = typecheck_declarations(resolved).unwrap()
   let source = @desugar.desugar_source_file(resolved)
+  let diagnostics = declaration_result.diagnostics.copy()
+  let interface_declarations = module_interface_declaration_surface(
+    resolved,
+    declaration_result.declarations,
+    diagnostics,
+  )
   let checker = SemanticChecker::{
     resolved_source: resolved,
     source,
     imported_environment: empty_imported_environment(),
     declarations: declaration_result.declarations,
-    canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbi::from_identities(
+    interface_declarations,
+    canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbi::from_module_input(
       resolved.canonical_basic_abi,
-      declaration_result.declarations.canonical_basic_abi_types(),
+      empty_imported_environment(),
+      interface_declarations.types,
     ),
-    diagnostics: declaration_result.diagnostics.copy(),
+    diagnostics,
     values: [],
     value_types: [],
     ordered_value_types: [],

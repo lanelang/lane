@@ -1381,16 +1381,24 @@ test "generic inference reports a missing failure reason as internal" {
     effects: [],
     operations: [],
   }
+  let diagnostics = []
+  let interface_declarations = module_interface_declaration_surface(
+    resolution.source,
+    declarations,
+    diagnostics,
+  )
   let checker = SemanticChecker::{
     resolved_source: resolution.source,
     source,
     imported_environment: empty_imported_environment(),
     declarations,
-    canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbi::from_identities(
+    interface_declarations,
+    canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbi::from_module_input(
       resolution.source.canonical_basic_abi,
-      declarations.canonical_basic_abi_types(),
+      empty_imported_environment(),
+      interface_declarations.types,
     ),
-    diagnostics: [],
+    diagnostics,
     values: [],
     value_types: [],
     ordered_value_types: [],
