@@ -272,8 +272,8 @@ fn typecheck_diagnostic(
         ],
         helps=["hide or rename offers so exactly one candidate is visible"],
       )
-    CanonicalBasicAbi(error) =>
-      error.at(diagnostic_.loc).to_compiler_diagnostic(DiagnosticContext())
+    CanonicalBasicAbi(diagnostic) =>
+      diagnostic.to_compiler_diagnostic(DiagnosticContext())
     UnrepresentableStructuralDerivationTarget(target~, reason~) =>
       diagnostic(
         "cannot structurally derive this type",

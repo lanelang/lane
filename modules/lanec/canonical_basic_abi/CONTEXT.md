@@ -28,3 +28,11 @@ The closed type-provider and variant-provider sets declared by the ABI Contract.
 The ABI Contract alone owns enumeration and qualified-identity lookup; this
 package consumes that universe when collecting and certifying identities.
 _Avoid_: package-local provider arrays, numeric provider indexes, repeated provider switches
+
+**Canonical Basic ABI Diagnostic Policy**:
+The complete classification, grouping, diagnostic code, and presentation of a
+Canonical Basic ABI failure. Source consumers contribute ordered provider-demand
+locations; object consumers contribute the module-object path. This package
+selects the representative provenance, preserves runtime certification failures
+as typed causes, and produces the final structured diagnostics.
+_Avoid_: resolver-owned deduplication, consumer diagnostic codes, string-flattened runtime errors

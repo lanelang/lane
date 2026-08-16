@@ -5,8 +5,6 @@ pub impl @compiler_diag.ToCompilerDiagnostic for ResolveDiagnostic with fn to_co
 ) -> @compiler_diag.CompilerDiagnostic {
   let span = Some(diagnostic.loc)
   match diagnostic.kind {
-    CanonicalBasicAbi(error) =>
-      error.at(diagnostic.loc).to_compiler_diagnostic(context)
     UnresolvedType(name) =>
       @compiler_diag.compiler_error(
         "cannot find type `\{name}`",

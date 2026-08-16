@@ -69,7 +69,6 @@ pub impl @prettyprinter.Pretty for ResolveDiagnosticKind with fn pretty(
   kind : ResolveDiagnosticKind,
 ) {
   match kind {
-    CanonicalBasicAbi(error) => error.pretty()
     UnresolvedType(name) => text("unresolved_type") + space + text(name)
     UnresolvedValue(name) => text("unresolved_value") + space + text(name)
     UnresolvedEffectOperation(name) =>

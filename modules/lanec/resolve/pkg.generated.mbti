@@ -2,7 +2,6 @@
 package "Milky2018/lanec/resolve"
 
 import {
-  "Milky2018/lanec/abi",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/canonical_basic_abi",
   "Milky2018/lanec/diagnostic",
@@ -22,11 +21,6 @@ pub fn resolve_source_file_with_imports_result(@syntax.SourceFile, @symbol.Symbo
 // Errors
 
 // Types and methods
-pub(all) struct CanonicalBasicAbiDemand {
-  provider : @abi.BasicTypeProvider
-  loc : @basic.SourceSpan
-} derive(Eq, @debug.Debug)
-
 pub(all) struct ResolveDiagnostic {
   kind : ResolveDiagnosticKind
   loc : @basic.SourceSpan
@@ -35,7 +29,6 @@ pub impl @diagnostic.ToCompilerDiagnostic for ResolveDiagnostic
 pub impl @prettyprinter.Pretty for ResolveDiagnostic
 
 pub(all) enum ResolveDiagnosticKind {
-  CanonicalBasicAbi(@canonical_basic_abi.CanonicalBasicAbiError)
   UnresolvedType(String)
   UnresolvedValue(String)
   UnresolvedEffectOperation(String)
@@ -383,7 +376,7 @@ pub(all) struct ResolvedSourceFile {
   module_path : @syntax.ModulePath
   symbols : @symbol.SymbolRegistry
   canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiIdentityCatalog
-  canonical_basic_abi_demands : Array[CanonicalBasicAbiDemand]
+  canonical_basic_abi_demands : Array[@canonical_basic_abi.CanonicalBasicAbiDemand]
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]

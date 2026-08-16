@@ -11,7 +11,7 @@ fn validate_link_object(
     ) {
     Ok(contract) => Some(contract)
     Err(error) => {
-      diagnostics.push(invalid_module_object(object, error.message()))
+      diagnostics.push(error.object_diagnostic(object.module_path_text))
       None
     }
   }

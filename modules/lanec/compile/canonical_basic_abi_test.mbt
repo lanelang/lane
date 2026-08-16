@@ -91,6 +91,186 @@ test "canonical Basic ABI reports one diagnostic for a missing syntax provider" 
 }
 
 ///|
+test "canonical Basic ABI groups repeated demands at their first source occurrence" {
+  let outcome = check({
+    root: {
+      source_id: "main",
+      text: (
+        #|module Main
+        #|pub let first : (I64, Bool) = (1, true)
+        #|pub let second : (String, F64) = ("lane", 2.0)
+      ),
+    },
+    libraries: [],
+  })
+  guard outcome is Failed(failure) else {
+    fail("missing canonical Tuple provider unexpectedly typechecked")
+  }
+  debug_inspect(
+    failure.diagnostics(),
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("main"),
+      #|    message: "invalid canonical Basic provider `Basic.Data.Tuple.Tuple`",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="main",
+      #|        span={
+      #|          start_offset: 28,
+      #|          end_offset: 39,
+      #|          start_line: 2,
+      #|          start_column: 17,
+      #|          end_line: 2,
+      #|          end_column: 28,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E3039"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="main",
+      #|          span={
+      #|            start_offset: 28,
+      #|            end_offset: 39,
+      #|            start_line: 2,
+      #|            start_column: 17,
+      #|            end_line: 2,
+      #|            end_column: 28,
+      #|          },
+      #|        ),
+      #|        message: "the required public enum is missing",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["compiler-owned language features require the declared canonical Basic ABI"],
+      #|    helps: ["provide the canonical Basic module and declaration with the required public shape"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "canonical Basic ABI diagnoses distinct providers in demand order" {
+  let outcome = check({
+    root: {
+      source_id: "main",
+      text: (
+        #|module Main
+        #|pub fn values() -> Unit {
+        #|  let _values = [1, 2];
+        #|  ()
+        #|}
+        #|pub fn pair() -> Unit {
+        #|  let _pair = (1, true);
+        #|  ()
+        #|}
+        #|pub fn more_values() -> Unit {
+        #|  let _values = [3, 4];
+        #|  ()
+        #|}
+      ),
+    },
+    libraries: [],
+  })
+  guard outcome is Failed(failure) else {
+    fail("missing canonical providers unexpectedly typechecked")
+  }
+  debug_inspect(
+    failure.diagnostics(),
+    content=(
+      #|[
+      #|  {
+      #|    source_id: Some("main"),
+      #|    message: "invalid canonical Basic provider `Basic.Data.List.List`",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="main",
+      #|        span={
+      #|          start_offset: 54,
+      #|          end_offset: 60,
+      #|          start_line: 3,
+      #|          start_column: 17,
+      #|          end_line: 3,
+      #|          end_column: 23,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E3039"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="main",
+      #|          span={
+      #|            start_offset: 54,
+      #|            end_offset: 60,
+      #|            start_line: 3,
+      #|            start_column: 17,
+      #|            end_line: 3,
+      #|            end_column: 23,
+      #|          },
+      #|        ),
+      #|        message: "the required public enum is missing",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["compiler-owned language features require the declared canonical Basic ABI"],
+      #|    helps: ["provide the canonical Basic module and declaration with the required public shape"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|  {
+      #|    source_id: Some("main"),
+      #|    message: "invalid canonical Basic provider `Basic.Data.Tuple.Tuple`",
+      #|    span: Some(
+      #|      Source(
+      #|        source_id="main",
+      #|        span={
+      #|          start_offset: 107,
+      #|          end_offset: 116,
+      #|          start_line: 7,
+      #|          start_column: 15,
+      #|          end_line: 7,
+      #|          end_column: 24,
+      #|        },
+      #|      ),
+      #|    ),
+      #|    severity: Error,
+      #|    code: Some("E3039"),
+      #|    labels: [
+      #|      {
+      #|        span: Source(
+      #|          source_id="main",
+      #|          span={
+      #|            start_offset: 107,
+      #|            end_offset: 116,
+      #|            start_line: 7,
+      #|            start_column: 15,
+      #|            end_line: 7,
+      #|            end_column: 24,
+      #|          },
+      #|        ),
+      #|        message: "the required public enum is missing",
+      #|        style: Primary,
+      #|      },
+      #|    ],
+      #|    notes: ["compiler-owned language features require the declared canonical Basic ABI"],
+      #|    helps: ["provide the canonical Basic module and declaration with the required public shape"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "canonical Basic ABI resolves providers from the module input closure" {
   let outcome = check({
     root: {

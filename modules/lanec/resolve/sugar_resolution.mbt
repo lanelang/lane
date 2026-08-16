@@ -10,14 +10,8 @@ fn Resolver::demand_canonical_basic_provider(
   self : Resolver,
   provider : @abi.BasicTypeProvider,
   loc : SourceSpan,
-) -> Bool {
-  if !self.canonical_basic_abi_demands.any(fn(demand) {
-      demand.provider == provider
-    }) {
-    self.canonical_basic_abi_demands.push({ provider, loc })
-    return true
-  }
-  false
+) -> Unit {
+  self.canonical_basic_abi_demands.push({ provider, loc })
 }
 
 ///|
@@ -49,18 +43,13 @@ fn Resolver::resolve_canonical_type(
   loc : SourceSpan,
 ) -> ResolvedType {
   let name = target.resolved_name()
-  let first_demand = self.demand_canonical_basic_provider(target, loc)
+  self.demand_canonical_basic_provider(target, loc)
   match self.canonical_basic_abi.require_type_symbol(target) {
     Ok(symbol) => {
       self.record_canonical_basic_import_uses(symbol, loc)
       Constructor(symbol~, name~, loc~)
     }
-    Err(error) => {
-      if first_demand {
-        self.report(CanonicalBasicAbi(error), loc)
-      }
-      Unresolved(name=name.display_text(), arguments=[], loc~)
-    }
+    Err(_) => Unresolved(name=name.display_text(), arguments=[], loc~)
   }
 }
 
@@ -72,7 +61,7 @@ fn Resolver::resolve_canonical_variant(
 ) -> ResolvedVariantReference {
   let owner = target.owner()
   let type_name = owner.resolved_name()
-  let first_demand = self.demand_canonical_basic_provider(owner, loc)
+  self.demand_canonical_basic_provider(owner, loc)
   match self.canonical_basic_abi.require_variant_symbol(target) {
     Ok(symbol) => {
       if self.canonical_basic_abi.type_symbol(owner) is Some(owner_symbol) {
@@ -80,12 +69,7 @@ fn Resolver::resolve_canonical_variant(
       }
       Symbol(symbol)
     }
-    Err(error) => {
-      if first_demand {
-        self.report(CanonicalBasicAbi(error), loc)
-      }
-      Unresolved(type_name~, variant=target.variant_name())
-    }
+    Err(_) => Unresolved(type_name~, variant=target.variant_name())
   }
 }
 

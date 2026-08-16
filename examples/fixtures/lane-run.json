@@ -1178,7 +1178,7 @@
           "--> examples/invalid/49_list_literal_without_list_import.lane:3:21",
           "error[E3039]",
           "invalid canonical Basic provider `Basic.Data.List.List`",
-          "the required public declaration is missing",
+          "the required public enum is missing",
           "compiler-owned language features require the declared canonical Basic ABI",
           "provide the canonical Basic module and declaration with the required public shape"
         ]
@@ -1702,7 +1702,7 @@
           "--> examples/invalid/70_tuple_without_import.lane:3:16",
           "error[E3039]",
           "invalid canonical Basic provider `Basic.Data.Tuple.Tuple`",
-          "the required public declaration is missing",
+          "the required public enum is missing",
           "compiler-owned language features require the declared canonical Basic ABI",
           "provide the canonical Basic module and declaration with the required public shape"
         ]

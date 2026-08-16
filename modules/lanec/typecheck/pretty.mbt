@@ -365,7 +365,7 @@ pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind with fn pretty(
         candidates.map(fn(candidate) { candidate.name }).join(", ") +
         "]",
       )
-    CanonicalBasicAbi(error) => error.pretty()
+    CanonicalBasicAbi(diagnostic) => diagnostic.pretty()
     UnrepresentableStructuralDerivationTarget(target~, reason~) =>
       text("unrepresentable_structural_derivation_target") +
       space +

@@ -93,15 +93,3 @@ pub fn CertifiedCanonicalBasicAbiRuntimeContract::void_type(
 ) -> @buslane.TypeId? {
   self.contract.void_type
 }
-
-///|
-pub fn CanonicalBasicAbiRuntimeContractError::message(
-  self : CanonicalBasicAbiRuntimeContractError,
-) -> String {
-  match self {
-    MissingDeclaration(provider~) =>
-      "canonical Basic provider `\{provider.qualified_name()}` is not bound to the certified runtime identity"
-    InvalidDeclaration(provider~, reason~) =>
-      "canonical Basic provider `\{provider.qualified_name()}` is invalid: \{reason}"
-  }
-}

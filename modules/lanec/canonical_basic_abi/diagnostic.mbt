@@ -5,11 +5,36 @@ pub(all) struct CanonicalBasicAbiDiagnostic {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CanonicalBasicAbiDemand {
+  provider : @abi.BasicTypeProvider
+  loc : @basic.SourceSpan
+} derive(Debug, Eq)
+
+///|
 pub fn CanonicalBasicAbiError::at(
   self : CanonicalBasicAbiError,
   loc : @basic.SourceSpan,
 ) -> CanonicalBasicAbiDiagnostic {
   { error: self, loc }
+}
+
+///|
+pub fn CanonicalBasicAbi::diagnose_demands(
+  self : CanonicalBasicAbi,
+  demands : Array[CanonicalBasicAbiDemand],
+) -> Array[CanonicalBasicAbiDiagnostic] {
+  let diagnostics = []
+  let seen : @hashset.HashSet[@abi.BasicTypeProvider] = HashSet([])
+  for demand in demands {
+    if seen.contains(demand.provider) {
+      continue
+    }
+    seen.add(demand.provider)
+    if self.validate_provider(demand.provider) is Err(error) {
+      diagnostics.push(error.at(demand.loc))
+    }
+  }
+  diagnostics
 }
 
 ///|
@@ -64,4 +89,11 @@ pub impl @prettyprinter.Pretty for CanonicalBasicAbiError with fn pretty(
       @prettyprinter.space +
       @prettyprinter.text(reason)
   }
+}
+
+///|
+pub impl @prettyprinter.Pretty for CanonicalBasicAbiDiagnostic with fn pretty(
+  diagnostic : CanonicalBasicAbiDiagnostic,
+) {
+  diagnostic.error.pretty()
 }

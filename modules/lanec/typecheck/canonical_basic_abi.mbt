@@ -2,14 +2,13 @@
 fn SemanticChecker::validate_canonical_basic_abi_demands(
   self : SemanticChecker,
 ) -> Bool {
-  let mut valid = true
-  for demand in self.resolved_source.canonical_basic_abi_demands {
-    if self.canonical_basic_abi.validate_provider(demand.provider) is Err(error) {
-      self.report_canonical_basic_abi_error(error, demand.loc)
-      valid = false
-    }
+  let diagnostics = self.canonical_basic_abi.diagnose_demands(
+    self.resolved_source.canonical_basic_abi_demands,
+  )
+  for diagnostic in diagnostics {
+    self.report_canonical_basic_abi_diagnostic(diagnostic)
   }
-  valid
+  diagnostics.is_empty()
 }
 
 ///|
@@ -20,7 +19,7 @@ fn SemanticChecker::canonical_basic_void_type(
   match self.canonical_basic_abi.void_type_symbol() {
     Ok(symbol) => Some(Constructor(symbol))
     Err(error) => {
-      self.report_canonical_basic_abi_error(error, loc)
+      self.report_canonical_basic_abi_diagnostic(error.at(loc))
       None
     }
   }
@@ -34,17 +33,19 @@ fn SemanticChecker::structural_derive_abi(
   match self.canonical_basic_abi.derive_abi() {
     Ok(abi) => Some(abi)
     Err(error) => {
-      self.report_canonical_basic_abi_error(error, loc)
+      self.report_canonical_basic_abi_diagnostic(error.at(loc))
       None
     }
   }
 }
 
 ///|
-fn SemanticChecker::report_canonical_basic_abi_error(
+fn SemanticChecker::report_canonical_basic_abi_diagnostic(
   self : SemanticChecker,
-  error : @canonical_basic_abi.CanonicalBasicAbiError,
-  loc : SourceSpan,
+  diagnostic : @canonical_basic_abi.CanonicalBasicAbiDiagnostic,
 ) -> Unit {
-  self.diagnostics.push({ kind: CanonicalBasicAbi(error), loc })
+  self.diagnostics.push({
+    kind: CanonicalBasicAbi(diagnostic),
+    loc: diagnostic.loc,
+  })
 }

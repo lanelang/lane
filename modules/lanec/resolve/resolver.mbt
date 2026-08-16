@@ -3,7 +3,9 @@ priv struct Resolver {
   registry : SymbolRegistry
   declaration_symbols : @symbol.DeclarationSymbolScope
   canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiIdentityCatalogBuilder
-  canonical_basic_abi_demands : Array[CanonicalBasicAbiDemand]
+  canonical_basic_abi_demands : Array[
+    @canonical_basic_abi.CanonicalBasicAbiDemand,
+  ]
   local_module : LocalModuleNamespace
   imported_modules : Array[ImportedModule]
   module_bindings : Array[ModuleBinding]

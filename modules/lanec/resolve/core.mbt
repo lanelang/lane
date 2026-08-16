@@ -3,19 +3,15 @@ pub(all) struct ResolvedSourceFile {
   module_path : @syntax.ModulePath
   symbols : SymbolRegistry
   canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiIdentityCatalog
-  canonical_basic_abi_demands : Array[CanonicalBasicAbiDemand]
+  canonical_basic_abi_demands : Array[
+    @canonical_basic_abi.CanonicalBasicAbiDemand,
+  ]
   import_exposures : Array[ResolvedImportExposure]
   import_uses : Array[ResolvedImportUse]
   import_symbols : Array[ResolvedImportExposureSymbol]
   public_exports : Array[ResolvedPublicExport]
   module_binding_references : Array[ResolvedModuleBindingReference]
   declarations : Array[ResolvedTopLevelDeclaration]
-  loc : SourceSpan
-} derive(Debug, Eq)
-
-///|
-pub(all) struct CanonicalBasicAbiDemand {
-  provider : @abi.BasicTypeProvider
   loc : SourceSpan
 } derive(Debug, Eq)
 
@@ -120,7 +116,6 @@ pub(all) struct ResolvedOperatorTarget {
 
 ///|
 pub(all) enum ResolveDiagnosticKind {
-  CanonicalBasicAbi(@canonical_basic_abi.CanonicalBasicAbiError)
   UnresolvedType(String)
   UnresolvedValue(String)
   UnresolvedEffectOperation(String)

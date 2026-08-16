@@ -247,7 +247,7 @@ pub(all) enum TypeCheckDiagnosticKind {
   AmbiguousContextualOffer(expected~ : @types.Type, site~ : ContextualOfferRequirementSite, candidates~ : Array[ContextualOfferDiagnosticCandidate])
   MissingDeriveEvidence(required~ : @types.Type, paths~ : Array[String])
   AmbiguousDeriveEvidence(required~ : @types.Type, paths~ : Array[String], candidates~ : Array[ContextualOfferDiagnosticCandidate])
-  CanonicalBasicAbi(@canonical_basic_abi.CanonicalBasicAbiError)
+  CanonicalBasicAbi(@canonical_basic_abi.CanonicalBasicAbiDiagnostic)
   UnrepresentableStructuralDerivationTarget(target~ : @types.Type, reason~ : String)
   TypeAliasCycle(name~ : String)
   KindMismatch(expected~ : @types.Kind, actual~ : @types.Kind)

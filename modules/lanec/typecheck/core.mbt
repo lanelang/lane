@@ -286,7 +286,7 @@ pub(all) enum TypeCheckDiagnosticKind {
     paths~ : Array[String],
     candidates~ : Array[ContextualOfferDiagnosticCandidate]
   )
-  CanonicalBasicAbi(@canonical_basic_abi.CanonicalBasicAbiError)
+  CanonicalBasicAbi(@canonical_basic_abi.CanonicalBasicAbiDiagnostic)
   UnrepresentableStructuralDerivationTarget(
     target~ : @types.Type,
     reason~ : String

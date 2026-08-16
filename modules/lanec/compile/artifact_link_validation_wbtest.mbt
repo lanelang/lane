@@ -189,12 +189,15 @@ test "canonical Basic owner certifies the persisted Void shape" {
       #|[
       #|  {
       #|    source_id: None,
-      #|    message: "invalid module object `Basic.Data.Void`",
+      #|    message: "invalid canonical Basic ABI in module object `Basic.Data.Void`",
       #|    span: None,
       #|    severity: Error,
       #|    code: Some("E4208"),
       #|    labels: [],
-      #|    notes: ["canonical Basic provider `Basic.Data.Void.Void` is invalid: the declaration must lower to an empty data type; module objects must be internally valid before identity remapping begins"],
+      #|    notes: [
+      #|      "canonical Basic provider `Basic.Data.Void.Void` is invalid: the declaration must lower to an empty data type",
+      #|      "module objects must carry the certified canonical Basic runtime contract before identity remapping begins",
+      #|    ],
       #|    helps: ["recompile the module object from valid Lane source"],
       #|    facts: [],
       #|    suggestions: [],

@@ -26,15 +26,22 @@ pub struct CanonicalBasicAbi {
 }
 pub fn CanonicalBasicAbi::checked_contract(Self) -> @checked.CheckedCanonicalBasicAbi
 pub fn CanonicalBasicAbi::derive_abi(Self) -> Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError]
+pub fn CanonicalBasicAbi::diagnose_demands(Self, Array[CanonicalBasicAbiDemand]) -> Array[CanonicalBasicAbiDiagnostic]
 pub fn CanonicalBasicAbi::from_module_input(CanonicalBasicAbiIdentityCatalog, @module.ModuleInterfaceCatalog, Array[@module.ModuleInterfaceType]) -> Self
 pub fn CanonicalBasicAbi::validate_provider(Self, @abi.BasicTypeProvider) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbi::void_type_symbol(Self) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
+
+pub(all) struct CanonicalBasicAbiDemand {
+  provider : @abi.BasicTypeProvider
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
 
 pub(all) struct CanonicalBasicAbiDiagnostic {
   error : CanonicalBasicAbiError
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub impl @diagnostic.ToCompilerDiagnostic for CanonicalBasicAbiDiagnostic
+pub impl @prettyprinter.Pretty for CanonicalBasicAbiDiagnostic
 
 pub(all) enum CanonicalBasicAbiError {
   InvalidProvider(provider~ : @abi.BasicTypeProvider, reason~ : String)
@@ -83,7 +90,7 @@ pub(all) enum CanonicalBasicAbiRuntimeContractError {
   MissingDeclaration(provider~ : @abi.BasicTypeProvider)
   InvalidDeclaration(provider~ : @abi.BasicTypeProvider, reason~ : String)
 } derive(Eq, @debug.Debug)
-pub fn CanonicalBasicAbiRuntimeContractError::message(Self) -> String
+pub fn CanonicalBasicAbiRuntimeContractError::object_diagnostic(Self, String) -> @diagnostic.CompilerDiagnostic
 
 pub struct CertifiedCanonicalBasicAbiRuntimeContract {
   contract : CanonicalBasicAbiRuntimeContract
