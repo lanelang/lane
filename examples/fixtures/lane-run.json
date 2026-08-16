@@ -1173,11 +1173,14 @@
       "file": "examples/invalid/49_list_literal_without_list_import.lane",
       "mode": "check-error",
       "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
         "contains": [
-          "error[E2003]",
-          "cannot find variant `Basic.Data.List.List::cons`",
-          "cannot find variant `Basic.Data.List.List::empty`",
-          "check the variant spelling or use a variant declared by `Basic.Data.List.List`"
+          "--> examples/invalid/49_list_literal_without_list_import.lane:3:21",
+          "error[E3039]",
+          "invalid canonical Basic provider `Basic.Data.List.List`",
+          "the required public declaration is missing",
+          "compiler-owned language features require the declared canonical Basic ABI",
+          "provide the canonical Basic module and declaration with the required public shape"
         ]
       }
     },
@@ -1694,11 +1697,14 @@
       "file": "examples/invalid/70_tuple_without_import.lane",
       "mode": "check-error",
       "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
         "contains": [
-          "error[E2000]",
-          "cannot find type `Basic.Data.Tuple.Tuple`",
-          "error[E2003]",
-          "cannot find variant `Basic.Data.Tuple.Tuple::tuple`"
+          "--> examples/invalid/70_tuple_without_import.lane:3:16",
+          "error[E3039]",
+          "invalid canonical Basic provider `Basic.Data.Tuple.Tuple`",
+          "the required public declaration is missing",
+          "compiler-owned language features require the declared canonical Basic ABI",
+          "provide the canonical Basic module and declaration with the required public shape"
         ]
       }
     },
