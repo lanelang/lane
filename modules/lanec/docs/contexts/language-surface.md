@@ -222,17 +222,18 @@ _Avoid_: F64-mediated literal conversion, double rounding
 - A **Pipeline Expression** is source syntax and does not survive into Buslane or ANF.
 - **Tuple Syntax** does not open `Basic.Data.Tuple` or make its declarations
   available by unqualified name.
-- Resolving **Tuple Syntax** follows ordinary module availability: without an
-  import of `Basic.Data.Tuple`, its qualified nominal type and constructor
-  references remain unresolved and produce diagnostics.
+- Resolving **Tuple Syntax** follows canonical provider availability rather than
+  authored name visibility. `Basic.Data.Tuple` must belong to the current module
+  or the **Reachable Interface Closure**; it need not be imported directly.
 - Qualified, aliased qualified, open, and selective imports of
-  `Basic.Data.Tuple` all make the canonical module target available to
-  **Tuple Syntax**. The sugar does not depend on the local module binding name
-  or on which declarations the import also exposes as unqualified names.
+  `Basic.Data.Tuple` all make the canonical module target directly available to
+  **Tuple Syntax**. A directly imported facade whose public interface references
+  or re-exports the provider also makes it reachable. Neither route changes
+  which provider names authored source may use.
 - **Sugar Resolution** consumes exact declaration identities certified by the
-  **Canonical Basic ABI**. Missing imports, declarations, or incompatible
-  signatures use that adapter's diagnostics; the compiler neither configures
-  providers nor searches for structurally similar declarations.
+  **Canonical Basic ABI**. Missing reachable providers, declarations, or
+  incompatible signatures use that adapter's diagnostics; the compiler neither
+  configures providers nor searches for structurally similar declarations.
 - A **Right-Nested Tuple Chain** makes `(A, B, C)` and `(A, (B, C))`
   semantically identical; `()` remains `Unit`, `(A)` remains grouping, and
   singleton tuple syntax is invalid.
