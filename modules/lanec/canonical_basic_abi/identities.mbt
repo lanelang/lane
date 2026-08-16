@@ -82,11 +82,27 @@ pub fn CanonicalBasicAbiIdentityCatalogBuilder::type_symbol(
 }
 
 ///|
+pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_type_symbol(
+  self : CanonicalBasicAbiIdentityCatalogBuilder,
+  provider : @abi.BasicTypeProvider,
+) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError] {
+  require_type_symbol(self.type_symbol(provider), provider)
+}
+
+///|
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::variant_symbol(
   self : CanonicalBasicAbiIdentityCatalogBuilder,
   provider : @abi.BasicVariantProvider,
 ) -> @symbol.VariantSymbolId? {
   self.variants[provider.index()]
+}
+
+///|
+pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_variant_symbol(
+  self : CanonicalBasicAbiIdentityCatalogBuilder,
+  provider : @abi.BasicVariantProvider,
+) -> Result[@symbol.VariantSymbolId, CanonicalBasicAbiError] {
+  require_variant_symbol(self.variant_symbol(provider), provider)
 }
 
 ///|
@@ -105,11 +121,61 @@ pub fn CanonicalBasicAbiIdentityCatalog::type_symbol(
 }
 
 ///|
+pub fn CanonicalBasicAbiIdentityCatalog::require_type_symbol(
+  self : CanonicalBasicAbiIdentityCatalog,
+  provider : @abi.BasicTypeProvider,
+) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError] {
+  require_type_symbol(self.type_symbol(provider), provider)
+}
+
+///|
+fn require_type_symbol(
+  symbol : @symbol.TypeSymbolId?,
+  provider : @abi.BasicTypeProvider,
+) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError] {
+  match symbol {
+    Some(symbol) => Ok(symbol)
+    None =>
+      Err(
+        InvalidProvider(
+          provider~,
+          reason="the required public declaration is missing",
+        ),
+      )
+  }
+}
+
+///|
 pub fn CanonicalBasicAbiIdentityCatalog::variant_symbol(
   self : CanonicalBasicAbiIdentityCatalog,
   provider : @abi.BasicVariantProvider,
 ) -> @symbol.VariantSymbolId? {
   self.variants[provider.index()]
+}
+
+///|
+pub fn CanonicalBasicAbiIdentityCatalog::require_variant_symbol(
+  self : CanonicalBasicAbiIdentityCatalog,
+  provider : @abi.BasicVariantProvider,
+) -> Result[@symbol.VariantSymbolId, CanonicalBasicAbiError] {
+  require_variant_symbol(self.variant_symbol(provider), provider)
+}
+
+///|
+fn require_variant_symbol(
+  symbol : @symbol.VariantSymbolId?,
+  provider : @abi.BasicVariantProvider,
+) -> Result[@symbol.VariantSymbolId, CanonicalBasicAbiError] {
+  match symbol {
+    Some(symbol) => Ok(symbol)
+    None =>
+      Err(
+        InvalidProvider(
+          provider=provider.owner(),
+          reason="the required public declaration is missing",
+        ),
+      )
+  }
 }
 
 ///|

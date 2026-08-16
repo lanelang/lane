@@ -86,6 +86,10 @@ pub fn lower_checked_source_files_to_buslane_objects(
     let module_path_text = checked_module_path_text(source)
     objects.push({
       module_path_text,
+      canonical_basic_abi: @canonical_basic_abi.lower_runtime_contract(
+        source.canonical_basic_abi,
+        fn(symbol) { lowerer.type_id(symbol) },
+      ),
       metadata: lowerer.metadata,
       terms: external_terms,
       externals: {
@@ -148,6 +152,10 @@ fn lower_checked_source_file_to_buslane_object_with_imports_or_raise(
   external_terms.append(terms)
   {
     module_path_text: checked_module_path_text(source),
+    canonical_basic_abi: @canonical_basic_abi.lower_runtime_contract(
+      source.canonical_basic_abi,
+      fn(symbol) { lowerer.type_id(symbol) },
+    ),
     metadata: lowerer.metadata,
     terms: external_terms,
     externals: {

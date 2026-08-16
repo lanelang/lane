@@ -1,0 +1,107 @@
+///|
+/// The canonical Basic identities that remain semantically relevant after
+/// source symbols have been lowered to Buslane metadata identities.
+pub struct CanonicalBasicAbiRuntimeContract {
+  void_type : @buslane.TypeId?
+} derive(Debug, Eq)
+
+///|
+/// An untrusted module-object declaration projected without interpreting any
+/// canonical Basic semantics.
+pub(all) struct CanonicalBasicAbiObjectTypeDeclaration {
+  module_path : String
+  name : String
+  type_id : @buslane.TypeId
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CanonicalBasicAbiRuntimeContractError {
+  MissingDeclaration(provider~ : @abi.BasicTypeProvider)
+  InvalidDeclaration(provider~ : @abi.BasicTypeProvider, reason~ : String)
+} derive(Debug, Eq)
+
+///|
+/// A runtime contract whose declaration identity and Buslane shape have been
+/// certified at the module-object trust boundary.
+pub struct CertifiedCanonicalBasicAbiRuntimeContract {
+  contract : CanonicalBasicAbiRuntimeContract
+} derive(Debug, Eq)
+
+///|
+pub fn CanonicalBasicAbiRuntimeContract::empty() -> CanonicalBasicAbiRuntimeContract {
+  { void_type: None }
+}
+
+///|
+pub fn CanonicalBasicAbiRuntimeContract::from_void_type(
+  void_type : @buslane.TypeId?,
+) -> CanonicalBasicAbiRuntimeContract {
+  { void_type, }
+}
+
+///|
+pub fn CanonicalBasicAbiRuntimeContract::void_type(
+  self : CanonicalBasicAbiRuntimeContract,
+) -> @buslane.TypeId? {
+  self.void_type
+}
+
+///|
+pub fn lower_runtime_contract(
+  checked : @checked.CheckedCanonicalBasicAbi,
+  lower_type : (@symbol.TypeSymbolId) -> @buslane.TypeId,
+) -> CanonicalBasicAbiRuntimeContract {
+  { void_type: checked.type_symbol(Void).map(lower_type) }
+}
+
+///|
+pub fn CanonicalBasicAbiRuntimeContract::certify(
+  self : CanonicalBasicAbiRuntimeContract,
+  declarations : Array[CanonicalBasicAbiObjectTypeDeclaration],
+  metadata : @buslane.MetadataRegistry,
+) -> Result[
+  CertifiedCanonicalBasicAbiRuntimeContract,
+  CanonicalBasicAbiRuntimeContractError,
+] {
+  if self.void_type is Some(type_id) {
+    let provider = @abi.BasicTypeProvider::Void
+    guard declarations.any(declaration => {
+      declaration.module_path == provider.module_path() &&
+      declaration.name == provider.type_name() &&
+      declaration.type_id == type_id
+    }) else {
+      return Err(MissingDeclaration(provider~))
+    }
+    guard metadata.type_info(type_id) is Some(info) &&
+      info.flavor is Data &&
+      info.parameters.is_empty() &&
+      info.constructors.is_empty() else {
+      return Err(
+        InvalidDeclaration(
+          provider~,
+          reason="the declaration must lower to an empty data type",
+        ),
+      )
+    }
+  }
+  Ok({ contract: self })
+}
+
+///|
+pub fn CertifiedCanonicalBasicAbiRuntimeContract::void_type(
+  self : CertifiedCanonicalBasicAbiRuntimeContract,
+) -> @buslane.TypeId? {
+  self.contract.void_type
+}
+
+///|
+pub fn CanonicalBasicAbiRuntimeContractError::message(
+  self : CanonicalBasicAbiRuntimeContractError,
+) -> String {
+  match self {
+    MissingDeclaration(provider~) =>
+      "canonical Basic provider `\{provider.qualified_name()}` is not bound to the certified runtime identity"
+    InvalidDeclaration(provider~, reason~) =>
+      "canonical Basic provider `\{provider.qualified_name()}` is invalid: \{reason}"
+  }
+}

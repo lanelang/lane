@@ -7,6 +7,7 @@ fn refingerprint_test_object(
     object_fingerprint: @artifact.module_object_fingerprint(
       object.module_fingerprint,
       object.interface_fingerprint,
+      object.canonical_basic_abi,
       object.metadata,
       object.terms,
       object.externals,
@@ -128,6 +129,77 @@ test "builtin external rejects a self-consistent stale Unit panic contract" {
       #|    },
       #|  ],
       #|}
+    ),
+  )
+}
+
+///|
+test "linker consumes the certified canonical Basic runtime identity" {
+  let object = compiled_test_object(
+    (
+      #|module Basic.Data.Void
+      #|pub enum Void {}
+      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+    ),
+  )
+  let malformed = refingerprint_test_object({
+    ..object,
+    canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
+  })
+  debug_inspect(
+    @artifact.link_module_object_artifacts([malformed]).diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: None,
+      #|    message: "invalid module object `Basic.Data.Void`",
+      #|    span: None,
+      #|    severity: Error,
+      #|    code: Some("E4208"),
+      #|    labels: [],
+      #|    notes: ["builtin `%panic` does not match its canonical source contract; module objects must be internally valid before identity remapping begins"],
+      #|    helps: ["recompile the module object from valid Lane source"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "canonical Basic owner certifies the persisted Void shape" {
+  let object = compiled_test_object(
+    (
+      #|module Basic.Data.Void
+      #|pub enum Void {}
+      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+    ),
+  )
+  guard object.canonical_basic_abi.void_type() is Some(void_type) else {
+    abort("expected the certified canonical Void identity")
+  }
+  let metadata = object.metadata.snapshot()
+  let info = metadata.types[void_type.index]
+  metadata.types[void_type.index] = { ..info, flavor: External }
+  let malformed = refingerprint_test_object({ ..object, metadata, })
+  debug_inspect(
+    @artifact.link_module_object_artifacts([malformed]).diagnostics,
+    content=(
+      #|[
+      #|  {
+      #|    source_id: None,
+      #|    message: "invalid module object `Basic.Data.Void`",
+      #|    span: None,
+      #|    severity: Error,
+      #|    code: Some("E4208"),
+      #|    labels: [],
+      #|    notes: ["canonical Basic provider `Basic.Data.Void.Void` is invalid: the declaration must lower to an empty data type; module objects must be internally valid before identity remapping begins"],
+      #|    helps: ["recompile the module object from valid Lane source"],
+      #|    facts: [],
+      #|    suggestions: [],
+      #|  },
+      #|]
     ),
   )
 }
@@ -900,6 +972,7 @@ test "link object artifacts rejects stale object fingerprint" {
     schema_version: object.schema_version,
     module_path_text: object.module_path_text,
     interface_fingerprint: object.interface_fingerprint,
+    canonical_basic_abi: object.canonical_basic_abi,
     metadata: object.metadata,
     terms: object.terms,
     externals: object.externals,
@@ -944,6 +1017,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
         schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
         interface_fingerprint: module_.object.interface_fingerprint,
+        canonical_basic_abi: module_.object.canonical_basic_abi,
         metadata: module_.object.metadata,
         terms: module_.object.terms,
         externals: module_.object.externals,
@@ -1065,6 +1139,7 @@ test "link module artifacts rejects stale imported reference fingerprint" {
         schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
         interface_fingerprint: module_.object.interface_fingerprint,
+        canonical_basic_abi: module_.object.canonical_basic_abi,
         metadata: module_.object.metadata,
         terms: module_.object.terms,
         externals: module_.object.externals,
@@ -1075,6 +1150,7 @@ test "link module artifacts rejects stale imported reference fingerprint" {
         object_fingerprint: @artifact.module_object_fingerprint(
           module_.object.module_fingerprint,
           module_.object.interface_fingerprint,
+          module_.object.canonical_basic_abi,
           module_.object.metadata,
           module_.object.terms,
           module_.object.externals,
@@ -1134,6 +1210,7 @@ test "link module artifacts rejects missing exported object value" {
         schema_version: module_.object.schema_version,
         module_path_text: module_.object.module_path_text,
         interface_fingerprint: module_.object.interface_fingerprint,
+        canonical_basic_abi: module_.object.canonical_basic_abi,
         metadata: module_.object.metadata,
         terms: module_.object.terms,
         externals: module_.object.externals,
@@ -1144,6 +1221,7 @@ test "link module artifacts rejects missing exported object value" {
         object_fingerprint: @artifact.module_object_fingerprint(
           module_.object.module_fingerprint,
           module_.object.interface_fingerprint,
+          module_.object.canonical_basic_abi,
           module_.object.metadata,
           module_.object.terms,
           module_.object.externals,
@@ -1287,6 +1365,7 @@ fn artifact_with_imported_interfaces(
     object_fingerprint: @artifact.module_object_fingerprint(
       module_fingerprint,
       artifact.object.interface_fingerprint,
+      artifact.object.canonical_basic_abi,
       artifact.object.metadata,
       artifact.object.terms,
       artifact.object.externals,

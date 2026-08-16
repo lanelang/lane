@@ -36,6 +36,7 @@ fn module_fingerprint_from_interface_fingerprint(
 pub fn module_object_fingerprint(
   module_fingerprint : @artifact_model.CompilationFingerprint,
   interface_fingerprint : @artifact_model.CompilationFingerprint,
+  canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract,
   metadata : @buslane.MetadataRegistry,
   terms : Array[@buslane.TopTerm],
   externals : @buslane_lowering.BuslaneExternalMap,
@@ -47,10 +48,10 @@ pub fn module_object_fingerprint(
   ],
 ) -> @artifact_model.CompilationFingerprint {
   fingerprint_hash_bytes(
-    "lane-object-fingerprint-v3",
+    "lane-object-fingerprint-v4",
     module_object_fingerprint_payload_bytes(
-      module_fingerprint, interface_fingerprint, metadata, terms, externals, entries,
-      exports, imports, imported_interface_fingerprints,
+      module_fingerprint, interface_fingerprint, canonical_basic_abi, metadata, terms,
+      externals, entries, exports, imports, imported_interface_fingerprints,
     ),
   )
 }
@@ -59,6 +60,7 @@ pub fn module_object_fingerprint(
 fn module_object_fingerprint_payload_bytes(
   module_fingerprint : @artifact_model.CompilationFingerprint,
   interface_fingerprint : @artifact_model.CompilationFingerprint,
+  canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract,
   metadata : @buslane.MetadataRegistry,
   terms : Array[@buslane.TopTerm],
   externals : @buslane_lowering.BuslaneExternalMap,
@@ -72,6 +74,7 @@ fn module_object_fingerprint_payload_bytes(
   let writer = @bytecodec.ByteWriter::new()
   write_compilation_fingerprint(writer, module_fingerprint)
   write_compilation_fingerprint(writer, interface_fingerprint)
+  write_canonical_basic_abi_runtime_contract(writer, canonical_basic_abi)
   write_buslane_program_section(writer, { metadata, terms })
   write_externals(writer, externals)
   write_entries(writer, entries)

@@ -66,6 +66,7 @@ pub fn typecheck_checked_source_file_with_imported_environment(
   let checked_source = if complete && checker.diagnostics.is_empty() {
     Some(@checked.CheckedSourceFile::{
       module_path: resolved_source.module_path,
+      canonical_basic_abi: checker.canonical_basic_abi.checked_contract(),
       declarations: checked_declarations,
       loc: resolved_source.loc,
     })

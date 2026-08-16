@@ -50,20 +50,14 @@ fn Resolver::resolve_canonical_type(
 ) -> ResolvedType {
   let name = target.resolved_name()
   let first_demand = self.demand_canonical_basic_provider(target, loc)
-  match self.canonical_basic_abi.type_symbol(target) {
-    Some(symbol) => {
+  match self.canonical_basic_abi.require_type_symbol(target) {
+    Ok(symbol) => {
       self.record_canonical_basic_import_uses(symbol, loc)
       Constructor(symbol~, name~, loc~)
     }
-    None => {
+    Err(error) => {
       if first_demand {
-        self.report(
-          InvalidCanonicalBasicProvider(
-            provider=target.qualified_name(),
-            reason="the required public declaration is missing",
-          ),
-          loc,
-        )
+        self.report(CanonicalBasicAbi(error), loc)
       }
       Unresolved(name=name.display_text(), arguments=[], loc~)
     }
@@ -79,22 +73,16 @@ fn Resolver::resolve_canonical_variant(
   let owner = target.owner()
   let type_name = owner.resolved_name()
   let first_demand = self.demand_canonical_basic_provider(owner, loc)
-  match self.canonical_basic_abi.variant_symbol(target) {
-    Some(symbol) => {
+  match self.canonical_basic_abi.require_variant_symbol(target) {
+    Ok(symbol) => {
       if self.canonical_basic_abi.type_symbol(owner) is Some(owner_symbol) {
         self.record_canonical_basic_import_uses(owner_symbol, loc)
       }
       Symbol(symbol)
     }
-    None => {
+    Err(error) => {
       if first_demand {
-        self.report(
-          InvalidCanonicalBasicProvider(
-            provider=owner.qualified_name(),
-            reason="the required public declaration is missing",
-          ),
-          loc,
-        )
+        self.report(CanonicalBasicAbi(error), loc)
       }
       Unresolved(type_name~, variant=target.variant_name())
     }

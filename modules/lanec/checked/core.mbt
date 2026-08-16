@@ -1,9 +1,34 @@
 ///|
 pub(all) struct CheckedSourceFile {
   module_path : @syntax.ModulePath
+  canonical_basic_abi : CheckedCanonicalBasicAbi
   declarations : Array[CheckedTopLevelDeclaration]
   loc : SourceSpan
 } derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedCanonicalBasicAbi {
+  types : Array[CheckedCanonicalBasicType]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CheckedCanonicalBasicType {
+  provider : @abi.BasicTypeProvider
+  symbol : TypeSymbolId
+} derive(Debug, Eq)
+
+///|
+pub fn CheckedCanonicalBasicAbi::type_symbol(
+  self : CheckedCanonicalBasicAbi,
+  provider : @abi.BasicTypeProvider,
+) -> TypeSymbolId? {
+  for type_ in self.types {
+    if type_.provider == provider {
+      return Some(type_.symbol)
+    }
+  }
+  None
+}
 
 ///|
 pub(all) enum CheckedTopLevelDeclaration {

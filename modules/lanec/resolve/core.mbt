@@ -120,7 +120,7 @@ pub(all) struct ResolvedOperatorTarget {
 
 ///|
 pub(all) enum ResolveDiagnosticKind {
-  InvalidCanonicalBasicProvider(provider~ : String, reason~ : String)
+  CanonicalBasicAbi(@canonical_basic_abi.CanonicalBasicAbiError)
   UnresolvedType(String)
   UnresolvedValue(String)
   UnresolvedEffectOperation(String)

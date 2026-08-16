@@ -36,6 +36,25 @@ fn @bytecodec.ByteReader::read_buslane_type_id(
 }
 
 ///|
+fn @bytecodec.ByteReader::read_canonical_basic_abi_runtime_contract(
+  self : @bytecodec.ByteReader,
+) -> @canonical_basic_abi.CanonicalBasicAbiRuntimeContract raise {
+  match self.read_u8() {
+    0 => @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty()
+    1 =>
+      @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::from_void_type(
+        Some(self.read_buslane_type_id()),
+      )
+    tag =>
+      invalid_binary_tag(
+        offset=self.offset() - 1,
+        domain="canonical Basic ABI runtime contract",
+        tag~,
+      )
+  }
+}
+
+///|
 fn @bytecodec.ByteReader::read_buslane_data_con_id(
   self : @bytecodec.ByteReader,
 ) -> @buslane.DataConId raise {

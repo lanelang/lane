@@ -320,7 +320,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 20
+      #|schema: 21
       #|
       #|imported interfaces:
       #|  (none)
@@ -876,7 +876,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 20
+      #|schema: 21
       #|
       #|imported interfaces:
       #|  (none)
@@ -1061,7 +1061,7 @@ test "module binaries reject immediately preceding schema versions" {
   let object_bytes = @artifact.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   ).to_array()
-  object_bytes[14] = b'\x13'
+  object_bytes[14] = b'\x14'
   object_bytes[15] = b'\x00'
   object_bytes[16] = b'\x00'
   object_bytes[17] = b'\x00'
@@ -1081,7 +1081,7 @@ test "module binaries reject immediately preceding schema versions" {
     Ok(_) => fail("expected old object schema failure")
   }
   assert_eq(messages, [
-    "unsupported interface artifact schema version 13", "unsupported object artifact schema version 19",
+    "unsupported interface artifact schema version 13", "unsupported object artifact schema version 20",
   ])
 }
 

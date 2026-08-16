@@ -9,6 +9,7 @@ fn allocation_test_link_object(
       module_path_text,
       interface: None,
       interface_fingerprint: { value: "interface:\{module_path_text}" },
+      canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
       metadata,
       terms: [Let(value, Literal(Unit))],
       externals: { builtins: [], runtime_imports: [] },

@@ -2,8 +2,19 @@
 fn validate_link_object(
   index : LinkModuleIndex,
   object : LinkModuleObject,
-) -> Array[CompilerDiagnostic] {
+) -> Result[ValidatedLinkModuleObject, Array[CompilerDiagnostic]] {
   let diagnostics = []
+  let certified_canonical_basic_abi = match
+    object.canonical_basic_abi.certify(
+      object.canonical_basic_type_declarations(),
+      object.metadata,
+    ) {
+    Ok(contract) => Some(contract)
+    Err(error) => {
+      diagnostics.push(invalid_module_object(object, error.message()))
+      None
+    }
+  }
   if !object.object_fingerprint_valid {
     diagnostics.push(
       link_diagnostic(
@@ -16,7 +27,9 @@ fn validate_link_object(
     )
   }
   diagnostics.append(validate_buslane_object(object))
-  diagnostics.append(validate_object_side_tables(object))
+  diagnostics.append(
+    validate_object_side_tables(object, certified_canonical_basic_abi),
+  )
   for imported in object.imported_interface_fingerprints {
     match index.find(imported.module_path_text) {
       Some(imported_module) =>
@@ -41,12 +54,44 @@ fn validate_link_object(
     }
   }
   diagnostics.append(validate_imported_references(object, index))
-  diagnostics
+  match (diagnostics, certified_canonical_basic_abi) {
+    ([], Some(_)) => Ok({ object, })
+    (diagnostics, _) => Err(diagnostics)
+  }
+}
+
+///|
+fn LinkModuleObject::canonical_basic_type_declarations(
+  self : LinkModuleObject,
+) -> Array[@canonical_basic_abi.CanonicalBasicAbiObjectTypeDeclaration] {
+  let declarations : Array[
+    @canonical_basic_abi.CanonicalBasicAbiObjectTypeDeclaration,
+  ] = []
+  for export_ in self.exports {
+    if export_.reference is Type(type_id) {
+      declarations.push({
+        module_path: self.module_path_text,
+        name: export_.name,
+        type_id,
+      })
+    }
+  }
+  for import_ in self.imports {
+    if import_.reference is Type(type_id) {
+      declarations.push({
+        module_path: import_.module_path_text,
+        name: import_.name,
+        type_id,
+      })
+    }
+  }
+  declarations
 }
 
 ///|
 fn validate_object_side_tables(
   object : LinkModuleObject,
+  canonical_basic_abi : @canonical_basic_abi.CertifiedCanonicalBasicAbiRuntimeContract?,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
   let external_values : Array[@buslane.ValueId] = []
@@ -59,7 +104,8 @@ fn validate_object_side_tables(
         "builtin external",
       ),
     )
-    if !builtin_contract_matches(object, builtin) {
+    if canonical_basic_abi is Some(canonical_basic_abi) &&
+      !builtin_contract_matches(canonical_basic_abi, builtin) {
       diagnostics.push(
         invalid_module_object(
           object,
@@ -141,17 +187,20 @@ fn validate_object_side_tables(
 
 ///|
 fn builtin_contract_matches(
-  object : LinkModuleObject,
+  canonical_basic_abi : @canonical_basic_abi.CertifiedCanonicalBasicAbiRuntimeContract,
   builtin : @buslane_lowering.BuslaneBuiltinExternal,
 ) -> Bool {
   match (builtin.intrinsic().signature(), builtin.type_()) {
-    (Value(kind), type_) => intrinsic_value_type_matches(object, kind, type_)
+    (Value(kind), type_) =>
+      intrinsic_value_type_matches(canonical_basic_abi, kind, type_)
     (
       Function(parameters~, result~, effect~, ..),
       Function(actual_parameters, actual_result, actual_effect),
     ) =>
-      intrinsic_parameters_match(object, parameters, actual_parameters) &&
-      intrinsic_value_type_matches(object, result, actual_result) &&
+      intrinsic_parameters_match(
+        canonical_basic_abi, parameters, actual_parameters,
+      ) &&
+      intrinsic_value_type_matches(canonical_basic_abi, result, actual_result) &&
       intrinsic_effect_matches(effect, actual_effect)
     _ => false
   }
@@ -159,7 +208,7 @@ fn builtin_contract_matches(
 
 ///|
 fn intrinsic_parameters_match(
-  object : LinkModuleObject,
+  canonical_basic_abi : @canonical_basic_abi.CertifiedCanonicalBasicAbiRuntimeContract,
   expected : Array[@abi.IntrinsicType],
   actual : Array[@buslane.Type],
 ) -> Bool {
@@ -167,7 +216,7 @@ fn intrinsic_parameters_match(
     return false
   }
   for index, kind in expected {
-    if !intrinsic_value_type_matches(object, kind, actual[index]) {
+    if !intrinsic_value_type_matches(canonical_basic_abi, kind, actual[index]) {
       return false
     }
   }
@@ -176,7 +225,7 @@ fn intrinsic_parameters_match(
 
 ///|
 fn intrinsic_value_type_matches(
-  object : LinkModuleObject,
+  canonical_basic_abi : @canonical_basic_abi.CertifiedCanonicalBasicAbiRuntimeContract,
   kind : @abi.IntrinsicType,
   type_ : @buslane.Type,
 ) -> Bool {
@@ -192,38 +241,11 @@ fn intrinsic_value_type_matches(
     Byte => type_ == Primitive(Byte)
     Bytes => type_ == Primitive(Bytes)
     CanonicalBasicVoid =>
-      match type_ {
-        Constructor(id) => canonical_basic_void_identity(object, id)
-        _ => false
+      match canonical_basic_abi.void_type() {
+        Some(type_id) => type_ == Constructor(type_id)
+        None => false
       }
   }
-}
-
-///|
-fn canonical_basic_void_identity(
-  object : LinkModuleObject,
-  id : @buslane.TypeId,
-) -> Bool {
-  let provider = @abi.BasicTypeProvider::Void
-  let names_identity = if object.module_path_text == provider.module_path() {
-    object.exports.any(export_ => {
-      export_.name == provider.type_name() && export_.reference == Type(id)
-    })
-  } else {
-    object.imports.any(import_ => {
-      import_.module_path_text == provider.module_path() &&
-      import_.name == provider.type_name() &&
-      import_.reference == Type(id)
-    })
-  }
-  names_identity &&
-  object.metadata
-  .type_info(id)
-  .map_or(false, info => {
-    info.flavor is Data &&
-    info.parameters.is_empty() &&
-    info.constructors.is_empty()
-  })
 }
 
 ///|

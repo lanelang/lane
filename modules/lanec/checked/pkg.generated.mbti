@@ -22,6 +22,16 @@ pub(all) struct CheckedCallArgument {
   provenance : @syntax.CallArgumentProvenance
 } derive(Eq, @debug.Debug)
 
+pub(all) struct CheckedCanonicalBasicAbi {
+  types : Array[CheckedCanonicalBasicType]
+} derive(Eq, @debug.Debug)
+pub fn CheckedCanonicalBasicAbi::type_symbol(Self, @abi.BasicTypeProvider) -> @symbol.TypeSymbolId?
+
+pub(all) struct CheckedCanonicalBasicType {
+  provider : @abi.BasicTypeProvider
+  symbol : @symbol.TypeSymbolId
+} derive(Eq, @debug.Debug)
+
 pub(all) struct CheckedContextualSelection {
   symbol : @symbol.ValueSymbolId
   name : String
@@ -332,6 +342,7 @@ pub impl @prettyprinter.Pretty for CheckedPatternLetDeclaration
 
 pub(all) struct CheckedSourceFile {
   module_path : @syntax.ModulePath
+  canonical_basic_abi : CheckedCanonicalBasicAbi
   declarations : Array[CheckedTopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)

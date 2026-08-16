@@ -272,44 +272,8 @@ fn typecheck_diagnostic(
         ],
         helps=["hide or rename offers so exactly one candidate is visible"],
       )
-    InvalidStructuralDerivationInterface(reason~) =>
-      diagnostic(
-        "invalid structural derivation interface",
-        span~,
-        severity=Error,
-        code=Some("E3032"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: reason,
-            style: Primary,
-          },
-        ],
-        notes=[],
-        helps=[
-          "provide the canonical structural derivation interfaces required by the language",
-        ],
-      )
-    InvalidCanonicalBasicProvider(provider~, reason~) =>
-      diagnostic(
-        "invalid canonical Basic provider `\{provider}`",
-        span~,
-        severity=Error,
-        code=Some("E3039"),
-        labels=[
-          {
-            span: compiler_local_span(diagnostic_.loc),
-            message: reason,
-            style: Primary,
-          },
-        ],
-        notes=[
-          "compiler-owned language features require the declared canonical Basic ABI",
-        ],
-        helps=[
-          "provide the canonical Basic module and declaration with the required public shape",
-        ],
-      )
+    CanonicalBasicAbi(error) =>
+      error.at(diagnostic_.loc).to_compiler_diagnostic(DiagnosticContext())
     UnrepresentableStructuralDerivationTarget(target~, reason~) =>
       diagnostic(
         "cannot structurally derive this type",

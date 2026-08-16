@@ -5,6 +5,7 @@ import {
   "Milky2018/buslane",
   "Milky2018/lanec/artifact",
   "Milky2018/lanec/artifact/model",
+  "Milky2018/lanec/canonical_basic_abi",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
@@ -59,6 +60,7 @@ pub(all) struct ModuleObject {
   module_path_text : String
   checked : @checked.CheckedSourceFile
   interface_fingerprint : @model.CompilationFingerprint
+  canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @buslane_lowering.BuslaneExternalMap

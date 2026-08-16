@@ -54,6 +54,7 @@ fn checked_source(
   let main = registry.define_value("main", TopLevelFunction, loc())
   {
     module_path: { components: ["Test"], loc: loc() },
+    canonical_basic_abi: { types: [] },
     declarations: [Function(checked_function(main, "main", [], body))],
     loc: loc(),
   }
@@ -107,6 +108,7 @@ test "pretty prints checked source without surface-only syntax" {
   )
   let source = CheckedSourceFile::{
     module_path: { components: ["Test"], loc: loc() },
+    canonical_basic_abi: { types: [] },
     declarations: [
       Let({
         is_public: true,
@@ -473,6 +475,7 @@ test "value use analysis excludes generated locals without losing authored uses"
   )
   let source = CheckedSourceFile::{
     module_path: { components: ["Test"], loc: loc() },
+    canonical_basic_abi: { types: [] },
     declarations: [
       Function(checked_function(main, "main", [input_parameter], body)),
     ],

@@ -259,6 +259,14 @@ Missing or incompatible demanded providers produce one source diagnostic owned
 by this adapter. Consumers receive only catalog identities or certified semantic
 results; they do not repeat name lookup, shape validation, or diagnostic policy.
 
+When source symbols are lowered, the checked catalog produces a runtime
+contract that carries the resolved canonical Void `TypeId`. Module-object
+artifacts persist and fingerprint that contract. At the untrusted object
+boundary, the same Canonical Basic ABI adapter certifies the declaration binding
+and Buslane shape and returns an opaque certified contract; intrinsic validation
+compares against its identity only. The linker does not reinterpret Basic module
+paths, declaration names, or empty-enum shape as canonical ABI facts.
+
 ### Resolved identities cross the compiler
 
 After validation, the compiler carries resolved declaration identities. Core

@@ -4,6 +4,7 @@ package "Milky2018/lanec/module/link"
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/artifact/model",
+  "Milky2018/lanec/canonical_basic_abi",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module",
@@ -22,6 +23,7 @@ pub(all) struct LinkModuleObject {
   module_path_text : String
   interface : @module.ModuleInterface?
   interface_fingerprint : @model.CompilationFingerprint
+  canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @buslane_lowering.BuslaneExternalMap

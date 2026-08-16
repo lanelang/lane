@@ -4,6 +4,7 @@ package "Milky2018/lanec/elaborate/buslane_lowering"
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/abi",
+  "Milky2018/lanec/canonical_basic_abi",
   "Milky2018/lanec/checked",
   "Milky2018/lanec/module",
   "Milky2018/lanec/symbol",
@@ -87,6 +88,7 @@ pub(all) struct BuslaneModuleImport {
 
 pub(all) struct BuslaneModuleObject {
   module_path_text : String
+  canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : BuslaneExternalMap

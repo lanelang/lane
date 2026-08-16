@@ -51,6 +51,20 @@ fn write_buslane_type_id(
 }
 
 ///|
+fn write_canonical_basic_abi_runtime_contract(
+  writer : @bytecodec.ByteWriter,
+  contract : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract,
+) -> Unit {
+  match contract.void_type() {
+    None => writer.write_u8(0)
+    Some(type_id) => {
+      writer.write_u8(1)
+      write_buslane_type_id(writer, type_id)
+    }
+  }
+}
+
+///|
 fn write_buslane_data_con_id(
   writer : @bytecodec.ByteWriter,
   id : @buslane.DataConId,

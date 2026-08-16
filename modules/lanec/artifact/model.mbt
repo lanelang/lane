@@ -17,7 +17,7 @@ pub(all) struct ModuleInterfaceArtifact {
 pub let module_interface_artifact_schema_version = 14
 
 ///|
-pub let module_object_artifact_schema_version = 20
+pub let module_object_artifact_schema_version = 21
 
 ///|
 pub let compiled_module_artifact_schema_version = 2
@@ -32,6 +32,7 @@ pub(all) struct ModuleObjectArtifact {
   schema_version : Int
   module_path_text : String
   interface_fingerprint : @artifact_model.CompilationFingerprint
+  canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @buslane_lowering.BuslaneExternalMap
@@ -162,6 +163,7 @@ fn ModuleObjectArtifact::validate(
     module_object_fingerprint(
       self.module_fingerprint,
       self.interface_fingerprint,
+      self.canonical_basic_abi,
       self.metadata,
       self.terms,
       self.externals,
@@ -263,6 +265,7 @@ fn ModuleObjectArtifact::to_link_object(
     module_path_text: self.module_path_text,
     interface: None,
     interface_fingerprint: self.interface_fingerprint,
+    canonical_basic_abi: self.canonical_basic_abi,
     metadata: self.metadata,
     terms: self.terms,
     externals: self.externals,

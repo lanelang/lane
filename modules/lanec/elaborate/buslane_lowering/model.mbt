@@ -185,6 +185,7 @@ pub(all) struct BuslaneLowerResult {
 ///|
 pub(all) struct BuslaneModuleObject {
   module_path_text : String
+  canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : BuslaneExternalMap

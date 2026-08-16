@@ -286,8 +286,7 @@ pub(all) enum TypeCheckDiagnosticKind {
     paths~ : Array[String],
     candidates~ : Array[ContextualOfferDiagnosticCandidate]
   )
-  InvalidStructuralDerivationInterface(reason~ : String)
-  InvalidCanonicalBasicProvider(provider~ : String, reason~ : String)
+  CanonicalBasicAbi(@canonical_basic_abi.CanonicalBasicAbiError)
   UnrepresentableStructuralDerivationTarget(
     target~ : @types.Type,
     reason~ : String

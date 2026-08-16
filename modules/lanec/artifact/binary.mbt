@@ -313,6 +313,10 @@ fn encode_module_object_artifact_payload(
   writer.write_u32_le_int(artifact.schema_version)
   writer.write_string(artifact.module_path_text)
   write_compilation_fingerprint(writer, artifact.interface_fingerprint)
+  write_canonical_basic_abi_runtime_contract(
+    writer,
+    artifact.canonical_basic_abi,
+  )
   write_buslane_program_section(writer, {
     metadata: artifact.metadata,
     terms: artifact.terms,
@@ -341,11 +345,13 @@ fn decode_module_object_artifact_payload(
   }
   let module_path_text = reader.read_string()
   let interface_fingerprint = reader.read_compilation_fingerprint()
+  let canonical_basic_abi = reader.read_canonical_basic_abi_runtime_contract()
   let program = reader.read_buslane_program_section()
   let artifact : ModuleObjectArtifact = {
     schema_version,
     module_path_text,
     interface_fingerprint,
+    canonical_basic_abi,
     metadata: program.metadata,
     terms: program.terms,
     externals: reader.read_externals(),

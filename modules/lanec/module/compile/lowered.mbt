@@ -48,6 +48,7 @@ fn compiled_module_from_lowered(
     module_path_text: module_.module_path_text,
     checked: module_.checked,
     interface_fingerprint: module_.interface_fingerprint,
+    canonical_basic_abi: lowered.canonical_basic_abi,
     metadata: lowered.metadata,
     terms: lowered.terms,
     externals: lowered.externals,
@@ -58,6 +59,7 @@ fn compiled_module_from_lowered(
     object_fingerprint: @artifact.module_object_fingerprint(
       module_.fingerprint,
       module_.interface_fingerprint,
+      lowered.canonical_basic_abi,
       lowered.metadata,
       lowered.terms,
       lowered.externals,

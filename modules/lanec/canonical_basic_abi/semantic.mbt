@@ -2,7 +2,7 @@
 pub(all) enum CanonicalBasicAbiError {
   InvalidProvider(provider~ : @abi.BasicTypeProvider, reason~ : String)
   InvalidStructuralDerivation(reason~ : String)
-}
+} derive(Debug, Eq)
 
 ///|
 pub struct CanonicalBasicAbi {
@@ -71,6 +71,19 @@ pub fn CanonicalBasicAbi::derive_abi(
   self : CanonicalBasicAbi,
 ) -> Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError] {
   self.structural_derive
+}
+
+///|
+pub fn CanonicalBasicAbi::checked_contract(
+  self : CanonicalBasicAbi,
+) -> @checked.CheckedCanonicalBasicAbi {
+  let types = []
+  for provider in basic_type_providers() {
+    if self.validate_provider(provider) is Ok(symbol) {
+      types.push(@checked.CheckedCanonicalBasicType::{ provider, symbol })
+    }
+  }
+  { types, }
 }
 
 ///|

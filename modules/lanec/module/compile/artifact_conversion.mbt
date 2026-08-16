@@ -53,6 +53,7 @@ pub fn CompiledModule::to_object_artifact(
     schema_version: @artifact.module_object_artifact_schema_version,
     module_path_text: object.module_path_text,
     interface_fingerprint: object.interface_fingerprint,
+    canonical_basic_abi: object.canonical_basic_abi,
     metadata: object.metadata,
     terms: object.terms,
     externals: object.externals,

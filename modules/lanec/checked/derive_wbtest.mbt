@@ -136,6 +136,7 @@ test "checked derive preserves traversal substitution and value-use contracts" {
 
   let source = CheckedSourceFile::{
     module_path: { components: ["Test"], loc: location },
+    canonical_basic_abi: { types: [] },
     declarations: [
       Let({
         is_public: false,

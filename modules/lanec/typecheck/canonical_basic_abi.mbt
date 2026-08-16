@@ -46,11 +46,5 @@ fn SemanticChecker::report_canonical_basic_abi_error(
   error : @canonical_basic_abi.CanonicalBasicAbiError,
   loc : SourceSpan,
 ) -> Unit {
-  let kind = match error {
-    InvalidProvider(provider~, reason~) =>
-      InvalidCanonicalBasicProvider(provider=provider.qualified_name(), reason~)
-    InvalidStructuralDerivation(reason~) =>
-      InvalidStructuralDerivationInterface(reason~)
-  }
-  self.diagnostics.push({ kind, loc })
+  self.diagnostics.push({ kind: CanonicalBasicAbi(error), loc })
 }

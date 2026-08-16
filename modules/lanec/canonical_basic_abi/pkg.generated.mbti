@@ -2,14 +2,19 @@
 package "Milky2018/lanec/canonical_basic_abi"
 
 import {
+  "Milky2018/buslane",
   "Milky2018/lanec/abi",
+  "Milky2018/lanec/basic",
   "Milky2018/lanec/checked",
+  "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/module",
   "Milky2018/lanec/symbol",
+  "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
 
 // Values
+pub fn lower_runtime_contract(@checked.CheckedCanonicalBasicAbi, (@symbol.TypeSymbolId) -> @buslane.TypeId) -> CanonicalBasicAbiRuntimeContract
 
 // Errors
 
@@ -20,20 +25,31 @@ pub struct CanonicalBasicAbi {
   void_declaration : Result[@module.ModuleInterfaceEnum, CanonicalBasicAbiError]
   structural_derive : Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError]
 }
+pub fn CanonicalBasicAbi::checked_contract(Self) -> @checked.CheckedCanonicalBasicAbi
 pub fn CanonicalBasicAbi::derive_abi(Self) -> Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbi::from_module_input(CanonicalBasicAbiIdentityCatalog, @module.ModuleInterfaceCatalog, Array[@module.ModuleInterfaceType]) -> Self
 pub fn CanonicalBasicAbi::validate_provider(Self, @abi.BasicTypeProvider) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbi::void_type_symbol(Self) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
 
+pub(all) struct CanonicalBasicAbiDiagnostic {
+  error : CanonicalBasicAbiError
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub impl @diagnostic.ToCompilerDiagnostic for CanonicalBasicAbiDiagnostic
+
 pub(all) enum CanonicalBasicAbiError {
   InvalidProvider(provider~ : @abi.BasicTypeProvider, reason~ : String)
   InvalidStructuralDerivation(reason~ : String)
-}
+} derive(Eq, @debug.Debug)
+pub fn CanonicalBasicAbiError::at(Self, @basic.SourceSpan) -> CanonicalBasicAbiDiagnostic
+pub impl @prettyprinter.Pretty for CanonicalBasicAbiError
 
 pub struct CanonicalBasicAbiIdentityCatalog {
   types : Array[@symbol.TypeSymbolId?]
   variants : Array[@symbol.VariantSymbolId?]
 } derive(Eq, @debug.Debug)
+pub fn CanonicalBasicAbiIdentityCatalog::require_type_symbol(Self, @abi.BasicTypeProvider) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
+pub fn CanonicalBasicAbiIdentityCatalog::require_variant_symbol(Self, @abi.BasicVariantProvider) -> Result[@symbol.VariantSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbiIdentityCatalog::type_symbol(Self, @abi.BasicTypeProvider) -> @symbol.TypeSymbolId?
 pub fn CanonicalBasicAbiIdentityCatalog::variant_symbol(Self, @abi.BasicVariantProvider) -> @symbol.VariantSymbolId?
 
@@ -45,8 +61,35 @@ pub fn CanonicalBasicAbiIdentityCatalogBuilder::build(Self) -> CanonicalBasicAbi
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::from_interfaces(@module.ModuleInterfaceCatalog) -> Self
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::register_local_type(Self, String, String, @symbol.TypeSymbolId, Bool) -> Unit
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::register_local_variant(Self, String, String, String, @symbol.VariantSymbolId) -> Unit
+pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_type_symbol(Self, @abi.BasicTypeProvider) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
+pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_variant_symbol(Self, @abi.BasicVariantProvider) -> Result[@symbol.VariantSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::type_symbol(Self, @abi.BasicTypeProvider) -> @symbol.TypeSymbolId?
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::variant_symbol(Self, @abi.BasicVariantProvider) -> @symbol.VariantSymbolId?
+
+pub(all) struct CanonicalBasicAbiObjectTypeDeclaration {
+  module_path : String
+  name : String
+  type_id : @buslane.TypeId
+} derive(Eq, @debug.Debug)
+
+pub struct CanonicalBasicAbiRuntimeContract {
+  void_type : @buslane.TypeId?
+} derive(Eq, @debug.Debug)
+pub fn CanonicalBasicAbiRuntimeContract::certify(Self, Array[CanonicalBasicAbiObjectTypeDeclaration], @buslane.MetadataRegistry) -> Result[CertifiedCanonicalBasicAbiRuntimeContract, CanonicalBasicAbiRuntimeContractError]
+pub fn CanonicalBasicAbiRuntimeContract::empty() -> Self
+pub fn CanonicalBasicAbiRuntimeContract::from_void_type(@buslane.TypeId?) -> Self
+pub fn CanonicalBasicAbiRuntimeContract::void_type(Self) -> @buslane.TypeId?
+
+pub(all) enum CanonicalBasicAbiRuntimeContractError {
+  MissingDeclaration(provider~ : @abi.BasicTypeProvider)
+  InvalidDeclaration(provider~ : @abi.BasicTypeProvider, reason~ : String)
+} derive(Eq, @debug.Debug)
+pub fn CanonicalBasicAbiRuntimeContractError::message(Self) -> String
+
+pub struct CertifiedCanonicalBasicAbiRuntimeContract {
+  contract : CanonicalBasicAbiRuntimeContract
+} derive(Eq, @debug.Debug)
+pub fn CertifiedCanonicalBasicAbiRuntimeContract::void_type(Self) -> @buslane.TypeId?
 
 // Type aliases
 

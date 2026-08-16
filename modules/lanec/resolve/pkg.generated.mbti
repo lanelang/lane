@@ -35,7 +35,7 @@ pub impl @diagnostic.ToCompilerDiagnostic for ResolveDiagnostic
 pub impl @prettyprinter.Pretty for ResolveDiagnostic
 
 pub(all) enum ResolveDiagnosticKind {
-  InvalidCanonicalBasicProvider(provider~ : String, reason~ : String)
+  CanonicalBasicAbi(@canonical_basic_abi.CanonicalBasicAbiError)
   UnresolvedType(String)
   UnresolvedValue(String)
   UnresolvedEffectOperation(String)

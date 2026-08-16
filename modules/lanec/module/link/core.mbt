@@ -314,11 +314,9 @@ fn LinkModuleIndex::validate_order(
   let validated = []
   let diagnostics = []
   for module_ in modules {
-    let module_diagnostics = validate_link_object(self, module_)
-    if module_diagnostics.is_empty() {
-      validated.push({ object: module_ })
-    } else {
-      diagnostics.append(module_diagnostics)
+    match validate_link_object(self, module_) {
+      Ok(module_) => validated.push(module_)
+      Err(module_diagnostics) => diagnostics.append(module_diagnostics)
     }
   }
   if diagnostics.is_empty() {

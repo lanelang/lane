@@ -48,4 +48,6 @@ artifacts must be rejected rather than decoded under the new bytecode model.
 
 The Void-result migration subsequently advances the module-interface schema
 from 12 to 13, module-object schema from 19 to 20, and linked-program schema
-from 15 to 16. It does not add another bytecode instruction or result tag.
+from 15 to 16. Persisting its certified Canonical Basic ABI runtime identity
+later advances the module-object schema from 20 to 21. Neither change adds
+another bytecode instruction or result tag.

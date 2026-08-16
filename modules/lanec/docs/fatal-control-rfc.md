@@ -86,11 +86,12 @@ cleanup, skip the normal continuation, and return the typed
 `ExecutionError::Fatal(message)` outcome. Runtime import failures remain a
 separate typed error.
 
-The migration advances module-interface schema 12 to 13, module-object schema
-19 to 20, and linked-program schema 15 to 16. The bytecode instruction language
-does not change: `Fatal` and ordinary value result ABIs already express the
-required execution contract. Decoders reject the immediately preceding schema
-versions.
+The Void-result migration advances module-interface schema 12 to 13,
+module-object schema 19 to 20, and linked-program schema 15 to 16. Persisting
+the Canonical Basic ABI runtime contract subsequently advances the module-object
+schema from 20 to 21. The bytecode instruction language does not change:
+`Fatal` and ordinary value result ABIs already express the required execution
+contract. Decoders reject the immediately preceding schema versions.
 
 ## Optimization
 

@@ -3,6 +3,7 @@ pub(all) struct ModuleObject {
   module_path_text : String
   checked : @checked.CheckedSourceFile
   interface_fingerprint : @artifact.CompilationFingerprint
+  canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
   metadata : @buslane.MetadataRegistry
   terms : Array[@buslane.TopTerm]
   externals : @buslane_lowering.BuslaneExternalMap
@@ -33,6 +34,7 @@ fn CompiledModule::to_link_object(
     module_path_text: object.module_path_text,
     interface: Some(self.interface),
     interface_fingerprint: object.interface_fingerprint,
+    canonical_basic_abi: object.canonical_basic_abi,
     metadata: object.metadata,
     terms: object.terms,
     externals: object.externals,
@@ -44,6 +46,7 @@ fn CompiledModule::to_link_object(
     @artifact.module_object_fingerprint(
       object.fingerprint,
       object.interface_fingerprint,
+      object.canonical_basic_abi,
       object.metadata,
       object.terms,
       object.externals,
