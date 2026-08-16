@@ -2,9 +2,10 @@
 
 ## Purpose
 
-This package owns the module-input semantic adapter for compiler-required Basic
-declarations. It is the only package that interprets canonical Basic provider
-requirements as declaration identities and validates their semantic shapes.
+This package owns the semantic lifecycle of compiler-required Basic
+declarations across the source module-input and module-object trust boundaries.
+It alone interprets provider requirements, certifies source identities and
+shapes, and certifies their persisted runtime projection.
 
 ## Glossary
 
@@ -36,3 +37,21 @@ locations; object consumers contribute the module-object path. This package
 selects the representative provenance, preserves runtime certification failures
 as typed causes, and produces the final structured diagnostics.
 _Avoid_: resolver-owned deduplication, consumer diagnostic codes, string-flattened runtime errors
+
+**Canonical Basic ABI Runtime Contract**:
+The persisted, fingerprinted projection of checked Canonical Basic identities
+into the runtime identity space. It is untrusted after decoding and cannot
+authorize linking decisions until certified at the module-object boundary.
+_Avoid_: certified contract, trusted artifact metadata, backend provider lookup
+
+**Certified Canonical Basic ABI Runtime Contract**:
+The non-persisted evidence that a Canonical Basic ABI Runtime Contract names
+declarations whose bindings and runtime shapes satisfy the Canonical Basic ABI.
+Only this evidence may authorize downstream canonical identity comparisons.
+_Avoid_: decoded contract, persisted certificate, unchecked runtime identity
+
+**Canonical Basic ABI Runtime Certification Failure**:
+A structured distinction between a missing runtime declaration binding and a
+declaration with an incompatible runtime shape. The Canonical Basic ABI owns its
+classification and diagnostic; object consumers contribute provenance only.
+_Avoid_: generic invalid-object string, linker-owned classification, flattened cause
