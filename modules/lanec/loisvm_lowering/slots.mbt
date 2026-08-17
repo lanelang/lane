@@ -1,10 +1,10 @@
 ///|
 fn FunctionLowerer::fresh_optional_slot(
   self : FunctionLowerer,
-  type_ : @buslane.Type,
+  type_ : @anf.RuntimeType,
 ) -> (@vmcfg.ValueId?, LocalValue) raise LoisvmLoweringError {
   let type_ = self.instantiate_runtime_type(type_)
-  if self.image.runtime_type(type_) is Concrete(Primitive(Unit)) {
+  if type_ is Unit {
     (None, Unit)
   } else {
     let slot = self.fresh_slot(type_)
@@ -15,11 +15,11 @@ fn FunctionLowerer::fresh_optional_slot(
 ///|
 fn FunctionLowerer::fresh_slot(
   self : FunctionLowerer,
-  type_ : @buslane.Type,
+  type_ : @anf.RuntimeType,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   let type_ = self.instantiate_runtime_type(type_)
-  if self.image.runtime_type(type_) is Erased(_) {
-    return self.fresh_erased_slot(self.layout_witness(type_), Owned)
+  if type_ is Erased(_, evidence) {
+    return self.fresh_erased_slot(self.layout_witness(evidence), Owned)
   }
   let slot : @vmcfg.ValueId = { value: self.values.length() }
   self.values.push(self.image.slot_metadata(type_))
@@ -39,11 +39,11 @@ fn FunctionLowerer::fresh_metadata(
 ///|
 fn FunctionLowerer::fresh_borrowed_slot(
   self : FunctionLowerer,
-  type_ : @buslane.Type,
+  type_ : @anf.RuntimeType,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   let type_ = self.instantiate_runtime_type(type_)
-  if self.image.runtime_type(type_) is Erased(_) {
-    return self.fresh_erased_slot(self.layout_witness(type_), Borrowed)
+  if type_ is Erased(_, evidence) {
+    return self.fresh_erased_slot(self.layout_witness(evidence), Borrowed)
   }
   let metadata = self.image.slot_metadata(type_)
   let ownership : @vmcfg.Ownership = match metadata.ownership {
@@ -58,72 +58,59 @@ fn FunctionLowerer::fresh_borrowed_slot(
 ///|
 fn FunctionLowerer::instantiate_runtime_type(
   self : FunctionLowerer,
-  type_ : @buslane.Type,
-) -> @buslane.Type raise LoisvmLoweringError {
-  if type_mentions_specialized_parameter(type_, self.specialized_parameters, []) {
-    apply_type_substitution(type_, self.substitutions)
+  type_ : @anf.RuntimeType,
+) -> @anf.RuntimeType raise LoisvmLoweringError {
+  if runtime_type_mentions_any(type_, self.specialized_parameters, []) {
+    self.substitutions.apply_type(self.image.metadata, type_)
   } else {
     type_
   }
 }
 
 ///|
-fn type_mentions_specialized_parameter(
-  type_ : @buslane.Type,
-  specialized : Array[@buslane.TypeParameterId],
-  bound : Array[@buslane.TypeParameterId],
+fn runtime_type_mentions_any(
+  type_ : @anf.RuntimeType,
+  parameters : Array[@anf.RuntimeEvidenceId],
+  bound : Array[@anf.RuntimeEvidenceId],
 ) -> Bool {
   match type_ {
-    Primitive(_) | Constructor(_) => false
-    Parameter(parameter) =>
-      !bound.contains(parameter) && specialized.contains(parameter)
-    Apply(callee, arguments) =>
-      type_mentions_specialized_parameter(callee, specialized, bound) ||
+    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) => false
+    Data(_, _) => false
+    Callable(arguments, result) =>
       arguments.any(argument => {
-        match argument {
-          TypeArgument(type_) =>
-            type_mentions_specialized_parameter(type_, specialized, bound)
-          EffectArgument(effect) =>
-            effect_mentions_specialized_parameter(effect, specialized, bound)
-        }
-      })
-    TypeLambda(parameters, body) | Forall(parameters, body) => {
-      let nested = bound.copy()
-      nested.append(parameters)
-      type_mentions_specialized_parameter(body, specialized, nested)
-    }
-    Function(parameters, result, effect) =>
-      parameters.any(type_ => {
-        type_mentions_specialized_parameter(type_, specialized, bound)
+        runtime_type_mentions_any(argument, parameters, bound)
       }) ||
-      type_mentions_specialized_parameter(result, specialized, bound) ||
-      effect_mentions_specialized_parameter(effect, specialized, bound)
+      runtime_type_mentions_any(result, parameters, bound)
+    Erased(_, evidence) =>
+      runtime_evidence_mentions_any(evidence, parameters, bound)
+    Forall(binders, body) => {
+      let nested = bound.copy()
+      nested.append(binders.map(binder => binder.id))
+      runtime_type_mentions_any(body, parameters, nested)
+    }
   }
 }
 
 ///|
-fn effect_mentions_specialized_parameter(
-  effect : @buslane.Effect,
-  specialized : Array[@buslane.TypeParameterId],
-  bound : Array[@buslane.TypeParameterId],
+fn runtime_evidence_mentions_any(
+  evidence : @anf.RuntimeEvidence,
+  parameters : Array[@anf.RuntimeEvidenceId],
+  bound : Array[@anf.RuntimeEvidenceId],
 ) -> Bool {
-  match effect {
-    Empty | Builtin(_) => false
+  match evidence {
+    Static(_) => false
     Parameter(parameter) =>
-      !bound.contains(parameter) && specialized.contains(parameter)
-    Singleton(_, arguments) =>
+      !bound.contains(parameter) && parameters.contains(parameter)
+    Apply(callee, arguments) =>
+      runtime_evidence_mentions_any(callee, parameters, bound) ||
       arguments.any(argument => {
-        match argument {
-          TypeArgument(type_) =>
-            type_mentions_specialized_parameter(type_, specialized, bound)
-          EffectArgument(effect) =>
-            effect_mentions_specialized_parameter(effect, specialized, bound)
-        }
+        runtime_evidence_mentions_any(argument, parameters, bound)
       })
-    Union(effects) =>
-      effects.any(effect => {
-        effect_mentions_specialized_parameter(effect, specialized, bound)
-      })
+    Lambda(binders, body) => {
+      let nested = bound.copy()
+      nested.append(binders.map(binder => binder.id))
+      runtime_evidence_mentions_any(body, parameters, nested)
+    }
   }
 }
 
@@ -145,41 +132,23 @@ fn FunctionLowerer::fresh_erased_slot(
 ///|
 fn ImageLowerer::slot_metadata(
   self : ImageLowerer,
-  type_ : @buslane.Type,
+  type_ : @anf.RuntimeType,
 ) -> @vmcfg.ValueMetadata raise LoisvmLoweringError {
   match self.elaborate_runtime_representation(type_) {
     Concrete(_, metadata) => metadata
-    Unit | Erased(_) => raise UnsupportedType(type_~)
+    RuntimeUnit | RuntimeErased(_) => raise UnsupportedType(type_~)
   }
 }
 
 ///|
 fn ImageLowerer::elaborate_runtime_representation(
   self : ImageLowerer,
-  type_ : @buslane.Type,
-) -> RuntimeRepresentation raise LoisvmLoweringError {
-  let type_ = type_.normalize() catch {
-    error => raise TypeNormalizationCompilerDefect(error)
-  }
-  match type_ {
-    Parameter(parameter) if parameter.index < 0 => return Erased(type_)
-    Parameter(parameter) =>
-      if self.metadata.type_parameter_info(parameter)
-        is Some({ kind: Type, .. }) {
-        return Erased(type_)
-      }
-    Apply(Parameter(parameter), _) =>
-      if self.metadata.type_parameter_info(parameter)
-        is Some({ kind: Function(_, Type), .. }) {
-        return Erased(type_)
-      }
-    _ => ()
-  }
-  if type_ is Primitive(Unit) {
-    return Unit
-  }
+  type_ : @anf.RuntimeType,
+) -> RuntimeRepresentation {
   let metadata : @vmcfg.ValueMetadata = match type_ {
-    Primitive(Bool) =>
+    Unit => return RuntimeUnit
+    Erased(_, evidence) => return RuntimeErased(evidence)
+    Scalar(Bool | I32 | Char | Byte) =>
       {
         representation: I32,
         cleanup: Trivial,
@@ -187,15 +156,7 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Trivial,
         erased_companion: None,
       }
-    Primitive(I32) | Primitive(Char) =>
-      {
-        representation: I32,
-        cleanup: Trivial,
-        kind: ScalarValue,
-        ownership: Trivial,
-        erased_companion: None,
-      }
-    Primitive(I64) =>
+    Scalar(I64) =>
       {
         representation: I64,
         cleanup: Trivial,
@@ -203,7 +164,7 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Trivial,
         erased_companion: None,
       }
-    Primitive(F32) =>
+    Scalar(F32) =>
       {
         representation: F32,
         cleanup: Trivial,
@@ -211,7 +172,7 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Trivial,
         erased_companion: None,
       }
-    Primitive(F64) =>
+    Scalar(F64) =>
       {
         representation: F64,
         cleanup: Trivial,
@@ -219,7 +180,7 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Trivial,
         erased_companion: None,
       }
-    Primitive(String) =>
+    ByteSequence =>
       {
         representation: I32,
         cleanup: OwnedRef,
@@ -227,23 +188,7 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Owned,
         erased_companion: None,
       }
-    Primitive(Byte) =>
-      {
-        representation: I32,
-        cleanup: Trivial,
-        kind: ScalarValue,
-        ownership: Trivial,
-        erased_companion: None,
-      }
-    Primitive(Bytes) =>
-      {
-        representation: I32,
-        cleanup: OwnedRef,
-        kind: ByteSequenceValue,
-        ownership: Owned,
-        erased_companion: None,
-      }
-    Function(_, _, _) | Forall(_, _) =>
+    Callable(_, _) | Forall(_, _) =>
       {
         representation: I64,
         cleanup: OwnedCallable,
@@ -251,22 +196,15 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Owned,
         erased_companion: None,
       }
-    Constructor(owner) | Apply(Constructor(owner), _) => {
-      let kind : @bytecode.SemanticValueKind = match
-        self.metadata.type_info(owner) {
-        Some({ flavor: Data, .. }) => DataValue(self.intern_data_family(owner))
-        Some({ flavor: External, .. }) => OpaqueReferenceValue
-        None => raise UnsupportedType(type_~)
-      }
+    Data(owner, _) =>
       {
         representation: I32,
         cleanup: OwnedRef,
-        kind,
+        kind: DataValue(self.intern_data_family(owner)),
         ownership: Owned,
         erased_companion: None,
       }
-    }
-    Apply(_, _) =>
+    OpaqueReference(_) =>
       {
         representation: I32,
         cleanup: OwnedRef,
@@ -274,7 +212,6 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Owned,
         erased_companion: None,
       }
-    _ => raise UnsupportedType(type_~)
   }
   Concrete(type_, metadata)
 }
@@ -326,50 +263,24 @@ fn borrowed_evidence_metadata(
 }
 
 ///|
-fn ImageLowerer::runtime_evidence_metadata(
-  self : ImageLowerer,
-  parameter : @buslane.TypeParameterId,
-) -> @vmcfg.ValueMetadata raise LoisvmLoweringError {
-  let kind = match self.metadata.type_parameter_info(parameter) {
-    Some(info) => info.kind
-    None if parameter.index < 0 => Type
-    None => raise UnsupportedType(type_=Parameter(parameter))
-  }
-  match kind {
-    Type => layout_witness_metadata()
-    Function(parameters, Type) =>
-      layout_constructor_metadata(runtime_evidence_arity(parameters))
-    _ => raise UnsupportedType(type_=Parameter(parameter))
-  }
-}
-
-///|
-fn runtime_evidence_arity(parameters : Array[@buslane.Kind]) -> Int {
-  parameters.fold(init=0, fn(count, kind) {
-    if kind_requires_runtime_evidence(kind) {
-      count + 1
-    } else {
-      count
-    }
-  })
-}
-
-///|
-fn kind_requires_runtime_evidence(kind : @buslane.Kind) -> Bool {
-  match kind {
-    Type | Function(_, Type) => true
-    _ => false
+fn runtime_evidence_metadata(
+  parameter : @anf.RuntimeEvidenceParameter,
+) -> @vmcfg.ValueMetadata {
+  if parameter.arity == 0 {
+    layout_witness_metadata()
+  } else {
+    layout_constructor_metadata(parameter.arity)
   }
 }
 
 ///|
 fn ImageLowerer::result_abi(
   self : ImageLowerer,
-  type_ : @buslane.Type,
-) -> @bytecode.ResultAbi raise LoisvmLoweringError {
+  type_ : @anf.RuntimeType,
+) -> @bytecode.ResultAbi {
   match self.elaborate_runtime_representation(type_) {
-    Unit => Unit
-    Erased(_) => Value(I64, OwnedErased, ErasedValue)
+    RuntimeUnit => Unit
+    RuntimeErased(_) => Value(I64, OwnedErased, ErasedValue)
     Concrete(_, metadata) =>
       Value(metadata.representation, metadata.cleanup, metadata.kind)
   }
@@ -377,57 +288,34 @@ fn ImageLowerer::result_abi(
 
 ///|
 priv enum RuntimeRepresentation {
-  Unit
-  Concrete(@buslane.Type, @vmcfg.ValueMetadata)
-  Erased(@buslane.Type)
+  RuntimeUnit
+  Concrete(@anf.RuntimeType, @vmcfg.ValueMetadata)
+  RuntimeErased(@anf.RuntimeEvidence)
 }
 
 ///|
-priv enum RuntimeType {
-  Erased(@buslane.Type)
-  Concrete(@buslane.Type)
+priv enum RuntimeTypeClass {
+  Erased(@anf.RuntimeEvidence)
+  Concrete(@anf.RuntimeType)
 }
 
 ///|
-fn ImageLowerer::types_definitionally_equal(
+fn ImageLowerer::types_representation_equivalent(
   self : ImageLowerer,
-  left : @buslane.Type,
-  right : @buslane.Type,
-) -> Bool raise LoisvmLoweringError {
-  self.metadata.types_definitionally_equal(left, right) catch {
-    error => raise TypeNormalizationCompilerDefect(error)
-  }
+  left : @anf.RuntimeType,
+  right : @anf.RuntimeType,
+) -> Bool {
+  self.metadata.types_representation_equivalent(left, right)
 }
 
 ///|
-/// Resolve the runtime representation of a value type.
-///
-/// Ordinary `Type` parameters and applied effect companions are erased. A
-/// concrete companion argument beta-reduces before its representation is
-/// classified, so `Apply(TypeLambda(...), ...)` uses the lambda body's layout.
 fn ImageLowerer::runtime_type(
   self : ImageLowerer,
-  type_ : @buslane.Type,
-) -> RuntimeType raise LoisvmLoweringError {
+  type_ : @anf.RuntimeType,
+) -> RuntimeTypeClass {
   match self.elaborate_runtime_representation(type_) {
-    Unit => Concrete(Primitive(Unit))
+    RuntimeUnit => Concrete(Unit)
     Concrete(type_, _) => Concrete(type_)
-    Erased(type_) => Erased(type_)
+    RuntimeErased(evidence) => Erased(evidence)
   }
 }
-
-///|
-fn ImageLowerer::layout_runtime_type(
-  self : ImageLowerer,
-  type_ : @buslane.Type,
-) -> RuntimeType raise LoisvmLoweringError {
-  let type_ = type_.normalize() catch {
-    error => raise TypeNormalizationCompilerDefect(error)
-  }
-  match type_ {
-    TypeLambda(_, body) => self.layout_runtime_type(body)
-    type_ => self.runtime_type(type_)
-  }
-}
-
-///|

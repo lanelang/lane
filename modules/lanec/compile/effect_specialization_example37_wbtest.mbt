@@ -91,7 +91,7 @@ test "real example 37 shares escaped callable adapter workers" {
   }
   assert_eq(
     (adapter_workers, adapter_materializations, finalized_adapter_workers),
-    (17, 23, 17),
+    (19, 26, 19),
   )
 }
 

@@ -2,7 +2,7 @@
 fn ImageLowerer::callable_adapter(
   self : ImageLowerer,
   contract : CallableAdapterContract,
-) -> CallableAdapterPlan raise LoisvmLoweringError {
+) -> CallableAdapterPlan {
   for adapter in self.callable_adapters {
     if adapter.contract.recipe == contract.recipe {
       return adapter
@@ -10,7 +10,7 @@ fn ImageLowerer::callable_adapter(
   }
   let members : Array[@bytecode.MemberSchema] = []
   for parameter in contract.captured_parameters {
-    let metadata = self.runtime_evidence_metadata(parameter)
+    let metadata = runtime_evidence_metadata(parameter)
     members.push({
       representation: metadata.representation,
       cleanup: metadata.cleanup,
@@ -44,17 +44,17 @@ fn ImageLowerer::callable_adapter(
 ///|
 fn free_runtime_type_parameters(
   image : ImageLowerer,
-  source_type : @buslane.Type,
-  target_type : @buslane.Type,
-) -> Array[@buslane.TypeParameterId] {
+  source_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
+) -> Array[@anf.RuntimeEvidenceParameter] {
   free_runtime_type_parameters_in_types(image, [source_type, target_type])
 }
 
 ///|
 fn free_runtime_type_parameters_in_types(
   image : ImageLowerer,
-  types : Array[@buslane.Type],
-) -> Array[@buslane.TypeParameterId] {
+  types : Array[@anf.RuntimeType],
+) -> Array[@anf.RuntimeEvidenceParameter] {
   let parameters = []
   for type_ in types {
     collect_free_runtime_type_parameters(image, type_, [], parameters)
@@ -65,50 +65,66 @@ fn free_runtime_type_parameters_in_types(
 ///|
 fn collect_free_runtime_type_parameters(
   image : ImageLowerer,
-  type_ : @buslane.Type,
-  bound : Array[@buslane.TypeParameterId],
-  parameters : Array[@buslane.TypeParameterId],
+  type_ : @anf.RuntimeType,
+  bound : Array[@anf.RuntimeEvidenceId],
+  parameters : Array[@anf.RuntimeEvidenceParameter],
 ) -> Unit {
   match type_ {
-    Parameter(parameter) =>
-      if !bound.contains(parameter) &&
-        !parameters.contains(parameter) &&
-        (parameter.index < 0 || image.requires_runtime_evidence(parameter)) {
-        parameters.push(parameter)
-      }
-    Apply(applied_type, arguments) => {
-      collect_free_runtime_type_parameters(
-        image, applied_type, bound, parameters,
-      )
-      for argument in arguments {
-        if argument is TypeArgument(type_) {
-          collect_free_runtime_type_parameters(image, type_, bound, parameters)
-        }
-      }
-    }
-    TypeLambda(type_parameters, body) | Forall(type_parameters, body) => {
+    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) => ()
+    Erased(_, evidence) =>
+      collect_free_runtime_evidence(image, evidence, bound, parameters)
+    Data(_, _) => ()
+    Forall(type_parameters, body) => {
       let nested_bound = bound.copy()
-      nested_bound.append(type_parameters)
+      nested_bound.append(type_parameters.map(parameter => parameter.id))
       collect_free_runtime_type_parameters(
         image, body, nested_bound, parameters,
       )
     }
-    Function(arguments, result, _) => {
+    Callable(arguments, result) => {
       for argument in arguments {
         collect_free_runtime_type_parameters(image, argument, bound, parameters)
       }
       collect_free_runtime_type_parameters(image, result, bound, parameters)
     }
-    Primitive(_) | Constructor(_) => ()
+  }
+}
+
+///|
+fn collect_free_runtime_evidence(
+  image : ImageLowerer,
+  evidence : @anf.RuntimeEvidence,
+  bound : Array[@anf.RuntimeEvidenceId],
+  parameters : Array[@anf.RuntimeEvidenceParameter],
+) -> Unit {
+  match evidence {
+    Static(_) => ()
+    Parameter(id) =>
+      if !bound.contains(id) && !parameters.any(parameter => parameter.id == id) {
+        parameters.push(
+          image.metadata.evidence_parameter(id).unwrap_or({ id, arity: 0 }),
+        )
+      }
+    Apply(callee, arguments) => {
+      collect_free_runtime_evidence(image, callee, bound, parameters)
+      for argument in arguments {
+        collect_free_runtime_evidence(image, argument, bound, parameters)
+      }
+    }
+    Lambda(binders, body) => {
+      let nested = bound.copy()
+      nested.append(binders.map(binder => binder.id))
+      collect_free_runtime_evidence(image, body, nested, parameters)
+    }
   }
 }
 
 ///|
 fn ImageLowerer::canonical_callable_type(
   self : ImageLowerer,
-  type_ : @buslane.Type,
-) -> (@buslane.Type, @buslane.TypeSubstitution) raise LoisvmLoweringError {
-  let bindings = @buslane.TypeSubstitution::TypeSubstitution()
+  type_ : @anf.RuntimeType,
+) -> (@anf.RuntimeType, RuntimeSubstitution) raise LoisvmLoweringError {
+  let bindings = RuntimeSubstitution::new()
   let canonical = self.canonical_callable_type_with_bound(type_, [], bindings)
   (canonical, bindings)
 }
@@ -116,26 +132,25 @@ fn ImageLowerer::canonical_callable_type(
 ///|
 fn ImageLowerer::canonical_callable_type_with_bound(
   self : ImageLowerer,
-  type_ : @buslane.Type,
-  bound : Array[@buslane.TypeParameterId],
-  bindings : @buslane.TypeSubstitution,
-) -> @buslane.Type raise LoisvmLoweringError {
+  type_ : @anf.RuntimeType,
+  bound : Array[@anf.RuntimeEvidenceId],
+  bindings : RuntimeSubstitution,
+) -> @anf.RuntimeType raise LoisvmLoweringError {
   match type_ {
     Forall(parameters, body) => {
       let nested_bound = bound.copy()
-      nested_bound.append(parameters)
+      nested_bound.append(parameters.map(parameter => parameter.id))
       Forall(
         parameters,
         self.canonical_callable_type_with_bound(body, nested_bound, bindings),
       )
     }
-    Function(parameters, result, effect) =>
-      Function(
+    Callable(parameters, result) =>
+      Callable(
         parameters.map(type_ => {
           self.canonical_callable_value_type(type_, bound, bindings)
         }),
         self.canonical_callable_value_type(result, bound, bindings),
-        effect,
       )
     _ => raise UnsupportedType(type_~)
   }
@@ -144,11 +159,11 @@ fn ImageLowerer::canonical_callable_type_with_bound(
 ///|
 fn ImageLowerer::canonical_callable_value_type(
   self : ImageLowerer,
-  type_ : @buslane.Type,
-  bound : Array[@buslane.TypeParameterId],
-  bindings : @buslane.TypeSubstitution,
-) -> @buslane.Type raise LoisvmLoweringError {
-  if self.runtime_type(type_) is Concrete(Primitive(Unit)) {
+  type_ : @anf.RuntimeType,
+  bound : Array[@anf.RuntimeEvidenceId],
+  bindings : RuntimeSubstitution,
+) -> @anf.RuntimeType raise LoisvmLoweringError {
+  if self.runtime_type(type_) is Concrete(Unit) {
     return type_
   }
   if self.runtime_type(type_) is Erased(Parameter(parameter)) &&
@@ -156,18 +171,40 @@ fn ImageLowerer::canonical_callable_value_type(
     return type_
   }
   let parameter = self.fresh_synthetic_parameter()
-  bindings.insert(parameter, type_)
-  Parameter(parameter)
+  let expression = match type_ {
+    Erased(expression, _) => expression
+    _ => self.metadata.intern_type_expression(Static(type_))
+  }
+  let evidence = runtime_type_evidence(type_)
+  bindings.insert(parameter, { type_expression: expression, evidence })
+  Erased(expression, Parameter(parameter))
+}
+
+///|
+fn runtime_type_evidence(
+  type_ : @anf.RuntimeType,
+) -> @anf.RuntimeEvidence raise LoisvmLoweringError {
+  match type_ {
+    Erased(_, evidence) => evidence
+    _ =>
+      match type_.layout() {
+        Some(layout) => Static(layout)
+        None => raise UnsupportedType(type_~)
+      }
+  }
 }
 
 ///|
 fn FunctionLowerer::adapter_witness(
   self : FunctionLowerer,
-  parameter : @buslane.TypeParameterId,
-  substitutions : @buslane.TypeSubstitution,
+  parameter : @anf.RuntimeEvidenceId,
+  substitutions : RuntimeSubstitution,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  if type_substitution_type_argument(substitutions, parameter) is Some(type_) {
-    return self.runtime_evidence(parameter, type_)
+  if substitutions.argument(parameter) is Some(argument) {
+    let parameter_info = self.image.metadata
+      .evidence_parameter(parameter)
+      .unwrap_or({ id: parameter, arity: 0 })
+    return self.runtime_evidence(parameter_info, argument)
   }
   self.find_witness(parameter)
 }
@@ -176,9 +213,9 @@ fn FunctionLowerer::adapter_witness(
 fn FunctionLowerer::make_callable_adapter(
   self : FunctionLowerer,
   source : @vmcfg.ValueId,
-  source_type : @buslane.Type,
-  target_type : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
+  source_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
   guard self.image.plan_callable_adaptation(
       source_type, target_type, substitutions,
@@ -190,8 +227,8 @@ fn FunctionLowerer::make_callable_adapter(
     source,
     contract,
     captured_witnesses: contract.captured_parameters.map(parameter => {
-      parameter,
-      value: self.adapter_witness(parameter, contract.substitutions),
+      parameter: parameter.id,
+      value: self.adapter_witness(parameter.id, contract.substitutions),
     }),
   })
 }
@@ -199,11 +236,11 @@ fn FunctionLowerer::make_callable_adapter(
 ///|
 fn ImageLowerer::plan_callable_adaptation(
   self : ImageLowerer,
-  source_type : @buslane.Type,
-  target_type : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
+  source_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
 ) -> CallableAdapterContract? raise LoisvmLoweringError {
-  if self.types_definitionally_equal(source_type, target_type) {
+  if self.types_representation_equivalent(source_type, target_type) {
     return None
   }
   let (source_parameter_targets, adapter_substitutions) = self.align_callable_parameters(
@@ -211,9 +248,9 @@ fn ImageLowerer::plan_callable_adaptation(
   )
   let (_, _, source_result) = function_type_parts(source_type)
   let (_, _, target_result) = function_type_parts(target_type)
-  if self.types_definitionally_equal(
-      apply_type_substitution(source_result, adapter_substitutions),
-      apply_type_substitution(target_result, adapter_substitutions),
+  if self.types_representation_equivalent(
+      adapter_substitutions.apply_type(self.metadata, source_result),
+      adapter_substitutions.apply_type(self.metadata, target_result),
     ) &&
     self.callable_types_share_runtime_abi(
       source_type, target_type, adapter_substitutions,
@@ -271,10 +308,10 @@ fn FunctionLowerer::materialize_callable_adapter(
 /// reads it.
 fn ImageLowerer::align_callable_parameters(
   self : ImageLowerer,
-  source_type : @buslane.Type,
-  target_type : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
-) -> (Array[Int], @buslane.TypeSubstitution) raise LoisvmLoweringError {
+  source_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
+) -> (Array[Int], RuntimeSubstitution) raise LoisvmLoweringError {
   let (source_type_parameters, source_parameters, _) = function_type_parts(
     source_type,
   )
@@ -286,25 +323,36 @@ fn ImageLowerer::align_callable_parameters(
       detail="callable adapter source and target type arities differ",
     )
   }
-  let alignment = @buslane.TypeSubstitution::TypeSubstitution()
+  let alignment = RuntimeSubstitution::new()
   for index, target_parameter in target_type_parameters {
-    alignment.insert(target_parameter, Parameter(source_type_parameters[index]))
+    let source_parameter = source_type_parameters[index]
+    guard self.metadata.parameter_type_expression(source_parameter.id)
+      is Some(type_expression) else {
+      raise InvalidTypeApplication(
+        detail="callable evidence parameter has no runtime type expression",
+      )
+    }
+    alignment.insert(target_parameter.id, {
+      type_expression,
+      evidence: Parameter(source_parameter.id),
+    })
   }
   let alignment_substitutions = substitutions.overlay(alignment)
   let source_parameter_targets = []
   let mut source_index = 0
   for target_index, target_parameter in target_parameters {
-    let actual_target = apply_type_substitution(
-      target_parameter, alignment_substitutions,
+    let actual_target = alignment_substitutions.apply_type(
+      self.metadata,
+      target_parameter,
     )
-    if self.runtime_type(actual_target) is Concrete(Primitive(Unit)) {
+    if self.runtime_type(actual_target) is Concrete(Unit) {
       if source_index < source_parameters.length() {
-        let actual_source = apply_type_substitution(
+        let actual_source = substitutions.apply_type(
+          self.metadata,
           source_parameters[source_index],
-          substitutions,
         )
-        if self.runtime_type(actual_source) is Concrete(Primitive(Unit)) &&
-          self.types_definitionally_equal(actual_source, actual_target) {
+        if self.runtime_type(actual_source) is Concrete(Unit) &&
+          self.types_representation_equivalent(actual_source, actual_target) {
           source_parameter_targets.push(target_index)
           source_index += 1
         }
@@ -316,13 +364,13 @@ fn ImageLowerer::align_callable_parameters(
         detail="callable adapter source parameter \{source_index}/\{source_parameters.length()} does not align with target parameter \{target_index}/\{target_parameters.length()}",
       )
     }
-    let actual_source = apply_type_substitution(
+    let actual_source = substitutions.apply_type(
+      self.metadata,
       source_parameters[source_index],
-      substitutions,
     )
-    if !self.types_definitionally_equal(actual_source, actual_target) {
+    if !self.types_representation_equivalent(actual_source, actual_target) {
       raise InvalidTypeApplication(
-        detail="callable adapter source parameter \{source_index}/\{source_parameters.length()} does not align with target parameter \{target_index}/\{target_parameters.length()}",
+        detail="callable adapter source parameter \{source_index}/\{source_parameters.length()} (\{Repr(actual_source)}) does not align with target parameter \{target_index}/\{target_parameters.length()} (\{Repr(actual_target)})",
       )
     }
     source_parameter_targets.push(target_index)
@@ -340,16 +388,19 @@ fn ImageLowerer::align_callable_parameters(
 fn FunctionLowerer::adapt_local_value_with_substitutions(
   self : FunctionLowerer,
   value : LocalValue,
-  source_type : @buslane.Type,
-  target_type : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
+  source_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
   let source_value_type = match local_value_type(value) {
     Some(type_) => type_
     None => source_type
   }
-  let source_shape = apply_type_substitution(source_value_type, substitutions)
-  let target_shape = apply_type_substitution(target_type, substitutions)
+  let source_shape = substitutions.apply_type(
+    self.image.metadata,
+    source_value_type,
+  )
+  let target_shape = substitutions.apply_type(self.image.metadata, target_type)
   let source_runtime = self.image.runtime_type(source_type)
   let target_runtime = self.image.runtime_type(target_type)
   let source_is_erased = match value {
@@ -364,26 +415,19 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
       return Slot(slot, target_type)
     }
     (false, true) => {
-      let witness = self.layout_witness(source_shape)
-      return Slot(
-        self.erase_value(
-          value, source_shape, target_type, substitutions, witness,
-        ),
-        target_type,
-      )
+      let witness = self.layout_witness(runtime_type_evidence(source_shape))
+      return Slot(self.erase_value(value, source_shape, witness), target_type)
     }
     (true, false) => {
       guard value is Slot(slot, _) else {
         raise InvalidTypeApplication(detail="erased value is not materialized")
       }
-      return self.unerase_value(
-        slot, source_value_type, target_type, substitutions,
-      )
+      return self.unerase_value(slot, target_type, substitutions)
     }
     _ => ()
   }
-  if self.image.runtime_type(source_shape) is Concrete(Primitive(Unit)) &&
-    self.image.runtime_type(target_shape) is Concrete(Primitive(Unit)) {
+  if self.image.runtime_type(source_shape) is Concrete(Unit) &&
+    self.image.runtime_type(target_shape) is Concrete(Unit) {
     return Unit
   }
   guard self.image.runtime_type(source_shape) is Concrete(source_runtime_type) &&
@@ -393,17 +437,17 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
     )
   }
   match (source_runtime_type, target_runtime_type) {
-    (Function(_, _, _) | Forall(_, _), Function(_, _, _) | Forall(_, _)) => {
+    (Callable(_, _) | Forall(_, _), Callable(_, _) | Forall(_, _)) => {
       let source_callable_type = match
         self.image.runtime_type(source_value_type) {
-        Concrete(Function(_, _, _) | Forall(_, _) as type_) => type_
+        Concrete(Callable(_, _) | Forall(_, _) as type_) => type_
         _ => source_runtime_type
       }
       let target_callable_type = match self.image.runtime_type(target_type) {
-        Concrete(Function(_, _, _) | Forall(_, _) as type_) => type_
+        Concrete(Callable(_, _) | Forall(_, _) as type_) => type_
         _ => target_runtime_type
       }
-      if self.image.types_definitionally_equal(source_shape, target_shape) &&
+      if self.image.types_representation_equivalent(source_shape, target_shape) &&
         self.image.callable_types_share_runtime_abi(
           source_callable_type, target_callable_type, substitutions,
         ) {
@@ -422,7 +466,7 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
       )
     }
     _ => {
-      if self.image.types_definitionally_equal(source_shape, target_shape) {
+      if self.image.types_representation_equivalent(source_shape, target_shape) {
         return match value {
           Unit => Unit
           Slot(slot, _) => Slot(slot, target_shape)
@@ -448,16 +492,16 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
 ///|
 fn ImageLowerer::callable_types_share_runtime_abi(
   self : ImageLowerer,
-  source_type : @buslane.Type,
-  target_type : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
+  source_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
 ) -> Bool raise LoisvmLoweringError {
   self.canonical_callable_abi_under(source_type, substitutions) ==
   self.canonical_callable_abi_under(target_type, substitutions)
 }
 
 ///|
-fn local_value_type(value : LocalValue) -> @buslane.Type? {
+fn local_value_type(value : LocalValue) -> @anf.RuntimeType? {
   match value {
     Slot(_, type_) => Some(type_)
     Global(Function(_, type_))
@@ -465,11 +509,12 @@ fn local_value_type(value : LocalValue) -> @buslane.Type? {
     | Global(DoubleConstant(_, type_))
     | Global(InstanceGlobal(_, type_)) => Some(type_)
     Global(Intrinsic(contract)) => Some(contract.type_())
-    RecursiveFunction(_, type_, _) | TypeAppliedCallable(_, type_, _) =>
+    RecursiveFunction(_, type_, _) | EvidenceAppliedCallable(_, type_, _) =>
       Some(type_)
-    AdaptedCallable(adaptation) | TypeAppliedAdaptedCallable(adaptation, _) =>
+    AdaptedCallable(adaptation)
+    | EvidenceAppliedAdaptedCallable(adaptation, _) =>
       Some(adaptation.contract.target_type)
-    Global(UnitValue) | Unit | TypeApplied(_, _) => None
+    Global(UnitValue) | Unit | EvidenceApplied(_, _) => None
   }
 }
 
@@ -507,14 +552,15 @@ fn ImageLowerer::lower_callable_adapter(
   let input_witnesses = []
   for index, parameter in target_type_parameters {
     if self.requires_runtime_evidence(parameter) {
-      let witness = lowerer.fresh_metadata(
-        self.runtime_evidence_metadata(parameter),
-      )
+      let witness = lowerer.fresh_metadata(runtime_evidence_metadata(parameter))
       input_witnesses.push(witness)
-      lowerer.witnesses.push({ parameter, value: witness })
+      lowerer.witnesses.push({ parameter: parameter.id, value: witness })
       let source_parameter = source_type_parameters[index]
-      if source_parameter != parameter {
-        lowerer.witnesses.push({ parameter: source_parameter, value: witness })
+      if source_parameter.id != parameter.id {
+        lowerer.witnesses.push({
+          parameter: source_parameter.id,
+          value: witness,
+        })
       }
     }
   }
@@ -523,7 +569,7 @@ fn ImageLowerer::lower_callable_adapter(
   )
   lowerer.environment = Some(environment)
   for index, parameter in contract.captured_parameters {
-    let metadata = self.runtime_evidence_metadata(parameter)
+    let metadata = runtime_evidence_metadata(parameter)
     let witness = lowerer.fresh_metadata(borrowed_evidence_metadata(metadata))
     lowerer.emit(
       BorrowCapture(plan.environment_shape, environment, index, {
@@ -531,7 +577,7 @@ fn ImageLowerer::lower_callable_adapter(
         witness_destination: None,
       }),
     )
-    lowerer.witnesses.push({ parameter, value: witness })
+    lowerer.witnesses.push({ parameter: parameter.id, value: witness })
   }
   let source_callable = lowerer.fresh_borrowed_slot(contract.source_type)
   lowerer.emit(
@@ -545,7 +591,7 @@ fn ImageLowerer::lower_callable_adapter(
   let target_parameters : Array[LocalValue] = []
   let user_parameter_slots = []
   for type_ in target_parameter_types {
-    if self.runtime_type(type_) is Concrete(Primitive(Unit)) {
+    if self.runtime_type(type_) is Concrete(Unit) {
       target_parameters.push(Unit)
     } else {
       let slot = lowerer.fresh_slot(type_)
@@ -571,10 +617,12 @@ fn ImageLowerer::lower_callable_adapter(
   let call_witnesses = []
   for parameter in source_type_parameters {
     if self.requires_runtime_evidence(parameter) {
-      call_witnesses.push(lowerer.find_witness(parameter))
+      call_witnesses.push(lowerer.find_witness(parameter.id))
     }
   }
-  if self.types_definitionally_equal(source_result_type, target_result_type) {
+  if self.types_representation_equivalent(
+      source_result_type, target_result_type,
+    ) {
     lowerer.terminate(
       TailCallValue(source_callable, call_witnesses, source_arguments),
     )

@@ -1,101 +1,101 @@
 ///|
 fn FunctionLowerer::runtime_evidence(
   self : FunctionLowerer,
-  parameter : @buslane.TypeParameterId,
-  type_ : @buslane.Type,
+  parameter : @anf.RuntimeEvidenceParameter,
+  argument : @anf.RuntimeArgument,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  guard self.image.metadata.type_parameter_info(parameter) is Some(info) else {
-    if parameter.index < 0 {
-      return self.layout_witness(type_)
-    }
-    raise UnsupportedType(type_=Parameter(parameter))
-  }
-  match info.kind {
-    Type => self.layout_witness(type_)
-    Function(_, Type) =>
-      self.materialize_runtime_evidence(
-        self.image.plan_layout_constructor_evidence(type_),
-      )
-    _ => raise UnsupportedType(type_=Parameter(parameter))
+  if parameter.arity == 0 {
+    self.layout_witness(argument.evidence)
+  } else {
+    self.materialize_runtime_evidence(
+      self.image.plan_layout_constructor_evidence(argument.evidence),
+    )
   }
 }
 
 ///|
 fn ImageLowerer::plan_layout_constructor_evidence(
-  self : ImageLowerer,
-  type_ : @buslane.Type,
+  _self : ImageLowerer,
+  evidence : @anf.RuntimeEvidence,
 ) -> RuntimeEvidencePlan raise LoisvmLoweringError {
-  let type_ = type_.normalize() catch {
-    error => raise TypeNormalizationCompilerDefect(error)
-  }
-  match type_ {
+  match evidence {
     Parameter(parameter) => Existing(parameter)
-    TypeLambda(_, _) => MaterializeLayoutConstructor(type_)
-    Constructor(owner) => {
-      guard self.metadata.type_info(owner) is Some(info) else {
-        raise UnsupportedType(type_~)
-      }
-      let arguments = info.parameters.map(parameter => {
-        guard self.metadata.type_parameter_info(parameter) is Some(info) else {
-          return @buslane.GenericArgument::TypeArgument(Parameter(parameter))
-        }
-        match info.kind {
-          Effect => EffectArgument(Parameter(parameter))
-          _ => TypeArgument(Parameter(parameter))
-        }
-      })
-      let body = if arguments.is_empty() {
-        @buslane.Type::Constructor(owner)
-      } else {
-        Apply(Constructor(owner), arguments)
-      }
-      MaterializeLayoutConstructor(TypeLambda(info.parameters, body))
-    }
-    _ => raise UnsupportedType(type_~)
+    Lambda(_, _) => MaterializeLayoutConstructor(evidence)
+    Apply(_, _) | Static(_) =>
+      raise InvalidTypeApplication(
+        detail="layout-constructor evidence is not a parameter or lambda",
+      )
   }
 }
 
 ///|
 fn ImageLowerer::plan_layout_witness(
   self : ImageLowerer,
-  type_ : @buslane.Type,
+  evidence : @anf.RuntimeEvidence,
 ) -> RuntimeEvidencePlan raise LoisvmLoweringError {
-  match self.layout_runtime_type(type_) {
-    Concrete(type_) => StaticLayout(concrete_layout_recipe(type_))
-    Erased(Parameter(parameter)) => Existing(parameter)
-    Erased(Apply(Parameter(parameter), arguments)) => {
-      guard self.metadata.type_parameter_info(parameter)
-        is Some({ kind: Function(parameter_kinds, Type), .. }) else {
-        raise UnsupportedType(type_=Parameter(parameter))
+  match evidence {
+    Static(layout) => StaticLayout(runtime_layout_recipe(layout))
+    Parameter(parameter) => Existing(parameter)
+    Apply(Parameter(parameter), arguments) =>
+      ApplyEvidence(
+        parameter,
+        arguments.map(argument => self.plan_layout_witness(argument)),
+      )
+    Apply(Lambda(parameters, body), arguments) => {
+      let replacements = []
+      for index in 0..<parameters.length().min(arguments.length()) {
+        replacements.push((parameters[index].id, arguments[index]))
       }
-      if parameter_kinds.length() != arguments.length() {
-        raise InvalidTypeApplication(
-          detail="layout constructor argument count does not match its kind",
-        )
-      }
-      let evidence_arguments = []
-      for index, kind in parameter_kinds {
-        guard kind_requires_runtime_evidence(kind) else { continue }
-        guard arguments[index] is TypeArgument(type_) else {
-          raise InvalidTypeApplication(
-            detail="layout constructor requires a type argument at position \{index}",
-          )
-        }
-        match kind {
-          Type => evidence_arguments.push(self.plan_layout_witness(type_))
-          Function(_, Type) =>
-            evidence_arguments.push(
-              self.plan_layout_constructor_evidence(type_),
-            )
-          _ =>
-            raise InvalidTypeApplication(
-              detail="layout constructor argument has an unsupported evidence kind",
-            )
-        }
-      }
-      ApplyEvidence(parameter, evidence_arguments)
+      self.plan_layout_witness(
+        substitute_runtime_evidence(body, replacements, []),
+      )
     }
-    Erased(type_) => raise UnsupportedType(type_~)
+    Apply(_, _) =>
+      raise InvalidTypeApplication(
+        detail="layout evidence application has no callable constructor",
+      )
+    Lambda(_, _) =>
+      raise InvalidTypeApplication(
+        detail="layout constructor was used where a layout was required",
+      )
+  }
+}
+
+///|
+fn substitute_runtime_evidence(
+  evidence : @anf.RuntimeEvidence,
+  replacements : Array[(@anf.RuntimeEvidenceId, @anf.RuntimeEvidence)],
+  bound : Array[@anf.RuntimeEvidenceId],
+) -> @anf.RuntimeEvidence {
+  match evidence {
+    Static(_) => evidence
+    Parameter(parameter) => {
+      if bound.contains(parameter) {
+        return evidence
+      }
+      for entry in replacements {
+        let (candidate, replacement) = entry
+        if candidate == parameter {
+          return replacement
+        }
+      }
+      evidence
+    }
+    Apply(callee, arguments) =>
+      Apply(
+        substitute_runtime_evidence(callee, replacements, bound),
+        arguments.map(argument => {
+          substitute_runtime_evidence(argument, replacements, bound)
+        }),
+      )
+    Lambda(parameters, body) => {
+      let nested = bound.copy()
+      nested.append(parameters.map(parameter => parameter.id))
+      Lambda(
+        parameters,
+        substitute_runtime_evidence(body, replacements, nested),
+      )
+    }
   }
 }
 
@@ -121,8 +121,8 @@ fn FunctionLowerer::materialize_runtime_evidence(
       )
       destination
     }
-    MaterializeLayoutConstructor(type_) =>
-      self.materialize_layout_constructor(type_)
+    MaterializeLayoutConstructor(evidence) =>
+      self.materialize_layout_constructor(evidence)
     StaticLayout(recipe) => {
       let layout = self.image.intern_layout(recipe)
       let witness = self.fresh_metadata(layout_witness_metadata())
@@ -135,11 +135,11 @@ fn FunctionLowerer::materialize_runtime_evidence(
 ///|
 fn FunctionLowerer::materialize_layout_constructor(
   self : FunctionLowerer,
-  type_ : @buslane.Type,
+  evidence : @anf.RuntimeEvidence,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  let plan = self.image.plan_layout_constructor(type_)
+  let plan = self.image.plan_layout_constructor(evidence)
   let captured = plan.captured_parameters.map(parameter => {
-    self.find_witness(parameter)
+    self.find_witness(parameter.id)
   })
   let environment = self.make_capture_environment(
     plan.environment_shape,
@@ -158,20 +158,24 @@ fn FunctionLowerer::materialize_layout_constructor(
 ///|
 fn ImageLowerer::plan_layout_constructor(
   self : ImageLowerer,
-  type_ : @buslane.Type,
+  evidence : @anf.RuntimeEvidence,
 ) -> LayoutConstructorPlan raise LoisvmLoweringError {
   for planned in self.plans.entries {
-    if planned.entry is LayoutConstructor(plan) && plan.type_ == type_ {
+    if planned.entry is LayoutConstructor(plan) && plan.evidence == evidence {
       return plan
     }
   }
-  guard type_ is TypeLambda(parameters, body) else {
-    raise UnsupportedType(type_~)
+  guard evidence is Lambda(parameters, body) else {
+    raise InvalidTypeApplication(detail="layout constructor is not a lambda")
   }
-  let captured_parameters = free_runtime_type_parameters_in_types(self, [type_])
+  let captured_parameters = free_runtime_evidence_parameters(
+    self,
+    evidence,
+    parameters.map(parameter => parameter.id),
+  )
   let members : Array[@bytecode.MemberSchema] = []
   for parameter in captured_parameters {
-    let metadata = self.runtime_evidence_metadata(parameter)
+    let metadata = runtime_evidence_metadata(parameter)
     members.push({
       representation: metadata.representation,
       cleanup: metadata.cleanup,
@@ -180,27 +184,58 @@ fn ImageLowerer::plan_layout_constructor(
     })
   }
   let environment_shape = self.environment_shape(0, members)
-  let parameter_kinds = parameters.map(parameter => {
-    match self.metadata.type_parameter_info(parameter) {
-      Some(info) => info.kind
-      None => Type
-    }
-  })
   let (_, plan) = self.plans.append_with_result(LayoutConstructor, fn(
     function,
   ) {
     let plan = {
       function,
-      type_,
+      evidence,
       parameters,
       body,
       captured_parameters,
       environment_shape,
-      arity: runtime_evidence_arity(parameter_kinds),
+      arity: parameters.length(),
     }
     (LayoutConstructor(plan), plan)
   })
   plan
+}
+
+///|
+fn free_runtime_evidence_parameters(
+  image : ImageLowerer,
+  evidence : @anf.RuntimeEvidence,
+  bound : Array[@anf.RuntimeEvidenceId],
+) -> Array[@anf.RuntimeEvidenceParameter] {
+  let ids = []
+  collect_runtime_evidence_ids(evidence, bound, ids)
+  ids.filter_map(id => image.metadata.evidence_parameter(id))
+}
+
+///|
+fn collect_runtime_evidence_ids(
+  evidence : @anf.RuntimeEvidence,
+  bound : Array[@anf.RuntimeEvidenceId],
+  ids : Array[@anf.RuntimeEvidenceId],
+) -> Unit {
+  match evidence {
+    Static(_) => ()
+    Parameter(parameter) =>
+      if !bound.contains(parameter) && !ids.contains(parameter) {
+        ids.push(parameter)
+      }
+    Apply(callee, arguments) => {
+      collect_runtime_evidence_ids(callee, bound, ids)
+      for argument in arguments {
+        collect_runtime_evidence_ids(argument, bound, ids)
+      }
+    }
+    Lambda(parameters, body) => {
+      let nested = bound.copy()
+      nested.append(parameters.map(parameter => parameter.id))
+      collect_runtime_evidence_ids(body, nested, ids)
+    }
+  }
 }
 
 ///|
@@ -217,23 +252,20 @@ fn ImageLowerer::lower_layout_constructor(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: TypeSubstitution(),
+    substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
   }
   let evidence_parameters = []
   for parameter in plan.parameters {
-    guard self.requires_runtime_evidence(parameter) else { continue }
-    let evidence = lowerer.fresh_metadata(
-      self.runtime_evidence_metadata(parameter),
-    )
+    let evidence = lowerer.fresh_metadata(runtime_evidence_metadata(parameter))
     evidence_parameters.push(evidence)
-    lowerer.witnesses.push({ parameter, value: evidence })
+    lowerer.witnesses.push({ parameter: parameter.id, value: evidence })
   }
   if plan.environment_shape is Some(shape) {
     let environment = lowerer.fresh_metadata(environment_metadata(shape))
     lowerer.environment = Some(environment)
     for index, parameter in plan.captured_parameters {
-      let metadata = self.runtime_evidence_metadata(parameter)
+      let metadata = runtime_evidence_metadata(parameter)
       let evidence = lowerer.fresh_metadata(
         borrowed_evidence_metadata(metadata),
       )
@@ -243,7 +275,7 @@ fn ImageLowerer::lower_layout_constructor(
           witness_destination: None,
         }),
       )
-      lowerer.witnesses.push({ parameter, value: evidence })
+      lowerer.witnesses.push({ parameter: parameter.id, value: evidence })
     }
   }
   let result = lowerer.layout_witness(plan.body)
@@ -268,5 +300,32 @@ fn ImageLowerer::lower_layout_constructor(
     },
     result: Value(I32, Trivial, LayoutValue),
     blocks,
+  }
+}
+
+///|
+fn runtime_layout_recipe(layout : @anf.RuntimeLayout) -> @bytecode.LayoutRecipe {
+  match layout {
+    Unit => Unit
+    Bool => Bool
+    I64 => I64
+    I32 => I32
+    Char => Char
+    F64 => F64
+    F32 => F32
+    Byte => Byte
+    ByteSequence => ByteSequence
+    Reference => Reference
+    Callable => Callable
+  }
+}
+
+///|
+fn concrete_layout_recipe(
+  type_ : @anf.RuntimeType,
+) -> @bytecode.LayoutRecipe raise LoisvmLoweringError {
+  match type_.layout() {
+    Some(layout) => runtime_layout_recipe(layout)
+    None => raise UnsupportedType(type_~)
   }
 }

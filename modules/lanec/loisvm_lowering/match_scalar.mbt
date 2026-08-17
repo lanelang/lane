@@ -16,20 +16,12 @@ fn FunctionLowerer::lower_match(
       self.lower_irrefutable_match(match_, scrutinee, alternative)
     }
     Slot(condition, scrutinee_type) => {
-      let scrutinee_type = scrutinee_type.normalize() catch {
-        error => raise TypeNormalizationCompilerDefect(error)
-      }
       let scrutinee = LocalValue::Slot(condition, scrutinee_type)
       match scrutinee_type {
-        Primitive(Bool) => self.lower_bool_match(match_, condition, scrutinee)
-        Primitive(I64)
-        | Primitive(I32)
-        | Primitive(Char)
-        | Primitive(F32)
-        | Primitive(F64)
-        | Primitive(String) =>
+        Scalar(Bool) => self.lower_bool_match(match_, condition, scrutinee)
+        Scalar(I64 | I32 | Char | F32 | F64) | ByteSequence =>
           self.lower_literal_match(match_, condition, scrutinee_type, scrutinee)
-        Function(_, _, _) | Forall(_, _) => {
+        Callable(_, _) | Forall(_, _) => {
           let alternative = match
             find_default_alternative(match_.alternatives) {
             Some(alternative) => alternative
@@ -40,9 +32,7 @@ fn FunctionLowerer::lower_match(
           }
           self.lower_irrefutable_match(match_, scrutinee, alternative)
         }
-        Constructor(owner) =>
-          self.lower_data_match(match_, condition, scrutinee_type, owner, [])
-        Apply(Constructor(owner), arguments) =>
+        Data(owner, arguments) =>
           self.lower_data_match(
             match_, condition, scrutinee_type, owner, arguments,
           )
@@ -52,10 +42,10 @@ fn FunctionLowerer::lower_match(
     }
     Global(_)
     | RecursiveFunction(_, _, _)
-    | TypeApplied(_, _)
-    | TypeAppliedCallable(_, _, _)
+    | EvidenceApplied(_, _)
+    | EvidenceAppliedCallable(_, _, _)
     | AdaptedCallable(_)
-    | TypeAppliedAdaptedCallable(_, _) =>
+    | EvidenceAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(detail="match scrutinee is not materialized")
   }
 }
@@ -65,7 +55,7 @@ fn FunctionLowerer::lower_literal_match(
   self : FunctionLowerer,
   match_ : @anf.AnfMatch,
   initial_scrutinee : @vmcfg.ValueId,
-  scrutinee_type : @buslane.Type,
+  scrutinee_type : @anf.RuntimeType,
   initial_value : LocalValue,
 ) -> LocalValue raise LoisvmLoweringError {
   let literal_alternatives = match_.alternatives.filter(alternative => {
@@ -166,7 +156,7 @@ fn FunctionLowerer::lower_literal_match(
 fn FunctionLowerer::emit_literal_equality(
   self : FunctionLowerer,
   scrutinee : @vmcfg.ValueId,
-  scrutinee_type : @buslane.Type,
+  scrutinee_type : @anf.RuntimeType,
   literal : @buslane.Literal,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   let lowered = self.lower_literal(literal)
@@ -176,14 +166,13 @@ fn FunctionLowerer::emit_literal_equality(
       detail="literal pattern type does not match its scrutinee",
     )
   }
-  let condition = self.fresh_slot(Primitive(Bool))
+  let condition = self.fresh_slot(Scalar(Bool))
   let instruction : @vmcfg.Instruction = match scrutinee_type {
-    Primitive(I64) => I64Eq(condition, scrutinee, expected)
-    Primitive(I32) => I32Eq(condition, scrutinee, expected)
-    Primitive(Char) => I32Eq(condition, scrutinee, expected)
-    Primitive(F32) => F32Eq(condition, scrutinee, expected)
-    Primitive(F64) => F64Eq(condition, scrutinee, expected)
-    Primitive(String) => ByteSequenceEqual(condition, scrutinee, expected)
+    Scalar(I64) => I64Eq(condition, scrutinee, expected)
+    Scalar(I32 | Char) => I32Eq(condition, scrutinee, expected)
+    Scalar(F32) => F32Eq(condition, scrutinee, expected)
+    Scalar(F64) => F64Eq(condition, scrutinee, expected)
+    ByteSequence => ByteSequenceEqual(condition, scrutinee, expected)
     _ =>
       raise UnsupportedExpression(
         detail="unsupported literal pattern representation",
@@ -200,7 +189,7 @@ fn FunctionLowerer::lower_irrefutable_match(
   scrutinee : LocalValue,
   alternative : @anf.AnfAlternative,
 ) -> LocalValue raise LoisvmLoweringError {
-  if !alternative.type_binders.is_empty() ||
+  if !alternative.evidence_binders.is_empty() ||
     !alternative.value_binders.is_empty() {
     raise UnsupportedExpression(
       detail="irrefutable alternative cannot bind payloads",

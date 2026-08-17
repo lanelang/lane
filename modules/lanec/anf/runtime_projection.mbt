@@ -3,6 +3,7 @@ priv struct RuntimeGenericPlan {
   metadata : @buslane.MetadataRegistry
   facts : @buslane.ExpressionFactsQuery
   live : Array[Bool]
+  type_expressions : Array[RuntimeTypeExpression]
   mut changed : Bool
 }
 
@@ -14,6 +15,7 @@ fn runtime_generic_plan(
     metadata: program.metadata,
     facts: @buslane.ExpressionFactsQuery::new(program),
     live: Array::make(program.metadata.type_parameters.length(), false),
+    type_expressions: [],
     changed: false,
   }
   while true {
@@ -269,7 +271,20 @@ fn RuntimeGenericPlan::observe_type(
           }
       }
     }
-    TypeLambda(_, body) | Forall(_, body) => self.observe_type(body)
+    TypeLambda(parameters, body) => {
+      // A type-level lambda is a runtime layout constructor. Its callable
+      // arity is fixed by its kind even when the body ignores an argument.
+      for parameter in parameters {
+        guard self.metadata.type_parameter_info(parameter) is Some(info) else {
+          continue
+        }
+        if runtime_kind_requires_evidence(info.kind) {
+          self.mark_live(parameter)
+        }
+      }
+      self.observe_type(body)
+    }
+    Forall(_, body) => self.observe_type(body)
     Function(parameters, result, _) => {
       for parameter in parameters {
         self.observe_type(parameter)
@@ -317,114 +332,368 @@ fn RuntimeGenericPlan::link_alternative_binders(
 }
 
 ///|
-fn RuntimeGenericPlan::retained_parameters(
+fn RuntimeGenericPlan::runtime_evidence_parameter(
   self : RuntimeGenericPlan,
-  parameters : Array[@buslane.TypeParameterId],
-) -> Array[@buslane.TypeParameterId] {
-  parameters.filter(parameter => self.is_live(parameter))
+  parameter : @buslane.TypeParameterId,
+) -> RuntimeEvidenceParameter? {
+  guard self.is_live(parameter) else { return None }
+  guard self.metadata.type_parameter_info(parameter) is Some(info) else {
+    return None
+  }
+  let arity = match info.kind {
+    Type => 0
+    Function(parameters, Type) => runtime_kind_evidence_arity(parameters)
+    Effect | Function(_, Effect) | Function(_, Function(_, _)) => return None
+  }
+  Some({ id: { index: parameter.index }, arity })
 }
 
 ///|
-fn RuntimeGenericPlan::project_arguments(
+fn RuntimeGenericPlan::runtime_evidence_parameters(
+  self : RuntimeGenericPlan,
+  parameters : Array[@buslane.TypeParameterId],
+) -> Array[RuntimeEvidenceParameter] {
+  parameters.filter_map(parameter => self.runtime_evidence_parameter(parameter))
+}
+
+///|
+fn runtime_kind_requires_evidence(kind : @buslane.Kind) -> Bool {
+  match kind {
+    Type | Function(_, Type) => true
+    Effect | Function(_, Effect) | Function(_, Function(_, _)) => false
+  }
+}
+
+///|
+fn runtime_kind_evidence_arity(kinds : Array[@buslane.Kind]) -> Int {
+  kinds.fold(init=0, fn(total, kind) {
+    if runtime_kind_requires_evidence(kind) {
+      total + 1
+    } else {
+      total
+    }
+  })
+}
+
+///|
+fn RuntimeGenericPlan::runtime_arguments(
   self : RuntimeGenericPlan,
   parameters : Array[@buslane.TypeParameterId],
   arguments : Array[@buslane.GenericArgument],
-) -> Array[@buslane.GenericArgument] raise RuntimeAnfLoweringError {
-  let projected = []
+) -> Array[RuntimeArgument] raise RuntimeAnfLoweringError {
+  let evidence = []
   for index in 0..<parameters.length().min(arguments.length()) {
-    if self.is_live(parameters[index]) {
-      projected.push(self.project_argument(arguments[index]))
+    if self.runtime_evidence_parameter(parameters[index]) is Some(_) {
+      guard arguments[index] is TypeArgument(type_) else { continue }
+      evidence.push(self.runtime_argument(type_))
     }
   }
-  projected
+  evidence
 }
 
 ///|
-fn RuntimeGenericPlan::project_argument(
+fn RuntimeGenericPlan::intern_type_expression(
   self : RuntimeGenericPlan,
-  argument : @buslane.GenericArgument,
-) -> @buslane.GenericArgument raise RuntimeAnfLoweringError {
-  match argument {
-    TypeArgument(type_) => TypeArgument(self.project_type(type_))
-    EffectArgument(_) => EffectArgument(Empty)
+  expression : RuntimeTypeExpression,
+) -> RuntimeTypeExpressionId {
+  for index, existing in self.type_expressions {
+    if existing == expression {
+      return { index, }
+    }
   }
+  let id : RuntimeTypeExpressionId = { index: self.type_expressions.length() }
+  self.type_expressions.push(expression)
+  id
 }
 
 ///|
-fn RuntimeGenericPlan::project_type(
+fn RuntimeGenericPlan::runtime_argument(
   self : RuntimeGenericPlan,
   type_ : @buslane.Type,
-) -> @buslane.Type raise RuntimeAnfLoweringError {
-  match type_ {
-    Primitive(_) | Parameter(_) | Constructor(_) => type_
-    Apply(TypeLambda(_, _) as callee, arguments) => {
-      let projected = @buslane.Type::Apply(
-        self.project_type(callee),
-        arguments.map(argument => self.project_argument(argument)),
+) -> RuntimeArgument raise RuntimeAnfLoweringError {
+  {
+    type_expression: self.runtime_type_expression(type_),
+    evidence: self.runtime_layout_evidence(type_),
+  }
+}
+
+///|
+fn RuntimeGenericPlan::runtime_type_expression(
+  self : RuntimeGenericPlan,
+  type_ : @buslane.Type,
+) -> RuntimeTypeExpressionId raise RuntimeAnfLoweringError {
+  let normalized = type_.normalize() catch {
+    error => raise TypeNormalizationCompilerDefect(error)
+  }
+  let normalized = self.eta_expand_runtime_constructor(normalized)
+  match normalized {
+    Parameter(parameter) =>
+      self.intern_type_expression(Parameter({ index: parameter.index }))
+    Apply(Parameter(parameter), arguments) => {
+      guard self.metadata.type_parameter_info(parameter) is Some(info) else {
+        return self.intern_type_expression(
+          Parameter({ index: parameter.index }),
+        )
+      }
+      guard info.kind is Function(kinds, _) else {
+        return self.intern_type_expression(
+          Parameter({ index: parameter.index }),
+        )
+      }
+      let callee = self.intern_type_expression(
+        Parameter({ index: parameter.index }),
       )
-      projected.normalize() catch {
-        error => raise TypeNormalizationCompilerDefect(error)
+      let runtime_arguments = []
+      for index in 0..<kinds.length().min(arguments.length()) {
+        if runtime_kind_requires_evidence(kinds[index]) {
+          guard arguments[index] is TypeArgument(argument) else { continue }
+          runtime_arguments.push(self.runtime_type_expression(argument))
+        }
       }
-    }
-    Apply(callee, arguments) => {
-      let projected_callee = self.project_type(callee)
-      let projected_arguments = match self.type_application_parameters(callee) {
-        Some(parameters) => self.project_arguments(parameters, arguments)
-        None => arguments.map(argument => self.project_argument(argument))
-      }
-      if projected_arguments.is_empty() {
-        projected_callee
-      } else {
-        Apply(projected_callee, projected_arguments)
-      }
+      self.intern_type_expression(Apply(callee, runtime_arguments))
     }
     TypeLambda(parameters, body) =>
-      TypeLambda(parameters, self.project_type(body))
-    Function(parameters, result, _) =>
-      Function(
-        parameters.map(parameter => self.project_type(parameter)),
-        self.project_type(result),
-        Empty,
+      self.intern_type_expression(
+        Lambda(
+          self.runtime_evidence_parameters(parameters),
+          self.runtime_type_expression(body),
+        ),
       )
-    Forall(parameters, body) => {
-      let projected_body = self.project_type(body)
-      let retained = self.retained_parameters(parameters)
-      if retained.is_empty() {
-        projected_body
-      } else {
-        Forall(retained, projected_body)
+    type_ => {
+      let runtime = self.runtime_type(type_)
+      match runtime {
+        Erased(expression, _) => expression
+        _ => self.intern_type_expression(Static(runtime))
       }
     }
   }
 }
 
 ///|
-fn RuntimeGenericPlan::project_metadata(
+fn RuntimeGenericPlan::runtime_kind_arguments(
   self : RuntimeGenericPlan,
-) -> @buslane.MetadataRegistry raise RuntimeAnfLoweringError {
-  let metadata = self.metadata.snapshot()
-  for index in 0..<metadata.types.length() {
-    let info = metadata.types[index]
-    metadata.types[index] = {
-      ..info,
-      parameters: self.retained_parameters(info.parameters),
+  kinds : Array[@buslane.Kind],
+  arguments : Array[@buslane.GenericArgument],
+) -> Array[RuntimeEvidence] raise RuntimeAnfLoweringError {
+  let evidence = []
+  for index in 0..<kinds.length().min(arguments.length()) {
+    if runtime_kind_requires_evidence(kinds[index]) {
+      guard arguments[index] is TypeArgument(type_) else { continue }
+      evidence.push(self.runtime_layout_evidence(type_))
     }
   }
-  for index in 0..<metadata.values.length() {
-    let info = metadata.values[index]
-    metadata.values[index] = { ..info, type_: self.project_type(info.type_) }
+  evidence
+}
+
+///|
+fn RuntimeGenericPlan::runtime_layout_evidence(
+  self : RuntimeGenericPlan,
+  type_ : @buslane.Type,
+) -> RuntimeEvidence raise RuntimeAnfLoweringError {
+  let normalized = type_.normalize() catch {
+    error => raise TypeNormalizationCompilerDefect(error)
   }
-  for index in 0..<metadata.data_constructors.length() {
-    let info = metadata.data_constructors[index]
-    metadata.data_constructors[index] = {
-      ..info,
-      hidden_type_parameters: self.retained_parameters(
-        info.hidden_type_parameters,
-      ),
-      payload_types: info.payload_types.map(type_ => self.project_type(type_)),
+  let normalized = self.eta_expand_runtime_constructor(normalized)
+  match normalized {
+    Parameter(parameter) => Parameter({ index: parameter.index })
+    Apply(Parameter(parameter), arguments) => {
+      guard self.metadata.type_parameter_info(parameter) is Some(info) else {
+        return Parameter({ index: parameter.index })
+      }
+      guard info.kind is Function(kinds, _) else {
+        return Parameter({ index: parameter.index })
+      }
+      Apply(
+        Parameter({ index: parameter.index }),
+        self.runtime_kind_arguments(kinds, arguments),
+      )
+    }
+    TypeLambda(parameters, body) =>
+      Lambda(
+        self.runtime_evidence_parameters(parameters),
+        self.runtime_layout_evidence(body),
+      )
+    type_ => {
+      let runtime = self.runtime_type(type_)
+      match runtime {
+        Erased(_, evidence) => evidence
+        _ =>
+          match runtime.layout() {
+            Some(layout) => Static(layout)
+            None =>
+              raise InvalidRuntimeProjection(
+                detail="runtime value has neither a concrete layout nor erased evidence",
+              )
+          }
+      }
     }
   }
-  metadata.effects.clear()
-  metadata.operations.clear()
-  metadata
+}
+
+///|
+fn RuntimeGenericPlan::eta_expand_runtime_constructor(
+  self : RuntimeGenericPlan,
+  type_ : @buslane.Type,
+) -> @buslane.Type {
+  let (owner, supplied) = match type_ {
+    Constructor(owner) => (owner, [])
+    Apply(Constructor(owner), arguments) => (owner, arguments)
+    _ => return type_
+  }
+  guard self.metadata.type_info(owner) is Some(info) &&
+    supplied.length() < info.parameters.length() else {
+    return type_
+  }
+  let arguments = supplied.copy()
+  let remaining = []
+  for index in supplied.length()..<info.parameters.length() {
+    let parameter = info.parameters[index]
+    remaining.push(parameter)
+    guard self.metadata.type_parameter_info(parameter) is Some(parameter_info) else {
+      return type_
+    }
+    match parameter_info.kind {
+      Effect => arguments.push(EffectArgument(Parameter(parameter)))
+      _ => arguments.push(TypeArgument(Parameter(parameter)))
+    }
+  }
+  TypeLambda(remaining, Apply(Constructor(owner), arguments))
+}
+
+///|
+fn RuntimeGenericPlan::runtime_type(
+  self : RuntimeGenericPlan,
+  type_ : @buslane.Type,
+) -> RuntimeType raise RuntimeAnfLoweringError {
+  let normalized = type_.normalize() catch {
+    error => raise TypeNormalizationCompilerDefect(error)
+  }
+  self.normalized_runtime_type(normalized)
+}
+
+///|
+fn RuntimeGenericPlan::normalized_runtime_type(
+  self : RuntimeGenericPlan,
+  type_ : @buslane.Type,
+) -> RuntimeType raise RuntimeAnfLoweringError {
+  match type_ {
+    Primitive(Unit) => Unit
+    Primitive(Bool) => Scalar(Bool)
+    Primitive(I64) => Scalar(I64)
+    Primitive(I32) => Scalar(I32)
+    Primitive(Char) => Scalar(Char)
+    Primitive(F64) => Scalar(F64)
+    Primitive(F32) => Scalar(F32)
+    Primitive(Byte) => Scalar(Byte)
+    Primitive(String) | Primitive(Bytes) => ByteSequence
+    Parameter(parameter) => {
+      let expression = self.intern_type_expression(
+        Parameter({ index: parameter.index }),
+      )
+      Erased(expression, Parameter({ index: parameter.index }))
+    }
+    Constructor(owner) | Apply(Constructor(owner), _) => {
+      guard self.metadata.type_info(owner) is Some(info) else {
+        raise MissingType(owner)
+      }
+      match info.flavor {
+        Data => {
+          let arguments = match type_ {
+            Apply(_, arguments) =>
+              self.runtime_arguments(info.parameters, arguments)
+            _ => []
+          }
+          Data(owner, arguments)
+        }
+        External => OpaqueReference(owner)
+      }
+    }
+    Apply(Parameter(parameter), arguments) => {
+      guard self.metadata.type_parameter_info(parameter) is Some(info) else {
+        let expression = self.intern_type_expression(
+          Parameter({ index: parameter.index }),
+        )
+        return Erased(expression, Parameter({ index: parameter.index }))
+      }
+      guard info.kind is Function(kinds, _) else {
+        let expression = self.intern_type_expression(
+          Parameter({ index: parameter.index }),
+        )
+        return Erased(expression, Parameter({ index: parameter.index }))
+      }
+      let expression = self.runtime_type_expression(type_)
+      Erased(
+        expression,
+        Apply(
+          Parameter({ index: parameter.index }),
+          self.runtime_kind_arguments(kinds, arguments),
+        ),
+      )
+    }
+    Function(parameters, result, _) =>
+      Callable(
+        parameters.map(parameter => self.runtime_type(parameter)),
+        self.runtime_type(result),
+      )
+    Forall(parameters, body) => {
+      let evidence = self.runtime_evidence_parameters(parameters)
+      let body = self.runtime_type(body)
+      if evidence.is_empty() {
+        body
+      } else {
+        Forall(evidence, body)
+      }
+    }
+    Apply(_, _) | TypeLambda(_, _) =>
+      raise InvalidRuntimeProjection(
+        detail="normalized runtime type retained type-level computation",
+      )
+  }
+}
+
+///|
+fn RuntimeGenericPlan::runtime_metadata(
+  self : RuntimeGenericPlan,
+) -> RuntimeMetadata raise RuntimeAnfLoweringError {
+  let values = self.metadata.values.map(info => {
+    type_: self.runtime_type(info.type_),
+  })
+  let types = self.metadata.types.map(info => {
+    kind: match info.flavor {
+      Data => Data
+      External => OpaqueReference
+    },
+    evidence_parameters: self.runtime_evidence_parameters(info.parameters),
+    constructors: info.constructors,
+  })
+  let data_constructors = self.metadata.data_constructors.map(info => {
+    owner: info.owner,
+    hidden_evidence_parameters: self.runtime_evidence_parameters(
+      info.hidden_type_parameters,
+    ),
+    payload_types: info.payload_types.map(type_ => self.runtime_type(type_)),
+  })
+  let evidence_parameters = []
+  for index in 0..<self.metadata.type_parameters.length() {
+    let parameter = self.runtime_evidence_parameter({ index, })
+    if parameter is Some(parameter) {
+      ignore(self.intern_type_expression(Parameter(parameter.id)))
+    }
+    evidence_parameters.push(parameter)
+  }
+  for info in self.metadata.values {
+    ignore(self.runtime_type_expression(info.type_))
+  }
+  for info in self.metadata.data_constructors {
+    for type_ in info.payload_types {
+      ignore(self.runtime_type_expression(type_))
+    }
+  }
+  {
+    values,
+    types,
+    data_constructors,
+    evidence_parameters,
+    type_expressions: self.type_expressions.copy(),
+  }
 }

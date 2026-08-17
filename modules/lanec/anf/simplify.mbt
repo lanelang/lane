@@ -10,7 +10,6 @@ fn simplify_anf_program(program : AnfProgram) -> AnfProgram {
   {
     metadata: program.metadata,
     terms: program.terms.map(fn(term) { simplify_top_term(term, scope) }),
-    projection_scale: program.projection_scale,
   }
 }
 
@@ -80,7 +79,7 @@ fn AnfBinding::with_rhs(self : AnfBinding, rhs : AnfRhs) -> AnfBinding {
 fn atom_is_copyable(atom : AnfAtom) -> Bool {
   match atom {
     Literal(_) | Ref(_) | Temp(_) => true
-    Function(_) | TypeLambda(_) => false
+    Function(_) | EvidenceLambda(_) => false
   }
 }
 
@@ -93,13 +92,13 @@ fn simplify_rhs(rhs : AnfRhs, scope : AnfRewriteScope) -> AnfRhs {
         callee=simplify_atom(callee, scope),
         arguments=arguments.map(fn(atom) { simplify_atom(atom, scope) }),
       )
-    TypeApply(callee~, arguments~) =>
-      TypeApply(callee=simplify_atom(callee, scope), arguments~)
+    ApplyEvidence(callee~, arguments~) =>
+      ApplyEvidence(callee=simplify_atom(callee, scope), arguments~)
     Construct(construct) =>
       Construct({
         data_constructor: construct.data_constructor,
         type_arguments: construct.type_arguments,
-        hidden_witnesses: construct.hidden_witnesses,
+        hidden_arguments: construct.hidden_arguments,
         payloads: construct.payloads.map(fn(atom) { simplify_atom(atom, scope) }),
       })
     Match(match_) =>
@@ -114,7 +113,7 @@ fn simplify_rhs(rhs : AnfRhs, scope : AnfRewriteScope) -> AnfRhs {
           )
           {
             alt_constructor: alternative.alt_constructor,
-            type_binders: alternative.type_binders,
+            evidence_binders: alternative.evidence_binders,
             value_binders: alternative.value_binders,
             body: simplify_expr(alternative.body, alternative_scope),
           }
@@ -152,8 +151,8 @@ fn simplify_atom(atom : AnfAtom, scope : AnfRewriteScope) -> AnfAtom {
         body: simplify_expr(function.body, function_scope),
       })
     }
-    TypeLambda(type_parameters~, body~) =>
-      TypeLambda(type_parameters~, body=simplify_expr(body, scope))
+    EvidenceLambda(parameters~, body~) =>
+      EvidenceLambda(parameters~, body=simplify_expr(body, scope))
   }
 }
 

@@ -1,17 +1,17 @@
 ///|
 priv struct CallableAdapterEvidenceBinding {
-  parameter : @buslane.TypeParameterId
+  parameter : @anf.RuntimeEvidenceId
   recipe : CallableAdapterEvidenceRecipe
 }
 
 ///|
 fn ImageLowerer::callable_adapter_recipe(
   self : ImageLowerer,
-  source_type : @buslane.Type,
-  target_type : @buslane.Type,
+  source_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
   source_parameter_targets : Array[Int],
-  substitutions : @buslane.TypeSubstitution,
-  captured_parameters : Array[@buslane.TypeParameterId],
+  substitutions : RuntimeSubstitution,
+  captured_parameters : Array[@anf.RuntimeEvidenceParameter],
 ) -> CallableAdapterRecipe raise LoisvmLoweringError {
   let (source_type_parameters, source_parameters, source_result) = function_type_parts(
     source_type,
@@ -40,16 +40,16 @@ fn ImageLowerer::callable_adapter_recipe(
     }
     if target_requires_evidence {
       let recipe = CallableAdapterEvidenceRecipe::Input(input_index)
-      bind_callable_adapter_evidence(evidence, target_parameter, recipe)
-      bind_callable_adapter_evidence(evidence, source_parameter, recipe)
+      bind_callable_adapter_evidence(evidence, target_parameter.id, recipe)
+      bind_callable_adapter_evidence(evidence, source_parameter.id, recipe)
       input_index += 1
     }
   }
   let captured_evidence = []
   for index, parameter in captured_parameters {
-    bind_callable_adapter_evidence(evidence, parameter, Capture(index))
+    bind_callable_adapter_evidence(evidence, parameter.id, Capture(index))
     captured_evidence.push(
-      value_metadata_abi(self.runtime_evidence_metadata(parameter)),
+      value_metadata_abi(runtime_evidence_metadata(parameter)),
     )
   }
   let target_parameter_recipes = []
@@ -82,7 +82,9 @@ fn ImageLowerer::callable_adapter_recipe(
       ),
     })
   }
-  let result = if self.types_definitionally_equal(source_result, target_result) {
+  let result = if self.types_representation_equivalent(
+      source_result, target_result,
+    ) {
     CallableAdapterResultRecipe::TailCall
   } else {
     Adapt(
@@ -104,7 +106,7 @@ fn ImageLowerer::callable_adapter_recipe(
 ///|
 fn bind_callable_adapter_evidence(
   bindings : Array[CallableAdapterEvidenceBinding],
-  parameter : @buslane.TypeParameterId,
+  parameter : @anf.RuntimeEvidenceId,
   recipe : CallableAdapterEvidenceRecipe,
 ) -> Unit raise LoisvmLoweringError {
   for binding in bindings {
@@ -123,19 +125,19 @@ fn bind_callable_adapter_evidence(
 ///|
 fn ImageLowerer::callable_adapter_value_flow_recipe(
   self : ImageLowerer,
-  value_type : @buslane.Type,
-  target_type : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
+  value_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
   evidence : Array[CallableAdapterEvidenceBinding],
 ) -> CallableAdapterValueFlowRecipe raise LoisvmLoweringError {
-  let source_shape = apply_type_substitution(value_type, substitutions)
-  let target_shape = apply_type_substitution(target_type, substitutions)
+  let source_shape = substitutions.apply_type(self.metadata, value_type)
+  let target_shape = substitutions.apply_type(self.metadata, target_type)
   {
     value: self.callable_adapter_value_recipe(value_type, evidence),
     source_shape: self.callable_adapter_value_recipe(source_shape, evidence),
     target: self.callable_adapter_value_recipe(target_type, evidence),
     target_shape: self.callable_adapter_value_recipe(target_shape, evidence),
-    definitionally_equal: self.types_definitionally_equal(
+    definitionally_equal: self.types_representation_equivalent(
       source_shape, target_shape,
     ),
     nested_adapter: self.callable_adapter_nested_recipe(
@@ -147,28 +149,24 @@ fn ImageLowerer::callable_adapter_value_flow_recipe(
 ///|
 fn ImageLowerer::callable_adapter_nested_recipe(
   self : ImageLowerer,
-  value_type : @buslane.Type,
-  target_type : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
+  value_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
 ) -> CallableAdapterRecipe? raise LoisvmLoweringError {
   let source_runtime = self.runtime_type(value_type)
   let target_runtime = self.runtime_type(target_type)
   let nested_contract = match (source_runtime, target_runtime) {
-    (Erased(_), Concrete(Function(_, _, _) | Forall(_, _) as concrete)) => {
-      let (canonical, bindings) = self.erased_callable_abi(
-        value_type, concrete, substitutions,
-      )
+    (Erased(_), Concrete(Callable(_, _) | Forall(_, _) as concrete)) => {
+      let (canonical, bindings) = self.canonical_callable_type(concrete)
       self.plan_callable_adaptation(canonical, concrete, bindings)
     }
-    (Concrete(Function(_, _, _) | Forall(_, _) as concrete), Erased(_)) => {
-      let (canonical, bindings) = self.erased_callable_abi(
-        target_type, concrete, substitutions,
-      )
+    (Concrete(Callable(_, _) | Forall(_, _) as concrete), Erased(_)) => {
+      let (canonical, bindings) = self.canonical_callable_type(concrete)
       self.plan_callable_adaptation(concrete, canonical, bindings)
     }
     (
-      Concrete(Function(_, _, _) | Forall(_, _) as source),
-      Concrete(Function(_, _, _) | Forall(_, _) as target),
+      Concrete(Callable(_, _) | Forall(_, _) as source),
+      Concrete(Callable(_, _) | Forall(_, _) as target),
     ) => self.plan_callable_adaptation(source, target, substitutions)
     _ => None
   }
@@ -181,15 +179,15 @@ fn ImageLowerer::callable_adapter_nested_recipe(
 ///|
 fn ImageLowerer::callable_adapter_value_recipe(
   self : ImageLowerer,
-  type_ : @buslane.Type,
+  type_ : @anf.RuntimeType,
   evidence : Array[CallableAdapterEvidenceBinding],
 ) -> CallableAdapterValueRecipe raise LoisvmLoweringError {
   match self.elaborate_runtime_representation(type_) {
-    Unit => Unit
-    Erased(type_) =>
+    RuntimeUnit => Unit
+    RuntimeErased(erased_evidence) =>
       Erased(
         self.callable_adapter_evidence_recipe(
-          self.plan_layout_witness(type_),
+          self.plan_layout_witness(erased_evidence),
           evidence,
         ),
       )
@@ -224,7 +222,7 @@ fn ImageLowerer::callable_adapter_evidence_recipe(
 ///|
 fn find_callable_adapter_evidence(
   evidence : Array[CallableAdapterEvidenceBinding],
-  parameter : @buslane.TypeParameterId,
+  parameter : @anf.RuntimeEvidenceId,
 ) -> CallableAdapterEvidenceRecipe raise LoisvmLoweringError {
   for binding in evidence {
     if binding.parameter == parameter {

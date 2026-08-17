@@ -13,11 +13,15 @@ fn FunctionLowerer::lower_nested_function(
 fn FunctionLowerer::lower_nested_function_with_type(
   self : FunctionLowerer,
   function : @anf.AnfFunction,
-  function_type : @buslane.Type,
+  function_type : @anf.RuntimeType,
 ) -> LocalValue raise LoisvmLoweringError {
-  let function_type = apply_type_substitution(function_type, self.substitutions)
+  let function_type = self.substitutions.apply_type(
+    self.image.metadata,
+    function_type,
+  )
   let capture_bindings = free_capture_bindings(function)
   let captured_parameters = self.captured_runtime_parameters(
+    [function],
     [function_type],
     capture_bindings,
   )
@@ -68,7 +72,7 @@ fn FunctionLowerer::lower_recursive_group(
 ) -> LocalValue raise LoisvmLoweringError {
   let functions : Array[@anf.AnfFunction] = []
   let recursive_values : Array[@buslane.ValueId] = []
-  let recursive_types : Array[@buslane.Type] = []
+  let recursive_types : Array[@anf.RuntimeType] = []
   for binding in bindings {
     let function = match extract_top_atom_function(binding.rhs) {
       Some(function) => function
@@ -83,7 +87,9 @@ fn FunctionLowerer::lower_recursive_group(
     }
     functions.push(function)
     recursive_values.push(binding.id)
-    recursive_types.push(apply_type_substitution(type_, self.substitutions))
+    recursive_types.push(
+      self.substitutions.apply_type(self.image.metadata, type_),
+    )
   }
   let capture_bindings = []
   for function in functions {
@@ -95,7 +101,7 @@ fn FunctionLowerer::lower_recursive_group(
     }
   }
   let captured_parameters = self.captured_runtime_parameters(
-    recursive_types, capture_bindings,
+    functions, recursive_types, capture_bindings,
   )
   let (capture_plans, stored_layouts, capture_slots, members) = self.prepare_captures(
     capture_bindings, captured_parameters,
@@ -165,30 +171,172 @@ fn recursive_values_contain_capture(
 ///|
 fn FunctionLowerer::captured_runtime_parameters(
   self : FunctionLowerer,
-  function_types : Array[@buslane.Type],
+  functions : Array[@anf.AnfFunction],
+  function_types : Array[@anf.RuntimeType],
   bindings : Array[CaptureBinding],
-) -> Array[@buslane.TypeParameterId] raise LoisvmLoweringError {
+) -> Array[@anf.RuntimeEvidenceParameter] raise LoisvmLoweringError {
   let types = function_types.copy()
   for binding in bindings {
     match self.capture_value(binding) {
       Slot(_, type_)
       | RecursiveFunction(_, type_, _)
-      | TypeAppliedCallable(_, type_, _) => types.push(type_)
-      AdaptedCallable(adaptation) | TypeAppliedAdaptedCallable(adaptation, _) =>
+      | EvidenceAppliedCallable(_, type_, _) => types.push(type_)
+      AdaptedCallable(adaptation)
+      | EvidenceAppliedAdaptedCallable(adaptation, _) =>
         types.push(adaptation.contract.target_type)
-      Global(_) | Unit | TypeApplied(_, _) => ()
+      Global(_) | Unit | EvidenceApplied(_, _) => ()
     }
   }
-  free_runtime_type_parameters_in_types(self.image, types).filter(parameter => {
-    !self.specialized_parameters.contains(parameter)
+  let parameters = free_runtime_type_parameters_in_types(self.image, types)
+  for index, function in functions {
+    let (bound, _, _) = function_type_parts(function_types[index])
+    collect_free_runtime_evidence_in_expr(
+      self.image,
+      function.body,
+      bound.map(parameter => parameter.id),
+      parameters,
+    )
+  }
+  parameters.filter(parameter => {
+    !self.specialized_parameters.contains(parameter.id)
   })
+}
+
+///|
+fn collect_free_runtime_evidence_in_expr(
+  image : ImageLowerer,
+  expression : @anf.AnfExpr,
+  bound : Array[@anf.RuntimeEvidenceId],
+  parameters : Array[@anf.RuntimeEvidenceParameter],
+) -> Unit {
+  match expression {
+    Atom(atom) =>
+      collect_free_runtime_evidence_in_atom(image, atom, bound, parameters)
+    Let(binding, body) => {
+      collect_free_runtime_evidence_in_rhs(
+        image,
+        binding.rhs(),
+        bound,
+        parameters,
+      )
+      collect_free_runtime_evidence_in_expr(image, body, bound, parameters)
+    }
+    LetRec(bindings, body) => {
+      for binding in bindings {
+        collect_free_runtime_evidence_in_atom(
+          image,
+          binding.rhs,
+          bound,
+          parameters,
+        )
+      }
+      collect_free_runtime_evidence_in_expr(image, body, bound, parameters)
+    }
+  }
+}
+
+///|
+fn collect_free_runtime_evidence_in_rhs(
+  image : ImageLowerer,
+  rhs : @anf.AnfRhs,
+  bound : Array[@anf.RuntimeEvidenceId],
+  parameters : Array[@anf.RuntimeEvidenceParameter],
+) -> Unit {
+  match rhs {
+    Atom(atom) =>
+      collect_free_runtime_evidence_in_atom(image, atom, bound, parameters)
+    ApplyEvidence(callee~, arguments~) => {
+      collect_free_runtime_evidence_in_atom(image, callee, bound, parameters)
+      for argument in arguments {
+        collect_free_runtime_evidence(
+          image,
+          argument.evidence,
+          bound,
+          parameters,
+        )
+      }
+    }
+    Call(callee~, arguments~) => {
+      collect_free_runtime_evidence_in_atom(image, callee, bound, parameters)
+      for argument in arguments {
+        collect_free_runtime_evidence_in_atom(
+          image, argument, bound, parameters,
+        )
+      }
+    }
+    Construct(construct) => {
+      for argument in construct.type_arguments {
+        collect_free_runtime_evidence(
+          image,
+          argument.evidence,
+          bound,
+          parameters,
+        )
+      }
+      for argument in construct.hidden_arguments {
+        collect_free_runtime_evidence(
+          image,
+          argument.evidence,
+          bound,
+          parameters,
+        )
+      }
+      for payload in construct.payloads {
+        collect_free_runtime_evidence_in_atom(image, payload, bound, parameters)
+      }
+    }
+    Match(match_) => {
+      collect_free_runtime_evidence_in_atom(
+        image,
+        match_.scrutinee,
+        bound,
+        parameters,
+      )
+      for alternative in match_.alternatives {
+        let nested = bound.copy()
+        nested.append(
+          alternative.evidence_binders.map(parameter => parameter.id),
+        )
+        collect_free_runtime_evidence_in_expr(
+          image,
+          alternative.body,
+          nested,
+          parameters,
+        )
+      }
+    }
+  }
+}
+
+///|
+fn collect_free_runtime_evidence_in_atom(
+  image : ImageLowerer,
+  atom : @anf.AnfAtom,
+  bound : Array[@anf.RuntimeEvidenceId],
+  parameters : Array[@anf.RuntimeEvidenceParameter],
+) -> Unit {
+  match atom {
+    Literal(_) | Ref(_) | Temp(_) => ()
+    Function(function) =>
+      collect_free_runtime_evidence_in_expr(
+        image,
+        function.body,
+        bound,
+        parameters,
+      )
+    EvidenceLambda(parameters=binders, body~) => {
+      let nested = bound.copy()
+      nested.append(binders.map(parameter => parameter.id))
+      collect_free_runtime_evidence_in_expr(image, body, nested, parameters)
+    }
+  }
 }
 
 ///|
 fn FunctionLowerer::prepare_captures(
   self : FunctionLowerer,
   bindings : Array[CaptureBinding],
-  captured_parameters : Array[@buslane.TypeParameterId],
+  captured_parameters : Array[@anf.RuntimeEvidenceParameter],
 ) -> (
   Array[CapturePlan],
   Array[@vmcfg.ValueId],
@@ -200,25 +348,20 @@ fn FunctionLowerer::prepare_captures(
   let capture_slots = []
   let members : Array[@bytecode.MemberSchema] = []
   for parameter in captured_parameters {
-    let metadata = self.image.runtime_evidence_metadata(parameter)
+    let metadata = runtime_evidence_metadata(parameter)
     members.push({
       representation: metadata.representation,
       cleanup: metadata.cleanup,
       kind: metadata.kind,
       witness_ordinal: None,
     })
-    capture_slots.push(self.find_witness(parameter))
+    capture_slots.push(self.find_witness(parameter.id))
   }
   for binding in bindings {
     let captured = self.capture_value(binding)
     match captured {
       Global(_) => ()
-      Unit =>
-        capture_plans.push({
-          binding,
-          type_: Primitive(Unit),
-          member_index: None,
-        })
+      Unit => capture_plans.push({ binding, type_: Unit, member_index: None })
       _ => {
         guard self.materialize_local(captured) is Slot(slot, type_) else {
           abort("captured value was not materialized")
@@ -322,14 +465,14 @@ fn FunctionLowerer::bind_capture(
 fn ImageLowerer::anf_function_type(
   self : ImageLowerer,
   function : @anf.AnfFunction,
-) -> @buslane.Type raise LoisvmLoweringError {
+) -> @anf.RuntimeType raise LoisvmLoweringError {
   let parameters = function.parameters.map(parameter => {
     match self.metadata.value_info(parameter) {
       Some(info) => info.type_
       None => raise MissingValueMetadata(value=parameter)
     }
   })
-  Function(parameters, function.result_type, Empty)
+  Callable(parameters, function.result_type)
 }
 
 ///|

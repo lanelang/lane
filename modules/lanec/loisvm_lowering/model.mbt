@@ -5,10 +5,9 @@ pub(all) suberror LoisvmLoweringError {
   MissingDataConstructorMetadata(data_constructor~ : @buslane.DataConId)
   MissingExternal(value~ : @buslane.ValueId)
   MissingEntry(value~ : @buslane.ValueId)
-  UnsupportedType(type_~ : @buslane.Type)
+  UnsupportedType(type_~ : @anf.RuntimeType)
   UnsupportedTopLevel(value~ : @buslane.ValueId)
   UnsupportedExpression(detail~ : String)
-  TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   UnsupportedGenericData(data_constructor~ : @buslane.DataConId)
   InvalidDataPayloadCount(
     data_constructor~ : @buslane.DataConId,
@@ -36,11 +35,26 @@ pub(all) suberror FunctionTableCanonicalizationError {
 ///|
 priv enum GlobalValue {
   UnitValue
-  Function(@bytecode.FunctionId, @buslane.Type)
-  Intrinsic(@buslane_lowering.BuslaneIntrinsicFunctionContract)
-  FloatConstant(Int, @buslane.Type)
-  DoubleConstant(Int64, @buslane.Type)
-  InstanceGlobal(@bytecode.GlobalId, @buslane.Type)
+  Function(@bytecode.FunctionId, @anf.RuntimeType)
+  Intrinsic(RuntimeIntrinsicFunctionContract)
+  FloatConstant(Int, @anf.RuntimeType)
+  DoubleConstant(Int64, @anf.RuntimeType)
+  InstanceGlobal(@bytecode.GlobalId, @anf.RuntimeType)
+}
+
+///|
+priv struct RuntimeIntrinsicFunctionContract {
+  intrinsic : @abi.Intrinsic
+  parameters : Array[@anf.RuntimeType]
+  result : @anf.RuntimeType
+  implementation : @abi.IntrinsicFunctionImplementation
+} derive(Eq)
+
+///|
+fn RuntimeIntrinsicFunctionContract::type_(
+  self : RuntimeIntrinsicFunctionContract,
+) -> @anf.RuntimeType {
+  Callable(self.parameters, self.result)
 }
 
 ///|
@@ -187,7 +201,7 @@ priv struct InitializerStepPlan {
 ///|
 priv struct IntrinsicWrapperPlan {
   function : @bytecode.FunctionId
-  contract : @buslane_lowering.BuslaneIntrinsicFunctionContract
+  contract : RuntimeIntrinsicFunctionContract
 }
 
 ///|
@@ -201,11 +215,11 @@ priv struct CallableAdapterPlan {
 ///|
 priv struct CallableAdapterContract {
   recipe : CallableAdapterRecipe
-  source_type : @buslane.Type
-  target_type : @buslane.Type
+  source_type : @anf.RuntimeType
+  target_type : @anf.RuntimeType
   source_parameter_targets : Array[Int]
-  substitutions : @buslane.TypeSubstitution
-  captured_parameters : Array[@buslane.TypeParameterId]
+  substitutions : RuntimeSubstitution
+  captured_parameters : Array[@anf.RuntimeEvidenceParameter]
 } derive(Debug)
 
 ///|
@@ -213,7 +227,7 @@ priv enum CallableAdapterEvidenceRecipe {
   Input(Int)
   Capture(Int)
   Apply(CallableAdapterEvidenceRecipe, Array[CallableAdapterEvidenceRecipe])
-  LayoutConstructor(@buslane.Type)
+  LayoutConstructor(@anf.RuntimeEvidence)
   Static(@bytecode.LayoutRecipe)
 } derive(Debug, Eq)
 
@@ -283,28 +297,28 @@ priv struct RepresentationSpecializationPlan {
   worker : @bytecode.FunctionId
   key : RepresentationSpecializationKey
   function : @anf.AnfFunction
-  substitutions : @buslane.TypeSubstitution
-  type_parameters : Array[@buslane.TypeParameterId]
-  parameter_types : Array[@buslane.Type]
-  result_type : @buslane.Type
+  substitutions : RuntimeSubstitution
+  evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
+  parameter_types : Array[@anf.RuntimeType]
+  result_type : @anf.RuntimeType
 }
 
 ///|
 priv struct LayoutConstructorPlan {
   function : @bytecode.FunctionId
-  type_ : @buslane.Type
-  parameters : Array[@buslane.TypeParameterId]
-  body : @buslane.Type
-  captured_parameters : Array[@buslane.TypeParameterId]
+  evidence : @anf.RuntimeEvidence
+  parameters : Array[@anf.RuntimeEvidenceParameter]
+  body : @anf.RuntimeEvidence
+  captured_parameters : Array[@anf.RuntimeEvidenceParameter]
   environment_shape : @bytecode.ObjectShapeId?
   arity : Int
 }
 
 ///|
 priv enum RuntimeEvidencePlan {
-  Existing(@buslane.TypeParameterId)
-  ApplyEvidence(@buslane.TypeParameterId, Array[RuntimeEvidencePlan])
-  MaterializeLayoutConstructor(@buslane.Type)
+  Existing(@anf.RuntimeEvidenceId)
+  ApplyEvidence(@anf.RuntimeEvidenceId, Array[RuntimeEvidencePlan])
+  MaterializeLayoutConstructor(@anf.RuntimeEvidence)
   StaticLayout(@bytecode.LayoutRecipe)
 }
 
@@ -335,17 +349,17 @@ priv enum CaptureBinding {
 ///|
 priv struct CapturePlan {
   binding : CaptureBinding
-  type_ : @buslane.Type
+  type_ : @anf.RuntimeType
   member_index : Int?
 }
 
 ///|
 priv struct LiftedFunctionPlan {
   function : @anf.AnfFunction
-  type_ : @buslane.Type
-  substitutions : @buslane.TypeSubstitution
-  specialized_parameters : Array[@buslane.TypeParameterId]
-  captured_parameters : Array[@buslane.TypeParameterId]
+  type_ : @anf.RuntimeType
+  substitutions : RuntimeSubstitution
+  specialized_parameters : Array[@anf.RuntimeEvidenceId]
+  captured_parameters : Array[@anf.RuntimeEvidenceParameter]
   captures : Array[CapturePlan]
   environment_shape : @bytecode.ObjectShapeId?
   recursive_functions : Array[RecursiveFunctionPlan]
@@ -355,7 +369,7 @@ priv struct LiftedFunctionPlan {
 priv struct RecursiveFunctionPlan {
   value : @buslane.ValueId
   function : @bytecode.FunctionId
-  type_ : @buslane.Type
+  type_ : @anf.RuntimeType
 }
 
 ///|
@@ -368,27 +382,32 @@ priv struct DeferredCallableAdapter {
 ///|
 priv enum LocalValue {
   Unit
-  Slot(@vmcfg.ValueId, @buslane.Type)
+  Slot(@vmcfg.ValueId, @anf.RuntimeType)
   Global(GlobalValue)
-  RecursiveFunction(@bytecode.FunctionId, @buslane.Type, @vmcfg.ValueId?)
-  TypeApplied(GlobalValue, Array[@buslane.GenericArgument])
-  TypeAppliedCallable(
+  RecursiveFunction(@bytecode.FunctionId, @anf.RuntimeType, @vmcfg.ValueId?)
+  EvidenceApplied(GlobalValue, Array[@anf.RuntimeArgument])
+  EvidenceAppliedCallable(
     @vmcfg.ValueId,
-    @buslane.Type,
-    Array[@buslane.GenericArgument]
+    @anf.RuntimeType,
+    Array[@anf.RuntimeArgument]
   )
   AdaptedCallable(DeferredCallableAdapter)
-  TypeAppliedAdaptedCallable(
+  EvidenceAppliedAdaptedCallable(
     DeferredCallableAdapter,
-    Array[@buslane.GenericArgument]
+    Array[@anf.RuntimeArgument]
   )
 }
 
 ///|
 priv struct WitnessBinding {
-  parameter : @buslane.TypeParameterId
+  parameter : @anf.RuntimeEvidenceId
   value : @vmcfg.ValueId
 }
+
+///|
+priv struct RuntimeSubstitution {
+  entries : Array[(@anf.RuntimeEvidenceId, @anf.RuntimeArgument)]
+} derive(Debug)
 
 ///|
 priv struct ValueBinding {

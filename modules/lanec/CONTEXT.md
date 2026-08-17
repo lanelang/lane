@@ -236,10 +236,15 @@ _Avoid_: effect-blind DCE, bytecode optimization
 
 **Runtime ANF**:
 The closed backend-lowerable ANF produced only by projecting verified,
-effect-aware CPS Core. Its metadata and syntax contain no effect operations or
-handler forms, and its generic binders and applications retain only
-runtime-relevant type, layout, witness, and higher-kinded companion positions.
-LoisVM lowering consumes this exact representation.
+effect-aware CPS Core. It owns `RuntimeType`, `RuntimeEvidence`, and a closed
+runtime type-expression catalog; these distinguish scalar, byte-sequence,
+nominal reference, data, callable, and erased representations without carrying
+Buslane `Type`, `Effect`, `Kind`, `GenericArgument`, or type-lambda syntax.
+Stable Buslane declaration IDs survive only as nominal symbols. Nominal runtime
+arguments select construction and projection evidence, but do not define a
+data value's callable ABI. Higher-kinded nominal arguments are eta-expanded at
+this boundary, so LoisVM lowering never reconstructs constructor arity from
+source types. LoisVM lowering consumes this exact representation.
 _Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering
 
 **Runtime Generic Plan**:

@@ -45,7 +45,7 @@ fn collect_free_rhs(
   captures : Array[CaptureBinding],
 ) -> Unit {
   match rhs {
-    Atom(atom) | TypeApply(callee=atom, ..) =>
+    Atom(atom) | ApplyEvidence(callee=atom, ..) =>
       collect_free_atom(atom, bound_values, bound_temps, captures)
     Call(callee~, arguments~) => {
       collect_free_atom(callee, bound_values, bound_temps, captures)
@@ -95,7 +95,7 @@ fn collect_free_atom(
       next_values.append(function.parameters)
       collect_free_expr(function.body, next_values, bound_temps, captures)
     }
-    TypeLambda(body~, ..) =>
+    EvidenceLambda(body~, ..) =>
       collect_free_expr(body, bound_values, bound_temps, captures)
   }
 }

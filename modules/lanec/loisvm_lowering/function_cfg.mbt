@@ -2,15 +2,15 @@
 fn ImageLowerer::lower_function_body(
   self : ImageLowerer,
   function : @anf.AnfFunction,
-  type_parameters : Array[@buslane.TypeParameterId],
-  parameter_types : Array[@buslane.Type],
-  result_type : @buslane.Type,
-  captured_parameters : Array[@buslane.TypeParameterId],
+  type_parameters : Array[@anf.RuntimeEvidenceParameter],
+  parameter_types : Array[@anf.RuntimeType],
+  result_type : @anf.RuntimeType,
+  captured_parameters : Array[@anf.RuntimeEvidenceParameter],
   captures : Array[CapturePlan],
   environment_shape : @bytecode.ObjectShapeId?,
   recursive_functions : Array[RecursiveFunctionPlan],
-  substitutions : @buslane.TypeSubstitution,
-  specialized_parameters : Array[@buslane.TypeParameterId],
+  substitutions : RuntimeSubstitution,
+  specialized_parameters : Array[@anf.RuntimeEvidenceId],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
@@ -27,18 +27,16 @@ fn ImageLowerer::lower_function_body(
   let input_witnesses = []
   for parameter in type_parameters {
     if self.requires_runtime_evidence(parameter) {
-      let witness = lowerer.fresh_metadata(
-        self.runtime_evidence_metadata(parameter),
-      )
+      let witness = lowerer.fresh_metadata(runtime_evidence_metadata(parameter))
       input_witnesses.push(witness)
-      lowerer.witnesses.push({ parameter, value: witness })
+      lowerer.witnesses.push({ parameter: parameter.id, value: witness })
     }
   }
   if environment_shape is Some(shape) {
     let environment = lowerer.fresh_metadata(environment_metadata(shape))
     lowerer.environment = Some(environment)
     for index, parameter in captured_parameters {
-      let metadata = self.runtime_evidence_metadata(parameter)
+      let metadata = runtime_evidence_metadata(parameter)
       let evidence = lowerer.fresh_metadata(
         borrowed_evidence_metadata(metadata),
       )
@@ -48,7 +46,7 @@ fn ImageLowerer::lower_function_body(
           witness_destination: None,
         }),
       )
-      lowerer.witnesses.push({ parameter, value: evidence })
+      lowerer.witnesses.push({ parameter: parameter.id, value: evidence })
     }
     for capture in captures {
       if capture.member_index is Some(member_index) {
@@ -90,7 +88,7 @@ fn ImageLowerer::lower_function_body(
   let parameter_slots : Array[@vmcfg.ValueId] = []
   for index, parameter in function.parameters {
     let type_ = parameter_types[index]
-    if self.runtime_type(type_) is Concrete(Primitive(Unit)) {
+    if self.runtime_type(type_) is Concrete(Unit) {
       lowerer.bindings.push({ value: parameter, lowered: Unit })
     } else {
       let slot = lowerer.fresh_slot(type_)
@@ -107,10 +105,10 @@ fn ImageLowerer::lower_function_body(
         Slot(slot, _) => Return(Some(slot))
         Global(_)
         | RecursiveFunction(_, _, _)
-        | TypeApplied(_, _)
-        | TypeAppliedCallable(_, _, _)
+        | EvidenceApplied(_, _)
+        | EvidenceAppliedCallable(_, _, _)
         | AdaptedCallable(_)
-        | TypeAppliedAdaptedCallable(_, _) =>
+        | EvidenceAppliedAdaptedCallable(_, _) =>
           raise UnsupportedExpression(
             detail="function returns an unapplied callable",
           )
@@ -236,26 +234,26 @@ fn tail_destination_matches(
 
 ///|
 fn ImageLowerer::requires_runtime_evidence(
-  self : ImageLowerer,
-  parameter : @buslane.TypeParameterId,
+  _self : ImageLowerer,
+  _parameter : @anf.RuntimeEvidenceParameter,
 ) -> Bool {
-  match self.metadata.type_parameter_info(parameter) {
-    Some({ kind: Type, .. }) => true
-    Some({ kind: Function(_, Type), .. }) => true
-    _ => parameter.index < 0
-  }
+  true
 }
 
 ///|
 fn function_type_parts(
-  type_ : @buslane.Type,
-) -> (Array[@buslane.TypeParameterId], Array[@buslane.Type], @buslane.Type) raise LoisvmLoweringError {
+  type_ : @anf.RuntimeType,
+) -> (
+  Array[@anf.RuntimeEvidenceParameter],
+  Array[@anf.RuntimeType],
+  @anf.RuntimeType,
+) raise LoisvmLoweringError {
   match type_ {
     Forall(parameters, body) => {
       let (nested_parameters, arguments, result) = function_type_parts(body)
       (parameters + nested_parameters, arguments, result)
     }
-    Function(parameters, result, _) => ([], parameters, result)
+    Callable(parameters, result) => ([], parameters, result)
     _ => raise UnsupportedType(type_~)
   }
 }

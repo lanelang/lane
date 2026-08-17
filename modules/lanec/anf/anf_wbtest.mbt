@@ -100,17 +100,17 @@ test "ANF binds a match before applying its continuation" {
       #|        {
       #|          scrutinee: Literal(Bool(true)),
       #|          binder: { index: 2 },
-      #|          result_type: Primitive(Bool),
+      #|          result_type: Scalar(Bool),
       #|          alternatives: [
       #|            {
       #|              alt_constructor: Literal(Bool(true)),
-      #|              type_binders: [],
+      #|              evidence_binders: [],
       #|              value_binders: [],
       #|              body: Atom(Literal(Bool(true))),
       #|            },
       #|            {
       #|              alt_constructor: Default,
-      #|              type_binders: [],
+      #|              evidence_binders: [],
       #|              value_binders: [],
       #|              body: Atom(Literal(Bool(false))),
       #|            },

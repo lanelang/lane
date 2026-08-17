@@ -79,7 +79,7 @@ fn ImageLowerer::add_instance_global(
     Some(info) => info.type_
     None => raise MissingValueMetadata(value~)
   }
-  if self.runtime_type(type_) is Concrete(Primitive(Unit)) {
+  if self.runtime_type(type_) is Concrete(Unit) {
     self.globals.push({ value, lowered: UnitValue })
     return
   }
@@ -117,7 +117,10 @@ fn ImageLowerer::plan_intrinsic(
 ) -> Unit raise LoisvmLoweringError {
   let contract = external.contract()
   let intrinsic = contract.intrinsic()
-  let type_ = contract.type_()
+  let type_ = match self.metadata.value_info(value) {
+    Some(info) => info.type_
+    None => raise MissingValueMetadata(value~)
+  }
   match intrinsic {
     F32Inf =>
       self.globals.push({ value, lowered: FloatConstant(0x7f800000, type_) })
@@ -153,10 +156,12 @@ fn ImageLowerer::plan_intrinsic(
         ),
       })
     _ => {
-      guard contract.function_contract() is Some(function_contract) else {
+      guard intrinsic.signature() is Function(implementation~, ..) else {
         raise UnsupportedIntrinsic(name=intrinsic.name())
       }
-      match function_contract.implementation() {
+      let (_, parameters, result) = function_type_parts(type_)
+      let function_contract = { intrinsic, parameters, result, implementation }
+      match implementation {
         Direct =>
           self.globals.push({ value, lowered: Intrinsic(function_contract) })
         Fatal(..) => {
@@ -259,7 +264,7 @@ fn extract_top_function(expression : @anf.AnfExpr) -> @anf.AnfFunction? {
 fn extract_top_atom_function(atom : @anf.AnfAtom) -> @anf.AnfFunction? {
   match atom {
     Function(function) => Some(function)
-    TypeLambda(body~, ..) => extract_top_function(body)
+    EvidenceLambda(body~, ..) => extract_top_function(body)
     _ => None
   }
 }
@@ -286,7 +291,7 @@ fn ImageLowerer::lower_function(
     [],
     None,
     [],
-    TypeSubstitution(),
+    RuntimeSubstitution::new(),
     [],
   )
 }
@@ -305,7 +310,7 @@ fn ImageLowerer::lower_initializer_step(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: TypeSubstitution(),
+    substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
   }
   let result = lowerer.materialize_local(lowerer.lower_expr(step.expression))
@@ -353,7 +358,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: TypeSubstitution(),
+    substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
   }
   for step in steps {
@@ -413,9 +418,9 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   self : ImageLowerer,
   plan : IntrinsicWrapperPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
-  let intrinsic = plan.contract.intrinsic()
-  let parameter_types = plan.contract.parameter_types()
-  let result_type = plan.contract.result_type()
+  let intrinsic = plan.contract.intrinsic
+  let parameter_types = plan.contract.parameters
+  let result_type = plan.contract.result
   let lowerer : FunctionLowerer = {
     image: self,
     values: [],
@@ -425,11 +430,11 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: TypeSubstitution(),
+    substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
   }
   let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
-  match plan.contract.implementation() {
+  match plan.contract.implementation {
     Fatal(message_parameter~) => {
       let message = parameter_slots[message_parameter]
       lowerer.terminate(Fatal(message))
@@ -479,7 +484,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
 ///|
 fn ImageLowerer::intrinsic_wrapper(
   self : ImageLowerer,
-  contract : @buslane_lowering.BuslaneIntrinsicFunctionContract,
+  contract : RuntimeIntrinsicFunctionContract,
 ) -> @bytecode.FunctionId {
   for wrapper in self.intrinsic_wrappers {
     if wrapper.contract == contract {
@@ -487,7 +492,7 @@ fn ImageLowerer::intrinsic_wrapper(
     }
   }
   let function = self.plans.append(
-      IntrinsicWrapper(name=contract.intrinsic().name()),
+      IntrinsicWrapper(name=contract.intrinsic.name()),
       fn(function) {
         let wrapper = { function, contract }
         self.intrinsic_wrappers.push(wrapper)
@@ -500,8 +505,8 @@ fn ImageLowerer::intrinsic_wrapper(
 ///|
 fn ImageLowerer::fresh_synthetic_parameter(
   self : ImageLowerer,
-) -> @buslane.TypeParameterId {
-  let parameter : @buslane.TypeParameterId = {
+) -> @anf.RuntimeEvidenceId {
+  let parameter : @anf.RuntimeEvidenceId = {
     index: self.next_synthetic_parameter,
   }
   self.next_synthetic_parameter -= 1

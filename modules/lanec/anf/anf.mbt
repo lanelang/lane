@@ -2,34 +2,18 @@
 /// Runtime ANF is the closed, backend-lowerable result of projecting verified
 /// effect-aware CPS Core. Only this package constructs values of this type.
 pub struct AnfProgram {
-  priv metadata : @buslane.MetadataRegistry
+  priv metadata : RuntimeMetadata
   priv terms : Array[AnfTopTerm]
-  priv projection_scale : RuntimeAnfProjectionScale
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct RuntimeAnfProjectionScale {
-  source_generic_binders : Int
-  runtime_generic_binders : Int
-  source_type_applications : Int
-  runtime_type_applications : Int
-} derive(Debug, Eq)
-
-///|
-pub fn AnfProgram::metadata(self : AnfProgram) -> @buslane.MetadataRegistry {
-  self.metadata
+pub fn AnfProgram::metadata(self : AnfProgram) -> RuntimeMetadata {
+  self.metadata.snapshot()
 }
 
 ///|
 pub fn AnfProgram::terms(self : AnfProgram) -> ArrayView[AnfTopTerm] {
   self.terms[:]
-}
-
-///|
-pub fn AnfProgram::projection_scale(
-  self : AnfProgram,
-) -> RuntimeAnfProjectionScale {
-  self.projection_scale
 }
 
 ///|
@@ -39,6 +23,7 @@ pub(all) suberror RuntimeAnfLoweringError {
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MissingType(@buslane.TypeId)
   MissingDataConstructor(@buslane.DataConId)
+  InvalidRuntimeProjection(detail~ : String)
   ResidualPerform(@buslane.OperationId)
   ResidualHandle
 } derive(Debug, Eq)
@@ -78,7 +63,7 @@ pub(all) enum AnfBinding {
 pub(all) enum AnfRhs {
   Atom(AnfAtom)
   Call(callee~ : AnfAtom, arguments~ : Array[AnfAtom])
-  TypeApply(callee~ : AnfAtom, arguments~ : Array[@buslane.GenericArgument])
+  ApplyEvidence(callee~ : AnfAtom, arguments~ : Array[RuntimeArgument])
   Construct(AnfConstruct)
   Match(AnfMatch)
 } derive(Debug, Eq)
@@ -86,8 +71,8 @@ pub(all) enum AnfRhs {
 ///|
 pub(all) struct AnfConstruct {
   data_constructor : @buslane.DataConId
-  type_arguments : Array[@buslane.GenericArgument]
-  hidden_witnesses : Array[@buslane.GenericArgument]
+  type_arguments : Array[RuntimeArgument]
+  hidden_arguments : Array[RuntimeArgument]
   payloads : Array[AnfAtom]
 } derive(Debug, Eq)
 
@@ -97,10 +82,7 @@ pub(all) enum AnfAtom {
   Ref(@buslane.ValueId)
   Temp(AnfTempId)
   Function(AnfFunction)
-  TypeLambda(
-    type_parameters~ : Array[@buslane.TypeParameterId],
-    body~ : AnfExpr
-  )
+  EvidenceLambda(parameters~ : Array[RuntimeEvidenceParameter], body~ : AnfExpr)
 } derive(Debug, Eq)
 
 ///|
@@ -108,7 +90,7 @@ pub(all) struct AnfFunction {
   id : AnfFunctionId
   source : @buslane.ValueId?
   parameters : Array[@buslane.ValueId]
-  result_type : @buslane.Type
+  result_type : RuntimeType
   body : AnfExpr
 } derive(Debug, Eq)
 
@@ -116,14 +98,14 @@ pub(all) struct AnfFunction {
 pub(all) struct AnfMatch {
   scrutinee : AnfAtom
   binder : @buslane.ValueId
-  result_type : @buslane.Type
+  result_type : RuntimeType
   alternatives : Array[AnfAlternative]
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct AnfAlternative {
   alt_constructor : @buslane.AltCon
-  type_binders : Array[@buslane.TypeParameterId]
+  evidence_binders : Array[RuntimeEvidenceParameter]
   value_binders : Array[@buslane.ValueId]
   body : AnfExpr
 } derive(Debug, Eq)

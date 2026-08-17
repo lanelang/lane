@@ -3,17 +3,17 @@ fn FunctionLowerer::lower_data_match(
   self : FunctionLowerer,
   match_ : @anf.AnfMatch,
   scrutinee : @vmcfg.ValueId,
-  scrutinee_type : @buslane.Type,
+  scrutinee_type : @anf.RuntimeType,
   owner : @buslane.TypeId,
-  type_arguments : Array[@buslane.GenericArgument],
+  type_arguments : Array[@anf.RuntimeArgument],
 ) -> LocalValue raise LoisvmLoweringError {
   let owner_info = match self.image.metadata.type_info(owner) {
     Some(info) => info
     None =>
       raise UnsupportedExpression(detail="data match owner metadata is missing")
   }
-  let substitutions = self.data_type_substitutions(
-    owner_info.parameters,
+  let substitutions = RuntimeSubstitution::from_arguments(
+    owner_info.evidence_parameters,
     type_arguments,
   )
   if owner_info.constructors.is_empty() {
@@ -37,7 +37,7 @@ fn FunctionLowerer::lower_data_match(
       substitutions,
     )
   }
-  let tag_type = @buslane.Type::Primitive(Bool)
+  let tag_type = @anf.RuntimeType::Scalar(Bool)
   let tag = self.fresh_slot(tag_type)
   self.emit(LoadTag(tag, scrutinee))
   let join_value = self.fresh_optional_slot(match_.result_type)
@@ -116,7 +116,7 @@ fn FunctionLowerer::lower_data_match(
 ///|
 fn FunctionLowerer::lower_unreachable_match_result(
   self : FunctionLowerer,
-  result_type : @buslane.Type,
+  result_type : @anf.RuntimeType,
 ) -> LocalValue raise LoisvmLoweringError {
   self.terminate(Unreachable)
   let result = self.fresh_optional_slot(result_type)
@@ -133,10 +133,10 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   self : FunctionLowerer,
   binder : @buslane.ValueId,
   scrutinee : @vmcfg.ValueId,
-  scrutinee_type : @buslane.Type,
+  scrutinee_type : @anf.RuntimeType,
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
-  substitutions : @buslane.TypeSubstitution,
+  substitutions : RuntimeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
@@ -159,11 +159,11 @@ fn FunctionLowerer::lower_data_alternative(
   join : @bytecode.BlockId,
   binder : @buslane.ValueId,
   scrutinee : @vmcfg.ValueId,
-  scrutinee_type : @buslane.Type,
+  scrutinee_type : @anf.RuntimeType,
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
   branch_environment : @vmcfg.ValueId?,
-  substitutions : @buslane.TypeSubstitution,
+  substitutions : RuntimeSubstitution,
 ) -> Unit raise LoisvmLoweringError {
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
@@ -181,10 +181,10 @@ fn FunctionLowerer::lower_data_alternative(
     Slot(slot, _) => [slot]
     Global(_)
     | RecursiveFunction(_, _, _)
-    | TypeApplied(_, _)
-    | TypeAppliedCallable(_, _, _)
+    | EvidenceApplied(_, _)
+    | EvidenceAppliedCallable(_, _, _)
     | AdaptedCallable(_)
-    | TypeAppliedAdaptedCallable(_, _) =>
+    | EvidenceAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(
         detail="match alternative returns an unapplied callable",
       )
@@ -201,10 +201,10 @@ fn FunctionLowerer::bind_data_alternative(
   self : FunctionLowerer,
   binder : @buslane.ValueId,
   scrutinee : @vmcfg.ValueId,
-  scrutinee_type : @buslane.Type,
+  scrutinee_type : @anf.RuntimeType,
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
-  substitutions : @buslane.TypeSubstitution,
+  substitutions : RuntimeSubstitution,
 ) -> Unit raise LoisvmLoweringError {
   let info = match self.image.metadata.data_constructor_info(data_constructor) {
     Some(info) => info
@@ -212,12 +212,13 @@ fn FunctionLowerer::bind_data_alternative(
   }
   let binds_payloads = alternative.alt_constructor is DataCon(_)
   if binds_payloads {
-    if alternative.type_binders.length() != info.hidden_type_parameters.length() {
+    if alternative.evidence_binders.length() !=
+      info.hidden_evidence_parameters.length() {
       raise InvalidTypeApplication(
-        detail="data alternative expects \{info.hidden_type_parameters.length()} hidden type binders, got \{alternative.type_binders.length()}",
+        detail="data alternative expects \{info.hidden_evidence_parameters.length()} hidden evidence binders, got \{alternative.evidence_binders.length()}",
       )
     }
-  } else if !alternative.type_binders.is_empty() {
+  } else if !alternative.evidence_binders.is_empty() {
     raise InvalidTypeApplication(
       detail="default data alternative cannot bind hidden types",
     )
@@ -235,41 +236,39 @@ fn FunctionLowerer::bind_data_alternative(
     )
   }
   self.bindings.push({ value: binder, lowered: Slot(scrutinee, scrutinee_type) })
-  let hidden_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  let hidden_substitutions = RuntimeSubstitution::new()
   if binds_payloads {
     let shape = self.image.data_shape(data_constructor, info)
     let mut evidence_member_index = 0
-    for index, hidden_parameter in info.hidden_type_parameters {
-      let binder = alternative.type_binders[index]
-      let argument = match
-        self.image.metadata.type_parameter_info(hidden_parameter) {
-        Some({ kind: Effect, .. }) =>
-          @buslane.GenericArgument::EffectArgument(Parameter(binder))
-        Some(_) => TypeArgument(Parameter(binder))
-        None =>
-          raise InvalidTypeApplication(
-            detail="hidden data parameter metadata is missing",
-          )
-      }
-      hidden_substitutions.insert_argument(hidden_parameter, argument)
-      if self.image.requires_runtime_evidence(hidden_parameter) {
-        let metadata = self.image.runtime_evidence_metadata(hidden_parameter)
-        let evidence = self.fresh_metadata(borrowed_evidence_metadata(metadata))
-        self.emit(
-          BorrowField(shape, scrutinee, evidence_member_index, {
-            value_destination: evidence,
-            witness_destination: None,
-          }),
+    for index, hidden_parameter in info.hidden_evidence_parameters {
+      let binder = alternative.evidence_binders[index]
+      guard self.image.metadata.parameter_type_expression(binder.id)
+        is Some(type_expression) else {
+        raise InvalidTypeApplication(
+          detail="hidden evidence binder has no runtime type expression",
         )
-        self.witnesses.push({ parameter: binder, value: evidence })
-        evidence_member_index += 1
       }
+      hidden_substitutions.insert(hidden_parameter.id, {
+        type_expression,
+        evidence: Parameter(binder.id),
+      })
+      let metadata = runtime_evidence_metadata(hidden_parameter)
+      let evidence = self.fresh_metadata(borrowed_evidence_metadata(metadata))
+      self.emit(
+        BorrowField(shape, scrutinee, evidence_member_index, {
+          value_destination: evidence,
+          witness_destination: None,
+        }),
+      )
+      self.witnesses.push({ parameter: binder.id, value: evidence })
+      evidence_member_index += 1
     }
     let branch_substitutions = substitutions.overlay(hidden_substitutions)
     for index, value_binder in alternative.value_binders {
       let formal_type = info.payload_types[index]
-      let payload_type = apply_type_substitution(
-        formal_type, branch_substitutions,
+      let payload_type = branch_substitutions.apply_type(
+        self.image.metadata,
+        formal_type,
       )
       let stored = if self.image.runtime_type(formal_type) is Erased(_) {
         let witness = self.fresh_metadata(layout_witness_metadata())
@@ -284,8 +283,7 @@ fn FunctionLowerer::bind_data_alternative(
           ),
         )
         Slot(erased, formal_type)
-      } else if self.image.runtime_type(formal_type)
-        is Concrete(Primitive(Unit)) {
+      } else if self.image.runtime_type(formal_type) is Concrete(Unit) {
         Unit
       } else {
         let destination = self.fresh_borrowed_slot(formal_type)
@@ -321,7 +319,7 @@ fn FunctionLowerer::lower_bool_alternative(
   alternative : @anf.AnfAlternative,
   branch_environment : @vmcfg.ValueId?,
 ) -> Unit raise LoisvmLoweringError {
-  if !alternative.type_binders.is_empty() ||
+  if !alternative.evidence_binders.is_empty() ||
     !alternative.value_binders.is_empty() {
     raise UnsupportedExpression(detail="Bool alternatives cannot bind payloads")
   }
@@ -337,10 +335,10 @@ fn FunctionLowerer::lower_bool_alternative(
     Slot(slot, _) => [slot]
     Global(_)
     | RecursiveFunction(_, _, _)
-    | TypeApplied(_, _)
-    | TypeAppliedCallable(_, _, _)
+    | EvidenceApplied(_, _)
+    | EvidenceAppliedCallable(_, _, _)
     | AdaptedCallable(_)
-    | TypeAppliedAdaptedCallable(_, _) =>
+    | EvidenceAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(
         detail="match alternative returns an unapplied callable",
       )
@@ -462,12 +460,12 @@ fn find_data_alternative(
 
 ///|
 fn runtime_member_index(
-  payload_types : Array[@buslane.Type],
+  payload_types : Array[@anf.RuntimeType],
   source_index : Int,
 ) -> Int {
   let mut runtime_index = 0
   for index in 0..<source_index {
-    if payload_types[index] != Primitive(Unit) {
+    if payload_types[index] != Unit {
       runtime_index += 1
     }
   }

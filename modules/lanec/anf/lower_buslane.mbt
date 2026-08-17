@@ -29,17 +29,8 @@ fn lower_cps_core_to_runtime_anf_or_raise(
   }
   let generic_plan = runtime_generic_plan(program)
   let lowerer = AnfLowerer::{ generic_plan, next_temp: 0, next_function: 0 }
-  let anf = simplify_anf_program({
-    metadata: generic_plan.project_metadata(),
-    terms: program.terms.map(term => lowerer.lower_top_term(term)),
-    projection_scale: {
-      source_generic_binders: 0,
-      runtime_generic_binders: 0,
-      source_type_applications: 0,
-      runtime_type_applications: 0,
-    },
-  })
-  { ..anf, projection_scale: runtime_anf_projection_scale(program, anf) }
+  let terms = program.terms.map(term => lowerer.lower_top_term(term))
+  simplify_anf_program({ metadata: generic_plan.runtime_metadata(), terms })
 }
 
 ///|
@@ -107,13 +98,15 @@ fn AnfLowerer::lower_to_atom(
     Function(function) =>
       continuation(Function(self.lower_function(function, source)))
     TypeLambda(type_parameters, body) => {
-      let retained = self.generic_plan.retained_parameters(type_parameters)
+      let retained = self.generic_plan.runtime_evidence_parameters(
+        type_parameters,
+      )
       if retained.is_empty() {
         self.lower_to_atom(body, source, continuation)
       } else {
         continuation(
-          TypeLambda(
-            type_parameters=retained,
+          EvidenceLambda(
+            parameters=retained,
             body=self.lower_bound_expr(body, source),
           ),
         )
@@ -131,13 +124,13 @@ fn AnfLowerer::lower_to_atom(
         let parameters = self.generic_plan.expression_type_parameters(
           source_callee,
         )
-        let arguments = self.generic_plan.project_arguments(
+        let arguments = self.generic_plan.runtime_arguments(
           parameters, arguments,
         )
         if arguments.is_empty() {
           continuation(callee)
         } else {
-          self.bind_temp(TypeApply(callee~, arguments~), continuation)
+          self.bind_temp(ApplyEvidence(callee~, arguments~), continuation)
         }
       })
     }
@@ -157,11 +150,11 @@ fn AnfLowerer::lower_to_atom(
         self.bind_temp(
           Construct({
             data_constructor: construct.data_constructor,
-            type_arguments: self.generic_plan.project_arguments(
+            type_arguments: self.generic_plan.runtime_arguments(
               owner.parameters,
               construct.type_arguments,
             ),
-            hidden_witnesses: self.generic_plan.project_arguments(
+            hidden_arguments: self.generic_plan.runtime_arguments(
               info.hidden_type_parameters,
               construct.hidden_witnesses,
             ),
@@ -188,10 +181,10 @@ fn AnfLowerer::lower_to_atom(
           Match({
             scrutinee,
             binder: match_.binder,
-            result_type: self.generic_plan.project_type(match_.result_type),
+            result_type: self.generic_plan.runtime_type(match_.result_type),
             alternatives: match_.alternatives.map(alternative => {
               alt_constructor: alternative.alt_constructor,
-              type_binders: self.generic_plan.retained_parameters(
+              evidence_binders: self.generic_plan.runtime_evidence_parameters(
                 alternative.type_binders,
               ),
               value_binders: alternative.value_binders,
@@ -218,7 +211,7 @@ fn AnfLowerer::lower_function(
     id,
     source,
     parameters: function.parameters,
-    result_type: self.generic_plan.project_type(function.result_type),
+    result_type: self.generic_plan.runtime_type(function.result_type),
     body: self.lower_expr(function.body),
   }
 }
@@ -232,12 +225,14 @@ fn AnfLowerer::lower_recursable_atom(
   match expr {
     Function(function) => Function(self.lower_function(function, Some(source)))
     TypeLambda(type_parameters, body) => {
-      let retained = self.generic_plan.retained_parameters(type_parameters)
+      let retained = self.generic_plan.runtime_evidence_parameters(
+        type_parameters,
+      )
       if retained.is_empty() {
         self.lower_recursable_atom(body, source)
       } else {
-        TypeLambda(
-          type_parameters=retained,
+        EvidenceLambda(
+          parameters=retained,
           body=self.lower_bound_expr(body, Some(source)),
         )
       }

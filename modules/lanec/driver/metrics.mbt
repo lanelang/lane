@@ -8,6 +8,8 @@ priv struct TreeScaleAccumulator {
 priv struct AnfScaleAccumulator {
   mut function_count : Int
   mut call_count : Int
+  mut generic_binder_count : Int
+  mut type_application_count : Int
   functions : Array[ExploreFunctionScale]
   anf_functions : Array[ObservedAnfFunction]
 }
@@ -134,6 +136,8 @@ fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
   let accumulator : AnfScaleAccumulator = {
     function_count: 0,
     call_count: 0,
+    generic_binder_count: 0,
+    type_application_count: 0,
     functions: [],
     anf_functions: [],
   }
@@ -153,17 +157,14 @@ fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
   accumulator.anf_functions.sort_by(fn(left, right) {
     left.function.value - right.function.value
   })
-  let projection = program.projection_scale()
   let scale = {
     metrics: [
       metric(TopTermCount, program.terms().length()),
       metric(FunctionCount, accumulator.function_count),
       metric(NodeCount, nodes),
       metric(CallCount, accumulator.call_count),
-      metric(SourceGenericBinderCount, projection.source_generic_binders),
-      metric(GenericBinderCount, projection.runtime_generic_binders),
-      metric(SourceTypeApplicationCount, projection.source_type_applications),
-      metric(TypeApplicationCount, projection.runtime_type_applications),
+      metric(GenericBinderCount, accumulator.generic_binder_count),
+      metric(TypeApplicationCount, accumulator.type_application_count),
     ],
     functions: accumulator.functions,
   }
@@ -227,7 +228,10 @@ fn observe_anf_rhs(rhs : @anf.AnfRhs, accumulator : AnfScaleAccumulator) -> Int 
         total + observe_anf_atom(argument, accumulator)
       })
     }
-    TypeApply(callee~, ..) => 1 + observe_anf_atom(callee, accumulator)
+    ApplyEvidence(callee~, ..) => {
+      accumulator.type_application_count += 1
+      1 + observe_anf_atom(callee, accumulator)
+    }
     Construct(construct) =>
       1 +
       construct.payloads.fold(init=0, fn(total, payload) {
@@ -251,7 +255,10 @@ fn observe_anf_atom(
   match atom {
     Literal(_) | Ref(_) | Temp(_) => 1
     Function(function) => 1 + observe_anf_function(function, accumulator)
-    TypeLambda(body~, ..) => 1 + observe_anf_expr(body, accumulator)
+    EvidenceLambda(parameters~, body~) => {
+      accumulator.generic_binder_count += parameters.length()
+      1 + observe_anf_expr(body, accumulator)
+    }
   }
 }
 

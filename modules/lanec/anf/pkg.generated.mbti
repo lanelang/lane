@@ -17,6 +17,7 @@ pub(all) suberror RuntimeAnfLoweringError {
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MissingType(@buslane.TypeId)
   MissingDataConstructor(@buslane.DataConId)
+  InvalidRuntimeProjection(detail~ : String)
   ResidualPerform(@buslane.OperationId)
   ResidualHandle
 } derive(Eq, @debug.Debug)
@@ -24,7 +25,7 @@ pub(all) suberror RuntimeAnfLoweringError {
 // Types and methods
 pub(all) struct AnfAlternative {
   alt_constructor : @buslane.AltCon
-  type_binders : Array[@buslane.TypeParameterId]
+  evidence_binders : Array[RuntimeEvidenceParameter]
   value_binders : Array[@buslane.ValueId]
   body : AnfExpr
 } derive(Eq, @debug.Debug)
@@ -35,7 +36,7 @@ pub(all) enum AnfAtom {
   Ref(@buslane.ValueId)
   Temp(AnfTempId)
   Function(AnfFunction)
-  TypeLambda(type_parameters~ : Array[@buslane.TypeParameterId], body~ : AnfExpr)
+  EvidenceLambda(parameters~ : Array[RuntimeEvidenceParameter], body~ : AnfExpr)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfAtom
 
@@ -47,8 +48,8 @@ pub impl @prettyprinter.Pretty for AnfBinding
 
 pub(all) struct AnfConstruct {
   data_constructor : @buslane.DataConId
-  type_arguments : Array[@buslane.GenericArgument]
-  hidden_witnesses : Array[@buslane.GenericArgument]
+  type_arguments : Array[RuntimeArgument]
+  hidden_arguments : Array[RuntimeArgument]
   payloads : Array[AnfAtom]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfConstruct
@@ -64,7 +65,7 @@ pub(all) struct AnfFunction {
   id : AnfFunctionId
   source : @buslane.ValueId?
   parameters : Array[@buslane.ValueId]
-  result_type : @buslane.Type
+  result_type : RuntimeType
   body : AnfExpr
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfFunction
@@ -76,7 +77,7 @@ pub(all) struct AnfFunctionId {
 pub(all) struct AnfMatch {
   scrutinee : AnfAtom
   binder : @buslane.ValueId
-  result_type : @buslane.Type
+  result_type : RuntimeType
   alternatives : Array[AnfAlternative]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfMatch
@@ -84,8 +85,7 @@ pub impl @prettyprinter.Pretty for AnfMatch
 pub struct AnfProgram {
   // private fields
 } derive(Eq, @debug.Debug)
-pub fn AnfProgram::metadata(Self) -> @buslane.MetadataRegistry
-pub fn AnfProgram::projection_scale(Self) -> RuntimeAnfProjectionScale
+pub fn AnfProgram::metadata(Self) -> RuntimeMetadata
 pub fn AnfProgram::terms(Self) -> ArrayView[AnfTopTerm]
 pub impl @prettyprinter.Pretty for AnfProgram
 
@@ -98,7 +98,7 @@ pub impl @prettyprinter.Pretty for AnfRecursiveBinding
 pub(all) enum AnfRhs {
   Atom(AnfAtom)
   Call(callee~ : AnfAtom, arguments~ : Array[AnfAtom])
-  TypeApply(callee~ : AnfAtom, arguments~ : Array[@buslane.GenericArgument])
+  ApplyEvidence(callee~ : AnfAtom, arguments~ : Array[RuntimeArgument])
   Construct(AnfConstruct)
   Match(AnfMatch)
 } derive(Eq, @debug.Debug)
@@ -116,11 +116,114 @@ pub(all) enum AnfTopTerm {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfTopTerm
 
-pub(all) struct RuntimeAnfProjectionScale {
-  source_generic_binders : Int
-  runtime_generic_binders : Int
-  source_type_applications : Int
-  runtime_type_applications : Int
+pub(all) struct RuntimeArgument {
+  type_expression : RuntimeTypeExpressionId
+  evidence : RuntimeEvidence
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for RuntimeArgument
+
+pub(all) struct RuntimeDataConstructorInfo {
+  owner : @buslane.TypeId
+  hidden_evidence_parameters : Array[RuntimeEvidenceParameter]
+  payload_types : Array[RuntimeType]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct RuntimeDataInfo {
+  kind : RuntimeNominalKind
+  evidence_parameters : Array[RuntimeEvidenceParameter]
+  constructors : Array[@buslane.DataConId]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeEvidence {
+  Static(RuntimeLayout)
+  Parameter(RuntimeEvidenceId)
+  Apply(RuntimeEvidence, Array[RuntimeEvidence])
+  Lambda(Array[RuntimeEvidenceParameter], RuntimeEvidence)
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for RuntimeEvidence
+
+pub(all) struct RuntimeEvidenceId {
+  index : Int
+} derive(Compare, Eq, Hash, @debug.Debug)
+pub impl @prettyprinter.Pretty for RuntimeEvidenceId
+
+pub(all) struct RuntimeEvidenceParameter {
+  id : RuntimeEvidenceId
+  arity : Int
+} derive(Eq, @debug.Debug)
+pub impl @prettyprinter.Pretty for RuntimeEvidenceParameter
+
+pub(all) enum RuntimeLayout {
+  Unit
+  Bool
+  I64
+  I32
+  Char
+  F64
+  F32
+  Byte
+  ByteSequence
+  Reference
+  Callable
+} derive(Eq, @debug.Debug)
+
+pub(all) struct RuntimeMetadata {
+  values : Array[RuntimeValueInfo]
+  types : Array[RuntimeDataInfo]
+  data_constructors : Array[RuntimeDataConstructorInfo]
+  evidence_parameters : Array[RuntimeEvidenceParameter?]
+  type_expressions : Array[RuntimeTypeExpression]
+} derive(Eq, @debug.Debug)
+pub fn RuntimeMetadata::data_constructor_info(Self, @buslane.DataConId) -> RuntimeDataConstructorInfo?
+pub fn RuntimeMetadata::evidence_parameter(Self, RuntimeEvidenceId) -> RuntimeEvidenceParameter?
+pub fn RuntimeMetadata::intern_type_expression(Self, RuntimeTypeExpression) -> RuntimeTypeExpressionId
+pub fn RuntimeMetadata::parameter_type_expression(Self, RuntimeEvidenceId) -> RuntimeTypeExpressionId?
+pub fn RuntimeMetadata::type_expression(Self, RuntimeTypeExpressionId) -> RuntimeTypeExpression?
+pub fn RuntimeMetadata::type_info(Self, @buslane.TypeId) -> RuntimeDataInfo?
+pub fn RuntimeMetadata::types_representation_equivalent(Self, RuntimeType, RuntimeType) -> Bool
+pub fn RuntimeMetadata::value_info(Self, @buslane.ValueId) -> RuntimeValueInfo?
+
+pub(all) enum RuntimeNominalKind {
+  Data
+  OpaqueReference
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeScalarType {
+  Bool
+  I64
+  I32
+  Char
+  F64
+  F32
+  Byte
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RuntimeType {
+  Unit
+  Scalar(RuntimeScalarType)
+  ByteSequence
+  OpaqueReference(@buslane.TypeId)
+  Data(@buslane.TypeId, Array[RuntimeArgument])
+  Callable(Array[RuntimeType], RuntimeType)
+  Erased(RuntimeTypeExpressionId, RuntimeEvidence)
+  Forall(Array[RuntimeEvidenceParameter], RuntimeType)
+} derive(Eq, @debug.Debug)
+pub fn RuntimeType::layout(Self) -> RuntimeLayout?
+pub impl @prettyprinter.Pretty for RuntimeType
+
+pub(all) enum RuntimeTypeExpression {
+  Static(RuntimeType)
+  Parameter(RuntimeEvidenceId)
+  Apply(RuntimeTypeExpressionId, Array[RuntimeTypeExpressionId])
+  Lambda(Array[RuntimeEvidenceParameter], RuntimeTypeExpressionId)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct RuntimeTypeExpressionId {
+  index : Int
+} derive(Compare, Eq, Hash, @debug.Debug)
+
+pub(all) struct RuntimeValueInfo {
+  type_ : RuntimeType
 } derive(Eq, @debug.Debug)
 
 // Type aliases

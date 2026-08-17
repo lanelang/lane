@@ -1,6 +1,6 @@
 ///|
 priv struct ImageLowerer {
-  metadata : @buslane.MetadataRegistry
+  metadata : @anf.RuntimeMetadata
   externals : @buslane_lowering.BuslaneExternalMap
   globals : Array[GlobalBinding]
   instance_globals : Array[@bytecode.GlobalMetadata]
@@ -25,8 +25,8 @@ priv struct FunctionLowerer {
   temps : Array[TempBinding]
   mut environment : @vmcfg.ValueId?
   witnesses : Array[WitnessBinding]
-  mut substitutions : @buslane.TypeSubstitution
-  specialized_parameters : Array[@buslane.TypeParameterId]
+  mut substitutions : RuntimeSubstitution
+  specialized_parameters : Array[@anf.RuntimeEvidenceId]
 }
 
 ///|

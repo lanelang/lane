@@ -1,17 +1,17 @@
 ///|
 fn test_anf_program(
-  metadata : @buslane.MetadataRegistry,
+  _metadata : @buslane.MetadataRegistry,
   terms : Array[AnfTopTerm],
 ) -> AnfProgram {
   {
-    metadata,
-    terms,
-    projection_scale: {
-      source_generic_binders: 0,
-      runtime_generic_binders: 0,
-      source_type_applications: 0,
-      runtime_type_applications: 0,
+    metadata: {
+      values: [],
+      types: [],
+      data_constructors: [],
+      evidence_parameters: [],
+      type_expressions: [],
     },
+    terms,
   }
 }
 
@@ -90,7 +90,7 @@ test "simplify ANF aliases inside function and match scopes" {
     id: { value: 0 },
     source: Some(result),
     parameters: [parameter],
-    result_type: Primitive(I64),
+    result_type: Scalar(I64),
     body: Let(
       Value(id=local_alias, rhs=Atom(Ref(parameter))),
       Let(
@@ -99,11 +99,11 @@ test "simplify ANF aliases inside function and match scopes" {
           rhs=Match({
             scrutinee: Ref(local_alias),
             binder,
-            result_type: Primitive(I64),
+            result_type: Scalar(I64),
             alternatives: [
               {
                 alt_constructor: Default,
-                type_binders: [],
+                evidence_binders: [],
                 value_binders: [],
                 body: Atom(Ref(local_alias)),
               },
@@ -127,7 +127,7 @@ test "simplify ANF aliases inside function and match scopes" {
       #|          id: { value: 0 },
       #|          source: Some({ index: 3 }),
       #|          parameters: [{ index: 0 }],
-      #|          result_type: Primitive(I64),
+      #|          result_type: Scalar(I64),
       #|          body: Let(
       #|            Temp(
       #|              temp={ index: 0 },
@@ -135,11 +135,11 @@ test "simplify ANF aliases inside function and match scopes" {
       #|                {
       #|                  scrutinee: Ref({ index: 0 }),
       #|                  binder: { index: 2 },
-      #|                  result_type: Primitive(I64),
+      #|                  result_type: Scalar(I64),
       #|                  alternatives: [
       #|                    {
       #|                      alt_constructor: Default,
-      #|                      type_binders: [],
+      #|                      evidence_binders: [],
       #|                      value_binders: [],
       #|                      body: Atom(Ref({ index: 0 })),
       #|                    },

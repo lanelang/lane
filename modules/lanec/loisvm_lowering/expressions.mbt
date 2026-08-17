@@ -31,7 +31,8 @@ fn FunctionLowerer::lower_rhs(
 ) -> LocalValue raise LoisvmLoweringError {
   match rhs {
     Atom(atom) => self.lower_atom(atom)
-    TypeApply(callee~, arguments~) => self.lower_type_apply(callee, arguments)
+    ApplyEvidence(callee~, arguments~) =>
+      self.lower_evidence_apply(callee, arguments)
     Call(callee~, arguments~) => self.lower_call(callee, arguments)
     Construct(construct) => self.lower_construct(construct)
     Match(match_) => self.lower_match(match_)
@@ -48,7 +49,7 @@ fn FunctionLowerer::lower_atom(
     Ref(value) => self.find_value(value)
     Temp(temp) => self.find_temp(temp)
     Function(function) => self.lower_nested_function(function)
-    TypeLambda(type_parameters~, body~) => {
+    EvidenceLambda(parameters~, body~) => {
       let function = match extract_top_function(body) {
         Some(function) => function
         None =>
@@ -58,33 +59,34 @@ fn FunctionLowerer::lower_atom(
       }
       self.lower_nested_function_with_type(
         function,
-        Forall(type_parameters, self.image.anf_function_type(function)),
+        Forall(parameters, self.image.anf_function_type(function)),
       )
     }
   }
 }
 
 ///|
-fn FunctionLowerer::lower_type_apply(
+fn FunctionLowerer::lower_evidence_apply(
   self : FunctionLowerer,
   callee : @anf.AnfAtom,
-  arguments : Array[@buslane.GenericArgument],
+  arguments : Array[@anf.RuntimeArgument],
 ) -> LocalValue raise LoisvmLoweringError {
   match self.lower_atom(callee) {
-    Global(global) => TypeApplied(global, arguments)
-    Slot(callable, type_) => TypeAppliedCallable(callable, type_, arguments)
-    TypeApplied(global, applied) => TypeApplied(global, applied + arguments)
-    TypeAppliedCallable(callable, type_, applied) =>
-      TypeAppliedCallable(callable, type_, applied + arguments)
+    Global(global) => EvidenceApplied(global, arguments)
+    Slot(callable, type_) => EvidenceAppliedCallable(callable, type_, arguments)
+    EvidenceApplied(global, applied) =>
+      EvidenceApplied(global, applied + arguments)
+    EvidenceAppliedCallable(callable, type_, applied) =>
+      EvidenceAppliedCallable(callable, type_, applied + arguments)
     AdaptedCallable(adaptation) =>
-      TypeAppliedAdaptedCallable(adaptation, arguments)
-    TypeAppliedAdaptedCallable(adaptation, applied) =>
-      TypeAppliedAdaptedCallable(adaptation, applied + arguments)
+      EvidenceAppliedAdaptedCallable(adaptation, arguments)
+    EvidenceAppliedAdaptedCallable(adaptation, applied) =>
+      EvidenceAppliedAdaptedCallable(adaptation, applied + arguments)
     RecursiveFunction(_, _, _) as recursive => {
       guard self.materialize_local(recursive) is Slot(callable, type_) else {
         abort("recursive callable was not materialized")
       }
-      TypeAppliedCallable(callable, type_, arguments)
+      EvidenceAppliedCallable(callable, type_, arguments)
     }
     _ =>
       raise InvalidTypeApplication(
@@ -113,13 +115,13 @@ fn FunctionLowerer::lower_construct(
         data_constructor=construct.data_constructor,
       )
   }
-  let owner_substitutions = self.data_type_substitutions(
-    owner_info.parameters,
+  let owner_substitutions = RuntimeSubstitution::from_arguments(
+    owner_info.evidence_parameters,
     construct.type_arguments,
   )
-  let hidden_substitutions = self.data_type_substitutions(
-    info.hidden_type_parameters,
-    construct.hidden_witnesses,
+  let hidden_substitutions = RuntimeSubstitution::from_arguments(
+    info.hidden_evidence_parameters,
+    construct.hidden_arguments,
   )
   let substitutions = owner_substitutions.overlay(hidden_substitutions)
   if construct.payloads.length() != info.payload_types.length() {
@@ -130,16 +132,16 @@ fn FunctionLowerer::lower_construct(
     )
   }
   let fields = []
-  for parameter in info.hidden_type_parameters {
-    if self.image.requires_runtime_evidence(parameter) {
-      let type_ = required_type_substitution_argument(substitutions, parameter)
-      fields.push(self.runtime_evidence(parameter, type_))
+  for parameter in info.hidden_evidence_parameters {
+    guard substitutions.argument(parameter.id) is Some(argument) else {
+      raise InvalidTypeApplication(detail="missing hidden runtime evidence")
     }
+    fields.push(self.runtime_evidence(parameter, argument))
   }
   let witnesses = []
   for index, payload in construct.payloads {
     let formal_type = info.payload_types[index]
-    let actual_type = apply_type_substitution(formal_type, substitutions)
+    let actual_type = substitutions.apply_type(self.image.metadata, formal_type)
     let source = self.materialize_local(self.lower_atom(payload))
     let lowered = if self.image.runtime_type(formal_type) is Erased(_) {
       match source {
@@ -149,14 +151,9 @@ fn FunctionLowerer::lower_construct(
           Slot(slot, formal_type)
         }
         _ => {
-          let witness = self.layout_witness(actual_type)
+          let witness = self.layout_witness(runtime_type_evidence(actual_type))
           witnesses.push(witness)
-          Slot(
-            self.erase_value(
-              source, actual_type, formal_type, substitutions, witness,
-            ),
-            formal_type,
-          )
+          Slot(self.erase_value(source, actual_type, witness), formal_type)
         }
       }
     } else {
@@ -167,7 +164,7 @@ fn FunctionLowerer::lower_construct(
     let lowered = self.materialize_local(lowered)
     match lowered {
       Unit =>
-        if formal_type != Primitive(Unit) {
+        if formal_type != Unit {
           raise UnsupportedExpression(
             detail="non-Unit data field has no runtime representation",
           )
@@ -181,11 +178,7 @@ fn FunctionLowerer::lower_construct(
   }
   let shape = self.image.data_shape(construct.data_constructor, info)
   let layout = self.image.intern_layout(Data(shape))
-  let result_type = if owner_info.parameters.is_empty() {
-    @buslane.Type::Constructor(info.owner)
-  } else {
-    Apply(Constructor(info.owner), construct.type_arguments)
-  }
+  let result_type = @anf.RuntimeType::Data(info.owner, construct.type_arguments)
   let destination = self.fresh_slot(result_type)
   self.emit(MakeData(destination, shape, Immediate(layout), witnesses, fields))
   Slot(destination, result_type)
@@ -195,19 +188,17 @@ fn FunctionLowerer::lower_construct(
 fn ImageLowerer::data_shape(
   self : ImageLowerer,
   data_constructor : @buslane.DataConId,
-  info : @buslane.DataConInfo,
+  info : @anf.RuntimeDataConstructorInfo,
 ) -> @bytecode.ObjectShapeId raise LoisvmLoweringError {
   let members : Array[@bytecode.MemberSchema] = []
-  for parameter in info.hidden_type_parameters {
-    if self.requires_runtime_evidence(parameter) {
-      let metadata = self.runtime_evidence_metadata(parameter)
-      members.push({
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-        witness_ordinal: None,
-      })
-    }
+  for parameter in info.hidden_evidence_parameters {
+    let metadata = runtime_evidence_metadata(parameter)
+    members.push({
+      representation: metadata.representation,
+      cleanup: metadata.cleanup,
+      kind: metadata.kind,
+      witness_ordinal: None,
+    })
   }
   let mut witness_ordinal = 0
   for payload_type in info.payload_types {
@@ -219,7 +210,7 @@ fn ImageLowerer::data_shape(
         witness_ordinal: Some(witness_ordinal),
       })
       witness_ordinal += 1
-    } else if self.runtime_type(payload_type) is Concrete(Primitive(Unit)) {
+    } else if self.runtime_type(payload_type) is Concrete(Unit) {
       ()
     } else {
       let metadata = self.slot_metadata(payload_type)
@@ -303,43 +294,43 @@ fn FunctionLowerer::lower_literal(
   match literal {
     Unit => Unit
     Bool(value) => {
-      let type_ = @buslane.Type::Primitive(Bool)
+      let type_ = @anf.RuntimeType::Scalar(Bool)
       let slot = self.fresh_slot(type_)
       self.emit(ConstBool(slot, value))
       Slot(slot, type_)
     }
     I64(value) => {
-      let type_ = @buslane.Type::Primitive(I64)
+      let type_ = @anf.RuntimeType::Scalar(I64)
       let slot = self.fresh_slot(type_)
       self.emit(ConstI64(slot, value))
       Slot(slot, type_)
     }
     I32(value) => {
-      let type_ = @buslane.Type::Primitive(I32)
+      let type_ = @anf.RuntimeType::Scalar(I32)
       let slot = self.fresh_slot(type_)
       self.emit(ConstI32(slot, value))
       Slot(slot, type_)
     }
     F32(value) => {
-      let type_ = @buslane.Type::Primitive(F32)
+      let type_ = @anf.RuntimeType::Scalar(F32)
       let slot = self.fresh_slot(type_)
       self.emit(ConstF32(slot, value.reinterpret_as_int()))
       Slot(slot, type_)
     }
     Char(value) => {
-      let type_ = @buslane.Type::Primitive(Char)
+      let type_ = @anf.RuntimeType::Scalar(Char)
       let slot = self.fresh_slot(type_)
       self.emit(ConstChar(slot, value))
       Slot(slot, type_)
     }
     F64(value) => {
-      let type_ = @buslane.Type::Primitive(F64)
+      let type_ = @anf.RuntimeType::Scalar(F64)
       let slot = self.fresh_slot(type_)
       self.emit(ConstF64(slot, value.reinterpret_as_int64()))
       Slot(slot, type_)
     }
     String(value) => {
-      let type_ = @buslane.Type::Primitive(String)
+      let type_ = @anf.RuntimeType::ByteSequence
       let slot = self.fresh_slot(type_)
       let constant = self.image.intern_string(value)
       ignore(self.image.intern_layout(ByteSequence))

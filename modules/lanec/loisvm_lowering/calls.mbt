@@ -15,21 +15,21 @@ fn FunctionLowerer::lower_call(
       self.lower_direct_call(function, type_, lowered_arguments, None)
     RecursiveFunction(function, type_, environment) =>
       self.lower_direct_call(function, type_, lowered_arguments, environment)
-    TypeApplied(Function(function, type_), type_arguments) =>
+    EvidenceApplied(Function(function, type_), type_arguments) =>
       self.lower_generic_direct_call(
         function, type_, type_arguments, lowered_arguments,
       )
-    TypeAppliedCallable(callable, type_, type_arguments) =>
+    EvidenceAppliedCallable(callable, type_, type_arguments) =>
       self.lower_generic_value_call(
         callable, type_, type_arguments, lowered_arguments,
       )
     AdaptedCallable(adaptation) =>
       self.lower_adapted_callable_call(adaptation, [], lowered_arguments)
-    TypeAppliedAdaptedCallable(adaptation, type_arguments) =>
+    EvidenceAppliedAdaptedCallable(adaptation, type_arguments) =>
       self.lower_adapted_callable_call(
         adaptation, type_arguments, lowered_arguments,
       )
-    TypeApplied(_, _) =>
+    EvidenceApplied(_, _) =>
       raise InvalidTypeApplication(
         detail="type application target is not a generic function",
       )
@@ -78,11 +78,11 @@ fn FunctionLowerer::materialize_local(
       Slot(destination, type_)
     }
     AdaptedCallable(adaptation) => self.materialize_callable_adapter(adaptation)
-    TypeApplied(_, _) | TypeAppliedCallable(_, _, _) =>
+    EvidenceApplied(_, _) | EvidenceAppliedCallable(_, _, _) =>
       raise InvalidTypeApplication(
         detail="a type-applied callable must be called before materialization",
       )
-    TypeAppliedAdaptedCallable(_, _) =>
+    EvidenceAppliedAdaptedCallable(_, _) =>
       raise InvalidTypeApplication(
         detail="a type-applied callable must be called before materialization",
       )
@@ -94,7 +94,7 @@ fn FunctionLowerer::materialize_local(
 fn FunctionLowerer::lower_adapted_callable_call(
   self : FunctionLowerer,
   adaptation : DeferredCallableAdapter,
-  type_arguments : Array[@buslane.GenericArgument],
+  type_arguments : Array[@anf.RuntimeArgument],
   arguments : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
   let witness_count = self.witnesses.length()
@@ -118,10 +118,10 @@ fn FunctionLowerer::lower_adapted_callable_call(
   let substituted_arguments = type_arguments.map(argument => {
     self.substitute_generic_argument(argument)
   })
-  let target_substitutions = self.image.type_substitution(
+  let target_substitutions = RuntimeSubstitution::from_arguments(
     target_type_parameters, substituted_arguments,
   )
-  let source_substitutions = self.image.type_substitution(
+  let source_substitutions = RuntimeSubstitution::from_arguments(
     source_type_parameters, substituted_arguments,
   )
   let substitutions = contract.substitutions
@@ -133,7 +133,7 @@ fn FunctionLowerer::lower_adapted_callable_call(
     let target_parameter_type = target_parameter_types[target_index]
     let adapted = self.adapt_local_value_with_substitutions(
       arguments[target_index],
-      apply_type_substitution(target_parameter_type, substitutions),
+      substitutions.apply_type(self.image.metadata, target_parameter_type),
       source_parameter_type,
       substitutions,
     )
@@ -152,17 +152,20 @@ fn FunctionLowerer::lower_adapted_callable_call(
       witnesses.push(
         self.runtime_evidence(
           parameter,
-          required_type_substitution_argument(substitutions, parameter),
+          required_runtime_argument(substitutions, parameter.id),
         ),
       )
     }
   }
-  let actual_source_result = apply_type_substitution(
-    source_result_type, substitutions,
+  let actual_source_result = substitutions.apply_type(
+    self.image.metadata,
+    source_result_type,
   )
   let source_result = if self.image.runtime_type(source_result_type)
     is Erased(_) {
-    let witness = self.layout_witness(actual_source_result)
+    let witness = self.layout_witness(
+      runtime_type_evidence(actual_source_result),
+    )
     let slot = self.fresh_erased_slot(witness, Owned)
     (Some(slot), LocalValue::Slot(slot, source_result_type))
   } else {
@@ -174,7 +177,7 @@ fn FunctionLowerer::lower_adapted_callable_call(
   let result = self.adapt_local_value_with_substitutions(
     source_result.1,
     source_result_type,
-    apply_type_substitution(target_result_type, substitutions),
+    substitutions.apply_type(self.image.metadata, target_result_type),
     substitutions,
   )
   self.restore_witnesses(witness_count)
@@ -185,7 +188,7 @@ fn FunctionLowerer::lower_adapted_callable_call(
 fn FunctionLowerer::lower_value_call(
   self : FunctionLowerer,
   callable : @vmcfg.ValueId,
-  type_ : @buslane.Type,
+  type_ : @anf.RuntimeType,
   arguments : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
   let (parameters, parameter_types, result_type) = function_type_parts(type_)
@@ -204,7 +207,7 @@ fn FunctionLowerer::lower_value_call(
   self.adapt_local_value_with_substitutions(
     destination.1,
     result_type,
-    apply_type_substitution(result_type, self.substitutions),
+    self.substitutions.apply_type(self.image.metadata, result_type),
     self.substitutions,
   )
 }
@@ -213,8 +216,8 @@ fn FunctionLowerer::lower_value_call(
 fn FunctionLowerer::adapt_call_arguments(
   self : FunctionLowerer,
   arguments : Array[LocalValue],
-  parameter_types : Array[@buslane.Type],
-  substitutions : @buslane.TypeSubstitution,
+  parameter_types : Array[@anf.RuntimeType],
+  substitutions : RuntimeSubstitution,
 ) -> Array[@vmcfg.ValueId] raise LoisvmLoweringError {
   if parameter_types.length() != arguments.length() {
     raise InvalidTypeApplication(
@@ -248,8 +251,8 @@ fn FunctionLowerer::adapt_call_arguments(
 fn FunctionLowerer::lower_generic_direct_call(
   self : FunctionLowerer,
   function : @bytecode.FunctionId,
-  type_ : @buslane.Type,
-  arguments : Array[@buslane.GenericArgument],
+  type_ : @anf.RuntimeType,
+  arguments : Array[@anf.RuntimeArgument],
   values : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
   let (parameters, formal_parameters, formal_result) = function_type_parts(
@@ -275,13 +278,13 @@ fn FunctionLowerer::lower_generic_direct_call(
   let witnesses = []
   for parameter in parameters {
     if self.image.requires_runtime_evidence(parameter) {
-      let type_ = required_type_substitution_argument(substitutions, parameter)
-      witnesses.push(self.runtime_evidence(parameter, type_))
+      let argument = required_runtime_argument(substitutions, parameter.id)
+      witnesses.push(self.runtime_evidence(parameter, argument))
     }
   }
   let argument_slots = []
   for index, formal in formal_parameters {
-    let actual = apply_type_substitution(formal, substitutions)
+    let actual = substitutions.apply_type(self.image.metadata, formal)
     let adapted = self.materialize_local(
       self.adapt_local_value_with_substitutions(
         values[index],
@@ -297,16 +300,17 @@ fn FunctionLowerer::lower_generic_direct_call(
         raise UnsupportedExpression(detail="call argument is not materialized")
     }
   }
-  let actual_result = apply_type_substitution(formal_result, substitutions)
+  let actual_result = substitutions.apply_type(
+    self.image.metadata,
+    formal_result,
+  )
   if self.image.runtime_type(formal_result) is Erased(_) {
-    let witness = self.layout_witness(actual_result)
+    let witness = self.layout_witness(runtime_type_evidence(actual_result))
     let erased_result = self.fresh_erased_slot(witness, Owned)
     self.emit(
       CallDirect(function, None, witnesses, argument_slots, Some(erased_result)),
     )
-    self.unerase_value(
-      erased_result, formal_result, actual_result, substitutions,
-    )
+    self.unerase_value(erased_result, actual_result, substitutions)
   } else {
     let destination = self.fresh_optional_slot(formal_result)
     self.emit(
@@ -325,7 +329,7 @@ fn FunctionLowerer::lower_generic_direct_call(
 fn FunctionLowerer::lower_representation_specialized_call(
   self : FunctionLowerer,
   plan : RepresentationSpecializationPlan,
-  actual_result : @buslane.Type,
+  actual_result : @anf.RuntimeType,
   values : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
   if values.length() != plan.parameter_types.length() {
@@ -336,7 +340,7 @@ fn FunctionLowerer::lower_representation_specialized_call(
   let arguments = []
   for index, type_ in plan.parameter_types {
     match self.image.elaborate_runtime_representation(type_) {
-      Unit => ()
+      RuntimeUnit => ()
       Concrete(_, expected) => {
         guard self.materialize_local(values[index]) is Slot(value, _) else {
           raise RepresentationSpecializationInvariant(
@@ -353,7 +357,7 @@ fn FunctionLowerer::lower_representation_specialized_call(
         }
         arguments.push(value)
       }
-      Erased(_) =>
+      RuntimeErased(_) =>
         raise RepresentationSpecializationInvariant(
           detail="representation-specialized worker contains an erased parameter",
         )
@@ -368,8 +372,8 @@ fn FunctionLowerer::lower_representation_specialized_call(
 fn FunctionLowerer::lower_generic_value_call(
   self : FunctionLowerer,
   callable : @vmcfg.ValueId,
-  type_ : @buslane.Type,
-  arguments : Array[@buslane.GenericArgument],
+  type_ : @anf.RuntimeType,
+  arguments : Array[@anf.RuntimeArgument],
   values : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
   let (parameters, formal_parameters, formal_result) = function_type_parts(
@@ -384,13 +388,13 @@ fn FunctionLowerer::lower_generic_value_call(
   let witnesses = []
   for parameter in parameters {
     if self.image.requires_runtime_evidence(parameter) {
-      let type_ = required_type_substitution_argument(substitutions, parameter)
-      witnesses.push(self.runtime_evidence(parameter, type_))
+      let argument = required_runtime_argument(substitutions, parameter.id)
+      witnesses.push(self.runtime_evidence(parameter, argument))
     }
   }
   let argument_slots = []
   for index, formal in formal_parameters {
-    let actual = apply_type_substitution(formal, substitutions)
+    let actual = substitutions.apply_type(self.image.metadata, formal)
     let adapted = self.materialize_local(
       self.adapt_local_value_with_substitutions(
         values[index],
@@ -406,16 +410,17 @@ fn FunctionLowerer::lower_generic_value_call(
         raise UnsupportedExpression(detail="call argument is not materialized")
     }
   }
-  let actual_result = apply_type_substitution(formal_result, substitutions)
+  let actual_result = substitutions.apply_type(
+    self.image.metadata,
+    formal_result,
+  )
   if self.image.runtime_type(formal_result) is Erased(_) {
-    let witness = self.layout_witness(actual_result)
+    let witness = self.layout_witness(runtime_type_evidence(actual_result))
     let erased_result = self.fresh_erased_slot(witness, Owned)
     self.emit(
       CallValue(callable, witnesses, argument_slots, Some(erased_result)),
     )
-    self.unerase_value(
-      erased_result, formal_result, actual_result, substitutions,
-    )
+    self.unerase_value(erased_result, actual_result, substitutions)
   } else {
     let destination = self.fresh_optional_slot(formal_result)
     self.emit(CallValue(callable, witnesses, argument_slots, destination.0))
@@ -429,97 +434,45 @@ fn FunctionLowerer::lower_generic_value_call(
 }
 
 ///|
-fn apply_type_substitution(
-  type_ : @buslane.Type,
-  substitution : @buslane.TypeSubstitution,
-) -> @buslane.Type raise LoisvmLoweringError {
-  type_.try_substitute(substitution) catch {
-    error => raise type_substitution_error(error)
-  }
-}
-
-///|
-fn apply_generic_argument_substitution(
-  argument : @buslane.GenericArgument,
-  substitution : @buslane.TypeSubstitution,
-) -> @buslane.GenericArgument raise LoisvmLoweringError {
-  argument.try_substitute(substitution) catch {
-    error => raise type_substitution_error(error)
-  }
-}
-
-///|
-fn ImageLowerer::data_type_substitutions(
-  self : ImageLowerer,
-  parameters : Array[@buslane.TypeParameterId],
-  arguments : Array[@buslane.GenericArgument],
-) -> @buslane.TypeSubstitution raise LoisvmLoweringError {
-  self.type_substitution(parameters, arguments)
-}
-
-///|
-fn FunctionLowerer::data_type_substitutions(
-  self : FunctionLowerer,
-  parameters : Array[@buslane.TypeParameterId],
-  arguments : Array[@buslane.GenericArgument],
-) -> @buslane.TypeSubstitution raise LoisvmLoweringError {
-  self.image.data_type_substitutions(
-    parameters,
-    arguments.map(argument => self.substitute_generic_argument(argument)),
-  )
-}
 
 ///|
 fn FunctionLowerer::call_type_substitution(
   self : FunctionLowerer,
-  parameters : Array[@buslane.TypeParameterId],
-  arguments : Array[@buslane.GenericArgument],
-) -> @buslane.TypeSubstitution raise LoisvmLoweringError {
+  parameters : Array[@anf.RuntimeEvidenceParameter],
+  arguments : Array[@anf.RuntimeArgument],
+) -> RuntimeSubstitution raise LoisvmLoweringError {
   let arguments = arguments.map(argument => {
     self.substitute_generic_argument(argument)
   })
-  self.image.call_type_substitution(parameters, arguments)
+  self.substitutions.overlay(
+    RuntimeSubstitution::from_arguments(parameters, arguments),
+  )
 }
 
 ///|
 fn ImageLowerer::call_type_substitution(
-  self : ImageLowerer,
-  parameters : Array[@buslane.TypeParameterId],
-  arguments : Array[@buslane.GenericArgument],
-) -> @buslane.TypeSubstitution raise LoisvmLoweringError {
-  self.type_substitution(parameters, arguments)
+  _self : ImageLowerer,
+  parameters : Array[@anf.RuntimeEvidenceParameter],
+  arguments : Array[@anf.RuntimeArgument],
+) -> RuntimeSubstitution raise LoisvmLoweringError {
+  RuntimeSubstitution::from_arguments(parameters, arguments)
 }
 
 ///|
 fn FunctionLowerer::substitute_generic_argument(
   self : FunctionLowerer,
-  argument : @buslane.GenericArgument,
-) -> @buslane.GenericArgument raise LoisvmLoweringError {
-  apply_generic_argument_substitution(argument, self.substitutions)
+  argument : @anf.RuntimeArgument,
+) -> @anf.RuntimeArgument raise LoisvmLoweringError {
+  self.substitutions.apply_argument(self.image.metadata, argument)
 }
 
 ///|
-fn ImageLowerer::type_substitution(
-  self : ImageLowerer,
-  parameters : Array[@buslane.TypeParameterId],
-  arguments : Array[@buslane.GenericArgument],
-) -> @buslane.TypeSubstitution raise LoisvmLoweringError {
-  @buslane.TypeSubstitution::from_arguments(
-    self.metadata,
-    parameters,
-    arguments,
-  ) catch {
-    error => raise type_substitution_error(error)
-  }
-}
-
-///|
-fn required_type_substitution_argument(
-  substitution : @buslane.TypeSubstitution,
-  parameter : @buslane.TypeParameterId,
-) -> @buslane.Type raise LoisvmLoweringError {
-  match type_substitution_type_argument(substitution, parameter) {
-    Some(type_) => type_
+fn required_runtime_argument(
+  substitution : RuntimeSubstitution,
+  parameter : @anf.RuntimeEvidenceId,
+) -> @anf.RuntimeArgument raise LoisvmLoweringError {
+  match substitution.argument(parameter) {
+    Some(argument) => argument
     None =>
       raise InvalidTypeApplication(
         detail="type substitution does not bind \{Repr(parameter)}",
@@ -528,39 +481,10 @@ fn required_type_substitution_argument(
 }
 
 ///|
-fn type_substitution_type_argument(
-  substitution : @buslane.TypeSubstitution,
-  parameter : @buslane.TypeParameterId,
-) -> @buslane.Type? raise LoisvmLoweringError {
-  substitution.type_argument(parameter) catch {
-    error => raise type_substitution_error(error)
-  }
-}
-
-///|
-fn type_substitution_error(
-  error : @buslane.TypeSubstitutionError,
-) -> LoisvmLoweringError {
-  let detail = match error {
-    ArgumentCountMismatch(expected~, actual~) =>
-      "expected \{expected} generic arguments, got \{actual}"
-    MissingParameterMetadata(parameter~) =>
-      "type substitution metadata is missing for \{Repr(parameter)}"
-    ExpectedTypeArgument(parameter~) =>
-      "type substitution for \{Repr(parameter)} requires a type argument"
-    ExpectedEffectArgument(parameter~) =>
-      "type substitution for \{Repr(parameter)} requires an effect argument"
-    CapturedTypeParameter(parameter~, binder~) =>
-      "type substitution for \{Repr(parameter)} would be captured by \{Repr(binder)}"
-  }
-  InvalidTypeApplication(detail~)
-}
-
-///|
 fn FunctionLowerer::lower_direct_call(
   self : FunctionLowerer,
   function : @bytecode.FunctionId,
-  type_ : @buslane.Type,
+  type_ : @anf.RuntimeType,
   arguments : Array[LocalValue],
   environment : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
@@ -582,7 +506,7 @@ fn FunctionLowerer::lower_direct_call(
   self.adapt_local_value_with_substitutions(
     destination.1,
     result_type,
-    apply_type_substitution(result_type, self.substitutions),
+    self.substitutions.apply_type(self.image.metadata, result_type),
     self.substitutions,
   )
 }
@@ -590,11 +514,11 @@ fn FunctionLowerer::lower_direct_call(
 ///|
 fn FunctionLowerer::lower_intrinsic(
   self : FunctionLowerer,
-  contract : @buslane_lowering.BuslaneIntrinsicFunctionContract,
+  contract : RuntimeIntrinsicFunctionContract,
   arguments : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
-  let intrinsic = contract.intrinsic()
-  let result_type = contract.result_type()
+  let intrinsic = contract.intrinsic
+  let result_type = contract.result
   match (intrinsic, arguments) {
     (CharToI32 | I32ToChar | StringToBytes | BytesToString, [Slot(source, _)]) =>
       return Slot(source, result_type)

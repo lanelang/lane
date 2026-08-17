@@ -3,30 +3,30 @@ priv struct GenericFunctionDefinition {
   value : @buslane.ValueId
   source_function : @bytecode.FunctionId
   function : @anf.AnfFunction
-  type_parameters : Array[@buslane.TypeParameterId]
-  parameter_types : Array[@buslane.Type]
-  result_type : @buslane.Type
+  evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
+  parameter_types : Array[@anf.RuntimeType]
+  result_type : @anf.RuntimeType
 }
 
 ///|
 priv struct RepresentationDemand {
   definition : Int
   key : RepresentationSpecializationKey
-  substitutions : @buslane.TypeSubstitution
-  parameter_types : Array[@buslane.Type]
-  result_type : @buslane.Type
+  substitutions : RuntimeSubstitution
+  parameter_types : Array[@anf.RuntimeType]
+  result_type : @anf.RuntimeType
 }
 
 ///|
 priv struct DirectGenericCall {
   target : @buslane.ValueId
-  arguments : Array[@buslane.GenericArgument]
+  arguments : Array[@anf.RuntimeArgument]
 }
 
 ///|
 priv struct DirectCalleeFact {
   target : @buslane.ValueId
-  arguments : Array[@buslane.GenericArgument]
+  arguments : Array[@anf.RuntimeArgument]
 }
 
 ///|
@@ -42,7 +42,7 @@ fn ImageLowerer::plan_representation_specializations(
 ) -> Unit raise LoisvmLoweringError {
   let definitions = self.generic_function_definitions(program)
   guard !definitions.is_empty() else { return }
-  let adjacency = generic_call_adjacency(definitions)
+  let adjacency = generic_call_adjacency(definitions, self.metadata)
   let sccs = generic_call_sccs(adjacency)
   let seeds : Array[Array[RepresentationDemand]] = Array::makei(
     definitions.length(),
@@ -81,7 +81,7 @@ fn ImageLowerer::plan_representation_specializations(
           key: demand.key,
           function: definition.function,
           substitutions: demand.substitutions,
-          type_parameters: definition.type_parameters,
+          evidence_parameters: definition.evidence_parameters,
           parameter_types: demand.parameter_types,
           result_type: demand.result_type,
         }
@@ -140,7 +140,7 @@ fn ImageLowerer::push_generic_function_definition(
       value,
       source_function,
       function,
-      type_parameters,
+      evidence_parameters: type_parameters,
       parameter_types,
       result_type,
     })
@@ -154,7 +154,12 @@ fn ImageLowerer::collect_representation_seeds(
   seeds : Array[Array[RepresentationDemand]],
   expression : @anf.AnfExpr,
 ) -> Unit raise LoisvmLoweringError {
-  for call in collect_direct_generic_calls(expression, TypeSubstitution()) {
+  for
+    call in collect_direct_generic_calls(
+      expression,
+      RuntimeSubstitution::new(),
+      self.metadata,
+    ) {
     if self.representation_demand(definitions, call) is Some(demand) {
       push_representation_demand(seeds[demand.definition], demand)
     }
@@ -164,12 +169,14 @@ fn ImageLowerer::collect_representation_seeds(
 ///|
 fn collect_direct_generic_calls(
   expression : @anf.AnfExpr,
-  substitutions : @buslane.TypeSubstitution,
+  substitutions : RuntimeSubstitution,
+  metadata : @anf.RuntimeMetadata,
 ) -> Array[DirectGenericCall] raise LoisvmLoweringError {
   let calls = []
   collect_calls_in_expression(
     expression,
     substitutions,
+    metadata,
     { values: [], temps: [] },
     calls,
   )
@@ -179,32 +186,53 @@ fn collect_direct_generic_calls(
 ///|
 fn collect_calls_in_expression(
   expression : @anf.AnfExpr,
-  substitutions : @buslane.TypeSubstitution,
+  substitutions : RuntimeSubstitution,
+  metadata : @anf.RuntimeMetadata,
   bindings : CalleeBindingFacts,
   calls : Array[DirectGenericCall],
 ) -> Unit raise LoisvmLoweringError {
   match expression {
-    Atom(atom) => collect_calls_in_atom(atom, substitutions, bindings, calls)
+    Atom(atom) =>
+      collect_calls_in_atom(atom, substitutions, metadata, bindings, calls)
     Let(binding, body) => {
-      collect_calls_in_rhs(binding.rhs(), substitutions, bindings, calls)
+      collect_calls_in_rhs(
+        binding.rhs(),
+        substitutions,
+        metadata,
+        bindings,
+        calls,
+      )
       let nested = {
         values: bindings.values.copy(),
         temps: bindings.temps.copy(),
       }
-      if direct_callee_from_rhs(binding.rhs(), substitutions, bindings)
+      if direct_callee_from_rhs(
+          binding.rhs(),
+          substitutions,
+          metadata,
+          bindings,
+        )
         is Some(fact) {
         match binding {
           Value(id~, ..) => nested.values.push((id, fact))
           Temp(temp~, ..) => nested.temps.push((temp, fact))
         }
       }
-      collect_calls_in_expression(body, substitutions, nested, calls)
+      collect_calls_in_expression(body, substitutions, metadata, nested, calls)
     }
     LetRec(recursive, body) => {
       for binding in recursive {
-        collect_calls_in_atom(binding.rhs, substitutions, bindings, calls)
+        collect_calls_in_atom(
+          binding.rhs,
+          substitutions,
+          metadata,
+          bindings,
+          calls,
+        )
       }
-      collect_calls_in_expression(body, substitutions, bindings, calls)
+      collect_calls_in_expression(
+        body, substitutions, metadata, bindings, calls,
+      )
     }
   }
 }
@@ -212,18 +240,22 @@ fn collect_calls_in_expression(
 ///|
 fn collect_calls_in_rhs(
   rhs : @anf.AnfRhs,
-  substitutions : @buslane.TypeSubstitution,
+  substitutions : RuntimeSubstitution,
+  metadata : @anf.RuntimeMetadata,
   bindings : CalleeBindingFacts,
   calls : Array[DirectGenericCall],
 ) -> Unit raise LoisvmLoweringError {
   match rhs {
-    Atom(atom) => collect_calls_in_atom(atom, substitutions, bindings, calls)
-    TypeApply(callee~, ..) =>
-      collect_calls_in_atom(callee, substitutions, bindings, calls)
+    Atom(atom) =>
+      collect_calls_in_atom(atom, substitutions, metadata, bindings, calls)
+    ApplyEvidence(callee~, ..) =>
+      collect_calls_in_atom(callee, substitutions, metadata, bindings, calls)
     Call(callee~, arguments~) => {
-      collect_calls_in_atom(callee, substitutions, bindings, calls)
+      collect_calls_in_atom(callee, substitutions, metadata, bindings, calls)
       for argument in arguments {
-        collect_calls_in_atom(argument, substitutions, bindings, calls)
+        collect_calls_in_atom(
+          argument, substitutions, metadata, bindings, calls,
+        )
       }
       if direct_callee_from_atom(callee, bindings) is Some(fact) &&
         !fact.arguments.is_empty() {
@@ -232,14 +264,21 @@ fn collect_calls_in_rhs(
     }
     Construct(construct) =>
       for payload in construct.payloads {
-        collect_calls_in_atom(payload, substitutions, bindings, calls)
+        collect_calls_in_atom(payload, substitutions, metadata, bindings, calls)
       }
     Match(match_) => {
-      collect_calls_in_atom(match_.scrutinee, substitutions, bindings, calls)
+      collect_calls_in_atom(
+        match_.scrutinee,
+        substitutions,
+        metadata,
+        bindings,
+        calls,
+      )
       for alternative in match_.alternatives {
         collect_calls_in_expression(
           alternative.body,
           substitutions,
+          metadata,
           bindings,
           calls,
         )
@@ -251,15 +290,24 @@ fn collect_calls_in_rhs(
 ///|
 fn collect_calls_in_atom(
   atom : @anf.AnfAtom,
-  substitutions : @buslane.TypeSubstitution,
+  substitutions : RuntimeSubstitution,
+  metadata : @anf.RuntimeMetadata,
   bindings : CalleeBindingFacts,
   calls : Array[DirectGenericCall],
 ) -> Unit raise LoisvmLoweringError {
   match atom {
     Function(function) =>
-      collect_calls_in_expression(function.body, substitutions, bindings, calls)
-    TypeLambda(body~, ..) =>
-      collect_calls_in_expression(body, substitutions, bindings, calls)
+      collect_calls_in_expression(
+        function.body,
+        substitutions,
+        metadata,
+        bindings,
+        calls,
+      )
+    EvidenceLambda(body~, ..) =>
+      collect_calls_in_expression(
+        body, substitutions, metadata, bindings, calls,
+      )
     Literal(_) | Ref(_) | Temp(_) => ()
   }
 }
@@ -267,19 +315,20 @@ fn collect_calls_in_atom(
 ///|
 fn direct_callee_from_rhs(
   rhs : @anf.AnfRhs,
-  substitutions : @buslane.TypeSubstitution,
+  substitutions : RuntimeSubstitution,
+  metadata : @anf.RuntimeMetadata,
   bindings : CalleeBindingFacts,
 ) -> DirectCalleeFact? raise LoisvmLoweringError {
   match rhs {
     Atom(atom) => direct_callee_from_atom(atom, bindings)
-    TypeApply(callee~, arguments~) =>
+    ApplyEvidence(callee~, arguments~) =>
       match direct_callee_from_atom(callee, bindings) {
         Some(fact) =>
           Some({
             ..fact,
             arguments: fact.arguments +
             arguments.map(argument => {
-              apply_generic_argument_substitution(argument, substitutions)
+              substitutions.apply_argument(metadata, argument)
             }),
           })
         None => None
@@ -300,7 +349,7 @@ fn direct_callee_from_atom(
         None => Some({ target: value, arguments: [] })
       }
     Temp(temp) => find_temp_callee(bindings.temps, temp)
-    Literal(_) | Function(_) | TypeLambda(_) => None
+    Literal(_) | Function(_) | EvidenceLambda(_) => None
   }
 }
 
@@ -346,13 +395,15 @@ fn find_generic_definition(
 ///|
 fn generic_call_adjacency(
   definitions : Array[GenericFunctionDefinition],
+  metadata : @anf.RuntimeMetadata,
 ) -> Array[Array[Int]] raise LoisvmLoweringError {
   Array::makei(definitions.length(), index => {
     let adjacent = []
     for
       call in collect_direct_generic_calls(
         definitions[index].function.body,
-        TypeSubstitution(),
+        RuntimeSubstitution::new(),
+        metadata,
       ) {
       if find_generic_definition(definitions, call.target) is Some(target) &&
         !adjacent.contains(target) {
@@ -403,7 +454,7 @@ fn ImageLowerer::representation_demand(
   let generic = definitions[definition]
   guard self.representation_specialization_key(
       generic.source_function,
-      generic.type_parameters,
+      generic.evidence_parameters,
       generic.parameter_types,
       generic.result_type,
       call.arguments,
@@ -418,20 +469,17 @@ fn ImageLowerer::representation_demand(
 fn ImageLowerer::representation_specialization_key(
   self : ImageLowerer,
   source_function : @bytecode.FunctionId,
-  type_parameters : Array[@buslane.TypeParameterId],
-  formal_parameters : Array[@buslane.Type],
-  formal_result : @buslane.Type,
-  arguments : Array[@buslane.GenericArgument],
+  type_parameters : Array[@anf.RuntimeEvidenceParameter],
+  formal_parameters : Array[@anf.RuntimeType],
+  formal_result : @anf.RuntimeType,
+  arguments : Array[@anf.RuntimeArgument],
 ) -> (
   RepresentationSpecializationKey,
-  @buslane.TypeSubstitution,
-  Array[@buslane.Type],
-  @buslane.Type,
+  RuntimeSubstitution,
+  Array[@anf.RuntimeType],
+  @anf.RuntimeType,
 )? raise LoisvmLoweringError {
   guard arguments.length() == type_parameters.length() &&
-    type_parameters.all(parameter => {
-      self.metadata.type_parameter_info(parameter) is Some(_)
-    }) &&
     arguments.all(is_closed_generic_argument) else {
     return None
   }
@@ -441,26 +489,20 @@ fn ImageLowerer::representation_specialization_key(
   }
   let substitutions = self.call_type_substitution(type_parameters, arguments)
   let parameter_types = formal_parameters.map(type_ => {
-    apply_type_substitution(type_, substitutions)
+    substitutions.apply_type(self.metadata, type_)
   })
-  let result_type = apply_type_substitution(formal_result, substitutions)
+  let result_type = substitutions.apply_type(self.metadata, formal_result)
   guard parameter_types.all(is_closed_type) && is_closed_type(result_type) else {
     return None
   }
   let evidence = []
   for index, parameter in type_parameters {
-    guard self.requires_runtime_evidence(parameter) else { continue }
-    guard arguments[index] is TypeArgument(argument) else { return None }
-    let kind = match self.metadata.type_parameter_info(parameter) {
-      Some(info) => info.kind
-      None if parameter.index < 0 => Type
-      None => return None
+    guard parameter.arity == 0 else { return None }
+    guard substitutions.argument_type(self.metadata, arguments[index])
+      is Some(argument_type) else {
+      return None
     }
-    match kind {
-      Type => evidence.push(self.canonical_runtime_type_key(argument))
-      Function(_, Type) => return None
-      _ => return None
-    }
+    evidence.push(self.canonical_runtime_type_key(argument_type))
   }
   let parameters = []
   for type_ in parameter_types {
@@ -484,11 +526,11 @@ fn ImageLowerer::representation_specialization_key(
 fn ImageLowerer::representation_specialization(
   self : ImageLowerer,
   source_function : @bytecode.FunctionId,
-  type_parameters : Array[@buslane.TypeParameterId],
-  formal_parameters : Array[@buslane.Type],
-  formal_result : @buslane.Type,
-  arguments : Array[@buslane.GenericArgument],
-) -> (RepresentationSpecializationPlan, @buslane.Type)? raise LoisvmLoweringError {
+  type_parameters : Array[@anf.RuntimeEvidenceParameter],
+  formal_parameters : Array[@anf.RuntimeType],
+  formal_result : @anf.RuntimeType,
+  arguments : Array[@anf.RuntimeArgument],
+) -> (RepresentationSpecializationPlan, @anf.RuntimeType)? raise LoisvmLoweringError {
   guard self.representation_specialization_key(
       source_function, type_parameters, formal_parameters, formal_result, arguments,
     )
@@ -506,28 +548,28 @@ fn ImageLowerer::representation_specialization(
 ///|
 fn ImageLowerer::canonical_runtime_type_key(
   self : ImageLowerer,
-  type_ : @buslane.Type,
+  type_ : @anf.RuntimeType,
 ) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
-  self.canonical_runtime_type_key_under(type_, TypeSubstitution())
+  self.canonical_runtime_type_key_under(type_, RuntimeSubstitution::new())
 }
 
 ///|
 fn ImageLowerer::canonical_runtime_type_key_under(
   self : ImageLowerer,
-  type_ : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
+  type_ : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
 ) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
   match self.elaborate_runtime_representation(type_) {
-    Unit => Unit
-    Erased(_) =>
+    RuntimeUnit => Unit
+    RuntimeErased(_) =>
       Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue })
-    Concrete(Function(_, _, _) | Forall(_, _) as type_, _) =>
+    Concrete(Callable(_, _) | Forall(_, _) as type_, _) =>
       Callable(self.canonical_callable_abi_under(type_, substitutions))
     Concrete(type_, _) => {
-      let type_ = apply_type_substitution(type_, substitutions)
+      let type_ = substitutions.apply_type(self.metadata, type_)
       match self.elaborate_runtime_representation(type_) {
-        Unit => Unit
-        Erased(_) =>
+        RuntimeUnit => Unit
+        RuntimeErased(_) =>
           Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue })
         Concrete(type_, metadata) =>
           if metadata.kind is CallableValue {
@@ -547,22 +589,22 @@ fn ImageLowerer::canonical_runtime_type_key_under(
 ///|
 fn ImageLowerer::canonical_callable_abi(
   self : ImageLowerer,
-  type_ : @buslane.Type,
+  type_ : @anf.RuntimeType,
 ) -> CanonicalCallableAbi raise LoisvmLoweringError {
-  self.canonical_callable_abi_under(type_, TypeSubstitution())
+  self.canonical_callable_abi_under(type_, RuntimeSubstitution::new())
 }
 
 ///|
 fn ImageLowerer::canonical_callable_abi_under(
   self : ImageLowerer,
-  type_ : @buslane.Type,
-  substitutions : @buslane.TypeSubstitution,
+  type_ : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
 ) -> CanonicalCallableAbi raise LoisvmLoweringError {
   let (type_parameters, parameters, result) = function_type_parts(type_)
   let witnesses : Array[@bytecode.ValueAbi] = []
   for parameter in type_parameters {
     if self.requires_runtime_evidence(parameter) {
-      let metadata = self.runtime_evidence_metadata(parameter)
+      let metadata = runtime_evidence_metadata(parameter)
       witnesses.push({
         representation: metadata.representation,
         cleanup: metadata.cleanup,
@@ -585,62 +627,51 @@ fn ImageLowerer::canonical_callable_abi_under(
 }
 
 ///|
-fn is_closed_generic_argument(argument : @buslane.GenericArgument) -> Bool {
-  match argument {
-    TypeArgument(type_) => is_closed_type(type_)
-    EffectArgument(effect) => is_closed_effect(effect, [])
-  }
+fn is_closed_generic_argument(argument : @anf.RuntimeArgument) -> Bool {
+  is_closed_evidence(argument.evidence, [])
 }
 
 ///|
-fn is_closed_type(type_ : @buslane.Type) -> Bool {
+fn is_closed_type(type_ : @anf.RuntimeType) -> Bool {
   is_closed_type_with_bound(type_, [])
 }
 
 ///|
 fn is_closed_type_with_bound(
-  type_ : @buslane.Type,
-  bound : Array[@buslane.TypeParameterId],
+  type_ : @anf.RuntimeType,
+  bound : Array[@anf.RuntimeEvidenceId],
 ) -> Bool {
   match type_ {
-    Primitive(_) | Constructor(_) => true
-    Parameter(parameter) => bound.contains(parameter)
-    Apply(callee, arguments) =>
-      is_closed_type_with_bound(callee, bound) &&
-      arguments.all(argument => {
-        match argument {
-          TypeArgument(type_) => is_closed_type_with_bound(type_, bound)
-          EffectArgument(effect) => is_closed_effect(effect, bound)
-        }
-      })
-    TypeLambda(parameters, body) | Forall(parameters, body) => {
+    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) => true
+    Erased(_, evidence) => is_closed_evidence(evidence, bound)
+    Data(_, arguments) => arguments.all(is_closed_generic_argument)
+    Forall(parameters, body) => {
       let nested = bound.copy()
-      nested.append(parameters)
+      nested.append(parameters.map(parameter => parameter.id))
       is_closed_type_with_bound(body, nested)
     }
-    Function(parameters, result, effect) =>
+    Callable(parameters, result) =>
       parameters.all(type_ => is_closed_type_with_bound(type_, bound)) &&
-      is_closed_type_with_bound(result, bound) &&
-      is_closed_effect(effect, bound)
+      is_closed_type_with_bound(result, bound)
   }
 }
 
 ///|
-fn is_closed_effect(
-  effect : @buslane.Effect,
-  bound : Array[@buslane.TypeParameterId],
+fn is_closed_evidence(
+  evidence : @anf.RuntimeEvidence,
+  bound : Array[@anf.RuntimeEvidenceId],
 ) -> Bool {
-  match effect {
-    Empty | Builtin(_) => true
+  match evidence {
+    Static(_) => true
     Parameter(parameter) => bound.contains(parameter)
-    Singleton(_, arguments) =>
-      arguments.all(argument => {
-        match argument {
-          TypeArgument(type_) => is_closed_type_with_bound(type_, bound)
-          EffectArgument(effect) => is_closed_effect(effect, bound)
-        }
-      })
-    Union(effects) => effects.all(effect => is_closed_effect(effect, bound))
+    Apply(callee, arguments) =>
+      is_closed_evidence(callee, bound) &&
+      arguments.all(argument => is_closed_evidence(argument, bound))
+    Lambda(parameters, body) => {
+      let nested = bound.copy()
+      nested.append(parameters.map(parameter => parameter.id))
+      is_closed_evidence(body, nested)
+    }
   }
 }
 
@@ -740,6 +771,7 @@ fn ImageLowerer::recursive_scc_demands_are_finite(
         call in collect_direct_generic_calls(
           definitions[definition].function.body,
           demand.substitutions,
+          self.metadata,
         ) {
         guard find_generic_definition(definitions, call.target) is Some(target) &&
           sccs[target] == representative else {
@@ -768,6 +800,7 @@ fn ImageLowerer::propagate_representation_demands(
     call in collect_direct_generic_calls(
       definitions[demand.definition].function.body,
       demand.substitutions,
+      self.metadata,
     ) {
     guard self.representation_demand(definitions, call) is Some(required) &&
       sccs[required.definition] != source_scc else {
@@ -792,6 +825,6 @@ fn ImageLowerer::lower_representation_worker(
     None,
     [],
     plan.substitutions,
-    plan.type_parameters,
+    plan.evidence_parameters.map(parameter => parameter.id),
   )
 }

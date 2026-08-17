@@ -135,7 +135,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       match observed {
         Anf(program) => {
           let observed = anf_observation(program)
-          functions.observe_anf(program.metadata(), observed.functions)
+          functions.observe_anf(executable.program.metadata, observed.functions)
           stages.complete(Anf, render_anf_code(program), [], observed.scale)
         }
         InitialVmcfg(image, provenance) => {

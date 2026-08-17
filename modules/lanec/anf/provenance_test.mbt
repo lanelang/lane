@@ -49,7 +49,7 @@ test "ANF assigns stable identities and preserves binding provenance" {
       #|              id: { value: 0 },
       #|              source: Some({ index: 0 }),
       #|              parameters: [],
-      #|              result_type: Primitive(I64),
+      #|              result_type: Scalar(I64),
       #|              body: Let(
       #|                Value(
       #|                  id={ index: 1 },
@@ -59,7 +59,7 @@ test "ANF assigns stable identities and preserves binding provenance" {
       #|                        id: { value: 1 },
       #|                        source: Some({ index: 1 }),
       #|                        parameters: [],
-      #|                        result_type: Primitive(I64),
+      #|                        result_type: Scalar(I64),
       #|                        body: Atom(Literal(I64(42))),
       #|                      },
       #|                    ),
