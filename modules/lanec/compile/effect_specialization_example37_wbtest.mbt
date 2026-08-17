@@ -17,6 +17,85 @@ test "real example 45 lifted snapshot verifies" {
 }
 
 ///|
+test "real example 37 shares escaped callable adapter workers" {
+  let fixture_path = "examples/valid/37_coroutine_scheduler.lane"
+  let result = compile({
+    root: {
+      source_id: fixture_path,
+      text: @fs.read_file_to_string("../../\{fixture_path}", encoding="utf8"),
+    },
+    libraries: effect_example_test_libraries(),
+  })
+  guard result is Succeeded(compiled, warnings) else {
+    abort("expected fixture to compile: \{Repr(result)}")
+  }
+  assert_eq(warnings.diagnostics(), [])
+  let mut answer_entry = None
+  for entry in compiled.entries() {
+    if entry.name() == "answer" {
+      answer_entry = Some(entry)
+    }
+  }
+  guard answer_entry is Some(entry) else {
+    abort("expected fixture to expose answer")
+  }
+  guard compiled.elaborate_entry(
+      entry,
+      @executable.ExecutionProfile::new(
+        builtin_effects=[Io, Panic],
+        supports_external_effects=true,
+      ),
+    )
+    is Ok(executable) else {
+    abort("expected executable elaboration to complete")
+  }
+  let mut adapter_workers = 0
+  let mut adapter_materializations = 0
+  let mut finalized_adapter_workers = 0
+  let lowered = @loisvm_lowering.lower_executable_program_to_bytecode_observed(
+    executable,
+    stage => {
+      match stage {
+        InitialVmcfg(image, provenance) => {
+          let worker_ids = []
+          for item in provenance {
+            if item.origins.any(origin => origin is CallableAdapter) {
+              worker_ids.push(item.function)
+            }
+          }
+          adapter_workers = worker_ids.length()
+          for entry in image.functions {
+            guard entry is Body(body) else { continue }
+            for block in body.blocks {
+              for instruction in block.instructions {
+                if instruction is MakeClosure(_, function, _) &&
+                  worker_ids.contains(function) {
+                  adapter_materializations += 1
+                }
+              }
+            }
+          }
+        }
+        FinalBytecode(_, provenance) =>
+          for item in provenance {
+            if item.origins.any(origin => origin is CallableAdapter) {
+              finalized_adapter_workers += 1
+            }
+          }
+        Anf(_) => ()
+      }
+    },
+  )
+  guard lowered is Ok(_) else {
+    abort("expected LoisVM lowering to complete: \{Repr(lowered)}")
+  }
+  assert_eq(
+    (adapter_workers, adapter_materializations, finalized_adapter_workers),
+    (17, 23, 17),
+  )
+}
+
+///|
 fn lifted_fixture_diagnostics(
   repository_root : String,
   fixture_path : String,

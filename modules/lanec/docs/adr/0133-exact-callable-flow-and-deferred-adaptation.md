@@ -27,17 +27,21 @@ types, exact parameter alignment, final substitution, and captured witnesses.
 Calling that value fuses argument conversion, the source call, and result
 conversion directly into the caller. Applying type arguments preserves the
 same structural value. Only an operation that requires an ordinary first-class
-callable slot materializes the canonical adapter plan, environment, and
-closure.
+callable slot materializes an environment and closure. Before allocating an
+adapter FunctionId, lowering projects the validated conversion into one
+Callable Adapter Recipe containing only its runtime ABIs, physical parameter
+alignment, evidence sources, concrete layout recipes, nested callable
+conversions, and result operation. Equal recipes share one worker while each
+materialization site supplies its own captures.
 
 Adapter alignment also proves whether the source and target callable contracts
 are definitionally aligned after substitution and differ only by omitted Unit
 positions. Such a conversion reuses the original callable bits; physical ABI
 equality alone is insufficient because equal-width values may have different
-source semantics. For adapters that must be materialized, function-table
-canonicalization computes exact structural equivalence, including recursive
-references to other adapters, and gives each equivalence class one physical
-worker. Every materialization site retains its own environment and witnesses.
+source semantics. For adapters that must be materialized, the recipe is their
+sole identity. Function-table processing performs reachability, Runtime Import
+deduplication, stable remapping, and provenance remapping; it does not inspect
+VM CFG bodies to rediscover adapter equivalence.
 
 Callable-flow analysis is the sole producer of callable target and environment
 facts. Callable adapter alignment is the sole producer of the deferred
@@ -57,8 +61,8 @@ layout equality, or source effect syntax.
   closure, or callable-table entry.
 - Definitionally aligned adapters whose runtime ABI already agrees add no
   wrapper, including target-only Unit parameters.
-- Alpha-renamed or recursively equivalent materialized adapter contracts share
-  one physical worker and preserve all contributing provenance.
+- Alpha-renamed materialized adapter contracts with the same runtime recipe
+  share one physical worker before VM CFG construction.
 - Escaping adapters retain the existing first-class callable semantics through
   the canonical materialization path.
 - This decision does not specialize arbitrary generic function bodies by

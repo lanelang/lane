@@ -288,6 +288,15 @@ Direct invocation fuses the conversion into the call; only first-class escape
 materializes an adapter function, environment, and closure.
 _Avoid_: eager adapter allocation, runtime-layout-only type alignment
 
+**Callable Adapter Recipe**:
+The canonical lowering-owned identity of one materialized callable conversion,
+containing its source and target runtime ABIs, physical parameter alignment,
+evidence sources, concrete layout recipes, nested callable conversions, and
+result operation. The recipe is interned before its adapter FunctionId is
+allocated; each materialization site supplies its own captured values to the
+one worker selected by that recipe.
+_Avoid_: source-type spelling key, VM CFG body equivalence, call-site worker allocation
+
 **Runtime Representation Specialization Plan**:
 The immutable, demand-driven plan mapping one original generic function and one
 canonical runtime ABI key to at most one concrete representation worker. It

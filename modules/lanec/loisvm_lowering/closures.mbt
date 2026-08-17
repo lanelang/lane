@@ -175,7 +175,7 @@ fn FunctionLowerer::captured_runtime_parameters(
       | RecursiveFunction(_, type_, _)
       | TypeAppliedCallable(_, type_, _) => types.push(type_)
       AdaptedCallable(adaptation) | TypeAppliedAdaptedCallable(adaptation, _) =>
-        types.push(adaptation.target_type)
+        types.push(adaptation.contract.target_type)
       Global(_) | Unit | TypeApplied(_, _) => ()
     }
   }

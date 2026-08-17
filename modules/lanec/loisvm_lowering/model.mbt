@@ -194,27 +194,81 @@ priv struct IntrinsicWrapperPlan {
 #warnings("-unused_value")
 priv struct CallableAdapterPlan {
   function : @bytecode.FunctionId
+  contract : CallableAdapterContract
+  environment_shape : @bytecode.ObjectShapeId
+} derive(Debug)
+
+///|
+priv struct CallableAdapterContract {
+  recipe : CallableAdapterRecipe
   source_type : @buslane.Type
   target_type : @buslane.Type
   source_parameter_targets : Array[Int]
   substitutions : @buslane.TypeSubstitution
   captured_parameters : Array[@buslane.TypeParameterId]
-  environment_shape : @bytecode.ObjectShapeId
 } derive(Debug)
+
+///|
+priv enum CallableAdapterEvidenceRecipe {
+  Input(Int)
+  Capture(Int)
+  Apply(CallableAdapterEvidenceRecipe, Array[CallableAdapterEvidenceRecipe])
+  LayoutConstructor(@buslane.Type)
+  Static(@bytecode.LayoutRecipe)
+} derive(Debug, Eq)
+
+///|
+priv enum CallableAdapterValueRecipe {
+  Unit
+  Erased(CallableAdapterEvidenceRecipe)
+  Concrete(CanonicalRuntimeTypeKey, @bytecode.LayoutRecipe)
+} derive(Debug, Eq)
+
+///|
+priv struct CallableAdapterValueFlowRecipe {
+  value : CallableAdapterValueRecipe
+  source_shape : CallableAdapterValueRecipe
+  target : CallableAdapterValueRecipe
+  target_shape : CallableAdapterValueRecipe
+  definitionally_equal : Bool
+  nested_adapter : CallableAdapterRecipe?
+} derive(Debug, Eq)
+
+///|
+priv struct CallableAdapterArgumentRecipe {
+  target : Int
+  flow : CallableAdapterValueFlowRecipe
+} derive(Debug, Eq)
+
+///|
+priv enum CallableAdapterResultRecipe {
+  TailCall
+  Adapt(CallableAdapterValueFlowRecipe)
+} derive(Debug, Eq)
+
+///|
+priv struct CallableAdapterRecipe {
+  source_abi : CanonicalCallableAbi
+  target_abi : CanonicalCallableAbi
+  captured_evidence : Array[@bytecode.ValueAbi]
+  target_parameters : Array[CallableAdapterValueRecipe]
+  source_arguments : Array[CallableAdapterArgumentRecipe]
+  result : CallableAdapterResultRecipe
+} derive(Debug, Eq)
 
 ///|
 priv enum CanonicalRuntimeTypeKey {
   Unit
   Value(@bytecode.ValueAbi)
   Callable(CanonicalCallableAbi)
-} derive(Eq)
+} derive(Debug, Eq)
 
 ///|
 priv struct CanonicalCallableAbi {
   witnesses : Array[@bytecode.ValueAbi]
   parameters : Array[CanonicalRuntimeTypeKey]
   result : CanonicalRuntimeTypeKey
-} derive(Eq)
+} derive(Debug, Eq)
 
 ///|
 priv struct RepresentationSpecializationKey {
@@ -244,6 +298,14 @@ priv struct LayoutConstructorPlan {
   captured_parameters : Array[@buslane.TypeParameterId]
   environment_shape : @bytecode.ObjectShapeId?
   arity : Int
+}
+
+///|
+priv enum RuntimeEvidencePlan {
+  Existing(@buslane.TypeParameterId)
+  ApplyEvidence(@buslane.TypeParameterId, Array[RuntimeEvidencePlan])
+  MaterializeLayoutConstructor(@buslane.Type)
+  StaticLayout(@bytecode.LayoutRecipe)
 }
 
 ///|
@@ -299,10 +361,7 @@ priv struct RecursiveFunctionPlan {
 ///|
 priv struct DeferredCallableAdapter {
   source : @vmcfg.ValueId
-  source_type : @buslane.Type
-  target_type : @buslane.Type
-  source_parameter_targets : Array[Int]
-  substitutions : @buslane.TypeSubstitution
+  contract : CallableAdapterContract
   captured_witnesses : Array[WitnessBinding]
 }
 

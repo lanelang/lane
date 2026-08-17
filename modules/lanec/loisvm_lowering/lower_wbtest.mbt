@@ -3406,6 +3406,86 @@ test "equal-width callable values do not bypass semantic alignment" {
 }
 
 ///|
+test "alpha-distinct captured witnesses share one callable adapter recipe" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let image = test_image_lowerer(metadata)
+  let lowerer = test_function_lowerer(image)
+  let left_parameter = image.fresh_synthetic_parameter()
+  let right_parameter = image.fresh_synthetic_parameter()
+  let source_type = test_function_type([Primitive(I64)], Primitive(I64))
+  let left_target = test_function_type(
+    [Parameter(left_parameter)],
+    Parameter(left_parameter),
+  )
+  let right_target = test_function_type(
+    [Parameter(right_parameter)],
+    Parameter(right_parameter),
+  )
+  let left_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  left_substitutions.insert(left_parameter, Primitive(I64))
+  let right_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  right_substitutions.insert(right_parameter, Primitive(I64))
+  let left_source = lowerer.fresh_slot(source_type)
+  let right_source = lowerer.fresh_slot(source_type)
+  ignore(
+    lowerer.materialize_local(
+      lowerer.make_callable_adapter(
+        left_source, source_type, left_target, left_substitutions,
+      ),
+    ),
+  )
+  ignore(
+    lowerer.materialize_local(
+      lowerer.make_callable_adapter(
+        right_source, source_type, right_target, right_substitutions,
+      ),
+    ),
+  )
+  guard image.callable_adapters is [plan] else {
+    fail("expected one canonical callable adapter worker")
+  }
+  let closure_functions = []
+  let captures = []
+  for instruction in lowerer.blocks[0].instructions {
+    match instruction {
+      MakeClosure(_, function, _) => closure_functions.push(function)
+      MakeEnv(_, _, _, _, members) => captures.push(members)
+      _ => ()
+    }
+  }
+  assert_eq(closure_functions, [plan.function, plan.function])
+  assert_eq(captures.length(), 2)
+  assert_false(captures[0] == captures[1])
+}
+
+///|
+test "different concrete layout recipes keep distinct adapter workers" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let image = test_image_lowerer(metadata)
+  let bool_parameter = image.fresh_synthetic_parameter()
+  let i32_parameter = image.fresh_synthetic_parameter()
+  let bool_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  bool_substitutions.insert(bool_parameter, Primitive(Bool))
+  let i32_substitutions = @buslane.TypeSubstitution::TypeSubstitution()
+  i32_substitutions.insert(i32_parameter, Primitive(I32))
+  let bool_recipe = image.callable_adapter_recipe(
+    test_function_type([Primitive(Bool)], Primitive(Bool)),
+    test_function_type([Parameter(bool_parameter)], Parameter(bool_parameter)),
+    [0],
+    bool_substitutions,
+    [bool_parameter],
+  )
+  let i32_recipe = image.callable_adapter_recipe(
+    test_function_type([Primitive(I32)], Primitive(I32)),
+    test_function_type([Parameter(i32_parameter)], Parameter(i32_parameter)),
+    [0],
+    i32_substitutions,
+    [i32_parameter],
+  )
+  assert_false(bool_recipe == i32_recipe)
+}
+
+///|
 test "nonescaping representation-changing adapter is fused into its call" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let parameter = metadata.define_type_parameter("T", Type)
@@ -3528,34 +3608,116 @@ test "callable adapter owns its final substitution" {
       #|  [
       #|    {
       #|      function: { value: 2 },
-      #|      source_type: Function(
-      #|        [
-      #|          Apply(
-      #|            Parameter({ index: 0 }),
-      #|            [
-      #|              TypeArgument(Primitive(I64)),
-      #|              EffectArgument(Parameter({ index: 1 })),
-      #|            ],
-      #|          ),
-      #|        ],
-      #|        Primitive(Unit),
-      #|        Empty,
-      #|      ),
-      #|      target_type: Function(
-      #|        [Constructor({ index: 0 }), Primitive(Unit)],
-      #|        Primitive(Unit),
-      #|        Empty,
-      #|      ),
-      #|      source_parameter_targets: [0],
-      #|      substitutions: {
-      #|        entries: [
-      #|          {
-      #|            parameter: { index: 0 },
-      #|            replacement: TypeArgument(TypeLambda([{ index: 2 }, { index: 3 }], Constructor({ index: 0 }))),
+      #|      contract: {
+      #|        recipe: {
+      #|          source_abi: {
+      #|            witnesses: [],
+      #|            parameters: [Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue })],
+      #|            result: Unit,
       #|          },
-      #|        ],
+      #|          target_abi: {
+      #|            witnesses: [],
+      #|            parameters: [
+      #|              Value(
+      #|                {
+      #|                  representation: I32,
+      #|                  cleanup: OwnedRef,
+      #|                  kind: DataValue({ value: 0 }),
+      #|                },
+      #|              ),
+      #|            ],
+      #|            result: Unit,
+      #|          },
+      #|          captured_evidence: [
+      #|            {
+      #|              representation: I64,
+      #|              cleanup: OwnedCallable,
+      #|              kind: LayoutConstructorValue(1),
+      #|            },
+      #|          ],
+      #|          target_parameters: [
+      #|            Concrete(
+      #|              Value(
+      #|                {
+      #|                  representation: I32,
+      #|                  cleanup: OwnedRef,
+      #|                  kind: DataValue({ value: 0 }),
+      #|                },
+      #|              ),
+      #|              Reference,
+      #|            ),
+      #|          ],
+      #|          source_arguments: [
+      #|            {
+      #|              target: 0,
+      #|              flow: {
+      #|                value: Concrete(
+      #|                  Value(
+      #|                    {
+      #|                      representation: I32,
+      #|                      cleanup: OwnedRef,
+      #|                      kind: DataValue({ value: 0 }),
+      #|                    },
+      #|                  ),
+      #|                  Reference,
+      #|                ),
+      #|                source_shape: Concrete(
+      #|                  Value(
+      #|                    {
+      #|                      representation: I32,
+      #|                      cleanup: OwnedRef,
+      #|                      kind: DataValue({ value: 0 }),
+      #|                    },
+      #|                  ),
+      #|                  Reference,
+      #|                ),
+      #|                target: Erased(Apply(Capture(0), [Static(I64)])),
+      #|                target_shape: Concrete(
+      #|                  Value(
+      #|                    {
+      #|                      representation: I32,
+      #|                      cleanup: OwnedRef,
+      #|                      kind: DataValue({ value: 0 }),
+      #|                    },
+      #|                  ),
+      #|                  Reference,
+      #|                ),
+      #|                definitionally_equal: true,
+      #|                nested_adapter: None,
+      #|              },
+      #|            },
+      #|          ],
+      #|          result: TailCall,
+      #|        },
+      #|        source_type: Function(
+      #|          [
+      #|            Apply(
+      #|              Parameter({ index: 0 }),
+      #|              [
+      #|                TypeArgument(Primitive(I64)),
+      #|                EffectArgument(Parameter({ index: 1 })),
+      #|              ],
+      #|            ),
+      #|          ],
+      #|          Primitive(Unit),
+      #|          Empty,
+      #|        ),
+      #|        target_type: Function(
+      #|          [Constructor({ index: 0 }), Primitive(Unit)],
+      #|          Primitive(Unit),
+      #|          Empty,
+      #|        ),
+      #|        source_parameter_targets: [0],
+      #|        substitutions: {
+      #|          entries: [
+      #|            {
+      #|              parameter: { index: 0 },
+      #|              replacement: TypeArgument(TypeLambda([{ index: 2 }, { index: 3 }], Constructor({ index: 0 }))),
+      #|            },
+      #|          ],
+      #|        },
+      #|        captured_parameters: [{ index: 0 }],
       #|      },
-      #|      captured_parameters: [{ index: 0 }],
       #|      environment_shape: { value: 0 },
       #|    },
       #|  ],
@@ -3658,18 +3820,54 @@ test "higher-kinded formal applications retain their erased generic ABI" {
       #|  [
       #|    {
       #|      function: { value: 1 },
-      #|      source_type: Function([Primitive(Unit)], Primitive(String), Empty),
-      #|      target_type: Function([Primitive(Unit)], Parameter({ index: -1 }), Empty),
-      #|      source_parameter_targets: [0],
-      #|      substitutions: {
-      #|        entries: [
-      #|          {
-      #|            parameter: { index: -1 },
-      #|            replacement: TypeArgument(Primitive(String)),
+      #|      contract: {
+      #|        recipe: {
+      #|          source_abi: {
+      #|            witnesses: [],
+      #|            parameters: [],
+      #|            result: Value({ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue }),
       #|          },
-      #|        ],
+      #|          target_abi: {
+      #|            witnesses: [],
+      #|            parameters: [],
+      #|            result: Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue }),
+      #|          },
+      #|          captured_evidence: [{ representation: I32, cleanup: Trivial, kind: LayoutValue }],
+      #|          target_parameters: [],
+      #|          source_arguments: [],
+      #|          result: Adapt(
+      #|            {
+      #|              value: Concrete(
+      #|                Value({ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue }),
+      #|                ByteSequence,
+      #|              ),
+      #|              source_shape: Concrete(
+      #|                Value({ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue }),
+      #|                ByteSequence,
+      #|              ),
+      #|              target: Erased(Capture(0)),
+      #|              target_shape: Concrete(
+      #|                Value({ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue }),
+      #|                ByteSequence,
+      #|              ),
+      #|              definitionally_equal: true,
+      #|              nested_adapter: None,
+      #|            },
+      #|          ),
+      #|        },
+      #|        source_type: Function([Primitive(Unit)], Primitive(String), Empty),
+      #|        target_type: Function([Primitive(Unit)], Parameter({ index: -1 }), Empty),
+      #|        source_parameter_targets: [0],
+      #|        substitutions: {
+      #|          entries: [
+      #|            {
+      #|              parameter: { index: -1 },
+      #|              replacement: TypeArgument(Primitive(String)),
+      #|            },
+      #|          ],
+      #|        },
+      #|        captured_parameters: [{ index: -1 }],
       #|      },
-      #|      captured_parameters: [{ index: -1 }],
       #|      environment_shape: { value: 0 },
       #|    },
       #|  ],
@@ -3836,22 +4034,45 @@ test "callable erasure uses the formal erased-position ABI" {
       #|  [
       #|    {
       #|      function: { value: 1 },
-      #|      source_type: Function([Primitive(Unit)], Primitive(Unit), Empty),
-      #|      target_type: Function([Primitive(Unit)], Parameter({ index: 0 }), Empty),
-      #|      source_parameter_targets: [0],
-      #|      substitutions: {
-      #|        entries: [
-      #|          {
-      #|            parameter: { index: 0 },
-      #|            replacement: TypeArgument(Primitive(Unit)),
+      #|      contract: {
+      #|        recipe: {
+      #|          source_abi: { witnesses: [], parameters: [], result: Unit },
+      #|          target_abi: {
+      #|            witnesses: [],
+      #|            parameters: [],
+      #|            result: Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue }),
       #|          },
-      #|          {
-      #|            parameter: { index: -1 },
-      #|            replacement: TypeArgument(Function([Primitive(Unit)], Parameter({ index: 0 }), Empty)),
-      #|          },
-      #|        ],
+      #|          captured_evidence: [{ representation: I32, cleanup: Trivial, kind: LayoutValue }],
+      #|          target_parameters: [],
+      #|          source_arguments: [],
+      #|          result: Adapt(
+      #|            {
+      #|              value: Unit,
+      #|              source_shape: Unit,
+      #|              target: Erased(Capture(0)),
+      #|              target_shape: Unit,
+      #|              definitionally_equal: true,
+      #|              nested_adapter: None,
+      #|            },
+      #|          ),
+      #|        },
+      #|        source_type: Function([Primitive(Unit)], Primitive(Unit), Empty),
+      #|        target_type: Function([Primitive(Unit)], Parameter({ index: 0 }), Empty),
+      #|        source_parameter_targets: [0],
+      #|        substitutions: {
+      #|          entries: [
+      #|            {
+      #|              parameter: { index: 0 },
+      #|              replacement: TypeArgument(Primitive(Unit)),
+      #|            },
+      #|            {
+      #|              parameter: { index: -1 },
+      #|              replacement: TypeArgument(Function([Primitive(Unit)], Parameter({ index: 0 }), Empty)),
+      #|            },
+      #|          ],
+      #|        },
+      #|        captured_parameters: [{ index: 0 }],
       #|      },
-      #|      captured_parameters: [{ index: 0 }],
       #|      environment_shape: { value: 0 },
       #|    },
       #|  ],

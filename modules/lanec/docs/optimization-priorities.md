@@ -199,13 +199,15 @@ cancellation outside planned direct calls remain open in this priority.
 The Coroutine Scheduler follow-up classified the remaining lowering artifacts
 instead of treating every erased operation as interchangeable. Of its 48
 `erase_*`/`unerase_*` instructions, 44 were inside 30 callable-adapter workers.
-Those workers represented only 20 distinct structural contracts: synthetic
+Those workers represented only 20 distinct runtime contracts: synthetic
 parameter identities had caused ten duplicate physical bodies, and one further
-worker was a definitionally aligned identity conversion. Exact structural adapter
-equivalence and identity elimination reduce the VM CFG to 19 adapter workers
-and 29 total representation bridges. VM CFG functions fall from 87 to 76,
-instructions from 500 to 428, and indirect calls from 63 to 52; finalized
-bytecode instructions fall from 426 to 373.
+worker was a definitionally aligned identity conversion. Identity elimination
+and the canonical Callable Adapter Recipe reduce the VM CFG to 19 adapter
+workers and 29 total representation bridges. Adapter identity is now fixed
+before VM CFG construction; function-table processing no longer reconstructs
+it from emitted bodies. VM CFG functions fall from 87 to 76, instructions from
+500 to 428, and indirect calls from 63 to 52; finalized bytecode instructions
+fall from 426 to 373.
 
 The remaining 25 adapter-local bridges cross real CPS answer-type
 erased/concrete ABI boundaries; the other four occur in ordinary functions.

@@ -1,24 +1,15 @@
 ///|
 fn ImageLowerer::callable_adapter(
   self : ImageLowerer,
-  source_type : @buslane.Type,
-  target_type : @buslane.Type,
-  source_parameter_targets : Array[Int],
-  substitutions : @buslane.TypeSubstitution,
+  contract : CallableAdapterContract,
 ) -> CallableAdapterPlan raise LoisvmLoweringError {
   for adapter in self.callable_adapters {
-    if adapter.source_type == source_type &&
-      adapter.target_type == target_type &&
-      adapter.source_parameter_targets == source_parameter_targets &&
-      adapter.substitutions == substitutions {
+    if adapter.contract.recipe == contract.recipe {
       return adapter
     }
   }
-  let captured_parameters = free_runtime_type_parameters(
-    self, source_type, target_type,
-  )
   let members : Array[@bytecode.MemberSchema] = []
-  for parameter in captured_parameters {
+  for parameter in contract.captured_parameters {
     let metadata = self.runtime_evidence_metadata(parameter)
     members.push({
       representation: metadata.representation,
@@ -41,11 +32,7 @@ fn ImageLowerer::callable_adapter(
   ) {
     let adapter : CallableAdapterPlan = {
       function,
-      source_type,
-      target_type,
-      source_parameter_targets,
-      substitutions,
-      captured_parameters,
+      contract,
       environment_shape,
     }
     self.callable_adapters.push(adapter)
@@ -117,8 +104,8 @@ fn collect_free_runtime_type_parameters(
 }
 
 ///|
-fn FunctionLowerer::canonical_callable_type(
-  self : FunctionLowerer,
+fn ImageLowerer::canonical_callable_type(
+  self : ImageLowerer,
   type_ : @buslane.Type,
 ) -> (@buslane.Type, @buslane.TypeSubstitution) raise LoisvmLoweringError {
   let bindings = @buslane.TypeSubstitution::TypeSubstitution()
@@ -127,8 +114,8 @@ fn FunctionLowerer::canonical_callable_type(
 }
 
 ///|
-fn FunctionLowerer::canonical_callable_type_with_bound(
-  self : FunctionLowerer,
+fn ImageLowerer::canonical_callable_type_with_bound(
+  self : ImageLowerer,
   type_ : @buslane.Type,
   bound : Array[@buslane.TypeParameterId],
   bindings : @buslane.TypeSubstitution,
@@ -155,20 +142,20 @@ fn FunctionLowerer::canonical_callable_type_with_bound(
 }
 
 ///|
-fn FunctionLowerer::canonical_callable_value_type(
-  self : FunctionLowerer,
+fn ImageLowerer::canonical_callable_value_type(
+  self : ImageLowerer,
   type_ : @buslane.Type,
   bound : Array[@buslane.TypeParameterId],
   bindings : @buslane.TypeSubstitution,
 ) -> @buslane.Type raise LoisvmLoweringError {
-  if self.image.runtime_type(type_) is Concrete(Primitive(Unit)) {
+  if self.runtime_type(type_) is Concrete(Primitive(Unit)) {
     return type_
   }
-  if self.image.runtime_type(type_) is Erased(Parameter(parameter)) &&
+  if self.runtime_type(type_) is Erased(Parameter(parameter)) &&
     bound.contains(parameter) {
     return type_
   }
-  let parameter = self.image.fresh_synthetic_parameter()
+  let parameter = self.fresh_synthetic_parameter()
   bindings.insert(parameter, type_)
   Parameter(parameter)
 }
@@ -193,38 +180,59 @@ fn FunctionLowerer::make_callable_adapter(
   target_type : @buslane.Type,
   substitutions : @buslane.TypeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
-  if self.image.types_definitionally_equal(source_type, target_type) {
+  guard self.image.plan_callable_adaptation(
+      source_type, target_type, substitutions,
+    )
+    is Some(contract) else {
     return Slot(source, target_type)
   }
-  let (source_parameter_targets, adapter_substitutions) = self.image.align_callable_parameters(
+  AdaptedCallable({
+    source,
+    contract,
+    captured_witnesses: contract.captured_parameters.map(parameter => {
+      parameter,
+      value: self.adapter_witness(parameter, contract.substitutions),
+    }),
+  })
+}
+
+///|
+fn ImageLowerer::plan_callable_adaptation(
+  self : ImageLowerer,
+  source_type : @buslane.Type,
+  target_type : @buslane.Type,
+  substitutions : @buslane.TypeSubstitution,
+) -> CallableAdapterContract? raise LoisvmLoweringError {
+  if self.types_definitionally_equal(source_type, target_type) {
+    return None
+  }
+  let (source_parameter_targets, adapter_substitutions) = self.align_callable_parameters(
     source_type, target_type, substitutions,
   )
   let (_, _, source_result) = function_type_parts(source_type)
   let (_, _, target_result) = function_type_parts(target_type)
-  if self.image.types_definitionally_equal(
+  if self.types_definitionally_equal(
       apply_type_substitution(source_result, adapter_substitutions),
       apply_type_substitution(target_result, adapter_substitutions),
     ) &&
-    self.image.callable_types_share_runtime_abi(
+    self.callable_types_share_runtime_abi(
       source_type, target_type, adapter_substitutions,
     ) {
-    return Slot(source, target_type)
+    return None
   }
   let captured_parameters = free_runtime_type_parameters(
-    self.image,
-    source_type,
-    target_type,
+    self, source_type, target_type,
   )
-  AdaptedCallable({
-    source,
+  Some({
+    recipe: self.callable_adapter_recipe(
+      source_type, target_type, source_parameter_targets, adapter_substitutions,
+      captured_parameters,
+    ),
     source_type,
     target_type,
     source_parameter_targets,
     substitutions: adapter_substitutions,
-    captured_witnesses: captured_parameters.map(parameter => {
-      parameter,
-      value: self.adapter_witness(parameter, adapter_substitutions),
-    }),
+    captured_parameters,
   })
 }
 
@@ -233,12 +241,7 @@ fn FunctionLowerer::materialize_callable_adapter(
   self : FunctionLowerer,
   adaptation : DeferredCallableAdapter,
 ) -> LocalValue raise LoisvmLoweringError {
-  let plan = self.image.callable_adapter(
-    adaptation.source_type,
-    adaptation.target_type,
-    adaptation.source_parameter_targets,
-    adaptation.substitutions,
-  )
+  let plan = self.image.callable_adapter(adaptation.contract)
   let witnesses = adaptation.captured_witnesses.map(binding => binding.value)
   let environment = self.fresh_metadata(
     environment_metadata(plan.environment_shape),
@@ -255,9 +258,9 @@ fn FunctionLowerer::materialize_callable_adapter(
       witnesses + [adaptation.source],
     ),
   )
-  let callable = self.fresh_slot(adaptation.target_type)
+  let callable = self.fresh_slot(adaptation.contract.target_type)
   self.emit(MakeClosure(callable, plan.function, environment))
-  Slot(callable, adaptation.target_type)
+  Slot(callable, adaptation.contract.target_type)
 }
 
 ///|
@@ -465,7 +468,7 @@ fn local_value_type(value : LocalValue) -> @buslane.Type? {
     RecursiveFunction(_, type_, _) | TypeAppliedCallable(_, type_, _) =>
       Some(type_)
     AdaptedCallable(adaptation) | TypeAppliedAdaptedCallable(adaptation, _) =>
-      Some(adaptation.target_type)
+      Some(adaptation.contract.target_type)
     Global(UnitValue) | Unit | TypeApplied(_, _) => None
   }
 }
@@ -475,14 +478,16 @@ fn ImageLowerer::lower_callable_adapter(
   self : ImageLowerer,
   plan : CallableAdapterPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
+  let contract = plan.contract
   let (source_type_parameters, source_parameter_types, source_result_type) = function_type_parts(
-    plan.source_type,
+    contract.source_type,
   )
   let (target_type_parameters, target_parameter_types, target_result_type) = function_type_parts(
-    plan.target_type,
+    contract.target_type,
   )
   if source_type_parameters.length() != target_type_parameters.length() ||
-    plan.source_parameter_targets.length() != source_parameter_types.length() {
+    contract.source_parameter_targets.length() !=
+    source_parameter_types.length() {
     raise InvalidTypeApplication(
       detail="callable adapter source and target arities differ",
     )
@@ -496,7 +501,7 @@ fn ImageLowerer::lower_callable_adapter(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: plan.substitutions,
+    substitutions: contract.substitutions,
     specialized_parameters: [],
   }
   let input_witnesses = []
@@ -517,7 +522,7 @@ fn ImageLowerer::lower_callable_adapter(
     environment_metadata(plan.environment_shape),
   )
   lowerer.environment = Some(environment)
-  for index, parameter in plan.captured_parameters {
+  for index, parameter in contract.captured_parameters {
     let metadata = self.runtime_evidence_metadata(parameter)
     let witness = lowerer.fresh_metadata(borrowed_evidence_metadata(metadata))
     lowerer.emit(
@@ -528,12 +533,12 @@ fn ImageLowerer::lower_callable_adapter(
     )
     lowerer.witnesses.push({ parameter, value: witness })
   }
-  let source_callable = lowerer.fresh_borrowed_slot(plan.source_type)
+  let source_callable = lowerer.fresh_borrowed_slot(contract.source_type)
   lowerer.emit(
     BorrowCapture(
       plan.environment_shape,
       environment,
-      plan.captured_parameters.length(),
+      contract.captured_parameters.length(),
       { value_destination: source_callable, witness_destination: None },
     ),
   )
@@ -550,13 +555,13 @@ fn ImageLowerer::lower_callable_adapter(
   }
   let source_arguments = []
   for index, source_parameter_type in source_parameter_types {
-    let target_index = plan.source_parameter_targets[index]
+    let target_index = contract.source_parameter_targets[index]
     let adapted = lowerer.materialize_local(
       lowerer.adapt_local_value_with_substitutions(
         target_parameters[target_index],
         target_parameter_types[target_index],
         source_parameter_type,
-        plan.substitutions,
+        contract.substitutions,
       ),
     )
     if adapted is Slot(slot, _) {
@@ -588,7 +593,7 @@ fn ImageLowerer::lower_callable_adapter(
         source_result.1,
         source_result_type,
         target_result_type,
-        plan.substitutions,
+        contract.substitutions,
       ),
     )
     lowerer.terminate(

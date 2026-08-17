@@ -19,14 +19,14 @@ fn FunctionLowerer::layout_witness(
   type_ : @buslane.Type,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   let type_ = self.instantiate_runtime_type(type_)
-  let type_ = match self.image.layout_runtime_type(type_) {
-    Erased(Parameter(parameter)) => return self.find_witness(parameter)
-    Erased(Apply(Parameter(constructor_parameter), arguments)) =>
-      return self.apply_layout_constructor(constructor_parameter, arguments)
-    Erased(type_) => raise UnsupportedType(type_~)
-    Concrete(type_) => type_
-  }
-  let recipe : @bytecode.LayoutRecipe = match type_ {
+  self.materialize_runtime_evidence(self.image.plan_layout_witness(type_))
+}
+
+///|
+fn concrete_layout_recipe(
+  type_ : @buslane.Type,
+) -> @bytecode.LayoutRecipe raise LoisvmLoweringError {
+  match type_ {
     Primitive(Unit) => Unit
     Primitive(Bool) => Bool
     Primitive(I64) => I64
@@ -41,10 +41,6 @@ fn FunctionLowerer::layout_witness(
     Constructor(_) | Apply(_, _) => Reference
     _ => raise UnsupportedType(type_~)
   }
-  let layout = self.image.intern_layout(recipe)
-  let witness = self.fresh_metadata(layout_witness_metadata())
-  self.emit(ConstLayout(witness, layout))
-  witness
 }
 
 ///|
@@ -87,7 +83,7 @@ fn FunctionLowerer::erase_value(
         (Slot(source, _), Primitive(F32)) =>
           self.emit(EraseF32(destination, source))
         (Slot(source, _), Function(_, _, _) | Forall(_, _)) => {
-          let (canonical_type, bindings) = self.erased_callable_abi(
+          let (canonical_type, bindings) = self.image.erased_callable_abi(
             erased_type, type_, substitutions,
           )
           guard self.materialize_local(
@@ -151,7 +147,7 @@ fn FunctionLowerer::unerase_value(
           Slot(destination, target_type)
         }
         Function(_, _, _) | Forall(_, _) => {
-          let (canonical_type, bindings) = self.erased_callable_abi(
+          let (canonical_type, bindings) = self.image.erased_callable_abi(
             erased_type, runtime_type, substitutions,
           )
           let canonical = self.fresh_slot(canonical_type)
@@ -171,8 +167,8 @@ fn FunctionLowerer::unerase_value(
 }
 
 ///|
-fn FunctionLowerer::erased_callable_abi(
-  self : FunctionLowerer,
+fn ImageLowerer::erased_callable_abi(
+  self : ImageLowerer,
   erased_type : @buslane.Type,
   concrete_type : @buslane.Type,
   substitutions : @buslane.TypeSubstitution,

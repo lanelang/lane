@@ -99,16 +99,17 @@ fn FunctionLowerer::lower_adapted_callable_call(
 ) -> LocalValue raise LoisvmLoweringError {
   let witness_count = self.witnesses.length()
   self.witnesses.append(adaptation.captured_witnesses)
+  let contract = adaptation.contract
   let (source_type_parameters, source_parameter_types, source_result_type) = function_type_parts(
-    adaptation.source_type,
+    contract.source_type,
   )
   let (target_type_parameters, target_parameter_types, target_result_type) = function_type_parts(
-    adaptation.target_type,
+    contract.target_type,
   )
   if source_type_parameters.length() != target_type_parameters.length() ||
     type_arguments.length() != target_type_parameters.length() ||
     arguments.length() != target_parameter_types.length() ||
-    adaptation.source_parameter_targets.length() !=
+    contract.source_parameter_targets.length() !=
     source_parameter_types.length() {
     raise InvalidTypeApplication(
       detail="adapted callable invocation does not match its function type",
@@ -123,12 +124,12 @@ fn FunctionLowerer::lower_adapted_callable_call(
   let source_substitutions = self.image.type_substitution(
     source_type_parameters, substituted_arguments,
   )
-  let substitutions = adaptation.substitutions
+  let substitutions = contract.substitutions
     .overlay(target_substitutions)
     .overlay(source_substitutions)
   let source_arguments = []
   for index, source_parameter_type in source_parameter_types {
-    let target_index = adaptation.source_parameter_targets[index]
+    let target_index = contract.source_parameter_targets[index]
     let target_parameter_type = target_parameter_types[target_index]
     let adapted = self.adapt_local_value_with_substitutions(
       arguments[target_index],

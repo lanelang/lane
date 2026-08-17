@@ -1,49 +1,4 @@
 ///|
-fn FunctionLowerer::apply_layout_constructor(
-  self : FunctionLowerer,
-  constructor_parameter : @buslane.TypeParameterId,
-  arguments : Array[@buslane.GenericArgument],
-) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  guard self.image.metadata.type_parameter_info(constructor_parameter)
-    is Some({ kind: Function(parameter_kinds, Type), .. }) else {
-    raise UnsupportedType(type_=Parameter(constructor_parameter))
-  }
-  if parameter_kinds.length() != arguments.length() {
-    raise InvalidTypeApplication(
-      detail="layout constructor argument count does not match its kind",
-    )
-  }
-  let evidence_arguments = []
-  for index, kind in parameter_kinds {
-    guard kind_requires_runtime_evidence(kind) else { continue }
-    guard arguments[index] is TypeArgument(type_) else {
-      raise InvalidTypeApplication(
-        detail="layout constructor requires a type argument at position \{index}",
-      )
-    }
-    match kind {
-      Type => evidence_arguments.push(self.layout_witness(type_))
-      Function(_, Type) =>
-        evidence_arguments.push(self.layout_constructor(type_))
-      _ =>
-        raise InvalidTypeApplication(
-          detail="layout constructor argument has an unsupported evidence kind",
-        )
-    }
-  }
-  let destination = self.fresh_metadata(layout_witness_metadata())
-  self.emit(
-    CallValue(
-      self.find_witness(constructor_parameter),
-      [],
-      evidence_arguments,
-      Some(destination),
-    ),
-  )
-  destination
-}
-
-///|
 fn FunctionLowerer::runtime_evidence(
   self : FunctionLowerer,
   parameter : @buslane.TypeParameterId,
@@ -57,28 +12,31 @@ fn FunctionLowerer::runtime_evidence(
   }
   match info.kind {
     Type => self.layout_witness(type_)
-    Function(_, Type) => self.layout_constructor(type_)
+    Function(_, Type) =>
+      self.materialize_runtime_evidence(
+        self.image.plan_layout_constructor_evidence(type_),
+      )
     _ => raise UnsupportedType(type_=Parameter(parameter))
   }
 }
 
 ///|
-fn FunctionLowerer::layout_constructor(
-  self : FunctionLowerer,
+fn ImageLowerer::plan_layout_constructor_evidence(
+  self : ImageLowerer,
   type_ : @buslane.Type,
-) -> @vmcfg.ValueId raise LoisvmLoweringError {
+) -> RuntimeEvidencePlan raise LoisvmLoweringError {
   let type_ = type_.normalize() catch {
     error => raise TypeNormalizationCompilerDefect(error)
   }
   match type_ {
-    Parameter(parameter) => self.find_witness(parameter)
-    TypeLambda(_, _) => self.materialize_layout_constructor(type_)
+    Parameter(parameter) => Existing(parameter)
+    TypeLambda(_, _) => MaterializeLayoutConstructor(type_)
     Constructor(owner) => {
-      guard self.image.metadata.type_info(owner) is Some(info) else {
+      guard self.metadata.type_info(owner) is Some(info) else {
         raise UnsupportedType(type_~)
       }
       let arguments = info.parameters.map(parameter => {
-        guard self.image.metadata.type_parameter_info(parameter) is Some(info) else {
+        guard self.metadata.type_parameter_info(parameter) is Some(info) else {
           return @buslane.GenericArgument::TypeArgument(Parameter(parameter))
         }
         match info.kind {
@@ -91,9 +49,86 @@ fn FunctionLowerer::layout_constructor(
       } else {
         Apply(Constructor(owner), arguments)
       }
-      self.materialize_layout_constructor(TypeLambda(info.parameters, body))
+      MaterializeLayoutConstructor(TypeLambda(info.parameters, body))
     }
     _ => raise UnsupportedType(type_~)
+  }
+}
+
+///|
+fn ImageLowerer::plan_layout_witness(
+  self : ImageLowerer,
+  type_ : @buslane.Type,
+) -> RuntimeEvidencePlan raise LoisvmLoweringError {
+  match self.layout_runtime_type(type_) {
+    Concrete(type_) => StaticLayout(concrete_layout_recipe(type_))
+    Erased(Parameter(parameter)) => Existing(parameter)
+    Erased(Apply(Parameter(parameter), arguments)) => {
+      guard self.metadata.type_parameter_info(parameter)
+        is Some({ kind: Function(parameter_kinds, Type), .. }) else {
+        raise UnsupportedType(type_=Parameter(parameter))
+      }
+      if parameter_kinds.length() != arguments.length() {
+        raise InvalidTypeApplication(
+          detail="layout constructor argument count does not match its kind",
+        )
+      }
+      let evidence_arguments = []
+      for index, kind in parameter_kinds {
+        guard kind_requires_runtime_evidence(kind) else { continue }
+        guard arguments[index] is TypeArgument(type_) else {
+          raise InvalidTypeApplication(
+            detail="layout constructor requires a type argument at position \{index}",
+          )
+        }
+        match kind {
+          Type => evidence_arguments.push(self.plan_layout_witness(type_))
+          Function(_, Type) =>
+            evidence_arguments.push(
+              self.plan_layout_constructor_evidence(type_),
+            )
+          _ =>
+            raise InvalidTypeApplication(
+              detail="layout constructor argument has an unsupported evidence kind",
+            )
+        }
+      }
+      ApplyEvidence(parameter, evidence_arguments)
+    }
+    Erased(type_) => raise UnsupportedType(type_~)
+  }
+}
+
+///|
+fn FunctionLowerer::materialize_runtime_evidence(
+  self : FunctionLowerer,
+  plan : RuntimeEvidencePlan,
+) -> @vmcfg.ValueId raise LoisvmLoweringError {
+  match plan {
+    Existing(parameter) => self.find_witness(parameter)
+    ApplyEvidence(parameter, arguments) => {
+      let evidence_arguments = arguments.map(argument => {
+        self.materialize_runtime_evidence(argument)
+      })
+      let destination = self.fresh_metadata(layout_witness_metadata())
+      self.emit(
+        CallValue(
+          self.find_witness(parameter),
+          [],
+          evidence_arguments,
+          Some(destination),
+        ),
+      )
+      destination
+    }
+    MaterializeLayoutConstructor(type_) =>
+      self.materialize_layout_constructor(type_)
+    StaticLayout(recipe) => {
+      let layout = self.image.intern_layout(recipe)
+      let witness = self.fresh_metadata(layout_witness_metadata())
+      self.emit(ConstLayout(witness, layout))
+      witness
+    }
   }
 }
 
