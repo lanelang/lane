@@ -141,7 +141,10 @@ fn FunctionLowerer::lower_construct(
   let witnesses = []
   for index, payload in construct.payloads {
     let formal_type = info.payload_types[index]
-    let actual_type = substitutions.apply_type(self.image.metadata, formal_type)
+    let actual_type = substitutions.apply_type(
+      self.image.runtime_types,
+      formal_type,
+    )
     let source = self.materialize_local(self.lower_atom(payload))
     let lowered = if self.image.runtime_type(formal_type) is Erased(_) {
       match source {

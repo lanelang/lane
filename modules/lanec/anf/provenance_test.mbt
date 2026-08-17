@@ -34,7 +34,10 @@ test "ANF assigns stable identities and preserves binding provenance" {
       ]),
     ],
   }
-  let lowered = @anf.lower_cps_core_to_runtime_anf(program).unwrap()
+  let lowered = @anf.lower_cps_core_to_runtime_anf({
+    program,
+    retained_values: [outer],
+  }).unwrap()
   debug_inspect(
     lowered.terms(),
     content=(

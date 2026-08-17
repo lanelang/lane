@@ -16,7 +16,7 @@ fn FunctionLowerer::lower_nested_function_with_type(
   function_type : @anf.RuntimeType,
 ) -> LocalValue raise LoisvmLoweringError {
   let function_type = self.substitutions.apply_type(
-    self.image.metadata,
+    self.image.runtime_types,
     function_type,
   )
   let capture_bindings = free_capture_bindings(function)
@@ -88,7 +88,7 @@ fn FunctionLowerer::lower_recursive_group(
     functions.push(function)
     recursive_values.push(binding.id)
     recursive_types.push(
-      self.substitutions.apply_type(self.image.metadata, type_),
+      self.substitutions.apply_type(self.image.runtime_types, type_),
     )
   }
   let capture_bindings = []

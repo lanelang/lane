@@ -102,7 +102,7 @@ fn collect_free_runtime_evidence(
     Parameter(id) =>
       if !bound.contains(id) && !parameters.any(parameter => parameter.id == id) {
         parameters.push(
-          image.metadata.evidence_parameter(id).unwrap_or({ id, arity: 0 }),
+          image.evidence_parameter(id).unwrap_or({ id, arity: 0 }),
         )
       }
     Apply(callee, arguments) => {
@@ -173,7 +173,7 @@ fn ImageLowerer::canonical_callable_value_type(
   let parameter = self.fresh_synthetic_parameter()
   let expression = match type_ {
     Erased(expression, _) => expression
-    _ => self.metadata.intern_type_expression(Static(type_))
+    _ => self.runtime_types.intern(Static(type_))
   }
   let evidence = runtime_type_evidence(type_)
   bindings.insert(parameter, { type_expression: expression, evidence })
@@ -249,8 +249,8 @@ fn ImageLowerer::plan_callable_adaptation(
   let (_, _, source_result) = function_type_parts(source_type)
   let (_, _, target_result) = function_type_parts(target_type)
   if self.types_representation_equivalent(
-      adapter_substitutions.apply_type(self.metadata, source_result),
-      adapter_substitutions.apply_type(self.metadata, target_result),
+      adapter_substitutions.apply_type(self.runtime_types, source_result),
+      adapter_substitutions.apply_type(self.runtime_types, target_result),
     ) &&
     self.callable_types_share_runtime_abi(
       source_type, target_type, adapter_substitutions,
@@ -342,13 +342,13 @@ fn ImageLowerer::align_callable_parameters(
   let mut source_index = 0
   for target_index, target_parameter in target_parameters {
     let actual_target = alignment_substitutions.apply_type(
-      self.metadata,
+      self.runtime_types,
       target_parameter,
     )
     if self.runtime_type(actual_target) is Concrete(Unit) {
       if source_index < source_parameters.length() {
         let actual_source = substitutions.apply_type(
-          self.metadata,
+          self.runtime_types,
           source_parameters[source_index],
         )
         if self.runtime_type(actual_source) is Concrete(Unit) &&
@@ -365,7 +365,7 @@ fn ImageLowerer::align_callable_parameters(
       )
     }
     let actual_source = substitutions.apply_type(
-      self.metadata,
+      self.runtime_types,
       source_parameters[source_index],
     )
     if !self.types_representation_equivalent(actual_source, actual_target) {
@@ -397,10 +397,13 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
     None => source_type
   }
   let source_shape = substitutions.apply_type(
-    self.image.metadata,
+    self.image.runtime_types,
     source_value_type,
   )
-  let target_shape = substitutions.apply_type(self.image.metadata, target_type)
+  let target_shape = substitutions.apply_type(
+    self.image.runtime_types,
+    target_type,
+  )
   let source_runtime = self.image.runtime_type(source_type)
   let target_runtime = self.image.runtime_type(target_type)
   let source_is_erased = match value {

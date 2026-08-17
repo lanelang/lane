@@ -1,4 +1,19 @@
 ///|
+fn runtime_anf_test_input(program : @buslane.Program) -> RuntimeAnfInput {
+  let retained_values = []
+  for term in program.terms {
+    match term {
+      Let(value, _) | External(value) => retained_values.push(value)
+      LetRec(bindings) =>
+        for binding in bindings {
+          retained_values.push(binding.id)
+        }
+    }
+  }
+  { program, retained_values }
+}
+
+///|
 test "lower buslane function call to ANF" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let result = metadata.define_value("value", Value, Primitive(I64))
@@ -26,7 +41,7 @@ test "lower buslane function call to ANF" {
   }
   inspect(
     @prettyprinter.render(
-      lower_cps_core_to_runtime_anf(program).unwrap(),
+      lower_cps_core_to_runtime_anf(runtime_anf_test_input(program)).unwrap(),
       width=100,
     ),
     content=(
@@ -86,7 +101,7 @@ test "ANF binds a match before applying its continuation" {
     ],
   }
   debug_inspect(
-    (match lower_cps_core_to_runtime_anf(program) {
+    (match lower_cps_core_to_runtime_anf(runtime_anf_test_input(program)) {
       Ok(program) => program
       Err(error) => abort("unexpected runtime ANF error: \{Repr(error)}")
     }).terms()[1],
@@ -187,5 +202,8 @@ test "runtime ANF rejects residual handlers" {
       ),
     ],
   }
-  assert_true(lower_cps_core_to_runtime_anf(program) is Err(ResidualHandle))
+  assert_true(
+    lower_cps_core_to_runtime_anf(runtime_anf_test_input(program))
+    is Err(ResidualHandle),
+  )
 }

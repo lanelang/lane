@@ -1,6 +1,7 @@
 ///|
 priv struct ImageLowerer {
   metadata : @anf.RuntimeMetadata
+  runtime_types : RuntimeTypeArena
   externals : @buslane_lowering.BuslaneExternalMap
   globals : Array[GlobalBinding]
   instance_globals : Array[@bytecode.GlobalMetadata]
@@ -12,7 +13,7 @@ priv struct ImageLowerer {
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
   callable_adapters : Array[CallableAdapterPlan]
   representation_specializations : Array[RepresentationSpecializationPlan]
-  mut next_synthetic_parameter : Int
+  synthetic_parameters : Array[@anf.RuntimeEvidenceParameter]
 }
 
 ///|
@@ -63,18 +64,19 @@ fn lower_executable_program_to_bytecode_or_raise(
   let program = executable.program
   let externals = executable.externals
   let entry = executable.entry
-  let anf = match @anf.lower_cps_core_to_runtime_anf(program) {
+  let anf = match
+    @anf.lower_cps_core_to_runtime_anf({
+      program,
+      retained_values: executable.retained_values,
+    }) {
     Ok(anf) => anf
     Err(error) => raise RuntimeAnfCompilerDefect(error)
   }
   observe(Anf(anf))
-  let occurrence = @occurrence.analyze({
-    program,
-    entry: entry.value,
-    roots: executable.initializer_roots,
-  })
+  let metadata = anf.metadata()
   let lowerer : ImageLowerer = {
-    metadata: anf.metadata(),
+    metadata,
+    runtime_types: RuntimeTypeArena::from_metadata(metadata),
     externals,
     globals: [],
     instance_globals: [],
@@ -86,9 +88,9 @@ fn lower_executable_program_to_bytecode_or_raise(
     intrinsic_wrappers: [],
     callable_adapters: [],
     representation_specializations: [],
-    next_synthetic_parameter: -1,
+    synthetic_parameters: [],
   }
-  let initializer = lowerer.plan(anf, occurrence)
+  let initializer = lowerer.plan(anf)
   lowerer.plan_representation_specializations(anf)
   let entry_function = match lowerer.find_global(entry.value) {
     Some(Function(function, _)) => function

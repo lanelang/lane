@@ -2,49 +2,40 @@
 fn ImageLowerer::plan(
   self : ImageLowerer,
   program : @anf.AnfProgram,
-  occurrence : @occurrence.OccurrenceSummary,
 ) -> @bytecode.FunctionId? raise LoisvmLoweringError {
   let initializers : Array[InitializerStepPlan] = []
   for term in program.terms() {
     match term {
-      External(value) =>
-        if occurrence.is_reachable(value) {
-          self.plan_external(value)
-        }
+      External(value) => self.plan_external(value)
       Let(value, expression) =>
         match extract_top_function(expression) {
           Some(function) =>
-            if occurrence.is_reachable(value) {
-              self.add_plan(
-                value,
-                Function(value, function),
-                TopLevelFunction(function=function.id, source=function.source),
-              )
-            }
-          None =>
-            if occurrence.is_reachable(value) {
-              self.add_instance_global(value)
-              ignore(
-                self.plans.append(Initializer(source=value), fn(function) {
-                  let step = { function, value, expression }
-                  initializers.push(step)
-                  InitializerStep(step)
-                }),
-              )
-            }
+            self.add_plan(
+              value,
+              Function(value, function),
+              TopLevelFunction(function=function.id, source=function.source),
+            )
+          None => {
+            self.add_instance_global(value)
+            ignore(
+              self.plans.append(Initializer(source=value), fn(function) {
+                let step = { function, value, expression }
+                initializers.push(step)
+                InitializerStep(step)
+              }),
+            )
+          }
         }
       LetRec(bindings) =>
         for binding in bindings {
-          if occurrence.is_reachable(binding.id) {
-            match extract_top_atom_function(binding.rhs) {
-              Some(function) =>
-                self.add_plan(
-                  binding.id,
-                  Function(binding.id, function),
-                  TopLevelFunction(function=function.id, source=function.source),
-                )
-              None => raise UnsupportedTopLevel(value=binding.id)
-            }
+          match extract_top_atom_function(binding.rhs) {
+            Some(function) =>
+              self.add_plan(
+                binding.id,
+                Function(binding.id, function),
+                TopLevelFunction(function=function.id, source=function.source),
+              )
+            None => raise UnsupportedTopLevel(value=binding.id)
           }
         }
     }
@@ -56,17 +47,6 @@ fn ImageLowerer::plan(
         InitializerOrchestrator(initializers)
       }).function
     Some(initializer)
-  }
-}
-
-///|
-fn @occurrence.OccurrenceSummary::is_reachable(
-  self : @occurrence.OccurrenceSummary,
-  value : @buslane.ValueId,
-) -> Bool {
-  match self.facts.get(value.index) {
-    Some(fact) => fact.reachable_from_entry
-    None => false
   }
 }
 
@@ -506,11 +486,20 @@ fn ImageLowerer::intrinsic_wrapper(
 fn ImageLowerer::fresh_synthetic_parameter(
   self : ImageLowerer,
 ) -> @anf.RuntimeEvidenceId {
-  let parameter : @anf.RuntimeEvidenceId = {
-    index: self.next_synthetic_parameter,
+  let id = @anf.RuntimeEvidenceId::Synthetic(self.synthetic_parameters.length())
+  self.synthetic_parameters.push({ id, arity: 0 })
+  id
+}
+
+///|
+fn ImageLowerer::evidence_parameter(
+  self : ImageLowerer,
+  id : @anf.RuntimeEvidenceId,
+) -> @anf.RuntimeEvidenceParameter? {
+  match id {
+    Projected(_) => self.metadata.evidence_parameter(id)
+    Synthetic(index) => self.synthetic_parameters.get(index)
   }
-  self.next_synthetic_parameter -= 1
-  parameter
 }
 
 ///|

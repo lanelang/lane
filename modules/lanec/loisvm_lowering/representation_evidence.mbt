@@ -209,7 +209,7 @@ fn free_runtime_evidence_parameters(
 ) -> Array[@anf.RuntimeEvidenceParameter] {
   let ids = []
   collect_runtime_evidence_ids(evidence, bound, ids)
-  ids.filter_map(id => image.metadata.evidence_parameter(id))
+  ids.filter_map(id => image.evidence_parameter(id))
 }
 
 ///|

@@ -71,9 +71,29 @@ fn lower_test_executable_to_bytecode_observed(
   observe : (LoisvmLoweringStage) -> Unit,
 ) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
   lower_executable_program_to_bytecode_observed(
-    { program, externals, entry, initializer_roots: [] },
+    {
+      program,
+      externals,
+      entry,
+      retained_values: test_retained_values(program),
+    },
     observe,
   )
+}
+
+///|
+fn test_retained_values(program : @buslane.Program) -> Array[@buslane.ValueId] {
+  let values = []
+  for term in program.terms {
+    match term {
+      Let(value, _) | External(value) => values.push(value)
+      LetRec(bindings) =>
+        for binding in bindings {
+          values.push(binding.id)
+        }
+    }
+  }
+  values
 }
 
 ///|
@@ -99,14 +119,16 @@ fn lower_test_linked_program_to_bytecode(
 
 ///|
 fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
+  let program : @buslane.Program = { metadata, terms: [] }
   let runtime_metadata = @anf.lower_cps_core_to_runtime_anf({
-      metadata,
-      terms: [],
+      program,
+      retained_values: [],
     })
     .unwrap()
     .metadata()
   {
     metadata: runtime_metadata,
+    runtime_types: RuntimeTypeArena::from_metadata(runtime_metadata),
     externals: { builtins: [], runtime_imports: [] },
     globals: [],
     instance_globals: [],
@@ -118,7 +140,7 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     callable_adapters: [],
     representation_specializations: [],
     data_families: [],
-    next_synthetic_parameter: -1,
+    synthetic_parameters: [],
   }
 }
 
@@ -146,8 +168,11 @@ test "function plans allocate source and synthetic origins atomically" {
     ],
   }
   let lowerer = test_image_lowerer(metadata)
-  let anf = @anf.lower_cps_core_to_runtime_anf(program).unwrap()
-  ignore(lowerer.plan(anf, @occurrence.analyze({ program, entry, roots: [] })))
+  let anf = @anf.lower_cps_core_to_runtime_anf({
+    program,
+    retained_values: test_retained_values(program),
+  }).unwrap()
+  ignore(lowerer.plan(anf))
   debug_inspect(
     lowerer.plans.observations(),
     content=(

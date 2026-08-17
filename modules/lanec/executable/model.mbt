@@ -1,15 +1,15 @@
 ///|
 /// Owns the verified, effect-aware CPS Core input to runtime ANF lowering.
 ///
-/// Initializer bodies and order remain in `program.terms`; `initializer_roots`
-/// contains only the semantic values that must survive until planning. `entry`
+/// Initializer bodies and order remain in `program.terms`; `retained_values`
+/// is the single occurrence result consumed by runtime projection. `entry`
 /// belongs to the linked program from which this value was elaborated.
 /// Runtime ANF lowering is the sole boundary that projects away effect syntax.
 pub(all) struct ExecutableProgram {
   program : @buslane.Program
   externals : @buslane_lowering.BuslaneExternalMap
   entry : @buslane_lowering.BuslaneEntry
-  initializer_roots : Array[@buslane.ValueId]
+  retained_values : Array[@buslane.ValueId]
 } derive(Debug, Eq)
 
 ///|

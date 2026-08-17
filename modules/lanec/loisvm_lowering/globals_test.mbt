@@ -237,7 +237,7 @@ test "executable initializer materializes function-valued data fields" {
       program,
       externals: { builtins: [], runtime_imports: [] },
       entry,
-      initializer_roots: [stored],
+      retained_values: [helper, consume, stored, main],
     }) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")

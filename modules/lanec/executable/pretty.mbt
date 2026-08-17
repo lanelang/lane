@@ -12,7 +12,7 @@ pub impl @prettyprinter.Pretty for ExecutableProgram with fn pretty(
     executable_externals_doc(executable.externals),
     executable_order_doc(
       executable.program,
-      executable.initializer_roots,
+      executable.retained_values,
       executable.entry.value,
     ),
     @lanec_pretty.section("program", [executable.program.pretty()]),
@@ -74,19 +74,21 @@ fn executable_externals_doc(
 ///|
 fn executable_order_doc(
   program : @buslane.Program,
-  initializer_roots : Array[@buslane.ValueId],
+  retained_values : Array[@buslane.ValueId],
   entry : @buslane.ValueId,
 ) -> Document {
   let steps = []
   for term in program.terms {
     match term {
-      Let(value, _) =>
-        if initializer_roots.any(root => root == value) {
+      Let(value, expression) =>
+        if retained_values.contains(value) &&
+          !is_static_top_level_expression(program, expression) {
           steps.push(text("initialize") + space + value.pretty())
         }
       LetRec(bindings) => {
         let values = bindings.filter_map(binding => {
-          if initializer_roots.any(root => root == binding.id) {
+          if retained_values.contains(binding.id) &&
+            !is_static_top_level_expression(program, binding.rhs) {
             Some(binding.id.pretty())
           } else {
             None

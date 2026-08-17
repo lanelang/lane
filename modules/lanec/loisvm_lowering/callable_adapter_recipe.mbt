@@ -130,8 +130,8 @@ fn ImageLowerer::callable_adapter_value_flow_recipe(
   substitutions : RuntimeSubstitution,
   evidence : Array[CallableAdapterEvidenceBinding],
 ) -> CallableAdapterValueFlowRecipe raise LoisvmLoweringError {
-  let source_shape = substitutions.apply_type(self.metadata, value_type)
-  let target_shape = substitutions.apply_type(self.metadata, target_type)
+  let source_shape = substitutions.apply_type(self.runtime_types, value_type)
+  let target_shape = substitutions.apply_type(self.runtime_types, target_type)
   {
     value: self.callable_adapter_value_recipe(value_type, evidence),
     source_shape: self.callable_adapter_value_recipe(source_shape, evidence),

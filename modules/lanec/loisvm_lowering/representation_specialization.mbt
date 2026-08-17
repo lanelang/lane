@@ -42,7 +42,7 @@ fn ImageLowerer::plan_representation_specializations(
 ) -> Unit raise LoisvmLoweringError {
   let definitions = self.generic_function_definitions(program)
   guard !definitions.is_empty() else { return }
-  let adjacency = generic_call_adjacency(definitions, self.metadata)
+  let adjacency = generic_call_adjacency(definitions, self.runtime_types)
   let sccs = generic_call_sccs(adjacency)
   let seeds : Array[Array[RepresentationDemand]] = Array::makei(
     definitions.length(),
@@ -158,7 +158,7 @@ fn ImageLowerer::collect_representation_seeds(
     call in collect_direct_generic_calls(
       expression,
       RuntimeSubstitution::new(),
-      self.metadata,
+      self.runtime_types,
     ) {
     if self.representation_demand(definitions, call) is Some(demand) {
       push_representation_demand(seeds[demand.definition], demand)
@@ -170,13 +170,13 @@ fn ImageLowerer::collect_representation_seeds(
 fn collect_direct_generic_calls(
   expression : @anf.AnfExpr,
   substitutions : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
 ) -> Array[DirectGenericCall] raise LoisvmLoweringError {
   let calls = []
   collect_calls_in_expression(
     expression,
     substitutions,
-    metadata,
+    runtime_types,
     { values: [], temps: [] },
     calls,
   )
@@ -187,18 +187,18 @@ fn collect_direct_generic_calls(
 fn collect_calls_in_expression(
   expression : @anf.AnfExpr,
   substitutions : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   bindings : CalleeBindingFacts,
   calls : Array[DirectGenericCall],
 ) -> Unit raise LoisvmLoweringError {
   match expression {
     Atom(atom) =>
-      collect_calls_in_atom(atom, substitutions, metadata, bindings, calls)
+      collect_calls_in_atom(atom, substitutions, runtime_types, bindings, calls)
     Let(binding, body) => {
       collect_calls_in_rhs(
         binding.rhs(),
         substitutions,
-        metadata,
+        runtime_types,
         bindings,
         calls,
       )
@@ -209,7 +209,7 @@ fn collect_calls_in_expression(
       if direct_callee_from_rhs(
           binding.rhs(),
           substitutions,
-          metadata,
+          runtime_types,
           bindings,
         )
         is Some(fact) {
@@ -218,20 +218,22 @@ fn collect_calls_in_expression(
           Temp(temp~, ..) => nested.temps.push((temp, fact))
         }
       }
-      collect_calls_in_expression(body, substitutions, metadata, nested, calls)
+      collect_calls_in_expression(
+        body, substitutions, runtime_types, nested, calls,
+      )
     }
     LetRec(recursive, body) => {
       for binding in recursive {
         collect_calls_in_atom(
           binding.rhs,
           substitutions,
-          metadata,
+          runtime_types,
           bindings,
           calls,
         )
       }
       collect_calls_in_expression(
-        body, substitutions, metadata, bindings, calls,
+        body, substitutions, runtime_types, bindings, calls,
       )
     }
   }
@@ -241,20 +243,24 @@ fn collect_calls_in_expression(
 fn collect_calls_in_rhs(
   rhs : @anf.AnfRhs,
   substitutions : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   bindings : CalleeBindingFacts,
   calls : Array[DirectGenericCall],
 ) -> Unit raise LoisvmLoweringError {
   match rhs {
     Atom(atom) =>
-      collect_calls_in_atom(atom, substitutions, metadata, bindings, calls)
+      collect_calls_in_atom(atom, substitutions, runtime_types, bindings, calls)
     ApplyEvidence(callee~, ..) =>
-      collect_calls_in_atom(callee, substitutions, metadata, bindings, calls)
+      collect_calls_in_atom(
+        callee, substitutions, runtime_types, bindings, calls,
+      )
     Call(callee~, arguments~) => {
-      collect_calls_in_atom(callee, substitutions, metadata, bindings, calls)
+      collect_calls_in_atom(
+        callee, substitutions, runtime_types, bindings, calls,
+      )
       for argument in arguments {
         collect_calls_in_atom(
-          argument, substitutions, metadata, bindings, calls,
+          argument, substitutions, runtime_types, bindings, calls,
         )
       }
       if direct_callee_from_atom(callee, bindings) is Some(fact) &&
@@ -264,13 +270,15 @@ fn collect_calls_in_rhs(
     }
     Construct(construct) =>
       for payload in construct.payloads {
-        collect_calls_in_atom(payload, substitutions, metadata, bindings, calls)
+        collect_calls_in_atom(
+          payload, substitutions, runtime_types, bindings, calls,
+        )
       }
     Match(match_) => {
       collect_calls_in_atom(
         match_.scrutinee,
         substitutions,
-        metadata,
+        runtime_types,
         bindings,
         calls,
       )
@@ -278,7 +286,7 @@ fn collect_calls_in_rhs(
         collect_calls_in_expression(
           alternative.body,
           substitutions,
-          metadata,
+          runtime_types,
           bindings,
           calls,
         )
@@ -291,7 +299,7 @@ fn collect_calls_in_rhs(
 fn collect_calls_in_atom(
   atom : @anf.AnfAtom,
   substitutions : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   bindings : CalleeBindingFacts,
   calls : Array[DirectGenericCall],
 ) -> Unit raise LoisvmLoweringError {
@@ -300,13 +308,13 @@ fn collect_calls_in_atom(
       collect_calls_in_expression(
         function.body,
         substitutions,
-        metadata,
+        runtime_types,
         bindings,
         calls,
       )
     EvidenceLambda(body~, ..) =>
       collect_calls_in_expression(
-        body, substitutions, metadata, bindings, calls,
+        body, substitutions, runtime_types, bindings, calls,
       )
     Literal(_) | Ref(_) | Temp(_) => ()
   }
@@ -316,7 +324,7 @@ fn collect_calls_in_atom(
 fn direct_callee_from_rhs(
   rhs : @anf.AnfRhs,
   substitutions : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   bindings : CalleeBindingFacts,
 ) -> DirectCalleeFact? raise LoisvmLoweringError {
   match rhs {
@@ -328,7 +336,7 @@ fn direct_callee_from_rhs(
             ..fact,
             arguments: fact.arguments +
             arguments.map(argument => {
-              substitutions.apply_argument(metadata, argument)
+              substitutions.apply_argument(runtime_types, argument)
             }),
           })
         None => None
@@ -395,7 +403,7 @@ fn find_generic_definition(
 ///|
 fn generic_call_adjacency(
   definitions : Array[GenericFunctionDefinition],
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
 ) -> Array[Array[Int]] raise LoisvmLoweringError {
   Array::makei(definitions.length(), index => {
     let adjacent = []
@@ -403,7 +411,7 @@ fn generic_call_adjacency(
       call in collect_direct_generic_calls(
         definitions[index].function.body,
         RuntimeSubstitution::new(),
-        metadata,
+        runtime_types,
       ) {
       if find_generic_definition(definitions, call.target) is Some(target) &&
         !adjacent.contains(target) {
@@ -489,16 +497,16 @@ fn ImageLowerer::representation_specialization_key(
   }
   let substitutions = self.call_type_substitution(type_parameters, arguments)
   let parameter_types = formal_parameters.map(type_ => {
-    substitutions.apply_type(self.metadata, type_)
+    substitutions.apply_type(self.runtime_types, type_)
   })
-  let result_type = substitutions.apply_type(self.metadata, formal_result)
+  let result_type = substitutions.apply_type(self.runtime_types, formal_result)
   guard parameter_types.all(is_closed_type) && is_closed_type(result_type) else {
     return None
   }
   let evidence = []
   for index, parameter in type_parameters {
     guard parameter.arity == 0 else { return None }
-    guard substitutions.argument_type(self.metadata, arguments[index])
+    guard substitutions.argument_type(self.runtime_types, arguments[index])
       is Some(argument_type) else {
       return None
     }
@@ -566,7 +574,7 @@ fn ImageLowerer::canonical_runtime_type_key_under(
     Concrete(Callable(_, _) | Forall(_, _) as type_, _) =>
       Callable(self.canonical_callable_abi_under(type_, substitutions))
     Concrete(type_, _) => {
-      let type_ = substitutions.apply_type(self.metadata, type_)
+      let type_ = substitutions.apply_type(self.runtime_types, type_)
       match self.elaborate_runtime_representation(type_) {
         RuntimeUnit => Unit
         RuntimeErased(_) =>
@@ -771,7 +779,7 @@ fn ImageLowerer::recursive_scc_demands_are_finite(
         call in collect_direct_generic_calls(
           definitions[definition].function.body,
           demand.substitutions,
-          self.metadata,
+          self.runtime_types,
         ) {
         guard find_generic_definition(definitions, call.target) is Some(target) &&
           sccs[target] == representative else {
@@ -800,7 +808,7 @@ fn ImageLowerer::propagate_representation_demands(
     call in collect_direct_generic_calls(
       definitions[demand.definition].function.body,
       demand.substitutions,
-      self.metadata,
+      self.runtime_types,
     ) {
     guard self.representation_demand(definitions, call) is Some(required) &&
       sccs[required.definition] != source_scc else {

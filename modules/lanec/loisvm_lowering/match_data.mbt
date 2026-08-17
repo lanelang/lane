@@ -267,7 +267,7 @@ fn FunctionLowerer::bind_data_alternative(
     for index, value_binder in alternative.value_binders {
       let formal_type = info.payload_types[index]
       let payload_type = branch_substitutions.apply_type(
-        self.image.metadata,
+        self.image.runtime_types,
         formal_type,
       )
       let stored = if self.image.runtime_type(formal_type) is Erased(_) {

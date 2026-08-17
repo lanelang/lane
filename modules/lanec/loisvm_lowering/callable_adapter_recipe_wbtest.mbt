@@ -1,10 +1,10 @@
 ///|
 fn runtime_adapter_argument(
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   type_ : @anf.RuntimeType,
   evidence : @anf.RuntimeEvidence,
 ) -> @anf.RuntimeArgument {
-  { type_expression: metadata.intern_type_expression(Static(type_)), evidence }
+  { type_expression: runtime_types.intern(Static(type_)), evidence }
 }
 
 ///|
@@ -12,8 +12,8 @@ test "alpha-renamed evidence captures share one callable adapter recipe" {
   let image = test_image_lowerer(MetadataRegistry())
   let left = image.fresh_synthetic_parameter()
   let right = image.fresh_synthetic_parameter()
-  let left_expression = image.metadata.intern_type_expression(Parameter(left))
-  let right_expression = image.metadata.intern_type_expression(Parameter(right))
+  let left_expression = image.runtime_types.intern(Parameter(left))
+  let right_expression = image.runtime_types.intern(Parameter(right))
   let source : @anf.RuntimeType = Callable([Scalar(I64)], Unit)
   let left_target : @anf.RuntimeType = Callable(
     [Erased(left_expression, Parameter(left))],
@@ -26,12 +26,12 @@ test "alpha-renamed evidence captures share one callable adapter recipe" {
   let left_substitution = RuntimeSubstitution::new()
   left_substitution.insert(
     left,
-    runtime_adapter_argument(image.metadata, Scalar(I64), Static(I64)),
+    runtime_adapter_argument(image.runtime_types, Scalar(I64), Static(I64)),
   )
   let right_substitution = RuntimeSubstitution::new()
   right_substitution.insert(
     right,
-    runtime_adapter_argument(image.metadata, Scalar(I64), Static(I64)),
+    runtime_adapter_argument(image.runtime_types, Scalar(I64), Static(I64)),
   )
   let left_recipe = image.callable_adapter_recipe(
     source,
@@ -73,21 +73,17 @@ test "equal-width scalar layouts keep distinct callable adapter recipes" {
   let image = test_image_lowerer(MetadataRegistry())
   let bool_parameter = image.fresh_synthetic_parameter()
   let i32_parameter = image.fresh_synthetic_parameter()
-  let bool_expression = image.metadata.intern_type_expression(
-    Parameter(bool_parameter),
-  )
-  let i32_expression = image.metadata.intern_type_expression(
-    Parameter(i32_parameter),
-  )
+  let bool_expression = image.runtime_types.intern(Parameter(bool_parameter))
+  let i32_expression = image.runtime_types.intern(Parameter(i32_parameter))
   let bool_substitution = RuntimeSubstitution::new()
   bool_substitution.insert(
     bool_parameter,
-    runtime_adapter_argument(image.metadata, Scalar(Bool), Static(Bool)),
+    runtime_adapter_argument(image.runtime_types, Scalar(Bool), Static(Bool)),
   )
   let i32_substitution = RuntimeSubstitution::new()
   i32_substitution.insert(
     i32_parameter,
-    runtime_adapter_argument(image.metadata, Scalar(I32), Static(I32)),
+    runtime_adapter_argument(image.runtime_types, Scalar(I32), Static(I32)),
   )
   let bool_recipe = image.callable_adapter_recipe(
     Callable([Scalar(Bool)], Unit),

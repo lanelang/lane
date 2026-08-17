@@ -12,25 +12,85 @@ priv struct AnfLowerer {
 /// metadata is snapshotted, so observing or retaining the CPS Core program
 /// cannot be affected by the one-way runtime projection.
 pub fn lower_cps_core_to_runtime_anf(
-  program : @buslane.Program,
+  input : RuntimeAnfInput,
 ) -> Result[AnfProgram, RuntimeAnfLoweringError] {
-  Ok(lower_cps_core_to_runtime_anf_or_raise(program)) catch {
+  Ok(lower_cps_core_to_runtime_anf_or_raise(input)) catch {
     error => Err(error)
   }
 }
 
 ///|
 fn lower_cps_core_to_runtime_anf_or_raise(
-  program : @buslane.Program,
+  input : RuntimeAnfInput,
 ) -> AnfProgram raise RuntimeAnfLoweringError {
+  let program = input.program
   let verification = @buslane.verify_program(program)
   if !verification.is_ok() {
     raise InvalidCpsCore(verification)
   }
-  let generic_plan = runtime_generic_plan(program)
+  validate_retained_values(program.terms, input.retained_values)
+  let retained_terms = retained_top_terms(program.terms, input.retained_values)
+  let retained_verification = @buslane.verify_program({
+    metadata: program.metadata,
+    terms: retained_terms,
+  })
+  if !retained_verification.is_ok() {
+    raise InvalidRetention(retained_verification)
+  }
+  let generic_plan = runtime_generic_plan(program, retained_terms)
   let lowerer = AnfLowerer::{ generic_plan, next_temp: 0, next_function: 0 }
-  let terms = program.terms.map(term => lowerer.lower_top_term(term))
+  let terms = retained_terms.map(term => lowerer.lower_top_term(term))
   simplify_anf_program({ metadata: generic_plan.runtime_metadata(), terms })
+}
+
+///|
+fn validate_retained_values(
+  terms : Array[@buslane.TopTerm],
+  retained_values : Array[@buslane.ValueId],
+) -> Unit raise RuntimeAnfLoweringError {
+  let seen = []
+  for value in retained_values {
+    if seen.contains(value) {
+      raise DuplicateRetainedValue(value)
+    }
+    if !terms.any(term => top_term_defines(term, value)) {
+      raise UnknownRetainedValue(value)
+    }
+    seen.push(value)
+  }
+}
+
+///|
+fn top_term_defines(term : @buslane.TopTerm, value : @buslane.ValueId) -> Bool {
+  match term {
+    Let(actual, _) | External(actual) => actual == value
+    LetRec(bindings) => bindings.any(binding => binding.id == value)
+  }
+}
+
+///|
+fn retained_top_terms(
+  terms : Array[@buslane.TopTerm],
+  retained_values : Array[@buslane.ValueId],
+) -> Array[@buslane.TopTerm] {
+  let retained = []
+  for term in terms {
+    match term {
+      Let(value, _) | External(value) =>
+        if retained_values.contains(value) {
+          retained.push(term)
+        }
+      LetRec(bindings) => {
+        let bindings = bindings.filter(binding => {
+          retained_values.contains(binding.id)
+        })
+        if !bindings.is_empty() {
+          retained.push(LetRec(bindings))
+        }
+      }
+    }
+  }
+  retained
 }
 
 ///|

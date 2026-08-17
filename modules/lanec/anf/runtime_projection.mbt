@@ -10,6 +10,7 @@ priv struct RuntimeGenericPlan {
 ///|
 fn runtime_generic_plan(
   program : @buslane.Program,
+  retained_terms : Array[@buslane.TopTerm],
 ) -> RuntimeGenericPlan raise RuntimeAnfLoweringError {
   let plan : RuntimeGenericPlan = {
     metadata: program.metadata,
@@ -21,7 +22,7 @@ fn runtime_generic_plan(
   while true {
     plan.changed = false
     plan.observe_metadata()
-    for term in program.terms {
+    for term in retained_terms {
       plan.observe_top_term(term)
     }
     if !plan.changed {
@@ -345,7 +346,7 @@ fn RuntimeGenericPlan::runtime_evidence_parameter(
     Function(parameters, Type) => runtime_kind_evidence_arity(parameters)
     Effect | Function(_, Effect) | Function(_, Function(_, _)) => return None
   }
-  Some({ id: { index: parameter.index }, arity })
+  Some({ id: Projected(parameter.index), arity })
 }
 
 ///|
@@ -428,20 +429,20 @@ fn RuntimeGenericPlan::runtime_type_expression(
   let normalized = self.eta_expand_runtime_constructor(normalized)
   match normalized {
     Parameter(parameter) =>
-      self.intern_type_expression(Parameter({ index: parameter.index }))
+      self.intern_type_expression(Parameter(Projected(parameter.index)))
     Apply(Parameter(parameter), arguments) => {
       guard self.metadata.type_parameter_info(parameter) is Some(info) else {
         return self.intern_type_expression(
-          Parameter({ index: parameter.index }),
+          Parameter(Projected(parameter.index)),
         )
       }
       guard info.kind is Function(kinds, _) else {
         return self.intern_type_expression(
-          Parameter({ index: parameter.index }),
+          Parameter(Projected(parameter.index)),
         )
       }
       let callee = self.intern_type_expression(
-        Parameter({ index: parameter.index }),
+        Parameter(Projected(parameter.index)),
       )
       let runtime_arguments = []
       for index in 0..<kinds.length().min(arguments.length()) {
@@ -495,16 +496,16 @@ fn RuntimeGenericPlan::runtime_layout_evidence(
   }
   let normalized = self.eta_expand_runtime_constructor(normalized)
   match normalized {
-    Parameter(parameter) => Parameter({ index: parameter.index })
+    Parameter(parameter) => Parameter(Projected(parameter.index))
     Apply(Parameter(parameter), arguments) => {
       guard self.metadata.type_parameter_info(parameter) is Some(info) else {
-        return Parameter({ index: parameter.index })
+        return Parameter(Projected(parameter.index))
       }
       guard info.kind is Function(kinds, _) else {
-        return Parameter({ index: parameter.index })
+        return Parameter(Projected(parameter.index))
       }
       Apply(
-        Parameter({ index: parameter.index }),
+        Parameter(Projected(parameter.index)),
         self.runtime_kind_arguments(kinds, arguments),
       )
     }
@@ -588,9 +589,9 @@ fn RuntimeGenericPlan::normalized_runtime_type(
     Primitive(String) | Primitive(Bytes) => ByteSequence
     Parameter(parameter) => {
       let expression = self.intern_type_expression(
-        Parameter({ index: parameter.index }),
+        Parameter(Projected(parameter.index)),
       )
-      Erased(expression, Parameter({ index: parameter.index }))
+      Erased(expression, Parameter(Projected(parameter.index)))
     }
     Constructor(owner) | Apply(Constructor(owner), _) => {
       guard self.metadata.type_info(owner) is Some(info) else {
@@ -611,21 +612,21 @@ fn RuntimeGenericPlan::normalized_runtime_type(
     Apply(Parameter(parameter), arguments) => {
       guard self.metadata.type_parameter_info(parameter) is Some(info) else {
         let expression = self.intern_type_expression(
-          Parameter({ index: parameter.index }),
+          Parameter(Projected(parameter.index)),
         )
-        return Erased(expression, Parameter({ index: parameter.index }))
+        return Erased(expression, Parameter(Projected(parameter.index)))
       }
       guard info.kind is Function(kinds, _) else {
         let expression = self.intern_type_expression(
-          Parameter({ index: parameter.index }),
+          Parameter(Projected(parameter.index)),
         )
-        return Erased(expression, Parameter({ index: parameter.index }))
+        return Erased(expression, Parameter(Projected(parameter.index)))
       }
       let expression = self.runtime_type_expression(type_)
       Erased(
         expression,
         Apply(
-          Parameter({ index: parameter.index }),
+          Parameter(Projected(parameter.index)),
           self.runtime_kind_arguments(kinds, arguments),
         ),
       )

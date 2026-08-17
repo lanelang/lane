@@ -7,11 +7,21 @@ fn lower_unoptimized_test_program(
   @loisvm_bytecode.BytecodeImage,
   @loisvm_lowering.LoisvmLoweringError,
 ] {
+  let retained_values = []
+  for term in program.terms {
+    match term {
+      Let(value, _) | External(value) => retained_values.push(value)
+      LetRec(bindings) =>
+        for binding in bindings {
+          retained_values.push(binding.id)
+        }
+    }
+  }
   @loisvm_lowering.lower_executable_program_to_bytecode({
     program,
     externals,
     entry,
-    initializer_roots: [],
+    retained_values,
   })
 }
 

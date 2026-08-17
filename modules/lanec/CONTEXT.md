@@ -44,31 +44,33 @@ _Avoid_: source elaboration, ANF normalization
 
 **Whole-Program Elaboration**:
 The post-link phase that validates the selected entry and makes initializer
-retention roots, effect-aware CPS Core, and externals explicit.
+reachability, effect-aware CPS Core, and externals explicit.
 _Avoid_: module linking, target lowering
 
 **Executable Program**:
 The target-independent result of Whole-Program Elaboration containing one CPS
-Core program, one selected entry, externals, and initializer retention ValueIds.
-Initializer bodies and source order remain owned only by the CPS Core terms.
+Core program, one selected entry, externals, and one Executable Retention Set.
+Initializer bodies and source order remain owned only by the CPS Core terms;
+the retained set contains identities, not copied expressions or a schedule.
 _Avoid_: linked core wrapper, LoisVM image
 
-**Initializer Retention Root Set**:
-The top-level ValueIds whose eager computations must remain reachable for the
-selected entry. It contains neither initializer expressions nor the entry.
-_Avoid_: execution schedule, initializer index, copied AST
+**Executable Retention Set**:
+The exact set of top-level ValueIds reachable from the selected entry
+and all surviving eager initializers after CPS Core optimization. It includes
+the entry, retained externals, functions, and initializers and is produced once
+by Whole-Program Elaboration.
+_Avoid_: backend occurrence analysis, initializer-only roots, copied AST
 
 **Initializer Schedule**:
-The target-owned lowering plan produced by one source-order scan of Runtime ANF
-terms selected by the Initializer Retention Root Set. Recursive top-level terms
-remain one scheduling unit.
+The target-owned lowering plan produced by one source-order scan of retained
+Runtime ANF terms. Recursive top-level terms remain one scheduling unit.
 _Avoid_: executable AST side table, reordered root array
 
 **Linked Core Retention Root Set**:
 All entry candidates admitted by the link policy, value-bearing exports, and
 external values after cross-module identities have been remapped. Runtime type,
 effect, and operation metadata remains intact and does not create value roots.
-_Avoid_: per-module reachability, initializer retention roots
+_Avoid_: per-module reachability, executable retention set
 
 **Linked Core Tree Shaking**:
 The exact post-link removal of private top-level definitions outside the
@@ -236,7 +238,8 @@ _Avoid_: effect-blind DCE, bytecode optimization
 
 **Runtime ANF**:
 The closed backend-lowerable ANF produced only by projecting verified,
-effect-aware CPS Core. It owns `RuntimeType`, `RuntimeEvidence`, and a closed
+effect-aware CPS Core through the Executable Retention Set. It owns
+`RuntimeType`, `RuntimeEvidence`, retained top-level terms, and an immutable
 runtime type-expression catalog; these distinguish scalar, byte-sequence,
 nominal reference, data, callable, and erased representations without carrying
 Buslane `Type`, `Effect`, `Kind`, `GenericArgument`, or type-lambda syntax.
@@ -246,6 +249,12 @@ data value's callable ABI. Higher-kinded nominal arguments are eta-expanded at
 this boundary, so LoisVM lowering never reconstructs constructor arity from
 source types. LoisVM lowering consumes this exact representation.
 _Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering
+
+**LoisVM Runtime Type Arena**:
+The lowering-private arena seeded from Runtime ANF's immutable type-expression
+catalog. It owns expressions derived by runtime substitution and beta
+reduction; no derived identity is written back into Runtime ANF.
+_Avoid_: mutable Runtime ANF metadata, Buslane normalization, shared intern table
 
 **Runtime Generic Plan**:
 The fixed-point fact set constructed at the CPS-Core-to-Runtime-ANF boundary

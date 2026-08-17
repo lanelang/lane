@@ -417,6 +417,7 @@ graph TD
   ISS_380["ISS-380: Remove redundant frontend and module product fields"]
   ISS_381["ISS-381: Make Buslane metadata own entry and external source types"]
   ISS_382["ISS-382: Replace Buslane types in Runtime ANF with runtime representation facts"]
+  ISS_383["ISS-383: Close the Runtime ANF backend ownership seam"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -729,10 +730,12 @@ graph TD
   ISS_380 --> ISS_373
   ISS_381 --> ISS_373
   ISS_382 --> ISS_373
+  ISS_383 --> ISS_373
   ISS_374 --> ISS_375
   ISS_370 --> ISS_378
   ISS_375 --> ISS_380
   ISS_375 --> ISS_381
+  ISS_382 --> ISS_383
 ```
 
 ## Warnings

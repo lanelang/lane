@@ -8,11 +8,14 @@ import {
 }
 
 // Values
-pub fn lower_cps_core_to_runtime_anf(@buslane.Program) -> Result[AnfProgram, RuntimeAnfLoweringError]
+pub fn lower_cps_core_to_runtime_anf(RuntimeAnfInput) -> Result[AnfProgram, RuntimeAnfLoweringError]
 
 // Errors
 pub(all) suberror RuntimeAnfLoweringError {
   InvalidCpsCore(@buslane.VerifyResult)
+  InvalidRetention(@buslane.VerifyResult)
+  DuplicateRetainedValue(@buslane.ValueId)
+  UnknownRetainedValue(@buslane.ValueId)
   InvalidExpressionMetadata(@buslane.VerifyResult)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MissingType(@buslane.TypeId)
@@ -116,6 +119,11 @@ pub(all) enum AnfTopTerm {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfTopTerm
 
+pub(all) struct RuntimeAnfInput {
+  program : @buslane.Program
+  retained_values : Array[@buslane.ValueId]
+}
+
 pub(all) struct RuntimeArgument {
   type_expression : RuntimeTypeExpressionId
   evidence : RuntimeEvidence
@@ -142,8 +150,9 @@ pub(all) enum RuntimeEvidence {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for RuntimeEvidence
 
-pub(all) struct RuntimeEvidenceId {
-  index : Int
+pub(all) enum RuntimeEvidenceId {
+  Projected(Int)
+  Synthetic(Int)
 } derive(Compare, Eq, Hash, @debug.Debug)
 pub impl @prettyprinter.Pretty for RuntimeEvidenceId
 
@@ -168,17 +177,13 @@ pub(all) enum RuntimeLayout {
 } derive(Eq, @debug.Debug)
 
 pub(all) struct RuntimeMetadata {
-  values : Array[RuntimeValueInfo]
-  types : Array[RuntimeDataInfo]
-  data_constructors : Array[RuntimeDataConstructorInfo]
-  evidence_parameters : Array[RuntimeEvidenceParameter?]
-  type_expressions : Array[RuntimeTypeExpression]
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn RuntimeMetadata::data_constructor_info(Self, @buslane.DataConId) -> RuntimeDataConstructorInfo?
 pub fn RuntimeMetadata::evidence_parameter(Self, RuntimeEvidenceId) -> RuntimeEvidenceParameter?
-pub fn RuntimeMetadata::intern_type_expression(Self, RuntimeTypeExpression) -> RuntimeTypeExpressionId
 pub fn RuntimeMetadata::parameter_type_expression(Self, RuntimeEvidenceId) -> RuntimeTypeExpressionId?
 pub fn RuntimeMetadata::type_expression(Self, RuntimeTypeExpressionId) -> RuntimeTypeExpression?
+pub fn RuntimeMetadata::type_expressions(Self) -> ArrayView[RuntimeTypeExpression]
 pub fn RuntimeMetadata::type_info(Self, @buslane.TypeId) -> RuntimeDataInfo?
 pub fn RuntimeMetadata::types_representation_equivalent(Self, RuntimeType, RuntimeType) -> Bool
 pub fn RuntimeMetadata::value_info(Self, @buslane.ValueId) -> RuntimeValueInfo?

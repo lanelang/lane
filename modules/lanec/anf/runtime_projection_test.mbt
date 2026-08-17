@@ -1,4 +1,19 @@
 ///|
+fn lower_all_runtime_anf(program : @buslane.Program) -> @anf.AnfProgram {
+  let retained_values = []
+  for term in program.terms {
+    match term {
+      Let(value, _) | External(value) => retained_values.push(value)
+      LetRec(bindings) =>
+        for binding in bindings {
+          retained_values.push(binding.id)
+        }
+    }
+  }
+  @anf.lower_cps_core_to_runtime_anf({ program, retained_values }).unwrap()
+}
+
+///|
 test "runtime ANF projection preserves effect-aware source metadata" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let io_type = @buslane.Type::Function(
@@ -8,7 +23,7 @@ test "runtime ANF projection preserves effect-aware source metadata" {
   )
   let println = metadata.define_value("println", External, io_type)
   let source : @buslane.Program = { metadata, terms: [External(println)] }
-  let runtime = @anf.lower_cps_core_to_runtime_anf(source).unwrap()
+  let runtime = lower_all_runtime_anf(source)
   debug_inspect(
     (
       source.metadata.value_info(println).map(info => info.type_),
@@ -24,7 +39,7 @@ test "runtime ANF projection preserves effect-aware source metadata" {
 }
 
 ///|
-test "runtime ANF metadata observations are isolated from lowering arenas" {
+test "runtime ANF exposes an immutable type-expression catalog" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let answer = metadata.define_value(
     "answer",
@@ -44,15 +59,124 @@ test "runtime ANF metadata observations are isolated from lowering arenas" {
       ),
     ],
   }
-  let runtime = @anf.lower_cps_core_to_runtime_anf(source).unwrap()
-  let lowering_arena = runtime.metadata()
-  let appended = lowering_arena.intern_type_expression(Static(Scalar(I64)))
-  assert_eq(
-    (
-      lowering_arena.type_expression(appended),
-      runtime.metadata().type_expression(appended),
-    ),
-    (Some(Static(Scalar(I64))), None),
+  let runtime = lower_all_runtime_anf(source)
+  let first = runtime.metadata().type_expressions()
+  let second = runtime.metadata().type_expressions()
+  assert_eq(first, second)
+  guard runtime.metadata().value_info(answer)
+    is Some({ type_: Callable(parameters, _) }) else {
+    fail("expected runtime callable metadata")
+  }
+  parameters.push(Scalar(I64))
+  assert_true(
+    runtime.metadata().value_info(answer) is Some({ type_: Callable([], Unit) }),
+  )
+}
+
+///|
+test "runtime ANF contains only retained top-level terms" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let function_type = @buslane.Type::Function([], Primitive(Unit), Empty)
+  let retained = metadata.define_value("retained", Function, function_type)
+  let discarded = metadata.define_value("discarded", Function, function_type)
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        retained,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Literal(Unit),
+        }),
+      ),
+      Let(
+        discarded,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Literal(Unit),
+        }),
+      ),
+    ],
+  }
+  let runtime = @anf.lower_cps_core_to_runtime_anf({
+    program: source,
+    retained_values: [retained],
+  }).unwrap()
+  assert_true(runtime.terms() is [Let(actual, _)] && actual == retained)
+}
+
+///|
+test "runtime ANF rejects a retention set with a missing dependency" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let function_type = @buslane.Type::Function([], Primitive(Unit), Empty)
+  let helper = metadata.define_value("helper", Function, function_type)
+  let entry = metadata.define_value("entry", Function, function_type)
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        helper,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Literal(Unit),
+        }),
+      ),
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Call(Ref(helper), []),
+        }),
+      ),
+    ],
+  }
+  assert_true(
+    @anf.lower_cps_core_to_runtime_anf({
+      program: source,
+      retained_values: [entry],
+    })
+    is Err(InvalidRetention(_)),
+  )
+}
+
+///|
+test "runtime ANF rejects malformed retained-value sets" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let function_type = @buslane.Type::Function([], Primitive(Unit), Empty)
+  let entry = metadata.define_value("entry", Function, function_type)
+  let orphan = metadata.define_value("orphan", Local, Primitive(Unit))
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Literal(Unit),
+        }),
+      ),
+    ],
+  }
+  assert_true(
+    @anf.lower_cps_core_to_runtime_anf({
+      program: source,
+      retained_values: [entry, entry],
+    })
+    is Err(DuplicateRetainedValue(actual)) &&
+    actual == entry,
+  )
+  assert_true(
+    @anf.lower_cps_core_to_runtime_anf({
+      program: source,
+      retained_values: [entry, orphan],
+    })
+    is Err(UnknownRetainedValue(actual)) &&
+    actual == orphan,
   )
 }
 
@@ -108,7 +232,7 @@ test "runtime ANF removes effect-only binders and applications atomically" {
     ],
   }
   assert_true(@buslane.verify_program(source).is_ok())
-  let runtime = @anf.lower_cps_core_to_runtime_anf(source).unwrap()
+  let runtime = lower_all_runtime_anf(source)
   debug_inspect(
     (
       runtime.metadata().type_info(token),
@@ -201,16 +325,16 @@ test "runtime ANF preserves a used higher-kinded companion" {
   )
   let source : @buslane.Program = { metadata, terms: [External(callable)] }
   assert_true(@buslane.verify_program(source).is_ok())
-  let runtime = @anf.lower_cps_core_to_runtime_anf(source).unwrap()
+  let runtime = lower_all_runtime_anf(source)
   debug_inspect(
     runtime.metadata().value_info(callable).map(info => info.type_),
     content=(
       #|Some(
       #|  Forall(
-      #|    [{ id: { index: 0 }, arity: 1 }],
+      #|    [{ id: Projected(0), arity: 1 }],
       #|    Callable(
       #|      [],
-      #|      Erased({ index: 2 }, Apply(Parameter({ index: 0 }), [Static(I64)])),
+      #|      Erased({ index: 2 }, Apply(Parameter(Projected(0)), [Static(I64)])),
       #|    ),
       #|  ),
       #|)
@@ -234,7 +358,7 @@ test "runtime ANF beta-reduces projected type-lambda applications" {
   )
   let source : @buslane.Program = { metadata, terms: [External(callable)] }
   assert_true(@buslane.verify_program(source).is_ok())
-  let runtime = @anf.lower_cps_core_to_runtime_anf(source).unwrap()
+  let runtime = lower_all_runtime_anf(source)
   assert_eq(
     runtime.metadata().value_info(callable).map(info => info.type_),
     Some(Callable([], Unit)),
@@ -243,19 +367,20 @@ test "runtime ANF beta-reduces projected type-lambda applications" {
 
 ///|
 test "runtime representation equality preserves semantic value categories" {
-  let metadata : @anf.RuntimeMetadata = {
-    values: [],
-    types: [],
-    data_constructors: [],
-    evidence_parameters: [],
-    type_expressions: [],
-  }
+  let registry = @buslane.MetadataRegistry::MetadataRegistry()
+  let program : @buslane.Program = { metadata: registry, terms: [] }
+  let metadata = @anf.lower_cps_core_to_runtime_anf({
+      program,
+      retained_values: [],
+    })
+    .unwrap()
+    .metadata()
   let left_parameter : @anf.RuntimeEvidenceParameter = {
-    id: { index: 10 },
+    id: Projected(10),
     arity: 0,
   }
   let right_parameter : @anf.RuntimeEvidenceParameter = {
-    id: { index: 20 },
+    id: Projected(20),
     arity: 0,
   }
   let left_argument : @anf.RuntimeArgument = {
@@ -340,7 +465,7 @@ test "runtime ANF eta-expands a nominal type constructor argument" {
     ],
   }
   assert_true(@buslane.verify_program(source).is_ok())
-  let runtime = @anf.lower_cps_core_to_runtime_anf(source).unwrap()
+  let runtime = lower_all_runtime_anf(source)
   debug_inspect(
     runtime.terms(),
     content=(
@@ -367,7 +492,7 @@ test "runtime ANF eta-expands a nominal type constructor argument" {
       #|                  arguments=[
       #|                    {
       #|                      type_expression: { index: 3 },
-      #|                      evidence: Lambda([{ id: { index: 0 }, arity: 0 }], Static(Reference)),
+      #|                      evidence: Lambda([{ id: Projected(0), arity: 0 }], Static(Reference)),
       #|                    },
       #|                  ],
       #|                ),

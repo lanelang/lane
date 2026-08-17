@@ -7,6 +7,15 @@ pub struct AnfProgram {
 } derive(Debug, Eq)
 
 ///|
+/// The verified CPS Core program and the exact top-level values retained by
+/// executable reachability. Runtime ANF construction projects only these
+/// terms; backend consumers never recompute source-program occurrence facts.
+pub(all) struct RuntimeAnfInput {
+  program : @buslane.Program
+  retained_values : Array[@buslane.ValueId]
+}
+
+///|
 pub fn AnfProgram::metadata(self : AnfProgram) -> RuntimeMetadata {
   self.metadata.snapshot()
 }
@@ -19,6 +28,9 @@ pub fn AnfProgram::terms(self : AnfProgram) -> ArrayView[AnfTopTerm] {
 ///|
 pub(all) suberror RuntimeAnfLoweringError {
   InvalidCpsCore(@buslane.VerifyResult)
+  InvalidRetention(@buslane.VerifyResult)
+  DuplicateRetainedValue(@buslane.ValueId)
+  UnknownRetainedValue(@buslane.ValueId)
   InvalidExpressionMetadata(@buslane.VerifyResult)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MissingType(@buslane.TypeId)

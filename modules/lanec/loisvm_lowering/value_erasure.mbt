@@ -87,7 +87,10 @@ fn FunctionLowerer::unerase_value(
   target_type : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
-  let target_type = substitutions.apply_type(self.image.metadata, target_type)
+  let target_type = substitutions.apply_type(
+    self.image.runtime_types,
+    target_type,
+  )
   match self.image.runtime_type(target_type) {
     Erased(_) => Slot(source, target_type)
     Concrete(runtime_type) =>

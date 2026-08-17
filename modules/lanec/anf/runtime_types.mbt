@@ -27,9 +27,12 @@ pub(all) enum RuntimeLayout {
 } derive(Debug, Eq)
 
 ///|
-/// A program-wide identity for runtime representation evidence.
-pub(all) struct RuntimeEvidenceId {
-  index : Int
+/// A runtime representation-evidence identity. Projected identities are owned
+/// by Runtime ANF; synthetic identities are owned by a downstream lowering
+/// plan and can never collide with them.
+pub(all) enum RuntimeEvidenceId {
+  Projected(Int)
+  Synthetic(Int)
 } derive(Debug, Eq, Compare, Hash)
 
 ///|
@@ -115,11 +118,11 @@ pub(all) struct RuntimeDataConstructorInfo {
 /// Runtime metadata is indexed by stable Buslane declaration identities, but
 /// contains no Buslane type or effect terms.
 pub(all) struct RuntimeMetadata {
-  values : Array[RuntimeValueInfo]
-  types : Array[RuntimeDataInfo]
-  data_constructors : Array[RuntimeDataConstructorInfo]
-  evidence_parameters : Array[RuntimeEvidenceParameter?]
-  type_expressions : Array[RuntimeTypeExpression]
+  priv values : Array[RuntimeValueInfo]
+  priv types : Array[RuntimeDataInfo]
+  priv data_constructors : Array[RuntimeDataConstructorInfo]
+  priv evidence_parameters : Array[RuntimeEvidenceParameter?]
+  priv type_expressions : Array[RuntimeTypeExpression]
 } derive(Debug, Eq)
 
 ///|
@@ -135,10 +138,9 @@ pub fn RuntimeMetadata::evidence_parameter(
   self : RuntimeMetadata,
   parameter : RuntimeEvidenceId,
 ) -> RuntimeEvidenceParameter? {
-  if parameter.index < 0 {
-    Some({ id: parameter, arity: 0 })
-  } else {
-    self.evidence_parameters.get(parameter.index).bind(value => value)
+  match parameter {
+    Projected(index) => self.evidence_parameters.get(index).bind(value => value)
+    Synthetic(_) => None
   }
 }
 
@@ -167,28 +169,73 @@ pub fn RuntimeMetadata::type_expression(
 }
 
 ///|
-pub fn RuntimeMetadata::intern_type_expression(
+pub fn RuntimeMetadata::type_expressions(
   self : RuntimeMetadata,
-  expression : RuntimeTypeExpression,
-) -> RuntimeTypeExpressionId {
-  for index, existing in self.type_expressions {
-    if existing == expression {
-      return { index, }
-    }
-  }
-  let id : RuntimeTypeExpressionId = { index: self.type_expressions.length() }
-  self.type_expressions.push(expression)
-  id
+) -> ArrayView[RuntimeTypeExpression] {
+  self.type_expressions[:]
 }
 
 ///|
 fn RuntimeMetadata::snapshot(self : RuntimeMetadata) -> RuntimeMetadata {
   {
-    values: self.values.copy(),
-    types: self.types.copy(),
-    data_constructors: self.data_constructors.copy(),
+    values: self.values.map(info => { type_: info.type_.snapshot() }),
+    types: self.types.map(info => {
+      kind: info.kind,
+      evidence_parameters: info.evidence_parameters.copy(),
+      constructors: info.constructors.copy(),
+    }),
+    data_constructors: self.data_constructors.map(info => {
+      owner: info.owner,
+      hidden_evidence_parameters: info.hidden_evidence_parameters.copy(),
+      payload_types: info.payload_types.map(type_ => type_.snapshot()),
+    }),
     evidence_parameters: self.evidence_parameters.copy(),
-    type_expressions: self.type_expressions.copy(),
+    type_expressions: self.type_expressions.map(expression => {
+      expression.snapshot()
+    }),
+  }
+}
+
+///|
+fn RuntimeArgument::snapshot(self : RuntimeArgument) -> RuntimeArgument {
+  { type_expression: self.type_expression, evidence: self.evidence.snapshot() }
+}
+
+///|
+fn RuntimeEvidence::snapshot(self : RuntimeEvidence) -> RuntimeEvidence {
+  match self {
+    Static(_) | Parameter(_) => self
+    Apply(callee, arguments) =>
+      Apply(callee.snapshot(), arguments.map(argument => argument.snapshot()))
+    Lambda(parameters, body) => Lambda(parameters.copy(), body.snapshot())
+  }
+}
+
+///|
+fn RuntimeType::snapshot(self : RuntimeType) -> RuntimeType {
+  match self {
+    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) => self
+    Data(owner, arguments) =>
+      Data(owner, arguments.map(argument => argument.snapshot()))
+    Callable(parameters, result) =>
+      Callable(
+        parameters.map(parameter => parameter.snapshot()),
+        result.snapshot(),
+      )
+    Erased(expression, evidence) => Erased(expression, evidence.snapshot())
+    Forall(parameters, body) => Forall(parameters.copy(), body.snapshot())
+  }
+}
+
+///|
+fn RuntimeTypeExpression::snapshot(
+  self : RuntimeTypeExpression,
+) -> RuntimeTypeExpression {
+  match self {
+    Static(type_) => Static(type_.snapshot())
+    Parameter(_) => self
+    Apply(callee, arguments) => Apply(callee, arguments.copy())
+    Lambda(parameters, body) => Lambda(parameters.copy(), body)
   }
 }
 

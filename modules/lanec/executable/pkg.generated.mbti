@@ -49,7 +49,7 @@ pub(all) struct ExecutableProgram {
   program : @buslane.Program
   externals : @buslane_lowering.BuslaneExternalMap
   entry : @buslane_lowering.BuslaneEntry
-  initializer_roots : Array[@buslane.ValueId]
+  retained_values : Array[@buslane.ValueId]
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for ExecutableProgram
 

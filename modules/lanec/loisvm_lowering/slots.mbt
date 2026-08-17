@@ -61,7 +61,7 @@ fn FunctionLowerer::instantiate_runtime_type(
   type_ : @anf.RuntimeType,
 ) -> @anf.RuntimeType raise LoisvmLoweringError {
   if runtime_type_mentions_any(type_, self.specialized_parameters, []) {
-    self.substitutions.apply_type(self.image.metadata, type_)
+    self.substitutions.apply_type(self.image.runtime_types, type_)
   } else {
     type_
   }

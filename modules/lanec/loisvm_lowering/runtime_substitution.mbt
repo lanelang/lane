@@ -64,23 +64,23 @@ fn RuntimeSubstitution::apply_evidence(
 ///|
 fn RuntimeSubstitution::apply_argument(
   self : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   argument : @anf.RuntimeArgument,
 ) -> @anf.RuntimeArgument raise LoisvmLoweringError {
-  self.apply_argument_with(metadata, argument, [], [])
+  self.apply_argument_with(runtime_types, argument, [], [])
 }
 
 ///|
 fn RuntimeSubstitution::apply_argument_with(
   self : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   argument : @anf.RuntimeArgument,
   bound : Array[@anf.RuntimeEvidenceId],
   visited : Array[@anf.RuntimeEvidenceId],
 ) -> @anf.RuntimeArgument raise LoisvmLoweringError {
   {
     type_expression: self.apply_type_expression(
-      metadata,
+      runtime_types,
       argument.type_expression,
       bound,
       visited,
@@ -92,20 +92,20 @@ fn RuntimeSubstitution::apply_argument_with(
 ///|
 fn RuntimeSubstitution::apply_type_expression(
   self : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   expression : @anf.RuntimeTypeExpressionId,
   bound : Array[@anf.RuntimeEvidenceId],
   visited : Array[@anf.RuntimeEvidenceId],
 ) -> @anf.RuntimeTypeExpressionId raise LoisvmLoweringError {
-  guard metadata.type_expression(expression) is Some(node) else {
+  guard runtime_types.type_expression(expression) is Some(node) else {
     raise InvalidTypeApplication(
       detail="runtime type expression \{expression.index} is missing",
     )
   }
   match node {
     Static(type_) =>
-      metadata.intern_type_expression(
-        Static(self.apply_type_with(metadata, type_, bound, visited)),
+      runtime_types.intern(
+        Static(self.apply_type_with(runtime_types, type_, bound, visited)),
       )
     Parameter(parameter) => {
       if bound.contains(parameter) || visited.contains(parameter) {
@@ -117,18 +117,20 @@ fn RuntimeSubstitution::apply_type_expression(
       let visited = visited.copy()
       visited.push(parameter)
       self.apply_type_expression(
-        metadata,
+        runtime_types,
         argument.type_expression,
         bound,
         visited,
       )
     }
     Apply(callee, arguments) => {
-      let callee = self.apply_type_expression(metadata, callee, bound, visited)
+      let callee = self.apply_type_expression(
+        runtime_types, callee, bound, visited,
+      )
       let arguments = arguments.map(argument => {
-        self.apply_type_expression(metadata, argument, bound, visited)
+        self.apply_type_expression(runtime_types, argument, bound, visited)
       })
-      guard metadata.type_expression(callee) is Some(callee_node) else {
+      guard runtime_types.type_expression(callee) is Some(callee_node) else {
         raise InvalidTypeApplication(detail="runtime type callee is missing")
       }
       match callee_node {
@@ -142,23 +144,26 @@ fn RuntimeSubstitution::apply_type_expression(
           for index, parameter in parameters {
             beta.insert(parameter.id, {
               type_expression: arguments[index],
-              evidence: runtime_expression_evidence(metadata, arguments[index]),
+              evidence: runtime_expression_evidence(
+                runtime_types,
+                arguments[index],
+              ),
             })
           }
           self
           .overlay(beta)
-          .apply_type_expression(metadata, body, bound, visited)
+          .apply_type_expression(runtime_types, body, bound, visited)
         }
-        _ => metadata.intern_type_expression(Apply(callee, arguments))
+        _ => runtime_types.intern(Apply(callee, arguments))
       }
     }
     Lambda(parameters, body) => {
       let nested = bound.copy()
       nested.append(parameters.map(parameter => parameter.id))
-      metadata.intern_type_expression(
+      runtime_types.intern(
         Lambda(
           parameters,
-          self.apply_type_expression(metadata, body, nested, visited),
+          self.apply_type_expression(runtime_types, body, nested, visited),
         ),
       )
     }
@@ -168,10 +173,10 @@ fn RuntimeSubstitution::apply_type_expression(
 ///|
 fn RuntimeSubstitution::argument_type(
   self : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   argument : @anf.RuntimeArgument,
 ) -> @anf.RuntimeType? raise LoisvmLoweringError {
-  self.evaluate_type_expression(metadata, argument.type_expression, [], [])
+  self.evaluate_type_expression(runtime_types, argument.type_expression, [], [])
 }
 
 ///|
@@ -261,16 +266,16 @@ fn apply_evidence_replacements(
 ///|
 fn RuntimeSubstitution::apply_type(
   self : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   type_ : @anf.RuntimeType,
 ) -> @anf.RuntimeType raise LoisvmLoweringError {
-  self.apply_type_with(metadata, type_, [], [])
+  self.apply_type_with(runtime_types, type_, [], [])
 }
 
 ///|
 fn RuntimeSubstitution::apply_type_with(
   self : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   type_ : @anf.RuntimeType,
   bound : Array[@anf.RuntimeEvidenceId],
   visited : Array[@anf.RuntimeEvidenceId],
@@ -281,23 +286,23 @@ fn RuntimeSubstitution::apply_type_with(
       Data(
         owner,
         arguments.map(argument => {
-          self.apply_argument_with(metadata, argument, bound, visited)
+          self.apply_argument_with(runtime_types, argument, bound, visited)
         }),
       )
     Callable(parameters, result) =>
       Callable(
         parameters.map(parameter => {
-          self.apply_type_with(metadata, parameter, bound, visited)
+          self.apply_type_with(runtime_types, parameter, bound, visited)
         }),
-        self.apply_type_with(metadata, result, bound, visited),
+        self.apply_type_with(runtime_types, result, bound, visited),
       )
     Erased(expression, evidence) => {
       let expression = self.apply_type_expression(
-        metadata, expression, bound, visited,
+        runtime_types, expression, bound, visited,
       )
       match
         RuntimeSubstitution::new().evaluate_type_expression(
-          metadata,
+          runtime_types,
           expression,
           bound,
           [],
@@ -310,7 +315,10 @@ fn RuntimeSubstitution::apply_type_with(
     Forall(parameters, body) => {
       let nested = bound.copy()
       nested.append(parameters.map(parameter => parameter.id))
-      Forall(parameters, self.apply_type_with(metadata, body, nested, visited))
+      Forall(
+        parameters,
+        self.apply_type_with(runtime_types, body, nested, visited),
+      )
     }
   }
 }
@@ -318,12 +326,12 @@ fn RuntimeSubstitution::apply_type_with(
 ///|
 fn RuntimeSubstitution::evaluate_type_expression(
   self : RuntimeSubstitution,
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   expression : @anf.RuntimeTypeExpressionId,
   bound : Array[@anf.RuntimeEvidenceId],
   visited : Array[@anf.RuntimeEvidenceId],
 ) -> @anf.RuntimeType? raise LoisvmLoweringError {
-  guard metadata.type_expression(expression) is Some(node) else {
+  guard runtime_types.type_expression(expression) is Some(node) else {
     raise InvalidTypeApplication(
       detail="runtime type expression \{expression.index} is missing",
     )
@@ -338,20 +346,21 @@ fn RuntimeSubstitution::evaluate_type_expression(
       let visited = visited.copy()
       visited.push(parameter)
       self.evaluate_type_expression(
-        metadata,
+        runtime_types,
         argument.type_expression,
         bound,
         visited,
       )
     }
     Apply(callee, arguments) => {
-      guard metadata.type_expression(callee) is Some(callee_node) else {
+      guard runtime_types.type_expression(callee) is Some(callee_node) else {
         raise InvalidTypeApplication(detail="runtime type callee is missing")
       }
       let callee_node = match callee_node {
         Parameter(parameter) => {
           guard self.argument(parameter) is Some(argument) else { return None }
-          guard metadata.type_expression(argument.type_expression) is Some(node) else {
+          guard runtime_types.type_expression(argument.type_expression)
+            is Some(node) else {
             raise InvalidTypeApplication(
               detail="runtime type constructor argument is missing",
             )
@@ -370,12 +379,12 @@ fn RuntimeSubstitution::evaluate_type_expression(
       for index, parameter in parameters {
         beta.insert(parameter.id, {
           type_expression: arguments[index],
-          evidence: runtime_expression_evidence(metadata, arguments[index]),
+          evidence: runtime_expression_evidence(runtime_types, arguments[index]),
         })
       }
       self
       .overlay(beta)
-      .evaluate_type_expression(metadata, body, bound, visited)
+      .evaluate_type_expression(runtime_types, body, bound, visited)
     }
     Lambda(_, _) => None
   }
@@ -383,10 +392,10 @@ fn RuntimeSubstitution::evaluate_type_expression(
 
 ///|
 fn runtime_expression_evidence(
-  metadata : @anf.RuntimeMetadata,
+  runtime_types : RuntimeTypeArena,
   expression : @anf.RuntimeTypeExpressionId,
 ) -> @anf.RuntimeEvidence raise LoisvmLoweringError {
-  match metadata.type_expression(expression) {
+  match runtime_types.type_expression(expression) {
     Some(Static(type_)) =>
       match type_ {
         Erased(_, evidence) => evidence
@@ -395,13 +404,13 @@ fn runtime_expression_evidence(
     Some(Parameter(parameter)) => Parameter(parameter)
     Some(Apply(callee, arguments)) =>
       Apply(
-        runtime_expression_evidence(metadata, callee),
+        runtime_expression_evidence(runtime_types, callee),
         arguments.map(argument => {
-          runtime_expression_evidence(metadata, argument)
+          runtime_expression_evidence(runtime_types, argument)
         }),
       )
     Some(Lambda(parameters, body)) =>
-      Lambda(parameters, runtime_expression_evidence(metadata, body))
+      Lambda(parameters, runtime_expression_evidence(runtime_types, body))
     None =>
       raise InvalidTypeApplication(detail="runtime type expression is missing")
   }

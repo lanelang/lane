@@ -67,7 +67,37 @@ fn elaborate_or_raise(
   observe(CoreOptimized(program))
   let program = lower_effects(program, entry.value, observe)
   let initializer_roots = collect_initializer_roots(program)
-  { program, externals, entry, initializer_roots }
+  let retained_values = collect_retained_values(
+    program,
+    entry.value,
+    initializer_roots,
+  )
+  { program, externals, entry, retained_values }
+}
+
+///|
+fn collect_retained_values(
+  program : @buslane.Program,
+  entry : @buslane.ValueId,
+  roots : Array[@buslane.ValueId],
+) -> Array[@buslane.ValueId] {
+  let occurrence = @occurrence.analyze({ program, entry, roots })
+  let retained = []
+  for term in program.terms {
+    match term {
+      Let(value, _) | External(value) =>
+        if occurrence_value_is_reachable(occurrence, value) {
+          retained.push(value)
+        }
+      LetRec(bindings) =>
+        for binding in bindings {
+          if occurrence_value_is_reachable(occurrence, binding.id) {
+            retained.push(binding.id)
+          }
+        }
+    }
+  }
+  retained
 }
 
 ///|

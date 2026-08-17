@@ -5,7 +5,10 @@ using @prettyprinter {type Document, empty, space, text}
 pub impl @prettyprinter.Pretty for RuntimeEvidenceId with fn pretty(
   id : RuntimeEvidenceId,
 ) {
-  text("evidence#\{id.index}")
+  match id {
+    Projected(index) => text("evidence#\{index}")
+    Synthetic(index) => text("synthetic-evidence#\{index}")
+  }
 }
 
 ///|

@@ -133,7 +133,7 @@ fn FunctionLowerer::lower_adapted_callable_call(
     let target_parameter_type = target_parameter_types[target_index]
     let adapted = self.adapt_local_value_with_substitutions(
       arguments[target_index],
-      substitutions.apply_type(self.image.metadata, target_parameter_type),
+      substitutions.apply_type(self.image.runtime_types, target_parameter_type),
       source_parameter_type,
       substitutions,
     )
@@ -158,7 +158,7 @@ fn FunctionLowerer::lower_adapted_callable_call(
     }
   }
   let actual_source_result = substitutions.apply_type(
-    self.image.metadata,
+    self.image.runtime_types,
     source_result_type,
   )
   let source_result = if self.image.runtime_type(source_result_type)
@@ -177,7 +177,7 @@ fn FunctionLowerer::lower_adapted_callable_call(
   let result = self.adapt_local_value_with_substitutions(
     source_result.1,
     source_result_type,
-    substitutions.apply_type(self.image.metadata, target_result_type),
+    substitutions.apply_type(self.image.runtime_types, target_result_type),
     substitutions,
   )
   self.restore_witnesses(witness_count)
@@ -207,7 +207,7 @@ fn FunctionLowerer::lower_value_call(
   self.adapt_local_value_with_substitutions(
     destination.1,
     result_type,
-    self.substitutions.apply_type(self.image.metadata, result_type),
+    self.substitutions.apply_type(self.image.runtime_types, result_type),
     self.substitutions,
   )
 }
@@ -284,7 +284,7 @@ fn FunctionLowerer::lower_generic_direct_call(
   }
   let argument_slots = []
   for index, formal in formal_parameters {
-    let actual = substitutions.apply_type(self.image.metadata, formal)
+    let actual = substitutions.apply_type(self.image.runtime_types, formal)
     let adapted = self.materialize_local(
       self.adapt_local_value_with_substitutions(
         values[index],
@@ -301,7 +301,7 @@ fn FunctionLowerer::lower_generic_direct_call(
     }
   }
   let actual_result = substitutions.apply_type(
-    self.image.metadata,
+    self.image.runtime_types,
     formal_result,
   )
   if self.image.runtime_type(formal_result) is Erased(_) {
@@ -394,7 +394,7 @@ fn FunctionLowerer::lower_generic_value_call(
   }
   let argument_slots = []
   for index, formal in formal_parameters {
-    let actual = substitutions.apply_type(self.image.metadata, formal)
+    let actual = substitutions.apply_type(self.image.runtime_types, formal)
     let adapted = self.materialize_local(
       self.adapt_local_value_with_substitutions(
         values[index],
@@ -411,7 +411,7 @@ fn FunctionLowerer::lower_generic_value_call(
     }
   }
   let actual_result = substitutions.apply_type(
-    self.image.metadata,
+    self.image.runtime_types,
     formal_result,
   )
   if self.image.runtime_type(formal_result) is Erased(_) {
@@ -463,7 +463,7 @@ fn FunctionLowerer::substitute_generic_argument(
   self : FunctionLowerer,
   argument : @anf.RuntimeArgument,
 ) -> @anf.RuntimeArgument raise LoisvmLoweringError {
-  self.substitutions.apply_argument(self.image.metadata, argument)
+  self.substitutions.apply_argument(self.image.runtime_types, argument)
 }
 
 ///|
@@ -506,7 +506,7 @@ fn FunctionLowerer::lower_direct_call(
   self.adapt_local_value_with_substitutions(
     destination.1,
     result_type,
-    self.substitutions.apply_type(self.image.metadata, result_type),
+    self.substitutions.apply_type(self.image.runtime_types, result_type),
     self.substitutions,
   )
 }
