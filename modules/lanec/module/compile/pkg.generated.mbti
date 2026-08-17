@@ -29,6 +29,8 @@ pub fn find_compiled_module(Array[CompiledModule], String) -> CompiledModule?
 
 pub fn link_compiled_module_set(CompiledModuleSet) -> @link.LinkResult
 
+pub fn link_compiled_module_set_observed(CompiledModuleSet, (@link.LinkRetentionObservation) -> Unit) -> @link.LinkResult
+
 pub fn link_compiled_modules(Array[CompiledModule]) -> @link.LinkResult
 
 // Errors

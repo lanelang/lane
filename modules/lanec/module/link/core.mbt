@@ -5,7 +5,7 @@
 pub fn link_modules(modules : Array[LinkModuleObject]) -> LinkResult {
   match LinkModuleIndex::from_modules(modules) {
     Err(diagnostics) => { program: None, diagnostics }
-    Ok(index) => link_index(index, AllModules, QualifiedEntries)
+    Ok(index) => link_index(index, AllModules, QualifiedEntries, None)
   }
 }
 
@@ -24,6 +24,25 @@ pub fn link_reachable_modules(
         index,
         Reachable(root_module_path_text),
         RootEntries(root_module_path_text),
+        None,
+      )
+  }
+}
+
+///|
+pub fn link_reachable_modules_observed(
+  modules : Array[LinkModuleObject],
+  root_module_path_text : String,
+  observe : (LinkRetentionObservation) -> Unit,
+) -> LinkResult {
+  match LinkModuleIndex::from_modules(modules) {
+    Err(diagnostics) => { program: None, diagnostics }
+    Ok(index) =>
+      link_index(
+        index,
+        Reachable(root_module_path_text),
+        RootEntries(root_module_path_text),
+        Some(observe),
       )
   }
 }
@@ -33,6 +52,7 @@ fn link_index(
   index : LinkModuleIndex,
   selection : LinkModuleSelection,
   entry_mode : LinkedEntryMode,
+  observe : ((LinkRetentionObservation) -> Unit)?,
 ) -> LinkResult {
   let ordered = match selection {
     AllModules => index.all()
@@ -45,7 +65,7 @@ fn link_index(
   }
   match index.validate_order(ordered.modules) {
     Err(diagnostics) => { program: None, diagnostics }
-    Ok(modules) => link_ordered_modules(modules, entry_mode)
+    Ok(modules) => link_ordered_modules(modules, entry_mode, observe)
   }
 }
 
@@ -53,9 +73,10 @@ fn link_index(
 fn link_ordered_modules(
   modules : Array[ValidatedLinkModuleObject],
   entry_mode : LinkedEntryMode,
+  observe : ((LinkRetentionObservation) -> Unit)?,
 ) -> LinkResult {
   let remapper = BuslaneLinker::BuslaneLinker()
-  link_ordered_modules_with_remapper(remapper, modules, entry_mode)
+  link_ordered_modules_with_remapper(remapper, modules, entry_mode, observe)
 }
 
 ///|
@@ -63,6 +84,7 @@ fn link_ordered_modules_with_remapper(
   remapper : BuslaneLinker,
   modules : Array[ValidatedLinkModuleObject],
   entry_mode : LinkedEntryMode,
+  observe : ((LinkRetentionObservation) -> Unit)?,
 ) -> LinkResult {
   let remapped_objects = remapper.remap_module_objects(modules) catch {
     error =>
@@ -99,6 +121,9 @@ fn link_ordered_modules_with_remapper(
     complete_program,
     linked_top_term_roots(remapped_objects, entries),
   )
+  if observe is Some(emit) {
+    emit(link_retention_observation(remapped_objects, retained_program))
+  }
   {
     program: Some({
       module_path_texts,
@@ -107,6 +132,78 @@ fn link_ordered_modules_with_remapper(
       entries,
     }),
     diagnostics: [],
+  }
+}
+
+///|
+fn link_retention_observation(
+  modules : Array[RemappedModuleObject],
+  retained : @buslane.Program,
+) -> LinkRetentionObservation {
+  let module_paths = []
+  let input_top_terms = []
+  let input_value_bindings = []
+  let owners : Map[LinkedTopTermIdentity, Int] = Map([])
+  for module_index, module_ in modules {
+    module_paths.push(module_.module_path_text)
+    input_top_terms.push(module_.terms.length())
+    input_value_bindings.push(
+      module_.terms.fold(init=0, fn(count, term) {
+        count + linked_top_term_binding_count(term)
+      }),
+    )
+    for term in module_.terms {
+      for identity in linked_top_term_identities(term) {
+        if !owners.contains(identity) {
+          owners[identity] = module_index
+        }
+      }
+    }
+  }
+  let retained_top_terms = Array::make(module_paths.length(), 0)
+  let retained_value_bindings = Array::make(module_paths.length(), 0)
+  for term in retained.terms {
+    if owners.get(linked_top_term_identity(term)) is Some(owner) {
+      retained_top_terms[owner] += 1
+      retained_value_bindings[owner] += linked_top_term_binding_count(term)
+    }
+  }
+  {
+    modules: module_paths.mapi((index, module_path_text) => {
+      module_path_text,
+      input_top_terms: input_top_terms[index],
+      retained_top_terms: retained_top_terms[index],
+      input_value_bindings: input_value_bindings[index],
+      retained_value_bindings: retained_value_bindings[index],
+    }),
+  }
+}
+
+///|
+fn linked_top_term_identity(term : @buslane.TopTerm) -> LinkedTopTermIdentity {
+  match term {
+    Let(value, _) => Value(value.index)
+    LetRec(bindings) => Value(bindings[0].id.index)
+    External(value) => External(value.index)
+  }
+}
+
+///|
+fn linked_top_term_identities(
+  term : @buslane.TopTerm,
+) -> Array[LinkedTopTermIdentity] {
+  match term {
+    Let(value, _) => [Value(value.index)]
+    LetRec(bindings) => bindings.map(binding => Value(binding.id.index))
+    External(value) => [External(value.index)]
+  }
+}
+
+///|
+fn linked_top_term_binding_count(term : @buslane.TopTerm) -> Int {
+  match term {
+    Let(_) | External(_) => 1
+    LetRec(bindings) => bindings.length()
   }
 }
 

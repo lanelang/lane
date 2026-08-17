@@ -58,6 +58,7 @@ pub(all) struct WasmCompileObservation {
 ///|
 priv struct WasmFunctionEmitter {
   module_ : @wasm_types.Module
+  record_scale : Bool
   function_scales : Array[WasmFunctionScale]
   mut imported_function_count : Int
   mut emitted_function_count : Int
@@ -66,9 +67,11 @@ priv struct WasmFunctionEmitter {
 ///|
 fn WasmFunctionEmitter::new(
   module_ : @wasm_types.Module,
+  record_scale : Bool,
 ) -> WasmFunctionEmitter {
   {
     module_,
+    record_scale,
     function_scales: [],
     imported_function_count: 0,
     emitted_function_count: 0,
@@ -113,10 +116,12 @@ fn WasmFunctionEmitter::append_defined(
   }
   self.module_.funcs.push(entry.type_index)
   self.module_.codes.push(code)
-  self.function_scales.push({
-    index: entry.handle.index,
-    instruction_count: wasm_instruction_array_size(code.body),
-    local_count: code.locals.length(),
-  })
+  if self.record_scale {
+    self.function_scales.push({
+      index: entry.handle.index,
+      instruction_count: wasm_instruction_array_size(code.body),
+      local_count: code.locals.length(),
+    })
+  }
   self.emitted_function_count += 1
 }

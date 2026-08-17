@@ -158,6 +158,11 @@ A stable compiler-owned observation point at a useful semantic transformation
 boundary.
 _Avoid_: every internal pass, mutable compiler hook
 
+**Explore Stage Catalog**:
+The single ordered protocol table that owns every Explore Stage identity, key,
+title, domain, text format, and order.
+_Avoid_: stage-field record, parallel stage switch, positional reconstruction
+
 **Explore Snapshot**:
 The human-readable projection recorded for one completed Explore Stage.
 _Avoid_: typed IR transfer, serialization format
@@ -167,6 +172,18 @@ The stage-local identity assigned by an IR construction or function-emission
 owner and consumed by both provenance and per-function scale observations.
 Stages without such an identity publish aggregate scale only.
 _Avoid_: traversal ordinal, array position, rendered label
+
+**Explore Structural Scale**:
+A deterministic typed aggregate produced by the sole observation analysis for
+a completed IR. Public IR structure may be traversed by Explore; private stage
+structure is summarized by its owner. Tree IRs expose aggregates only.
+_Avoid_: public scale interface with one consumer, pretty-text parsing,
+fabricated identity, metadata allocation count presented as live structure
+
+**Explore Link Contribution**:
+A linker-owned observation that attributes input and retained top terms and
+value bindings to their source modules at the reachability-retention boundary.
+_Avoid_: name-based attribution, cached derived fact in LinkedProgram
 
 **Explore Report**:
 The versioned result for one selected entry, containing ordered completed,
@@ -180,8 +197,9 @@ _Avoid_: fallback success report, empty diagnostics
 
 **Compilation Observer**:
 A read-only recipient of stage snapshots emitted by the canonical compiler
-pipeline.
-_Avoid_: compiler plugin, alternate pass manager
+pipeline. When absent, the pipeline does not render or measure snapshots.
+_Avoid_: compiler plugin, alternate pass manager, no-op callback that still
+constructs observations
 
 **Compiler Driver**:
 The platform-neutral orchestration boundary shared by native and browser

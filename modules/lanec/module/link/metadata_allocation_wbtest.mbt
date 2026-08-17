@@ -30,6 +30,7 @@ test "linker reports allocation failure without a partial linked program" {
     remapper,
     [allocation_test_link_object("Main")],
     QualifiedEntries,
+    None,
   )
   assert_eq(result, {
     program: None,

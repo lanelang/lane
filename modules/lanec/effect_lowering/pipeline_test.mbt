@@ -17,8 +17,11 @@ test "effect lowering exposes snapshots without transitional IR" {
     ],
   }
   let snapshots = []
-  let lowered = lower_effects(source, snapshot => snapshots.push(snapshot)).unwrap()
+  let lowered = lower_effects_observed(source, snapshot => {
+    snapshots.push(snapshot)
+  }).unwrap()
   assert_true(@buslane.verify_program(lowered).is_ok())
+  assert_eq(lower_effects(source), Ok(lowered))
   debug_inspect(
     snapshots,
     content=(
@@ -56,7 +59,7 @@ test "effect lowering rejects an unverified Buslane input" {
     metadata,
     terms: [Let(answer, Literal(I64(42L)))],
   }
-  guard lower_effects(source, _ => ()) is Err(InvalidProgram(stage~, result~)) else {
+  guard lower_effects(source) is Err(InvalidProgram(stage~, result~)) else {
     fail("expected invalid input to be rejected")
   }
   assert_eq(stage, Input)

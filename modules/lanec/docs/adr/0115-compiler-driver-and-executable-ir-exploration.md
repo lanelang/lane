@@ -8,7 +8,7 @@ Normal compilation and exploration share orchestration at the stage-owning packa
 
 An Explore Stage contains a stable stage identifier, display label, and one of three states: completed with an Explore Snapshot, failed with diagnostics, or unavailable. An Explore Snapshot contains the compiler or backend domain, text format, human-readable text, diagnostics, and stable structural scale metrics. It contains rendered text rather than a typed compiler object. IR printers remain human-facing pretty printers and are not serialization formats. Before linking, snapshots display only the module that owns the selected entry; compilation still checks required dependencies and reports their diagnostics. Linking and every later stage display the complete whole-program IR consumed by the next transformation.
 
-Explore Report Protocol version 5 contains compiler identity, root identity, the artifact-defined selected entry, overall status, diagnostics, a structural function-provenance graph, and this fixed ordered stage sequence:
+Explore Report Protocol version 6 contains compiler identity, root identity, the artifact-defined selected entry, overall status, diagnostics, a structural function-provenance graph, and this fixed ordered stage sequence:
 
 1. `syntax`: Syntax AST;
 2. `resolved`: Resolved AST;
@@ -29,7 +29,18 @@ Explore Report Protocol version 5 contains compiler identity, root identity, the
 17. `loisvm.bytecode`: LoisVM Bytecode (ARC and Slot Finalization);
 18. `wasm`: Wasm (LoisVM Backend Lowering).
 
-Stage identifiers and order are protocol data distinct from display labels. Clients render unknown future stages as ordinary text tabs. The protocol does not promise a stable grammar for pretty-printed IR text.
+One ordered Stage Catalog owns each stage's identity, protocol key, display title, domain, text format, and order. Reports store the catalog projection as one ordered collection rather than reproducing the pipeline as record fields. Clients render unknown future stages as ordinary text tabs. The protocol does not promise a stable grammar for pretty-printed IR text.
+
+Reconstructible structural scale is produced by one exhaustive observation
+analysis rather than added to every public IR interface. Source compilation
+produces detached source-stage aggregates because its synchronous observer does
+not transfer mutable ASTs; Buslane exposes one reusable structural query across
+its many stages; Explore privately measures Runtime ANF, VM CFG, and bytecode.
+Identity-less tree IRs do not invent function identities. Transformation owners
+produce only facts unavailable from the completed public IR: function identity
+and provenance, private effect-lowering snapshots, Wasm emission facts, and the
+linker's per-module top-term and value-binding retention decision. Disabled
+observation performs none of the rendering or structural traversal.
 
 Whole-Program Elaboration is the enclosing process that produces an Executable Program rather than a Buslane transformation stage. Exploration observes existing transformation outputs and does not split or duplicate a fused compiler pass solely to manufacture another display stage. The current VM CFG finalization therefore appears once through its resulting LoisVM bytecode, where inserted ARC operations and finalized slots are both visible.
 
@@ -39,7 +50,7 @@ A failed compilation produces a Partial Explore Report containing all eighteen o
 
 The native command is `lane explore <file>:<entry> -o <report.html>` with the same library-input semantics as `lane run`: `$LANE_HOME/basic` is loaded by default, explicit `--lib` and `--lib-dir` inputs are appended, and `--no-basic` disables the default directory. The output path is required. The command never executes the entry, writes the report through atomic replacement, does not emit the report to stdout, and does not automatically open a browser.
 
-The native output is deterministic, self-contained offline HTML with one level of stage tabs, safely escaped IR source code, per-stage structural metrics, explicit function lineage, and inline styles and behavior. Each stage projects declarations, terms, functions, tables, or backend source directly; it does not render enclosing compiler objects, registries, entry or schema metadata, or diagnostics. It contains no CDN dependency or volatile timestamp. The HTML renderer uses MoonBit `StringBuilder`, `<+`, and multiline strings instead of repeated immutable string concatenation. Lane Wasm serializes the complete report model as versioned JSON; it does not reuse the native HTML renderer. Protocol version 5 adds the post-CPS effect-aware optimization boundary, removes the semantically misleading effect-erased Buslane snapshot, and requires every per-function scale observation to consume the identity emitted by the observed IR owner. Identity-less tree stages publish aggregate metrics only.
+The native output is deterministic, self-contained offline HTML with one level of stage tabs, safely escaped IR source code, per-stage structural metrics, explicit function lineage, and inline styles and behavior. Each stage projects declarations, terms, functions, tables, or backend source directly; it does not render enclosing compiler objects, registries, entry or schema metadata, or diagnostics. It contains no CDN dependency or volatile timestamp. The HTML renderer uses MoonBit `StringBuilder`, `<+`, and multiline strings instead of repeated immutable string concatenation. Lane Wasm serializes the complete report model as versioned JSON; it does not reuse the native HTML renderer. Protocol version 5 added the post-CPS effect-aware optimization boundary and owner-assigned function identities. Protocol version 6 makes the Stage Catalog singular, fills frontend and linked scale observations, adds linker-owned module contributions, and separates reconstructible structure analysis from transformation-owned provenance.
 
 ## Consequences
 

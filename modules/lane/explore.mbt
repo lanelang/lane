@@ -137,6 +137,7 @@ fn render_stage_observations(
   })
   if snapshot.scale.metrics.is_empty() &&
     snapshot.scale.functions.is_empty() &&
+    snapshot.scale.modules.is_empty() &&
     nodes.is_empty() {
     return
   }
@@ -155,6 +156,15 @@ fn render_stage_observations(
     for function in snapshot.scale.functions {
       html <+
         "<tr><td>\{function.index}</td><td>\{function.block_count}</td><td>\{function.operation_count}</td><td>\{function.value_count}</td></tr>"
+    }
+    html <+ "</tbody></table>"
+  }
+  if !snapshot.scale.modules.is_empty() {
+    html <+
+      "<table><thead><tr><th>Module</th><th>Input top terms</th><th>Retained top terms</th><th>Input values</th><th>Retained values</th></tr></thead><tbody>"
+    for module_ in snapshot.scale.modules {
+      html <+
+        "<tr><td>\{escape_html(module_.module_path_text)}</td><td>\{module_.input_top_terms}</td><td>\{module_.retained_top_terms}</td><td>\{module_.input_value_bindings}</td><td>\{module_.retained_value_bindings}</td></tr>"
     }
     html <+ "</tbody></table>"
   }

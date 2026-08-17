@@ -38,10 +38,13 @@ identities. Source names are optional display data attached to an existing
 Buslane value anchor, not graph keys.
 
 Metrics and provenance are observation sidecars. They are not fields of the
-persisted linked artifact, LoisVM bytecode image, or Wasm module. The owners of
-IR transformation and function emission produce the sidecars in the same
-operation that determines identities and ordering. Ordinary compilation uses
-the same implementations and discards only the observations.
+persisted linked artifact, LoisVM bytecode image, or Wasm module. Reconstructible
+structural counts are produced by one exhaustive Explore analysis over the
+completed public IR. Transformation owners produce only facts that cannot be
+recovered from that IR, including function identity, provenance, link retention,
+private effect-lowering snapshots, and Wasm emission order. Ordinary compilation
+uses the same transformations with observation disabled and does not construct
+rendered snapshots or structural metrics.
 
 ## Consequences
 
@@ -52,6 +55,9 @@ the same implementations and discards only the observations.
   physical import and an adapter.
 - Synthetic functions are roots unless a producer supplies a real earlier
   identity; fabricated source parents are forbidden.
+- A structural collector may traverse a foreign public IR; that collector is
+  the sole producer of the Explore fact and does not become a second producer
+  of the IR's semantic invariants.
 - Protocol clients can correlate size changes across lowering boundaries while
   remaining independent of pretty-printer syntax and internal offset formulas.
 - Changing metric meaning, graph shape, or role encoding requires another

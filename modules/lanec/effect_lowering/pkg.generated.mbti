@@ -7,7 +7,9 @@ import {
 }
 
 // Values
-pub fn lower_effects(@buslane.Program, (EffectLoweringSnapshot) -> Unit) -> Result[@buslane.Program, SynthesisError]
+pub fn lower_effects(@buslane.Program) -> Result[@buslane.Program, SynthesisError]
+
+pub fn lower_effects_observed(@buslane.Program, (EffectLoweringSnapshot) -> Unit) -> Result[@buslane.Program, SynthesisError]
 
 // Errors
 pub(all) suberror SynthesisError {

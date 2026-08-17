@@ -18,9 +18,8 @@ pub(all) suberror WasmCompileError {
 pub fn compile(
   image : @bytecode.BytecodeImage,
 ) -> Result[@wasm_types.Module, WasmCompileError] {
-  match compile_observed(image) {
-    Ok(observed) => Ok(observed.module_)
-    Err(error) => Err(error)
+  Ok(compile_or_raise(image, None)) catch {
+    error => Err(error)
   }
 }
 
@@ -28,15 +27,32 @@ pub fn compile(
 pub fn compile_observed(
   image : @bytecode.BytecodeImage,
 ) -> Result[WasmCompileObservation, WasmCompileError] {
-  Ok(compile_or_raise(image)) catch {
+  Ok(compile_observed_or_raise(image)) catch {
     error => Err(error)
   }
 }
 
 ///|
-fn compile_or_raise(
+fn compile_observed_or_raise(
   image : @bytecode.BytecodeImage,
 ) -> WasmCompileObservation raise WasmCompileError {
+  let mut functions = []
+  let mut scale : WasmModuleScale? = None
+  let module_ = compile_or_raise(
+    image,
+    Some((observed_functions, observed_scale) => {
+      functions = observed_functions
+      scale = Some(observed_scale)
+    }),
+  )
+  { module_, functions, scale: scale.unwrap() }
+}
+
+///|
+fn compile_or_raise(
+  image : @bytecode.BytecodeImage,
+  observe : ((Array[WasmFunctionProvenance], WasmModuleScale) -> Unit)?,
+) -> @wasm_types.Module raise WasmCompileError {
   let verified = match @bytecode.verify_bytecode_image_for_execution(image) {
     Ok(verified) => verified
     Err(error) => raise InvalidBytecode(error)
@@ -61,7 +77,7 @@ fn compile_or_raise(
     host_objects_enabled,
     wasm_module,
   )
-  let emitter = WasmFunctionEmitter::new(wasm_module)
+  let emitter = WasmFunctionEmitter::new(wasm_module, observe is Some(_))
   let static_image = build_static_image(
     image,
     verified.global_lifecycle,
@@ -163,9 +179,10 @@ fn compile_or_raise(
     name: "lane.runtime.host_object.new",
     desc: Func(function_catalog.runtime(HostObjectNew).index),
   })
-  let scale = emitter.scale()
-  let functions = function_catalog.provenance()
-  { module_: wasm_module, functions, scale }
+  if observe is Some(emit) {
+    emit(function_catalog.provenance(), emitter.scale())
+  }
+  wasm_module
 }
 
 ///|

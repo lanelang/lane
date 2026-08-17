@@ -42,9 +42,19 @@ pub(all) struct EffectLoweringSnapshot {
 /// Every private stage is checked before its snapshot is reported.
 pub fn lower_effects(
   program : @buslane.Program,
+) -> Result[@buslane.Program, SynthesisError] {
+  Ok(lower_effects_or_raise(program, None)) catch {
+    error => Err(error)
+  }
+}
+
+///|
+/// Lowers effects while reporting verified private transformation points.
+pub fn lower_effects_observed(
+  program : @buslane.Program,
   observe : (EffectLoweringSnapshot) -> Unit,
 ) -> Result[@buslane.Program, SynthesisError] {
-  Ok(lower_effects_or_raise(program, observe)) catch {
+  Ok(lower_effects_or_raise(program, Some(observe))) catch {
     error => Err(error)
   }
 }
@@ -52,24 +62,35 @@ pub fn lower_effects(
 ///|
 fn lower_effects_or_raise(
   program : @buslane.Program,
-  observe : (EffectLoweringSnapshot) -> Unit,
+  observe : ((EffectLoweringSnapshot) -> Unit)?,
 ) -> @buslane.Program raise SynthesisError {
   require_buslane_program(Input, program)
   let elaborated = elaborate_handlers(program)
   require_transitional_program(HandlerElaboration, elaborated)
-  observe(effect_lowering_snapshot(HandlersElaborated, elaborated))
+  observe_effect_lowering_stage(observe, HandlersElaborated, elaborated)
   let bound = introduce_monadic_binds_or_raise(elaborated)
   require_transitional_program(MonadicTransformation, bound)
-  observe(effect_lowering_snapshot(MonadicTransformed, bound))
+  observe_effect_lowering_stage(observe, MonadicTransformed, bound)
   let transformed = rewrite_selective_cps_abis_or_raise(bound)
   require_transitional_program(SelectiveCpsRewrite, transformed)
-  observe(effect_lowering_snapshot(SelectiveCpsRewritten, transformed))
+  observe_effect_lowering_stage(observe, SelectiveCpsRewritten, transformed)
   let resolved = resolve_open_contexts_or_raise(transformed)
   require_transitional_program(OpenContextResolution, resolved)
-  observe(effect_lowering_snapshot(OpenContextsResolved, resolved))
+  observe_effect_lowering_stage(observe, OpenContextsResolved, resolved)
   let lifted = lift_monadic_continuations_or_raise(resolved)
   require_buslane_program(CpsCore, lifted)
   lifted
+}
+
+///|
+fn observe_effect_lowering_stage(
+  observe : ((EffectLoweringSnapshot) -> Unit)?,
+  stage : EffectLoweringSnapshotStage,
+  program : Program,
+) -> Unit {
+  if observe is Some(emit) {
+    emit(effect_lowering_snapshot(stage, program))
+  }
 }
 
 ///|

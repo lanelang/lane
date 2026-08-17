@@ -113,6 +113,12 @@ priv enum LinkModuleSelection {
 }
 
 ///|
+priv enum LinkedTopTermIdentity {
+  Value(Int)
+  External(Int)
+} derive(Eq, Hash)
+
+///|
 fn BuslaneLinker::BuslaneLinker() -> BuslaneLinker {
   { metadata: MetadataRegistry(), identities: LinkIdentityMaps() }
 }

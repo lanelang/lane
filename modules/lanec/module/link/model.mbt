@@ -35,6 +35,20 @@ pub(all) struct LinkedProgram {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct LinkedModuleRetention {
+  module_path_text : String
+  input_top_terms : Int
+  retained_top_terms : Int
+  input_value_bindings : Int
+  retained_value_bindings : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) struct LinkRetentionObservation {
+  modules : Array[LinkedModuleRetention]
+} derive(Debug, Eq)
+
+///|
 /// Complete link result. `program` is `None` whenever diagnostics contain a
 /// blocking link failure; the linker never exposes a partial linked program.
 pub(all) struct LinkResult {

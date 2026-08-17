@@ -46,7 +46,7 @@ test "entry request enumerates artifact-defined entries" {
 }
 
 ///|
-test "explore request returns the complete protocol v4 report" {
+test "explore request returns the complete protocol v6 report" {
   debug_inspect(
     response_summary(
       parsed_response_json(
@@ -64,7 +64,7 @@ test "explore request returns the complete protocol v4 report" {
     ),
     content=(
       #|{
-      #|  schema_version: 4,
+      #|  schema_version: 6,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -119,7 +119,7 @@ test "explore request returns the complete protocol v4 report" {
       #|      Some("buslane"),
       #|    ),
       #|    (
-      #|      "buslane.effects-erased",
+      #|      "buslane.cps-core-optimized",
       #|      "completed",
       #|      Some("compiler"),
       #|      Some("buslane"),
@@ -142,7 +142,7 @@ test "explore request returns the complete protocol v4 report" {
 }
 
 ///|
-test "protocol v4 encodes ordered metrics and structured function lineage" {
+test "protocol v6 encodes ordered metrics and structured function lineage" {
   let response = parsed_response_json(
     (
       #|{
@@ -162,7 +162,7 @@ test "protocol v4 encodes ordered metrics and structured function lineage" {
       "functions": { "nodes": Array(nodes), "edges": Array(edges), .. },
       ..
     } else {
-    fail("missing protocol v4 observability fields")
+    fail("missing protocol v6 observability fields")
   }
   let anf_observations = stages.filter_map(stage => {
     match stage {
@@ -175,6 +175,13 @@ test "protocol v4 encodes ordered metrics and structured function lineage" {
       _ => None
     }
   })
+  let linked_modules = stages.filter_map(stage => {
+    match stage {
+      { "id": String("buslane.linked"), "modules": Array(modules), .. } =>
+        Some(modules)
+      _ => None
+    }
+  })
   let selected_nodes = nodes.filter(node => {
     guard node is { "roles": Array(roles), .. } else { return false }
     roles.any(role => {
@@ -183,10 +190,29 @@ test "protocol v4 encodes ordered metrics and structured function lineage" {
     })
   })
   debug_inspect(
-    (schema_version.to_int(), anf_observations, selected_nodes, edges.length()),
+    (
+      schema_version.to_int(),
+      linked_modules,
+      anf_observations,
+      selected_nodes,
+      edges.length(),
+    ),
     content=(
       #|(
-      #|  4,
+      #|  6,
+      #|  [
+      #|    [
+      #|      Object(
+      #|        {
+      #|          "module": String("Main"),
+      #|          "inputTopTerms": Number(1),
+      #|          "retainedTopTerms": Number(1),
+      #|          "inputValueBindings": Number(1),
+      #|          "retainedValueBindings": Number(1),
+      #|        },
+      #|      ),
+      #|    ],
+      #|  ],
       #|  [
       #|    (
       #|      [
@@ -194,6 +220,8 @@ test "protocol v4 encodes ordered metrics and structured function lineage" {
       #|        Object({ "id": String("functionCount"), "value": Number(1) }),
       #|        Object({ "id": String("nodeCount"), "value": Number(5) }),
       #|        Object({ "id": String("callCount"), "value": Number(0) }),
+      #|        Object({ "id": String("genericBinderCount"), "value": Number(0) }),
+      #|        Object({ "id": String("typeApplicationCount"), "value": Number(0) }),
       #|      ],
       #|      [
       #|        Object(
@@ -293,7 +321,7 @@ test "explore request accepts multiple source files" {
     ),
     content=(
       #|{
-      #|  schema_version: 4,
+      #|  schema_version: 6,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -348,7 +376,7 @@ test "explore request accepts multiple source files" {
       #|      Some("buslane"),
       #|    ),
       #|    (
-      #|      "buslane.effects-erased",
+      #|      "buslane.cps-core-optimized",
       #|      "completed",
       #|      Some("compiler"),
       #|      Some("buslane"),
@@ -389,7 +417,7 @@ test "explore request preserves failed and unavailable stage states" {
     ),
     content=(
       #|{
-      #|  schema_version: 4,
+      #|  schema_version: 6,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: None,
@@ -408,7 +436,7 @@ test "explore request preserves failed and unavailable stage states" {
       #|    ("buslane.selective-cps", "unavailable", None, None),
       #|    ("buslane.open-context-resolved", "unavailable", None, None),
       #|    ("buslane.monadic-lifted", "unavailable", None, None),
-      #|    ("buslane.effects-erased", "unavailable", None, None),
+      #|    ("buslane.cps-core-optimized", "unavailable", None, None),
       #|    ("executable", "unavailable", None, None),
       #|    ("anf", "unavailable", None, None),
       #|    ("vmcfg.initial", "unavailable", None, None),
@@ -428,7 +456,7 @@ test "explore request rejects malformed requests" {
     content=(
       #|Object(
       #|  {
-      #|    "schemaVersion": Number(4),
+      #|    "schemaVersion": Number(6),
       #|    "status": Number(3),
       #|    "diagnostics": Array(
       #|      [

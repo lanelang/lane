@@ -225,6 +225,9 @@ fn stage_json(stage : @driver.ExploreStage) -> Json {
       fields["functions"] = snapshot.scale.functions
         .map(function_scale_json)
         .to_json()
+      fields["modules"] = snapshot.scale.modules
+        .map(module_scale_json)
+        .to_json()
     }
     Failed(diagnostics) => {
       fields["status"] = "failed"
@@ -233,6 +236,17 @@ fn stage_json(stage : @driver.ExploreStage) -> Json {
     Unavailable => fields["status"] = "unavailable"
   }
   fields.to_json()
+}
+
+///|
+fn module_scale_json(module_ : @driver.ExploreModuleScale) -> Json {
+  {
+    "module": module_.module_path_text,
+    "inputTopTerms": module_.input_top_terms,
+    "retainedTopTerms": module_.retained_top_terms,
+    "inputValueBindings": module_.input_value_bindings,
+    "retainedValueBindings": module_.retained_value_bindings,
+  }
 }
 
 ///|

@@ -16,6 +16,8 @@ pub fn link_modules(Array[LinkModuleObject]) -> LinkResult
 
 pub fn link_reachable_modules(Array[LinkModuleObject], String) -> LinkResult
 
+pub fn link_reachable_modules_observed(Array[LinkModuleObject], String, (LinkRetentionObservation) -> Unit) -> LinkResult
+
 // Errors
 
 // Types and methods
@@ -37,6 +39,18 @@ pub(all) struct LinkModuleObject {
 pub(all) struct LinkResult {
   program : LinkedProgram?
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LinkRetentionObservation {
+  modules : Array[LinkedModuleRetention]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LinkedModuleRetention {
+  module_path_text : String
+  input_top_terms : Int
+  retained_top_terms : Int
+  input_value_bindings : Int
+  retained_value_bindings : Int
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LinkedProgram {

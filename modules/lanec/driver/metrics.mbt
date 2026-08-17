@@ -1,10 +1,4 @@
 ///|
-priv struct TreeScaleAccumulator {
-  mut function_count : Int
-  mut call_count : Int
-}
-
-///|
 priv struct AnfScaleAccumulator {
   mut function_count : Int
   mut call_count : Int
@@ -15,104 +9,72 @@ priv struct AnfScaleAccumulator {
 }
 
 ///|
-fn empty_scale() -> ExploreScaleObservation {
-  { metrics: [], functions: [] }
-}
-
-///|
 fn metric(id : ExploreMetricId, value : Int) -> ExploreMetric {
   { id, value }
 }
 
 ///|
 fn buslane_scale(program : @buslane.Program) -> ExploreScaleObservation {
-  let accumulator : TreeScaleAccumulator = { function_count: 0, call_count: 0 }
-  let mut nodes = 0
-  for term in program.terms {
-    nodes += 1
-    match term {
-      Let(_, expression) =>
-        nodes += observe_buslane_expr(expression, accumulator)
-      LetRec(bindings) =>
-        for binding in bindings {
-          nodes += 1 + observe_buslane_expr(binding.rhs, accumulator)
-        }
-      External(_) => ()
-    }
-  }
+  buslane_structural_scale(program.structural_scale())
+}
+
+///|
+fn buslane_structural_scale(
+  scale : @buslane.ProgramScale,
+) -> ExploreScaleObservation {
   {
     metrics: [
-      metric(TopTermCount, program.terms.length()),
-      metric(FunctionCount, accumulator.function_count),
-      metric(NodeCount, nodes),
-      metric(CallCount, accumulator.call_count),
+      metric(TopTermCount, scale.top_terms),
+      metric(FunctionCount, scale.functions),
+      metric(NodeCount, scale.nodes),
+      metric(CallCount, scale.calls),
+      metric(GenericBinderCount, scale.generic_binders),
+      metric(TypeApplicationCount, scale.type_applications),
+      metric(ExternalCount, scale.externals),
     ],
     functions: [],
+    modules: [],
   }
 }
 
 ///|
-fn observe_buslane_expr(
-  expression : @buslane.Expr,
-  accumulator : TreeScaleAccumulator,
-) -> Int {
-  match expression {
-    Ref(_) | Literal(_) | Resume(_) => 1
-    Function(function) => {
-      let body_nodes = observe_buslane_expr(function.body, accumulator)
-      accumulator.function_count += 1
-      1 + body_nodes
-    }
-    Call(callee, arguments) => {
-      accumulator.call_count += 1
-      1 +
-      observe_buslane_expr(callee, accumulator) +
-      arguments.fold(init=0, fn(total, argument) {
-        total + observe_buslane_expr(argument, accumulator)
-      })
-    }
-    TypeLambda(_, body) | TypeApply(body, _) =>
-      1 + observe_buslane_expr(body, accumulator)
-    Construct(construct) =>
-      1 +
-      construct.payloads.fold(init=0, fn(total, payload) {
-        total + observe_buslane_expr(payload, accumulator)
-      })
-    Let(_, initializer, body) =>
-      1 +
-      observe_buslane_expr(initializer, accumulator) +
-      observe_buslane_expr(body, accumulator)
-    LetRec(bindings, body) => {
-      let mut nodes = 1 + observe_buslane_expr(body, accumulator)
-      for binding in bindings {
-        nodes += 1 + observe_buslane_expr(binding.rhs, accumulator)
+fn compilation_snapshot_scale(
+  scale : @compile.CompilationStageScale,
+) -> ExploreScaleObservation {
+  match scale {
+    Source(scale) =>
+      {
+        metrics: [
+          metric(DeclarationCount, scale.declarations),
+          metric(ImportCount, scale.imports),
+          metric(FunctionCount, scale.functions),
+          metric(NodeCount, scale.nodes),
+          metric(CallCount, scale.calls),
+          metric(SourceGenericBinderCount, scale.generic_binders),
+          metric(SourceTypeApplicationCount, scale.type_applications),
+        ],
+        functions: [],
+        modules: [],
       }
-      nodes
-    }
-    Match(match_) => {
-      let mut nodes = 1 + observe_buslane_expr(match_.scrutinee, accumulator)
-      for alternative in match_.alternatives {
-        nodes += 1 + observe_buslane_expr(alternative.body, accumulator)
-      }
-      nodes
-    }
-    Perform(perform) =>
-      1 +
-      perform.payloads.fold(init=0, fn(total, payload) {
-        total + observe_buslane_expr(payload, accumulator)
-      })
-    Handle(handle) => {
-      let mut nodes = 1 +
-        observe_buslane_expr(handle.body, accumulator) +
-        observe_buslane_expr(handle.final_body, accumulator)
-      for table in handle.handlers {
-        nodes += 1
-        for operation in table.operations {
-          nodes += 1 + observe_buslane_expr(operation.body, accumulator)
-        }
-      }
-      nodes
-    }
+    Buslane(scale) => buslane_structural_scale(scale)
+  }
+}
+
+///|
+fn linked_program_scale(
+  scale : @buslane.ProgramScale,
+  retention : @module_link.LinkRetentionObservation,
+) -> ExploreScaleObservation {
+  let observation = buslane_structural_scale(scale)
+  {
+    ..observation,
+    modules: retention.modules.map(module_ => {
+      module_path_text: module_.module_path_text,
+      input_top_terms: module_.input_top_terms,
+      retained_top_terms: module_.retained_top_terms,
+      input_value_bindings: module_.input_value_bindings,
+      retained_value_bindings: module_.retained_value_bindings,
+    }),
   }
 }
 
@@ -128,6 +90,7 @@ fn effect_lowering_snapshot_scale(
       metric(CallCount, scale.calls),
     ],
     functions: [],
+    modules: [],
   }
 }
 
@@ -167,6 +130,7 @@ fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
       metric(TypeApplicationCount, accumulator.type_application_count),
     ],
     functions: accumulator.functions,
+    modules: [],
   }
   { scale, functions: accumulator.anf_functions }
 }
@@ -373,6 +337,7 @@ fn vmcfg_scale(
       metric(ConstantCount, image.constants.length()),
     ],
     functions: accumulator.functions,
+    modules: [],
   }
 }
 
@@ -467,7 +432,7 @@ fn bytecode_scale(
     metric(ObjectShapeCount, image.object_shapes.length()),
     metric(ConstantCount, image.constants.length()),
   ])
-  { metrics, functions: accumulator.functions }
+  { metrics, functions: accumulator.functions, modules: [] }
 }
 
 ///|
@@ -530,5 +495,6 @@ fn wasm_scale(
       operation_count: function.instruction_count,
       value_count: function.local_count,
     }),
+    modules: [],
   }
 }

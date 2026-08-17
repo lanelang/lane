@@ -7,7 +7,9 @@ pub fn elaborate(
   selected_entry : @buslane_lowering.BuslaneEntry,
   profile : ExecutionProfile,
 ) -> Result[ExecutableProgram, ExecutableElaborationError] {
-  elaborate_observed(linked, selected_entry, profile, _ => ())
+  Ok(elaborate_or_raise(linked, selected_entry, profile, None)) catch {
+    error => Err(error)
+  }
 }
 
 ///|
@@ -30,7 +32,7 @@ pub fn elaborate_observed(
   profile : ExecutionProfile,
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> Result[ExecutableProgram, ExecutableElaborationError] {
-  Ok(elaborate_or_raise(linked, selected_entry, profile, observe)) catch {
+  Ok(elaborate_or_raise(linked, selected_entry, profile, Some(observe))) catch {
     error => Err(error)
   }
 }
@@ -40,7 +42,7 @@ fn elaborate_or_raise(
   linked : @module_link.LinkedProgram,
   selected_entry : @buslane_lowering.BuslaneEntry,
   profile : ExecutionProfile,
-  observe : (ExecutableElaborationStage) -> Unit,
+  observe : ((ExecutableElaborationStage) -> Unit)?,
 ) -> ExecutableProgram raise ExecutableElaborationError {
   if !linked.entries.any(entry => entry == selected_entry) {
     raise EntryNotLinked(selected_entry.value)
@@ -53,7 +55,7 @@ fn elaborate_or_raise(
     error => raise effect_specialization_elaboration_error(error)
   }
   require_verified("effect specialization", program)
-  observe(EffectSpecialized(program))
+  observe_executable_stage(observe, EffectSpecialized(program))
   let initializer_roots = collect_reachable_initializer_roots(
     program,
     entry.value,
@@ -64,7 +66,7 @@ fn elaborate_or_raise(
     Err(error) => raise CoreOptimizationError(error)
   }
   require_verified("core optimization", program)
-  observe(CoreOptimized(program))
+  observe_executable_stage(observe, CoreOptimized(program))
   let program = lower_effects(program, entry.value, observe)
   let initializer_roots = collect_initializer_roots(program)
   let retained_values = collect_retained_values(
@@ -115,14 +117,18 @@ fn effect_specialization_elaboration_error(
 fn lower_effects(
   program : @buslane.Program,
   entry : @buslane.ValueId,
-  observe : (ExecutableElaborationStage) -> Unit,
+  observe : ((ExecutableElaborationStage) -> Unit)?,
 ) -> @buslane.Program raise ExecutableElaborationError {
-  let lifted = unwrap_effect_lowering(
-    @effect_lowering.lower_effects(program, snapshot => {
-      observe(EffectLowering(snapshot))
-    }),
-  )
-  observe(MonadicContinuationsLifted(lifted))
+  let lifted = match observe {
+    None => unwrap_effect_lowering(@effect_lowering.lower_effects(program))
+    Some(emit) =>
+      unwrap_effect_lowering(
+        @effect_lowering.lower_effects_observed(program, snapshot => {
+          emit(EffectLowering(snapshot))
+        }),
+      )
+  }
+  observe_executable_stage(observe, MonadicContinuationsLifted(lifted))
   let initializer_roots = collect_reachable_initializer_roots(lifted, entry)
   let optimized = match
     @core_opt.optimize({ program: lifted, entry, roots: initializer_roots }) {
@@ -130,8 +136,18 @@ fn lower_effects(
     Err(error) => raise CoreOptimizationError(error)
   }
   require_verified("CPS core optimization", optimized)
-  observe(CpsCoreOptimized(optimized))
+  observe_executable_stage(observe, CpsCoreOptimized(optimized))
   optimized
+}
+
+///|
+fn observe_executable_stage(
+  observe : ((ExecutableElaborationStage) -> Unit)?,
+  stage : ExecutableElaborationStage,
+) -> Unit {
+  if observe is Some(emit) {
+    emit(stage)
+  }
 }
 
 ///|

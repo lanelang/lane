@@ -41,19 +41,39 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       match observed {
         Syntax(snapshot) => {
           root_module_path_text = Some(snapshot.module_path_text)
-          stages.complete(Syntax, snapshot.text, [], empty_scale())
+          stages.complete(
+            Syntax,
+            snapshot.text,
+            [],
+            compilation_snapshot_scale(snapshot.scale),
+          )
         }
         Resolved(snapshot) =>
           if root_module_path_text == Some(snapshot.module_path_text) {
-            stages.complete(Resolved, snapshot.text, [], empty_scale())
+            stages.complete(
+              Resolved,
+              snapshot.text,
+              [],
+              compilation_snapshot_scale(snapshot.scale),
+            )
           }
         Checked(snapshot) =>
           if root_module_path_text == Some(snapshot.module_path_text) {
-            stages.complete(Checked, snapshot.text, [], empty_scale())
+            stages.complete(
+              Checked,
+              snapshot.text,
+              [],
+              compilation_snapshot_scale(snapshot.scale),
+            )
           }
         BuslaneModule(snapshot) =>
           if root_module_path_text == Some(snapshot.module_path_text) {
-            stages.complete(BuslaneModule, snapshot.text, [], empty_scale())
+            stages.complete(
+              BuslaneModule,
+              snapshot.text,
+              [],
+              compilation_snapshot_scale(snapshot.scale),
+            )
           }
       }
     },
@@ -72,7 +92,10 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       )
   }
   stages.attach_diagnostics(Checked, diagnostics)
-  let linked = @compile.link_modules(modules)
+  let mut link_retention : @module_link.LinkRetentionObservation? = None
+  let linked = @compile.link_modules_observed(modules, observation => {
+    link_retention = Some(observation)
+  })
   diagnostics.append(linked.diagnostics())
   let linked_program = match linked {
     Succeeded(program, _) => program
@@ -106,7 +129,10 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     BuslaneLinked,
     linked_program.buslane_text(),
     linked.diagnostics(),
-    empty_scale(),
+    linked_program_scale(
+      linked_program.buslane_scale(),
+      link_retention.unwrap(),
+    ),
   )
   let selected_entry = Some(entry_summary(linked_program, entry))
   let executable = match
@@ -204,7 +230,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
 ///|
 fn ExploreStageBuilder::new() -> ExploreStageBuilder {
   let states = []
-  for _ in 0..<18 {
+  for _ in explore_stage_catalog {
     states.push(Unavailable)
   }
   { states, }
@@ -243,10 +269,10 @@ fn ExploreStageBuilder::fail_next(
   self : ExploreStageBuilder,
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
 ) -> ExploreStageId {
-  for id in explore_stage_ids() {
-    if self.states[id.index()] is Unavailable {
-      self.states[id.index()] = Failed(diagnostics)
-      return id
+  for index, descriptor in explore_stage_catalog {
+    if self.states[index] is Unavailable {
+      self.states[index] = Failed(diagnostics)
+      return descriptor.id
     }
   }
   abort("completed exploration cannot fail at another stage")
@@ -254,50 +280,15 @@ fn ExploreStageBuilder::fail_next(
 
 ///|
 fn ExploreStageBuilder::finish(self : ExploreStageBuilder) -> ExploreStages {
-  {
-    syntax: self.states[0],
-    resolved: self.states[1],
-    checked: self.states[2],
-    buslane_module: self.states[3],
-    buslane_linked: self.states[4],
-    buslane_effect_specialized: self.states[5],
-    buslane_core_optimized: self.states[6],
-    buslane_handlers_elaborated: self.states[7],
-    buslane_monadic: self.states[8],
-    buslane_selective_cps: self.states[9],
-    buslane_open_context_resolved: self.states[10],
-    buslane_monadic_lifted: self.states[11],
-    buslane_cps_core_optimized: self.states[12],
-    executable: self.states[13],
-    anf: self.states[14],
-    vmcfg_initial: self.states[15],
-    loisvm_bytecode: self.states[16],
-    wasm: self.states[17],
+  let stages = []
+  for index, descriptor in explore_stage_catalog {
+    stages.push({
+      id: descriptor.key,
+      title: descriptor.title,
+      state: self.states[index],
+    })
   }
-}
-
-///|
-fn explore_stage_ids() -> Array[ExploreStageId] {
-  [
-    Syntax,
-    Resolved,
-    Checked,
-    BuslaneModule,
-    BuslaneLinked,
-    BuslaneEffectSpecialized,
-    BuslaneCoreOptimized,
-    BuslaneHandlersElaborated,
-    BuslaneMonadic,
-    BuslaneSelectiveCps,
-    BuslaneOpenContextResolved,
-    BuslaneMonadicLifted,
-    BuslaneCpsCoreOptimized,
-    Executable,
-    Anf,
-    VmcfgInitial,
-    LoisvmBytecode,
-    Wasm,
-  ]
+  { stages, }
 }
 
 ///|

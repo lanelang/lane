@@ -55,7 +55,7 @@ fn explore_stage_scale(
 }
 
 ///|
-test "explore protocol v5 exposes all eighteen ordered completed stages" {
+test "explore protocol v6 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -78,7 +78,7 @@ test "explore protocol v5 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  5,
+      #|  6,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -206,6 +206,157 @@ test "explore protocol v5 exposes all eighteen ordered completed stages" {
 }
 
 ///|
+test "explore attributes link growth and specialization cleanup" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|import Lib.{ live, invoke }
+        #|let observe : (I64) -> Unit ! Io = extern("observe")
+        #|fn pure() -> Unit { () }
+        #|pub fn main() -> Unit ! Io {
+        #|  invoke[{}](pure)
+        #|  observe(live())
+        #|}
+      ),
+      libraries=[
+        (
+          #|module Lib
+          #|pub enum Box[E : Effect] {
+          #|  box(() -> Unit ! E)
+          #|}
+          #|pub fn live() -> I64 { 42 }
+          #|pub fn[E : Effect] invoke(action : () -> Unit ! E) -> Unit ! E {
+          #|  action()
+          #|}
+        ),
+      ],
+    ),
+  )
+  let selected = report.stages
+    .ordered()
+    .filter_map(stage => {
+      guard [
+        "syntax", "resolved", "checked", "buslane.module", "buslane.linked", "buslane.effect-specialized",
+      ].contains(stage.id) else {
+        return None
+      }
+      guard stage.state is Completed(snapshot) else { return None }
+      Some(
+        (
+          stage.id,
+          snapshot.scale.metrics.map(metric => (metric.id.key(), metric.value)),
+          snapshot.scale.modules,
+        ),
+      )
+    })
+  debug_inspect(
+    (report.status, report.diagnostics, selected),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [],
+      #|  [
+      #|    (
+      #|      "syntax",
+      #|      [
+      #|        ("declarationCount", 3),
+      #|        ("importCount", 1),
+      #|        ("functionCount", 2),
+      #|        ("nodeCount", 15),
+      #|        ("callCount", 3),
+      #|        ("sourceGenericBinderCount", 0),
+      #|        ("sourceTypeApplicationCount", 1),
+      #|      ],
+      #|      [],
+      #|    ),
+      #|    (
+      #|      "resolved",
+      #|      [
+      #|        ("declarationCount", 3),
+      #|        ("importCount", 1),
+      #|        ("functionCount", 2),
+      #|        ("nodeCount", 15),
+      #|        ("callCount", 3),
+      #|        ("sourceGenericBinderCount", 0),
+      #|        ("sourceTypeApplicationCount", 1),
+      #|      ],
+      #|      [],
+      #|    ),
+      #|    (
+      #|      "checked",
+      #|      [
+      #|        ("declarationCount", 3),
+      #|        ("importCount", 1),
+      #|        ("functionCount", 2),
+      #|        ("nodeCount", 15),
+      #|        ("callCount", 3),
+      #|        ("sourceGenericBinderCount", 0),
+      #|        ("sourceTypeApplicationCount", 1),
+      #|      ],
+      #|      [],
+      #|    ),
+      #|    (
+      #|      "buslane.module",
+      #|      [
+      #|        ("topTermCount", 3),
+      #|        ("functionCount", 2),
+      #|        ("nodeCount", 18),
+      #|        ("callCount", 3),
+      #|        ("genericBinderCount", 0),
+      #|        ("typeApplicationCount", 1),
+      #|        ("externalCount", 1),
+      #|      ],
+      #|      [],
+      #|    ),
+      #|    (
+      #|      "buslane.linked",
+      #|      [
+      #|        ("topTermCount", 4),
+      #|        ("functionCount", 4),
+      #|        ("nodeCount", 27),
+      #|        ("callCount", 4),
+      #|        ("genericBinderCount", 1),
+      #|        ("typeApplicationCount", 1),
+      #|        ("externalCount", 1),
+      #|      ],
+      #|      [
+      #|        {
+      #|          module_path_text: "Lib",
+      #|          input_top_terms: 1,
+      #|          retained_top_terms: 1,
+      #|          input_value_bindings: 2,
+      #|          retained_value_bindings: 2,
+      #|        },
+      #|        {
+      #|          module_path_text: "Main",
+      #|          input_top_terms: 3,
+      #|          retained_top_terms: 3,
+      #|          input_value_bindings: 4,
+      #|          retained_value_bindings: 4,
+      #|        },
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "buslane.effect-specialized",
+      #|      [
+      #|        ("topTermCount", 5),
+      #|        ("functionCount", 4),
+      #|        ("nodeCount", 26),
+      #|        ("callCount", 4),
+      #|        ("genericBinderCount", 0),
+      #|        ("typeApplicationCount", 0),
+      #|        ("externalCount", 1),
+      #|      ],
+      #|      [],
+      #|    ),
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
 test "explore reports deterministic typed scale metrics" {
   let request = explore_test_request(
     (
@@ -246,6 +397,9 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("functionCount", 3),
       #|      ("nodeCount", 21),
       #|      ("callCount", 3),
+      #|      ("genericBinderCount", 0),
+      #|      ("typeApplicationCount", 0),
+      #|      ("externalCount", 1),
       #|    ],
       #|  ),
       #|  (
@@ -255,6 +409,9 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("functionCount", 2),
       #|      ("nodeCount", 13),
       #|      ("callCount", 2),
+      #|      ("genericBinderCount", 0),
+      #|      ("typeApplicationCount", 0),
+      #|      ("externalCount", 1),
       #|    ],
       #|  ),
       #|  (
@@ -1158,7 +1315,7 @@ test "explore traces a named function and preserves synthetic roots" {
     ),
     content=(
       #|(
-      #|  5,
+      #|  6,
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },

@@ -355,7 +355,18 @@ pub(all) struct Program {
   metadata : MetadataRegistry
   terms : Array[TopTerm]
 } derive(Eq, @debug.Debug)
+pub fn Program::structural_scale(Self) -> ProgramScale
 pub impl @prettyprinter.Pretty for Program
+
+pub(all) struct ProgramScale {
+  top_terms : Int
+  functions : Int
+  nodes : Int
+  calls : Int
+  generic_binders : Int
+  type_applications : Int
+  externals : Int
+} derive(Eq, @debug.Debug)
 
 pub(all) struct RecursiveBinding {
   id : ValueId

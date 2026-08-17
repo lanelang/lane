@@ -174,6 +174,14 @@ pub fn CompiledProgram::buslane_text(
 }
 
 ///|
+/// Returns the reusable structural observation of the linked Buslane program.
+pub fn CompiledProgram::buslane_scale(
+  self : CompiledProgram,
+) -> @buslane.ProgramScale {
+  self.linked.program.structural_scale()
+}
+
+///|
 /// Elaborates one linked entry through specialization, effect lowering, and
 /// core optimization. An entry from another program is rejected structurally.
 pub fn CompiledProgram::elaborate_entry(
@@ -241,6 +249,24 @@ pub fn CompiledProgram::entry_type_text(
 pub(all) struct CompilationStageSnapshot {
   module_path_text : String
   text : String
+  scale : CompilationStageScale
+} derive(Debug, Eq)
+
+///|
+pub(all) struct SourceStageScale {
+  declarations : Int
+  imports : Int
+  functions : Int
+  nodes : Int
+  calls : Int
+  generic_binders : Int
+  type_applications : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CompilationStageScale {
+  Source(SourceStageScale)
+  Buslane(@buslane.ProgramScale)
 } derive(Debug, Eq)
 
 ///|

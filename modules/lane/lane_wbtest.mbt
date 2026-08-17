@@ -803,7 +803,6 @@ test "missing entry error lists available public entries" {
       #|  name="main",
       #|  entries=[{ entry: { module_path_text: "Test", name: "answer", value: { index: 0 } } }],
       #|)
-
     ),
   )
   inspect(

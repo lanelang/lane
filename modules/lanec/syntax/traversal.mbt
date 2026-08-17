@@ -1,5 +1,5 @@
 ///|
-fn Expr::for_each_child_expr(self : Expr, visit : (Expr) -> Unit) -> Unit {
+pub fn Expr::for_each_child_expr(self : Expr, visit : (Expr) -> Unit) -> Unit {
   match self {
     IntegerLiteral(_)
     | FloatingLiteral(_)

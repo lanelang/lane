@@ -28,5 +28,6 @@ import {
   "Milky2018/lanec/module/frontend" @module_frontend,
   "Milky2018/lanec/module/link" @module_link,
   "Milky2018/lanec/resolve",
+  "Milky2018/lanec/syntax",
   "moonbit-community/prettyprinter",
 }

@@ -42,6 +42,7 @@ pub(all) enum ExploreTextFormat {
 /// meaning across every stage that emits it; stages omit identifiers that do
 /// not apply to their IR.
 pub(all) enum ExploreMetricId {
+  DeclarationCount
   TopTermCount
   FunctionCount
   ImportCount
@@ -53,6 +54,7 @@ pub(all) enum ExploreMetricId {
   BlockCount
   InstructionCount
   CallCount
+  ExternalCount
   ValueCount
   SlotCount
   DirectCallCount
@@ -95,6 +97,17 @@ pub(all) struct ExploreFunctionScale {
 pub(all) struct ExploreScaleObservation {
   metrics : Array[ExploreMetric]
   functions : Array[ExploreFunctionScale]
+  modules : Array[ExploreModuleScale]
+} derive(Debug, Eq)
+
+///|
+/// Linker-owned contribution of one source module to a whole-program stage.
+pub(all) struct ExploreModuleScale {
+  module_path_text : String
+  input_top_terms : Int
+  retained_top_terms : Int
+  input_value_bindings : Int
+  retained_value_bindings : Int
 } derive(Debug, Eq)
 
 ///|
@@ -143,7 +156,7 @@ pub(all) struct ExploreFunctionGraph {
 
 ///|
 /// Current Explore Report Protocol schema owned by the compiler driver.
-pub let explore_report_schema_version : Int = 5
+pub let explore_report_schema_version : Int = 6
 
 ///|
 /// Canonical total order of protocol stages. This order is also the execution
@@ -196,26 +209,18 @@ pub(all) struct ExploreStage {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct ExploreStages {
-  syntax : ExploreStageState
-  resolved : ExploreStageState
-  checked : ExploreStageState
-  buslane_module : ExploreStageState
-  buslane_linked : ExploreStageState
-  buslane_effect_specialized : ExploreStageState
-  buslane_core_optimized : ExploreStageState
-  buslane_handlers_elaborated : ExploreStageState
-  buslane_monadic : ExploreStageState
-  buslane_selective_cps : ExploreStageState
-  buslane_open_context_resolved : ExploreStageState
-  buslane_monadic_lifted : ExploreStageState
-  buslane_cps_core_optimized : ExploreStageState
-  executable : ExploreStageState
-  anf : ExploreStageState
-  vmcfg_initial : ExploreStageState
-  loisvm_bytecode : ExploreStageState
-  wasm : ExploreStageState
+pub struct ExploreStages {
+  priv stages : Array[ExploreStage]
 } derive(Debug, Eq)
+
+///|
+priv struct ExploreStageDescriptor {
+  id : ExploreStageId
+  key : String
+  title : String
+  domain : ExploreStageDomain
+  text_format : ExploreTextFormat
+}
 
 ///|
 /// Input to the Explore Protocol. Library sources form an unordered import pool;
@@ -262,141 +267,172 @@ pub(all) struct EntryReport {
 /// Returns all 18 stages in canonical pipeline order, including unavailable and
 /// failed states; callers need not reconstruct ordering from record fields.
 pub fn ExploreStages::ordered(self : ExploreStages) -> Array[ExploreStage] {
-  [
-    explore_stage(Syntax, self.syntax),
-    explore_stage(Resolved, self.resolved),
-    explore_stage(Checked, self.checked),
-    explore_stage(BuslaneModule, self.buslane_module),
-    explore_stage(BuslaneLinked, self.buslane_linked),
-    explore_stage(BuslaneEffectSpecialized, self.buslane_effect_specialized),
-    explore_stage(BuslaneCoreOptimized, self.buslane_core_optimized),
-    explore_stage(BuslaneHandlersElaborated, self.buslane_handlers_elaborated),
-    explore_stage(BuslaneMonadic, self.buslane_monadic),
-    explore_stage(BuslaneSelectiveCps, self.buslane_selective_cps),
-    explore_stage(
-      BuslaneOpenContextResolved,
-      self.buslane_open_context_resolved,
-    ),
-    explore_stage(BuslaneMonadicLifted, self.buslane_monadic_lifted),
-    explore_stage(BuslaneCpsCoreOptimized, self.buslane_cps_core_optimized),
-    explore_stage(Executable, self.executable),
-    explore_stage(Anf, self.anf),
-    explore_stage(VmcfgInitial, self.vmcfg_initial),
-    explore_stage(LoisvmBytecode, self.loisvm_bytecode),
-    explore_stage(Wasm, self.wasm),
-  ]
+  self.stages.copy()
 }
 
 ///|
-fn explore_stage(
-  id : ExploreStageId,
-  state : ExploreStageState,
-) -> ExploreStage {
-  { id: id.key(), title: id.title(), state }
+let explore_stage_catalog : Array[ExploreStageDescriptor] = [
+  {
+    id: Syntax,
+    key: "syntax",
+    title: "Syntax AST",
+    domain: Compiler,
+    text_format: Lane,
+  },
+  {
+    id: Resolved,
+    key: "resolved",
+    title: "Resolved AST",
+    domain: Compiler,
+    text_format: ResolvedLane,
+  },
+  {
+    id: Checked,
+    key: "checked",
+    title: "Checked Source AST",
+    domain: Compiler,
+    text_format: CheckedLane,
+  },
+  {
+    id: BuslaneModule,
+    key: "buslane.module",
+    title: "Buslane (Module Lowering)",
+    domain: Compiler,
+    text_format: Buslane,
+  },
+  {
+    id: BuslaneLinked,
+    key: "buslane.linked",
+    title: "Buslane (Linking)",
+    domain: Compiler,
+    text_format: Buslane,
+  },
+  {
+    id: BuslaneEffectSpecialized,
+    key: "buslane.effect-specialized",
+    title: "Buslane (Reachable Effect Specialization)",
+    domain: Compiler,
+    text_format: Buslane,
+  },
+  {
+    id: BuslaneCoreOptimized,
+    key: "buslane.core-optimized",
+    title: "Buslane (Effect-Aware Core Optimization)",
+    domain: Compiler,
+    text_format: Buslane,
+  },
+  {
+    id: BuslaneHandlersElaborated,
+    key: "buslane.handlers-elaborated",
+    title: "Buslane (Handler Elaboration)",
+    domain: Compiler,
+    text_format: EffectLowering,
+  },
+  {
+    id: BuslaneMonadic,
+    key: "buslane.monadic",
+    title: "Buslane (Monadic Transformation)",
+    domain: Compiler,
+    text_format: EffectLowering,
+  },
+  {
+    id: BuslaneSelectiveCps,
+    key: "buslane.selective-cps",
+    title: "Buslane (Selective CPS)",
+    domain: Compiler,
+    text_format: EffectLowering,
+  },
+  {
+    id: BuslaneOpenContextResolved,
+    key: "buslane.open-context-resolved",
+    title: "Buslane (Open Context Resolution)",
+    domain: Compiler,
+    text_format: EffectLowering,
+  },
+  {
+    id: BuslaneMonadicLifted,
+    key: "buslane.monadic-lifted",
+    title: "Buslane (Monadic Lift)",
+    domain: Compiler,
+    text_format: Buslane,
+  },
+  {
+    id: BuslaneCpsCoreOptimized,
+    key: "buslane.cps-core-optimized",
+    title: "Buslane (CPS Core Optimized)",
+    domain: Compiler,
+    text_format: Buslane,
+  },
+  {
+    id: Executable,
+    key: "executable",
+    title: "Executable Program (Effect-Aware CPS Core)",
+    domain: Compiler,
+    text_format: Buslane,
+  },
+  {
+    id: Anf,
+    key: "anf",
+    title: "Runtime ANF (Effect Projection)",
+    domain: Compiler,
+    text_format: Anf,
+  },
+  {
+    id: VmcfgInitial,
+    key: "vmcfg.initial",
+    title: "VM CFG (Initial Lowering)",
+    domain: Compiler,
+    text_format: Vmcfg,
+  },
+  {
+    id: LoisvmBytecode,
+    key: "loisvm.bytecode",
+    title: "LoisVM Bytecode (ARC and Slot Finalization)",
+    domain: Compiler,
+    text_format: LoisvmBytecode,
+  },
+  {
+    id: Wasm,
+    key: "wasm",
+    title: "Wasm (LoisVM Backend Lowering)",
+    domain: Backend,
+    text_format: Wat,
+  },
+]
+
+///|
+fn ExploreStageId::descriptor(self : ExploreStageId) -> ExploreStageDescriptor {
+  for descriptor in explore_stage_catalog {
+    if descriptor.id == self {
+      return descriptor
+    }
+  }
+  abort("Explore stage catalog is incomplete")
 }
 
 ///|
 pub fn ExploreStageId::key(self : ExploreStageId) -> String {
-  match self {
-    Syntax => "syntax"
-    Resolved => "resolved"
-    Checked => "checked"
-    BuslaneModule => "buslane.module"
-    BuslaneLinked => "buslane.linked"
-    BuslaneEffectSpecialized => "buslane.effect-specialized"
-    BuslaneCoreOptimized => "buslane.core-optimized"
-    BuslaneHandlersElaborated => "buslane.handlers-elaborated"
-    BuslaneMonadic => "buslane.monadic"
-    BuslaneSelectiveCps => "buslane.selective-cps"
-    BuslaneOpenContextResolved => "buslane.open-context-resolved"
-    BuslaneMonadicLifted => "buslane.monadic-lifted"
-    BuslaneCpsCoreOptimized => "buslane.cps-core-optimized"
-    Executable => "executable"
-    Anf => "anf"
-    VmcfgInitial => "vmcfg.initial"
-    LoisvmBytecode => "loisvm.bytecode"
-    Wasm => "wasm"
-  }
-}
-
-///|
-fn ExploreStageId::title(self : ExploreStageId) -> String {
-  match self {
-    Syntax => "Syntax AST"
-    Resolved => "Resolved AST"
-    Checked => "Checked Source AST"
-    BuslaneModule => "Buslane (Module Lowering)"
-    BuslaneLinked => "Buslane (Linking)"
-    BuslaneEffectSpecialized => "Buslane (Reachable Effect Specialization)"
-    BuslaneCoreOptimized => "Buslane (Effect-Aware Core Optimization)"
-    BuslaneHandlersElaborated => "Buslane (Handler Elaboration)"
-    BuslaneMonadic => "Buslane (Monadic Transformation)"
-    BuslaneSelectiveCps => "Buslane (Selective CPS)"
-    BuslaneOpenContextResolved => "Buslane (Open Context Resolution)"
-    BuslaneMonadicLifted => "Buslane (Monadic Lift)"
-    BuslaneCpsCoreOptimized => "Buslane (CPS Core Optimized)"
-    Executable => "Executable Program (Effect-Aware CPS Core)"
-    Anf => "Runtime ANF (Effect Projection)"
-    VmcfgInitial => "VM CFG (Initial Lowering)"
-    LoisvmBytecode => "LoisVM Bytecode (ARC and Slot Finalization)"
-    Wasm => "Wasm (LoisVM Backend Lowering)"
-  }
+  self.descriptor().key
 }
 
 ///|
 fn ExploreStageId::index(self : ExploreStageId) -> Int {
-  match self {
-    Syntax => 0
-    Resolved => 1
-    Checked => 2
-    BuslaneModule => 3
-    BuslaneLinked => 4
-    BuslaneEffectSpecialized => 5
-    BuslaneCoreOptimized => 6
-    BuslaneHandlersElaborated => 7
-    BuslaneMonadic => 8
-    BuslaneSelectiveCps => 9
-    BuslaneOpenContextResolved => 10
-    BuslaneMonadicLifted => 11
-    BuslaneCpsCoreOptimized => 12
-    Executable => 13
-    Anf => 14
-    VmcfgInitial => 15
-    LoisvmBytecode => 16
-    Wasm => 17
+  for index, descriptor in explore_stage_catalog {
+    if descriptor.id == self {
+      return index
+    }
   }
+  abort("Explore stage catalog is incomplete")
 }
 
 ///|
 fn ExploreStageId::domain(self : ExploreStageId) -> ExploreStageDomain {
-  match self {
-    Wasm => Backend
-    _ => Compiler
-  }
+  self.descriptor().domain
 }
 
 ///|
 fn ExploreStageId::text_format(self : ExploreStageId) -> ExploreTextFormat {
-  match self {
-    Syntax => Lane
-    Resolved => ResolvedLane
-    Checked => CheckedLane
-    BuslaneModule
-    | BuslaneLinked
-    | BuslaneEffectSpecialized
-    | BuslaneMonadicLifted
-    | BuslaneCpsCoreOptimized
-    | BuslaneCoreOptimized
-    | Executable => Buslane
-    BuslaneHandlersElaborated
-    | BuslaneMonadic
-    | BuslaneSelectiveCps
-    | BuslaneOpenContextResolved => EffectLowering
-    Anf => Anf
-    VmcfgInitial => Vmcfg
-    LoisvmBytecode => LoisvmBytecode
-    Wasm => Wat
-  }
+  self.descriptor().text_format
 }
 
 ///|
@@ -425,6 +461,7 @@ pub fn ExploreTextFormat::name(self : ExploreTextFormat) -> String {
 ///|
 pub fn ExploreMetricId::key(self : ExploreMetricId) -> String {
   match self {
+    DeclarationCount => "declarationCount"
     TopTermCount => "topTermCount"
     FunctionCount => "functionCount"
     ImportCount => "importCount"
@@ -436,6 +473,7 @@ pub fn ExploreMetricId::key(self : ExploreMetricId) -> String {
     BlockCount => "blockCount"
     InstructionCount => "instructionCount"
     CallCount => "callCount"
+    ExternalCount => "externalCount"
     ValueCount => "valueCount"
     SlotCount => "slotCount"
     DirectCallCount => "directCallCount"
@@ -460,6 +498,7 @@ pub fn ExploreMetricId::key(self : ExploreMetricId) -> String {
 ///|
 pub fn ExploreMetricId::title(self : ExploreMetricId) -> String {
   match self {
+    DeclarationCount => "Declarations"
     TopTermCount => "Top terms"
     FunctionCount => "Functions"
     ImportCount => "Imports"
@@ -471,6 +510,7 @@ pub fn ExploreMetricId::title(self : ExploreMetricId) -> String {
     BlockCount => "Blocks"
     InstructionCount => "Instructions"
     CallCount => "Calls"
+    ExternalCount => "Externals"
     ValueCount => "Virtual values"
     SlotCount => "Physical slots"
     DirectCallCount => "Direct calls"
