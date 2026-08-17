@@ -96,16 +96,19 @@ fn validate_object_side_tables(
   let diagnostics = []
   let external_values : Array[@buslane.ValueId] = []
   for builtin in object.externals.builtins {
-    diagnostics.append(
-      validate_external_reference(
-        object,
-        builtin.value(),
-        builtin.type_(),
-        "builtin external",
-      ),
+    let source_type = validate_external_reference(
+      object,
+      builtin.value(),
+      "builtin external",
+      diagnostics,
     )
     if canonical_basic_abi is Some(canonical_basic_abi) &&
-      !builtin_contract_matches(canonical_basic_abi, builtin) {
+      source_type is Some(source_type) &&
+      !builtin_contract_matches(
+        canonical_basic_abi,
+        builtin.intrinsic(),
+        source_type,
+      ) {
       diagnostics.push(
         invalid_module_object(
           object,
@@ -125,14 +128,17 @@ fn validate_object_side_tables(
     }
   }
   for import_ in object.externals.runtime_imports {
-    diagnostics.append(
-      validate_external_reference(
-        object,
-        import_.value,
-        import_.type_,
-        "runtime import",
-      ),
+    let source_type = validate_external_reference(
+      object,
+      import_.value,
+      "runtime import",
+      diagnostics,
     )
+    if source_type is Some(source_type) {
+      validate_runtime_import_signature(
+        object, import_, source_type, diagnostics,
+      )
+    }
     if external_values.contains(import_.value) {
       diagnostics.push(
         invalid_module_object(
@@ -172,9 +178,7 @@ fn validate_object_side_tables(
         ),
       )
     }
-    diagnostics.append(
-      validate_value_reference(object, entry.value, entry.type_, "entry"),
-    )
+    validate_value_reference(object, entry.value, "entry", diagnostics)
   }
   for export_ in object.exports {
     diagnostics.append(validate_export_reference(object, export_))
@@ -188,9 +192,10 @@ fn validate_object_side_tables(
 ///|
 fn builtin_contract_matches(
   canonical_basic_abi : @canonical_basic_abi.CertifiedCanonicalBasicAbiRuntimeContract,
-  builtin : @buslane_lowering.BuslaneBuiltinExternal,
+  intrinsic : @abi.Intrinsic,
+  source_type : @buslane.Type,
 ) -> Bool {
-  match (builtin.intrinsic().signature(), builtin.type_()) {
+  match (intrinsic.signature(), source_type) {
     (Value(kind), type_) =>
       intrinsic_value_type_matches(canonical_basic_abi, kind, type_)
     (
@@ -261,13 +266,106 @@ fn intrinsic_effect_matches(
 }
 
 ///|
+fn validate_runtime_import_signature(
+  object : LinkModuleObject,
+  import_ : @buslane_lowering.BuslaneRuntimeImport,
+  source_type : @buslane.Type,
+  diagnostics : Array[CompilerDiagnostic],
+) -> Unit {
+  let normalized = source_type.normalize() catch {
+    error => {
+      diagnostics.push(
+        link_diagnostic(
+          InvalidModuleObjectTypeNormalization(
+            module_path_text=object.module_path_text,
+            role="runtime import",
+            value=import_.value,
+            error~,
+          ),
+          None,
+        ),
+      )
+      return
+    }
+  }
+  guard normalized is Function(parameters, result, effect) else {
+    diagnostics.push(
+      invalid_module_object(
+        object,
+        "runtime import `\{import_.symbol}` source type is not a function",
+      ),
+    )
+    return
+  }
+  let parameter_kinds = parameters.map(type_ => {
+    runtime_import_source_kind(object.program.metadata, type_)
+  })
+  let result_kind = runtime_import_source_kind(object.program.metadata, result)
+  if parameter_kinds.any(kind => kind is None) ||
+    result_kind is None ||
+    parameter_kinds.filter_map(kind => kind) != import_.signature.parameters ||
+    result_kind != Some(import_.signature.result) ||
+    !runtime_import_effect_is_admissible(object.program.metadata, effect) {
+    diagnostics.push(
+      invalid_module_object(
+        object,
+        "runtime import `\{import_.symbol}` host signature does not match its source type",
+      ),
+    )
+  }
+}
+
+///|
+fn runtime_import_source_kind(
+  metadata : @buslane.MetadataRegistry,
+  type_ : @buslane.Type,
+) -> @abi.ValueKind? {
+  match type_ {
+    Primitive(Unit) => Some(Unit)
+    Primitive(Bool) => Some(Bool)
+    Primitive(I64) => Some(I64)
+    Primitive(F32) => Some(F32)
+    Primitive(F64) => Some(F64)
+    Primitive(String) => Some(String)
+    Constructor(type_id) =>
+      if metadata
+        .type_info(type_id)
+        .map_or(false, info => info.flavor is External) {
+        Some(Opaque)
+      } else {
+        None
+      }
+    _ => None
+  }
+}
+
+///|
+fn runtime_import_effect_is_admissible(
+  metadata : @buslane.MetadataRegistry,
+  effect : @buslane.Effect,
+) -> Bool {
+  match effect {
+    Empty | Builtin(_) => true
+    Singleton(effect_id, _) =>
+      metadata
+      .effect_info(effect_id)
+      .map_or(false, info => info.flavor is External)
+    Union(effects) =>
+      effects.all(effect => {
+        runtime_import_effect_is_admissible(metadata, effect)
+      })
+    Parameter(_) => false
+  }
+}
+
+///|
 fn validate_external_reference(
   object : LinkModuleObject,
   value : @buslane.ValueId,
-  type_ : @buslane.Type,
   role : String,
-) -> Array[CompilerDiagnostic] {
-  let diagnostics = validate_value_reference(object, value, type_, role)
+  diagnostics : Array[CompilerDiagnostic],
+) -> @buslane.Type? {
+  let source_type = certify_source_value_type(object, value, role, diagnostics)
   if object.program.metadata.value_info(value) is Some(info) &&
     info.kind != External {
     diagnostics.push(
@@ -285,35 +383,36 @@ fn validate_external_reference(
       ),
     )
   }
-  diagnostics
+  source_type
 }
 
 ///|
 fn validate_value_reference(
   object : LinkModuleObject,
   value : @buslane.ValueId,
-  type_ : @buslane.Type,
   role : String,
-) -> Array[CompilerDiagnostic] {
-  match object.program.metadata.value_info(value) {
-    None =>
-      [
+  diagnostics : Array[CompilerDiagnostic],
+) -> Unit {
+  ignore(certify_source_value_type(object, value, role, diagnostics))
+}
+
+///|
+fn certify_source_value_type(
+  object : LinkModuleObject,
+  value : @buslane.ValueId,
+  role : String,
+  diagnostics : Array[CompilerDiagnostic],
+) -> @buslane.Type? {
+  Some(@buslane_lowering.source_value_type(object.program.metadata, value)) catch {
+    MissingValueMetadata(_) => {
+      diagnostics.push(
         invalid_module_object(
           object,
           "\{role} references unknown value \{Repr(value)}",
         ),
-      ]
-    Some(info) =>
-      if info.type_ == type_ {
-        []
-      } else {
-        [
-          invalid_module_object(
-            object,
-            "\{role} type does not match metadata for \{Repr(value)}",
-          ),
-        ]
-      }
+      )
+      None
+    }
   }
 }
 

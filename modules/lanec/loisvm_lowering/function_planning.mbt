@@ -95,8 +95,7 @@ fn ImageLowerer::plan_intrinsic(
   value : @buslane.ValueId,
   external : @buslane_lowering.BuslaneBuiltinExternal,
 ) -> Unit raise LoisvmLoweringError {
-  let contract = external.contract()
-  let intrinsic = contract.intrinsic()
+  let intrinsic = external.intrinsic()
   let type_ = match self.metadata.value_info(value) {
     Some(info) => info.type_
     None => raise MissingValueMetadata(value~)

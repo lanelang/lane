@@ -8,7 +8,6 @@ fn @bytecodec.ByteReader::read_externals(
       @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
         self.read_buslane_value_id(),
         self.read_intrinsic(),
-        self.read_buslane_type(),
       ),
     )
   }
@@ -18,7 +17,6 @@ fn @bytecodec.ByteReader::read_externals(
       value: self.read_buslane_value_id(),
       symbol: self.read_string(),
       signature: self.read_host_signature(),
-      type_: self.read_buslane_type(),
     })
   }
   { builtins, runtime_imports }
@@ -362,7 +360,6 @@ fn @bytecodec.ByteReader::read_entry(
     module_path_text: self.read_string(),
     name: self.read_string(),
     value: self.read_buslane_value_id(),
-    type_: self.read_buslane_type(),
   }
 }
 

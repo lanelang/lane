@@ -369,11 +369,13 @@ test "module compilation and linking expose facade-owned results" {
       program.module_path_texts(),
       program
       .entries()
-      .map(entry => (entry.module_path_text(), entry.name(), entry.type_text())),
+      .map(entry => {
+        (entry.module_path_text(), entry.name(), program.entry_type_text(entry))
+      }),
       linking_warnings.diagnostics(),
     ),
     content=(
-      #|(["Lib", "Main"], [("Main", "main", "() -> I64")], [])
+      #|(["Lib", "Main"], [("Main", "main", Some("() -> I64"))], [])
     ),
   )
 }

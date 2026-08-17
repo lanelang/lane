@@ -67,7 +67,7 @@ test "builtin external contract rejects metadata signature drift" {
       #|      severity: Error,
       #|      code: Some("E4208"),
       #|      labels: [],
-      #|      notes: ["builtin external type does not match metadata for { index: 1 }; module objects must be internally valid before identity remapping begins"],
+      #|      notes: ["builtin `%panic` does not match its canonical source contract; module objects must be internally valid before identity remapping begins"],
       #|      helps: ["recompile the module object from valid Lane source"],
       #|      facts: [],
       #|      suggestions: [],
@@ -79,35 +79,24 @@ test "builtin external contract rejects metadata signature drift" {
 }
 
 ///|
-test "builtin external rejects a self-consistent stale Unit panic contract" {
+test "runtime import host signature is certified against metadata source type" {
   let object = compiled_test_object(
     (
-      #|module Basic.Data.Void
-      #|pub enum Void {}
-      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+      #|module Main
+      #|pub let observe : (String) -> Unit ! Io = extern("observe")
     ),
   )
-  guard object.externals.builtins is [builtin] else {
-    abort("expected one builtin external")
+  guard object.externals.runtime_imports is [runtime_import] else {
+    abort("expected one runtime import")
   }
-  let stale_type = @buslane.Type::Function(
-    [Primitive(String)],
-    Primitive(Unit),
-    Builtin(Panic),
-  )
-  let metadata = object.metadata.snapshot()
-  let value = builtin.value()
-  let info = metadata.values[value.index]
-  metadata.values[value.index] = { ..info, type_: stale_type }
-  let stale_builtin = @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
-    value,
-    builtin.intrinsic(),
-    stale_type,
-  )
   let malformed = refingerprint_test_object({
     ..object,
-    metadata,
-    externals: { ..object.externals, builtins: [stale_builtin] },
+    externals: {
+      ..object.externals,
+      runtime_imports: [
+        { ..runtime_import, signature: { parameters: [I64], result: Unit } },
+      ],
+    },
   })
   debug_inspect(
     @artifact.link_module_object_artifacts([malformed]),
@@ -117,12 +106,12 @@ test "builtin external rejects a self-consistent stale Unit panic contract" {
       #|  diagnostics: [
       #|    {
       #|      source_id: None,
-      #|      message: "invalid module object `Basic.Data.Void`",
+      #|      message: "invalid module object `Main`",
       #|      span: None,
       #|      severity: Error,
       #|      code: Some("E4208"),
       #|      labels: [],
-      #|      notes: ["builtin `%panic` does not match its canonical source contract; module objects must be internally valid before identity remapping begins"],
+      #|      notes: ["runtime import `observe` host signature does not match its source type; module objects must be internally valid before identity remapping begins"],
       #|      helps: ["recompile the module object from valid Lane source"],
       #|      facts: [],
       #|      suggestions: [],
@@ -384,7 +373,6 @@ test "object artifact validation rejects malformed side table references" {
   builtins[0] = @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
     unknown_value,
     builtins[0].intrinsic(),
-    builtins[0].type_(),
   )
   let entries = object.entries.copy()
   entries[0] = { ..entries[0], value: unknown_value }

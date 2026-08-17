@@ -8,8 +8,8 @@ pub impl @prettyprinter.Pretty for ExecutableProgram with fn pretty(
   text("executable") +
   space +
   @lanec_pretty.braced_block([
-    executable_entry_doc(executable.entry),
-    executable_externals_doc(executable.externals),
+    executable_entry_doc(executable.program.metadata, executable.entry),
+    executable_externals_doc(executable.program.metadata, executable.externals),
     executable_order_doc(
       executable.program,
       executable.retained_values,
@@ -20,7 +20,10 @@ pub impl @prettyprinter.Pretty for ExecutableProgram with fn pretty(
 }
 
 ///|
-fn executable_entry_doc(entry : @buslane_lowering.BuslaneEntry) -> Document {
+fn executable_entry_doc(
+  metadata : @buslane.MetadataRegistry,
+  entry : @buslane_lowering.BuslaneEntry,
+) -> Document {
   text("entry") +
   space +
   text(entry.module_path_text) +
@@ -33,11 +36,12 @@ fn executable_entry_doc(entry : @buslane_lowering.BuslaneEntry) -> Document {
   space +
   text(":") +
   space +
-  entry.type_.pretty()
+  source_type_doc(metadata, entry.value)
 }
 
 ///|
 fn executable_externals_doc(
+  metadata : @buslane.MetadataRegistry,
   externals : @buslane_lowering.BuslaneExternalMap,
 ) -> Document {
   let docs = externals.builtins.map(external => {
@@ -51,7 +55,7 @@ fn executable_externals_doc(
     space +
     text(":") +
     space +
-    external.type_().pretty()
+    source_type_doc(metadata, external.value())
   })
   docs.append(
     externals.runtime_imports.map(external => {
@@ -65,10 +69,20 @@ fn executable_externals_doc(
       space +
       text(":") +
       space +
-      external.type_.pretty()
+      source_type_doc(metadata, external.value)
     }),
   )
   @lanec_pretty.section("externals", docs)
+}
+
+///|
+fn source_type_doc(
+  metadata : @buslane.MetadataRegistry,
+  value : @buslane.ValueId,
+) -> Document {
+  @buslane_lowering.source_value_type(metadata, value).pretty() catch {
+    MissingValueMetadata(_) => text("<missing value metadata>")
+  }
 }
 
 ///|

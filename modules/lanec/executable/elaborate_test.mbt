@@ -2,9 +2,8 @@
 fn executable_test_entry(
   name : String,
   value : @buslane.ValueId,
-  type_ : @buslane.Type,
 ) -> @buslane_lowering.BuslaneEntry {
-  { module_path_text: "Main", name, value, type_ }
+  { module_path_text: "Main", name, value }
 }
 
 ///|
@@ -22,8 +21,8 @@ test "whole-program elaboration preserves the selected entry" {
   let function_type = @buslane.Type::Function([], unit_type, Empty)
   let first = metadata.define_value("first", Function, function_type)
   let second = metadata.define_value("second", Function, function_type)
-  let first_entry = executable_test_entry("first", first, function_type)
-  let second_entry = executable_test_entry("second", second, function_type)
+  let first_entry = executable_test_entry("first", first)
+  let second_entry = executable_test_entry("second", second)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
     program: {
@@ -63,7 +62,7 @@ test "whole-program elaboration records ordered reachable initializer roots" {
   let produce = metadata.define_value("produce", Function, producer_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let main = metadata.define_value("main", Function, function_type)
-  let entry = executable_test_entry("main", main, function_type)
+  let entry = executable_test_entry("main", main)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
     program: {
@@ -91,7 +90,6 @@ test "whole-program elaboration records ordered reachable initializer roots" {
           value: observe,
           symbol: "observe",
           signature: { parameters: [I64], result: Unit },
-          type_: observe_type,
         },
       ],
     },
@@ -116,7 +114,7 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
   let main_type = @buslane.Type::Function([], unit_type, Builtin(Io))
   let println = metadata.define_value("println", External, println_type)
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
+  let entry = executable_test_entry("main", main)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
     program: {
@@ -139,7 +137,6 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
           value: println,
           symbol: "println",
           signature: { parameters: [String], result: Unit },
-          type_: println_type,
         },
       ],
     },
@@ -157,12 +154,7 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
     ),
     content=(
       #|(
-      #|  {
-      #|    module_path_text: "Main",
-      #|    name: "main",
-      #|    value: { index: 1 },
-      #|    type_: Function([], Primitive(Unit), Builtin(Io)),
-      #|  },
+      #|  { module_path_text: "Main", name: "main", value: { index: 1 } },
       #|  {
       #|    builtins: [],
       #|    runtime_imports: [
@@ -170,7 +162,6 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       #|        value: { index: 0 },
       #|        symbol: "println",
       #|        signature: { parameters: [String], result: Unit },
-      #|        type_: Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
       #|      },
       #|    ],
       #|  },
@@ -190,7 +181,7 @@ test "whole-program elaboration accepts a closed external effect entry" {
   let external_effect = @buslane.Effect::Singleton(host_effect, [])
   let main_type = @buslane.Type::Function([], unit_type, external_effect)
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
+  let entry = executable_test_entry("main", main)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
     program: {
@@ -205,7 +196,10 @@ test "whole-program elaboration accepts a closed external effect entry" {
   }
   debug_inspect(
     (
-      executable.entry.type_,
+      @buslane_lowering.source_value_type(
+        executable.program.metadata,
+        executable.entry.value,
+      ),
       executable.program.metadata
       .effect_info(host_effect)
       .map(info => info.flavor),
@@ -232,7 +226,7 @@ test "whole-program elaboration rejects unverified effect specialization before 
   let parameter = metadata.define_value("parameter", Parameter, char_type)
   let consume = metadata.define_value("consume", Function, consume_type)
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
+  let entry = executable_test_entry("main", main)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
     program: {
@@ -294,7 +288,7 @@ test "whole-program elaboration rejects an algebraic entry effect" {
   let operation = metadata.define_operation("write", effect, [], [], unit_type)
   let main_type = @buslane.Type::Function([], unit_type, Singleton(effect, []))
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
+  let entry = executable_test_entry("main", main)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
     program: {
@@ -346,7 +340,7 @@ test "whole-program elaboration identifies specialization metadata defects" {
   )
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
+  let entry = executable_test_entry("main", main)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
     program: {
@@ -407,7 +401,7 @@ fn elaborate_entry_with_effect(
   let unit_type = @buslane.Type::Primitive(Unit)
   let main_type = @buslane.Type::Function([], unit_type, effect)
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
+  let entry = executable_test_entry("main", main)
   elaborate(
     {
       module_path_texts: ["Main"],

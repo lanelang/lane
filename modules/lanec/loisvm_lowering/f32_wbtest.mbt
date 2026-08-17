@@ -78,11 +78,10 @@ test "generic F32 calls cross explicit representation erasure bridges" {
             value: observe,
             symbol: "lane.test.observe_generic_f32",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")

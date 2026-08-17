@@ -801,17 +801,9 @@ test "missing entry error lists available public entries" {
     content=(
       #|EntryNotFound(
       #|  name="main",
-      #|  entries=[
-      #|    {
-      #|      entry: {
-      #|        module_path_text: "Test",
-      #|        name: "answer",
-      #|        value: { index: 0 },
-      #|        type_: Primitive(I64),
-      #|      },
-      #|    },
-      #|  ],
+      #|  entries=[{ entry: { module_path_text: "Test", name: "answer", value: { index: 0 } } }],
       #|)
+
     ),
   )
   inspect(

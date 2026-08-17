@@ -9,15 +9,6 @@ fn @bytecodec.ByteReader::read_buslane_program_section(
 }
 
 ///|
-fn @bytecodec.ByteReader::read_buslane_type(
-  self : @bytecodec.ByteReader,
-) -> @buslane.Type raise {
-  @buslane_codec.read_type(self) catch {
-    error => raise BuslaneError(error)
-  }
-}
-
-///|
 fn @bytecodec.ByteReader::read_buslane_value_id(
   self : @bytecodec.ByteReader,
 ) -> @buslane.ValueId raise {

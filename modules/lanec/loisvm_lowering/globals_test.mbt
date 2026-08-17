@@ -76,17 +76,15 @@ test "executable lowering emits reachable instance globals in source order" {
             value: consume,
             symbol: "lane.test.consume",
             signature: { parameters: [String], result: Unit },
-            type_: consume_type,
           },
           {
             value: unused_import,
             symbol: "lane.test.unused",
             signature: { parameters: [String], result: Unit },
-            type_: consume_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -230,7 +228,6 @@ test "executable initializer materializes function-valued data fields" {
     module_path_text: "Main",
     name: "main",
     value: main,
-    type_: callable_type,
   }
   let image = match
     lower_executable_program_to_bytecode({
@@ -309,16 +306,10 @@ test "initializer orchestration is bounded by peak live owned results" {
                 parameters: Array::make(count, String),
                 result: Unit,
               },
-              type_: consume_type,
             },
           ],
         },
-        {
-          module_path_text: "Main",
-          name: "main",
-          value: main,
-          type_: main_type,
-        },
+        { module_path_text: "Main", name: "main", value: main },
       ) {
       Ok(image) => image
       Err(error) => fail("lowering failed: \{Repr(error)}")

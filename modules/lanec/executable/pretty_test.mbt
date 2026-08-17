@@ -12,7 +12,6 @@ test "executable pretty output emphasizes execution structure" {
     module_path_text: "Main",
     name: "main",
     value: main,
-    type_: function_type,
   }
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
@@ -38,7 +37,6 @@ test "executable pretty output emphasizes execution structure" {
           value: observe,
           symbol: "observe",
           signature: { parameters: [I64], result: Unit },
-          type_: observe_type,
         },
       ],
     },

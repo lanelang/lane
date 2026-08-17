@@ -104,17 +104,15 @@ test "generic nested closures preserve erased captures in both backends" {
             value: measure,
             symbol: "lane.test.string_length",
             signature: { parameters: [String], result: I64 },
-            type_: measure_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
             signature: { parameters: [I64], result: Unit },
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -243,17 +241,15 @@ test "nominal values cross erased generic boundaries in both backends" {
             value: measure,
             symbol: "lane.test.string_length",
             signature: { parameters: [String], result: I64 },
-            type_: measure_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
             signature: { parameters: [I64], result: Unit },
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")

@@ -22,6 +22,8 @@ pub fn lower_checked_source_files_to_buslane_objects(Array[@checked.CheckedSourc
 
 pub fn lower_checked_source_files_to_buslane_result(@checked.CheckedSourceFile, Array[@checked.CheckedSourceFile]) -> BuslaneLowerResult raise BuslaneLoweringError
 
+pub fn source_value_type(@buslane.MetadataRegistry, @buslane.ValueId) -> @buslane.Type raise BuslaneSourceTypeError
+
 // Errors
 pub(all) suberror BuslaneLoweringError {
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
@@ -31,43 +33,28 @@ pub(all) suberror BuslaneLoweringError {
   MissingEffectDependency(String, String)
 } derive(Eq, @debug.Debug)
 
+pub suberror BuslaneSourceTypeError {
+  MissingValueMetadata(value~ : @buslane.ValueId)
+} derive(Eq, @debug.Debug)
+
 // Types and methods
 pub struct BuslaneBuiltinExternal {
   // private fields
 } derive(Eq, @debug.Debug)
-pub fn BuslaneBuiltinExternal::contract(Self) -> BuslaneIntrinsicContract
-pub fn BuslaneBuiltinExternal::from_intrinsic(@buslane.ValueId, @abi.Intrinsic, @buslane.Type) -> Self
+pub fn BuslaneBuiltinExternal::from_intrinsic(@buslane.ValueId, @abi.Intrinsic) -> Self
 pub fn BuslaneBuiltinExternal::intrinsic(Self) -> @abi.Intrinsic
-pub fn BuslaneBuiltinExternal::type_(Self) -> @buslane.Type
 pub fn BuslaneBuiltinExternal::value(Self) -> @buslane.ValueId
 
 pub(all) struct BuslaneEntry {
   module_path_text : String
   name : String
   value : @buslane.ValueId
-  type_ : @buslane.Type
 } derive(Eq, @debug.Debug)
 
 pub(all) struct BuslaneExternalMap {
   builtins : Array[BuslaneBuiltinExternal]
   runtime_imports : Array[BuslaneRuntimeImport]
 } derive(Eq, @debug.Debug)
-
-pub struct BuslaneIntrinsicContract {
-  // private fields
-} derive(Eq, @debug.Debug)
-pub fn BuslaneIntrinsicContract::function_contract(Self) -> BuslaneIntrinsicFunctionContract?
-pub fn BuslaneIntrinsicContract::intrinsic(Self) -> @abi.Intrinsic
-pub fn BuslaneIntrinsicContract::type_(Self) -> @buslane.Type
-
-pub struct BuslaneIntrinsicFunctionContract {
-  // private fields
-} derive(Eq, @debug.Debug)
-pub fn BuslaneIntrinsicFunctionContract::implementation(Self) -> @abi.IntrinsicFunctionImplementation
-pub fn BuslaneIntrinsicFunctionContract::intrinsic(Self) -> @abi.Intrinsic
-pub fn BuslaneIntrinsicFunctionContract::parameter_types(Self) -> Array[@buslane.Type]
-pub fn BuslaneIntrinsicFunctionContract::result_type(Self) -> @buslane.Type
-pub fn BuslaneIntrinsicFunctionContract::type_(Self) -> @buslane.Type
 
 pub(all) struct BuslaneLowerResult {
   program : @buslane.Program
@@ -113,7 +100,6 @@ pub(all) struct BuslaneRuntimeImport {
   value : @buslane.ValueId
   symbol : String
   signature : @abi.HostSignature
-  type_ : @buslane.Type
 } derive(Eq, @debug.Debug)
 
 // Type aliases

@@ -245,15 +245,11 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
       program,
       {
         builtins: [
-          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
-            add,
-            I64Add,
-            add_type,
-          ),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
         ],
         runtime_imports: [],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -318,11 +314,10 @@ test "runtime import origin wins over intrinsic-looking symbol" {
             value: import_,
             symbol: "%i64_add",
             signature: test_host_signature(import_type),
-            type_: import_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -405,22 +400,17 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
       program,
       {
         builtins: [
-          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
-            add,
-            I64Add,
-            add_type,
-          ),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
         ],
         runtime_imports: [
           {
             value: observe,
             symbol: "lane.test.observe_intrinsic_value",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -499,7 +489,6 @@ test "entry admission rejects residual algebraic effects before lowering" {
     module_path_text: "Main",
     name: "main",
     value: main,
-    type_: main_type,
   }
   debug_inspect(
     @executable.elaborate(
@@ -598,11 +587,10 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
             value: observe,
             symbol: "lane.test.observe_handled_value",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -664,11 +652,10 @@ test "primitive external functions become runtime imports" {
             value: observe,
             symbol: "lane.test.observe",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -753,17 +740,15 @@ test "external host types erase to Opaque runtime import kinds" {
             value: open,
             symbol: "lane.test.open",
             signature: test_host_signature(open_type),
-            type_: open_type,
           },
           {
             value: close,
             symbol: "lane.test.close",
             signature: test_host_signature(close_type),
-            type_: close_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -844,23 +829,20 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
             value: z_first,
             symbol: "lane.test.z",
             signature: test_host_signature(import_type),
-            type_: import_type,
           },
           {
             value: a,
             symbol: "lane.test.a",
             signature: test_host_signature(import_type),
-            type_: import_type,
           },
           {
             value: z_second,
             symbol: "lane.test.z",
             signature: test_host_signature(import_type),
-            type_: import_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
       fn(observed) {
         match observed {
           InitialVmcfg(_, provenance) => initial_provenance = provenance
@@ -967,17 +949,15 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
             value: i64_import,
             symbol: "lane.test.observe",
             signature: test_host_signature(i64_import_type),
-            type_: i64_import_type,
           },
           {
             value: bool_import,
             symbol: "lane.test.observe",
             signature: test_host_signature(bool_import_type),
-            type_: bool_import_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1041,11 +1021,10 @@ test "owned String arguments are transferred through VM CFG ARC insertion" {
             value: observe,
             symbol: "lane.test.observe_string",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1137,17 +1116,15 @@ test "Bool matches lower to explicit CFG branches" {
             value: read,
             symbol: "lane.test.read_branch",
             signature: test_host_signature(read_type),
-            type_: read_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_branch",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1257,11 +1234,10 @@ test "non-generic data construction and matching lower through object shapes" {
             value: observe,
             symbol: "lane.test.observe_data",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1363,22 +1339,17 @@ test "capture-free functions lower as callable values for higher-order calls" {
       program,
       {
         builtins: [
-          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
-            add,
-            I64Add,
-            add_type,
-          ),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
         ],
         runtime_imports: [
           {
             value: observe,
             symbol: "lane.test.observe_higher_order",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1471,22 +1442,17 @@ test "nonescaping nested functions pass captures directly" {
       program,
       {
         builtins: [
-          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
-            add,
-            I64Add,
-            add_type,
-          ),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
         ],
         runtime_imports: [
           {
             value: observe,
             symbol: "lane.test.observe_closure",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1639,15 +1605,10 @@ test "local recursive functions share a cycle-free captured environment" {
       program,
       {
         builtins: [
-          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
-            sub,
-            I64Sub,
-            sub_type,
-          ),
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(sub, I64Sub),
           @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
             equal,
             I64Equal,
-            equal_type,
           ),
         ],
         runtime_imports: [
@@ -1655,11 +1616,10 @@ test "local recursive functions share a cycle-free captured environment" {
             value: observe,
             symbol: "lane.test.observe_recursive",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1776,11 +1736,10 @@ test "generic identity calls cross explicit representation erasure bridges" {
             value: observe,
             symbol: "lane.test.observe_generic",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1891,11 +1850,10 @@ test "direct generic calls use one planned concrete worker" {
             value: observe,
             symbol: "lane.test.observe_specialized_generic",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2045,17 +2003,15 @@ test "generic calls adapt callable arguments and callable results" {
             value: measure,
             symbol: "lane.test.generic_string_length",
             signature: test_host_signature(measure_type),
-            type_: measure_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_generic_callable",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2175,17 +2131,15 @@ test "generic nested closures capture erased values and layout witnesses" {
             value: measure,
             symbol: "lane.test.captured_string_length",
             signature: test_host_signature(measure_type),
-            type_: measure_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_generic_capture",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2296,11 +2250,10 @@ test "single-constructor matches keep owned captures in the current block" {
             value: observe,
             symbol: "lane.test.single_box",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2405,11 +2358,10 @@ test "generic data stores layout witnesses beside erased payloads" {
             value: observe,
             symbol: "lane.test.observe_generic_data",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2557,11 +2509,10 @@ test "existential data opens hidden witnesses beside erased payloads" {
             value: observe,
             symbol: "lane.test.observe_existential_payload",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2700,11 +2651,10 @@ test "payload-free existential evidence disappears when no runtime use remains" 
             value: observe,
             symbol: "lane.test.observe_existential_witness",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2802,7 +2752,7 @@ test "unused effect-kind existential evidence disappears from runtime ANF" {
     lower_test_linked_program_to_bytecode(
       program,
       { builtins: [], runtime_imports: [] },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2910,11 +2860,10 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
             value: observe,
             symbol: "lane.test.observe_unit_abi",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -3013,17 +2962,15 @@ test "primitive literal matches lower to comparison decision chains" {
             value: read,
             symbol: "lane.test.read_literal_match",
             signature: test_host_signature(read_type),
-            type_: read_type,
           },
           {
             value: observe,
             symbol: "lane.test.observe_literal_match",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -3130,11 +3077,10 @@ test "generic nonescaping nested functions call their target directly" {
             value: observe,
             symbol: "lane.test.observe_nested_generic",
             signature: test_host_signature(observe_type),
-            type_: observe_type,
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")

@@ -42,7 +42,7 @@ test "empty data match lowers to unreachable bytecode" {
     lower_test_executable_to_bytecode(
       program,
       { builtins: [], runtime_imports: [] },
-      { module_path_text: "Main", name: "main", value: main, type_: main_type },
+      { module_path_text: "Main", name: "main", value: main },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")

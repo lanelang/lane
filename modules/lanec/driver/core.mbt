@@ -18,7 +18,7 @@ pub fn list_entries(
     Succeeded(program, warnings) =>
       {
         schema_version: 1,
-        entries: program.entries().map(entry_summary),
+        entries: program.entries().map(entry => entry_summary(program, entry)),
         diagnostics: warnings.diagnostics(),
       }
     Failed(failure) =>
@@ -108,7 +108,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     linked.diagnostics(),
     empty_scale(),
   )
-  let selected_entry = Some(entry_summary(entry))
+  let selected_entry = Some(entry_summary(linked_program, entry))
   let executable = match
     linked_program.elaborate_entry_observed(entry, request.execution_profile, observed => {
       let observed = executable_stage(observed)
@@ -387,11 +387,14 @@ fn executable_stage(
 }
 
 ///|
-fn entry_summary(entry : @compile.CompiledEntry) -> EntrySummary {
+fn entry_summary(
+  program : @compile.CompiledProgram,
+  entry : @compile.CompiledEntry,
+) -> EntrySummary {
   {
     module_path_text: entry.module_path_text(),
     name: entry.name(),
-    type_text: entry.type_text(),
+    type_text: program.entry_type_text(entry).unwrap(),
   }
 }
 

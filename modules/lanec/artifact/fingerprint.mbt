@@ -48,7 +48,7 @@ pub fn module_object_fingerprint(
   ],
 ) -> @artifact_model.CompilationFingerprint {
   fingerprint_hash_bytes(
-    "lane-object-fingerprint-v4",
+    "lane-object-fingerprint-v5",
     module_object_fingerprint_payload_bytes(
       module_fingerprint, interface_fingerprint, canonical_basic_abi, metadata, terms,
       externals, entries, exports, imports, imported_interface_fingerprints,

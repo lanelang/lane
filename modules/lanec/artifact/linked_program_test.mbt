@@ -133,7 +133,6 @@ test "linked executable lowers through the LoisVM boundary" {
     module_path_text: "Main",
     name: "main",
     value: main,
-    type_: main_type,
   }
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
@@ -184,7 +183,6 @@ test "linked program roundtrips and inspects instance globals" {
     module_path_text: "Main",
     name: "main",
     value: main,
-    type_: main_type,
   }
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
@@ -211,13 +209,11 @@ test "linked program roundtrips and inspects instance globals" {
           value: produce,
           symbol: "lane.test.produce",
           signature: { parameters: [], result: String },
-          type_: produce_type,
         },
         {
           value: consume,
           symbol: "lane.test.consume",
           signature: { parameters: [String], result: Unit },
-          type_: consume_type,
         },
       ],
     },

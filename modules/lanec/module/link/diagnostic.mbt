@@ -63,6 +63,12 @@ priv enum LinkDiagnosticKind {
     importer~ : String
   )
   InvalidModuleObject(module_path_text~ : String, reason~ : String)
+  InvalidModuleObjectTypeNormalization(
+    module_path_text~ : String,
+    role~ : String,
+    value~ : @buslane.ValueId,
+    error~ : @buslane.TypeNormalizationError
+  )
   StaleModuleObject(module_path_text~ : String, reason~ : String)
   LinkMetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
 }
@@ -170,6 +176,20 @@ impl @compiler_diag.ToCompilerDiagnostic for LinkDiagnostic with fn to_compiler_
         code="E4208",
         label=reason,
         note="\{reason}; module objects must be internally valid before identity remapping begins",
+        help="recompile the module object from valid Lane source",
+      )
+    InvalidModuleObjectTypeNormalization(
+      module_path_text~,
+      role~,
+      value~,
+      error~
+    ) =>
+      compile_report(
+        "invalid module object `\{module_path_text}`",
+        diagnostic_.span,
+        code="E4208",
+        label="\{role} source type could not be normalized",
+        note="normalizing the metadata type for \{Repr(value)} failed with \{Repr(error)}",
         help="recompile the module object from valid Lane source",
       )
     StaleModuleObject(module_path_text~, reason~) =>

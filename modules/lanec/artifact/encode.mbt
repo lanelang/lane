@@ -27,14 +27,6 @@ fn write_buslane_program_section(
 }
 
 ///|
-fn write_buslane_type(
-  writer : @bytecodec.ByteWriter,
-  type_ : @buslane.Type,
-) -> Unit {
-  @buslane_codec.write_type(writer, type_)
-}
-
-///|
 fn write_buslane_value_id(
   writer : @bytecodec.ByteWriter,
   id : @buslane.ValueId,
@@ -97,14 +89,12 @@ fn write_externals(
   for external in externals.builtins {
     write_buslane_value_id(writer, external.value())
     write_intrinsic(writer, external.intrinsic())
-    write_buslane_type(writer, external.type_())
   }
   writer.write_u32_le_int(externals.runtime_imports.length())
   for import_ in externals.runtime_imports {
     write_buslane_value_id(writer, import_.value)
     writer.write_string(import_.symbol)
     write_host_signature(writer, import_.signature)
-    write_buslane_type(writer, import_.type_)
   }
 }
 
@@ -229,7 +219,6 @@ fn write_entry(
   writer.write_string(entry.module_path_text)
   writer.write_string(entry.name)
   write_buslane_value_id(writer, entry.value)
-  write_buslane_type(writer, entry.type_)
 }
 
 ///|

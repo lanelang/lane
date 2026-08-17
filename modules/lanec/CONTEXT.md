@@ -42,6 +42,13 @@ _Avoid_: Buslane verifier contract, backend ABI
 The translation from Checked Source into Buslane.
 _Avoid_: source elaboration, ANF normalization
 
+**Buslane Value Descriptor**:
+An entry, compiler-intrinsic, or runtime-import identity attached to one
+Buslane `ValueId`. Its source semantic type is owned only by the enclosing
+Buslane Metadata Registry. A runtime import additionally owns its erased host
+signature because that is a distinct ABI fact.
+_Avoid_: copied source type, inferred host signature, detached value metadata
+
 **Whole-Program Elaboration**:
 The post-link phase that validates the selected entry and makes initializer
 reachability, effect-aware CPS Core, and externals explicit.

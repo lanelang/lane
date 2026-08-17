@@ -213,16 +213,28 @@ pub fn CompiledEntry::name(self : CompiledEntry) -> String {
 }
 
 ///|
-pub fn CompiledEntry::type_(self : CompiledEntry) -> @buslane.Type {
-  self.entry.type_
+pub fn CompiledProgram::entry_type(
+  self : CompiledProgram,
+  entry : CompiledEntry,
+) -> @buslane.Type? {
+  guard self.linked.entries.contains(entry.entry) else { return None }
+  Some(
+    @buslane_lowering.source_value_type(
+      self.linked.program.metadata,
+      entry.entry.value,
+    ),
+  ) catch {
+    MissingValueMetadata(_) => None
+  }
 }
 
 ///|
-pub fn CompiledEntry::type_text(
-  self : CompiledEntry,
+pub fn CompiledProgram::entry_type_text(
+  self : CompiledProgram,
+  entry : CompiledEntry,
   width? : Int = 100,
-) -> String {
-  @prettyprinter.render(self.entry.type_, width~)
+) -> String? {
+  self.entry_type(entry).map(type_ => @prettyprinter.render(type_, width~))
 }
 
 ///|

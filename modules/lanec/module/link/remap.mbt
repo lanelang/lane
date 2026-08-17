@@ -11,21 +11,18 @@ fn BuslaneLinker::remap_module_object(
         @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
           self.remap_value_id(object, builtin.value()),
           builtin.intrinsic(),
-          self.remap_type(object, builtin.type_()),
         )
       }),
       runtime_imports: object.externals.runtime_imports.map(import_ => {
         value: self.remap_value_id(object, import_.value),
         symbol: import_.symbol,
         signature: import_.signature,
-        type_: self.remap_type(object, import_.type_),
       }),
     },
     entries: object.entries.map(entry => {
       module_path_text: entry.module_path_text,
       name: entry.name,
       value: self.remap_value_id(object, entry.value),
-      type_: self.remap_type(object, entry.type_),
     }),
     exports: object.exports.map(item => {
       name: item.name,

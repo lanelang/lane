@@ -207,7 +207,7 @@ fn test_entry(
   name : String,
   value : @buslane.ValueId,
 ) -> @buslane_lowering.BuslaneEntry {
-  { module_path_text, name, value, type_: Primitive(I64) }
+  { module_path_text, name, value }
 }
 
 ///|
@@ -252,18 +252,13 @@ test "linked tree shaking retains exports entries externals and metadata" {
     },
     externals: {
       builtins: [
-        @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
-          add,
-          I64Add,
-          Function([Primitive(I64), Primitive(I64)], Primitive(I64), Empty),
-        ),
+        @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
       ],
       runtime_imports: [
         {
           value: host_log,
           symbol: "host_log",
           signature: { parameters: [String], result: Unit },
-          type_: Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
         },
       ],
     },

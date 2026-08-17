@@ -20,27 +20,30 @@ fn validate_executable_entry(
   entry : @buslane_lowering.BuslaneEntry,
   profile : ExecutionProfile,
 ) -> Unit raise ExecutableElaborationError {
-  let normalized = entry.type_.normalize() catch {
+  let entry_type = @buslane_lowering.source_value_type(metadata, entry.value) catch {
+    MissingValueMetadata(_) => raise EntryNotLinked(entry.value)
+  }
+  let normalized = entry_type.normalize() catch {
     error => raise EntryTypeNormalizationCompilerDefect(error)
   }
   guard normalized is Function(parameters, result, effect) else {
     raise EntryAdmissionRejected(
       value=entry.value,
-      type_=entry.type_,
+      type_=entry_type,
       reason=NotFunction,
     )
   }
   if !parameters.is_empty() {
     raise EntryAdmissionRejected(
       value=entry.value,
-      type_=entry.type_,
+      type_=entry_type,
       reason=HasParameters(count=parameters.length()),
     )
   }
   if result != Primitive(Unit) {
     raise EntryAdmissionRejected(
       value=entry.value,
-      type_=entry.type_,
+      type_=entry_type,
       reason=ReturnsNonUnit(result~),
     )
   }
@@ -50,7 +53,7 @@ fn validate_executable_entry(
   if !unsupported.is_empty() {
     raise EntryAdmissionRejected(
       value=entry.value,
-      type_=entry.type_,
+      type_=entry_type,
       reason=HasUnsupportedEffects(effects=unsupported),
     )
   }
