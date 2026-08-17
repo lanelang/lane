@@ -377,3 +377,26 @@ test "module compilation and linking expose facade-owned results" {
     ),
   )
 }
+
+///|
+test "compiled module sets reject the previous reachable-path schema" {
+  let compiled = compile_modules({
+    root: {
+      source_id: "Main.lane",
+      text: "module Main\npub let answer : I64 = 42",
+    },
+    libraries: [],
+  })
+  guard compiled is Succeeded(modules, _) else {
+    abort("expected module compilation to succeed")
+  }
+  let artifact = modules.artifact()
+  let linked = @artifact.link_module_artifacts({ ..artifact, schema_version: 2 })
+  debug_inspect(
+    linked.diagnostics.map(diagnostic => (diagnostic.code, diagnostic.message)),
+    content=(
+      #|[(Some("E4301"), "unsupported compiled module artifact schema")]
+    ),
+  )
+  assert_true(linked.program is None)
+}

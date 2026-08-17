@@ -56,8 +56,8 @@ test "checked modules lower into complete compiled modules" {
     compiled.map(fn(module_) {
       (
         module_.object.module_path_text,
-        module_.object.metadata.types.length(),
-        module_.object.terms.length(),
+        module_.object.program.metadata.types.length(),
+        module_.object.program.terms.length(),
         module_.object.exports.length(),
       )
     }),

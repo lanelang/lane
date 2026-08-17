@@ -7,8 +7,8 @@ priv struct ExploreStageBuilder {
 /// Compiles and links the source closure and lists entries in deterministic link
 /// order. Compilation failure returns an empty entry list plus full diagnostics.
 pub fn list_entries(
-  root_source : @compile.SourceInput,
-  library_sources : Array[@compile.SourceInput],
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
 ) -> EntryReport {
   let compiled = @compile.compile({
     root: root_source,

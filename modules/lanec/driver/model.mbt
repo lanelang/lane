@@ -222,8 +222,8 @@ pub(all) struct ExploreStages {
 /// `entry` must uniquely select one linked artifact-defined entry, and the
 /// embedding environment must state its execution admission policy explicitly.
 pub(all) struct ExploreRequest {
-  root_source : @compile.SourceInput
-  library_sources : Array[@compile.SourceInput]
+  root_source : @module_frontend.SourceInput
+  library_sources : Array[@module_frontend.SourceInput]
   entry : String
   execution_profile : @executable.ExecutionProfile
 } derive(Debug, Eq)

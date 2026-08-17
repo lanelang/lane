@@ -23,7 +23,7 @@ pub let module_object_artifact_schema_version = 21
 pub let compiled_module_artifact_schema_version = 2
 
 ///|
-pub let compiled_module_set_artifact_schema_version = 2
+pub let compiled_module_set_artifact_schema_version = 3
 
 ///|
 /// Persisted, independently linkable module implementation. Its schema and
@@ -75,7 +75,6 @@ pub(all) struct CompiledModuleSetArtifact {
   schema_version : Int
   root_module_path_text : String
   modules : Array[CompiledModuleArtifact]
-  reachable_module_path_texts : Array[String]
 } derive(Debug, Eq)
 
 ///|
@@ -266,8 +265,7 @@ fn ModuleObjectArtifact::to_link_object(
     interface: None,
     interface_fingerprint: self.interface_fingerprint,
     canonical_basic_abi: self.canonical_basic_abi,
-    metadata: self.metadata,
-    terms: self.terms,
+    program: { metadata: self.metadata, terms: self.terms },
     externals: self.externals,
     entries: self.entries,
     exports: self.exports,

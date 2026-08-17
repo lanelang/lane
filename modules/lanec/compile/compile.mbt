@@ -24,8 +24,7 @@ fn check_request(
           modules.modules,
           modules.root_module_path_text,
         ) {
-        Some(root) =>
-          compilation_succeeded(root.object.checked, modules.diagnostics)
+        Some(root) => compilation_succeeded(root.checked, modules.diagnostics)
         None =>
           compilation_failed([
             @module_compile.compiled_module_set_missing_root_diagnostic(),
@@ -51,7 +50,7 @@ fn check_interface_request(
 ) -> CompilationOutcome[@checked.CheckedSourceFile] {
   match
     @module_compile.compile_module_from_interface_artifacts(
-      request.root.to_frontend(),
+      request.root,
       request.interfaces,
     ) {
     Ok(modules) =>
@@ -60,8 +59,7 @@ fn check_interface_request(
           modules.modules,
           modules.root_module_path_text,
         ) {
-        Some(root) =>
-          compilation_succeeded(root.object.checked, modules.diagnostics)
+        Some(root) => compilation_succeeded(root.checked, modules.diagnostics)
         None =>
           compilation_failed([
             @module_compile.compiled_module_set_missing_root_diagnostic(),
@@ -132,7 +130,7 @@ pub fn compile_module_with_interfaces(
 ) -> CompilationOutcome[CompiledModules] {
   match
     @module_compile.compile_module_from_interface_artifacts(
-      request.root.to_frontend(),
+      request.root,
       request.interfaces,
     ) {
     Ok(modules) => compilation_succeeded({ modules, }, modules.diagnostics)
@@ -177,8 +175,8 @@ fn compile_module_set(
 ) -> Result[@module_compile.CompiledModuleSet, Array[CompilerDiagnostic]] {
   match
     @module_frontend.parse_import_reachable_module_graph_from_inputs_observed(
-      request.root.to_frontend(),
-      request.libraries.map(SourceInput::to_frontend),
+      request.root,
+      request.libraries,
       root => {
         observe(
           Syntax({
@@ -214,9 +212,4 @@ fn compile_module_set(
         observe(snapshot)
       })
   }
-}
-
-///|
-fn SourceInput::to_frontend(self : SourceInput) -> @module_frontend.SourceInput {
-  { source_id: self.source_id, text: self.text }
 }

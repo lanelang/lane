@@ -705,10 +705,10 @@ test "buslane lowering registry covers nominal and effect declarations" {
   guard objects.objects.get(0) is Some(object) else {
     abort("expected lowered object")
   }
-  assert_eq(object.metadata.types.length(), 1)
-  assert_eq(object.metadata.data_constructors.length(), 1)
-  assert_eq(object.metadata.effects.length(), 1)
-  assert_eq(object.metadata.operations.length(), 1)
+  assert_eq(object.program.metadata.types.length(), 1)
+  assert_eq(object.program.metadata.data_constructors.length(), 1)
+  assert_eq(object.program.metadata.effects.length(), 1)
+  assert_eq(object.program.metadata.operations.length(), 1)
   guard object.exports.any(fn(item) { item.reference is Type(_) }) else {
     abort("expected type export")
   }
@@ -771,10 +771,7 @@ test "buslane lowering registry covers imported references" {
   )
   guard object is Ok(object) else { abort("expected imported lowering") }
   debug_inspect(
-    struct_literal_lowering_order(
-      { metadata: object.metadata, terms: object.terms },
-      "answer",
-    ),
+    struct_literal_lowering_order(object.program, "answer"),
     content=(
       #|{
       #|  evaluation_order: ["second", "first"],

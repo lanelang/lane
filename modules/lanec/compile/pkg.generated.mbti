@@ -6,6 +6,7 @@ import {
   "Milky2018/lanec/artifact",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/executable",
+  "Milky2018/lanec/module/frontend",
   "moonbitlang/core/debug",
 }
 
@@ -45,8 +46,8 @@ pub(all) enum CompilationOutcome[T] {
 pub fn[T] CompilationOutcome::diagnostics(Self[T]) -> Array[@diagnostic.CompilerDiagnostic]
 
 pub(all) struct CompilationRequest {
-  root : SourceInput
-  libraries : Array[SourceInput]
+  root : @frontend.SourceInput
+  libraries : Array[@frontend.SourceInput]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct CompilationStageSnapshot {
@@ -84,7 +85,7 @@ pub fn CompiledProgram::entries(Self) -> Array[CompiledEntry]
 pub fn CompiledProgram::module_path_texts(Self) -> Array[String]
 
 pub(all) struct InterfaceCompilationRequest {
-  root : SourceInput
+  root : @frontend.SourceInput
   interfaces : Array[@artifact.ModuleInterfaceArtifact]
 } derive(Eq, @debug.Debug)
 
@@ -93,11 +94,6 @@ pub(all) enum SourceCompilationStage {
   Resolved(CompilationStageSnapshot)
   Checked(CompilationStageSnapshot)
   BuslaneModule(CompilationStageSnapshot)
-} derive(Eq, @debug.Debug)
-
-pub(all) struct SourceInput {
-  source_id : String
-  text : String
 } derive(Eq, @debug.Debug)
 
 // Type aliases

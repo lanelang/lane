@@ -54,7 +54,6 @@ pub struct ModuleGraph {
   // private fields
 }
 pub fn ModuleGraph::modules(Self) -> Array[ParsedModuleInput]
-pub fn ModuleGraph::reachable_module_path_texts(Self) -> Array[String]
 pub fn ModuleGraph::root_module_path_text(Self) -> String
 pub fn ModuleGraph::unavailable_module_path_texts(Self) -> Array[String]
 pub fn ModuleGraph::unavailable_sources(Self) -> Array[UnavailableParsedSource]

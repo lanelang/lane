@@ -52,7 +52,7 @@ test "public export targets stay provider-owned without forwarding terms" {
           export_.target.declaration_name,
         )
       }),
-      facade.object.terms.length(),
+      facade.object.program.terms.length(),
       facade.object.exports.length(),
       main.object.imports.any(fn(import_) {
         import_.module_path_text == "Provider"

@@ -8,14 +8,14 @@ priv struct LaneSourceInput {
 ///|
 fn LaneSourceInput::to_compile_input(
   self : LaneSourceInput,
-) -> @compile.SourceInput {
+) -> @module_frontend.SourceInput {
   { source_id: self.source_id, text: self.text }
 }
 
 ///|
 fn LaneSourceInput::array_to_compile_inputs(
   inputs : Array[LaneSourceInput],
-) -> Array[@compile.SourceInput] {
+) -> Array[@module_frontend.SourceInput] {
   inputs.map(LaneSourceInput::to_compile_input)
 }
 

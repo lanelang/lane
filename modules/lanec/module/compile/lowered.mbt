@@ -28,10 +28,7 @@ fn lower_checked_modules(
     let compiled = compiled_module_from_lowered(module_, lowered, imports)
     observe(
       compiled.object.module_path_text,
-      BuslaneModule({
-        metadata: compiled.object.metadata,
-        terms: compiled.object.terms,
-      }),
+      BuslaneModule(compiled.object.program),
     )
     lowered_modules.push(compiled)
   }
@@ -46,11 +43,9 @@ fn compiled_module_from_lowered(
 ) -> CompiledModule {
   let object : ModuleObject = {
     module_path_text: module_.module_path_text,
-    checked: module_.checked,
     interface_fingerprint: module_.interface_fingerprint,
     canonical_basic_abi: lowered.canonical_basic_abi,
-    metadata: lowered.metadata,
-    terms: lowered.terms,
+    program: lowered.program,
     externals: lowered.externals,
     entries: lowered.entries,
     exports: lowered.exports,
@@ -60,8 +55,8 @@ fn compiled_module_from_lowered(
       module_.fingerprint,
       module_.interface_fingerprint,
       lowered.canonical_basic_abi,
-      lowered.metadata,
-      lowered.terms,
+      lowered.program.metadata,
+      lowered.program.terms,
       lowered.externals,
       lowered.entries,
       lowered.exports,
@@ -70,7 +65,7 @@ fn compiled_module_from_lowered(
     ),
     imported_interface_fingerprints: module_.imported_interface_fingerprints,
   }
-  { interface: module_.interface, object }
+  { checked: module_.checked, interface: module_.interface, object }
 }
 
 ///|

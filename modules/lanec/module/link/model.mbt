@@ -7,8 +7,7 @@ pub(all) struct LinkModuleObject {
   interface : @module_interface.ModuleInterface?
   interface_fingerprint : @artifact_model.CompilationFingerprint
   canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
-  metadata : @buslane.MetadataRegistry
-  terms : Array[@buslane.TopTerm]
+  program : @buslane.Program
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]

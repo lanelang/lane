@@ -92,7 +92,7 @@ Compiler APIs never discover files implicitly. A host supplies one root `SourceI
 ```mbt check
 ///|
 test "compile a multi-module Lane source set" {
-  let root : @compile.SourceInput = {
+  let root : @module_frontend.SourceInput = {
     source_id: "main.lane",
     text: (
       #|module Main
@@ -105,7 +105,7 @@ test "compile a multi-module Lane source set" {
       #|}
     ),
   }
-  let library : @compile.SourceInput = {
+  let library : @module_frontend.SourceInput = {
     source_id: "library.lane",
     text: (
       #|module Library
@@ -136,7 +136,7 @@ test "compile a multi-module Lane source set" {
 ```mbt check
 ///|
 test "enumerate exported compiler entries" {
-  let root : @compile.SourceInput = {
+  let root : @module_frontend.SourceInput = {
     source_id: "main.lane",
     text: (
       #|module Main

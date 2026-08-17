@@ -70,7 +70,6 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: decoded_modules,
-    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
@@ -1115,7 +1114,6 @@ test "link module artifacts orders reachable modules by imports" {
     schema_version: artifact.schema_version,
     root_module_path_text: "Main",
     modules: [main, lib],
-    reachable_module_path_texts: ["Main", "Lib"],
   })
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {

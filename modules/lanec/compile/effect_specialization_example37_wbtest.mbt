@@ -146,7 +146,7 @@ fn lifted_fixture_diagnostics(
 }
 
 ///|
-fn effect_example_test_libraries() -> Array[SourceInput] {
+fn effect_example_test_libraries() -> Array[@module_frontend.SourceInput] {
   [
     {
       source_id: "<basic-io>",

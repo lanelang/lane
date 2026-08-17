@@ -1,26 +1,18 @@
 ///|
-/// Identifies one in-memory source file. `source_id` is preserved in every
-/// diagnostic and should therefore be stable across incremental requests.
-pub(all) struct SourceInput {
-  source_id : String
-  text : String
-} derive(Debug, Eq)
-
-///|
 /// Describes a source compilation rooted at `root`.
 ///
 /// `libraries` is an unordered source pool: compilation discovers the
 /// import-reachable closure and ignores dead library modules.
 pub(all) struct CompilationRequest {
-  root : SourceInput
-  libraries : Array[SourceInput]
+  root : @module_frontend.SourceInput
+  libraries : Array[@module_frontend.SourceInput]
 } derive(Debug, Eq)
 
 ///|
 /// Describes compilation of one source module against persisted interfaces.
 /// The interface artifacts are untrusted and are validated before use.
 pub(all) struct InterfaceCompilationRequest {
-  root : SourceInput
+  root : @module_frontend.SourceInput
   interfaces : Array[@artifact.ModuleInterfaceArtifact]
 } derive(Debug, Eq)
 

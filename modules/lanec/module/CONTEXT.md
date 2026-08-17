@@ -48,6 +48,12 @@ The package boundary that parses Source Inputs into Parsed Sources and is the
 sole producer of Module Graph topology and Module Dependency Failures.
 _Avoid_: interface model, linker
 
+**Source Input**:
+The Module Frontend-owned identity and text of one in-memory source. Batch
+compilation, semantic workspace analysis, Explore, native CLI, and Wasm hosts
+all consume this same value without facade-specific copies.
+_Avoid_: compile source input, workspace source input, field-copy adapter
+
 **Parsed Source**:
 The single result of parsing one Source Input. It owns concrete syntax,
 syntactic identifiers, parse diagnostics, and exactly one available-module or
@@ -57,8 +63,9 @@ _Avoid_: parallel source syntax arrays, detached recovered header, optional pars
 **Module Graph**:
 The Module Frontend-owned dependency result containing dependency-ordered
 available modules, explicit unavailable Parsed Sources for tolerant analysis,
-the selected root, and the reachable module paths. Strict compilation receives
-only a validated Module Graph directly from import-reachable parsing.
+and the selected root. The available and unavailable module collections are
+the reachable closure; no parallel path list is stored. Strict compilation
+receives only a validated Module Graph directly from import-reachable parsing.
 _Avoid_: module input set, caller-computed reachability, caller topological sort
 
 **Module Dependency Failure**:
@@ -73,6 +80,13 @@ _Avoid_: compile-boundary dependency diagnostic, duplicated E400x rendering
 The package boundary that owns module compilation, artifacts, fingerprints,
 linking, and executable-program assembly.
 _Avoid_: source input discovery, shared interface types
+
+**Compiled Module**:
+The compiler-owned product pairing Checked Source, Module Interface, and one
+link-only Module Object. The Module Object contains a single Buslane Program
+plus link metadata; it never retains source-analysis state or parallel
+metadata/term fields.
+_Avoid_: checked module object, split Buslane object, copied reachable paths
 
 **Linked Core Retention**:
 The linker policy that computes whole-program roots only after import identity

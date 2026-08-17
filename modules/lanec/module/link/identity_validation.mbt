@@ -10,7 +10,7 @@ fn validate_buslane_object(
 ) -> Array[CompilerDiagnostic] {
   let validator = ModuleObjectIdentityValidator::{ object, diagnostics: [] }
   validator.validate_metadata()
-  for term in object.terms {
+  for term in object.program.terms {
     validator.validate_top_term(term)
   }
   for import_ in object.externals.runtime_imports {
@@ -26,7 +26,7 @@ fn validate_buslane_object(
 fn ModuleObjectIdentityValidator::validate_metadata(
   self : ModuleObjectIdentityValidator,
 ) -> Unit {
-  for info in self.object.metadata.types {
+  for info in self.object.program.metadata.types {
     for parameter in info.parameters {
       self.require_type_parameter(parameter)
     }
@@ -34,10 +34,10 @@ fn ModuleObjectIdentityValidator::validate_metadata(
       self.require_data_constructor(constructor_id)
     }
   }
-  for info in self.object.metadata.values {
+  for info in self.object.program.metadata.values {
     self.validate_type(info.type_)
   }
-  for info in self.object.metadata.data_constructors {
+  for info in self.object.program.metadata.data_constructors {
     self.require_type(info.owner)
     for parameter in info.hidden_type_parameters {
       self.require_type_parameter(parameter)
@@ -46,7 +46,7 @@ fn ModuleObjectIdentityValidator::validate_metadata(
       self.validate_type(payload_type)
     }
   }
-  for info in self.object.metadata.effects {
+  for info in self.object.program.metadata.effects {
     for parameter in info.parameters {
       self.require_type_parameter(parameter)
     }
@@ -54,7 +54,7 @@ fn ModuleObjectIdentityValidator::validate_metadata(
       self.require_operation(operation)
     }
   }
-  for info in self.object.metadata.operations {
+  for info in self.object.program.metadata.operations {
     self.require_effect(info.owner)
     for parameter in info.hidden_type_parameters {
       self.require_type_parameter(parameter)
@@ -262,7 +262,7 @@ fn ModuleObjectIdentityValidator::require_type(
   self : ModuleObjectIdentityValidator,
   id : @buslane.TypeId,
 ) -> Unit {
-  if self.object.metadata.type_info(id) is None {
+  if self.object.program.metadata.type_info(id) is None {
     self.report("unknown Buslane type identity \{Repr(id)}")
   }
 }
@@ -272,7 +272,7 @@ fn ModuleObjectIdentityValidator::require_type_parameter(
   self : ModuleObjectIdentityValidator,
   id : @buslane.TypeParameterId,
 ) -> Unit {
-  if self.object.metadata.type_parameter_info(id) is None {
+  if self.object.program.metadata.type_parameter_info(id) is None {
     self.report("unknown Buslane type-parameter identity \{Repr(id)}")
   }
 }
@@ -282,7 +282,7 @@ fn ModuleObjectIdentityValidator::require_value(
   self : ModuleObjectIdentityValidator,
   id : @buslane.ValueId,
 ) -> Unit {
-  if self.object.metadata.value_info(id) is None {
+  if self.object.program.metadata.value_info(id) is None {
     self.report("unknown Buslane value identity \{Repr(id)}")
   }
 }
@@ -292,7 +292,7 @@ fn ModuleObjectIdentityValidator::require_data_constructor(
   self : ModuleObjectIdentityValidator,
   id : @buslane.DataConId,
 ) -> Unit {
-  if self.object.metadata.data_constructor_info(id) is None {
+  if self.object.program.metadata.data_constructor_info(id) is None {
     self.report("unknown Buslane data-constructor identity \{Repr(id)}")
   }
 }
@@ -302,7 +302,7 @@ fn ModuleObjectIdentityValidator::require_effect(
   self : ModuleObjectIdentityValidator,
   id : @buslane.EffectId,
 ) -> Unit {
-  if self.object.metadata.effect_info(id) is None {
+  if self.object.program.metadata.effect_info(id) is None {
     self.report("unknown Buslane effect identity \{Repr(id)}")
   }
 }
@@ -312,7 +312,7 @@ fn ModuleObjectIdentityValidator::require_operation(
   self : ModuleObjectIdentityValidator,
   id : @buslane.OperationId,
 ) -> Unit {
-  if self.object.metadata.operation_info(id) is None {
+  if self.object.program.metadata.operation_info(id) is None {
     self.report("unknown Buslane operation identity \{Repr(id)}")
   }
 }

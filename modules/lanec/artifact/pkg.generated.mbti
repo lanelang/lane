@@ -77,7 +77,6 @@ pub(all) struct CompiledModuleSetArtifact {
   schema_version : Int
   root_module_path_text : String
   modules : Array[CompiledModuleArtifact]
-  reachable_module_path_texts : Array[String]
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LinkedProgramArtifact {

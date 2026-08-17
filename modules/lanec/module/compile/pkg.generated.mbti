@@ -35,6 +35,7 @@ pub fn link_compiled_modules(Array[CompiledModule]) -> @link.LinkResult
 
 // Types and methods
 pub struct CompiledModule {
+  checked : @checked.CheckedSourceFile
   interface : @module.ModuleInterface
   object : ModuleObject
 } derive(Eq, @debug.Debug)
@@ -45,7 +46,6 @@ pub fn CompiledModule::to_object_artifact(Self) -> @artifact.ModuleObjectArtifac
 pub(all) struct CompiledModuleSet {
   root_module_path_text : String
   modules : Array[CompiledModule]
-  reachable_module_path_texts : Array[String]
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
 pub fn CompiledModuleSet::to_artifact(Self) -> @artifact.CompiledModuleSetArtifact
@@ -58,11 +58,9 @@ pub(all) enum ModuleCompileStage {
 
 pub(all) struct ModuleObject {
   module_path_text : String
-  checked : @checked.CheckedSourceFile
   interface_fingerprint : @model.CompilationFingerprint
   canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
-  metadata : @buslane.MetadataRegistry
-  terms : Array[@buslane.TopTerm]
+  program : @buslane.Program
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]

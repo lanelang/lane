@@ -629,10 +629,9 @@ test "compile module freshens independently compiled interface symbols" {
   }
   let main_artifact = main_module.to_artifact()
   let linked = @artifact.link_module_artifacts({
-    schema_version: 2,
+    schema_version: 3,
     root_module_path_text: "Main",
     modules: [left_artifact, right_artifact, main_artifact],
-    reachable_module_path_texts: ["Left", "Right", "Main"],
   })
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
@@ -714,10 +713,9 @@ test "compile module follows transitive interface dependencies without extra pol
   }
   let c_artifact = c_module.to_artifact()
   let linked = @artifact.link_module_artifacts({
-    schema_version: 2,
+    schema_version: 3,
     root_module_path_text: "C",
     modules: [c_artifact, b_artifact, a_artifact],
-    reachable_module_path_texts: ["C", "B", "A"],
   })
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
@@ -1044,7 +1042,6 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged,
-    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1096,7 +1093,6 @@ test "link module artifacts rejects interface object name mismatch" {
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged,
-    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1177,7 +1173,6 @@ test "link module artifacts rejects stale imported reference fingerprint" {
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged_modules,
-    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1248,7 +1243,6 @@ test "link module artifacts rejects missing exported object value" {
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged_modules,
-    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1299,10 +1293,9 @@ test "link modules rejects compiled artifact import cycle" {
     },
   ])
   let linked = @artifact.link_module_artifacts({
-    schema_version: 2,
+    schema_version: 3,
     root_module_path_text: "A",
     modules: [module_a, module_b],
-    reachable_module_path_texts: ["A", "B"],
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1329,10 +1322,9 @@ test "link modules rejects missing compiled artifact import" {
     { module_path_text: "Missing", fingerprint: { value: "missing" } },
   ])
   let linked = @artifact.link_module_artifacts({
-    schema_version: 2,
+    schema_version: 3,
     root_module_path_text: "Main",
     modules: [module_],
-    reachable_module_path_texts: ["Main"],
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),

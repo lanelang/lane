@@ -7,7 +7,7 @@ fn validate_link_object(
   let certified_canonical_basic_abi = match
     object.canonical_basic_abi.certify(
       object.canonical_basic_type_declarations(),
-      object.metadata,
+      object.program.metadata,
     ) {
     Ok(contract) => Some(contract)
     Err(error) => {
@@ -153,7 +153,7 @@ fn validate_object_side_tables(
       _ => ()
     }
   }
-  for term in object.terms {
+  for term in object.program.terms {
     if term is External(value) && !external_values.contains(value) {
       diagnostics.push(
         invalid_module_object(
@@ -268,7 +268,8 @@ fn validate_external_reference(
   role : String,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = validate_value_reference(object, value, type_, role)
-  if object.metadata.value_info(value) is Some(info) && info.kind != External {
+  if object.program.metadata.value_info(value) is Some(info) &&
+    info.kind != External {
     diagnostics.push(
       invalid_module_object(
         object,
@@ -276,7 +277,7 @@ fn validate_external_reference(
       ),
     )
   }
-  if !object.terms.any(term => term == External(value)) {
+  if !object.program.terms.any(term => term == External(value)) {
     diagnostics.push(
       invalid_module_object(
         object,
@@ -294,7 +295,7 @@ fn validate_value_reference(
   type_ : @buslane.Type,
   role : String,
 ) -> Array[CompilerDiagnostic] {
-  match object.metadata.value_info(value) {
+  match object.program.metadata.value_info(value) {
     None =>
       [
         invalid_module_object(
@@ -340,11 +341,13 @@ fn validate_reference_identity(
   role : String,
 ) -> Array[CompilerDiagnostic] {
   let valid = match reference {
-    Type(id) => object.metadata.type_info(id) is Some(_)
-    DataConstructor(id) => object.metadata.data_constructor_info(id) is Some(_)
-    Effect(id) => object.metadata.effect_info(id) is Some(_)
-    Operation(id) => object.metadata.operation_info(id) is Some(_)
-    FieldSelector(id) | Value(id) => object.metadata.value_info(id) is Some(_)
+    Type(id) => object.program.metadata.type_info(id) is Some(_)
+    DataConstructor(id) =>
+      object.program.metadata.data_constructor_info(id) is Some(_)
+    Effect(id) => object.program.metadata.effect_info(id) is Some(_)
+    Operation(id) => object.program.metadata.operation_info(id) is Some(_)
+    FieldSelector(id) | Value(id) =>
+      object.program.metadata.value_info(id) is Some(_)
   }
   if valid {
     []

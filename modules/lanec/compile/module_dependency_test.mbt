@@ -1,7 +1,7 @@
 ///|
 fn dependency_failure_codes(
-  root : SourceInput,
-  libraries : Array[SourceInput],
+  root : @module_frontend.SourceInput,
+  libraries : Array[@module_frontend.SourceInput],
 ) -> Array[(String?, String?)] {
   match check({ root, libraries }) {
     Failed(failure) =>
@@ -14,11 +14,11 @@ fn dependency_failure_codes(
 
 ///|
 test "compile reports only reachable parse failures" {
-  let root : SourceInput = {
+  let root : @module_frontend.SourceInput = {
     source_id: "file:///Main.lane",
     text: "module Main\nimport Broken\npub let answer : I64 = 42",
   }
-  let broken : SourceInput = {
+  let broken : @module_frontend.SourceInput = {
     source_id: "file:///Broken.lane",
     text: "module Broken\npub let value : =",
   }

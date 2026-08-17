@@ -16,7 +16,6 @@ priv struct CheckedModule {
 priv struct CheckedModuleSet {
   root_module_path_text : String
   modules : Array[CheckedModule]
-  reachable_module_path_texts : Array[String]
   diagnostics : Array[CompilerDiagnostic]
 }
 

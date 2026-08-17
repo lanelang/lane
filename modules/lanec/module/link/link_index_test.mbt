@@ -27,8 +27,7 @@ fn test_link_object(
     interface: None,
     interface_fingerprint: interface_fingerprint(path),
     canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
-    metadata,
-    terms,
+    program: { metadata, terms },
     externals: { builtins: [], runtime_imports: [] },
     entries: [],
     exports: [],
@@ -64,8 +63,7 @@ fn exported_value_modules(
     interface: None,
     interface_fingerprint: interface_fingerprint("Provider"),
     canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
-    metadata: provider_metadata,
-    terms: provider_terms,
+    program: { metadata: provider_metadata, terms: provider_terms },
     externals: { builtins: [], runtime_imports: [] },
     entries: [],
     exports: provider_exports,
@@ -105,8 +103,7 @@ fn exported_value_modules(
     interface: None,
     interface_fingerprint: interface_fingerprint("Importer"),
     canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
-    metadata: importer_metadata,
-    terms: importer_terms,
+    program: { metadata: importer_metadata, terms: importer_terms },
     externals: { builtins: [], runtime_imports: [] },
     entries: [],
     exports: [],
@@ -243,14 +240,16 @@ test "linked tree shaking retains exports entries externals and metadata" {
   )
   let provider : LinkModuleObject = {
     ..test_link_object("Provider", [], 0),
-    metadata: provider_metadata,
-    terms: [
-      Let(helper, Literal(I64(1L))),
-      Let(api, Ref(helper)),
-      Let(provider_dead, Literal(I64(2L))),
-      External(add),
-      External(host_log),
-    ],
+    program: {
+      metadata: provider_metadata,
+      terms: [
+        Let(helper, Literal(I64(1L))),
+        Let(api, Ref(helper)),
+        Let(provider_dead, Literal(I64(2L))),
+        External(add),
+        External(host_log),
+      ],
+    },
     externals: {
       builtins: [
         @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
@@ -284,8 +283,10 @@ test "linked tree shaking retains exports entries externals and metadata" {
   let root_dead = root_metadata.define_value("root_dead", Value, Primitive(I64))
   let root : LinkModuleObject = {
     ..test_link_object("Root", ["Provider"], 0),
-    metadata: root_metadata,
-    terms: [Let(main, Ref(imported_api)), Let(root_dead, Literal(I64(3L)))],
+    program: {
+      metadata: root_metadata,
+      terms: [Let(main, Ref(imported_api)), Let(root_dead, Literal(I64(3L)))],
+    },
     entries: [test_entry("Root", "main", main)],
     imports: [
       {
@@ -346,8 +347,10 @@ test "linked entry policy determines whole-program retention roots" {
   )
   let dependency : LinkModuleObject = {
     ..test_link_object("Dependency", [], 0),
-    metadata: dependency_metadata,
-    terms: [Let(helper, Literal(I64(1L))), Let(dependency_entry, Ref(helper))],
+    program: {
+      metadata: dependency_metadata,
+      terms: [Let(helper, Literal(I64(1L))), Let(dependency_entry, Ref(helper))],
+    },
     entries: [test_entry("Dependency", "run", dependency_entry)],
   }
   let root_metadata = @buslane.MetadataRegistry()
@@ -358,8 +361,10 @@ test "linked entry policy determines whole-program retention roots" {
   )
   let root : LinkModuleObject = {
     ..test_link_object("Root", ["Dependency"], 0),
-    metadata: root_metadata,
-    terms: [Let(root_entry, Literal(I64(0L)))],
+    program: {
+      metadata: root_metadata,
+      terms: [Let(root_entry, Literal(I64(0L)))],
+    },
     entries: [test_entry("Root", "run", root_entry)],
   }
   let reachable = link_reachable_modules([root, dependency], "Root")

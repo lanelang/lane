@@ -3,7 +3,6 @@ pub struct ModuleGraph {
   priv root_module_path_text : String
   priv modules : Array[ParsedModuleInput]
   priv unavailable_sources : Array[UnavailableParsedSource]
-  priv reachable_module_path_texts : Array[String]
 }
 
 ///|
@@ -16,7 +15,6 @@ pub struct TolerantModuleGraphResult {
 priv struct ModuleGraphAnalysis {
   modules : Array[ParsedModuleInput]
   unavailable_sources : Array[UnavailableParsedSource]
-  reachable_module_path_texts : Array[String]
   failures : Array[ModuleDependencyFailure]
 }
 
@@ -44,13 +42,6 @@ pub fn ModuleGraph::unavailable_module_path_texts(
   self.unavailable_sources.filter_map(fn(source) {
     source.recovered_header.map(fn(header) { header.module_path_text })
   })
-}
-
-///|
-pub fn ModuleGraph::reachable_module_path_texts(
-  self : ModuleGraph,
-) -> Array[String] {
-  self.reachable_module_path_texts.copy()
 }
 
 ///|
@@ -116,7 +107,6 @@ pub fn build_tolerant_module_graph(
       root_module_path_text,
       modules: analysis.modules,
       unavailable_sources: analysis.unavailable_sources,
-      reachable_module_path_texts: analysis.reachable_module_path_texts,
     },
     diagnostics: analysis.failures.map(ModuleDependencyFailure::diagnostic),
   })
@@ -140,7 +130,6 @@ fn build_strict_module_graph(
     root_module_path_text,
     modules: analysis.modules,
     unavailable_sources: [],
-    reachable_module_path_texts: analysis.reachable_module_path_texts,
   })
 }
 
@@ -152,7 +141,6 @@ fn analyze_module_graph(
   let analysis : ModuleGraphAnalysis = {
     modules: [],
     unavailable_sources: [],
-    reachable_module_path_texts: [],
     failures: [],
   }
   let visiting : Array[String] = []
@@ -251,7 +239,6 @@ fn visit_module(
   }
   ignore(visiting.pop())
   visited.push(path)
-  analysis.reachable_module_path_texts.push(path)
   match source {
     Available(module_) =>
       analysis.modules.push(copy_parsed_module_input(module_))
