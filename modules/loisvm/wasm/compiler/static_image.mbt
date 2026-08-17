@@ -13,8 +13,6 @@ priv struct StaticImage {
   shape_layout_ids : Array[Int]
   object_shapes : Array[@bytecode.ObjectShape]
   globals : Array[@bytecode.GlobalMetadata]
-  wasm_function_offset : Int
-  callable_table_indices : Array[Int]
   callable_abis : Array[@bytecode.CallableAbi]
   callable_abi_table_base : Int
   callable_table_size : Int
@@ -161,10 +159,8 @@ fn image_requires_byte_sequence_layout(image : @bytecode.BytecodeImage) -> Bool 
 fn build_static_image(
   image : @bytecode.BytecodeImage,
   global_lifecycle : @bytecode.GlobalLifecyclePlan,
-  helper_functions : HelperFunctions,
-  wasm_function_offset : Int,
+  function_catalog : WasmFunctionCatalog,
   host_objects_enabled : Bool,
-  callable_table_indices : Array[Int],
 ) -> StaticImage raise WasmCompileError {
   let writer = @bytecodec.ByteWriter::new()
   let shape_layouts = image.object_shapes.map(object_shape_layout)
@@ -195,7 +191,11 @@ fn build_static_image(
       }
       None => {
         writer.write_u32_le_int(2)
-        writer.write_u32_le_int(helper_functions.byte_sequence_sizer_table)
+        writer.write_u32_le_int(
+          function_catalog.table_slot(
+            function_catalog.helper(ByteSequenceSizer),
+          ).index,
+        )
       }
     }
     writer.write_u32_le_int(
@@ -207,27 +207,37 @@ fn build_static_image(
     writer.write_u32_le_int(
       match layout {
         Unit | Bool | I64 | I32 | Char | F64 | F32 | Byte =>
-          helper_functions.noop_erased_table
-        Callable => helper_functions.retain_callable_table
+          function_catalog.table_slot(function_catalog.helper(NoopErased)).index
+        Callable =>
+          function_catalog.table_slot(function_catalog.helper(RetainCallable)).index
         ByteSequence | Data(_) | Environment(_) | Reference =>
-          helper_functions.retain_ref_erased_table
+          function_catalog.table_slot(
+            function_catalog.helper(RetainReferenceErased),
+          ).index
       },
     )
     writer.write_u32_le_int(
       match layout {
         Unit | Bool | I64 | I32 | Char | F64 | F32 | Byte =>
-          helper_functions.noop_erased_table
-        Callable => helper_functions.release_callable_table
+          function_catalog.table_slot(function_catalog.helper(NoopErased)).index
+        Callable =>
+          function_catalog.table_slot(function_catalog.helper(ReleaseCallable)).index
         ByteSequence | Data(_) | Environment(_) | Reference =>
-          helper_functions.release_ref_erased_table
+          function_catalog.table_slot(
+            function_catalog.helper(ReleaseReferenceErased),
+          ).index
       },
     )
     writer.write_u32_le_int(
       match layout {
         Data(shape) | Environment(shape) =>
-          helper_functions.destroy_shape_table_base + shape.value
+          function_catalog.table_slot(
+            function_catalog.helper(DestroyShape(shape=shape.value)),
+          ).index
         Reference if host_objects_enabled =>
-          helper_functions.destroy_host_object_table
+          function_catalog.table_slot(
+            function_catalog.helper(DestroyHostObject),
+          ).index
         Unit
         | Bool
         | I64
@@ -238,7 +248,8 @@ fn build_static_image(
         | Callable
         | ByteSequence
         | Byte
-        | Reference => helper_functions.destroy_noop_table
+        | Reference =>
+          function_catalog.table_slot(function_catalog.helper(DestroyNoop)).index
       },
     )
     writer.write_u32_le_int(0)
@@ -279,12 +290,7 @@ fn build_static_image(
       }
     }
   }
-  let mut callable_table_size = 1
-  for table_index in callable_table_indices {
-    if table_index >= callable_table_size {
-      callable_table_size = table_index + 1
-    }
-  }
+  let callable_table_size = function_catalog.callable_value_table_size()
   let mut callable_abi_table_base = 0
   if callable_table_size > 1 {
     pad_to(writer, 4)
@@ -293,9 +299,9 @@ fn build_static_image(
       callable_table_size,
       None,
     )
-    for function_index, table_index in callable_table_indices {
-      if table_index != 0 {
-        let function : @bytecode.FunctionId = { value: function_index + 1 }
+    for function_index, _ in image.functions {
+      let function : @bytecode.FunctionId = { value: function_index + 1 }
+      if function_catalog.image_table_slot(function) is Some(table_slot) {
         let abi = match image.function_callable_abi(function) {
           Some(abi) => abi
           None =>
@@ -303,7 +309,7 @@ fn build_static_image(
               detail="callable table target has no canonical ABI",
             )
         }
-        callable_table_abis[table_index] = Some(abi)
+        callable_table_abis[table_slot.index] = Some(abi)
       }
     }
     for actual in callable_table_abis {
@@ -347,22 +353,12 @@ fn build_static_image(
     shape_layout_ids,
     object_shapes: image.object_shapes,
     globals: image.globals,
-    wasm_function_offset,
-    callable_table_indices,
     callable_abis: image.callable_abis,
     callable_abi_table_base,
     callable_table_size,
     global_lifecycle,
     global_cleanup_table_base,
   }
-}
-
-///|
-fn StaticImage::callable_table_index(
-  self : StaticImage,
-  function : @bytecode.FunctionId,
-) -> Int {
-  self.callable_table_indices[function.value - 1]
 }
 
 ///|

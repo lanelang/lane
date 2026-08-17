@@ -58,52 +58,65 @@ pub(all) struct WasmCompileObservation {
 ///|
 priv struct WasmFunctionEmitter {
   module_ : @wasm_types.Module
-  functions : Array[WasmFunctionProvenance]
   function_scales : Array[WasmFunctionScale]
   mut imported_function_count : Int
+  mut emitted_function_count : Int
 }
 
 ///|
 fn WasmFunctionEmitter::new(
   module_ : @wasm_types.Module,
 ) -> WasmFunctionEmitter {
-  { module_, functions: [], function_scales: [], imported_function_count: 0 }
+  {
+    module_,
+    function_scales: [],
+    imported_function_count: 0,
+    emitted_function_count: 0,
+  }
 }
 
 ///|
 fn WasmFunctionEmitter::append_import(
   self : WasmFunctionEmitter,
-  module_name : String,
-  name : String,
-  type_index : Int,
-  origin : WasmFunctionOrigin,
-) -> Int {
-  let index = self.functions.length()
+  entry : WasmFunctionCatalogEntry,
+) -> Unit raise WasmCompileError {
+  guard entry.declaration is Import(module_name~, name~) else {
+    raise InvalidFunctionCatalog(detail="catalog definition emitted as import")
+  }
+  if entry.handle.index != self.emitted_function_count {
+    raise InvalidFunctionCatalog(
+      detail="function emission order differs from catalog",
+    )
+  }
   self.module_.imports.push({
     mod_name: module_name,
     name,
-    desc: Func(type_index),
+    desc: Func(entry.type_index),
   })
-  self.functions.push({ index, origin })
   self.imported_function_count += 1
-  index
+  self.emitted_function_count += 1
 }
 
 ///|
 fn WasmFunctionEmitter::append_defined(
   self : WasmFunctionEmitter,
-  type_index : Int,
+  entry : WasmFunctionCatalogEntry,
   code : @wasm_types.FunctionCode,
-  origin : WasmFunctionOrigin,
-) -> Int {
-  let index = self.functions.length()
-  self.module_.funcs.push(type_index)
+) -> Unit raise WasmCompileError {
+  if entry.declaration is Import(_) {
+    raise InvalidFunctionCatalog(detail="catalog import emitted as definition")
+  }
+  if entry.handle.index != self.emitted_function_count {
+    raise InvalidFunctionCatalog(
+      detail="function emission order differs from catalog",
+    )
+  }
+  self.module_.funcs.push(entry.type_index)
   self.module_.codes.push(code)
-  self.functions.push({ index, origin })
   self.function_scales.push({
-    index,
+    index: entry.handle.index,
     instruction_count: wasm_instruction_array_size(code.body),
     local_count: code.locals.length(),
   })
-  index
+  self.emitted_function_count += 1
 }

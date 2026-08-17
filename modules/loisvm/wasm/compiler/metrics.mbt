@@ -16,7 +16,7 @@ pub(all) struct WasmModuleScale {
 } derive(Debug, Eq)
 
 ///|
-/// Aggregates scale facts recorded by the Wasm function-emission owner.
+/// Aggregates scale facts recorded while catalog entries are materialized.
 fn WasmFunctionEmitter::scale(self : WasmFunctionEmitter) -> WasmModuleScale {
   let functions = self.function_scales
   {

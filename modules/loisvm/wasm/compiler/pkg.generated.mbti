@@ -34,6 +34,7 @@ pub(all) suberror WasmCompileError {
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(function_id~ : Int, target~ : Int, expected~ : Int, actual~ : Int)
   MissingByteSequenceLayout
+  InvalidFunctionCatalog(detail~ : String)
   ValidationFailure(detail~ : String)
 } derive(Eq, @debug.Debug)
 

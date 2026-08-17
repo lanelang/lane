@@ -10,6 +10,7 @@ pub(all) suberror WasmCompileError {
     actual~ : Int
   )
   MissingByteSequenceLayout
+  InvalidFunctionCatalog(detail~ : String)
   ValidationFailure(detail~ : String)
 } derive(Debug, Eq)
 
@@ -42,7 +43,6 @@ fn compile_or_raise(
   }
   let image = verified.image
   let wasm_module = @wasm_types.Module::empty()
-  let emitter = WasmFunctionEmitter::new(wasm_module)
   let imports = image.functions.filter_map(fn(entry) {
     match entry {
       RuntimeImport(import_) => Some(import_)
@@ -55,101 +55,71 @@ fn compile_or_raise(
       detail="Opaque runtime imports require a Reference layout",
     )
   }
-  let internal_import_plan = plan_internal_runtime_imports(
-    image, host_objects_enabled,
+  let function_catalog = plan_wasm_function_catalog(
+    image,
+    verified.global_lifecycle,
+    host_objects_enabled,
+    wasm_module,
   )
-  let internal_import_count = internal_import_plan.entries.length()
-  let import_count = internal_import_count + imports.length()
-  let callable_table = plan_callable_table(image)
-  let runtime_functions = runtime_function_indices(
-    import_count + image.functions.length(),
-  )
-  let helper_functions = helper_function_indices(
-    callable_table.functions.length(),
-    image.object_shapes.length(),
-    runtime_functions.allocate,
-  )
+  let emitter = WasmFunctionEmitter::new(wasm_module)
   let static_image = build_static_image(
     image,
     verified.global_lifecycle,
-    helper_functions,
-    import_count,
+    function_catalog,
     host_objects_enabled,
-    callable_table.table_indices,
   )
-  append_internal_runtime_imports(emitter, internal_import_plan)
-  let physical_import_indices : Array[Int?] = Array::make(
-    image.functions.length(),
-    None,
-  )
-  for index, entry in image.functions {
-    if entry is RuntimeImport(import_) {
-      physical_import_indices[index] = Some(
-        append_physical_runtime_import(emitter, import_, { value: index + 1 }),
-      )
-    }
-  }
-  for index, entry in image.functions {
-    match entry {
-      BytecodeBody(body) => {
-        let abi = body.callable_abi().unwrap()
-        let type_index = intern_function_type(
-          wasm_module,
-          wasm_callable_parameters(abi),
-          wasm_function_results(abi.result),
-        )
-        ignore(
-          emitter.append_defined(
-            type_index,
+  let fatal_tag_type = intern_function_type(wasm_module, [], [])
+  wasm_module.tags.push({ type_idx: fatal_tag_type })
+  for catalog_entry in function_catalog.entries {
+    match catalog_entry.declaration {
+      Import(_) => emitter.append_import(catalog_entry)
+      Defined => {
+        let code = match catalog_entry.origin {
+          BytecodeFunction(function~) => {
+            guard image.functions[function.value - 1] is BytecodeBody(body) else {
+              raise InvalidFunctionCatalog(
+                detail="bytecode function role does not name a bytecode body",
+              )
+            }
             compile_body(
-              index + 1,
+              function.value,
               body,
               wasm_module,
               static_image,
-              runtime_functions,
-              internal_import_plan,
-            ),
-            BytecodeFunction(function={ value: index + 1 }),
-          ),
-        )
+              function_catalog,
+            )
+          }
+          RuntimeImportAdapter(function~, symbol=_) => {
+            guard image.functions[function.value - 1] is RuntimeImport(import_) else {
+              raise InvalidFunctionCatalog(
+                detail="runtime adapter role does not name a runtime import",
+              )
+            }
+            compile_runtime_import_adapter(
+              import_,
+              import_.callable_abi(),
+              function_catalog.physical_import(function),
+              function_catalog,
+            )
+          }
+          RuntimeFunction(role) =>
+            compile_runtime_function(role, function_catalog, static_image)
+          HelperFunction(role) =>
+            compile_helper_function(role, static_image, function_catalog)
+          EntryWrapper =>
+            {
+              locals: [],
+              body: compile_entry_lifecycle(image, function_catalog),
+            }
+          InternalRuntimeImport(_) | PhysicalRuntimeImport(_) =>
+            raise InvalidFunctionCatalog(
+              detail="catalog import was classified as a definition",
+            )
+        }
+        emitter.append_defined(catalog_entry, code)
       }
-      RuntimeImport(import_) =>
-        append_runtime_import_adapter(
-          emitter,
-          import_,
-          { value: index + 1 },
-          import_.callable_abi(),
-          physical_import_indices[index].unwrap(),
-          runtime_functions,
-        )
     }
   }
-  append_runtime_functions(emitter, static_image, runtime_functions)
-  append_helper_functions(
-    emitter,
-    static_image,
-    runtime_functions,
-    helper_functions,
-    internal_import_plan.index(HostObjectRelease),
-  )
-  let cleanup_function = if verified.global_lifecycle.owned_roots.is_empty() {
-    None
-  } else {
-    Some(
-      append_global_cleanup_function(emitter, static_image, runtime_functions),
-    )
-  }
-  let fatal_tag_type = intern_function_type(wasm_module, [], [])
-  wasm_module.tags.push({ type_idx: fatal_tag_type })
-  let entry_wrapper_type = intern_function_type(wasm_module, [], [])
-  let entry_wrapper_index = emitter.append_defined(
-    entry_wrapper_type,
-    {
-      locals: [],
-      body: compile_entry_lifecycle(image, static_image, cleanup_function),
-    },
-    EntryWrapper,
-  )
   let initial_pages = (static_image.heap_base + 65535) / 65536
   wasm_module.memories.push({
     limits: { min: initial_pages.to_int64(), max: None },
@@ -162,9 +132,7 @@ fn compile_or_raise(
     offset: [I32Const(0)],
     init: static_image.bytes,
   })
-  let table_size = callable_table.functions.length() +
-    helper_functions.count +
-    1
+  let table_size = function_catalog.table_entries.length() + 1
   wasm_module.tables.push({
     type_: {
       elem_type: FuncRef,
@@ -174,11 +142,8 @@ fn compile_or_raise(
     init: Some([RefNull(FuncRef)]),
   })
   let element_initializers : Array[Array[@wasm_types.Instruction]] = []
-  for function in callable_table.functions {
-    element_initializers.push([RefFunc(import_count + function.value - 1)])
-  }
-  for wasm_index in helper_functions.wasm_indices() {
-    element_initializers.push([RefFunc(wasm_index)])
+  for handle in function_catalog.table_entries {
+    element_initializers.push([handle.ref_func()])
   }
   wasm_module.elems.push({
     mode: Active(0, [I32Const(1)]),
@@ -187,19 +152,19 @@ fn compile_or_raise(
   })
   wasm_module.exports.push({
     name: "lane.entry",
-    desc: Func(entry_wrapper_index),
+    desc: Func(function_catalog.require(EntryWrapper).index),
   })
   wasm_module.exports.push({ name: "lane.memory", desc: Memory(0) })
   wasm_module.exports.push({
     name: "lane.runtime.string.new",
-    desc: Func(runtime_functions.byte_sequence_new),
+    desc: Func(function_catalog.runtime(ByteSequenceNew).index),
   })
   wasm_module.exports.push({
     name: "lane.runtime.host_object.new",
-    desc: Func(runtime_functions.host_object_new),
+    desc: Func(function_catalog.runtime(HostObjectNew).index),
   })
   let scale = emitter.scale()
-  let functions = emitter.functions
+  let functions = function_catalog.provenance()
   { module_: wasm_module, functions, scale }
 }
 
@@ -262,8 +227,7 @@ fn compile_body(
   body : @bytecode.FunctionBody,
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
-  internal_import_plan : InternalRuntimeImportPlan,
+  function_catalog : WasmFunctionCatalog,
 ) -> @wasm_types.FunctionCode raise WasmCompileError {
   let parameter_count = 1 +
     body.inputs.witnesses.length() +
@@ -287,8 +251,7 @@ fn compile_body(
     body,
     wasm_module,
     static_image,
-    runtime_functions,
-    internal_import_plan,
+    function_catalog,
   }
   let instructions : Array[@wasm_types.Instruction] = []
   let needs_frame_cleanup = body.slots.any(fn(slot) {
@@ -330,7 +293,7 @@ fn compile_body(
   )
   if needs_frame_cleanup {
     instructions.append(
-      compile_frame_cleanup(locals, body.slots, wasm_module, runtime_functions),
+      compile_frame_cleanup(locals, body.slots, wasm_module, function_catalog),
     )
   }
   instructions.append([

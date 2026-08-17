@@ -1,98 +1,4 @@
 ///|
-priv struct PlannedInternalRuntimeImport {
-  function : @internal_abi.InternalRuntimeFunction
-  index : Int
-}
-
-///|
-priv struct InternalRuntimeImportPlan {
-  entries : Array[PlannedInternalRuntimeImport]
-}
-
-///|
-fn plan_internal_runtime_imports(
-  image : @bytecode.BytecodeImage,
-  host_objects_enabled : Bool,
-) -> InternalRuntimeImportPlan {
-  let mut uses_f32 = false
-  let mut uses_f64 = false
-  let mut uses_fatal = false
-  for entry in image.functions {
-    if entry is BytecodeBody(body) {
-      for block in body.blocks {
-        for instruction in block.instructions {
-          match instruction {
-            F32ToString(_, _) => uses_f32 = true
-            F64ToString(_, _) => uses_f64 = true
-            _ => ()
-          }
-        }
-        if block.terminator is Fatal(_) {
-          uses_fatal = true
-        }
-      }
-    }
-  }
-  let entries = []
-  for function in @internal_abi.functions() {
-    let required = match function {
-      F32ToString => uses_f32
-      F64ToString => uses_f64
-      FatalString => uses_fatal
-      HostObjectRelease => host_objects_enabled
-    }
-    if required {
-      entries.push({ function, index: entries.length() })
-    }
-  }
-  { entries, }
-}
-
-///|
-fn InternalRuntimeImportPlan::index(
-  self : InternalRuntimeImportPlan,
-  function : @internal_abi.InternalRuntimeFunction,
-) -> Int? {
-  for entry in self.entries {
-    if entry.function == function {
-      return Some(entry.index)
-    }
-  }
-  None
-}
-
-///|
-fn append_internal_runtime_imports(
-  emitter : WasmFunctionEmitter,
-  plan : InternalRuntimeImportPlan,
-) -> Unit {
-  for entry in plan.entries {
-    append_internal_runtime_import(emitter, entry.function)
-  }
-}
-
-///|
-fn append_internal_runtime_import(
-  emitter : WasmFunctionEmitter,
-  function : @internal_abi.InternalRuntimeFunction,
-) -> Unit {
-  let type_ = function.type_()
-  let type_index = intern_function_type(
-    emitter.module_,
-    type_.params,
-    type_.results,
-  )
-  ignore(
-    emitter.append_import(
-      @internal_abi.module_name(),
-      function.name(),
-      type_index,
-      InternalRuntimeImport(function),
-    ),
-  )
-}
-
-///|
 fn canonical_runtime_type(
   kind : @bytecode.RuntimeValueKind,
 ) -> @wasm_types.ValueType? {
@@ -159,33 +65,12 @@ fn runtime_import_uses_host_objects(import_ : @bytecode.RuntimeImport) -> Bool {
 }
 
 ///|
-fn append_physical_runtime_import(
-  emitter : WasmFunctionEmitter,
+fn compile_runtime_import_adapter(
   import_ : @bytecode.RuntimeImport,
-  function : @bytecode.FunctionId,
-) -> Int {
-  let type_index = intern_function_type(
-    emitter.module_,
-    physical_runtime_parameters(import_),
-    runtime_results(import_),
-  )
-  emitter.append_import(
-    "lane.runtime.v1",
-    import_.symbol,
-    type_index,
-    PhysicalRuntimeImport(function~, symbol=import_.symbol),
-  )
-}
-
-///|
-fn append_runtime_import_adapter(
-  emitter : WasmFunctionEmitter,
-  import_ : @bytecode.RuntimeImport,
-  function : @bytecode.FunctionId,
   abi : @bytecode.CallableAbi,
-  physical_import_index : Int,
-  runtime : RuntimeFunctions,
-) -> Unit {
+  physical_import : WasmFunctionHandle,
+  catalog : WasmFunctionCatalog,
+) -> @wasm_types.FunctionCode {
   let parameters = wasm_callable_parameters(abi)
   let results = wasm_function_results(abi.result)
   let instructions : Array[@wasm_types.Instruction] = []
@@ -215,7 +100,7 @@ fn append_runtime_import_adapter(
       }
     }
   }
-  instructions.push(Call(physical_import_index))
+  instructions.push(physical_import.call())
   let locals : Array[@wasm_types.ValueType] = []
   if results is [result_type] {
     locals.push(result_type)
@@ -223,7 +108,7 @@ fn append_runtime_import_adapter(
   }
   for reference_parameter in reference_parameters {
     instructions.push(LocalGet(reference_parameter))
-    instructions.push(Call(runtime.release_ref))
+    instructions.push(catalog.runtime(ReleaseReference).call())
   }
   instructions.push(GlobalGet(failure_code_global_index))
   instructions.push(GlobalGet(runtime_import_failed_global_index))
@@ -232,12 +117,5 @@ fn append_runtime_import_adapter(
   if !results.is_empty() {
     instructions.push(LocalGet(parameters.length()))
   }
-  append_runtime_function(
-    emitter,
-    parameters,
-    results,
-    locals,
-    instructions,
-    RuntimeImportAdapter(function~, symbol=import_.symbol),
-  )
+  { locals, body: instructions }
 }

@@ -4,8 +4,7 @@ fn compile_instruction(
   slots : Array[@bytecode.SlotMetadata],
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
-  internal_import_plan : InternalRuntimeImportPlan,
+  function_catalog : WasmFunctionCatalog,
   instruction : @bytecode.Instruction,
 ) -> Array[@wasm_types.Instruction] {
   match instruction {
@@ -32,14 +31,14 @@ fn compile_instruction(
         Trivial => ()
         OwnedRef => {
           result.push(LocalGet(locals.slot_local(destination)))
-          result.push(Call(runtime_functions.retain_ref))
+          result.push(function_catalog.runtime(RetainReference).call())
         }
         OwnedCallable => {
           result.push(LocalGet(locals.slot_local(destination)))
           result.push(I64Const(32L))
           result.push(I64ShrU)
           result.push(I32WrapI64)
-          result.push(Call(runtime_functions.retain_ref))
+          result.push(function_catalog.runtime(RetainReference).call())
         }
         OwnedErased => {
           let witness = slots[destination.value].erased_companion.unwrap()
@@ -60,7 +59,7 @@ fn compile_instruction(
         OwnedRef =>
           [
             LocalGet(locals.slot_local(source)),
-            Call(runtime_functions.release_ref),
+            function_catalog.runtime(ReleaseReference).call(),
           ]
         OwnedCallable =>
           [
@@ -68,7 +67,7 @@ fn compile_instruction(
             I64Const(32L),
             I64ShrU,
             I32WrapI64,
-            Call(runtime_functions.release_ref),
+            function_catalog.runtime(ReleaseReference).call(),
           ]
         OwnedErased => {
           let witness = slots[source.value].erased_companion.unwrap()
@@ -105,7 +104,9 @@ fn compile_instruction(
       [I32Const(layout.value), LocalSet(locals.slot_local(destination))]
     ConstFunction(destination, target) => {
       let result : Array[@wasm_types.Instruction] = [
-        I64Const(static_image.callable_table_index(target).to_int64()),
+        I64Const(
+          function_catalog.image_table_slot(target).unwrap().index.to_int64(),
+        ),
         LocalSet(locals.slot_local(destination)),
       ]
       result.append(locals.mark_slot_live(destination))
@@ -137,7 +138,7 @@ fn compile_instruction(
       for slot in arguments {
         result.append(locals.mark_slot_dead(slot))
       }
-      result.push(Call(static_image.wasm_function_offset + target.value - 1))
+      result.push(function_catalog.image_function(target).call())
       if destination is Some(slot) {
         result.push(LocalSet(locals.slot_local(slot)))
         result.append(locals.mark_slot_live(slot))
@@ -181,7 +182,9 @@ fn compile_instruction(
         I64ExtendI32U,
         I64Const(32L),
         I64Shl,
-        I64Const(static_image.callable_table_index(target).to_int64()),
+        I64Const(
+          function_catalog.image_table_slot(target).unwrap().index.to_int64(),
+        ),
         I64Or,
         LocalSet(locals.slot_local(destination)),
       ]
@@ -205,7 +208,7 @@ fn compile_instruction(
         ]
       } else {
         compile_object_construction(
-          locals, static_image, runtime_functions, destination, shape, layout, witnesses,
+          locals, static_image, function_catalog, destination, shape, layout, witnesses,
           fields,
         )
       }
@@ -217,7 +220,7 @@ fn compile_instruction(
     }
     MakeEnv(destination, shape, layout, witnesses, captures) => {
       let result = compile_object_construction(
-        locals, static_image, runtime_functions, destination, shape, layout, witnesses,
+        locals, static_image, function_catalog, destination, shape, layout, witnesses,
         captures,
       )
       for capture in captures {
@@ -261,7 +264,7 @@ fn compile_instruction(
     ConsumeFields(shape, object, selections)
     | ConsumeCaptures(shape, object, selections) => {
       let result = compile_consuming_projection(
-        locals, static_image, runtime_functions, wasm_module, shape, object, selections,
+        locals, static_image, function_catalog, wasm_module, shape, object, selections,
       )
       result.append(locals.mark_slot_dead(object))
       for selection in selections {
@@ -287,7 +290,7 @@ fn compile_instruction(
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(locals.slot_local(length)),
         LocalGet(locals.slot_local(fill)),
-        Call(runtime_functions.byte_sequence_make),
+        function_catalog.runtime(ByteSequenceMake).call(),
         LocalSet(locals.slot_local(destination)),
       ]
       result.append(locals.mark_slot_live(destination))
@@ -296,7 +299,7 @@ fn compile_instruction(
     ByteSequenceLength(destination, source) =>
       [
         LocalGet(locals.slot_local(source)),
-        Call(runtime_functions.require_byte_sequence_layout),
+        function_catalog.runtime(RequireByteSequenceLayout).call(),
         LocalGet(locals.slot_local(source)),
         I32Load(0, 2, 8L),
         I64ExtendI32U,
@@ -306,7 +309,7 @@ fn compile_instruction(
       [
         LocalGet(locals.slot_local(source)),
         LocalGet(locals.slot_local(index)),
-        Call(runtime_functions.byte_sequence_get),
+        function_catalog.runtime(ByteSequenceGet).call(),
         LocalSet(locals.slot_local(destination)),
       ]
     ByteSequenceSet(destination, source, index, value) => {
@@ -314,7 +317,7 @@ fn compile_instruction(
         LocalGet(locals.slot_local(source)),
         LocalGet(locals.slot_local(index)),
         LocalGet(locals.slot_local(value)),
-        Call(runtime_functions.byte_sequence_set),
+        function_catalog.runtime(ByteSequenceSet).call(),
         LocalSet(locals.slot_local(destination)),
       ]
       result.append(locals.mark_slot_dead(source))
@@ -325,7 +328,7 @@ fn compile_instruction(
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(locals.slot_local(left)),
         LocalGet(locals.slot_local(right)),
-        Call(runtime_functions.byte_sequence_concat),
+        function_catalog.runtime(ByteSequenceConcat).call(),
         LocalSet(locals.slot_local(destination)),
       ]
       result.append(locals.mark_slot_dead(left))
@@ -338,7 +341,7 @@ fn compile_instruction(
         LocalGet(locals.slot_local(string)),
         LocalGet(locals.slot_local(start)),
         LocalGet(locals.slot_local(length)),
-        Call(runtime_functions.byte_sequence_slice),
+        function_catalog.runtime(ByteSequenceSlice).call(),
         LocalSet(locals.slot_local(destination)),
       ]
       result.append(locals.mark_slot_dead(string))
@@ -349,13 +352,13 @@ fn compile_instruction(
       [
         LocalGet(locals.slot_local(left)),
         LocalGet(locals.slot_local(right)),
-        Call(runtime_functions.byte_sequence_equal),
+        function_catalog.runtime(ByteSequenceEqual).call(),
         LocalSet(locals.slot_local(destination)),
       ]
     ByteSequenceIsValidUtf8(destination, source) =>
       [
         LocalGet(locals.slot_local(source)),
-        Call(runtime_functions.byte_sequence_is_valid_utf8),
+        function_catalog.runtime(ByteSequenceIsValidUtf8).call(),
         LocalSet(locals.slot_local(destination)),
       ]
     I32Add(destination, left, right) =>
@@ -491,7 +494,7 @@ fn compile_instruction(
     F32ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(locals.slot_local(source)),
-        Call(internal_import_plan.index(F32ToString).unwrap()),
+        function_catalog.internal_import(F32ToString).call(),
         LocalSet(locals.slot_local(destination)),
       ]
       result.append(locals.mark_slot_live(destination))
@@ -500,7 +503,7 @@ fn compile_instruction(
     F64ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(locals.slot_local(source)),
-        Call(internal_import_plan.index(F64ToString).unwrap()),
+        function_catalog.internal_import(F64ToString).call(),
         LocalSet(locals.slot_local(destination)),
       ]
       result.append(locals.mark_slot_live(destination))
@@ -576,7 +579,7 @@ fn compile_frame_cleanup(
   locals : FunctionLocalPlan,
   slots : Array[@bytecode.SlotMetadata],
   wasm_module : @wasm_types.Module,
-  runtime_functions : RuntimeFunctions,
+  function_catalog : WasmFunctionCatalog,
 ) -> Array[@wasm_types.Instruction] {
   let instructions : Array[@wasm_types.Instruction] = []
   for index, slot in slots {
@@ -587,7 +590,7 @@ fn compile_frame_cleanup(
         If(
           Empty,
           compile_slot_release(
-            locals, slots, wasm_module, runtime_functions, slot_id,
+            locals, slots, wasm_module, function_catalog, slot_id,
           ),
           [],
         ),
@@ -602,20 +605,23 @@ fn compile_slot_release(
   locals : FunctionLocalPlan,
   slots : Array[@bytecode.SlotMetadata],
   wasm_module : @wasm_types.Module,
-  runtime_functions : RuntimeFunctions,
+  function_catalog : WasmFunctionCatalog,
   source : @bytecode.SlotId,
 ) -> Array[@wasm_types.Instruction] {
   match slots[source.value].cleanup {
     Trivial => []
     OwnedRef =>
-      [LocalGet(locals.slot_local(source)), Call(runtime_functions.release_ref)]
+      [
+        LocalGet(locals.slot_local(source)),
+        function_catalog.runtime(ReleaseReference).call(),
+      ]
     OwnedCallable =>
       [
         LocalGet(locals.slot_local(source)),
         I64Const(32L),
         I64ShrU,
         I32WrapI64,
-        Call(runtime_functions.release_ref),
+        function_catalog.runtime(ReleaseReference).call(),
       ]
     OwnedErased => {
       let witness = slots[source.value].erased_companion.unwrap()
@@ -628,7 +634,7 @@ fn compile_slot_release(
 fn compile_consuming_projection(
   locals : FunctionLocalPlan,
   static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
+  function_catalog : WasmFunctionCatalog,
   wasm_module : @wasm_types.Module,
   shape : @bytecode.ObjectShapeId,
   object : @bytecode.SlotId,
@@ -655,14 +661,14 @@ fn compile_consuming_projection(
       Trivial => ()
       OwnedRef => {
         instructions.push(LocalGet(locals.slot_local(destination)))
-        instructions.push(Call(runtime_functions.retain_ref))
+        instructions.push(function_catalog.runtime(RetainReference).call())
       }
       OwnedCallable => {
         instructions.push(LocalGet(locals.slot_local(destination)))
         instructions.push(I64Const(32L))
         instructions.push(I64ShrU)
         instructions.push(I32WrapI64)
-        instructions.push(Call(runtime_functions.retain_ref))
+        instructions.push(function_catalog.runtime(RetainReference).call())
       }
       OwnedErased => {
         let witness = selection.result.witness_destination.unwrap()
@@ -675,7 +681,7 @@ fn compile_consuming_projection(
     }
   }
   instructions.push(LocalGet(locals.slot_local(object)))
-  instructions.push(Call(runtime_functions.release_ref))
+  instructions.push(function_catalog.runtime(ReleaseReference).call())
   instructions
 }
 
@@ -717,7 +723,7 @@ fn compile_store(
 fn compile_object_construction(
   locals : FunctionLocalPlan,
   static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
+  function_catalog : WasmFunctionCatalog,
   destination : @bytecode.SlotId,
   shape_id : @bytecode.ObjectShapeId,
   layout : @bytecode.LayoutOperand,
@@ -727,7 +733,7 @@ fn compile_object_construction(
   let shape_layout = static_image.shape_layouts[shape_id.value]
   let instructions : Array[@wasm_types.Instruction] = [
     I32Const(shape_layout.size),
-    Call(runtime_functions.allocate),
+    function_catalog.runtime(Allocate).call(),
     LocalSet(locals.slot_local(destination)),
     LocalGet(locals.slot_local(destination)),
     I32Const(1),
@@ -869,8 +875,7 @@ fn compile_terminator(
   locals : FunctionLocalPlan,
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
-  internal_import_plan : InternalRuntimeImportPlan,
+  function_catalog : WasmFunctionCatalog,
   terminator : @bytecode.Terminator,
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
   match terminator {
@@ -910,9 +915,7 @@ fn compile_terminator(
       for slot in arguments {
         instructions.append(locals.mark_slot_dead(slot))
       }
-      instructions.push(
-        ReturnCall(static_image.wasm_function_offset + target.value - 1),
-      )
+      instructions.push(function_catalog.image_function(target).return_call())
       instructions
     }
     TailCallValue(callable, abi_id, witnesses, arguments) => {
@@ -949,16 +952,15 @@ fn compile_terminator(
       instructions
     }
     Fatal(message) => {
-      let fatal_import = internal_import_plan.index(FatalString).unwrap()
       let instructions : Array[@wasm_types.Instruction] = [
         LocalGet(locals.slot_local(message)),
         I32Const(12),
         I32Add,
         LocalGet(locals.slot_local(message)),
         I32Load(0, 2, 8L),
-        Call(fatal_import),
+        function_catalog.internal_import(FatalString).call(),
         LocalGet(locals.slot_local(message)),
-        Call(runtime_functions.release_ref),
+        function_catalog.runtime(ReleaseReference).call(),
       ]
       instructions.append(locals.mark_slot_dead(message))
       instructions.push(Throw(0))

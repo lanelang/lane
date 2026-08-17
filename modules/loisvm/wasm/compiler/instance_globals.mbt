@@ -1,27 +1,26 @@
 ///|
 fn compile_entry_lifecycle(
   image : @bytecode.BytecodeImage,
-  static_image : StaticImage,
-  cleanup_function : Int?,
+  function_catalog : WasmFunctionCatalog,
 ) -> Array[@wasm_types.Instruction] {
   let guarded : Array[@wasm_types.Instruction] = []
   if image.initializer is Some(initializer) {
     guarded.append([
       I32Const(0),
-      Call(static_image.wasm_function_offset + initializer.value - 1),
+      function_catalog.image_function(initializer).call(),
     ])
   }
   guarded.append([
     I32Const(0),
-    Call(static_image.wasm_function_offset + image.entry.value - 1),
+    function_catalog.image_function(image.entry).call(),
   ])
-  match cleanup_function {
+  match function_catalog.find(RuntimeFunction(InstanceGlobalCleanup)) {
     None => guarded + [Return]
     Some(cleanup_function) => {
-      guarded.push(Call(cleanup_function))
+      guarded.push(cleanup_function.call())
       guarded.push(Return)
       [Block(Empty, [TryTable(Empty, [Catch(0, 0)], guarded), Unreachable])] +
-      [Call(cleanup_function), Throw(0)]
+      [cleanup_function.call(), Throw(0)]
     }
   }
 }
@@ -90,29 +89,24 @@ fn compile_global_borrow(
 }
 
 ///|
-fn append_global_cleanup_function(
-  emitter : WasmFunctionEmitter,
+fn compile_global_cleanup_function(
   static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
-) -> Int {
-  let type_index = intern_function_type(emitter.module_, [], [])
-  let erased_release_type = intern_function_type(emitter.module_, [I64], [])
-  emitter.append_defined(
-    type_index,
-    {
-      locals: [I32, I32, I32],
-      body: global_cleanup_body(
-        static_image, runtime_functions, erased_release_type,
-      ),
-    },
-    RuntimeFunction(InstanceGlobalCleanup),
-  )
+  function_catalog : WasmFunctionCatalog,
+) -> @wasm_types.FunctionCode {
+  {
+    locals: [I32, I32, I32],
+    body: global_cleanup_body(
+      static_image,
+      function_catalog,
+      function_catalog.entry(function_catalog.helper(ReleaseReferenceErased)).type_index,
+    ),
+  }
 }
 
 ///|
 fn global_cleanup_body(
   static_image : StaticImage,
-  runtime_functions : RuntimeFunctions,
+  function_catalog : WasmFunctionCatalog,
   erased_release_type : Int,
 ) -> Array[@wasm_types.Instruction] {
   [
@@ -147,7 +141,11 @@ fn global_cleanup_body(
         I32Eq,
         If(
           Empty,
-          [LocalGet(2), I32Load(0, 2, 0L), Call(runtime_functions.release_ref)],
+          [
+            LocalGet(2),
+            I32Load(0, 2, 0L),
+            function_catalog.runtime(ReleaseReference).call(),
+          ],
           [],
         ),
         LocalGet(1),
@@ -163,7 +161,7 @@ fn global_cleanup_body(
             I64Const(32L),
             I64ShrU,
             I32WrapI64,
-            Call(runtime_functions.release_ref),
+            function_catalog.runtime(ReleaseReference).call(),
           ],
           [],
         ),

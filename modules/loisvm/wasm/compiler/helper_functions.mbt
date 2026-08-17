@@ -1,170 +1,48 @@
 ///|
-priv struct HelperFunctions {
-  count : Int
-  noop_erased_wasm : Int
-  retain_ref_erased_wasm : Int
-  release_ref_erased_wasm : Int
-  retain_callable_wasm : Int
-  release_callable_wasm : Int
-  destroy_noop_wasm : Int
-  destroy_host_object_wasm : Int
-  destroy_shape_wasm_base : Int
-  byte_sequence_sizer_wasm : Int
-  noop_erased_table : Int
-  retain_ref_erased_table : Int
-  release_ref_erased_table : Int
-  retain_callable_table : Int
-  release_callable_table : Int
-  destroy_noop_table : Int
-  destroy_host_object_table : Int
-  destroy_shape_table_base : Int
-  byte_sequence_sizer_table : Int
-}
-
-///|
-fn helper_function_indices(
-  lane_function_count : Int,
-  shape_count : Int,
-  runtime_wasm_base : Int,
-) -> HelperFunctions {
-  let wasm_base = runtime_wasm_base + runtime_function_count
-  let table_base = lane_function_count + 1
-  {
-    count: 8 + shape_count,
-    noop_erased_wasm: wasm_base,
-    retain_ref_erased_wasm: wasm_base + 1,
-    release_ref_erased_wasm: wasm_base + 2,
-    retain_callable_wasm: wasm_base + 3,
-    release_callable_wasm: wasm_base + 4,
-    destroy_noop_wasm: wasm_base + 5,
-    destroy_host_object_wasm: wasm_base + 6,
-    destroy_shape_wasm_base: wasm_base + 7,
-    byte_sequence_sizer_wasm: wasm_base + 7 + shape_count,
-    noop_erased_table: table_base,
-    retain_ref_erased_table: table_base + 1,
-    release_ref_erased_table: table_base + 2,
-    retain_callable_table: table_base + 3,
-    release_callable_table: table_base + 4,
-    destroy_noop_table: table_base + 5,
-    destroy_host_object_table: table_base + 6,
-    destroy_shape_table_base: table_base + 7,
-    byte_sequence_sizer_table: table_base + 7 + shape_count,
-  }
-}
-
-///|
-fn HelperFunctions::wasm_indices(self : HelperFunctions) -> Array[Int] {
-  let result = [
-    self.noop_erased_wasm,
-    self.retain_ref_erased_wasm,
-    self.release_ref_erased_wasm,
-    self.retain_callable_wasm,
-    self.release_callable_wasm,
-    self.destroy_noop_wasm,
-    self.destroy_host_object_wasm,
-  ]
-  for index in 0..<(self.count - 8) {
-    result.push(self.destroy_shape_wasm_base + index)
-  }
-  result.push(self.byte_sequence_sizer_wasm)
-  result
-}
-
-///|
-fn append_helper_functions(
-  emitter : WasmFunctionEmitter,
+fn compile_helper_function(
+  role : WasmHelperFunctionRole,
   static_image : StaticImage,
-  runtime : RuntimeFunctions,
-  helpers : HelperFunctions,
-  host_object_release_import : Int?,
-) -> Unit {
-  append_runtime_function(
-    emitter,
-    [I64],
-    [],
-    [],
-    [],
-    HelperFunction(NoopErased),
-  )
-  append_runtime_function(
-    emitter,
-    [I64],
-    [],
-    [],
-    [LocalGet(0), I32WrapI64, Call(runtime.retain_ref)],
-    HelperFunction(RetainReferenceErased),
-  )
-  append_runtime_function(
-    emitter,
-    [I64],
-    [],
-    [],
-    [LocalGet(0), I32WrapI64, Call(runtime.release_ref)],
-    HelperFunction(ReleaseReferenceErased),
-  )
-  append_runtime_function(
-    emitter,
-    [I64],
-    [],
-    [],
-    [LocalGet(0), I64Const(32L), I64ShrU, I32WrapI64, Call(runtime.retain_ref)],
-    HelperFunction(RetainCallable),
-  )
-  append_runtime_function(
-    emitter,
-    [I64],
-    [],
-    [],
-    [LocalGet(0), I64Const(32L), I64ShrU, I32WrapI64, Call(runtime.release_ref)],
-    HelperFunction(ReleaseCallable),
-  )
-  append_runtime_function(
-    emitter,
-    [I32],
-    [],
-    [],
-    [],
-    HelperFunction(DestroyNoop),
-  )
-  append_runtime_function(
-    emitter,
-    [I32],
-    [],
-    [],
-    match host_object_release_import {
-      Some(import_) => [LocalGet(0), I64Load(0, 3, 8L), Call(import_)]
-      None => []
-    },
-    HelperFunction(DestroyHostObject),
-  )
-  let erased_release_type = intern_function_type(emitter.module_, [I64], [])
-  for shape_index in 0..<static_image.object_shapes.length() {
-    append_runtime_function(
-      emitter,
-      [I32],
-      [],
-      [],
+  catalog : WasmFunctionCatalog,
+) -> @wasm_types.FunctionCode {
+  let retain_ref = catalog.runtime(RetainReference)
+  let release_ref = catalog.runtime(ReleaseReference)
+  let body : Array[@wasm_types.Instruction] = match role {
+    NoopErased | DestroyNoop => []
+    RetainReferenceErased => [LocalGet(0), I32WrapI64, retain_ref.call()]
+    ReleaseReferenceErased => [LocalGet(0), I32WrapI64, release_ref.call()]
+    RetainCallable =>
+      [LocalGet(0), I64Const(32L), I64ShrU, I32WrapI64, retain_ref.call()]
+    ReleaseCallable =>
+      [LocalGet(0), I64Const(32L), I64ShrU, I32WrapI64, release_ref.call()]
+    DestroyHostObject =>
+      match catalog.find(InternalRuntimeImport(HostObjectRelease)) {
+        Some(import_) => [LocalGet(0), I64Load(0, 3, 8L), import_.call()]
+        None => []
+      }
+    DestroyShape(shape~) =>
       destroy_shape_body(
-        static_image, runtime, erased_release_type, shape_index,
-      ),
-      HelperFunction(DestroyShape(shape=shape_index)),
-    )
+        static_image,
+        catalog,
+        catalog.entry(catalog.helper(ReleaseReferenceErased)).type_index,
+        shape,
+      )
+    ByteSequenceSizer =>
+      [
+        LocalGet(0),
+        I32Load(0, 2, 8L),
+        I32Const(19),
+        I32Add,
+        I32Const(-8),
+        I32And,
+      ]
   }
-  append_runtime_function(
-    emitter,
-    [I32],
-    [I32],
-    [],
-    [LocalGet(0), I32Load(0, 2, 8L), I32Const(19), I32Add, I32Const(-8), I32And],
-    HelperFunction(ByteSequenceSizer),
-  )
-  ignore(helpers)
+  { locals: [], body }
 }
 
 ///|
 fn destroy_shape_body(
   static_image : StaticImage,
-  runtime : RuntimeFunctions,
+  catalog : WasmFunctionCatalog,
   erased_release_type : Int,
   shape_index : Int,
 ) -> Array[@wasm_types.Instruction] {
@@ -182,7 +60,7 @@ fn destroy_shape_body(
       OwnedRef => {
         instructions.push(LocalGet(0))
         instructions.push(I32Load(0, 2, offset))
-        instructions.push(Call(runtime.release_ref))
+        instructions.push(catalog.runtime(ReleaseReference).call())
       }
       OwnedCallable => {
         instructions.push(LocalGet(0))
@@ -190,7 +68,7 @@ fn destroy_shape_body(
         instructions.push(I64Const(32L))
         instructions.push(I64ShrU)
         instructions.push(I32WrapI64)
-        instructions.push(Call(runtime.release_ref))
+        instructions.push(catalog.runtime(ReleaseReference).call())
       }
       OwnedErased => {
         instructions.push(LocalGet(0))

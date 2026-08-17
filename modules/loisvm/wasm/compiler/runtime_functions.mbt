@@ -1,201 +1,97 @@
 ///|
-priv struct RuntimeFunctions {
-  allocate : Int
-  free : Int
-  retain_ref : Int
-  release_ref : Int
-  byte_sequence_new : Int
-  require_byte_sequence_layout : Int
-  byte_sequence_equal : Int
-  byte_sequence_concat : Int
-  byte_sequence_slice : Int
-  host_object_new : Int
-  byte_sequence_make : Int
-  byte_sequence_index : Int
-  byte_sequence_get : Int
-  byte_sequence_set : Int
-  byte_sequence_is_valid_utf8 : Int
-}
-
-///|
-let runtime_function_count = 15
-
-///|
-fn runtime_function_indices(first_index : Int) -> RuntimeFunctions {
-  {
-    allocate: first_index,
-    free: first_index + 1,
-    retain_ref: first_index + 2,
-    release_ref: first_index + 3,
-    byte_sequence_new: first_index + 4,
-    require_byte_sequence_layout: first_index + 5,
-    byte_sequence_equal: first_index + 6,
-    byte_sequence_concat: first_index + 7,
-    byte_sequence_slice: first_index + 8,
-    host_object_new: first_index + 9,
-    byte_sequence_make: first_index + 10,
-    byte_sequence_index: first_index + 11,
-    byte_sequence_get: first_index + 12,
-    byte_sequence_set: first_index + 13,
-    byte_sequence_is_valid_utf8: first_index + 14,
-  }
-}
-
-///|
-fn append_runtime_function(
-  emitter : WasmFunctionEmitter,
-  parameters : Array[@wasm_types.ValueType],
-  results : Array[@wasm_types.ValueType],
-  locals : Array[@wasm_types.ValueType],
-  body : Array[@wasm_types.Instruction],
-  origin : WasmFunctionOrigin,
-) -> Unit {
-  let type_index = intern_function_type(emitter.module_, parameters, results)
-  ignore(emitter.append_defined(type_index, { locals, body }, origin))
-}
-
-///|
-fn append_runtime_functions(
-  emitter : WasmFunctionEmitter,
+fn compile_runtime_function(
+  role : WasmRuntimeFunctionRole,
+  catalog : WasmFunctionCatalog,
   static_image : StaticImage,
-  functions : RuntimeFunctions,
-) -> Unit {
-  let destroy_type = intern_function_type(emitter.module_, [I32], [])
-  append_runtime_function(
-    emitter,
-    [I32],
-    [I32],
-    [I32, I32, I32, I32, I32, I32, I32, I32],
-    allocator_body(),
-    RuntimeFunction(Allocate),
-  )
-  append_runtime_function(
-    emitter,
-    [I32],
-    [],
-    [],
-    free_body(),
-    RuntimeFunction(Free),
-  )
-  append_runtime_function(
-    emitter,
-    [I32],
-    [],
-    [I32],
-    retain_ref_body(),
-    RuntimeFunction(RetainReference),
-  )
-  append_runtime_function(
-    emitter,
-    [I32],
-    [],
-    [I32],
-    release_ref_body(functions.free, destroy_type),
-    RuntimeFunction(ReleaseReference),
-  )
-  append_runtime_function(
-    emitter,
-    [I32],
-    [I32],
-    [I32],
-    byte_sequence_new_body(
-      functions.allocate,
-      static_image.byte_sequence_layout_id,
-    ),
-    RuntimeFunction(ByteSequenceNew),
-  )
-  append_runtime_function(
-    emitter,
-    [I32],
-    [],
-    [],
-    require_byte_sequence_layout_body(static_image.byte_sequence_layout_id),
-    RuntimeFunction(RequireByteSequenceLayout),
-  )
-  append_runtime_function(
-    emitter,
-    [I32, I32],
-    [I32],
-    [I32, I32],
-    byte_sequence_equal_body(functions.require_byte_sequence_layout),
-    RuntimeFunction(ByteSequenceEqual),
-  )
-  append_runtime_function(
-    emitter,
-    [I32, I32],
-    [I32],
-    [I32, I32, I32, I32],
-    byte_sequence_concat_body(
-      functions.require_byte_sequence_layout,
-      functions.byte_sequence_new,
-      functions.release_ref,
-    ),
-    RuntimeFunction(ByteSequenceConcat),
-  )
-  append_runtime_function(
-    emitter,
-    [I32, I64, I64],
-    [I32],
-    [I64, I32, I32, I32],
-    byte_sequence_slice_body(
-      functions.require_byte_sequence_layout,
-      functions.byte_sequence_new,
-      functions.release_ref,
-    ),
-    RuntimeFunction(ByteSequenceSlice),
-  )
-  append_runtime_function(
-    emitter,
-    [I64],
-    [I32],
-    [I32],
-    host_object_new_body(functions.allocate, static_image.reference_layout_id),
-    RuntimeFunction(HostObjectNew),
-  )
-  append_runtime_function(
-    emitter,
-    [I64, I32],
-    [I32],
-    [I32, I32, I32],
-    byte_sequence_make_body(functions.byte_sequence_new),
-    RuntimeFunction(ByteSequenceMake),
-  )
-  append_runtime_function(
-    emitter,
-    [I32, I64],
-    [I32],
-    [],
-    byte_sequence_index_body(functions.require_byte_sequence_layout),
-    RuntimeFunction(ByteSequenceIndex),
-  )
-  append_runtime_function(
-    emitter,
-    [I32, I64],
-    [I32],
-    [],
-    byte_sequence_get_body(functions.byte_sequence_index),
-    RuntimeFunction(ByteSequenceGet),
-  )
-  append_runtime_function(
-    emitter,
-    [I32, I64, I32],
-    [I32],
-    [I32, I32],
-    byte_sequence_set_body(
-      functions.byte_sequence_new,
-      functions.byte_sequence_index,
-      functions.release_ref,
-    ),
-    RuntimeFunction(ByteSequenceSet),
-  )
-  append_runtime_function(
-    emitter,
-    [I32],
-    [I32],
-    [I32, I32, I32, I32],
-    byte_sequence_is_valid_utf8_body(functions.require_byte_sequence_layout),
-    RuntimeFunction(ByteSequenceIsValidUtf8),
-  )
+) -> @wasm_types.FunctionCode {
+  let allocate = catalog.runtime(Allocate)
+  let free = catalog.runtime(Free)
+  let release_ref = catalog.runtime(ReleaseReference)
+  let byte_sequence_new = catalog.runtime(ByteSequenceNew)
+  let require_byte_sequence_layout = catalog.runtime(RequireByteSequenceLayout)
+  let byte_sequence_index = catalog.runtime(ByteSequenceIndex)
+  match role {
+    Allocate =>
+      {
+        locals: [I32, I32, I32, I32, I32, I32, I32, I32],
+        body: allocator_body(),
+      }
+    Free => { locals: [], body: free_body() }
+    RetainReference => { locals: [I32], body: retain_ref_body() }
+    ReleaseReference =>
+      {
+        locals: [I32],
+        body: release_ref_body(
+          free,
+          catalog.entry(catalog.helper(DestroyNoop)).type_index,
+        ),
+      }
+    ByteSequenceNew =>
+      {
+        locals: [I32],
+        body: byte_sequence_new_body(
+          allocate,
+          static_image.byte_sequence_layout_id,
+        ),
+      }
+    RequireByteSequenceLayout =>
+      {
+        locals: [],
+        body: require_byte_sequence_layout_body(
+          static_image.byte_sequence_layout_id,
+        ),
+      }
+    ByteSequenceEqual =>
+      {
+        locals: [I32, I32],
+        body: byte_sequence_equal_body(require_byte_sequence_layout),
+      }
+    ByteSequenceConcat =>
+      {
+        locals: [I32, I32, I32, I32],
+        body: byte_sequence_concat_body(
+          require_byte_sequence_layout, byte_sequence_new, release_ref,
+        ),
+      }
+    ByteSequenceSlice =>
+      {
+        locals: [I64, I32, I32, I32],
+        body: byte_sequence_slice_body(
+          require_byte_sequence_layout, byte_sequence_new, release_ref,
+        ),
+      }
+    HostObjectNew =>
+      {
+        locals: [I32],
+        body: host_object_new_body(allocate, static_image.reference_layout_id),
+      }
+    ByteSequenceMake =>
+      {
+        locals: [I32, I32, I32],
+        body: byte_sequence_make_body(byte_sequence_new),
+      }
+    ByteSequenceIndex =>
+      {
+        locals: [],
+        body: byte_sequence_index_body(require_byte_sequence_layout),
+      }
+    ByteSequenceGet =>
+      { locals: [], body: byte_sequence_get_body(byte_sequence_index) }
+    ByteSequenceSet =>
+      {
+        locals: [I32, I32],
+        body: byte_sequence_set_body(
+          byte_sequence_new, byte_sequence_index, release_ref,
+        ),
+      }
+    ByteSequenceIsValidUtf8 =>
+      {
+        locals: [I32, I32, I32, I32],
+        body: byte_sequence_is_valid_utf8_body(require_byte_sequence_layout),
+      }
+    InstanceGlobalCleanup =>
+      compile_global_cleanup_function(static_image, catalog)
+  }
 }
 
 ///|
@@ -392,7 +288,7 @@ fn retain_ref_body() -> Array[@wasm_types.Instruction] {
 
 ///|
 fn release_ref_body(
-  free_index : Int,
+  free_function : WasmFunctionHandle,
   destroy_type : Int,
 ) -> Array[@wasm_types.Instruction] {
   [
@@ -422,7 +318,7 @@ fn release_ref_body(
         I32Load(0, 2, 24L),
         CallIndirect(destroy_type, 0),
         LocalGet(0),
-        Call(free_index),
+        free_function.call(),
         Return,
       ],
       [],
@@ -437,7 +333,7 @@ fn release_ref_body(
 
 ///|
 fn byte_sequence_new_body(
-  allocate_index : Int,
+  allocate_function : WasmFunctionHandle,
   layout_id : Int,
 ) -> Array[@wasm_types.Instruction] {
   [
@@ -452,7 +348,7 @@ fn byte_sequence_new_body(
     I32LtU,
     If(Empty, [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)], []),
     LocalGet(1),
-    Call(allocate_index),
+    allocate_function.call(),
     LocalSet(1),
     LocalGet(1),
     I32Const(1),
@@ -485,12 +381,12 @@ fn require_byte_sequence_layout_body(
 
 ///|
 fn host_object_new_body(
-  allocate_index : Int,
+  allocate_function : WasmFunctionHandle,
   reference_layout_id : Int,
 ) -> Array[@wasm_types.Instruction] {
   [
     I32Const(16),
-    Call(allocate_index),
+    allocate_function.call(),
     LocalSet(1),
     LocalGet(1),
     I32Const(1),
@@ -507,7 +403,7 @@ fn host_object_new_body(
 
 ///|
 fn byte_sequence_make_body(
-  byte_sequence_new_index : Int,
+  byte_sequence_new_function : WasmFunctionHandle,
 ) -> Array[@wasm_types.Instruction] {
   [
     LocalGet(0),
@@ -523,7 +419,7 @@ fn byte_sequence_make_body(
     I64Ne,
     If(Empty, [Unreachable], []),
     LocalGet(2),
-    Call(byte_sequence_new_index),
+    byte_sequence_new_function.call(),
     LocalSet(3),
     I32Const(0),
     LocalSet(4),
@@ -551,11 +447,11 @@ fn byte_sequence_make_body(
 
 ///|
 fn byte_sequence_index_body(
-  require_byte_sequence_layout_index : Int,
+  require_byte_sequence_layout_function : WasmFunctionHandle,
 ) -> Array[@wasm_types.Instruction] {
   [
     LocalGet(0),
-    Call(require_byte_sequence_layout_index),
+    require_byte_sequence_layout_function.call(),
     LocalGet(1),
     I64Const(0L),
     I64LtS,
@@ -574,13 +470,13 @@ fn byte_sequence_index_body(
 
 ///|
 fn byte_sequence_get_body(
-  byte_sequence_index_index : Int,
+  byte_sequence_index_function : WasmFunctionHandle,
 ) -> Array[@wasm_types.Instruction] {
   [
     LocalGet(0),
     LocalGet(0),
     LocalGet(1),
-    Call(byte_sequence_index_index),
+    byte_sequence_index_function.call(),
     I32Add,
     I32Load8U(0, 0, 12L),
   ]
@@ -588,14 +484,14 @@ fn byte_sequence_get_body(
 
 ///|
 fn byte_sequence_set_body(
-  byte_sequence_new_index : Int,
-  byte_sequence_index_index : Int,
-  release_ref_index : Int,
+  byte_sequence_new_function : WasmFunctionHandle,
+  byte_sequence_index_function : WasmFunctionHandle,
+  release_ref_function : WasmFunctionHandle,
 ) -> Array[@wasm_types.Instruction] {
   [
     LocalGet(0),
     LocalGet(1),
-    Call(byte_sequence_index_index),
+    byte_sequence_index_function.call(),
     LocalSet(3),
     LocalGet(0),
     I32Load(0, 2, 0L),
@@ -616,7 +512,7 @@ fn byte_sequence_set_body(
     ),
     LocalGet(0),
     I32Load(0, 2, 8L),
-    Call(byte_sequence_new_index),
+    byte_sequence_new_function.call(),
     LocalSet(4),
     LocalGet(4),
     I32Const(12),
@@ -633,20 +529,20 @@ fn byte_sequence_set_body(
     LocalGet(2),
     I32Store8(0, 0, 12L),
     LocalGet(0),
-    Call(release_ref_index),
+    release_ref_function.call(),
     LocalGet(4),
   ]
 }
 
 ///|
 fn byte_sequence_equal_body(
-  require_byte_sequence_layout_index : Int,
+  require_byte_sequence_layout_function : WasmFunctionHandle,
 ) -> Array[@wasm_types.Instruction] {
   [
     LocalGet(0),
-    Call(require_byte_sequence_layout_index),
+    require_byte_sequence_layout_function.call(),
     LocalGet(1),
-    Call(require_byte_sequence_layout_index),
+    require_byte_sequence_layout_function.call(),
     LocalGet(0),
     LocalGet(1),
     I32Eq,
@@ -690,15 +586,15 @@ fn byte_sequence_equal_body(
 
 ///|
 fn byte_sequence_concat_body(
-  require_byte_sequence_layout_index : Int,
-  byte_sequence_new_index : Int,
-  release_ref_index : Int,
+  require_byte_sequence_layout_function : WasmFunctionHandle,
+  byte_sequence_new_function : WasmFunctionHandle,
+  release_ref_function : WasmFunctionHandle,
 ) -> Array[@wasm_types.Instruction] {
   [
     LocalGet(0),
-    Call(require_byte_sequence_layout_index),
+    require_byte_sequence_layout_function.call(),
     LocalGet(1),
-    Call(require_byte_sequence_layout_index),
+    require_byte_sequence_layout_function.call(),
     LocalGet(0),
     I32Load(0, 2, 8L),
     LocalSet(2),
@@ -714,7 +610,7 @@ fn byte_sequence_concat_body(
     I32LtU,
     If(Empty, [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)], []),
     LocalGet(4),
-    Call(byte_sequence_new_index),
+    byte_sequence_new_function.call(),
     LocalSet(5),
     LocalGet(5),
     I32Const(12),
@@ -735,22 +631,22 @@ fn byte_sequence_concat_body(
     LocalGet(3),
     MemoryCopy(0, 0),
     LocalGet(0),
-    Call(release_ref_index),
+    release_ref_function.call(),
     LocalGet(1),
-    Call(release_ref_index),
+    release_ref_function.call(),
     LocalGet(5),
   ]
 }
 
 ///|
 fn byte_sequence_slice_body(
-  require_byte_sequence_layout_index : Int,
-  byte_sequence_new_index : Int,
-  release_ref_index : Int,
+  require_byte_sequence_layout_function : WasmFunctionHandle,
+  byte_sequence_new_function : WasmFunctionHandle,
+  release_ref_function : WasmFunctionHandle,
 ) -> Array[@wasm_types.Instruction] {
   [
     LocalGet(0),
-    Call(require_byte_sequence_layout_index),
+    require_byte_sequence_layout_function.call(),
     LocalGet(1),
     I64Const(0L),
     I64LtS,
@@ -780,7 +676,7 @@ fn byte_sequence_slice_body(
     I32WrapI64,
     LocalSet(5),
     LocalGet(5),
-    Call(byte_sequence_new_index),
+    byte_sequence_new_function.call(),
     LocalSet(6),
     LocalGet(6),
     I32Const(12),
@@ -793,18 +689,18 @@ fn byte_sequence_slice_body(
     LocalGet(5),
     MemoryCopy(0, 0),
     LocalGet(0),
-    Call(release_ref_index),
+    release_ref_function.call(),
     LocalGet(6),
   ]
 }
 
 ///|
 fn byte_sequence_is_valid_utf8_body(
-  require_byte_sequence_layout_index : Int,
+  require_byte_sequence_layout_function : WasmFunctionHandle,
 ) -> Array[@wasm_types.Instruction] {
   [
     LocalGet(0),
-    Call(require_byte_sequence_layout_index),
+    require_byte_sequence_layout_function.call(),
     LocalGet(0),
     I32Load(0, 2, 8L),
     LocalSet(1),

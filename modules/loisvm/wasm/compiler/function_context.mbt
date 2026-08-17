@@ -5,8 +5,7 @@ priv struct FunctionCompilationContext {
   body : @bytecode.FunctionBody
   wasm_module : @wasm_types.Module
   static_image : StaticImage
-  runtime_functions : RuntimeFunctions
-  internal_import_plan : InternalRuntimeImportPlan
+  function_catalog : WasmFunctionCatalog
 }
 
 ///|
@@ -19,8 +18,7 @@ fn FunctionCompilationContext::compile_instruction(
     self.body.slots,
     self.wasm_module,
     self.static_image,
-    self.runtime_functions,
-    self.internal_import_plan,
+    self.function_catalog,
     instruction,
   )
 }
@@ -35,8 +33,7 @@ fn FunctionCompilationContext::compile_terminator(
     self.locals,
     self.wasm_module,
     self.static_image,
-    self.runtime_functions,
-    self.internal_import_plan,
+    self.function_catalog,
     terminator,
   )
 }

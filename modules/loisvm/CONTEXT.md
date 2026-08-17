@@ -250,6 +250,15 @@ The cross-target lowering from a Verified Bytecode Image to a WebAssembly module
 without loading or executing it.
 _Avoid_: Wasmoon loader, direct Buslane-to-Wasm lowering
 
+**Wasm Function Catalog**:
+The Pure Wasm Compiler-owned plan that assigns every imported and defined
+function one typed role, Wasm function handle, physical function type,
+deterministic emission position, optional callable-table slot, and provenance
+before body emission. Wasm bodies, static-image descriptors, table
+materialization, exports, and Explore observations consume this catalog; they do
+not reconstruct identities from counts or offsets.
+_Avoid_: emitter append index, runtime/helper base, callable-table offset
+
 **Wasm Compiled Tier**:
 The execution path that runs Pure Wasm Compiler output through a WebAssembly
 engine.
