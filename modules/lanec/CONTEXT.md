@@ -234,16 +234,32 @@ observational purity; effect information is projected away only while
 constructing runtime ANF.
 _Avoid_: effect-blind DCE, bytecode optimization
 
+**Runtime ANF**:
+The closed backend-lowerable ANF produced only by projecting verified,
+effect-aware CPS Core. Its metadata and syntax contain no effect operations or
+handler forms, and its generic binders and applications retain only
+runtime-relevant type, layout, witness, and higher-kinded companion positions.
+LoisVM lowering consumes this exact representation.
+_Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering
+
+**Runtime Generic Plan**:
+The fixed-point fact set constructed at the CPS-Core-to-Runtime-ANF boundary
+that owns which generic binders and corresponding arguments survive runtime
+projection. Binder identity and formal-to-actual relationships determine the
+plan; rendered names, occurrence counts, and effect spelling do not.
+_Avoid_: vacuous-binder cleanup pass, downstream arity repair
+
 **Effect-Directed Application Reduction**:
 The Core optimization operation that reduces one materialized application by
 substituting definitionally aligned `Empty` arguments and binding nonempty or
 representation-adapting arguments once in observable order.
 _Avoid_: atom-only beta reduction, effect-name special case, local ANF copy
 
-**Residual Effect Erasure**:
-The final removal of non-monadic residual effect information after effect-aware
-optimization.
-_Avoid_: deletion of observable host calls, monadic translation
+**Runtime Effect Projection**:
+The one-way removal of residual effect syntax while verified CPS Core is
+lowered directly into Runtime ANF. It never produces an ordinary Buslane
+program in which `Empty` means missing information.
+_Avoid_: residual-effect erasure pass, source-effect layout inference
 
 ### VM CFG And Bytecode Production
 

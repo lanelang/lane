@@ -33,5 +33,8 @@ fn render_executable_code(program : @executable.ExecutableProgram) -> String {
 
 ///|
 fn render_anf_code(program : @anf.AnfProgram) -> String {
-  @prettyprinter.render(AnfCode::{ terms: program.terms }, width=100)
+  @prettyprinter.render(
+    AnfCode::{ terms: program.terms().to_owned() },
+    width=100,
+  )
 }

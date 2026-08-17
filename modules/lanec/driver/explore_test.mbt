@@ -264,6 +264,10 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("functionCount", 2),
       #|      ("nodeCount", 19),
       #|      ("callCount", 2),
+      #|      ("sourceGenericBinderCount", 0),
+      #|      ("genericBinderCount", 0),
+      #|      ("sourceTypeApplicationCount", 0),
+      #|      ("typeApplicationCount", 0),
       #|    ],
       #|  ),
       #|  (

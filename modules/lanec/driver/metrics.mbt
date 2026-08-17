@@ -138,7 +138,7 @@ fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
     anf_functions: [],
   }
   let mut nodes = 0
-  for term in program.terms {
+  for term in program.terms() {
     nodes += 1
     match term {
       Let(_, expression) => nodes += observe_anf_expr(expression, accumulator)
@@ -153,12 +153,17 @@ fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
   accumulator.anf_functions.sort_by(fn(left, right) {
     left.function.value - right.function.value
   })
+  let projection = program.projection_scale()
   let scale = {
     metrics: [
-      metric(TopTermCount, program.terms.length()),
+      metric(TopTermCount, program.terms().length()),
       metric(FunctionCount, accumulator.function_count),
       metric(NodeCount, nodes),
       metric(CallCount, accumulator.call_count),
+      metric(SourceGenericBinderCount, projection.source_generic_binders),
+      metric(GenericBinderCount, projection.runtime_generic_binders),
+      metric(SourceTypeApplicationCount, projection.source_type_applications),
+      metric(TypeApplicationCount, projection.runtime_type_applications),
     ],
     functions: accumulator.functions,
   }
@@ -232,23 +237,6 @@ fn observe_anf_rhs(rhs : @anf.AnfRhs, accumulator : AnfScaleAccumulator) -> Int 
       let mut nodes = 1 + observe_anf_atom(match_.scrutinee, accumulator)
       for alternative in match_.alternatives {
         nodes += 1 + observe_anf_expr(alternative.body, accumulator)
-      }
-      nodes
-    }
-    Perform(perform) =>
-      1 +
-      perform.payloads.fold(init=0, fn(total, payload) {
-        total + observe_anf_atom(payload, accumulator)
-      })
-    Handle(handle) => {
-      let mut nodes = 1 +
-        observe_anf_expr(handle.body, accumulator) +
-        observe_anf_expr(handle.final_body, accumulator)
-      for table in handle.handlers {
-        nodes += 1
-        for operation in table.operations {
-          nodes += 1 + observe_anf_expr(operation.body, accumulator)
-        }
       }
       nodes
     }

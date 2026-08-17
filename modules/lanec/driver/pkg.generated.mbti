@@ -91,6 +91,10 @@ pub(all) enum ExploreMetricId {
   FunctionCount
   ImportCount
   NodeCount
+  SourceGenericBinderCount
+  GenericBinderCount
+  SourceTypeApplicationCount
+  TypeApplicationCount
   BlockCount
   InstructionCount
   CallCount

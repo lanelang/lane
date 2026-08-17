@@ -1,21 +1,47 @@
 ///|
-pub(all) struct AnfProgram {
-  metadata : @buslane.MetadataRegistry
-  terms : Array[AnfTopTerm]
+/// Runtime ANF is the closed, backend-lowerable result of projecting verified
+/// effect-aware CPS Core. Only this package constructs values of this type.
+pub struct AnfProgram {
+  priv metadata : @buslane.MetadataRegistry
+  priv terms : Array[AnfTopTerm]
+  priv projection_scale : RuntimeAnfProjectionScale
 } derive(Debug, Eq)
 
 ///|
-/// Runtime ANF owns the one-way projection from effect-aware CPS Core into
-/// representation lowering. Its metadata contains runtime types only and must
-/// not be interpreted by Buslane effect analyses.
-pub struct RuntimeAnfProgram {
-  program : AnfProgram
+pub(all) struct RuntimeAnfProjectionScale {
+  source_generic_binders : Int
+  runtime_generic_binders : Int
+  source_type_applications : Int
+  runtime_type_applications : Int
 } derive(Debug, Eq)
 
 ///|
-pub fn RuntimeAnfProgram::anf(self : RuntimeAnfProgram) -> AnfProgram {
-  self.program
+pub fn AnfProgram::metadata(self : AnfProgram) -> @buslane.MetadataRegistry {
+  self.metadata
 }
+
+///|
+pub fn AnfProgram::terms(self : AnfProgram) -> ArrayView[AnfTopTerm] {
+  self.terms[:]
+}
+
+///|
+pub fn AnfProgram::projection_scale(
+  self : AnfProgram,
+) -> RuntimeAnfProjectionScale {
+  self.projection_scale
+}
+
+///|
+pub(all) suberror RuntimeAnfLoweringError {
+  InvalidCpsCore(@buslane.VerifyResult)
+  InvalidExpressionMetadata(@buslane.VerifyResult)
+  TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
+  MissingType(@buslane.TypeId)
+  MissingDataConstructor(@buslane.DataConId)
+  ResidualPerform(@buslane.OperationId)
+  ResidualHandle
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct AnfFunctionId {
@@ -55,40 +81,6 @@ pub(all) enum AnfRhs {
   TypeApply(callee~ : AnfAtom, arguments~ : Array[@buslane.GenericArgument])
   Construct(AnfConstruct)
   Match(AnfMatch)
-  Perform(AnfPerform)
-  Handle(AnfHandle)
-} derive(Debug, Eq)
-
-///|
-pub(all) struct AnfPerform {
-  operation : @buslane.OperationId
-  effect_arguments : Array[@buslane.GenericArgument]
-  hidden_witnesses : Array[@buslane.GenericArgument]
-  payloads : Array[AnfAtom]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct AnfHandle {
-  body : AnfExpr
-  result_binder : @buslane.ValueId
-  result_type : @buslane.Type
-  final_body : AnfExpr
-  handlers : Array[AnfHandlerTable]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct AnfHandlerTable {
-  handled_effect : @buslane.Effect
-  operations : Array[AnfOperationAlternative]
-} derive(Debug, Eq)
-
-///|
-pub(all) struct AnfOperationAlternative {
-  operation : @buslane.OperationId
-  type_binders : Array[@buslane.TypeParameterId]
-  payload_binders : Array[@buslane.ValueId]
-  resume_binder : @buslane.ValueId
-  body : AnfExpr
 } derive(Debug, Eq)
 
 ///|

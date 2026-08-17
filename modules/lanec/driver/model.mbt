@@ -46,6 +46,10 @@ pub(all) enum ExploreMetricId {
   FunctionCount
   ImportCount
   NodeCount
+  SourceGenericBinderCount
+  GenericBinderCount
+  SourceTypeApplicationCount
+  TypeApplicationCount
   BlockCount
   InstructionCount
   CallCount
@@ -425,6 +429,10 @@ pub fn ExploreMetricId::key(self : ExploreMetricId) -> String {
     FunctionCount => "functionCount"
     ImportCount => "importCount"
     NodeCount => "nodeCount"
+    SourceGenericBinderCount => "sourceGenericBinderCount"
+    GenericBinderCount => "genericBinderCount"
+    SourceTypeApplicationCount => "sourceTypeApplicationCount"
+    TypeApplicationCount => "typeApplicationCount"
     BlockCount => "blockCount"
     InstructionCount => "instructionCount"
     CallCount => "callCount"
@@ -456,6 +464,10 @@ pub fn ExploreMetricId::title(self : ExploreMetricId) -> String {
     FunctionCount => "Functions"
     ImportCount => "Imports"
     NodeCount => "IR nodes"
+    SourceGenericBinderCount => "Source generic binders"
+    GenericBinderCount => "Runtime generic binders"
+    SourceTypeApplicationCount => "Source type applications"
+    TypeApplicationCount => "Runtime type applications"
     BlockCount => "Blocks"
     InstructionCount => "Instructions"
     CallCount => "Calls"

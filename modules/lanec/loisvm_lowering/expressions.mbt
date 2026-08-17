@@ -35,14 +35,6 @@ fn FunctionLowerer::lower_rhs(
     Call(callee~, arguments~) => self.lower_call(callee, arguments)
     Construct(construct) => self.lower_construct(construct)
     Match(match_) => self.lower_match(match_)
-    Perform(_) =>
-      raise UnsupportedExpression(
-        detail="perform must be erased before VM CFG lowering",
-      )
-    Handle(_) =>
-      raise UnsupportedExpression(
-        detail="handlers must be erased before VM CFG lowering",
-      )
   }
 }
 

@@ -63,8 +63,10 @@ fn lower_executable_program_to_bytecode_or_raise(
   let program = executable.program
   let externals = executable.externals
   let entry = executable.entry
-  let runtime_anf = @anf.lower_cps_core_to_runtime_anf(program)
-  let anf = runtime_anf.anf()
+  let anf = match @anf.lower_cps_core_to_runtime_anf(program) {
+    Ok(anf) => anf
+    Err(error) => raise RuntimeAnfCompilerDefect(error)
+  }
   observe(Anf(anf))
   let occurrence = @occurrence.analyze({
     program,
@@ -72,7 +74,7 @@ fn lower_executable_program_to_bytecode_or_raise(
     roots: executable.initializer_roots,
   })
   let lowerer : ImageLowerer = {
-    metadata: anf.metadata,
+    metadata: anf.metadata(),
     externals,
     globals: [],
     instance_globals: [],

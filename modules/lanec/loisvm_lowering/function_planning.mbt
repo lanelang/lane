@@ -5,7 +5,7 @@ fn ImageLowerer::plan(
   occurrence : @occurrence.OccurrenceSummary,
 ) -> @bytecode.FunctionId? raise LoisvmLoweringError {
   let initializers : Array[InitializerStepPlan] = []
-  for term in program.terms {
+  for term in program.terms() {
     match term {
       External(value) =>
         if occurrence.is_reachable(value) {

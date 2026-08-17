@@ -10,6 +10,7 @@ fn simplify_anf_program(program : AnfProgram) -> AnfProgram {
   {
     metadata: program.metadata,
     terms: program.terms.map(fn(term) { simplify_top_term(term, scope) }),
+    projection_scale: program.projection_scale,
   }
 }
 
@@ -116,41 +117,6 @@ fn simplify_rhs(rhs : AnfRhs, scope : AnfRewriteScope) -> AnfRhs {
             type_binders: alternative.type_binders,
             value_binders: alternative.value_binders,
             body: simplify_expr(alternative.body, alternative_scope),
-          }
-        }),
-      })
-    Perform(perform) =>
-      Perform({
-        operation: perform.operation,
-        effect_arguments: perform.effect_arguments,
-        hidden_witnesses: perform.hidden_witnesses,
-        payloads: perform.payloads.map(fn(atom) { simplify_atom(atom, scope) }),
-      })
-    Handle(handle) =>
-      Handle({
-        body: simplify_expr(handle.body, scope),
-        result_binder: handle.result_binder,
-        result_type: handle.result_type,
-        final_body: simplify_expr(
-          handle.final_body,
-          scope.without_value(handle.result_binder),
-        ),
-        handlers: handle.handlers.map(fn(table) {
-          {
-            handled_effect: table.handled_effect,
-            operations: table.operations.map(fn(alternative) {
-              let operation_scope = alternative.payload_binders.fold(
-                init=scope.without_value(alternative.resume_binder),
-                fn(scope, binder) { scope.without_value(binder) },
-              )
-              {
-                operation: alternative.operation,
-                type_binders: alternative.type_binders,
-                payload_binders: alternative.payload_binders,
-                resume_binder: alternative.resume_binder,
-                body: simplify_expr(alternative.body, operation_scope),
-              }
-            }),
           }
         }),
       })

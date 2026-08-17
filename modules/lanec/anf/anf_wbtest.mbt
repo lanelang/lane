@@ -25,7 +25,10 @@ test "lower buslane function call to ANF" {
     ],
   }
   inspect(
-    @prettyprinter.render(lower_buslane_program_to_anf(program), width=100),
+    @prettyprinter.render(
+      lower_cps_core_to_runtime_anf(program).unwrap(),
+      width=100,
+    ),
     content=(
       #|anf {
       #|  letrec {
@@ -47,7 +50,7 @@ test "ANF binds a match before applying its continuation" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let consume = metadata.define_value(
     "consume",
-    Function,
+    External,
     Function([Primitive(Bool)], Primitive(I64), Empty),
   )
   let result = metadata.define_value("result", Value, Primitive(I64))
@@ -83,7 +86,10 @@ test "ANF binds a match before applying its continuation" {
     ],
   }
   debug_inspect(
-    lower_buslane_program_to_anf(program).terms[1],
+    (match lower_cps_core_to_runtime_anf(program) {
+      Ok(program) => program
+      Err(error) => abort("unexpected runtime ANF error: \{Repr(error)}")
+    }).terms()[1],
     content=(
       #|Let(
       #|  { index: 1 },
@@ -126,7 +132,7 @@ test "ANF binds a match before applying its continuation" {
 }
 
 ///|
-test "lower buslane handler and perform to ANF" {
+test "runtime ANF rejects residual handlers" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect = metadata.define_effect("Effect", [])
   let operation = metadata.define_operation(
@@ -181,27 +187,5 @@ test "lower buslane handler and perform to ANF" {
       ),
     ],
   }
-  inspect(
-    @prettyprinter.render(lower_buslane_program_to_anf(program), width=100),
-    content=(
-      #|anf {
-      #|  let value#0 = {
-      #|    let temp#3 = handle {
-      #|      let temp#0 = perform operation#0()
-      #|      temp#0
-      #|    } as value#1 -> I64 {
-      #|      effect#0 {
-      #|        operation#0() resume value#2 => {
-      #|          let temp#1 = value#2(1)
-      #|          let temp#2 = value#2(temp#1)
-      #|          temp#2
-      #|        }
-      #|      }
-      #|      final => value#1
-      #|    }
-      #|    temp#3
-      #|  }
-      #|}
-    ),
-  )
+  assert_true(lower_cps_core_to_runtime_anf(program) is Err(ResidualHandle))
 }

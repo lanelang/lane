@@ -1,4 +1,21 @@
 ///|
+fn test_anf_program(
+  metadata : @buslane.MetadataRegistry,
+  terms : Array[AnfTopTerm],
+) -> AnfProgram {
+  {
+    metadata,
+    terms,
+    projection_scale: {
+      source_generic_binders: 0,
+      runtime_generic_binders: 0,
+      source_type_applications: 0,
+      runtime_type_applications: 0,
+    },
+  }
+}
+
+///|
 test "simplify ANF atom aliases without reordering calls" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let function = metadata.define_value(
@@ -12,34 +29,31 @@ test "simplify ANF atom aliases without reordering calls" {
   let first_temp = AnfTempId::{ index: 0 }
   let alias_temp = AnfTempId::{ index: 1 }
   let call_temp = AnfTempId::{ index: 2 }
-  let program = AnfProgram::{
-    metadata,
-    terms: [
-      External(function),
+  let program = test_anf_program(metadata, [
+    External(function),
+    Let(
+      result,
       Let(
-        result,
+        Value(id=first, rhs=Atom(Literal(I64(42L)))),
         Let(
-          Value(id=first, rhs=Atom(Literal(I64(42L)))),
+          Temp(temp=first_temp, rhs=Atom(Ref(first))),
           Let(
-            Temp(temp=first_temp, rhs=Atom(Ref(first))),
+            Value(id=second, rhs=Atom(Temp(first_temp))),
             Let(
-              Value(id=second, rhs=Atom(Temp(first_temp))),
+              Temp(temp=alias_temp, rhs=Atom(Ref(second))),
               Let(
-                Temp(temp=alias_temp, rhs=Atom(Ref(second))),
-                Let(
-                  Temp(
-                    temp=call_temp,
-                    rhs=Call(callee=Ref(function), arguments=[Temp(alias_temp)]),
-                  ),
-                  Atom(Temp(call_temp)),
+                Temp(
+                  temp=call_temp,
+                  rhs=Call(callee=Ref(function), arguments=[Temp(alias_temp)]),
                 ),
+                Atom(Temp(call_temp)),
               ),
             ),
           ),
         ),
       ),
-    ],
-  }
+    ),
+  ])
   debug_inspect(
     simplify_anf_program(program).terms,
     content=(
@@ -100,7 +114,7 @@ test "simplify ANF aliases inside function and match scopes" {
       ),
     ),
   })
-  let program = AnfProgram::{ metadata, terms: [Let(result, Atom(function))] }
+  let program = test_anf_program(metadata, [Let(result, Atom(function))])
   debug_inspect(
     simplify_anf_program(program).terms,
     content=(

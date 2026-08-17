@@ -66,29 +66,6 @@ fn collect_free_rhs(
         collect_free_expr(alternative.body, next_values, bound_temps, captures)
       }
     }
-    Perform(perform) =>
-      for payload in perform.payloads {
-        collect_free_atom(payload, bound_values, bound_temps, captures)
-      }
-    Handle(handle) => {
-      collect_free_expr(handle.body, bound_values, bound_temps, captures)
-      let final_values = bound_values.copy()
-      final_values.push(handle.result_binder)
-      collect_free_expr(handle.final_body, final_values, bound_temps, captures)
-      for table in handle.handlers {
-        for operation in table.operations {
-          let operation_values = bound_values.copy()
-          operation_values.append(operation.payload_binders)
-          operation_values.push(operation.resume_binder)
-          collect_free_expr(
-            operation.body,
-            operation_values,
-            bound_temps,
-            captures,
-          )
-        }
-      }
-    }
   }
 }
 

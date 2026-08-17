@@ -73,9 +73,6 @@ test "monadic-lift exposes generic continuation captures to ANF" {
     metadata.value_info(captured_reference).unwrap().type_,
     Parameter(captured_type),
   )
-  let anf = @anf.lower_buslane_program_to_anf(lifted)
-  assert_eq(anf.metadata, lifted.metadata)
-  assert_eq(anf.terms.length(), lifted.terms.length())
 }
 
 ///|

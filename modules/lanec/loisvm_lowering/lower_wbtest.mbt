@@ -176,7 +176,7 @@ test "function plans allocate source and synthetic origins atomically" {
     ],
   }
   let lowerer = test_image_lowerer(metadata)
-  let anf = @anf.lower_buslane_program_to_anf(program)
+  let anf = @anf.lower_cps_core_to_runtime_anf(program).unwrap()
   ignore(lowerer.plan(anf, @occurrence.analyze({ program, entry, roots: [] })))
   debug_inspect(
     lowerer.plans.observations(),
@@ -2625,7 +2625,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
 }
 
 ///|
-test "payload-free existential data still opens its hidden witness" {
+test "payload-free existential evidence disappears when no runtime use remains" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let hidden = metadata.define_type_parameter("Hidden", Type)
   let opened = metadata.define_type_parameter("Opened", Type)
@@ -2716,20 +2716,13 @@ test "payload-free existential data still opens its hidden witness" {
   }
   assert_true(
     image.object_shapes.any(shape => {
-      shape
-      is Data(
-        {
-          stored_witness_count: 0,
-          members: [{ cleanup: Trivial, kind: LayoutValue, .. }],
-          ..,
-        }
-      )
+      shape is Data({ stored_witness_count: 0, members: [], .. })
     }),
   )
   guard image.functions[1] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
   }
-  assert_true(
+  assert_false(
     contains_instruction(main_body, instruction => {
       instruction is BorrowField(_, _, 0, { witness_destination: None, .. })
     }),
@@ -2759,7 +2752,7 @@ test "payload-free existential data still opens its hidden witness" {
 }
 
 ///|
-test "effect-kind existentials carry explicit companion evidence" {
+test "unused effect-kind existential evidence disappears from runtime ANF" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let hidden = metadata.define_type_parameter("HiddenEffect", Effect)
   let opened = metadata.define_type_parameter("OpenedEffect", Effect)
@@ -2821,21 +2814,7 @@ test "effect-kind existentials carry explicit companion evidence" {
   }
   assert_true(
     image.object_shapes.any(shape => {
-      shape
-      is Data(
-        {
-          stored_witness_count: 0,
-          members: [
-            {
-              representation: I64,
-              cleanup: OwnedCallable,
-              kind: LayoutConstructorValue(1),
-              witness_ordinal: None,
-            },
-          ],
-          ..,
-        }
-      )
+      shape is Data({ stored_witness_count: 0, members: [], .. })
     }),
   )
   guard image.functions[0] is BytecodeBody(main_body) else {

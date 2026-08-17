@@ -8,11 +8,18 @@ import {
 }
 
 // Values
-pub fn lower_buslane_program_to_anf(@buslane.Program) -> AnfProgram
-
-pub fn lower_cps_core_to_runtime_anf(@buslane.Program) -> RuntimeAnfProgram
+pub fn lower_cps_core_to_runtime_anf(@buslane.Program) -> Result[AnfProgram, RuntimeAnfLoweringError]
 
 // Errors
+pub(all) suberror RuntimeAnfLoweringError {
+  InvalidCpsCore(@buslane.VerifyResult)
+  InvalidExpressionMetadata(@buslane.VerifyResult)
+  TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
+  MissingType(@buslane.TypeId)
+  MissingDataConstructor(@buslane.DataConId)
+  ResidualPerform(@buslane.OperationId)
+  ResidualHandle
+} derive(Eq, @debug.Debug)
 
 // Types and methods
 pub(all) struct AnfAlternative {
@@ -66,21 +73,6 @@ pub(all) struct AnfFunctionId {
   value : Int
 } derive(Eq, Hash, @debug.Debug)
 
-pub(all) struct AnfHandle {
-  body : AnfExpr
-  result_binder : @buslane.ValueId
-  result_type : @buslane.Type
-  final_body : AnfExpr
-  handlers : Array[AnfHandlerTable]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for AnfHandle
-
-pub(all) struct AnfHandlerTable {
-  handled_effect : @buslane.Effect
-  operations : Array[AnfOperationAlternative]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for AnfHandlerTable
-
 pub(all) struct AnfMatch {
   scrutinee : AnfAtom
   binder : @buslane.ValueId
@@ -89,27 +81,12 @@ pub(all) struct AnfMatch {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfMatch
 
-pub(all) struct AnfOperationAlternative {
-  operation : @buslane.OperationId
-  type_binders : Array[@buslane.TypeParameterId]
-  payload_binders : Array[@buslane.ValueId]
-  resume_binder : @buslane.ValueId
-  body : AnfExpr
+pub struct AnfProgram {
+  // private fields
 } derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for AnfOperationAlternative
-
-pub(all) struct AnfPerform {
-  operation : @buslane.OperationId
-  effect_arguments : Array[@buslane.GenericArgument]
-  hidden_witnesses : Array[@buslane.GenericArgument]
-  payloads : Array[AnfAtom]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for AnfPerform
-
-pub(all) struct AnfProgram {
-  metadata : @buslane.MetadataRegistry
-  terms : Array[AnfTopTerm]
-} derive(Eq, @debug.Debug)
+pub fn AnfProgram::metadata(Self) -> @buslane.MetadataRegistry
+pub fn AnfProgram::projection_scale(Self) -> RuntimeAnfProjectionScale
+pub fn AnfProgram::terms(Self) -> ArrayView[AnfTopTerm]
 pub impl @prettyprinter.Pretty for AnfProgram
 
 pub(all) struct AnfRecursiveBinding {
@@ -124,8 +101,6 @@ pub(all) enum AnfRhs {
   TypeApply(callee~ : AnfAtom, arguments~ : Array[@buslane.GenericArgument])
   Construct(AnfConstruct)
   Match(AnfMatch)
-  Perform(AnfPerform)
-  Handle(AnfHandle)
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfRhs
 
@@ -141,10 +116,12 @@ pub(all) enum AnfTopTerm {
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfTopTerm
 
-pub struct RuntimeAnfProgram {
-  program : AnfProgram
+pub(all) struct RuntimeAnfProjectionScale {
+  source_generic_binders : Int
+  runtime_generic_binders : Int
+  source_type_applications : Int
+  runtime_type_applications : Int
 } derive(Eq, @debug.Debug)
-pub fn RuntimeAnfProgram::anf(Self) -> AnfProgram
 
 // Type aliases
 

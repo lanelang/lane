@@ -48,7 +48,7 @@ fn ImageLowerer::plan_representation_specializations(
     definitions.length(),
     _ => [],
   )
-  for term in program.terms {
+  for term in program.terms() {
     match term {
       Let(value, expression) if self.find_global(value) is Some(_) =>
         self.collect_representation_seeds(definitions, seeds, expression)
@@ -98,7 +98,7 @@ fn ImageLowerer::generic_function_definitions(
   program : @anf.AnfProgram,
 ) -> Array[GenericFunctionDefinition] raise LoisvmLoweringError {
   let definitions = []
-  for term in program.terms {
+  for term in program.terms() {
     match term {
       Let(value, expression) =>
         if extract_top_function(expression) is Some(function) {
@@ -245,29 +245,6 @@ fn collect_calls_in_rhs(
         )
       }
     }
-    Perform(perform) =>
-      for payload in perform.payloads {
-        collect_calls_in_atom(payload, substitutions, bindings, calls)
-      }
-    Handle(handle) => {
-      collect_calls_in_expression(handle.body, substitutions, bindings, calls)
-      collect_calls_in_expression(
-        handle.final_body,
-        substitutions,
-        bindings,
-        calls,
-      )
-      for table in handle.handlers {
-        for operation in table.operations {
-          collect_calls_in_expression(
-            operation.body,
-            substitutions,
-            bindings,
-            calls,
-          )
-        }
-      }
-    }
   }
 }
 
@@ -307,7 +284,7 @@ fn direct_callee_from_rhs(
           })
         None => None
       }
-    Call(..) | Construct(_) | Match(_) | Perform(_) | Handle(_) => None
+    Call(..) | Construct(_) | Match(_) => None
   }
 }
 

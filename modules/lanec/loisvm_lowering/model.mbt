@@ -1,5 +1,6 @@
 ///|
 pub(all) suberror LoisvmLoweringError {
+  RuntimeAnfCompilerDefect(@anf.RuntimeAnfLoweringError)
   MissingValueMetadata(value~ : @buslane.ValueId)
   MissingDataConstructorMetadata(data_constructor~ : @buslane.DataConId)
   MissingExternal(value~ : @buslane.ValueId)
