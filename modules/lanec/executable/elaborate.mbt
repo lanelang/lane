@@ -66,17 +66,8 @@ fn elaborate_or_raise(
   require_verified("core optimization", program)
   observe(CoreOptimized(program))
   let program = lower_effects(program, entry.value, observe)
-  let initializers = collect_top_level_initializers(program)
-  let execution_roots = initializers.mapi((index, _) => Initializer(index))
-  execution_roots.push(Entry(entry.value))
-  {
-    module_path_texts: linked.module_path_texts,
-    program,
-    externals,
-    entry,
-    initializers,
-    execution_roots,
-  }
+  let initializer_roots = collect_initializer_roots(program)
+  { program, externals, entry, initializer_roots }
 }
 
 ///|
@@ -165,26 +156,28 @@ fn occurrence_value_is_reachable(
 }
 
 ///|
-fn collect_top_level_initializers(
+fn collect_initializer_roots(
   program : @buslane.Program,
-) -> Array[TopLevelInitializer] {
-  let initializers = []
+) -> Array[@buslane.ValueId] {
+  let roots = []
   for term in program.terms {
     match term {
       Let(value, expression) =>
         if !is_static_top_level_expression(program, expression) {
-          initializers.push(Value(value, expression))
+          roots.push(value)
         }
       LetRec(bindings) =>
         if !bindings.all(binding => {
             is_static_top_level_expression(program, binding.rhs)
           }) {
-          initializers.push(Recursive(bindings))
+          for binding in bindings {
+            roots.push(binding.id)
+          }
         }
       External(_) => ()
     }
   }
-  initializers
+  roots
 }
 
 ///|

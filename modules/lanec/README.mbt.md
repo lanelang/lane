@@ -171,7 +171,7 @@ never executes the entry.
 | `Milky2018/lanec/module/frontend` | Source inputs, parsing, import reachability, and module graph construction |
 | `Milky2018/lanec/module/compile` | Module interfaces, module objects, fingerprints, and compiled module sets |
 | `Milky2018/lanec/module/link` | Target-independent linking and the `LinkedProgram` model |
-| `Milky2018/lanec/executable` | Whole-program elaboration, effect lowering, initializers, and execution roots |
+| `Milky2018/lanec/executable` | Whole-program elaboration, effect lowering, and initializer retention roots |
 | `Milky2018/lanec/loisvm_lowering` | ANF, VM CFG, ARC/slot finalization, and LoisVM bytecode construction |
 | `Milky2018/lanec/driver` | Entry enumeration and platform-neutral IR exploration reports |
 | `Milky2018/lanec/analysis` | In-memory semantic analysis used by tools and language servers |

@@ -126,7 +126,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
   }
   stages.complete(
     Executable,
-    render_buslane_code(executable.program),
+    render_executable_code(executable),
     [],
     buslane_scale(executable.program),
   )

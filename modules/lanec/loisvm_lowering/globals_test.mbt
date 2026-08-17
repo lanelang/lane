@@ -234,22 +234,10 @@ test "executable initializer materializes function-valued data fields" {
   }
   let image = match
     lower_executable_program_to_bytecode({
-      module_path_texts: ["Main"],
       program,
       externals: { builtins: [], runtime_imports: [] },
       entry,
-      initializers: [
-        Value(
-          stored,
-          Construct({
-            data_constructor: make_holder,
-            type_arguments: [],
-            hidden_witnesses: [],
-            payloads: [Ref(helper)],
-          }),
-        ),
-      ],
-      execution_roots: [Initializer(0), Entry(main)],
+      initializer_roots: [stored],
     }) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")

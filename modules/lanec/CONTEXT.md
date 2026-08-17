@@ -43,25 +43,32 @@ The translation from Checked Source into Buslane.
 _Avoid_: source elaboration, ANF normalization
 
 **Whole-Program Elaboration**:
-The post-link phase that validates the selected entry and makes initialization,
-execution roots, effect-aware CPS Core, and externals explicit.
+The post-link phase that validates the selected entry and makes initializer
+retention roots, effect-aware CPS Core, and externals explicit.
 _Avoid_: module linking, target lowering
 
 **Executable Program**:
-The target-independent result of Whole-Program Elaboration consumed by execution
-image lowerers.
+The target-independent result of Whole-Program Elaboration containing one CPS
+Core program, one selected entry, externals, and initializer retention ValueIds.
+Initializer bodies and source order remain owned only by the CPS Core terms.
 _Avoid_: linked core wrapper, LoisVM image
 
-**Execution Root Set**:
-The selected entry and initializer computations whose reachable definitions an
-execution image must preserve.
-_Avoid_: exported symbol set, precomputed closure
+**Initializer Retention Root Set**:
+The top-level ValueIds whose eager computations must remain reachable for the
+selected entry. It contains neither initializer expressions nor the entry.
+_Avoid_: execution schedule, initializer index, copied AST
+
+**Initializer Schedule**:
+The target-owned lowering plan produced by one source-order scan of Runtime ANF
+terms selected by the Initializer Retention Root Set. Recursive top-level terms
+remain one scheduling unit.
+_Avoid_: executable AST side table, reordered root array
 
 **Linked Core Retention Root Set**:
 All entry candidates admitted by the link policy, value-bearing exports, and
 external values after cross-module identities have been remapped. Runtime type,
 effect, and operation metadata remains intact and does not create value roots.
-_Avoid_: per-module reachability, selected-entry execution roots
+_Avoid_: per-module reachability, initializer retention roots
 
 **Linked Core Tree Shaking**:
 The exact post-link removal of private top-level definitions outside the

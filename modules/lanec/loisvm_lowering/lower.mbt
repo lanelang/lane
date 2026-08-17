@@ -69,7 +69,7 @@ fn lower_executable_program_to_bytecode_or_raise(
   let occurrence = @occurrence.analyze({
     program,
     entry: entry.value,
-    roots: executable_initializer_roots(executable),
+    roots: executable.initializer_roots,
   })
   let lowerer : ImageLowerer = {
     metadata: anf.metadata,
@@ -148,22 +148,4 @@ fn lower_executable_program_to_bytecode_or_raise(
     }
     Err(error) => raise VmcfgFinalizeError(error)
   }
-}
-
-///|
-fn executable_initializer_roots(
-  executable : @executable.ExecutableProgram,
-) -> Array[@buslane.ValueId] {
-  let roots = []
-  for root in executable.execution_roots {
-    guard root is Initializer(index) else { continue }
-    match executable.initializers[index] {
-      Value(value, _) => roots.push(value)
-      Recursive(bindings) =>
-        for binding in bindings {
-          roots.push(binding.id)
-        }
-    }
-  }
-  roots
 }

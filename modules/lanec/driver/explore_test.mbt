@@ -181,7 +181,7 @@ test "explore protocol v5 exposes all eighteen ordered completed stages" {
       #|      "completed",
       #|      Some("compiler"),
       #|      Some("buslane"),
-      #|      Some("letrec {"),
+      #|      Some("executable {"),
       #|    ),
       #|    ("anf", "completed", Some("compiler"), Some("anf"), Some("letrec {")),
       #|    (

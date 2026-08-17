@@ -27,6 +27,11 @@ fn render_buslane_code(program : @buslane.Program) -> String {
 }
 
 ///|
+fn render_executable_code(program : @executable.ExecutableProgram) -> String {
+  @prettyprinter.render(program, width=100)
+}
+
+///|
 fn render_anf_code(program : @anf.AnfProgram) -> String {
   @prettyprinter.render(AnfCode::{ terms: program.terms }, width=100)
 }

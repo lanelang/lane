@@ -8,12 +8,10 @@ fn lower_unoptimized_test_program(
   @loisvm_lowering.LoisvmLoweringError,
 ] {
   @loisvm_lowering.lower_executable_program_to_bytecode({
-    module_path_texts: [],
     program,
     externals,
     entry,
-    initializers: [],
-    execution_roots: [Entry(entry.value)],
+    initializer_roots: [],
   })
 }
 

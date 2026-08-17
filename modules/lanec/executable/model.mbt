@@ -1,32 +1,15 @@
 ///|
 /// Owns the verified, effect-aware CPS Core input to runtime ANF lowering.
 ///
-/// Initializers and execution roots are in deterministic dependency order;
-/// `entry` belongs to the linked program from which this value was elaborated.
+/// Initializer bodies and order remain in `program.terms`; `initializer_roots`
+/// contains only the semantic values that must survive until planning. `entry`
+/// belongs to the linked program from which this value was elaborated.
 /// Runtime ANF lowering is the sole boundary that projects away effect syntax.
 pub(all) struct ExecutableProgram {
-  module_path_texts : Array[String]
   program : @buslane.Program
   externals : @buslane_lowering.BuslaneExternalMap
   entry : @buslane_lowering.BuslaneEntry
-  initializers : Array[TopLevelInitializer]
-  execution_roots : Array[ExecutionRoot]
-} derive(Debug, Eq)
-
-///|
-/// One eager top-level initialization action. Array order is execution order;
-/// recursive groups initialize atomically as one action.
-pub(all) enum TopLevelInitializer {
-  Value(@buslane.ValueId, @buslane.Expr)
-  Recursive(Array[@buslane.RecursiveBinding])
-} derive(Debug, Eq)
-
-///|
-/// A root retained for execution. Initializer indices refer to the owning
-/// `ExecutableProgram.initializers` array and precede its selected entry root.
-pub(all) enum ExecutionRoot {
-  Initializer(Int)
-  Entry(@buslane.ValueId)
+  initializer_roots : Array[@buslane.ValueId]
 } derive(Debug, Eq)
 
 ///|

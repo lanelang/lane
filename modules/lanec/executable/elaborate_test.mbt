@@ -41,8 +41,7 @@ test "whole-program elaboration preserves the selected entry" {
     abort("expected executable elaboration to succeed")
   }
   assert_eq(executable.entry, second_entry)
-  assert_eq(executable.initializers, [])
-  assert_eq(executable.execution_roots, [Entry(second)])
+  assert_eq(executable.initializer_roots, [])
 }
 
 ///|
@@ -101,18 +100,7 @@ test "whole-program elaboration records ordered reachable initializer roots" {
   guard elaborate(linked, entry, test_execution_profile()) is Ok(executable) else {
     abort("expected executable elaboration to succeed")
   }
-  debug_inspect(
-    (executable.initializers, executable.execution_roots),
-    content=(
-      #|(
-      #|  [
-      #|    Value({ index: 0 }, Literal(I64(1))),
-      #|    Value({ index: 1 }, Ref({ index: 0 })),
-      #|  ],
-      #|  [Initializer(0), Initializer(1), Entry({ index: 6 })],
-      #|)
-    ),
-  )
+  assert_eq(executable.initializer_roots, [first, second])
 }
 
 ///|

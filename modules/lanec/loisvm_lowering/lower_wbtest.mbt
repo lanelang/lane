@@ -91,14 +91,7 @@ fn lower_test_executable_to_bytecode_observed(
   observe : (LoisvmLoweringStage) -> Unit,
 ) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
   lower_executable_program_to_bytecode_observed(
-    {
-      module_path_texts: [],
-      program,
-      externals,
-      entry,
-      initializers: [],
-      execution_roots: [Entry(entry.value)],
-    },
+    { program, externals, entry, initializer_roots: [] },
     observe,
   )
 }

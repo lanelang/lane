@@ -8,18 +8,15 @@ pub impl @prettyprinter.Pretty for ExecutableProgram with fn pretty(
   text("executable") +
   space +
   @lanec_pretty.braced_block([
-    executable_modules_doc(executable.module_path_texts),
     executable_entry_doc(executable.entry),
     executable_externals_doc(executable.externals),
-    executable_initializers_doc(executable.initializers),
-    executable_roots_doc(executable.execution_roots),
+    executable_order_doc(
+      executable.program,
+      executable.initializer_roots,
+      executable.entry.value,
+    ),
     @lanec_pretty.section("program", [executable.program.pretty()]),
   ])
-}
-
-///|
-fn executable_modules_doc(module_path_texts : Array[String]) -> Document {
-  @lanec_pretty.section("modules", module_path_texts.map(text))
 }
 
 ///|
@@ -75,35 +72,39 @@ fn executable_externals_doc(
 }
 
 ///|
-fn executable_initializers_doc(
-  initializers : Array[TopLevelInitializer],
+fn executable_order_doc(
+  program : @buslane.Program,
+  initializer_roots : Array[@buslane.ValueId],
+  entry : @buslane.ValueId,
 ) -> Document {
-  @lanec_pretty.section(
-    "initializers",
-    initializers.mapi((index, initializer) => {
-      let target = match initializer {
-        Value(value, _) => value.pretty()
-        Recursive(bindings) =>
-          text("letrec") +
-          space +
-          @lanec_pretty.bracketed_inline(
-            bindings.map(binding => binding.id.pretty()),
+  let steps = []
+  for term in program.terms {
+    match term {
+      Let(value, _) =>
+        if initializer_roots.any(root => root == value) {
+          steps.push(text("initialize") + space + value.pretty())
+        }
+      LetRec(bindings) => {
+        let values = bindings.filter_map(binding => {
+          if initializer_roots.any(root => root == binding.id) {
+            Some(binding.id.pretty())
+          } else {
+            None
+          }
+        })
+        if !values.is_empty() {
+          steps.push(
+            text("initialize") +
+            space +
+            text("letrec") +
+            space +
+            @lanec_pretty.bracketed_inline(values),
           )
+        }
       }
-      text("init#\{index}") + space + text("=") + space + target
-    }),
-  )
-}
-
-///|
-fn executable_roots_doc(roots : Array[ExecutionRoot]) -> Document {
-  @lanec_pretty.section(
-    "execution_order",
-    roots.map(root => {
-      match root {
-        Initializer(index) => text("init#\{index}")
-        Entry(value) => text("entry") + space + value.pretty()
-      }
-    }),
-  )
+      External(_) => ()
+    }
+  }
+  steps.push(text("entry") + space + entry.pretty())
+  @lanec_pretty.section("execution_order", steps)
 }
