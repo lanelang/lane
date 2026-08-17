@@ -3,7 +3,7 @@ import {
   "Milky2018/lanec/anf",
   "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/compile",
-  "Milky2018/lanec/effect_lowering/core" @effect_lowering_core,
+  "Milky2018/lanec/effect_lowering",
   "Milky2018/lanec/executable",
   "Milky2018/lanec/loisvm_lowering",
   "Milky2018/lanec/vmcfg",

@@ -174,6 +174,19 @@ _Avoid_: CLI command, filesystem discovery, browser transport
 
 ### Effect Elaboration
 
+**Effect Lowering Module**:
+The single compiler operation that consumes verified effect-aware Buslane and
+produces verified effect-aware CPS Core. Handler elaboration, monadic
+transformation, selective-CPS rewriting, and open-context resolution are
+private transformations inside this owner rather than independently
+constructible IR APIs.
+_Avoid_: public transitional AST, pass-by-pass orchestration in executable lowering
+
+**Effect Lowering Snapshot**:
+An owner-produced read-only observation of a verified private effect-lowering
+stage, containing rendered text and aggregate scale but no transitional AST.
+_Avoid_: typed IR transfer, driver-owned traversal, constructible stage wrapper
+
 **Effect Specialization Demand**:
 A canonical request to retain a generic definition or create one concrete
 effect-specialized instance at a reachable source definition site.

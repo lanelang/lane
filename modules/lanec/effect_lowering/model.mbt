@@ -1,24 +1,24 @@
 ///|
-pub(all) struct Program {
+priv struct Program {
   metadata : @buslane.MetadataRegistry
   terms : Array[TopTerm]
-} derive(Debug, Eq)
+}
 
 ///|
-pub(all) enum TopTerm {
+priv enum TopTerm {
   Let(@buslane.ValueId, Expr)
   LetRec(Array[RecursiveBinding])
   External(@buslane.ValueId)
-} derive(Debug, Eq)
+}
 
 ///|
-pub(all) struct RecursiveBinding {
+priv struct RecursiveBinding {
   id : @buslane.ValueId
   rhs : Expr
 } derive(Debug, Eq)
 
 ///|
-pub(all) enum Expr {
+priv enum Expr {
   Ref(@buslane.ValueId)
   Literal(@buslane.Literal)
   Function(FunctionExpr)
@@ -36,14 +36,14 @@ pub(all) enum Expr {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct FunctionExpr {
+priv struct FunctionExpr {
   parameters : Array[@buslane.ValueId]
   result_type : @buslane.Type
   body : Expr
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct ConstructExpr {
+priv struct ConstructExpr {
   data_constructor : @buslane.DataConId
   type_arguments : Array[@buslane.GenericArgument]
   hidden_witnesses : Array[@buslane.GenericArgument]
@@ -51,7 +51,7 @@ pub(all) struct ConstructExpr {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct MatchExpr {
+priv struct MatchExpr {
   scrutinee : Expr
   binder : @buslane.ValueId
   result_type : @buslane.Type
@@ -59,7 +59,7 @@ pub(all) struct MatchExpr {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct Alternative {
+priv struct Alternative {
   alt_constructor : @buslane.AltCon
   type_binders : Array[@buslane.TypeParameterId]
   value_binders : Array[@buslane.ValueId]
@@ -67,7 +67,7 @@ pub(all) struct Alternative {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct InvokeExpr {
+priv struct InvokeExpr {
   operation : @buslane.OperationId
   effect_arguments : Array[@buslane.GenericArgument]
   hidden_witnesses : Array[@buslane.GenericArgument]
@@ -75,7 +75,7 @@ pub(all) struct InvokeExpr {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct InstallExpr {
+priv struct InstallExpr {
   body : Expr
   result_type : @buslane.Type
   dictionaries : Array[HandlerDictionary]
@@ -83,32 +83,32 @@ pub(all) struct InstallExpr {
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct HandlerDictionary {
+priv struct HandlerDictionary {
   handled_effect : @buslane.Effect
   operations : Array[OperationClause]
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct OperationClause {
+priv struct OperationClause {
   operation : @buslane.OperationId
   callable : ClauseCallable
 } derive(Debug, Eq)
 
 ///|
-pub(all) enum ClauseCallable {
+priv enum ClauseCallable {
   Monomorphic(FunctionExpr)
   Polymorphic(Array[@buslane.TypeParameterId], FunctionExpr)
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct BindExpr {
+priv struct BindExpr {
   computation : Expr
   binder : @buslane.ValueId
   continuation : FunctionExpr
 } derive(Debug, Eq)
 
 ///|
-pub(all) struct OpenContextExpr {
+priv struct OpenContextExpr {
   source_effect : @buslane.Effect
   target_effect : @buslane.Effect
   body : Expr

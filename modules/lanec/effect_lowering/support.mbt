@@ -1,5 +1,5 @@
 ///|
-pub fn effect_has_parameter(effect : @buslane.Effect) -> Bool {
+fn effect_has_parameter(effect : @buslane.Effect) -> Bool {
   match effect {
     Empty | Builtin(_) | Singleton(_, _) => false
     Parameter(_) => true
@@ -8,7 +8,7 @@ pub fn effect_has_parameter(effect : @buslane.Effect) -> Bool {
 }
 
 ///|
-pub fn is_mon_effect(
+fn is_mon_effect(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
 ) -> Bool raise SynthesisError {
@@ -18,7 +18,7 @@ pub fn is_mon_effect(
 }
 
 ///|
-pub fn mon_effect_part(
+fn mon_effect_part(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
 ) -> @buslane.Effect raise SynthesisError {
@@ -33,22 +33,7 @@ pub fn mon_effect_part(
 }
 
 ///|
-pub fn residual_effect_part(
-  metadata : @buslane.MetadataRegistry,
-  effect : @buslane.Effect,
-) -> @buslane.Effect raise SynthesisError {
-  canonicalize_effect(
-    metadata,
-    Union(
-      effect_terms(metadata, effect).filter(fn(term) {
-        !metadata.effect_term_is_algebraic(term)
-      }),
-    ),
-  )
-}
-
-///|
-pub fn set_source_resume_effect(
+fn set_source_resume_effect(
   metadata : @buslane.MetadataRegistry,
   resume_binder : @buslane.ValueId,
   effect : @buslane.Effect,

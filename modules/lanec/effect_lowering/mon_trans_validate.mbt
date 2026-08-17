@@ -1,13 +1,4 @@
 ///|
-pub fn validate_mon_trans_output(
-  program : Program,
-) -> Result[Unit, SynthesisError] {
-  Ok(validate_mon_trans_output_or_raise(program)) catch {
-    error => Err(error)
-  }
-}
-
-///|
 // This asks whether a declaration has been through the phase, which the Buslane
 // verifier's question — whether it is legal — deliberately does not. Only what
 // the phase was responsible for can answer it, so the walk covers the

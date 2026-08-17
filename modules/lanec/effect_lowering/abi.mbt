@@ -36,15 +36,6 @@ fn CpsEnvironment::answer(
 }
 
 ///|
-pub fn rewrite_selective_cps_abis(
-  program : Program,
-) -> Result[Program, SynthesisError] {
-  Ok(rewrite_selective_cps_abis_or_raise(program)) catch {
-    error => Err(error)
-  }
-}
-
-///|
 fn rewrite_selective_cps_abis_or_raise(
   program : Program,
 ) -> Program raise SynthesisError {
@@ -52,7 +43,7 @@ fn rewrite_selective_cps_abis_or_raise(
     metadata: program.metadata.snapshot(),
     terms: program.terms,
   }
-  let declarations = @effect_lowering_core.collect_program_declarations(source)
+  let declarations = collect_program_declarations(source)
   let schema = build_dictionary_cps_schema_or_raise(program.metadata)
   rewrite_cps_source_metadata(schema, declarations)
   let terms = source.terms.map(term => lower_cps_top_term(schema, source, term))

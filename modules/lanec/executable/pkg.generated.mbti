@@ -4,7 +4,7 @@ package "Milky2018/lanec/executable"
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/core_opt",
-  "Milky2018/lanec/effect_lowering/core",
+  "Milky2018/lanec/effect_lowering",
   "Milky2018/lanec/effect_specialization",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module/link",
@@ -25,7 +25,7 @@ pub(all) suberror ExecutableElaborationError {
   UnsupportedEffectSpecialization(detail~ : String)
   EffectSpecializationCompilerDefect(@effect_specialization.SpecializationError)
   CoreOptimizationError(@core_opt.CoreOptimizeError)
-  EffectLoweringError(@core.SynthesisError)
+  EffectLoweringError(@effect_lowering.SynthesisError)
   UnverifiedProgram(stage~ : String, result~ : @buslane.VerifyResult)
 } derive(Eq, @debug.Debug)
 
@@ -40,10 +40,7 @@ pub(all) enum EntryAdmissionFailure {
 pub(all) enum ExecutableElaborationStage {
   EffectSpecialized(@buslane.Program)
   CoreOptimized(@buslane.Program)
-  HandlersElaborated(@core.Program)
-  MonadicTransformed(@core.Program)
-  SelectiveCpsRewritten(@core.Program)
-  OpenContextsResolved(@core.Program)
+  EffectLowering(@effect_lowering.EffectLoweringSnapshot)
   MonadicContinuationsLifted(@buslane.Program)
   CpsCoreOptimized(@buslane.Program)
 }

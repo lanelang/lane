@@ -168,41 +168,7 @@ test "selective CPS preserves Io on mixed callable and continuation types" {
   debug_inspect(
     output.terms[1],
     content=(
-      #|LetRec(
-      #|  [
-      #|    {
-      #|      id: { index: 1 },
-      #|      rhs: TypeLambda(
-      #|        [{ index: 2 }, { index: 3 }],
-      #|        Function(
-      #|          {
-      #|            parameters: [{ index: 3 }, { index: 4 }],
-      #|            result_type: Parameter({ index: 2 }),
-      #|            body: Let(
-      #|              { index: 2 },
-      #|              Call(Ref({ index: 0 }), [Literal(String("before"))]),
-      #|              Match(
-      #|                {
-      #|                  scrutinee: Ref({ index: 3 }),
-      #|                  binder: { index: 5 },
-      #|                  result_type: Parameter({ index: 2 }),
-      #|                  alternatives: [
-      #|                    {
-      #|                      alt_constructor: DataCon({ index: 0 }),
-      #|                      type_binders: [],
-      #|                      value_binders: [{ index: 6 }],
-      #|                      body: Call(Ref({ index: 6 }), [Ref({ index: 4 })]),
-      #|                    },
-      #|                  ],
-      #|                },
-      #|              ),
-      #|            ),
-      #|          },
-      #|        ),
-      #|      ),
-      #|    },
-      #|  ],
-      #|)
+      #|"letrec {\n  value#1 = fn[tparam#2, tparam#3] {\n    fn(value#3, value#4) -> tparam#2 {\n      let value#2 = value#0(\"before\") in\n      match value#3 as value#5 -> tparam#2 {\n        datacon#0(value#6) => value#6(value#4)\n      }\n    }\n  }\n}"
     ),
   )
 }
@@ -483,10 +449,7 @@ test "direct CPS lowering uses precommitted local binding metadata" {
     ],
   }
   let schema = build_dictionary_cps_schema_or_raise(metadata)
-  rewrite_cps_source_metadata(
-    schema,
-    @effect_lowering_core.collect_program_declarations(source),
-  )
+  rewrite_cps_source_metadata(schema, collect_program_declarations(source))
   let lowered = lower_cps_direct_expr(schema, source, body, None)
   guard lowered
     is Let(_, TypeLambda([answer, residual], Function(transformed)), _) else {
@@ -624,10 +587,7 @@ test "callable shape divergence reports the originating binding" {
     terms: [LetRec([{ id: binding, rhs: initializer }])],
   }
   let schema = build_dictionary_cps_schema_or_raise(metadata)
-  rewrite_cps_source_metadata(
-    schema,
-    @effect_lowering_core.collect_program_declarations(source),
-  )
+  rewrite_cps_source_metadata(schema, collect_program_declarations(source))
   let planned_type = metadata.value_info(binding).unwrap().type_
   let info = metadata.values[binding.index]
   metadata.values[binding.index] = {

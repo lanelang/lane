@@ -53,6 +53,6 @@ pub(all) suberror ExecutableElaborationError {
   UnsupportedEffectSpecialization(detail~ : String)
   EffectSpecializationCompilerDefect(@effect_specialization.SpecializationError)
   CoreOptimizationError(@core_opt.CoreOptimizeError)
-  EffectLoweringError(@effect_lowering_core.SynthesisError)
+  EffectLoweringError(@effect_lowering.SynthesisError)
   UnverifiedProgram(stage~ : String, result~ : @buslane.VerifyResult)
 } derive(Debug, Eq)

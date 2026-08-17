@@ -356,30 +356,15 @@ fn executable_stage(
         render_buslane_code(program),
         buslane_scale(program),
       )
-    HandlersElaborated(program) =>
-      (
-        BuslaneHandlersElaborated,
-        render_effect_lowering_code(program),
-        effect_lowering_scale(program),
-      )
-    MonadicTransformed(program) =>
-      (
-        BuslaneMonadic,
-        render_effect_lowering_code(program),
-        effect_lowering_scale(program),
-      )
-    SelectiveCpsRewritten(program) =>
-      (
-        BuslaneSelectiveCps,
-        render_effect_lowering_code(program),
-        effect_lowering_scale(program),
-      )
-    OpenContextsResolved(program) =>
-      (
-        BuslaneOpenContextResolved,
-        render_effect_lowering_code(program),
-        effect_lowering_scale(program),
-      )
+    EffectLowering(snapshot) => {
+      let stage = match snapshot.stage {
+        HandlersElaborated => BuslaneHandlersElaborated
+        MonadicTransformed => BuslaneMonadic
+        SelectiveCpsRewritten => BuslaneSelectiveCps
+        OpenContextsResolved => BuslaneOpenContextResolved
+      }
+      (stage, snapshot.text, effect_lowering_snapshot_scale(snapshot.scale))
+    }
     MonadicContinuationsLifted(program) =>
       (
         BuslaneMonadicLifted,

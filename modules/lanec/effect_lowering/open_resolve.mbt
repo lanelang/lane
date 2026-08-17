@@ -1,13 +1,4 @@
 ///|
-pub fn resolve_open_contexts(
-  program : Program,
-) -> Result[Program, SynthesisError] {
-  Ok(resolve_open_contexts_or_raise(program)) catch {
-    error => Err(error)
-  }
-}
-
-///|
 fn resolve_open_contexts_or_raise(
   program : Program,
 ) -> Program raise SynthesisError {
@@ -114,15 +105,6 @@ fn require_open_contexts(
     if !found {
       raise MissingEffectContext(required)
     }
-  }
-}
-
-///|
-pub fn validate_open_resolve_output(
-  program : Program,
-) -> Result[Unit, SynthesisError] {
-  Ok(validate_open_resolve_output_or_raise(program)) catch {
-    error => Err(error)
   }
 }
 

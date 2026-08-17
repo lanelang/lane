@@ -1,9 +1,10 @@
 import {
   "Milky2018/buslane",
-  "Milky2018/lanec/effect_lowering/core" @effect_lowering_core,
+  "Milky2018/lanec/pretty",
+  "moonbit-community/prettyprinter",
 }
 
 import {
-  "Milky2018/lanec/anf",
   "Milky2018/buslane/interpreter" @buslane_interpreter,
+  "Milky2018/lanec/anf",
 } for "wbtest"

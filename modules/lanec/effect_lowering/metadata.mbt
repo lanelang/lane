@@ -9,7 +9,7 @@
 /// constructor in the family are committed together.
 fn rewrite_cps_source_metadata(
   schema : DictionaryCpsSchema,
-  declarations : @effect_lowering_core.ProgramDeclarations,
+  declarations : ProgramDeclarations,
 ) -> Unit raise SynthesisError {
   for type_id in declarations.type_ids() {
     let info = schema.metadata.types[type_id.index]

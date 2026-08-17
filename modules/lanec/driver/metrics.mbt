@@ -115,114 +115,17 @@ fn observe_buslane_expr(
 }
 
 ///|
-fn effect_lowering_scale(
-  program : @effect_lowering_core.Program,
+fn effect_lowering_snapshot_scale(
+  scale : @effect_lowering.EffectLoweringScale,
 ) -> ExploreScaleObservation {
-  let accumulator : TreeScaleAccumulator = { function_count: 0, call_count: 0 }
-  let mut nodes = 0
-  for term in program.terms {
-    nodes += 1
-    match term {
-      Let(_, expression) =>
-        nodes += observe_effect_lowering_expr(expression, accumulator)
-      LetRec(bindings) =>
-        for binding in bindings {
-          nodes += 1 + observe_effect_lowering_expr(binding.rhs, accumulator)
-        }
-      External(_) => ()
-    }
-  }
   {
     metrics: [
-      metric(TopTermCount, program.terms.length()),
-      metric(FunctionCount, accumulator.function_count),
-      metric(NodeCount, nodes),
-      metric(CallCount, accumulator.call_count),
+      metric(TopTermCount, scale.top_terms),
+      metric(FunctionCount, scale.functions),
+      metric(NodeCount, scale.nodes),
+      metric(CallCount, scale.calls),
     ],
     functions: [],
-  }
-}
-
-///|
-fn observe_effect_function(
-  function : @effect_lowering_core.FunctionExpr,
-  accumulator : TreeScaleAccumulator,
-) -> Int {
-  let body_nodes = observe_effect_lowering_expr(function.body, accumulator)
-  accumulator.function_count += 1
-  body_nodes
-}
-
-///|
-fn observe_effect_lowering_expr(
-  expression : @effect_lowering_core.Expr,
-  accumulator : TreeScaleAccumulator,
-) -> Int {
-  match expression {
-    Ref(_) | Literal(_) => 1
-    Function(function) => 1 + observe_effect_function(function, accumulator)
-    Call(callee, arguments) => {
-      accumulator.call_count += 1
-      1 +
-      observe_effect_lowering_expr(callee, accumulator) +
-      arguments.fold(init=0, fn(total, argument) {
-        total + observe_effect_lowering_expr(argument, accumulator)
-      })
-    }
-    TypeLambda(_, body) | TypeApply(body, _) =>
-      1 + observe_effect_lowering_expr(body, accumulator)
-    Construct(construct) =>
-      1 +
-      construct.payloads.fold(init=0, fn(total, payload) {
-        total + observe_effect_lowering_expr(payload, accumulator)
-      })
-    Let(_, initializer, body) =>
-      1 +
-      observe_effect_lowering_expr(initializer, accumulator) +
-      observe_effect_lowering_expr(body, accumulator)
-    LetRec(bindings, body) => {
-      let mut nodes = 1 + observe_effect_lowering_expr(body, accumulator)
-      for binding in bindings {
-        nodes += 1 + observe_effect_lowering_expr(binding.rhs, accumulator)
-      }
-      nodes
-    }
-    Match(match_) => {
-      let mut nodes = 1 +
-        observe_effect_lowering_expr(match_.scrutinee, accumulator)
-      for alternative in match_.alternatives {
-        nodes += 1 + observe_effect_lowering_expr(alternative.body, accumulator)
-      }
-      nodes
-    }
-    Invoke(invoke) =>
-      1 +
-      invoke.payloads.fold(init=0, fn(total, payload) {
-        total + observe_effect_lowering_expr(payload, accumulator)
-      })
-    Install(install) => {
-      let mut nodes = 1 +
-        observe_effect_lowering_expr(install.body, accumulator) +
-        1 +
-        observe_effect_function(install.final_clause, accumulator)
-      for dictionary in install.dictionaries {
-        nodes += 1
-        for operation in dictionary.operations {
-          let callable_nodes = match operation.callable {
-            Monomorphic(function) | Polymorphic(_, function) =>
-              observe_effect_function(function, accumulator)
-          }
-          nodes += 2 + callable_nodes
-        }
-      }
-      nodes
-    }
-    Bind(bind) =>
-      2 +
-      observe_effect_lowering_expr(bind.computation, accumulator) +
-      observe_effect_function(bind.continuation, accumulator)
-    OpenContext(context) =>
-      1 + observe_effect_lowering_expr(context.body, accumulator)
   }
 }
 

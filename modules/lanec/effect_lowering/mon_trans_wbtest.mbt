@@ -16,7 +16,9 @@ test "mon-trans keeps pure calls direct" {
     Function([Primitive(I64)], Primitive(I64), Empty),
   )
   let input = test_program(metadata, Call(Ref(callee), [Literal(I64(1L))]))
-  assert_eq(introduce_monadic_binds(input), Ok(input))
+  let output = introduce_monadic_binds(input).unwrap()
+  assert_eq(output.metadata, input.metadata)
+  assert_eq(output.terms, input.terms)
 }
 
 ///|
@@ -36,7 +38,9 @@ test "mon-trans keeps Io calls direct" {
       Literal(I64(1L)),
     ),
   )
-  assert_eq(introduce_monadic_binds(input), Ok(input))
+  let output = introduce_monadic_binds(input).unwrap()
+  assert_eq(output.metadata, input.metadata)
+  assert_eq(output.terms, input.terms)
 }
 
 ///|
@@ -63,13 +67,6 @@ test "mon effect classification separates Io from handled effects" {
     ),
     Singleton(handled, []),
   )
-  assert_eq(
-    residual_effect_part(
-      metadata,
-      Union([Builtin(Io), Singleton(external, []), Singleton(handled, [])]),
-    ),
-    Union([Builtin(Io), Singleton(external, [])]),
-  )
   debug_inspect(
     (
       metadata.effect_info(handled).map(info => info.flavor),
@@ -87,7 +84,9 @@ test "mon-trans keeps pure sequencing direct" {
     metadata,
     Let(local_value, Literal(I64(1L)), Ref(local_value)),
   )
-  assert_eq(introduce_monadic_binds(input), Ok(input))
+  let output = introduce_monadic_binds(input).unwrap()
+  assert_eq(output.metadata, input.metadata)
+  assert_eq(output.terms, input.terms)
 }
 
 ///|

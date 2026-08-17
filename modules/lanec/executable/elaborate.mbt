@@ -16,10 +16,7 @@ pub fn elaborate(
 pub(all) enum ExecutableElaborationStage {
   EffectSpecialized(@buslane.Program)
   CoreOptimized(@buslane.Program)
-  HandlersElaborated(@effect_lowering_core.Program)
-  MonadicTransformed(@effect_lowering_core.Program)
-  SelectiveCpsRewritten(@effect_lowering_core.Program)
-  OpenContextsResolved(@effect_lowering_core.Program)
+  EffectLowering(@effect_lowering.EffectLoweringSnapshot)
   MonadicContinuationsLifted(@buslane.Program)
   CpsCoreOptimized(@buslane.Program)
 }
@@ -99,28 +96,11 @@ fn lower_effects(
   entry : @buslane.ValueId,
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> @buslane.Program raise ExecutableElaborationError {
-  let elaborated = @effect_lowering_core.elaborate_handlers(program)
-  require_extended_verified("handler elaboration", elaborated)
-  observe(HandlersElaborated(elaborated))
-  let bound = unwrap_effect_lowering(
-    @effect_lowering_core.introduce_monadic_binds(elaborated),
-  )
-  require_extended_verified("monadic transformation", bound)
-  observe(MonadicTransformed(bound))
-  let transformed = unwrap_effect_lowering(
-    @effect_lowering_cps.rewrite_selective_cps_abis(bound),
-  )
-  require_extended_verified("selective CPS", transformed)
-  observe(SelectiveCpsRewritten(transformed))
-  let resolved = unwrap_effect_lowering(
-    @effect_lowering_core.resolve_open_contexts(transformed),
-  )
-  require_extended_verified("open-context resolution", resolved)
-  observe(OpenContextsResolved(resolved))
   let lifted = unwrap_effect_lowering(
-    @effect_lowering_core.lift_monadic_continuations(resolved),
+    @effect_lowering.lower_effects(program, snapshot => {
+      observe(EffectLowering(snapshot))
+    }),
   )
-  require_verified("monadic-lift", lifted)
   observe(MonadicContinuationsLifted(lifted))
   let initializer_roots = collect_reachable_initializer_roots(lifted, entry)
   let optimized = match
@@ -135,7 +115,7 @@ fn lower_effects(
 
 ///|
 fn[T] unwrap_effect_lowering(
-  result : Result[T, @effect_lowering_core.SynthesisError],
+  result : Result[T, @effect_lowering.SynthesisError],
 ) -> T raise ExecutableElaborationError {
   match result {
     Ok(value) => value
@@ -246,19 +226,6 @@ fn require_verified(
   program : @buslane.Program,
 ) -> Unit raise ExecutableElaborationError {
   let result = @buslane.verify_program(program)
-  if !result.is_ok() {
-    raise UnverifiedProgram(stage~, result~)
-  }
-}
-
-///|
-fn require_extended_verified(
-  stage : String,
-  program : @effect_lowering_core.Program,
-) -> Unit raise ExecutableElaborationError {
-  let result = unwrap_effect_lowering(
-    @effect_lowering_core.verify_program(program),
-  )
   if !result.is_ok() {
     raise UnverifiedProgram(stage~, result~)
   }

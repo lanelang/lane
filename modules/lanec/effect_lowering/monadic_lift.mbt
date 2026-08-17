@@ -1,13 +1,4 @@
 ///|
-pub fn lift_monadic_continuations(
-  program : Program,
-) -> Result[@buslane.Program, SynthesisError] {
-  Ok(lift_monadic_continuations_or_raise(program)) catch {
-    error => Err(error)
-  }
-}
-
-///|
 fn lift_monadic_continuations_or_raise(
   program : Program,
 ) -> @buslane.Program raise SynthesisError {

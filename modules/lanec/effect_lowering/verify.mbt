@@ -1,20 +1,4 @@
 ///|
-/// Verifies the compiler-private effect-lowering IR with Buslane's type
-/// checker.
-///
-/// The extended forms are reified as their typed Buslane semantics, while the
-/// ordinary forms are preserved exactly. The metadata snapshot only owns
-/// synthetic local binders used to make effect annotations visible to the
-/// verifier; the source program is not mutated.
-pub fn verify_program(
-  program : Program,
-) -> Result[@buslane.VerifyResult, SynthesisError] {
-  Ok(verify_program_or_raise(program)) catch {
-    error => Err(error)
-  }
-}
-
-///|
 fn verify_program_or_raise(
   program : Program,
 ) -> @buslane.VerifyResult raise SynthesisError {

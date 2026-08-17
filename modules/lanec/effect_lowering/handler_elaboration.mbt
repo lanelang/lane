@@ -1,5 +1,5 @@
 ///|
-pub fn elaborate_handlers(program : @buslane.Program) -> Program {
+fn elaborate_handlers(program : @buslane.Program) -> Program {
   { metadata: program.metadata, terms: program.terms.map(elaborate_top_term) }
 }
 

@@ -1,0 +1,95 @@
+///|
+/// A verified seam in the effect-lowering pipeline. Only the input and CPS Core
+/// output are public IRs; the middle variants identify private snapshot points.
+pub(all) enum EffectLoweringVerificationStage {
+  Input
+  HandlerElaboration
+  MonadicTransformation
+  SelectiveCpsRewrite
+  OpenContextResolution
+  CpsCore
+} derive(Debug, Eq)
+
+///|
+/// A private transformation point that may be observed after verification.
+pub(all) enum EffectLoweringSnapshotStage {
+  HandlersElaborated
+  MonadicTransformed
+  SelectiveCpsRewritten
+  OpenContextsResolved
+} derive(Debug, Eq)
+
+///|
+/// Stable aggregate facts owned by the private transitional representation.
+pub(all) struct EffectLoweringScale {
+  top_terms : Int
+  functions : Int
+  nodes : Int
+  calls : Int
+} derive(Debug, Eq)
+
+///|
+/// A read-only observation of a verified private stage. It deliberately carries
+/// no constructible transitional AST.
+pub(all) struct EffectLoweringSnapshot {
+  stage : EffectLoweringSnapshotStage
+  text : String
+  scale : EffectLoweringScale
+} derive(Debug, Eq)
+
+///|
+/// Lowers verified effect-aware Buslane into verified effect-aware CPS Core.
+/// Every private stage is checked before its snapshot is reported.
+pub fn lower_effects(
+  program : @buslane.Program,
+  observe : (EffectLoweringSnapshot) -> Unit,
+) -> Result[@buslane.Program, SynthesisError] {
+  Ok(lower_effects_or_raise(program, observe)) catch {
+    error => Err(error)
+  }
+}
+
+///|
+fn lower_effects_or_raise(
+  program : @buslane.Program,
+  observe : (EffectLoweringSnapshot) -> Unit,
+) -> @buslane.Program raise SynthesisError {
+  require_buslane_program(Input, program)
+  let elaborated = elaborate_handlers(program)
+  require_transitional_program(HandlerElaboration, elaborated)
+  observe(effect_lowering_snapshot(HandlersElaborated, elaborated))
+  let bound = introduce_monadic_binds_or_raise(elaborated)
+  require_transitional_program(MonadicTransformation, bound)
+  observe(effect_lowering_snapshot(MonadicTransformed, bound))
+  let transformed = rewrite_selective_cps_abis_or_raise(bound)
+  require_transitional_program(SelectiveCpsRewrite, transformed)
+  observe(effect_lowering_snapshot(SelectiveCpsRewritten, transformed))
+  let resolved = resolve_open_contexts_or_raise(transformed)
+  require_transitional_program(OpenContextResolution, resolved)
+  observe(effect_lowering_snapshot(OpenContextsResolved, resolved))
+  let lifted = lift_monadic_continuations_or_raise(resolved)
+  require_buslane_program(CpsCore, lifted)
+  lifted
+}
+
+///|
+fn require_transitional_program(
+  stage : EffectLoweringVerificationStage,
+  program : Program,
+) -> Unit raise SynthesisError {
+  let result = verify_program_or_raise(program)
+  if !result.is_ok() {
+    raise InvalidProgram(stage~, result~)
+  }
+}
+
+///|
+fn require_buslane_program(
+  stage : EffectLoweringVerificationStage,
+  program : @buslane.Program,
+) -> Unit raise SynthesisError {
+  let result = @buslane.verify_program(program)
+  if !result.is_ok() {
+    raise InvalidProgram(stage~, result~)
+  }
+}

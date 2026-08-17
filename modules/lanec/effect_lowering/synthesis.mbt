@@ -1,8 +1,8 @@
 ///|
-pub(all) struct ExprFacts {
+priv struct ExprFacts {
   type_ : @buslane.Type
   effect : @buslane.Effect
-} derive(Debug, Eq)
+}
 
 ///|
 fn[T] normalization_or_synthesis_defect(
@@ -15,6 +15,10 @@ fn[T] normalization_or_synthesis_defect(
 
 ///|
 pub(all) suberror SynthesisError {
+  InvalidProgram(
+    stage~ : EffectLoweringVerificationStage,
+    result~ : @buslane.VerifyResult
+  )
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
   UnknownValue(@buslane.ValueId)
@@ -79,17 +83,7 @@ fn canonicalize_effect(
 }
 
 ///|
-pub fn synthesize_expr(
-  program : Program,
-  expression : Expr,
-) -> Result[ExprFacts, SynthesisError] {
-  Ok(synthesize_expr_or_raise(program.metadata, expression)) catch {
-    error => Err(error)
-  }
-}
-
-///|
-pub fn synthesize_expr_or_raise(
+fn synthesize_expr_or_raise(
   metadata : @buslane.MetadataRegistry,
   expression : Expr,
 ) -> ExprFacts raise SynthesisError {
@@ -341,7 +335,7 @@ fn callable_latent_effect(
 }
 
 ///|
-pub fn value_type(
+fn value_type(
   metadata : @buslane.MetadataRegistry,
   id : @buslane.ValueId,
 ) -> @buslane.Type raise SynthesisError {
@@ -389,7 +383,7 @@ fn effect_union(
 }
 
 ///|
-pub fn effect_terms(
+fn effect_terms(
   metadata : @buslane.MetadataRegistry,
   effect : @buslane.Effect,
 ) -> Array[@buslane.Effect] raise SynthesisError {
@@ -422,7 +416,7 @@ fn remove_handled_effects(
 }
 
 ///|
-pub fn require_arity(expected : Int, actual : Int) -> Unit raise SynthesisError {
+fn require_arity(expected : Int, actual : Int) -> Unit raise SynthesisError {
   if expected != actual {
     raise ArityMismatch(expected~, actual~)
   }

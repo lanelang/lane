@@ -1,0 +1,75 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/effect_lowering"
+
+import {
+  "Milky2018/buslane",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn lower_effects(@buslane.Program, (EffectLoweringSnapshot) -> Unit) -> Result[@buslane.Program, SynthesisError]
+
+// Errors
+pub(all) suberror SynthesisError {
+  InvalidProgram(stage~ : EffectLoweringVerificationStage, result~ : @buslane.VerifyResult)
+  TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
+  MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
+  UnknownValue(@buslane.ValueId)
+  UnknownType(@buslane.TypeId)
+  UnknownTypeParameter(@buslane.TypeParameterId)
+  UnknownDataConstructor(@buslane.DataConId)
+  UnknownEffect(@buslane.EffectId)
+  UnknownOperation(@buslane.OperationId)
+  ExpectedFunction(@buslane.Type)
+  ExpectedForall(@buslane.Type)
+  ExpectedKindFunction(@buslane.Kind)
+  ArityMismatch(expected~ : Int, actual~ : Int)
+  EffectfulTypeLambda(@buslane.Effect)
+  EffectfulRecursiveBinding(@buslane.ValueId, @buslane.Effect)
+  MissingEffectContext(@buslane.Effect)
+  MissingOperationClause(@buslane.OperationId)
+  ResidualInvoke(@buslane.OperationId)
+  ResidualInstall
+  ResidualBind
+  ResidualEffectParameter(@buslane.TypeParameterId)
+  ResidualEffectArgument(@buslane.Effect)
+  ResidualLatentEffect(@buslane.Effect)
+  ConcreteOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
+  ResidualOpenContext(source~ : @buslane.Effect, target~ : @buslane.Effect)
+  UnsupportedTopLevelEffect(@buslane.Effect)
+  BindingTypeMismatch(value~ : @buslane.ValueId, expected~ : @buslane.Type, actual~ : @buslane.Type)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) struct EffectLoweringScale {
+  top_terms : Int
+  functions : Int
+  nodes : Int
+  calls : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) struct EffectLoweringSnapshot {
+  stage : EffectLoweringSnapshotStage
+  text : String
+  scale : EffectLoweringScale
+} derive(Eq, @debug.Debug)
+
+pub(all) enum EffectLoweringSnapshotStage {
+  HandlersElaborated
+  MonadicTransformed
+  SelectiveCpsRewritten
+  OpenContextsResolved
+} derive(Eq, @debug.Debug)
+
+pub(all) enum EffectLoweringVerificationStage {
+  Input
+  HandlerElaboration
+  MonadicTransformation
+  SelectiveCpsRewrite
+  OpenContextResolution
+  CpsCore
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

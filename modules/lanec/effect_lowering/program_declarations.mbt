@@ -8,32 +8,32 @@
 
 ///|
 /// The declarations a program mentions.
-pub(all) struct ProgramDeclarations {
-  priv metadata : @buslane.MetadataRegistry
-  priv value_ids : Array[@buslane.ValueId]
-  priv type_ids : Array[@buslane.TypeId]
-  priv data_constructor_ids : Array[@buslane.DataConId]
-  priv seen_values : Array[Bool]
-  priv seen_types : Array[Bool]
-  priv seen_data_constructors : Array[Bool]
+priv struct ProgramDeclarations {
+  metadata : @buslane.MetadataRegistry
+  value_ids : Array[@buslane.ValueId]
+  type_ids : Array[@buslane.TypeId]
+  data_constructor_ids : Array[@buslane.DataConId]
+  seen_values : Array[Bool]
+  seen_types : Array[Bool]
+  seen_data_constructors : Array[Bool]
 }
 
 ///|
-pub fn ProgramDeclarations::value_ids(
+fn ProgramDeclarations::value_ids(
   self : ProgramDeclarations,
 ) -> Array[@buslane.ValueId] {
   self.value_ids.copy()
 }
 
 ///|
-pub fn ProgramDeclarations::data_constructor_ids(
+fn ProgramDeclarations::data_constructor_ids(
   self : ProgramDeclarations,
 ) -> Array[@buslane.DataConId] {
   self.data_constructor_ids.copy()
 }
 
 ///|
-pub fn ProgramDeclarations::type_ids(
+fn ProgramDeclarations::type_ids(
   self : ProgramDeclarations,
 ) -> Array[@buslane.TypeId] {
   self.type_ids.copy()
@@ -41,7 +41,7 @@ pub fn ProgramDeclarations::type_ids(
 
 ///|
 /// Collects every value and transitive nominal declaration the program names.
-pub fn collect_program_declarations(program : Program) -> ProgramDeclarations {
+fn collect_program_declarations(program : Program) -> ProgramDeclarations {
   let declarations = ProgramDeclarations::{
     metadata: program.metadata,
     value_ids: [],

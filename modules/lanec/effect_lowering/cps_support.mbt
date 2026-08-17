@@ -76,13 +76,3 @@ fn cps_canonicalize_effect(
     metadata.canonicalize_effect(effect)
   })
 }
-
-///|
-fn validate_mon_trans_output_or_raise(
-  program : Program,
-) -> Unit raise SynthesisError {
-  match @effect_lowering_core.validate_mon_trans_output(program) {
-    Ok(_) => ()
-    Err(error) => raise error
-  }
-}

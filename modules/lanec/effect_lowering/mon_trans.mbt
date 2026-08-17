@@ -5,15 +5,6 @@ priv enum ExprContinuation {
 }
 
 ///|
-pub fn introduce_monadic_binds(
-  program : Program,
-) -> Result[Program, SynthesisError] {
-  Ok(introduce_monadic_binds_or_raise(program)) catch {
-    error => Err(error)
-  }
-}
-
-///|
 fn introduce_monadic_binds_or_raise(
   program : Program,
 ) -> Program raise SynthesisError {
