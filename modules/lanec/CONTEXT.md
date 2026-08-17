@@ -14,9 +14,19 @@ artifacts.
 _Avoid_: CLI tool, runtime, Basic library
 
 **Source Elaboration**:
-Resolution, local type inference, contextual argument insertion, and checking
-that produces checked source.
-_Avoid_: parsing alone, Buslane verification
+The single compiler operation that consumes one Parsed Module, its Module
+Import Environments, a Symbol Registry, and optional previous Declaration
+Identities. It owns resolution, local type inference, contextual argument
+insertion, checking, Module Interface certification, exported symbol metadata,
+linting, and their diagnostics. Its outcome explicitly distinguishes resolution
+failure, typecheck failure, complete success, and a structured compiler defect.
+_Avoid_: batch source checker, workspace source checker, initialization ordering, persistent fingerprinting
+
+**Successful Source Elaboration**:
+The inseparable source-order semantic result containing matching Resolved
+Source, Checked Source, certified Module Interface, exported symbol metadata,
+and warnings. Batch compilation and Semantic Workspace consume this same value.
+_Avoid_: optional checked source, separately reconstructed interface, initialization-ordered source
 
 **Checked Source**:
 The source-shaped semantic representation with resolved identities, explicit

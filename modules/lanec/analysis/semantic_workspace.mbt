@@ -556,10 +556,7 @@ fn module_import_environments(
   let pool = []
   for _, cached in modules {
     if cached.last_successful_interface is Some(interface) {
-      pool.push({
-        ..interface.interface,
-        source_id: Some(cached.input.source_id),
-      })
+      pool.push(interface.interface)
     }
   }
   @module_interface.ModuleImportEnvironments::from_pool(
@@ -652,98 +649,46 @@ fn build_cached_semantic_module(
   let previous_declarations = previous.map(fn(previous) {
     previous.index.registry.declaration_identities()
   })
-  let resolved = @resolve.resolve_source_file_with_imports_result(
-    input.source,
+  let elaborated = @source_elaboration.elaborate_source(
+    input,
     registry,
-    imports.available,
+    imports,
     previous_declarations~,
   )
-  let display = @typecheck.TypeDisplayContext::from_registry(registry)
-  let diagnostics = resolved.diagnostics.map(fn(diagnostic) {
-    resolve_diagnostic(diagnostic, display).with_source_id(input.source_id)
-  })
-  let checked = if resolved.diagnostics.is_empty() {
-    match
-      @typecheck.typecheck_checked_source_file_with_imported_environment(
-        resolved.source,
-        imports.typecheck_environment(),
-      ) {
-      Ok(checked) => Some(checked)
-      Err(error) => {
-        diagnostics.push(
-          @compiler_diag.compiler_error(
-            "internal compiler error while checking resolved source",
-            span=None,
-            code=Some("E4599"),
-            labels=[],
-            notes=[
-              "the resolver/typechecker phase contract failed: \{Repr(error)}",
-            ],
-            helps=["report this compiler defect with the input module sources"],
-          ).with_source_id(input.source_id),
-        )
-        None
-      }
-    }
-  } else {
-    None
-  }
-  let mut checked_source = None
-  let mut last_successful_interface = None
-  if checked is Some(checked) {
-    diagnostics.append(
-      checked.diagnostics.map(fn(diagnostic) {
-        typecheck_diagnostic(diagnostic, display).with_source_id(
-          input.source_id,
-        )
-      }),
-    )
-    if checked.diagnostics.is_empty() {
-      checked_source = checked.source
-      if checked.module_interface is Some(interface) {
-        let presentation_fingerprint = interface.presentation_fingerprint()
-        last_successful_interface = Some({
+  let resolved = elaborated.resolved_source()
+  let display = @typecheck.TypeDisplayContext::from_registry(resolved.symbols)
+  let (checked_source, last_successful_interface) = match elaborated {
+    Succeeded(success) => {
+      let interface = success.module_interface()
+      (
+        Some(success.checked_source()),
+        Some({
           interface,
-          presentation_fingerprint,
-          symbols: interface.exported_symbol_metadata(resolved.source.symbols),
-        })
-      }
+          presentation_fingerprint: interface.presentation_fingerprint(),
+          symbols: success.exported_symbols(),
+        }),
+      )
     }
+    _ => (None, None)
   }
   let index = SemanticIndex::from_sources(
-    resolved.source,
+    resolved,
     checked_source,
     imports,
     display,
     input.source_id,
     input.text,
   )
-  if checked_source is Some(source) {
-    diagnostics.append(
-      @lint.checked_unused_local_value_binding_diagnostics(
-        source,
-        registry,
-        input.text,
-      ).map(fn(diagnostic) { diagnostic.with_source_id(input.source_id) }),
-    )
-    diagnostics.append(
-      @lint.checked_semantic_warning_diagnostics(
-        resolved.source,
-        source,
-        input.text,
-      ).map(fn(diagnostic) { diagnostic.with_source_id(input.source_id) }),
-    )
-  }
   {
     input,
     completion_source: CompletionSource::from_input(input),
     imports,
     index,
-    diagnostics,
+    diagnostics: elaborated.diagnostics(),
     semantic_tokens: build_semantic_tokens(
       index.definitions,
       index.references,
-      registry,
+      resolved.symbols,
     ),
     last_successful_interface,
   }

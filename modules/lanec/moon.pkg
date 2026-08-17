@@ -1,4 +1,6 @@
 import {
+  "Milky2018/lanec/analysis",
   "Milky2018/lanec/compile",
+  "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/driver",
 } for "test"

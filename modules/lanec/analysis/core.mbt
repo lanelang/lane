@@ -1,4 +1,7 @@
 ///|
+using @compiler_diag {type CompilerDiagnostic}
+
+///|
 pub(all) enum AnalysisSymbol {
   Value(@symbol.ValueSymbolId)
   Type(@symbol.TypeSymbolId)

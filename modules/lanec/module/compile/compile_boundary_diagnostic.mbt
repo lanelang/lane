@@ -2,8 +2,6 @@
 priv enum CompileBoundaryDiagnosticKind {
   InitializationCycle(names~ : Array[String])
   CompiledModuleSetMissingRoot
-  CheckedSourceConstructionFailed
-  TypecheckInvalidInputMetadata(@typecheck.TypeCheckError)
 }
 
 ///|
@@ -75,27 +73,11 @@ fn buslane_lowering_diagnostic(
 }
 
 ///|
-fn typecheck_invalid_input_metadata_diagnostic(
-  error : @typecheck.TypeCheckError,
-) -> CompilerDiagnostic {
-  compile_report(
-    "internal compiler error while checking resolved source",
-    None,
-    code="E4599",
-    label="type checking received invalid resolved metadata",
-    note="the resolver/typechecker phase contract failed: \{Repr(error)}",
-    help="report this compiler defect with the input module sources",
-  )
-}
-
-///|
 impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn to_compiler_diagnostic(
   diagnostic_ : CompileBoundaryDiagnostic,
   _context : @compiler_diag.DiagnosticContext,
 ) -> CompilerDiagnostic {
   match diagnostic_.kind {
-    TypecheckInvalidInputMetadata(error) =>
-      typecheck_invalid_input_metadata_diagnostic(error)
     InitializationCycle(names~) =>
       compile_report(
         "initialization cycle between `\{names.join("`, `")}`",
@@ -113,15 +95,6 @@ impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn t
         label="the compiled module set does not contain its declared root",
         note="Module Graph validation guarantees that the root is compiled exactly once",
         help="report this compiler defect with the input module sources",
-      )
-    CheckedSourceConstructionFailed =>
-      compile_report(
-        "compiler produced no checked source",
-        diagnostic_.span,
-        code="E4500",
-        label="checked source construction failed",
-        note="type checking finished without a checked source tree",
-        help="report this as a compiler bug with the input that triggered it",
       )
   }
 }
