@@ -1,15 +1,14 @@
 ///|
 priv enum CompileBoundaryDiagnosticKind {
-  NoRootSourceModule
-  MissingImportWithCandidates(
-    module_~ : String,
-    source_modules~ : Array[String],
-    interface_modules~ : Array[String]
-  )
-  ImportCycle(String)
   InitializationCycle(names~ : Array[String])
+  CompiledModuleSetMissingRoot
   CheckedSourceConstructionFailed
   TypecheckInvalidInputMetadata(@typecheck.TypeCheckError)
+}
+
+///|
+pub fn compiled_module_set_missing_root_diagnostic() -> CompilerDiagnostic {
+  compile_boundary_diagnostic(CompiledModuleSetMissingRoot, None)
 }
 
 ///|
@@ -28,11 +27,6 @@ fn compile_boundary_diagnostic(
     diagnostic,
     DiagnosticContext(),
   )
-}
-
-///|
-pub fn no_root_source_module_diagnostic() -> CompilerDiagnostic {
-  compile_boundary_diagnostic(NoRootSourceModule, None)
 }
 
 ///|
@@ -100,33 +94,8 @@ impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn t
   _context : @compiler_diag.DiagnosticContext,
 ) -> CompilerDiagnostic {
   match diagnostic_.kind {
-    NoRootSourceModule =>
-      compile_report(
-        "no root source module",
-        diagnostic_.span,
-        code="E4000",
-        label="the compiler did not receive a root Lane module",
-        note="Lane compile/check needs exactly one root source module",
-        help="pass a source file that starts with a `module` declaration",
-      )
     TypecheckInvalidInputMetadata(error) =>
       typecheck_invalid_input_metadata_diagnostic(error)
-    MissingImportWithCandidates(module_~, source_modules~, interface_modules~) =>
-      missing_import_diagnostic(
-        module_,
-        diagnostic_.span,
-        source_modules,
-        interface_modules,
-      )
-    ImportCycle(module_) =>
-      compile_report(
-        "import cycle involving `\{module_}`",
-        diagnostic_.span,
-        code="E4003",
-        label="module imports must form an acyclic graph",
-        note="cyclic module dependencies cannot be typechecked in a stable order",
-        help="move shared declarations into a separate module imported by both sides",
-      )
     InitializationCycle(names~) =>
       compile_report(
         "initialization cycle between `\{names.join("`, `")}`",
@@ -135,6 +104,15 @@ impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn t
         label="this initializer depends on its own value",
         note="a top-level value is initialized after every value its initializer reads, directly or through the functions it calls",
         help="break the cycle by moving the shared computation into a function each initializer calls",
+      )
+    CompiledModuleSetMissingRoot =>
+      compile_report(
+        "internal compiler error while selecting the root module",
+        diagnostic_.span,
+        code="E4599",
+        label="the compiled module set does not contain its declared root",
+        note="Module Graph validation guarantees that the root is compiled exactly once",
+        help="report this compiler defect with the input module sources",
       )
     CheckedSourceConstructionFailed =>
       compile_report(
@@ -146,56 +124,4 @@ impl @compiler_diag.ToCompilerDiagnostic for CompileBoundaryDiagnostic with fn t
         help="report this as a compiler bug with the input that triggered it",
       )
   }
-}
-
-///|
-fn missing_import_diagnostic(
-  module_ : String,
-  span : @basic.SourceSpan?,
-  source_modules : Array[String],
-  interface_modules : Array[String],
-) -> CompilerDiagnostic {
-  let facts : Array[CompilerDiagnosticFact] = []
-  for source_module in source_modules {
-    facts.push({
-      name: "considered source module",
-      value: "`\{source_module}`",
-      span: None,
-    })
-  }
-  for interface_module in interface_modules {
-    facts.push({
-      name: "considered interface artifact",
-      value: "declares module `\{interface_module}`",
-      span: None,
-    })
-  }
-  if source_modules.is_empty() && interface_modules.is_empty() {
-    facts.push({
-      name: "considered inputs",
-      value: "no library source or interface artifact was available",
-      span: None,
-    })
-  }
-  diagnostic(
-    "missing imported module `\{module_}`",
-    span~,
-    severity=Error,
-    code=Some("E4002"),
-    labels=primary_label(span, "no explicit input provides this module"),
-    notes=[
-      "Lane only compiles explicitly provided source files and interface artifacts",
-    ],
-    helps=[
-      "pass an input whose declared module is `\{module_}`, or change the import to one of the listed modules",
-    ],
-    facts~,
-    suggestions=[
-      {
-        message: "check the imported module name against the listed explicit inputs",
-        edits: [],
-        applicability: MaybeIncorrect,
-      },
-    ],
-  )
 }

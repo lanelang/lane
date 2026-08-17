@@ -44,9 +44,30 @@ Fingerprint.
 _Avoid_: copied declaration, runtime export, forwarding definition
 
 **Module Frontend**:
-The package boundary that owns source inputs, module headers, module input sets,
-and dependency-graph construction.
+The package boundary that parses Source Inputs into Parsed Sources and is the
+sole producer of Module Graph topology and Module Dependency Failures.
 _Avoid_: interface model, linker
+
+**Parsed Source**:
+The single result of parsing one Source Input. It owns concrete syntax,
+syntactic identifiers, parse diagnostics, and exactly one available-module or
+unavailable-with-recovered-header state.
+_Avoid_: parallel source syntax arrays, detached recovered header, optional parsed module cache
+
+**Module Graph**:
+The Module Frontend-owned dependency result containing dependency-ordered
+available modules, explicit unavailable Parsed Sources for tolerant analysis,
+the selected root, and the reachable module paths. Strict compilation receives
+only a validated Module Graph directly from import-reachable parsing.
+_Avoid_: module input set, caller-computed reachability, caller topological sort
+
+**Module Dependency Failure**:
+The structured Module Frontend classification and diagnostic policy for
+duplicate inputs, missing imports, and import cycles. Provenance distinguishes
+Source Input discovery from Interface Artifact closure analysis. A strict
+Module Graph always has a root; losing it after this seam is a compiler defect,
+not a dependency failure.
+_Avoid_: compile-boundary dependency diagnostic, duplicated E400x rendering
 
 **Module Compilation**:
 The package boundary that owns module compilation, artifacts, fingerprints,

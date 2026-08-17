@@ -24,11 +24,8 @@ priv enum CachedSemanticSlot {
 
 ///|
 priv struct CachedParsedSource {
-  source : @module_frontend.SourceInput
-  module_ : @module_frontend.ParsedModuleInput?
-  module_path_text : String?
+  parsed : @module_frontend.ParsedSource
   completion_source : CompletionSource
-  diagnostics : Array[CompilerDiagnostic]
 }
 
 ///|
@@ -279,12 +276,13 @@ fn SemanticWorkspace::refresh_snapshot(
     if !same_parsed_topology(previous, next) {
       topology_changed = true
     }
-    if previous is Some(cached) && cached.module_path_text is Some(module_path) {
+    if previous is Some(cached) &&
+      cached.parsed.module_path_text() is Some(module_path) {
       push_unique(dirty_module_paths, module_path)
     }
     match next {
       Some(cached) => {
-        if cached.module_path_text is Some(module_path) {
+        if cached.parsed.module_path_text() is Some(module_path) {
           push_unique(dirty_module_paths, module_path)
         }
         self.parse_cache[source_id] = cached
@@ -335,21 +333,8 @@ fn SemanticWorkspace::update_parsed_source_tree(
 fn parse_cached_source(
   source : @module_frontend.SourceInput,
 ) -> CachedParsedSource {
-  let parsed = @module_frontend.parse_module_inputs(source, [])
-  let module_path_text = match parsed.headers.get(0) {
-    Some(header) => Some(header.module_path_text)
-    None => None
-  }
-  guard parsed.source_syntax.get(0) is Some(source_syntax) else {
-    abort("module frontend omitted source syntax")
-  }
-  {
-    source,
-    module_: parsed.modules.get(0),
-    module_path_text,
-    completion_source: CompletionSource::from_source_syntax(source_syntax),
-    diagnostics: parsed.diagnostics,
-  }
+  let parsed = @module_frontend.parse_source(source)
+  { parsed, completion_source: CompletionSource::from_parsed_source(parsed) }
 }
 
 ///|
@@ -360,10 +345,10 @@ fn same_parsed_topology(
   match (previous, next) {
     (None, None) => true
     (Some(previous), Some(next)) =>
-      if next.module_ is None {
-        previous.module_path_text == next.module_path_text
+      if next.parsed.available_module() is None {
+        previous.parsed.module_path_text() == next.parsed.module_path_text()
       } else {
-        previous.module_path_text == next.module_path_text &&
+        previous.parsed.module_path_text() == next.parsed.module_path_text() &&
         parsed_module_header(previous) == parsed_module_header(next)
       }
     _ => false
@@ -374,48 +359,31 @@ fn same_parsed_topology(
 fn parsed_module_header(
   source : CachedParsedSource,
 ) -> CachedModuleGraphInputHeader? {
-  source.module_.map(cached_module_graph_input_header)
+  source.parsed.available_module().map(cached_module_graph_input_header)
 }
 
 ///|
 fn SemanticWorkspace::rebuild_topology(
   self : SemanticWorkspace,
 ) -> Array[String] {
-  let parsed_modules = []
-  let known_module_paths = []
+  let parsed_sources = []
   for source_id in self.source_layout.source_ids {
     if self.parse_cache.get(source_id) is Some(cached) {
-      if cached.module_path_text is Some(module_path) {
-        known_module_paths.push(module_path)
-      }
-      if cached.module_ is Some(module_) {
-        parsed_modules.push(module_)
-      }
+      parsed_sources.push(cached.parsed)
     }
   }
-  guard parsed_modules.get(0) is Some(root_module) else {
+  guard @module_frontend.build_tolerant_module_graph(parsed_sources)
+    is Some(result) else {
     self.graph_cache = None
     self.modules = Empty
     self.definition_locations = SymbolLocationIndex::empty()
     return self.source_layout.source_ids.copy()
   }
-  let inputs : @module_frontend.ModuleInputSet = {
-    root_module_path_text: root_module.header.module_path_text,
-    modules: parsed_modules,
-  }
-  let parsed_module_paths = parsed_modules.map(fn(module_) {
-    module_.header.module_path_text
-  })
-  let unavailable_module_paths = known_module_paths.filter(fn(module_path) {
-    !parsed_module_paths.contains(module_path)
-  })
-  let result = @module_frontend.build_tolerant_module_graph(
-    inputs,
-    unavailable_module_path_texts=unavailable_module_paths,
-  )
+  let topology = result.graph()
+  let unavailable_module_paths = topology.unavailable_module_path_texts()
   let graph = CachedModuleGraph::from_graph(result)
   self.graph_cache = Some(graph)
-  self.rebuild_all_modules(result.graph.modules, unavailable_module_paths)
+  self.rebuild_all_modules(topology.modules(), unavailable_module_paths)
   self.source_layout.source_ids.copy()
 }
 
@@ -520,7 +488,7 @@ fn SemanticWorkspace::rebuild_dirty_modules(
     let source_id = graph.ordered_module_source_ids[index]
     changed_source_ids.push(source_id)
     guard self.parse_cache.get(source_id) is Some(parsed) else { continue }
-    if parsed.module_ is None {
+    if parsed.parsed.available_module() is None {
       if modules.get(index) is Some(Available(previous)) {
         let updated = {
           ..previous,
@@ -531,7 +499,7 @@ fn SemanticWorkspace::rebuild_dirty_modules(
       }
       continue
     }
-    guard parsed.module_ is Some(input) else { continue }
+    guard parsed.parsed.available_module() is Some(input) else { continue }
     let imports = module_import_environments(input.header, self.module_cache)
     let previous_definitions = match modules.get(index) {
       Some(Available(module_)) => module_.index.definitions
@@ -839,7 +807,7 @@ fn SemanticSnapshot::diagnostics_for_source(
   let diagnostics = []
   if self.source_layout.slots.get(source_id) is Some(slot) &&
     self.parsed_sources.get(slot) is Some(source) {
-    diagnostics.append(source.diagnostics)
+    diagnostics.append(source.parsed.diagnostics())
   }
   if self.graph is Some(graph) {
     if graph.module_slot_for_source(source_id) is Some(slot) &&
@@ -866,7 +834,9 @@ pub fn SemanticSnapshot::diagnostic_delta(
   for source_id in self.changed_source_ids {
     if self.source_layout.slots.get(source_id) is Some(slot) &&
       self.parsed_sources.get(slot) is Some(source) {
-      delta.push((source.source, self.diagnostics_for_source(source_id)))
+      delta.push(
+        (source.parsed.source_input(), self.diagnostics_for_source(source_id)),
+      )
     }
   }
   delta
@@ -877,7 +847,9 @@ fn SemanticSnapshot::parse_and_graph_diagnostics(
   self : SemanticSnapshot,
 ) -> Array[CompilerDiagnostic] {
   let diagnostics = []
-  self.parsed_sources.each(fn(source) { diagnostics.append(source.diagnostics) })
+  self.parsed_sources.each(fn(source) {
+    diagnostics.append(source.parsed.diagnostics())
+  })
   if self.graph is Some(graph) {
     diagnostics.append(graph.diagnostics)
   }

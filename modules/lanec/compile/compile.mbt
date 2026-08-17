@@ -28,7 +28,7 @@ fn check_request(
           compilation_succeeded(root.object.checked, modules.diagnostics)
         None =>
           compilation_failed([
-            @module_compile.no_root_source_module_diagnostic(),
+            @module_compile.compiled_module_set_missing_root_diagnostic(),
           ])
       }
     Err(diagnostics) => compilation_failed(diagnostics)
@@ -64,7 +64,7 @@ fn check_interface_request(
           compilation_succeeded(root.object.checked, modules.diagnostics)
         None =>
           compilation_failed([
-            @module_compile.no_root_source_module_diagnostic(),
+            @module_compile.compiled_module_set_missing_root_diagnostic(),
           ])
       }
     Err(diagnostics) => compilation_failed(diagnostics)
@@ -176,7 +176,7 @@ fn compile_module_set(
   observe : (SourceCompilationStage) -> Unit,
 ) -> Result[@module_compile.CompiledModuleSet, Array[CompilerDiagnostic]] {
   match
-    @module_frontend.parse_import_reachable_module_input_set_from_inputs_observed(
+    @module_frontend.parse_import_reachable_module_graph_from_inputs_observed(
       request.root.to_frontend(),
       request.libraries.map(SourceInput::to_frontend),
       root => {
@@ -189,34 +189,30 @@ fn compile_module_set(
       },
     ) {
     Err(diagnostics) => Err(diagnostics)
-    Ok(inputs) =>
-      match @module_frontend.build_module_graph(inputs) {
-        Err(diagnostics) => Err(diagnostics)
-        Ok(graph) =>
-          @module_compile.compile_module_graph_observed(graph, (
-            module_path_text,
-            stage,
-          ) => {
-            let snapshot = match stage {
-              Resolved(source) =>
-                SourceCompilationStage::Resolved({
-                  module_path_text,
-                  text: render_resolved_source(source, 100),
-                })
-              Checked(source) =>
-                Checked({
-                  module_path_text,
-                  text: render_checked_source(source, 100),
-                })
-              BuslaneModule(program) =>
-                BuslaneModule({
-                  module_path_text,
-                  text: render_buslane_program(program, 100),
-                })
-            }
-            observe(snapshot)
-          })
-      }
+    Ok(graph) =>
+      @module_compile.compile_module_graph_observed(graph, (
+        module_path_text,
+        stage,
+      ) => {
+        let snapshot = match stage {
+          Resolved(source) =>
+            SourceCompilationStage::Resolved({
+              module_path_text,
+              text: render_resolved_source(source, 100),
+            })
+          Checked(source) =>
+            Checked({
+              module_path_text,
+              text: render_checked_source(source, 100),
+            })
+          BuslaneModule(program) =>
+            BuslaneModule({
+              module_path_text,
+              text: render_buslane_program(program, 100),
+            })
+        }
+        observe(snapshot)
+      })
   }
 }
 

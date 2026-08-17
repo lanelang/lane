@@ -3,14 +3,31 @@ pub(all) struct ParsedModuleInput {
   source_id : String
   text : String
   concrete : @lexer.ConcreteSyntax
+  identifiers : @syntax.SyntacticIdentifierIndex
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic]
   header : ModuleHeader
   source : @syntax.SourceFile
 }
 
 ///|
-pub(all) struct ModuleInputSet {
-  root_module_path_text : String
-  modules : Array[ParsedModuleInput]
+pub(all) struct UnavailableParsedSource {
+  source_id : String
+  text : String
+  concrete : @lexer.ConcreteSyntax
+  identifiers : @syntax.SyntacticIdentifierIndex
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic]
+  recovered_header : ModuleInputHeader?
+}
+
+///|
+pub(all) enum ParsedSource {
+  Available(ParsedModuleInput)
+  Unavailable(UnavailableParsedSource)
+}
+
+///|
+pub(all) struct ParseModuleInputsResult {
+  sources : Array[ParsedSource]
 }
 
 ///|
@@ -40,29 +57,11 @@ pub(all) struct SourceInput {
 } derive(Debug, Eq)
 
 ///|
-pub fn parse_module_input_set_from_inputs(
+pub fn parse_import_reachable_module_graph_from_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
-) -> Result[ModuleInputSet, Array[@compiler_diag.CompilerDiagnostic]] {
-  let parsed = parse_module_inputs(root_source, library_sources)
-  if !parsed.diagnostics.is_empty() {
-    return Err(parsed.diagnostics)
-  }
-  guard parsed.modules.get(0) is Some(root) else {
-    return Err([module_frontend_diagnostic(NoRootSourceModule, None)])
-  }
-  Ok({
-    root_module_path_text: root.header.module_path_text,
-    modules: parsed.modules,
-  })
-}
-
-///|
-pub fn parse_import_reachable_module_input_set_from_inputs(
-  root_source : SourceInput,
-  library_sources : Array[SourceInput],
-) -> Result[ModuleInputSet, Array[@compiler_diag.CompilerDiagnostic]] {
-  parse_import_reachable_module_input_set_from_inputs_observed(
+) -> Result[ModuleGraph, Array[@compiler_diag.CompilerDiagnostic]] {
+  parse_import_reachable_module_graph_from_inputs_observed(
     root_source,
     library_sources,
     _ => (),
@@ -70,57 +69,18 @@ pub fn parse_import_reachable_module_input_set_from_inputs(
 }
 
 ///|
-pub fn parse_import_reachable_module_input_set_from_inputs_observed(
+pub fn parse_import_reachable_module_graph_from_inputs_observed(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
   observe_root : (ParsedModuleInput) -> Unit,
-) -> Result[ModuleInputSet, Array[@compiler_diag.CompilerDiagnostic]] {
+) -> Result[ModuleGraph, Array[@compiler_diag.CompilerDiagnostic]] {
   let parsed = parse_module_inputs(root_source, library_sources)
-  let root_diagnostics = parsed.diagnostics_for_source(root_source.source_id)
-  if !root_diagnostics.is_empty() {
-    return Err(root_diagnostics)
-  }
-  guard parsed.modules.get(0) is Some(root) else {
-    return Err([module_frontend_diagnostic(NoRootSourceModule, None)])
-  }
-  observe_root(root)
-  let reachable = reachable_modules(
-    parsed.modules,
-    root.header.module_path_text,
-  )
-  let reachable_headers = reachable_input_headers(
-    parsed.headers,
-    root.header.module_path_text,
-  )
-  let reachable_module_path_texts = reachable.modules.map(fn(module_) {
-    module_.header.module_path_text
-  })
-  for header in reachable_headers {
-    if !reachable_module_path_texts.contains(header.module_path_text) {
-      reachable_module_path_texts.push(header.module_path_text)
+  match parsed.sources[0] {
+    Unavailable(root) => Err(root.diagnostics)
+    Available(root) => {
+      observe_root(root)
+      build_strict_module_graph(parsed.sources, root.header.module_path_text)
     }
-  }
-  let modules = parsed.modules.filter(fn(module_) {
-    reachable_module_path_texts.contains(module_.header.module_path_text)
-  })
-  let reachable_source_ids = reachable_headers.map(fn(header) {
-    header.source_id
-  })
-  let diagnostics = parsed
-    .source_diagnostics()
-    .filter(fn(diagnostic) {
-      match diagnostic.source_id {
-        Some(source_id) => reachable_source_ids.contains(source_id)
-        None => false
-      }
-    })
-  if !diagnostics.is_empty() {
-    return Err(diagnostics)
-  }
-  let inputs = { root_module_path_text: root.header.module_path_text, modules }
-  match build_module_graph(inputs) {
-    Err(diagnostics) => Err(diagnostics)
-    Ok(_) => Ok(inputs)
   }
 }
 
@@ -130,23 +90,16 @@ pub fn import_reachable_source_inputs(
   library_sources : Array[SourceInput],
 ) -> Result[Array[SourceInput], Array[@compiler_diag.CompilerDiagnostic]] {
   match
-    parse_import_reachable_module_input_set_from_inputs(
+    parse_import_reachable_module_graph_from_inputs(
       root_source, library_sources,
     ) {
     Err(diagnostics) => Err(diagnostics)
-    Ok(input_set) => {
-      let reachable = reachable_modules(
-        input_set.modules,
-        input_set.root_module_path_text,
-      )
-      let inputs = [
-        { source_id: root_source.source_id, text: root_source.text },
-      ]
-      for module_ in reachable.modules {
-        if module_.source_id == root_source.source_id {
-          continue
+    Ok(graph) => {
+      let inputs = [root_source]
+      for module_ in graph.modules() {
+        if module_.source_id != root_source.source_id {
+          inputs.push({ source_id: module_.source_id, text: module_.text })
         }
-        inputs.push({ source_id: module_.source_id, text: module_.text })
       }
       Ok(inputs)
     }
@@ -154,97 +107,136 @@ pub fn import_reachable_source_inputs(
 }
 
 ///|
-pub(all) struct ParseModuleInputsResult {
-  modules : Array[ParsedModuleInput]
-  headers : Array[ModuleInputHeader]
-  source_syntax : Array[SourceSyntaxInput]
-  diagnostics : Array[@compiler_diag.CompilerDiagnostic]
-}
-
-///|
-pub(all) struct SourceSyntaxInput {
-  source_id : String
-  text : String
-  concrete : @lexer.ConcreteSyntax
-  identifiers : @syntax.SyntacticIdentifierIndex
-}
-
-///|
-pub fn ParseModuleInputsResult::diagnostics_for_source(
-  self : ParseModuleInputsResult,
-  source_id : String,
-) -> Array[@compiler_diag.CompilerDiagnostic] {
-  self.diagnostics.filter(fn(diagnostic) {
-    diagnostic.source_id == Some(source_id)
-  })
-}
-
-///|
-pub fn ParseModuleInputsResult::source_diagnostics(
-  self : ParseModuleInputsResult,
-) -> Array[@compiler_diag.CompilerDiagnostic] {
-  self.diagnostics.filter(fn(diagnostic) { diagnostic.source_id is Some(_) })
-}
-
-///|
 pub fn parse_module_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
 ) -> ParseModuleInputsResult {
-  let modules = []
-  let headers = []
-  let source_syntax = []
-  let diagnostics = []
-  let sources = [root_source] + library_sources
-  for source in sources {
-    let parsed = @parser.parse_string(source.text)
-    let identifiers = parsed.syntactic_identifier_index()
-    let concrete = match parsed {
-      Parsed({ concrete, .. }) => concrete
-      Failed(Grammar(concrete, _, _)) => concrete
-      Failed(Lexical(concrete, _)) => concrete
-    }
-    source_syntax.push({
-      source_id: source.source_id,
-      text: source.text,
-      concrete,
-      identifiers,
-    })
-    let source_diagnostics = parse_diagnostics(parsed).map(fn(diagnostic) {
-      diagnostic.with_source_id(source.source_id)
-    })
-    diagnostics.append(source_diagnostics)
-    match parsed {
-      Parsed({ syntax: file, concrete, .. }) => {
-        let header = module_header(file)
-        headers.push({
-          source_id: source.source_id,
-          module_path_text: header.module_path_text,
-          imports: header.imports.map(fn(import_) { import_.module_path_text }),
-        })
-        modules.push({
-          source_id: source.source_id,
-          text: source.text,
-          concrete,
-          header,
-          source: file,
-        })
+  { sources: [parse_source(root_source)] + library_sources.map(parse_source) }
+}
+
+///|
+pub fn parse_source(source : SourceInput) -> ParsedSource {
+  let parsed = @parser.parse_string(source.text)
+  let identifiers = parsed.syntactic_identifier_index()
+  let concrete = match parsed {
+    Parsed({ concrete, .. }) => concrete
+    Failed(Grammar(concrete, _, _)) => concrete
+    Failed(Lexical(concrete, _)) => concrete
+  }
+  let diagnostics = parse_diagnostics(parsed).map(fn(diagnostic) {
+    diagnostic.with_source_id(source.source_id)
+  })
+  match parsed {
+    Parsed({ syntax: file, concrete, .. }) =>
+      Available({
+        source_id: source.source_id,
+        text: source.text,
+        concrete,
+        identifiers,
+        diagnostics,
+        header: module_header(file),
+        source: file,
+      })
+    Failed(_) => {
+      if diagnostics.is_empty() {
+        diagnostics.push(
+          parser_produced_no_source_file_diagnostic().with_source_id(
+            source.source_id,
+          ),
+        )
       }
-      Failed(_) if source_diagnostics.is_empty() => {
-        let diagnostic = module_frontend_diagnostic(
-          ParserProducedNoSourceFile,
-          None,
-        ).with_source_id(source.source_id)
-        diagnostics.push(diagnostic)
-      }
-      Failed(_) =>
-        match source_module_header(source) {
-          Some(header) => headers.push(header)
-          None => ()
-        }
+      Unavailable({
+        source_id: source.source_id,
+        text: source.text,
+        concrete,
+        identifiers,
+        diagnostics,
+        recovered_header: source_module_header(source),
+      })
     }
   }
-  { modules, headers, source_syntax, diagnostics }
+}
+
+///|
+pub fn ParsedSource::source_input(self : ParsedSource) -> SourceInput {
+  match self {
+    Available(source) => { source_id: source.source_id, text: source.text }
+    Unavailable(source) => { source_id: source.source_id, text: source.text }
+  }
+}
+
+///|
+pub fn ParsedSource::source_id(self : ParsedSource) -> String {
+  match self {
+    Available(source) => source.source_id
+    Unavailable(source) => source.source_id
+  }
+}
+
+///|
+pub fn ParsedSource::text(self : ParsedSource) -> String {
+  match self {
+    Available(source) => source.text
+    Unavailable(source) => source.text
+  }
+}
+
+///|
+pub fn ParsedSource::concrete(self : ParsedSource) -> @lexer.ConcreteSyntax {
+  match self {
+    Available(source) => source.concrete
+    Unavailable(source) => source.concrete
+  }
+}
+
+///|
+pub fn ParsedSource::identifiers(
+  self : ParsedSource,
+) -> @syntax.SyntacticIdentifierIndex {
+  match self {
+    Available(source) => source.identifiers
+    Unavailable(source) => source.identifiers
+  }
+}
+
+///|
+pub fn ParsedSource::diagnostics(
+  self : ParsedSource,
+) -> Array[@compiler_diag.CompilerDiagnostic] {
+  match self {
+    Available(source) => source.diagnostics
+    Unavailable(source) => source.diagnostics
+  }
+}
+
+///|
+pub fn ParsedSource::available_module(
+  self : ParsedSource,
+) -> ParsedModuleInput? {
+  match self {
+    Available(module_) => Some(module_)
+    Unavailable(_) => None
+  }
+}
+
+///|
+pub fn ParsedSource::module_header(self : ParsedSource) -> ModuleInputHeader? {
+  match self {
+    Available(module_) =>
+      Some({
+        source_id: module_.source_id,
+        module_path_text: module_.header.module_path_text,
+        imports: module_.header.imports.map(fn(import_) {
+          import_.module_path_text
+        }),
+      })
+    Unavailable(source) => source.recovered_header
+  }
+}
+
+///|
+pub fn ParsedSource::module_path_text(self : ParsedSource) -> String? {
+  self.module_header().map(fn(header) { header.module_path_text })
 }
 
 ///|
@@ -270,17 +262,9 @@ fn module_header(source : @syntax.SourceFile) -> ModuleHeader {
 ///|
 fn import_header(import_ : @syntax.ImportDeclaration) -> ImportHeader {
   match import_ {
-    Qualified(module_path~, ..) =>
-      {
-        module_path_text: module_path_text(module_path),
-        import_span: module_path.loc,
-      }
-    Open(module_path~, ..) =>
-      {
-        module_path_text: module_path_text(module_path),
-        import_span: module_path.loc,
-      }
-    Selective(module_path~, ..) =>
+    Qualified(module_path~, ..)
+    | Open(module_path~, ..)
+    | Selective(module_path~, ..) =>
       {
         module_path_text: module_path_text(module_path),
         import_span: module_path.loc,
@@ -318,47 +302,4 @@ fn source_module_header(source : SourceInput) -> ModuleInputHeader? {
     module_path_text: components.join("."),
     imports: [],
   })
-}
-
-///|
-fn reachable_input_headers(
-  headers : Array[ModuleInputHeader],
-  root_module_path_text : String,
-) -> Array[ModuleInputHeader] {
-  let reachable = []
-  let visiting : Array[String] = []
-  visit_input_header(headers, root_module_path_text, visiting, reachable)
-  reachable
-}
-
-///|
-fn visit_input_header(
-  headers : Array[ModuleInputHeader],
-  path : String,
-  visiting : Array[String],
-  reachable : Array[ModuleInputHeader],
-) -> Unit {
-  if visiting.contains(path) {
-    return
-  }
-  guard find_input_header(headers, path) is Some(header) else { return }
-  reachable.push(header)
-  visiting.push(path)
-  for import_ in header.imports {
-    visit_input_header(headers, import_, visiting, reachable)
-  }
-  ignore(visiting.pop())
-}
-
-///|
-fn find_input_header(
-  headers : Array[ModuleInputHeader],
-  path : String,
-) -> ModuleInputHeader? {
-  for header in headers {
-    if header.module_path_text == path {
-      return Some(header)
-    }
-  }
-  None
 }

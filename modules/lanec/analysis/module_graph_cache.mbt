@@ -26,21 +26,21 @@ priv struct CachedModuleGraphImportHeader {
 fn CachedModuleGraph::from_graph(
   result : @module_frontend.TolerantModuleGraphResult,
 ) -> CachedModuleGraph {
-  let ordered_module_source_ids = result.graph.modules.map(fn(module_) {
-    module_.source_id
-  })
-  let ordered_module_paths = result.graph.modules.map(fn(module_) {
+  let graph = result.graph()
+  let modules = graph.modules()
+  let ordered_module_source_ids = modules.map(fn(module_) { module_.source_id })
+  let ordered_module_paths = modules.map(fn(module_) {
     module_.header.module_path_text
   })
   let module_slots_by_source : Map[String, Int] = Map([])
   let module_slots_by_path : Map[String, Int] = Map([])
-  for index, module_ in result.graph.modules {
+  for index, module_ in modules {
     let module_path = module_.header.module_path_text
     module_slots_by_source[module_.source_id] = index
     module_slots_by_path[module_path] = index
   }
-  let dependent_slots = result.graph.modules.map(_ => [])
-  for dependent_slot, module_ in result.graph.modules {
+  let dependent_slots = modules.map(_ => [])
+  for dependent_slot, module_ in modules {
     for import_ in module_.header.imports {
       if module_slots_by_path.get(import_.module_path_text) is Some(import_slot) {
         dependent_slots[import_slot].push(dependent_slot)
@@ -53,7 +53,7 @@ fn CachedModuleGraph::from_graph(
     module_slots_by_source,
     module_slots_by_path,
     dependent_slots,
-    diagnostics: result.diagnostics.copy(),
+    diagnostics: result.diagnostics().copy(),
   }
 }
 

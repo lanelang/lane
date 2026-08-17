@@ -10,19 +10,17 @@ import {
 }
 
 // Values
-pub fn build_module_graph(ModuleInputSet) -> Result[ModuleGraph, Array[@diagnostic.CompilerDiagnostic]]
-
-pub fn build_tolerant_module_graph(ModuleInputSet, unavailable_module_path_texts? : Array[String]) -> TolerantModuleGraphResult
+pub fn build_tolerant_module_graph(Array[ParsedSource]) -> TolerantModuleGraphResult?
 
 pub fn import_reachable_source_inputs(SourceInput, Array[SourceInput]) -> Result[Array[SourceInput], Array[@diagnostic.CompilerDiagnostic]]
 
-pub fn parse_import_reachable_module_input_set_from_inputs(SourceInput, Array[SourceInput]) -> Result[ModuleInputSet, Array[@diagnostic.CompilerDiagnostic]]
+pub fn parse_import_reachable_module_graph_from_inputs(SourceInput, Array[SourceInput]) -> Result[ModuleGraph, Array[@diagnostic.CompilerDiagnostic]]
 
-pub fn parse_import_reachable_module_input_set_from_inputs_observed(SourceInput, Array[SourceInput], (ParsedModuleInput) -> Unit) -> Result[ModuleInputSet, Array[@diagnostic.CompilerDiagnostic]]
-
-pub fn parse_module_input_set_from_inputs(SourceInput, Array[SourceInput]) -> Result[ModuleInputSet, Array[@diagnostic.CompilerDiagnostic]]
+pub fn parse_import_reachable_module_graph_from_inputs_observed(SourceInput, Array[SourceInput], (ParsedModuleInput) -> Unit) -> Result[ModuleGraph, Array[@diagnostic.CompilerDiagnostic]]
 
 pub fn parse_module_inputs(SourceInput, Array[SourceInput]) -> ParseModuleInputsResult
+
+pub fn parse_source(SourceInput) -> ParsedSource
 
 // Errors
 
@@ -32,11 +30,34 @@ pub(all) struct ImportHeader {
   import_span : @basic.SourceSpan
 }
 
-pub(all) struct ModuleGraph {
-  root_module_path_text : String
-  modules : Array[ParsedModuleInput]
-  reachable_module_path_texts : Array[String]
+pub(all) struct ModuleDependencyFailure {
+  kind : ModuleDependencyFailureKind
+  provenance : ModuleDependencyProvenance
+} derive(Eq, @debug.Debug)
+pub fn ModuleDependencyFailure::diagnostic(Self) -> @diagnostic.CompilerDiagnostic
+pub fn ModuleDependencyFailure::duplicate_module(String, ModuleDependencyProvenance) -> Self
+pub fn ModuleDependencyFailure::import_cycle(String, ModuleDependencyProvenance) -> Self
+pub fn ModuleDependencyFailure::missing_import(String, source_modules~ : Array[String], interface_modules~ : Array[String], provenance~ : ModuleDependencyProvenance) -> Self
+
+pub(all) enum ModuleDependencyFailureKind {
+  DuplicateModuleInput(String)
+  MissingImportWithCandidates(module_~ : String, source_modules~ : Array[String], interface_modules~ : Array[String])
+  ImportCycle(String)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModuleDependencyProvenance {
+  SourceInput(source_id~ : String, span~ : @basic.SourceSpan?)
+  InterfaceArtifact(source_id~ : String, importer_module_path_text~ : String, span~ : @basic.SourceSpan?)
+} derive(Eq, @debug.Debug)
+
+pub struct ModuleGraph {
+  // private fields
 }
+pub fn ModuleGraph::modules(Self) -> Array[ParsedModuleInput]
+pub fn ModuleGraph::reachable_module_path_texts(Self) -> Array[String]
+pub fn ModuleGraph::root_module_path_text(Self) -> String
+pub fn ModuleGraph::unavailable_module_path_texts(Self) -> Array[String]
+pub fn ModuleGraph::unavailable_sources(Self) -> Array[UnavailableParsedSource]
 
 pub(all) struct ModuleHeader {
   module_path_text : String
@@ -50,43 +71,52 @@ pub(all) struct ModuleInputHeader {
   imports : Array[String]
 } derive(Eq, @debug.Debug)
 
-pub(all) struct ModuleInputSet {
-  root_module_path_text : String
-  modules : Array[ParsedModuleInput]
-}
-
 pub(all) struct ParseModuleInputsResult {
-  modules : Array[ParsedModuleInput]
-  headers : Array[ModuleInputHeader]
-  source_syntax : Array[SourceSyntaxInput]
-  diagnostics : Array[@diagnostic.CompilerDiagnostic]
+  sources : Array[ParsedSource]
 }
-pub fn ParseModuleInputsResult::diagnostics_for_source(Self, String) -> Array[@diagnostic.CompilerDiagnostic]
-pub fn ParseModuleInputsResult::source_diagnostics(Self) -> Array[@diagnostic.CompilerDiagnostic]
 
 pub(all) struct ParsedModuleInput {
   source_id : String
   text : String
   concrete : @lexer.ConcreteSyntax
+  identifiers : @syntax.SyntacticIdentifierIndex
+  diagnostics : Array[@diagnostic.CompilerDiagnostic]
   header : ModuleHeader
   source : @syntax.SourceFile
 }
+
+pub(all) enum ParsedSource {
+  Available(ParsedModuleInput)
+  Unavailable(UnavailableParsedSource)
+}
+pub fn ParsedSource::available_module(Self) -> ParsedModuleInput?
+pub fn ParsedSource::concrete(Self) -> @lexer.ConcreteSyntax
+pub fn ParsedSource::diagnostics(Self) -> Array[@diagnostic.CompilerDiagnostic]
+pub fn ParsedSource::identifiers(Self) -> @syntax.SyntacticIdentifierIndex
+pub fn ParsedSource::module_header(Self) -> ModuleInputHeader?
+pub fn ParsedSource::module_path_text(Self) -> String?
+pub fn ParsedSource::source_id(Self) -> String
+pub fn ParsedSource::source_input(Self) -> SourceInput
+pub fn ParsedSource::text(Self) -> String
 
 pub(all) struct SourceInput {
   source_id : String
   text : String
 } derive(Eq, @debug.Debug)
 
-pub(all) struct SourceSyntaxInput {
+pub struct TolerantModuleGraphResult {
+  // private fields
+}
+pub fn TolerantModuleGraphResult::diagnostics(Self) -> Array[@diagnostic.CompilerDiagnostic]
+pub fn TolerantModuleGraphResult::graph(Self) -> ModuleGraph
+
+pub(all) struct UnavailableParsedSource {
   source_id : String
   text : String
   concrete : @lexer.ConcreteSyntax
   identifiers : @syntax.SyntacticIdentifierIndex
-}
-
-pub(all) struct TolerantModuleGraphResult {
-  graph : ModuleGraph
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
+  recovered_header : ModuleInputHeader?
 }
 
 // Type aliases

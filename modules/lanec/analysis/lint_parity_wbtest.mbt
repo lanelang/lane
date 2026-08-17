@@ -23,13 +23,10 @@ test "compiler and semantic workspace share lint diagnostics" {
       #|pub let value : I64 = 1
     ),
   }
-  let input_set = match
-    @module_frontend.parse_module_input_set_from_inputs(root, [library]) {
-    Ok(input_set) => input_set
-    Err(diagnostics) =>
-      abort("unexpected parse diagnostics: \{Repr(diagnostics)}")
-  }
-  let graph = match @module_frontend.build_module_graph(input_set) {
+  let graph = match
+    @module_frontend.parse_import_reachable_module_graph_from_inputs(root, [
+      library,
+    ]) {
     Ok(graph) => graph
     Err(diagnostics) =>
       abort("unexpected module graph diagnostics: \{Repr(diagnostics)}")

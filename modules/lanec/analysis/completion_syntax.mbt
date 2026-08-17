@@ -53,10 +53,14 @@ fn CompletionSource::from_input(
 }
 
 ///|
-fn CompletionSource::from_source_syntax(
-  input : @module_frontend.SourceSyntaxInput,
+fn CompletionSource::from_parsed_source(
+  input : @module_frontend.ParsedSource,
 ) -> CompletionSource {
-  CompletionSource::from_syntax(input.text, input.concrete, input.identifiers)
+  CompletionSource::from_syntax(
+    input.text(),
+    input.concrete(),
+    input.identifiers(),
+  )
 }
 
 ///|

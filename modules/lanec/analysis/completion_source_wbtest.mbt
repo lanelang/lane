@@ -22,7 +22,8 @@ test "completion source indexes parser tokens and line positions" {
     { source_id: "file:///Main.lane", text },
     [],
   )
-  guard parsed.modules.get(0) is Some(input) else {
+  guard parsed.sources.get(0) is Some(parsed_source) &&
+    parsed_source.available_module() is Some(input) else {
     abort("expected parsed completion source")
   }
   let source = CompletionSource::from_input(input)
@@ -55,7 +56,8 @@ test "completion source columns count decoded UTF-8 scalar values" {
     { source_id: "file:///Main.lane", text },
     [],
   )
-  guard parsed.modules.get(0) is Some(input) else {
+  guard parsed.sources.get(0) is Some(parsed_source) &&
+    parsed_source.available_module() is Some(input) else {
     abort("expected parsed completion source")
   }
   let source = CompletionSource::from_input(input)

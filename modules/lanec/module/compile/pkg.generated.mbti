@@ -23,13 +23,13 @@ pub fn compile_module_graph(@frontend.ModuleGraph) -> Result[CompiledModuleSet, 
 
 pub fn compile_module_graph_observed(@frontend.ModuleGraph, (String, ModuleCompileStage) -> Unit) -> Result[CompiledModuleSet, Array[@diagnostic.CompilerDiagnostic]]
 
+pub fn compiled_module_set_missing_root_diagnostic() -> @diagnostic.CompilerDiagnostic
+
 pub fn find_compiled_module(Array[CompiledModule], String) -> CompiledModule?
 
 pub fn link_compiled_module_set(CompiledModuleSet) -> @link.LinkResult
 
 pub fn link_compiled_modules(Array[CompiledModule]) -> @link.LinkResult
-
-pub fn no_root_source_module_diagnostic() -> @diagnostic.CompilerDiagnostic
 
 // Errors
 
