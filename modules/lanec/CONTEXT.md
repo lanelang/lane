@@ -374,6 +374,15 @@ family identity before object-shape interning and bytecode emission.
 _Avoid_: allocation-local object shape under the declaration family,
 runtime-ABI-only family key, hidden-binder specialization
 
+**Closed Aggregate Scalar Replacement Plan**:
+The immutable proof that one aggregate allocation does not escape and that
+every reachable consumer has exact allocation identity. The plan forwards
+payload facts directly to those consumers and removes the allocation; it never
+changes the nominal family's storage ABI. An open, escaping, or ambiguous use
+keeps the ordinary allocation unchanged.
+_Avoid_: alternate object shape under one family, optimistic escape assumption,
+emission-time scalar replacement discovery
+
 **Erased Callable Position ABI**:
 The invocation contract declared by a callable-shaped erased position or by a
 lowering-owned canonical callable placeholder. It governs both erasure and

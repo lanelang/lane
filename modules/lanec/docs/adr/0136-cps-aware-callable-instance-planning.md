@@ -41,8 +41,13 @@ Allocation identities in this graph propagate callable-flow facts only. They do
 not select a data-storage ABI. Every nominal type continues to use the uniform
 family owned by its declaration, because allocation-site identity and a
 canonical runtime ABI do not create a distinct nominal representation identity.
-ISS-384 tracks the separate representation-family boundary required before any
-generic data storage may specialize.
+
+When a generated aggregate is closed and non-escaping, the plan may instead
+select scalar replacement. The allocation is removed and its payload facts are
+forwarded directly to every proven consumer. If the allocation remains, it uses
+the declaration-owned family without exception. ISS-384 separately tracks the
+representation-family boundary that would be required for retained generic data
+to have specialized storage; it is not a prerequisite for this decision.
 
 VM CFG callable-flow has a separate, physical responsibility. It propagates
 the emitted environment, witness, argument, aggregate, global, and result
@@ -62,6 +67,8 @@ generic applications from layout instructions.
   VM CFG emission consumes a frozen plan.
 - Constructor fields and matches preserve their declaration-owned uniform data
   ABI; callable specialization cannot silently introduce another family.
+- Closed generated dictionaries may lose their allocation and representation
+  bridges through scalar replacement, without creating another data family.
 - No source-language, linked-artifact, or LoisVM bytecode schema changes are
   required by this decision.
 
@@ -69,7 +76,7 @@ generic applications from layout instructions.
 
 The typed Runtime ANF callable catalog, immutable callable-instance fixed point,
 canonical partial workers, and finite recursive-demand proof are implemented.
-The final zero-bridge CPS path remains open pending an explicit data
-representation family. Effect-aware CPS Core optimization and
+The final zero-bridge CPS path remains open pending closed aggregate scalar
+replacement. Effect-aware CPS Core optimization and
 interprocedural VM CFG callable flow remain separate prerequisite and consumer
 boundaries. Runtime effect projection occurs only at the ANF seam.
