@@ -596,6 +596,7 @@ fn ImageLowerer::lower_callable_adapter(
   let lowerer : FunctionLowerer = {
     image: self,
     caller_instances: [-1],
+    data_families: [],
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -605,6 +606,7 @@ fn ImageLowerer::lower_callable_adapter(
     witnesses: [],
     substitutions: contract.substitutions,
     specialized_parameters: [],
+    representation_worker: false,
   }
   let input_witnesses = []
   for index, parameter in target_type_parameters {

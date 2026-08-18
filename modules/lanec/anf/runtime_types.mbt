@@ -153,6 +153,18 @@ pub fn RuntimeMetadata::type_info(
 }
 
 ///|
+/// Enumerates the nominal runtime declarations in stable `TypeId` order.
+/// Consumers use this to plan complete representation families before
+/// emitting runtime code.
+pub fn RuntimeMetadata::data_types(
+  self : RuntimeMetadata,
+) -> Array[(@buslane.TypeId, RuntimeDataInfo)] {
+  [
+    for index, info in self.types => ({ index, }, info)
+  ]
+}
+
+///|
 pub fn RuntimeMetadata::data_constructor_info(
   self : RuntimeMetadata,
   data_constructor : @buslane.DataConId,

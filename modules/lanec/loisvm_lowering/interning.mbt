@@ -53,18 +53,18 @@ fn ImageLowerer::intern_object_shape(
 }
 
 ///|
-fn ImageLowerer::intern_data_family(
+fn ImageLowerer::data_family(
   self : ImageLowerer,
-  owner : @buslane.TypeId,
-) -> @bytecode.DataFamilyId {
-  for index, existing in self.data_families {
-    if existing == owner {
-      return { value: index }
+  key : DataRepresentationFamilyKey,
+) -> DataRepresentationFamilyPlan raise LoisvmLoweringError {
+  for family in self.data_families {
+    if family.key == key {
+      return family
     }
   }
-  let family : @bytecode.DataFamilyId = { value: self.data_families.length() }
-  self.data_families.push(owner)
-  family
+  raise RepresentationSpecializationInvariant(
+    detail="data representation family is absent from the immutable catalog",
+  )
 }
 
 ///|

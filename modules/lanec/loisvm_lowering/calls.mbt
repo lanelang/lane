@@ -6,11 +6,34 @@ fn FunctionLowerer::lower_call(
   arguments : Array[@anf.AnfAtom],
 ) -> LocalValue raise LoisvmLoweringError {
   let callee = self.lower_atom(callee)
-  let lowered_arguments = arguments.map(argument => {
-    self.materialize_local(self.lower_atom(argument))
-  })
-  if self.image.representation_call_target(self.caller_instances, site)
-    is Some((target, plan)) {
+  let representation_target = self.image.representation_call_target(
+    self.caller_instances,
+    site,
+  )
+  let representation_target = match representation_target {
+    Some((_, plan)) if !self.representation_worker &&
+      plan.data_families_change_callable_abi(self.image) => None
+    target => target
+  }
+  let lowered_arguments = []
+  for index, argument in arguments {
+    let planned_argument = if self.representation_worker {
+      self.image.callable_instances.data_callable_argument_instance(
+        self.caller_instances,
+        site,
+        index,
+      )
+    } else {
+      None
+    }
+    let lowered = match planned_argument {
+      Some(instance) =>
+        self.materialize_planned_callable_atom(argument, instance)
+      None => self.lower_atom(argument)
+    }
+    lowered_arguments.push(self.materialize_local(lowered))
+  }
+  if representation_target is Some((target, plan)) {
     let (_, _, formal_result) = function_type_parts(target.definition.type_)
     let actual_result = target.substitution.apply_type(
       self.image.runtime_types,
@@ -449,14 +472,31 @@ fn FunctionLowerer::lower_representation_specialized_call(
     )
     match adapted {
       Unit => ()
-      Slot(slot, _) => arguments.push(slot)
+      Slot(slot, _) => {
+        let expected = self.image.slot_metadata_with_data_families(
+          formal,
+          plan.data_families,
+        )
+        let actual = self.values[slot.value]
+        if actual.representation != expected.representation ||
+          actual.cleanup != expected.cleanup ||
+          actual.kind != expected.kind {
+          raise RepresentationSpecializationInvariant(
+            detail="specialized data argument \{Repr(formal)} has \{Repr(actual.kind)}, expected \{Repr(expected.kind)} in worker \{Repr(plan.key.source_function)} from callers \{Repr(self.caller_instances)}",
+          )
+        }
+        arguments.push(slot)
+      }
       _ =>
         raise RepresentationSpecializationInvariant(
           detail="representation-specialized argument is not materialized",
         )
     }
   }
-  let worker_result = self.fresh_optional_slot(plan.result_type)
+  let worker_result = self.fresh_optional_slot_with_data_families(
+    plan.result_type,
+    plan.data_families,
+  )
   match callable {
     Some(callable) =>
       self.emit(CallValue(callable, witnesses, arguments, worker_result.0))

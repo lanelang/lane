@@ -246,6 +246,7 @@ fn ImageLowerer::lower_layout_constructor(
   let lowerer : FunctionLowerer = {
     image: self,
     caller_instances: [-1],
+    data_families: [],
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -255,6 +256,7 @@ fn ImageLowerer::lower_layout_constructor(
     witnesses: [],
     substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
+    representation_worker: false,
   }
   let evidence_parameters = []
   for parameter in plan.parameters {

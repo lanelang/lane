@@ -354,9 +354,10 @@ _Avoid_: lowering-time worker discovery, source-type-spelling key, size heuristi
 The typed Runtime ANF fixed point over callable identities, evidence
 applications, aliases, parameters, results, finite allocation sites, aggregate
 members, and recursive groups. It is the sole producer of representation-worker
-demand. Allocation sites carry callable-flow identity but do not select nominal
-data storage. Recursive demand must be projection, permutation, or a finite
-closed constant; otherwise the complete SCC remains generic.
+demand and specialized data-family demand. Allocation sites carry flow identity
+but never become nominal storage identity. Recursive demand must be projection,
+permutation, or a finite closed constant; otherwise the complete SCC remains
+generic.
 _Avoid_: recursively nested aggregate fact, first-seen recursion, emission-time demand
 
 **Representation Worker**:
@@ -367,12 +368,25 @@ image has an open or indirect use.
 _Avoid_: specialization-time deletion of the generic fallback, unrestricted monomorph
 
 **Nominal Data Representation Family**:
-The declaration-owned uniform storage ABI shared by every construction and
-match of one nominal data type. A callable allocation fact is not a
-representation identity. Specializing storage requires a separate explicit
-family identity before object-shape interning and bytecode emission.
+The declaration-owned uniform fallback storage ABI for one nominal data type.
+It remains the only family available to open, existential, recursive-expanding,
+control-flow-joined, callable-valued, or incompatible uses until their complete
+family-aware contracts are proved. A callable allocation fact is not a
+representation identity.
 _Avoid_: allocation-local object shape under the declaration family,
 runtime-ABI-only family key, hidden-binder specialization
+
+**Specialized Data Representation Family**:
+A lowering-owned identity selected before VM CFG emission for one nominal owner
+and one complete canonical set of closed runtime arguments. It owns the full
+constructor-tag and object-shape contract and is consumed unchanged by
+construction, matching, nested storage, callable ABIs, captures, and bytecode
+verification. The Callable Instance Plan may produce it only after proving the
+complete connected use graph; any open nested representation rejects the whole
+component. Callable-valued fields additionally require the family-aware
+callable ABI tracked by ISS-385 and otherwise retain the nominal family.
+_Avoid_: per-allocation family, body-wide type guess, partial constructor family,
+emission-time family discovery, reboxing fallback
 
 **Closed Aggregate Scalar Replacement Plan**:
 The immutable proof that one aggregate allocation does not escape and that

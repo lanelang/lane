@@ -13,6 +13,26 @@ fn FunctionLowerer::fresh_optional_slot(
 }
 
 ///|
+fn FunctionLowerer::fresh_optional_slot_with_data_families(
+  self : FunctionLowerer,
+  type_ : @anf.RuntimeType,
+  data_families : Array[DataRepresentationFamilyPlan],
+) -> (@vmcfg.ValueId?, LocalValue) raise LoisvmLoweringError {
+  let type_ = self.instantiate_runtime_type(type_)
+  if type_ is Unit {
+    return (None, Unit)
+  }
+  if type_ is Erased(_, evidence) {
+    let slot = self.fresh_erased_slot(self.layout_witness(evidence), Owned)
+    return (Some(slot), Slot(slot, type_))
+  }
+  let slot = self.fresh_metadata(
+    self.image.slot_metadata_with_data_families(type_, data_families),
+  )
+  (Some(slot), Slot(slot, type_))
+}
+
+///|
 fn FunctionLowerer::fresh_slot(
   self : FunctionLowerer,
   type_ : @anf.RuntimeType,
@@ -22,7 +42,9 @@ fn FunctionLowerer::fresh_slot(
     return self.fresh_erased_slot(self.layout_witness(evidence), Owned)
   }
   let slot : @vmcfg.ValueId = { value: self.values.length() }
-  self.values.push(self.image.slot_metadata(type_))
+  self.values.push(
+    self.image.slot_metadata_with_data_families(type_, self.data_families),
+  )
   slot
 }
 
@@ -45,7 +67,10 @@ fn FunctionLowerer::fresh_borrowed_slot(
   if type_ is Erased(_, evidence) {
     return self.fresh_erased_slot(self.layout_witness(evidence), Borrowed)
   }
-  let metadata = self.image.slot_metadata(type_)
+  let metadata = self.image.slot_metadata_with_data_families(
+    type_,
+    self.data_families,
+  )
   let ownership : @vmcfg.Ownership = match metadata.ownership {
     Trivial => Trivial
     Owned | Borrowed => Borrowed
@@ -134,7 +159,19 @@ fn ImageLowerer::slot_metadata(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
 ) -> @vmcfg.ValueMetadata raise LoisvmLoweringError {
-  match self.elaborate_runtime_representation(type_) {
+  self.slot_metadata_with_data_families(type_, [])
+}
+
+///|
+fn ImageLowerer::slot_metadata_with_data_families(
+  self : ImageLowerer,
+  type_ : @anf.RuntimeType,
+  data_families : Array[DataRepresentationFamilyPlan],
+) -> @vmcfg.ValueMetadata raise LoisvmLoweringError {
+  match
+    self.elaborate_runtime_representation_with_data_families(
+      type_, data_families,
+    ) {
     Concrete(_, metadata) => metadata
     RuntimeUnit | RuntimeErased(_) => raise UnsupportedType(type_~)
   }
@@ -144,7 +181,16 @@ fn ImageLowerer::slot_metadata(
 fn ImageLowerer::elaborate_runtime_representation(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
-) -> RuntimeRepresentation {
+) -> RuntimeRepresentation raise LoisvmLoweringError {
+  self.elaborate_runtime_representation_with_data_families(type_, [])
+}
+
+///|
+fn ImageLowerer::elaborate_runtime_representation_with_data_families(
+  self : ImageLowerer,
+  type_ : @anf.RuntimeType,
+  data_families : Array[DataRepresentationFamilyPlan],
+) -> RuntimeRepresentation raise LoisvmLoweringError {
   let metadata : @vmcfg.ValueMetadata = match type_ {
     Unit => return RuntimeUnit
     Erased(_, evidence) => return RuntimeErased(evidence)
@@ -196,11 +242,15 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Owned,
         erased_companion: None,
       }
-    Data(owner, _) =>
+    Data(owner, arguments) =>
       {
         representation: I32,
         cleanup: OwnedRef,
-        kind: DataValue(self.intern_data_family(owner)),
+        kind: DataValue(
+          self.materialize_data_family(
+            self.data_representation_family(owner, arguments, data_families),
+          ),
+        ),
         ownership: Owned,
         erased_companion: None,
       }
@@ -277,8 +327,20 @@ fn runtime_evidence_metadata(
 fn ImageLowerer::result_abi(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
-) -> @bytecode.ResultAbi {
-  match self.elaborate_runtime_representation(type_) {
+) -> @bytecode.ResultAbi raise LoisvmLoweringError {
+  self.result_abi_with_data_families(type_, [])
+}
+
+///|
+fn ImageLowerer::result_abi_with_data_families(
+  self : ImageLowerer,
+  type_ : @anf.RuntimeType,
+  data_families : Array[DataRepresentationFamilyPlan],
+) -> @bytecode.ResultAbi raise LoisvmLoweringError {
+  match
+    self.elaborate_runtime_representation_with_data_families(
+      type_, data_families,
+    ) {
     RuntimeUnit => Unit
     RuntimeErased(_) => Value(I64, OwnedErased, ErasedValue)
     Concrete(_, metadata) =>
@@ -310,12 +372,12 @@ fn ImageLowerer::types_representation_equivalent(
 
 ///|
 fn ImageLowerer::runtime_type(
-  self : ImageLowerer,
+  _self : ImageLowerer,
   type_ : @anf.RuntimeType,
 ) -> RuntimeTypeClass {
-  match self.elaborate_runtime_representation(type_) {
-    RuntimeUnit => Concrete(Unit)
-    Concrete(type_, _) => Concrete(type_)
-    RuntimeErased(evidence) => Erased(evidence)
+  match type_ {
+    Unit => Concrete(Unit)
+    Erased(_, evidence) => Erased(evidence)
+    _ => Concrete(type_)
   }
 }

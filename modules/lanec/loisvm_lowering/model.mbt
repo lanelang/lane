@@ -304,7 +304,67 @@ priv enum CanonicalRuntimeEvidenceKey {
   Bound(Int)
   Apply(CanonicalRuntimeEvidenceKey, Array[CanonicalRuntimeEvidenceKey])
   Lambda(Array[Int], CanonicalRuntimeEvidenceKey)
-} derive(Eq)
+} derive(Debug, Eq)
+
+///|
+priv enum CanonicalRepresentationTypeExpressionKey {
+  Static(CanonicalRepresentationTypeKey)
+  Bound(Int)
+  Apply(
+    CanonicalRepresentationTypeExpressionKey,
+    Array[CanonicalRepresentationTypeExpressionKey]
+  )
+  Lambda(Array[Int], CanonicalRepresentationTypeExpressionKey)
+} derive(Debug, Eq)
+
+///|
+priv struct CanonicalRepresentationArgumentKey {
+  type_expression : CanonicalRepresentationTypeExpressionKey
+  evidence : CanonicalRuntimeEvidenceKey
+} derive(Debug, Eq)
+
+///|
+priv enum CanonicalRepresentationTypeKey {
+  Unit
+  Scalar(@anf.RuntimeScalarType)
+  ByteSequence
+  OpaqueReference(@buslane.TypeId)
+  Data(@buslane.TypeId, Array[CanonicalRepresentationArgumentKey])
+  Callable(
+    Array[CanonicalRepresentationTypeKey],
+    CanonicalRepresentationTypeKey
+  )
+  Erased(CanonicalRepresentationTypeExpressionKey, CanonicalRuntimeEvidenceKey)
+  Forall(Array[Int], CanonicalRepresentationTypeKey)
+} derive(Debug, Eq)
+
+///|
+priv enum DataRepresentationFamilyKey {
+  Declaration(@buslane.TypeId)
+  Specialized(@buslane.TypeId, Array[CanonicalRepresentationArgumentKey])
+} derive(Debug, Eq)
+
+///|
+priv struct DataRepresentationFamilyId {
+  index : Int
+} derive(Debug, Eq)
+
+///|
+priv struct DataRepresentationConstructorPlan {
+  data_constructor : @buslane.DataConId
+  mut shape : @bytecode.ObjectShapeId?
+  storage_types : Array[@anf.RuntimeType]
+} derive(Debug)
+
+///|
+#warnings("-unused_value")
+priv struct DataRepresentationFamilyPlan {
+  identity : DataRepresentationFamilyId
+  key : DataRepresentationFamilyKey
+  mut bytecode_family : @bytecode.DataFamilyId?
+  owner : @buslane.TypeId
+  constructors : Array[DataRepresentationConstructorPlan]
+} derive(Debug)
 
 ///|
 priv enum CanonicalSpecializedEvidenceKey {
@@ -324,6 +384,7 @@ priv struct RepresentationSpecializationKey {
   source_function : @anf.AnfFunctionId
   specialized_evidence : Array[(Int, CanonicalSpecializedEvidenceKey)]
   retained_arities : Array[Int]
+  data_families : Array[DataRepresentationFamilyKey]
   parameters : Array[CanonicalRuntimeTypeKey]
   scalar_parameters : Array[
     (Int, @buslane.DataConId, Array[CanonicalRuntimeTypeKey]),
@@ -341,6 +402,7 @@ priv struct RepresentationSpecializationPlan {
   retained_parameters : Array[@anf.RuntimeEvidenceParameter]
   specialized_parameters : Array[@anf.RuntimeEvidenceId]
   parameter_types : Array[@anf.RuntimeType]
+  data_families : Array[DataRepresentationFamilyPlan]
   scalar_parameters : Array[ScalarParameterPlan]
   result_type : @anf.RuntimeType
   capture : CallableCaptureContract

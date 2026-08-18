@@ -3,6 +3,8 @@ fn ImageLowerer::lower_function_body(
   self : ImageLowerer,
   function : @anf.AnfFunction,
   caller_instances : Array[Int],
+  data_families : Array[DataRepresentationFamilyPlan],
+  representation_worker : Bool,
   type_parameters : Array[@anf.RuntimeEvidenceParameter],
   parameter_types : Array[@anf.RuntimeType],
   result_type : @anf.RuntimeType,
@@ -17,6 +19,7 @@ fn ImageLowerer::lower_function_body(
   let lowerer : FunctionLowerer = {
     image: self,
     caller_instances,
+    data_families,
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -26,6 +29,7 @@ fn ImageLowerer::lower_function_body(
     witnesses: [],
     substitutions,
     specialized_parameters,
+    representation_worker,
   }
   let input_witnesses = []
   for parameter in type_parameters {
@@ -167,7 +171,7 @@ fn ImageLowerer::lower_function_body(
       witnesses: input_witnesses,
       user_parameters: parameter_slots,
     },
-    result: self.result_abi(result_type),
+    result: self.result_abi_with_data_families(result_type, data_families),
     blocks,
   }
 }

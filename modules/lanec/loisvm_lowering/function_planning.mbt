@@ -261,9 +261,12 @@ fn ImageLowerer::lower_function(
   let (type_parameters, parameter_types, result_type) = function_type_parts(
     type_,
   )
+  let instance = self.callable_instances.generic_instance(function.id).unwrap()
   self.lower_function_body(
     function,
-    [self.callable_instances.generic_instance(function.id).unwrap()],
+    [instance],
+    [],
+    false,
     type_parameters,
     parameter_types,
     result_type,
@@ -282,9 +285,13 @@ fn ImageLowerer::lower_initializer_step(
   self : ImageLowerer,
   step : InitializerStepPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
+  let data_families = self.data_family_plans(
+    self.callable_instances.data_families_for_instances([-1]),
+  )
   let lowerer : FunctionLowerer = {
     image: self,
     caller_instances: [-1],
+    data_families,
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -294,6 +301,7 @@ fn ImageLowerer::lower_initializer_step(
     witnesses: [],
     substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
+    representation_worker: true,
   }
   let result = lowerer.materialize_local(lowerer.lower_expr(step.expression))
   let (result_abi, returned) = match (self.find_global(step.value), result) {
@@ -334,6 +342,9 @@ fn ImageLowerer::lower_initializer_orchestrator(
   let lowerer : FunctionLowerer = {
     image: self,
     caller_instances: [-1],
+    data_families: self.data_family_plans(
+      self.callable_instances.data_families_for_instances([-1]),
+    ),
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -343,6 +354,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
     witnesses: [],
     substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
+    representation_worker: true,
   }
   for step in steps {
     match self.find_global(step.value) {
@@ -385,6 +397,8 @@ fn ImageLowerer::lower_lifted_function(
   self.lower_function_body(
     plan.function,
     [plan.instance],
+    [],
+    false,
     type_parameters,
     parameter_types,
     result_type,
@@ -409,6 +423,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   let lowerer : FunctionLowerer = {
     image: self,
     caller_instances: [-1],
+    data_families: [],
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -418,6 +433,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     witnesses: [],
     substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
+    representation_worker: false,
   }
   let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
   match plan.contract.implementation {

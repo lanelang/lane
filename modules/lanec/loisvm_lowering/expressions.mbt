@@ -50,7 +50,7 @@ fn FunctionLowerer::lower_atom(
     Ref(value) => self.find_value(value)
     Temp(temp) => self.find_temp(temp)
     Function(function) => self.lower_nested_function(function)
-    EvidenceLambda(parameters~, body~) => {
+    EvidenceLambda(body~, ..) => {
       let function = match extract_top_function(body) {
         Some(function) => function
         None =>
@@ -58,10 +58,7 @@ fn FunctionLowerer::lower_atom(
             detail="generic nested value must contain a function",
           )
       }
-      self.lower_nested_function_with_type(
-        function,
-        Forall(parameters, self.image.anf_function_type(function)),
-      )
+      self.lower_nested_function(function)
     }
   }
 }
@@ -136,6 +133,22 @@ fn FunctionLowerer::lower_construct(
     hidden_arguments,
   )
   let substitutions = owner_substitutions.overlay(hidden_substitutions)
+  let result_type = @anf.RuntimeType::Data(info.owner, type_arguments)
+  let family_key = if self.representation_worker {
+    self.image.callable_instances
+    .data_family_at(self.caller_instances, site)
+    .unwrap_or(Declaration(info.owner))
+  } else {
+    Declaration(info.owner)
+  }
+  let family = self.image.data_family(family_key)
+  guard family.constructor_plan(construct.data_constructor)
+    is Some(constructor_plan) else {
+    raise RepresentationSpecializationInvariant(
+      detail="planned data family lacks its construction contract",
+    )
+  }
+  let storage_types = constructor_plan.storage_types
   if construct.payloads.length() != info.payload_types.length() {
     raise InvalidDataPayloadCount(
       data_constructor=construct.data_constructor,
@@ -143,11 +156,11 @@ fn FunctionLowerer::lower_construct(
       actual=construct.payloads.length(),
     )
   }
-  if self.image.callable_instances.scalar_allocation_contract(
-      self.caller_instances,
-      site,
-    )
-    is Some(contract) {
+  let scalar_contract = self.image.callable_instances.scalar_allocation_contract(
+    self.caller_instances,
+    site,
+  )
+  if scalar_contract is Some(contract) {
     if contract.data_constructor != construct.data_constructor ||
       contract.payload_types.length() != construct.payloads.length() {
       raise RepresentationSpecializationInvariant(
@@ -180,33 +193,48 @@ fn FunctionLowerer::lower_construct(
   let witnesses = []
   for index, payload in construct.payloads {
     let formal_type = info.payload_types[index]
+    let storage_type = storage_types[index]
     let actual_type = substitutions.apply_type(
       self.image.runtime_types,
       formal_type,
     )
-    let source = self.materialize_local(self.lower_atom(payload))
-    let lowered = if self.image.runtime_type(formal_type) is Erased(_) {
+    let planned_callable = if self.representation_worker {
+      self.image.callable_instances.data_callable_payload_instance(
+        self.caller_instances,
+        site,
+        index,
+      )
+    } else {
+      None
+    }
+    let source = match planned_callable {
+      Some(instance) =>
+        self.materialize_planned_callable_atom(payload, instance)
+      None => self.lower_atom(payload)
+    }
+    let source = self.materialize_local(source)
+    let lowered = if self.image.runtime_type(storage_type) is Erased(_) {
       match source {
         Slot(slot, _) if self.values[slot.value].erased_companion
           is Some(witness) => {
           witnesses.push(witness)
-          Slot(slot, formal_type)
+          Slot(slot, storage_type)
         }
         _ => {
           let witness = self.layout_witness(runtime_type_evidence(actual_type))
           witnesses.push(witness)
-          Slot(self.erase_value(source, actual_type, witness), formal_type)
+          Slot(self.erase_value(source, actual_type, witness), storage_type)
         }
       }
     } else {
       self.adapt_local_value_with_substitutions(
-        source, actual_type, formal_type, substitutions,
+        source, actual_type, storage_type, substitutions,
       )
     }
     let lowered = self.materialize_local(lowered)
     match lowered {
       Unit =>
-        if formal_type != Unit {
+        if storage_type != Unit {
           raise UnsupportedExpression(
             detail="non-Unit data field has no runtime representation",
           )
@@ -218,61 +246,16 @@ fn FunctionLowerer::lower_construct(
         )
     }
   }
-  let shape = self.image.data_shape(construct.data_constructor, info)
+  let shape = self.image.materialize_data_shape(
+    family,
+    constructor_plan,
+    info,
+    self.data_families,
+  )
   let layout = self.image.intern_layout(Data(shape))
-  let result_type = @anf.RuntimeType::Data(info.owner, type_arguments)
   let destination = self.fresh_slot(result_type)
   self.emit(MakeData(destination, shape, Immediate(layout), witnesses, fields))
   Slot(destination, result_type)
-}
-
-///|
-fn ImageLowerer::data_shape(
-  self : ImageLowerer,
-  data_constructor : @buslane.DataConId,
-  info : @anf.RuntimeDataConstructorInfo,
-) -> @bytecode.ObjectShapeId raise LoisvmLoweringError {
-  let members : Array[@bytecode.MemberSchema] = []
-  for parameter in info.hidden_evidence_parameters {
-    let metadata = runtime_evidence_metadata(parameter)
-    members.push({
-      representation: metadata.representation,
-      cleanup: metadata.cleanup,
-      kind: metadata.kind,
-      witness_ordinal: None,
-    })
-  }
-  let mut witness_ordinal = 0
-  for payload_type in info.payload_types {
-    if self.runtime_type(payload_type) is Erased(_) {
-      members.push({
-        representation: I64,
-        cleanup: OwnedErased,
-        kind: ErasedValue,
-        witness_ordinal: Some(witness_ordinal),
-      })
-      witness_ordinal += 1
-    } else if self.runtime_type(payload_type) is Concrete(Unit) {
-      ()
-    } else {
-      let metadata = self.slot_metadata(payload_type)
-      members.push({
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-        witness_ordinal: None,
-      })
-    }
-  }
-  let constructor_tag = self.constructor_tag(data_constructor, info.owner)
-  self.intern_object_shape(
-    Data({
-      family: self.intern_data_family(info.owner),
-      constructor_tag,
-      stored_witness_count: witness_ordinal,
-      members,
-    }),
-  )
 }
 
 ///|

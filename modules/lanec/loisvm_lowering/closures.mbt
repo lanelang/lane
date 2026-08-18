@@ -3,34 +3,29 @@ fn FunctionLowerer::lower_nested_function(
   self : FunctionLowerer,
   function : @anf.AnfFunction,
 ) -> LocalValue raise LoisvmLoweringError {
-  self.lower_nested_function_with_type(
-    function,
-    self.image.anf_function_type(function),
-  )
-}
-
-///|
-fn FunctionLowerer::lower_nested_function_with_type(
-  self : FunctionLowerer,
-  function : @anf.AnfFunction,
-  function_type : @anf.RuntimeType,
-) -> LocalValue raise LoisvmLoweringError {
-  let function_type = self.substitutions.apply_type(
-    self.image.runtime_types,
-    function_type,
-  )
   let instance = self.image.callable_instance(function.id, self.substitutions)
+  let planned = self.image.callable_instances.instances[instance]
   guard self.image.lifted_function(instance) is Some(plan) else {
-    let planned = self.image.callable_instances.instances[instance]
     raise RepresentationSpecializationInvariant(
       detail="nested callable \{Repr(function.id)} instance \{instance} (owner=\{Repr(planned.definition.owner)}, generic=\{planned.generic_fallback}, group=\{Repr(planned.definition.recursive_group)}) is absent from the frozen function plan",
     )
+  }
+  let function_type = planned.substitution.apply_type(
+    self.image.runtime_types,
+    planned.definition.type_,
+  )
+  let (function_type, capture) = if self.representation_worker &&
+    self.image.representation_specialization_for_instance(instance)
+    is Some(worker) {
+    (worker.callable_type(), worker.capture)
+  } else {
+    (function_type, plan.capture)
   }
   NestedCallable({
     function,
     instance,
     type_: function_type,
-    environment: self.capture_environment(plan.capture),
+    environment: self.capture_environment(capture),
   })
 }
 
@@ -39,6 +34,11 @@ fn FunctionLowerer::materialize_nested_callable(
   self : FunctionLowerer,
   callable : DeferredNestedCallable,
 ) -> LocalValue raise LoisvmLoweringError {
+  if self.representation_worker &&
+    self.image.representation_specialization_for_instance(callable.instance)
+    is Some(plan) {
+    return self.materialize_representation_worker(plan, callable.environment)
+  }
   guard self.image.lifted_function(callable.instance) is Some(plan) else {
     raise RepresentationSpecializationInvariant(
       detail="nested callable is absent from the frozen function plan",
@@ -49,6 +49,63 @@ fn FunctionLowerer::materialize_nested_callable(
     callable.type_,
     callable.environment,
   )
+}
+
+///|
+fn FunctionLowerer::materialize_planned_callable_atom(
+  self : FunctionLowerer,
+  atom : @anf.AnfAtom,
+  instance : Int,
+) -> LocalValue raise LoisvmLoweringError {
+  let function = match atom {
+    Function(function) => function
+    EvidenceLambda(body~, ..) =>
+      match extract_top_function(body) {
+        Some(function) => function
+        None =>
+          raise RepresentationSpecializationInvariant(
+            detail="planned callable use has no function",
+          )
+      }
+    _ =>
+      raise RepresentationSpecializationInvariant(
+        detail="planned callable use is not a callable allocation",
+      )
+  }
+  self.materialize_planned_callable_instance(function, instance)
+}
+
+///|
+fn FunctionLowerer::materialize_planned_callable_instance(
+  self : FunctionLowerer,
+  function : @anf.AnfFunction,
+  instance : Int,
+) -> LocalValue raise LoisvmLoweringError {
+  guard self.image.callable_instances.instances.get(instance) is Some(planned) &&
+    planned.definition.function.id == function.id else {
+    raise RepresentationSpecializationInvariant(
+      detail="planned callable payload does not match its function allocation",
+    )
+  }
+  match self.image.representation_specialization_for_instance(instance) {
+    Some(plan) =>
+      self.materialize_representation_worker(
+        plan,
+        self.capture_environment(plan.capture),
+      )
+    None => {
+      guard self.image.lifted_function(instance) is Some(plan) else {
+        raise RepresentationSpecializationInvariant(
+          detail="planned callable payload has no emitted implementation",
+        )
+      }
+      self.materialize_planned_callable(
+        plan.lowered_function,
+        plan.type_,
+        self.capture_environment(plan.capture),
+      )
+    }
+  }
 }
 
 ///|
@@ -322,19 +379,3 @@ fn FunctionLowerer::bind_capture(
     Temp(temp) => self.temps.push({ temp, lowered: value })
   }
 }
-
-///|
-fn ImageLowerer::anf_function_type(
-  self : ImageLowerer,
-  function : @anf.AnfFunction,
-) -> @anf.RuntimeType raise LoisvmLoweringError {
-  let parameters = function.parameters.map(parameter => {
-    match self.metadata.value_info(parameter) {
-      Some(info) => info.type_
-      None => raise MissingValueMetadata(value=parameter)
-    }
-  })
-  Callable(parameters, function.result_type)
-}
-
-///|

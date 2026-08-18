@@ -9,7 +9,7 @@ priv struct ImageLowerer {
   instance_globals : Array[@bytecode.GlobalMetadata]
   plans : FunctionPlanTable
   constants : Array[Bytes]
-  data_families : Array[@buslane.TypeId]
+  data_families : Array[DataRepresentationFamilyPlan]
   layouts : Array[@bytecode.LayoutRecipe]
   object_shapes : Array[@bytecode.ObjectShape]
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
@@ -23,6 +23,7 @@ priv struct ImageLowerer {
 priv struct FunctionLowerer {
   image : ImageLowerer
   caller_instances : Array[Int]
+  data_families : Array[DataRepresentationFamilyPlan]
   values : Array[@vmcfg.ValueMetadata]
   blocks : Array[LowerBlock]
   mut current_block : Int
@@ -32,6 +33,7 @@ priv struct FunctionLowerer {
   witnesses : Array[WitnessBinding]
   mut substitutions : RuntimeSubstitution
   specialized_parameters : Array[@anf.RuntimeEvidenceId]
+  representation_worker : Bool
 }
 
 ///|
@@ -97,7 +99,11 @@ fn lower_executable_program_to_bytecode_or_raise(
     representation_specializations: [],
     synthetic_parameters: [],
   }
+  lowerer.plan_declaration_data_families()
   let callable_instances = lowerer.plan_callable_instances(anf)
+  lowerer.plan_specialized_data_families(
+    callable_instances.data_representations,
+  )
   lowerer.callable_instances = callable_instances
   let initializer = lowerer.plan(anf)
   lowerer.plan_lifted_callable_instances()
@@ -136,7 +142,7 @@ fn lower_executable_program_to_bytecode_or_raise(
       entry: entry_function,
       initializer,
       functions,
-      data_family_count: lowerer.data_families.length(),
+      data_family_count: lowerer.materialized_data_family_count(),
       globals: lowerer.instance_globals,
       layouts: lowerer.layouts,
       object_shapes: lowerer.object_shapes,

@@ -43,6 +43,7 @@ priv struct CallableAllocationFact {
   data_constructor : @buslane.DataConId
   type_arguments : Array[@anf.RuntimeArgument]
   hidden_arguments : Array[@anf.RuntimeArgument]
+  payload_atoms : Array[@anf.AnfAtom]
   payloads : Array[CallableFlowFact]
 }
 
@@ -71,6 +72,86 @@ priv struct ScalarParameterPlan {
 priv struct ClosedAggregateScalarReplacementPlan {
   allocations : Array[ScalarAllocationPlan]
   parameters : Array[ScalarParameterPlan]
+}
+
+///|
+priv struct DataRepresentationAllocationDemand {
+  allocation : CallableAllocationKey
+  family : DataRepresentationFamilyKey
+  type_ : @anf.RuntimeType
+}
+
+///|
+priv struct DataRepresentationInstanceDemand {
+  instance : Int
+  families : Array[DataRepresentationFamilyKey]
+}
+
+///|
+priv struct DataRepresentationCallablePayloadDemand {
+  allocation : CallableAllocationKey
+  payload_index : Int
+  instance : Int
+  target_type : @anf.RuntimeType
+  families : Array[DataRepresentationFamilyKey]
+}
+
+///|
+priv struct DataRepresentationCallableArgumentDemand {
+  caller : Int
+  site : @anf.AnfBindingId
+  argument_index : Int
+  instance : Int
+  target_type : @anf.RuntimeType
+  families : Array[DataRepresentationFamilyKey]
+}
+
+///|
+priv struct CallableRepresentationDraft {
+  source_instance : Int
+  lexical_arguments : Array[@anf.RuntimeArgument]
+  own_arguments : Array[PlannedRuntimeArgument]
+  caller : Int
+} derive(Eq)
+
+///|
+priv struct DataRepresentationCallableArgumentCandidate {
+  caller : Int
+  site : @anf.AnfBindingId
+  argument_index : Int
+  draft : CallableRepresentationDraft
+  target_type : @anf.RuntimeType
+  families : Array[DataRepresentationFamilyKey]
+}
+
+///|
+priv struct DataRepresentationUseGroup {
+  instance : Int
+  family : DataRepresentationFamilyKey
+} derive(Eq)
+
+///|
+priv struct DataRepresentationUseEdge {
+  from_group : DataRepresentationUseGroup
+  to_group : DataRepresentationUseGroup
+} derive(Eq)
+
+///|
+priv struct DataRepresentationDemandPlan {
+  allocations : Array[DataRepresentationAllocationDemand]
+  instances : Array[DataRepresentationInstanceDemand]
+  callable_payloads : Array[DataRepresentationCallablePayloadDemand]
+  callable_arguments : Array[DataRepresentationCallableArgumentDemand]
+}
+
+///|
+fn DataRepresentationDemandPlan::empty() -> DataRepresentationDemandPlan {
+  {
+    allocations: [],
+    instances: [],
+    callable_payloads: [],
+    callable_arguments: [],
+  }
 }
 
 ///|
@@ -114,6 +195,7 @@ priv struct CallableInstancePlan {
   instances : Array[CallableInstance]
   calls : Array[CallableCallSite]
   scalar_replacements : ClosedAggregateScalarReplacementPlan
+  data_representations : DataRepresentationDemandPlan
   rejected_recursive_groups : Array[@anf.AnfRecursiveGroupId]
 }
 
@@ -123,7 +205,192 @@ fn CallableInstancePlan::empty() -> CallableInstancePlan {
     instances: [],
     calls: [],
     scalar_replacements: ClosedAggregateScalarReplacementPlan::empty(),
+    data_representations: DataRepresentationDemandPlan::empty(),
     rejected_recursive_groups: [],
+  }
+}
+
+///|
+fn CallableInstancePlan::data_family_at(
+  self : CallableInstancePlan,
+  callers : Array[Int],
+  site : @anf.AnfBindingId,
+) -> DataRepresentationFamilyKey? {
+  guard !callers.is_empty() else { return None }
+  let mut selected : DataRepresentationFamilyKey? = None
+  for caller in callers {
+    let allocation : CallableAllocationKey = {
+      body: if caller < 0 {
+        TopLevel
+      } else {
+        Instance(caller)
+      },
+      site,
+    }
+    guard data_family_for_allocation(
+        self.data_representations.allocations,
+        allocation,
+      )
+      is Some(family) else {
+      return None
+    }
+    match selected {
+      None => selected = Some(family)
+      Some(existing) if existing == family => ()
+      Some(_) => return None
+    }
+  }
+  selected
+}
+
+///|
+fn CallableInstancePlan::data_families_for_instances(
+  self : CallableInstancePlan,
+  instances : Array[Int],
+) -> Array[DataRepresentationFamilyKey] {
+  guard !instances.is_empty() else { return [] }
+  let selected = data_families_for_instance(
+    self.data_representations.instances,
+    instances[0],
+  )
+  for index in 1..<instances.length() {
+    let candidate = data_families_for_instance(
+      self.data_representations.instances,
+      instances[index],
+    )
+    if candidate != selected {
+      return []
+    }
+  }
+  selected
+}
+
+///|
+fn CallableInstancePlan::data_callable_payload_instance(
+  self : CallableInstancePlan,
+  callers : Array[Int],
+  site : @anf.AnfBindingId,
+  payload_index : Int,
+) -> Int? {
+  guard !callers.is_empty() else { return None }
+  let mut selected : Int? = None
+  for caller in callers {
+    let key : CallableAllocationKey = {
+      body: if caller < 0 {
+        TopLevel
+      } else {
+        Instance(caller)
+      },
+      site,
+    }
+    let mut found : Int? = None
+    for demand in self.data_representations.callable_payloads {
+      if demand.allocation == key && demand.payload_index == payload_index {
+        found = Some(demand.instance)
+        break
+      }
+    }
+    guard found is Some(instance) else { return None }
+    match selected {
+      None => selected = Some(instance)
+      Some(existing) if existing == instance => ()
+      Some(_) => return None
+    }
+  }
+  selected
+}
+
+///|
+fn CallableInstancePlan::callable_payload_target_type(
+  self : CallableInstancePlan,
+  instance : Int,
+) -> @anf.RuntimeType? {
+  let mut selected : @anf.RuntimeType? = None
+  for demand in self.data_representations.callable_payloads {
+    guard demand.instance == instance else { continue }
+    match selected {
+      None => selected = Some(demand.target_type)
+      Some(existing) if existing == demand.target_type => ()
+      Some(_) => return None
+    }
+  }
+  selected
+}
+
+///|
+fn CallableInstancePlan::data_callable_argument_instance(
+  self : CallableInstancePlan,
+  callers : Array[Int],
+  site : @anf.AnfBindingId,
+  argument_index : Int,
+) -> Int? {
+  guard !callers.is_empty() else { return None }
+  let mut selected : Int? = None
+  for caller in callers {
+    let mut found : Int? = None
+    for demand in self.data_representations.callable_arguments {
+      if demand.caller == caller &&
+        demand.site == site &&
+        demand.argument_index == argument_index {
+        found = Some(demand.instance)
+        break
+      }
+    }
+    guard found is Some(instance) else { return None }
+    match selected {
+      None => selected = Some(instance)
+      Some(existing) if existing == instance => ()
+      Some(_) => return None
+    }
+  }
+  selected
+}
+
+///|
+fn CallableInstancePlan::callable_representation_target_type(
+  self : CallableInstancePlan,
+  instance : Int,
+) -> @anf.RuntimeType? {
+  let mut selected = self.callable_payload_target_type(instance)
+  for demand in self.data_representations.callable_arguments {
+    guard demand.instance == instance else { continue }
+    match selected {
+      None => selected = Some(demand.target_type)
+      Some(existing) if existing == demand.target_type => ()
+      Some(_) => return None
+    }
+  }
+  selected
+}
+
+///|
+fn CallableInstancePlan::callable_representation_data_families(
+  self : CallableInstancePlan,
+  instance : Int,
+) -> Array[DataRepresentationFamilyKey] {
+  let families = []
+  for demand in self.data_representations.callable_payloads {
+    if demand.instance == instance {
+      append_unique_data_families(families, demand.families)
+    }
+  }
+  for demand in self.data_representations.callable_arguments {
+    if demand.instance == instance {
+      append_unique_data_families(families, demand.families)
+    }
+  }
+  families
+}
+
+///|
+fn append_unique_data_families(
+  target : Array[DataRepresentationFamilyKey],
+  source : Array[DataRepresentationFamilyKey],
+) -> Unit {
+  for family in source {
+    if !target.contains(family) {
+      target.push(family)
+    }
   }
 }
 
@@ -205,6 +472,14 @@ fn CallableInstancePlan::exact_call_target(
 }
 
 ///|
+fn CallableInstancePlan::is_closed_call_target(
+  self : CallableInstancePlan,
+  instance : Int,
+) -> Bool {
+  self.calls.any(call => !call.open && call.targets.contains(instance))
+}
+
+///|
 fn ImageLowerer::callable_instance(
   self : ImageLowerer,
   function : @anf.AnfFunctionId,
@@ -245,7 +520,7 @@ fn ImageLowerer::callable_instance(
     }
   }
   raise RepresentationSpecializationInvariant(
-    detail="callable lowering requested an instance absent from the immutable plan",
+    detail="callable lowering requested function \{function.value} with \{Repr(arguments)} absent from the immutable plan",
   )
 }
 
@@ -283,23 +558,31 @@ fn ImageLowerer::plan_callable_instances(
     changed: false,
   }
   planner.seed_top_level_callables()
-  while true {
+  for _state = () {
+    while true {
+      planner.changed = false
+      planner.analyze_top_terms()
+      let count = planner.instances.length()
+      for index in 0..<count {
+        planner.analyze_instance(index)
+      }
+      if !planner.changed && planner.instances.length() == count {
+        break
+      }
+    }
     planner.changed = false
-    planner.analyze_top_terms()
     let count = planner.instances.length()
-    for index in 0..<count {
-      planner.analyze_instance(index)
+    let (scalar_replacements, data_representations) = planner.plan_aggregate_representations()
+    if planner.changed || planner.instances.length() != count {
+      continue ()
     }
-    if !planner.changed && planner.instances.length() == count {
-      break
+    break {
+      instances: planner.instances,
+      calls: planner.calls,
+      scalar_replacements,
+      data_representations,
+      rejected_recursive_groups: planner.rejected_recursive_groups,
     }
-  }
-  let scalar_replacements = planner.plan_scalar_replacements()
-  {
-    instances: planner.instances,
-    calls: planner.calls,
-    scalar_replacements,
-    rejected_recursive_groups: planner.rejected_recursive_groups,
   }
 }
 
@@ -323,6 +606,7 @@ fn ImageLowerer::plan_lifted_callable_instances(
       definition,
       function_type,
       instance.substitution,
+      [],
       [],
     )
     let (_, plan) = self.plans.append_with_result(
@@ -377,6 +661,7 @@ fn ImageLowerer::plan_lifted_callable_instances(
         function_type,
         substitutions: instance.substitution,
         specialized_parameters: [],
+        data_families: [],
       }
     })
     let capture = self.plan_callable_captures(inputs)
@@ -613,6 +898,7 @@ fn CallableInstancePlanner::eval_rhs(
         data_constructor: construct.data_constructor,
         type_arguments: construct.type_arguments,
         hidden_arguments: construct.hidden_arguments,
+        payload_atoms: construct.payloads,
         payloads,
       })
       CallableFlowFact::allocation(key)
@@ -1008,8 +1294,14 @@ fn CallableInstancePlanner::allocation(
 priv enum ScalarCarrierConsumer {
   Alias(Int, @anf.AnfBindingId)
   ExactCall(Int, Int)
-  Match
-  Unsupported
+  ClosedCall(Array[Int])
+  Construct(CallableAllocationKey)
+  Match(scalar_projectable~ : Bool)
+  Return(Int)
+  UnsupportedCallee
+  UnsupportedEvidence
+  Capture(Array[Int])
+  UnsupportedArgument
 }
 
 ///|
@@ -1022,8 +1314,11 @@ priv struct ScalarCarrierUse {
 
 ///|
 priv struct ScalarCallObservation {
+  caller : Int
+  site : @anf.AnfBindingId
   target : Int
   parameter_index : Int
+  atom : @anf.AnfAtom
   fact : CallableFlowFact
 }
 
@@ -1035,12 +1330,13 @@ priv struct ScalarUseAnalysis {
 }
 
 ///|
-fn CallableInstancePlanner::plan_scalar_replacements(
+fn CallableInstancePlanner::plan_aggregate_representations(
   self : CallableInstancePlanner,
-) -> ClosedAggregateScalarReplacementPlan raise LoisvmLoweringError {
+) -> (ClosedAggregateScalarReplacementPlan, DataRepresentationDemandPlan) raise LoisvmLoweringError {
   let analysis : ScalarUseAnalysis = { planner: self, uses: [], calls: [] }
   analysis.collect()
-  analysis.finish()
+  let scalar = analysis.finish()
+  (scalar, analysis.finish_data_representations(scalar))
 }
 
 ///|
@@ -1049,7 +1345,7 @@ fn ScalarUseAnalysis::collect(
 ) -> Unit raise LoisvmLoweringError {
   for term in self.planner.program.terms() {
     match term {
-      Let(_, expression) => self.collect_expr(expression, -1, Unsupported)
+      Let(_, expression) => self.collect_expr(expression, -1, Return(-1))
       LetRec(bindings) =>
         for binding in bindings {
           self.collect_atom_captures(binding.rhs, -1)
@@ -1061,7 +1357,7 @@ fn ScalarUseAnalysis::collect(
     self.collect_expr(
       instance.definition.function.body,
       instance.id,
-      Unsupported,
+      Return(instance.id),
     )
   }
 }
@@ -1098,36 +1394,69 @@ fn ScalarUseAnalysis::collect_rhs(
   match rhs {
     Atom(atom) => self.record_atom_use(atom, caller, Alias(caller, site))
     ApplyEvidence(callee~, ..) =>
-      self.record_atom_use(callee, caller, Unsupported)
-    Construct(construct) =>
-      for payload in construct.payloads {
-        self.record_atom_use(payload, caller, Unsupported)
+      self.record_atom_use(callee, caller, UnsupportedEvidence)
+    Construct(construct) => {
+      let allocation : CallableAllocationKey = {
+        body: if caller < 0 {
+          TopLevel
+        } else {
+          Instance(caller)
+        },
+        site,
       }
+      for payload in construct.payloads {
+        self.record_atom_use(payload, caller, Construct(allocation))
+      }
+    }
     Match(match_) => {
       let fact = self.atom_fact(match_.scrutinee, caller)
-      let consumer = if self.match_accepts_fact(match_, fact) {
-        ScalarCarrierConsumer::Match
-      } else {
-        Unsupported
-      }
+      let consumer = ScalarCarrierConsumer::Match(
+        scalar_projectable=self.match_accepts_fact(match_, fact),
+      )
       self.record_atom_use(match_.scrutinee, caller, consumer)
       for alternative in match_.alternatives {
-        self.collect_expr(alternative.body, caller, Unsupported)
+        self.collect_expr(alternative.body, caller, UnsupportedArgument)
       }
     }
     Call(callee~, arguments~) => {
-      self.record_atom_use(callee, caller, Unsupported)
+      self.record_atom_use(callee, caller, UnsupportedCallee)
       let target = self.exact_call_target(caller, site)
+      let targets = self.closed_call_targets(caller, site)
       for index, argument in arguments {
         let fact = self.atom_fact(argument, caller)
         match target {
-          Some(instance) if !self.planner.instances[instance].generic_fallback &&
-            index <
+          Some(instance) if index <
             self.planner.instances[instance].definition.function.parameters.length() => {
-            self.calls.push({ target: instance, parameter_index: index, fact })
+            self.calls.push({
+              caller,
+              site,
+              target: instance,
+              parameter_index: index,
+              atom: argument,
+              fact,
+            })
             self.record_atom_use(argument, caller, ExactCall(instance, index))
           }
-          _ => self.record_atom_use(argument, caller, Unsupported)
+          _ =>
+            if !targets.is_empty() &&
+              targets.all(instance => {
+                index <
+                self.planner.instances[instance].definition.function.parameters.length()
+              }) {
+              for instance in targets {
+                self.calls.push({
+                  caller,
+                  site,
+                  target: instance,
+                  parameter_index: index,
+                  atom: argument,
+                  fact,
+                })
+              }
+              self.record_atom_use(argument, caller, ClosedCall(targets))
+            } else {
+              self.record_atom_use(argument, caller, UnsupportedArgument)
+            }
         }
       }
     }
@@ -1149,12 +1478,36 @@ fn ScalarUseAnalysis::collect_atom_captures(
     self.planner.catalog.find(function.id) is Some(definition) else {
     return
   }
+  let instances = self.planner.capture_instances(definition, caller)
   for capture in definition.captures {
     match capture {
-      Value(value) => self.record_binding_use(caller, Value(value), Unsupported)
-      Temp(temp) => self.record_binding_use(caller, Temp(temp), Unsupported)
+      Value(value) =>
+        self.record_binding_use(caller, Value(value), Capture(instances))
+      Temp(temp) =>
+        self.record_binding_use(caller, Temp(temp), Capture(instances))
     }
   }
+}
+
+///|
+fn CallableInstancePlanner::capture_instances(
+  self : CallableInstancePlanner,
+  definition : @anf.AnfCallableDefinition,
+  caller : Int,
+) -> Array[Int] {
+  let lexical_arguments = definition.lexical_parameters.map(parameter => {
+    self.argument_in_caller(caller, parameter)
+  })
+  let arguments = lexical_arguments +
+    self.identity_arguments(definition.parameters)
+  self.instances.filter_map(instance => {
+    if instance.definition.function.id == definition.function.id &&
+      instance.key.arguments == arguments {
+      Some(instance.id)
+    } else {
+      None
+    }
+  })
 }
 
 ///|
@@ -1202,7 +1555,7 @@ fn ScalarUseAnalysis::atom_fact(
   self : ScalarUseAnalysis,
   atom : @anf.AnfAtom,
   caller : Int,
-) -> CallableFlowFact {
+) -> CallableFlowFact raise LoisvmLoweringError {
   match atom {
     Ref(value) => {
       let local_fact = self.planner.binding_fact(caller, Value(value))
@@ -1213,7 +1566,8 @@ fn ScalarUseAnalysis::atom_fact(
       }
     }
     Temp(temp) => self.planner.binding_fact(caller, Temp(temp))
-    _ => CallableFlowFact::empty()
+    Function(_) | EvidenceLambda(_) => self.planner.eval_atom(atom, caller)
+    Literal(_) => CallableFlowFact::empty()
   }
 }
 
@@ -1230,6 +1584,20 @@ fn ScalarUseAnalysis::exact_call_target(
     }
   }
   None
+}
+
+///|
+fn ScalarUseAnalysis::closed_call_targets(
+  self : ScalarUseAnalysis,
+  caller : Int,
+  site : @anf.AnfBindingId,
+) -> Array[Int] {
+  for call in self.planner.calls {
+    if call.caller == caller && call.site == site && !call.open {
+      return call.targets
+    }
+  }
+  []
 }
 
 ///|
@@ -1327,7 +1695,7 @@ fn ScalarUseAnalysis::finish(
   for usage in self.uses {
     if usage.fact.open ||
       usage.consumers.length() != 1 ||
-      usage.consumers[0] is Unsupported {
+      !scalar_replacement_consumer(usage.consumers[0]) {
       reject_allocations(rejected, usage.fact.allocations)
     }
   }
@@ -1459,7 +1827,7 @@ fn ScalarUseAnalysis::allocation_reaches_match(
       return false
     }
     match consumer {
-      Match => return true
+      Match(scalar_projectable=true) => return true
       Alias(next_caller, next_binding) => {
         caller = next_caller
         binding = next_binding
@@ -1478,11 +1846,729 @@ fn ScalarUseAnalysis::allocation_reaches_match(
         caller = instance
         binding = Value(parameter)
       }
-      Unsupported => return false
+      Match(scalar_projectable=false)
+      | ClosedCall(_)
+      | Construct(_)
+      | Return(_)
+      | Capture(_)
+      | UnsupportedCallee
+      | UnsupportedEvidence
+      | UnsupportedArgument => return false
     }
   } nobreak {
     false
   }
+}
+
+///|
+fn scalar_replacement_consumer(consumer : ScalarCarrierConsumer) -> Bool {
+  consumer is (Alias(_, _) | ExactCall(_, _) | Match(scalar_projectable=true))
+}
+
+///|
+fn ScalarUseAnalysis::finish_data_representations(
+  self : ScalarUseAnalysis,
+  scalar : ClosedAggregateScalarReplacementPlan,
+) -> DataRepresentationDemandPlan raise LoisvmLoweringError {
+  let candidates : Array[DataRepresentationAllocationDemand] = []
+  for allocation in self.planner.allocations {
+    guard !scalar.allocations.any(replacement => {
+        replacement.key == allocation.key
+      }) &&
+      self.planner.data_representation_candidate(allocation) is Some(candidate) else {
+      continue
+    }
+    candidates.push(candidate)
+  }
+  let rejected : Array[DataRepresentationUseGroup] = []
+  let edges : Array[DataRepresentationUseEdge] = []
+  for usage in self.uses {
+    let families = data_families_in_fact(usage.fact, candidates)
+    guard !families.is_empty() else { continue }
+    let groups = data_groups_in_fact(usage.fact, candidates)
+    if usage.fact.open || families.length() != 1 {
+      reject_data_groups(rejected, groups)
+      continue
+    }
+    let family = families[0]
+    for consumer in usage.consumers {
+      match consumer {
+        Alias(_, _) | Match(_) => ()
+        ExactCall(instance, _) => {
+          let target = { instance, family }
+          if self.planner.instances.get(instance) is Some(candidate) &&
+            !self.planner.instance_rejects_data_representation(candidate) {
+            connect_data_groups(edges, groups, target)
+          } else {
+            reject_data_groups(rejected, groups)
+          }
+        }
+        ClosedCall(targets) =>
+          for instance in targets {
+            let target = { instance, family }
+            if self.planner.instances.get(instance) is Some(candidate) &&
+              !self.planner.instance_rejects_data_representation(candidate) {
+              connect_data_groups(edges, groups, target)
+            } else {
+              reject_data_groups(rejected, groups)
+            }
+          }
+        Return(instance) =>
+          if instance >= 0 {
+            connect_data_groups(edges, groups, { instance, family })
+          } else {
+            reject_data_groups(rejected, groups)
+          }
+        Construct(allocation) =>
+          if !scalar.allocations.any(replacement => {
+              replacement.key == allocation
+            }) &&
+            data_family_for_allocation(candidates, allocation)
+            is Some(outer_family) {
+            connect_data_groups(
+              edges,
+              groups,
+              data_group_for_allocation(allocation, outer_family),
+            )
+          } else {
+            reject_data_groups(rejected, groups)
+          }
+        Capture(targets) =>
+          if targets.is_empty() {
+            reject_data_groups(rejected, groups)
+          } else {
+            for instance in targets {
+              let target = { instance, family }
+              if self.planner.instances.get(instance) is Some(candidate) &&
+                !self.planner.instance_rejects_data_representation(candidate) {
+                connect_data_groups(edges, groups, target)
+              } else {
+                reject_data_groups(rejected, groups)
+              }
+            }
+          }
+        UnsupportedCallee => reject_data_groups(rejected, groups)
+        UnsupportedEvidence => reject_data_groups(rejected, groups)
+        UnsupportedArgument => reject_data_groups(rejected, groups)
+      }
+    }
+  }
+  for candidate in candidates {
+    let caller = match candidate.allocation.body {
+      TopLevel => -1
+      Instance(instance) => instance
+    }
+    if self.find_use(caller, candidate.allocation.site) is None {
+      reject_data_groups(rejected, [
+        data_group_for_allocation(candidate.allocation, candidate.family),
+      ])
+    }
+    guard self.planner.allocation(candidate.allocation) is Some(allocation) else {
+      reject_data_groups(rejected, [
+        data_group_for_allocation(candidate.allocation, candidate.family),
+      ])
+      continue
+    }
+    for index, payload in allocation.payloads {
+      guard self.planner.data_candidate_payload_type(candidate, index)
+        is Some(Callable(_, _) | Forall(_, _) as target_type) else {
+        continue
+      }
+      if self.planner.callable_draft_for_data_payload(
+          allocation, index, payload, target_type,
+        )
+        is None {
+        reject_data_groups(rejected, [
+          data_group_for_allocation(candidate.allocation, candidate.family),
+        ])
+      }
+    }
+  }
+  while true {
+    let before = edges.length()
+    for group in data_representation_groups(candidates, edges) {
+      guard group.instance >= 0 &&
+        self.planner.instances.get(group.instance) is Some(instance) else {
+        continue
+      }
+      for definition in self.planner.catalog.definitions() {
+        guard definition.owner == Some(instance.definition.function.id) else {
+          continue
+        }
+        let targets = self.planner.capture_instances(definition, group.instance)
+        for capture in definition.captures {
+          guard self.planner.catalog.capture_type(
+              capture,
+              self.planner.image.metadata,
+            )
+            is Some(type_) &&
+            self.planner.image.data_family_key_for_type(
+              instance.substitution.apply_type(
+                self.planner.image.runtime_types,
+                type_,
+              ),
+            ) ==
+            Some(group.family) else {
+            continue
+          }
+          for target in targets {
+            connect_data_groups(edges, [group], {
+              instance: target,
+              family: group.family,
+            })
+          }
+        }
+      }
+    }
+    if edges.length() == before {
+      break
+    }
+  }
+  let groups = data_representation_groups(candidates, edges)
+  for group in groups {
+    guard group.instance >= 0 &&
+      self.planner.instances.get(group.instance) is Some(instance) else {
+      continue
+    }
+    let (_, formal_parameters, _) = function_type_parts(
+      instance.definition.type_,
+    )
+    for observation in self.calls {
+      guard observation.target == group.instance &&
+        formal_parameters.get(observation.parameter_index) is Some(formal) else {
+        continue
+      }
+      let actual = instance.substitution.apply_type(
+        self.planner.image.runtime_types,
+        formal,
+      )
+      guard self.planner.image.data_family_key_for_type(actual) ==
+        Some(group.family) else {
+        continue
+      }
+      let observed = data_families_in_fact(observation.fact, candidates)
+      if observation.fact.open || observed != [group.family] {
+        reject_data_groups(rejected, [group])
+      }
+    }
+  }
+  let callable_argument_candidates : Array[
+    (
+      DataRepresentationCallableArgumentCandidate,
+      Array[DataRepresentationUseGroup],
+    ),
+  ] = []
+  for observation in self.calls {
+    let target_groups = groups.filter(group => {
+      group.instance == observation.target && !rejected.contains(group)
+    })
+    guard !target_groups.is_empty() &&
+      self.planner.instances.get(observation.target) is Some(target) else {
+      continue
+    }
+    let (_, formal_parameters, _) = function_type_parts(target.definition.type_)
+    guard formal_parameters.get(observation.parameter_index) is Some(formal) else {
+      continue
+    }
+    let target_type = target.substitution.apply_type(
+      self.planner.image.runtime_types,
+      formal,
+    )
+    guard target_type is (Callable(_, _) | Forall(_, _)) else { continue }
+    guard observation.atom is (Function(_) | EvidenceLambda(_)) &&
+      self.planner.representation_draft_for_fact(
+        observation.fact,
+        target_type,
+        observation.caller,
+      )
+      is Some(draft) else {
+      continue
+    }
+    let families = []
+    for group in target_groups {
+      if !families.contains(group.family) {
+        families.push(group.family)
+      }
+    }
+    callable_argument_candidates.push(
+      (
+        {
+          caller: observation.caller,
+          site: observation.site,
+          argument_index: observation.parameter_index,
+          draft,
+          target_type,
+          families,
+        },
+        target_groups,
+      ),
+    )
+  }
+  for index, left in callable_argument_candidates {
+    for right_index in (index + 1)..<callable_argument_candidates.length() {
+      let right = callable_argument_candidates[right_index]
+      if left.0.draft == right.0.draft &&
+        (
+          left.0.target_type != right.0.target_type ||
+          left.0.families != right.0.families
+        ) {
+        reject_data_groups(rejected, left.1)
+        reject_data_groups(rejected, right.1)
+      }
+    }
+  }
+  while true {
+    let before = rejected.length()
+    for edge in edges {
+      if rejected.contains(edge.from_group) {
+        reject_data_groups(rejected, [edge.to_group])
+      }
+      if rejected.contains(edge.to_group) {
+        reject_data_groups(rejected, [edge.from_group])
+      }
+    }
+    if rejected.length() == before {
+      break
+    }
+  }
+  let allocations = candidates.filter(candidate => {
+    !rejected.contains(
+      data_group_for_allocation(candidate.allocation, candidate.family),
+    )
+  })
+  let instances : Array[DataRepresentationInstanceDemand] = []
+  for candidate in allocations {
+    let group = data_group_for_allocation(
+      candidate.allocation,
+      candidate.family,
+    )
+    add_instance_data_family(instances, group.instance, group.family)
+  }
+  for edge in edges {
+    if !rejected.contains(edge.from_group) && !rejected.contains(edge.to_group) {
+      add_instance_data_family(
+        instances,
+        edge.from_group.instance,
+        edge.from_group.family,
+      )
+      add_instance_data_family(
+        instances,
+        edge.to_group.instance,
+        edge.to_group.family,
+      )
+    }
+  }
+  let callable_payloads : Array[DataRepresentationCallablePayloadDemand] = []
+  for candidate in allocations {
+    guard self.planner.allocation(candidate.allocation) is Some(allocation) else {
+      continue
+    }
+    for index, payload in allocation.payloads {
+      guard self.planner.data_candidate_payload_type(candidate, index)
+        is Some(Callable(_, _) | Forall(_, _) as target_type) &&
+        self.planner.callable_draft_for_data_payload(
+          allocation, index, payload, target_type,
+        )
+        is Some(draft) else {
+        continue
+      }
+      let instance = self.planner.materialize_representation_draft(draft)
+      callable_payloads.push({
+        allocation: candidate.allocation,
+        payload_index: index,
+        instance,
+        target_type,
+        families: [candidate.family],
+      })
+    }
+  }
+  let callable_arguments = callable_argument_candidates.filter_map(candidate => {
+    if candidate.1.any(group => rejected.contains(group)) {
+      None
+    } else {
+      let accepted = candidate.0
+      Some({
+        caller: accepted.caller,
+        site: accepted.site,
+        argument_index: accepted.argument_index,
+        instance: self.planner.materialize_representation_draft(accepted.draft),
+        target_type: accepted.target_type,
+        families: accepted.families,
+      })
+    }
+  })
+  { allocations, instances, callable_payloads, callable_arguments }
+}
+
+///|
+fn CallableInstancePlanner::data_candidate_payload_type(
+  self : CallableInstancePlanner,
+  candidate : DataRepresentationAllocationDemand,
+  index : Int,
+) -> @anf.RuntimeType? raise LoisvmLoweringError {
+  guard candidate.type_ is Data(owner, arguments) &&
+    self.image.metadata.type_info(owner) is Some(owner_info) &&
+    self.allocation(candidate.allocation) is Some(allocation) &&
+    self.image.metadata.data_constructor_info(allocation.data_constructor)
+    is Some(constructor_info) &&
+    constructor_info.payload_types.get(index) is Some(payload_type) else {
+    return None
+  }
+  RuntimeSubstitution::from_arguments(owner_info.evidence_parameters, arguments).apply_type(
+    self.image.runtime_types,
+    payload_type,
+  )
+  |> Some
+}
+
+///|
+fn CallableInstancePlanner::callable_instance_for_fact(
+  self : CallableInstancePlanner,
+  fact : CallableFlowFact,
+) -> Int? {
+  guard !fact.open &&
+    fact.callables is [callable] &&
+    self.catalog.find(callable.function) is Some(definition) else {
+    return None
+  }
+  if callable.applied_arguments.length() == definition.parameters.length() {
+    let arguments = callable.lexical_arguments +
+      callable.applied_arguments.map(argument => argument.argument)
+    for instance in self.instances {
+      if !instance.generic_fallback &&
+        instance.key.function == callable.function &&
+        instance.key.arguments == arguments {
+        return Some(instance.id)
+      }
+    }
+  }
+  if callable.applied_arguments.is_empty() {
+    for instance in self.instances {
+      if instance.generic_fallback &&
+        instance.key.function == callable.function &&
+        instance.key.arguments[:definition.lexical_parameters.length()].to_owned() ==
+        callable.lexical_arguments {
+        return Some(instance.id)
+      }
+    }
+  }
+  None
+}
+
+///|
+fn CallableInstancePlanner::representation_draft_for_fact(
+  self : CallableInstancePlanner,
+  fact : CallableFlowFact,
+  target_type : @anf.RuntimeType,
+  caller : Int,
+) -> CallableRepresentationDraft? raise LoisvmLoweringError {
+  guard self.callable_instance_for_fact(fact) is Some(source) else {
+    return None
+  }
+  let source_instance = self.instances[source]
+  let definition = source_instance.definition
+  let parameters = definition.lexical_parameters + definition.parameters
+  let substitutions = self.image.refine_callable_representation_substitution(
+    definition.type_,
+    target_type,
+    source_instance.substitution,
+    parameters.map(parameter => parameter.id),
+  )
+  let lexical_arguments = definition.lexical_parameters.map(parameter => {
+    substitutions
+    .argument(parameter.id)
+    .unwrap_or(self.identity_argument(parameter))
+  })
+  let own_arguments = []
+  for index, parameter in definition.parameters {
+    let argument = substitutions
+      .argument(parameter.id)
+      .unwrap_or(source_instance.own_arguments[index].argument)
+    own_arguments.push({
+      argument,
+      transform: if is_closed_generic_argument(argument) {
+        Closed
+      } else {
+        source_instance.own_arguments[index].transform
+      },
+    })
+  }
+  Some({ source_instance: source, lexical_arguments, own_arguments, caller })
+}
+
+///|
+fn CallableInstancePlanner::materialize_representation_draft(
+  self : CallableInstancePlanner,
+  draft : CallableRepresentationDraft,
+) -> Int {
+  self.ensure_instance(
+    self.instances[draft.source_instance].definition,
+    draft.lexical_arguments,
+    draft.own_arguments,
+    generic_fallback=false,
+    caller=if draft.caller < 0 { None } else { Some(draft.caller) },
+  )
+}
+
+///|
+fn CallableInstancePlanner::callable_draft_for_data_payload(
+  self : CallableInstancePlanner,
+  allocation : CallableAllocationFact,
+  index : Int,
+  fact : CallableFlowFact,
+  target_type : @anf.RuntimeType,
+) -> CallableRepresentationDraft? raise LoisvmLoweringError {
+  guard allocation.payload_atoms.get(index)
+    is Some(Function(_) | EvidenceLambda(_)) else {
+    return None
+  }
+  self.representation_draft_for_fact(
+    fact,
+    target_type,
+    match allocation.key.body {
+      TopLevel => -1
+      Instance(instance) => instance
+    },
+  )
+}
+
+///|
+fn data_representation_groups(
+  candidates : Array[DataRepresentationAllocationDemand],
+  edges : Array[DataRepresentationUseEdge],
+) -> Array[DataRepresentationUseGroup] {
+  let groups = []
+  for candidate in candidates {
+    let group = data_group_for_allocation(
+      candidate.allocation,
+      candidate.family,
+    )
+    if !groups.contains(group) {
+      groups.push(group)
+    }
+  }
+  for edge in edges {
+    if !groups.contains(edge.from_group) {
+      groups.push(edge.from_group)
+    }
+    if !groups.contains(edge.to_group) {
+      groups.push(edge.to_group)
+    }
+  }
+  groups
+}
+
+///|
+fn ImageLowerer::data_family_key_for_type(
+  self : ImageLowerer,
+  type_ : @anf.RuntimeType,
+) -> DataRepresentationFamilyKey? {
+  match type_ {
+    Data(owner, arguments) =>
+      self.specialized_data_family_key_or_none(owner, arguments)
+    _ => None
+  }
+}
+
+///|
+fn CallableInstancePlanner::data_representation_candidate(
+  self : CallableInstancePlanner,
+  allocation : CallableAllocationFact,
+) -> DataRepresentationAllocationDemand? raise LoisvmLoweringError {
+  let substitutions = match allocation.key.body {
+    TopLevel => RuntimeSubstitution::new()
+    Instance(instance) => {
+      guard self.instances.get(instance) is Some(candidate) &&
+        !self.instance_rejects_data_representation(candidate) else {
+        return None
+      }
+      candidate.substitution
+    }
+  }
+  guard self.image.metadata.data_constructor_info(allocation.data_constructor)
+    is Some(info) &&
+    self.image.metadata.type_info(info.owner) is Some(owner) else {
+    return None
+  }
+  for data_constructor in owner.constructors {
+    guard self.image.metadata.data_constructor_info(data_constructor)
+      is Some(constructor_info) &&
+      constructor_info.hidden_evidence_parameters.is_empty() else {
+      return None
+    }
+  }
+  let arguments = allocation.type_arguments.map(argument => {
+    substitutions.apply_argument(self.image.runtime_types, argument)
+  })
+  guard arguments.length() == owner.evidence_parameters.length() &&
+    self.image.specialized_data_family_key_or_none(info.owner, arguments)
+    is Some(family) &&
+    self.image.data_representation_changes(info.owner, arguments) else {
+    return None
+  }
+  let owner_substitutions = RuntimeSubstitution::from_arguments(
+    owner.evidence_parameters,
+    arguments,
+  )
+  for data_constructor in owner.constructors {
+    guard self.image.metadata.data_constructor_info(data_constructor)
+      is Some(constructor_info) else {
+      return None
+    }
+    for payload_type in constructor_info.payload_types {
+      let storage_type = owner_substitutions.apply_type(
+        self.image.runtime_types,
+        payload_type,
+      )
+      guard !(storage_type is (Callable(_, _) | Forall(_, _))) &&
+        self.image.nested_data_representations_are_closed(storage_type) else {
+        return None
+      }
+    }
+  }
+  Some({
+    allocation: allocation.key,
+    family,
+    type_: Data(info.owner, arguments),
+  })
+}
+
+///|
+fn CallableInstancePlanner::instance_rejects_data_representation(
+  self : CallableInstancePlanner,
+  instance : CallableInstance,
+) -> Bool {
+  if instance.definition.recursive_group is Some(group) &&
+    self.rejected_recursive_groups.contains(group) {
+    return true
+  }
+  if instance.key.arguments.any(argument => {
+      !is_closed_generic_argument(argument)
+    }) {
+    return true
+  }
+  self.open_functions.contains(instance.definition.function.id)
+}
+
+///|
+fn data_families_in_fact(
+  fact : CallableFlowFact,
+  candidates : Array[DataRepresentationAllocationDemand],
+) -> Array[DataRepresentationFamilyKey] {
+  let families = []
+  for allocation in fact.allocations {
+    guard data_family_for_allocation(candidates, allocation) is Some(family) else {
+      continue
+    }
+    if !families.contains(family) {
+      families.push(family)
+    }
+  }
+  families
+}
+
+///|
+fn data_groups_in_fact(
+  fact : CallableFlowFact,
+  candidates : Array[DataRepresentationAllocationDemand],
+) -> Array[DataRepresentationUseGroup] {
+  let groups = []
+  for allocation in fact.allocations {
+    guard data_family_for_allocation(candidates, allocation) is Some(family) else {
+      continue
+    }
+    let group = data_group_for_allocation(allocation, family)
+    if !groups.contains(group) {
+      groups.push(group)
+    }
+  }
+  groups
+}
+
+///|
+fn data_group_for_allocation(
+  allocation : CallableAllocationKey,
+  family : DataRepresentationFamilyKey,
+) -> DataRepresentationUseGroup {
+  {
+    instance: match allocation.body {
+      TopLevel => -1
+      Instance(instance) => instance
+    },
+    family,
+  }
+}
+
+///|
+fn connect_data_groups(
+  edges : Array[DataRepresentationUseEdge],
+  sources : Array[DataRepresentationUseGroup],
+  target : DataRepresentationUseGroup,
+) -> Unit {
+  for source in sources {
+    let edge : DataRepresentationUseEdge = {
+      from_group: source,
+      to_group: target,
+    }
+    if source != target && !edges.contains(edge) {
+      edges.push(edge)
+    }
+  }
+}
+
+///|
+fn data_family_for_allocation(
+  candidates : Array[DataRepresentationAllocationDemand],
+  allocation : CallableAllocationKey,
+) -> DataRepresentationFamilyKey? {
+  for candidate in candidates {
+    if candidate.allocation == allocation {
+      return Some(candidate.family)
+    }
+  }
+  None
+}
+
+///|
+fn data_families_for_instance(
+  demands : Array[DataRepresentationInstanceDemand],
+  instance : Int,
+) -> Array[DataRepresentationFamilyKey] {
+  for demand in demands {
+    if demand.instance == instance {
+      return demand.families
+    }
+  }
+  []
+}
+
+///|
+fn reject_data_groups(
+  rejected : Array[DataRepresentationUseGroup],
+  groups : Array[DataRepresentationUseGroup],
+) -> Unit {
+  for group in groups {
+    if !rejected.contains(group) {
+      rejected.push(group)
+    }
+  }
+}
+
+///|
+fn add_instance_data_family(
+  instances : Array[DataRepresentationInstanceDemand],
+  instance : Int,
+  family : DataRepresentationFamilyKey,
+) -> Unit {
+  for demand in instances {
+    if demand.instance == instance {
+      if !demand.families.contains(family) {
+        demand.families.push(family)
+      }
+      return
+    }
+  }
+  instances.push({ instance, families: [family] })
 }
 
 ///|

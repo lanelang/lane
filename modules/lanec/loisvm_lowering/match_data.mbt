@@ -244,7 +244,24 @@ fn FunctionLowerer::bind_data_alternative(
   self.bindings.push({ value: binder, lowered: Slot(scrutinee, scrutinee_type) })
   let hidden_substitutions = RuntimeSubstitution::new()
   if binds_payloads {
-    let shape = self.image.data_shape(data_constructor, info)
+    guard self.values[scrutinee.value].kind is DataValue(family_id) else {
+      raise RepresentationSpecializationInvariant(
+        detail="data match scrutinee lacks a representation family",
+      )
+    }
+    let family = self.image.data_family_by_bytecode_id(family_id)
+    guard family.constructor_plan(data_constructor) is Some(constructor_plan) else {
+      raise RepresentationSpecializationInvariant(
+        detail="data match family lacks its constructor contract",
+      )
+    }
+    let storage_types = constructor_plan.storage_types
+    let shape = self.image.materialize_data_shape(
+      family,
+      constructor_plan,
+      info,
+      self.data_families,
+    )
     let mut evidence_member_index = 0
     for index, hidden_parameter in info.hidden_evidence_parameters {
       let binder = alternative.evidence_binders[index]
@@ -272,41 +289,44 @@ fn FunctionLowerer::bind_data_alternative(
     let branch_substitutions = substitutions.overlay(hidden_substitutions)
     for index, value_binder in alternative.value_binders {
       let formal_type = info.payload_types[index]
+      let storage_type = storage_types[index]
       let payload_type = branch_substitutions.apply_type(
         self.image.runtime_types,
         formal_type,
       )
-      let stored = if self.image.runtime_type(formal_type) is Erased(_) {
+      let stored = if self.image.runtime_type(storage_type) is Erased(_) {
         let witness = self.fresh_metadata(layout_witness_metadata())
         let erased = self.fresh_erased_slot(witness, Borrowed)
         self.emit(
           BorrowField(
             shape,
             scrutinee,
-            evidence_member_index +
-            runtime_member_index(info.payload_types, index),
+            evidence_member_index + runtime_member_index(storage_types, index),
             { value_destination: erased, witness_destination: Some(witness) },
           ),
         )
-        Slot(erased, formal_type)
-      } else if self.image.runtime_type(formal_type) is Concrete(Unit) {
+        Slot(erased, storage_type)
+      } else if self.image.runtime_type(storage_type) is Concrete(Unit) {
         Unit
       } else {
-        let destination = self.fresh_borrowed_slot(formal_type)
+        let destination = self.fresh_borrowed_slot(storage_type)
         self.emit(
           BorrowField(
             shape,
             scrutinee,
-            evidence_member_index +
-            runtime_member_index(info.payload_types, index),
+            evidence_member_index + runtime_member_index(storage_types, index),
             { value_destination: destination, witness_destination: None },
           ),
         )
-        Slot(destination, formal_type)
+        Slot(destination, storage_type)
       }
-      let lowered = self.adapt_local_value_with_substitutions(
-        stored, formal_type, payload_type, branch_substitutions,
-      )
+      let lowered = if family.key is Specialized(_, _) {
+        stored
+      } else {
+        self.adapt_local_value_with_substitutions(
+          stored, storage_type, payload_type, branch_substitutions,
+        )
+      }
       self.bindings.push({ value: value_binder, lowered })
     }
     self.substitutions = self.substitutions.overlay(branch_substitutions)

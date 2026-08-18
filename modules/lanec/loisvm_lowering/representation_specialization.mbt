@@ -4,12 +4,21 @@ fn ImageLowerer::plan_representation_specializations(
   instances : CallableInstancePlan,
 ) -> Unit raise LoisvmLoweringError {
   for instance in instances.instances {
-    guard !instance.generic_fallback else { continue }
     if instance.definition.recursive_group is Some(group) &&
       instances.rejected_recursive_groups.contains(group) {
       continue
     }
-    guard self.representation_demand(instance) is Some(demand) else { continue }
+    let forced_callable_type = self.callable_instances.callable_representation_target_type(
+      instance.id,
+    )
+    guard forced_callable_type is Some(_) ||
+      instances.is_closed_call_target(instance.id) else {
+      continue
+    }
+    guard self.representation_demand(instance, forced_callable_type)
+      is Some(demand) else {
+      continue
+    }
     let mut existing = false
     for plan in self.representation_specializations {
       if plan.key == demand.key {
@@ -40,7 +49,16 @@ fn ImageLowerer::plan_representation_specializations(
             detail="nested specialization has no planned generic closure",
           )
         }
-        (fallback.capture, fallback.recursive_functions)
+        (
+          self.plan_callable_capture(
+            instance.definition,
+            function_type,
+            demand.substitutions,
+            demand.specialized_parameters,
+            demand.data_families,
+          ),
+          fallback.recursive_functions,
+        )
       }
       _ =>
         (
@@ -49,6 +67,7 @@ fn ImageLowerer::plan_representation_specializations(
             function_type,
             demand.substitutions,
             demand.specialized_parameters,
+            demand.data_families,
           ),
           [],
         )
@@ -68,6 +87,7 @@ fn ImageLowerer::plan_representation_specializations(
           retained_parameters: demand.retained_parameters,
           specialized_parameters: demand.specialized_parameters,
           parameter_types: demand.parameter_types,
+          data_families: demand.data_families,
           scalar_parameters: demand.scalar_parameters,
           result_type: demand.result_type,
           capture,
@@ -87,6 +107,7 @@ priv struct RepresentationDemand {
   retained_parameters : Array[@anf.RuntimeEvidenceParameter]
   specialized_parameters : Array[@anf.RuntimeEvidenceId]
   parameter_types : Array[@anf.RuntimeType]
+  data_families : Array[DataRepresentationFamilyPlan]
   scalar_parameters : Array[ScalarParameterPlan]
   result_type : @anf.RuntimeType
 }
@@ -95,20 +116,42 @@ priv struct RepresentationDemand {
 fn ImageLowerer::representation_demand(
   self : ImageLowerer,
   instance : CallableInstance,
+  forced_callable_type : @anf.RuntimeType?,
 ) -> RepresentationDemand? raise LoisvmLoweringError {
   let definition = instance.definition
+  let requested_data_families = self.callable_instances.data_families_for_instances([
+      instance.id,
+    ],
+  )
+  append_unique_data_families(
+    requested_data_families,
+    self.callable_instances.callable_representation_data_families(instance.id),
+  )
   guard instance.own_arguments.length() == definition.parameters.length() else {
     return None
   }
   let (_, formal_parameters, formal_result) = function_type_parts(
     definition.type_,
   )
-  let substitutions = instance.substitution
+  let substitutions = match forced_callable_type {
+    Some(target) =>
+      self.refine_callable_representation_substitution(
+        definition.type_,
+        target,
+        instance.substitution,
+        (definition.lexical_parameters + definition.parameters).map(parameter => {
+          parameter.id
+        }),
+      )
+    None => instance.substitution
+  }
   let retained_parameters = []
   let specialized_parameters = []
   let specialized_evidence = []
   for index, parameter in definition.lexical_parameters {
-    let argument = instance.key.arguments[index]
+    let argument = substitutions
+      .argument(parameter.id)
+      .unwrap_or(instance.key.arguments[index])
     if is_closed_generic_argument(argument) {
       specialized_parameters.push(parameter.id)
       specialized_evidence.push(
@@ -144,10 +187,20 @@ fn ImageLowerer::representation_demand(
       retained_parameters.push(retained_parameter)
     }
   }
-  let parameter_types = formal_parameters.map(type_ => {
-    substitutions.apply_type(self.runtime_types, type_)
-  })
-  let result_type = substitutions.apply_type(self.runtime_types, formal_result)
+  let (parameter_types, result_type) = match forced_callable_type {
+    Some(target) => {
+      let (_, parameters, result) = function_type_parts(target)
+      (parameters, result)
+    }
+    None =>
+      (
+        formal_parameters.map(type_ => {
+          substitutions.apply_type(self.runtime_types, type_)
+        }),
+        substitutions.apply_type(self.runtime_types, formal_result),
+      )
+  }
+  let data_families = self.data_family_plans(requested_data_families)
   let scalar_parameters = []
   for index in 0..<parameter_types.length() {
     if self.callable_instances.scalar_parameter_contract(instance.id, index)
@@ -159,9 +212,10 @@ fn ImageLowerer::representation_demand(
       })
     }
   }
-  guard !scalar_parameters.is_empty() ||
+  guard !data_families.is_empty() ||
+    !scalar_parameters.is_empty() ||
     self.runtime_abi_changed(
-      formal_parameters, formal_result, parameter_types, result_type,
+      formal_parameters, formal_result, parameter_types, result_type, data_families,
     ) else {
     return None
   }
@@ -170,7 +224,9 @@ fn ImageLowerer::representation_demand(
   )
   let parameters = []
   for type_ in physical_parameters {
-    let key = self.canonical_runtime_type_key(type_)
+    let key = self.canonical_runtime_type_key_with_data_families(
+      type_, data_families,
+    )
     if !(key is Unit) {
       parameters.push(key)
     }
@@ -180,22 +236,28 @@ fn ImageLowerer::representation_demand(
       source_function: definition.function.id,
       specialized_evidence,
       retained_arities: retained_parameters.map(parameter => parameter.arity),
+      data_families: data_families.map(family => family.key),
       parameters,
       scalar_parameters: scalar_parameters.map(parameter => {
         (
           parameter.parameter_index,
           parameter.contract.data_constructor,
           parameter.contract.payload_types.map(type_ => {
-            self.canonical_runtime_type_key(type_)
+            self.canonical_runtime_type_key_with_data_families(
+              type_, data_families,
+            )
           }),
         )
       }),
-      result: self.canonical_runtime_type_key(result_type),
+      result: self.canonical_runtime_type_key_with_data_families(
+        result_type, data_families,
+      ),
     },
     substitutions,
     retained_parameters,
     specialized_parameters,
     parameter_types,
+    data_families,
     scalar_parameters,
     result_type,
   })
@@ -221,6 +283,101 @@ fn physical_parameter_types(
     }
   }
   physical
+}
+
+///|
+fn ImageLowerer::refine_callable_representation_substitution(
+  self : ImageLowerer,
+  source : @anf.RuntimeType,
+  target : @anf.RuntimeType,
+  base : RuntimeSubstitution,
+  refinable : Array[@anf.RuntimeEvidenceId],
+) -> RuntimeSubstitution raise LoisvmLoweringError {
+  let refinements = RuntimeSubstitution::new()
+  self.collect_callable_representation_refinements(
+    source,
+    target,
+    base,
+    refinements,
+    refinable,
+    [],
+  )
+  let substitutions = base.overlay(refinements)
+  if !self.types_representation_equivalent(
+      substitutions.apply_type(self.runtime_types, source),
+      target,
+    ) {
+    raise RepresentationSpecializationInvariant(
+      detail="planned callable payload does not determine its specialized callable representation",
+    )
+  }
+  substitutions
+}
+
+///|
+fn ImageLowerer::collect_callable_representation_refinements(
+  self : ImageLowerer,
+  source : @anf.RuntimeType,
+  target : @anf.RuntimeType,
+  base : RuntimeSubstitution,
+  refinements : RuntimeSubstitution,
+  refinable : Array[@anf.RuntimeEvidenceId],
+  bound : Array[@anf.RuntimeEvidenceId],
+) -> Unit raise LoisvmLoweringError {
+  let substitutions = base.overlay(refinements)
+  let source = substitutions.apply_type(self.runtime_types, source)
+  match (source, target) {
+    (Erased(expression, _), target) => {
+      guard self.runtime_types.type_expression(expression)
+        is Some(Parameter(parameter)) &&
+        refinable.contains(parameter) &&
+        !bound.contains(parameter) else {
+        return
+      }
+      refinements.insert(parameter, {
+        type_expression: self.runtime_types.intern(Static(target)),
+        evidence: runtime_type_evidence(target),
+      })
+    }
+    (
+      Callable(source_parameters, source_result),
+      Callable(target_parameters, target_result),
+    ) => {
+      guard source_parameters.length() == target_parameters.length() else {
+        return
+      }
+      for index, source_parameter in source_parameters {
+        self.collect_callable_representation_refinements(
+          source_parameter,
+          target_parameters[index],
+          base,
+          refinements,
+          refinable,
+          bound,
+        )
+      }
+      self.collect_callable_representation_refinements(
+        source_result, target_result, base, refinements, refinable, bound,
+      )
+    }
+    (
+      Forall(source_parameters, source_body),
+      Forall(target_parameters, target_body),
+    ) => {
+      guard source_parameters.length() == target_parameters.length() else {
+        return
+      }
+      self.collect_callable_representation_refinements(
+        source_body,
+        target_body,
+        base,
+        refinements,
+        refinable,
+        bound + source_parameters.map(parameter => parameter.id),
+      )
+    }
+    _ => ()
+  }
 }
 
 ///|
@@ -296,16 +453,19 @@ fn ImageLowerer::runtime_abi_changed(
   source_result : @anf.RuntimeType,
   target_parameters : Array[@anf.RuntimeType],
   target_result : @anf.RuntimeType,
+  data_families : Array[DataRepresentationFamilyPlan],
 ) -> Bool raise LoisvmLoweringError {
   let source = source_parameters.map(type_ => {
     self.canonical_runtime_type_key(type_)
   })
   let target = target_parameters.map(type_ => {
-    self.canonical_runtime_type_key(type_)
+    self.canonical_runtime_type_key_with_data_families(type_, data_families)
   })
   source != target ||
   self.canonical_runtime_type_key(source_result) !=
-  self.canonical_runtime_type_key(target_result)
+  self.canonical_runtime_type_key_with_data_families(
+    target_result, data_families,
+  )
 }
 
 ///|
@@ -363,6 +523,27 @@ fn RepresentationSpecializationPlan::callable_type(
 }
 
 ///|
+fn RepresentationSpecializationPlan::data_families_change_callable_abi(
+  self : RepresentationSpecializationPlan,
+  image : ImageLowerer,
+) -> Bool raise LoisvmLoweringError {
+  for parameter in self.parameter_types {
+    if image.canonical_runtime_type_key(parameter) !=
+      image.canonical_runtime_type_key_with_data_families(
+        parameter,
+        self.data_families,
+      ) {
+      return true
+    }
+  }
+  image.canonical_runtime_type_key(self.result_type) !=
+  image.canonical_runtime_type_key_with_data_families(
+    self.result_type,
+    self.data_families,
+  )
+}
+
+///|
 fn ImageLowerer::canonical_runtime_type_key(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
@@ -371,26 +552,67 @@ fn ImageLowerer::canonical_runtime_type_key(
 }
 
 ///|
+fn ImageLowerer::canonical_runtime_type_key_with_data_families(
+  self : ImageLowerer,
+  type_ : @anf.RuntimeType,
+  data_families : Array[DataRepresentationFamilyPlan],
+) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
+  self.canonical_runtime_type_key_under_with_data_families(
+    type_,
+    RuntimeSubstitution::new(),
+    data_families,
+  )
+}
+
+///|
 fn ImageLowerer::canonical_runtime_type_key_under(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
 ) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
-  match self.elaborate_runtime_representation(type_) {
+  self.canonical_runtime_type_key_under_with_data_families(
+    type_,
+    substitutions,
+    [],
+  )
+}
+
+///|
+fn ImageLowerer::canonical_runtime_type_key_under_with_data_families(
+  self : ImageLowerer,
+  type_ : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
+  data_families : Array[DataRepresentationFamilyPlan],
+) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
+  match
+    self.elaborate_runtime_representation_with_data_families(
+      type_, data_families,
+    ) {
     RuntimeUnit => Unit
     RuntimeErased(_) =>
       Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue })
     Concrete(Callable(_, _) | Forall(_, _) as type_, _) =>
-      Callable(self.canonical_callable_abi_under(type_, substitutions))
+      Callable(
+        self.canonical_callable_abi_under_with_data_families(
+          type_, substitutions, data_families,
+        ),
+      )
     Concrete(type_, _) => {
       let type_ = substitutions.apply_type(self.runtime_types, type_)
-      match self.elaborate_runtime_representation(type_) {
+      match
+        self.elaborate_runtime_representation_with_data_families(
+          type_, data_families,
+        ) {
         RuntimeUnit => Unit
         RuntimeErased(_) =>
           Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue })
         Concrete(type_, metadata) =>
           if metadata.kind is CallableValue {
-            Callable(self.canonical_callable_abi(type_))
+            Callable(
+              self.canonical_callable_abi_with_data_families(
+                type_, data_families,
+              ),
+            )
           } else {
             Value({
               representation: metadata.representation,
@@ -404,11 +626,16 @@ fn ImageLowerer::canonical_runtime_type_key_under(
 }
 
 ///|
-fn ImageLowerer::canonical_callable_abi(
+fn ImageLowerer::canonical_callable_abi_with_data_families(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
+  data_families : Array[DataRepresentationFamilyPlan],
 ) -> CanonicalCallableAbi raise LoisvmLoweringError {
-  self.canonical_callable_abi_under(type_, RuntimeSubstitution::new())
+  self.canonical_callable_abi_under_with_data_families(
+    type_,
+    RuntimeSubstitution::new(),
+    data_families,
+  )
 }
 
 ///|
@@ -416,6 +643,16 @@ fn ImageLowerer::canonical_callable_abi_under(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
+) -> CanonicalCallableAbi raise LoisvmLoweringError {
+  self.canonical_callable_abi_under_with_data_families(type_, substitutions, [])
+}
+
+///|
+fn ImageLowerer::canonical_callable_abi_under_with_data_families(
+  self : ImageLowerer,
+  type_ : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
+  data_families : Array[DataRepresentationFamilyPlan],
 ) -> CanonicalCallableAbi raise LoisvmLoweringError {
   let (type_parameters, parameters, result) = function_type_parts(type_)
   let witnesses : Array[@bytecode.ValueAbi] = []
@@ -431,7 +668,9 @@ fn ImageLowerer::canonical_callable_abi_under(
   }
   let parameter_abis : Array[CanonicalRuntimeTypeKey] = []
   for parameter in parameters {
-    let key = self.canonical_runtime_type_key_under(parameter, substitutions)
+    let key = self.canonical_runtime_type_key_under_with_data_families(
+      parameter, substitutions, data_families,
+    )
     if !(key is Unit) {
       parameter_abis.push(key)
     }
@@ -439,7 +678,9 @@ fn ImageLowerer::canonical_callable_abi_under(
   {
     witnesses,
     parameters: parameter_abis,
-    result: self.canonical_runtime_type_key_under(result, substitutions),
+    result: self.canonical_runtime_type_key_under_with_data_families(
+      result, substitutions, data_families,
+    ),
   }
 }
 
@@ -474,6 +715,8 @@ fn ImageLowerer::lower_representation_worker(
   self.lower_function_body(
     plan.function,
     plan.instances,
+    plan.data_families,
+    true,
     plan.retained_parameters,
     plan.parameter_types,
     plan.result_type,

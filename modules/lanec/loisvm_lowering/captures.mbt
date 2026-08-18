@@ -4,6 +4,7 @@ priv struct CallableCaptureInput {
   function_type : @anf.RuntimeType
   substitutions : RuntimeSubstitution
   specialized_parameters : Array[@anf.RuntimeEvidenceId]
+  data_families : Array[DataRepresentationFamilyPlan]
 }
 
 ///|
@@ -13,9 +14,16 @@ fn ImageLowerer::plan_callable_capture(
   function_type : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
   specialized_parameters : Array[@anf.RuntimeEvidenceId],
+  data_families : Array[DataRepresentationFamilyPlan],
 ) -> CallableCaptureContract raise LoisvmLoweringError {
   self.plan_callable_captures([
-    { definition, function_type, substitutions, specialized_parameters },
+    {
+      definition,
+      function_type,
+      substitutions,
+      specialized_parameters,
+      data_families,
+    },
   ])
 }
 
@@ -28,11 +36,17 @@ fn ImageLowerer::plan_callable_captures(
   let bindings = []
   let function_types = []
   let specialized_parameters = []
+  let data_families : Array[DataRepresentationFamilyPlan] = []
   for input in inputs {
     function_types.push(input.function_type)
     for parameter in input.specialized_parameters {
       if !specialized_parameters.contains(parameter) {
         specialized_parameters.push(parameter)
+      }
+    }
+    for family in input.data_families {
+      if !data_families.any(candidate => candidate.identity == family.identity) {
+        data_families.push(family)
       }
     }
     for capture in input.definition.captures {
@@ -93,8 +107,11 @@ fn ImageLowerer::plan_callable_captures(
   let mut stored_witness_count = 0
   for index, binding in bindings {
     let type_ = capture_types[index]
-    match self.runtime_type(type_) {
-      Concrete(Unit) => captures.push({ binding, type_, member_index: None })
+    match
+      self.elaborate_runtime_representation_with_data_families(
+        type_, data_families,
+      ) {
+      RuntimeUnit => captures.push({ binding, type_, member_index: None })
       _ => {
         let (metadata, witness_ordinal) = if self.runtime_type(type_)
           is Erased(_) {
@@ -111,7 +128,7 @@ fn ImageLowerer::plan_callable_captures(
             Some(ordinal),
           )
         } else {
-          (self.slot_metadata(type_), None)
+          (self.slot_metadata_with_data_families(type_, data_families), None)
         }
         let member_index = members.length()
         members.push({

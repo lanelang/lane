@@ -37,6 +37,77 @@ test "higher-kinded top-level callable flow agrees across execution backends" {
 }
 
 ///|
+test "closed data representation coexists with its generic fallback" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|enum Box[T] {
+      #|  empty()
+      #|  box(T)
+      #|}
+      #|
+      #|fn[T] generic_roundtrip(value : Box[T]) -> Box[T] {
+      #|  value
+      #|}
+      #|
+      #|fn closed_roundtrip(value : Box[I64]) -> Box[I64] {
+      #|  value
+      #|}
+      #|
+      #|fn closed_path() -> I64 {
+      #|  let original : Box[I64] = Box::box(21)
+      #|  let left : Box[I64] = closed_roundtrip(original)
+      #|  let right : Box[I64] = generic_roundtrip[I64](original)
+      #|  match left {
+      #|    Box::empty() => 0
+      #|    Box::box(left_value) => match right {
+      #|      Box::empty() => 0
+      #|      Box::box(right_value) => builtin("%i64_add")(left_value, right_value)
+      #|    }
+      #|  }
+      #|}
+      #|
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  observe(closed_path())
+      #|}
+    ),
+  )
+  assert_eq(actual, expected_i64_execution_matrix(42L, 0))
+}
+
+///|
+test "phantom higher-kinded data arguments preserve their closed payload" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|type Identity = type[T] => T
+      #|
+      #|enum Phantom[_F : [Type] -> Type, T] {
+      #|  phantom(T)
+      #|}
+      #|
+      #|fn[F : [Type] -> Type, T] unwrap(value : Phantom[F, T]) -> T {
+      #|  match value {
+      #|    Phantom::phantom(payload) => payload
+      #|  }
+      #|}
+      #|
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  let value : Phantom[Identity, I64] = Phantom::phantom(42)
+      #|  observe(unwrap[Identity, I64](value))
+      #|}
+    ),
+  )
+  assert_eq(actual, expected_i64_execution_matrix(42L, 0))
+}
+
+///|
 test "rounded F32 operations agree across execution backends" {
   let actual = execute_compiler_test_matrix(
     (
