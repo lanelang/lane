@@ -6,7 +6,6 @@ fn FunctionLowerer::lower_data_match(
   scrutinee_type : @anf.RuntimeType,
   owner : @buslane.TypeId,
   type_arguments : Array[@anf.RuntimeArgument],
-  specialize_storage : Bool,
 ) -> LocalValue raise LoisvmLoweringError {
   let type_arguments = type_arguments.map(argument => {
     self.substitutions.apply_argument(self.image.runtime_types, argument)
@@ -39,7 +38,6 @@ fn FunctionLowerer::lower_data_match(
       data_constructor,
       alternative,
       substitutions,
-      specialize_storage,
     )
   }
   let tag_type = @anf.RuntimeType::Scalar(Bool)
@@ -110,7 +108,6 @@ fn FunctionLowerer::lower_data_match(
       alternative,
       branch_environment,
       substitutions,
-      specialize_storage,
     )
   }
   self.enter_block(default_block)
@@ -143,7 +140,6 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
   substitutions : RuntimeSubstitution,
-  specialize_storage : Bool,
 ) -> LocalValue raise LoisvmLoweringError {
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
@@ -151,7 +147,6 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   let original_substitutions = self.substitutions
   self.bind_data_alternative(
     binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
-    specialize_storage,
   )
   let result = self.materialize_local(self.lower_expr(alternative.body))
   self.restore_bindings(value_count, temp_count)
@@ -172,7 +167,6 @@ fn FunctionLowerer::lower_data_alternative(
   alternative : @anf.AnfAlternative,
   branch_environment : @vmcfg.ValueId?,
   substitutions : RuntimeSubstitution,
-  specialize_storage : Bool,
 ) -> Unit raise LoisvmLoweringError {
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
@@ -183,7 +177,6 @@ fn FunctionLowerer::lower_data_alternative(
   self.enter_branch_environment(original_environment, branch_environment)
   self.bind_data_alternative(
     binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
-    specialize_storage,
   )
   let result = self.materialize_local(self.lower_expr(alternative.body))
   let arguments = match result {
@@ -217,7 +210,6 @@ fn FunctionLowerer::bind_data_alternative(
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
   substitutions : RuntimeSubstitution,
-  specialize_storage : Bool,
 ) -> Unit raise LoisvmLoweringError {
   let info = match self.image.metadata.data_constructor_info(data_constructor) {
     Some(info) => info
@@ -251,19 +243,7 @@ fn FunctionLowerer::bind_data_alternative(
   self.bindings.push({ value: binder, lowered: Slot(scrutinee, scrutinee_type) })
   let hidden_substitutions = RuntimeSubstitution::new()
   if binds_payloads {
-    guard scrutinee_type is Data(_, type_arguments) else {
-      raise UnsupportedExpression(detail="data match scrutinee is not data")
-    }
-    let storage_types = if specialize_storage {
-      info.payload_types.map(type_ => {
-        substitutions.apply_type(self.image.runtime_types, type_)
-      })
-    } else {
-      info.payload_types
-    }
-    let shape = self.image.data_shape(
-      data_constructor, info, type_arguments, storage_types,
-    )
+    let shape = self.image.data_shape(data_constructor, info)
     let mut evidence_member_index = 0
     for index, hidden_parameter in info.hidden_evidence_parameters {
       let binder = alternative.evidence_binders[index]
@@ -291,39 +271,40 @@ fn FunctionLowerer::bind_data_alternative(
     let branch_substitutions = substitutions.overlay(hidden_substitutions)
     for index, value_binder in alternative.value_binders {
       let formal_type = info.payload_types[index]
-      let storage_type = storage_types[index]
       let payload_type = branch_substitutions.apply_type(
         self.image.runtime_types,
         formal_type,
       )
-      let stored = if self.image.runtime_type(storage_type) is Erased(_) {
+      let stored = if self.image.runtime_type(formal_type) is Erased(_) {
         let witness = self.fresh_metadata(layout_witness_metadata())
         let erased = self.fresh_erased_slot(witness, Borrowed)
         self.emit(
           BorrowField(
             shape,
             scrutinee,
-            evidence_member_index + runtime_member_index(storage_types, index),
+            evidence_member_index +
+            runtime_member_index(info.payload_types, index),
             { value_destination: erased, witness_destination: Some(witness) },
           ),
         )
-        Slot(erased, storage_type)
-      } else if self.image.runtime_type(storage_type) is Concrete(Unit) {
+        Slot(erased, formal_type)
+      } else if self.image.runtime_type(formal_type) is Concrete(Unit) {
         Unit
       } else {
-        let destination = self.fresh_borrowed_slot(storage_type)
+        let destination = self.fresh_borrowed_slot(formal_type)
         self.emit(
           BorrowField(
             shape,
             scrutinee,
-            evidence_member_index + runtime_member_index(storage_types, index),
+            evidence_member_index +
+            runtime_member_index(info.payload_types, index),
             { value_destination: destination, witness_destination: None },
           ),
         )
-        Slot(destination, storage_type)
+        Slot(destination, formal_type)
       }
       let lowered = self.adapt_local_value_with_substitutions(
-        stored, storage_type, payload_type, branch_substitutions,
+        stored, formal_type, payload_type, branch_substitutions,
       )
       self.bindings.push({ value: value_binder, lowered })
     }

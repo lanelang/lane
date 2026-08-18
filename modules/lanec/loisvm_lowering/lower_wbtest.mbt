@@ -2286,7 +2286,7 @@ test "single-constructor matches keep owned captures in the current block" {
 }
 
 ///|
-test "closed generic data uses its planned payload representation" {
+test "closed generic data preserves its declaration-owned payload ABI" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let option = metadata.define_type("Option", [type_parameter])
@@ -2370,13 +2370,13 @@ test "closed generic data uses its planned payload representation" {
       shape
       is Data(
         {
-          stored_witness_count: 0,
+          stored_witness_count: 1,
           members: [
             {
               representation: I64,
-              cleanup: Trivial,
-              kind: ScalarValue,
-              witness_ordinal: None,
+              cleanup: OwnedErased,
+              kind: ErasedValue,
+              witness_ordinal: Some(0),
             },
           ],
           ..,
@@ -2387,10 +2387,10 @@ test "closed generic data uses its planned payload representation" {
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
   }
-  assert_false(
+  assert_true(
     contains_instruction(main_body, instruction => instruction is EraseI64(_, _)),
   )
-  assert_false(
+  assert_true(
     contains_instruction(main_body, instruction => {
       instruction is UneraseI64(_, _)
     }),
@@ -2528,16 +2528,16 @@ test "existential data opens hidden witnesses beside erased payloads" {
       shape
       is Data(
         {
-          stored_witness_count: 1,
+          stored_witness_count: 2,
           members: [
             { cleanup: Trivial, kind: LayoutValue, .. },
             {
               representation: I64,
-              cleanup: Trivial,
-              kind: ScalarValue,
-              witness_ordinal: None,
+              cleanup: OwnedErased,
+              kind: ErasedValue,
+              witness_ordinal: Some(0),
             },
-            { cleanup: OwnedErased, witness_ordinal: Some(0), .. },
+            { cleanup: OwnedErased, witness_ordinal: Some(1), .. },
           ],
           ..,
         }

@@ -9,7 +9,7 @@ priv struct ImageLowerer {
   instance_globals : Array[@bytecode.GlobalMetadata]
   plans : FunctionPlanTable
   constants : Array[Bytes]
-  data_families : Array[DataFamilyKey]
+  data_families : Array[@buslane.TypeId]
   layouts : Array[@bytecode.LayoutRecipe]
   object_shapes : Array[@bytecode.ObjectShape]
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]

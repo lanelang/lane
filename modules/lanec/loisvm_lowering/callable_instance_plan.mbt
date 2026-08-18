@@ -39,14 +39,6 @@ priv struct CallableAllocationFact {
 }
 
 ///|
-priv struct CallableDataUseFact {
-  key : CallableAllocationKey
-  owner : @buslane.TypeId?
-  mut allocations : Array[CallableAllocationKey]
-  mut open : Bool
-}
-
-///|
 priv struct CallableBindingFact {
   caller : Int
   binding : @anf.AnfBindingId
@@ -81,38 +73,12 @@ priv struct CallableCallSite {
 priv struct CallableInstancePlan {
   instances : Array[CallableInstance]
   calls : Array[CallableCallSite]
-  specialized_data_sites : Array[CallableAllocationKey]
-  specialized_data_owners : Array[@buslane.TypeId]
   rejected_recursive_groups : Array[@anf.AnfRecursiveGroupId]
 }
 
 ///|
 fn CallableInstancePlan::empty() -> CallableInstancePlan {
-  {
-    instances: [],
-    calls: [],
-    specialized_data_sites: [],
-    specialized_data_owners: [],
-    rejected_recursive_groups: [],
-  }
-}
-
-///|
-fn CallableInstancePlan::specializes_data_owner(
-  self : CallableInstancePlan,
-  owner : @buslane.TypeId,
-) -> Bool {
-  self.specialized_data_owners.contains(owner)
-}
-
-///|
-fn CallableInstancePlan::specializes_data_at(
-  self : CallableInstancePlan,
-  callers : Array[Int],
-  site : @anf.AnfBindingId,
-) -> Bool {
-  !callers.is_empty() &&
-  callers.all(caller => self.specialized_data_sites.contains({ caller, site }))
+  { instances: [], calls: [], rejected_recursive_groups: [] }
 }
 
 ///|
@@ -197,8 +163,6 @@ priv struct CallableInstancePlanner {
   bindings : Array[CallableBindingFact]
   results : Array[CallableFlowFact]
   allocations : Array[CallableAllocationFact]
-  data_uses : Array[CallableDataUseFact]
-  obscured_allocations : Array[CallableAllocationKey]
   calls : Array[CallableCallSite]
   open_functions : Array[@anf.AnfFunctionId]
   rejected_recursive_groups : Array[@anf.AnfRecursiveGroupId]
@@ -218,8 +182,6 @@ fn ImageLowerer::plan_callable_instances(
     bindings: [],
     results: [],
     allocations: [],
-    data_uses: [],
-    obscured_allocations: [],
     calls: [],
     open_functions: [],
     rejected_recursive_groups: [],
@@ -237,12 +199,9 @@ fn ImageLowerer::plan_callable_instances(
       break
     }
   }
-  let (specialized_data_sites, specialized_data_owners) = planner.data_specializations()
   {
     instances: planner.instances,
     calls: planner.calls,
-    specialized_data_sites,
-    specialized_data_owners,
     rejected_recursive_groups: planner.rejected_recursive_groups,
   }
 }
@@ -482,13 +441,6 @@ fn CallableInstancePlanner::analyze_instance(
 ) -> Unit raise LoisvmLoweringError {
   let instance = self.instances[instance_id]
   let result = self.eval_expr(instance.definition.function.body, instance_id)
-  let (_, _, formal_result) = function_type_parts(instance.definition.type_)
-  if self.image.runtime_type(
-      instance.substitution.apply_type(self.image.runtime_types, formal_result),
-    )
-    is Erased(_) {
-    self.obscure_allocations(result.allocations)
-  }
   self.update_result(instance_id, result)
 }
 
@@ -552,23 +504,6 @@ fn CallableInstancePlanner::eval_rhs(
       let payloads = construct.payloads.map(payload => {
         self.eval_atom(payload, caller)
       })
-      if self.image.metadata.data_constructor_info(construct.data_constructor)
-        is Some(info) {
-        for index, payload in payloads {
-          if info.payload_types.get(index) is Some(type_) &&
-            (
-              self.image.runtime_type(type_) is Erased(_) ||
-              runtime_type_mentions_parameters(
-                self.image.runtime_types,
-                type_,
-                info.hidden_evidence_parameters.map(parameter => parameter.id),
-                [],
-              )
-            ) {
-            self.obscure_allocations(payload.allocations)
-          }
-        }
-      }
       self.update_allocation({
         key,
         data_constructor: construct.data_constructor,
@@ -576,7 +511,7 @@ fn CallableInstancePlanner::eval_rhs(
       })
       CallableFlowFact::allocation(key)
     }
-    Match(match_) => self.eval_match(site, match_, caller)
+    Match(match_) => self.eval_match(match_, caller)
   }
 }
 
@@ -596,34 +531,6 @@ fn CallableInstancePlanner::eval_atom(
     Temp(temp) => self.binding_fact(caller, Temp(temp))
     Function(function) => self.function_fact(function.id, caller)
     EvidenceLambda(body~, ..) => self.eval_expr(body, caller)
-  }
-}
-
-///|
-fn CallableInstancePlanner::atom_data_owner(
-  self : CallableInstancePlanner,
-  atom : @anf.AnfAtom,
-  caller : Int,
-) -> @buslane.TypeId? raise LoisvmLoweringError {
-  let type_ = match atom {
-    Literal(_) => None
-    Ref(value) => self.image.metadata.value_info(value).map(info => info.type_)
-    Temp(temp) => self.catalog.capture_type(Temp(temp), self.image.metadata)
-    Function(function) => self.catalog.find(function.id).map(info => info.type_)
-    EvidenceLambda(_) => None
-  }
-  guard type_ is Some(type_) else { return None }
-  let type_ = if caller < 0 {
-    type_
-  } else {
-    self.instances[caller].substitution.apply_type(
-      self.image.runtime_types,
-      type_,
-    )
-  }
-  match type_ {
-    Data(owner, _) => Some(owner)
-    _ => None
   }
 }
 
@@ -664,7 +571,7 @@ fn CallableInstancePlanner::eval_call(
   site : @anf.AnfBindingId,
   callee : CallableFlowFact,
   arguments : Array[CallableFlowFact],
-) -> CallableFlowFact raise LoisvmLoweringError {
+) -> CallableFlowFact {
   let mut result = CallableFlowFact::empty()
   let mut open = callee.open
   for callable in callee.callables {
@@ -688,18 +595,6 @@ fn CallableInstancePlanner::eval_call(
       index in 0..<arguments
       .length()
       .min(definition.function.parameters.length()) {
-      let (_, formal_parameters, _) = function_type_parts(definition.type_)
-      if formal_parameters.get(index) is Some(formal) &&
-        instance >= 0 &&
-        self.image.runtime_type(
-          self.instances[instance].substitution.apply_type(
-            self.image.runtime_types,
-            formal,
-          ),
-        )
-        is Erased(_) {
-        self.obscure_allocations(arguments[index].allocations)
-      }
       self.update_binding(
         instance,
         Value(definition.function.parameters[index]),
@@ -726,16 +621,10 @@ fn CallableInstancePlanner::eval_call(
 ///|
 fn CallableInstancePlanner::eval_match(
   self : CallableInstancePlanner,
-  site : @anf.AnfBindingId,
   match_ : @anf.AnfMatch,
   caller : Int,
 ) -> CallableFlowFact raise LoisvmLoweringError {
   let scrutinee = self.eval_atom(match_.scrutinee, caller)
-  self.update_data_use(
-    { caller, site },
-    self.atom_data_owner(match_.scrutinee, caller),
-    scrutinee,
-  )
   let mut result = CallableFlowFact::empty()
   for alternative in match_.alternatives {
     let matching = scrutinee.allocations.filter_map(key => {
@@ -993,151 +882,6 @@ fn CallableInstancePlanner::update_allocation(
   }
   self.allocations.push(allocation)
   self.changed = true
-}
-
-///|
-fn CallableInstancePlanner::obscure_allocations(
-  self : CallableInstancePlanner,
-  allocations : Array[CallableAllocationKey],
-) -> Unit {
-  for allocation in allocations {
-    if !self.obscured_allocations.contains(allocation) {
-      self.obscured_allocations.push(allocation)
-      self.changed = true
-    }
-  }
-}
-
-///|
-fn CallableInstancePlanner::update_data_use(
-  self : CallableInstancePlanner,
-  key : CallableAllocationKey,
-  owner : @buslane.TypeId?,
-  fact : CallableFlowFact,
-) -> Unit {
-  for data_use in self.data_uses {
-    if data_use.key == key {
-      let allocations = data_use.allocations.copy()
-      for allocation in fact.allocations {
-        if !allocations.contains(allocation) {
-          allocations.push(allocation)
-        }
-      }
-      if allocations != data_use.allocations || (fact.open && !data_use.open) {
-        data_use.allocations = allocations
-        data_use.open = data_use.open || fact.open
-        self.changed = true
-      }
-      return
-    }
-  }
-  self.data_uses.push({
-    key,
-    owner,
-    allocations: fact.allocations,
-    open: fact.open,
-  })
-  self.changed = true
-}
-
-///|
-fn CallableInstancePlanner::data_specializations(
-  self : CallableInstancePlanner,
-) -> (Array[CallableAllocationKey], Array[@buslane.TypeId]) {
-  let mut allocations = self.allocations
-    .map(allocation => allocation.key)
-    .filter(key => !self.obscured_allocations.contains(key))
-  while true {
-    let rejected = []
-    let rejected_owners = []
-    for allocation in self.allocations {
-      if !allocations.contains(allocation.key) &&
-        self.image.metadata.data_constructor_info(allocation.data_constructor)
-        is Some(info) &&
-        !rejected_owners.contains(info.owner) {
-        rejected_owners.push(info.owner)
-      }
-    }
-    for data_use in self.data_uses {
-      if !data_use.allocations.is_empty() &&
-        (
-          data_use.open ||
-          data_use.allocations.any(allocation => {
-            !allocations.contains(allocation)
-          })
-        ) {
-        if data_use.owner is Some(owner) && !rejected_owners.contains(owner) {
-          rejected_owners.push(owner)
-        }
-        for allocation in data_use.allocations {
-          if !rejected.contains(allocation) {
-            rejected.push(allocation)
-          }
-        }
-      }
-    }
-    for allocation in self.allocations {
-      if self.image.metadata.data_constructor_info(allocation.data_constructor)
-        is Some(info) &&
-        rejected_owners.contains(info.owner) &&
-        !rejected.contains(allocation.key) {
-        rejected.push(allocation.key)
-      }
-    }
-    let retained = allocations.filter(allocation => {
-      !rejected.contains(allocation)
-    })
-    if retained.length() == allocations.length() {
-      break
-    }
-    allocations = retained
-  }
-  let sites = allocations.copy()
-  for data_use in self.data_uses {
-    if !data_use.open &&
-      !data_use.allocations.is_empty() &&
-      data_use.allocations.all(allocation => allocations.contains(allocation)) {
-      sites.push(data_use.key)
-    }
-  }
-  let owners = []
-  for allocation in self.allocations {
-    if allocations.contains(allocation.key) &&
-      self.image.metadata.data_constructor_info(allocation.data_constructor)
-      is Some(info) &&
-      !owners.contains(info.owner) {
-      owners.push(info.owner)
-    }
-  }
-  let owners = owners.filter(owner => {
-    self.allocations
-    .filter(allocation => {
-      self.image.metadata
-      .data_constructor_info(allocation.data_constructor)
-      .map(info => info.owner == owner)
-      .unwrap_or(false)
-    })
-    .length() ==
-    1
-  })
-  let sites = sites.filter(site => {
-    for allocation in self.allocations {
-      if allocation.key == site &&
-        self.image.metadata.data_constructor_info(allocation.data_constructor)
-        is Some(info) {
-        return owners.contains(info.owner)
-      }
-    }
-    for data_use in self.data_uses {
-      if data_use.key == site {
-        return data_use.owner
-          .map(owner => owners.contains(owner))
-          .unwrap_or(false)
-      }
-    }
-    false
-  })
-  (sites, owners)
 }
 
 ///|

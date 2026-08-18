@@ -307,12 +307,6 @@ priv enum CanonicalRuntimeEvidenceKey {
 } derive(Eq)
 
 ///|
-priv struct DataFamilyKey {
-  owner : @buslane.TypeId
-  arguments : Array[@anf.RuntimeTypeExpressionId]?
-} derive(Eq)
-
-///|
 priv enum CanonicalSpecializedEvidenceKey {
   FirstOrder(CanonicalRuntimeTypeKey)
   HigherKinded(CanonicalRuntimeEvidenceKey)

@@ -633,7 +633,7 @@ test "explore gates direct generic representation specialization" {
 }
 
 ///|
-test "explore gates concrete-answer CPS callback specialization" {
+test "explore records concrete-answer CPS callback representation costs" {
   let report = explore(
     explore_test_request(
       (
@@ -708,39 +708,42 @@ test "explore gates concrete-answer CPS callback specialization" {
       #|  Succeeded,
       #|  [],
       #|  [7, 8],
-      #|  0,
+      #|  3,
       #|  [
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 8),
+      #|        ("functionCount", 11),
       #|        ("importCount", 1),
-      #|        ("blockCount", 8),
-      #|        ("instructionCount", 16),
-      #|        ("valueCount", 44),
+      #|        ("blockCount", 11),
+      #|        ("instructionCount", 44),
+      #|        ("valueCount", 77),
       #|        ("directCallCount", 3),
-      #|        ("indirectCallCount", 6),
-      #|        ("functionReferenceCount", 5),
-      #|        ("closureCount", 1),
-      #|        ("environmentCount", 1),
-      #|        ("eraseCount", 0),
-      #|        ("uneraseCount", 0),
+      #|        ("indirectCallCount", 9),
+      #|        ("functionReferenceCount", 8),
+      #|        ("closureCount", 4),
+      #|        ("environmentCount", 4),
+      #|        ("eraseCount", 2),
+      #|        ("uneraseCount", 2),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
-      #|        ("layoutCount", 4),
+      #|        ("layoutCount", 5),
       #|        ("objectShapeCount", 4),
       #|        ("constantCount", 0),
       #|      ],
       #|      [
       #|        { index: 1, block_count: 1, operation_count: 1, value_count: 9 },
       #|        { index: 2, block_count: 1, operation_count: 1, value_count: 6 },
-      #|        { index: 3, block_count: 1, operation_count: 9, value_count: 9 },
+      #|        { index: 3, block_count: 1, operation_count: 12, value_count: 12 },
       #|        { index: 4, block_count: 1, operation_count: 3, value_count: 5 },
       #|        { index: 5, block_count: 1, operation_count: 0, value_count: 1 },
       #|        { index: 6, block_count: 1, operation_count: 1, value_count: 4 },
       #|        { index: 7, block_count: 1, operation_count: 0, value_count: 5 },
-      #|        { index: 8, block_count: 1, operation_count: 1, value_count: 5 },
+      #|        { index: 8, block_count: 1, operation_count: 8, value_count: 11 },
+      #|        { index: 9, block_count: 1, operation_count: 8, value_count: 10 },
+      #|        { index: 10, block_count: 1, operation_count: 5, value_count: 7 },
+      #|        { index: 11, block_count: 1, operation_count: 5, value_count: 7 },
       #|      ],
       #|    ),
       #|  ],
@@ -781,7 +784,7 @@ test "expanding recursive generic demand retains one finite fallback" {
 }
 
 ///|
-test "explore gates concrete-answer CPS normalization" {
+test "explore records concrete-answer CPS normalization costs" {
   let report = explore(
     explore_test_request(
       (
@@ -861,27 +864,27 @@ test "explore gates concrete-answer CPS normalization" {
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 4),
-      #|        ("instructionCount", 11),
+      #|        ("functionCount", 7),
+      #|        ("instructionCount", 38),
       #|        ("directCallCount", 2),
-      #|        ("indirectCallCount", 3),
-      #|        ("closureCount", 1),
-      #|        ("environmentCount", 1),
-      #|        ("eraseCount", 0),
-      #|        ("uneraseCount", 0),
+      #|        ("indirectCallCount", 6),
+      #|        ("closureCount", 4),
+      #|        ("environmentCount", 4),
+      #|        ("eraseCount", 2),
+      #|        ("uneraseCount", 2),
       #|      ],
       #|    ),
       #|    (
       #|      "loisvm.bytecode",
       #|      [
-      #|        ("functionCount", 4),
-      #|        ("instructionCount", 9),
+      #|        ("functionCount", 7),
+      #|        ("instructionCount", 32),
       #|        ("directCallCount", 4),
-      #|        ("indirectCallCount", 1),
-      #|        ("closureCount", 0),
-      #|        ("environmentCount", 0),
-      #|        ("eraseCount", 0),
-      #|        ("uneraseCount", 0),
+      #|        ("indirectCallCount", 4),
+      #|        ("closureCount", 3),
+      #|        ("environmentCount", 3),
+      #|        ("eraseCount", 2),
+      #|        ("uneraseCount", 2),
       #|      ],
       #|    ),
       #|  ],

@@ -1,6 +1,6 @@
 # CPS-aware callable-instance planning
 
-Status: accepted and implemented; tracked by ISS-363.
+Status: accepted and partially implemented; tracked by ISS-363.
 
 ## Decision
 
@@ -37,13 +37,12 @@ the instance set finite over the generic call SCC. There is no call-count,
 function-size, worker-count, score, growth budget, speculative rewrite, or
 fallback pass.
 
-The same allocation graph may select a concrete data-storage family only for
-one closed allocation site whose reachable matches all retain that exact
-allocation identity. Closed interned runtime type expressions key the family.
-Values crossing erased or existential payloads, open uses, or owners with
-multiple allocation sites retain the uniform generic family. This is necessary
-because `Reference` evidence alone cannot recover a specialized nominal data
-shape after existential opening.
+Allocation identities in this graph propagate callable-flow facts only. They do
+not select a data-storage ABI. Every nominal type continues to use the uniform
+family owned by its declaration, because allocation-site identity and a
+canonical runtime ABI do not create a distinct nominal representation identity.
+ISS-384 tracks the separate representation-family boundary required before any
+generic data storage may specialize.
 
 VM CFG callable-flow has a separate, physical responsibility. It propagates
 the emitted environment, witness, argument, aggregate, global, and result
@@ -61,15 +60,16 @@ generic applications from layout instructions.
   indirect; correctness does not depend on optimistic rewriting.
 - Function planning must be complete before specialization demand closes, and
   VM CFG emission consumes a frozen plan.
-- Closed handler dictionaries can avoid an erase/unerase adapter round trip,
-  while existential and multi-allocation data preserve their uniform ABI.
+- Constructor fields and matches preserve their declaration-owned uniform data
+  ABI; callable specialization cannot silently introduce another family.
 - No source-language, linked-artifact, or LoisVM bytecode schema changes are
   required by this decision.
 
 ## Implementation status
 
 The typed Runtime ANF callable catalog, immutable callable-instance fixed point,
-canonical partial workers, finite recursive-demand proof, and allocation-proven
-data-storage families are implemented. Effect-aware CPS Core optimization and
+canonical partial workers, and finite recursive-demand proof are implemented.
+The final zero-bridge CPS path remains open pending an explicit data
+representation family. Effect-aware CPS Core optimization and
 interprocedural VM CFG callable flow remain separate prerequisite and consumer
 boundaries. Runtime effect projection occurs only at the ANF seam.

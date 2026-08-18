@@ -349,6 +349,14 @@ fn RuntimeGenericPlan::runtime_evidence_parameter(
   parameter : @buslane.TypeParameterId,
 ) -> RuntimeEvidenceParameter? {
   guard self.is_live(parameter) else { return None }
+  self.runtime_lambda_parameter(parameter)
+}
+
+///|
+fn RuntimeGenericPlan::runtime_lambda_parameter(
+  self : RuntimeGenericPlan,
+  parameter : @buslane.TypeParameterId,
+) -> RuntimeEvidenceParameter? {
   guard self.metadata.type_parameter_info(parameter) is Some(info) else {
     return None
   }
@@ -366,6 +374,14 @@ fn RuntimeGenericPlan::runtime_evidence_parameters(
   parameters : Array[@buslane.TypeParameterId],
 ) -> Array[RuntimeEvidenceParameter] {
   parameters.filter_map(parameter => self.runtime_evidence_parameter(parameter))
+}
+
+///|
+fn RuntimeGenericPlan::runtime_lambda_parameters(
+  self : RuntimeGenericPlan,
+  parameters : Array[@buslane.TypeParameterId],
+) -> Array[RuntimeEvidenceParameter] {
+  parameters.filter_map(parameter => self.runtime_lambda_parameter(parameter))
 }
 
 ///|
@@ -467,7 +483,7 @@ fn RuntimeGenericPlan::runtime_type_expression(
     TypeLambda(parameters, body) =>
       self.intern_type_expression(
         Lambda(
-          self.runtime_evidence_parameters(parameters),
+          self.runtime_lambda_parameters(parameters),
           self.runtime_type_expression(body),
         ),
       )
@@ -522,7 +538,7 @@ fn RuntimeGenericPlan::runtime_layout_evidence(
     }
     TypeLambda(parameters, body) =>
       Lambda(
-        self.runtime_evidence_parameters(parameters),
+        self.runtime_lambda_parameters(parameters),
         self.runtime_layout_evidence(body),
       )
     type_ => {

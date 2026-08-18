@@ -526,3 +526,76 @@ test "runtime ANF eta-expands a nominal type constructor argument" {
     ),
   )
 }
+
+///|
+test "runtime ANF preserves phantom nominal constructor arity" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let phantom = metadata.define_type_parameter("Phantom", Type)
+  let token = metadata.define_type("Token", [phantom])
+  ignore(metadata.define_data_constructor("Token", token, [], []))
+  let higher_kinded = metadata.define_type_parameter(
+    "HigherKinded",
+    Function([Type], Type),
+  )
+  let selected_type = @buslane.Type::Apply(Parameter(higher_kinded), [
+    TypeArgument(Primitive(I64)),
+  ])
+  let select = metadata.define_value(
+    "select",
+    External,
+    Forall([higher_kinded], Function([], selected_type, Empty)),
+  )
+  let answer_type = @buslane.Type::Apply(Constructor(token), [
+    TypeArgument(Primitive(I64)),
+  ])
+  let answer = metadata.define_value(
+    "answer",
+    Function,
+    Function([], answer_type, Empty),
+  )
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      External(select),
+      Let(
+        answer,
+        Function({
+          parameters: [],
+          result_type: answer_type,
+          body: Call(
+            TypeApply(Ref(select), [TypeArgument(Constructor(token))]),
+            [],
+          ),
+        }),
+      ),
+    ],
+  }
+  assert_true(@buslane.verify_program(source).is_ok())
+  let runtime = lower_all_runtime_anf(source)
+  guard runtime.terms()[1]
+    is Let(
+      _,
+      Atom(
+        Function(
+          {
+            body: Let(
+              Temp(
+                rhs=ApplyEvidence(
+                  arguments=[
+                    { evidence: Lambda(parameters, Static(Reference)), .. },
+                  ],
+                  ..
+                ),
+                ..
+              ),
+              _
+            ),
+            ..,
+          }
+        )
+      )
+    ) else {
+    fail("expected a projected higher-kinded application")
+  }
+  assert_eq(parameters, [{ id: Projected(phantom.index), arity: 0 }])
+}

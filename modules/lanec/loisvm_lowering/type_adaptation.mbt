@@ -71,9 +71,25 @@ fn collect_free_runtime_type_parameters(
 ) -> Unit {
   match type_ {
     Unit | Scalar(_) | ByteSequence | OpaqueReference(_) => ()
-    Erased(_, evidence) =>
+    Erased(expression, evidence) => {
+      collect_free_runtime_type_expression(image, expression, bound, parameters)
       collect_free_runtime_evidence(image, evidence, bound, parameters)
-    Data(_, _) => ()
+    }
+    Data(_, arguments) =>
+      for argument in arguments {
+        collect_free_runtime_type_expression(
+          image,
+          argument.type_expression,
+          bound,
+          parameters,
+        )
+        collect_free_runtime_evidence(
+          image,
+          argument.evidence,
+          bound,
+          parameters,
+        )
+      }
     Forall(type_parameters, body) => {
       let nested_bound = bound.copy()
       nested_bound.append(type_parameters.map(parameter => parameter.id))
@@ -86,6 +102,40 @@ fn collect_free_runtime_type_parameters(
         collect_free_runtime_type_parameters(image, argument, bound, parameters)
       }
       collect_free_runtime_type_parameters(image, result, bound, parameters)
+    }
+  }
+}
+
+///|
+fn collect_free_runtime_type_expression(
+  image : ImageLowerer,
+  expression : @anf.RuntimeTypeExpressionId,
+  bound : Array[@anf.RuntimeEvidenceId],
+  parameters : Array[@anf.RuntimeEvidenceParameter],
+) -> Unit {
+  guard image.runtime_types.type_expression(expression) is Some(node) else {
+    return
+  }
+  match node {
+    Static(type_) =>
+      collect_free_runtime_type_parameters(image, type_, bound, parameters)
+    Parameter(parameter) =>
+      collect_free_runtime_evidence(
+        image,
+        Parameter(parameter),
+        bound,
+        parameters,
+      )
+    Apply(callee, arguments) => {
+      collect_free_runtime_type_expression(image, callee, bound, parameters)
+      for argument in arguments {
+        collect_free_runtime_type_expression(image, argument, bound, parameters)
+      }
+    }
+    Lambda(binders, body) => {
+      let nested = bound.copy()
+      nested.append(binders.map(binder => binder.id))
+      collect_free_runtime_type_expression(image, body, nested, parameters)
     }
   }
 }

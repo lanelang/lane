@@ -354,9 +354,9 @@ _Avoid_: lowering-time worker discovery, source-type-spelling key, size heuristi
 The typed Runtime ANF fixed point over callable identities, evidence
 applications, aliases, parameters, results, finite allocation sites, aggregate
 members, and recursive groups. It is the sole producer of representation-worker
-and closed data-storage demand. Recursive demand must be projection,
-permutation, or a finite closed constant; otherwise the complete SCC remains
-generic.
+demand. Allocation sites carry callable-flow identity but do not select nominal
+data storage. Recursive demand must be projection, permutation, or a finite
+closed constant; otherwise the complete SCC remains generic.
 _Avoid_: recursively nested aggregate fact, first-seen recursion, emission-time demand
 
 **Representation Worker**:
@@ -366,14 +366,13 @@ planned direct call sites. The generic fallback remains whenever the finalized
 image has an open or indirect use.
 _Avoid_: specialization-time deletion of the generic fallback, unrestricted monomorph
 
-**Planned Data Representation Family**:
-A data-family ABI selected only when the Callable Instance Plan proves one
-closed allocation site and exact allocation identity at every reachable match.
-The key uses closed interned runtime type expressions. An erased or existential
-payload, an open use, or multiple allocation sites keeps the nominal family on
-its uniform generic representation.
-_Avoid_: nominal type-argument monomorphization without allocation proof,
-layout-only family key, hidden-binder specialization
+**Nominal Data Representation Family**:
+The declaration-owned uniform storage ABI shared by every construction and
+match of one nominal data type. A callable allocation fact is not a
+representation identity. Specializing storage requires a separate explicit
+family identity before object-shape interning and bytecode emission.
+_Avoid_: allocation-local object shape under the declaration family,
+runtime-ABI-only family key, hidden-binder specialization
 
 **Erased Callable Position ABI**:
 The invocation contract declared by a callable-shaped erased position or by a

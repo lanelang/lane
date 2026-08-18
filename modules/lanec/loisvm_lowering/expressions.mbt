@@ -35,8 +35,8 @@ fn FunctionLowerer::lower_rhs(
     ApplyEvidence(callee~, arguments~) =>
       self.lower_evidence_apply(callee, arguments)
     Call(callee~, arguments~) => self.lower_call(site, callee, arguments)
-    Construct(construct) => self.lower_construct(site, construct)
-    Match(match_) => self.lower_match(site, match_)
+    Construct(construct) => self.lower_construct(construct)
+    Match(match_) => self.lower_match(match_)
   }
 }
 
@@ -103,7 +103,6 @@ fn FunctionLowerer::lower_evidence_apply(
 ///|
 fn FunctionLowerer::lower_construct(
   self : FunctionLowerer,
-  site : @anf.AnfBindingId,
   construct : @anf.AnfConstruct,
 ) -> LocalValue raise LoisvmLoweringError {
   let info = match
@@ -136,16 +135,6 @@ fn FunctionLowerer::lower_construct(
     hidden_arguments,
   )
   let substitutions = owner_substitutions.overlay(hidden_substitutions)
-  let storage_types = if self.image.callable_instances.specializes_data_at(
-      self.caller_instances,
-      site,
-    ) {
-    info.payload_types.map(type_ => {
-      owner_substitutions.apply_type(self.image.runtime_types, type_)
-    })
-  } else {
-    info.payload_types
-  }
   if construct.payloads.length() != info.payload_types.length() {
     raise InvalidDataPayloadCount(
       data_constructor=construct.data_constructor,
@@ -163,34 +152,33 @@ fn FunctionLowerer::lower_construct(
   let witnesses = []
   for index, payload in construct.payloads {
     let formal_type = info.payload_types[index]
-    let storage_type = storage_types[index]
     let actual_type = substitutions.apply_type(
       self.image.runtime_types,
       formal_type,
     )
     let source = self.materialize_local(self.lower_atom(payload))
-    let lowered = if self.image.runtime_type(storage_type) is Erased(_) {
+    let lowered = if self.image.runtime_type(formal_type) is Erased(_) {
       match source {
         Slot(slot, _) if self.values[slot.value].erased_companion
           is Some(witness) => {
           witnesses.push(witness)
-          Slot(slot, storage_type)
+          Slot(slot, formal_type)
         }
         _ => {
           let witness = self.layout_witness(runtime_type_evidence(actual_type))
           witnesses.push(witness)
-          Slot(self.erase_value(source, actual_type, witness), storage_type)
+          Slot(self.erase_value(source, actual_type, witness), formal_type)
         }
       }
     } else {
       self.adapt_local_value_with_substitutions(
-        source, actual_type, storage_type, substitutions,
+        source, actual_type, formal_type, substitutions,
       )
     }
     let lowered = self.materialize_local(lowered)
     match lowered {
       Unit =>
-        if storage_type != Unit {
+        if formal_type != Unit {
           raise UnsupportedExpression(
             detail="non-Unit data field has no runtime representation",
           )
@@ -202,12 +190,7 @@ fn FunctionLowerer::lower_construct(
         )
     }
   }
-  let shape = self.image.data_shape(
-    construct.data_constructor,
-    info,
-    type_arguments,
-    storage_types,
-  )
+  let shape = self.image.data_shape(construct.data_constructor, info)
   let layout = self.image.intern_layout(Data(shape))
   let result_type = @anf.RuntimeType::Data(info.owner, type_arguments)
   let destination = self.fresh_slot(result_type)
@@ -220,8 +203,6 @@ fn ImageLowerer::data_shape(
   self : ImageLowerer,
   data_constructor : @buslane.DataConId,
   info : @anf.RuntimeDataConstructorInfo,
-  type_arguments : Array[@anf.RuntimeArgument],
-  payload_types : Array[@anf.RuntimeType],
 ) -> @bytecode.ObjectShapeId raise LoisvmLoweringError {
   let members : Array[@bytecode.MemberSchema] = []
   for parameter in info.hidden_evidence_parameters {
@@ -234,7 +215,7 @@ fn ImageLowerer::data_shape(
     })
   }
   let mut witness_ordinal = 0
-  for payload_type in payload_types {
+  for payload_type in info.payload_types {
     if self.runtime_type(payload_type) is Erased(_) {
       members.push({
         representation: I64,
@@ -258,7 +239,7 @@ fn ImageLowerer::data_shape(
   let constructor_tag = self.constructor_tag(data_constructor, info.owner)
   self.intern_object_shape(
     Data({
-      family: self.intern_data_family(info.owner, type_arguments),
+      family: self.intern_data_family(info.owner),
       constructor_tag,
       stored_witness_count: witness_ordinal,
       members,

@@ -67,8 +67,11 @@ fn ImageLowerer::callable_adapter_recipe(
     let target_parameter = target_parameters[target_index]
     let target_physical_index = target_physical_indices[target_index]
     if target_physical_index < 0 {
-      if !(self.callable_adapter_value_recipe(source_parameter, evidence)
-        is Unit) {
+      let source_shape = substitutions.apply_type(
+        self.runtime_types,
+        source_parameter,
+      )
+      if !(self.callable_adapter_value_recipe(source_shape, evidence) is Unit) {
         raise InvalidTypeApplication(
           detail="callable adapter maps a runtime source parameter to Unit",
         )
