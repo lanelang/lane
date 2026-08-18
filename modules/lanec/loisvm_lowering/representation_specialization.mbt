@@ -19,12 +19,16 @@ fn ImageLowerer::plan_representation_specializations(
       }
     }
     guard !existing else { continue }
+    let physical_parameters = physical_parameter_types(
+      demand.parameter_types,
+      demand.scalar_parameters,
+    )
     let function_type = if demand.retained_parameters.is_empty() {
-      @anf.RuntimeType::Callable(demand.parameter_types, demand.result_type)
+      @anf.RuntimeType::Callable(physical_parameters, demand.result_type)
     } else {
       Forall(
         demand.retained_parameters,
-        Callable(demand.parameter_types, demand.result_type),
+        Callable(physical_parameters, demand.result_type),
       )
     }
     let (capture, recursive_functions) = match instance.definition.owner {
@@ -64,6 +68,7 @@ fn ImageLowerer::plan_representation_specializations(
           retained_parameters: demand.retained_parameters,
           specialized_parameters: demand.specialized_parameters,
           parameter_types: demand.parameter_types,
+          scalar_parameters: demand.scalar_parameters,
           result_type: demand.result_type,
           capture,
           recursive_functions,
@@ -82,6 +87,7 @@ priv struct RepresentationDemand {
   retained_parameters : Array[@anf.RuntimeEvidenceParameter]
   specialized_parameters : Array[@anf.RuntimeEvidenceId]
   parameter_types : Array[@anf.RuntimeType]
+  scalar_parameters : Array[ScalarParameterPlan]
   result_type : @anf.RuntimeType
 }
 
@@ -142,13 +148,28 @@ fn ImageLowerer::representation_demand(
     substitutions.apply_type(self.runtime_types, type_)
   })
   let result_type = substitutions.apply_type(self.runtime_types, formal_result)
-  guard self.runtime_abi_changed(
-    formal_parameters, formal_result, parameter_types, result_type,
-  ) else {
+  let scalar_parameters = []
+  for index in 0..<parameter_types.length() {
+    if self.callable_instances.scalar_parameter_contract(instance.id, index)
+      is Some(contract) {
+      scalar_parameters.push({
+        instance: instance.id,
+        parameter_index: index,
+        contract,
+      })
+    }
+  }
+  guard !scalar_parameters.is_empty() ||
+    self.runtime_abi_changed(
+      formal_parameters, formal_result, parameter_types, result_type,
+    ) else {
     return None
   }
+  let physical_parameters = physical_parameter_types(
+    parameter_types, scalar_parameters,
+  )
   let parameters = []
-  for type_ in parameter_types {
+  for type_ in physical_parameters {
     let key = self.canonical_runtime_type_key(type_)
     if !(key is Unit) {
       parameters.push(key)
@@ -160,14 +181,46 @@ fn ImageLowerer::representation_demand(
       specialized_evidence,
       retained_arities: retained_parameters.map(parameter => parameter.arity),
       parameters,
+      scalar_parameters: scalar_parameters.map(parameter => {
+        (
+          parameter.parameter_index,
+          parameter.contract.data_constructor,
+          parameter.contract.payload_types.map(type_ => {
+            self.canonical_runtime_type_key(type_)
+          }),
+        )
+      }),
       result: self.canonical_runtime_type_key(result_type),
     },
     substitutions,
     retained_parameters,
     specialized_parameters,
     parameter_types,
+    scalar_parameters,
     result_type,
   })
+}
+
+///|
+fn physical_parameter_types(
+  logical : Array[@anf.RuntimeType],
+  scalar : Array[ScalarParameterPlan],
+) -> Array[@anf.RuntimeType] {
+  let physical = []
+  for index, type_ in logical {
+    let mut projected : ClosedAggregateContract? = None
+    for parameter in scalar {
+      if parameter.parameter_index == index {
+        projected = Some(parameter.contract)
+        break
+      }
+    }
+    match projected {
+      Some(contract) => physical.append(contract.payload_types)
+      None => physical.push(type_)
+    }
+  }
+  physical
 }
 
 ///|
@@ -299,7 +352,7 @@ fn RepresentationSpecializationPlan::callable_type(
   self : RepresentationSpecializationPlan,
 ) -> @anf.RuntimeType {
   let callable = @anf.RuntimeType::Callable(
-    self.parameter_types,
+    physical_parameter_types(self.parameter_types, self.scalar_parameters),
     self.result_type,
   )
   if self.retained_parameters.is_empty() {
@@ -430,5 +483,6 @@ fn ImageLowerer::lower_representation_worker(
     plan.recursive_functions,
     plan.substitutions,
     plan.specialized_parameters,
+    scalar_parameters=plan.scalar_parameters,
   )
 }

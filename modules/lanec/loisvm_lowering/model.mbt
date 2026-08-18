@@ -325,6 +325,9 @@ priv struct RepresentationSpecializationKey {
   specialized_evidence : Array[(Int, CanonicalSpecializedEvidenceKey)]
   retained_arities : Array[Int]
   parameters : Array[CanonicalRuntimeTypeKey]
+  scalar_parameters : Array[
+    (Int, @buslane.DataConId, Array[CanonicalRuntimeTypeKey]),
+  ]
   result : CanonicalRuntimeTypeKey
 } derive(Eq)
 
@@ -338,6 +341,7 @@ priv struct RepresentationSpecializationPlan {
   retained_parameters : Array[@anf.RuntimeEvidenceParameter]
   specialized_parameters : Array[@anf.RuntimeEvidenceId]
   parameter_types : Array[@anf.RuntimeType]
+  scalar_parameters : Array[ScalarParameterPlan]
   result_type : @anf.RuntimeType
   capture : CallableCaptureContract
   recursive_functions : Array[RecursiveFunctionPlan]
@@ -444,6 +448,7 @@ priv struct DeferredNestedCallable {
 priv enum LocalValue {
   Unit
   Slot(@vmcfg.ValueId, @anf.RuntimeType)
+  ClosedAggregate(ClosedAggregateContract, Array[LocalValue])
   Global(GlobalValue)
   RecursiveFunction(@bytecode.FunctionId, @anf.RuntimeType, @vmcfg.ValueId?)
   NestedCallable(DeferredNestedCallable)

@@ -35,7 +35,7 @@ fn FunctionLowerer::lower_rhs(
     ApplyEvidence(callee~, arguments~) =>
       self.lower_evidence_apply(callee, arguments)
     Call(callee~, arguments~) => self.lower_call(site, callee, arguments)
-    Construct(construct) => self.lower_construct(construct)
+    Construct(construct) => self.lower_construct(site, construct)
     Match(match_) => self.lower_match(match_)
   }
 }
@@ -103,6 +103,7 @@ fn FunctionLowerer::lower_evidence_apply(
 ///|
 fn FunctionLowerer::lower_construct(
   self : FunctionLowerer,
+  site : @anf.AnfBindingId,
   construct : @anf.AnfConstruct,
 ) -> LocalValue raise LoisvmLoweringError {
   let info = match
@@ -141,6 +142,33 @@ fn FunctionLowerer::lower_construct(
       expected=info.payload_types.length(),
       actual=construct.payloads.length(),
     )
+  }
+  if self.image.callable_instances.scalar_allocation_contract(
+      self.caller_instances,
+      site,
+    )
+    is Some(contract) {
+    if contract.data_constructor != construct.data_constructor ||
+      contract.payload_types.length() != construct.payloads.length() {
+      raise RepresentationSpecializationInvariant(
+        detail="closed aggregate contract does not match its allocation",
+      )
+    }
+    let payloads = []
+    for index, payload in construct.payloads {
+      let target_type = contract.payload_types[index]
+      let source = self.lower_atom(payload)
+      let source_type = local_value_type(source).unwrap_or(target_type)
+      payloads.push(
+        self.adapt_local_value_with_substitutions(
+          source,
+          source_type,
+          target_type,
+          self.substitutions,
+        ),
+      )
+    }
+    return ClosedAggregate(contract, payloads)
   }
   let fields = []
   for parameter in info.hidden_evidence_parameters {

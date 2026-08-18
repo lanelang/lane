@@ -12,6 +12,7 @@ fn ImageLowerer::lower_function_body(
   recursive_functions : Array[RecursiveFunctionPlan],
   substitutions : RuntimeSubstitution,
   specialized_parameters : Array[@anf.RuntimeEvidenceId],
+  scalar_parameters~ : Array[ScalarParameterPlan],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
@@ -90,12 +91,38 @@ fn ImageLowerer::lower_function_body(
   let parameter_slots : Array[@vmcfg.ValueId] = []
   for index, parameter in function.parameters {
     let type_ = parameter_types[index]
-    if self.runtime_type(type_) is Concrete(Unit) {
-      lowerer.bindings.push({ value: parameter, lowered: Unit })
-    } else {
-      let slot = lowerer.fresh_slot(type_)
-      parameter_slots.push(slot)
-      lowerer.bindings.push({ value: parameter, lowered: Slot(slot, type_) })
+    let mut scalar : ClosedAggregateContract? = None
+    for projection in scalar_parameters {
+      if projection.parameter_index == index {
+        scalar = Some(projection.contract)
+        break
+      }
+    }
+    match scalar {
+      Some(contract) => {
+        let payloads = []
+        for payload_type in contract.payload_types {
+          if self.runtime_type(payload_type) is Concrete(Unit) {
+            payloads.push(LocalValue::Unit)
+          } else {
+            let slot = lowerer.fresh_slot(payload_type)
+            parameter_slots.push(slot)
+            payloads.push(Slot(slot, payload_type))
+          }
+        }
+        lowerer.bindings.push({
+          value: parameter,
+          lowered: ClosedAggregate(contract, payloads),
+        })
+      }
+      None =>
+        if self.runtime_type(type_) is Concrete(Unit) {
+          lowerer.bindings.push({ value: parameter, lowered: Unit })
+        } else {
+          let slot = lowerer.fresh_slot(type_)
+          parameter_slots.push(slot)
+          lowerer.bindings.push({ value: parameter, lowered: Slot(slot, type_) })
+        }
     }
   }
   let result = lowerer.materialize_local(lowerer.lower_expr(function.body))
@@ -105,7 +132,8 @@ fn ImageLowerer::lower_function_body(
       match result {
         Unit => Return(None)
         Slot(slot, _) => Return(Some(slot))
-        Global(_)
+        ClosedAggregate(_, _)
+        | Global(_)
         | NestedCallable(_)
         | RecursiveFunction(_, _, _)
         | EvidenceApplied(_, _)

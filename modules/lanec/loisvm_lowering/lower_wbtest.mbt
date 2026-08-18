@@ -1167,7 +1167,7 @@ test "Bool matches lower to explicit CFG branches" {
 }
 
 ///|
-test "non-generic data construction and matching lower through object shapes" {
+test "multi-use non-generic data retains its nominal object shape" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
@@ -1180,6 +1180,17 @@ test "non-generic data construction and matching lower through object shapes" {
   let scrutinee = metadata.define_value("scrutinee", Local, option_type)
   let binder = metadata.define_value("option", MatchBinder, option_type)
   let payload = metadata.define_value("payload", MatchBinder, i64_type)
+  let second_binder = metadata.define_value(
+    "second_option",
+    MatchBinder,
+    option_type,
+  )
+  let second_payload = metadata.define_value(
+    "second_payload",
+    MatchBinder,
+    i64_type,
+  )
+  let first_result = metadata.define_value("first_result", Local, unit_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -1199,32 +1210,54 @@ test "non-generic data construction and matching lower through object shapes" {
               hidden_witnesses: [],
               payloads: [Literal(I64(7L))],
             }),
-            Match({
-              scrutinee: Ref(scrutinee),
-              binder,
-              result_type: unit_type,
-              alternatives: [
-                {
-                  alt_constructor: DataCon(none),
-                  type_binders: [],
-                  value_binders: [],
-                  body: Call(Ref(observe), [Literal(I64(0L))]),
-                },
-                {
-                  alt_constructor: DataCon(some),
-                  type_binders: [],
-                  value_binders: [payload],
-                  body: Call(Ref(observe), [Ref(payload)]),
-                },
-              ],
-            }),
+            Let(
+              first_result,
+              Match({
+                scrutinee: Ref(scrutinee),
+                binder,
+                result_type: unit_type,
+                alternatives: [
+                  {
+                    alt_constructor: DataCon(none),
+                    type_binders: [],
+                    value_binders: [],
+                    body: Call(Ref(observe), [Literal(I64(0L))]),
+                  },
+                  {
+                    alt_constructor: DataCon(some),
+                    type_binders: [],
+                    value_binders: [payload],
+                    body: Call(Ref(observe), [Ref(payload)]),
+                  },
+                ],
+              }),
+              Match({
+                scrutinee: Ref(scrutinee),
+                binder: second_binder,
+                result_type: unit_type,
+                alternatives: [
+                  {
+                    alt_constructor: DataCon(none),
+                    type_binders: [],
+                    value_binders: [],
+                    body: Call(Ref(observe), [Literal(I64(0L))]),
+                  },
+                  {
+                    alt_constructor: DataCon(some),
+                    type_binders: [],
+                    value_binders: [second_payload],
+                    body: Call(Ref(observe), [Ref(second_payload)]),
+                  },
+                ],
+              }),
+            ),
           ),
         }),
       ),
     ],
   }
   let image = match
-    lower_test_linked_program_to_bytecode(
+    lower_test_executable_to_bytecode(
       program,
       {
         builtins: [],
@@ -2286,7 +2319,7 @@ test "single-constructor matches keep owned captures in the current block" {
 }
 
 ///|
-test "closed generic data preserves its declaration-owned payload ABI" {
+test "closed generic data scalar replacement creates no nominal family ABI" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let option = metadata.define_type("Option", [type_parameter])
@@ -2365,7 +2398,7 @@ test "closed generic data preserves its declaration-owned payload ABI" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_true(
+  assert_false(
     image.object_shapes.any(shape => {
       shape
       is Data(
@@ -2387,10 +2420,10 @@ test "closed generic data preserves its declaration-owned payload ABI" {
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
   }
-  assert_true(
+  assert_false(
     contains_instruction(main_body, instruction => instruction is EraseI64(_, _)),
   )
-  assert_true(
+  assert_false(
     contains_instruction(main_body, instruction => {
       instruction is UneraseI64(_, _)
     }),
@@ -2657,7 +2690,7 @@ test "payload-free existential evidence disappears when no runtime use remains" 
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_true(
+  assert_false(
     image.object_shapes.any(shape => {
       shape is Data({ stored_witness_count: 0, members: [], .. })
     }),
@@ -2755,7 +2788,7 @@ test "unused effect-kind existential evidence disappears from runtime ANF" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_true(
+  assert_false(
     image.object_shapes.any(shape => {
       shape is Data({ stored_witness_count: 0, members: [], .. })
     }),

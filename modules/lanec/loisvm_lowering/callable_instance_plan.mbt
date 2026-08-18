@@ -26,8 +26,14 @@ priv struct CallableFlowFact {
 } derive(Eq)
 
 ///|
+priv enum CallablePlanBody {
+  TopLevel
+  Instance(Int)
+} derive(Eq)
+
+///|
 priv struct CallableAllocationKey {
-  caller : Int
+  body : CallablePlanBody
   site : @anf.AnfBindingId
 } derive(Eq)
 
@@ -35,7 +41,41 @@ priv struct CallableAllocationKey {
 priv struct CallableAllocationFact {
   key : CallableAllocationKey
   data_constructor : @buslane.DataConId
+  type_arguments : Array[@anf.RuntimeArgument]
+  hidden_arguments : Array[@anf.RuntimeArgument]
   payloads : Array[CallableFlowFact]
+}
+
+///|
+priv struct ClosedAggregateContract {
+  owner : @buslane.TypeId
+  data_constructor : @buslane.DataConId
+  type_ : @anf.RuntimeType
+  payload_types : Array[@anf.RuntimeType]
+} derive(Eq)
+
+///|
+priv struct ScalarAllocationPlan {
+  key : CallableAllocationKey
+  contract : ClosedAggregateContract
+}
+
+///|
+priv struct ScalarParameterPlan {
+  instance : Int
+  parameter_index : Int
+  contract : ClosedAggregateContract
+}
+
+///|
+priv struct ClosedAggregateScalarReplacementPlan {
+  allocations : Array[ScalarAllocationPlan]
+  parameters : Array[ScalarParameterPlan]
+}
+
+///|
+fn ClosedAggregateScalarReplacementPlan::empty() -> ClosedAggregateScalarReplacementPlan {
+  { allocations: [], parameters: [] }
 }
 
 ///|
@@ -73,12 +113,67 @@ priv struct CallableCallSite {
 priv struct CallableInstancePlan {
   instances : Array[CallableInstance]
   calls : Array[CallableCallSite]
+  scalar_replacements : ClosedAggregateScalarReplacementPlan
   rejected_recursive_groups : Array[@anf.AnfRecursiveGroupId]
 }
 
 ///|
 fn CallableInstancePlan::empty() -> CallableInstancePlan {
-  { instances: [], calls: [], rejected_recursive_groups: [] }
+  {
+    instances: [],
+    calls: [],
+    scalar_replacements: ClosedAggregateScalarReplacementPlan::empty(),
+    rejected_recursive_groups: [],
+  }
+}
+
+///|
+fn CallableInstancePlan::scalar_allocation_contract(
+  self : CallableInstancePlan,
+  callers : Array[Int],
+  site : @anf.AnfBindingId,
+) -> ClosedAggregateContract? {
+  guard !callers.is_empty() else { return None }
+  let mut selected : ClosedAggregateContract? = None
+  for caller in callers {
+    let key : CallableAllocationKey = {
+      body: if caller < 0 {
+        TopLevel
+      } else {
+        Instance(caller)
+      },
+      site,
+    }
+    let mut found : ClosedAggregateContract? = None
+    for allocation in self.scalar_replacements.allocations {
+      if allocation.key == key {
+        found = Some(allocation.contract)
+        break
+      }
+    }
+    guard found is Some(contract) else { return None }
+    match selected {
+      None => selected = Some(contract)
+      Some(existing) if existing == contract => ()
+      Some(_) => return None
+    }
+  }
+  selected
+}
+
+///|
+fn CallableInstancePlan::scalar_parameter_contract(
+  self : CallableInstancePlan,
+  instance : Int,
+  parameter_index : Int,
+) -> ClosedAggregateContract? {
+  for parameter in self.scalar_replacements.parameters {
+    if parameter.instance == instance &&
+      parameter.parameter_index == parameter_index {
+      return Some(parameter.contract)
+    }
+  }
+  None
 }
 
 ///|
@@ -199,9 +294,11 @@ fn ImageLowerer::plan_callable_instances(
       break
     }
   }
+  let scalar_replacements = planner.plan_scalar_replacements()
   {
     instances: planner.instances,
     calls: planner.calls,
+    scalar_replacements,
     rejected_recursive_groups: planner.rejected_recursive_groups,
   }
 }
@@ -500,13 +597,22 @@ fn CallableInstancePlanner::eval_rhs(
         arguments.map(argument => self.eval_atom(argument, caller)),
       )
     Construct(construct) => {
-      let key : CallableAllocationKey = { caller, site }
+      let key : CallableAllocationKey = {
+        body: if caller < 0 {
+          TopLevel
+        } else {
+          Instance(caller)
+        },
+        site,
+      }
       let payloads = construct.payloads.map(payload => {
         self.eval_atom(payload, caller)
       })
       self.update_allocation({
         key,
         data_constructor: construct.data_constructor,
+        type_arguments: construct.type_arguments,
+        hidden_arguments: construct.hidden_arguments,
         payloads,
       })
       CallableFlowFact::allocation(key)
@@ -625,6 +731,7 @@ fn CallableInstancePlanner::eval_match(
   caller : Int,
 ) -> CallableFlowFact raise LoisvmLoweringError {
   let scrutinee = self.eval_atom(match_.scrutinee, caller)
+  self.update_binding(caller, Value(match_.binder), scrutinee)
   let mut result = CallableFlowFact::empty()
   for alternative in match_.alternatives {
     let matching = scrutinee.allocations.filter_map(key => {
@@ -895,6 +1002,513 @@ fn CallableInstancePlanner::allocation(
     }
   }
   None
+}
+
+///|
+priv enum ScalarCarrierConsumer {
+  Alias(Int, @anf.AnfBindingId)
+  ExactCall(Int, Int)
+  Match
+  Unsupported
+}
+
+///|
+priv struct ScalarCarrierUse {
+  caller : Int
+  binding : @anf.AnfBindingId
+  fact : CallableFlowFact
+  consumers : Array[ScalarCarrierConsumer]
+}
+
+///|
+priv struct ScalarCallObservation {
+  target : Int
+  parameter_index : Int
+  fact : CallableFlowFact
+}
+
+///|
+priv struct ScalarUseAnalysis {
+  planner : CallableInstancePlanner
+  uses : Array[ScalarCarrierUse]
+  calls : Array[ScalarCallObservation]
+}
+
+///|
+fn CallableInstancePlanner::plan_scalar_replacements(
+  self : CallableInstancePlanner,
+) -> ClosedAggregateScalarReplacementPlan raise LoisvmLoweringError {
+  let analysis : ScalarUseAnalysis = { planner: self, uses: [], calls: [] }
+  analysis.collect()
+  analysis.finish()
+}
+
+///|
+fn ScalarUseAnalysis::collect(
+  self : ScalarUseAnalysis,
+) -> Unit raise LoisvmLoweringError {
+  for term in self.planner.program.terms() {
+    match term {
+      Let(_, expression) => self.collect_expr(expression, -1, Unsupported)
+      LetRec(bindings) =>
+        for binding in bindings {
+          self.collect_atom_captures(binding.rhs, -1)
+        }
+      External(_) => ()
+    }
+  }
+  for instance in self.planner.instances {
+    self.collect_expr(
+      instance.definition.function.body,
+      instance.id,
+      Unsupported,
+    )
+  }
+}
+
+///|
+fn ScalarUseAnalysis::collect_expr(
+  self : ScalarUseAnalysis,
+  expression : @anf.AnfExpr,
+  caller : Int,
+  result_consumer : ScalarCarrierConsumer,
+) -> Unit raise LoisvmLoweringError {
+  match expression {
+    Atom(atom) => self.record_atom_use(atom, caller, result_consumer)
+    Let(binding, body) => {
+      self.collect_rhs(binding.id(), binding.rhs(), caller)
+      self.collect_expr(body, caller, result_consumer)
+    }
+    LetRec(bindings, body) => {
+      for binding in bindings {
+        self.collect_atom_captures(binding.rhs, caller)
+      }
+      self.collect_expr(body, caller, result_consumer)
+    }
+  }
+}
+
+///|
+fn ScalarUseAnalysis::collect_rhs(
+  self : ScalarUseAnalysis,
+  site : @anf.AnfBindingId,
+  rhs : @anf.AnfRhs,
+  caller : Int,
+) -> Unit raise LoisvmLoweringError {
+  match rhs {
+    Atom(atom) => self.record_atom_use(atom, caller, Alias(caller, site))
+    ApplyEvidence(callee~, ..) =>
+      self.record_atom_use(callee, caller, Unsupported)
+    Construct(construct) =>
+      for payload in construct.payloads {
+        self.record_atom_use(payload, caller, Unsupported)
+      }
+    Match(match_) => {
+      let fact = self.atom_fact(match_.scrutinee, caller)
+      let consumer = if self.match_accepts_fact(match_, fact) {
+        ScalarCarrierConsumer::Match
+      } else {
+        Unsupported
+      }
+      self.record_atom_use(match_.scrutinee, caller, consumer)
+      for alternative in match_.alternatives {
+        self.collect_expr(alternative.body, caller, Unsupported)
+      }
+    }
+    Call(callee~, arguments~) => {
+      self.record_atom_use(callee, caller, Unsupported)
+      let target = self.exact_call_target(caller, site)
+      for index, argument in arguments {
+        let fact = self.atom_fact(argument, caller)
+        match target {
+          Some(instance) if !self.planner.instances[instance].generic_fallback &&
+            index <
+            self.planner.instances[instance].definition.function.parameters.length() => {
+            self.calls.push({ target: instance, parameter_index: index, fact })
+            self.record_atom_use(argument, caller, ExactCall(instance, index))
+          }
+          _ => self.record_atom_use(argument, caller, Unsupported)
+        }
+      }
+    }
+  }
+}
+
+///|
+fn ScalarUseAnalysis::collect_atom_captures(
+  self : ScalarUseAnalysis,
+  atom : @anf.AnfAtom,
+  caller : Int,
+) -> Unit {
+  let function = match atom {
+    Function(function) => Some(function)
+    EvidenceLambda(body~, ..) => extract_top_function(body)
+    _ => None
+  }
+  guard function is Some(function) &&
+    self.planner.catalog.find(function.id) is Some(definition) else {
+    return
+  }
+  for capture in definition.captures {
+    match capture {
+      Value(value) => self.record_binding_use(caller, Value(value), Unsupported)
+      Temp(temp) => self.record_binding_use(caller, Temp(temp), Unsupported)
+    }
+  }
+}
+
+///|
+fn ScalarUseAnalysis::record_atom_use(
+  self : ScalarUseAnalysis,
+  atom : @anf.AnfAtom,
+  caller : Int,
+  consumer : ScalarCarrierConsumer,
+) -> Unit {
+  self.collect_atom_captures(atom, caller)
+  match atom {
+    Ref(value) => {
+      let local_fact = self.planner.binding_fact(caller, Value(value))
+      if !local_fact.allocations.is_empty() {
+        self.record_binding_use(caller, Value(value), consumer)
+      } else {
+        self.record_binding_use(-1, Value(value), consumer)
+      }
+    }
+    Temp(temp) => self.record_binding_use(caller, Temp(temp), consumer)
+    _ => ()
+  }
+}
+
+///|
+fn ScalarUseAnalysis::record_binding_use(
+  self : ScalarUseAnalysis,
+  caller : Int,
+  binding : @anf.AnfBindingId,
+  consumer : ScalarCarrierConsumer,
+) -> Unit {
+  let fact = self.planner.binding_fact(caller, binding)
+  guard !fact.allocations.is_empty() else { return }
+  for usage in self.uses {
+    if usage.caller == caller && usage.binding == binding {
+      usage.consumers.push(consumer)
+      return
+    }
+  }
+  self.uses.push({ caller, binding, fact, consumers: [consumer] })
+}
+
+///|
+fn ScalarUseAnalysis::atom_fact(
+  self : ScalarUseAnalysis,
+  atom : @anf.AnfAtom,
+  caller : Int,
+) -> CallableFlowFact {
+  match atom {
+    Ref(value) => {
+      let local_fact = self.planner.binding_fact(caller, Value(value))
+      if !local_fact.allocations.is_empty() {
+        local_fact
+      } else {
+        self.planner.binding_fact(-1, Value(value))
+      }
+    }
+    Temp(temp) => self.planner.binding_fact(caller, Temp(temp))
+    _ => CallableFlowFact::empty()
+  }
+}
+
+///|
+fn ScalarUseAnalysis::exact_call_target(
+  self : ScalarUseAnalysis,
+  caller : Int,
+  site : @anf.AnfBindingId,
+) -> Int? {
+  for call in self.planner.calls {
+    if call.caller == caller && call.site == site {
+      guard !call.open && call.targets is [target] else { return None }
+      return Some(target)
+    }
+  }
+  None
+}
+
+///|
+fn ScalarUseAnalysis::match_accepts_fact(
+  self : ScalarUseAnalysis,
+  match_ : @anf.AnfMatch,
+  fact : CallableFlowFact,
+) -> Bool raise LoisvmLoweringError {
+  guard !fact.open && !fact.allocations.is_empty() else { return false }
+  for key in fact.allocations {
+    guard self.planner.closed_aggregate_contract(key) is Some(contract) else {
+      return false
+    }
+    let mut selected : @anf.AnfAlternative? = None
+    let mut default : @anf.AnfAlternative? = None
+    for alternative in match_.alternatives {
+      match alternative.alt_constructor {
+        DataCon(data_constructor) if data_constructor ==
+          contract.data_constructor => {
+          selected = Some(alternative)
+          break
+        }
+        Default => default = Some(alternative)
+        _ => ()
+      }
+    }
+    if selected is None {
+      selected = default
+    }
+    guard selected is Some(alternative) &&
+      alternative.evidence_binders.is_empty() else {
+      return false
+    }
+    match alternative.alt_constructor {
+      DataCon(_) if alternative.value_binders.length() ==
+        contract.payload_types.length() => ()
+      Default if alternative.value_binders.is_empty() => ()
+      _ => return false
+    }
+  }
+  true
+}
+
+///|
+fn CallableInstancePlanner::closed_aggregate_contract(
+  self : CallableInstancePlanner,
+  key : CallableAllocationKey,
+) -> ClosedAggregateContract? raise LoisvmLoweringError {
+  guard self.allocation(key) is Some(allocation) &&
+    allocation.hidden_arguments.is_empty() &&
+    self.image.metadata.data_constructor_info(allocation.data_constructor)
+    is Some(info) &&
+    info.hidden_evidence_parameters.is_empty() &&
+    self.image.metadata.type_info(info.owner) is Some(owner) else {
+    return None
+  }
+  let substitutions = match key.body {
+    TopLevel => RuntimeSubstitution::new()
+    Instance(instance) => self.instances[instance].substitution
+  }
+  let type_arguments = allocation.type_arguments.map(argument => {
+    substitutions.apply_argument(self.image.runtime_types, argument)
+  })
+  guard type_arguments.length() == owner.evidence_parameters.length() else {
+    return None
+  }
+  let data_substitutions = RuntimeSubstitution::from_arguments(
+    owner.evidence_parameters,
+    type_arguments,
+  )
+  let payload_types = info.payload_types.map(type_ => {
+    data_substitutions.apply_type(self.image.runtime_types, type_)
+  })
+  guard payload_types.all(type_ => self.image.runtime_type(type_) is Concrete(_)) else {
+    return None
+  }
+  Some({
+    owner: info.owner,
+    data_constructor: allocation.data_constructor,
+    type_: Data(info.owner, type_arguments),
+    payload_types,
+  })
+}
+
+///|
+fn ScalarUseAnalysis::finish(
+  self : ScalarUseAnalysis,
+) -> ClosedAggregateScalarReplacementPlan raise LoisvmLoweringError {
+  let rejected : Array[CallableAllocationKey] = []
+  for allocation in self.planner.allocations {
+    if self.planner.closed_aggregate_contract(allocation.key) is None {
+      rejected.push(allocation.key)
+    }
+  }
+  for usage in self.uses {
+    if usage.fact.open ||
+      usage.consumers.length() != 1 ||
+      usage.consumers[0] is Unsupported {
+      reject_allocations(rejected, usage.fact.allocations)
+    }
+  }
+  for allocation in self.planner.allocations {
+    let caller = match allocation.key.body {
+      TopLevel => -1
+      Instance(instance) => instance
+    }
+    if self.find_use(caller, allocation.key.site) is None {
+      reject_allocations(rejected, [allocation.key])
+    }
+  }
+  let mut parameters : Array[ScalarParameterPlan] = []
+  while true {
+    parameters = self.scalar_parameters(rejected)
+    let before = rejected.length()
+    for usage in self.uses {
+      guard usage.consumers is [ExactCall(instance, parameter_index)] else {
+        continue
+      }
+      if !parameters.any(parameter => {
+          parameter.instance == instance &&
+          parameter.parameter_index == parameter_index
+        }) {
+        reject_allocations(rejected, usage.fact.allocations)
+      }
+    }
+    for allocation in self.planner.allocations {
+      guard !rejected.contains(allocation.key) &&
+        !self.allocation_reaches_match(allocation.key, parameters, rejected) else {
+        continue
+      }
+      rejected.push(allocation.key)
+    }
+    if rejected.length() == before {
+      break
+    }
+  }
+  parameters = self.scalar_parameters(rejected)
+  let allocations = []
+  for allocation in self.planner.allocations {
+    guard !rejected.contains(allocation.key) &&
+      self.planner.closed_aggregate_contract(allocation.key) is Some(contract) else {
+      continue
+    }
+    allocations.push({ key: allocation.key, contract })
+  }
+  { allocations, parameters }
+}
+
+///|
+fn ScalarUseAnalysis::scalar_parameters(
+  self : ScalarUseAnalysis,
+  rejected : Array[CallableAllocationKey],
+) -> Array[ScalarParameterPlan] raise LoisvmLoweringError {
+  let parameters : Array[ScalarParameterPlan] = []
+  for instance in self.planner.instances {
+    guard !instance.generic_fallback && instance.definition.captures.is_empty() else {
+      continue
+    }
+    for index in 0..<instance.definition.function.parameters.length() {
+      let observations = self.calls.filter(observation => {
+        observation.target == instance.id &&
+        observation.parameter_index == index
+      })
+      guard !observations.is_empty() else { continue }
+      let mut selected : ClosedAggregateContract? = None
+      let mut valid = true
+      for observation in observations {
+        if observation.fact.open ||
+          !observation.fact.callables.is_empty() ||
+          observation.fact.allocations.is_empty() {
+          valid = false
+          break
+        }
+        for allocation in observation.fact.allocations {
+          if rejected.contains(allocation) {
+            valid = false
+            break
+          }
+          guard self.planner.closed_aggregate_contract(allocation)
+            is Some(contract) else {
+            valid = false
+            break
+          }
+          match selected {
+            None => selected = Some(contract)
+            Some(existing) if existing == contract => ()
+            Some(_) => valid = false
+          }
+        }
+        if !valid {
+          break
+        }
+      }
+      if valid && selected is Some(contract) {
+        parameters.push({
+          instance: instance.id,
+          parameter_index: index,
+          contract,
+        })
+      }
+    }
+  }
+  parameters
+}
+
+///|
+fn ScalarUseAnalysis::allocation_reaches_match(
+  self : ScalarUseAnalysis,
+  allocation : CallableAllocationKey,
+  parameters : Array[ScalarParameterPlan],
+  rejected : Array[CallableAllocationKey],
+) -> Bool {
+  let mut caller = match allocation.body {
+    TopLevel => -1
+    Instance(instance) => instance
+  }
+  let mut binding = allocation.site
+  let visited : Array[(Int, @anf.AnfBindingId)] = []
+  while true {
+    if visited.contains((caller, binding)) {
+      return false
+    }
+    visited.push((caller, binding))
+    guard self.find_use(caller, binding) is Some(usage) &&
+      !usage.fact.allocations.any(key => rejected.contains(key)) &&
+      usage.consumers is [consumer] else {
+      return false
+    }
+    match consumer {
+      Match => return true
+      Alias(next_caller, next_binding) => {
+        caller = next_caller
+        binding = next_binding
+      }
+      ExactCall(instance, parameter_index) => {
+        guard parameters.any(parameter => {
+            parameter.instance == instance &&
+            parameter.parameter_index == parameter_index
+          }) &&
+          self.planner.instances[instance].definition.function.parameters.get(
+            parameter_index,
+          )
+          is Some(parameter) else {
+          return false
+        }
+        caller = instance
+        binding = Value(parameter)
+      }
+      Unsupported => return false
+    }
+  } nobreak {
+    false
+  }
+}
+
+///|
+fn ScalarUseAnalysis::find_use(
+  self : ScalarUseAnalysis,
+  caller : Int,
+  binding : @anf.AnfBindingId,
+) -> ScalarCarrierUse? {
+  for usage in self.uses {
+    if usage.caller == caller && usage.binding == binding {
+      return Some(usage)
+    }
+  }
+  None
+}
+
+///|
+fn reject_allocations(
+  rejected : Array[CallableAllocationKey],
+  allocations : Array[CallableAllocationKey],
+) -> Unit {
+  for allocation in allocations {
+    if !rejected.contains(allocation) {
+      rejected.push(allocation)
+    }
+  }
 }
 
 ///|

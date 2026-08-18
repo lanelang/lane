@@ -404,6 +404,40 @@ fn FunctionLowerer::lower_representation_specialized_call(
   }
   let arguments = []
   for index, formal in plan.parameter_types {
+    let mut scalar : ClosedAggregateContract? = None
+    for parameter in plan.scalar_parameters {
+      if parameter.parameter_index == index {
+        scalar = Some(parameter.contract)
+        break
+      }
+    }
+    if scalar is Some(contract) {
+      guard values[index] is ClosedAggregate(actual, payloads) &&
+        actual == contract &&
+        payloads.length() == contract.payload_types.length() else {
+        raise RepresentationSpecializationInvariant(
+          detail="closed aggregate argument does not match its worker parameter",
+        )
+      }
+      for payload_index, payload in payloads {
+        let payload_type = contract.payload_types[payload_index]
+        let source_type = local_value_type(payload).unwrap_or(payload_type)
+        match
+          self.materialize_local(
+            self.adapt_local_value_with_substitutions(
+              payload, source_type, payload_type, substitutions,
+            ),
+          ) {
+          Unit => ()
+          Slot(slot, _) => arguments.push(slot)
+          _ =>
+            raise RepresentationSpecializationInvariant(
+              detail="closed aggregate payload is not materialized",
+            )
+        }
+      }
+      continue
+    }
     let actual = substitutions.apply_type(self.image.runtime_types, formal)
     let adapted = self.materialize_local(
       self.adapt_local_value_with_substitutions(

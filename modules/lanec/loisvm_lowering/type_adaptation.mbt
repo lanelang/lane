@@ -557,6 +557,7 @@ fn ImageLowerer::callable_types_share_runtime_abi(
 fn local_value_type(value : LocalValue) -> @anf.RuntimeType? {
   match value {
     Slot(_, type_) => Some(type_)
+    ClosedAggregate(contract, _) => Some(contract.type_)
     Global(Function(_, type_))
     | Global(FloatConstant(_, type_))
     | Global(DoubleConstant(_, type_))

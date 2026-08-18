@@ -182,7 +182,8 @@ fn FunctionLowerer::lower_data_alternative(
   let arguments = match result {
     Unit => []
     Slot(slot, _) => [slot]
-    Global(_)
+    ClosedAggregate(_, _)
+    | Global(_)
     | NestedCallable(_)
     | RecursiveFunction(_, _, _)
     | EvidenceApplied(_, _)
@@ -338,7 +339,8 @@ fn FunctionLowerer::lower_bool_alternative(
   let arguments = match result {
     Unit => []
     Slot(slot, _) => [slot]
-    Global(_)
+    ClosedAggregate(_, _)
+    | Global(_)
     | NestedCallable(_)
     | RecursiveFunction(_, _, _)
     | EvidenceApplied(_, _)

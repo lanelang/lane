@@ -273,6 +273,7 @@ fn ImageLowerer::lower_function(
     [],
     RuntimeSubstitution::new(),
     [],
+    scalar_parameters=[],
   )
 }
 
@@ -393,6 +394,7 @@ fn ImageLowerer::lower_lifted_function(
     plan.recursive_functions,
     plan.substitutions,
     plan.specialized_parameters,
+    scalar_parameters=[],
   )
 }
 

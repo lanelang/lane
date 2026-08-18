@@ -5,6 +5,8 @@ fn FunctionLowerer::lower_match(
 ) -> LocalValue raise LoisvmLoweringError {
   let scrutinee = self.materialize_local(self.lower_atom(match_.scrutinee))
   match scrutinee {
+    ClosedAggregate(contract, payloads) =>
+      self.lower_closed_aggregate_match(match_, contract, payloads)
     Unit => {
       let alternative = match find_unit_alternative(match_.alternatives) {
         Some(alternative) => alternative
@@ -50,6 +52,67 @@ fn FunctionLowerer::lower_match(
     | EvidenceAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(detail="match scrutinee is not materialized")
   }
+}
+
+///|
+fn FunctionLowerer::lower_closed_aggregate_match(
+  self : FunctionLowerer,
+  match_ : @anf.AnfMatch,
+  contract : ClosedAggregateContract,
+  payloads : Array[LocalValue],
+) -> LocalValue raise LoisvmLoweringError {
+  let mut selected : @anf.AnfAlternative? = None
+  let mut default : @anf.AnfAlternative? = None
+  for alternative in match_.alternatives {
+    match alternative.alt_constructor {
+      DataCon(data_constructor) if data_constructor == contract.data_constructor => {
+        selected = Some(alternative)
+        break
+      }
+      Default => default = Some(alternative)
+      _ => ()
+    }
+  }
+  if selected is None {
+    selected = default
+  }
+  guard selected is Some(alternative) && alternative.evidence_binders.is_empty() else {
+    raise RepresentationSpecializationInvariant(
+      detail="closed aggregate match lacks its certified alternative",
+    )
+  }
+  match alternative.alt_constructor {
+    DataCon(_) =>
+      if alternative.value_binders.length() != payloads.length() {
+        raise RepresentationSpecializationInvariant(
+          detail="closed aggregate payload binders do not match its contract",
+        )
+      }
+    Default =>
+      if !alternative.value_binders.is_empty() {
+        raise RepresentationSpecializationInvariant(
+          detail="closed aggregate default alternative binds payloads",
+        )
+      }
+    Literal(_) =>
+      raise RepresentationSpecializationInvariant(
+        detail="closed aggregate selected a literal alternative",
+      )
+  }
+  let value_count = self.bindings.length()
+  let temp_count = self.temps.length()
+  self.bindings.push({
+    value: match_.binder,
+    lowered: ClosedAggregate(contract, payloads),
+  })
+  if alternative.alt_constructor is DataCon(_) {
+    for index, binder in alternative.value_binders {
+      self.bindings.push({ value: binder, lowered: payloads[index] })
+    }
+  }
+  let result = self.lower_expr(alternative.body)
+  self.restore_bindings(value_count, temp_count)
+  result
 }
 
 ///|
