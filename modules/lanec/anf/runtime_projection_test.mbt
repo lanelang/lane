@@ -259,6 +259,7 @@ test "runtime ANF removes effect-only binders and applications atomically" {
       #|              body: Let(
       #|                Temp(
       #|                  temp={ index: 0 },
+      #|                  type_=Data({ index: 0 }, []),
       #|                  rhs=Construct(
       #|                    {
       #|                      data_constructor: { index: 0 },
@@ -286,6 +287,7 @@ test "runtime ANF removes effect-only binders and applications atomically" {
       #|              body: Let(
       #|                Temp(
       #|                  temp={ index: 1 },
+      #|                  type_=Data({ index: 0 }, []),
       #|                  rhs=Call(callee=Ref({ index: 0 }), arguments=[]),
       #|                ),
       #|                Atom(Temp({ index: 1 })),
@@ -487,6 +489,13 @@ test "runtime ANF eta-expands a nominal type constructor argument" {
       #|            body: Let(
       #|              Temp(
       #|                temp={ index: 0 },
+      #|                type_=Callable(
+      #|                  [],
+      #|                  Data(
+      #|                    { index: 0 },
+      #|                    [{ type_expression: { index: 0 }, evidence: Static(I64) }],
+      #|                  ),
+      #|                ),
       #|                rhs=ApplyEvidence(
       #|                  callee=Ref({ index: 0 }),
       #|                  arguments=[
@@ -500,6 +509,10 @@ test "runtime ANF eta-expands a nominal type constructor argument" {
       #|              Let(
       #|                Temp(
       #|                  temp={ index: 1 },
+      #|                  type_=Data(
+      #|                    { index: 0 },
+      #|                    [{ type_expression: { index: 0 }, evidence: Static(I64) }],
+      #|                  ),
       #|                  rhs=Call(callee=Temp({ index: 0 }), arguments=[]),
       #|                ),
       #|                Atom(Temp({ index: 1 })),

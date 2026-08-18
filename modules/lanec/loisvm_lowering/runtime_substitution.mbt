@@ -4,6 +4,13 @@ fn RuntimeSubstitution::new() -> RuntimeSubstitution {
 }
 
 ///|
+fn RuntimeSubstitution::parameters(
+  self : RuntimeSubstitution,
+) -> Array[@anf.RuntimeEvidenceId] {
+  self.entries.map(entry => entry.0)
+}
+
+///|
 fn RuntimeSubstitution::from_arguments(
   parameters : Array[@anf.RuntimeEvidenceParameter],
   arguments : Array[@anf.RuntimeArgument],

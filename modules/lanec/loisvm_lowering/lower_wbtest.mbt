@@ -120,14 +120,12 @@ fn lower_test_linked_program_to_bytecode(
 ///|
 fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
   let program : @buslane.Program = { metadata, terms: [] }
-  let runtime_metadata = @anf.lower_cps_core_to_runtime_anf({
-      program,
-      retained_values: [],
-    })
-    .unwrap()
-    .metadata()
+  let anf = @anf.lower_cps_core_to_runtime_anf({ program, retained_values: [] }).unwrap()
+  let runtime_metadata = anf.metadata()
   {
     metadata: runtime_metadata,
+    callable_catalog: anf.callable_catalog(),
+    callable_instances: CallableInstancePlan::empty(),
     runtime_types: RuntimeTypeArena::from_metadata(runtime_metadata),
     externals: { builtins: [], runtime_imports: [] },
     globals: [],
@@ -138,6 +136,7 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     object_shapes: [],
     intrinsic_wrappers: [],
     callable_adapters: [],
+    lifted_functions: [],
     representation_specializations: [],
     data_families: [],
     synthetic_parameters: [],
@@ -1658,7 +1657,7 @@ test "local recursive functions share a cycle-free captured environment" {
 }
 
 ///|
-test "generic identity calls cross explicit representation erasure bridges" {
+test "generic identity callable flow selects a concrete representation worker" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let generic_value_type = @buslane.Type::Parameter(type_parameter)
@@ -1752,17 +1751,17 @@ test "generic identity calls cross explicit representation erasure bridges" {
   guard image.functions[1] is BytecodeBody(apply_body) else {
     fail("expected apply bytecode body")
   }
-  assert_true(
+  assert_false(
     contains_instruction(apply_body, instruction => {
       instruction is ConstLayout(_, _)
     }),
   )
-  assert_true(
+  assert_false(
     contains_instruction(apply_body, instruction => {
       instruction is EraseI64(_, _)
     }),
   )
-  assert_true(
+  assert_false(
     contains_instruction(apply_body, instruction => {
       instruction is UneraseI64(_, _)
     }),
@@ -2287,7 +2286,7 @@ test "single-constructor matches keep owned captures in the current block" {
 }
 
 ///|
-test "generic data stores layout witnesses beside erased payloads" {
+test "closed generic data uses its planned payload representation" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let option = metadata.define_type("Option", [type_parameter])
@@ -2371,8 +2370,15 @@ test "generic data stores layout witnesses beside erased payloads" {
       shape
       is Data(
         {
-          stored_witness_count: 1,
-          members: [{ cleanup: OwnedErased, witness_ordinal: Some(0), .. }],
+          stored_witness_count: 0,
+          members: [
+            {
+              representation: I64,
+              cleanup: Trivial,
+              kind: ScalarValue,
+              witness_ordinal: None,
+            },
+          ],
           ..,
         }
       )
@@ -2381,10 +2387,10 @@ test "generic data stores layout witnesses beside erased payloads" {
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
   }
-  assert_true(
+  assert_false(
     contains_instruction(main_body, instruction => instruction is EraseI64(_, _)),
   )
-  assert_true(
+  assert_false(
     contains_instruction(main_body, instruction => {
       instruction is UneraseI64(_, _)
     }),
@@ -2522,28 +2528,20 @@ test "existential data opens hidden witnesses beside erased payloads" {
       shape
       is Data(
         {
-          stored_witness_count: 2,
+          stored_witness_count: 1,
           members: [
             { cleanup: Trivial, kind: LayoutValue, .. },
+            {
+              representation: I64,
+              cleanup: Trivial,
+              kind: ScalarValue,
+              witness_ordinal: None,
+            },
             { cleanup: OwnedErased, witness_ordinal: Some(0), .. },
-            { cleanup: OwnedErased, witness_ordinal: Some(1), .. },
           ],
           ..,
         }
       )
-    }),
-  )
-  guard image.functions[1] is BytecodeBody(main_body) else {
-    fail("expected main bytecode body")
-  }
-  assert_true(
-    contains_instruction(main_body, instruction => {
-      instruction is BorrowField(_, _, 0, { witness_destination: None, .. })
-    }),
-  )
-  assert_true(
-    contains_instruction(main_body, instruction => {
-      instruction is BorrowField(_, _, _, { witness_destination: Some(_), .. })
     }),
   )
   let mut observed = 0L
@@ -3096,20 +3094,9 @@ test "generic nonescaping nested functions call their target directly" {
       #|    parameters: [],
       #|    instructions: [
       #|      ConstI64({ value: 0 }, 42),
-      #|      ConstLayout({ value: 1 }, { value: 1 }),
-      #|      ConstLayout({ value: 2 }, { value: 1 }),
-      #|      EraseI64({ value: 3 }, { value: 0 }),
-      #|      ConstLayout({ value: 4 }, { value: 1 }),
-      #|      CallDirect(
-      #|        { value: 2 },
-      #|        None,
-      #|        [{ value: 1 }],
-      #|        [{ value: 3 }],
-      #|        Some({ value: 5 }),
-      #|      ),
-      #|      UneraseI64({ value: 0 }, { value: 5 }),
+      #|      CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
       #|    ],
-      #|    terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 0 }]),
+      #|    terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 1 }]),
       #|  },
       #|]
     ),

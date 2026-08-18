@@ -263,6 +263,7 @@ fn ImageLowerer::lower_function(
   )
   self.lower_function_body(
     function,
+    [self.callable_instances.generic_instance(function.id).unwrap()],
     type_parameters,
     parameter_types,
     result_type,
@@ -282,6 +283,7 @@ fn ImageLowerer::lower_initializer_step(
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
+    caller_instances: [-1],
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -330,6 +332,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
+    caller_instances: [-1],
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -380,12 +383,13 @@ fn ImageLowerer::lower_lifted_function(
   )
   self.lower_function_body(
     plan.function,
+    [plan.instance],
     type_parameters,
     parameter_types,
     result_type,
-    plan.captured_parameters,
-    plan.captures,
-    plan.environment_shape,
+    plan.capture.captured_evidence.map(evidence => evidence.target),
+    plan.capture.captures,
+    plan.capture.environment_shape,
     plan.recursive_functions,
     plan.substitutions,
     plan.specialized_parameters,
@@ -402,6 +406,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   let result_type = plan.contract.result
   let lowerer : FunctionLowerer = {
     image: self,
+    caller_instances: [-1],
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,

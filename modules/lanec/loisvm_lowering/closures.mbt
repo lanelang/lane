@@ -19,47 +19,68 @@ fn FunctionLowerer::lower_nested_function_with_type(
     self.image.runtime_types,
     function_type,
   )
-  let capture_bindings = free_capture_bindings(function)
-  let captured_parameters = self.captured_runtime_parameters(
-    [function],
-    [function_type],
-    capture_bindings,
+  let instance = self.image.callable_instance(function.id, self.substitutions)
+  guard self.image.lifted_function(instance) is Some(plan) else {
+    let planned = self.image.callable_instances.instances[instance]
+    raise RepresentationSpecializationInvariant(
+      detail="nested callable \{Repr(function.id)} instance \{instance} (owner=\{Repr(planned.definition.owner)}, generic=\{planned.generic_fallback}, group=\{Repr(planned.definition.recursive_group)}) is absent from the frozen function plan",
+    )
+  }
+  NestedCallable({
+    function,
+    instance,
+    type_: function_type,
+    environment: self.capture_environment(plan.capture),
+  })
+}
+
+///|
+fn FunctionLowerer::materialize_nested_callable(
+  self : FunctionLowerer,
+  callable : DeferredNestedCallable,
+) -> LocalValue raise LoisvmLoweringError {
+  guard self.image.lifted_function(callable.instance) is Some(plan) else {
+    raise RepresentationSpecializationInvariant(
+      detail="nested callable is absent from the frozen function plan",
+    )
+  }
+  self.materialize_planned_callable(
+    plan.lowered_function,
+    callable.type_,
+    callable.environment,
   )
-  let (capture_plans, stored_layouts, capture_slots, members) = self.prepare_captures(
-    capture_bindings, captured_parameters,
+}
+
+///|
+fn FunctionLowerer::materialize_representation_worker(
+  self : FunctionLowerer,
+  plan : RepresentationSpecializationPlan,
+  environment : @vmcfg.ValueId?,
+) -> LocalValue raise LoisvmLoweringError {
+  self.materialize_planned_callable(
+    plan.worker,
+    plan.callable_type(),
+    environment,
   )
-  let environment_shape = self.image.environment_shape(
-    stored_layouts.length(),
-    members,
-  )
-  let function_id = self.image.plans.append(
-      LiftedFunction(function=function.id, source=function.source),
-      _ => {
-        LiftedFunction({
-          function,
-          type_: function_type,
-          substitutions: self.substitutions,
-          specialized_parameters: self.specialized_parameters,
-          captured_parameters,
-          captures: capture_plans,
-          environment_shape,
-          recursive_functions: [],
-        })
-      },
-    ).function
-  match
-    self.make_capture_environment(
-      environment_shape, stored_layouts, capture_slots,
-    ) {
+}
+
+///|
+fn FunctionLowerer::materialize_planned_callable(
+  self : FunctionLowerer,
+  lowered_function : @bytecode.FunctionId,
+  lowered_type : @anf.RuntimeType,
+  environment : @vmcfg.ValueId?,
+) -> LocalValue raise LoisvmLoweringError {
+  match environment {
     None => {
-      let destination = self.fresh_slot(function_type)
-      self.emit(ConstFunction(destination, function_id))
-      Slot(destination, function_type)
+      let destination = self.fresh_slot(lowered_type)
+      self.emit(ConstFunction(destination, lowered_function))
+      Slot(destination, lowered_type)
     }
     Some(environment) => {
-      let destination = self.fresh_slot(function_type)
-      self.emit(MakeClosure(destination, function_id, environment))
-      Slot(destination, function_type)
+      let destination = self.fresh_slot(lowered_type)
+      self.emit(MakeClosure(destination, lowered_function, environment))
+      Slot(destination, lowered_type)
     }
   }
 }
@@ -72,7 +93,7 @@ fn FunctionLowerer::lower_recursive_group(
 ) -> LocalValue raise LoisvmLoweringError {
   let functions : Array[@anf.AnfFunction] = []
   let recursive_values : Array[@buslane.ValueId] = []
-  let recursive_types : Array[@anf.RuntimeType] = []
+  let plans : Array[LiftedFunctionPlan] = []
   for binding in bindings {
     let function = match extract_top_atom_function(binding.rhs) {
       Some(function) => function
@@ -81,68 +102,23 @@ fn FunctionLowerer::lower_recursive_group(
           detail="local recursive bindings must contain functions",
         )
     }
-    let type_ = match self.image.metadata.value_info(binding.id) {
-      Some(info) => info.type_
-      None => raise MissingValueMetadata(value=binding.id)
-    }
     functions.push(function)
     recursive_values.push(binding.id)
-    recursive_types.push(
-      self.substitutions.apply_type(self.image.runtime_types, type_),
-    )
-  }
-  let capture_bindings = []
-  for function in functions {
-    for capture in free_capture_bindings(function) {
-      if !recursive_values_contain_capture(recursive_values, capture) &&
-        !capture_bindings.contains(capture) {
-        capture_bindings.push(capture)
-      }
+    let instance = self.image.callable_instance(function.id, self.substitutions)
+    guard self.image.lifted_function(instance) is Some(plan) else {
+      raise RepresentationSpecializationInvariant(
+        detail="recursive callable is absent from the frozen function plan",
+      )
     }
+    plans.push(plan)
   }
-  let captured_parameters = self.captured_runtime_parameters(
-    functions, recursive_types, capture_bindings,
-  )
-  let (capture_plans, stored_layouts, capture_slots, members) = self.prepare_captures(
-    capture_bindings, captured_parameters,
-  )
-  let environment_shape = self.image.environment_shape(
-    stored_layouts.length(),
-    members,
-  )
-  let environment = self.make_capture_environment(
-    environment_shape, stored_layouts, capture_slots,
-  )
-  let origins : Array[LoisvmFunctionOrigin] = []
-  for function in functions {
-    origins.push(
-      LiftedRecursiveFunction(function=function.id, source=function.source),
+  guard plans.get(0) is Some(first) else {
+    raise RepresentationSpecializationInvariant(
+      detail="recursive callable group is empty",
     )
   }
-  let recursive_functions : Array[RecursiveFunctionPlan] = []
-  ignore(
-    self.image.plans.append_group(origins, fn(function_ids) {
-      for index, function_id in function_ids {
-        recursive_functions.push({
-          value: recursive_values[index],
-          function: function_id,
-          type_: recursive_types[index],
-        })
-      }
-      fn(index) {
-        LiftedFunction({
-          function: functions[index],
-          type_: recursive_types[index],
-          substitutions: self.substitutions,
-          specialized_parameters: self.specialized_parameters,
-          captured_parameters,
-          captures: capture_plans,
-          environment_shape,
-          recursive_functions,
-        })
-      }
-    }),
-  )
+  let environment = self.capture_environment(first.capture)
+  let recursive_functions = first.recursive_functions
   let value_count = self.bindings.length()
   for recursive in recursive_functions {
     self.bindings.push({
@@ -157,49 +133,6 @@ fn FunctionLowerer::lower_recursive_group(
   let result = self.lower_expr(body)
   self.restore_bindings(value_count, self.temps.length())
   result
-}
-
-///|
-fn recursive_values_contain_capture(
-  recursive_values : Array[@buslane.ValueId],
-  capture : CaptureBinding,
-) -> Bool {
-  guard capture is Value(value) else { return false }
-  recursive_values.contains(value)
-}
-
-///|
-fn FunctionLowerer::captured_runtime_parameters(
-  self : FunctionLowerer,
-  functions : Array[@anf.AnfFunction],
-  function_types : Array[@anf.RuntimeType],
-  bindings : Array[CaptureBinding],
-) -> Array[@anf.RuntimeEvidenceParameter] raise LoisvmLoweringError {
-  let types = function_types.copy()
-  for binding in bindings {
-    match self.capture_value(binding) {
-      Slot(_, type_)
-      | RecursiveFunction(_, type_, _)
-      | EvidenceAppliedCallable(_, type_, _) => types.push(type_)
-      AdaptedCallable(adaptation)
-      | EvidenceAppliedAdaptedCallable(adaptation, _) =>
-        types.push(adaptation.contract.target_type)
-      Global(_) | Unit | EvidenceApplied(_, _) => ()
-    }
-  }
-  let parameters = free_runtime_type_parameters_in_types(self.image, types)
-  for index, function in functions {
-    let (bound, _, _) = function_type_parts(function_types[index])
-    collect_free_runtime_evidence_in_expr(
-      self.image,
-      function.body,
-      bound.map(parameter => parameter.id),
-      parameters,
-    )
-  }
-  parameters.filter(parameter => {
-    !self.specialized_parameters.contains(parameter.id)
-  })
 }
 
 ///|
@@ -330,77 +263,6 @@ fn collect_free_runtime_evidence_in_atom(
       collect_free_runtime_evidence_in_expr(image, body, nested, parameters)
     }
   }
-}
-
-///|
-fn FunctionLowerer::prepare_captures(
-  self : FunctionLowerer,
-  bindings : Array[CaptureBinding],
-  captured_parameters : Array[@anf.RuntimeEvidenceParameter],
-) -> (
-  Array[CapturePlan],
-  Array[@vmcfg.ValueId],
-  Array[@vmcfg.ValueId],
-  Array[@bytecode.MemberSchema],
-) raise LoisvmLoweringError {
-  let capture_plans : Array[CapturePlan] = []
-  let stored_layouts = []
-  let capture_slots = []
-  let members : Array[@bytecode.MemberSchema] = []
-  for parameter in captured_parameters {
-    let metadata = runtime_evidence_metadata(parameter)
-    members.push({
-      representation: metadata.representation,
-      cleanup: metadata.cleanup,
-      kind: metadata.kind,
-      witness_ordinal: None,
-    })
-    capture_slots.push(self.find_witness(parameter.id))
-  }
-  for binding in bindings {
-    let captured = self.capture_value(binding)
-    match captured {
-      Global(_) => ()
-      Unit => capture_plans.push({ binding, type_: Unit, member_index: None })
-      _ => {
-        guard self.materialize_local(captured) is Slot(slot, type_) else {
-          abort("captured value was not materialized")
-        }
-        let (metadata, witness_ordinal) = if self.image.runtime_type(type_)
-          is Erased(_) {
-          let ordinal = stored_layouts.length()
-          guard self.values[slot.value].erased_companion is Some(witness) else {
-            raise InvalidTypeApplication(
-              detail="erased capture is missing its layout evidence",
-            )
-          }
-          stored_layouts.push(witness)
-          (
-            @vmcfg.ValueMetadata::{
-              representation: I64,
-              cleanup: OwnedErased,
-              kind: ErasedValue,
-              ownership: Owned,
-              erased_companion: None,
-            },
-            Some(ordinal),
-          )
-        } else {
-          (self.image.slot_metadata(type_), None)
-        }
-        let member_index = members.length()
-        members.push({
-          representation: metadata.representation,
-          cleanup: metadata.cleanup,
-          kind: metadata.kind,
-          witness_ordinal,
-        })
-        capture_slots.push(slot)
-        capture_plans.push({ binding, type_, member_index: Some(member_index) })
-      }
-    }
-  }
-  (capture_plans, stored_layouts, capture_slots, members)
 }
 
 ///|

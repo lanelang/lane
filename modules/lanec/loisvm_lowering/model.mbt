@@ -142,6 +142,27 @@ fn FunctionPlanTable::origins(
 }
 
 ///|
+fn FunctionPlanTable::contains_top_level_function(
+  self : FunctionPlanTable,
+  function : @anf.AnfFunctionId,
+) -> Bool {
+  self.entries.any(entry => {
+    match entry.origin {
+      TopLevelFunction(function=planned, ..) => planned == function
+      LiftedFunction(..)
+      | LiftedRecursiveFunction(..)
+      | RepresentationSpecialization(..)
+      | Initializer(..)
+      | InitializerOrchestrator
+      | IntrinsicWrapper(..)
+      | CallableAdapter
+      | LayoutConstructor
+      | RuntimeImport(..) => false
+    }
+  })
+}
+
+///|
 fn FunctionPlanTable::append(
   self : FunctionPlanTable,
   origin : LoisvmFunctionOrigin,
@@ -278,6 +299,26 @@ priv enum CanonicalRuntimeTypeKey {
 } derive(Debug, Eq)
 
 ///|
+priv enum CanonicalRuntimeEvidenceKey {
+  Static(@anf.RuntimeLayout)
+  Bound(Int)
+  Apply(CanonicalRuntimeEvidenceKey, Array[CanonicalRuntimeEvidenceKey])
+  Lambda(Array[Int], CanonicalRuntimeEvidenceKey)
+} derive(Eq)
+
+///|
+priv struct DataFamilyKey {
+  owner : @buslane.TypeId
+  arguments : Array[@anf.RuntimeTypeExpressionId]?
+} derive(Eq)
+
+///|
+priv enum CanonicalSpecializedEvidenceKey {
+  FirstOrder(CanonicalRuntimeTypeKey)
+  HigherKinded(CanonicalRuntimeEvidenceKey)
+} derive(Eq)
+
+///|
 priv struct CanonicalCallableAbi {
   witnesses : Array[@bytecode.ValueAbi]
   parameters : Array[CanonicalRuntimeTypeKey]
@@ -286,8 +327,9 @@ priv struct CanonicalCallableAbi {
 
 ///|
 priv struct RepresentationSpecializationKey {
-  source_function : @bytecode.FunctionId
-  evidence : Array[CanonicalRuntimeTypeKey]
+  source_function : @anf.AnfFunctionId
+  specialized_evidence : Array[(Int, CanonicalSpecializedEvidenceKey)]
+  retained_arities : Array[Int]
   parameters : Array[CanonicalRuntimeTypeKey]
   result : CanonicalRuntimeTypeKey
 } derive(Eq)
@@ -295,12 +337,16 @@ priv struct RepresentationSpecializationKey {
 ///|
 priv struct RepresentationSpecializationPlan {
   worker : @bytecode.FunctionId
+  instances : Array[Int]
   key : RepresentationSpecializationKey
   function : @anf.AnfFunction
   substitutions : RuntimeSubstitution
-  evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
+  retained_parameters : Array[@anf.RuntimeEvidenceParameter]
+  specialized_parameters : Array[@anf.RuntimeEvidenceId]
   parameter_types : Array[@anf.RuntimeType]
   result_type : @anf.RuntimeType
+  capture : CallableCaptureContract
+  recursive_functions : Array[RecursiveFunctionPlan]
 }
 
 ///|
@@ -355,14 +401,27 @@ priv struct CapturePlan {
 
 ///|
 priv struct LiftedFunctionPlan {
+  lowered_function : @bytecode.FunctionId
   function : @anf.AnfFunction
+  instance : Int
   type_ : @anf.RuntimeType
   substitutions : RuntimeSubstitution
   specialized_parameters : Array[@anf.RuntimeEvidenceId]
-  captured_parameters : Array[@anf.RuntimeEvidenceParameter]
+  capture : CallableCaptureContract
+  recursive_functions : Array[RecursiveFunctionPlan]
+}
+
+///|
+priv struct CallableCaptureContract {
+  captured_evidence : Array[CapturedEvidencePlan]
   captures : Array[CapturePlan]
   environment_shape : @bytecode.ObjectShapeId?
-  recursive_functions : Array[RecursiveFunctionPlan]
+}
+
+///|
+priv struct CapturedEvidencePlan {
+  source : @anf.RuntimeEvidenceId
+  target : @anf.RuntimeEvidenceParameter
 }
 
 ///|
@@ -380,12 +439,25 @@ priv struct DeferredCallableAdapter {
 }
 
 ///|
+priv struct DeferredNestedCallable {
+  function : @anf.AnfFunction
+  instance : Int
+  type_ : @anf.RuntimeType
+  environment : @vmcfg.ValueId?
+}
+
+///|
 priv enum LocalValue {
   Unit
   Slot(@vmcfg.ValueId, @anf.RuntimeType)
   Global(GlobalValue)
   RecursiveFunction(@bytecode.FunctionId, @anf.RuntimeType, @vmcfg.ValueId?)
+  NestedCallable(DeferredNestedCallable)
   EvidenceApplied(GlobalValue, Array[@anf.RuntimeArgument])
+  EvidenceAppliedNestedCallable(
+    DeferredNestedCallable,
+    Array[@anf.RuntimeArgument]
+  )
   EvidenceAppliedCallable(
     @vmcfg.ValueId,
     @anf.RuntimeType,

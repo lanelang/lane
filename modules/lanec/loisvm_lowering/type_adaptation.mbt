@@ -514,6 +514,8 @@ fn local_value_type(value : LocalValue) -> @anf.RuntimeType? {
     Global(Intrinsic(contract)) => Some(contract.type_())
     RecursiveFunction(_, type_, _) | EvidenceAppliedCallable(_, type_, _) =>
       Some(type_)
+    NestedCallable(callable) | EvidenceAppliedNestedCallable(callable, _) =>
+      Some(callable.type_)
     AdaptedCallable(adaptation)
     | EvidenceAppliedAdaptedCallable(adaptation, _) =>
       Some(adaptation.contract.target_type)
@@ -542,6 +544,7 @@ fn ImageLowerer::lower_callable_adapter(
   }
   let lowerer : FunctionLowerer = {
     image: self,
+    caller_instances: [-1],
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,

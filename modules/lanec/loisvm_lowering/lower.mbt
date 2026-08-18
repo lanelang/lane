@@ -1,17 +1,20 @@
 ///|
 priv struct ImageLowerer {
   metadata : @anf.RuntimeMetadata
+  callable_catalog : @anf.AnfCallableCatalog
+  mut callable_instances : CallableInstancePlan
   runtime_types : RuntimeTypeArena
   externals : @buslane_lowering.BuslaneExternalMap
   globals : Array[GlobalBinding]
   instance_globals : Array[@bytecode.GlobalMetadata]
   plans : FunctionPlanTable
   constants : Array[Bytes]
-  data_families : Array[@buslane.TypeId]
+  data_families : Array[DataFamilyKey]
   layouts : Array[@bytecode.LayoutRecipe]
   object_shapes : Array[@bytecode.ObjectShape]
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
   callable_adapters : Array[CallableAdapterPlan]
+  lifted_functions : Array[LiftedFunctionPlan]
   representation_specializations : Array[RepresentationSpecializationPlan]
   synthetic_parameters : Array[@anf.RuntimeEvidenceParameter]
 }
@@ -19,6 +22,7 @@ priv struct ImageLowerer {
 ///|
 priv struct FunctionLowerer {
   image : ImageLowerer
+  caller_instances : Array[Int]
   values : Array[@vmcfg.ValueMetadata]
   blocks : Array[LowerBlock]
   mut current_block : Int
@@ -76,6 +80,8 @@ fn lower_executable_program_to_bytecode_or_raise(
   let metadata = anf.metadata()
   let lowerer : ImageLowerer = {
     metadata,
+    callable_catalog: anf.callable_catalog(),
+    callable_instances: CallableInstancePlan::empty(),
     runtime_types: RuntimeTypeArena::from_metadata(metadata),
     externals,
     globals: [],
@@ -87,11 +93,15 @@ fn lower_executable_program_to_bytecode_or_raise(
     object_shapes: [],
     intrinsic_wrappers: [],
     callable_adapters: [],
+    lifted_functions: [],
     representation_specializations: [],
     synthetic_parameters: [],
   }
+  let callable_instances = lowerer.plan_callable_instances(anf)
+  lowerer.callable_instances = callable_instances
   let initializer = lowerer.plan(anf)
-  lowerer.plan_representation_specializations(anf)
+  lowerer.plan_lifted_callable_instances()
+  lowerer.plan_representation_specializations(lowerer.callable_instances)
   let entry_function = match lowerer.find_global(entry.value) {
     Some(Function(function, _)) => function
     _ => raise MissingEntry(value=entry.value)

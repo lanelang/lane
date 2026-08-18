@@ -1,89 +1,72 @@
 ///|
-priv struct GenericFunctionDefinition {
-  value : @buslane.ValueId
-  source_function : @bytecode.FunctionId
-  function : @anf.AnfFunction
-  evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
-  parameter_types : Array[@anf.RuntimeType]
-  result_type : @anf.RuntimeType
-}
-
-///|
-priv struct RepresentationDemand {
-  definition : Int
-  key : RepresentationSpecializationKey
-  substitutions : RuntimeSubstitution
-  parameter_types : Array[@anf.RuntimeType]
-  result_type : @anf.RuntimeType
-}
-
-///|
-priv struct DirectGenericCall {
-  target : @buslane.ValueId
-  arguments : Array[@anf.RuntimeArgument]
-}
-
-///|
-priv struct DirectCalleeFact {
-  target : @buslane.ValueId
-  arguments : Array[@anf.RuntimeArgument]
-}
-
-///|
-priv struct CalleeBindingFacts {
-  values : Array[(@buslane.ValueId, DirectCalleeFact)]
-  temps : Array[(@anf.AnfTempId, DirectCalleeFact)]
-}
-
-///|
 fn ImageLowerer::plan_representation_specializations(
   self : ImageLowerer,
-  program : @anf.AnfProgram,
+  instances : CallableInstancePlan,
 ) -> Unit raise LoisvmLoweringError {
-  let definitions = self.generic_function_definitions(program)
-  guard !definitions.is_empty() else { return }
-  let adjacency = generic_call_adjacency(definitions, self.runtime_types)
-  let sccs = generic_call_sccs(adjacency)
-  let seeds : Array[Array[RepresentationDemand]] = Array::makei(
-    definitions.length(),
-    _ => [],
-  )
-  for term in program.terms() {
-    match term {
-      Let(value, expression) if self.find_global(value) is Some(_) =>
-        self.collect_representation_seeds(definitions, seeds, expression)
-      LetRec(bindings) =>
-        for binding in bindings {
-          if self.find_global(binding.id) is Some(_) {
-            self.collect_representation_seeds(
-              definitions,
-              seeds,
-              Atom(binding.rhs),
-            )
-          }
-        }
-      Let(_, _) | External(_) => ()
+  for instance in instances.instances {
+    guard !instance.generic_fallback else { continue }
+    if instance.definition.recursive_group is Some(group) &&
+      instances.rejected_recursive_groups.contains(group) {
+      continue
     }
-  }
-  let accepted = self.close_representation_demands(
-    definitions, adjacency, sccs, seeds,
-  )
-  for demand in accepted {
-    let definition = definitions[demand.definition]
+    guard self.representation_demand(instance) is Some(demand) else { continue }
+    let mut existing = false
+    for plan in self.representation_specializations {
+      if plan.key == demand.key {
+        plan.instances.push(instance.id)
+        existing = true
+        break
+      }
+    }
+    guard !existing else { continue }
+    let function_type = if demand.retained_parameters.is_empty() {
+      @anf.RuntimeType::Callable(demand.parameter_types, demand.result_type)
+    } else {
+      Forall(
+        demand.retained_parameters,
+        Callable(demand.parameter_types, demand.result_type),
+      )
+    }
+    let (capture, recursive_functions) = match instance.definition.owner {
+      Some(_) => {
+        guard instances.generic_instance(instance.definition.function.id)
+          is Some(generic) &&
+          self.lifted_function(generic) is Some(fallback) else {
+          raise RepresentationSpecializationInvariant(
+            detail="nested specialization has no planned generic closure",
+          )
+        }
+        (fallback.capture, fallback.recursive_functions)
+      }
+      _ =>
+        (
+          self.plan_callable_capture(
+            instance.definition,
+            function_type,
+            demand.substitutions,
+            demand.specialized_parameters,
+          ),
+          [],
+        )
+    }
     let (_, plan) = self.plans.append_with_result(
       RepresentationSpecialization(
-        function=definition.function.id,
-        source=definition.function.source,
+        function=instance.definition.function.id,
+        source=instance.definition.function.source,
       ),
       fn(worker) {
         let plan : RepresentationSpecializationPlan = {
           worker,
+          instances: [instance.id],
           key: demand.key,
-          function: definition.function,
+          function: instance.definition.function,
           substitutions: demand.substitutions,
-          evidence_parameters: definition.evidence_parameters,
+          retained_parameters: demand.retained_parameters,
+          specialized_parameters: demand.specialized_parameters,
           parameter_types: demand.parameter_types,
           result_type: demand.result_type,
+          capture,
+          recursive_functions,
         }
         (RepresentationWorker(plan), plan)
       },
@@ -93,424 +76,76 @@ fn ImageLowerer::plan_representation_specializations(
 }
 
 ///|
-fn ImageLowerer::generic_function_definitions(
-  self : ImageLowerer,
-  program : @anf.AnfProgram,
-) -> Array[GenericFunctionDefinition] raise LoisvmLoweringError {
-  let definitions = []
-  for term in program.terms() {
-    match term {
-      Let(value, expression) =>
-        if extract_top_function(expression) is Some(function) {
-          self.push_generic_function_definition(definitions, value, function)
-        }
-      LetRec(bindings) =>
-        for binding in bindings {
-          if extract_top_atom_function(binding.rhs) is Some(function) {
-            self.push_generic_function_definition(
-              definitions,
-              binding.id,
-              function,
-            )
-          }
-        }
-      External(_) => ()
-    }
-  }
-  definitions
-}
-
-///|
-fn ImageLowerer::push_generic_function_definition(
-  self : ImageLowerer,
-  definitions : Array[GenericFunctionDefinition],
-  value : @buslane.ValueId,
-  function : @anf.AnfFunction,
-) -> Unit raise LoisvmLoweringError {
-  guard self.find_global(value) is Some(Function(source_function, type_)) else {
-    return
-  }
-  let (type_parameters, parameter_types, result_type) = function_type_parts(
-    type_,
-  )
-  if type_parameters.any(fn(parameter) {
-      self.requires_runtime_evidence(parameter)
-    }) {
-    definitions.push({
-      value,
-      source_function,
-      function,
-      evidence_parameters: type_parameters,
-      parameter_types,
-      result_type,
-    })
-  }
-}
-
-///|
-fn ImageLowerer::collect_representation_seeds(
-  self : ImageLowerer,
-  definitions : Array[GenericFunctionDefinition],
-  seeds : Array[Array[RepresentationDemand]],
-  expression : @anf.AnfExpr,
-) -> Unit raise LoisvmLoweringError {
-  for
-    call in collect_direct_generic_calls(
-      expression,
-      RuntimeSubstitution::new(),
-      self.runtime_types,
-    ) {
-    if self.representation_demand(definitions, call) is Some(demand) {
-      push_representation_demand(seeds[demand.definition], demand)
-    }
-  }
-}
-
-///|
-fn collect_direct_generic_calls(
-  expression : @anf.AnfExpr,
-  substitutions : RuntimeSubstitution,
-  runtime_types : RuntimeTypeArena,
-) -> Array[DirectGenericCall] raise LoisvmLoweringError {
-  let calls = []
-  collect_calls_in_expression(
-    expression,
-    substitutions,
-    runtime_types,
-    { values: [], temps: [] },
-    calls,
-  )
-  calls
-}
-
-///|
-fn collect_calls_in_expression(
-  expression : @anf.AnfExpr,
-  substitutions : RuntimeSubstitution,
-  runtime_types : RuntimeTypeArena,
-  bindings : CalleeBindingFacts,
-  calls : Array[DirectGenericCall],
-) -> Unit raise LoisvmLoweringError {
-  match expression {
-    Atom(atom) =>
-      collect_calls_in_atom(atom, substitutions, runtime_types, bindings, calls)
-    Let(binding, body) => {
-      collect_calls_in_rhs(
-        binding.rhs(),
-        substitutions,
-        runtime_types,
-        bindings,
-        calls,
-      )
-      let nested = {
-        values: bindings.values.copy(),
-        temps: bindings.temps.copy(),
-      }
-      if direct_callee_from_rhs(
-          binding.rhs(),
-          substitutions,
-          runtime_types,
-          bindings,
-        )
-        is Some(fact) {
-        match binding {
-          Value(id~, ..) => nested.values.push((id, fact))
-          Temp(temp~, ..) => nested.temps.push((temp, fact))
-        }
-      }
-      collect_calls_in_expression(
-        body, substitutions, runtime_types, nested, calls,
-      )
-    }
-    LetRec(recursive, body) => {
-      for binding in recursive {
-        collect_calls_in_atom(
-          binding.rhs,
-          substitutions,
-          runtime_types,
-          bindings,
-          calls,
-        )
-      }
-      collect_calls_in_expression(
-        body, substitutions, runtime_types, bindings, calls,
-      )
-    }
-  }
-}
-
-///|
-fn collect_calls_in_rhs(
-  rhs : @anf.AnfRhs,
-  substitutions : RuntimeSubstitution,
-  runtime_types : RuntimeTypeArena,
-  bindings : CalleeBindingFacts,
-  calls : Array[DirectGenericCall],
-) -> Unit raise LoisvmLoweringError {
-  match rhs {
-    Atom(atom) =>
-      collect_calls_in_atom(atom, substitutions, runtime_types, bindings, calls)
-    ApplyEvidence(callee~, ..) =>
-      collect_calls_in_atom(
-        callee, substitutions, runtime_types, bindings, calls,
-      )
-    Call(callee~, arguments~) => {
-      collect_calls_in_atom(
-        callee, substitutions, runtime_types, bindings, calls,
-      )
-      for argument in arguments {
-        collect_calls_in_atom(
-          argument, substitutions, runtime_types, bindings, calls,
-        )
-      }
-      if direct_callee_from_atom(callee, bindings) is Some(fact) &&
-        !fact.arguments.is_empty() {
-        calls.push({ target: fact.target, arguments: fact.arguments })
-      }
-    }
-    Construct(construct) =>
-      for payload in construct.payloads {
-        collect_calls_in_atom(
-          payload, substitutions, runtime_types, bindings, calls,
-        )
-      }
-    Match(match_) => {
-      collect_calls_in_atom(
-        match_.scrutinee,
-        substitutions,
-        runtime_types,
-        bindings,
-        calls,
-      )
-      for alternative in match_.alternatives {
-        collect_calls_in_expression(
-          alternative.body,
-          substitutions,
-          runtime_types,
-          bindings,
-          calls,
-        )
-      }
-    }
-  }
-}
-
-///|
-fn collect_calls_in_atom(
-  atom : @anf.AnfAtom,
-  substitutions : RuntimeSubstitution,
-  runtime_types : RuntimeTypeArena,
-  bindings : CalleeBindingFacts,
-  calls : Array[DirectGenericCall],
-) -> Unit raise LoisvmLoweringError {
-  match atom {
-    Function(function) =>
-      collect_calls_in_expression(
-        function.body,
-        substitutions,
-        runtime_types,
-        bindings,
-        calls,
-      )
-    EvidenceLambda(body~, ..) =>
-      collect_calls_in_expression(
-        body, substitutions, runtime_types, bindings, calls,
-      )
-    Literal(_) | Ref(_) | Temp(_) => ()
-  }
-}
-
-///|
-fn direct_callee_from_rhs(
-  rhs : @anf.AnfRhs,
-  substitutions : RuntimeSubstitution,
-  runtime_types : RuntimeTypeArena,
-  bindings : CalleeBindingFacts,
-) -> DirectCalleeFact? raise LoisvmLoweringError {
-  match rhs {
-    Atom(atom) => direct_callee_from_atom(atom, bindings)
-    ApplyEvidence(callee~, arguments~) =>
-      match direct_callee_from_atom(callee, bindings) {
-        Some(fact) =>
-          Some({
-            ..fact,
-            arguments: fact.arguments +
-            arguments.map(argument => {
-              substitutions.apply_argument(runtime_types, argument)
-            }),
-          })
-        None => None
-      }
-    Call(..) | Construct(_) | Match(_) => None
-  }
-}
-
-///|
-fn direct_callee_from_atom(
-  atom : @anf.AnfAtom,
-  bindings : CalleeBindingFacts,
-) -> DirectCalleeFact? {
-  match atom {
-    Ref(value) =>
-      match find_value_callee(bindings.values, value) {
-        Some(fact) => Some(fact)
-        None => Some({ target: value, arguments: [] })
-      }
-    Temp(temp) => find_temp_callee(bindings.temps, temp)
-    Literal(_) | Function(_) | EvidenceLambda(_) => None
-  }
-}
-
-///|
-fn find_value_callee(
-  bindings : Array[(@buslane.ValueId, DirectCalleeFact)],
-  value : @buslane.ValueId,
-) -> DirectCalleeFact? {
-  for index = bindings.length() - 1; index >= 0; index = index - 1 {
-    if bindings[index].0 == value {
-      return Some(bindings[index].1)
-    }
-  }
-  None
-}
-
-///|
-fn find_temp_callee(
-  bindings : Array[(@anf.AnfTempId, DirectCalleeFact)],
-  temp : @anf.AnfTempId,
-) -> DirectCalleeFact? {
-  for index = bindings.length() - 1; index >= 0; index = index - 1 {
-    if bindings[index].0 == temp {
-      return Some(bindings[index].1)
-    }
-  }
-  None
-}
-
-///|
-fn find_generic_definition(
-  definitions : Array[GenericFunctionDefinition],
-  value : @buslane.ValueId,
-) -> Int? {
-  for index, definition in definitions {
-    if definition.value == value {
-      return Some(index)
-    }
-  }
-  None
-}
-
-///|
-fn generic_call_adjacency(
-  definitions : Array[GenericFunctionDefinition],
-  runtime_types : RuntimeTypeArena,
-) -> Array[Array[Int]] raise LoisvmLoweringError {
-  Array::makei(definitions.length(), index => {
-    let adjacent = []
-    for
-      call in collect_direct_generic_calls(
-        definitions[index].function.body,
-        RuntimeSubstitution::new(),
-        runtime_types,
-      ) {
-      if find_generic_definition(definitions, call.target) is Some(target) &&
-        !adjacent.contains(target) {
-        adjacent.push(target)
-      }
-    }
-    adjacent
-  })
-}
-
-///|
-fn generic_call_sccs(adjacency : Array[Array[Int]]) -> Array[Int] {
-  let count = adjacency.length()
-  let reachable = Array::makei(count, from => {
-    Array::makei(count, to => from == to || adjacency[from].contains(to))
-  })
-  for via = 0; via < count; via = via + 1 {
-    for from = 0; from < count; from = from + 1 {
-      guard reachable[from][via] else { continue }
-      for to = 0; to < count; to = to + 1 {
-        if reachable[via][to] {
-          reachable[from][to] = true
-        }
-      }
-    }
-  }
-  Array::makei(count, index => {
-    let mut representative = index
-    for candidate = 0; candidate < index; candidate = candidate + 1 {
-      if reachable[index][candidate] && reachable[candidate][index] {
-        representative = candidate
-        break
-      }
-    }
-    representative
-  })
+priv struct RepresentationDemand {
+  key : RepresentationSpecializationKey
+  substitutions : RuntimeSubstitution
+  retained_parameters : Array[@anf.RuntimeEvidenceParameter]
+  specialized_parameters : Array[@anf.RuntimeEvidenceId]
+  parameter_types : Array[@anf.RuntimeType]
+  result_type : @anf.RuntimeType
 }
 
 ///|
 fn ImageLowerer::representation_demand(
   self : ImageLowerer,
-  definitions : Array[GenericFunctionDefinition],
-  call : DirectGenericCall,
+  instance : CallableInstance,
 ) -> RepresentationDemand? raise LoisvmLoweringError {
-  guard find_generic_definition(definitions, call.target) is Some(definition) else {
+  let definition = instance.definition
+  guard instance.own_arguments.length() == definition.parameters.length() else {
     return None
   }
-  let generic = definitions[definition]
-  guard self.representation_specialization_key(
-      generic.source_function,
-      generic.evidence_parameters,
-      generic.parameter_types,
-      generic.result_type,
-      call.arguments,
-    )
-    is Some((key, substitutions, parameter_types, result_type)) else {
-    return None
+  let (_, formal_parameters, formal_result) = function_type_parts(
+    definition.type_,
+  )
+  let substitutions = instance.substitution
+  let retained_parameters = []
+  let specialized_parameters = []
+  let specialized_evidence = []
+  for index, parameter in definition.lexical_parameters {
+    let argument = instance.key.arguments[index]
+    if is_closed_generic_argument(argument) {
+      specialized_parameters.push(parameter.id)
+      specialized_evidence.push(
+        (
+          index,
+          self.canonical_specialized_evidence_key(
+            parameter, argument, substitutions,
+          ),
+        ),
+      )
+    } else if parameter.arity == 0 {
+      return None
+    }
   }
-  Some({ definition, key, substitutions, parameter_types, result_type })
-}
-
-///|
-fn ImageLowerer::representation_specialization_key(
-  self : ImageLowerer,
-  source_function : @bytecode.FunctionId,
-  type_parameters : Array[@anf.RuntimeEvidenceParameter],
-  formal_parameters : Array[@anf.RuntimeType],
-  formal_result : @anf.RuntimeType,
-  arguments : Array[@anf.RuntimeArgument],
-) -> (
-  RepresentationSpecializationKey,
-  RuntimeSubstitution,
-  Array[@anf.RuntimeType],
-  @anf.RuntimeType,
-)? raise LoisvmLoweringError {
-  guard arguments.length() == type_parameters.length() &&
-    arguments.all(is_closed_generic_argument) else {
-    return None
+  for index, parameter in definition.parameters {
+    let argument = instance.own_arguments[index].argument
+    if is_closed_generic_argument(argument) {
+      specialized_parameters.push(parameter.id)
+      specialized_evidence.push(
+        (
+          definition.lexical_parameters.length() + index,
+          self.canonical_specialized_evidence_key(
+            parameter, argument, substitutions,
+          ),
+        ),
+      )
+    } else {
+      guard argument.evidence is Parameter(retained) &&
+        self.evidence_parameter(retained) is Some(retained_parameter) &&
+        retained_parameter.arity == parameter.arity else {
+        return None
+      }
+      retained_parameters.push(retained_parameter)
+    }
   }
-  guard formal_parameters.any(type_ => self.runtime_type(type_) is Erased(_)) ||
-    self.runtime_type(formal_result) is Erased(_) else {
-    return None
-  }
-  let substitutions = self.call_type_substitution(type_parameters, arguments)
   let parameter_types = formal_parameters.map(type_ => {
     substitutions.apply_type(self.runtime_types, type_)
   })
   let result_type = substitutions.apply_type(self.runtime_types, formal_result)
-  guard parameter_types.all(is_closed_type) && is_closed_type(result_type) else {
+  guard self.runtime_abi_changed(
+    formal_parameters, formal_result, parameter_types, result_type,
+  ) else {
     return None
-  }
-  let evidence = []
-  for index, parameter in type_parameters {
-    guard parameter.arity == 0 else { return None }
-    guard substitutions.argument_type(self.runtime_types, arguments[index])
-      is Some(argument_type) else {
-      return None
-    }
-    evidence.push(self.canonical_runtime_type_key(argument_type))
   }
   let parameters = []
   for type_ in parameter_types {
@@ -519,38 +154,159 @@ fn ImageLowerer::representation_specialization_key(
       parameters.push(key)
     }
   }
-  let result = self.canonical_runtime_type_key(result_type)
-  Some(
-    (
-      { source_function, evidence, parameters, result },
-      substitutions,
-      parameter_types,
-      result_type,
-    ),
-  )
+  Some({
+    key: {
+      source_function: definition.function.id,
+      specialized_evidence,
+      retained_arities: retained_parameters.map(parameter => parameter.arity),
+      parameters,
+      result: self.canonical_runtime_type_key(result_type),
+    },
+    substitutions,
+    retained_parameters,
+    specialized_parameters,
+    parameter_types,
+    result_type,
+  })
 }
 
 ///|
-fn ImageLowerer::representation_specialization(
+fn ImageLowerer::canonical_specialized_evidence_key(
   self : ImageLowerer,
-  source_function : @bytecode.FunctionId,
-  type_parameters : Array[@anf.RuntimeEvidenceParameter],
-  formal_parameters : Array[@anf.RuntimeType],
-  formal_result : @anf.RuntimeType,
-  arguments : Array[@anf.RuntimeArgument],
-) -> (RepresentationSpecializationPlan, @anf.RuntimeType)? raise LoisvmLoweringError {
-  guard self.representation_specialization_key(
-      source_function, type_parameters, formal_parameters, formal_result, arguments,
+  parameter : @anf.RuntimeEvidenceParameter,
+  argument : @anf.RuntimeArgument,
+  substitutions : RuntimeSubstitution,
+) -> CanonicalSpecializedEvidenceKey raise LoisvmLoweringError {
+  if parameter.arity == 0 {
+    guard substitutions.argument_type(self.runtime_types, argument)
+      is Some(argument_type) else {
+      raise RepresentationSpecializationInvariant(
+        detail="closed first-order evidence has no runtime type",
+      )
+    }
+    FirstOrder(self.canonical_runtime_type_key(argument_type))
+  } else {
+    HigherKinded(
+      canonical_runtime_evidence_key(
+        substitutions.apply_evidence(argument.evidence),
+      ),
     )
-    is Some((key, _, _, result_type)) else {
-    return None
   }
+}
+
+///|
+fn canonical_runtime_evidence_key(
+  evidence : @anf.RuntimeEvidence,
+) -> CanonicalRuntimeEvidenceKey raise LoisvmLoweringError {
+  canonical_runtime_evidence_key_with(evidence, [])
+}
+
+///|
+fn canonical_runtime_evidence_key_with(
+  evidence : @anf.RuntimeEvidence,
+  bound : Array[@anf.RuntimeEvidenceId],
+) -> CanonicalRuntimeEvidenceKey raise LoisvmLoweringError {
+  match evidence {
+    Static(layout) => Static(layout)
+    Parameter(parameter) => {
+      for offset in 0..<bound.length() {
+        if bound[bound.length() - offset - 1] == parameter {
+          return Bound(offset)
+        }
+      }
+      raise RepresentationSpecializationInvariant(
+        detail="closed runtime evidence contains a free parameter",
+      )
+    }
+    Apply(callee, arguments) =>
+      Apply(
+        canonical_runtime_evidence_key_with(callee, bound),
+        arguments.map(argument => {
+          canonical_runtime_evidence_key_with(argument, bound)
+        }),
+      )
+    Lambda(parameters, body) =>
+      Lambda(
+        parameters.map(parameter => parameter.arity),
+        canonical_runtime_evidence_key_with(
+          body,
+          bound + parameters.map(parameter => parameter.id),
+        ),
+      )
+  }
+}
+
+///|
+fn ImageLowerer::runtime_abi_changed(
+  self : ImageLowerer,
+  source_parameters : Array[@anf.RuntimeType],
+  source_result : @anf.RuntimeType,
+  target_parameters : Array[@anf.RuntimeType],
+  target_result : @anf.RuntimeType,
+) -> Bool raise LoisvmLoweringError {
+  let source = source_parameters.map(type_ => {
+    self.canonical_runtime_type_key(type_)
+  })
+  let target = target_parameters.map(type_ => {
+    self.canonical_runtime_type_key(type_)
+  })
+  source != target ||
+  self.canonical_runtime_type_key(source_result) !=
+  self.canonical_runtime_type_key(target_result)
+}
+
+///|
+fn ImageLowerer::representation_specialization_for_instance(
+  self : ImageLowerer,
+  instance : Int,
+) -> RepresentationSpecializationPlan? {
   for plan in self.representation_specializations {
-    if plan.key == key {
-      return Some((plan, result_type))
+    if plan.instances.contains(instance) {
+      return Some(plan)
     }
   }
   None
+}
+
+///|
+fn ImageLowerer::representation_call_target(
+  self : ImageLowerer,
+  callers : Array[Int],
+  site : @anf.AnfBindingId,
+) -> (CallableInstance, RepresentationSpecializationPlan)? {
+  guard !callers.is_empty() else { return None }
+  let mut selected : (CallableInstance, RepresentationSpecializationPlan)? = None
+  for caller in callers {
+    guard self.callable_instances.exact_call_target(caller, site)
+      is Some(target) else {
+      return None
+    }
+    guard self.representation_specialization_for_instance(target.id)
+      is Some(plan) else {
+      return None
+    }
+    match selected {
+      None => selected = Some((target, plan))
+      Some((_, selected_plan)) if selected_plan.key == plan.key => ()
+      Some(_) => return None
+    }
+  }
+  selected
+}
+
+///|
+fn RepresentationSpecializationPlan::callable_type(
+  self : RepresentationSpecializationPlan,
+) -> @anf.RuntimeType {
+  let callable = @anf.RuntimeType::Callable(
+    self.parameter_types,
+    self.result_type,
+  )
+  if self.retained_parameters.is_empty() {
+    callable
+  } else {
+    Forall(self.retained_parameters, callable)
+  }
 }
 
 ///|
@@ -640,31 +396,6 @@ fn is_closed_generic_argument(argument : @anf.RuntimeArgument) -> Bool {
 }
 
 ///|
-fn is_closed_type(type_ : @anf.RuntimeType) -> Bool {
-  is_closed_type_with_bound(type_, [])
-}
-
-///|
-fn is_closed_type_with_bound(
-  type_ : @anf.RuntimeType,
-  bound : Array[@anf.RuntimeEvidenceId],
-) -> Bool {
-  match type_ {
-    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) => true
-    Erased(_, evidence) => is_closed_evidence(evidence, bound)
-    Data(_, arguments) => arguments.all(is_closed_generic_argument)
-    Forall(parameters, body) => {
-      let nested = bound.copy()
-      nested.append(parameters.map(parameter => parameter.id))
-      is_closed_type_with_bound(body, nested)
-    }
-    Callable(parameters, result) =>
-      parameters.all(type_ => is_closed_type_with_bound(type_, bound)) &&
-      is_closed_type_with_bound(result, bound)
-  }
-}
-
-///|
 fn is_closed_evidence(
   evidence : @anf.RuntimeEvidence,
   bound : Array[@anf.RuntimeEvidenceId],
@@ -676,145 +407,9 @@ fn is_closed_evidence(
       is_closed_evidence(callee, bound) &&
       arguments.all(argument => is_closed_evidence(argument, bound))
     Lambda(parameters, body) => {
-      let nested = bound.copy()
-      nested.append(parameters.map(parameter => parameter.id))
+      let nested = bound + parameters.map(parameter => parameter.id)
       is_closed_evidence(body, nested)
     }
-  }
-}
-
-///|
-fn push_representation_demand(
-  demands : Array[RepresentationDemand],
-  demand : RepresentationDemand,
-) -> Unit {
-  if !demands.any(existing => existing.key == demand.key) {
-    demands.push(demand)
-  }
-}
-
-///|
-fn ImageLowerer::close_representation_demands(
-  self : ImageLowerer,
-  definitions : Array[GenericFunctionDefinition],
-  adjacency : Array[Array[Int]],
-  sccs : Array[Int],
-  seeds : Array[Array[RepresentationDemand]],
-) -> Array[RepresentationDemand] raise LoisvmLoweringError {
-  let accepted = []
-  let processed = Array::make(definitions.length(), false)
-  let mut remaining = 0
-  for index, representative in sccs {
-    if index == representative {
-      remaining = remaining + 1
-    }
-  }
-  let mut completed = 0
-  while completed < remaining {
-    let mut next : Int? = None
-    for representative, owner in sccs {
-      guard representative == owner && !processed[representative] else {
-        continue
-      }
-      let mut has_unprocessed_predecessor = false
-      for from, targets in adjacency {
-        if !processed[sccs[from]] &&
-          sccs[from] != representative &&
-          targets.any(to => sccs[to] == representative) {
-          has_unprocessed_predecessor = true
-          break
-        }
-      }
-      if !has_unprocessed_predecessor {
-        next = Some(representative)
-        break
-      }
-    }
-    guard next is Some(representative) else {
-      raise RepresentationSpecializationInvariant(
-        detail="generic call SCC condensation is cyclic",
-      )
-    }
-    let mut recursive = false
-    for from, targets in adjacency {
-      if sccs[from] == representative &&
-        targets.any(to => sccs[to] == representative) {
-        recursive = true
-        break
-      }
-    }
-    let finite = !recursive ||
-      self.recursive_scc_demands_are_finite(
-        definitions, sccs, representative, seeds,
-      )
-    if finite {
-      for definition, owner in sccs {
-        guard owner == representative else { continue }
-        for demand in seeds[definition] {
-          push_representation_demand(accepted, demand)
-          self.propagate_representation_demands(
-            definitions, sccs, representative, seeds, demand,
-          )
-        }
-      }
-    }
-    processed[representative] = true
-    completed = completed + 1
-  }
-  accepted
-}
-
-///|
-fn ImageLowerer::recursive_scc_demands_are_finite(
-  self : ImageLowerer,
-  definitions : Array[GenericFunctionDefinition],
-  sccs : Array[Int],
-  representative : Int,
-  seeds : Array[Array[RepresentationDemand]],
-) -> Bool raise LoisvmLoweringError {
-  for definition, owner in sccs {
-    guard owner == representative else { continue }
-    for demand in seeds[definition] {
-      for
-        call in collect_direct_generic_calls(
-          definitions[definition].function.body,
-          demand.substitutions,
-          self.runtime_types,
-        ) {
-        guard find_generic_definition(definitions, call.target) is Some(target) &&
-          sccs[target] == representative else {
-          continue
-        }
-        guard self.representation_demand(definitions, call) is Some(required) &&
-          seeds[target].any(existing => existing.key == required.key) else {
-          return false
-        }
-      }
-    }
-  }
-  true
-}
-
-///|
-fn ImageLowerer::propagate_representation_demands(
-  self : ImageLowerer,
-  definitions : Array[GenericFunctionDefinition],
-  sccs : Array[Int],
-  source_scc : Int,
-  seeds : Array[Array[RepresentationDemand]],
-  demand : RepresentationDemand,
-) -> Unit raise LoisvmLoweringError {
-  for
-    call in collect_direct_generic_calls(
-      definitions[demand.definition].function.body,
-      demand.substitutions,
-      self.runtime_types,
-    ) {
-    guard self.representation_demand(definitions, call) is Some(required) &&
-      sccs[required.definition] != source_scc else {
-      continue
-    }
-    push_representation_demand(seeds[required.definition], required)
   }
 }
 
@@ -825,14 +420,15 @@ fn ImageLowerer::lower_representation_worker(
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   self.lower_function_body(
     plan.function,
-    [],
+    plan.instances,
+    plan.retained_parameters,
     plan.parameter_types,
     plan.result_type,
-    [],
-    [],
-    None,
-    [],
+    plan.capture.captured_evidence.map(evidence => evidence.target),
+    plan.capture.captures,
+    plan.capture.environment_shape,
+    plan.recursive_functions,
     plan.substitutions,
-    plan.evidence_parameters.map(parameter => parameter.id),
+    plan.specialized_parameters,
   )
 }

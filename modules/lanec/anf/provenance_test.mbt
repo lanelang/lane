@@ -71,6 +71,7 @@ test "ANF assigns stable identities and preserves binding provenance" {
       #|                Let(
       #|                  Temp(
       #|                    temp={ index: 0 },
+      #|                    type_=Scalar(I64),
       #|                    rhs=Call(callee=Ref({ index: 1 }), arguments=[]),
       #|                  ),
       #|                  Atom(Temp({ index: 0 })),
@@ -82,6 +83,69 @@ test "ANF assigns stable identities and preserves binding provenance" {
       #|      ],
       #|    ),
       #|  ]>
+    ),
+  )
+  debug_inspect(
+    lowered.callable_catalog(),
+    content=(
+      #|{
+      #|  definitions: [
+      #|    {
+      #|      function: {
+      #|        id: { value: 0 },
+      #|        source: Some({ index: 0 }),
+      #|        parameters: [],
+      #|        result_type: Scalar(I64),
+      #|        body: Let(
+      #|          Value(
+      #|            id={ index: 1 },
+      #|            rhs=Atom(
+      #|              Function(
+      #|                {
+      #|                  id: { value: 1 },
+      #|                  source: Some({ index: 1 }),
+      #|                  parameters: [],
+      #|                  result_type: Scalar(I64),
+      #|                  body: Atom(Literal(I64(42))),
+      #|                },
+      #|              ),
+      #|            ),
+      #|          ),
+      #|          Let(
+      #|            Temp(
+      #|              temp={ index: 0 },
+      #|              type_=Scalar(I64),
+      #|              rhs=Call(callee=Ref({ index: 1 }), arguments=[]),
+      #|            ),
+      #|            Atom(Temp({ index: 0 })),
+      #|          ),
+      #|        ),
+      #|      },
+      #|      type_: Callable([], Scalar(I64)),
+      #|      parameters: [],
+      #|      lexical_parameters: [],
+      #|      captures: [],
+      #|      owner: None,
+      #|      recursive_group: Some({ value: 0 }),
+      #|    },
+      #|    {
+      #|      function: {
+      #|        id: { value: 1 },
+      #|        source: Some({ index: 1 }),
+      #|        parameters: [],
+      #|        result_type: Scalar(I64),
+      #|        body: Atom(Literal(I64(42))),
+      #|      },
+      #|      type_: Callable([], Scalar(I64)),
+      #|      parameters: [],
+      #|      lexical_parameters: [],
+      #|      captures: [],
+      #|      owner: Some({ value: 0 }),
+      #|      recursive_group: None,
+      #|    },
+      #|  ],
+      #|  temp_types: [({ index: 0 }, Scalar(I64))],
+      #|}
     ),
   )
 }

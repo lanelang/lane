@@ -196,11 +196,11 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Owned,
         erased_companion: None,
       }
-    Data(owner, _) =>
+    Data(owner, arguments) =>
       {
         representation: I32,
         cleanup: OwnedRef,
-        kind: DataValue(self.intern_data_family(owner)),
+        kind: DataValue(self.intern_data_family(owner, arguments)),
         ownership: Owned,
         erased_companion: None,
       }

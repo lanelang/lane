@@ -275,6 +275,14 @@ this boundary, so LoisVM lowering never reconstructs constructor arity from
 source types. LoisVM lowering consumes this exact representation.
 _Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering
 
+**Runtime ANF Callable Catalog**:
+The complete pre-emission inventory of Runtime ANF callables. It assigns each
+top-level and nested function one stable identity together with its lexical
+evidence scope, owner, recursive group, captures, and allocation provenance.
+LoisVM planning consumes this catalog instead of discovering functions while
+emitting bodies.
+_Avoid_: source value as function identity, emission-time function allocation
+
 **LoisVM Runtime Type Arena**:
 The lowering-private arena seeded from Runtime ANF's immutable type-expression
 catalog. It owns expressions derived by runtime substitution and beta
@@ -342,12 +350,30 @@ canonical runtime ABI key to at most one concrete representation worker. It
 also proves recursive demand closure before lowering begins.
 _Avoid_: lowering-time worker discovery, source-type-spelling key, size heuristic
 
+**Callable Instance Plan**:
+The typed Runtime ANF fixed point over callable identities, evidence
+applications, aliases, parameters, results, finite allocation sites, aggregate
+members, and recursive groups. It is the sole producer of representation-worker
+and closed data-storage demand. Recursive demand must be projection,
+permutation, or a finite closed constant; otherwise the complete SCC remains
+generic.
+_Avoid_: recursively nested aggregate fact, first-seen recursion, emission-time demand
+
 **Representation Worker**:
 A concrete-ABI implementation of a generic function that consumes no
 first-order layout witnesses and introduces no erased-value bridges at its
 planned direct call sites. The generic fallback remains whenever the finalized
 image has an open or indirect use.
 _Avoid_: specialization-time deletion of the generic fallback, unrestricted monomorph
+
+**Planned Data Representation Family**:
+A data-family ABI selected only when the Callable Instance Plan proves one
+closed allocation site and exact allocation identity at every reachable match.
+The key uses closed interned runtime type expressions. An erased or existential
+payload, an open use, or multiple allocation sites keeps the nominal family on
+its uniform generic representation.
+_Avoid_: nominal type-argument monomorphization without allocation proof,
+layout-only family key, hidden-binder specialization
 
 **Erased Callable Position ABI**:
 The invocation contract declared by a callable-shaped erased position or by a

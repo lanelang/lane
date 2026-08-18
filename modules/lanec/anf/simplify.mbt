@@ -71,7 +71,7 @@ fn AnfBinding::rhs(self : AnfBinding) -> AnfRhs {
 fn AnfBinding::with_rhs(self : AnfBinding, rhs : AnfRhs) -> AnfBinding {
   match self {
     Value(id~, ..) => Value(id~, rhs~)
-    Temp(temp~, ..) => Temp(temp~, rhs~)
+    Temp(temp~, type_~, ..) => Temp(temp~, type_~, rhs~)
   }
 }
 

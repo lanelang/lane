@@ -1,5 +1,5 @@
 ///|
-test "generic F32 calls cross explicit representation erasure bridges" {
+test "generic F32 callable flow selects a concrete representation worker" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let generic_value_type = @buslane.Type::Parameter(type_parameter)
@@ -94,17 +94,17 @@ test "generic F32 calls cross explicit representation erasure bridges" {
   guard image.functions[1] is BytecodeBody(apply_body) else {
     fail("expected apply bytecode body")
   }
-  assert_true(
+  assert_false(
     contains_instruction(apply_body, instruction => {
       instruction is ConstLayout(_, _)
     }),
   )
-  assert_true(
+  assert_false(
     contains_instruction(apply_body, instruction => {
       instruction is EraseF32(_, _)
     }),
   )
-  assert_true(
+  assert_false(
     contains_instruction(apply_body, instruction => {
       instruction is UneraseF32(_, _)
     }),

@@ -245,6 +245,7 @@ fn ImageLowerer::lower_layout_constructor(
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
+    caller_instances: [-1],
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,

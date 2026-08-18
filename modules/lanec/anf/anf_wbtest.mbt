@@ -52,7 +52,7 @@ test "lower buslane function call to ANF" {
       #|    }
       #|  }
       #|  let value#0 = {
-      #|    let temp#0 = value#1(42)
+      #|    let temp#0 : I64 = value#1(42)
       #|    temp#0
       #|  }
       #|}
@@ -111,6 +111,7 @@ test "ANF binds a match before applying its continuation" {
       #|  Let(
       #|    Temp(
       #|      temp={ index: 0 },
+      #|      type_=Scalar(Bool),
       #|      rhs=Match(
       #|        {
       #|          scrutinee: Literal(Bool(true)),
@@ -136,6 +137,7 @@ test "ANF binds a match before applying its continuation" {
       #|    Let(
       #|      Temp(
       #|        temp={ index: 1 },
+      #|        type_=Scalar(I64),
       #|        rhs=Call(callee=Ref({ index: 0 }), arguments=[Temp({ index: 0 })]),
       #|      ),
       #|      Atom(Temp({ index: 1 })),

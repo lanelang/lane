@@ -1,6 +1,7 @@
 ///|
 fn FunctionLowerer::lower_call(
   self : FunctionLowerer,
+  site : @anf.AnfBindingId,
   callee : @anf.AnfAtom,
   arguments : Array[@anf.AnfAtom],
 ) -> LocalValue raise LoisvmLoweringError {
@@ -8,6 +9,42 @@ fn FunctionLowerer::lower_call(
   let lowered_arguments = arguments.map(argument => {
     self.materialize_local(self.lower_atom(argument))
   })
+  if self.image.representation_call_target(self.caller_instances, site)
+    is Some((target, plan)) {
+    let (_, _, formal_result) = function_type_parts(target.definition.type_)
+    let actual_result = target.substitution.apply_type(
+      self.image.runtime_types,
+      formal_result,
+    )
+    let deferred = match callee {
+      NestedCallable(callable) | EvidenceAppliedNestedCallable(callable, _) =>
+        Some(callable)
+      _ => None
+    }
+    if deferred is Some(callable) &&
+      callable.function.id == target.definition.function.id {
+      guard self.materialize_representation_worker(plan, callable.environment)
+        is Slot(worker, _) else {
+        abort("representation worker was not materialized")
+      }
+      return self.lower_representation_specialized_call(
+        plan,
+        target.substitution,
+        actual_result,
+        lowered_arguments,
+        callable=Some(worker),
+      )
+    }
+    if target.definition.captures.is_empty() {
+      return self.lower_representation_specialized_call(
+        plan,
+        target.substitution,
+        actual_result,
+        lowered_arguments,
+        callable=None,
+      )
+    }
+  }
   match callee {
     Global(Intrinsic(contract)) =>
       self.lower_intrinsic(contract, lowered_arguments)
@@ -23,6 +60,20 @@ fn FunctionLowerer::lower_call(
       self.lower_generic_value_call(
         callable, type_, type_arguments, lowered_arguments,
       )
+    NestedCallable(callable) => {
+      guard self.materialize_nested_callable(callable) is Slot(slot, type_) else {
+        abort("nested callable was not materialized")
+      }
+      self.lower_value_call(slot, type_, lowered_arguments)
+    }
+    EvidenceAppliedNestedCallable(callable, type_arguments) => {
+      guard self.materialize_nested_callable(callable) is Slot(slot, type_) else {
+        abort("nested callable was not materialized")
+      }
+      self.lower_generic_value_call(
+        slot, type_, type_arguments, lowered_arguments,
+      )
+    }
     AdaptedCallable(adaptation) =>
       self.lower_adapted_callable_call(adaptation, [], lowered_arguments)
     EvidenceAppliedAdaptedCallable(adaptation, type_arguments) =>
@@ -77,8 +128,11 @@ fn FunctionLowerer::materialize_local(
       }
       Slot(destination, type_)
     }
+    NestedCallable(callable) => self.materialize_nested_callable(callable)
     AdaptedCallable(adaptation) => self.materialize_callable_adapter(adaptation)
-    EvidenceApplied(_, _) | EvidenceAppliedCallable(_, _, _) =>
+    EvidenceApplied(_, _)
+    | EvidenceAppliedCallable(_, _, _)
+    | EvidenceAppliedNestedCallable(_, _) =>
       raise InvalidTypeApplication(
         detail="a type-applied callable must be called before materialization",
       )
@@ -267,14 +321,6 @@ fn FunctionLowerer::lower_generic_direct_call(
     self.substitute_generic_argument(argument)
   })
   let substitutions = self.image.call_type_substitution(parameters, arguments)
-  if self.image.representation_specialization(
-      function, parameters, formal_parameters, formal_result, arguments,
-    )
-    is Some((plan, actual_result)) {
-    return self.lower_representation_specialized_call(
-      plan, actual_result, values,
-    )
-  }
   let witnesses = []
   for parameter in parameters {
     if self.image.requires_runtime_evidence(parameter) {
@@ -329,43 +375,68 @@ fn FunctionLowerer::lower_generic_direct_call(
 fn FunctionLowerer::lower_representation_specialized_call(
   self : FunctionLowerer,
   plan : RepresentationSpecializationPlan,
+  substitutions : RuntimeSubstitution,
   actual_result : @anf.RuntimeType,
   values : Array[LocalValue],
+  callable~ : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
   if values.length() != plan.parameter_types.length() {
     raise RepresentationSpecializationInvariant(
       detail="representation-specialized call arguments do not match its worker",
     )
   }
-  let arguments = []
-  for index, type_ in plan.parameter_types {
-    match self.image.elaborate_runtime_representation(type_) {
-      RuntimeUnit => ()
-      Concrete(_, expected) => {
-        guard self.materialize_local(values[index]) is Slot(value, _) else {
-          raise RepresentationSpecializationInvariant(
-            detail="representation-specialized argument is not materialized",
-          )
-        }
-        let actual = self.values[value.value]
-        if actual.representation != expected.representation ||
-          actual.cleanup != expected.cleanup ||
-          actual.kind != expected.kind {
-          raise RepresentationSpecializationInvariant(
-            detail="representation-specialized argument ABI does not match its worker",
-          )
-        }
-        arguments.push(value)
-      }
-      RuntimeErased(_) =>
+  let witnesses = []
+  for parameter in plan.retained_parameters {
+    if self.image.requires_runtime_evidence(parameter) {
+      guard self.image.metadata.parameter_type_expression(parameter.id)
+        is Some(type_expression) else {
         raise RepresentationSpecializationInvariant(
-          detail="representation-specialized worker contains an erased parameter",
+          detail="retained worker parameter lacks a type expression",
+        )
+      }
+      witnesses.push(
+        self.runtime_evidence(parameter, {
+          type_expression,
+          evidence: Parameter(parameter.id),
+        }),
+      )
+    }
+  }
+  let arguments = []
+  for index, formal in plan.parameter_types {
+    let actual = substitutions.apply_type(self.image.runtime_types, formal)
+    let adapted = self.materialize_local(
+      self.adapt_local_value_with_substitutions(
+        values[index],
+        actual,
+        formal,
+        substitutions,
+      ),
+    )
+    match adapted {
+      Unit => ()
+      Slot(slot, _) => arguments.push(slot)
+      _ =>
+        raise RepresentationSpecializationInvariant(
+          detail="representation-specialized argument is not materialized",
         )
     }
   }
-  let destination = self.fresh_optional_slot(actual_result)
-  self.emit(CallDirect(plan.worker, None, [], arguments, destination.0))
-  destination.1
+  let worker_result = self.fresh_optional_slot(plan.result_type)
+  match callable {
+    Some(callable) =>
+      self.emit(CallValue(callable, witnesses, arguments, worker_result.0))
+    None =>
+      self.emit(
+        CallDirect(plan.worker, None, witnesses, arguments, worker_result.0),
+      )
+  }
+  self.adapt_local_value_with_substitutions(
+    worker_result.1,
+    plan.result_type,
+    actual_result,
+    substitutions,
+  )
 }
 
 ///|

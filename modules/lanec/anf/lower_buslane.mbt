@@ -175,7 +175,11 @@ fn AnfLowerer::lower_to_atom(
     Call(callee, arguments) =>
       self.lower_to_atom(callee, None, callee => {
         self.lower_exprs_to_atoms(arguments, 0, [], arguments => {
-          self.bind_temp(Call(callee~, arguments~), continuation)
+          self.bind_temp(
+            Call(callee~, arguments~),
+            self.generic_plan.runtime_expression_type(expr),
+            continuation,
+          )
         })
       })
     TypeApply(callee, arguments) => {
@@ -190,7 +194,11 @@ fn AnfLowerer::lower_to_atom(
         if arguments.is_empty() {
           continuation(callee)
         } else {
-          self.bind_temp(ApplyEvidence(callee~, arguments~), continuation)
+          self.bind_temp(
+            ApplyEvidence(callee~, arguments~),
+            self.generic_plan.runtime_expression_type(expr),
+            continuation,
+          )
         }
       })
     }
@@ -220,6 +228,7 @@ fn AnfLowerer::lower_to_atom(
             ),
             payloads,
           }),
+          self.generic_plan.runtime_expression_type(expr),
           continuation,
         )
       })
@@ -251,6 +260,7 @@ fn AnfLowerer::lower_to_atom(
               body: self.lower_bound_expr(alternative.body, source),
             }),
           }),
+          self.generic_plan.runtime_expression_type(expr),
           continuation,
         )
       })
@@ -305,10 +315,11 @@ fn AnfLowerer::lower_recursable_atom(
 fn AnfLowerer::bind_temp(
   self : AnfLowerer,
   rhs : AnfRhs,
+  type_ : RuntimeType,
   continuation : (AnfAtom) -> AnfExpr raise RuntimeAnfLoweringError,
 ) -> AnfExpr raise RuntimeAnfLoweringError {
   let temp = self.fresh_temp()
-  Let(Temp(temp~, rhs~), continuation(Temp(temp)))
+  Let(Temp(temp~, type_~, rhs~), continuation(Temp(temp)))
 }
 
 ///|

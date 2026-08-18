@@ -1,6 +1,7 @@
 ///|
 fn FunctionLowerer::lower_match(
   self : FunctionLowerer,
+  site : @anf.AnfBindingId,
   match_ : @anf.AnfMatch,
 ) -> LocalValue raise LoisvmLoweringError {
   let scrutinee = self.materialize_local(self.lower_atom(match_.scrutinee))
@@ -34,16 +35,26 @@ fn FunctionLowerer::lower_match(
         }
         Data(owner, arguments) =>
           self.lower_data_match(
-            match_, condition, scrutinee_type, owner, arguments,
+            match_,
+            condition,
+            scrutinee_type,
+            owner,
+            arguments,
+            self.image.callable_instances.specializes_data_at(
+              self.caller_instances,
+              site,
+            ),
           )
         _ =>
           raise UnsupportedExpression(detail="unsupported match scrutinee type")
       }
     }
     Global(_)
+    | NestedCallable(_)
     | RecursiveFunction(_, _, _)
     | EvidenceApplied(_, _)
     | EvidenceAppliedCallable(_, _, _)
+    | EvidenceAppliedNestedCallable(_, _)
     | AdaptedCallable(_)
     | EvidenceAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(detail="match scrutinee is not materialized")

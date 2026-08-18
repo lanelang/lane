@@ -36,14 +36,15 @@ test "simplify ANF atom aliases without reordering calls" {
       Let(
         Value(id=first, rhs=Atom(Literal(I64(42L)))),
         Let(
-          Temp(temp=first_temp, rhs=Atom(Ref(first))),
+          Temp(temp=first_temp, type_=Scalar(I64), rhs=Atom(Ref(first))),
           Let(
             Value(id=second, rhs=Atom(Temp(first_temp))),
             Let(
-              Temp(temp=alias_temp, rhs=Atom(Ref(second))),
+              Temp(temp=alias_temp, type_=Scalar(I64), rhs=Atom(Ref(second))),
               Let(
                 Temp(
                   temp=call_temp,
+                  type_=Scalar(I64),
                   rhs=Call(callee=Ref(function), arguments=[Temp(alias_temp)]),
                 ),
                 Atom(Temp(call_temp)),
@@ -64,6 +65,7 @@ test "simplify ANF atom aliases without reordering calls" {
       #|    Let(
       #|      Temp(
       #|        temp={ index: 2 },
+      #|        type_=Scalar(I64),
       #|        rhs=Call(callee=Ref({ index: 0 }), arguments=[Literal(I64(42))]),
       #|      ),
       #|      Atom(Temp({ index: 2 })),
@@ -96,6 +98,7 @@ test "simplify ANF aliases inside function and match scopes" {
       Let(
         Temp(
           temp=match_result,
+          type_=Scalar(I64),
           rhs=Match({
             scrutinee: Ref(local_alias),
             binder,
@@ -131,6 +134,7 @@ test "simplify ANF aliases inside function and match scopes" {
       #|          body: Let(
       #|            Temp(
       #|              temp={ index: 0 },
+      #|              type_=Scalar(I64),
       #|              rhs=Match(
       #|                {
       #|                  scrutinee: Ref({ index: 0 }),

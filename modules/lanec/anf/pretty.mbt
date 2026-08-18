@@ -131,10 +131,14 @@ pub impl @prettyprinter.Pretty for AnfBinding with fn pretty(
       text("=") +
       space +
       anf_rhs_doc(rhs)
-    Temp(temp~, rhs~) =>
+    Temp(temp~, type_~, rhs~) =>
       text("let") +
       space +
       temp.pretty() +
+      space +
+      text(":") +
+      space +
+      type_.pretty() +
       space +
       text("=") +
       space +

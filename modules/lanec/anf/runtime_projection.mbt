@@ -230,6 +230,17 @@ fn RuntimeGenericPlan::expression_type_parameters(
 }
 
 ///|
+fn RuntimeGenericPlan::runtime_expression_type(
+  self : RuntimeGenericPlan,
+  expression : @buslane.Expr,
+) -> RuntimeType raise RuntimeAnfLoweringError {
+  match self.facts.synthesize(expression) {
+    Ok(facts) => self.runtime_type(facts.type_())
+    Err(result) => raise InvalidExpressionMetadata(result)
+  }
+}
+
+///|
 fn RuntimeGenericPlan::observe_generic_arguments(
   self : RuntimeGenericPlan,
   parameters : Array[@buslane.TypeParameterId],

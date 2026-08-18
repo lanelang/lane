@@ -2,6 +2,7 @@
 fn ImageLowerer::lower_function_body(
   self : ImageLowerer,
   function : @anf.AnfFunction,
+  caller_instances : Array[Int],
   type_parameters : Array[@anf.RuntimeEvidenceParameter],
   parameter_types : Array[@anf.RuntimeType],
   result_type : @anf.RuntimeType,
@@ -14,6 +15,7 @@ fn ImageLowerer::lower_function_body(
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
+    caller_instances,
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -104,9 +106,11 @@ fn ImageLowerer::lower_function_body(
         Unit => Return(None)
         Slot(slot, _) => Return(Some(slot))
         Global(_)
+        | NestedCallable(_)
         | RecursiveFunction(_, _, _)
         | EvidenceApplied(_, _)
         | EvidenceAppliedCallable(_, _, _)
+        | EvidenceAppliedNestedCallable(_, _)
         | AdaptedCallable(_)
         | EvidenceAppliedAdaptedCallable(_, _) =>
           raise UnsupportedExpression(

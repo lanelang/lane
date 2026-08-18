@@ -554,12 +554,22 @@ test "explore gates direct generic representation specialization" {
       }
       explore_stage_scale(stage)
     })
+  let workers = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is RepresentationWorker(..))
+  })
   debug_inspect(
-    (report.status, report.diagnostics, selected),
+    (
+      report.status,
+      report.diagnostics,
+      workers.map(node => node.function.index),
+      selected,
+    ),
     content=(
       #|(
       #|  Succeeded,
       #|  [],
+      #|  [2],
       #|  [
       #|    (
       #|      "vmcfg.initial",
@@ -619,6 +629,154 @@ test "explore gates direct generic representation specialization" {
       #|  ],
       #|)
     ),
+  )
+}
+
+///|
+test "explore gates concrete-answer CPS callback specialization" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|effect Ask {
+        #|  ask() -> I64
+        #|}
+        #|
+        #|struct Apply {
+        #|  call : [T, Eff : Effect](T, (T) -> T ! Eff) -> T ! Eff
+        #|}
+        #|
+        #|fn[T, Eff : Effect] apply_call(
+        #|  value : T,
+        #|  callback : (T) -> T ! Eff
+        #|) -> T ! Eff {
+        #|  callback(value)
+        #|}
+        #|
+        #|fn answer_callback(_value : I64) -> I64 ! Ask {
+        #|  Ask::ask!()
+        #|}
+        #|
+        #|fn[Eff : Effect] forwarded(
+        #|  callback : (I64) -> I64 ! Eff
+        #|) -> I64 ! Eff {
+        #|  let apply = Apply::{ call: apply_call }
+        #|  apply.call[I64, Eff](0, callback)
+        #|}
+        #|
+        #|pub extern type Host : Effect
+        #|let observe : (I64) -> Unit ! Host = extern("observe")
+        #|
+        #|pub fn main() -> Unit ! Host {
+        #|  let result = handle forwarded[{ Ask }](answer_callback) with {
+        #|    Ask::ask(resume) => resume(42)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|  observe(result)
+        #|}
+      ),
+    ),
+  )
+  let selected = report.stages
+    .ordered()
+    .filter_map(stage => {
+      guard stage.id == "vmcfg.initial" else { return None }
+      explore_stage_scale(stage)
+    })
+  let workers = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is RepresentationWorker(..))
+  })
+  let adapter_count = report.functions.nodes
+    .filter(node => {
+      node.function.stage == VmcfgInitial &&
+      node.roles.any(role => role is CallableAdapter)
+    })
+    .length()
+  debug_inspect(
+    (
+      report.status,
+      report.diagnostics,
+      workers.map(node => node.function.index),
+      adapter_count,
+      selected,
+    ),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [],
+      #|  [7, 8],
+      #|  0,
+      #|  [
+      #|    (
+      #|      "vmcfg.initial",
+      #|      [
+      #|        ("functionCount", 8),
+      #|        ("importCount", 1),
+      #|        ("blockCount", 8),
+      #|        ("instructionCount", 16),
+      #|        ("valueCount", 44),
+      #|        ("directCallCount", 3),
+      #|        ("indirectCallCount", 6),
+      #|        ("functionReferenceCount", 5),
+      #|        ("closureCount", 1),
+      #|        ("environmentCount", 1),
+      #|        ("eraseCount", 0),
+      #|        ("uneraseCount", 0),
+      #|        ("retainCount", 0),
+      #|        ("releaseCount", 0),
+      #|        ("globalCount", 0),
+      #|        ("layoutCount", 4),
+      #|        ("objectShapeCount", 4),
+      #|        ("constantCount", 0),
+      #|      ],
+      #|      [
+      #|        { index: 1, block_count: 1, operation_count: 1, value_count: 9 },
+      #|        { index: 2, block_count: 1, operation_count: 1, value_count: 6 },
+      #|        { index: 3, block_count: 1, operation_count: 9, value_count: 9 },
+      #|        { index: 4, block_count: 1, operation_count: 3, value_count: 5 },
+      #|        { index: 5, block_count: 1, operation_count: 0, value_count: 1 },
+      #|        { index: 6, block_count: 1, operation_count: 1, value_count: 4 },
+      #|        { index: 7, block_count: 1, operation_count: 0, value_count: 5 },
+      #|        { index: 8, block_count: 1, operation_count: 1, value_count: 5 },
+      #|      ],
+      #|    ),
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
+test "expanding recursive generic demand retains one finite fallback" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|enum Box[T] {
+        #|  box(T)
+        #|}
+        #|
+        #|fn[T] expand(value : T) -> Unit {
+        #|  expand[Box[T]](Box::box(value))
+        #|}
+        #|
+        #|pub fn main() -> Unit {
+        #|  expand[I64](0)
+        #|}
+      ),
+    ),
+  )
+  let workers = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is RepresentationWorker(..))
+  })
+  debug_inspect(
+    (report.status, report.diagnostics, workers),
+    content="(Succeeded, [], [])",
   )
 }
 
@@ -703,27 +861,27 @@ test "explore gates concrete-answer CPS normalization" {
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 7),
-      #|        ("instructionCount", 38),
+      #|        ("functionCount", 4),
+      #|        ("instructionCount", 11),
       #|        ("directCallCount", 2),
-      #|        ("indirectCallCount", 6),
-      #|        ("closureCount", 4),
-      #|        ("environmentCount", 4),
-      #|        ("eraseCount", 2),
-      #|        ("uneraseCount", 2),
+      #|        ("indirectCallCount", 3),
+      #|        ("closureCount", 1),
+      #|        ("environmentCount", 1),
+      #|        ("eraseCount", 0),
+      #|        ("uneraseCount", 0),
       #|      ],
       #|    ),
       #|    (
       #|      "loisvm.bytecode",
       #|      [
-      #|        ("functionCount", 7),
-      #|        ("instructionCount", 32),
+      #|        ("functionCount", 4),
+      #|        ("instructionCount", 9),
       #|        ("directCallCount", 4),
-      #|        ("indirectCallCount", 4),
-      #|        ("closureCount", 3),
-      #|        ("environmentCount", 3),
-      #|        ("eraseCount", 2),
-      #|        ("uneraseCount", 2),
+      #|        ("indirectCallCount", 1),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("eraseCount", 0),
+      #|        ("uneraseCount", 0),
       #|      ],
       #|    ),
       #|  ],

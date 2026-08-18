@@ -121,7 +121,7 @@ test "generic nested closures preserve erased captures in both backends" {
 }
 
 ///|
-test "nominal values cross erased generic boundaries in both backends" {
+test "nominal values preserve behavior across specialized generic boundaries" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let element = metadata.define_type_parameter("Element", Type)
   let identity_parameter = metadata.define_type_parameter("T", Type)
@@ -254,6 +254,5 @@ test "nominal values cross erased generic boundaries in both backends" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_true(image.layouts.contains(Reference))
   execute_callable_image_in_both_backends(image, 4L)
 }
