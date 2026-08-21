@@ -63,7 +63,14 @@ fn ImageLowerer::add_instance_global(
     self.globals.push({ value, lowered: UnitValue })
     return
   }
-  let metadata = self.slot_metadata(type_)
+  let family = self.representation_demands.data_family_at_global(value)
+  let shape = self.canonical_runtime_type_key_for_family(type_, family)
+  guard !(shape is Unit) else {
+    raise RepresentationSpecializationInvariant(
+      detail="non-Unit instance global has a Unit physical contract",
+    )
+  }
+  let metadata = shape.value_metadata(None)
   let global : @bytecode.GlobalId = { value: self.instance_globals.length() }
   self.instance_globals.push({
     representation: metadata.representation,
@@ -71,7 +78,7 @@ fn ImageLowerer::add_instance_global(
     kind: metadata.kind,
     erased_companion: None,
   })
-  self.globals.push({ value, lowered: InstanceGlobal(global, type_) })
+  self.globals.push({ value, lowered: InstanceGlobal(global, type_, shape) })
 }
 
 ///|
@@ -251,6 +258,7 @@ fn extract_top_atom_function(atom : @anf.AnfAtom) -> @anf.AnfFunction? {
 ///|
 fn ImageLowerer::lower_function(
   self : ImageLowerer,
+  lowered_function : @bytecode.FunctionId,
   value : @buslane.ValueId,
   function : @anf.AnfFunction,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
@@ -258,25 +266,16 @@ fn ImageLowerer::lower_function(
     Some(info) => info.type_
     None => raise MissingValueMetadata(value~)
   }
-  let (type_parameters, parameter_types, result_type) = function_type_parts(
-    type_,
-  )
-  let instance = self.callable_instances.generic_instance(function.id).unwrap()
+  let (type_parameters, parameter_types, _) = function_type_parts(type_)
   self.lower_function_body(
+    lowered_function,
     function,
-    [instance],
-    [],
     false,
     type_parameters,
     parameter_types,
-    result_type,
-    [],
-    [],
-    None,
     [],
     RuntimeSubstitution::new(),
     [],
-    scalar_parameters=[],
   )
 }
 
@@ -285,13 +284,9 @@ fn ImageLowerer::lower_initializer_step(
   self : ImageLowerer,
   step : InitializerStepPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
-  let data_families = self.data_family_plans(
-    self.callable_instances.data_families_for_instances([-1]),
-  )
   let lowerer : FunctionLowerer = {
     image: self,
-    caller_instances: [-1],
-    data_families,
+    function: Some(step.function),
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -301,13 +296,15 @@ fn ImageLowerer::lower_initializer_step(
     witnesses: [],
     substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
-    representation_worker: true,
+    physical: self.physical_function(step.function),
   }
-  let result = lowerer.materialize_local(lowerer.lower_expr(step.expression))
+  let result = lowerer.materialize_planned_function_result(
+    lowerer.materialize_local(lowerer.lower_expr(step.expression)),
+  )
   let (result_abi, returned) = match (self.find_global(step.value), result) {
     (Some(UnitValue), Unit) => (@bytecode.ResultAbi::Unit, None)
-    (Some(InstanceGlobal(_, type_)), Slot(source, _)) =>
-      (self.result_abi(type_), Some(source))
+    (Some(InstanceGlobal(_, _, shape)), Slot(source, _, actual)) if shape ==
+      actual => (shape.physical_shape().result_abi(), Some(source))
     _ =>
       raise UnsupportedExpression(
         detail="top-level initializer result does not match its instance global",
@@ -341,10 +338,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
-    caller_instances: [-1],
-    data_families: self.data_family_plans(
-      self.callable_instances.data_families_for_instances([-1]),
-    ),
+    function: None,
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -354,14 +348,14 @@ fn ImageLowerer::lower_initializer_orchestrator(
     witnesses: [],
     substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
-    representation_worker: true,
+    physical: None,
   }
   for step in steps {
     match self.find_global(step.value) {
       Some(UnitValue) =>
         lowerer.emit(CallDirect(step.function, None, [], [], None))
-      Some(InstanceGlobal(global, type_)) => {
-        let destination = lowerer.fresh_slot(type_)
+      Some(InstanceGlobal(global, _, shape)) => {
+        let destination = lowerer.fresh_metadata(shape.value_metadata(None))
         lowerer.emit(CallDirect(step.function, None, [], [], Some(destination)))
         lowerer.emit(InitGlobal(global, destination))
       }
@@ -389,26 +383,19 @@ fn ImageLowerer::lower_initializer_orchestrator(
 ///|
 fn ImageLowerer::lower_lifted_function(
   self : ImageLowerer,
+  lowered_function : @bytecode.FunctionId,
   plan : LiftedFunctionPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
-  let (type_parameters, parameter_types, result_type) = function_type_parts(
-    plan.type_,
-  )
+  let (type_parameters, parameter_types, _) = function_type_parts(plan.type_)
   self.lower_function_body(
+    lowered_function,
     plan.function,
-    [plan.instance],
-    [],
     false,
     type_parameters,
     parameter_types,
-    result_type,
-    plan.capture.captured_evidence.map(evidence => evidence.target),
-    plan.capture.captures,
-    plan.capture.environment_shape,
     plan.recursive_functions,
     plan.substitutions,
     plan.specialized_parameters,
-    scalar_parameters=[],
   )
 }
 
@@ -422,8 +409,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   let result_type = plan.contract.result
   let lowerer : FunctionLowerer = {
     image: self,
-    caller_instances: [-1],
-    data_families: [],
+    function: Some(plan.function),
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -433,7 +419,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     witnesses: [],
     substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
-    representation_worker: false,
+    physical: None,
   }
   let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
   match plan.contract.implementation {
@@ -456,10 +442,10 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     Direct => {
       let arguments = []
       for index, slot in parameter_slots {
-        arguments.push(Slot(slot, parameter_types[index]))
+        arguments.push(lowerer.slot_value(slot, parameter_types[index]))
       }
       let result = lowerer.lower_intrinsic(plan.contract, arguments)
-      guard result is Slot(result_slot, _) else {
+      guard result is Slot(result_slot, _, _) else {
         raise UnsupportedIntrinsic(name=intrinsic.name())
       }
       lowerer.terminate(Return(Some(result_slot)))

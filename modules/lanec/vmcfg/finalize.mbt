@@ -2,7 +2,79 @@
 pub fn finalize(
   image : Image,
 ) -> Result[@bytecode.BytecodeImage, FinalizeError] {
-  match finalize_without_bytecode_verification(image) {
+  match finalize_observed(image) {
+    Err(error) => Err(error)
+    Ok(finalized) => Ok(finalized.bytecode_image)
+  }
+}
+
+///|
+pub fn finalize_observed(image : Image) -> Result[Finalization, FinalizeError] {
+  match prepare(image) {
+    Err(error) => Err(error)
+    Ok(prepared) =>
+      match finalize_prepared(prepared) {
+        Err(error) => Err(error)
+        Ok(bytecode_image) =>
+          Ok({
+            pre_arc_image: prepared.image,
+            source_functions: prepared.source_functions,
+            bytecode_image,
+          })
+      }
+  }
+}
+
+///|
+fn prepare(image : Image) -> Result[CanonicalPreArcImage, FinalizeError] {
+  Ok(prepare_or_raise(image)) catch {
+    error => Err(error)
+  }
+}
+
+///|
+fn prepare_or_raise(image : Image) -> CanonicalPreArcImage raise FinalizeError {
+  let image = devirtualize_image(image)
+  let image = select_consuming_projections(image)
+  let image = {
+    ..image,
+    functions: image.functions.map(entry => {
+      match entry {
+        Body(body) => Body(prepare_body(body))
+        RuntimeImport(_) => entry
+      }
+    }),
+  }
+  let canonical = canonicalize_function_table_to_fixed_point(image) catch {
+    error => raise FunctionTableCanonicalizationCompilerDefect(error)
+  }
+  { image: canonical.image, source_functions: canonical.source_functions }
+}
+
+///|
+pub fn Finalization::pre_arc_image(self : Finalization) -> Image {
+  self.pre_arc_image
+}
+
+///|
+pub fn Finalization::source_functions(
+  self : Finalization,
+) -> Array[Array[@bytecode.FunctionId]] {
+  self.source_functions.map(functions => functions.copy())
+}
+
+///|
+pub fn Finalization::bytecode_image(
+  self : Finalization,
+) -> @bytecode.BytecodeImage {
+  self.bytecode_image
+}
+
+///|
+fn finalize_prepared(
+  prepared : CanonicalPreArcImage,
+) -> Result[@bytecode.BytecodeImage, FinalizeError] {
+  match finalize_prepared_without_bytecode_verification(prepared) {
     Err(error) => Err(error)
     Ok(finalized) =>
       match @bytecode.verify_bytecode_image(finalized) {
@@ -33,29 +105,22 @@ fn CallableAbiInterner::intern(
 }
 
 ///|
-fn finalize_without_bytecode_verification(
-  image : Image,
+fn finalize_prepared_without_bytecode_verification(
+  prepared : CanonicalPreArcImage,
 ) -> Result[@bytecode.BytecodeImage, FinalizeError] {
-  Ok(finalize_without_bytecode_verification_or_raise(image)) catch {
+  Ok(finalize_without_bytecode_verification_or_raise(prepared)) catch {
     error => Err(error)
   }
 }
 
 ///|
 fn finalize_without_bytecode_verification_or_raise(
-  image : Image,
+  prepared : CanonicalPreArcImage,
 ) -> @bytecode.BytecodeImage raise FinalizeError {
-  let image = devirtualize_image(image)
-  let image = select_consuming_projections(image)
-  let functions = image.functions.map(entry => {
-    match entry {
-      Body(body) => Body(prepare_body(body))
-      RuntimeImport(_) => entry
-    }
-  })
+  let image = prepared.image
   let callable_abis = CallableAbiInterner::{ entries: [] }
   let finalized_functions : Array[@bytecode.FunctionEntry] = []
-  for entry in functions {
+  for entry in image.functions {
     match entry {
       Body(body) =>
         finalized_functions.push(

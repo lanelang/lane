@@ -27,20 +27,17 @@ fn RuntimeMetadata::runtime_types_equal(
     // object, but are not part of the value's callable ABI.
     (Data(left_owner, _), Data(right_owner, _)) => left_owner == right_owner
     (
-      Callable(left_parameters, left_result),
-      Callable(right_parameters, right_result),
-    ) =>
-      self.runtime_type_arrays_equal(
-        left_parameters, right_parameters, left_bound, right_bound,
-      ) &&
-      self.runtime_types_equal(
-        left_result, right_result, left_bound, right_bound,
+      Callable(_, _)
+      | Forall(_, _) as left_callable,
+      Callable(_, _)
+      | Forall(_, _) as right_callable,
+    ) => {
+      let (left_parameters, left_arguments, left_result) = runtime_callable_parts(
+        left_callable,
       )
-    (Erased(_, left_evidence), Erased(_, right_evidence)) =>
-      runtime_evidence_equal(
-        left_evidence, right_evidence, left_bound, right_bound,
+      let (right_parameters, right_arguments, right_result) = runtime_callable_parts(
+        right_callable,
       )
-    (Forall(left_parameters, left_body), Forall(right_parameters, right_body)) => {
       guard runtime_parameter_arities_equal(left_parameters, right_parameters) else {
         return false
       }
@@ -48,9 +45,32 @@ fn RuntimeMetadata::runtime_types_equal(
       nested_left.append(left_parameters.map(parameter => parameter.id))
       let nested_right = right_bound.copy()
       nested_right.append(right_parameters.map(parameter => parameter.id))
-      self.runtime_types_equal(left_body, right_body, nested_left, nested_right)
+      self.runtime_type_arrays_equal(
+        left_arguments, right_arguments, nested_left, nested_right,
+      ) &&
+      self.runtime_types_equal(
+        left_result, right_result, nested_left, nested_right,
+      )
     }
+    (Erased(_, left_evidence), Erased(_, right_evidence)) =>
+      runtime_evidence_equal(
+        left_evidence, right_evidence, left_bound, right_bound,
+      )
     _ => false
+  }
+}
+
+///|
+fn runtime_callable_parts(
+  type_ : RuntimeType,
+) -> (Array[RuntimeEvidenceParameter], Array[RuntimeType], RuntimeType) {
+  match type_ {
+    Forall(parameters, body) => {
+      let (nested_parameters, arguments, result) = runtime_callable_parts(body)
+      (parameters + nested_parameters, arguments, result)
+    }
+    Callable(arguments, result) => ([], arguments, result)
+    _ => abort("runtime callable decomposition received a non-callable type")
   }
 }
 

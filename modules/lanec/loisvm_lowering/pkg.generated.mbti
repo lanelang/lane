@@ -16,10 +16,9 @@ pub fn lower_executable_program_to_bytecode(@executable.ExecutableProgram) -> Re
 pub fn lower_executable_program_to_bytecode_observed(@executable.ExecutableProgram, (LoisvmLoweringStage) -> Unit) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError]
 
 // Errors
-pub(all) suberror FunctionTableCanonicalizationError {
+pub(all) suberror FunctionProvenanceError {
   OriginCountMismatch(functions~ : Int, origins~ : Int)
-  InvalidFunctionReference(function~ : @bytecode.FunctionId)
-  MissingFunctionMapping(function~ : @bytecode.FunctionId)
+  InvalidSourceFunction(function~ : @bytecode.FunctionId)
   FinalizedFunctionCountMismatch(functions~ : Int, origins~ : Int)
 } derive(Eq, @debug.Debug)
 
@@ -39,7 +38,7 @@ pub(all) suberror LoisvmLoweringError {
   UnsupportedIntrinsic(name~ : String)
   UnterminatedBlock(block~ : Int)
   VmcfgFinalizeError(@vmcfg.FinalizeError)
-  FunctionTableCanonicalizationCompilerDefect(FunctionTableCanonicalizationError)
+  FunctionProvenanceCompilerDefect(FunctionProvenanceError)
 } derive(Eq, @debug.Debug)
 
 // Types and methods

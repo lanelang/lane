@@ -221,6 +221,7 @@ fn projection_result_requires_owner(
           ) {
           return true
         }
+      MetadataUse(_, _) => return true
     }
   }
   false

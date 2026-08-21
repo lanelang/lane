@@ -126,6 +126,8 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     metadata: runtime_metadata,
     callable_catalog: anf.callable_catalog(),
     callable_instances: CallableInstancePlan::empty(),
+    representation_demands: PhysicalRepresentationDemandPlan::empty(),
+    physical_representations: None,
     runtime_types: RuntimeTypeArena::from_metadata(runtime_metadata),
     externals: { builtins: [], runtime_imports: [] },
     globals: [],
@@ -137,9 +139,11 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     intrinsic_wrappers: [],
     callable_adapters: [],
     lifted_functions: [],
-    representation_specializations: [],
     data_families: [],
+    materialized_data_families: [],
+    finalized_data_families: [],
     synthetic_parameters: [],
+    generic_invocations_in_progress: [],
   }
 }
 
@@ -1386,16 +1390,21 @@ test "capture-free functions lower as callable values for higher-order calls" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  guard image.functions[1] is BytecodeBody(apply_body) else {
-    fail("expected apply bytecode body")
-  }
-  assert_true(apply_body.blocks[0].terminator is TailCallValue(_, _, [], _))
-  guard image.functions[2] is BytecodeBody(main_body) else {
-    fail("expected main bytecode body")
-  }
   assert_true(
-    contains_instruction(main_body, instruction => {
-      instruction is ConstFunction(_, { value: 1 })
+    image.functions.any(entry => {
+      entry is BytecodeBody(body) &&
+      body.blocks.any(block => block.terminator is TailCallValue(_, _, [], _))
+    }),
+  )
+  assert_true(
+    image.functions.any(entry => {
+      entry is BytecodeBody(body) &&
+      contains_instruction(body, instruction => {
+        instruction is ConstFunction(_, _)
+      }) &&
+      contains_instruction(body, instruction => {
+        instruction is CallDirect(_, _, _, _, _)
+      })
     }),
   )
   let mut observed = 0L
@@ -1776,27 +1785,21 @@ test "generic identity callable flow selects a concrete representation worker" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(identity_body) else {
-    fail("expected identity bytecode body")
-  }
-  assert_eq(identity_body.inputs.witnesses.length(), 1)
-  assert_eq(identity_body.result, Value(I64, OwnedErased, ErasedValue))
-  guard image.functions[1] is BytecodeBody(apply_body) else {
-    fail("expected apply bytecode body")
-  }
-  assert_false(
-    contains_instruction(apply_body, instruction => {
-      instruction is ConstLayout(_, _)
-    }),
-  )
-  assert_false(
-    contains_instruction(apply_body, instruction => {
-      instruction is EraseI64(_, _)
-    }),
-  )
-  assert_false(
-    contains_instruction(apply_body, instruction => {
-      instruction is UneraseI64(_, _)
+  let bodies = image.functions.filter_map(function => {
+    if function is BytecodeBody(body) {
+      Some(body)
+    } else {
+      None
+    }
+  })
+  assert_true(
+    bodies.any(body => {
+      body.inputs.witnesses.is_empty() &&
+      body.inputs.user_parameters.length() == 2 &&
+      body.result == Value(I64, Trivial, ScalarValue) &&
+      !contains_instruction(body, instruction => {
+        instruction is (ConstLayout(_, _) | EraseI64(_, _) | UneraseI64(_, _))
+      })
     }),
   )
   let mut observed = 0L
@@ -2453,7 +2456,7 @@ test "closed generic data scalar replacement creates no nominal family ABI" {
 }
 
 ///|
-test "existential data opens hidden witnesses beside erased payloads" {
+test "closed existential data specializes hidden witnesses and payloads" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let hidden = metadata.define_type_parameter("Hidden", Type)
   let opened = metadata.define_type_parameter("Opened", Type)
@@ -2556,26 +2559,33 @@ test "existential data opens hidden witnesses beside erased payloads" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_true(
-    image.object_shapes.any(shape => {
-      shape
-      is Data(
-        {
-          stored_witness_count: 2,
-          members: [
-            { cleanup: Trivial, kind: LayoutValue, .. },
-            {
-              representation: I64,
-              cleanup: OwnedErased,
-              kind: ErasedValue,
-              witness_ordinal: Some(0),
-            },
-            { cleanup: OwnedErased, witness_ordinal: Some(1), .. },
-          ],
-          ..,
-        }
-      )
-    }),
+  debug_inspect(
+    image.object_shapes,
+    content=(
+      #|[
+      #|  Data(
+      #|    {
+      #|      family: { value: 0 },
+      #|      constructor_tag: 0,
+      #|      stored_witness_count: 0,
+      #|      members: [
+      #|        {
+      #|          representation: I64,
+      #|          cleanup: Trivial,
+      #|          kind: ScalarValue,
+      #|          witness_ordinal: None,
+      #|        },
+      #|        {
+      #|          representation: I64,
+      #|          cleanup: Trivial,
+      #|          kind: ScalarValue,
+      #|          witness_ordinal: None,
+      #|        },
+      #|      ],
+      #|    },
+      #|  ),
+      #|]
+    ),
   )
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
@@ -3046,7 +3056,7 @@ test "primitive literal matches lower to comparison decision chains" {
 }
 
 ///|
-test "specialized data families own complete constructor contracts before emission" {
+test "data-family catalog remains distinct from physical materialization" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let option = metadata.define_type("Option", [type_parameter])
@@ -3062,7 +3072,13 @@ test "specialized data families own complete constructor contracts before emissi
     type_expression: image.runtime_types.intern(Static(Scalar(I64))),
     evidence: Static(I64),
   }
-  ignore(image.plan_specialized_data_family(option, [i64_argument]))
+  let family = image
+    .specialized_data_family_key_or_none(option, [i64_argument])
+    .unwrap()
+    .finalize(0)
+  ignore(
+    image.plan_specialized_data_family_with_key(family, option, [i64_argument]),
+  )
   debug_inspect(
     image.data_families,
     content=(
@@ -3073,11 +3089,25 @@ test "specialized data families own complete constructor contracts before emissi
       #|    bytecode_family: None,
       #|    owner: { index: 0 },
       #|    constructors: [
-      #|      { data_constructor: { index: 0 }, shape: None, storage_types: [] },
+      #|      {
+      #|        data_constructor: { index: 0 },
+      #|        shape: None,
+      #|        storage_hidden_arguments: None,
+      #|        storage_evidence_parameters: [],
+      #|        storage_types: [],
+      #|        storage_data_families: [],
+      #|        storage_callable_demands: [],
+      #|        storage_shapes: [],
+      #|      },
       #|      {
       #|        data_constructor: { index: 1 },
       #|        shape: None,
+      #|        storage_hidden_arguments: None,
+      #|        storage_evidence_parameters: [],
       #|        storage_types: [Erased({ index: 0 }, Parameter(Projected(0)))],
+      #|        storage_data_families: [None],
+      #|        storage_callable_demands: [[]],
+      #|        storage_shapes: [],
       #|      },
       #|    ],
       #|  },
@@ -3086,15 +3116,30 @@ test "specialized data families own complete constructor contracts before emissi
       #|    key: Specialized(
       #|      { index: 0 },
       #|      [{ type_expression: Static(Scalar(I64)), evidence: Static(I64) }],
+      #|      0,
       #|    ),
       #|    bytecode_family: None,
       #|    owner: { index: 0 },
       #|    constructors: [
-      #|      { data_constructor: { index: 0 }, shape: None, storage_types: [] },
+      #|      {
+      #|        data_constructor: { index: 0 },
+      #|        shape: None,
+      #|        storage_hidden_arguments: None,
+      #|        storage_evidence_parameters: [],
+      #|        storage_types: [],
+      #|        storage_data_families: [],
+      #|        storage_callable_demands: [],
+      #|        storage_shapes: [],
+      #|      },
       #|      {
       #|        data_constructor: { index: 1 },
       #|        shape: None,
+      #|        storage_hidden_arguments: None,
+      #|        storage_evidence_parameters: [],
       #|        storage_types: [Scalar(I64)],
+      #|        storage_data_families: [None],
+      #|        storage_callable_demands: [[]],
+      #|        storage_shapes: [],
       #|      },
       #|    ],
       #|  },
@@ -3224,7 +3269,7 @@ test "closed repeated data uses share one specialized family end to end" {
       #|[
       #|  Data(
       #|    {
-      #|      family: { value: 1 },
+      #|      family: { value: 0 },
       #|      constructor_tag: 0,
       #|      stored_witness_count: 0,
       #|      members: [],
@@ -3232,7 +3277,7 @@ test "closed repeated data uses share one specialized family end to end" {
       #|  ),
       #|  Data(
       #|    {
-      #|      family: { value: 1 },
+      #|      family: { value: 0 },
       #|      constructor_tag: 1,
       #|      stored_witness_count: 1,
       #|      members: [
@@ -3247,7 +3292,7 @@ test "closed repeated data uses share one specialized family end to end" {
       #|  ),
       #|  Data(
       #|    {
-      #|      family: { value: 0 },
+      #|      family: { value: 1 },
       #|      constructor_tag: 0,
       #|      stored_witness_count: 0,
       #|      members: [],
@@ -3255,7 +3300,7 @@ test "closed repeated data uses share one specialized family end to end" {
       #|  ),
       #|  Data(
       #|    {
-      #|      family: { value: 0 },
+      #|      family: { value: 1 },
       #|      constructor_tag: 1,
       #|      stored_witness_count: 0,
       #|      members: [

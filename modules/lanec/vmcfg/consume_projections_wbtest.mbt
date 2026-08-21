@@ -79,7 +79,8 @@ test "select consuming field projection for returned owned member" {
       #|)
     ),
   )
-  let image = match finalize_without_bytecode_verification(test_image(body)) {
+  let image = match
+    finalize_test_image_without_bytecode_verification(test_image(body)) {
     Ok(image) => image
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }

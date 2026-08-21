@@ -10,6 +10,8 @@ import {
 // Values
 pub fn finalize(Image) -> Result[@bytecode.BytecodeImage, FinalizeError]
 
+pub fn finalize_observed(Image) -> Result[Finalization, FinalizeError]
+
 pub fn image_to_code(Image) -> String
 
 // Errors
@@ -17,9 +19,15 @@ pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
   UseDefAnalysisCompilerDefect(UseDefAnalysisError)
+  FunctionTableCanonicalizationCompilerDefect(FunctionTableCanonicalizationError)
   ArcFinalVerificationCompilerDefect(ArcFinalBodyError)
   PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror FunctionTableCanonicalizationError {
+  InvalidFunctionReference(@bytecode.FunctionId)
+  MissingFunctionMapping(@bytecode.FunctionId)
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -52,6 +60,15 @@ pub(all) struct Edge {
   target : @bytecode.BlockId
   arguments : Array[ValueId]
 } derive(Eq, @debug.Debug)
+
+pub struct Finalization {
+  pre_arc_image : Image
+  source_functions : Array[Array[@bytecode.FunctionId]]
+  bytecode_image : @bytecode.BytecodeImage
+}
+pub fn Finalization::bytecode_image(Self) -> @bytecode.BytecodeImage
+pub fn Finalization::pre_arc_image(Self) -> Image
+pub fn Finalization::source_functions(Self) -> Array[Array[@bytecode.FunctionId]]
 
 pub(all) struct FunctionBody {
   values : Array[ValueMetadata]

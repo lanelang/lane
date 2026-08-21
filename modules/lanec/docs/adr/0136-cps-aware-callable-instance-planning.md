@@ -1,121 +1,149 @@
-# CPS-aware callable-instance planning
+# Per-value physical representation planning
 
-Status: accepted and implemented; tracked by ISS-363.
+Status: accepted; the ambient-family implementation is being replaced under
+ISS-385.
+
+## Context
+
+Runtime ANF owns semantic runtime types, explicit representation evidence, and
+one stable identity for every callable and allocation site. Its Callable
+Instance Plan can prove semantic callable flow through parameters, results,
+captures, aggregate members, recursion, and immutable globals. It cannot make
+a semantic type the identity of a selected physical representation.
+
+The same semantic data type may cross an open boundary through its uniform
+declaration family and occur elsewhere in a closed specialized component. A
+function may also mention several specialized families while one parameter
+belongs to only one of them. Passing an ambient family array through lowering
+therefore has no coherent meaning: it is neither a value representation nor a
+callable contract. Selecting from that array while emitting a body creates a
+second representation producer.
 
 ## Decision
 
-LoisVM lowering plans semantic callable instances before emitting VM CFG.
-One typed ANF fixed point propagates callable identity, generic application,
-closure allocation, aggregate members, parameters, results, recursion, and
-immutable globals. Its immutable result is the sole producer of
-runtime-representation specialization demand. Lowering consumes that plan and
-does not rediscover workers from expression syntax.
+One Physical Representation Planner runs after the semantic Callable Instance
+Plan and before VM CFG emission. It produces a nominal Represented Runtime ANF
+phase value: the unchanged Runtime ANF program plus one total immutable
+Physical Representation Plan. VM CFG emission accepts only this represented
+phase value.
 
-The analysis is CPS-aware through ordinary typed structure. It composes every
-`TypeApply`, including generated CPS answer and residual applications, but
-does not inspect generated names or reconstruct source effects. The selective
-CPS callable shape remains owned by effect lowering. The representation plan
-consumes the fully elaborated callable type and explicit effect-companion
-metadata.
+The planner assigns every runtime value port one interned Physical Value Shape.
+Ports include parameters, results, bindings, call operands and results,
+captures, constructor results and members, match scrutinees and binders, and
+control-flow joins. A shape directly identifies Unit, a concrete scalar or
+reference category, an erased representation-evidence contract, a Callable
+Invocation Contract, or a Data Representation Family. No shape contains or is
+selected from an ambient set of possible families.
 
-A representation worker may specialize a closed first-order `Type` binder
-while retaining symbolic binders. In particular, a concrete CPS answer ABI may
-be selected while a higher-kinded effect companion remains an explicit worker
-witness. The companion is neither guessed nor treated as a first-order layout;
-its application continues to use the representation elaborator. Purely static
-effect binders do not enter runtime keys.
+The Callable Instance Plan remains the sole owner of semantic callable
+identity, generic application, exact target alternatives, allocation flow, and
+recursive semantic closure. It supplies facts to physical planning but does
+not select families or workers. The Physical Representation Plan is the sole
+owner of selected shapes, representation workers, data-family contracts,
+environment contracts, and representation bridges.
 
-Worker keys contain the original logical function and the complete canonical
-runtime ABI of specialized evidence, physical parameters, and result. Retained
-generic binders are part of the worker contract rather than part of the
-specialized evidence key. One key owns at most one worker. Open uses retain the
-generic implementation, and ordinary exact function reachability is the only
-mechanism that may later remove it.
+## Physical contracts
 
-Recursive callable-instance demand is accepted only when the planner proves
-the instance set finite over the generic call SCC. There is no call-count,
-function-size, worker-count, score, growth budget, speculative rewrite, or
-fallback pass.
+A Callable Invocation Contract contains the exact physical shapes of hidden
+representation-evidence inputs, user parameters, and the result. It is the
+contract stored in callable values and data members and later projected to the
+LoisVM callable ABI.
 
-Allocation identities in this graph propagate callable and data-flow facts;
-they never become storage identities themselves. When the complete use graph
-of one closed generic data instance is proved, the plan may instead select a
-canonical specialized data representation family. The key contains the nominal
-owner and complete canonical runtime arguments, including higher-kinded type
-expressions and evidence. The family is created before VM CFG emission and owns
-the complete constructor-tag and object-shape contract for that instance.
+Generic implementation contracts are frozen before representation workers or
+function bodies are planned. A higher-order generic contract refers to the
+already planned contract of its callable-shaped parameter or result; it is not
+reconstructed from Runtime ANF type syntax. Body planning only verifies and
+consumes the frozen boundary. This ordering makes the generic elaboration one
+real function contract rather than a type-derived default that can disagree
+with callable-flow provenance.
 
-Declaration and specialized families are different identities. Construction,
-matching, nested field layout, callable parameter and result ABIs, capture
-layout, and bytecode object-shape verification consume the selected identity;
-none may infer it from the outer `Reference` layout or from an allocation site.
-An open, existential, recursively expanding, or incompatible use rejects the
-whole connected component and retains the declaration family. A nested data
-type whose storage depends on evidence bound by a local `forall` is open at the
-family-planning boundary; a truly phantom argument does not prevent an outer
-closed family.
+A Function Representation Variant contains one semantic callable instance,
+one Callable Invocation Contract, exact capture shapes, and the value-shape
+assignment required by its body. Capture layout belongs here because two
+closures may share an invocation contract while storing different environment
+shapes. One canonical function-variant key produces at most one worker.
 
-Callable-valued storage currently retains the declaration family. Its physical
-ABI can mention nominal families again in parameters, results, captures, and
-nested callables, so the outer family alone is not a complete proof. ISS-385
-owns the family-aware callable ABI required to admit that higher-order case.
-Control-flow joins likewise retain nominal declaration storage unless every
-incoming family is represented by an explicit joined-family proof.
+A Data Representation Family Contract contains one nominal owner and the
+complete constructor tag, member-shape, and stored-evidence schema. A
+declaration family is the canonical uniform fallback. A specialized family is
+identified by its complete physical storage contract, not merely by source
+generic arguments. This distinction is required because the same closed source
+type may contain either declaration-family or specialized nested values.
+Recursive fields refer to their data-family SCC identity and do not expand a
+recursive type tree.
 
-When a generated aggregate is closed and non-escaping, callable-instance
-planning may additionally produce an immutable scalar-replacement proof. This
-proof is separate from `CallableInstanceKey`: semantic callable identity stays
-function plus type/evidence arguments. The proof follows one exact
-allocation-to-match carrier path through aliases and representation-worker
-parameters. Representation specialization then owns the physical flattened
-parameter contract. Lowering only consumes these two plans.
+## Constraint closure
 
-The scalar-replacement proof rejects the complete component when flow is open,
-has multiple uses, contains hidden evidence or erased payloads, crosses a
-generic fallback or a captured callable whose physical invocation is not
-explicit, or produces an aggregate through a control-flow join. Rejection
-retains an ordinary nominal allocation; there is no emission-time reboxing
-fallback. Retained allocations are independently eligible for the stricter
-specialized-family proof above. Failure of that proof always selects the
-declaration family.
+Physical planning is finite constraint solving over value ports and flow
+edges. Alias, parameter, result, capture, join, construction, match, and call
+edges require exact compatible shapes. A value with several consumers has one
+producer shape; a consumer that needs another shape must name one explicit
+planned bridge.
 
-VM CFG callable-flow has a separate, physical responsibility. It propagates
-the emitted environment, witness, argument, aggregate, global, and result
-facts and decides whether a final `CallValue` can become `CallDirect` or lose
-its environment ABI. It does not create specialization demand or infer source
-generic applications from layout instructions.
+The supported bridges are erase, unerase, and callable adaptation. Each bridge
+has one canonical source and target contract and at most one worker. There is
+no implicit conversion between declaration and specialized data families. A
+future structural data conversion would require its own explicit contract and
+proof rather than a lowering fallback.
+
+The canonical generic elaboration supplies a total baseline assignment. A
+specialized data family or function variant is accepted only when its complete
+connected component has a consistent closed assignment. Open, existential,
+incompatible indirect, or unproved joined flow rejects the whole candidate and
+keeps the baseline. Generic callables and declaration families therefore remain
+correct independently of optimization.
+
+Distinct open and closed components may select different physical contracts
+for the same semantic source function. Each complete canonical function
+contract owns at most one worker, while the generic implementation remains the
+correct baseline for open flow. Cleaned whole-image function reachability, not
+specialization policy, removes implementations that have no runtime consumer.
+
+Recursive specialization uses a worklist of canonical function-variant and
+data-family contracts. The callable SCC must prove that every recursive
+transformation is a projection or permutation of existing binders or selects
+from a finite set of closed constants. Failure keeps the complete SCC generic;
+there is no depth, worker-count, function-size, frequency, score, or speculative
+fallback policy.
+
+## Phase responsibilities
+
+- Runtime ANF owns semantic runtime types and representation evidence.
+- The Callable Instance Plan owns semantic callable and allocation flow.
+- The Physical Representation Plan owns every selected value shape, physical
+  family, function variant, environment contract, and bridge.
+- VM CFG emission projects those facts into explicit values and instructions;
+  it makes no representation decision.
+- ARC augments VM CFG values with ownership flow without changing their
+  physical shape.
+- Final callable ABI construction and physical slot allocation consume the
+  validated ARC-final metadata and do not reconstruct source types or
+  specialization policy.
 
 ## Consequences
 
-- CPS answer specialization is an instance of general runtime-ABI
-  specialization, not an effect-specific lowering path.
-- Higher-kinded companions can remain symbolic while concrete answer
-  erase/unerase bridges disappear.
-- Callable values with open or incompatible ABI uses remain generic and
-  indirect; correctness does not depend on optimistic rewriting.
-- Function planning must be complete before specialization demand closes, and
-  VM CFG emission consumes a frozen plan.
-- Constructor fields and matches either preserve their declaration-owned
-  uniform ABI or consume one explicitly planned specialized family. A family
-  change cannot be introduced while emitting a body.
-- Closed generated dictionaries may lose their allocation and representation
-  bridges through scalar replacement, without creating another data family.
-- Scalar-replacement eligibility and physical worker projection are explicit
-  plan facts. `LocalValue` may carry a proved closed aggregate only while
-  lowering the planned path; it cannot enter VM CFG or bytecode.
-- Captured workers and aggregate-valued control-flow joins retain the nominal
-  representation until their own physical callable/result contracts exist.
-- No source-language, linked-artifact, or LoisVM bytecode schema changes are
-  required by this decision.
+- CPS answer specialization remains an instance of general representation
+  specialization. No CPS name or source effect participates in physical shape
+  selection.
+- Semantic callable identity and physical function variants remain distinct.
+- Callable-valued data members naturally carry nested data families through
+  their Callable Invocation Contract; no parallel family map is required.
+- Construction and matching name one exact Data Representation Family and
+  cannot accidentally share tags or shapes with another family.
+- A planner defect is reported before VM CFG emission. The emitter cannot hide
+  it by choosing a generic family, filtering a context, or reboxing a value.
+- The represented phase has a necessary invariant but need not duplicate the
+  Runtime ANF tree or become a persisted/public IR.
+- Source language, linked-artifact, and bytecode schemas do not change merely
+  because the compiler has a stronger pre-emission representation seam.
 
-## Implementation status
+## Rejected alternatives
 
-The typed Runtime ANF callable catalog, immutable callable-instance fixed point,
-canonical partial workers, finite recursive-demand proof, closed-aggregate use
-proof, physical scalar worker projection, and explicit specialized data-family
-plan are implemented. The focused concrete-answer CPS path has no callable
-adapter or erase/unerase bridge. Closed retained data may use a complete
-specialized family; every unproved use continues to use the declaration-owned
-ABI. Effect-aware CPS Core optimization and interprocedural VM CFG callable
-flow remain separate prerequisite and consumer boundaries. Runtime effect
-projection occurs only at the ANF seam.
+Threading a family array, a type-to-family substitution, or a body-wide family
+map is rejected because one semantic type may have different representations
+at different value ports. Whole-program monomorphization is rejected because
+generic evidence-passing semantics and separate compilation remain the
+correctness baseline. A uniform boxed representation would be sound but would
+discard Lane's accepted natural scalar ABI. Emission-time filtering, subset
+matching, and reboxing fallbacks are rejected because they create a second
+representation owner after the plan is frozen.

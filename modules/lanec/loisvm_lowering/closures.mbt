@@ -3,29 +3,18 @@ fn FunctionLowerer::lower_nested_function(
   self : FunctionLowerer,
   function : @anf.AnfFunction,
 ) -> LocalValue raise LoisvmLoweringError {
-  let instance = self.image.callable_instance(function.id, self.substitutions)
-  let planned = self.image.callable_instances.instances[instance]
-  guard self.image.lifted_function(instance) is Some(plan) else {
-    raise RepresentationSpecializationInvariant(
-      detail="nested callable \{Repr(function.id)} instance \{instance} (owner=\{Repr(planned.definition.owner)}, generic=\{planned.generic_fallback}, group=\{Repr(planned.definition.recursive_group)}) is absent from the frozen function plan",
-    )
-  }
-  let function_type = planned.substitution.apply_type(
-    self.image.runtime_types,
-    planned.definition.type_,
+  let allocation = self.planned_callable_allocation(function.id, "nested")
+  let implementation = self.image.materialized_callable_implementation(
+    allocation.implementation,
   )
-  let (function_type, capture) = if self.representation_worker &&
-    self.image.representation_specialization_for_instance(instance)
-    is Some(worker) {
-    (worker.callable_type(), worker.capture)
-  } else {
-    (function_type, plan.capture)
-  }
   NestedCallable({
     function,
-    instance,
-    type_: function_type,
-    environment: self.capture_environment(capture),
+    lowered_function: implementation.function,
+    type_: implementation.type_,
+    environment: self.capture_environment(
+      self.image.physical_capture(implementation.function),
+      allocation,
+    ),
   })
 }
 
@@ -34,18 +23,8 @@ fn FunctionLowerer::materialize_nested_callable(
   self : FunctionLowerer,
   callable : DeferredNestedCallable,
 ) -> LocalValue raise LoisvmLoweringError {
-  if self.representation_worker &&
-    self.image.representation_specialization_for_instance(callable.instance)
-    is Some(plan) {
-    return self.materialize_representation_worker(plan, callable.environment)
-  }
-  guard self.image.lifted_function(callable.instance) is Some(plan) else {
-    raise RepresentationSpecializationInvariant(
-      detail="nested callable is absent from the frozen function plan",
-    )
-  }
-  self.materialize_planned_callable(
-    plan.lowered_function,
+  self.materialize_callable_value(
+    callable.lowered_function,
     callable.type_,
     callable.environment,
   )
@@ -55,57 +34,91 @@ fn FunctionLowerer::materialize_nested_callable(
 fn FunctionLowerer::materialize_planned_callable_atom(
   self : FunctionLowerer,
   atom : @anf.AnfAtom,
-  instance : Int,
+  callable : CallableRepresentationTarget,
 ) -> LocalValue raise LoisvmLoweringError {
   let function = match atom {
-    Function(function) => function
-    EvidenceLambda(body~, ..) =>
-      match extract_top_function(body) {
-        Some(function) => function
-        None =>
-          raise RepresentationSpecializationInvariant(
-            detail="planned callable use has no function",
-          )
-      }
-    _ =>
-      raise RepresentationSpecializationInvariant(
-        detail="planned callable use is not a callable allocation",
-      )
+    Function(function) => Some(function)
+    EvidenceLambda(body~, ..) => extract_top_function(body)
+    Literal(_) | Ref(_) | Temp(_) => None
   }
-  self.materialize_planned_callable_instance(function, instance)
+  if function is Some(function) {
+    return self.materialize_planned_callable_instance(function, callable)
+  }
+  let lowered = self.lower_atom(atom)
+  let value = match lowered {
+    Global(Function(_, _)) => {
+      guard callable.instance(self.image.callable_instances) is Some(planned) else {
+        raise RepresentationSpecializationInvariant(
+          detail="planned callable flow names an unknown semantic instance",
+        )
+      }
+      self.materialize_planned_callable_instance(
+        planned.definition.function,
+        callable,
+      )
+    }
+    NestedCallable(nested) => self.materialize_nested_callable(nested)
+    RecursiveFunction(_, _, _) => self.materialize_local(lowered)
+    _ => self.materialize_local(lowered)
+  }
+  guard value is Slot(_, _, Callable(_)) else {
+    raise RepresentationSpecializationInvariant(
+      detail="planned callable flow did not materialize a callable slot",
+    )
+  }
+  value
 }
 
 ///|
 fn FunctionLowerer::materialize_planned_callable_instance(
   self : FunctionLowerer,
   function : @anf.AnfFunction,
-  instance : Int,
+  callable : CallableRepresentationTarget,
 ) -> LocalValue raise LoisvmLoweringError {
-  guard self.image.callable_instances.instances.get(instance) is Some(planned) &&
+  guard callable.instance(self.image.callable_instances) is Some(planned) &&
     planned.definition.function.id == function.id else {
     raise RepresentationSpecializationInvariant(
       detail="planned callable payload does not match its function allocation",
     )
   }
-  match self.image.representation_specialization_for_instance(instance) {
-    Some(plan) =>
-      self.materialize_representation_worker(
-        plan,
-        self.capture_environment(plan.capture),
-      )
-    None => {
-      guard self.image.lifted_function(instance) is Some(plan) else {
-        raise RepresentationSpecializationInvariant(
-          detail="planned callable payload has no emitted implementation",
-        )
-      }
-      self.materialize_planned_callable(
-        plan.lowered_function,
-        plan.type_,
-        self.capture_environment(plan.capture),
-      )
-    }
-  }
+  let allocation = self.planned_callable_allocation(
+    function.id,
+    "planned-instance",
+  )
+  let implementation = self.image.materialized_callable_implementation(
+    allocation.implementation,
+  )
+  self.materialize_callable_value(
+    implementation.function,
+    implementation.type_,
+    self.capture_environment(
+      self.image.physical_capture(implementation.function),
+      allocation,
+    ),
+  )
+}
+
+///|
+fn FunctionLowerer::materialize_callable_value(
+  self : FunctionLowerer,
+  lowered_function : @bytecode.FunctionId,
+  lowered_type : @anf.RuntimeType,
+  environment : @vmcfg.ValueId?,
+) -> LocalValue raise LoisvmLoweringError {
+  self.materialize_planned_callable(lowered_function, lowered_type, environment)
+}
+
+///|
+fn FunctionLowerer::materialize_callable_value_with_abi(
+  self : FunctionLowerer,
+  lowered_function : @bytecode.FunctionId,
+  lowered_type : @anf.RuntimeType,
+  environment : @vmcfg.ValueId?,
+  invocation : CanonicalCallableAbi,
+) -> LocalValue raise LoisvmLoweringError {
+  self.materialize_planned_callable_with_abi(
+    lowered_function, lowered_type, environment, invocation,
+  )
 }
 
 ///|
@@ -128,16 +141,32 @@ fn FunctionLowerer::materialize_planned_callable(
   lowered_type : @anf.RuntimeType,
   environment : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
+  self.materialize_planned_callable_with_abi(
+    lowered_function,
+    lowered_type,
+    environment,
+    self.image.physical_invocation(lowered_function),
+  )
+}
+
+///|
+fn FunctionLowerer::materialize_planned_callable_with_abi(
+  self : FunctionLowerer,
+  lowered_function : @bytecode.FunctionId,
+  lowered_type : @anf.RuntimeType,
+  environment : @vmcfg.ValueId?,
+  invocation : CanonicalCallableAbi,
+) -> LocalValue raise LoisvmLoweringError {
+  let shape = CanonicalRuntimeTypeKey::Callable(invocation)
+  let destination = self.fresh_metadata(shape.value_metadata(None))
   match environment {
     None => {
-      let destination = self.fresh_slot(lowered_type)
       self.emit(ConstFunction(destination, lowered_function))
-      Slot(destination, lowered_type)
+      LocalValue::Slot(destination, lowered_type, shape)
     }
     Some(environment) => {
-      let destination = self.fresh_slot(lowered_type)
       self.emit(MakeClosure(destination, lowered_function, environment))
-      Slot(destination, lowered_type)
+      LocalValue::Slot(destination, lowered_type, shape)
     }
   }
 }
@@ -148,8 +177,6 @@ fn FunctionLowerer::lower_recursive_group(
   bindings : Array[@anf.AnfRecursiveBinding],
   body : @anf.AnfExpr,
 ) -> LocalValue raise LoisvmLoweringError {
-  let functions : Array[@anf.AnfFunction] = []
-  let recursive_values : Array[@buslane.ValueId] = []
   let plans : Array[LiftedFunctionPlan] = []
   for binding in bindings {
     let function = match extract_top_atom_function(binding.rhs) {
@@ -159,8 +186,6 @@ fn FunctionLowerer::lower_recursive_group(
           detail="local recursive bindings must contain functions",
         )
     }
-    functions.push(function)
-    recursive_values.push(binding.id)
     let instance = self.image.callable_instance(function.id, self.substitutions)
     guard self.image.lifted_function(instance) is Some(plan) else {
       raise RepresentationSpecializationInvariant(
@@ -174,18 +199,40 @@ fn FunctionLowerer::lower_recursive_group(
       detail="recursive callable group is empty",
     )
   }
-  let environment = self.capture_environment(first.capture)
   let recursive_functions = first.recursive_functions
+  let first_allocation = self.planned_callable_allocation(
+    first.function.id,
+    "recursive-group",
+  )
+  let first_implementation = self.image.materialized_callable_implementation(
+    first_allocation.implementation,
+  )
+  let environment = self.capture_environment(
+    self.image.physical_capture(first_implementation.function),
+    first_allocation,
+  )
   let value_count = self.bindings.length()
-  for recursive in recursive_functions {
-    self.bindings.push({
-      value: recursive.value,
-      lowered: RecursiveFunction(
-        recursive.function,
-        recursive.type_,
-        environment,
-      ),
-    })
+  for index, recursive in recursive_functions {
+    let binding = @anf.AnfBindingId::Value(recursive.value)
+    let callable = self.planned_callable_port(binding)
+    let allocation = self.planned_callable_allocation(
+      plans[index].function.id,
+      "recursive-member",
+    )
+    let implementation = self.image.materialized_callable_implementation(
+      allocation.implementation,
+    )
+    let deferred = RecursiveFunction(
+      implementation.function,
+      implementation.type_,
+      environment,
+    )
+    let lowered = match callable {
+      Some(_) => self.materialize_local(deferred)
+      None => deferred
+    }
+    self.verify_planned_value(binding, lowered)
+    self.bindings.push({ value: recursive.value, lowered })
   }
   let result = self.lower_expr(body)
   self.restore_bindings(value_count, self.temps.length())

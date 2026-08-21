@@ -270,10 +270,32 @@ pub(all) enum UseDefAnalysisError {
 } derive(Debug, Eq)
 
 ///|
+pub(all) suberror FunctionTableCanonicalizationError {
+  InvalidFunctionReference(@bytecode.FunctionId)
+  MissingFunctionMapping(@bytecode.FunctionId)
+} derive(Debug, Eq)
+
+///|
+priv struct CanonicalPreArcImage {
+  image : Image
+  source_functions : Array[Array[@bytecode.FunctionId]]
+}
+
+///|
+pub struct Finalization {
+  pre_arc_image : Image
+  source_functions : Array[Array[@bytecode.FunctionId]]
+  bytecode_image : @bytecode.BytecodeImage
+}
+
+///|
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
   UseDefAnalysisCompilerDefect(UseDefAnalysisError)
+  FunctionTableCanonicalizationCompilerDefect(
+    FunctionTableCanonicalizationError
+  )
   ArcFinalVerificationCompilerDefect(ArcFinalBodyError)
   PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)

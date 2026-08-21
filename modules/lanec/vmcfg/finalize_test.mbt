@@ -18,8 +18,8 @@ test "finalize rejects an invalid complete bytecode image" {
       constants: [],
     }),
     Err(
-      BytecodeVerificationCompilerDefect(
-        InvalidBytecode(site=Image, detail="FunctionId 2 is out of range"),
+      FunctionTableCanonicalizationCompilerDefect(
+        InvalidFunctionReference({ value: 2 }),
       ),
     ),
   )
@@ -161,7 +161,7 @@ test "finalize shares callable ABIs across every callable occurrence" {
     erased_companion: None,
   }
   let unit_body : FunctionBody = {
-    values: [scalar, scalar],
+    values: [scalar, scalar, callable, callable, callable],
     inputs: { environment: None, witnesses: [], user_parameters: [] },
     result: Unit,
     blocks: [
@@ -170,6 +170,12 @@ test "finalize shares callable ABIs across every callable occurrence" {
         instructions: [
           ConstI32({ value: 0 }, 42),
           CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
+          ConstFunction({ value: 2 }, { value: 3 }),
+          Release({ value: 2 }),
+          ConstFunction({ value: 3 }, { value: 4 }),
+          Release({ value: 3 }),
+          ConstFunction({ value: 4 }, { value: 5 }),
+          Release({ value: 4 }),
         ],
         terminator: Return(None),
       },

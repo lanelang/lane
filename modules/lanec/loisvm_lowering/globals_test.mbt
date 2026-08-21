@@ -242,23 +242,27 @@ test "executable initializer materializes function-valued data fields" {
   guard image.initializer is Some(_) else {
     fail("expected executable initializer")
   }
-  guard image.functions is [_, _, BytecodeBody(step), _, BytecodeBody(body)] else {
-    fail("expected initializer bytecode body")
+  let mut found_step = false
+  let mut found_orchestrator = false
+  for entry in image.functions {
+    guard entry is BytecodeBody(body) else { continue }
+    if body.blocks[0].instructions
+      is [ConstFunction(field, _), MakeData(global, _, _, [], [actual_field])] {
+      assert_eq(actual_field, field)
+      assert_eq(body.blocks[0].terminator, Return(Some(global)))
+      found_step = true
+    }
+    if body.blocks[0].instructions
+      is [
+        CallDirect(_, None, [], [], Some(result)),
+        InitGlobal({ value: 0 }, actual_global),
+      ] {
+      assert_eq(result, actual_global)
+      found_orchestrator = true
+    }
   }
-  guard step.blocks[0].instructions
-    is [ConstFunction(field, _), MakeData(global, _, _, [], [actual_field])] else {
-    fail("expected initializer step to materialize the function field")
-  }
-  assert_eq(actual_field, field)
-  assert_eq(step.blocks[0].terminator, Return(Some(global)))
-  guard body.blocks[0].instructions
-    is [
-      CallDirect(_, None, [], [], Some(result)),
-      InitGlobal({ value: 0 }, actual_global),
-    ] else {
-    fail("expected orchestrator to transfer the step result to its global")
-  }
-  assert_eq(result, actual_global)
+  assert_true(found_step)
+  assert_true(found_orchestrator)
   assert_eq(@bytecode.verify_bytecode_image(image), Ok(()))
 }
 
@@ -314,15 +318,13 @@ test "initializer orchestration is bounded by peak live owned results" {
       Ok(image) => image
       Err(error) => fail("lowering failed: \{Repr(error)}")
     }
-    assert_eq(image.functions.length(), count + 3)
-    assert_eq(image.initializer, Some({ value: count + 2 }))
-    for index in 0..<count {
-      guard image.functions[index] is BytecodeBody(step) else {
-        fail("expected initializer step bytecode body")
-      }
-      assert_eq(step.slots.length(), 1)
+    assert_eq(image.functions.length(), 4)
+    assert_eq(image.initializer, Some({ value: 3 }))
+    guard image.functions[0] is BytecodeBody(step) else {
+      fail("expected canonical initializer step bytecode body")
     }
-    guard image.functions[count + 1] is BytecodeBody(initializer) else {
+    assert_eq(step.slots.length(), 1)
+    guard image.functions[2] is BytecodeBody(initializer) else {
       fail("expected initializer orchestrator bytecode body")
     }
     assert_eq(initializer.slots, [
@@ -335,9 +337,7 @@ test "initializer orchestration is bounded by peak live owned results" {
     ])
     let expected : Array[@bytecode.Instruction] = []
     for index in 0..<count {
-      expected.push(
-        CallDirect({ value: index + 1 }, None, [], [], Some({ value: 0 })),
-      )
+      expected.push(CallDirect({ value: 1 }, None, [], [], Some({ value: 0 })))
       expected.push(InitGlobal({ value: index }, { value: 0 }))
     }
     assert_eq(initializer.blocks, [

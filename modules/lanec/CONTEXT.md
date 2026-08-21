@@ -271,8 +271,8 @@ Buslane `Type`, `Effect`, `Kind`, `GenericArgument`, or type-lambda syntax.
 Stable Buslane declaration IDs survive only as nominal symbols. Nominal runtime
 arguments select construction and projection evidence, but do not define a
 data value's callable ABI. Higher-kinded nominal arguments are eta-expanded at
-this boundary, so LoisVM lowering never reconstructs constructor arity from
-source types. LoisVM lowering consumes this exact representation.
+this boundary. The Physical Representation Planner consumes Runtime ANF;
+VM CFG emission never consumes it without a total physical plan.
 _Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering
 
 **Runtime ANF Callable Catalog**:
@@ -282,6 +282,21 @@ evidence scope, owner, recursive group, captures, and allocation provenance.
 LoisVM planning consumes this catalog instead of discovering functions while
 emitting bodies.
 _Avoid_: source value as function identity, emission-time function allocation
+
+**Runtime Value Port**:
+A stable producer, consumer, parameter, result, capture, aggregate, or join
+position in one semantic callable instance to which physical shape is assigned.
+_Avoid_: source type, function-wide family context
+
+**Physical Value Shape**:
+The one interned runtime representation selected for a Runtime Value Port,
+including exact erased-evidence, callable-ABI, or data-family identity.
+_Avoid_: Value ABI alone, candidate family set, semantic type
+
+**Represented Runtime ANF**:
+The nominal pre-VM-CFG phase value containing closed Runtime ANF and its total
+immutable Physical Representation Plan without copying the ANF tree.
+_Avoid_: physical AST copy, bare Runtime ANF plus lowering fallback
 
 **LoisVM Runtime Type Arena**:
 The lowering-private arena seeded from Runtime ANF's immutable type-expression
@@ -315,6 +330,19 @@ The compiler-private value-based control-flow graph between lower semantic IR
 and LoisVM bytecode.
 _Avoid_: persisted bytecode CFG, source control flow
 
+**Canonical Pre-ARC VM CFG Image**:
+The compiler-private nominal whole-image boundary produced after local
+devirtualization, consuming-projection selection, simplification, borrow
+preparation, and metadata validation. It owns the sole reachable and canonical
+function table plus the complete old-to-canonical FunctionId relation. Function
+equivalence includes semantic value metadata and canonical referenced-function
+classes; equal rendered instructions with different data-family or callable
+ABI facts remain distinct. The public API never exposes this value before ARC,
+slot allocation, bytecode emission, and bytecode verification have completed;
+the completed finalization only exposes its pre-ARC image as observation data.
+_Avoid_: pre-cleanup reachability, lowering-owned function-table policy,
+pretty-text identity, caller-mutable prepared image
+
 **VM CFG Use-Definition Analysis**:
 The authoritative checked index of every VM CFG value definition and use,
 including whole-CFG counts, per-block counts, and instruction/terminator flow
@@ -344,47 +372,61 @@ allocated; each materialization site supplies its own captured values to the
 one worker selected by that recipe.
 _Avoid_: source-type spelling key, VM CFG body equivalence, call-site worker allocation
 
-**Runtime Representation Specialization Plan**:
-The immutable, demand-driven plan mapping one original generic function and one
-canonical runtime ABI key to at most one concrete representation worker. It
-also proves recursive demand closure before lowering begins.
-_Avoid_: lowering-time worker discovery, source-type-spelling key, size heuristic
+**Physical Representation Plan**:
+The total immutable assignment of one Physical Value Shape to every Runtime
+Value Port, together with all selected function variants, data families,
+environments, and representation bridges.
+_Avoid_: Runtime Representation Specialization Plan, ambient family array,
+lowering-time representation choice
 
 **Callable Instance Plan**:
 The typed Runtime ANF fixed point over callable identities, evidence
 applications, aliases, parameters, results, finite allocation sites, aggregate
-members, and recursive groups. It is the sole producer of representation-worker
-demand and specialized data-family demand. Allocation sites carry flow identity
-but never become nominal storage identity. Recursive demand must be projection,
-permutation, or a finite closed constant; otherwise the complete SCC remains
-generic.
+members, and recursive groups. It owns semantic flow and supplies those facts
+to the Physical Representation Plan, but never selects physical families or
+workers or decides final function reachability.
 _Avoid_: recursively nested aggregate fact, first-seen recursion, emission-time demand
+
+**Callable Invocation Contract**:
+The exact Physical Value Shapes of a callable's evidence inputs, user
+parameters, and result, independent of the closure environment that implements
+it. The Physical Representation Plan freezes every generic implementation
+contract before planning workers or function bodies; higher-order contracts
+refer to those frozen facts rather than reconstructing an ABI from Runtime ANF
+type syntax. Body planning verifies the contract and cannot replace it.
+_Avoid_: CallableValue layout, source function type, capture schema,
+type-derived fallback ABI
+
+**Function Representation Variant**:
+One semantic callable instance paired with one Callable Invocation Contract,
+exact capture shapes, and the physical assignments required by its body.
+_Avoid_: semantic callable instance, ABI-only worker key
+
+**Representation Bridge**:
+An explicit planned conversion between two Physical Value Shapes, currently
+erase, unerase, or callable adaptation.
+_Avoid_: emission fallback, implicit data-family reboxing
 
 **Representation Worker**:
 A concrete-ABI implementation of a generic function that consumes no
 first-order layout witnesses and introduces no erased-value bridges at its
-planned direct call sites. The generic fallback remains whenever the finalized
-image has an open or indirect use.
-_Avoid_: specialization-time deletion of the generic fallback, unrestricted monomorph
+planned direct call sites. Each complete canonical physical function contract
+owns at most one worker. The generic implementation remains available for open
+or incompatible components; cleaned whole-image reachability removes any
+implementation that is not actually referenced.
+_Avoid_: source-local selection, code-size score, pre-cleanup reachability
 
 **Nominal Data Representation Family**:
 The declaration-owned uniform fallback storage ABI for one nominal data type.
-It remains the only family available to open, existential, recursive-expanding,
-control-flow-joined, callable-valued, or incompatible uses until their complete
-family-aware contracts are proved. A callable allocation fact is not a
-representation identity.
+It is the canonical generic choice for every open, existential,
+recursive-expanding, unproved joined, or incompatible use.
 _Avoid_: allocation-local object shape under the declaration family,
 runtime-ABI-only family key, hidden-binder specialization
 
 **Specialized Data Representation Family**:
-A lowering-owned identity selected before VM CFG emission for one nominal owner
-and one complete canonical set of closed runtime arguments. It owns the full
-constructor-tag and object-shape contract and is consumed unchanged by
-construction, matching, nested storage, callable ABIs, captures, and bytecode
-verification. The Callable Instance Plan may produce it only after proving the
-complete connected use graph; any open nested representation rejects the whole
-component. Callable-valued fields additionally require the family-aware
-callable ABI tracked by ISS-385 and otherwise retain the nominal family.
+A Physical Representation Plan identity owning one nominal owner's complete
+constructor tag, member-shape, and stored-evidence contract. Its identity
+includes nested physical shapes, not only closed source arguments.
 _Avoid_: per-allocation family, body-wide type guess, partial constructor family,
 emission-time family discovery, reboxing fallback
 

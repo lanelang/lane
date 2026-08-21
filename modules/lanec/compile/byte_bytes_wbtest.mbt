@@ -266,7 +266,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|        {
       #|          representation: I32,
       #|          cleanup: OwnedRef,
-      #|          kind: DataValue({ value: 0 }),
+      #|          kind: DataValue({ value: 1 }),
       #|        },
       #|      ],
       #|      result: Value(I32, Trivial, ScalarValue),
@@ -297,7 +297,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            representation: I32,
       #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 1 }),
+      #|            kind: DataValue({ value: 0 }),
       #|            erased_companion: None,
       #|          },
       #|          {
@@ -309,7 +309,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            representation: I32,
       #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 0 }),
+      #|            kind: DataValue({ value: 1 }),
       #|            erased_companion: None,
       #|          },
       #|          {
@@ -336,31 +336,31 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|              RetainCopy({ value: 6 }, { value: 1 }),
       #|              MakeData(
       #|                { value: 2 },
-      #|                { value: 1 },
-      #|                Immediate({ value: 2 }),
+      #|                { value: 0 },
+      #|                Immediate({ value: 1 }),
       #|                [],
       #|                [{ value: 0 }, { value: 6 }],
       #|              ),
       #|              BorrowField(
-      #|                { value: 1 },
+      #|                { value: 0 },
       #|                { value: 2 },
       #|                0,
       #|                { value_destination: { value: 0 }, witness_destination: None },
       #|              ),
       #|              BorrowField(
-      #|                { value: 1 },
+      #|                { value: 0 },
       #|                { value: 2 },
       #|                1,
       #|                { value_destination: { value: 1 }, witness_destination: None },
       #|              ),
       #|              BorrowField(
-      #|                { value: 1 },
+      #|                { value: 0 },
       #|                { value: 2 },
       #|                0,
       #|                { value_destination: { value: 3 }, witness_destination: None },
       #|              ),
       #|              BorrowField(
-      #|                { value: 1 },
+      #|                { value: 0 },
       #|                { value: 2 },
       #|                1,
       #|                { value_destination: { value: 1 }, witness_destination: None },
@@ -368,8 +368,8 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|              RetainCopy({ value: 6 }, { value: 1 }),
       #|              MakeData(
       #|                { value: 4 },
-      #|                { value: 2 },
-      #|                Immediate({ value: 3 }),
+      #|                { value: 1 },
+      #|                Immediate({ value: 2 }),
       #|                [],
       #|                [{ value: 0 }, { value: 6 }],
       #|              ),
@@ -484,7 +484,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            representation: I32,
       #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 0 }),
+      #|            kind: DataValue({ value: 1 }),
       #|            erased_companion: None,
       #|          },
       #|          {
@@ -513,13 +513,13 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|            parameters: [],
       #|            instructions: [
       #|              BorrowField(
-      #|                { value: 2 },
+      #|                { value: 1 },
       #|                { value: 0 },
       #|                0,
       #|                { value_destination: { value: 1 }, witness_destination: None },
       #|              ),
       #|              BorrowField(
-      #|                { value: 2 },
+      #|                { value: 1 },
       #|                { value: 0 },
       #|                1,
       #|                { value_destination: { value: 2 }, witness_destination: None },
@@ -559,20 +559,28 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|    },
       #|  ],
       #|  layouts: [
-      #|    Environment({ value: 0 }),
+      #|    Data({ value: 0 }),
       #|    Data({ value: 1 }),
-      #|    Data({ value: 2 }),
+      #|    Environment({ value: 2 }),
       #|    ByteSequence,
       #|  ],
       #|  object_shapes: [
-      #|    Environment(
+      #|    Data(
       #|      {
+      #|        family: { value: 0 },
+      #|        constructor_tag: 0,
       #|        stored_witness_count: 0,
       #|        members: [
       #|          {
       #|            representation: I32,
+      #|            cleanup: Trivial,
+      #|            kind: ScalarValue,
+      #|            witness_ordinal: None,
+      #|          },
+      #|          {
+      #|            representation: I32,
       #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 0 }),
+      #|            kind: ByteSequenceValue,
       #|            witness_ordinal: None,
       #|          },
       #|        ],
@@ -599,22 +607,14 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|        ],
       #|      },
       #|    ),
-      #|    Data(
+      #|    Environment(
       #|      {
-      #|        family: { value: 0 },
-      #|        constructor_tag: 0,
       #|        stored_witness_count: 0,
       #|        members: [
       #|          {
       #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
       #|            cleanup: OwnedRef,
-      #|            kind: ByteSequenceValue,
+      #|            kind: DataValue({ value: 1 }),
       #|            witness_ordinal: None,
       #|          },
       #|        ],

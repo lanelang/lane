@@ -1,11 +1,14 @@
 ///|
 fn FunctionLowerer::lower_data_match(
   self : FunctionLowerer,
+  site : @anf.AnfBindingId,
   match_ : @anf.AnfMatch,
   scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
+  scrutinee_shape : CanonicalRuntimeTypeKey,
   owner : @buslane.TypeId,
   type_arguments : Array[@anf.RuntimeArgument],
+  result_shape : PhysicalValueShape,
 ) -> LocalValue raise LoisvmLoweringError {
   let type_arguments = type_arguments.map(argument => {
     self.substitutions.apply_argument(self.image.runtime_types, argument)
@@ -20,7 +23,7 @@ fn FunctionLowerer::lower_data_match(
     type_arguments,
   )
   if owner_info.constructors.is_empty() {
-    return self.lower_unreachable_match_result(match_.result_type)
+    return self.lower_unreachable_match_result(match_.result_type, result_shape)
   }
   if owner_info.constructors is [data_constructor] {
     let alternative = match
@@ -32,9 +35,11 @@ fn FunctionLowerer::lower_data_match(
         )
     }
     return self.lower_irrefutable_data_alternative(
+      site,
       match_.binder,
       scrutinee,
       scrutinee_type,
+      scrutinee_shape,
       data_constructor,
       alternative,
       substitutions,
@@ -43,12 +48,11 @@ fn FunctionLowerer::lower_data_match(
   let tag_type = @anf.RuntimeType::Scalar(Bool)
   let tag = self.fresh_slot(tag_type)
   self.emit(LoadTag(tag, scrutinee))
-  let join_value = self.fresh_optional_slot(match_.result_type)
-  let join_parameters = match join_value.0 {
-    Some(slot) => [slot]
-    None => []
-  }
-  let join_block = self.new_block(join_parameters)
+  let join_value = self.fresh_block_value_parameter(
+    match_.result_type,
+    result_shape,
+  )
+  let join_block = self.new_block(join_value.0)
   let cases : Array[@vmcfg.Edge] = []
   let alternatives : Array[
     (
@@ -68,7 +72,9 @@ fn FunctionLowerer::lower_data_match(
           detail="data match lacks a constructor or default alternative",
         )
     }
-    let branch_scrutinee = self.fresh_slot(scrutinee_type)
+    let branch_scrutinee = self.fresh_metadata(
+      scrutinee_shape.value_metadata(None),
+    )
     let branch_environment = self.branch_environment_parameter()
     let parameters = [branch_scrutinee]
     if branch_environment is Some(environment) {
@@ -99,11 +105,13 @@ fn FunctionLowerer::lower_data_match(
       data_constructor,
     ) = item
     self.lower_data_alternative(
+      site,
       block,
       join_block,
       match_.binder,
       branch_scrutinee,
       scrutinee_type,
+      scrutinee_shape,
       data_constructor,
       alternative,
       branch_environment,
@@ -120,23 +128,22 @@ fn FunctionLowerer::lower_data_match(
 fn FunctionLowerer::lower_unreachable_match_result(
   self : FunctionLowerer,
   result_type : @anf.RuntimeType,
+  result_shape : PhysicalValueShape,
 ) -> LocalValue raise LoisvmLoweringError {
   self.terminate(Unreachable)
-  let result = self.fresh_optional_slot(result_type)
-  let parameters = match result.0 {
-    Some(slot) => [slot]
-    None => []
-  }
-  self.enter_block(self.new_block(parameters))
+  let result = self.fresh_block_value_parameter(result_type, result_shape)
+  self.enter_block(self.new_block(result.0))
   result.1
 }
 
 ///|
 fn FunctionLowerer::lower_irrefutable_data_alternative(
   self : FunctionLowerer,
+  site : @anf.AnfBindingId,
   binder : @buslane.ValueId,
   scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
+  scrutinee_shape : CanonicalRuntimeTypeKey,
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
   substitutions : RuntimeSubstitution,
@@ -146,9 +153,14 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   let witness_count = self.witnesses.length()
   let original_substitutions = self.substitutions
   self.bind_data_alternative(
-    binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
+    site, binder, scrutinee, scrutinee_type, scrutinee_shape, data_constructor, alternative,
+    substitutions,
   )
-  let result = self.materialize_local(self.lower_expr(alternative.body))
+  let result = self.materialize_planned_match_alternative(
+    site,
+    alternative,
+    self.materialize_local(self.lower_expr(alternative.body)),
+  )
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
   self.substitutions = original_substitutions
@@ -158,11 +170,13 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
 ///|
 fn FunctionLowerer::lower_data_alternative(
   self : FunctionLowerer,
+  site : @anf.AnfBindingId,
   block : @bytecode.BlockId,
   join : @bytecode.BlockId,
   binder : @buslane.ValueId,
   scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
+  scrutinee_shape : CanonicalRuntimeTypeKey,
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
   branch_environment : @vmcfg.ValueId?,
@@ -176,25 +190,15 @@ fn FunctionLowerer::lower_data_alternative(
   let original_environment = self.environment
   self.enter_branch_environment(original_environment, branch_environment)
   self.bind_data_alternative(
-    binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
+    site, binder, scrutinee, scrutinee_type, scrutinee_shape, data_constructor, alternative,
+    substitutions,
   )
-  let result = self.materialize_local(self.lower_expr(alternative.body))
-  let arguments = match result {
-    Unit => []
-    Slot(slot, _) => [slot]
-    ClosedAggregate(_, _)
-    | Global(_)
-    | NestedCallable(_)
-    | RecursiveFunction(_, _, _)
-    | EvidenceApplied(_, _)
-    | EvidenceAppliedCallable(_, _, _)
-    | EvidenceAppliedNestedCallable(_, _)
-    | AdaptedCallable(_)
-    | EvidenceAppliedAdaptedCallable(_, _) =>
-      raise UnsupportedExpression(
-        detail="match alternative returns an unapplied callable",
-      )
-  }
+  let result = self.materialize_planned_match_alternative(
+    site,
+    alternative,
+    self.materialize_local(self.lower_expr(alternative.body)),
+  )
+  let arguments = self.block_value_arguments(result)
   self.terminate(Jump({ target: join, arguments }))
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
@@ -205,9 +209,11 @@ fn FunctionLowerer::lower_data_alternative(
 ///|
 fn FunctionLowerer::bind_data_alternative(
   self : FunctionLowerer,
+  site : @anf.AnfBindingId,
   binder : @buslane.ValueId,
   scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
+  scrutinee_shape : CanonicalRuntimeTypeKey,
   data_constructor : @buslane.DataConId,
   alternative : @anf.AnfAlternative,
   substitutions : RuntimeSubstitution,
@@ -241,7 +247,10 @@ fn FunctionLowerer::bind_data_alternative(
       actual=alternative.value_binders.length(),
     )
   }
-  self.bindings.push({ value: binder, lowered: Slot(scrutinee, scrutinee_type) })
+  self.bindings.push({
+    value: binder,
+    lowered: LocalValue::Slot(scrutinee, scrutinee_type, scrutinee_shape),
+  })
   let hidden_substitutions = RuntimeSubstitution::new()
   if binds_payloads {
     guard self.values[scrutinee.value].kind is DataValue(family_id) else {
@@ -256,77 +265,102 @@ fn FunctionLowerer::bind_data_alternative(
       )
     }
     let storage_types = constructor_plan.storage_types
+    let storage_shapes = constructor_plan.storage_shapes
     let shape = self.image.materialize_data_shape(
-      family,
-      constructor_plan,
-      info,
-      self.data_families,
+      family, constructor_plan, info,
     )
     let mut evidence_member_index = 0
-    for index, hidden_parameter in info.hidden_evidence_parameters {
-      let binder = alternative.evidence_binders[index]
-      guard self.image.metadata.parameter_type_expression(binder.id)
-        is Some(type_expression) else {
-        raise InvalidTypeApplication(
-          detail="hidden evidence binder has no runtime type expression",
-        )
-      }
-      hidden_substitutions.insert(hidden_parameter.id, {
-        type_expression,
-        evidence: Parameter(binder.id),
-      })
-      let metadata = runtime_evidence_metadata(hidden_parameter)
-      let evidence = self.fresh_metadata(borrowed_evidence_metadata(metadata))
-      self.emit(
-        BorrowField(shape, scrutinee, evidence_member_index, {
-          value_destination: evidence,
-          witness_destination: None,
-        }),
-      )
-      self.witnesses.push({ parameter: binder.id, value: evidence })
-      evidence_member_index += 1
+    match constructor_plan.storage_hidden_arguments {
+      Some(arguments) =>
+        for index, hidden_parameter in info.hidden_evidence_parameters {
+          let binder = alternative.evidence_binders[index]
+          guard arguments.get(index) is Some(argument) else {
+            raise RepresentationSpecializationInvariant(
+              detail="specialized data match lacks its hidden runtime argument",
+            )
+          }
+          hidden_substitutions.insert(hidden_parameter.id, argument)
+          hidden_substitutions.insert(binder.id, argument)
+        }
+      None =>
+        for index, hidden_parameter in info.hidden_evidence_parameters {
+          let binder = alternative.evidence_binders[index]
+          guard self.image.metadata.parameter_type_expression(binder.id)
+            is Some(type_expression) else {
+            raise InvalidTypeApplication(
+              detail="hidden evidence binder has no runtime type expression",
+            )
+          }
+          hidden_substitutions.insert(hidden_parameter.id, {
+            type_expression,
+            evidence: Parameter(binder.id),
+          })
+          let metadata = runtime_evidence_metadata(hidden_parameter)
+          let evidence = self.fresh_metadata(
+            borrowed_evidence_metadata(metadata),
+          )
+          self.emit(
+            BorrowField(shape, scrutinee, evidence_member_index, {
+              value_destination: evidence,
+              witness_destination: None,
+            }),
+          )
+          self.witnesses.push({ parameter: binder.id, value: evidence })
+          evidence_member_index += 1
+        }
     }
     let branch_substitutions = substitutions.overlay(hidden_substitutions)
     for index, value_binder in alternative.value_binders {
-      let formal_type = info.payload_types[index]
       let storage_type = storage_types[index]
-      let payload_type = branch_substitutions.apply_type(
-        self.image.runtime_types,
-        formal_type,
-      )
-      let stored = if self.image.runtime_type(storage_type) is Erased(_) {
+      let storage_shape = storage_shapes[index]
+      let stored = if storage_shape is Value({ cleanup: OwnedErased, .. }) {
         let witness = self.fresh_metadata(layout_witness_metadata())
-        let erased = self.fresh_erased_slot(witness, Borrowed)
+        let erased = self.fresh_metadata(
+          storage_shape.borrowed_value_metadata(Some(witness)),
+        )
         self.emit(
           BorrowField(
             shape,
             scrutinee,
-            evidence_member_index + runtime_member_index(storage_types, index),
+            evidence_member_index + runtime_member_index(storage_shapes, index),
             { value_destination: erased, witness_destination: Some(witness) },
           ),
         )
-        Slot(erased, storage_type)
-      } else if self.image.runtime_type(storage_type) is Concrete(Unit) {
+        LocalValue::Slot(erased, storage_type, storage_shape)
+      } else if storage_shape is Unit {
         Unit
       } else {
-        let destination = self.fresh_borrowed_slot(storage_type)
+        let destination = self.fresh_metadata(
+          storage_shape.borrowed_value_metadata(None),
+        )
         self.emit(
           BorrowField(
             shape,
             scrutinee,
-            evidence_member_index + runtime_member_index(storage_types, index),
+            evidence_member_index + runtime_member_index(storage_shapes, index),
             { value_destination: destination, witness_destination: None },
           ),
         )
-        Slot(destination, storage_type)
+        LocalValue::Slot(destination, storage_type, storage_shape)
       }
-      let lowered = if family.key is Specialized(_, _) {
-        stored
-      } else {
-        self.adapt_local_value_with_substitutions(
-          stored, storage_type, payload_type, branch_substitutions,
+      let payload = self.planned_match_payload(
+        site,
+        alternative.alt_constructor,
+        index,
+      )
+      let source_shape = self.physical_shape(payload.flow.source)
+      if self.local_physical_shape(stored) != source_shape {
+        raise RepresentationSpecializationInvariant(
+          detail="data-match payload \{index} at \{Repr(site)} produced \{Repr(self.local_physical_shape(stored))}, but its physical flow owns \{Repr(source_shape)}",
         )
       }
+      let lowered = self.materialize_planned_value_flow(
+        "Runtime ANF data-match payload at \{Repr(site)}",
+        stored,
+        payload.type_,
+        self.physical_shape(payload.flow.target),
+        payload.flow.bridge,
+      )
       self.bindings.push({ value: value_binder, lowered })
     }
     self.substitutions = self.substitutions.overlay(branch_substitutions)
@@ -338,6 +372,7 @@ fn FunctionLowerer::bind_data_alternative(
 ///|
 fn FunctionLowerer::lower_bool_alternative(
   self : FunctionLowerer,
+  site : @anf.AnfBindingId,
   block : @bytecode.BlockId,
   join : @bytecode.BlockId,
   binder : @buslane.ValueId,
@@ -355,23 +390,12 @@ fn FunctionLowerer::lower_bool_alternative(
   let original_environment = self.environment
   self.enter_branch_environment(original_environment, branch_environment)
   self.bindings.push({ value: binder, lowered: scrutinee })
-  let result = self.materialize_local(self.lower_expr(alternative.body))
-  let arguments = match result {
-    Unit => []
-    Slot(slot, _) => [slot]
-    ClosedAggregate(_, _)
-    | Global(_)
-    | NestedCallable(_)
-    | RecursiveFunction(_, _, _)
-    | EvidenceApplied(_, _)
-    | EvidenceAppliedCallable(_, _, _)
-    | EvidenceAppliedNestedCallable(_, _)
-    | AdaptedCallable(_)
-    | EvidenceAppliedAdaptedCallable(_, _) =>
-      raise UnsupportedExpression(
-        detail="match alternative returns an unapplied callable",
-      )
-  }
+  let result = self.materialize_planned_match_alternative(
+    site,
+    alternative,
+    self.materialize_local(self.lower_expr(alternative.body)),
+  )
+  let arguments = self.block_value_arguments(result)
   self.terminate(Jump({ target: join, arguments }))
   self.restore_bindings(value_count, temp_count)
   self.environment = original_environment
@@ -489,12 +513,12 @@ fn find_data_alternative(
 
 ///|
 fn runtime_member_index(
-  payload_types : Array[@anf.RuntimeType],
+  payload_shapes : Array[CanonicalRuntimeTypeKey],
   source_index : Int,
 ) -> Int {
   let mut runtime_index = 0
   for index in 0..<source_index {
-    if payload_types[index] != Unit {
+    if !(payload_shapes[index] is Unit) {
       runtime_index += 1
     }
   }

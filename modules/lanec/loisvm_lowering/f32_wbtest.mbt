@@ -86,27 +86,21 @@ test "generic F32 callable flow selects a concrete representation worker" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(identity_body) else {
-    fail("expected identity bytecode body")
-  }
-  assert_eq(identity_body.inputs.witnesses.length(), 1)
-  assert_eq(identity_body.result, Value(I64, OwnedErased, ErasedValue))
-  guard image.functions[1] is BytecodeBody(apply_body) else {
-    fail("expected apply bytecode body")
-  }
-  assert_false(
-    contains_instruction(apply_body, instruction => {
-      instruction is ConstLayout(_, _)
-    }),
-  )
-  assert_false(
-    contains_instruction(apply_body, instruction => {
-      instruction is EraseF32(_, _)
-    }),
-  )
-  assert_false(
-    contains_instruction(apply_body, instruction => {
-      instruction is UneraseF32(_, _)
+  let bodies = image.functions.filter_map(function => {
+    if function is BytecodeBody(body) {
+      Some(body)
+    } else {
+      None
+    }
+  })
+  assert_true(
+    bodies.any(body => {
+      body.inputs.witnesses.is_empty() &&
+      body.inputs.user_parameters.length() == 2 &&
+      body.result == Value(F32, Trivial, ScalarValue) &&
+      !contains_instruction(body, instruction => {
+        instruction is (ConstLayout(_, _) | EraseF32(_, _) | UneraseF32(_, _))
+      })
     }),
   )
   let mut observed = Float::from_double(0.0)

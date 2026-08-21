@@ -72,12 +72,6 @@ fn verify_arc_final_structure(
       arc_final_fail(MissingDefinition({ value: value_index }))
     }
   }
-  for metadata in body.values {
-    if metadata.erased_companion is Some(companion) &&
-      use_def.definitions[companion.value] is None {
-      arc_final_fail(MissingDefinition(companion))
-    }
-  }
   let reachable = Array::make(body.blocks.length(), false)
   let pending = [0]
   while pending.pop() is Some(block_index) {

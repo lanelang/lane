@@ -5,11 +5,8 @@ fn ImageLowerer::plan_declaration_data_families(
   for item in self.metadata.data_types() {
     let (owner, info) = item
     guard info.kind is Data else { continue }
-    let identity : DataRepresentationFamilyId = {
-      index: self.data_families.length(),
-    }
     self.data_families.push({
-      identity,
+      identity: { index: self.data_families.length() },
       key: Declaration(owner),
       bytecode_family: None,
       owner,
@@ -30,7 +27,16 @@ fn ImageLowerer::plan_declaration_data_families(
       family.constructors.push({
         data_constructor,
         shape: None,
+        storage_hidden_arguments: None,
+        storage_evidence_parameters: info.hidden_evidence_parameters,
         storage_types: info.payload_types,
+        storage_data_families: Array::makei(info.payload_types.length(), _ => {
+          None
+        }),
+        storage_callable_demands: Array::makei(info.payload_types.length(), _ => {
+          []
+        }),
+        storage_shapes: [],
       })
     }
   }
@@ -45,44 +51,45 @@ fn ImageLowerer::materialize_data_family(
     return family
   }
   let family : @bytecode.DataFamilyId = {
-    value: self.data_families.fold(init=0, (count, candidate) => {
-      if candidate.bytecode_family is Some(_) {
-        count + 1
-      } else {
-        count
-      }
-    }),
+    value: self.materialized_data_families.length(),
   }
   plan.bytecode_family = Some(family)
+  self.materialized_data_families.push(plan)
   family
 }
 
 ///|
 fn ImageLowerer::materialized_data_family_count(self : ImageLowerer) -> Int {
-  self.data_families.fold(init=0, (count, family) => {
-    if family.bytecode_family is Some(_) {
-      count + 1
-    } else {
-      count
-    }
-  })
+  self.materialized_data_families.length()
 }
 
 ///|
-fn ImageLowerer::data_representation_family(
-  self : ImageLowerer,
-  owner : @buslane.TypeId,
-  arguments : Array[@anf.RuntimeArgument],
-  selected : Array[DataRepresentationFamilyPlan],
-) -> DataRepresentationFamilyPlan raise LoisvmLoweringError {
-  if self.specialized_data_family_key_or_none(owner, arguments) is Some(key) {
-    for family in selected {
-      if family.key == key {
-        return family
-      }
-    }
+fn DataRepresentationFamilyKey::owner(
+  self : DataRepresentationFamilyKey,
+) -> @buslane.TypeId {
+  match self {
+    Declaration(owner) | Specialized(owner, _, _) => owner
   }
-  self.data_family(Declaration(owner))
+}
+
+///|
+fn DataRepresentationFamilyCandidateKey::finalize(
+  self : DataRepresentationFamilyCandidateKey,
+  component : Int,
+) -> DataRepresentationFamilyKey {
+  Specialized(self.owner, self.arguments, component)
+}
+
+///|
+fn ImageLowerer::canonical_data_family_key(
+  self : ImageLowerer,
+  family : DataRepresentationFamilyKey,
+) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
+  Value({
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: DataValue(self.materialize_data_family(self.data_family(family))),
+  })
 }
 
 ///|
@@ -90,7 +97,7 @@ fn ImageLowerer::data_family_by_bytecode_id(
   self : ImageLowerer,
   id : @bytecode.DataFamilyId,
 ) -> DataRepresentationFamilyPlan raise LoisvmLoweringError {
-  for family in self.data_families {
+  for family in self.materialized_data_families {
     if family.bytecode_family == Some(id) {
       return family
     }
@@ -98,65 +105,6 @@ fn ImageLowerer::data_family_by_bytecode_id(
   raise RepresentationSpecializationInvariant(
     detail="runtime data value names an unknown representation family",
   )
-}
-
-///|
-fn ImageLowerer::data_family_plans(
-  self : ImageLowerer,
-  keys : Array[DataRepresentationFamilyKey],
-) -> Array[DataRepresentationFamilyPlan] raise LoisvmLoweringError {
-  let selected : Array[DataRepresentationFamilyPlan] = []
-  for key in keys {
-    for family in self.data_families {
-      if family.key == key &&
-        !selected.any(item => item.identity == family.identity) {
-        selected.push(family)
-      }
-    }
-  }
-  while true {
-    let before = selected.length()
-    for family in selected.copy() {
-      for constructor_plan in family.constructors {
-        for storage_type in constructor_plan.storage_types {
-          collect_selected_nested_data_families(self, storage_type, selected)
-        }
-      }
-    }
-    if selected.length() == before {
-      break
-    }
-  }
-  selected
-}
-
-///|
-fn collect_selected_nested_data_families(
-  image : ImageLowerer,
-  type_ : @anf.RuntimeType,
-  selected : Array[DataRepresentationFamilyPlan],
-) -> Unit raise LoisvmLoweringError {
-  match type_ {
-    Data(owner, arguments) =>
-      if image.data_representation_changes(owner, arguments) &&
-        image.specialized_data_family_key_or_none(owner, arguments) is Some(key) {
-        for family in image.data_families {
-          if family.key == key &&
-            !selected.any(item => item.identity == family.identity) {
-            selected.push(family)
-          }
-        }
-      }
-    Callable(parameters, result) => {
-      for parameter in parameters {
-        collect_selected_nested_data_families(image, parameter, selected)
-      }
-      collect_selected_nested_data_families(image, result, selected)
-    }
-    Forall(_, body) =>
-      collect_selected_nested_data_families(image, body, selected)
-    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) | Erased(_, _) => ()
-  }
 }
 
 ///|
@@ -183,17 +131,150 @@ fn ImageLowerer::plan_specialized_data_families(
         detail="specialized data demand does not describe a data type",
       )
     }
-    ignore(self.plan_specialized_data_family(owner, arguments))
+    ignore(
+      self.plan_specialized_data_family_with_key(
+        demand.family,
+        owner,
+        arguments,
+      ),
+    )
   }
 }
 
 ///|
-fn ImageLowerer::plan_specialized_data_family(
+fn ImageLowerer::finalize_data_family_contract(
   self : ImageLowerer,
+  family : DataRepresentationFamilyPlan,
+) -> Unit raise LoisvmLoweringError {
+  if self.finalized_data_families.contains(family.identity) {
+    return
+  }
+  let bytecode_family = self.materialize_data_family(family)
+  let specialized = family.key is Specialized(_, _, _)
+  for constructor_plan in family.constructors {
+    if !constructor_plan.storage_shapes.is_empty() {
+      raise RepresentationSpecializationInvariant(
+        detail="data-family storage contract was finalized twice",
+      )
+    }
+    for index, storage_type in constructor_plan.storage_types {
+      constructor_plan.storage_shapes.push(
+        self.canonical_data_storage_key(
+          storage_type,
+          constructor_plan.storage_data_families[index],
+          if specialized {
+            constructor_plan.storage_callable_demands[index]
+          } else {
+            []
+          },
+        ),
+      )
+    }
+  }
+  for constructor_plan in family.constructors {
+    if constructor_plan.shape is Some(_) {
+      raise RepresentationSpecializationInvariant(
+        detail="data-family object shape was finalized twice",
+      )
+    }
+    constructor_plan.shape = Some(
+      self.intern_data_shape(
+        bytecode_family,
+        self.constructor_tag(constructor_plan.data_constructor, family.owner),
+        constructor_plan.storage_evidence_parameters,
+        constructor_plan.storage_shapes,
+      ),
+    )
+  }
+  self.finalized_data_families.push(family.identity)
+}
+
+///|
+fn ImageLowerer::verify_materialized_data_family_contracts(
+  self : ImageLowerer,
+) -> Unit raise LoisvmLoweringError {
+  for index, family in self.materialized_data_families {
+    guard family.bytecode_family is Some(bytecode_family) else {
+      raise RepresentationSpecializationInvariant(
+        detail="materialized data-family catalog entry lacks a physical identity",
+      )
+    }
+    if bytecode_family.value != index {
+      raise RepresentationSpecializationInvariant(
+        detail="data-family catalog identity is not dense and stable",
+      )
+    }
+    if !self.finalized_data_families.contains(family.identity) {
+      continue
+    }
+    for constructor_plan in family.constructors {
+      guard constructor_plan.shape is Some(shape) &&
+        self.object_shapes.get(shape.value) is Some(Data(data_shape)) else {
+        raise RepresentationSpecializationInvariant(
+          detail="finalized data constructor lacks its planned data object shape",
+        )
+      }
+      if data_shape.family != bytecode_family {
+        raise RepresentationSpecializationInvariant(
+          detail="finalized data constructor shape belongs to a different physical family",
+        )
+      }
+    }
+  }
+}
+
+///|
+fn ImageLowerer::canonical_data_storage_key(
+  self : ImageLowerer,
+  type_ : @anf.RuntimeType,
+  data_family : DataRepresentationFamilyKey?,
+  callable_demands : Array[DataRepresentationCallableStorageDemand],
+) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
+  match type_ {
+    Data(owner, _) =>
+      self.canonical_data_family_key(
+        data_family.unwrap_or(DataRepresentationFamilyKey::Declaration(owner)),
+      )
+    Callable(_, _) | Forall(_, _) => {
+      guard !callable_demands.is_empty() else {
+        return self.canonical_runtime_value_key(type_)
+      }
+      let mut selected : CanonicalCallableAbi? = None
+      for demand in callable_demands {
+        let generic = self.representation_demands.callable_component_requires_generic(
+          demand.component,
+        )
+        let has_worker = self.representation_specialization_for_callable(
+            demand.callable,
+          )
+          is Some(_)
+        let worker = demand.component >= 0 && !generic && has_worker
+        let invocation = self.callable_representation_physical_abi(
+          demand.callable,
+          worker~,
+        )
+        match selected {
+          None => selected = Some(invocation)
+          Some(existing) if existing == invocation => ()
+          Some(_) =>
+            raise RepresentationSpecializationInvariant(
+              detail="one specialized data member received incompatible callable invocation contracts",
+            )
+        }
+      }
+      CanonicalRuntimeTypeKey::Callable(selected.unwrap())
+    }
+    _ => self.canonical_runtime_type_key(type_)
+  }
+}
+
+///|
+fn ImageLowerer::plan_specialized_data_family_with_key(
+  self : ImageLowerer,
+  key : DataRepresentationFamilyKey,
   owner : @buslane.TypeId,
   arguments : Array[@anf.RuntimeArgument],
 ) -> DataRepresentationFamilyPlan raise LoisvmLoweringError {
-  let key = self.specialized_data_family_key(owner, arguments)
   for family in self.data_families {
     if family.key == key {
       return family
@@ -220,58 +301,96 @@ fn ImageLowerer::plan_specialized_data_family(
     guard self.metadata.data_constructor_info(data_constructor) is Some(info) else {
       raise MissingDataConstructorMetadata(data_constructor~)
     }
-    let storage_types = info.payload_types.map(type_ => {
+    let generic_storage_types = info.payload_types.map(type_ => {
       substitutions.apply_type(self.runtime_types, type_)
     })
-    for storage_type in storage_types {
-      self.plan_nested_data_families(storage_type)
-    }
-    family.constructors.push({ data_constructor, shape: None, storage_types })
-  }
-  family
-}
-
-///|
-fn ImageLowerer::plan_nested_data_families(
-  self : ImageLowerer,
-  type_ : @anf.RuntimeType,
-) -> Unit raise LoisvmLoweringError {
-  match type_ {
-    Data(owner, arguments) => {
-      if self.data_representation_changes(owner, arguments) &&
-        self.specialized_data_family_key_or_none(owner, arguments) is Some(_) {
-        ignore(self.plan_specialized_data_family(owner, arguments))
-      }
-      for argument in arguments {
-        if self.runtime_types.type_expression(argument.type_expression)
-          is Some(Static(nested)) {
-          self.plan_nested_data_families(nested)
+    let family_allocations = self.representation_demands.data_representations.allocations.filter(demand => {
+        demand.family == key && demand.data_constructor == data_constructor
+      },
+    )
+    let (storage_hidden_arguments, storage_evidence_parameters, storage_types) = match
+      family_allocations {
+      [] => (None, info.hidden_evidence_parameters, generic_storage_types)
+      [first, .. rest] => {
+        let mut closed_and_uniform = first.hidden_arguments.all(argument => {
+          self.generic_argument_is_closed(argument)
+        })
+        for demand in rest {
+          if demand.hidden_arguments != first.hidden_arguments ||
+            demand.storage_types != first.storage_types {
+            closed_and_uniform = false
+          }
+        }
+        if closed_and_uniform {
+          (Some(first.hidden_arguments), [], first.storage_types)
+        } else {
+          (None, info.hidden_evidence_parameters, generic_storage_types)
         }
       }
     }
-    Callable(parameters, result) => {
-      for parameter in parameters {
-        self.plan_nested_data_families(parameter)
+    let data_families = Array::makei(storage_types.length(), _ => None)
+    let callable_demands = Array::makei(storage_types.length(), _ => [])
+    for demand in self.representation_demands.data_representations.data_payloads {
+      let mut allocation : DataRepresentationAllocationDemand? = None
+      for
+        candidate in self.representation_demands.data_representations.allocations {
+        if candidate.allocation == demand.allocation {
+          allocation = Some(candidate)
+          break
+        }
       }
-      self.plan_nested_data_families(result)
+      guard demand.payload_index < data_families.length() &&
+        allocation is Some(allocation) &&
+        allocation.family == key &&
+        allocation.data_constructor == data_constructor else {
+        continue
+      }
+      match data_families[demand.payload_index] {
+        None => data_families[demand.payload_index] = Some(demand.family)
+        Some(existing) if existing == demand.family => ()
+        Some(_) =>
+          raise RepresentationSpecializationInvariant(
+            detail="one specialized data member received incompatible nested data-family contracts",
+          )
+      }
     }
-    Forall(_, body) => self.plan_nested_data_families(body)
-    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) | Erased(_, _) => ()
+    for
+      demand in self.representation_demands.data_representations.callable_payloads {
+      let mut allocation : DataRepresentationAllocationDemand? = None
+      for
+        candidate in self.representation_demands.data_representations.allocations {
+        if candidate.allocation == demand.allocation {
+          allocation = Some(candidate)
+          break
+        }
+      }
+      guard demand.payload_index < callable_demands.length() &&
+        allocation is Some(allocation) &&
+        allocation.family == key &&
+        allocation.data_constructor == data_constructor else {
+        continue
+      }
+      let demands = callable_demands[demand.payload_index]
+      let storage_demand : DataRepresentationCallableStorageDemand = {
+        callable: demand.callable,
+        component: demand.callable_component,
+      }
+      if !demands.contains(storage_demand) {
+        demands.push(storage_demand)
+      }
+    }
+    family.constructors.push({
+      data_constructor,
+      shape: None,
+      storage_hidden_arguments,
+      storage_evidence_parameters,
+      storage_types,
+      storage_data_families: data_families,
+      storage_callable_demands: callable_demands,
+      storage_shapes: [],
+    })
   }
-}
-
-///|
-fn ImageLowerer::specialized_data_family_key(
-  self : ImageLowerer,
-  owner : @buslane.TypeId,
-  arguments : Array[@anf.RuntimeArgument],
-) -> DataRepresentationFamilyKey raise LoisvmLoweringError {
-  guard self.specialized_data_family_key_or_none(owner, arguments) is Some(key) else {
-    raise RepresentationSpecializationInvariant(
-      detail="specialized data family has open runtime arguments",
-    )
-  }
-  key
+  family
 }
 
 ///|
@@ -279,14 +398,14 @@ fn ImageLowerer::specialized_data_family_key_or_none(
   self : ImageLowerer,
   owner : @buslane.TypeId,
   arguments : Array[@anf.RuntimeArgument],
-) -> DataRepresentationFamilyKey? {
+) -> DataRepresentationFamilyCandidateKey? {
   try
-    Specialized(
+    {
       owner,
-      arguments.map(argument => {
+      arguments: arguments.map(argument => {
         self.canonical_representation_argument_key(argument, [])
       }),
-    )
+    }
   catch {
     _ => None
   } noraise {
@@ -399,106 +518,47 @@ fn canonical_bound_offset(
 }
 
 ///|
-fn ImageLowerer::data_representation_changes(
-  self : ImageLowerer,
-  owner : @buslane.TypeId,
-  arguments : Array[@anf.RuntimeArgument],
-) -> Bool raise LoisvmLoweringError {
-  guard self.metadata.type_info(owner) is Some(owner_info) &&
-    owner_info.evidence_parameters.length() == arguments.length() else {
-    return false
-  }
-  let substitutions = RuntimeSubstitution::from_arguments(
-    owner_info.evidence_parameters,
-    arguments,
-  )
-  for data_constructor in owner_info.constructors {
-    guard self.metadata.data_constructor_info(data_constructor) is Some(info) else {
-      raise MissingDataConstructorMetadata(data_constructor~)
-    }
-    for source_type in info.payload_types {
-      let target_type = substitutions.apply_type(
-        self.runtime_types,
-        source_type,
-      )
-      if self.canonical_runtime_type_key(source_type) !=
-        self.canonical_runtime_type_key(target_type) {
-        return true
-      }
-    }
-  }
-  false
-}
-
-///|
-fn ImageLowerer::nested_data_representations_are_closed(
+fn ImageLowerer::runtime_type_may_change_physical_representation(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
 ) -> Bool raise LoisvmLoweringError {
-  self.nested_data_representations_are_closed_with(type_, [])
+  self.runtime_type_may_change_physical_representation_with(type_, [])
 }
 
 ///|
-fn ImageLowerer::nested_data_representations_are_closed_with(
+fn ImageLowerer::runtime_type_may_change_physical_representation_with(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
-  visiting : Array[DataRepresentationFamilyKey],
+  visiting : Array[@buslane.TypeId],
 ) -> Bool raise LoisvmLoweringError {
   match type_ {
-    Data(owner, arguments) => {
-      guard self.metadata.type_info(owner) is Some(owner_info) &&
-        owner_info.evidence_parameters.length() == arguments.length() else {
+    Callable(_, _) | Forall(_, _) | Erased(_, _) => true
+    Data(owner, _) => {
+      if visiting.contains(owner) {
         return false
       }
-      guard self.data_representation_changes(owner, arguments) else {
-        return true
+      guard self.metadata.type_info(owner) is Some(info) else {
+        raise RepresentationSpecializationInvariant(
+          detail="runtime data type lacks metadata while discovering physical representation candidates",
+        )
       }
-      guard self.specialized_data_family_key_or_none(owner, arguments)
-        is Some(key) else {
-        return false
-      }
-      if visiting.contains(key) {
-        return true
-      }
-      if visiting.any(active => {
-          active is (Declaration(active_owner) | Specialized(active_owner, _)) &&
-          active_owner == owner
-        }) {
-        return false
-      }
-      let substitutions = RuntimeSubstitution::from_arguments(
-        owner_info.evidence_parameters,
-        arguments,
-      )
-      for data_constructor in owner_info.constructors {
+      for data_constructor in info.constructors {
         guard self.metadata.data_constructor_info(data_constructor)
-          is Some(info) else {
-          return false
+          is Some(constructor_info) else {
+          raise MissingDataConstructorMetadata(data_constructor~)
         }
-        for payload_type in info.payload_types {
-          if !self.nested_data_representations_are_closed_with(
-              substitutions.apply_type(self.runtime_types, payload_type),
-              visiting + [key],
-            ) {
-            return false
-          }
-        }
-      }
-      true
-    }
-    Callable(parameters, result) => {
-      for parameter in parameters {
-        if !self.nested_data_representations_are_closed_with(
-            parameter, visiting,
-          ) {
-          return false
+        if constructor_info.payload_types.any(payload => {
+            self.runtime_type_may_change_physical_representation_with(
+              payload,
+              visiting + [owner],
+            )
+          }) {
+          return true
         }
       }
-      self.nested_data_representations_are_closed_with(result, visiting)
+      false
     }
-    Forall(_, body) =>
-      self.nested_data_representations_are_closed_with(body, visiting)
-    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) | Erased(_, _) => true
+    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) => false
   }
 }
 
@@ -508,8 +568,7 @@ fn ImageLowerer::intern_data_shape(
   family : @bytecode.DataFamilyId,
   constructor_tag : Int,
   hidden_parameters : Array[@anf.RuntimeEvidenceParameter],
-  storage_types : Array[@anf.RuntimeType],
-  selected_families : Array[DataRepresentationFamilyPlan],
+  storage_shapes : Array[CanonicalRuntimeTypeKey],
 ) -> @bytecode.ObjectShapeId raise LoisvmLoweringError {
   let members : Array[@bytecode.MemberSchema] = []
   for parameter in hidden_parameters {
@@ -522,27 +581,26 @@ fn ImageLowerer::intern_data_shape(
     })
   }
   let mut witness_ordinal = 0
-  for storage_type in storage_types {
-    if self.runtime_type(storage_type) is Erased(_) {
-      members.push({
-        representation: I64,
-        cleanup: OwnedErased,
-        kind: ErasedValue,
-        witness_ordinal: Some(witness_ordinal),
-      })
-      witness_ordinal += 1
-    } else if self.runtime_type(storage_type) is Concrete(Unit) {
-      ()
-    } else {
-      let metadata = self.slot_metadata_with_data_families(
-        storage_type, selected_families,
-      )
-      members.push({
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-        witness_ordinal: None,
-      })
+  for storage_shape in storage_shapes {
+    match storage_shape {
+      Unit => ()
+      shape => {
+        let metadata = shape.value_metadata(None)
+        let erased = metadata.cleanup is OwnedErased
+        members.push({
+          representation: metadata.representation,
+          cleanup: metadata.cleanup,
+          kind: metadata.kind,
+          witness_ordinal: if erased {
+            Some(witness_ordinal)
+          } else {
+            None
+          },
+        })
+        if erased {
+          witness_ordinal += 1
+        }
+      }
     }
   }
   self.intern_object_shape(
@@ -560,19 +618,19 @@ fn ImageLowerer::materialize_data_shape(
   self : ImageLowerer,
   family : DataRepresentationFamilyPlan,
   constructor_plan : DataRepresentationConstructorPlan,
-  info : @anf.RuntimeDataConstructorInfo,
-  selected_families : Array[DataRepresentationFamilyPlan],
+  _info : @anf.RuntimeDataConstructorInfo,
 ) -> @bytecode.ObjectShapeId raise LoisvmLoweringError {
   if constructor_plan.shape is Some(shape) {
+    guard family.bytecode_family is Some(bytecode_family) &&
+      self.object_shapes.get(shape.value) is Some(Data(data_shape)) &&
+      data_shape.family == bytecode_family else {
+      raise RepresentationSpecializationInvariant(
+        detail="planned constructor shape does not belong to its physical family",
+      )
+    }
     return shape
   }
-  let shape = self.intern_data_shape(
-    self.materialize_data_family(family),
-    self.constructor_tag(constructor_plan.data_constructor, family.owner),
-    info.hidden_evidence_parameters,
-    constructor_plan.storage_types,
-    selected_families,
+  raise RepresentationSpecializationInvariant(
+    detail="data-family object shape was not finalized before VM CFG emission",
   )
-  constructor_plan.shape = Some(shape)
-  shape
 }

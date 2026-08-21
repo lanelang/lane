@@ -55,6 +55,33 @@ test "ARC-final boundary rejects duplicate trivial definitions" {
 }
 
 ///|
+test "ARC-final boundary ignores metadata for undefined unused values" {
+  let layout : ValueMetadata = {
+    representation: I32,
+    cleanup: Trivial,
+    kind: LayoutValue,
+    ownership: Trivial,
+    erased_companion: None,
+  }
+  let erased : ValueMetadata = {
+    representation: I64,
+    cleanup: OwnedErased,
+    kind: ErasedValue,
+    ownership: Owned,
+    erased_companion: Some({ value: 0 }),
+  }
+  let arc_final = verify_arc_final_body({
+    values: [layout, erased],
+    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    result: Unit,
+    blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+  })
+  assert_eq(arc_final.body.blocks, [
+    { parameters: [], instructions: [], terminator: Return(None) },
+  ])
+}
+
+///|
 test "ARC-final boundary rejects a borrowed input redefinition" {
   let borrowed = arc_test_value(Borrowed, OwnedRef)
   let owned = arc_test_value(Owned, OwnedRef)

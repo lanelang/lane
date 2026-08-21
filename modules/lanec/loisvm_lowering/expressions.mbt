@@ -7,6 +7,7 @@ fn FunctionLowerer::lower_expr(
     Atom(atom) => self.lower_atom(atom)
     Let(binding, body) => {
       let lowered = self.lower_rhs(binding.id(), binding.rhs())
+      self.verify_planned_value(binding.id(), lowered)
       match binding {
         Value(id~, ..) => self.bindings.push({ value: id, lowered })
         Temp(temp~, ..) => self.temps.push({ temp, lowered })
@@ -31,12 +32,16 @@ fn FunctionLowerer::lower_rhs(
   rhs : @anf.AnfRhs,
 ) -> LocalValue raise LoisvmLoweringError {
   match rhs {
-    Atom(atom) => self.lower_atom(atom)
+    Atom(atom) =>
+      match self.planned_callable_port(site) {
+        Some(instance) => self.materialize_planned_callable_atom(atom, instance)
+        None => self.lower_atom(atom)
+      }
     ApplyEvidence(callee~, arguments~) =>
-      self.lower_evidence_apply(callee, arguments)
+      self.lower_evidence_apply(site, callee, arguments)
     Call(callee~, arguments~) => self.lower_call(site, callee, arguments)
     Construct(construct) => self.lower_construct(site, construct)
-    Match(match_) => self.lower_match(match_)
+    Match(match_) => self.lower_match(site, match_)
   }
 }
 
@@ -66,29 +71,35 @@ fn FunctionLowerer::lower_atom(
 ///|
 fn FunctionLowerer::lower_evidence_apply(
   self : FunctionLowerer,
+  site : @anf.AnfBindingId,
   callee : @anf.AnfAtom,
   arguments : Array[@anf.RuntimeArgument],
 ) -> LocalValue raise LoisvmLoweringError {
-  match self.lower_atom(callee) {
+  let lowered = match self.planned_callable_port(site) {
+    Some(callable) => self.materialize_planned_callable_atom(callee, callable)
+    None => self.lower_atom(callee)
+  }
+  if local_value_type(lowered) is Some(type_) &&
+    !(self.image.runtime_type(type_) is Concrete(Forall(_, _))) {
+    return lowered
+  }
+  match lowered {
     Global(global) => EvidenceApplied(global, arguments)
-    Slot(callable, type_) => EvidenceAppliedCallable(callable, type_, arguments)
+    Slot(callable, type_, shape) =>
+      EvidenceAppliedCallable(callable, type_, shape, arguments)
     NestedCallable(callable) =>
       EvidenceAppliedNestedCallable(callable, arguments)
     EvidenceApplied(global, applied) =>
       EvidenceApplied(global, applied + arguments)
-    EvidenceAppliedCallable(callable, type_, applied) =>
-      EvidenceAppliedCallable(callable, type_, applied + arguments)
+    EvidenceAppliedCallable(callable, type_, shape, applied) =>
+      EvidenceAppliedCallable(callable, type_, shape, applied + arguments)
     EvidenceAppliedNestedCallable(callable, applied) =>
       EvidenceAppliedNestedCallable(callable, applied + arguments)
-    AdaptedCallable(adaptation) =>
-      EvidenceAppliedAdaptedCallable(adaptation, arguments)
-    EvidenceAppliedAdaptedCallable(adaptation, applied) =>
-      EvidenceAppliedAdaptedCallable(adaptation, applied + arguments)
     RecursiveFunction(_, _, _) as recursive => {
-      guard self.materialize_local(recursive) is Slot(callable, type_) else {
+      guard self.materialize_local(recursive) is Slot(callable, type_, shape) else {
         abort("recursive callable was not materialized")
       }
-      EvidenceAppliedCallable(callable, type_, arguments)
+      EvidenceAppliedCallable(callable, type_, shape, arguments)
     }
     _ =>
       raise InvalidTypeApplication(
@@ -134,14 +145,8 @@ fn FunctionLowerer::lower_construct(
   )
   let substitutions = owner_substitutions.overlay(hidden_substitutions)
   let result_type = @anf.RuntimeType::Data(info.owner, type_arguments)
-  let family_key = if self.representation_worker {
-    self.image.callable_instances
-    .data_family_at(self.caller_instances, site)
-    .unwrap_or(Declaration(info.owner))
-  } else {
-    Declaration(info.owner)
-  }
-  let family = self.image.data_family(family_key)
+  let physical_construct = self.planned_construct(site)
+  let family = physical_construct.family
   guard family.constructor_plan(construct.data_constructor)
     is Some(constructor_plan) else {
     raise RepresentationSpecializationInvariant(
@@ -156,10 +161,12 @@ fn FunctionLowerer::lower_construct(
       actual=construct.payloads.length(),
     )
   }
-  let scalar_contract = self.image.callable_instances.scalar_allocation_contract(
-    self.caller_instances,
-    site,
-  )
+  if physical_construct.payloads.length() != construct.payloads.length() {
+    raise RepresentationSpecializationInvariant(
+      detail="data construction disagrees with its physical payload plan",
+    )
+  }
+  let scalar_contract = physical_construct.scalar
   if scalar_contract is Some(contract) {
     if contract.data_constructor != construct.data_constructor ||
       contract.payload_types.length() != construct.payloads.length() {
@@ -170,21 +177,41 @@ fn FunctionLowerer::lower_construct(
     let payloads = []
     for index, payload in construct.payloads {
       let target_type = contract.payload_types[index]
-      let source = self.lower_atom(payload)
-      let source_type = local_value_type(source).unwrap_or(target_type)
+      let source = match
+        (payload, physical_construct.callable_payloads[index]) {
+        (Function(_) | EvidenceLambda(..), Some(instance)) =>
+          self.materialize_planned_callable_atom(payload, instance)
+        _ => self.lower_atom(payload)
+      }
+      let source = self.materialize_local(source)
+      let flow = physical_construct.payloads[index]
+      let source_shape = self.physical_shape(flow.source)
+      let target_shape = self.physical_shape(flow.target)
+      if self.local_physical_shape(source) != source_shape {
+        raise RepresentationSpecializationInvariant(
+          detail="closed aggregate payload \{index} at \{Repr(site)} produced \{Repr(self.local_physical_shape(source))}, but its physical flow owns \{Repr(source_shape)}",
+        )
+      }
       payloads.push(
-        self.adapt_local_value_with_substitutions(
+        self.materialize_planned_value_flow(
+          "closed aggregate payload \{index} at \{Repr(site)}",
           source,
-          source_type,
           target_type,
-          self.substitutions,
+          target_shape,
+          flow.bridge,
         ),
       )
     }
     return ClosedAggregate(contract, payloads)
   }
   let fields = []
-  for parameter in info.hidden_evidence_parameters {
+  if constructor_plan.storage_hidden_arguments is Some(expected) &&
+    expected != hidden_arguments {
+    raise RepresentationSpecializationInvariant(
+      detail="data construction hidden arguments disagree with its specialized family contract",
+    )
+  }
+  for parameter in constructor_plan.storage_evidence_parameters {
     guard substitutions.argument(parameter.id) is Some(argument) else {
       raise InvalidTypeApplication(detail="missing hidden runtime evidence")
     }
@@ -192,46 +219,29 @@ fn FunctionLowerer::lower_construct(
   }
   let witnesses = []
   for index, payload in construct.payloads {
-    let formal_type = info.payload_types[index]
     let storage_type = storage_types[index]
-    let actual_type = substitutions.apply_type(
-      self.image.runtime_types,
-      formal_type,
-    )
-    let planned_callable = if self.representation_worker {
-      self.image.callable_instances.data_callable_payload_instance(
-        self.caller_instances,
-        site,
-        index,
-      )
-    } else {
-      None
-    }
-    let source = match planned_callable {
-      Some(instance) =>
+    let planned_callable = physical_construct.callable_payloads[index]
+    let source = match (payload, planned_callable) {
+      (Function(_) | EvidenceLambda(..), Some(instance)) =>
         self.materialize_planned_callable_atom(payload, instance)
-      None => self.lower_atom(payload)
+      _ => self.lower_atom(payload)
     }
     let source = self.materialize_local(source)
-    let lowered = if self.image.runtime_type(storage_type) is Erased(_) {
-      match source {
-        Slot(slot, _) if self.values[slot.value].erased_companion
-          is Some(witness) => {
-          witnesses.push(witness)
-          Slot(slot, storage_type)
-        }
-        _ => {
-          let witness = self.layout_witness(runtime_type_evidence(actual_type))
-          witnesses.push(witness)
-          Slot(self.erase_value(source, actual_type, witness), storage_type)
-        }
-      }
-    } else {
-      self.adapt_local_value_with_substitutions(
-        source, actual_type, storage_type, substitutions,
+    let flow = physical_construct.payloads[index]
+    let source_shape = self.physical_shape(flow.source)
+    let target_shape = self.physical_shape(flow.target)
+    if self.local_physical_shape(source) != source_shape {
+      raise RepresentationSpecializationInvariant(
+        detail="data payload \{index} at \{Repr(site)} with callable provenance \{Repr(planned_callable)} produced \{Repr(self.local_physical_shape(source))}, but its physical flow owns \{Repr(source_shape)}",
       )
     }
-    let lowered = self.materialize_local(lowered)
+    let lowered = self.materialize_planned_value_flow(
+      "data payload \{index} at \{Repr(site)}",
+      source,
+      storage_type,
+      target_shape,
+      flow.bridge,
+    )
     match lowered {
       Unit =>
         if storage_type != Unit {
@@ -239,23 +249,33 @@ fn FunctionLowerer::lower_construct(
             detail="non-Unit data field has no runtime representation",
           )
         }
-      Slot(field, _) => fields.push(field)
+      Slot(field, _, _) => {
+        if self.values[field.value].erased_companion is Some(witness) {
+          witnesses.push(witness)
+        }
+        fields.push(field)
+      }
       _ =>
         raise UnsupportedExpression(
           detail="data field has no runtime representation",
         )
     }
   }
-  let shape = self.image.materialize_data_shape(
-    family,
-    constructor_plan,
-    info,
-    self.data_families,
-  )
+  let shape = self.image.materialize_data_shape(family, constructor_plan, info)
   let layout = self.image.intern_layout(Data(shape))
-  let destination = self.fresh_slot(result_type)
+  guard family.bytecode_family is Some(bytecode_family) else {
+    raise RepresentationSpecializationInvariant(
+      detail="VM CFG construction received an unmaterialized data-family contract",
+    )
+  }
+  let result_key = CanonicalRuntimeTypeKey::Value({
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: DataValue(bytecode_family),
+  })
+  let destination = self.fresh_metadata(result_key.value_metadata(None))
   self.emit(MakeData(destination, shape, Immediate(layout), witnesses, fields))
-  Slot(destination, result_type)
+  LocalValue::Slot(destination, result_type, result_key)
 }
 
 ///|
@@ -288,10 +308,10 @@ fn FunctionLowerer::find_value(
   }
   match self.image.find_global(value) {
     Some(UnitValue) => Unit
-    Some(InstanceGlobal(global, type_)) => {
-      let destination = self.fresh_borrowed_slot(type_)
+    Some(InstanceGlobal(global, type_, shape)) => {
+      let destination = self.fresh_metadata(shape.borrowed_value_metadata(None))
       self.emit(BorrowGlobal(destination, global))
-      Slot(destination, type_)
+      LocalValue::Slot(destination, type_, shape)
     }
     Some(global) => Global(global)
     None => raise MissingValueMetadata(value~)
@@ -322,37 +342,37 @@ fn FunctionLowerer::lower_literal(
       let type_ = @anf.RuntimeType::Scalar(Bool)
       let slot = self.fresh_slot(type_)
       self.emit(ConstBool(slot, value))
-      Slot(slot, type_)
+      self.slot_value(slot, type_)
     }
     I64(value) => {
       let type_ = @anf.RuntimeType::Scalar(I64)
       let slot = self.fresh_slot(type_)
       self.emit(ConstI64(slot, value))
-      Slot(slot, type_)
+      self.slot_value(slot, type_)
     }
     I32(value) => {
       let type_ = @anf.RuntimeType::Scalar(I32)
       let slot = self.fresh_slot(type_)
       self.emit(ConstI32(slot, value))
-      Slot(slot, type_)
+      self.slot_value(slot, type_)
     }
     F32(value) => {
       let type_ = @anf.RuntimeType::Scalar(F32)
       let slot = self.fresh_slot(type_)
       self.emit(ConstF32(slot, value.reinterpret_as_int()))
-      Slot(slot, type_)
+      self.slot_value(slot, type_)
     }
     Char(value) => {
       let type_ = @anf.RuntimeType::Scalar(Char)
       let slot = self.fresh_slot(type_)
       self.emit(ConstChar(slot, value))
-      Slot(slot, type_)
+      self.slot_value(slot, type_)
     }
     F64(value) => {
       let type_ = @anf.RuntimeType::Scalar(F64)
       let slot = self.fresh_slot(type_)
       self.emit(ConstF64(slot, value.reinterpret_as_int64()))
-      Slot(slot, type_)
+      self.slot_value(slot, type_)
     }
     String(value) => {
       let type_ = @anf.RuntimeType::ByteSequence
@@ -360,7 +380,7 @@ fn FunctionLowerer::lower_literal(
       let constant = self.image.intern_string(value)
       ignore(self.image.intern_layout(ByteSequence))
       self.emit(ConstString(slot, constant))
-      Slot(slot, type_)
+      self.slot_value(slot, type_)
     }
   }
 }

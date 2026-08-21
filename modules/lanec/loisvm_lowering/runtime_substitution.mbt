@@ -47,6 +47,22 @@ fn RuntimeSubstitution::overlay(
 }
 
 ///|
+/// Returns the substitution obtained by applying `inner` first and `self`
+/// second. This is semantic composition; unlike `overlay`, an identity entry
+/// in `inner` cannot hide a replacement supplied by `self`.
+fn RuntimeSubstitution::compose(
+  self : RuntimeSubstitution,
+  inner : RuntimeSubstitution,
+  runtime_types : RuntimeTypeArena,
+) -> RuntimeSubstitution raise LoisvmLoweringError {
+  let composed = RuntimeSubstitution::new()
+  for entry in inner.entries {
+    composed.insert(entry.0, self.apply_argument(runtime_types, entry.1))
+  }
+  self.overlay(composed)
+}
+
+///|
 fn RuntimeSubstitution::argument(
   self : RuntimeSubstitution,
   parameter : @anf.RuntimeEvidenceId,

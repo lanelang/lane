@@ -30,6 +30,7 @@ fn flow_use_text(use_site : ValueUseSite) -> String {
   match use_site {
     InstructionUse(block, index) => "instruction:\{block}:\{index}"
     TerminatorUse(block) => "terminator:\{block}"
+    MetadataUse(block, position) => "metadata:\{block}:\{position}"
   }
 }
 

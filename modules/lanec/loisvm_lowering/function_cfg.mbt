@@ -1,25 +1,29 @@
 ///|
 fn ImageLowerer::lower_function_body(
   self : ImageLowerer,
+  lowered_function : @bytecode.FunctionId,
   function : @anf.AnfFunction,
-  caller_instances : Array[Int],
-  data_families : Array[DataRepresentationFamilyPlan],
   representation_worker : Bool,
   type_parameters : Array[@anf.RuntimeEvidenceParameter],
   parameter_types : Array[@anf.RuntimeType],
-  result_type : @anf.RuntimeType,
-  captured_parameters : Array[@anf.RuntimeEvidenceParameter],
-  captures : Array[CapturePlan],
-  environment_shape : @bytecode.ObjectShapeId?,
   recursive_functions : Array[RecursiveFunctionPlan],
   substitutions : RuntimeSubstitution,
   specialized_parameters : Array[@anf.RuntimeEvidenceId],
-  scalar_parameters~ : Array[ScalarParameterPlan],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
+  guard self.physical_function(lowered_function) is Some(physical) else {
+    raise RepresentationSpecializationInvariant(
+      detail="VM CFG function emission lacks a physical function variant",
+    )
+  }
+  if physical.representation_worker != representation_worker {
+    raise RepresentationSpecializationInvariant(
+      detail="physical function mode disagrees with VM CFG emission mode",
+    )
+  }
+  let capture = physical.capture
   let lowerer : FunctionLowerer = {
     image: self,
-    caller_instances,
-    data_families,
+    function: Some(lowered_function),
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None }],
     current_block: 0,
@@ -29,7 +33,7 @@ fn ImageLowerer::lower_function_body(
     witnesses: [],
     substitutions,
     specialized_parameters,
-    representation_worker,
+    physical: Some(physical),
   }
   let input_witnesses = []
   for parameter in type_parameters {
@@ -39,10 +43,11 @@ fn ImageLowerer::lower_function_body(
       lowerer.witnesses.push({ parameter: parameter.id, value: witness })
     }
   }
-  if environment_shape is Some(shape) {
+  if capture.environment_shape is Some(shape) {
     let environment = lowerer.fresh_metadata(environment_metadata(shape))
     lowerer.environment = Some(environment)
-    for index, parameter in captured_parameters {
+    for index, evidence_plan in capture.captured_evidence {
+      let parameter = evidence_plan.target
       let metadata = runtime_evidence_metadata(parameter)
       let evidence = lowerer.fresh_metadata(
         borrowed_evidence_metadata(metadata),
@@ -54,32 +59,59 @@ fn ImageLowerer::lower_function_body(
         }),
       )
       lowerer.witnesses.push({ parameter: parameter.id, value: evidence })
+      if evidence_plan.source != parameter.id {
+        lowerer.witnesses.push({
+          parameter: evidence_plan.source,
+          value: evidence,
+        })
+      }
     }
-    for capture in captures {
-      if capture.member_index is Some(member_index) {
-        let (destination, witness_destination) = if self.runtime_type(
-            capture.type_,
+    for captured in capture.captures {
+      match (captured.member_index, captured.shape) {
+        (Some(member_index), Some(capture_shape)) => {
+          let (destination, witness_destination) = if capture_shape
+            is Value({ cleanup: OwnedErased, .. }) {
+            let witness = lowerer.fresh_metadata(layout_witness_metadata())
+            (
+              lowerer.fresh_metadata(
+                capture_shape.borrowed_value_metadata(Some(witness)),
+              ),
+              Some(witness),
+            )
+          } else {
+            (
+              lowerer.fresh_metadata(
+                capture_shape.borrowed_value_metadata(None),
+              ),
+              None,
+            )
+          }
+          lowerer.emit(
+            BorrowCapture(shape, environment, member_index, {
+              value_destination: destination,
+              witness_destination,
+            }),
           )
-          is Erased(_) {
-          let witness = lowerer.fresh_metadata(layout_witness_metadata())
-          (lowerer.fresh_erased_slot(witness, Borrowed), Some(witness))
-        } else {
-          (lowerer.fresh_borrowed_slot(capture.type_), None)
+          lowerer.bind_capture(
+            captured.binding,
+            LocalValue::Slot(destination, captured.type_, capture_shape),
+          )
         }
-        lowerer.emit(
-          BorrowCapture(shape, environment, member_index, {
-            value_destination: destination,
-            witness_destination,
-          }),
-        )
-        lowerer.bind_capture(capture.binding, Slot(destination, capture.type_))
-      } else {
-        lowerer.bind_capture(capture.binding, Unit)
+        (None, None) => lowerer.bind_capture(captured.binding, Unit)
+        _ =>
+          raise RepresentationSpecializationInvariant(
+            detail="callable capture shape and environment member disagree",
+          )
       }
     }
   } else {
-    for capture in captures {
-      lowerer.bind_capture(capture.binding, Unit)
+    for captured in capture.captures {
+      if captured.shape is Some(_) || captured.member_index is Some(_) {
+        raise RepresentationSpecializationInvariant(
+          detail="non-Unit callable capture has no environment",
+        )
+      }
+      lowerer.bind_capture(captured.binding, Unit)
     }
   }
   for recursive in recursive_functions {
@@ -95,56 +127,69 @@ fn ImageLowerer::lower_function_body(
   let parameter_slots : Array[@vmcfg.ValueId] = []
   for index, parameter in function.parameters {
     let type_ = parameter_types[index]
-    let mut scalar : ClosedAggregateContract? = None
-    for projection in scalar_parameters {
-      if projection.parameter_index == index {
-        scalar = Some(projection.contract)
-        break
-      }
-    }
-    match scalar {
-      Some(contract) => {
+    let (shape, aggregate) = lowerer.planned_parameter(index)
+    match (shape, aggregate) {
+      (Product(payload_shapes), Some(contract)) => {
+        if payload_shapes.length() != contract.payload_types.length() {
+          raise RepresentationSpecializationInvariant(
+            detail="planned aggregate parameter payload shapes disagree with its contract",
+          )
+        }
         let payloads = []
-        for payload_type in contract.payload_types {
-          if self.runtime_type(payload_type) is Concrete(Unit) {
-            payloads.push(LocalValue::Unit)
-          } else {
-            let slot = lowerer.fresh_slot(payload_type)
+        for payload_index, payload_type in contract.payload_types {
+          let (slot, payload) = lowerer.fresh_planned_optional_slot(
+            payload_type,
+            lowerer.physical_shape(payload_shapes[payload_index]),
+          )
+          if slot is Some(slot) {
             parameter_slots.push(slot)
-            payloads.push(Slot(slot, payload_type))
           }
+          payloads.push(payload)
         }
         lowerer.bindings.push({
           value: parameter,
           lowered: ClosedAggregate(contract, payloads),
         })
       }
-      None =>
-        if self.runtime_type(type_) is Concrete(Unit) {
-          lowerer.bindings.push({ value: parameter, lowered: Unit })
-        } else {
-          let slot = lowerer.fresh_slot(type_)
+      (Product(_), None) | (_, Some(_)) =>
+        raise RepresentationSpecializationInvariant(
+          detail="planned aggregate parameter has no matching product contract",
+        )
+      (_, None) => {
+        let (slot, lowered) = lowerer.fresh_planned_optional_slot(type_, shape)
+        if slot is Some(slot) {
           parameter_slots.push(slot)
-          lowerer.bindings.push({ value: parameter, lowered: Slot(slot, type_) })
         }
+        lowerer.bindings.push({ value: parameter, lowered })
+      }
     }
   }
-  let result = lowerer.materialize_local(lowerer.lower_expr(function.body))
+  let result = lowerer.materialize_planned_function_result(
+    lowerer.materialize_local(lowerer.lower_expr(function.body)),
+  )
+  guard lowerer.planned_result_shape() is Some(expected) else {
+    raise RepresentationSpecializationInvariant(
+      detail="Runtime ANF function has no planned physical result",
+    )
+  }
+  if lowerer.local_physical_shape(result) != expected {
+    raise RepresentationSpecializationInvariant(
+      detail="VM CFG function result disagrees with its physical contract",
+    )
+  }
   let terminator : @vmcfg.Terminator = match lowerer.take_tail_call(result) {
     Some(terminator) => terminator
     None =>
       match result {
         Unit => Return(None)
-        Slot(slot, _) => Return(Some(slot))
+        Slot(slot, _, _) => Return(Some(slot))
         ClosedAggregate(_, _)
         | Global(_)
         | NestedCallable(_)
         | RecursiveFunction(_, _, _)
         | EvidenceApplied(_, _)
-        | EvidenceAppliedCallable(_, _, _)
-        | EvidenceAppliedNestedCallable(_, _)
-        | AdaptedCallable(_)
-        | EvidenceAppliedAdaptedCallable(_, _) =>
+        | EvidenceAppliedCallable(_, _, _, _)
+        | EvidenceAppliedNestedCallable(_, _) =>
           raise UnsupportedExpression(
             detail="function returns an unapplied callable",
           )
@@ -171,7 +216,7 @@ fn ImageLowerer::lower_function_body(
       witnesses: input_witnesses,
       user_parameters: parameter_slots,
     },
-    result: self.result_abi_with_data_families(result_type, data_families),
+    result: expected.result_abi(),
     blocks,
   }
 }
@@ -263,7 +308,7 @@ fn tail_destination_matches(
 ) -> Bool {
   match (destination, result) {
     (None, Unit) => true
-    (Some(destination), Slot(result, _)) => destination == result
+    (Some(destination), Slot(result, _, _)) => destination == result
     _ => false
   }
 }
@@ -318,6 +363,72 @@ fn FunctionLowerer::new_block(
   let block : @bytecode.BlockId = { value: self.blocks.length() }
   self.blocks.push({ parameters, instructions: [], terminator: None })
   block
+}
+
+///|
+/// Creates the complete VM CFG parameter list for one physical value port.
+/// An erased payload and its layout witness form one control-flow value and
+/// must cross every edge together.
+fn FunctionLowerer::fresh_block_value_parameter(
+  self : FunctionLowerer,
+  type_ : @anf.RuntimeType,
+  shape : PhysicalValueShape,
+) -> (Array[@vmcfg.ValueId], LocalValue) raise LoisvmLoweringError {
+  let type_ = self.instantiate_runtime_type(type_)
+  match shape {
+    Unit => ([], Unit)
+    Product(_) =>
+      raise RepresentationSpecializationInvariant(
+        detail="a VM CFG block parameter cannot encode a product shape",
+      )
+    Slot(key) => {
+      let parameters = []
+      let companion = match key {
+        Value({ cleanup: OwnedErased, .. }) => {
+          let companion = self.fresh_metadata(layout_witness_metadata())
+          parameters.push(companion)
+          Some(companion)
+        }
+        _ => None
+      }
+      let value = self.fresh_metadata(key.value_metadata(companion))
+      parameters.push(value)
+      (parameters, LocalValue::Slot(value, type_, key))
+    }
+  }
+}
+
+///|
+fn FunctionLowerer::block_value_arguments(
+  self : FunctionLowerer,
+  value : LocalValue,
+) -> Array[@vmcfg.ValueId] raise LoisvmLoweringError {
+  match value {
+    Unit => []
+    Slot(slot, _, _) => {
+      let arguments = []
+      if self.values[slot.value].cleanup is OwnedErased {
+        guard self.values[slot.value].erased_companion is Some(companion) else {
+          raise RepresentationSpecializationInvariant(
+            detail="an erased control-flow value has no layout companion",
+          )
+        }
+        arguments.push(companion)
+      }
+      arguments.push(slot)
+      arguments
+    }
+    ClosedAggregate(_, _)
+    | Global(_)
+    | NestedCallable(_)
+    | RecursiveFunction(_, _, _)
+    | EvidenceApplied(_, _)
+    | EvidenceAppliedCallable(_, _, _, _)
+    | EvidenceAppliedNestedCallable(_, _) =>
+      raise UnsupportedExpression(
+        detail="control-flow edge carries an unapplied callable",
+      )
+  }
 }
 
 ///|

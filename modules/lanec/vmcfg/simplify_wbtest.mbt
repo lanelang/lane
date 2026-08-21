@@ -50,6 +50,75 @@ test "simplify preserves layout values named by erased companions" {
 }
 
 ///|
+test "unused parameter removal preserves erased companion pairs" {
+  let layout : ValueMetadata = {
+    representation: I32,
+    cleanup: Trivial,
+    kind: LayoutValue,
+    ownership: Trivial,
+    erased_companion: None,
+  }
+  let body : FunctionBody = {
+    values: [
+      layout,
+      {
+        representation: I64,
+        cleanup: OwnedErased,
+        kind: ErasedValue,
+        ownership: Owned,
+        erased_companion: Some({ value: 0 }),
+      },
+      layout,
+      {
+        representation: I64,
+        cleanup: OwnedErased,
+        kind: ErasedValue,
+        ownership: Owned,
+        erased_companion: Some({ value: 2 }),
+      },
+    ],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0 }, { value: 1 }],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [],
+        terminator: Jump({
+          target: { value: 1 },
+          arguments: [{ value: 0 }, { value: 1 }],
+        }),
+      },
+      {
+        parameters: [{ value: 2 }, { value: 3 }],
+        instructions: [Release({ value: 3 })],
+        terminator: Return(None),
+      },
+    ],
+  }
+  debug_inspect(
+    remove_unused_block_parameters(body),
+    content=(
+      #|[
+      #|  {
+      #|    parameters: [],
+      #|    instructions: [],
+      #|    terminator: Jump({ target: { value: 1 }, arguments: [{ value: 0 }, { value: 1 }] }),
+      #|  },
+      #|  {
+      #|    parameters: [{ value: 2 }, { value: 3 }],
+      #|    instructions: [Release({ value: 3 })],
+      #|    terminator: Return(None),
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "simplify VM CFG folds branches and threads empty blocks" {
   let body : FunctionBody = {
     values: [

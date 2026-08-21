@@ -385,6 +385,14 @@ test "runtime representation equality preserves semantic value categories" {
     id: Projected(20),
     arity: 0,
   }
+  let left_nested : @anf.RuntimeEvidenceParameter = {
+    id: Projected(11),
+    arity: 0,
+  }
+  let right_nested : @anf.RuntimeEvidenceParameter = {
+    id: Projected(21),
+    arity: 0,
+  }
   let left_argument : @anf.RuntimeArgument = {
     type_expression: { index: 30 },
     evidence: Static(I64),
@@ -414,8 +422,21 @@ test "runtime representation equality preserves semantic value categories" {
           Callable([Erased({ index: 60 }, Parameter(right_parameter.id))], Unit),
         ),
       ),
+      metadata.types_representation_equivalent(
+        Forall(
+          [left_parameter, left_nested],
+          Callable([Erased({ index: 70 }, Parameter(left_nested.id))], Unit),
+        ),
+        Forall(
+          [right_parameter],
+          Forall(
+            [right_nested],
+            Callable([Erased({ index: 80 }, Parameter(right_nested.id))], Unit),
+          ),
+        ),
+      ),
     ],
-    [false, true, false, true],
+    [false, true, false, true, true],
   )
 }
 

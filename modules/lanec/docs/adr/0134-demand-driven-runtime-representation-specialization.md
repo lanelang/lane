@@ -1,20 +1,24 @@
 # Demand-driven runtime representation specialization
 
+Status: accepted for generic fallback and finite demand; per-value assignment
+and complete function/data contracts are revised by ADR-0136.
+
 ## Decision
 
-LoisVM lowering builds one immutable representation-specialization plan after
-ordinary reachable functions have been planned and before any function body is
-lowered. The plan is the sole producer of representation-worker demand.
-Lowering may query the plan but may not create workers or rediscover demand.
+The Physical Representation Planner builds one immutable plan after semantic
+callable instances have been analyzed and before any VM CFG body is emitted.
+It is the sole producer of physical function variants and representation
+bridges. VM CFG emission consumes Represented Runtime ANF and may not create
+workers, rediscover demand, or choose a representation from source types.
 
-A demand key contains the original function identity, the canonical runtime
-evidence ABI, the physical parameter ABI, and the result ABI. Unit and ordinary
-values are keyed by their runtime value ABI. Callable type arguments additionally
-carry their complete callable ABI, because `CallableValue` alone does not
-distinguish parameter, witness, and result contracts. Source types with equal
-runtime contracts therefore share one worker even when their source spelling
-differs. Types with different callable, data-family, cleanup, or semantic value
-contracts never share a worker.
+A function-variant key contains one semantic callable instance, its Callable
+Invocation Contract, exact capture shapes, and the body-shape assignment that
+affects emission. Unit and ordinary values are keyed by Physical Value Shape;
+callable and data values therefore name their exact callable contract or data
+family rather than an outer machine representation. Source types with equal
+complete physical contracts may share a worker when they belong to the same
+semantic callable instance. Different callable, data-family, environment,
+cleanup, or semantic value contracts never share a worker.
 
 The first implementation specializes functions whose runtime evidence consists
 only of registry-declared first-order `Type` parameters. Higher-kinded layout
@@ -27,11 +31,17 @@ Every accepted key owns exactly one worker. A worker receives concrete physical
 parameters and returns a concrete result without layout-witness parameters or
 erased-value bridges. Its active type substitution is carried through nested
 function lifting, while specialized parameters are never recaptured as runtime
-witnesses. The original generic implementation always remains the fallback for
-open calls, indirect calls, unsupported evidence kinds, and rejected recursive
-families. It is planned and lowered before workers. Ordinary whole-image
-reachability may remove it only when no reachable value can call or materialize
-it; this is dead-function elimination, not specialization policy.
+witnesses. Distinct open and closed components may require the generic
+implementation and one or more specialized workers simultaneously. This is
+ordinary finite representation specialization: each complete canonical
+physical key owns at most one worker, independent of source spelling, call
+frequency, function size, or a profitability score.
+
+The original generic implementation remains the correctness baseline for open
+calls, indirect calls, unsupported evidence kinds, and rejected recursive
+families. It is always plan-capable. Ordinary whole-image reachability removes
+it when no reachable value can call or materialize it; this is dead-function
+elimination, not a second specialization policy.
 
 Callable erasure is position-directed. When an erased position explicitly
 names a callable ABI, including a lowering-owned canonical callable placeholder,

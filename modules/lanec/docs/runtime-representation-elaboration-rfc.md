@@ -1,6 +1,8 @@
 # RFC: Runtime representation elaboration and higher-kinded layout evidence
 
-Status: Implemented
+Status: Implemented for canonical generic elaboration and higher-kinded
+evidence; per-value physical specialization is being revised by ADR-0136 and
+ISS-385.
 
 ## Summary
 
@@ -9,11 +11,13 @@ with distinct machine representations such as `I32`, `I64`, `F32`, `F64`,
 references, callables, and `Unit`. It does not redefine `Type` to mean one
 boxed runtime representation.
 
-Before LoisVM lowering, one compiler-owned representation elaborator converts
-every value type into a closed runtime ABI and the layout evidence needed to
-operate on that ABI. Concrete types retain their natural machine
-representations. A value whose representation remains abstract crosses the
-seam as an erased payload accompanied by explicit layout evidence.
+Before LoisVM lowering, one compiler-owned representation module gives every
+semantic type a canonical generic elaboration and assigns every represented
+value port one closed physical shape. Concrete types retain their natural
+machine representations. A value whose representation remains abstract
+crosses the generic seam as an erased payload accompanied by explicit layout
+evidence. A whole-occurrence specialization may select another physical shape
+only through a total immutable plan over the complete value-flow component.
 
 For an ordinary type parameter `T : Type`, the evidence describes the layout
 of `T`. For a higher-kinded parameter `F : [Type] -> Type`, the evidence is a
@@ -74,7 +78,9 @@ needs one owner and one interface.
 
 - Preserve `I32`, `I64`, `F32`, and `F64` as ordinary, definitionally distinct
   members of `Type` with their natural concrete execution representations.
-- Give every concrete or symbolic value type one authoritative runtime ABI.
+- Give every concrete or symbolic value type one authoritative canonical
+  generic elaboration and every represented value port one authoritative final
+  physical shape.
 - Generalize Lane's existing erased-payload and layout-witness model to
   higher-kinded type applications.
 - Make concrete elaboration and symbolic evidence passing observationally
@@ -119,6 +125,29 @@ String and Bytes are distinct, although both use ByteSequence references
 
 This separation is intentional. Semantic identity belongs to the type system;
 execution representation belongs to representation elaboration.
+
+### Canonical elaboration and selected shape
+
+A semantic type does not uniquely determine its final physical representation
+after whole-occurrence specialization. The same `Data(owner, arguments)` may
+use its declaration family at an open boundary and a specialized family in a
+different closed component. What is unique is:
+
+- the canonical generic elaboration of each semantic type; and
+- the selected Physical Value Shape of each represented runtime value port.
+
+Physical selection is therefore indexed by value-flow position, not by a
+function-wide family environment or a type-to-family map. Parameters, results,
+bindings, calls, captures, constructors, matches, and joins are explicit ports
+in one immutable Physical Representation Plan. A consumer receives the one
+selected shape; it never receives a set of candidate families from which to
+choose again.
+
+The plan freezes the invocation contract of every generic function
+implementation before it plans representation workers or function bodies.
+Higher-order generic contracts consume those frozen callable contracts. They
+must not reconstruct nested callable ABIs from semantic type syntax, and body
+planning must validate rather than reproduce its boundary contract.
 
 ### Concrete and symbolic elaboration
 
@@ -210,6 +239,13 @@ Such specialization is an optimization of the evidence-passing elaboration,
 not an alternate semantic path. Removing it must not change observable program
 behavior.
 
+Distinct open and closed value-flow components may select the generic
+implementation and different specialized function contracts for the same
+semantic source function. Each complete canonical physical contract produces
+at most one worker. Function retention is decided only after local VM CFG
+cleanup, so dead generic fallbacks and exact duplicate bodies do not survive
+merely because they appeared in the semantic plan.
+
 ### Symbolic forwarding
 
 When `F` remains an outer parameter, its representation evidence remains an
@@ -228,13 +264,15 @@ No phase may reconstruct missing evidence from:
 If neither concrete elaboration nor in-scope evidence is available, lowering
 reports a structured compiler defect for missing representation evidence.
 
-## Representation elaborator
+## Physical representation planner
 
-Representation elaboration is a deep compiler module at the seam between
-verified Buslane types and VM CFG construction. Its interface accepts a type
-in a verified metadata context and returns one complete representation result.
-Callers do not separately ask for representation, cleanup, semantic value
-kind, witness requirements, or result ABI.
+Physical representation planning is a deep compiler module at the seam between
+Runtime ANF semantic flow and VM CFG construction. Its canonical-elaboration
+operation accepts a semantic runtime type and evidence environment and returns
+one complete generic representation result. Its external interface accepts a
+closed Runtime ANF program and semantic Callable Instance Plan and returns one
+Represented Runtime ANF phase value with a total immutable Physical
+Representation Plan. VM CFG construction cannot consume bare Runtime ANF.
 
 Conceptually, the result contains:
 
@@ -254,9 +292,11 @@ RuntimeRepresentation =
 - the exact result ABI when the value is returned.
 
 The concrete MoonBit structure and method names are implementation details,
-but the interface must return the complete decision atomically. A caller must
-not be able to obtain a representation while independently deriving its
-cleanup or semantic kind.
+but canonical elaboration must return the complete decision atomically, and
+physical planning must assign the resulting interned shape to every value port.
+A caller must not be able to obtain a representation while independently
+deriving its cleanup or semantic kind, or to override a selected data family
+with an ambient family context.
 
 The module owns:
 
@@ -265,11 +305,15 @@ The module owns:
 - concrete primitive and nominal classification;
 - evidence construction and application;
 - evidence capture requirements;
-- materialization of callable parameter and result ABIs; and
-- materialization of data and environment member schemas.
+- the total value-port constraint solution;
+- Callable Invocation Contracts and Function Representation Variants;
+- complete declaration and specialized Data Representation Family Contracts;
+- explicit erase, unerase, and callable-adaptation bridges; and
+- projection of selected shapes into callable, data, and environment schemas.
 
-The module does not own source typechecking, diagnostics for invalid source
-types, effect specialization policy, ARC dataflow, or bytecode verification.
+The module does not own source typechecking, semantic callable-flow facts,
+diagnostics for invalid source types, effect specialization policy, ARC
+dataflow, or bytecode verification.
 
 ## Callable ABI
 
@@ -317,13 +361,16 @@ their erased members after the constructing scope has returned. A member
 schema refers to those stored evidence values by verified ordinal or an
 equivalent closed identity.
 
-Nominal data-family identity remains a semantic classification for tags and
-matching. A generic declaration has one stable erased member schema: every
+A generic declaration family has one stable erased member schema: every
 representation-dependent source member is stored as `OwnedErased`, and each
 object stores the exact applied `LayoutValue` for that member. A specialized
-shape may use concrete members only when the complete construction, match, and
-projection chain is specialized together; an isolated concrete shape is not a
-valid replacement for the generic schema.
+Data Representation Family is a distinct physical identity whose complete
+constructor member-shape and stored-evidence contract is fixed before VM CFG
+emission. Its identity includes that physical contract, not only the nominal
+owner and source arguments. A specialized family may be selected only when the
+complete construction, match, projection, call, capture, and join component is
+specialized together; an isolated concrete shape is not a valid replacement
+for the generic schema.
 
 ## Verification responsibilities
 
@@ -339,15 +386,19 @@ Buslane verifies:
 
 Buslane is the sole proof owner for these facts.
 
-### Representation elaboration checks
+### Physical representation checks
 
-Representation elaboration rejects compiler-generated states in which:
+Physical representation planning rejects compiler-generated states in which:
 
 - a type has no runtime representation when one is required;
 - a symbolic type lacks in-scope evidence;
 - evidence is applied at the wrong kind or arity;
 - a substitution and its evidence environment disagree; or
-- a requested adapter cannot preserve the source value semantics.
+- a requested adapter cannot preserve the source value semantics;
+- a runtime value port has no selected physical shape;
+- an identity-preserving edge connects different shapes;
+- a callable, environment, or data-family contract is incomplete; or
+- a specialized component reaches an open or incompatible boundary.
 
 These are structured compiler defects, not unsupported-source diagnostics.
 
@@ -395,18 +446,23 @@ of runtime representation decisions.
 ## Required invariants
 
 1. Every source type fact has one owner in Buslane.
-2. Every runtime representation fact has one owner in representation
-   elaboration.
-3. Every finalized callable occurrence has exactly one complete ABI.
-4. A type substitution and its representation evidence are created,
+2. Every semantic type has one canonical generic elaboration, while every
+   represented runtime value port has one selected Physical Value Shape.
+3. The Physical Representation Plan is the sole owner of selected shapes,
+   function variants, data families, environments, and representation bridges.
+4. Every finalized callable occurrence has exactly one complete Callable
+   Invocation Contract; each implementation variant additionally has one
+   complete capture and body-shape contract.
+5. A type substitution and its representation evidence are created,
    captured, forwarded, and consumed together.
-5. Concrete and symbolic elaborations are observationally equivalent.
-6. No unresolved type application is classified from raw syntax alone.
-7. No source effect is used as a runtime layout witness.
-8. No object schema is built from an unsubstituted field or capture type.
-9. No callable ABI is built before ARC has selected its final operands, and
+6. Concrete and symbolic elaborations are observationally equivalent.
+7. No unresolved type application is classified from raw syntax alone.
+8. No source effect is used as a runtime layout witness.
+9. No object schema is built from an unsubstituted field or capture type, and
+   no data family is selected from an ambient family set.
+10. No callable ABI is built before ARC has selected its final operands, and
    physical-slot allocation preserves their complete ABI metadata.
-10. LoisVM rejects missing, forged, out-of-scope, or provenance-incompatible
+11. LoisVM rejects missing, forged, out-of-scope, or provenance-incompatible
     evidence without reconstructing source type equality.
 
 ## Alternatives considered
@@ -485,9 +541,9 @@ semantic fingerprint in cache validity.
    materialized slots after ARC ownership operations.
 2. Correct data-schema construction so it consumes fully substituted and
    normalized field types.
-3. Introduce the single representation-elaboration interface and migrate
-   slots, results, calls, adapters, captures, data members, and environment
-   members to it.
+3. Introduce Represented Runtime ANF and the single Physical Representation
+   Planner; assign every parameter, result, binding, call, capture, aggregate,
+   and join port one Physical Value Shape before VM CFG emission.
 4. Define immutable image-owned higher-kinded layout evidence and its checked
    application operation.
 5. Propagate type substitutions and evidence through generic calls, closures,
@@ -497,8 +553,9 @@ semantic fingerprint in cache validity.
    closed concrete shapes or explicit erased evidence provenance.
 8. Update LoisVM verification, interpreter execution, Wasm lowering,
    disassembly, canonical encoding, decoding, and the bytecode schema version.
-9. Delete superseded representation inference paths and verify that no source
-   effect or raw type syntax participates in runtime layout selection.
+9. Delete ambient family contexts and all emission-time representation,
+   worker, family, environment, and bridge selection paths; verify that no
+   source effect or raw type syntax participates in runtime layout selection.
 
 Each step must leave its owned IR verifiable. Temporary compatibility paths
 that preserve both old and new representation owners are not permitted.
