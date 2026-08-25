@@ -114,13 +114,12 @@ fn lower_executable_program_to_bytecode_or_raise(
   lowerer.plan_lifted_callable_instances()
   let physical = lowerer.elaborate_physical_anf()
   lowerer.verify_materialized_data_family_contracts()
-  lowerer.emit_physical_anf(physical, entry.value, initializer, observe)
+  emit_physical_anf(physical, entry.value, initializer, observe)
 }
 
 ///|
 /// VM CFG construction is reachable only through verified Physical ANF.
-fn ImageLowerer::emit_physical_anf(
-  self : ImageLowerer,
+fn emit_physical_anf(
   verified : VerifiedPhysicalAnfProgram,
   entry : @buslane.ValueId,
   initializer : @bytecode.FunctionId?,
@@ -132,47 +131,31 @@ fn ImageLowerer::emit_physical_anf(
     _ => raise MissingEntry(value=entry)
   }
   let functions : Array[@vmcfg.FunctionEntry] = []
-  let planned_function_count = self.plans.length()
-  let mut plan_index = 0
-  while plan_index < planned_function_count {
-    let planned = self.plans.get(plan_index)
-    match planned.entry {
-      Function(_, _) =>
-        functions.push(Body(lower_function_body(physical, planned.function)))
+  for emission in physical.emissions {
+    match emission.body {
+      Function =>
+        functions.push(Body(lower_function_body(physical, emission.function)))
       InitializerStep(step) =>
         functions.push(Body(lower_initializer_step(physical, step)))
       InitializerOrchestrator(steps) =>
         functions.push(Body(lower_initializer_orchestrator(physical, steps)))
-      LiftedFunction(_) =>
-        functions.push(Body(lower_function_body(physical, planned.function)))
-      IntrinsicWrapper(plan) =>
+      Intrinsic(plan) =>
         functions.push(Body(lower_intrinsic_wrapper(physical, plan)))
-      CallableAdapter(plan) =>
+      CallableAdapter =>
         functions.push(
           Body(
             lower_callable_adapter(
               physical,
-              physical.required_callable_adapter(plan.function),
+              physical.required_callable_adapter(emission.function),
             ),
           ),
         )
-      RepresentationWorker(_) =>
-        functions.push(Body(lower_function_body(physical, planned.function)))
       LayoutConstructor(plan) =>
         functions.push(Body(lower_layout_constructor(physical, plan)))
       RuntimeImport(import_) => functions.push(RuntimeImport(import_))
     }
-    if self.plans.length() != planned_function_count {
-      let appended = self.plans.entries[planned_function_count:].map(planned => {
-        planned.origin
-      })
-      raise RepresentationSpecializationInvariant(
-        detail="VM CFG emission of \{Repr(planned.origin)} appended unplanned functions \{Repr(appended)}",
-      )
-    }
-    plan_index += 1
   }
-  let origins = self.plans.origins()
+  let origins = physical.emissions.map(emission => emission.origin)
   if functions.length() != origins.length() {
     raise FunctionProvenanceCompilerDefect(
       OriginCountMismatch(
@@ -186,11 +169,11 @@ fn ImageLowerer::emit_physical_anf(
       entry: entry_function,
       initializer,
       functions,
-      data_family_count: self.materialized_data_family_count(),
-      globals: self.instance_globals,
-      layouts: self.layouts,
-      object_shapes: self.object_shapes,
-      constants: self.constants,
+      data_family_count: physical.data_family_count,
+      globals: physical.instance_globals,
+      layouts: physical.layouts,
+      object_shapes: physical.object_shapes,
+      constants: physical.constants,
     }) {
     Ok(finalized) => finalized
     Err(error) => raise VmcfgFinalizeError(error)

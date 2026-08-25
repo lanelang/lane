@@ -153,13 +153,6 @@ fn FunctionPlanTable::observations(
 }
 
 ///|
-fn FunctionPlanTable::origins(
-  self : FunctionPlanTable,
-) -> Array[LoisvmFunctionOrigin] {
-  self.entries.map(planned => planned.origin)
-}
-
-///|
 fn FunctionPlanTable::contains_top_level_function(
   self : FunctionPlanTable,
   function : @anf.AnfFunctionId,

@@ -335,6 +335,30 @@ priv struct PhysicalEvidenceApplication {
 }
 
 ///|
+priv struct PhysicalInitializerStep {
+  function : @bytecode.FunctionId
+  value : @buslane.ValueId
+}
+
+///|
+priv enum PhysicalFunctionBodyPlan {
+  Function
+  InitializerStep(PhysicalInitializerStep)
+  InitializerOrchestrator(Array[PhysicalInitializerStep])
+  Intrinsic(IntrinsicWrapperPlan)
+  CallableAdapter
+  LayoutConstructor(LayoutConstructorPlan)
+  RuntimeImport(@bytecode.RuntimeImport)
+}
+
+///|
+priv struct PhysicalFunctionEmission {
+  function : @bytecode.FunctionId
+  body : PhysicalFunctionBodyPlan
+  origin : LoisvmFunctionOrigin
+}
+
+///|
 priv enum PhysicalEvidenceApplicationMode {
   Identity
   Deferred
@@ -359,6 +383,12 @@ priv struct PhysicalAnfProgram {
   functions : Array[(@bytecode.FunctionId, PhysicalFunctionPlan)]
   representation_workers : Array[PhysicalRepresentationWorkerContract]
   callable_adapters : Array[PhysicalCallableAdapterSupport]
+  emissions : Array[PhysicalFunctionEmission]
+  data_family_count : Int
+  instance_globals : Array[@bytecode.GlobalMetadata]
+  layouts : Array[@bytecode.LayoutRecipe]
+  object_shapes : Array[@bytecode.ObjectShape]
+  constants : Array[Bytes]
 }
 
 ///|
@@ -397,6 +427,12 @@ fn PhysicalAnfProgram::new() -> PhysicalAnfProgram {
     functions: [],
     representation_workers: [],
     callable_adapters: [],
+    emissions: [],
+    data_family_count: 0,
+    instance_globals: [],
+    layouts: [],
+    object_shapes: [],
+    constants: [],
   }
 }
 
@@ -1697,7 +1733,47 @@ fn ImageLowerer::elaborate_physical_anf(
     index += 1
   }
   self.record_physical_support(physical)
+  let physical = self.freeze_physical_image(physical)
   physical.verify()
+}
+
+///|
+fn ImageLowerer::freeze_physical_image(
+  self : ImageLowerer,
+  physical : PhysicalAnfProgram,
+) -> PhysicalAnfProgram {
+  let emissions = self.plans.entries.map(planned => {
+    let body = match planned.entry {
+      Function(_, _) | LiftedFunction(_) | RepresentationWorker(_) =>
+        PhysicalFunctionBodyPlan::Function
+      InitializerStep(step) =>
+        InitializerStep({ function: step.function, value: step.value, })
+      InitializerOrchestrator(steps) =>
+        InitializerOrchestrator(
+          steps.map(step => { function: step.function, value: step.value, }),
+        )
+      IntrinsicWrapper(plan) => Intrinsic(plan)
+      CallableAdapter(_) => CallableAdapter
+      LayoutConstructor(plan) => LayoutConstructor(plan)
+      RuntimeImport(import_) => RuntimeImport(import_)
+    }
+    { function: planned.function, body, origin: planned.origin, }
+  })
+  {
+    shapes: physical.shapes,
+    invocations: physical.invocations,
+    interfaces: physical.interfaces,
+    globals: physical.globals,
+    functions: physical.functions,
+    representation_workers: physical.representation_workers,
+    callable_adapters: physical.callable_adapters,
+    emissions,
+    data_family_count: self.materialized_data_family_count(),
+    instance_globals: self.instance_globals.copy(),
+    layouts: self.layouts.copy(),
+    object_shapes: self.object_shapes.copy(),
+    constants: self.constants.copy(),
+  }
 }
 
 ///|
@@ -4773,6 +4849,50 @@ fn runtime_literal_type(literal : @buslane.Literal) -> @anf.RuntimeType {
 fn PhysicalAnfProgram::verify(
   self : PhysicalAnfProgram,
 ) -> VerifiedPhysicalAnfProgram raise LoisvmLoweringError {
+  if self.data_family_count < 0 {
+    raise RepresentationSpecializationInvariant(
+      detail="physical image has a negative data-family count",
+    )
+  }
+  for index, emission in self.emissions {
+    if emission.function.value != index + 1 {
+      raise RepresentationSpecializationInvariant(
+        detail="physical function emission order disagrees with its allocated identity",
+      )
+    }
+    match emission.body {
+      Function | InitializerStep(_) =>
+        if self.function(emission.function) is None {
+          raise RepresentationSpecializationInvariant(
+            detail="physical function emission has no verified body contract",
+          )
+        }
+      InitializerOrchestrator(steps) =>
+        for step in steps {
+          if self.function(step.function) is None {
+            raise RepresentationSpecializationInvariant(
+              detail="physical initializer orchestrator references an unverified step",
+            )
+          }
+        }
+      Intrinsic(plan) =>
+        if plan.function != emission.function ||
+          self.invocation(emission.function) is None {
+          raise RepresentationSpecializationInvariant(
+            detail="physical intrinsic emission disagrees with its frozen function contract",
+          )
+        }
+      CallableAdapter =>
+        ignore(self.required_callable_adapter(emission.function))
+      LayoutConstructor(plan) =>
+        if plan.function != emission.function {
+          raise RepresentationSpecializationInvariant(
+            detail="physical layout-constructor emission has the wrong function identity",
+          )
+        }
+      RuntimeImport(_) => ()
+    }
+  }
   for global_index, entry in self.globals {
     for previous in 0..<global_index {
       if self.globals[previous].0 == entry.0 {

@@ -173,6 +173,26 @@ test "Physical ANF global cannot claim a shape different from its producer" {
 }
 
 ///|
+test "Physical ANF owns canonical function emission order" {
+  let physical = {
+    ..PhysicalAnfProgram::new(),
+    emissions: [
+      {
+        function: { value: 2, },
+        body: PhysicalFunctionBodyPlan::Function,
+        origin: CallableAdapter,
+      },
+    ],
+  }
+  let result : Result[VerifiedPhysicalAnfProgram, LoisvmLoweringError] = Ok(
+    physical.verify(),
+  ) catch {
+    error => Err(error)
+  }
+  assert_true(result is Err(RepresentationSpecializationInvariant(detail=_)))
+}
+
+///|
 test "Physical match representation owns its alternative universe" {
   assert_true(PhysicalMatchRepresentation::Bool.accepts(Literal(Bool(true))))
   assert_false(PhysicalMatchRepresentation::Bool.accepts(Literal(I32(1))))

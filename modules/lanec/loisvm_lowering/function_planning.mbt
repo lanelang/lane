@@ -292,7 +292,7 @@ fn extract_top_atom_function(atom : @anf.AnfAtom) -> @anf.AnfFunction? {
 ///|
 fn lower_initializer_step(
   physical_program : PhysicalAnfProgram,
-  step : InitializerStepPlan,
+  step : PhysicalInitializerStep,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   guard physical_program.function(step.function) is Some(physical) else {
     raise RepresentationSpecializationInvariant(
@@ -349,7 +349,7 @@ fn lower_initializer_step(
 ///|
 fn lower_initializer_orchestrator(
   physical_program : PhysicalAnfProgram,
-  steps : Array[InitializerStepPlan],
+  steps : Array[PhysicalInitializerStep],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     physical_program,
