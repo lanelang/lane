@@ -2,7 +2,7 @@
 fn FunctionLowerer::lower_data_match(
   self : FunctionLowerer,
   site : @anf.AnfBindingId,
-  match_ : @anf.AnfMatch,
+  match_ : PhysicalAnfMatch,
   scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
   scrutinee_shape : CanonicalRuntimeTypeKey,
@@ -42,6 +42,7 @@ fn FunctionLowerer::lower_data_match(
       scrutinee_shape,
       data_constructor,
       alternative,
+      match_.result_type,
       substitutions,
     )
   }
@@ -59,7 +60,7 @@ fn FunctionLowerer::lower_data_match(
       @bytecode.BlockId,
       @vmcfg.ValueId,
       @vmcfg.ValueId?,
-      @anf.AnfAlternative,
+      PhysicalAnfAlternative,
       @buslane.DataConId,
     ),
   ] = []
@@ -114,6 +115,7 @@ fn FunctionLowerer::lower_data_match(
       scrutinee_shape,
       data_constructor,
       alternative,
+      match_.result_type,
       branch_environment,
       substitutions,
     )
@@ -145,7 +147,8 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   scrutinee_type : @anf.RuntimeType,
   scrutinee_shape : CanonicalRuntimeTypeKey,
   data_constructor : @buslane.DataConId,
-  alternative : @anf.AnfAlternative,
+  alternative : PhysicalAnfAlternative,
+  result_type : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
   let value_count = self.bindings.length()
@@ -156,15 +159,17 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
     site, binder, scrutinee, scrutinee_type, scrutinee_shape, data_constructor, alternative,
     substitutions,
   )
-  let result = self.materialize_planned_match_alternative(
+  let result = self.materialize_physical_match_alternative_plan(
+    alternative.plan,
     site,
+    result_type,
     alternative,
-    self.materialize_local(self.lower_expr(alternative.body)),
+    self.materialize_physical_local(self.lower_expr(alternative.body)),
   )
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
   self.substitutions = original_substitutions
-  result
+  result.value
 }
 
 ///|
@@ -178,7 +183,8 @@ fn FunctionLowerer::lower_data_alternative(
   scrutinee_type : @anf.RuntimeType,
   scrutinee_shape : CanonicalRuntimeTypeKey,
   data_constructor : @buslane.DataConId,
-  alternative : @anf.AnfAlternative,
+  alternative : PhysicalAnfAlternative,
+  result_type : @anf.RuntimeType,
   branch_environment : @vmcfg.ValueId?,
   substitutions : RuntimeSubstitution,
 ) -> Unit raise LoisvmLoweringError {
@@ -193,12 +199,14 @@ fn FunctionLowerer::lower_data_alternative(
     site, binder, scrutinee, scrutinee_type, scrutinee_shape, data_constructor, alternative,
     substitutions,
   )
-  let result = self.materialize_planned_match_alternative(
+  let result = self.materialize_physical_match_alternative_plan(
+    alternative.plan,
     site,
+    result_type,
     alternative,
-    self.materialize_local(self.lower_expr(alternative.body)),
+    self.materialize_physical_local(self.lower_expr(alternative.body)),
   )
-  let arguments = self.block_value_arguments(result)
+  let arguments = self.block_value_arguments(result.value)
   self.terminate(Jump({ target: join, arguments, }))
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
@@ -215,7 +223,7 @@ fn FunctionLowerer::bind_data_alternative(
   scrutinee_type : @anf.RuntimeType,
   scrutinee_shape : CanonicalRuntimeTypeKey,
   data_constructor : @buslane.DataConId,
-  alternative : @anf.AnfAlternative,
+  alternative : PhysicalAnfAlternative,
   substitutions : RuntimeSubstitution,
 ) -> Unit raise LoisvmLoweringError {
   let info = match self.image.metadata.data_constructor_info(data_constructor) {
@@ -343,25 +351,19 @@ fn FunctionLowerer::bind_data_alternative(
         )
         LocalValue::Slot(destination, storage_type, storage_shape)
       }
-      let payload = self.planned_match_payload(
-        site,
-        alternative.alt_constructor,
-        index,
-      )
-      let source_shape = self.physical_shape(payload.flow.source)
-      if self.local_physical_shape(stored) != source_shape {
+      guard alternative.plan.payloads.get(index) is Some(payload) else {
         raise RepresentationSpecializationInvariant(
-          detail="data-match payload \{index} at \{Repr(site)} produced \{Repr(self.local_physical_shape(stored))}, but its physical flow owns \{Repr(source_shape)}",
+          detail="Physical ANF data alternative has no payload contract",
         )
       }
       let lowered = self.materialize_planned_value_flow(
         "Runtime ANF data-match payload at \{Repr(site)}",
-        stored,
+        { value: stored, contract: payload.flow.source, },
         payload.type_,
-        self.physical_shape(payload.flow.target),
+        payload.flow.target,
         payload.flow.bridge,
       )
-      self.bindings.push({ value: value_binder, lowered, })
+      self.bindings.push({ value: value_binder, lowered: lowered.value, })
     }
     self.substitutions = self.substitutions.overlay(branch_substitutions)
   } else {
@@ -377,7 +379,8 @@ fn FunctionLowerer::lower_bool_alternative(
   join : @bytecode.BlockId,
   binder : @buslane.ValueId,
   scrutinee : LocalValue,
-  alternative : @anf.AnfAlternative,
+  alternative : PhysicalAnfAlternative,
+  result_type : @anf.RuntimeType,
   branch_environment : @vmcfg.ValueId?,
 ) -> Unit raise LoisvmLoweringError {
   if !alternative.evidence_binders.is_empty() ||
@@ -390,12 +393,14 @@ fn FunctionLowerer::lower_bool_alternative(
   let original_environment = self.environment
   self.enter_branch_environment(original_environment, branch_environment)
   self.bindings.push({ value: binder, lowered: scrutinee, })
-  let result = self.materialize_planned_match_alternative(
+  let result = self.materialize_physical_match_alternative_plan(
+    alternative.plan,
     site,
+    result_type,
     alternative,
-    self.materialize_local(self.lower_expr(alternative.body)),
+    self.materialize_physical_local(self.lower_expr(alternative.body)),
   )
-  let arguments = self.block_value_arguments(result)
+  let arguments = self.block_value_arguments(result.value)
   self.terminate(Jump({ target: join, arguments, }))
   self.restore_bindings(value_count, temp_count)
   self.environment = original_environment
@@ -457,9 +462,9 @@ fn FunctionLowerer::restore_witnesses(
 
 ///|
 fn find_bool_alternative(
-  alternatives : Array[@anf.AnfAlternative],
+  alternatives : Array[PhysicalAnfAlternative],
   value : Bool,
-) -> @anf.AnfAlternative? {
+) -> PhysicalAnfAlternative? {
   let mut default = None
   for alternative in alternatives {
     match alternative.alt_constructor {
@@ -473,8 +478,8 @@ fn find_bool_alternative(
 
 ///|
 fn find_unit_alternative(
-  alternatives : Array[@anf.AnfAlternative],
-) -> @anf.AnfAlternative? {
+  alternatives : Array[PhysicalAnfAlternative],
+) -> PhysicalAnfAlternative? {
   for alternative in alternatives {
     if alternative.alt_constructor is Literal(Unit) {
       return Some(alternative)
@@ -485,8 +490,8 @@ fn find_unit_alternative(
 
 ///|
 fn find_default_alternative(
-  alternatives : Array[@anf.AnfAlternative],
-) -> @anf.AnfAlternative? {
+  alternatives : Array[PhysicalAnfAlternative],
+) -> PhysicalAnfAlternative? {
   for alternative in alternatives {
     if alternative.alt_constructor is Default {
       return Some(alternative)
@@ -497,9 +502,9 @@ fn find_default_alternative(
 
 ///|
 fn find_data_alternative(
-  alternatives : Array[@anf.AnfAlternative],
+  alternatives : Array[PhysicalAnfAlternative],
   data_constructor : @buslane.DataConId,
-) -> @anf.AnfAlternative? {
+) -> PhysicalAnfAlternative? {
   let mut default = None
   for alternative in alternatives {
     match alternative.alt_constructor {

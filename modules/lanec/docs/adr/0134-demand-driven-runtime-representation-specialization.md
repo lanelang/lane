@@ -5,11 +5,11 @@ and complete function/data contracts are revised by ADR-0136.
 
 ## Decision
 
-The Physical Representation Planner builds one immutable plan after semantic
-callable instances have been analyzed and before any VM CFG body is emitted.
-It is the sole producer of physical function variants and representation
-bridges. VM CFG emission consumes Represented Runtime ANF and may not create
-workers, rediscover demand, or choose a representation from source types.
+After semantic callable instances have been analyzed, the Representation
+Constraint Graph solver produces physical function variants and representation
+bridges before any VM CFG body is emitted. Its solution is carried by verified
+Physical ANF. VM CFG emission may not create workers, rediscover demand, or
+choose a representation from source types.
 
 A function-variant key contains one semantic callable instance, its Callable
 Invocation Contract, exact capture shapes, and the body-shape assignment that

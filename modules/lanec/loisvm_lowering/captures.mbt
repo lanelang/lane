@@ -1,6 +1,6 @@
 ///|
 priv struct CallableCaptureInput {
-  instances : Array[Int]
+  owners : Array[CallableRepresentationOwner]
   definition : @anf.AnfCallableDefinition
   function_type : @anf.RuntimeType
   substitutions : RuntimeSubstitution
@@ -15,7 +15,7 @@ fn CallableCaptureContract::empty() -> CallableCaptureContract {
 ///|
 fn ImageLowerer::plan_callable_capture(
   self : ImageLowerer,
-  instances : Array[Int],
+  owners : Array[CallableRepresentationOwner],
   definition : @anf.AnfCallableDefinition,
   function_type : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
@@ -27,7 +27,7 @@ fn ImageLowerer::plan_callable_capture(
   self.plan_callable_captures(
     [
       {
-        instances,
+        owners,
         definition,
         function_type,
         substitutions,
@@ -116,7 +116,7 @@ fn ImageLowerer::plan_callable_captures(
         }
         None =>
           self.planned_callable_capture_representation(
-            input.instances,
+            input.owners,
             binding_id,
             type_,
             excluded_data_components,
@@ -269,18 +269,18 @@ fn ImageLowerer::finalize_callable_capture_contract(
 ///|
 fn ImageLowerer::planned_callable_capture_representation(
   self : ImageLowerer,
-  instances : Array[Int],
+  owners : Array[CallableRepresentationOwner],
   binding : @anf.AnfBindingId,
   type_ : @anf.RuntimeType,
   excluded_data_components : Array[Int],
   excluded_callable_components : Array[Int],
 ) -> (CanonicalRuntimeTypeKey, PhysicalCallableInterface?) raise LoisvmLoweringError {
-  if self.representation_demands.callable_instance_at_port_excluding(
-      instances, binding, excluded_callable_components,
+  if self.representation_solution.callable_instance_at_port_excluding(
+      owners, binding, excluded_callable_components,
     )
     is Some(callable) {
-    if self.representation_demands.callable_port_uses_worker(
-        instances, binding, excluded_callable_components,
+    if self.representation_solution.callable_port_uses_worker(
+        owners, binding, excluded_callable_components,
       ) &&
       self.representation_specialization_for_callable(callable) is Some(plan) {
       return (
@@ -295,8 +295,8 @@ fn ImageLowerer::planned_callable_capture_representation(
   }
   let shape = self.canonical_runtime_type_key_for_family(
     type_,
-    self.representation_demands.data_family_at_capture_excluding(
-      instances, binding, excluded_data_components,
+    self.representation_solution.data_family_at_capture_excluding(
+      owners, binding, excluded_data_components,
     ),
   )
   let callable_interface = match shape {
@@ -347,22 +347,18 @@ fn FunctionLowerer::capture_environment(
   for index, capture in contract.captures {
     guard capture.member_index is Some(_) else { continue }
     let flow = allocation.captures[index]
-    let source = self.materialize_local(self.capture_value(capture.binding))
-    let source_shape = self.physical_shape(flow.source)
-    if self.local_physical_shape(source) != source_shape {
-      raise RepresentationSpecializationInvariant(
-        detail="callable capture \{Repr(capture.binding)} produced \{Repr(self.local_physical_shape(source))}, but its physical flow owns \{Repr(source_shape)}",
-      )
-    }
-    let target_shape = self.physical_shape(flow.target)
+    let source = self.materialize_physical_local({
+      value: self.capture_value(capture.binding),
+      contract: flow.source,
+    })
     let captured = self.materialize_planned_value_flow(
       "callable capture",
       source,
       capture.type_,
-      target_shape,
+      flow.target,
       flow.bridge,
     )
-    guard captured is Slot(slot, _, actual_shape) &&
+    guard captured.value is Slot(slot, _, actual_shape) &&
       capture.shape is Some(expected_shape) else {
       raise RepresentationSpecializationInvariant(
         detail="planned callable capture does not materialize as a physical slot",

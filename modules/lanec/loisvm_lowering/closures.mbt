@@ -1,9 +1,9 @@
 ///|
-fn FunctionLowerer::lower_nested_function(
+fn FunctionLowerer::lower_nested_function_with_allocation(
   self : FunctionLowerer,
   function : @anf.AnfFunction,
+  allocation : PhysicalCallableAllocationPlan,
 ) -> LocalValue raise LoisvmLoweringError {
-  let allocation = self.planned_callable_allocation(function.id, "nested")
   let implementation = self.image.materialized_callable_implementation(
     allocation.implementation,
   )
@@ -20,23 +20,11 @@ fn FunctionLowerer::lower_nested_function(
 }
 
 ///|
-fn FunctionLowerer::materialize_nested_callable(
-  self : FunctionLowerer,
-  callable : DeferredNestedCallable,
-) -> LocalValue raise LoisvmLoweringError {
-  self.materialize_callable_value_with_abi(
-    callable.lowered_function,
-    callable.type_,
-    callable.environment,
-    callable.invocation,
-  )
-}
-
-///|
-fn FunctionLowerer::materialize_planned_callable_atom(
+fn FunctionLowerer::materialize_physical_callable_atom(
   self : FunctionLowerer,
   atom : @anf.AnfAtom,
   callable : CallableRepresentationTarget,
+  allocation : PhysicalCallableAllocationPlan?,
 ) -> LocalValue raise LoisvmLoweringError {
   let function = match atom {
     Function(function) => Some(function)
@@ -44,49 +32,68 @@ fn FunctionLowerer::materialize_planned_callable_atom(
     Literal(_) | Ref(_) | Temp(_) => None
   }
   if function is Some(function) {
-    return self.materialize_planned_callable_instance(function, callable)
+    guard allocation is Some(allocation) else {
+      raise RepresentationSpecializationInvariant(
+        detail="Physical ANF callable literal has no allocation contract",
+      )
+    }
+    return self.materialize_physical_callable_instance(
+      function, callable, allocation,
+    )
   }
   let lowered = self.lower_atom(atom)
   let value = match lowered {
     Global(Function(_, _)) => {
       guard callable.instance(self.image.callable_instances) is Some(planned) else {
         raise RepresentationSpecializationInvariant(
-          detail="planned callable flow names an unknown semantic instance",
+          detail="Physical ANF global callable names an unknown target",
         )
       }
-      self.materialize_planned_callable_instance(
-        planned.definition.function,
-        callable,
-      )
+      match allocation {
+        Some(allocation) =>
+          self.materialize_physical_callable_instance(
+            planned.definition.function,
+            callable,
+            allocation,
+          )
+        None => self.materialize_local(lowered)
+      }
     }
     NestedCallable(nested) => self.materialize_nested_callable(nested)
     RecursiveFunction(_, _, _) => self.materialize_local(lowered)
+    EvidenceApplied(_, _)
+    | EvidenceAppliedCallable(_, _, _, _)
+    | EvidenceAppliedNestedCallable(_, _) => lowered
     _ => self.materialize_local(lowered)
+  }
+  match value {
+    EvidenceApplied(_, _)
+    | EvidenceAppliedCallable(_, _, _, _)
+    | EvidenceAppliedNestedCallable(_, _) => return value
+    _ => ()
   }
   guard value is Slot(_, _, Callable(_)) else {
     raise RepresentationSpecializationInvariant(
-      detail="planned callable flow did not materialize a callable slot",
+      detail="Physical ANF callable use did not materialize a callable slot",
     )
   }
   value
 }
 
 ///|
-fn FunctionLowerer::materialize_planned_callable_instance(
+fn FunctionLowerer::materialize_physical_callable_instance(
   self : FunctionLowerer,
   function : @anf.AnfFunction,
   callable : CallableRepresentationTarget,
+  allocation : PhysicalCallableAllocationPlan,
 ) -> LocalValue raise LoisvmLoweringError {
   guard callable.instance(self.image.callable_instances) is Some(planned) &&
-    planned.definition.function.id == function.id else {
+    planned.definition.function.id == function.id &&
+    allocation.callable == callable else {
     raise RepresentationSpecializationInvariant(
-      detail="planned callable payload does not match its function allocation",
+      detail="Physical ANF callable allocation does not match its use",
     )
   }
-  let allocation = self.planned_callable_allocation(
-    function.id,
-    "planned-instance",
-  )
   let implementation = self.image.materialized_callable_implementation(
     allocation.implementation,
   )
@@ -98,6 +105,19 @@ fn FunctionLowerer::materialize_planned_callable_instance(
       allocation,
     ),
     allocation.interface.invocation,
+  )
+}
+
+///|
+fn FunctionLowerer::materialize_nested_callable(
+  self : FunctionLowerer,
+  callable : DeferredNestedCallable,
+) -> LocalValue raise LoisvmLoweringError {
+  self.materialize_callable_value_with_abi(
+    callable.lowered_function,
+    callable.type_,
+    callable.environment,
+    callable.invocation,
   )
 }
 
@@ -177,12 +197,12 @@ fn FunctionLowerer::materialize_planned_callable_with_abi(
 ///|
 fn FunctionLowerer::lower_recursive_group(
   self : FunctionLowerer,
-  bindings : Array[@anf.AnfRecursiveBinding],
-  body : @anf.AnfExpr,
-) -> LocalValue raise LoisvmLoweringError {
+  bindings : Array[PhysicalAnfRecursiveBinding],
+  body : PhysicalAnfExpr,
+) -> PhysicalLocalValue raise LoisvmLoweringError {
   let plans : Array[LiftedFunctionPlan] = []
   for binding in bindings {
-    let function = match extract_top_atom_function(binding.rhs) {
+    let function = match extract_top_atom_function(binding.rhs.atom) {
       Some(function) => function
       None =>
         raise UnsupportedExpression(
@@ -203,10 +223,11 @@ fn FunctionLowerer::lower_recursive_group(
     )
   }
   let recursive_functions = first.recursive_functions
-  let first_allocation = self.planned_callable_allocation(
-    first.function.id,
-    "recursive-group",
-  )
+  guard bindings[0].rhs.allocation is Some(first_allocation) else {
+    raise RepresentationSpecializationInvariant(
+      detail="Physical ANF recursive group has no allocation contract",
+    )
+  }
   let first_implementation = self.image.materialized_callable_implementation(
     first_allocation.implementation,
   )
@@ -216,12 +237,13 @@ fn FunctionLowerer::lower_recursive_group(
   )
   let value_count = self.bindings.length()
   for index, recursive in recursive_functions {
-    let binding = @anf.AnfBindingId::Value(recursive.value)
-    let callable = self.planned_callable_port(binding)
-    let allocation = self.planned_callable_allocation(
-      plans[index].function.id,
-      "recursive-member",
-    )
+    let binding = bindings[index]
+    let callable = binding.rhs.callable
+    guard binding.rhs.allocation is Some(allocation) else {
+      raise RepresentationSpecializationInvariant(
+        detail="Physical ANF recursive member has no allocation contract",
+      )
+    }
     let implementation = self.image.materialized_callable_implementation(
       allocation.implementation,
     )
@@ -234,9 +256,11 @@ fn FunctionLowerer::lower_recursive_group(
       Some(_) => self.materialize_local(deferred)
       None => deferred
     }
-    let lowered = self.apply_planned_binding_flow(binding, lowered)
-    self.verify_planned_value(binding, lowered)
-    self.bindings.push({ value: recursive.value, lowered, })
+    let lowered = self.apply_physical_binding_flow(binding.flow, {
+      value: lowered,
+      contract: binding.rhs.contract,
+    })
+    self.bindings.push({ value: recursive.value, lowered: lowered.value, })
   }
   let result = self.lower_expr(body)
   self.restore_bindings(value_count, self.temps.length())

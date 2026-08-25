@@ -271,8 +271,8 @@ Buslane `Type`, `Effect`, `Kind`, `GenericArgument`, or type-lambda syntax.
 Stable Buslane declaration IDs survive only as nominal symbols. Nominal runtime
 arguments select construction and projection evidence, but do not define a
 data value's callable ABI. Higher-kinded nominal arguments are eta-expanded at
-this boundary. The Physical Representation Planner consumes Runtime ANF;
-VM CFG emission never consumes it without a total physical plan.
+this boundary. Physical elaboration consumes Runtime ANF; VM CFG emission
+consumes only verified Physical ANF.
 _Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering
 
 **Runtime ANF Callable Catalog**:
@@ -293,10 +293,20 @@ The one interned runtime representation selected for a Runtime Value Port,
 including exact erased-evidence, callable-ABI, or data-family identity.
 _Avoid_: Value ABI alone, candidate family set, semantic type
 
-**Represented Runtime ANF**:
-The nominal pre-VM-CFG phase value containing closed Runtime ANF and its total
-immutable Physical Representation Plan without copying the ANF tree.
-_Avoid_: physical AST copy, bare Runtime ANF plus lowering fallback
+**Representation Constraint Graph**:
+The lowering-private graph collected from Runtime ANF after semantic callable
+flow reaches a fixed point. Its stable nodes are runtime value ports and
+callable targets; its edges express identity flow and explicit non-local
+representation requirements. Its solver owns specialized families, callable
+targets, workers, and bridge requirements, but does not duplicate canonical
+scalar classification on every node.
+_Avoid_: callable-instance side effects, emitter query tables, source-type key
+
+**Representation Solution**:
+The complete immutable assignment of non-local representation choices produced
+by solving the Representation Constraint Graph. It is an input to Physical ANF
+materialization, not an IR consumed beside the original Runtime ANF tree.
+_Avoid_: demand sidecar, ambient family array, emission-time choice
 
 **LoisVM Runtime Type Arena**:
 The lowering-private arena seeded from Runtime ANF's immutable type-expression
@@ -372,30 +382,42 @@ allocated; each materialization site supplies its own captured values to the
 one worker selected by that recipe.
 _Avoid_: source-type spelling key, VM CFG body equivalence, call-site worker allocation
 
-**Physical Representation Plan**:
-The total immutable assignment of one Physical Value Shape to every Runtime
-Value Port, together with all selected function variants, data families,
-environments, and representation bridges.
-_Avoid_: Runtime Representation Specialization Plan, ambient family array,
-lowering-time representation choice
+**Physical ANF**:
+The compiler-private structural IR materialized from Runtime ANF and one
+Representation Solution. Its constructor is the sole owner of the final
+Physical Value Contract at every call, construction, match, binding, capture,
+allocation, join, and function boundary: it combines solved non-local choices
+with canonical runtime-type classification exactly once. Its verifier proves
+the complete physical contract before VM CFG emission.
+_Avoid_: unchanged Runtime ANF plus sidecars, site-key lookup, emitter fallback
 
 **Callable Instance Plan**:
 The typed Runtime ANF fixed point over callable identities, evidence
 applications, aliases, parameters, results, finite allocation sites, aggregate
-members, and recursive groups. It owns semantic flow and supplies those facts
-to the Physical Representation Plan, but never selects physical families or
-workers or decides final function reachability.
+members, and recursive groups. It owns only semantic flow and supplies those
+facts to the Representation Constraint Graph; it never selects physical
+families, workers, bridges, or final function reachability.
 _Avoid_: recursively nested aggregate fact, first-seen recursion, emission-time demand
 
 **Callable Invocation Contract**:
 The exact Physical Value Shapes of a callable's evidence inputs, user
 parameters, and result, independent of the closure environment that implements
-it. The Physical Representation Plan freezes every generic implementation
+it. The Representation Solution freezes every generic implementation
 contract before planning workers or function bodies; higher-order contracts
 refer to those frozen facts rather than reconstructing an ABI from Runtime ANF
 type syntax. Body planning verifies the contract and cannot replace it.
 _Avoid_: CallableValue layout, source function type, capture schema,
 type-derived fallback ABI
+
+**Callable Producer Contract**:
+The Physical ANF fact attached to one callable-producing atom. A function or
+evidence-lambda allocation may construct the selected implementation with the
+captures in its lexical environment. A reference to an existing callable must
+retain that value's frozen invocation and environment; it cannot recreate the
+source definition under a different representation. A consumer that requires
+another invocation names an explicit callable bridge.
+_Avoid_: rematerializing a callable reference from its source function,
+semantic-target-derived producer ABI, capture reconstruction at a use site
 
 **Function Representation Variant**:
 One semantic callable instance paired with one Callable Invocation Contract,
@@ -444,7 +466,7 @@ _Avoid_: allocation-local object shape under the declaration family,
 runtime-ABI-only family key, hidden-binder specialization
 
 **Specialized Data Representation Family**:
-A Physical Representation Plan identity owning one nominal owner's complete
+A Representation Solution identity owning one nominal owner's complete
 constructor tag, member-shape, and stored-evidence contract. Its identity
 includes nested physical shapes, not only closed source arguments.
 _Avoid_: per-allocation family, body-wide type guess, partial constructor family,

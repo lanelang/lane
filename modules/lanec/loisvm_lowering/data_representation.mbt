@@ -272,7 +272,7 @@ fn ImageLowerer::finalize_data_callable_storage_interface(
 ) -> PhysicalCallableInterface? raise LoisvmLoweringError {
   let mut selected : PhysicalCallableInterface? = None
   for demand in demands {
-    let generic = self.representation_demands.callable_component_requires_generic(
+    let generic = self.representation_solution.callable_component_requires_generic(
       demand.component,
     )
     let worker = demand.component >= 0 &&
@@ -331,7 +331,7 @@ fn ImageLowerer::plan_specialized_data_family_with_key(
     let generic_storage_types = info.payload_types.map(type_ => {
       substitutions.apply_type(self.runtime_types, type_)
     })
-    let family_allocations = self.representation_demands.data_representations.allocations.filter(demand => {
+    let family_allocations = self.representation_solution.data_representations.allocations.filter(demand => {
         demand.family == key && demand.data_constructor == data_constructor
       },
     )
@@ -357,10 +357,11 @@ fn ImageLowerer::plan_specialized_data_family_with_key(
     }
     let data_families = Array::makei(storage_types.length(), _ => None)
     let callable_demands = Array::makei(storage_types.length(), _ => [])
-    for demand in self.representation_demands.data_representations.data_payloads {
+    for
+      demand in self.representation_solution.data_representations.data_payloads {
       let mut allocation : DataRepresentationAllocationDemand? = None
       for
-        candidate in self.representation_demands.data_representations.allocations {
+        candidate in self.representation_solution.data_representations.allocations {
         if candidate.allocation == demand.allocation {
           allocation = Some(candidate)
           break
@@ -382,10 +383,10 @@ fn ImageLowerer::plan_specialized_data_family_with_key(
       }
     }
     for
-      demand in self.representation_demands.data_representations.callable_payloads {
+      demand in self.representation_solution.data_representations.callable_payloads {
       let mut allocation : DataRepresentationAllocationDemand? = None
       for
-        candidate in self.representation_demands.data_representations.allocations {
+        candidate in self.representation_solution.data_representations.allocations {
         if candidate.allocation == demand.allocation {
           allocation = Some(candidate)
           break

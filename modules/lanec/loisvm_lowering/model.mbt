@@ -36,7 +36,12 @@ priv enum GlobalValue {
   Intrinsic(RuntimeIntrinsicFunctionContract)
   FloatConstant(Int, @anf.RuntimeType)
   DoubleConstant(Int64, @anf.RuntimeType)
-  InstanceGlobal(@bytecode.GlobalId, @anf.RuntimeType, CanonicalRuntimeTypeKey)
+  InstanceGlobal(
+    @bytecode.GlobalId,
+    @anf.RuntimeType,
+    CanonicalRuntimeTypeKey,
+    PhysicalCallableInterface?
+  )
 }
 
 ///|
@@ -475,8 +480,8 @@ priv struct RepresentationSpecializationKey {
 ///|
 priv struct RepresentationSpecializationPlan {
   worker : @bytecode.FunctionId
-  callables : Array[CallableRepresentationTarget]
-  analysis_instances : Array[Int]
+  owner : CallableRepresentationTarget
+  aliases : Array[CallableRepresentationTarget]
   data_components : Array[Int]
   callable_components : Array[Int]
   key : RepresentationSpecializationKey
@@ -610,6 +615,15 @@ priv enum LocalValue {
     CanonicalRuntimeTypeKey,
     DeferredEvidenceApplication
   )
+}
+
+///|
+/// A value emitted from Physical ANF together with the contract certified by
+/// that IR. VM CFG emission must consume this contract instead of recovering
+/// representation facts from LocalValue storage details.
+priv struct PhysicalLocalValue {
+  value : LocalValue
+  contract : PhysicalValueContract
 }
 
 ///|

@@ -17,6 +17,20 @@ test "dependent initializers execute in term order before entry" {
 }
 
 ///|
+test "function-valued initializer retains its producer callable contract" {
+  let source =
+    #|module Test
+    #|
+    #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+    #|
+    #|let identity : (I64) -> I64 = fn(value) { value }
+    #|
+    #|pub fn main() -> Unit ! Io { observe(identity(42)) }
+  let outcomes = execute_compiler_test_matrix(source)
+  assert_eq(outcomes, expected_i64_execution_matrix(42L, 0))
+}
+
+///|
 test "recursive function groups remain atomic around eager initialization" {
   let source =
     #|module Test

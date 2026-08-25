@@ -942,7 +942,7 @@ test "explore keeps expanding recursive representation SCC generic" {
       #|        ("importCount", 1),
       #|        ("blockCount", 4),
       #|        ("instructionCount", 10),
-      #|        ("valueCount", 16),
+      #|        ("valueCount", 14),
       #|        ("directCallCount", 3),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
@@ -958,8 +958,8 @@ test "explore keeps expanding recursive representation SCC generic" {
       #|        ("constantCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 3, operation_count: 5, value_count: 10 },
-      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 6 },
+      #|        { index: 1, block_count: 3, operation_count: 5, value_count: 9 },
+      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 5 },
       #|      ],
       #|    ),
       #|    (

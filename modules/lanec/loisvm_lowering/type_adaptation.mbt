@@ -905,7 +905,7 @@ fn FunctionLowerer::materialize_planned_callable_bridge(
     source_shape ==
     CanonicalRuntimeTypeKey::Callable(contract.recipe.source_abi) else {
     raise RepresentationSpecializationInvariant(
-      detail="planned callable bridge source \{Repr(self.local_physical_shape(materialized))} disagrees with \{Repr(contract.recipe.source_abi)} in \{provenance}",
+      detail="planned callable bridge source is not \{Repr(contract.recipe.source_abi)} in \{provenance}",
     )
   }
   self.materialize_callable_adapter({
@@ -1093,7 +1093,7 @@ fn local_value_type(value : LocalValue) -> @anf.RuntimeType? {
     Global(Function(_, type_))
     | Global(FloatConstant(_, type_))
     | Global(DoubleConstant(_, type_))
-    | Global(InstanceGlobal(_, type_, _)) => Some(type_)
+    | Global(InstanceGlobal(_, type_, _, _)) => Some(type_)
     Global(Intrinsic(contract)) => Some(contract.type_())
     RecursiveFunction(_, type_, _) => Some(type_)
     EvidenceAppliedCallable(_, _, _, application)

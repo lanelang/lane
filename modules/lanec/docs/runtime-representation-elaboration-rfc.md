@@ -138,10 +138,10 @@ different closed component. What is unique is:
 
 Physical selection is therefore indexed by value-flow position, not by a
 function-wide family environment or a type-to-family map. Parameters, results,
-bindings, calls, captures, constructors, matches, and joins are explicit ports
-in one immutable Physical Representation Plan. A consumer receives the one
-selected shape; it never receives a set of candidate families from which to
-choose again.
+bindings, calls, captures, constructors, matches, and joins are explicit nodes
+in one Representation Constraint Graph. Its solution is materialized as
+structural Physical ANF. A consumer receives the one selected shape; it never
+receives a set of candidate families from which to choose again.
 
 The plan freezes the invocation contract of every generic function
 implementation before it plans representation workers or function bodies.
@@ -270,9 +270,9 @@ Physical representation planning is a deep compiler module at the seam between
 Runtime ANF semantic flow and VM CFG construction. Its canonical-elaboration
 operation accepts a semantic runtime type and evidence environment and returns
 one complete generic representation result. Its external interface accepts a
-closed Runtime ANF program and semantic Callable Instance Plan and returns one
-Represented Runtime ANF phase value with a total immutable Physical
-Representation Plan. VM CFG construction cannot consume bare Runtime ANF.
+closed Runtime ANF program and semantic Callable Instance Plan, builds and
+solves one Representation Constraint Graph, and materializes one verified
+Physical ANF program. VM CFG construction cannot consume bare Runtime ANF.
 
 Conceptually, the result contains:
 
@@ -448,8 +448,10 @@ of runtime representation decisions.
 1. Every source type fact has one owner in Buslane.
 2. Every semantic type has one canonical generic elaboration, while every
    represented runtime value port has one selected Physical Value Shape.
-3. The Physical Representation Plan is the sole owner of selected shapes,
-   function variants, data families, environments, and representation bridges.
+3. The Representation Constraint Graph solver is the sole producer of non-local
+   family, callable-target, worker, and bridge choices. The Physical ANF
+   constructor is the sole producer of final value, function, and environment
+   contracts and is their structural verification boundary.
 4. Every finalized callable occurrence has exactly one complete Callable
    Invocation Contract; each implementation variant additionally has one
    complete capture and body-shape contract.
@@ -541,9 +543,9 @@ semantic fingerprint in cache validity.
    materialized slots after ARC ownership operations.
 2. Correct data-schema construction so it consumes fully substituted and
    normalized field types.
-3. Introduce Represented Runtime ANF and the single Physical Representation
-   Planner; assign every parameter, result, binding, call, capture, aggregate,
-   and join port one Physical Value Shape before VM CFG emission.
+3. Introduce one Representation Constraint Graph and structural Physical ANF;
+   assign every parameter, result, binding, call, capture, aggregate, and join
+   port one Physical Value Shape before VM CFG emission.
 4. Define immutable image-owned higher-kinded layout evidence and its checked
    application operation.
 5. Propagate type substitutions and evidence through generic calls, closures,

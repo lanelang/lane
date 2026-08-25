@@ -4,9 +4,40 @@ test "recursive demand produces a worker with a generic recursive callable edge"
     @buslane.MetadataRegistry::MetadataRegistry(),
   )
   let demand = recursive_representation_test_demand(0, Semantic(0))
-  let completed = lowerer.complete_representation_demands([demand])
+  let completed = lowerer.complete_representation_solution([demand])
   assert_eq(completed.length(), 1)
   assert_eq(completed[0].2.key.callable_result, None)
+}
+
+///|
+test "Physical ANF rejects two workers for one representation contract" {
+  let image = test_image_lowerer(@buslane.MetadataRegistry::MetadataRegistry())
+  let physical = PhysicalAnfProgram::new()
+  let draft = recursive_representation_test_demand(0, Semantic(0))
+  let worker : RepresentationSpecializationPlan = {
+    worker: { value: 1, },
+    owner: draft.0,
+    aliases: [draft.0],
+    data_components: [],
+    callable_components: [],
+    key: draft.2.key,
+    function: draft.1.definition.function,
+    substitutions: draft.2.substitutions,
+    specialized_parameters: draft.2.specialized_parameters,
+    residual_parameters: draft.2.residual_parameters,
+    parameter_types: draft.2.parameter_types,
+    scalar_parameters: draft.2.scalar_parameters,
+    result_type: draft.2.result_type,
+    recursive_functions: [],
+  }
+  physical.representation_workers.push(worker)
+  physical.representation_workers.push({ ..worker, worker: { value: 2, }, })
+  let result : Result[Unit, LoisvmLoweringError] = Ok(
+    image.verify_physical_anf(physical),
+  ) catch {
+    error => Err(error)
+  }
+  assert_true(result is Err(RepresentationSpecializationInvariant(detail=_)))
 }
 
 ///|
@@ -102,7 +133,7 @@ test "scalarized callable ABI is not selected across a first-class edge" {
       ..target.2,
       scalar_parameters: [
         {
-          instance: 1,
+          owner: callable_representation_owner(1),
           parameter_index: 0,
           contract: {
             owner: { index: 0, },
@@ -172,6 +203,6 @@ test "recursive callable allocation edges use the generic implementation" {
   let lowerer = test_image_lowerer(
     @buslane.MetadataRegistry::MetadataRegistry(),
   )
-  let completed = lowerer.complete_representation_demands([demand])
+  let completed = lowerer.complete_representation_solution([demand])
   assert_eq(completed[0].2.key.callable_allocations, [])
 }

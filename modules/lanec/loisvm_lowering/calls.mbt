@@ -1,26 +1,20 @@
 ///|
 fn FunctionLowerer::lower_call(
   self : FunctionLowerer,
-  site : @anf.AnfBindingId,
-  callee : @anf.AnfAtom,
-  arguments : Array[@anf.AnfAtom],
+  call : PhysicalAnfCall,
 ) -> LocalValue raise LoisvmLoweringError {
-  let physical_call = self.planned_call(site)
+  let physical_call = call.plan
   let representation_target = physical_call.target
   let lowered_callee = match representation_target {
     Some({ invocation: Direct, .. }) => None
     Some({ invocation: Captured(_), .. }) | None =>
-      Some(self.lower_atom(callee))
+      Some(self.lower_physical_atom(call.callee))
   }
   let lowered_arguments = []
-  for index, argument in arguments {
-    let planned_argument = physical_call.callable_arguments[index]
-    let lowered = match planned_argument {
-      Some(instance) =>
-        self.materialize_planned_callable_atom(argument, instance)
-      None => self.lower_atom(argument)
-    }
-    lowered_arguments.push(self.materialize_local(lowered))
+  for argument in call.arguments {
+    lowered_arguments.push(
+      self.materialize_physical_local(self.lower_physical_atom(argument)),
+    )
   }
   if representation_target is Some(physical_target) {
     let plan = physical_target.worker
@@ -30,8 +24,8 @@ fn FunctionLowerer::lower_call(
       Captured(function) => {
         let deferred = match lowered_callee {
           Some(
-            NestedCallable(callable)
-            | EvidenceAppliedNestedCallable(callable, _)
+            { value: NestedCallable(callable), .. }
+            | { value: EvidenceAppliedNestedCallable(callable, _), .. }
           ) => Some(callable)
           _ => None
         }
@@ -61,9 +55,30 @@ fn FunctionLowerer::lower_call(
       detail="ordinary call has no materialized callable",
     )
   }
-  match callee {
-    Global(Intrinsic(contract)) =>
-      self.lower_intrinsic(contract, lowered_arguments)
+  match callee.value {
+    Global(Intrinsic(contract)) => {
+      let arguments = []
+      for index, argument in lowered_arguments {
+        let flow = physical_call.arguments[index]
+        arguments.push(
+          self.materialize_planned_value_flow(
+            "intrinsic argument \{index} at \{Repr(physical_call.site)}",
+            argument,
+            physical_call.parameter_types[index],
+            flow.target,
+            flow.bridge,
+          ).value,
+        )
+      }
+      let result = self.lower_intrinsic(contract, arguments)
+      self.materialize_planned_value_flow(
+        "intrinsic result at \{Repr(physical_call.site)}",
+        { value: result, contract: physical_call.result.source, },
+        physical_call.result_type,
+        physical_call.result.target,
+        physical_call.result.bridge,
+      ).value
+    }
     Global(Function(function, _)) =>
       self.lower_physical_call(
         lowered_arguments,
@@ -181,6 +196,17 @@ fn FunctionLowerer::materialize_local(
 }
 
 ///|
+fn FunctionLowerer::materialize_physical_local(
+  self : FunctionLowerer,
+  physical : PhysicalLocalValue,
+) -> PhysicalLocalValue raise LoisvmLoweringError {
+  {
+    value: self.materialize_local(physical.value),
+    contract: physical.contract,
+  }
+}
+
+///|
 fn FunctionLowerer::materialize_evidence_application(
   self : FunctionLowerer,
   source : LocalValue,
@@ -209,7 +235,7 @@ fn FunctionLowerer::materialize_evidence_application(
 ///|
 fn FunctionLowerer::lower_physical_call(
   self : FunctionLowerer,
-  arguments : Array[LocalValue],
+  arguments : Array[PhysicalLocalValue],
   call : PhysicalCallPlan,
   direct~ : (@bytecode.FunctionId, @vmcfg.ValueId?)?,
   callable~ : @vmcfg.ValueId?,
@@ -224,21 +250,15 @@ fn FunctionLowerer::lower_physical_call(
   let argument_slots = []
   for index, argument in arguments {
     let flow = call.arguments[index]
-    let source_shape = self.physical_shape(flow.source)
-    let target_shape = self.physical_shape(flow.target)
-    if self.local_physical_shape(argument) != source_shape {
-      raise RepresentationSpecializationInvariant(
-        detail="call argument \{index} at \{Repr(call.site)} (callable instance \{Repr(call.callable_arguments[index])}) produced \{Repr(self.local_physical_shape(argument))}, but its source port owns \{Repr(source_shape)} before flow to \{Repr(target_shape)} for \{Repr(call.parameter_types[index])}",
-      )
-    }
+    let target_shape = self.physical_shape(flow.target.shape)
     let adapted = self.materialize_planned_value_flow(
       "call argument \{index} at \{Repr(call.site)}",
       argument,
       call.parameter_types[index],
-      target_shape,
+      flow.target,
       flow.bridge,
     )
-    match adapted {
+    match adapted.value {
       Unit => ()
       Slot(slot, _, shape) => {
         guard target_shape is PhysicalValueShape::Slot(expected) &&
@@ -281,11 +301,11 @@ fn FunctionLowerer::lower_physical_call(
   }
   self.materialize_planned_value_flow(
     "call result at \{Repr(call.site)}",
-    destination.1,
+    { value: destination.1, contract: call.result.source, },
     call.result_type,
-    self.physical_shape(call.result.target),
+    call.result.target,
     call.result.bridge,
-  )
+  ).value
 }
 
 ///|
@@ -347,16 +367,16 @@ fn FunctionLowerer::fresh_physical_call_result(
 fn FunctionLowerer::materialize_planned_call_argument(
   self : FunctionLowerer,
   site : @anf.AnfBindingId,
-  argument : LocalValue,
+  argument : PhysicalLocalValue,
   target_type : @anf.RuntimeType,
-  target_shape : PhysicalValueShape,
+  target : PhysicalValueContract,
   bridge : PhysicalValueBridge?,
-) -> LocalValue raise LoisvmLoweringError {
+) -> PhysicalLocalValue raise LoisvmLoweringError {
   self.materialize_planned_value_flow(
     "Runtime ANF flow at \{Repr(site)}",
     argument,
     target_type,
-    target_shape,
+    target,
     bridge,
   )
 }
@@ -365,14 +385,20 @@ fn FunctionLowerer::materialize_planned_call_argument(
 fn FunctionLowerer::materialize_planned_value_flow(
   self : FunctionLowerer,
   provenance : String,
-  argument : LocalValue,
+  argument : PhysicalLocalValue,
   target_type : @anf.RuntimeType,
-  target_shape : PhysicalValueShape,
+  target : PhysicalValueContract,
   bridge : PhysicalValueBridge?,
-) -> LocalValue raise LoisvmLoweringError {
+) -> PhysicalLocalValue raise LoisvmLoweringError {
+  let target_shape = self.physical_shape(target.shape)
+  let argument = self.materialize_physical_local(argument)
   let adapted = match bridge {
     Some(Callable(contract)) =>
-      self.materialize_planned_callable_bridge(provenance, argument, contract)
+      self.materialize_planned_callable_bridge(
+        provenance,
+        argument.value,
+        contract,
+      )
     Some(Erase(erasure)) => {
       guard target_shape is Slot(target) else {
         raise RepresentationSpecializationInvariant(
@@ -382,9 +408,11 @@ fn FunctionLowerer::materialize_planned_value_flow(
       let argument = match erasure.callable {
         Some(contract) =>
           self.materialize_planned_callable_bridge(
-            provenance, argument, contract,
+            provenance,
+            argument.value,
+            contract,
           )
-        None => argument
+        None => argument.value
       }
       let witness = self.materialize_runtime_evidence(erasure.evidence) catch {
         error =>
@@ -396,7 +424,7 @@ fn FunctionLowerer::materialize_planned_value_flow(
       LocalValue::Slot(erased, target_type, target)
     }
     Some(Unerase(callable)) => {
-      guard argument is Slot(source, _, source_shape) &&
+      guard argument.value is Slot(source, _, source_shape) &&
         source_shape
         is CanonicalRuntimeTypeKey::Value({ cleanup: OwnedErased, .. }) else {
         raise RepresentationSpecializationInvariant(
@@ -421,25 +449,13 @@ fn FunctionLowerer::materialize_planned_value_flow(
         None => unerased
       }
     }
-    None => argument
+    None => argument.value
   }
-  if self.local_physical_shape(adapted) != target_shape {
-    let bridge_kind = match bridge {
-      None => "none"
-      Some(Callable(_)) => "callable"
-      Some(Erase(_)) => "erase"
-      Some(Unerase(None)) => "unerase"
-      Some(Unerase(Some(_))) => "unerase+callable"
-    }
-    raise RepresentationSpecializationInvariant(
-      detail="\{provenance} planned \{bridge_kind} bridge but produced \{Repr(self.local_physical_shape(adapted))}, expected \{Repr(target_shape)} for \{Repr(target_type)}",
-    )
-  }
-  match (target_shape, adapted) {
-    (Unit, Unit) => Unit
+  let value = match (target_shape, adapted) {
+    (Unit, Unit) => LocalValue::Unit
     (Slot(expected), Slot(slot, _, actual)) if expected == actual =>
       LocalValue::Slot(slot, target_type, expected)
-    (Product(_), _) =>
+    (Product(_, _), _) =>
       raise RepresentationSpecializationInvariant(
         detail="a call argument cannot expose an unlowered product shape",
       )
@@ -448,6 +464,7 @@ fn FunctionLowerer::materialize_planned_value_flow(
         detail="\{provenance} has the planned physical shape but is not a materialized slot for \{Repr(target_type)}",
       )
   }
+  { value, contract: target, }
 }
 
 ///|
@@ -462,7 +479,7 @@ fn FunctionLowerer::unerase_planned_call_argument(
       self.emit(UneraseUnit(source))
       Unit
     }
-    Product(_) =>
+    Product(_, _) =>
       raise RepresentationSpecializationInvariant(
         detail="planned unerasure cannot produce an unlowered product shape",
       )
@@ -492,7 +509,7 @@ fn FunctionLowerer::lower_representation_specialized_call(
   self : FunctionLowerer,
   plan : RepresentationSpecializationPlan,
   contract : CanonicalCallableAbi,
-  values : Array[LocalValue],
+  values : Array[PhysicalLocalValue],
   call : PhysicalCallPlan,
   environment~ : @vmcfg.ValueId?,
   callable~ : @vmcfg.ValueId?,
@@ -518,17 +535,12 @@ fn FunctionLowerer::lower_representation_specialized_call(
   let mut physical_index = 0
   for index, formal in plan.parameter_types {
     let flow = call.arguments[index]
-    let source_shape = self.physical_shape(flow.source)
-    if self.local_physical_shape(values[index]) != source_shape {
-      raise RepresentationSpecializationInvariant(
-        detail="representation call argument \{index} at \{Repr(call.site)} produced \{Repr(self.local_physical_shape(values[index]))}, but its source port owns \{Repr(source_shape)}",
-      )
-    }
-    let target_shape = self.physical_shape(flow.target)
+    let target_shape = self.physical_shape(flow.target.shape)
     match target_shape {
-      Product(payload_shapes) => {
+      Product(product_contract, payload_shapes) => {
         guard flow.bridge is None &&
-          values[index] is ClosedAggregate(aggregate_contract, payloads) &&
+          values[index].value is ClosedAggregate(aggregate_contract, payloads) &&
+          product_contract == aggregate_contract &&
           payloads.length() == payload_shapes.length() &&
           plan.scalar_parameters.any(parameter => {
             parameter.parameter_index == index &&
@@ -538,13 +550,7 @@ fn FunctionLowerer::lower_representation_specialized_call(
             detail="closed aggregate argument does not match its physical call plan",
           )
         }
-        for payload_index, payload in payloads {
-          let expected = self.physical_shape(payload_shapes[payload_index])
-          if self.local_physical_shape(payload) != expected {
-            raise RepresentationSpecializationInvariant(
-              detail="closed aggregate payload disagrees with its physical call plan",
-            )
-          }
+        for payload in payloads {
           physical_index = self.append_planned_call_argument(
             arguments,
             self.materialize_local(payload),
@@ -553,17 +559,17 @@ fn FunctionLowerer::lower_representation_specialized_call(
           )
         }
       }
-      target_shape => {
+      _ => {
         let adapted = self.materialize_planned_value_flow(
           "representation call argument \{index} at \{Repr(call.site)}",
           values[index],
           formal,
-          target_shape,
+          flow.target,
           flow.bridge,
         )
         physical_index = self.append_planned_call_argument(
           arguments,
-          adapted,
+          adapted.value,
           contract.parameters,
           physical_index,
         )
@@ -598,11 +604,11 @@ fn FunctionLowerer::lower_representation_specialized_call(
   }
   self.materialize_planned_value_flow(
     "representation call result at \{Repr(call.site)}",
-    worker_result.1,
+    { value: worker_result.1, contract: call.result.source, },
     call.result_type,
-    self.physical_shape(call.result.target),
+    call.result.target,
     call.result.bridge,
-  )
+  ).value
 }
 
 ///|

@@ -2,22 +2,10 @@
 fn ImageLowerer::lower_function_body(
   self : ImageLowerer,
   lowered_function : @bytecode.FunctionId,
-  function : @anf.AnfFunction,
-  representation_worker : Bool,
-  type_parameters : Array[@anf.RuntimeEvidenceParameter],
-  parameter_types : Array[@anf.RuntimeType],
-  recursive_functions : Array[RecursiveFunctionPlan],
-  substitutions : RuntimeSubstitution,
-  specialized_parameters : Array[@anf.RuntimeEvidenceId],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   guard self.physical_function(lowered_function) is Some(physical) else {
     raise RepresentationSpecializationInvariant(
       detail="VM CFG function emission lacks a physical function variant",
-    )
-  }
-  if physical.representation_worker != representation_worker {
-    raise RepresentationSpecializationInvariant(
-      detail="physical function mode disagrees with VM CFG emission mode",
     )
   }
   let capture = physical.capture
@@ -31,12 +19,12 @@ fn ImageLowerer::lower_function_body(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions,
-    specialized_parameters,
+    substitutions: physical.substitutions,
+    specialized_parameters: physical.specialized_parameters,
     physical: Some(physical),
   }
   let input_witnesses = []
-  for parameter in type_parameters {
+  for parameter in physical.evidence_parameters {
     if self.requires_runtime_evidence(parameter) {
       let witness = lowerer.fresh_metadata(runtime_evidence_metadata(parameter))
       input_witnesses.push(witness)
@@ -114,22 +102,27 @@ fn ImageLowerer::lower_function_body(
       lowerer.bind_capture(captured.binding, Unit)
     }
   }
-  for recursive in recursive_functions {
+  for recursive in physical.recursive_functions {
     lowerer.bindings.push({
-      value: recursive.value,
+      value: recursive.recursive.value,
       lowered: RecursiveFunction(
-        recursive.function,
-        recursive.type_,
+        recursive.recursive.function,
+        recursive.recursive.type_,
         lowerer.environment,
       ),
     })
   }
   let parameter_slots : Array[@vmcfg.ValueId] = []
-  for index, parameter in function.parameters {
-    let type_ = parameter_types[index]
-    let (shape, aggregate) = lowerer.planned_parameter(index)
-    match (shape, aggregate) {
-      (Product(payload_shapes), Some(contract)) => {
+  for index, parameter in physical.parameters {
+    guard parameter.binding is Value(parameter_id) else {
+      raise RepresentationSpecializationInvariant(
+        detail="physical function parameter is not a source value binding",
+      )
+    }
+    let type_ = parameter.type_
+    let shape = lowerer.physical_parameter_shape(index)
+    match shape {
+      Product(contract, payload_shapes) => {
         if payload_shapes.length() != contract.payload_types.length() {
           raise RepresentationSpecializationInvariant(
             detail="planned aggregate parameter payload shapes disagree with its contract",
@@ -147,40 +140,27 @@ fn ImageLowerer::lower_function_body(
           payloads.push(payload)
         }
         lowerer.bindings.push({
-          value: parameter,
+          value: parameter_id,
           lowered: ClosedAggregate(contract, payloads),
         })
       }
-      (Product(_), None) | (_, Some(_)) =>
-        raise RepresentationSpecializationInvariant(
-          detail="planned aggregate parameter has no matching product contract",
-        )
-      (_, None) => {
+      shape => {
         let (slot, lowered) = lowerer.fresh_planned_optional_slot(type_, shape)
         if slot is Some(slot) {
           parameter_slots.push(slot)
         }
-        lowerer.bindings.push({ value: parameter, lowered, })
+        lowerer.bindings.push({ value: parameter_id, lowered, })
       }
     }
   }
-  let result = lowerer.materialize_planned_function_result(
-    lowerer.materialize_local(lowerer.lower_expr(function.body)),
+  let result = lowerer.materialize_physical_function_result(
+    lowerer.materialize_physical_local(lowerer.lower_expr(physical.body)),
   )
-  guard lowerer.planned_result_shape() is Some(expected) else {
-    raise RepresentationSpecializationInvariant(
-      detail="Runtime ANF function has no planned physical result",
-    )
-  }
-  if lowerer.local_physical_shape(result) != expected {
-    raise RepresentationSpecializationInvariant(
-      detail="VM CFG function result disagrees with its physical contract",
-    )
-  }
-  let terminator : @vmcfg.Terminator = match lowerer.take_tail_call(result) {
+  let terminator : @vmcfg.Terminator = match
+    lowerer.take_tail_call(result.value) {
     Some(terminator) => terminator
     None =>
-      match result {
+      match result.value {
         Unit => Return(None)
         Slot(slot, _, _) => Return(Some(slot))
         ClosedAggregate(_, _)
@@ -216,7 +196,7 @@ fn ImageLowerer::lower_function_body(
       witnesses: input_witnesses,
       user_parameters: parameter_slots,
     },
-    result: expected.result_abi(),
+    result: physical.interface.invocation.result.physical_shape().result_abi(),
     blocks,
   }
 }
@@ -377,7 +357,7 @@ fn FunctionLowerer::fresh_block_value_parameter(
   let type_ = self.instantiate_runtime_type(type_)
   match shape {
     Unit => ([], Unit)
-    Product(_) =>
+    Product(_, _) =>
       raise RepresentationSpecializationInvariant(
         detail="a VM CFG block parameter cannot encode a product shape",
       )

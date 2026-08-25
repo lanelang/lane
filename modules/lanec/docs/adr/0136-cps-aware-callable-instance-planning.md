@@ -1,7 +1,7 @@
 # Per-value physical representation planning
 
-Status: accepted; the ambient-family implementation is being replaced under
-ISS-385.
+Status: accepted; the sidecar implementation is being replaced by structural
+Physical ANF under ISS-387.
 
 ## Context
 
@@ -21,11 +21,12 @@ second representation producer.
 
 ## Decision
 
-One Physical Representation Planner runs after the semantic Callable Instance
-Plan and before VM CFG emission. It produces a nominal Represented Runtime ANF
-phase value: the unchanged Runtime ANF program plus one total immutable
-Physical Representation Plan. VM CFG emission accepts only this represented
-phase value.
+After the semantic Callable Instance Plan reaches a fixed point, one traversal
+builds a Representation Constraint Graph over stable runtime value ports and
+canonical callable targets. One solver produces the complete Representation
+Solution. The solution is then materialized with Runtime ANF as a structural,
+verified Physical ANF program. VM CFG emission accepts only Physical ANF; it
+does not traverse Runtime ANF beside representation side tables.
 
 The planner assigns every runtime value port one interned Physical Value Shape.
 Ports include parameters, results, bindings, call operands and results,
@@ -37,10 +38,12 @@ selected from an ambient set of possible families.
 
 The Callable Instance Plan remains the sole owner of semantic callable
 identity, generic application, exact target alternatives, allocation flow, and
-recursive semantic closure. It supplies facts to physical planning but does
-not select families or workers. The Physical Representation Plan is the sole
-owner of selected shapes, representation workers, data-family contracts,
-environment contracts, and representation bridges.
+recursive semantic closure. It supplies facts to the constraint graph but does
+not select families or workers. The Representation Solution is the sole owner
+of non-local representation choices: specialized families, callable targets,
+workers, and bridge requirements. The Physical ANF constructor combines those
+choices with canonical runtime-type classification and solely owns every final
+value contract carried to its verifier and to VM CFG emission.
 
 ## Physical contracts
 
@@ -62,6 +65,14 @@ one Callable Invocation Contract, exact capture shapes, and the value-shape
 assignment required by its body. Capture layout belongs here because two
 closures may share an invocation contract while storing different environment
 shapes. One canonical function-variant key produces at most one worker.
+
+Only a function or evidence-lambda allocation in the current Runtime ANF body
+may construct a Function Representation Variant from its lexical captures. A
+reference to an existing callable consumes that producer's frozen invocation
+and environment. It never recreates the referenced source definition at the
+use site; a different consumer invocation requires an explicit callable
+bridge. Producer invocation is authoritative when interpreting a callable
+interface, while semantic type supplies the parameter and result meaning.
 
 A Data Representation Family Contract contains one nominal owner and the
 complete constructor tag, member-shape, and stored-evidence schema. A
@@ -110,10 +121,14 @@ fallback policy.
 
 - Runtime ANF owns semantic runtime types and representation evidence.
 - The Callable Instance Plan owns semantic callable and allocation flow.
-- The Physical Representation Plan owns every selected value shape, physical
-  family, function variant, environment contract, and bridge.
-- VM CFG emission projects those facts into explicit values and instructions;
-  it makes no representation decision.
+- The Representation Constraint Graph owns physical flow components and
+  requirements; its solver owns non-local family, callable-target, worker, and
+  bridge choices.
+- The Physical ANF constructor owns every final value, function, and environment
+  contract by combining the solution with canonical runtime classification
+  once; its verifier checks those structural facts before emission.
+- VM CFG emission projects verified Physical ANF into explicit values and
+  instructions; it makes no representation decision.
 - ARC augments VM CFG values with ownership flow without changing their
   physical shape.
 - Final callable ABI construction and physical slot allocation consume the
@@ -126,14 +141,17 @@ fallback policy.
   specialization. No CPS name or source effect participates in physical shape
   selection.
 - Semantic callable identity and physical function variants remain distinct.
+- Existing callable values retain their producer ABI and capture environment;
+  specialization cannot rematerialize them from source provenance.
 - Callable-valued data members naturally carry nested data families through
   their Callable Invocation Contract; no parallel family map is required.
 - Construction and matching name one exact Data Representation Family and
   cannot accidentally share tags or shapes with another family.
 - A planner defect is reported before VM CFG emission. The emitter cannot hide
   it by choosing a generic family, filtering a context, or reboxing a value.
-- The represented phase has a necessary invariant but need not duplicate the
-  Runtime ANF tree or become a persisted/public IR.
+- Physical ANF has a necessary invariant but remains compiler-private and is
+  neither persisted nor paired with an independently traversed Runtime ANF
+  tree.
 - Source language, linked-artifact, and bytecode schemas do not change merely
   because the compiler has a stronger pre-emission representation seam.
 

@@ -335,7 +335,7 @@ test "alpha-renamed evidence aliases share one callable adapter recipe" {
     captures: [],
     nested_adapters: [],
   }
-  let physical = PhysicalRepresentationPlan::new()
+  let physical = PhysicalAnfProgram::new()
   physical.record_adapter_contract(left_contract)
   physical.record_adapter_contract(right_contract)
   debug_inspect(

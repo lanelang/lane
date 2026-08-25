@@ -1,7 +1,7 @@
 ///|
 fn ImageLowerer::plan_representation_specializations(
   self : ImageLowerer,
-  physical : PhysicalRepresentationPlan,
+  physical : PhysicalAnfProgram,
   instances : CallableInstancePlan,
 ) -> Unit raise LoisvmLoweringError {
   let demands : Array[
@@ -13,11 +13,11 @@ fn ImageLowerer::plan_representation_specializations(
       instances.rejected_recursive_groups.contains(group) {
       continue
     }
-    let forced_callable_type = self.representation_demands.callable_representation_target_type(
+    let forced_callable_type = self.representation_solution.callable_representation_target_type(
       callable,
     )
     let closed_call_target = instances.is_closed_call_target(instance.id)
-    let physical_value = self.representation_demands.demands_callable_instance(
+    let physical_value = self.representation_solution.demands_callable_instance(
       callable,
     )
     guard forced_callable_type is Some(_) ||
@@ -25,16 +25,13 @@ fn ImageLowerer::plan_representation_specializations(
       physical_value else {
       continue
     }
-    guard self.representation_demand(instance, forced_callable_type)
+    guard self.representation_demand(callable, instance, forced_callable_type)
       is Some(demand) else {
       continue
     }
     demands.push((callable, instance, demand))
   }
-  let refined_targets = self.complete_refined_callable_targets(
-    self.representation_demands.refined_callable_targets(),
-    instances,
-  )
+  let refined_targets = self.representation_solution.refined_callable_targets()
   for callable in refined_targets {
     guard callable.instance(instances) is Some(instance) else {
       raise RepresentationSpecializationInvariant(
@@ -45,13 +42,17 @@ fn ImageLowerer::plan_representation_specializations(
       self.runtime_types,
       instance.definition.type_,
     )
-    guard self.representation_demand(instance, Some(forced_callable_type))
+    guard self.representation_demand(
+        callable,
+        instance,
+        Some(forced_callable_type),
+      )
       is Some(demand) else {
       continue
     }
     demands.push((callable, instance, demand))
   }
-  let completed = self.complete_representation_demands(demands)
+  let completed = self.complete_representation_solution(demands)
   for draft in completed {
     let callable = draft.0
     let instance = draft.1
@@ -59,22 +60,19 @@ fn ImageLowerer::plan_representation_specializations(
     let mut existing = false
     for plan in physical.representation_workers {
       if plan.key == demand.key {
-        if !plan.callables.contains(callable) {
-          plan.callables.push(callable)
-        }
-        if !plan.analysis_instances.contains(instance.id) {
-          plan.analysis_instances.push(instance.id)
+        if !plan.aliases.contains(callable) {
+          plan.aliases.push(callable)
         }
         for
-          component in self.representation_demands.data_components_for_instance(
-            instance.id,
+          component in self.representation_solution.data_components_for_owner(
+            CallableRepresentationOwner::Callable(callable),
           ) {
           if !plan.data_components.contains(component) {
             plan.data_components.push(component)
           }
         }
         for
-          component in self.representation_demands.callable_components_for_target(
+          component in self.representation_solution.callable_components_for_target(
             callable,
           ) {
           if !plan.callable_components.contains(component) {
@@ -107,12 +105,12 @@ fn ImageLowerer::plan_representation_specializations(
       fn(worker) {
         let plan : RepresentationSpecializationPlan = {
           worker,
-          callables: [callable],
-          analysis_instances: [instance.id],
-          data_components: self.representation_demands.data_components_for_instance(
-            instance.id,
+          owner: callable,
+          aliases: [callable],
+          data_components: self.representation_solution.data_components_for_owner(
+            CallableRepresentationOwner::Callable(callable),
           ),
-          callable_components: self.representation_demands.callable_components_for_target(
+          callable_components: self.representation_solution.callable_components_for_target(
             callable,
           ),
           key: demand.key,
@@ -133,7 +131,7 @@ fn ImageLowerer::plan_representation_specializations(
 }
 
 ///|
-fn ImageLowerer::complete_representation_demands(
+fn ImageLowerer::complete_representation_solution(
   self : ImageLowerer,
   demands : Array[
     (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
@@ -223,6 +221,7 @@ fn ImageLowerer::complete_representation_demand(
     key: {
       ..boundary_demand.key,
       parameters: self.representation_parameter_shapes(
+        draft.0,
         draft.1,
         boundary_demand,
         demands,
@@ -230,13 +229,14 @@ fn ImageLowerer::complete_representation_demand(
         states,
       ),
       result: self.representation_result_shape(
-        draft.1,
+        draft.0,
         boundary_demand,
         demands,
         sccs,
         states,
       ),
       captures: self.representation_capture_shapes(
+        draft.0,
         draft.1,
         boundary_demand,
         demands,
@@ -252,7 +252,7 @@ fn ImageLowerer::complete_representation_demand(
 ///|
 fn ImageLowerer::representation_result_shape(
   self : ImageLowerer,
-  instance : CallableInstance,
+  callable : CallableRepresentationTarget,
   demand : RepresentationDemand,
   demands : Array[
     (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
@@ -262,7 +262,7 @@ fn ImageLowerer::representation_result_shape(
 ) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
   match
     self.representation_result_callable_abi(
-      instance.id,
+      CallableRepresentationOwner::Callable(callable),
       demand,
       demands,
       sccs,
@@ -272,7 +272,9 @@ fn ImageLowerer::representation_result_shape(
     None =>
       self.canonical_runtime_value_key_for_family(
         demand.result_type,
-        self.representation_demands.data_family_at_result([instance.id]),
+        self.representation_solution.data_family_at_result([
+          CallableRepresentationOwner::Callable(callable),
+        ]),
       )
   }
 }
@@ -280,7 +282,7 @@ fn ImageLowerer::representation_result_shape(
 ///|
 fn ImageLowerer::representation_result_callable_abi(
   self : ImageLowerer,
-  instance : Int,
+  owner : CallableRepresentationOwner,
   demand : RepresentationDemand,
   demands : Array[
     (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
@@ -288,7 +290,7 @@ fn ImageLowerer::representation_result_callable_abi(
   sccs : RepresentationDemandSccs,
   states : Array[RepresentationDemandCompletion],
 ) -> CanonicalCallableAbi? raise LoisvmLoweringError {
-  guard self.representation_demands.callable_instance_at_result([instance])
+  guard self.representation_solution.callable_instance_at_result([owner])
     is Some(callable) else {
     return None
   }
@@ -303,7 +305,7 @@ fn ImageLowerer::representation_result_callable_abi(
 ///|
 fn ImageLowerer::representation_port_callable_abi(
   self : ImageLowerer,
-  instance : Int,
+  owner : CallableRepresentationOwner,
   binding : @anf.AnfBindingId,
   demand : RepresentationDemand,
   demands : Array[
@@ -312,10 +314,7 @@ fn ImageLowerer::representation_port_callable_abi(
   sccs : RepresentationDemandSccs,
   states : Array[RepresentationDemandCompletion],
 ) -> CanonicalCallableAbi? raise LoisvmLoweringError {
-  guard self.representation_demands.callable_instance_at_port(
-      [instance],
-      binding,
-    )
+  guard self.representation_solution.callable_instance_at_port([owner], binding)
     is Some(callable) else {
     return None
   }
@@ -480,6 +479,7 @@ fn collect_representation_demand_component(
 ///|
 fn ImageLowerer::representation_parameter_shapes(
   self : ImageLowerer,
+  callable : CallableRepresentationTarget,
   instance : CallableInstance,
   demand : RepresentationDemand,
   demands : Array[
@@ -488,6 +488,7 @@ fn ImageLowerer::representation_parameter_shapes(
   sccs : RepresentationDemandSccs,
   states : Array[RepresentationDemandCompletion],
 ) -> Array[CanonicalRuntimeTypeKey] raise LoisvmLoweringError {
+  let owner = CallableRepresentationOwner::Callable(callable)
   let parameters : Array[CanonicalRuntimeTypeKey] = []
   for index, type_ in demand.parameter_types {
     let mut scalar : ClosedAggregateContract? = None
@@ -510,7 +511,7 @@ fn ImageLowerer::representation_parameter_shapes(
           Some(parameter) =>
             match
               self.representation_port_callable_abi(
-                instance.id,
+                owner,
                 Value(parameter),
                 demand,
                 demands,
@@ -521,8 +522,8 @@ fn ImageLowerer::representation_parameter_shapes(
               None =>
                 self.canonical_runtime_value_key_for_family(
                   type_,
-                  self.representation_demands.data_family_at_port(
-                    [instance.id],
+                  self.representation_solution.data_family_at_port(
+                    [owner],
                     Value(parameter),
                   ),
                 )
@@ -554,48 +555,6 @@ fn ImageLowerer::generic_callable_representation_target(
 }
 
 ///|
-fn ImageLowerer::complete_refined_callable_targets(
-  self : ImageLowerer,
-  initial : Array[CallableRepresentationTarget],
-  instances : CallableInstancePlan,
-) -> Array[CallableRepresentationTarget] raise LoisvmLoweringError {
-  let targets = initial.copy()
-  let mut index = 0
-  while index < targets.length() {
-    let parent = targets[index]
-    guard parent.instance(instances) is Some(parent_instance) else {
-      raise RepresentationSpecializationInvariant(
-        detail="refined callable target has no semantic source",
-      )
-    }
-    for definition in self.callable_catalog.definitions() {
-      guard definition.owner == Some(parent_instance.definition.function.id) else {
-        continue
-      }
-      let nested = self.callable_representation_candidate(
-        definition.function.id,
-        parent_instance.substitution,
-      )
-      guard nested is Refined(..) && !targets.contains(nested) else { continue }
-      guard nested.instance(instances) is Some(instance) else {
-        raise RepresentationSpecializationInvariant(
-          detail="refined nested callable target has no semantic source",
-        )
-      }
-      let callable_type = instance.substitution.apply_type(
-        self.runtime_types,
-        instance.definition.type_,
-      )
-      if self.representation_demand(instance, Some(callable_type)) is Some(_) {
-        targets.push(nested)
-      }
-    }
-    index += 1
-  }
-  targets
-}
-
-///|
 fn ImageLowerer::callable_representation_target(
   self : ImageLowerer,
   function : @anf.AnfFunctionId,
@@ -612,7 +571,19 @@ fn ImageLowerer::callable_representation_candidate(
   function : @anf.AnfFunctionId,
   substitutions : RuntimeSubstitution,
 ) -> CallableRepresentationTarget raise LoisvmLoweringError {
-  guard self.callable_catalog.find(function) is Some(definition) else {
+  self.callable_instances.callable_representation_candidate(
+    self, function, substitutions,
+  )
+}
+
+///|
+fn CallableInstancePlan::callable_representation_candidate(
+  self : CallableInstancePlan,
+  image : ImageLowerer,
+  function : @anf.AnfFunctionId,
+  substitutions : RuntimeSubstitution,
+) -> CallableRepresentationTarget raise LoisvmLoweringError {
+  guard image.callable_catalog.find(function) is Some(definition) else {
     raise RepresentationSpecializationInvariant(
       detail="callable representation target is absent from the Runtime ANF catalog",
     )
@@ -620,23 +591,23 @@ fn ImageLowerer::callable_representation_candidate(
   let lexical_arguments = definition.lexical_parameters.map(parameter => {
     substitutions
     .argument(parameter.id)
-    .map(argument => substitutions.apply_argument(self.runtime_types, argument))
-    .unwrap_or_else(() => self.identity_runtime_argument(parameter))
+    .map(argument => substitutions.apply_argument(image.runtime_types, argument))
+    .unwrap_or_else(() => image.identity_runtime_argument(parameter))
   })
   let own_arguments = definition.parameters.map(parameter => {
-    argument: self.identity_runtime_argument(parameter),
+    argument: image.identity_runtime_argument(parameter),
     transform: RuntimeArgumentTransform::Projection(parameter.id),
   })
   let arguments = lexical_arguments +
     own_arguments.map(argument => argument.argument)
-  for instance in self.callable_instances.instances {
+  for instance in self.instances {
     if instance.key.function == function && instance.key.arguments == arguments {
       return Semantic(instance.id)
     }
   }
-  guard self.callable_instances.generic_instance(function) is Some(source) else {
+  guard self.generic_instance(function) is Some(source) else {
     raise RepresentationSpecializationInvariant(
-      detail="refined callable target has no semantic generic source",
+      detail="refined callable target for function \{function.value} has no semantic generic source",
     )
   }
   Refined(source_instance=source, lexical_arguments~, own_arguments~)
@@ -646,25 +617,25 @@ fn ImageLowerer::callable_representation_candidate(
 fn ImageLowerer::freeze_callable_representation_targets(
   self : ImageLowerer,
 ) -> Unit raise LoisvmLoweringError {
-  for index, demand in self.representation_demands.callable_ports {
-    self.representation_demands.callable_ports[index] = {
+  for index, demand in self.representation_solution.callable_ports {
+    self.representation_solution.callable_ports[index] = {
       ..demand,
       callable: self.frozen_callable_representation_target(demand.callable),
     }
   }
-  for index, demand in self.representation_demands.callable_results {
-    self.representation_demands.callable_results[index] = {
+  for index, demand in self.representation_solution.callable_results {
+    self.representation_solution.callable_results[index] = {
       ..demand,
       callable: self.frozen_callable_representation_target(demand.callable),
     }
   }
-  for index, demand in self.representation_demands.callable_arguments {
-    self.representation_demands.callable_arguments[index] = {
+  for index, demand in self.representation_solution.callable_arguments {
+    self.representation_solution.callable_arguments[index] = {
       ..demand,
       callable: self.frozen_callable_representation_target(demand.callable),
     }
   }
-  let data = self.representation_demands.data_representations
+  let data = self.representation_solution.data_representations
   for index, demand in data.callable_payloads {
     data.callable_payloads[index] = {
       ..demand,
@@ -731,9 +702,11 @@ priv struct RepresentationDemand {
 ///|
 fn ImageLowerer::representation_demand(
   self : ImageLowerer,
+  callable : CallableRepresentationTarget,
   instance : CallableInstance,
   forced_callable_type : @anf.RuntimeType?,
 ) -> RepresentationDemand? raise LoisvmLoweringError {
+  let owner = CallableRepresentationOwner::Callable(callable)
   let definition = instance.definition
   guard instance.own_arguments.length() == definition.parameters.length() else {
     return None
@@ -813,29 +786,23 @@ fn ImageLowerer::representation_demand(
   })
   let scalar_parameters = []
   for index in 0..<parameter_types.length() {
-    if self.representation_demands.scalar_parameter_contract(instance.id, index)
+    if self.representation_solution.scalar_parameter_contract(owner, index)
       is Some(contract) {
-      scalar_parameters.push({
-        instance: instance.id,
-        parameter_index: index,
-        contract,
-      })
+      scalar_parameters.push({ owner, parameter_index: index, contract, })
     }
   }
-  let data_ports = self.representation_demands.data_port_assignments(
-    instance.id,
+  let data_ports = self.representation_solution.data_port_assignments(owner)
+  let data_capture = self.representation_solution.has_data_capture_assignment(
+    owner,
   )
-  let data_capture = self.representation_demands.has_data_capture_assignment(
-    instance.id,
+  let callable_ports = self.representation_solution.callable_port_assignments(
+    owner,
   )
-  let callable_ports = self.representation_demands.callable_port_assignments(
-    instance.id,
+  let callable_allocations = self.representation_solution.callable_allocation_assignments(
+    owner,
   )
-  let callable_allocations = self.representation_demands.callable_allocation_assignments(
-    instance.id,
-  )
-  let callable_result = self.representation_demands.worker_callable_at_result([
-    instance.id,
+  let callable_result = self.representation_solution.worker_callable_at_result([
+    owner,
   ])
   guard !data_ports.is_empty() ||
     data_capture ||
@@ -867,16 +834,16 @@ fn ImageLowerer::representation_demand(
       None => {
         let family = match definition.function.parameters.get(index) {
           Some(parameter) =>
-            self.representation_demands.data_family_at_port(
-              [instance.id],
+            self.representation_solution.data_family_at_port(
+              [owner],
               Value(parameter),
             )
           None => None
         }
         let callable = match definition.function.parameters.get(index) {
           Some(parameter) =>
-            self.representation_demands.worker_callable_at_port(
-              [instance.id],
+            self.representation_solution.worker_callable_at_port(
+              [owner],
               Value(parameter),
             )
           None => None
@@ -892,7 +859,7 @@ fn ImageLowerer::representation_demand(
   }
   let result = self.canonical_runtime_type_key_for_representation(
     result_type,
-    self.representation_demands.data_family_at_result([instance.id]),
+    self.representation_solution.data_family_at_result([owner]),
     callable_result,
   )
   guard !data_ports.is_empty() ||
@@ -912,8 +879,8 @@ fn ImageLowerer::representation_demand(
       data_ports,
       callable_ports,
       callable_allocations,
-      callable_arguments: self.representation_demands.callable_argument_assignments(
-        instance.id,
+      callable_arguments: self.representation_solution.callable_argument_assignments(
+        owner,
       ),
       callable_result,
       captures: [],
@@ -941,6 +908,7 @@ fn ImageLowerer::representation_demand(
 ///|
 fn ImageLowerer::representation_capture_shapes(
   self : ImageLowerer,
+  representation_target : CallableRepresentationTarget,
   instance : CallableInstance,
   demand : RepresentationDemand,
   demands : Array[
@@ -949,6 +917,7 @@ fn ImageLowerer::representation_capture_shapes(
   sccs : RepresentationDemandSccs,
   states : Array[RepresentationDemandCompletion],
 ) -> Array[PhysicalCallableCaptureProjection] raise LoisvmLoweringError {
+  let owner = CallableRepresentationOwner::Callable(representation_target)
   let captures : Array[PhysicalCallableCaptureProjection] = []
   for capture in instance.definition.captures {
     let binding = match capture {
@@ -965,8 +934,8 @@ fn ImageLowerer::representation_capture_shapes(
       )
     }
     let type_ = instance.substitution.apply_type(self.runtime_types, type_)
-    let callable = self.representation_demands.callable_instance_at_port(
-      [instance.id],
+    let callable = self.representation_solution.callable_instance_at_port(
+      [owner],
       binding,
     )
     let worker = match callable {
@@ -979,12 +948,7 @@ fn ImageLowerer::representation_capture_shapes(
     let shape = match callable {
       Some(_) => {
         guard self.representation_port_callable_abi(
-            instance.id,
-            binding,
-            demand,
-            demands,
-            sccs,
-            states,
+            owner, binding, demand, demands, sccs, states,
           )
           is Some(abi) else {
           raise RepresentationSpecializationInvariant(
@@ -996,10 +960,7 @@ fn ImageLowerer::representation_capture_shapes(
       None =>
         self.canonical_runtime_value_key_for_family(
           type_,
-          self.representation_demands.data_family_at_capture(
-            [instance.id],
-            binding,
-          ),
+          self.representation_solution.data_family_at_capture([owner], binding),
         )
     }
     captures.push({ binding, shape, callable, worker, })
@@ -1721,9 +1682,9 @@ fn ImageLowerer::representation_specialization_for_callable(
   self : ImageLowerer,
   callable : CallableRepresentationTarget,
 ) -> RepresentationSpecializationPlan? {
-  guard self.physical_representations is Some(physical) else { return None }
+  guard self.physical_anf is Some(physical) else { return None }
   for plan in physical.representation_workers {
-    if plan.callables.contains(callable) {
+    if plan.aliases.contains(callable) {
       return Some(plan)
     }
   }
@@ -1974,19 +1935,3 @@ fn ImageLowerer::generic_argument_is_closed(
 }
 
 ///|
-fn ImageLowerer::lower_representation_worker(
-  self : ImageLowerer,
-  lowered_function : @bytecode.FunctionId,
-  plan : RepresentationSpecializationPlan,
-) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
-  self.lower_function_body(
-    lowered_function,
-    plan.function,
-    true,
-    [],
-    plan.parameter_types,
-    plan.recursive_functions,
-    plan.substitutions,
-    plan.specialized_parameters,
-  )
-}

@@ -63,7 +63,7 @@ fn ImageLowerer::add_instance_global(
     self.globals.push({ value, lowered: UnitValue, })
     return
   }
-  let family = self.representation_demands.data_family_at_global(value)
+  let family = self.representation_solution.data_family_at_global(value)
   let shape = self.canonical_runtime_type_key_for_family(type_, family)
   guard !(shape is Unit) else {
     raise RepresentationSpecializationInvariant(
@@ -71,6 +71,21 @@ fn ImageLowerer::add_instance_global(
     )
   }
   let metadata = shape.value_metadata(None)
+  let callable_interface = match shape {
+    Callable(invocation) => {
+      let interface = self.canonical_callable_interface_under(
+        type_,
+        RuntimeSubstitution::new(),
+      )
+      if interface.invocation != invocation {
+        raise RepresentationSpecializationInvariant(
+          detail="instance-global callable interface disagrees with its physical shape",
+        )
+      }
+      Some(interface)
+    }
+    Unit | Value(_) => None
+  }
   let global : @bytecode.GlobalId = { value: self.instance_globals.length(), }
   self.instance_globals.push({
     representation: metadata.representation,
@@ -78,7 +93,10 @@ fn ImageLowerer::add_instance_global(
     kind: metadata.kind,
     erased_companion: None,
   })
-  self.globals.push({ value, lowered: InstanceGlobal(global, type_, shape), })
+  self.globals.push({
+    value,
+    lowered: InstanceGlobal(global, type_, shape, callable_interface),
+  })
 }
 
 ///|
@@ -256,34 +274,15 @@ fn extract_top_atom_function(atom : @anf.AnfAtom) -> @anf.AnfFunction? {
 }
 
 ///|
-fn ImageLowerer::lower_function(
-  self : ImageLowerer,
-  lowered_function : @bytecode.FunctionId,
-  value : @buslane.ValueId,
-  function : @anf.AnfFunction,
-) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
-  let type_ = match self.metadata.value_info(value) {
-    Some(info) => info.type_
-    None => raise MissingValueMetadata(value~)
-  }
-  let (type_parameters, parameter_types, _) = function_type_parts(type_)
-  self.lower_function_body(
-    lowered_function,
-    function,
-    false,
-    type_parameters,
-    parameter_types,
-    [],
-    RuntimeSubstitution::new(),
-    [],
-  )
-}
-
-///|
 fn ImageLowerer::lower_initializer_step(
   self : ImageLowerer,
   step : InitializerStepPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
+  guard self.physical_function(step.function) is Some(physical) else {
+    raise RepresentationSpecializationInvariant(
+      detail="initializer emission lacks its Physical ANF body",
+    )
+  }
   let lowerer : FunctionLowerer = {
     image: self,
     function: Some(step.function),
@@ -296,14 +295,15 @@ fn ImageLowerer::lower_initializer_step(
     witnesses: [],
     substitutions: RuntimeSubstitution::new(),
     specialized_parameters: [],
-    physical: self.physical_function(step.function),
+    physical: Some(physical),
   }
-  let result = lowerer.materialize_planned_function_result(
-    lowerer.materialize_local(lowerer.lower_expr(step.expression)),
+  let result = lowerer.materialize_physical_function_result(
+    lowerer.materialize_physical_local(lowerer.lower_expr(physical.body)),
   )
-  let (result_abi, returned) = match (self.find_global(step.value), result) {
+  let (result_abi, returned) = match
+    (self.find_global(step.value), result.value) {
     (Some(UnitValue), Unit) => (@bytecode.ResultAbi::Unit, None)
-    (Some(InstanceGlobal(_, _, shape)), Slot(source, _, actual)) if shape ==
+    (Some(InstanceGlobal(_, _, shape, _)), Slot(source, _, actual)) if shape ==
       actual => (shape.physical_shape().result_abi(), Some(source))
     _ =>
       raise UnsupportedExpression(
@@ -354,7 +354,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
     match self.find_global(step.value) {
       Some(UnitValue) =>
         lowerer.emit(CallDirect(step.function, None, [], [], None))
-      Some(InstanceGlobal(global, _, shape)) => {
+      Some(InstanceGlobal(global, _, shape, _)) => {
         let destination = lowerer.fresh_metadata(shape.value_metadata(None))
         lowerer.emit(CallDirect(step.function, None, [], [], Some(destination)))
         lowerer.emit(InitGlobal(global, destination))
@@ -378,25 +378,6 @@ fn ImageLowerer::lower_initializer_orchestrator(
       },
     ],
   }
-}
-
-///|
-fn ImageLowerer::lower_lifted_function(
-  self : ImageLowerer,
-  lowered_function : @bytecode.FunctionId,
-  plan : LiftedFunctionPlan,
-) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
-  let (type_parameters, parameter_types, _) = function_type_parts(plan.type_)
-  self.lower_function_body(
-    lowered_function,
-    plan.function,
-    false,
-    type_parameters,
-    parameter_types,
-    plan.recursive_functions,
-    plan.substitutions,
-    plan.specialized_parameters,
-  )
 }
 
 ///|
