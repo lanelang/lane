@@ -234,7 +234,7 @@ priv struct IntrinsicWrapperPlan {
 priv struct CallableAdapterPlan {
   function : @bytecode.FunctionId
   recipe : CallableAdapterRecipe
-  environment_shape : @bytecode.ObjectShapeId
+  environment : PhysicalEnvironmentContract
 } derive(Debug)
 
 ///|
@@ -504,7 +504,7 @@ priv struct LayoutConstructorPlan {
   parameters : Array[@anf.RuntimeEvidenceParameter]
   body : RuntimeEvidencePlan
   captured_parameters : Array[@anf.RuntimeEvidenceParameter]
-  environment_shape : @bytecode.ObjectShapeId?
+  environment : PhysicalEnvironmentContract?
   arity : Int
 }
 
@@ -521,8 +521,14 @@ priv struct PhysicalLayoutConstructorReference {
   function : @bytecode.FunctionId
   evidence : @anf.RuntimeEvidence
   captured_parameters : Array[@anf.RuntimeEvidenceParameter]
-  environment_shape : @bytecode.ObjectShapeId?
+  environment : PhysicalEnvironmentContract?
   arity : Int
+} derive(Debug, Eq)
+
+///|
+priv struct PhysicalEnvironmentContract {
+  shape : @bytecode.ObjectShapeId
+  layout : @bytecode.LayoutId
 } derive(Debug, Eq)
 
 ///|
@@ -530,7 +536,13 @@ priv enum RuntimeEvidencePlan {
   Existing(@anf.RuntimeEvidenceId)
   ApplyEvidence(@anf.RuntimeEvidenceId, Array[RuntimeEvidencePlan])
   MaterializeLayoutConstructor(PhysicalLayoutConstructorReference)
-  StaticLayout(@bytecode.LayoutRecipe)
+  StaticLayout(PhysicalStaticLayout)
+} derive(Debug, Eq)
+
+///|
+priv struct PhysicalStaticLayout {
+  recipe : @bytecode.LayoutRecipe
+  layout : @bytecode.LayoutId
 } derive(Debug, Eq)
 
 ///|
@@ -575,7 +587,7 @@ priv struct CallableInstanceImplementation {
 priv struct CallableCaptureContract {
   captured_evidence : Array[CapturedEvidencePlan]
   captures : Array[CapturePlan]
-  environment_shape : @bytecode.ObjectShapeId?
+  environment : PhysicalEnvironmentContract?
 }
 
 ///|

@@ -295,7 +295,12 @@ test "alpha-renamed evidence aliases share one callable adapter recipe" {
     [0],
     left_substitution,
     [],
-    [{ evidence: Existing(left), replacement: StaticLayout(I64), }],
+    [
+      {
+        evidence: Existing(left),
+        replacement: StaticLayout({ recipe: I64, layout: { value: 1, }, }),
+      },
+    ],
     [],
   )
   let right_recipe = callable_adapter_recipe_for_test(
@@ -313,7 +318,12 @@ test "alpha-renamed evidence aliases share one callable adapter recipe" {
     [0],
     right_substitution,
     [],
-    [{ evidence: Existing(right), replacement: StaticLayout(I64), }],
+    [
+      {
+        evidence: Existing(right),
+        replacement: StaticLayout({ recipe: I64, layout: { value: 1, }, }),
+      },
+    ],
     [],
   )
   assert_eq(left_recipe, right_recipe)
@@ -386,7 +396,12 @@ test "equal-width scalar layouts keep distinct callable adapter recipes" {
     [0],
     bool_substitution,
     [],
-    [{ evidence: Existing(bool_parameter), replacement: StaticLayout(Bool), }],
+    [
+      {
+        evidence: Existing(bool_parameter),
+        replacement: StaticLayout({ recipe: Bool, layout: { value: 1, }, }),
+      },
+    ],
     [],
   )
   let i32_recipe = callable_adapter_recipe_for_test(
@@ -410,7 +425,12 @@ test "equal-width scalar layouts keep distinct callable adapter recipes" {
     [0],
     i32_substitution,
     [],
-    [{ evidence: Existing(i32_parameter), replacement: StaticLayout(I32), }],
+    [
+      {
+        evidence: Existing(i32_parameter),
+        replacement: StaticLayout({ recipe: I32, layout: { value: 1, }, }),
+      },
+    ],
     [],
   )
   assert_false(bool_recipe == i32_recipe)

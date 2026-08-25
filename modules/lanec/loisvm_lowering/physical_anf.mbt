@@ -9,8 +9,92 @@ priv struct PhysicalAnfAtom {
 ///|
 priv enum PhysicalAnfAtomProducer {
   Binding(@anf.AnfBindingId)
-  Literal(@buslane.Literal)
+  Literal(PhysicalLiteral)
   Callable(PhysicalCallableAllocationPlan)
+}
+
+///|
+priv enum PhysicalLiteral {
+  Unit
+  Bool(Bool)
+  I64(Int64)
+  I32(Int)
+  F32(Float)
+  Char(Int)
+  F64(Double)
+  ByteSequence(@bytecode.ConstantId)
+} derive(Eq)
+
+///|
+priv enum PhysicalAlternativeConstructor {
+  DataCon(@buslane.DataConId)
+  Literal(PhysicalLiteral)
+  Default
+} derive(Eq)
+
+///|
+fn ImageLowerer::plan_physical_literal(
+  self : ImageLowerer,
+  literal : @buslane.Literal,
+) -> PhysicalLiteral {
+  match literal {
+    Unit => PhysicalLiteral::Unit
+    Bool(value) => PhysicalLiteral::Bool(value)
+    I64(value) => PhysicalLiteral::I64(value)
+    I32(value) => PhysicalLiteral::I32(value)
+    F32(value) => PhysicalLiteral::F32(value)
+    Char(value) => PhysicalLiteral::Char(value)
+    F64(value) => PhysicalLiteral::F64(value)
+    String(value) => {
+      ignore(self.intern_layout(ByteSequence))
+      PhysicalLiteral::ByteSequence(self.intern_string(value))
+    }
+  }
+}
+
+///|
+fn ImageLowerer::plan_physical_alternative_constructor(
+  self : ImageLowerer,
+  alternative : @buslane.AltCon,
+) -> PhysicalAlternativeConstructor {
+  match alternative {
+    DataCon(data_constructor) =>
+      PhysicalAlternativeConstructor::DataCon(data_constructor)
+    Literal(literal) =>
+      PhysicalAlternativeConstructor::Literal(
+        self.plan_physical_literal(literal),
+      )
+    Default => PhysicalAlternativeConstructor::Default
+  }
+}
+
+///|
+fn PhysicalLiteral::runtime_type(self : PhysicalLiteral) -> @anf.RuntimeType {
+  match self {
+    Unit => @anf.RuntimeType::Unit
+    Bool(_) => Scalar(Bool)
+    I64(_) => Scalar(I64)
+    I32(_) => Scalar(I32)
+    F32(_) => Scalar(F32)
+    Char(_) => Scalar(Char)
+    F64(_) => Scalar(F64)
+    ByteSequence(_) => @anf.RuntimeType::ByteSequence
+  }
+}
+
+///|
+fn PhysicalLiteral::physical_shape(
+  self : PhysicalLiteral,
+) -> PhysicalValueShape {
+  match self {
+    Unit => PhysicalValueShape::Unit
+    Bool(_) | I32(_) | Char(_) =>
+      PhysicalValueShape::Slot(canonical_scalar_key(I32))
+    I64(_) => PhysicalValueShape::Slot(canonical_scalar_key(I64))
+    F32(_) => PhysicalValueShape::Slot(canonical_scalar_key(F32))
+    F64(_) => PhysicalValueShape::Slot(canonical_scalar_key(F64))
+    ByteSequence(_) => PhysicalValueShape::Slot(canonical_byte_sequence_key())
+  }
 }
 
 ///|
@@ -131,7 +215,7 @@ priv struct PhysicalAnfMatch {
 
 ///|
 priv struct PhysicalAnfAlternative {
-  alt_constructor : @buslane.AltCon
+  alt_constructor : PhysicalAlternativeConstructor
   evidence_binders : Array[@anf.RuntimeEvidenceParameter]
   value_binders : Array[@buslane.ValueId]
   body : PhysicalAnfExpr
@@ -208,7 +292,10 @@ fn PhysicalFunctionPlanner::materialize_physical_atom(
       match atom {
         Ref(value) => Binding(Value(value))
         Temp(temp) => Binding(Temp(temp))
-        Literal(literal) => PhysicalAnfAtomProducer::Literal(literal)
+        Literal(literal) =>
+          PhysicalAnfAtomProducer::Literal(
+            self.image.plan_physical_literal(literal),
+          )
         Function(_) | EvidenceLambda(..) =>
           raise RepresentationSpecializationInvariant(
             detail="callable syntax reached Physical ANF without a selected allocation",
@@ -422,7 +509,7 @@ fn PhysicalAnfProgram::verify_atom(
     PhysicalAnfAtomProducer::Literal(literal) =>
       Some(
         self.value_contract(
-          self.identity(runtime_literal_physical_shape(literal), "literal"),
+          self.identity(literal.physical_shape(), "literal"),
           None,
           [],
           "literal",
@@ -761,7 +848,7 @@ fn PhysicalAnfProgram::verify_match(
 ///|
 fn PhysicalMatchRepresentation::accepts(
   self : PhysicalMatchRepresentation,
-  alternative : @buslane.AltCon,
+  alternative : PhysicalAlternativeConstructor,
 ) -> Bool {
   if alternative is Default {
     return true
@@ -776,7 +863,7 @@ fn PhysicalMatchRepresentation::accepts(
         I32 => alternative is Literal(I32(_) | Char(_))
         F32 => alternative is Literal(F32(_))
         F64 => alternative is Literal(F64(_))
-        ByteSequence => alternative is Literal(String(_))
+        ByteSequence => alternative is Literal(ByteSequence(_))
       }
     Callable => false
     Data(data) =>

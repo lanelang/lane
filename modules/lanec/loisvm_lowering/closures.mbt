@@ -264,34 +264,42 @@ fn collect_free_runtime_evidence_in_atom(
 }
 
 ///|
-fn ImageLowerer::environment_shape(
+fn ImageLowerer::environment_contract(
   self : ImageLowerer,
   stored_witness_count : Int,
   members : Array[@bytecode.MemberSchema],
-) -> @bytecode.ObjectShapeId? {
+) -> PhysicalEnvironmentContract? raise LoisvmLoweringError {
   if stored_witness_count == 0 && members.is_empty() {
     None
   } else {
-    Some(
-      self.intern_object_shape(Environment({ stored_witness_count, members, })),
+    let shape = self.intern_object_shape(
+      Environment({ stored_witness_count, members, }),
     )
+    Some({ shape, layout: self.required_layout(Environment(shape)), })
   }
 }
 
 ///|
 fn FunctionLowerer::make_capture_environment(
   self : FunctionLowerer,
-  environment_shape : @bytecode.ObjectShapeId?,
+  environment : PhysicalEnvironmentContract?,
   witnesses : Array[@vmcfg.ValueId],
   capture_slots : Array[@vmcfg.ValueId],
 ) -> @vmcfg.ValueId? {
-  match environment_shape {
+  match environment {
     None => None
-    Some(shape) => {
-      let layout = self.image.intern_layout(Environment(shape))
-      let environment = self.fresh_metadata(environment_metadata(shape))
+    Some(contract) => {
+      let environment = self.fresh_metadata(
+        environment_metadata(contract.shape),
+      )
       self.emit(
-        MakeEnv(environment, shape, Immediate(layout), witnesses, capture_slots),
+        MakeEnv(
+          environment,
+          contract.shape,
+          Immediate(contract.layout),
+          witnesses,
+          capture_slots,
+        ),
       )
       Some(environment)
     }

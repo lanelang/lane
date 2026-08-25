@@ -272,9 +272,9 @@ fn FunctionLowerer::emit_literal_equality(
   self : FunctionLowerer,
   scrutinee : @vmcfg.ValueId,
   comparison : PhysicalLiteralComparison,
-  literal : @buslane.Literal,
+  literal : PhysicalLiteral,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  let lowered = self.lower_internal_literal(literal)
+  let lowered = self.lower_literal_with_shape(literal, literal.physical_shape())
   guard lowered is Slot(expected, _, _) else {
     raise UnsupportedExpression(
       detail="literal pattern type does not match its scrutinee",

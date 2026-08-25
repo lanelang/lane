@@ -34,6 +34,7 @@ priv struct FunctionLowerer {
   mut environment : @vmcfg.ValueId?
   witnesses : Array[WitnessBinding]
   physical : PhysicalFunctionPlan?
+  adapter_support : PhysicalCallableAdapterSupport?
 }
 
 ///|
@@ -154,7 +155,14 @@ fn ImageLowerer::emit_physical_anf(
       IntrinsicWrapper(plan) =>
         functions.push(Body(self.lower_intrinsic_wrapper(physical, plan)))
       CallableAdapter(plan) =>
-        functions.push(Body(self.lower_callable_adapter(physical, plan)))
+        functions.push(
+          Body(
+            self.lower_callable_adapter(
+              physical,
+              physical.required_callable_adapter(plan.function),
+            ),
+          ),
+        )
       RepresentationWorker(_) =>
         functions.push(
           Body(self.lower_function_body(physical, planned.function)),

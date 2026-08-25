@@ -9,7 +9,7 @@ priv struct CallableCaptureInput {
 
 ///|
 fn CallableCaptureContract::empty() -> CallableCaptureContract {
-  { captured_evidence: [], captures: [], environment_shape: None, }
+  { captured_evidence: [], captures: [], environment: None, }
 }
 
 ///|
@@ -262,7 +262,7 @@ fn ImageLowerer::finalize_callable_capture_contract(
   {
     captured_evidence,
     captures: finalized,
-    environment_shape: self.environment_shape(stored_witness_count, members),
+    environment: self.environment_contract(stored_witness_count, members),
   }
 }
 
@@ -362,9 +362,5 @@ fn FunctionLowerer::capture_environment(
     }
     values.push(slot)
   }
-  self.make_capture_environment(
-    contract.environment_shape,
-    stored_layouts,
-    values,
-  )
+  self.make_capture_environment(contract.environment, stored_layouts, values)
 }

@@ -309,6 +309,7 @@ fn ImageLowerer::lower_initializer_step(
     environment: None,
     witnesses: [],
     physical: Some(physical),
+    adapter_support: None,
   }
   let result = lowerer.materialize_physical_function_result(
     lowerer.materialize_physical_local(lowerer.lower_expr(physical.body)),
@@ -362,6 +363,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
     environment: None,
     witnesses: [],
     physical: None,
+    adapter_support: None,
   }
   for step in steps {
     match self.find_global(step.value) {
@@ -413,6 +415,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     environment: None,
     witnesses: [],
     physical: None,
+    adapter_support: None,
   }
   let parameter_slots = plan.parameter_shapes.map(shape => {
     lowerer.fresh_metadata(shape.value_metadata(None))

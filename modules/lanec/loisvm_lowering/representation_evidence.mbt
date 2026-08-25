@@ -20,13 +20,7 @@ fn ImageLowerer::plan_layout_constructor_evidence(
     Parameter(parameter) => Existing(parameter)
     Lambda(_, _) => {
       let plan = self.plan_layout_constructor(evidence)
-      MaterializeLayoutConstructor({
-        function: plan.function,
-        evidence: plan.evidence,
-        captured_parameters: plan.captured_parameters,
-        environment_shape: plan.environment_shape,
-        arity: plan.arity,
-      })
+      MaterializeLayoutConstructor(plan.physical_reference())
     }
     Apply(_, _) | Static(_) =>
       raise InvalidTypeApplication(
@@ -36,12 +30,28 @@ fn ImageLowerer::plan_layout_constructor_evidence(
 }
 
 ///|
+fn LayoutConstructorPlan::physical_reference(
+  self : LayoutConstructorPlan,
+) -> PhysicalLayoutConstructorReference {
+  {
+    function: self.function,
+    evidence: self.evidence,
+    captured_parameters: self.captured_parameters,
+    environment: self.environment,
+    arity: self.arity,
+  }
+}
+
+///|
 fn ImageLowerer::plan_layout_witness(
   self : ImageLowerer,
   evidence : @anf.RuntimeEvidence,
 ) -> RuntimeEvidencePlan raise LoisvmLoweringError {
   match evidence {
-    Static(layout) => StaticLayout(runtime_layout_recipe(layout))
+    Static(layout) => {
+      let recipe = runtime_layout_recipe(layout)
+      StaticLayout({ recipe, layout: self.intern_layout(recipe), })
+    }
     Parameter(parameter) => Existing(parameter)
     Apply(Parameter(parameter), arguments) =>
       ApplyEvidence(
@@ -130,10 +140,9 @@ fn FunctionLowerer::materialize_runtime_evidence(
     }
     MaterializeLayoutConstructor(layout_constructor) =>
       self.materialize_layout_constructor(layout_constructor)
-    StaticLayout(recipe) => {
-      let layout = self.image.intern_layout(recipe)
+    StaticLayout(layout) => {
       let witness = self.fresh_metadata(layout_witness_metadata())
-      self.emit(ConstLayout(witness, layout))
+      self.emit(ConstLayout(witness, layout.layout))
       witness
     }
   }
@@ -148,7 +157,7 @@ fn FunctionLowerer::materialize_layout_constructor(
     self.find_witness(parameter.id)
   })
   let environment = self.make_capture_environment(
-    plan.environment_shape,
+    plan.environment,
     [],
     captured,
   )
@@ -197,7 +206,7 @@ fn ImageLowerer::plan_layout_constructor(
       witness_ordinal: None,
     })
   }
-  let environment_shape = self.environment_shape(0, members)
+  let environment = self.environment_contract(0, members)
   let body = self.plan_layout_witness(contract.body)
   let (_, plan) = self.plans.append_with_result(LayoutConstructor, fn(
     function,
@@ -208,7 +217,7 @@ fn ImageLowerer::plan_layout_constructor(
       parameters: contract.parameters,
       body,
       captured_parameters: contract.captured_parameters,
-      environment_shape,
+      environment,
       arity: contract.parameters.length(),
     }
     (LayoutConstructor(plan), plan)
@@ -291,6 +300,7 @@ fn ImageLowerer::lower_layout_constructor(
     environment: None,
     witnesses: [],
     physical: None,
+    adapter_support: None,
   }
   let evidence_parameters = []
   for parameter in plan.parameters {
@@ -298,8 +308,10 @@ fn ImageLowerer::lower_layout_constructor(
     evidence_parameters.push(evidence)
     lowerer.witnesses.push({ parameter: parameter.id, value: evidence, })
   }
-  if plan.environment_shape is Some(shape) {
-    let environment = lowerer.fresh_metadata(environment_metadata(shape))
+  if plan.environment is Some(contract) {
+    let environment = lowerer.fresh_metadata(
+      environment_metadata(contract.shape),
+    )
     lowerer.environment = Some(environment)
     for index, parameter in plan.captured_parameters {
       let metadata = runtime_evidence_metadata(parameter)
@@ -307,7 +319,7 @@ fn ImageLowerer::lower_layout_constructor(
         borrowed_evidence_metadata(metadata),
       )
       lowerer.emit(
-        BorrowCapture(shape, environment, index, {
+        BorrowCapture(contract.shape, environment, index, {
           value_destination: evidence,
           witness_destination: None,
         }),

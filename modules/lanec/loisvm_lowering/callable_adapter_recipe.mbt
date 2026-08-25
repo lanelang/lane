@@ -658,7 +658,7 @@ fn ImageLowerer::callable_adapter_evidence_recipe(
           require_callable_adapter_evidence(evidence, Existing(parameter.id))
         }),
       )
-    StaticLayout(recipe) => Static(recipe)
+    StaticLayout(layout) => Static(layout.recipe)
   }
 }
 

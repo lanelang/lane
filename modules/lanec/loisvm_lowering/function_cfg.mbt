@@ -22,6 +22,7 @@ fn ImageLowerer::lower_function_body(
     environment: None,
     witnesses: [],
     physical: Some(physical),
+    adapter_support: None,
   }
   let input_witnesses = []
   for parameter in physical.evidence_parameters {
@@ -31,8 +32,10 @@ fn ImageLowerer::lower_function_body(
       lowerer.witnesses.push({ parameter: parameter.id, value: witness, })
     }
   }
-  if capture.environment_shape is Some(shape) {
-    let environment = lowerer.fresh_metadata(environment_metadata(shape))
+  if capture.environment is Some(contract) {
+    let environment = lowerer.fresh_metadata(
+      environment_metadata(contract.shape),
+    )
     lowerer.environment = Some(environment)
     for index, evidence_plan in capture.captured_evidence {
       let parameter = evidence_plan.target
@@ -41,7 +44,7 @@ fn ImageLowerer::lower_function_body(
         borrowed_evidence_metadata(metadata),
       )
       lowerer.emit(
-        BorrowCapture(shape, environment, index, {
+        BorrowCapture(contract.shape, environment, index, {
           value_destination: evidence,
           witness_destination: None,
         }),
@@ -75,7 +78,7 @@ fn ImageLowerer::lower_function_body(
             )
           }
           lowerer.emit(
-            BorrowCapture(shape, environment, member_index, {
+            BorrowCapture(contract.shape, environment, member_index, {
               value_destination: destination,
               witness_destination,
             }),

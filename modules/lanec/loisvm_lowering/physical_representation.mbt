@@ -239,6 +239,25 @@ priv struct PhysicalCallableBridge {
 }
 
 ///|
+priv struct PhysicalCallableAdapterReference {
+  function : @bytecode.FunctionId
+  environment : PhysicalEnvironmentContract
+}
+
+///|
+priv struct PhysicalCallableAdapterSupport {
+  adapter : PhysicalCallableAdapterReference
+  recipe : CallableAdapterRecipe
+  static_layouts : Array[(@bytecode.LayoutRecipe, @bytecode.LayoutId)]
+  layout_constructors : Array[
+    (@anf.RuntimeEvidence, PhysicalLayoutConstructorReference),
+  ]
+  nested_adapters : Array[
+    (CallableAdapterRecipe, PhysicalCallableAdapterReference),
+  ]
+}
+
+///|
 priv struct PhysicalConstructPlan {
   representation : PhysicalConstructRepresentation
   payloads : Array[PhysicalValueFlowPlan]
@@ -268,6 +287,7 @@ priv struct PhysicalDataFamilyContract {
 priv struct PhysicalDataConstructorContract {
   data_constructor : @buslane.DataConId
   shape : @bytecode.ObjectShapeId
+  layout : @bytecode.LayoutId
   source_evidence_binder_count : Int
   stored_evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
   storage_types : Array[@anf.RuntimeType]
@@ -309,7 +329,7 @@ priv struct PhysicalDataMatchPlan {
 
 ///|
 priv struct PhysicalMatchAlternativePlan {
-  alternative_constructor : @buslane.AltCon
+  alternative_constructor : PhysicalAlternativeConstructor
   payloads : Array[PhysicalMatchPayloadPlan]
   result : PhysicalValueFlowPlan
 }
@@ -352,6 +372,7 @@ priv struct PhysicalAnfProgram {
   globals : Array[(@buslane.ValueId, PhysicalValueContract)]
   functions : Array[(@bytecode.FunctionId, PhysicalFunctionPlan)]
   representation_workers : Array[PhysicalRepresentationWorkerContract]
+  callable_adapters : Array[PhysicalCallableAdapterSupport]
 }
 
 ///|
@@ -389,6 +410,7 @@ fn PhysicalAnfProgram::new() -> PhysicalAnfProgram {
     globals: [],
     functions: [],
     representation_workers: [],
+    callable_adapters: [],
   }
 }
 
@@ -549,6 +571,39 @@ fn PhysicalAnfProgram::invocation(
     }
   }
   None
+}
+
+///|
+fn PhysicalAnfProgram::add_callable_adapter(
+  self : PhysicalAnfProgram,
+  adapter : PhysicalCallableAdapterSupport,
+) -> Unit raise LoisvmLoweringError {
+  for existing in self.callable_adapters {
+    if existing.adapter.function == adapter.adapter.function {
+      if existing.recipe != adapter.recipe {
+        raise RepresentationSpecializationInvariant(
+          detail="one callable adapter function received two physical support contracts",
+        )
+      }
+      return
+    }
+  }
+  self.callable_adapters.push(adapter)
+}
+
+///|
+fn PhysicalAnfProgram::required_callable_adapter(
+  self : PhysicalAnfProgram,
+  function : @bytecode.FunctionId,
+) -> PhysicalCallableAdapterSupport raise LoisvmLoweringError {
+  for adapter in self.callable_adapters {
+    if adapter.adapter.function == function {
+      return adapter
+    }
+  }
+  raise RepresentationSpecializationInvariant(
+    detail="VM CFG emission requested callable adapter support absent from Physical ANF",
+  )
 }
 
 ///|
@@ -1654,27 +1709,32 @@ fn ImageLowerer::elaborate_physical_anf(
     }
     index += 1
   }
-  self.record_physical_support_invocations(physical)
+  self.record_physical_support(physical)
   physical.verify()
 }
 
 ///|
-fn ImageLowerer::record_physical_support_invocations(
+fn ImageLowerer::record_physical_support(
   self : ImageLowerer,
   physical : PhysicalAnfProgram,
 ) -> Unit raise LoisvmLoweringError {
   for planned in self.plans.entries {
-    if physical.invocation(planned.function) is Some(_) {
-      continue
-    }
     match planned.entry {
-      CallableAdapter(plan) =>
-        physical.add_invocation(planned.function, plan.recipe.target_abi)
-      LayoutConstructor(plan) =>
-        physical.add_invocation(
-          planned.function,
-          layout_constructor_invocation(plan),
+      CallableAdapter(plan) => {
+        if physical.invocation(planned.function) is None {
+          physical.add_invocation(planned.function, plan.recipe.target_abi)
+        }
+        physical.add_callable_adapter(
+          self.physical_callable_adapter_support(plan),
         )
+      }
+      LayoutConstructor(plan) =>
+        if physical.invocation(planned.function) is None {
+          physical.add_invocation(
+            planned.function,
+            layout_constructor_invocation(plan),
+          )
+        }
       _ => ()
     }
   }
@@ -3012,7 +3072,7 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
           ),
         )
       }
-      let physical_family = family.physical_contract()
+      let physical_family = self.image.physical_data_family_contract(family)
       guard physical_family.constructor_contract(construct.data_constructor)
         is Some(physical_constructor) else {
         raise RepresentationSpecializationInvariant(
@@ -3154,8 +3214,11 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         )
         let source_type = self.expression_result_type(alternative.body)
         let source_contract = body.result_contract()
+        let alternative_constructor = self.image.plan_physical_alternative_constructor(
+          alternative.alt_constructor,
+        )
         let alternative_plan : PhysicalMatchAlternativePlan = {
-          alternative_constructor: alternative.alt_constructor,
+          alternative_constructor,
           payloads: alternative_payloads[index],
           result: self.preplan_physical_value_flow_with_interfaces(
             "match-result",
@@ -3175,7 +3238,7 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         }
         alternatives.push(alternative_plan)
         physical_alternatives.push({
-          alt_constructor: alternative.alt_constructor,
+          alt_constructor: alternative_constructor,
           evidence_binders: alternative.evidence_binders,
           value_binders: alternative.value_binders,
           body,
@@ -4555,7 +4618,11 @@ fn PhysicalFunctionPlanner::plan_match_payloads(
       )
     }
   }
-  (scopes, payloads, Some({ family: family.physical_contract(), }))
+  (
+    scopes,
+    payloads,
+    Some({ family: self.image.physical_data_family_contract(family), }),
+  )
 }
 
 ///|
@@ -4733,58 +4800,20 @@ fn runtime_literal_type(literal : @buslane.Literal) -> @anf.RuntimeType {
 }
 
 ///|
-fn runtime_literal_physical_shape(
-  literal : @buslane.Literal,
-) -> PhysicalValueShape {
-  match literal {
-    Unit => PhysicalValueShape::Unit
-    Bool(_) | I32(_) | Char(_) =>
-      PhysicalValueShape::Slot(
-        CanonicalRuntimeTypeKey::Value({
-          representation: I32,
-          cleanup: Trivial,
-          kind: ScalarValue,
-        }),
-      )
-    I64(_) =>
-      PhysicalValueShape::Slot(
-        CanonicalRuntimeTypeKey::Value({
-          representation: I64,
-          cleanup: Trivial,
-          kind: ScalarValue,
-        }),
-      )
-    F32(_) =>
-      PhysicalValueShape::Slot(
-        CanonicalRuntimeTypeKey::Value({
-          representation: F32,
-          cleanup: Trivial,
-          kind: ScalarValue,
-        }),
-      )
-    F64(_) =>
-      PhysicalValueShape::Slot(
-        CanonicalRuntimeTypeKey::Value({
-          representation: F64,
-          cleanup: Trivial,
-          kind: ScalarValue,
-        }),
-      )
-    String(_) =>
-      PhysicalValueShape::Slot(
-        CanonicalRuntimeTypeKey::Value({
-          representation: I32,
-          cleanup: OwnedRef,
-          kind: ByteSequenceValue,
-        }),
-      )
-  }
-}
-
-///|
 fn PhysicalAnfProgram::verify(
   self : PhysicalAnfProgram,
 ) -> VerifiedPhysicalAnfProgram raise LoisvmLoweringError {
+  for adapter_index, adapter in self.callable_adapters {
+    for previous in 0..<adapter_index {
+      if self.callable_adapters[previous].adapter.function ==
+        adapter.adapter.function {
+        raise RepresentationSpecializationInvariant(
+          detail="one callable adapter function has two frozen support contracts",
+        )
+      }
+    }
+    adapter.verify(self)
+  }
   for worker_index, worker in self.representation_workers {
     for previous in 0..<worker_index {
       if self.representation_workers[previous].key == worker.key {
@@ -4877,6 +4906,132 @@ fn PhysicalAnfProgram::verify(
     self.verify_expr(environment, entry.1.body)
   }
   { program: self, }
+}
+
+///|
+fn PhysicalCallableAdapterSupport::verify(
+  self : PhysicalCallableAdapterSupport,
+  program : PhysicalAnfProgram,
+) -> Unit raise LoisvmLoweringError {
+  verify_callable_adapter_recipe(self.recipe)
+  if self.adapter.function.value <= 0 ||
+    self.adapter.environment.layout.value <= 0 ||
+    program.required_invocation(self.adapter.function) != self.recipe.target_abi {
+    raise RepresentationSpecializationInvariant(
+      detail="callable adapter support disagrees with its frozen physical invocation",
+    )
+  }
+  for index, entry in self.static_layouts {
+    let mut duplicate = false
+    for previous in 0..<index {
+      duplicate = duplicate || self.static_layouts[previous].0 == entry.0
+    }
+    if entry.1.value <= 0 || duplicate {
+      raise RepresentationSpecializationInvariant(
+        detail="callable adapter support contains an invalid or duplicate static layout",
+      )
+    }
+  }
+  for index, entry in self.layout_constructors {
+    let mut duplicate = false
+    for previous in 0..<index {
+      duplicate = duplicate || self.layout_constructors[previous].0 == entry.0
+    }
+    if entry.1.function.value <= 0 ||
+      duplicate ||
+      program.invocation(entry.1.function) is None {
+      raise RepresentationSpecializationInvariant(
+        detail="callable adapter support contains an invalid or duplicate layout constructor",
+      )
+    }
+  }
+  for index, entry in self.nested_adapters {
+    let mut duplicate = false
+    for previous in 0..<index {
+      duplicate = duplicate || self.nested_adapters[previous].0 == entry.0
+    }
+    if entry.1.function.value <= 0 ||
+      entry.1.environment.layout.value <= 0 ||
+      duplicate ||
+      program.required_invocation(entry.1.function) != entry.0.target_abi ||
+      program.required_callable_adapter(entry.1.function).recipe != entry.0 {
+      raise RepresentationSpecializationInvariant(
+        detail="callable adapter support contains an invalid or duplicate nested adapter",
+      )
+    }
+  }
+  for evidence in self.recipe.source_witnesses {
+    self.verify_evidence_support(evidence)
+  }
+  for parameter in self.recipe.target_parameters {
+    self.verify_value_support(parameter, program)
+  }
+  for argument in self.recipe.source_arguments {
+    self.verify_flow_support(argument.flow, program)
+  }
+  for discard in self.recipe.target_discards {
+    self.verify_flow_support(discard.flow, program)
+  }
+  if self.recipe.result is Adapt(flow) {
+    self.verify_flow_support(flow, program)
+  }
+}
+
+///|
+fn PhysicalCallableAdapterSupport::verify_flow_support(
+  self : PhysicalCallableAdapterSupport,
+  flow : CallableAdapterValueFlowRecipe,
+  program : PhysicalAnfProgram,
+) -> Unit raise LoisvmLoweringError {
+  for value in [flow.value, flow.source_shape, flow.target, flow.target_shape] {
+    self.verify_value_support(value, program)
+  }
+  if flow.nested_adapter is Some(nested) {
+    let adapter = self.required_nested_adapter(nested.recipe)
+    if program.required_callable_adapter(adapter.function).recipe !=
+      nested.recipe {
+      raise RepresentationSpecializationInvariant(
+        detail="nested callable adapter support does not name its canonical recipe",
+      )
+    }
+    for evidence in nested.captured_evidence {
+      self.verify_evidence_support(evidence)
+    }
+  }
+}
+
+///|
+fn PhysicalCallableAdapterSupport::verify_value_support(
+  self : PhysicalCallableAdapterSupport,
+  value : CallableAdapterValueRecipe,
+  _program : PhysicalAnfProgram,
+) -> Unit raise LoisvmLoweringError {
+  if value is Erased(evidence) {
+    self.verify_evidence_support(evidence)
+  }
+}
+
+///|
+fn PhysicalCallableAdapterSupport::verify_evidence_support(
+  self : PhysicalCallableAdapterSupport,
+  evidence : CallableAdapterEvidenceRecipe,
+) -> Unit raise LoisvmLoweringError {
+  match evidence {
+    Input(_) | Capture(_) => ()
+    Apply(callee, arguments) => {
+      self.verify_evidence_support(callee)
+      for argument in arguments {
+        self.verify_evidence_support(argument)
+      }
+    }
+    LayoutConstructor(evidence, captures) => {
+      ignore(self.required_layout_constructor(evidence))
+      for capture in captures {
+        self.verify_evidence_support(capture)
+      }
+    }
+    Static(recipe) => ignore(self.required_static_layout(recipe))
+  }
 }
 
 ///|

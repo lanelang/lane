@@ -6,6 +6,11 @@ fn canonical_scalar_key(
 }
 
 ///|
+fn canonical_byte_sequence_key() -> CanonicalRuntimeTypeKey {
+  Value({ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, })
+}
+
+///|
 fn FunctionLowerer::fresh_metadata(
   self : FunctionLowerer,
   metadata : @vmcfg.ValueMetadata,
@@ -90,14 +95,7 @@ fn ImageLowerer::elaborate_runtime_representation(
     Scalar(I64) => canonical_scalar_key(I64).value_metadata(None)
     Scalar(F32) => canonical_scalar_key(F32).value_metadata(None)
     Scalar(F64) => canonical_scalar_key(F64).value_metadata(None)
-    ByteSequence =>
-      {
-        representation: I32,
-        cleanup: OwnedRef,
-        kind: ByteSequenceValue,
-        ownership: Owned,
-        erased_companion: None,
-      }
+    ByteSequence => canonical_byte_sequence_key().value_metadata(None)
     Callable(_, _) | Forall(_, _) =>
       {
         representation: I64,

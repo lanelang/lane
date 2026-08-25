@@ -26,10 +26,14 @@ fn ImageLowerer::callable_adapter_recipe(
   let environment_shape = self.intern_object_shape(
     Environment({ stored_witness_count: 0, members, }),
   )
+  let environment : PhysicalEnvironmentContract = {
+    shape: environment_shape,
+    layout: self.intern_layout(Environment(environment_shape)),
+  }
   let (_, adapter) = self.plans.append_with_result(CallableAdapter, fn(
     function,
   ) {
-    let adapter : CallableAdapterPlan = { function, recipe, environment_shape, }
+    let adapter : CallableAdapterPlan = { function, recipe, environment, }
     self.callable_adapters.push(adapter)
     (CallableAdapter(adapter), adapter)
   })
@@ -78,6 +82,9 @@ fn ImageLowerer::preplan_callable_adapter_recipe_evidence(
   }
   for argument in recipe.source_arguments {
     self.preplan_callable_adapter_flow_recipe(argument.flow)
+  }
+  for discard in recipe.target_discards {
+    self.preplan_callable_adapter_flow_recipe(discard.flow)
   }
   if recipe.result is Adapt(flow) {
     self.preplan_callable_adapter_flow_recipe(flow)
@@ -131,6 +138,168 @@ fn ImageLowerer::preplan_callable_adapter_evidence_recipe(
         self.preplan_callable_adapter_evidence_recipe(capture)
       }
     }
+  }
+}
+
+///|
+fn ImageLowerer::physical_callable_adapter_support(
+  self : ImageLowerer,
+  plan : CallableAdapterPlan,
+) -> PhysicalCallableAdapterSupport raise LoisvmLoweringError {
+  let static_layouts = []
+  let layout_constructors = []
+  let nested_adapters = []
+  self.collect_callable_adapter_support(
+    plan.recipe,
+    static_layouts,
+    layout_constructors,
+    nested_adapters,
+  )
+  {
+    adapter: { function: plan.function, environment: plan.environment, },
+    recipe: plan.recipe,
+    static_layouts,
+    layout_constructors,
+    nested_adapters,
+  }
+}
+
+///|
+fn ImageLowerer::collect_callable_adapter_support(
+  self : ImageLowerer,
+  recipe : CallableAdapterRecipe,
+  static_layouts : Array[(@bytecode.LayoutRecipe, @bytecode.LayoutId)],
+  layout_constructors : Array[
+    (@anf.RuntimeEvidence, PhysicalLayoutConstructorReference),
+  ],
+  nested_adapters : Array[
+    (CallableAdapterRecipe, PhysicalCallableAdapterReference),
+  ],
+) -> Unit raise LoisvmLoweringError {
+  for evidence in recipe.source_witnesses {
+    self.collect_callable_adapter_evidence_support(
+      evidence, static_layouts, layout_constructors,
+    )
+  }
+  for parameter in recipe.target_parameters {
+    self.collect_callable_adapter_value_support(
+      parameter, static_layouts, layout_constructors,
+    )
+  }
+  for argument in recipe.source_arguments {
+    self.collect_callable_adapter_flow_support(
+      argument.flow,
+      static_layouts,
+      layout_constructors,
+      nested_adapters,
+    )
+  }
+  for discard in recipe.target_discards {
+    self.collect_callable_adapter_flow_support(
+      discard.flow,
+      static_layouts,
+      layout_constructors,
+      nested_adapters,
+    )
+  }
+  if recipe.result is Adapt(flow) {
+    self.collect_callable_adapter_flow_support(
+      flow, static_layouts, layout_constructors, nested_adapters,
+    )
+  }
+}
+
+///|
+fn ImageLowerer::collect_callable_adapter_flow_support(
+  self : ImageLowerer,
+  flow : CallableAdapterValueFlowRecipe,
+  static_layouts : Array[(@bytecode.LayoutRecipe, @bytecode.LayoutId)],
+  layout_constructors : Array[
+    (@anf.RuntimeEvidence, PhysicalLayoutConstructorReference),
+  ],
+  nested_adapters : Array[
+    (CallableAdapterRecipe, PhysicalCallableAdapterReference),
+  ],
+) -> Unit raise LoisvmLoweringError {
+  for value in [flow.value, flow.source_shape, flow.target, flow.target_shape] {
+    self.collect_callable_adapter_value_support(
+      value, static_layouts, layout_constructors,
+    )
+  }
+  if flow.nested_adapter is Some(nested) {
+    let plan = self.planned_callable_adapter_recipe(nested.recipe)
+    if !nested_adapters.any(entry => entry.0 == nested.recipe) {
+      nested_adapters.push(
+        (
+          nested.recipe,
+          { function: plan.function, environment: plan.environment, },
+        ),
+      )
+    }
+    for evidence in nested.captured_evidence {
+      self.collect_callable_adapter_evidence_support(
+        evidence, static_layouts, layout_constructors,
+      )
+    }
+  }
+}
+
+///|
+fn ImageLowerer::collect_callable_adapter_value_support(
+  self : ImageLowerer,
+  value : CallableAdapterValueRecipe,
+  static_layouts : Array[(@bytecode.LayoutRecipe, @bytecode.LayoutId)],
+  layout_constructors : Array[
+    (@anf.RuntimeEvidence, PhysicalLayoutConstructorReference),
+  ],
+) -> Unit raise LoisvmLoweringError {
+  if value is Erased(evidence) {
+    self.collect_callable_adapter_evidence_support(
+      evidence, static_layouts, layout_constructors,
+    )
+  }
+}
+
+///|
+fn ImageLowerer::collect_callable_adapter_evidence_support(
+  self : ImageLowerer,
+  evidence : CallableAdapterEvidenceRecipe,
+  static_layouts : Array[(@bytecode.LayoutRecipe, @bytecode.LayoutId)],
+  layout_constructors : Array[
+    (@anf.RuntimeEvidence, PhysicalLayoutConstructorReference),
+  ],
+) -> Unit raise LoisvmLoweringError {
+  match evidence {
+    Input(_) | Capture(_) => ()
+    Apply(callee, arguments) => {
+      self.collect_callable_adapter_evidence_support(
+        callee, static_layouts, layout_constructors,
+      )
+      for argument in arguments {
+        self.collect_callable_adapter_evidence_support(
+          argument, static_layouts, layout_constructors,
+        )
+      }
+    }
+    LayoutConstructor(evidence, captures) => {
+      if !layout_constructors.any(entry => entry.0 == evidence) {
+        layout_constructors.push(
+          (
+            evidence,
+            self.planned_layout_constructor(evidence).physical_reference(),
+          ),
+        )
+      }
+      for capture in captures {
+        self.collect_callable_adapter_evidence_support(
+          capture, static_layouts, layout_constructors,
+        )
+      }
+    }
+    Static(recipe) =>
+      if !static_layouts.any(entry => entry.0 == recipe) {
+        static_layouts.push((recipe, self.required_layout(recipe)))
+      }
   }
 }
 
@@ -851,16 +1020,13 @@ fn FunctionLowerer::materialize_planned_callable_bridge(
     }
   })
   let environment = self.fresh_metadata(
-    environment_metadata(plan.environment_shape),
-  )
-  let environment_layout = self.image.intern_layout(
-    Environment(plan.environment_shape),
+    environment_metadata(plan.environment.shape),
   )
   self.emit(
     MakeEnv(
       environment,
-      plan.environment_shape,
-      Immediate(environment_layout),
+      plan.environment.shape,
+      Immediate(plan.environment.layout),
       [],
       witnesses + [source],
     ),
@@ -994,13 +1160,13 @@ fn ImageLowerer::callable_type_parameter_alignment(
 fn ImageLowerer::lower_callable_adapter(
   self : ImageLowerer,
   physical_program : PhysicalAnfProgram,
-  plan : CallableAdapterPlan,
+  plan : PhysicalCallableAdapterSupport,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let recipe = plan.recipe
   let lowerer : FunctionLowerer = {
     image: self,
     physical_program,
-    function: Some(plan.function),
+    function: Some(plan.adapter.function),
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None, }],
     current_block: 0,
@@ -1009,6 +1175,7 @@ fn ImageLowerer::lower_callable_adapter(
     environment: None,
     witnesses: [],
     physical: None,
+    adapter_support: Some(plan),
   }
   let input_witnesses = []
   for witness in recipe.target_abi.witnesses {
@@ -1019,7 +1186,7 @@ fn ImageLowerer::lower_callable_adapter(
     )
   }
   let environment = lowerer.fresh_metadata(
-    environment_metadata(plan.environment_shape),
+    environment_metadata(plan.adapter.environment.shape),
   )
   lowerer.environment = Some(environment)
   let captured_evidence = []
@@ -1028,7 +1195,7 @@ fn ImageLowerer::lower_callable_adapter(
       CanonicalRuntimeTypeKey::Value(evidence).borrowed_value_metadata(None),
     )
     lowerer.emit(
-      BorrowCapture(plan.environment_shape, environment, index, {
+      BorrowCapture(plan.adapter.environment.shape, environment, index, {
         value_destination: witness,
         witness_destination: None,
       }),
@@ -1042,7 +1209,7 @@ fn ImageLowerer::lower_callable_adapter(
   )
   lowerer.emit(
     BorrowCapture(
-      plan.environment_shape,
+      plan.adapter.environment.shape,
       environment,
       recipe.captured_evidence.length(),
       { value_destination: source_callable, witness_destination: None, },
@@ -1302,7 +1469,9 @@ fn FunctionLowerer::materialize_callable_adapter_evidence(
       result
     }
     LayoutConstructor(evidence, captured) => {
-      let plan = self.image.planned_layout_constructor(evidence)
+      let plan = self
+        .required_callable_adapter_support()
+        .required_layout_constructor(evidence)
       if plan.captured_parameters.length() != captured.length() {
         raise RepresentationSpecializationInvariant(
           detail="callable adapter layout constructor capture arity disagrees with its plan",
@@ -1312,7 +1481,7 @@ fn FunctionLowerer::materialize_callable_adapter_evidence(
         self.materialize_callable_adapter_evidence(capture, inputs, captures)
       })
       let environment = self.make_capture_environment(
-        plan.environment_shape,
+        plan.environment,
         [],
         captured,
       )
@@ -1325,7 +1494,9 @@ fn FunctionLowerer::materialize_callable_adapter_evidence(
       result
     }
     Static(layout) => {
-      let layout = self.image.intern_layout(layout)
+      let layout = self
+        .required_callable_adapter_support()
+        .required_static_layout(layout)
       let result = self.fresh_metadata(layout_witness_metadata())
       self.emit(ConstLayout(result, layout))
       result
@@ -1342,7 +1513,9 @@ fn FunctionLowerer::materialize_nested_callable_adapter(
   captures : Array[@vmcfg.ValueId],
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   guard nested is Some(nested) else { return source }
-  let plan = self.image.planned_callable_adapter_recipe(nested.recipe)
+  let plan = self
+    .required_callable_adapter_support()
+    .required_nested_adapter(nested.recipe)
   let captured_evidence = nested.captured_evidence.map(evidence => {
     self.materialize_callable_adapter_evidence(evidence, inputs, captures)
   })
@@ -1352,16 +1525,13 @@ fn FunctionLowerer::materialize_nested_callable_adapter(
     )
   }
   let environment = self.fresh_metadata(
-    environment_metadata(plan.environment_shape),
-  )
-  let environment_layout = self.image.intern_layout(
-    Environment(plan.environment_shape),
+    environment_metadata(plan.environment.shape),
   )
   self.emit(
     MakeEnv(
       environment,
-      plan.environment_shape,
-      Immediate(environment_layout),
+      plan.environment.shape,
+      Immediate(plan.environment.layout),
       [],
       captured_evidence + [source],
     ),
@@ -1373,6 +1543,62 @@ fn FunctionLowerer::materialize_nested_callable_adapter(
   )
   self.emit(MakeClosure(result, plan.function, environment))
   result
+}
+
+///|
+fn FunctionLowerer::required_callable_adapter_support(
+  self : FunctionLowerer,
+) -> PhysicalCallableAdapterSupport raise LoisvmLoweringError {
+  self.adapter_support.unwrap_or_else(() => {
+    raise RepresentationSpecializationInvariant(
+      detail="callable adapter emission has no frozen physical support contract",
+    )
+  })
+}
+
+///|
+fn PhysicalCallableAdapterSupport::required_static_layout(
+  self : PhysicalCallableAdapterSupport,
+  recipe : @bytecode.LayoutRecipe,
+) -> @bytecode.LayoutId raise LoisvmLoweringError {
+  for entry in self.static_layouts {
+    if entry.0 == recipe {
+      return entry.1
+    }
+  }
+  raise RepresentationSpecializationInvariant(
+    detail="callable adapter requested a static layout absent from its frozen support contract",
+  )
+}
+
+///|
+fn PhysicalCallableAdapterSupport::required_layout_constructor(
+  self : PhysicalCallableAdapterSupport,
+  evidence : @anf.RuntimeEvidence,
+) -> PhysicalLayoutConstructorReference raise LoisvmLoweringError {
+  for entry in self.layout_constructors {
+    if entry.0 == evidence {
+      return entry.1
+    }
+  }
+  raise RepresentationSpecializationInvariant(
+    detail="callable adapter requested a layout constructor absent from its frozen support contract",
+  )
+}
+
+///|
+fn PhysicalCallableAdapterSupport::required_nested_adapter(
+  self : PhysicalCallableAdapterSupport,
+  recipe : CallableAdapterRecipe,
+) -> PhysicalCallableAdapterReference raise LoisvmLoweringError {
+  for entry in self.nested_adapters {
+    if entry.0 == recipe {
+      return entry.1
+    }
+  }
+  raise RepresentationSpecializationInvariant(
+    detail="callable adapter requested a nested adapter absent from its frozen support contract",
+  )
 }
 
 ///|

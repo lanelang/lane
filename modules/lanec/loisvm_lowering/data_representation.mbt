@@ -94,15 +94,16 @@ fn ImageLowerer::canonical_data_family_key(
 }
 
 ///|
-fn DataRepresentationFamilyPlan::physical_contract(
-  self : DataRepresentationFamilyPlan,
+fn ImageLowerer::physical_data_family_contract(
+  self : ImageLowerer,
+  family_plan : DataRepresentationFamilyPlan,
 ) -> PhysicalDataFamilyContract raise LoisvmLoweringError {
-  guard self.bytecode_family is Some(family) else {
+  guard family_plan.bytecode_family is Some(family) else {
     raise RepresentationSpecializationInvariant(
       detail="physical data-family contract has no materialized identity",
     )
   }
-  let constructors = self.constructors.map(constructor_plan => {
+  let constructors = family_plan.constructors.map(constructor_plan => {
     guard constructor_plan.shape is Some(shape) else {
       raise RepresentationSpecializationInvariant(
         detail="physical data-family constructor has no finalized object shape",
@@ -111,6 +112,7 @@ fn DataRepresentationFamilyPlan::physical_contract(
     {
       data_constructor: constructor_plan.data_constructor,
       shape,
+      layout: self.required_layout(Data(shape)),
       source_evidence_binder_count: match
         constructor_plan.storage_hidden_arguments {
         Some(arguments) => arguments.length()

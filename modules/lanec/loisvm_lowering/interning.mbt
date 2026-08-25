@@ -30,6 +30,21 @@ fn ImageLowerer::intern_layout(
 }
 
 ///|
+fn ImageLowerer::required_layout(
+  self : ImageLowerer,
+  recipe : @bytecode.LayoutRecipe,
+) -> @bytecode.LayoutId raise LoisvmLoweringError {
+  for index, existing in self.layouts {
+    if existing == recipe {
+      return { value: index + 1, }
+    }
+  }
+  raise RepresentationSpecializationInvariant(
+    detail="physical plan references an unplanned runtime layout",
+  )
+}
+
+///|
 fn ImageLowerer::intern_object_shape(
   self : ImageLowerer,
   shape : @bytecode.ObjectShape,

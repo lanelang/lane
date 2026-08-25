@@ -175,14 +175,21 @@ fn FunctionLowerer::lower_construct(
     }
   }
   let shape = constructor_plan.shape
-  let layout = self.image.intern_layout(Data(shape))
   let result_key = CanonicalRuntimeTypeKey::Value({
     representation: I32,
     cleanup: OwnedRef,
     kind: DataValue(family.family),
   })
   let destination = self.fresh_metadata(result_key.value_metadata(None))
-  self.emit(MakeData(destination, shape, Immediate(layout), witnesses, fields))
+  self.emit(
+    MakeData(
+      destination,
+      shape,
+      Immediate(constructor_plan.layout),
+      witnesses,
+      fields,
+    ),
+  )
   LocalValue::Slot(destination, data.result_type, result_key)
 }
 
@@ -242,29 +249,16 @@ fn FunctionLowerer::find_temp(
 ///|
 fn FunctionLowerer::lower_physical_literal(
   self : FunctionLowerer,
-  literal : @buslane.Literal,
+  literal : PhysicalLiteral,
   contract : PhysicalValueContract,
 ) -> LocalValue raise LoisvmLoweringError {
   self.lower_literal_with_shape(literal, self.physical_shape(contract.shape))
 }
 
 ///|
-/// Materialize a literal introduced by VM CFG control-flow lowering. Source
-/// literals use lower_physical_literal and retain their Physical ANF contract.
-fn FunctionLowerer::lower_internal_literal(
-  self : FunctionLowerer,
-  literal : @buslane.Literal,
-) -> LocalValue raise LoisvmLoweringError {
-  self.lower_literal_with_shape(
-    literal,
-    runtime_literal_physical_shape(literal),
-  )
-}
-
-///|
 fn FunctionLowerer::lower_literal_with_shape(
   self : FunctionLowerer,
-  literal : @buslane.Literal,
+  literal : PhysicalLiteral,
   planned_shape : PhysicalValueShape,
 ) -> LocalValue raise LoisvmLoweringError {
   let fresh = fn() -> (@vmcfg.ValueId, CanonicalRuntimeTypeKey) raise LoisvmLoweringError {
@@ -289,46 +283,44 @@ fn FunctionLowerer::lower_literal_with_shape(
       Unit
     }
     Bool(value) => {
-      let type_ = @anf.RuntimeType::Scalar(Bool)
+      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstBool(slot, value))
       Slot(slot, type_, key)
     }
     I64(value) => {
-      let type_ = @anf.RuntimeType::Scalar(I64)
+      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstI64(slot, value))
       Slot(slot, type_, key)
     }
     I32(value) => {
-      let type_ = @anf.RuntimeType::Scalar(I32)
+      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstI32(slot, value))
       Slot(slot, type_, key)
     }
     F32(value) => {
-      let type_ = @anf.RuntimeType::Scalar(F32)
+      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstF32(slot, value.reinterpret_as_int()))
       Slot(slot, type_, key)
     }
     Char(value) => {
-      let type_ = @anf.RuntimeType::Scalar(Char)
+      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstChar(slot, value))
       Slot(slot, type_, key)
     }
     F64(value) => {
-      let type_ = @anf.RuntimeType::Scalar(F64)
+      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstF64(slot, value.reinterpret_as_int64()))
       Slot(slot, type_, key)
     }
-    String(value) => {
-      let type_ = @anf.RuntimeType::ByteSequence
+    ByteSequence(constant) => {
+      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
-      let constant = self.image.intern_string(value)
-      ignore(self.image.intern_layout(ByteSequence))
       self.emit(ConstString(slot, constant))
       Slot(slot, type_, key)
     }

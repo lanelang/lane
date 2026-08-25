@@ -61,7 +61,12 @@ test "Physical ANF value flow accepts an explicit concrete-to-erased bridge" {
   let flow = test_flow(
     physical.intern(test_scalar_shape()),
     physical.intern(test_erased_shape()),
-    Some(Erase({ evidence: StaticLayout(I64), callable: None, })),
+    Some(
+      Erase({
+        evidence: StaticLayout({ recipe: I64, layout: { value: 1, }, }),
+        callable: None,
+      }),
+    ),
   )
   physical.verify_value_flow(flow)
 }
