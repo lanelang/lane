@@ -337,7 +337,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|              MakeData(
       #|                { value: 2 },
       #|                { value: 0 },
-      #|                Immediate({ value: 1 }),
+      #|                Immediate({ value: 2 }),
       #|                [],
       #|                [{ value: 0 }, { value: 6 }],
       #|              ),
@@ -369,7 +369,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|              MakeData(
       #|                { value: 4 },
       #|                { value: 1 },
-      #|                Immediate({ value: 2 }),
+      #|                Immediate({ value: 3 }),
       #|                [],
       #|                [{ value: 0 }, { value: 6 }],
       #|              ),
@@ -559,10 +559,10 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|    },
       #|  ],
       #|  layouts: [
+      #|    ByteSequence,
       #|    Data({ value: 0 }),
       #|    Data({ value: 1 }),
       #|    Environment({ value: 2 }),
-      #|    ByteSequence,
       #|  ],
       #|  object_shapes: [
       #|    Data(

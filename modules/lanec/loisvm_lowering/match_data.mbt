@@ -34,8 +34,7 @@ fn FunctionLowerer::lower_data_match(
       match_.result_type,
     )
   }
-  let tag_type = @anf.RuntimeType::Scalar(Bool)
-  let tag = self.fresh_slot(tag_type)
+  let tag = self.fresh_metadata(canonical_scalar_key(I32).value_metadata(None))
   self.emit(LoadTag(tag, scrutinee))
   let join_value = self.fresh_block_value_parameter(
     match_.result_type,

@@ -1,16 +1,8 @@
 ///|
-fn FunctionLowerer::fresh_slot(
-  self : FunctionLowerer,
-  type_ : @anf.RuntimeType,
-) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  if type_ is Erased(_, _) {
-    raise RepresentationSpecializationInvariant(
-      detail="VM CFG slot allocation received erased type without a physical evidence plan",
-    )
-  }
-  let slot : @vmcfg.ValueId = { value: self.values.length(), }
-  self.values.push(self.image.slot_metadata(type_))
-  slot
+fn canonical_scalar_key(
+  representation : @bytecode.Representation,
+) -> CanonicalRuntimeTypeKey {
+  Value({ representation, cleanup: Trivial, kind: ScalarValue, })
 }
 
 ///|
@@ -86,17 +78,6 @@ fn FunctionLowerer::fresh_erased_slot(
 }
 
 ///|
-fn ImageLowerer::slot_metadata(
-  self : ImageLowerer,
-  type_ : @anf.RuntimeType,
-) -> @vmcfg.ValueMetadata raise LoisvmLoweringError {
-  match self.elaborate_runtime_representation(type_) {
-    Concrete(_, metadata) => metadata
-    RuntimeUnit | RuntimeErased => raise UnsupportedType(type_~)
-  }
-}
-
-///|
 fn ImageLowerer::elaborate_runtime_representation(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
@@ -105,37 +86,10 @@ fn ImageLowerer::elaborate_runtime_representation(
     Unit => return RuntimeUnit
     Erased(_, _) => return RuntimeErased
     Scalar(Bool | I32 | Char | Byte) =>
-      {
-        representation: I32,
-        cleanup: Trivial,
-        kind: ScalarValue,
-        ownership: Trivial,
-        erased_companion: None,
-      }
-    Scalar(I64) =>
-      {
-        representation: I64,
-        cleanup: Trivial,
-        kind: ScalarValue,
-        ownership: Trivial,
-        erased_companion: None,
-      }
-    Scalar(F32) =>
-      {
-        representation: F32,
-        cleanup: Trivial,
-        kind: ScalarValue,
-        ownership: Trivial,
-        erased_companion: None,
-      }
-    Scalar(F64) =>
-      {
-        representation: F64,
-        cleanup: Trivial,
-        kind: ScalarValue,
-        ownership: Trivial,
-        erased_companion: None,
-      }
+      canonical_scalar_key(I32).value_metadata(None)
+    Scalar(I64) => canonical_scalar_key(I64).value_metadata(None)
+    Scalar(F32) => canonical_scalar_key(F32).value_metadata(None)
+    Scalar(F64) => canonical_scalar_key(F64).value_metadata(None)
     ByteSequence =>
       {
         representation: I32,
@@ -228,19 +182,6 @@ fn runtime_evidence_metadata(
     layout_witness_metadata()
   } else {
     layout_constructor_metadata(parameter.arity)
-  }
-}
-
-///|
-fn ImageLowerer::result_abi(
-  self : ImageLowerer,
-  type_ : @anf.RuntimeType,
-) -> @bytecode.ResultAbi raise LoisvmLoweringError {
-  match self.elaborate_runtime_representation(type_) {
-    RuntimeUnit => Unit
-    RuntimeErased => Value(I64, OwnedErased, ErasedValue)
-    Concrete(_, metadata) =>
-      Value(metadata.representation, metadata.cleanup, metadata.kind)
   }
 }
 

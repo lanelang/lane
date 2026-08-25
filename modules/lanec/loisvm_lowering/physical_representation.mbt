@@ -909,23 +909,6 @@ fn PhysicalValueShape::result_abi(
 }
 
 ///|
-fn FunctionLowerer::physical_shape_of_type(
-  self : FunctionLowerer,
-  type_ : @anf.RuntimeType,
-) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
-  self.image.canonical_runtime_type_key_under(type_, RuntimeSubstitution::new())
-}
-
-///|
-fn FunctionLowerer::slot_value(
-  self : FunctionLowerer,
-  slot : @vmcfg.ValueId,
-  type_ : @anf.RuntimeType,
-) -> LocalValue raise LoisvmLoweringError {
-  Slot(slot, type_, self.physical_shape_of_type(type_))
-}
-
-///|
 fn PhysicalFunctionPlanner::append_port(
   self : PhysicalFunctionPlanner,
   binding : @anf.AnfBindingId,

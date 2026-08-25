@@ -165,6 +165,19 @@ fn ImageLowerer::plan_intrinsic(
       }
       let (_, parameters, result) = function_type_parts(type_)
       let function_contract = { intrinsic, parameters, result, implementation, }
+      match intrinsic {
+        BytesMake
+        | BytesLength
+        | BytesGet
+        | BytesSet
+        | BytesEqual
+        | BytesConcat
+        | BytesSlice
+        | BytesIsValidUtf8
+        | F32ToString
+        | F64ToString => ignore(self.intern_layout(ByteSequence))
+        _ => ()
+      }
       match implementation {
         Direct =>
           self.globals.push({ value, lowered: Intrinsic(function_contract), })
@@ -388,7 +401,6 @@ fn ImageLowerer::lower_intrinsic_wrapper(
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let intrinsic = plan.contract.intrinsic
   let parameter_types = plan.contract.parameters
-  let result_type = plan.contract.result
   let lowerer : FunctionLowerer = {
     image: self,
     physical_program,
@@ -402,7 +414,9 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     witnesses: [],
     physical: None,
   }
-  let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
+  let parameter_slots = plan.parameter_shapes.map(shape => {
+    lowerer.fresh_metadata(shape.value_metadata(None))
+  })
   match plan.contract.implementation {
     Fatal(message_parameter~) => {
       let message = parameter_slots[message_parameter]
@@ -414,7 +428,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
           witnesses: [],
           user_parameters: parameter_slots,
         },
-        result: self.result_abi(result_type),
+        result: plan.result_shape.physical_shape().result_abi(),
         blocks: [
           { parameters: [], instructions: [], terminator: Fatal(message), },
         ],
@@ -423,9 +437,19 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     Direct => {
       let arguments = []
       for index, slot in parameter_slots {
-        arguments.push(lowerer.slot_value(slot, parameter_types[index]))
+        arguments.push(
+          LocalValue::Slot(
+            slot,
+            parameter_types[index],
+            plan.parameter_shapes[index],
+          ),
+        )
       }
-      let result = lowerer.lower_intrinsic(plan.contract, arguments)
+      let result = lowerer.lower_intrinsic(
+        plan.contract,
+        arguments,
+        plan.result_shape,
+      )
       guard result is Slot(result_slot, _, _) else {
         raise UnsupportedIntrinsic(name=intrinsic.name())
       }
@@ -437,7 +461,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
           witnesses: [],
           user_parameters: parameter_slots,
         },
-        result: self.result_abi(result_type),
+        result: plan.result_shape.physical_shape().result_abi(),
         blocks: [
           {
             parameters: [],
@@ -454,16 +478,23 @@ fn ImageLowerer::lower_intrinsic_wrapper(
 fn ImageLowerer::intrinsic_wrapper(
   self : ImageLowerer,
   contract : RuntimeIntrinsicFunctionContract,
-) -> @bytecode.FunctionId {
+) -> @bytecode.FunctionId raise LoisvmLoweringError {
   for wrapper in self.intrinsic_wrappers {
     if wrapper.contract == contract {
       return wrapper.function
     }
   }
+  let parameter_shapes = contract.parameters.map(type_ => {
+    self.canonical_runtime_type_key_under(type_, RuntimeSubstitution::new())
+  })
+  let result_shape = self.canonical_runtime_type_key_under(
+    contract.result,
+    RuntimeSubstitution::new(),
+  )
   let function = self.plans.append(
       IntrinsicWrapper(name=contract.intrinsic.name()),
       fn(function) {
-        let wrapper = { function, contract, }
+        let wrapper = { function, contract, parameter_shapes, result_shape, }
         self.intrinsic_wrappers.push(wrapper)
         IntrinsicWrapper(wrapper)
       },

@@ -225,6 +225,8 @@ priv struct InitializerStepPlan {
 priv struct IntrinsicWrapperPlan {
   function : @bytecode.FunctionId
   contract : RuntimeIntrinsicFunctionContract
+  parameter_shapes : Array[CanonicalRuntimeTypeKey]
+  result_shape : CanonicalRuntimeTypeKey
 }
 
 ///|

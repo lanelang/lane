@@ -70,7 +70,13 @@ fn FunctionLowerer::lower_call(
           ).value,
         )
       }
-      let result = self.lower_intrinsic(contract, arguments)
+      guard self.physical_shape(physical_call.result.source.shape)
+        is PhysicalValueShape::Slot(result_shape) else {
+        raise RepresentationSpecializationInvariant(
+          detail="intrinsic call has no physical result slot",
+        )
+      }
+      let result = self.lower_intrinsic(contract, arguments, result_shape)
       self.materialize_planned_value_flow(
         "intrinsic result at \{Repr(physical_call.site)}",
         { value: result, contract: physical_call.result.source, },
@@ -166,16 +172,6 @@ fn FunctionLowerer::materialize_local(
         ),
       )
     }
-    Global(DoubleConstant(bits, type_)) => {
-      let destination = self.fresh_slot(type_)
-      self.emit(ConstF64(destination, bits))
-      self.slot_value(destination, type_)
-    }
-    Global(FloatConstant(bits, type_)) => {
-      let destination = self.fresh_slot(type_)
-      self.emit(ConstF32(destination, bits))
-      self.slot_value(destination, type_)
-    }
     RecursiveFunction(function, type_, environment) =>
       self.materialize_callable_value(function, type_, environment)
     NestedCallable(callable) => self.materialize_nested_callable(callable)
@@ -200,10 +196,32 @@ fn FunctionLowerer::materialize_physical_local(
   self : FunctionLowerer,
   physical : PhysicalLocalValue,
 ) -> PhysicalLocalValue raise LoisvmLoweringError {
-  {
-    value: self.materialize_local(physical.value),
-    contract: physical.contract,
+  let value = match physical.value {
+    Global(DoubleConstant(bits, type_)) => {
+      guard self.physical_shape(physical.contract.shape)
+        is PhysicalValueShape::Slot(shape) else {
+        raise RepresentationSpecializationInvariant(
+          detail="F64 constant has no physical result slot",
+        )
+      }
+      let destination = self.fresh_metadata(shape.value_metadata(None))
+      self.emit(ConstF64(destination, bits))
+      LocalValue::Slot(destination, type_, shape)
+    }
+    Global(FloatConstant(bits, type_)) => {
+      guard self.physical_shape(physical.contract.shape)
+        is PhysicalValueShape::Slot(shape) else {
+        raise RepresentationSpecializationInvariant(
+          detail="F32 constant has no physical result slot",
+        )
+      }
+      let destination = self.fresh_metadata(shape.value_metadata(None))
+      self.emit(ConstF32(destination, bits))
+      LocalValue::Slot(destination, type_, shape)
+    }
+    value => self.materialize_local(value)
   }
+  { value, contract: physical.contract, }
 }
 
 ///|
@@ -661,6 +679,7 @@ fn FunctionLowerer::lower_intrinsic(
   self : FunctionLowerer,
   contract : RuntimeIntrinsicFunctionContract,
   arguments : Array[LocalValue],
+  result_shape : CanonicalRuntimeTypeKey,
 ) -> LocalValue raise LoisvmLoweringError {
   let intrinsic = contract.intrinsic
   let result_type = contract.result
@@ -671,20 +690,10 @@ fn FunctionLowerer::lower_intrinsic(
       | StringToBytes
       | BytesToString,
       [Slot(source, _, shape)],
-    ) => return Slot(source, result_type, shape)
-    _ => ()
-  }
-  match intrinsic {
-    BytesMake
-    | BytesLength
-    | BytesGet
-    | BytesSet
-    | BytesEqual
-    | BytesConcat
-    | BytesSlice
-    | BytesIsValidUtf8
-    | F32ToString
-    | F64ToString => ignore(self.image.intern_layout(ByteSequence))
+    ) => {
+      ignore(shape)
+      return Slot(source, result_type, result_shape)
+    }
     _ => ()
   }
   let slots = arguments.map(fn(argument) {
@@ -693,7 +702,7 @@ fn FunctionLowerer::lower_intrinsic(
       _ => abort("intrinsic argument is not represented by a slot")
     }
   })
-  let destination = self.fresh_slot(result_type)
+  let destination = self.fresh_metadata(result_shape.value_metadata(None))
   let instruction : @vmcfg.Instruction = match (intrinsic, slots) {
     (I64Add, [left, right]) => I64Add(destination, left, right)
     (I64Sub, [left, right]) => I64Sub(destination, left, right)
@@ -750,7 +759,7 @@ fn FunctionLowerer::lower_intrinsic(
     _ => raise UnsupportedIntrinsic(name=intrinsic.name())
   }
   self.emit(instruction)
-  self.slot_value(destination, result_type)
+  Slot(destination, result_type, result_shape)
 }
 
 ///|

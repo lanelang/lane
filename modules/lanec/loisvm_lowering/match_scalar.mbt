@@ -57,6 +57,7 @@ fn FunctionLowerer::lower_match(
         match_,
         condition,
         scrutinee_type,
+        shape,
         comparison,
         LocalValue::Slot(condition, scrutinee_type, shape),
         result_shape,
@@ -162,6 +163,7 @@ fn FunctionLowerer::lower_literal_match(
   match_ : PhysicalAnfMatch,
   initial_scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
+  scrutinee_shape : CanonicalRuntimeTypeKey,
   comparison : PhysicalLiteralComparison,
   initial_value : LocalValue,
   result_shape : PhysicalValueShape,
@@ -200,7 +202,9 @@ fn FunctionLowerer::lower_literal_match(
       abort("filtered literal alternative")
     }
     let condition = self.emit_literal_equality(scrutinee, comparison, literal)
-    let branch_scrutinee = self.fresh_slot(scrutinee_type)
+    let branch_scrutinee = self.fresh_metadata(
+      scrutinee_shape.value_metadata(None),
+    )
     let branch_environment = self.branch_environment_parameter()
     let branch_parameters = [branch_scrutinee]
     if branch_environment is Some(value) {
@@ -210,7 +214,9 @@ fn FunctionLowerer::lower_literal_match(
     branches.push(
       (branch_block, branch_scrutinee, branch_environment, alternative),
     )
-    let next_scrutinee = self.fresh_slot(scrutinee_type)
+    let next_scrutinee = self.fresh_metadata(
+      scrutinee_shape.value_metadata(None),
+    )
     let next_environment = self.branch_environment_parameter()
     let next_parameters = [next_scrutinee]
     if next_environment is Some(value) {
@@ -241,7 +247,7 @@ fn FunctionLowerer::lower_literal_match(
       block,
       join_block,
       match_.binder,
-      self.slot_value(branch_scrutinee, scrutinee_type),
+      LocalValue::Slot(branch_scrutinee, scrutinee_type, scrutinee_shape),
       alternative,
       match_.result_type,
       branch_environment,
@@ -252,7 +258,7 @@ fn FunctionLowerer::lower_literal_match(
     { value: default_block, },
     join_block,
     match_.binder,
-    self.slot_value(default_scrutinee, scrutinee_type),
+    LocalValue::Slot(default_scrutinee, scrutinee_type, scrutinee_shape),
     default_alternative,
     match_.result_type,
     default_environment,
@@ -274,7 +280,9 @@ fn FunctionLowerer::emit_literal_equality(
       detail="literal pattern type does not match its scrutinee",
     )
   }
-  let condition = self.fresh_slot(Scalar(Bool))
+  let condition = self.fresh_metadata(
+    canonical_scalar_key(I32).value_metadata(None),
+  )
   let instruction : @vmcfg.Instruction = match comparison {
     I64 => I64Eq(condition, scrutinee, expected)
     I32 => I32Eq(condition, scrutinee, expected)
