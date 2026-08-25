@@ -11,7 +11,6 @@ test "recursive demand produces a worker with a generic recursive callable edge"
 
 ///|
 test "Physical ANF rejects two workers for one representation contract" {
-  let image = test_image_lowerer(@buslane.MetadataRegistry::MetadataRegistry())
   let physical = PhysicalAnfProgram::new()
   let draft = recursive_representation_test_demand(0, Semantic(0))
   let worker : RepresentationSpecializationPlan = {
@@ -32,8 +31,8 @@ test "Physical ANF rejects two workers for one representation contract" {
   }
   physical.representation_workers.push(worker)
   physical.representation_workers.push({ ..worker, worker: { value: 2, }, })
-  let result : Result[Unit, LoisvmLoweringError] = Ok(
-    image.verify_physical_anf(physical),
+  let result : Result[VerifiedPhysicalAnfProgram, LoisvmLoweringError] = Ok(
+    physical.verify(),
   ) catch {
     error => Err(error)
   }

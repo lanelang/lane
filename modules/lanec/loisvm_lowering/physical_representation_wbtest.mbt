@@ -41,7 +41,6 @@ fn test_function_interface(
 
 ///|
 test "Physical ANF value flow rejects unequal shapes without a bridge" {
-  let image = test_image_lowerer(@buslane.MetadataRegistry::MetadataRegistry())
   let physical = PhysicalAnfProgram::new()
   let flow = test_flow(
     physical.intern(test_scalar_shape()),
@@ -49,7 +48,7 @@ test "Physical ANF value flow rejects unequal shapes without a bridge" {
     None,
   )
   let result : Result[Unit, LoisvmLoweringError] = Ok(
-    image.verify_physical_value_flow(physical, flow),
+    physical.verify_value_flow(flow),
   ) catch {
     error => Err(error)
   }
@@ -58,29 +57,25 @@ test "Physical ANF value flow rejects unequal shapes without a bridge" {
 
 ///|
 test "Physical ANF value flow accepts an explicit concrete-to-erased bridge" {
-  let image = test_image_lowerer(@buslane.MetadataRegistry::MetadataRegistry())
   let physical = PhysicalAnfProgram::new()
   let flow = test_flow(
     physical.intern(test_scalar_shape()),
     physical.intern(test_erased_shape()),
     Some(Erase({ evidence: StaticLayout(I64), callable: None, })),
   )
-  image.verify_physical_value_flow(physical, flow)
+  physical.verify_value_flow(flow)
 }
 
 ///|
 test "Physical ANF verifier rejects an illegal binding flow" {
-  let image = test_image_lowerer(@buslane.MetadataRegistry::MetadataRegistry())
   let physical = PhysicalAnfProgram::new()
   let scalar = physical.intern(test_scalar_shape())
   let erased = physical.intern(test_erased_shape())
   let temp : @anf.AnfTempId = { index: 0, }
   let type_ = @anf.RuntimeType::Scalar(@anf.RuntimeScalarType::I64)
   let atom : PhysicalAnfAtom = {
-    atom: Literal(I64(1L)),
+    producer: PhysicalAnfAtomProducer::Literal(I64(1L)),
     contract: test_contract(scalar),
-    callable: None,
-    allocation: None,
   }
   let interface = test_function_interface([], type_, {
     witnesses: [],
@@ -110,8 +105,8 @@ test "Physical ANF verifier rejects an illegal binding flow" {
       Atom(atom),
     ),
   })
-  let result : Result[Unit, LoisvmLoweringError] = Ok(
-    image.verify_physical_anf(physical),
+  let result : Result[VerifiedPhysicalAnfProgram, LoisvmLoweringError] = Ok(
+    physical.verify(),
   ) catch {
     error => Err(error)
   }
@@ -122,7 +117,6 @@ test "Physical ANF verifier rejects an illegal binding flow" {
 test "Physical ANF atom cannot claim a shape different from its producer" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let parameter = metadata.define_value("value", Parameter, Primitive(I64))
-  let image = test_image_lowerer(metadata)
   let physical = PhysicalAnfProgram::new()
   let scalar = physical.intern(test_scalar_shape())
   let erased = physical.intern(test_erased_shape())
@@ -145,16 +139,28 @@ test "Physical ANF atom cannot claim a shape different from its producer" {
     result_type: type_,
     result: test_flow(erased, erased, None),
     body: Atom({
-      atom: Ref(parameter),
+      producer: Binding(Value(parameter)),
       contract: test_contract(erased),
-      callable: None,
-      allocation: None,
     }),
   })
-  let result : Result[Unit, LoisvmLoweringError] = Ok(
-    image.verify_physical_anf(physical),
+  let result : Result[VerifiedPhysicalAnfProgram, LoisvmLoweringError] = Ok(
+    physical.verify(),
   ) catch {
     error => Err(error)
   }
   assert_true(result is Err(RepresentationSpecializationInvariant(detail=_)))
+}
+
+///|
+test "Physical match representation owns its alternative universe" {
+  assert_true(PhysicalMatchRepresentation::Bool.accepts(Literal(Bool(true))))
+  assert_false(PhysicalMatchRepresentation::Bool.accepts(Literal(I32(1))))
+  assert_true(
+    PhysicalMatchRepresentation::Literal(I32).accepts(Literal(Char(65))),
+  )
+  assert_false(
+    PhysicalMatchRepresentation::Literal(I32).accepts(Literal(I64(1L))),
+  )
+  assert_true(PhysicalMatchRepresentation::Callable.accepts(Default))
+  assert_false(PhysicalMatchRepresentation::Callable.accepts(Literal(Unit)))
 }

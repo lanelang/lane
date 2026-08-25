@@ -94,6 +94,63 @@ fn ImageLowerer::canonical_data_family_key(
 }
 
 ///|
+fn DataRepresentationFamilyPlan::physical_contract(
+  self : DataRepresentationFamilyPlan,
+) -> PhysicalDataFamilyContract raise LoisvmLoweringError {
+  guard self.bytecode_family is Some(family) else {
+    raise RepresentationSpecializationInvariant(
+      detail="physical data-family contract has no materialized identity",
+    )
+  }
+  let constructors = self.constructors.map(constructor_plan => {
+    guard constructor_plan.shape is Some(shape) else {
+      raise RepresentationSpecializationInvariant(
+        detail="physical data-family constructor has no finalized object shape",
+      )
+    }
+    {
+      data_constructor: constructor_plan.data_constructor,
+      shape,
+      source_evidence_binder_count: match
+        constructor_plan.storage_hidden_arguments {
+        Some(arguments) => arguments.length()
+        None => constructor_plan.storage_evidence_parameters.length()
+      },
+      stored_evidence_parameters: constructor_plan.storage_evidence_parameters.copy(),
+      storage_types: constructor_plan.storage_types.copy(),
+      storage_shapes: constructor_plan.storage_shapes.copy(),
+    }
+  })
+  { family, constructors, }
+}
+
+///|
+fn PhysicalDataFamilyContract::constructor_contract(
+  self : PhysicalDataFamilyContract,
+  data_constructor : @buslane.DataConId,
+) -> PhysicalDataConstructorContract? {
+  for contract in self.constructors {
+    if contract.data_constructor == data_constructor {
+      return Some(contract)
+    }
+  }
+  None
+}
+
+///|
+fn PhysicalDataFamilyContract::physical_shape(
+  self : PhysicalDataFamilyContract,
+) -> PhysicalValueShape {
+  PhysicalValueShape::Slot(
+    CanonicalRuntimeTypeKey::Value({
+      representation: I32,
+      cleanup: OwnedRef,
+      kind: DataValue(self.family),
+    }),
+  )
+}
+
+///|
 fn ImageLowerer::data_family_by_bytecode_id(
   self : ImageLowerer,
   id : @bytecode.DataFamilyId,
@@ -639,27 +696,5 @@ fn ImageLowerer::intern_data_shape(
       stored_witness_count: witness_ordinal,
       members,
     }),
-  )
-}
-
-///|
-fn ImageLowerer::materialize_data_shape(
-  self : ImageLowerer,
-  family : DataRepresentationFamilyPlan,
-  constructor_plan : DataRepresentationConstructorPlan,
-  _info : @anf.RuntimeDataConstructorInfo,
-) -> @bytecode.ObjectShapeId raise LoisvmLoweringError {
-  if constructor_plan.shape is Some(shape) {
-    guard family.bytecode_family is Some(bytecode_family) &&
-      self.object_shapes.get(shape.value) is Some(Data(data_shape)) &&
-      data_shape.family == bytecode_family else {
-      raise RepresentationSpecializationInvariant(
-        detail="planned constructor shape does not belong to its physical family",
-      )
-    }
-    return shape
-  }
-  raise RepresentationSpecializationInvariant(
-    detail="data-family object shape was not finalized before VM CFG emission",
   )
 }

@@ -6,26 +6,15 @@ fn FunctionLowerer::lower_data_match(
   scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
   scrutinee_shape : CanonicalRuntimeTypeKey,
-  owner : @buslane.TypeId,
-  type_arguments : Array[@anf.RuntimeArgument],
+  data : PhysicalDataMatchPlan,
   result_shape : PhysicalValueShape,
 ) -> LocalValue raise LoisvmLoweringError {
-  let type_arguments = type_arguments.map(argument => {
-    self.substitutions.apply_argument(self.image.runtime_types, argument)
-  })
-  let owner_info = match self.image.metadata.type_info(owner) {
-    Some(info) => info
-    None =>
-      raise UnsupportedExpression(detail="data match owner metadata is missing")
-  }
-  let substitutions = RuntimeSubstitution::from_arguments(
-    owner_info.evidence_parameters,
-    type_arguments,
-  )
-  if owner_info.constructors.is_empty() {
+  let constructors = data.family.constructors
+  if constructors.is_empty() {
     return self.lower_unreachable_match_result(match_.result_type, result_shape)
   }
-  if owner_info.constructors is [data_constructor] {
+  if constructors is [constructor_plan] {
+    let data_constructor = constructor_plan.data_constructor
     let alternative = match
       find_data_alternative(match_.alternatives, data_constructor) {
       Some(alternative) => alternative
@@ -40,10 +29,9 @@ fn FunctionLowerer::lower_data_match(
       scrutinee,
       scrutinee_type,
       scrutinee_shape,
-      data_constructor,
+      constructor_plan,
       alternative,
       match_.result_type,
-      substitutions,
     )
   }
   let tag_type = @anf.RuntimeType::Scalar(Bool)
@@ -61,10 +49,11 @@ fn FunctionLowerer::lower_data_match(
       @vmcfg.ValueId,
       @vmcfg.ValueId?,
       PhysicalAnfAlternative,
-      @buslane.DataConId,
+      PhysicalDataConstructorContract,
     ),
   ] = []
-  for data_constructor in owner_info.constructors {
+  for constructor_plan in constructors {
+    let data_constructor = constructor_plan.data_constructor
     let alternative = match
       find_data_alternative(match_.alternatives, data_constructor) {
       Some(alternative) => alternative
@@ -89,7 +78,7 @@ fn FunctionLowerer::lower_data_match(
     cases.push({ target: block, arguments, })
     alternatives.push(
       (
-        block, branch_scrutinee, branch_environment, alternative, data_constructor,
+        block, branch_scrutinee, branch_environment, alternative, constructor_plan,
       ),
     )
   }
@@ -103,7 +92,7 @@ fn FunctionLowerer::lower_data_match(
       branch_scrutinee,
       branch_environment,
       alternative,
-      data_constructor,
+      constructor_plan,
     ) = item
     self.lower_data_alternative(
       site,
@@ -113,11 +102,10 @@ fn FunctionLowerer::lower_data_match(
       branch_scrutinee,
       scrutinee_type,
       scrutinee_shape,
-      data_constructor,
+      constructor_plan,
       alternative,
       match_.result_type,
       branch_environment,
-      substitutions,
     )
   }
   self.enter_block(default_block)
@@ -146,18 +134,16 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
   scrutinee_shape : CanonicalRuntimeTypeKey,
-  data_constructor : @buslane.DataConId,
+  constructor_plan : PhysicalDataConstructorContract,
   alternative : PhysicalAnfAlternative,
   result_type : @anf.RuntimeType,
-  substitutions : RuntimeSubstitution,
 ) -> LocalValue raise LoisvmLoweringError {
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
   let witness_count = self.witnesses.length()
   let original_substitutions = self.substitutions
   self.bind_data_alternative(
-    site, binder, scrutinee, scrutinee_type, scrutinee_shape, data_constructor, alternative,
-    substitutions,
+    site, binder, scrutinee, scrutinee_type, scrutinee_shape, constructor_plan, alternative,
   )
   let result = self.materialize_physical_match_alternative_plan(
     alternative.plan,
@@ -182,11 +168,10 @@ fn FunctionLowerer::lower_data_alternative(
   scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
   scrutinee_shape : CanonicalRuntimeTypeKey,
-  data_constructor : @buslane.DataConId,
+  constructor_plan : PhysicalDataConstructorContract,
   alternative : PhysicalAnfAlternative,
   result_type : @anf.RuntimeType,
   branch_environment : @vmcfg.ValueId?,
-  substitutions : RuntimeSubstitution,
 ) -> Unit raise LoisvmLoweringError {
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
@@ -196,8 +181,7 @@ fn FunctionLowerer::lower_data_alternative(
   let original_environment = self.environment
   self.enter_branch_environment(original_environment, branch_environment)
   self.bind_data_alternative(
-    site, binder, scrutinee, scrutinee_type, scrutinee_shape, data_constructor, alternative,
-    substitutions,
+    site, binder, scrutinee, scrutinee_type, scrutinee_shape, constructor_plan, alternative,
   )
   let result = self.materialize_physical_match_alternative_plan(
     alternative.plan,
@@ -222,20 +206,20 @@ fn FunctionLowerer::bind_data_alternative(
   scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
   scrutinee_shape : CanonicalRuntimeTypeKey,
-  data_constructor : @buslane.DataConId,
+  constructor_plan : PhysicalDataConstructorContract,
   alternative : PhysicalAnfAlternative,
-  substitutions : RuntimeSubstitution,
 ) -> Unit raise LoisvmLoweringError {
-  let info = match self.image.metadata.data_constructor_info(data_constructor) {
-    Some(info) => info
-    None => raise MissingDataConstructorMetadata(data_constructor~)
-  }
+  let data_constructor = constructor_plan.data_constructor
   let binds_payloads = alternative.alt_constructor is DataCon(_)
+  let expected_evidence_binders = if binds_payloads {
+    constructor_plan.source_evidence_binder_count
+  } else {
+    0
+  }
   if binds_payloads {
-    if alternative.evidence_binders.length() !=
-      info.hidden_evidence_parameters.length() {
+    if alternative.evidence_binders.length() != expected_evidence_binders {
       raise InvalidTypeApplication(
-        detail="data alternative expects \{info.hidden_evidence_parameters.length()} hidden evidence binders, got \{alternative.evidence_binders.length()}",
+        detail="data alternative expects \{expected_evidence_binders} hidden evidence binders, got \{alternative.evidence_binders.length()}",
       )
     }
   } else if !alternative.evidence_binders.is_empty() {
@@ -244,7 +228,7 @@ fn FunctionLowerer::bind_data_alternative(
     )
   }
   let expected_binders = if binds_payloads {
-    info.payload_types.length()
+    constructor_plan.storage_types.length()
   } else {
     0
   }
@@ -259,65 +243,29 @@ fn FunctionLowerer::bind_data_alternative(
     value: binder,
     lowered: LocalValue::Slot(scrutinee, scrutinee_type, scrutinee_shape),
   })
-  let hidden_substitutions = RuntimeSubstitution::new()
   if binds_payloads {
-    guard self.values[scrutinee.value].kind is DataValue(family_id) else {
+    guard self.values[scrutinee.value].kind is DataValue(_) else {
       raise RepresentationSpecializationInvariant(
         detail="data match scrutinee lacks a representation family",
       )
     }
-    let family = self.image.data_family_by_bytecode_id(family_id)
-    guard family.constructor_plan(data_constructor) is Some(constructor_plan) else {
-      raise RepresentationSpecializationInvariant(
-        detail="data match family lacks its constructor contract",
-      )
-    }
+    let shape = constructor_plan.shape
     let storage_types = constructor_plan.storage_types
     let storage_shapes = constructor_plan.storage_shapes
-    let shape = self.image.materialize_data_shape(
-      family, constructor_plan, info,
-    )
     let mut evidence_member_index = 0
-    match constructor_plan.storage_hidden_arguments {
-      Some(arguments) =>
-        for index, hidden_parameter in info.hidden_evidence_parameters {
-          let binder = alternative.evidence_binders[index]
-          guard arguments.get(index) is Some(argument) else {
-            raise RepresentationSpecializationInvariant(
-              detail="specialized data match lacks its hidden runtime argument",
-            )
-          }
-          hidden_substitutions.insert(hidden_parameter.id, argument)
-          hidden_substitutions.insert(binder.id, argument)
-        }
-      None =>
-        for index, hidden_parameter in info.hidden_evidence_parameters {
-          let binder = alternative.evidence_binders[index]
-          guard self.image.metadata.parameter_type_expression(binder.id)
-            is Some(type_expression) else {
-            raise InvalidTypeApplication(
-              detail="hidden evidence binder has no runtime type expression",
-            )
-          }
-          hidden_substitutions.insert(hidden_parameter.id, {
-            type_expression,
-            evidence: Parameter(binder.id),
-          })
-          let metadata = runtime_evidence_metadata(hidden_parameter)
-          let evidence = self.fresh_metadata(
-            borrowed_evidence_metadata(metadata),
-          )
-          self.emit(
-            BorrowField(shape, scrutinee, evidence_member_index, {
-              value_destination: evidence,
-              witness_destination: None,
-            }),
-          )
-          self.witnesses.push({ parameter: binder.id, value: evidence, })
-          evidence_member_index += 1
-        }
+    for index, hidden_parameter in constructor_plan.stored_evidence_parameters {
+      let binder = alternative.evidence_binders[index]
+      let metadata = runtime_evidence_metadata(hidden_parameter)
+      let evidence = self.fresh_metadata(borrowed_evidence_metadata(metadata))
+      self.emit(
+        BorrowField(shape, scrutinee, evidence_member_index, {
+          value_destination: evidence,
+          witness_destination: None,
+        }),
+      )
+      self.witnesses.push({ parameter: binder.id, value: evidence, })
+      evidence_member_index += 1
     }
-    let branch_substitutions = substitutions.overlay(hidden_substitutions)
     for index, value_binder in alternative.value_binders {
       let storage_type = storage_types[index]
       let storage_shape = storage_shapes[index]
@@ -365,10 +313,8 @@ fn FunctionLowerer::bind_data_alternative(
       )
       self.bindings.push({ value: value_binder, lowered: lowered.value, })
     }
-    self.substitutions = self.substitutions.overlay(branch_substitutions)
-  } else {
-    self.substitutions = self.substitutions.overlay(substitutions)
   }
+  self.substitutions = alternative.plan.substitutions
 }
 
 ///|

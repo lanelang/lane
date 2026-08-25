@@ -1,12 +1,16 @@
 ///|
-/// A Runtime ANF atom at one physical use site. Callable selection and
-/// allocation are occurrence facts: keeping them on the use prevents VM CFG
-/// emission from reconstructing either fact from semantic identity.
+/// One fully selected physical producer. VM CFG emission never reclassifies a
+/// Runtime ANF function atom or reselects a callable implementation.
 priv struct PhysicalAnfAtom {
-  atom : @anf.AnfAtom
+  producer : PhysicalAnfAtomProducer
   contract : PhysicalValueContract
-  callable : CallableRepresentationTarget?
-  allocation : PhysicalCallableAllocationPlan?
+}
+
+///|
+priv enum PhysicalAnfAtomProducer {
+  Binding(@anf.AnfBindingId)
+  Literal(@buslane.Literal)
+  Callable(PhysicalCallableAllocationPlan)
 }
 
 ///|
@@ -100,8 +104,7 @@ fn PhysicalAnfRhs::result_fields(
 ///|
 priv struct PhysicalAnfEvidenceApplication {
   callee : PhysicalAnfAtom
-  arguments : Array[@anf.RuntimeArgument]
-  application : DeferredEvidenceApplication
+  application : PhysicalEvidenceApplication
 }
 
 ///|
@@ -113,7 +116,6 @@ priv struct PhysicalAnfCall {
 
 ///|
 priv struct PhysicalAnfConstruct {
-  construct : @anf.AnfConstruct
   payloads : Array[PhysicalAnfAtom]
   plan : PhysicalConstructPlan
 }
@@ -200,13 +202,24 @@ fn PhysicalFunctionPlanner::materialize_physical_atom(
     Some(contract) if contract.shape == shape => contract.fields
     _ => []
   }
+  let producer = match allocation {
+    Some(allocation) => PhysicalAnfAtomProducer::Callable(allocation)
+    None =>
+      match atom {
+        Ref(value) => Binding(Value(value))
+        Temp(temp) => Binding(Temp(temp))
+        Literal(literal) => PhysicalAnfAtomProducer::Literal(literal)
+        Function(_) | EvidenceLambda(..) =>
+          raise RepresentationSpecializationInvariant(
+            detail="callable syntax reached Physical ANF without a selected allocation",
+          )
+      }
+  }
   {
-    atom,
+    producer,
     contract: self.physical.value_contract(
       shape, callable_interface, fields, "Physical ANF atom",
     ),
-    callable,
-    allocation,
   }
 }
 
@@ -298,7 +311,7 @@ fn PhysicalAnfAtom::append_callable_bridge_recipes(
   self : PhysicalAnfAtom,
   recipes : Array[CallableAdapterRecipe],
 ) -> Unit {
-  if self.allocation is Some(allocation) {
+  if self.producer is Callable(allocation) {
     for capture in allocation.captures {
       capture.append_callable_bridge_recipes(recipes)
     }
@@ -306,23 +319,17 @@ fn PhysicalAnfAtom::append_callable_bridge_recipes(
 }
 
 ///|
-fn ImageLowerer::verify_physical_anf_expr(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
+fn PhysicalAnfProgram::verify_expr(
+  self : PhysicalAnfProgram,
   environment : PhysicalAnfEnvironment,
   expression : PhysicalAnfExpr,
 ) -> Unit raise LoisvmLoweringError {
   match expression {
-    Atom(atom) => self.verify_physical_anf_atom(physical, environment, atom)
+    Atom(atom) => self.verify_atom(environment, atom)
     Let(binding, body) => {
-      self.verify_physical_anf_rhs(
-        physical,
-        environment,
-        binding.result,
-        binding.rhs,
-      )
+      self.verify_rhs(environment, binding.result, binding.rhs)
       environment.bind(binding.binding.id(), binding.result)
-      self.verify_physical_anf_expr(physical, environment, body)
+      self.verify_expr(environment, body)
     }
     LetRec(bindings, body) => {
       if bindings.is_empty() {
@@ -334,32 +341,31 @@ fn ImageLowerer::verify_physical_anf_expr(
         environment.bind(Value(binding.id), binding.flow.flow.target)
       }
       for binding in bindings {
-        self.verify_physical_anf_atom(physical, environment, binding.rhs)
-        self.verify_physical_value_flow(physical, binding.flow.flow)
+        self.verify_atom(environment, binding.rhs)
+        self.verify_value_flow(binding.flow.flow)
         if binding.rhs.contract != binding.flow.flow.source {
           raise RepresentationSpecializationInvariant(
             detail="Physical ANF recursive callable does not own its source port",
           )
         }
       }
-      self.verify_physical_anf_expr(physical, environment, body)
+      self.verify_expr(environment, body)
     }
   }
 }
 
 ///|
-fn ImageLowerer::verify_physical_anf_rhs(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
+fn PhysicalAnfProgram::verify_rhs(
+  self : PhysicalAnfProgram,
   environment : PhysicalAnfEnvironment,
   result : PhysicalValueContract,
   rhs : PhysicalAnfRhs,
 ) -> Unit raise LoisvmLoweringError {
-  ignore(physical.shape(result.shape))
+  ignore(self.shape(result.shape))
   match rhs {
     Atom(atom, binding) => {
-      self.verify_physical_anf_atom(physical, environment, atom)
-      self.verify_physical_value_flow(physical, binding.flow)
+      self.verify_atom(environment, atom)
+      self.verify_value_flow(binding.flow)
       if atom.contract != binding.flow.source || binding.flow.target != result {
         raise RepresentationSpecializationInvariant(
           detail="Physical ANF atom binding does not own its solved value flow",
@@ -367,14 +373,14 @@ fn ImageLowerer::verify_physical_anf_rhs(
       }
     }
     ApplyEvidence(application) => {
-      self.verify_physical_anf_atom(physical, environment, application.callee)
-      let result_shape = physical.shape(result.shape)
+      self.verify_atom(environment, application.callee)
+      let result_shape = self.shape(result.shape)
       let interface_shape = PhysicalValueShape::Slot(
         CanonicalRuntimeTypeKey::Callable(
           application.application.interface.invocation,
         ),
       )
-      if application.application.materialize {
+      if application.application.mode is Materialize {
         if result_shape != interface_shape {
           raise RepresentationSpecializationInvariant(
             detail="materialized Physical ANF evidence application disagrees with its callable interface",
@@ -387,89 +393,56 @@ fn ImageLowerer::verify_physical_anf_rhs(
         )
       }
     }
-    Call(call) =>
-      self.verify_physical_anf_call(physical, environment, result.shape, call)
+    Call(call) => self.verify_call(environment, result.shape, call)
     Construct(construct) =>
-      self.verify_physical_anf_construct(
-        physical,
-        environment,
-        result.shape,
-        construct,
-      )
-    Match(match_) =>
-      self.verify_physical_anf_match(
-        physical,
-        environment,
-        result.shape,
-        match_,
-      )
+      self.verify_construct(environment, result.shape, construct)
+    Match(match_) => self.verify_match(environment, result.shape, match_)
   }
 }
 
 ///|
-fn ImageLowerer::verify_physical_anf_atom(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
+fn PhysicalAnfProgram::verify_atom(
+  self : PhysicalAnfProgram,
   environment : PhysicalAnfEnvironment,
   atom : PhysicalAnfAtom,
 ) -> Unit raise LoisvmLoweringError {
-  self.verify_physical_value_contract(physical, atom.contract)
-  let producer : PhysicalValueContract? = match atom.atom {
-    Ref(value) =>
-      match atom.allocation {
-        Some(_) => Some(atom.contract)
-        None =>
-          match environment.contract(Value(value)) {
-            Some(contract) => Some(contract)
-            None => self.physical_global_contract(physical, value)
-          }
+  self.verify_value_contract(atom.contract)
+  let producer : PhysicalValueContract? = match atom.producer {
+    Binding(Value(value)) =>
+      match environment.contract(Value(value)) {
+        Some(contract) => Some(contract)
+        None => self.global(value)
       }
-    Temp(temp) => environment.contract(Temp(temp))
-    Literal(literal) =>
+    Binding(Temp(temp)) => environment.contract(Temp(temp))
+    PhysicalAnfAtomProducer::Literal(literal) =>
       Some(
-        physical.value_contract(
-          physical.identity(
-            self
-            .canonical_runtime_type_key_under(
-              runtime_literal_type(literal),
-              RuntimeSubstitution::new(),
-            )
-            .physical_shape(),
-            "literal",
-          ),
+        self.value_contract(
+          self.identity(runtime_literal_physical_shape(literal), "literal"),
           None,
           [],
           "literal",
         ),
       )
-    Function(_) | EvidenceLambda(..) => atom.allocation.map(_ => atom.contract)
+    Callable(_) => Some(atom.contract)
   }
   guard producer is Some(producer) && producer == atom.contract else {
     raise RepresentationSpecializationInvariant(
-      detail="Physical ANF atom \{Repr(atom.atom)} claims \{Repr(atom.contract)}, but its producer owns \{Repr(producer)}",
+      detail="Physical ANF atom claims \{Repr(atom.contract)}, but its producer owns \{Repr(producer)}",
     )
   }
-  match (atom.callable, atom.allocation) {
-    (Some(callable), Some(allocation)) => {
-      if allocation.callable != callable ||
-        physical.shape(atom.contract.shape) !=
+  match atom.producer {
+    Callable(allocation) => {
+      if self.shape(atom.contract.shape) !=
         PhysicalValueShape::Slot(
           CanonicalRuntimeTypeKey::Callable(allocation.interface.invocation),
         ) {
         raise RepresentationSpecializationInvariant(
-          detail="Physical ANF callable atom \{Repr(atom.atom)} with target \{Repr(atom.callable)} and shape \{Repr(physical.shape(atom.contract.shape))} disagrees with allocation target \{Repr(allocation.callable)} and invocation \{Repr(allocation.interface.invocation)}",
+          detail="Physical ANF callable allocation \{Repr(allocation.callable)} has shape \{Repr(self.shape(atom.contract.shape))}, but its invocation is \{Repr(allocation.interface.invocation)}",
         )
       }
-      self.verify_physical_callable_allocation(
-        physical, environment, allocation,
-      )
+      self.verify_callable_allocation(environment, allocation)
     }
-    (Some(_), None) => ()
-    (None, Some(_)) =>
-      raise RepresentationSpecializationInvariant(
-        detail="Physical ANF scalar atom unexpectedly owns a callable allocation",
-      )
-    (None, None) => ()
+    Binding(_) | PhysicalAnfAtomProducer::Literal(_) => ()
   }
 }
 
@@ -534,24 +507,13 @@ fn ImageLowerer::record_physical_global_contracts(
 }
 
 ///|
-fn ImageLowerer::physical_global_contract(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
-  value : @buslane.ValueId,
-) -> PhysicalValueContract? {
-  ignore(self)
-  physical.global(value)
-}
-
-///|
-fn ImageLowerer::verify_physical_anf_call(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
+fn PhysicalAnfProgram::verify_call(
+  self : PhysicalAnfProgram,
   environment : PhysicalAnfEnvironment,
   result : PhysicalValueShapeId,
   call : PhysicalAnfCall,
 ) -> Unit raise LoisvmLoweringError {
-  self.verify_physical_anf_atom(physical, environment, call.callee)
+  self.verify_atom(environment, call.callee)
   if call.arguments.length() != call.plan.arguments.length() ||
     call.arguments.length() != call.plan.parameter_types.length() ||
     call.arguments.length() != call.plan.callable_arguments.length() {
@@ -561,31 +523,31 @@ fn ImageLowerer::verify_physical_anf_call(
   }
   let invocation_parameters = []
   for index, argument in call.arguments {
-    self.verify_physical_anf_atom(physical, environment, argument)
+    self.verify_atom(environment, argument)
     let flow = call.plan.arguments[index]
-    self.verify_physical_value_flow(physical, flow)
+    self.verify_value_flow(flow)
     if argument.contract != flow.source {
       raise RepresentationSpecializationInvariant(
         detail="Physical ANF call argument disagrees with its solved source port: shape \{Repr(argument.contract.shape)} vs \{Repr(flow.source)}",
       )
     }
-    physical.append_parameter_keys(flow.target.shape, invocation_parameters)
+    self.append_parameter_keys(flow.target.shape, invocation_parameters)
   }
   if invocation_parameters != call.plan.invocation.parameters {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF call argument flows disagree with its callable ABI",
     )
   }
-  self.verify_physical_value_flow(physical, call.plan.result)
+  self.verify_value_flow(call.plan.result)
   if call.plan.result.target.shape != result ||
-    physical.shape(call.plan.result.source.shape).canonical_result() !=
+    self.shape(call.plan.result.source.shape).canonical_result() !=
     call.plan.invocation.result {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF call result disagrees with its invocation contract",
     )
   }
   if call.plan.target is Some(target) &&
-    physical.function(target.worker.worker) is None {
+    self.function(target.worker.worker) is None {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF call targets an unknown representation worker",
     )
@@ -593,23 +555,21 @@ fn ImageLowerer::verify_physical_anf_call(
 }
 
 ///|
-fn ImageLowerer::verify_physical_anf_construct(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
+fn PhysicalAnfProgram::verify_construct(
+  self : PhysicalAnfProgram,
   environment : PhysicalAnfEnvironment,
   result : PhysicalValueShapeId,
   construct : PhysicalAnfConstruct,
 ) -> Unit raise LoisvmLoweringError {
-  if construct.payloads.length() != construct.plan.payloads.length() ||
-    construct.payloads.length() != construct.plan.callable_payloads.length() {
+  if construct.payloads.length() != construct.plan.payloads.length() {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF construction payload arity disagrees with its family contract",
     )
   }
   for index, payload in construct.payloads {
-    self.verify_physical_anf_atom(physical, environment, payload)
+    self.verify_atom(environment, payload)
     let flow = construct.plan.payloads[index]
-    self.verify_physical_value_flow(physical, flow)
+    self.verify_value_flow(flow)
     if payload.contract != flow.source {
       raise RepresentationSpecializationInvariant(
         detail="Physical ANF construction payload disagrees with its solved source port: shape \{Repr(payload.contract.shape)} vs \{Repr(flow.source)}",
@@ -618,8 +578,7 @@ fn ImageLowerer::verify_physical_anf_construct(
   }
   let expected = match construct.plan.representation {
     Product(contract) => {
-      if contract.data_constructor != construct.plan.data_constructor ||
-        contract.payload_types.length() != construct.payloads.length() {
+      if contract.payload_types.length() != construct.payloads.length() {
         raise RepresentationSpecializationInvariant(
           detail="Physical ANF scalar construction disagrees with its aggregate contract",
         )
@@ -629,26 +588,27 @@ fn ImageLowerer::verify_physical_anf_construct(
         construct.plan.payloads.map(payload => payload.target.shape),
       )
     }
-    Data(family) => {
-      guard family.constructor_plan(construct.plan.data_constructor)
-        is Some(constructor_plan) &&
-        constructor_plan.storage_shapes.length() == construct.payloads.length() else {
+    Data(data) => {
+      let constructor_plan = data.constructor_plan
+      if constructor_plan.storage_shapes.length() != construct.payloads.length() ||
+        constructor_plan.stored_evidence_parameters.length() !=
+        data.stored_evidence.length() {
         raise RepresentationSpecializationInvariant(
           detail="Physical ANF construction disagrees with its data-family contract",
         )
       }
       for index, payload in construct.plan.payloads {
-        if physical.shape(payload.target.shape) !=
+        if self.shape(payload.target.shape) !=
           constructor_plan.storage_shapes[index].physical_shape() {
           raise RepresentationSpecializationInvariant(
             detail="Physical ANF construction payload target disagrees with its data-family member",
           )
         }
       }
-      PhysicalValueShape::Slot(self.canonical_data_family_key(family.key))
+      data.family.physical_shape()
     }
   }
-  if physical.shape(result) != expected {
+  if self.shape(result) != expected {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF construction result disagrees with its family contract",
     )
@@ -656,20 +616,52 @@ fn ImageLowerer::verify_physical_anf_construct(
 }
 
 ///|
-fn ImageLowerer::verify_physical_anf_match(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
+fn PhysicalAnfProgram::verify_match(
+  self : PhysicalAnfProgram,
   environment : PhysicalAnfEnvironment,
   result : PhysicalValueShapeId,
   match_ : PhysicalAnfMatch,
 ) -> Unit raise LoisvmLoweringError {
-  self.verify_physical_anf_atom(physical, environment, match_.scrutinee)
+  self.verify_atom(environment, match_.scrutinee)
   if match_.scrutinee.contract.shape != match_.plan.scrutinee ||
     match_.plan.result != result ||
     match_.alternatives.length() != match_.plan.alternatives.length() {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF match does not own its scrutinee or result port",
     )
+  }
+  let scrutinee_shape = self.shape(match_.plan.scrutinee)
+  match match_.plan.representation {
+    Unit =>
+      if scrutinee_shape != PhysicalValueShape::Unit {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF Unit match has a non-Unit scrutinee",
+        )
+      }
+    Product =>
+      if !(scrutinee_shape is PhysicalValueShape::Product(_, _)) {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF product match has a non-product scrutinee",
+        )
+      }
+    Callable =>
+      if !(scrutinee_shape is PhysicalValueShape::Slot(Callable(_))) {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF callable match has a non-callable scrutinee",
+        )
+      }
+    Data(data) =>
+      if scrutinee_shape != data.family.physical_shape() {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF data match disagrees with its family contract",
+        )
+      }
+    Bool | Literal(_) =>
+      if !(scrutinee_shape is PhysicalValueShape::Slot(Value(_))) {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF scalar match has a non-value scrutinee",
+        )
+      }
   }
   for index, alternative in match_.alternatives {
     let binding_count = environment.bindings.length()
@@ -680,6 +672,11 @@ fn ImageLowerer::verify_physical_anf_match(
         detail="Physical ANF match alternative disagrees with its branch contract",
       )
     }
+    if !match_.plan.representation.accepts(alternative.alt_constructor) {
+      raise RepresentationSpecializationInvariant(
+        detail="Physical ANF match alternative is incompatible with its physical comparison",
+      )
+    }
     for previous in 0..<index {
       if match_.alternatives[previous].alt_constructor ==
         alternative.alt_constructor {
@@ -688,8 +685,8 @@ fn ImageLowerer::verify_physical_anf_match(
         )
       }
     }
-    self.verify_physical_value_flow(physical, alternative.plan.result)
-    match physical.shape(match_.scrutinee.contract.shape) {
+    self.verify_value_flow(alternative.plan.result)
+    match self.shape(match_.scrutinee.contract.shape) {
       Product(contract, fields) =>
         match alternative.alt_constructor {
           DataCon(data_constructor) => {
@@ -702,7 +699,7 @@ fn ImageLowerer::verify_physical_anf_match(
             }
             for payload_index, binder in alternative.value_binders {
               let payload = alternative.plan.payloads[payload_index]
-              self.verify_physical_value_flow(physical, payload.flow)
+              self.verify_value_flow(payload.flow)
               if payload.flow.source.shape != fields[payload_index] ||
                 payload.flow.target.shape != fields[payload_index] {
                 raise RepresentationSpecializationInvariant(
@@ -738,7 +735,7 @@ fn ImageLowerer::verify_physical_anf_match(
           )
         }
         for payload_index, payload in alternative.plan.payloads {
-          self.verify_physical_value_flow(physical, payload.flow)
+          self.verify_value_flow(payload.flow)
           environment.bind(
             Value(alternative.value_binders[payload_index]),
             payload.flow.target,
@@ -752,47 +749,77 @@ fn ImageLowerer::verify_physical_anf_match(
           )
         }
     }
-    self.verify_physical_anf_expr(physical, environment, alternative.body)
+    self.verify_expr(environment, alternative.body)
     environment.restore(binding_count)
   }
 }
 
 ///|
-fn ImageLowerer::verify_physical_callable_allocation(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
+fn PhysicalMatchRepresentation::accepts(
+  self : PhysicalMatchRepresentation,
+  alternative : @buslane.AltCon,
+) -> Bool {
+  if alternative is Default {
+    return true
+  }
+  match self {
+    Unit => alternative is Literal(Unit)
+    Product => alternative is DataCon(_)
+    Bool => alternative is Literal(Bool(_))
+    Literal(comparison) =>
+      match comparison {
+        I64 => alternative is Literal(I64(_))
+        I32 => alternative is Literal(I32(_) | Char(_))
+        F32 => alternative is Literal(F32(_))
+        F64 => alternative is Literal(F64(_))
+        ByteSequence => alternative is Literal(String(_))
+      }
+    Callable => false
+    Data(data) =>
+      match alternative {
+        DataCon(data_constructor) =>
+          data.family.constructor_contract(data_constructor) is Some(_)
+        Literal(_) | Default => false
+      }
+  }
+}
+
+///|
+fn PhysicalAnfProgram::verify_callable_allocation(
+  self : PhysicalAnfProgram,
   environment : PhysicalAnfEnvironment,
   allocation : PhysicalCallableAllocationPlan,
 ) -> Unit raise LoisvmLoweringError {
-  if allocation.interface !=
-    self.physical_callable_implementation_interface(
-      allocation.callable,
-      allocation.implementation,
-    ) {
+  guard self.function(allocation.lowered_implementation.function)
+    is Some(function) &&
+    function.interface == allocation.interface else {
     raise RepresentationSpecializationInvariant(
-      detail="Physical ANF callable allocation interface disagrees with its implementation",
+      detail="Physical ANF callable allocation disagrees with its selected implementation",
     )
   }
-  let capture = self.physical_capture_for_implementation(
-    allocation.implementation,
-  )
-  if allocation.captures.length() != capture.captures.length() {
+  if allocation.captures.length() != allocation.capture.captures.length() {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF callable allocation disagrees with its capture arity",
     )
   }
+  if allocation.captured_evidence.length() !=
+    allocation.capture.captured_evidence.length() {
+    raise RepresentationSpecializationInvariant(
+      detail="Physical ANF callable allocation disagrees with its captured evidence arity",
+    )
+  }
   for index, flow in allocation.captures {
-    self.verify_physical_value_flow(physical, flow)
-    let expected = match capture.captures[index].shape {
+    self.verify_value_flow(flow)
+    let expected = match allocation.capture.captures[index].shape {
       Some(shape) => PhysicalValueShape::Slot(shape)
       None => PhysicalValueShape::Unit
     }
-    if physical.shape(flow.target.shape) != expected {
+    if self.shape(flow.target.shape) != expected {
       raise RepresentationSpecializationInvariant(
         detail="Physical ANF callable capture target disagrees with its closure contract",
       )
     }
-    let binding = match capture.captures[index].binding {
+    let binding = match allocation.capture.captures[index].binding {
       CaptureBinding::Value(value) => @anf.AnfBindingId::Value(value)
       CaptureBinding::Temp(temp) => @anf.AnfBindingId::Temp(temp)
     }
@@ -800,7 +827,7 @@ fn ImageLowerer::verify_physical_callable_allocation(
       Some(contract) => Some(contract)
       None =>
         match binding {
-          Value(value) => self.physical_global_contract(physical, value)
+          Value(value) => self.global(value)
           Temp(_) => None
         }
     }

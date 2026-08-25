@@ -1086,25 +1086,6 @@ fn ImageLowerer::callable_type_parameter_alignment(
 }
 
 ///|
-fn local_value_type(value : LocalValue) -> @anf.RuntimeType? {
-  match value {
-    Slot(_, type_, _) => Some(type_)
-    ClosedAggregate(contract, _) => Some(contract.type_)
-    Global(Function(_, type_))
-    | Global(FloatConstant(_, type_))
-    | Global(DoubleConstant(_, type_))
-    | Global(InstanceGlobal(_, type_, _, _)) => Some(type_)
-    Global(Intrinsic(contract)) => Some(contract.type_())
-    RecursiveFunction(_, type_, _) => Some(type_)
-    EvidenceAppliedCallable(_, _, _, application)
-    | EvidenceAppliedNestedCallable(_, application)
-    | EvidenceApplied(_, application) => Some(application.target_type)
-    NestedCallable(callable) => Some(callable.type_)
-    Global(UnitValue) | Unit => None
-  }
-}
-
-///|
 fn ImageLowerer::lower_callable_adapter(
   self : ImageLowerer,
   plan : CallableAdapterPlan,

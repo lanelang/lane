@@ -354,7 +354,6 @@ fn FunctionLowerer::fresh_block_value_parameter(
   type_ : @anf.RuntimeType,
   shape : PhysicalValueShape,
 ) -> (Array[@vmcfg.ValueId], LocalValue) raise LoisvmLoweringError {
-  let type_ = self.instantiate_runtime_type(type_)
   match shape {
     Unit => ([], Unit)
     Product(_, _) =>

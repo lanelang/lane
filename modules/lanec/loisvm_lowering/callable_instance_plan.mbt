@@ -1364,51 +1364,6 @@ fn CallableInstancePlan::is_closed_call_target(
 }
 
 ///|
-fn ImageLowerer::callable_instance(
-  self : ImageLowerer,
-  function : @anf.AnfFunctionId,
-  substitutions : RuntimeSubstitution,
-) -> Int raise LoisvmLoweringError {
-  guard self.callable_catalog.find(function) is Some(definition) else {
-    raise RepresentationSpecializationInvariant(
-      detail="Runtime ANF callable catalog is incomplete",
-    )
-  }
-  let arguments = []
-  for parameter in definition.lexical_parameters {
-    guard self.metadata.parameter_type_expression(parameter.id)
-      is Some(type_expression) else {
-      raise RepresentationSpecializationInvariant(
-        detail="Runtime ANF evidence parameter lacks a type expression",
-      )
-    }
-    arguments.push(
-      substitutions.apply_argument(self.runtime_types, {
-        type_expression,
-        evidence: Parameter(parameter.id),
-      }),
-    )
-  }
-  for parameter in definition.parameters {
-    guard self.metadata.parameter_type_expression(parameter.id)
-      is Some(type_expression) else {
-      raise RepresentationSpecializationInvariant(
-        detail="Runtime ANF evidence parameter lacks a type expression",
-      )
-    }
-    arguments.push({ type_expression, evidence: Parameter(parameter.id), })
-  }
-  for instance in self.callable_instances.instances {
-    if instance.key.function == function && instance.key.arguments == arguments {
-      return instance.id
-    }
-  }
-  raise RepresentationSpecializationInvariant(
-    detail="callable lowering requested function \{function.value} with \{Repr(arguments)} absent from the immutable plan",
-  )
-}
-
-///|
 priv struct CallableInstancePlanner {
   image : ImageLowerer
   program : @anf.AnfProgram

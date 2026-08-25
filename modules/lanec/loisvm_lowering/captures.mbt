@@ -314,9 +314,9 @@ fn ImageLowerer::planned_callable_capture_representation(
 ///|
 fn FunctionLowerer::capture_environment(
   self : FunctionLowerer,
-  contract : CallableCaptureContract,
   allocation : PhysicalCallableAllocationPlan,
 ) -> @vmcfg.ValueId? raise LoisvmLoweringError {
+  let contract = allocation.capture
   if allocation.captures.length() != contract.captures.length() {
     raise RepresentationSpecializationInvariant(
       detail="callable allocation flows disagree with its capture contract",
@@ -324,25 +324,8 @@ fn FunctionLowerer::capture_environment(
   }
   let stored_layouts = []
   let values = []
-  for evidence in contract.captured_evidence {
-    let target = self.substitutions.apply_evidence(Parameter(evidence.source))
-    if evidence.target.arity == 0 {
-      values.push(
-        self
-        .equivalent_witness(target)
-        .unwrap_or_else(() => {
-          self.materialize_runtime_evidence(
-            self.image.plan_layout_witness(target),
-          )
-        }),
-      )
-    } else {
-      values.push(
-        self.materialize_runtime_evidence(
-          self.image.plan_layout_constructor_evidence(target),
-        ),
-      )
-    }
+  for evidence in allocation.captured_evidence {
+    values.push(self.materialize_runtime_evidence(evidence))
   }
   for index, capture in contract.captures {
     guard capture.member_index is Some(_) else { continue }

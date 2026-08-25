@@ -185,7 +185,10 @@ priv struct PhysicalCallableAllocationPlan {
   function : @anf.AnfFunctionId
   callable : CallableRepresentationTarget
   implementation : PhysicalCallableImplementation
+  lowered_implementation : CallableInstanceImplementation
   interface : PhysicalCallableInterface
+  capture : CallableCaptureContract
+  captured_evidence : Array[RuntimeEvidencePlan]
   captures : Array[PhysicalValueFlowPlan]
 }
 
@@ -210,16 +213,38 @@ priv struct PhysicalErasureBridge {
 
 ///|
 priv struct PhysicalConstructPlan {
-  data_constructor : @buslane.DataConId
   representation : PhysicalConstructRepresentation
-  callable_payloads : Array[CallableRepresentationTarget?]
   payloads : Array[PhysicalValueFlowPlan]
 }
 
 ///|
 priv enum PhysicalConstructRepresentation {
   Product(ClosedAggregateContract)
-  Data(DataRepresentationFamilyPlan)
+  Data(PhysicalDataConstructionPlan)
+}
+
+///|
+priv struct PhysicalDataConstructionPlan {
+  family : PhysicalDataFamilyContract
+  constructor_plan : PhysicalDataConstructorContract
+  stored_evidence : Array[RuntimeEvidencePlan]
+  result_type : @anf.RuntimeType
+}
+
+///|
+priv struct PhysicalDataFamilyContract {
+  family : @bytecode.DataFamilyId
+  constructors : Array[PhysicalDataConstructorContract]
+}
+
+///|
+priv struct PhysicalDataConstructorContract {
+  data_constructor : @buslane.DataConId
+  shape : @bytecode.ObjectShapeId
+  source_evidence_binder_count : Int
+  stored_evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
+  storage_types : Array[@anf.RuntimeType]
+  storage_shapes : Array[CanonicalRuntimeTypeKey]
 }
 
 ///|
@@ -227,7 +252,32 @@ priv struct PhysicalMatchPlan {
   site : @anf.AnfBindingId
   scrutinee : PhysicalValueShapeId
   result : PhysicalValueShapeId
+  representation : PhysicalMatchRepresentation
   alternatives : Array[PhysicalMatchAlternativePlan]
+}
+
+///|
+priv enum PhysicalMatchRepresentation {
+  Unit
+  Product
+  Bool
+  Literal(PhysicalLiteralComparison)
+  Callable
+  Data(PhysicalDataMatchPlan)
+}
+
+///|
+priv enum PhysicalLiteralComparison {
+  I64
+  I32
+  F32
+  F64
+  ByteSequence
+}
+
+///|
+priv struct PhysicalDataMatchPlan {
+  family : PhysicalDataFamilyContract
 }
 
 ///|
@@ -235,6 +285,7 @@ priv struct PhysicalMatchAlternativePlan {
   alternative_constructor : @buslane.AltCon
   payloads : Array[PhysicalMatchPayloadPlan]
   result : PhysicalValueFlowPlan
+  substitutions : RuntimeSubstitution
 }
 
 ///|
@@ -244,13 +295,24 @@ priv struct PhysicalMatchPayloadPlan {
 }
 
 ///|
-priv struct DeferredEvidenceApplication {
-  binding : @anf.AnfBindingId
-  source_type : @anf.RuntimeType
+priv struct PhysicalEvidenceApplication {
   target_type : @anf.RuntimeType
-  arguments : Array[@anf.RuntimeArgument]
-  materialize : Bool
+  mode : PhysicalEvidenceApplicationMode
   adapter : CallableAdapterContract?
+  interface : PhysicalCallableInterface
+}
+
+///|
+priv enum PhysicalEvidenceApplicationMode {
+  Identity
+  Deferred
+  Materialize
+}
+
+///|
+priv struct DeferredEvidenceApplication {
+  source_type : @anf.RuntimeType
+  arguments : Array[@anf.RuntimeArgument]
   interface : PhysicalCallableInterface
 }
 
@@ -266,6 +328,13 @@ priv struct PhysicalAnfProgram {
   representation_workers : Array[RepresentationSpecializationPlan]
   adapter_contracts : Array[CallableAdapterContract]
   layout_constructors : Array[@anf.RuntimeEvidence]
+}
+
+///|
+/// The only value accepted by VM CFG emission. Construction is private to the
+/// complete Physical ANF verifier.
+priv struct VerifiedPhysicalAnfProgram {
+  program : PhysicalAnfProgram
 }
 
 ///|
@@ -647,19 +716,6 @@ fn ImageLowerer::physical_function(
 }
 
 ///|
-fn ImageLowerer::physical_capture(
-  self : ImageLowerer,
-  function : @bytecode.FunctionId,
-) -> CallableCaptureContract raise LoisvmLoweringError {
-  guard self.physical_function(function) is Some(plan) else {
-    raise RepresentationSpecializationInvariant(
-      detail="emitted callable has no physical function variant",
-    )
-  }
-  plan.capture
-}
-
-///|
 fn ImageLowerer::physical_invocation(
   self : ImageLowerer,
   function : @bytecode.FunctionId,
@@ -843,7 +899,6 @@ fn FunctionLowerer::fresh_planned_optional_slot(
   type_ : @anf.RuntimeType,
   shape : PhysicalValueShape,
 ) -> (@vmcfg.ValueId?, LocalValue) raise LoisvmLoweringError {
-  let type_ = self.instantiate_runtime_type(type_)
   match shape {
     Unit => (None, Unit)
     Product(_, _) =>
@@ -943,10 +998,7 @@ fn FunctionLowerer::physical_shape_of_type(
   self : FunctionLowerer,
   type_ : @anf.RuntimeType,
 ) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
-  self.image.canonical_runtime_type_key_under(
-    self.instantiate_runtime_type(type_),
-    RuntimeSubstitution::new(),
-  )
+  self.image.canonical_runtime_type_key_under(type_, RuntimeSubstitution::new())
 }
 
 ///|
@@ -1419,7 +1471,7 @@ fn PhysicalFunctionPlanner::callable_at_result(
 ///|
 fn ImageLowerer::elaborate_physical_anf(
   self : ImageLowerer,
-) -> PhysicalAnfProgram raise LoisvmLoweringError {
+) -> VerifiedPhysicalAnfProgram raise LoisvmLoweringError {
   let physical = PhysicalAnfProgram::new()
   self.physical_anf = Some(physical)
   let generic_plan_count = self.plans.length()
@@ -1650,7 +1702,6 @@ fn ImageLowerer::elaborate_physical_anf(
     }
     index += 1
   }
-  self.verify_physical_anf(physical)
   self.materialize_physical_representation_support(physical)
   while index < self.plans.length() {
     let planned = self.plans.get(index)
@@ -1669,7 +1720,7 @@ fn ImageLowerer::elaborate_physical_anf(
     }
     index += 1
   }
-  physical
+  physical.verify()
 }
 
 ///|
@@ -2545,11 +2596,19 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         self.physical.record_adapter_contract(adapter)
       }
       let application : DeferredEvidenceApplication = {
-        binding: site,
         source_type,
-        target_type: type_,
         arguments: all_arguments,
-        materialize,
+        interface: target_interface,
+      }
+      let physical_application : PhysicalEvidenceApplication = {
+        target_type: type_,
+        mode: if materialize {
+          Materialize
+        } else if self.image.runtime_type(source_type) is Concrete(Forall(_, _)) {
+          Deferred
+        } else {
+          Identity
+        },
         adapter,
         interface: target_interface,
       }
@@ -2581,8 +2640,7 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
             self.atom_callable_instance(callee),
             Some(self.physical.intern(source_shape)),
           ),
-          arguments,
-          application,
+          application: physical_application,
         }),
       )
     }
@@ -2913,9 +2971,7 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
           )
         }
         let plan : PhysicalConstructPlan = {
-          data_constructor: construct.data_constructor,
           representation: Product(contract),
-          callable_payloads,
           payloads,
         }
         let shape = PhysicalValueShape::Product(
@@ -2925,7 +2981,6 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         return (
           shape,
           PhysicalAnfRhs::Construct({
-            construct,
             payloads: construct.payloads.mapi((index, payload) => {
               self.materialize_physical_atom(
                 payload,
@@ -2942,6 +2997,12 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         is Some(constructor_plan) else {
         raise RepresentationSpecializationInvariant(
           detail="planned data family lacks its construction contract",
+        )
+      }
+      if constructor_plan.storage_hidden_arguments is Some(expected) &&
+        expected != hidden_arguments {
+        raise RepresentationSpecializationInvariant(
+          detail="data construction hidden arguments disagree with its specialized family contract",
         )
       }
       for index, _ in info.payload_types {
@@ -2997,24 +3058,35 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
           ),
         )
       }
+      let physical_family = family.physical_contract()
+      guard physical_family.constructor_contract(construct.data_constructor)
+        is Some(physical_constructor) else {
+        raise RepresentationSpecializationInvariant(
+          detail="physical data family lacks its construction contract",
+        )
+      }
       let plan : PhysicalConstructPlan = {
-        data_constructor: construct.data_constructor,
-        representation: Data(family),
-        callable_payloads,
+        representation: Data({
+          family: physical_family,
+          constructor_plan: physical_constructor,
+          stored_evidence: constructor_plan.storage_evidence_parameters.map(parameter => {
+            self.image.plan_runtime_argument_evidence(
+              parameter,
+              required_runtime_argument(
+                construct_substitutions,
+                self.image.runtime_types,
+                parameter.id,
+              ),
+            )
+          }),
+          result_type: Data(info.owner, type_arguments),
+        }),
         payloads,
       }
-      let bytecode_family = self.image.materialize_data_family(family)
-      let shape = PhysicalValueShape::Slot(
-        Value({
-          representation: I32,
-          cleanup: OwnedRef,
-          kind: DataValue(bytecode_family),
-        }),
-      )
+      let shape = physical_family.physical_shape()
       (
         shape,
         PhysicalAnfRhs::Construct({
-          construct,
           payloads: construct.payloads.mapi((index, payload) => {
             self.materialize_physical_atom(
               payload,
@@ -3052,11 +3124,47 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
           fields=physical_scrutinee.contract.fields,
         ),
       )
-      let (alternative_substitutions, alternative_payloads) = self.plan_match_payloads(
+      let (alternative_substitutions, alternative_payloads, data_match) = self.plan_match_payloads(
         site,
         match_,
         physical_scrutinee.contract,
       )
+      let representation = match scrutinee_shape {
+        Unit => PhysicalMatchRepresentation::Unit
+        Product(_, _) => PhysicalMatchRepresentation::Product
+        Slot(Callable(_)) => PhysicalMatchRepresentation::Callable
+        Slot(Value({ kind: DataValue(_), .. })) =>
+          match data_match {
+            Some(data) => PhysicalMatchRepresentation::Data(data)
+            None =>
+              raise RepresentationSpecializationInvariant(
+                detail="physical data match lacks its family contract",
+              )
+          }
+        Slot(Value(_)) => {
+          guard self.atom_type(scrutinee) is Some(scrutinee_type) else {
+            raise RepresentationSpecializationInvariant(
+              detail="physical scalar match lacks its source type",
+            )
+          }
+          match self.instantiate_type(scrutinee_type) {
+            Scalar(Bool) => PhysicalMatchRepresentation::Bool
+            Scalar(I64) => Literal(I64)
+            Scalar(I32 | Char) => Literal(I32)
+            Scalar(F32) => Literal(F32)
+            Scalar(F64) => Literal(F64)
+            ByteSequence => Literal(ByteSequence)
+            _ =>
+              raise UnsupportedExpression(
+                detail="unsupported match scrutinee representation",
+              )
+          }
+        }
+        Slot(Unit) =>
+          raise RepresentationSpecializationInvariant(
+            detail="physical match assigned a Unit key to a runtime slot",
+          )
+      }
       let result_type = self.instantiate_type(match_.result_type)
       self.record_type(site, result_type)
       let result = self.shape_of_port(site, result_type)
@@ -3110,6 +3218,7 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
             source_fields=source_contract.fields,
             target_fields=source_contract.fields,
           ),
+          substitutions,
         }
         alternatives.push(alternative_plan)
         physical_alternatives.push({
@@ -3125,6 +3234,7 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         site,
         scrutinee: self.physical.intern(scrutinee_shape),
         result: self.physical.intern(result),
+        representation,
         alternatives,
       }
       (
@@ -3132,7 +3242,7 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         PhysicalAnfRhs::Match({
           scrutinee: physical_scrutinee,
           binder: match_.binder,
-          result_type: match_.result_type,
+          result_type,
           alternatives: physical_alternatives,
           plan,
         }),
@@ -3812,7 +3922,7 @@ fn PhysicalFunctionPlanner::planned_atom_callable_interface(
     return Some(application.interface)
   }
   if argument is Ref(value) &&
-    self.image.physical_global_contract(self.physical, value)
+    self.physical.global(value)
     is Some({ callable_interface: Some(interface), .. }) &&
     interface.invocation == invocation {
     return Some(interface)
@@ -4187,10 +4297,21 @@ fn PhysicalFunctionPlanner::preplan_callable_allocation(
   let implementation = self.image.physical_callable_implementation(
     callable, selected,
   )
+  let lowered_implementation = self.image.materialized_callable_implementation(
+    implementation,
+  )
   let interface = self.image.physical_callable_implementation_interface(
     callable, implementation,
   )
   let capture = self.image.callable_capture_contract(callable, selected)
+  let captured_evidence = capture.captured_evidence.map(evidence => {
+    let target = self.substitutions.apply_evidence(Parameter(evidence.source))
+    if evidence.target.arity == 0 {
+      self.image.plan_layout_witness(target)
+    } else {
+      self.image.plan_layout_constructor_evidence(target)
+    }
+  })
   let captures : Array[PhysicalValueFlowPlan] = []
   for target in capture.captures {
     let binding = match target.binding {
@@ -4251,12 +4372,17 @@ fn PhysicalFunctionPlanner::preplan_callable_allocation(
     if planned.callable == callable {
       if planned.function != function.id ||
         planned.implementation != implementation ||
+        planned.lowered_implementation.function !=
+        lowered_implementation.function ||
         planned.interface != interface {
         raise RepresentationSpecializationInvariant(
           detail="callable allocation \{Repr(function.id)} received both \{Repr(planned.callable)} via \{Repr(planned.implementation)} and \{Repr(callable)} via \{Repr(implementation)}",
         )
       }
       let mut equal = planned.captures.length() == captures.length()
+      if planned.captured_evidence != captured_evidence {
+        equal = false
+      }
       for index, existing in planned.captures {
         if !equal {
           break
@@ -4275,7 +4401,10 @@ fn PhysicalFunctionPlanner::preplan_callable_allocation(
     function: function.id,
     callable,
     implementation,
+    lowered_implementation,
     interface,
+    capture,
+    captured_evidence,
     captures,
   }
   self.callable_allocations.push(allocation)
@@ -4288,7 +4417,11 @@ fn PhysicalFunctionPlanner::plan_match_payloads(
   site : @anf.AnfBindingId,
   match_ : @anf.AnfMatch,
   scrutinee : PhysicalValueContract,
-) -> (Array[RuntimeSubstitution], Array[Array[PhysicalMatchPayloadPlan]]) raise LoisvmLoweringError {
+) -> (
+  Array[RuntimeSubstitution],
+  Array[Array[PhysicalMatchPayloadPlan]],
+  PhysicalDataMatchPlan?,
+) raise LoisvmLoweringError {
   let scopes = match_.alternatives.map(_ => self.substitutions)
   let payloads : Array[Array[PhysicalMatchPayloadPlan]] = match_.alternatives.map(_ => {
       []
@@ -4353,14 +4486,14 @@ fn PhysicalFunctionPlanner::plan_match_payloads(
         detail="closed aggregate default alternative binds payloads",
       )
     }
-    return (scopes, payloads)
+    return (scopes, payloads, None)
   }
   guard self.physical.shape(scrutinee.shape)
     is Slot(Value({ kind: DataValue(family_id), .. })) &&
     self.atom_type(match_.scrutinee) is Some(scrutinee_type) &&
     self.instantiate_type(scrutinee_type) is Data(owner, arguments) &&
     self.image.metadata.type_info(owner) is Some(owner_info) else {
-    return (scopes, payloads)
+    return (scopes, payloads, None)
   }
   let family = self.image.data_family_by_bytecode_id(family_id)
   self.image.finalize_data_family_contract(family)
@@ -4473,7 +4606,7 @@ fn PhysicalFunctionPlanner::plan_match_payloads(
       )
     }
   }
-  (scopes, payloads)
+  (scopes, payloads, Some({ family: family.physical_contract(), }))
 }
 
 ///|
@@ -4651,19 +4784,67 @@ fn runtime_literal_type(literal : @buslane.Literal) -> @anf.RuntimeType {
 }
 
 ///|
-fn ImageLowerer::verify_physical_anf(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
-) -> Unit raise LoisvmLoweringError {
-  for worker_index, worker in physical.representation_workers {
+fn runtime_literal_physical_shape(
+  literal : @buslane.Literal,
+) -> PhysicalValueShape {
+  match literal {
+    Unit => PhysicalValueShape::Unit
+    Bool(_) | I32(_) | Char(_) =>
+      PhysicalValueShape::Slot(
+        CanonicalRuntimeTypeKey::Value({
+          representation: I32,
+          cleanup: Trivial,
+          kind: ScalarValue,
+        }),
+      )
+    I64(_) =>
+      PhysicalValueShape::Slot(
+        CanonicalRuntimeTypeKey::Value({
+          representation: I64,
+          cleanup: Trivial,
+          kind: ScalarValue,
+        }),
+      )
+    F32(_) =>
+      PhysicalValueShape::Slot(
+        CanonicalRuntimeTypeKey::Value({
+          representation: F32,
+          cleanup: Trivial,
+          kind: ScalarValue,
+        }),
+      )
+    F64(_) =>
+      PhysicalValueShape::Slot(
+        CanonicalRuntimeTypeKey::Value({
+          representation: F64,
+          cleanup: Trivial,
+          kind: ScalarValue,
+        }),
+      )
+    String(_) =>
+      PhysicalValueShape::Slot(
+        CanonicalRuntimeTypeKey::Value({
+          representation: I32,
+          cleanup: OwnedRef,
+          kind: ByteSequenceValue,
+        }),
+      )
+  }
+}
+
+///|
+fn PhysicalAnfProgram::verify(
+  self : PhysicalAnfProgram,
+) -> VerifiedPhysicalAnfProgram raise LoisvmLoweringError {
+  for worker_index, worker in self.representation_workers {
     for previous in 0..<worker_index {
-      if physical.representation_workers[previous].key == worker.key {
+      if self.representation_workers[previous].key == worker.key {
         raise RepresentationSpecializationInvariant(
           detail="one canonical representation contract produced two workers",
         )
       }
     }
-    guard physical.function(worker.worker) is Some(function) else {
+    guard self.function(worker.worker) is Some(function) else {
       raise RepresentationSpecializationInvariant(
         detail="selected representation worker has no physical function contract",
       )
@@ -4674,30 +4855,30 @@ fn ImageLowerer::verify_physical_anf(
       )
     }
   }
-  for function_index, entry in physical.functions {
+  for function_index, entry in self.functions {
     if entry.0.value <= 0 {
       raise RepresentationSpecializationInvariant(
         detail="physical function plan contains a non-canonical function identity",
       )
     }
     for previous in 0..<function_index {
-      if physical.functions[previous].0 == entry.0 {
+      if self.functions[previous].0 == entry.0 {
         raise RepresentationSpecializationInvariant(
           detail="physical function identity is duplicated",
         )
       }
     }
-    self.verify_physical_value_flow(physical, entry.1.result)
+    self.verify_value_flow(entry.1.result)
     let invocation_parameters = []
     for parameter in entry.1.parameters {
-      ignore(physical.shape(parameter.contract.shape))
-      physical.append_parameter_keys(
+      ignore(self.shape(parameter.contract.shape))
+      self.append_parameter_keys(
         parameter.contract.shape,
         invocation_parameters,
       )
     }
     if invocation_parameters != entry.1.interface.invocation.parameters ||
-      physical.shape(entry.1.result.target.shape).canonical_result() !=
+      self.shape(entry.1.result.target.shape).canonical_result() !=
       entry.1.interface.invocation.result {
       raise RepresentationSpecializationInvariant(
         detail="physical function invocation contract disagrees with its value ports",
@@ -4718,10 +4899,10 @@ fn ImageLowerer::verify_physical_anf(
         Some(shape) => PhysicalValueShape::Slot(shape)
         None => PhysicalValueShape::Unit
       }
-      let identity = physical.identity(shape, "callable capture")
+      let identity = self.identity(shape, "callable capture")
       environment.bind(
         binding,
-        physical.value_contract(
+        self.value_contract(
           identity,
           captured.callable_interface,
           [],
@@ -4733,10 +4914,10 @@ fn ImageLowerer::verify_physical_anf(
       environment.bind(parameter.binding, parameter.contract)
     }
     for recursive in entry.1.recursive_functions {
-      let interface = physical.interface(recursive.recursive.function)
+      let interface = self.interface(recursive.recursive.function)
       environment.bind(
         Value(recursive.recursive.value),
-        physical.value_contract(
+        self.value_contract(
           recursive.shape,
           interface,
           [],
@@ -4744,34 +4925,25 @@ fn ImageLowerer::verify_physical_anf(
         ),
       )
     }
-    self.verify_physical_anf_expr(physical, environment, entry.1.body)
+    self.verify_expr(environment, entry.1.body)
     for recipe in entry.1.callable_bridge_recipes() {
-      if !physical.has_adapter_recipe(recipe) {
+      if !self.has_adapter_recipe(recipe) {
         raise RepresentationSpecializationInvariant(
           detail="physical function bridge has no planned callable adapter contract",
         )
       }
     }
   }
+  { program: self, }
 }
 
 ///|
-fn ImageLowerer::physical_capture_for_implementation(
-  self : ImageLowerer,
-  implementation : PhysicalCallableImplementation,
-) -> CallableCaptureContract raise LoisvmLoweringError {
-  let callable = self.materialized_callable_implementation(implementation)
-  self.physical_capture(callable.function)
-}
-
-///|
-fn ImageLowerer::verify_physical_value_contract(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
+fn PhysicalAnfProgram::verify_value_contract(
+  self : PhysicalAnfProgram,
   contract : PhysicalValueContract,
 ) -> Unit raise LoisvmLoweringError {
   ignore(
-    physical.value_contract(
+    self.value_contract(
       contract.shape,
       contract.callable_interface,
       contract.fields,
@@ -4779,20 +4951,19 @@ fn ImageLowerer::verify_physical_value_contract(
     ),
   )
   for field in contract.fields {
-    self.verify_physical_value_contract(physical, field)
+    self.verify_value_contract(field)
   }
 }
 
 ///|
-fn ImageLowerer::verify_physical_value_flow(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
+fn PhysicalAnfProgram::verify_value_flow(
+  self : PhysicalAnfProgram,
   flow : PhysicalValueFlowPlan,
 ) -> Unit raise LoisvmLoweringError {
-  self.verify_physical_value_contract(physical, flow.source)
-  self.verify_physical_value_contract(physical, flow.target)
-  let source = physical.shape(flow.source.shape)
-  let target = physical.shape(flow.target.shape)
+  self.verify_value_contract(flow.source)
+  self.verify_value_contract(flow.target)
+  let source = self.shape(flow.source.shape)
+  let target = self.shape(flow.target.shape)
   if source == target {
     if flow.bridge is Some(_) {
       raise RepresentationSpecializationInvariant(
@@ -4821,7 +4992,7 @@ fn ImageLowerer::verify_physical_value_flow(
             detail="physical callable erasure disagrees with its source invocation contract",
           )
         }
-        if !physical.has_adapter_recipe(contract.recipe) {
+        if !self.has_adapter_recipe(contract.recipe) {
           raise RepresentationSpecializationInvariant(
             detail="physical callable erasure has no planned adapter contract",
           )
@@ -4842,7 +5013,7 @@ fn ImageLowerer::verify_physical_value_flow(
             detail="physical callable unerasure disagrees with its target invocation contract",
           )
         }
-        if !physical.has_adapter_recipe(contract.recipe) {
+        if !self.has_adapter_recipe(contract.recipe) {
           raise RepresentationSpecializationInvariant(
             detail="physical callable unerasure has no planned adapter contract",
           )
@@ -4858,7 +5029,7 @@ fn ImageLowerer::verify_physical_value_flow(
           detail="physical callable bridge disagrees with its source or target invocation contract",
         )
       }
-      if !physical.has_adapter_recipe(contract.recipe) {
+      if !self.has_adapter_recipe(contract.recipe) {
         raise RepresentationSpecializationInvariant(
           detail="physical callable bridge has no planned adapter contract",
         )

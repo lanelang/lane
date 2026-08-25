@@ -14,20 +14,6 @@ fn FunctionLowerer::find_witness(
 }
 
 ///|
-fn FunctionLowerer::equivalent_witness(
-  self : FunctionLowerer,
-  evidence : @anf.RuntimeEvidence,
-) -> @vmcfg.ValueId? raise LoisvmLoweringError {
-  for binding in self.witnesses {
-    if self.substitutions.apply_evidence(Parameter(binding.parameter)) ==
-      evidence {
-      return Some(binding.value)
-    }
-  }
-  None
-}
-
-///|
 fn FunctionLowerer::layout_witness(
   self : FunctionLowerer,
   evidence : @anf.RuntimeEvidence,

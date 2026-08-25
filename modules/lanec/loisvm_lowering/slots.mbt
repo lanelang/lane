@@ -3,7 +3,6 @@ fn FunctionLowerer::fresh_slot(
   self : FunctionLowerer,
   type_ : @anf.RuntimeType,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  let type_ = self.instantiate_runtime_type(type_)
   if type_ is Erased(_, evidence) {
     return self.fresh_erased_slot(self.layout_witness(evidence), Owned)
   }
@@ -20,18 +19,6 @@ fn FunctionLowerer::fresh_metadata(
   let value : @vmcfg.ValueId = { value: self.values.length(), }
   self.values.push(metadata)
   value
-}
-
-///|
-fn FunctionLowerer::instantiate_runtime_type(
-  self : FunctionLowerer,
-  type_ : @anf.RuntimeType,
-) -> @anf.RuntimeType raise LoisvmLoweringError {
-  if runtime_type_mentions_any(type_, self.specialized_parameters, []) {
-    self.substitutions.apply_type(self.image.runtime_types, type_)
-  } else {
-    type_
-  }
 }
 
 ///|

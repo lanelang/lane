@@ -589,7 +589,7 @@ priv struct DeferredCallableAdapter {
 
 ///|
 priv struct DeferredNestedCallable {
-  function : @anf.AnfFunction
+  source : @anf.AnfFunctionId
   lowered_function : @bytecode.FunctionId
   type_ : @anf.RuntimeType
   environment : @vmcfg.ValueId?
@@ -604,16 +604,16 @@ priv enum LocalValue {
   Global(GlobalValue)
   RecursiveFunction(@bytecode.FunctionId, @anf.RuntimeType, @vmcfg.ValueId?)
   NestedCallable(DeferredNestedCallable)
-  EvidenceApplied(GlobalValue, DeferredEvidenceApplication)
+  EvidenceApplied(GlobalValue, PhysicalEvidenceApplication)
   EvidenceAppliedNestedCallable(
     DeferredNestedCallable,
-    DeferredEvidenceApplication
+    PhysicalEvidenceApplication
   )
   EvidenceAppliedCallable(
     @vmcfg.ValueId,
     @anf.RuntimeType,
     CanonicalRuntimeTypeKey,
-    DeferredEvidenceApplication
+    PhysicalEvidenceApplication
   )
 }
 

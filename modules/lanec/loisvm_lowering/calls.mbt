@@ -29,7 +29,7 @@ fn FunctionLowerer::lower_call(
           ) => Some(callable)
           _ => None
         }
-        guard deferred is Some(callable) && callable.function.id == function else {
+        guard deferred is Some(callable) && callable.source == function else {
           raise RepresentationSpecializationInvariant(
             detail="represented call no longer matches its planned captured invocation",
           )
@@ -210,11 +210,11 @@ fn FunctionLowerer::materialize_physical_local(
 fn FunctionLowerer::materialize_evidence_application(
   self : FunctionLowerer,
   source : LocalValue,
-  application : DeferredEvidenceApplication,
+  application : PhysicalEvidenceApplication,
 ) -> LocalValue raise LoisvmLoweringError {
-  if !application.materialize {
+  if !(application.mode is Materialize) {
     raise RepresentationSpecializationInvariant(
-      detail="deferred evidence application \{Repr(application.binding)} for \{Repr(application.source_type)} -> \{Repr(application.target_type)} escaped without a planned materialization contract",
+      detail="non-materialized evidence application reached callable materialization",
     )
   }
   let source = self.materialize_local(source)

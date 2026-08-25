@@ -126,12 +126,12 @@ fn lower_executable_program_to_bytecode_or_raise(
 /// VM CFG construction is reachable only through verified Physical ANF.
 fn ImageLowerer::emit_physical_anf(
   self : ImageLowerer,
-  physical : PhysicalAnfProgram,
+  verified : VerifiedPhysicalAnfProgram,
   entry : @buslane.ValueId,
   initializer : @bytecode.FunctionId?,
   observe : (LoisvmLoweringStage) -> Unit,
 ) -> @bytecode.BytecodeImage raise LoisvmLoweringError {
-  self.verify_physical_anf(physical)
+  let physical = verified.program
   self.physical_anf = Some(physical)
   let entry_function = match self.find_global(entry) {
     Some(Function(function, _)) => function

@@ -8,10 +8,21 @@ fn FunctionLowerer::lower_match(
   let scrutinee = self.materialize_physical_local(
     self.lower_physical_atom(match_.scrutinee),
   )
-  match scrutinee.value {
-    ClosedAggregate(contract, payloads) =>
+  match match_.plan.representation {
+    Product => {
+      guard scrutinee.value is ClosedAggregate(contract, payloads) else {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF product match produced a non-product value",
+        )
+      }
       self.lower_closed_aggregate_match(match_, contract, payloads)
+    }
     Unit => {
+      guard scrutinee.value is Unit else {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF Unit match produced a non-Unit value",
+        )
+      }
       let alternative = match find_unit_alternative(match_.alternatives) {
         Some(alternative) => alternative
         None =>
@@ -21,43 +32,61 @@ fn FunctionLowerer::lower_match(
       }
       self.lower_irrefutable_match(match_, scrutinee.value, alternative)
     }
-    Slot(condition, scrutinee_type, shape) => {
-      let scrutinee = LocalValue::Slot(condition, scrutinee_type, shape)
-      match scrutinee_type {
-        Scalar(Bool) =>
-          self.lower_bool_match(
-            site, match_, condition, scrutinee, result_shape,
-          )
-        Scalar(I64 | I32 | Char | F32 | F64) | ByteSequence =>
-          self.lower_literal_match(
-            site, match_, condition, scrutinee_type, scrutinee, result_shape,
-          )
-        Callable(_, _) | Forall(_, _) => {
-          let alternative = match
-            find_default_alternative(match_.alternatives) {
-            Some(alternative) => alternative
-            None =>
-              raise UnsupportedExpression(
-                detail="callable match requires a default alternative",
-              )
-          }
-          self.lower_irrefutable_match(match_, scrutinee, alternative)
-        }
-        Data(owner, arguments) =>
-          self.lower_data_match(
-            site, match_, condition, scrutinee_type, shape, owner, arguments, result_shape,
-          )
-        _ =>
-          raise UnsupportedExpression(detail="unsupported match scrutinee type")
+    Bool => {
+      guard scrutinee.value is Slot(condition, scrutinee_type, shape) else {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF Bool match produced a non-slot value",
+        )
       }
+      self.lower_bool_match(
+        site,
+        match_,
+        condition,
+        LocalValue::Slot(condition, scrutinee_type, shape),
+        result_shape,
+      )
     }
-    Global(_)
-    | NestedCallable(_)
-    | RecursiveFunction(_, _, _)
-    | EvidenceApplied(_, _)
-    | EvidenceAppliedCallable(_, _, _, _)
-    | EvidenceAppliedNestedCallable(_, _) =>
-      raise UnsupportedExpression(detail="match scrutinee is not materialized")
+    Literal(comparison) => {
+      guard scrutinee.value is Slot(condition, scrutinee_type, shape) else {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF literal match produced a non-slot value",
+        )
+      }
+      self.lower_literal_match(
+        site,
+        match_,
+        condition,
+        scrutinee_type,
+        comparison,
+        LocalValue::Slot(condition, scrutinee_type, shape),
+        result_shape,
+      )
+    }
+    Callable => {
+      guard scrutinee.value is Slot(_, _, _) else {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF callable match produced a non-slot value",
+        )
+      }
+      let alternative = match find_default_alternative(match_.alternatives) {
+        Some(alternative) => alternative
+        None =>
+          raise UnsupportedExpression(
+            detail="callable match requires a default alternative",
+          )
+      }
+      self.lower_irrefutable_match(match_, scrutinee.value, alternative)
+    }
+    Data(data) => {
+      guard scrutinee.value is Slot(condition, scrutinee_type, shape) else {
+        raise RepresentationSpecializationInvariant(
+          detail="Physical ANF data match produced a non-slot value",
+        )
+      }
+      self.lower_data_match(
+        site, match_, condition, scrutinee_type, shape, data, result_shape,
+      )
+    }
   }
 }
 
@@ -133,6 +162,7 @@ fn FunctionLowerer::lower_literal_match(
   match_ : PhysicalAnfMatch,
   initial_scrutinee : @vmcfg.ValueId,
   scrutinee_type : @anf.RuntimeType,
+  comparison : PhysicalLiteralComparison,
   initial_value : LocalValue,
   result_shape : PhysicalValueShape,
 ) -> LocalValue raise LoisvmLoweringError {
@@ -169,9 +199,7 @@ fn FunctionLowerer::lower_literal_match(
     guard alternative.alt_constructor is Literal(literal) else {
       abort("filtered literal alternative")
     }
-    let condition = self.emit_literal_equality(
-      scrutinee, scrutinee_type, literal,
-    )
+    let condition = self.emit_literal_equality(scrutinee, comparison, literal)
     let branch_scrutinee = self.fresh_slot(scrutinee_type)
     let branch_environment = self.branch_environment_parameter()
     let branch_parameters = [branch_scrutinee]
@@ -237,27 +265,22 @@ fn FunctionLowerer::lower_literal_match(
 fn FunctionLowerer::emit_literal_equality(
   self : FunctionLowerer,
   scrutinee : @vmcfg.ValueId,
-  scrutinee_type : @anf.RuntimeType,
+  comparison : PhysicalLiteralComparison,
   literal : @buslane.Literal,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   let lowered = self.lower_internal_literal(literal)
-  guard lowered is Slot(expected, literal_type, _) &&
-    literal_type == scrutinee_type else {
+  guard lowered is Slot(expected, _, _) else {
     raise UnsupportedExpression(
       detail="literal pattern type does not match its scrutinee",
     )
   }
   let condition = self.fresh_slot(Scalar(Bool))
-  let instruction : @vmcfg.Instruction = match scrutinee_type {
-    Scalar(I64) => I64Eq(condition, scrutinee, expected)
-    Scalar(I32 | Char) => I32Eq(condition, scrutinee, expected)
-    Scalar(F32) => F32Eq(condition, scrutinee, expected)
-    Scalar(F64) => F64Eq(condition, scrutinee, expected)
+  let instruction : @vmcfg.Instruction = match comparison {
+    I64 => I64Eq(condition, scrutinee, expected)
+    I32 => I32Eq(condition, scrutinee, expected)
+    F32 => F32Eq(condition, scrutinee, expected)
+    F64 => F64Eq(condition, scrutinee, expected)
     ByteSequence => ByteSequenceEqual(condition, scrutinee, expected)
-    _ =>
-      raise UnsupportedExpression(
-        detail="unsupported literal pattern representation",
-      )
   }
   self.emit(instruction)
   condition
