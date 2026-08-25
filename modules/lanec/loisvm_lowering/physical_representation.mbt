@@ -279,7 +279,6 @@ priv struct PhysicalDataConstructorContract {
   layout : @bytecode.LayoutId
   source_evidence_binder_count : Int
   stored_evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
-  storage_types : Array[@anf.RuntimeType]
   storage_shapes : Array[CanonicalRuntimeTypeKey]
 }
 

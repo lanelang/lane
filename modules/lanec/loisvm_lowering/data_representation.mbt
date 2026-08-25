@@ -119,7 +119,6 @@ fn ImageLowerer::physical_data_family_contract(
         None => constructor_plan.storage_evidence_parameters.length()
       },
       stored_evidence_parameters: constructor_plan.storage_evidence_parameters.copy(),
-      storage_types: constructor_plan.storage_types.copy(),
       storage_shapes: constructor_plan.storage_shapes.copy(),
     }
   })

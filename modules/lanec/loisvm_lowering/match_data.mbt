@@ -207,7 +207,7 @@ fn FunctionLowerer::bind_data_alternative(
     )
   }
   let expected_binders = if binds_payloads {
-    constructor_plan.storage_types.length()
+    constructor_plan.storage_shapes.length()
   } else {
     0
   }
