@@ -45,6 +45,26 @@ priv enum GlobalValue {
 }
 
 ///|
+priv struct PhysicalGlobalValue {
+  producer : PhysicalGlobalProducer
+  contract : PhysicalValueContract
+}
+
+///|
+priv enum PhysicalGlobalProducer {
+  PhysicalUnit
+  PhysicalFunction(@bytecode.FunctionId, @anf.RuntimeType)
+  PhysicalIntrinsic(IntrinsicWrapperPlan)
+  PhysicalFloatConstant(Int, @anf.RuntimeType)
+  PhysicalDoubleConstant(Int64, @anf.RuntimeType)
+  PhysicalInstanceGlobal(
+    @bytecode.GlobalId,
+    @anf.RuntimeType,
+    CanonicalRuntimeTypeKey
+  )
+}
+
+///|
 priv struct RuntimeIntrinsicFunctionContract {
   intrinsic : @abi.Intrinsic
   parameters : Array[@anf.RuntimeType]
@@ -617,10 +637,10 @@ priv enum LocalValue {
   Unit
   Slot(@vmcfg.ValueId, @anf.RuntimeType, CanonicalRuntimeTypeKey)
   ClosedAggregate(ClosedAggregateContract, Array[LocalValue])
-  Global(GlobalValue)
+  Global(PhysicalGlobalProducer)
   RecursiveFunction(@bytecode.FunctionId, @anf.RuntimeType, @vmcfg.ValueId?)
   NestedCallable(DeferredNestedCallable)
-  EvidenceApplied(GlobalValue, PhysicalEvidenceApplication)
+  EvidenceApplied(PhysicalGlobalProducer, PhysicalEvidenceApplication)
   EvidenceAppliedNestedCallable(
     DeferredNestedCallable,
     PhysicalEvidenceApplication

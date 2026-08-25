@@ -159,6 +159,27 @@ test "Physical ANF atom cannot claim a shape different from its producer" {
 }
 
 ///|
+test "Physical ANF global cannot claim a shape different from its producer" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let value = metadata.define_value("value", Value, Primitive(F32))
+  let physical = PhysicalAnfProgram::new()
+  let scalar = physical.intern(test_scalar_shape())
+  physical.add_global(value, {
+    producer: PhysicalFloatConstant(
+      0,
+      @anf.RuntimeType::Scalar(@anf.RuntimeScalarType::F32),
+    ),
+    contract: test_contract(scalar),
+  })
+  let result : Result[VerifiedPhysicalAnfProgram, LoisvmLoweringError] = Ok(
+    physical.verify(),
+  ) catch {
+    error => Err(error)
+  }
+  assert_true(result is Err(RepresentationSpecializationInvariant(detail=_)))
+}
+
+///|
 test "Physical match representation owns its alternative universe" {
   assert_true(PhysicalMatchRepresentation::Bool.accepts(Literal(Bool(true))))
   assert_false(PhysicalMatchRepresentation::Bool.accepts(Literal(I32(1))))

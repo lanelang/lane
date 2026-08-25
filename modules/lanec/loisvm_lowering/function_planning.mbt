@@ -182,8 +182,11 @@ fn ImageLowerer::plan_intrinsic(
         Direct =>
           self.globals.push({ value, lowered: Intrinsic(function_contract), })
         Fatal(..) => {
-          let function = self.intrinsic_wrapper(function_contract)
-          self.globals.push({ value, lowered: Function(function, type_), })
+          let wrapper = self.intrinsic_wrapper(function_contract)
+          self.globals.push({
+            value,
+            lowered: Function(wrapper.function, type_),
+          })
         }
       }
     }
@@ -287,8 +290,7 @@ fn extract_top_atom_function(atom : @anf.AnfAtom) -> @anf.AnfFunction? {
 }
 
 ///|
-fn ImageLowerer::lower_initializer_step(
-  self : ImageLowerer,
+fn lower_initializer_step(
   physical_program : PhysicalAnfProgram,
   step : InitializerStepPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
@@ -298,7 +300,6 @@ fn ImageLowerer::lower_initializer_step(
     )
   }
   let lowerer : FunctionLowerer = {
-    image: self,
     physical_program,
     function: Some(step.function),
     values: [],
@@ -315,9 +316,9 @@ fn ImageLowerer::lower_initializer_step(
     lowerer.materialize_physical_local(lowerer.lower_expr(physical.body)),
   )
   let (result_abi, returned) = match
-    (self.find_global(step.value), result.value) {
-    (Some(UnitValue), Unit) => (@bytecode.ResultAbi::Unit, None)
-    (Some(InstanceGlobal(_, _, shape, _)), Slot(source, _, actual)) if shape ==
+    (physical_program.required_global(step.value).producer, result.value) {
+    (PhysicalUnit, Unit) => (@bytecode.ResultAbi::Unit, None)
+    (PhysicalInstanceGlobal(_, _, shape), Slot(source, _, actual)) if shape ==
       actual => (shape.physical_shape().result_abi(), Some(source))
     _ =>
       raise UnsupportedExpression(
@@ -346,13 +347,11 @@ fn ImageLowerer::lower_initializer_step(
 }
 
 ///|
-fn ImageLowerer::lower_initializer_orchestrator(
-  self : ImageLowerer,
+fn lower_initializer_orchestrator(
   physical_program : PhysicalAnfProgram,
   steps : Array[InitializerStepPlan],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
-    image: self,
     physical_program,
     function: None,
     values: [],
@@ -366,10 +365,10 @@ fn ImageLowerer::lower_initializer_orchestrator(
     adapter_support: None,
   }
   for step in steps {
-    match self.find_global(step.value) {
-      Some(UnitValue) =>
+    match physical_program.required_global(step.value).producer {
+      PhysicalUnit =>
         lowerer.emit(CallDirect(step.function, None, [], [], None))
-      Some(InstanceGlobal(global, _, shape, _)) => {
+      PhysicalInstanceGlobal(global, _, shape) => {
         let destination = lowerer.fresh_metadata(shape.value_metadata(None))
         lowerer.emit(CallDirect(step.function, None, [], [], Some(destination)))
         lowerer.emit(InitGlobal(global, destination))
@@ -396,15 +395,13 @@ fn ImageLowerer::lower_initializer_orchestrator(
 }
 
 ///|
-fn ImageLowerer::lower_intrinsic_wrapper(
-  self : ImageLowerer,
+fn lower_intrinsic_wrapper(
   physical_program : PhysicalAnfProgram,
   plan : IntrinsicWrapperPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let intrinsic = plan.contract.intrinsic
   let parameter_types = plan.contract.parameters
   let lowerer : FunctionLowerer = {
-    image: self,
     physical_program,
     function: Some(plan.function),
     values: [],
@@ -481,10 +478,10 @@ fn ImageLowerer::lower_intrinsic_wrapper(
 fn ImageLowerer::intrinsic_wrapper(
   self : ImageLowerer,
   contract : RuntimeIntrinsicFunctionContract,
-) -> @bytecode.FunctionId raise LoisvmLoweringError {
+) -> IntrinsicWrapperPlan raise LoisvmLoweringError {
   for wrapper in self.intrinsic_wrappers {
     if wrapper.contract == contract {
-      return wrapper.function
+      return wrapper
     }
   }
   let parameter_shapes = contract.parameters.map(type_ => {
@@ -494,15 +491,26 @@ fn ImageLowerer::intrinsic_wrapper(
     contract.result,
     RuntimeSubstitution::new(),
   )
-  let function = self.plans.append(
-      IntrinsicWrapper(name=contract.intrinsic.name()),
-      fn(function) {
-        let wrapper = { function, contract, parameter_shapes, result_shape, }
-        self.intrinsic_wrappers.push(wrapper)
-        IntrinsicWrapper(wrapper)
-      },
-    ).function
-  function
+  let (_, wrapper) = self.plans.append_with_result(
+    IntrinsicWrapper(name=contract.intrinsic.name()),
+    fn(function) {
+      let wrapper = { function, contract, parameter_shapes, result_shape, }
+      self.intrinsic_wrappers.push(wrapper)
+      (IntrinsicWrapper(wrapper), wrapper)
+    },
+  )
+  wrapper
+}
+
+///|
+fn IntrinsicWrapperPlan::invocation(
+  self : IntrinsicWrapperPlan,
+) -> CanonicalCallableAbi {
+  {
+    witnesses: [],
+    parameters: self.parameter_shapes,
+    result: self.result_shape,
+  }
 }
 
 ///|

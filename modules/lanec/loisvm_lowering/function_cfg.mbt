@@ -1,6 +1,5 @@
 ///|
-fn ImageLowerer::lower_function_body(
-  self : ImageLowerer,
+fn lower_function_body(
   physical_program : PhysicalAnfProgram,
   lowered_function : @bytecode.FunctionId,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
@@ -11,7 +10,6 @@ fn ImageLowerer::lower_function_body(
   }
   let capture = physical.capture
   let lowerer : FunctionLowerer = {
-    image: self,
     physical_program,
     function: Some(lowered_function),
     values: [],
@@ -26,11 +24,9 @@ fn ImageLowerer::lower_function_body(
   }
   let input_witnesses = []
   for parameter in physical.evidence_parameters {
-    if self.requires_runtime_evidence(parameter) {
-      let witness = lowerer.fresh_metadata(runtime_evidence_metadata(parameter))
-      input_witnesses.push(witness)
-      lowerer.witnesses.push({ parameter: parameter.id, value: witness, })
-    }
+    let witness = lowerer.fresh_metadata(runtime_evidence_metadata(parameter))
+    input_witnesses.push(witness)
+    lowerer.witnesses.push({ parameter: parameter.id, value: witness, })
   }
   if capture.environment is Some(contract) {
     let environment = lowerer.fresh_metadata(

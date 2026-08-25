@@ -221,15 +221,14 @@ fn FunctionLowerer::find_value(
       return binding.lowered
     }
   }
-  match self.image.find_global(value) {
-    Some(UnitValue) => Unit
-    Some(InstanceGlobal(global, type_, shape, _)) => {
+  match self.physical_program.required_global(value).producer {
+    PhysicalUnit => Unit
+    PhysicalInstanceGlobal(global, type_, shape) => {
       let destination = self.fresh_metadata(shape.borrowed_value_metadata(None))
       self.emit(BorrowGlobal(destination, global))
       LocalValue::Slot(destination, type_, shape)
     }
-    Some(global) => Global(global)
-    None => raise MissingValueMetadata(value~)
+    global => Global(global)
   }
 }
 

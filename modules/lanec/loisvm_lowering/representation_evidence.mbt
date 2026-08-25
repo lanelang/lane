@@ -283,13 +283,11 @@ fn collect_runtime_evidence_ids(
 }
 
 ///|
-fn ImageLowerer::lower_layout_constructor(
-  self : ImageLowerer,
+fn lower_layout_constructor(
   physical_program : PhysicalAnfProgram,
   plan : LayoutConstructorPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
-    image: self,
     physical_program,
     function: Some(plan.function),
     values: [],

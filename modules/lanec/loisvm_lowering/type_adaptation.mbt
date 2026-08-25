@@ -1157,14 +1157,12 @@ fn ImageLowerer::callable_type_parameter_alignment(
 }
 
 ///|
-fn ImageLowerer::lower_callable_adapter(
-  self : ImageLowerer,
+fn lower_callable_adapter(
   physical_program : PhysicalAnfProgram,
   plan : PhysicalCallableAdapterSupport,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let recipe = plan.recipe
   let lowerer : FunctionLowerer = {
-    image: self,
     physical_program,
     function: Some(plan.adapter.function),
     values: [],

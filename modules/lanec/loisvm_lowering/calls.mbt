@@ -56,7 +56,8 @@ fn FunctionLowerer::lower_call(
     )
   }
   match callee.value {
-    Global(Intrinsic(contract)) => {
+    Global(PhysicalIntrinsic(wrapper)) => {
+      let contract = wrapper.contract
       let arguments = []
       for index, argument in lowered_arguments {
         let flow = physical_call.arguments[index]
@@ -85,7 +86,7 @@ fn FunctionLowerer::lower_call(
         physical_call.result.bridge,
       ).value
     }
-    Global(Function(function, _)) =>
+    Global(PhysicalFunction(function, _)) =>
       self.lower_physical_call(
         lowered_arguments,
         physical_call,
@@ -99,7 +100,7 @@ fn FunctionLowerer::lower_call(
         direct=Some((function, environment)),
         callable=None,
       )
-    EvidenceApplied(Function(function, _), _) =>
+    EvidenceApplied(PhysicalFunction(function, _), _) =>
       self.lower_physical_call(
         lowered_arguments,
         physical_call,
@@ -158,18 +159,15 @@ fn FunctionLowerer::materialize_local(
   value : LocalValue,
 ) -> LocalValue raise LoisvmLoweringError {
   match value {
-    Global(Function(function, type_)) =>
+    Global(PhysicalFunction(function, type_)) =>
       self.materialize_callable_value(function, type_, None)
-    Global(Intrinsic(contract)) => {
-      let type_ = contract.type_()
+    Global(PhysicalIntrinsic(wrapper)) => {
+      let type_ = wrapper.contract.type_()
       self.materialize_callable_value_with_abi(
-        self.image.intrinsic_wrapper(contract),
+        wrapper.function,
         type_,
         None,
-        self.image.canonical_callable_abi_under(
-          type_,
-          RuntimeSubstitution::new(),
-        ),
+        wrapper.invocation(),
       )
     }
     RecursiveFunction(function, type_, environment) =>
@@ -197,7 +195,7 @@ fn FunctionLowerer::materialize_physical_local(
   physical : PhysicalLocalValue,
 ) -> PhysicalLocalValue raise LoisvmLoweringError {
   let value = match physical.value {
-    Global(DoubleConstant(bits, type_)) => {
+    Global(PhysicalDoubleConstant(bits, type_)) => {
       guard self.physical_shape(physical.contract.shape)
         is PhysicalValueShape::Slot(shape) else {
         raise RepresentationSpecializationInvariant(
@@ -208,7 +206,7 @@ fn FunctionLowerer::materialize_physical_local(
       self.emit(ConstF64(destination, bits))
       LocalValue::Slot(destination, type_, shape)
     }
-    Global(FloatConstant(bits, type_)) => {
+    Global(PhysicalFloatConstant(bits, type_)) => {
       guard self.physical_shape(physical.contract.shape)
         is PhysicalValueShape::Slot(shape) else {
         raise RepresentationSpecializationInvariant(

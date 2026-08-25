@@ -23,7 +23,6 @@ priv struct ImageLowerer {
 
 ///|
 priv struct FunctionLowerer {
-  image : ImageLowerer
   physical_program : PhysicalAnfProgram
   function : @bytecode.FunctionId?
   values : Array[@vmcfg.ValueMetadata]
@@ -128,8 +127,8 @@ fn ImageLowerer::emit_physical_anf(
   observe : (LoisvmLoweringStage) -> Unit,
 ) -> @bytecode.BytecodeImage raise LoisvmLoweringError {
   let physical = verified.program
-  let entry_function = match self.find_global(entry) {
-    Some(Function(function, _)) => function
+  let entry_function = match physical.required_global(entry).producer {
+    PhysicalFunction(function, _) => function
     _ => raise MissingEntry(value=entry)
   }
   let functions : Array[@vmcfg.FunctionEntry] = []
@@ -139,36 +138,28 @@ fn ImageLowerer::emit_physical_anf(
     let planned = self.plans.get(plan_index)
     match planned.entry {
       Function(_, _) =>
-        functions.push(
-          Body(self.lower_function_body(physical, planned.function)),
-        )
+        functions.push(Body(lower_function_body(physical, planned.function)))
       InitializerStep(step) =>
-        functions.push(Body(self.lower_initializer_step(physical, step)))
+        functions.push(Body(lower_initializer_step(physical, step)))
       InitializerOrchestrator(steps) =>
-        functions.push(
-          Body(self.lower_initializer_orchestrator(physical, steps)),
-        )
+        functions.push(Body(lower_initializer_orchestrator(physical, steps)))
       LiftedFunction(_) =>
-        functions.push(
-          Body(self.lower_function_body(physical, planned.function)),
-        )
+        functions.push(Body(lower_function_body(physical, planned.function)))
       IntrinsicWrapper(plan) =>
-        functions.push(Body(self.lower_intrinsic_wrapper(physical, plan)))
+        functions.push(Body(lower_intrinsic_wrapper(physical, plan)))
       CallableAdapter(plan) =>
         functions.push(
           Body(
-            self.lower_callable_adapter(
+            lower_callable_adapter(
               physical,
               physical.required_callable_adapter(plan.function),
             ),
           ),
         )
       RepresentationWorker(_) =>
-        functions.push(
-          Body(self.lower_function_body(physical, planned.function)),
-        )
+        functions.push(Body(lower_function_body(physical, planned.function)))
       LayoutConstructor(plan) =>
-        functions.push(Body(self.lower_layout_constructor(physical, plan)))
+        functions.push(Body(lower_layout_constructor(physical, plan)))
       RuntimeImport(import_) => functions.push(RuntimeImport(import_))
     }
     if self.plans.length() != planned_function_count {

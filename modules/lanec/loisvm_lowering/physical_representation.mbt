@@ -369,7 +369,7 @@ priv struct PhysicalAnfProgram {
   shapes : Array[PhysicalValueShape]
   invocations : Array[(@bytecode.FunctionId, CanonicalCallableAbi)]
   interfaces : Array[(@bytecode.FunctionId, PhysicalCallableInterface)]
-  globals : Array[(@buslane.ValueId, PhysicalValueContract)]
+  globals : Array[(@buslane.ValueId, PhysicalGlobalValue)]
   functions : Array[(@bytecode.FunctionId, PhysicalFunctionPlan)]
   representation_workers : Array[PhysicalRepresentationWorkerContract]
   callable_adapters : Array[PhysicalCallableAdapterSupport]
@@ -418,14 +418,14 @@ fn PhysicalAnfProgram::new() -> PhysicalAnfProgram {
 fn PhysicalAnfProgram::add_global(
   self : PhysicalAnfProgram,
   value : @buslane.ValueId,
-  contract : PhysicalValueContract,
+  global : PhysicalGlobalValue,
 ) -> Unit raise LoisvmLoweringError {
   if self.globals.any(entry => entry.0 == value) {
     raise RepresentationSpecializationInvariant(
       detail="one global value received two physical producer contracts",
     )
   }
-  self.globals.push((value, contract))
+  self.globals.push((value, global))
 }
 
 ///|
@@ -435,10 +435,23 @@ fn PhysicalAnfProgram::global(
 ) -> PhysicalValueContract? {
   for entry in self.globals {
     if entry.0 == value {
-      return Some(entry.1)
+      return Some(entry.1.contract)
     }
   }
   None
+}
+
+///|
+fn PhysicalAnfProgram::required_global(
+  self : PhysicalAnfProgram,
+  value : @buslane.ValueId,
+) -> PhysicalGlobalValue raise LoisvmLoweringError {
+  for entry in self.globals {
+    if entry.0 == value {
+      return entry.1
+    }
+  }
+  raise MissingValueMetadata(value~)
 }
 
 ///|
@@ -2151,8 +2164,10 @@ fn ImageLowerer::plan_physical_function(
     )
   }
   let witnesses : Array[@bytecode.ValueAbi] = []
+  let runtime_evidence_parameters = []
   for parameter in evidence_parameters {
     if self.requires_runtime_evidence(parameter) {
+      runtime_evidence_parameters.push(parameter)
       let metadata = runtime_evidence_metadata(parameter)
       witnesses.push({
         representation: metadata.representation,
@@ -2178,7 +2193,7 @@ fn ImageLowerer::plan_physical_function(
   }
   {
     interface,
-    evidence_parameters,
+    evidence_parameters: runtime_evidence_parameters,
     capture,
     parameters,
     recursive_functions: recursive_functions.map(recursive => {
@@ -4803,6 +4818,16 @@ fn runtime_literal_type(literal : @buslane.Literal) -> @anf.RuntimeType {
 fn PhysicalAnfProgram::verify(
   self : PhysicalAnfProgram,
 ) -> VerifiedPhysicalAnfProgram raise LoisvmLoweringError {
+  for global_index, entry in self.globals {
+    for previous in 0..<global_index {
+      if self.globals[previous].0 == entry.0 {
+        raise RepresentationSpecializationInvariant(
+          detail="one global value has two frozen physical producers",
+        )
+      }
+    }
+    self.verify_global(entry.1)
+  }
   for adapter_index, adapter in self.callable_adapters {
     for previous in 0..<adapter_index {
       if self.callable_adapters[previous].adapter.function ==
@@ -4906,6 +4931,40 @@ fn PhysicalAnfProgram::verify(
     self.verify_expr(environment, entry.1.body)
   }
   { program: self, }
+}
+
+///|
+fn PhysicalAnfProgram::verify_global(
+  self : PhysicalAnfProgram,
+  global : PhysicalGlobalValue,
+) -> Unit raise LoisvmLoweringError {
+  self.verify_value_contract(global.contract)
+  let expected = match global.producer {
+    PhysicalUnit => PhysicalValueShape::Unit
+    PhysicalFunction(function, _) =>
+      PhysicalValueShape::Slot(
+        CanonicalRuntimeTypeKey::Callable(self.required_invocation(function)),
+      )
+    PhysicalIntrinsic(wrapper) => {
+      let invocation = wrapper.invocation()
+      if self.required_invocation(wrapper.function) != invocation {
+        raise RepresentationSpecializationInvariant(
+          detail="intrinsic global disagrees with its frozen wrapper invocation",
+        )
+      }
+      PhysicalValueShape::Slot(CanonicalRuntimeTypeKey::Callable(invocation))
+    }
+    PhysicalFloatConstant(_, _) =>
+      PhysicalValueShape::Slot(canonical_scalar_key(F32))
+    PhysicalDoubleConstant(_, _) =>
+      PhysicalValueShape::Slot(canonical_scalar_key(F64))
+    PhysicalInstanceGlobal(_, _, key) => key.physical_shape()
+  }
+  if self.shape(global.contract.shape) != expected {
+    raise RepresentationSpecializationInvariant(
+      detail="global producer disagrees with its frozen physical value contract",
+    )
+  }
 }
 
 ///|

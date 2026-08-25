@@ -586,15 +586,26 @@ fn ImageLowerer::record_physical_global_contracts(
       InstanceGlobal(_, _, _, interface) => interface
       UnitValue | FloatConstant(_, _) | DoubleConstant(_, _) => None
     }
-    physical.add_global(
-      entry.value,
-      physical.value_contract(
-        physical.intern(shape),
-        callable_interface,
-        [],
-        "global value",
-      ),
+    let contract = physical.value_contract(
+      physical.intern(shape),
+      callable_interface,
+      [],
+      "global value",
     )
+    let producer = match entry.lowered {
+      UnitValue => PhysicalGlobalProducer::PhysicalUnit
+      Function(function, type_) => PhysicalFunction(function, type_)
+      Intrinsic(contract) => {
+        let wrapper = self.intrinsic_wrapper(contract)
+        physical.add_invocation(wrapper.function, wrapper.invocation())
+        PhysicalIntrinsic(wrapper)
+      }
+      FloatConstant(bits, type_) => PhysicalFloatConstant(bits, type_)
+      DoubleConstant(bits, type_) => PhysicalDoubleConstant(bits, type_)
+      InstanceGlobal(global, type_, key, _) =>
+        PhysicalInstanceGlobal(global, type_, key)
+    }
+    physical.add_global(entry.value, { producer, contract, })
   }
 }
 
