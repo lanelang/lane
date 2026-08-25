@@ -128,7 +128,7 @@ fn ImageLowerer::emit_physical_anf(
 ) -> @bytecode.BytecodeImage raise LoisvmLoweringError {
   let physical = verified.program
   let entry_function = match physical.required_global(entry).producer {
-    PhysicalFunction(function, _) => function
+    PhysicalFunction(function) => function
     _ => raise MissingEntry(value=entry)
   }
   let functions : Array[@vmcfg.FunctionEntry] = []

@@ -53,15 +53,11 @@ priv struct PhysicalGlobalValue {
 ///|
 priv enum PhysicalGlobalProducer {
   PhysicalUnit
-  PhysicalFunction(@bytecode.FunctionId, @anf.RuntimeType)
+  PhysicalFunction(@bytecode.FunctionId)
   PhysicalIntrinsic(IntrinsicWrapperPlan)
-  PhysicalFloatConstant(Int, @anf.RuntimeType)
-  PhysicalDoubleConstant(Int64, @anf.RuntimeType)
-  PhysicalInstanceGlobal(
-    @bytecode.GlobalId,
-    @anf.RuntimeType,
-    CanonicalRuntimeTypeKey
-  )
+  PhysicalFloatConstant(Int)
+  PhysicalDoubleConstant(Int64)
+  PhysicalInstanceGlobal(@bytecode.GlobalId, CanonicalRuntimeTypeKey)
 }
 
 ///|
@@ -627,7 +623,6 @@ priv struct RecursiveFunctionPlan {
 priv struct DeferredNestedCallable {
   source : @anf.AnfFunctionId
   lowered_function : @bytecode.FunctionId
-  type_ : @anf.RuntimeType
   environment : @vmcfg.ValueId?
   invocation : CanonicalCallableAbi
 }
@@ -635,10 +630,10 @@ priv struct DeferredNestedCallable {
 ///|
 priv enum LocalValue {
   Unit
-  Slot(@vmcfg.ValueId, @anf.RuntimeType, CanonicalRuntimeTypeKey)
+  Slot(@vmcfg.ValueId, CanonicalRuntimeTypeKey)
   ClosedAggregate(ClosedAggregateContract, Array[LocalValue])
   Global(PhysicalGlobalProducer)
-  RecursiveFunction(@bytecode.FunctionId, @anf.RuntimeType, @vmcfg.ValueId?)
+  RecursiveFunction(@bytecode.FunctionId, @vmcfg.ValueId?)
   NestedCallable(DeferredNestedCallable)
   EvidenceApplied(PhysicalGlobalProducer, PhysicalEvidenceApplication)
   EvidenceAppliedNestedCallable(
@@ -647,7 +642,6 @@ priv enum LocalValue {
   )
   EvidenceAppliedCallable(
     @vmcfg.ValueId,
-    @anf.RuntimeType,
     CanonicalRuntimeTypeKey,
     PhysicalEvidenceApplication
   )

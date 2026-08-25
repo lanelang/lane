@@ -318,8 +318,8 @@ fn lower_initializer_step(
   let (result_abi, returned) = match
     (physical_program.required_global(step.value).producer, result.value) {
     (PhysicalUnit, Unit) => (@bytecode.ResultAbi::Unit, None)
-    (PhysicalInstanceGlobal(_, _, shape), Slot(source, _, actual)) if shape ==
-      actual => (shape.physical_shape().result_abi(), Some(source))
+    (PhysicalInstanceGlobal(_, shape), Slot(source, actual)) if shape == actual =>
+      (shape.physical_shape().result_abi(), Some(source))
     _ =>
       raise UnsupportedExpression(
         detail="top-level initializer result does not match its instance global",
@@ -368,7 +368,7 @@ fn lower_initializer_orchestrator(
     match physical_program.required_global(step.value).producer {
       PhysicalUnit =>
         lowerer.emit(CallDirect(step.function, None, [], [], None))
-      PhysicalInstanceGlobal(global, _, shape) => {
+      PhysicalInstanceGlobal(global, shape) => {
         let destination = lowerer.fresh_metadata(shape.value_metadata(None))
         lowerer.emit(CallDirect(step.function, None, [], [], Some(destination)))
         lowerer.emit(InitGlobal(global, destination))
@@ -400,7 +400,6 @@ fn lower_intrinsic_wrapper(
   plan : IntrinsicWrapperPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let intrinsic = plan.contract.intrinsic
-  let parameter_types = plan.contract.parameters
   let lowerer : FunctionLowerer = {
     physical_program,
     function: Some(plan.function),
@@ -437,20 +436,14 @@ fn lower_intrinsic_wrapper(
     Direct => {
       let arguments = []
       for index, slot in parameter_slots {
-        arguments.push(
-          LocalValue::Slot(
-            slot,
-            parameter_types[index],
-            plan.parameter_shapes[index],
-          ),
-        )
+        arguments.push(LocalValue::Slot(slot, plan.parameter_shapes[index]))
       }
       let result = lowerer.lower_intrinsic(
         plan.contract,
         arguments,
         plan.result_shape,
       )
-      guard result is Slot(result_slot, _, _) else {
+      guard result is Slot(result_slot, _) else {
         raise UnsupportedIntrinsic(name=intrinsic.name())
       }
       lowerer.terminate(Return(Some(result_slot)))

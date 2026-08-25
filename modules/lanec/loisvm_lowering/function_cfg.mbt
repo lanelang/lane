@@ -81,7 +81,7 @@ fn lower_function_body(
           )
           lowerer.bind_capture(
             captured.binding,
-            LocalValue::Slot(destination, captured.type_, capture_shape),
+            LocalValue::Slot(destination, capture_shape),
           )
         }
         (None, None) => lowerer.bind_capture(captured.binding, Unit)
@@ -106,7 +106,6 @@ fn lower_function_body(
       value: recursive.recursive.value,
       lowered: RecursiveFunction(
         recursive.recursive.function,
-        recursive.recursive.type_,
         lowerer.environment,
       ),
     })
@@ -118,7 +117,6 @@ fn lower_function_body(
         detail="physical function parameter is not a source value binding",
       )
     }
-    let type_ = parameter.type_
     let shape = lowerer.physical_parameter_shape(index)
     match shape {
       Product(contract, payload_shapes) => {
@@ -128,9 +126,8 @@ fn lower_function_body(
           )
         }
         let payloads = []
-        for payload_index, payload_type in contract.payload_types {
+        for payload_index, _ in contract.payload_types {
           let (slot, payload) = lowerer.fresh_planned_optional_slot(
-            payload_type,
             lowerer.physical_shape(payload_shapes[payload_index]),
             parameter.field_erased_evidence[payload_index],
           )
@@ -146,7 +143,6 @@ fn lower_function_body(
       }
       shape => {
         let (slot, lowered) = lowerer.fresh_planned_optional_slot(
-          type_,
           shape,
           parameter.erased_evidence,
         )
@@ -166,13 +162,13 @@ fn lower_function_body(
     None =>
       match result.value {
         Unit => Return(None)
-        Slot(slot, _, _) => Return(Some(slot))
+        Slot(slot, _) => Return(Some(slot))
         ClosedAggregate(_, _)
         | Global(_)
         | NestedCallable(_)
-        | RecursiveFunction(_, _, _)
+        | RecursiveFunction(_, _)
         | EvidenceApplied(_, _)
-        | EvidenceAppliedCallable(_, _, _, _)
+        | EvidenceAppliedCallable(_, _, _)
         | EvidenceAppliedNestedCallable(_, _) =>
           raise UnsupportedExpression(
             detail="function returns an unapplied callable",
@@ -292,17 +288,9 @@ fn tail_destination_matches(
 ) -> Bool {
   match (destination, result) {
     (None, Unit) => true
-    (Some(destination), Slot(result, _, _)) => destination == result
+    (Some(destination), Slot(result, _)) => destination == result
     _ => false
   }
-}
-
-///|
-fn ImageLowerer::requires_runtime_evidence(
-  _self : ImageLowerer,
-  _parameter : @anf.RuntimeEvidenceParameter,
-) -> Bool {
-  true
 }
 
 ///|
@@ -355,7 +343,6 @@ fn FunctionLowerer::new_block(
 /// must cross every edge together.
 fn FunctionLowerer::fresh_block_value_parameter(
   self : FunctionLowerer,
-  type_ : @anf.RuntimeType,
   shape : PhysicalValueShape,
 ) -> (Array[@vmcfg.ValueId], LocalValue) raise LoisvmLoweringError {
   match shape {
@@ -376,7 +363,7 @@ fn FunctionLowerer::fresh_block_value_parameter(
       }
       let value = self.fresh_metadata(key.value_metadata(companion))
       parameters.push(value)
-      (parameters, LocalValue::Slot(value, type_, key))
+      (parameters, LocalValue::Slot(value, key))
     }
   }
 }
@@ -388,7 +375,7 @@ fn FunctionLowerer::block_value_arguments(
 ) -> Array[@vmcfg.ValueId] raise LoisvmLoweringError {
   match value {
     Unit => []
-    Slot(slot, _, _) => {
+    Slot(slot, _) => {
       let arguments = []
       if self.values[slot.value].cleanup is OwnedErased {
         guard self.values[slot.value].erased_companion is Some(companion) else {
@@ -404,9 +391,9 @@ fn FunctionLowerer::block_value_arguments(
     ClosedAggregate(_, _)
     | Global(_)
     | NestedCallable(_)
-    | RecursiveFunction(_, _, _)
+    | RecursiveFunction(_, _)
     | EvidenceApplied(_, _)
-    | EvidenceAppliedCallable(_, _, _, _)
+    | EvidenceAppliedCallable(_, _, _)
     | EvidenceAppliedNestedCallable(_, _) =>
       raise UnsupportedExpression(
         detail="control-flow edge carries an unapplied callable",

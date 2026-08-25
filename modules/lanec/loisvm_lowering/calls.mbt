@@ -35,7 +35,7 @@ fn FunctionLowerer::lower_call(
           )
         }
         guard self.materialize_representation_worker(plan, callable.environment)
-          is Slot(worker, _, _) else {
+          is Slot(worker, _) else {
           abort("representation worker was not materialized")
         }
         (Some(worker), None)
@@ -65,7 +65,6 @@ fn FunctionLowerer::lower_call(
           self.materialize_planned_value_flow(
             "intrinsic argument \{index} at \{Repr(physical_call.site)}",
             argument,
-            physical_call.parameter_types[index],
             flow.target,
             flow.bridge,
           ).value,
@@ -81,33 +80,32 @@ fn FunctionLowerer::lower_call(
       self.materialize_planned_value_flow(
         "intrinsic result at \{Repr(physical_call.site)}",
         { value: result, contract: physical_call.result.source, },
-        physical_call.result_type,
         physical_call.result.target,
         physical_call.result.bridge,
       ).value
     }
-    Global(PhysicalFunction(function, _)) =>
+    Global(PhysicalFunction(function)) =>
       self.lower_physical_call(
         lowered_arguments,
         physical_call,
         direct=Some((function, None)),
         callable=None,
       )
-    RecursiveFunction(function, _, environment) =>
+    RecursiveFunction(function, environment) =>
       self.lower_physical_call(
         lowered_arguments,
         physical_call,
         direct=Some((function, environment)),
         callable=None,
       )
-    EvidenceApplied(PhysicalFunction(function, _), _) =>
+    EvidenceApplied(PhysicalFunction(function), _) =>
       self.lower_physical_call(
         lowered_arguments,
         physical_call,
         direct=Some((function, None)),
         callable=None,
       )
-    EvidenceAppliedCallable(callable, _, _, _) =>
+    EvidenceAppliedCallable(callable, _, _) =>
       self.lower_physical_call(
         lowered_arguments,
         physical_call,
@@ -115,10 +113,9 @@ fn FunctionLowerer::lower_call(
         callable=Some(callable),
       )
     NestedCallable(callable) => {
-      guard self.materialize_nested_callable(callable) is Slot(slot, type_, _) else {
+      guard self.materialize_nested_callable(callable) is Slot(slot, _) else {
         abort("nested callable was not materialized")
       }
-      ignore(type_)
       self.lower_physical_call(
         lowered_arguments,
         physical_call,
@@ -127,7 +124,7 @@ fn FunctionLowerer::lower_call(
       )
     }
     EvidenceAppliedNestedCallable(callable, application) => {
-      guard self.materialize_nested_callable(callable) is Slot(slot, _, _) else {
+      guard self.materialize_nested_callable(callable) is Slot(slot, _) else {
         abort("nested callable was not materialized")
       }
       ignore(application)
@@ -142,7 +139,7 @@ fn FunctionLowerer::lower_call(
       raise InvalidTypeApplication(
         detail="type application target is not a generic function",
       )
-    Slot(callable, _, _) =>
+    Slot(callable, _) =>
       self.lower_physical_call(
         lowered_arguments,
         physical_call,
@@ -159,27 +156,21 @@ fn FunctionLowerer::materialize_local(
   value : LocalValue,
 ) -> LocalValue raise LoisvmLoweringError {
   match value {
-    Global(PhysicalFunction(function, type_)) =>
-      self.materialize_callable_value(function, type_, None)
-    Global(PhysicalIntrinsic(wrapper)) => {
-      let type_ = wrapper.contract.type_()
+    Global(PhysicalFunction(function)) =>
+      self.materialize_callable_value(function, None)
+    Global(PhysicalIntrinsic(wrapper)) =>
       self.materialize_callable_value_with_abi(
         wrapper.function,
-        type_,
         None,
         wrapper.invocation(),
       )
-    }
-    RecursiveFunction(function, type_, environment) =>
-      self.materialize_callable_value(function, type_, environment)
+    RecursiveFunction(function, environment) =>
+      self.materialize_callable_value(function, environment)
     NestedCallable(callable) => self.materialize_nested_callable(callable)
     EvidenceApplied(global, application) =>
       self.materialize_evidence_application(Global(global), application)
-    EvidenceAppliedCallable(callable, type_, shape, application) =>
-      self.materialize_evidence_application(
-        Slot(callable, type_, shape),
-        application,
-      )
+    EvidenceAppliedCallable(callable, shape, application) =>
+      self.materialize_evidence_application(Slot(callable, shape), application)
     EvidenceAppliedNestedCallable(callable, application) =>
       self.materialize_evidence_application(
         NestedCallable(callable),
@@ -195,7 +186,7 @@ fn FunctionLowerer::materialize_physical_local(
   physical : PhysicalLocalValue,
 ) -> PhysicalLocalValue raise LoisvmLoweringError {
   let value = match physical.value {
-    Global(PhysicalDoubleConstant(bits, type_)) => {
+    Global(PhysicalDoubleConstant(bits)) => {
       guard self.physical_shape(physical.contract.shape)
         is PhysicalValueShape::Slot(shape) else {
         raise RepresentationSpecializationInvariant(
@@ -204,9 +195,9 @@ fn FunctionLowerer::materialize_physical_local(
       }
       let destination = self.fresh_metadata(shape.value_metadata(None))
       self.emit(ConstF64(destination, bits))
-      LocalValue::Slot(destination, type_, shape)
+      LocalValue::Slot(destination, shape)
     }
-    Global(PhysicalFloatConstant(bits, type_)) => {
+    Global(PhysicalFloatConstant(bits)) => {
       guard self.physical_shape(physical.contract.shape)
         is PhysicalValueShape::Slot(shape) else {
         raise RepresentationSpecializationInvariant(
@@ -215,7 +206,7 @@ fn FunctionLowerer::materialize_physical_local(
       }
       let destination = self.fresh_metadata(shape.value_metadata(None))
       self.emit(ConstF32(destination, bits))
-      LocalValue::Slot(destination, type_, shape)
+      LocalValue::Slot(destination, shape)
     }
     value => self.materialize_local(value)
   }
@@ -234,7 +225,7 @@ fn FunctionLowerer::materialize_evidence_application(
     )
   }
   let source = self.materialize_local(source)
-  guard source is Slot(slot, _, shape) else {
+  guard source is Slot(slot, shape) else {
     raise RepresentationSpecializationInvariant(
       detail="evidence application source did not materialize as a callable",
     )
@@ -244,7 +235,7 @@ fn FunctionLowerer::materialize_evidence_application(
       self.materialize_planned_callable_bridge(
         "evidence-application", source, contract,
       )
-    None => Slot(slot, application.target_type, shape)
+    None => Slot(slot, shape)
   }
 }
 
@@ -256,8 +247,7 @@ fn FunctionLowerer::lower_physical_call(
   direct~ : (@bytecode.FunctionId, @vmcfg.ValueId?)?,
   callable~ : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
-  if call.parameter_types.length() != arguments.length() ||
-    call.arguments.length() != arguments.length() {
+  if call.arguments.length() != arguments.length() {
     raise RepresentationSpecializationInvariant(
       detail="call arguments disagree with its physical invocation contract",
     )
@@ -270,13 +260,12 @@ fn FunctionLowerer::lower_physical_call(
     let adapted = self.materialize_planned_value_flow(
       "call argument \{index} at \{Repr(call.site)}",
       argument,
-      call.parameter_types[index],
       flow.target,
       flow.bridge,
     )
     match adapted.value {
       Unit => ()
-      Slot(slot, _, shape) => {
+      Slot(slot, shape) => {
         guard target_shape is PhysicalValueShape::Slot(expected) &&
           shape == expected else {
           raise RepresentationSpecializationInvariant(
@@ -318,7 +307,6 @@ fn FunctionLowerer::lower_physical_call(
   self.materialize_planned_value_flow(
     "call result at \{Repr(call.site)}",
     { value: destination.1, contract: call.result.source, },
-    call.result_type,
     call.result.target,
     call.result.bridge,
   ).value
@@ -365,7 +353,7 @@ fn FunctionLowerer::fresh_physical_call_result(
           )
       }
       let slot = self.fresh_metadata(key.value_metadata(Some(companion)))
-      (Some(slot), LocalValue::Slot(slot, call.abi_result_type, key))
+      (Some(slot), LocalValue::Slot(slot, key))
     }
     (PhysicalValueShape::Slot(Value({ cleanup: OwnedErased, .. })), None) =>
       raise RepresentationSpecializationInvariant(
@@ -375,8 +363,7 @@ fn FunctionLowerer::fresh_physical_call_result(
       raise RepresentationSpecializationInvariant(
         detail="call at \{Repr(call.site)} planned runtime evidence for a non-erased result",
       )
-    (_, None) =>
-      self.fresh_planned_optional_slot(call.abi_result_type, shape, None)
+    (_, None) => self.fresh_planned_optional_slot(shape, None)
   }
 }
 
@@ -385,14 +372,12 @@ fn FunctionLowerer::materialize_planned_call_argument(
   self : FunctionLowerer,
   site : @anf.AnfBindingId,
   argument : PhysicalLocalValue,
-  target_type : @anf.RuntimeType,
   target : PhysicalValueContract,
   bridge : PhysicalValueBridge?,
 ) -> PhysicalLocalValue raise LoisvmLoweringError {
   self.materialize_planned_value_flow(
     "Runtime ANF flow at \{Repr(site)}",
     argument,
-    target_type,
     target,
     bridge,
   )
@@ -403,7 +388,6 @@ fn FunctionLowerer::materialize_planned_value_flow(
   self : FunctionLowerer,
   provenance : String,
   argument : PhysicalLocalValue,
-  target_type : @anf.RuntimeType,
   target : PhysicalValueContract,
   bridge : PhysicalValueBridge?,
 ) -> PhysicalLocalValue raise LoisvmLoweringError {
@@ -438,10 +422,10 @@ fn FunctionLowerer::materialize_planned_value_flow(
           )
       }
       let erased = self.erase_planned_value(argument, witness)
-      LocalValue::Slot(erased, target_type, target)
+      LocalValue::Slot(erased, target)
     }
     Some(Unerase(callable)) => {
-      guard argument.value is Slot(source, _, source_shape) &&
+      guard argument.value is Slot(source, source_shape) &&
         source_shape
         is CanonicalRuntimeTypeKey::Value({ cleanup: OwnedErased, .. }) else {
         raise RepresentationSpecializationInvariant(
@@ -457,9 +441,7 @@ fn FunctionLowerer::materialize_planned_value_flow(
           )
         None => target_shape
       }
-      let unerased = self.unerase_planned_call_argument(
-        source, target_type, unerased_shape,
-      )
+      let unerased = self.unerase_planned_call_argument(source, unerased_shape)
       match callable {
         Some(callable) =>
           self.materialize_planned_callable_bridge(
@@ -472,15 +454,15 @@ fn FunctionLowerer::materialize_planned_value_flow(
   }
   let value = match (target_shape, adapted) {
     (Unit, Unit) => LocalValue::Unit
-    (Slot(expected), Slot(slot, _, actual)) if expected == actual =>
-      LocalValue::Slot(slot, target_type, expected)
+    (Slot(expected), Slot(slot, actual)) if expected == actual =>
+      LocalValue::Slot(slot, expected)
     (Product(_, _), _) =>
       raise RepresentationSpecializationInvariant(
         detail="a call argument cannot expose an unlowered product shape",
       )
     _ =>
       raise RepresentationSpecializationInvariant(
-        detail="\{provenance} has the planned physical shape but is not a materialized slot for \{Repr(target_type)}",
+        detail="\{provenance} does not materialize its planned physical value contract",
       )
   }
   { value, contract: target, }
@@ -490,7 +472,6 @@ fn FunctionLowerer::materialize_planned_value_flow(
 fn FunctionLowerer::unerase_planned_call_argument(
   self : FunctionLowerer,
   source : @vmcfg.ValueId,
-  target_type : @anf.RuntimeType,
   target_shape : PhysicalValueShape,
 ) -> LocalValue raise LoisvmLoweringError {
   match target_shape {
@@ -518,7 +499,7 @@ fn FunctionLowerer::unerase_planned_call_argument(
         F32 => self.emit(UneraseF32(destination, source))
         F64 => self.emit(UneraseF64(destination, source))
       }
-      LocalValue::Slot(destination, target_type, key)
+      LocalValue::Slot(destination, key)
     }
   }
 }
@@ -533,8 +514,7 @@ fn FunctionLowerer::lower_representation_specialized_call(
   environment~ : @vmcfg.ValueId?,
   callable~ : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
-  if values.length() != plan.parameter_types.length() ||
-    call.parameter_types != plan.parameter_types {
+  if values.length() != call.arguments.length() {
     raise RepresentationSpecializationInvariant(
       detail="representation-specialized call arguments do not match its worker",
     )
@@ -552,8 +532,7 @@ fn FunctionLowerer::lower_representation_specialized_call(
   let witnesses = self.materialize_physical_call_witnesses(call)
   let arguments = []
   let mut physical_index = 0
-  for index, formal in plan.parameter_types {
-    let flow = call.arguments[index]
+  for index, flow in call.arguments {
     let target_shape = self.physical_shape(flow.target.shape)
     match target_shape {
       Product(product_contract, payload_shapes) => {
@@ -582,7 +561,6 @@ fn FunctionLowerer::lower_representation_specialized_call(
         let adapted = self.materialize_planned_value_flow(
           "representation call argument \{index} at \{Repr(call.site)}",
           values[index],
-          formal,
           flow.target,
           flow.bridge,
         )
@@ -624,7 +602,6 @@ fn FunctionLowerer::lower_representation_specialized_call(
   self.materialize_planned_value_flow(
     "representation call result at \{Repr(call.site)}",
     { value: worker_result.1, contract: call.result.source, },
-    call.result_type,
     call.result.target,
     call.result.bridge,
   ).value
@@ -641,7 +618,7 @@ fn FunctionLowerer::append_planned_call_argument(
   ignore(self)
   match value {
     Unit => index
-    Slot(slot, _, shape) => {
+    Slot(slot, shape) => {
       guard parameters.get(index) is Some(expected) && shape == expected else {
         raise RepresentationSpecializationInvariant(
           detail="representation-specialized argument disagrees with the planned worker contract",
@@ -680,23 +657,22 @@ fn FunctionLowerer::lower_intrinsic(
   result_shape : CanonicalRuntimeTypeKey,
 ) -> LocalValue raise LoisvmLoweringError {
   let intrinsic = contract.intrinsic
-  let result_type = contract.result
   match (intrinsic, arguments) {
     (
       CharToI32
       | I32ToChar
       | StringToBytes
       | BytesToString,
-      [Slot(source, _, shape)],
+      [Slot(source, shape)],
     ) => {
       ignore(shape)
-      return Slot(source, result_type, result_shape)
+      return Slot(source, result_shape)
     }
     _ => ()
   }
   let slots = arguments.map(fn(argument) {
     match argument {
-      Slot(slot, _, _) => slot
+      Slot(slot, _) => slot
       _ => abort("intrinsic argument is not represented by a slot")
     }
   })
@@ -757,7 +733,7 @@ fn FunctionLowerer::lower_intrinsic(
     _ => raise UnsupportedIntrinsic(name=intrinsic.name())
   }
   self.emit(instruction)
-  Slot(destination, result_type, result_shape)
+  Slot(destination, result_shape)
 }
 
 ///|

@@ -41,27 +41,22 @@ fn ImageLowerer::callable_adapter_recipe_with_interfaces(
   let evidence : Array[CallableAdapterEvidenceBinding] = []
   let mut input_index = 0
   for target_parameter in target_type_parameters {
-    let target_requires_evidence = self.requires_runtime_evidence(
-      target_parameter,
+    let recipe = CallableAdapterEvidenceRecipe::Input(input_index)
+    bind_callable_adapter_evidence(
+      evidence,
+      Existing(target_parameter.id),
+      recipe,
     )
-    if target_requires_evidence {
-      let recipe = CallableAdapterEvidenceRecipe::Input(input_index)
-      bind_callable_adapter_evidence(
-        evidence,
-        Existing(target_parameter.id),
-        recipe,
-      )
-      let resolved = self.callable_adapter_parameter_evidence(
-        target_parameter,
-        substitutions.apply_evidence(Parameter(target_parameter.id)),
-      )
-      match resolved {
-        Existing(_) | ApplyEvidence(_, _) =>
-          bind_callable_adapter_evidence(evidence, resolved, recipe)
-        _ => ()
-      }
-      input_index += 1
+    let resolved = self.callable_adapter_parameter_evidence(
+      target_parameter,
+      substitutions.apply_evidence(Parameter(target_parameter.id)),
+    )
+    match resolved {
+      Existing(_) | ApplyEvidence(_, _) =>
+        bind_callable_adapter_evidence(evidence, resolved, recipe)
+      _ => ()
     }
+    input_index += 1
   }
   if input_index != target_abi.witnesses.length() {
     raise RepresentationSpecializationInvariant(

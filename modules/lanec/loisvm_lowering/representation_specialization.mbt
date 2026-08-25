@@ -1900,14 +1900,12 @@ fn ImageLowerer::canonical_callable_abi_under(
   let (type_parameters, parameters, result) = function_type_parts(type_)
   let witnesses : Array[@bytecode.ValueAbi] = []
   for parameter in type_parameters {
-    if self.requires_runtime_evidence(parameter) {
-      let metadata = runtime_evidence_metadata(parameter)
-      witnesses.push({
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-      })
-    }
+    let metadata = runtime_evidence_metadata(parameter)
+    witnesses.push({
+      representation: metadata.representation,
+      cleanup: metadata.cleanup,
+      kind: metadata.kind,
+    })
   }
   let parameter_abis : Array[CanonicalRuntimeTypeKey] = []
   for parameter in parameters {

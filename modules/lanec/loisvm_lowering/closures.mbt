@@ -7,7 +7,6 @@ fn FunctionLowerer::lower_callable_allocation(
   NestedCallable({
     source: allocation.function,
     lowered_function: implementation.function,
-    type_: implementation.type_,
     environment: self.capture_environment(allocation),
     invocation: allocation.interface.invocation,
   })
@@ -20,7 +19,6 @@ fn FunctionLowerer::materialize_nested_callable(
 ) -> LocalValue raise LoisvmLoweringError {
   self.materialize_callable_value_with_abi(
     callable.lowered_function,
-    callable.type_,
     callable.environment,
     callable.invocation,
   )
@@ -30,22 +28,20 @@ fn FunctionLowerer::materialize_nested_callable(
 fn FunctionLowerer::materialize_callable_value(
   self : FunctionLowerer,
   lowered_function : @bytecode.FunctionId,
-  lowered_type : @anf.RuntimeType,
   environment : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
-  self.materialize_planned_callable(lowered_function, lowered_type, environment)
+  self.materialize_planned_callable(lowered_function, environment)
 }
 
 ///|
 fn FunctionLowerer::materialize_callable_value_with_abi(
   self : FunctionLowerer,
   lowered_function : @bytecode.FunctionId,
-  lowered_type : @anf.RuntimeType,
   environment : @vmcfg.ValueId?,
   invocation : CanonicalCallableAbi,
 ) -> LocalValue raise LoisvmLoweringError {
   self.materialize_planned_callable_with_abi(
-    lowered_function, lowered_type, environment, invocation,
+    lowered_function, environment, invocation,
   )
 }
 
@@ -55,19 +51,17 @@ fn FunctionLowerer::materialize_representation_worker(
   plan : PhysicalRepresentationWorkerCall,
   environment : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
-  self.materialize_planned_callable(plan.worker, plan.type_, environment)
+  self.materialize_planned_callable(plan.worker, environment)
 }
 
 ///|
 fn FunctionLowerer::materialize_planned_callable(
   self : FunctionLowerer,
   lowered_function : @bytecode.FunctionId,
-  lowered_type : @anf.RuntimeType,
   environment : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
   self.materialize_planned_callable_with_abi(
     lowered_function,
-    lowered_type,
     environment,
     self.physical_program.required_invocation(lowered_function),
   )
@@ -77,7 +71,6 @@ fn FunctionLowerer::materialize_planned_callable(
 fn FunctionLowerer::materialize_planned_callable_with_abi(
   self : FunctionLowerer,
   lowered_function : @bytecode.FunctionId,
-  lowered_type : @anf.RuntimeType,
   environment : @vmcfg.ValueId?,
   invocation : CanonicalCallableAbi,
 ) -> LocalValue raise LoisvmLoweringError {
@@ -86,11 +79,11 @@ fn FunctionLowerer::materialize_planned_callable_with_abi(
   match environment {
     None => {
       self.emit(ConstFunction(destination, lowered_function))
-      LocalValue::Slot(destination, lowered_type, shape)
+      LocalValue::Slot(destination, shape)
     }
     Some(environment) => {
       self.emit(MakeClosure(destination, lowered_function, environment))
-      LocalValue::Slot(destination, lowered_type, shape)
+      LocalValue::Slot(destination, shape)
     }
   }
 }
@@ -116,11 +109,7 @@ fn FunctionLowerer::lower_recursive_group(
       )
     }
     let implementation = allocation.lowered_implementation
-    let deferred = RecursiveFunction(
-      implementation.function,
-      implementation.type_,
-      environment,
-    )
+    let deferred = RecursiveFunction(implementation.function, environment)
     let lowered = self.materialize_local(deferred)
     let lowered = self.apply_physical_binding_flow(binding.flow, {
       value: lowered,

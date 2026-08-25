@@ -22,13 +22,13 @@ fn FunctionLowerer::erase_planned_value(
   let destination = self.fresh_erased_slot(witness, Owned)
   match self.materialize_local(value) {
     Unit => self.emit(EraseUnit(destination))
-    Slot(source, _, Value({ representation: I32, .. })) =>
+    Slot(source, Value({ representation: I32, .. })) =>
       self.emit(EraseI32(destination, source))
-    Slot(source, _, Value({ representation: I64, .. }))
-    | Slot(source, _, Callable(_)) => self.emit(EraseI64(destination, source))
-    Slot(source, _, Value({ representation: F32, .. })) =>
+    Slot(source, Value({ representation: I64, .. }))
+    | Slot(source, Callable(_)) => self.emit(EraseI64(destination, source))
+    Slot(source, Value({ representation: F32, .. })) =>
       self.emit(EraseF32(destination, source))
-    Slot(source, _, Value({ representation: F64, .. })) =>
+    Slot(source, Value({ representation: F64, .. })) =>
       self.emit(EraseF64(destination, source))
     _ =>
       raise RepresentationSpecializationInvariant(

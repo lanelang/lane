@@ -998,7 +998,7 @@ fn FunctionLowerer::materialize_planned_callable_bridge(
   let plan = callable.adapter
   let recipe = plan.recipe
   let materialized = self.materialize_local(value)
-  guard materialized is Slot(source, _, source_shape) &&
+  guard materialized is Slot(source, source_shape) &&
     source_shape == CanonicalRuntimeTypeKey::Callable(recipe.source_abi) else {
     raise RepresentationSpecializationInvariant(
       detail="planned callable bridge source is not \{Repr(recipe.source_abi)} in \{provenance}",
@@ -1015,7 +1015,7 @@ fn FunctionLowerer::materialize_planned_callable_bridge(
     self.materialize_runtime_evidence(evidence) catch {
       error =>
         raise RepresentationSpecializationInvariant(
-          detail="\{provenance} in \{Repr(self.function)} cannot materialize planned captured evidence \{Repr(evidence)} for \{Repr(callable.source_type)} / \{Repr(recipe.source_abi)} -> \{Repr(callable.target_type)} / \{Repr(recipe.target_abi)}: \{Repr(error)}",
+          detail="\{provenance} in \{Repr(self.function)} cannot materialize planned captured evidence \{Repr(evidence)} for \{Repr(recipe.source_abi)} -> \{Repr(recipe.target_abi)}: \{Repr(error)}",
         )
     }
   })
@@ -1034,7 +1034,7 @@ fn FunctionLowerer::materialize_planned_callable_bridge(
   let target_shape = CanonicalRuntimeTypeKey::Callable(recipe.target_abi)
   let adapted = self.fresh_metadata(target_shape.value_metadata(None))
   self.emit(MakeClosure(adapted, plan.function, environment))
-  LocalValue::Slot(adapted, callable.target_type, target_shape)
+  LocalValue::Slot(adapted, target_shape)
 }
 
 ///|

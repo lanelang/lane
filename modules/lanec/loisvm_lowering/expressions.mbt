@@ -75,21 +75,21 @@ fn FunctionLowerer::lower_evidence_apply(
   }
   match lowered {
     Global(global) => EvidenceApplied(global, application.application)
-    Slot(callable, type_, shape) =>
-      EvidenceAppliedCallable(callable, type_, shape, application.application)
+    Slot(callable, shape) =>
+      EvidenceAppliedCallable(callable, shape, application.application)
     NestedCallable(callable) =>
       EvidenceAppliedNestedCallable(callable, application.application)
     EvidenceApplied(global, _) =>
       EvidenceApplied(global, application.application)
-    EvidenceAppliedCallable(callable, type_, shape, _) =>
-      EvidenceAppliedCallable(callable, type_, shape, application.application)
+    EvidenceAppliedCallable(callable, shape, _) =>
+      EvidenceAppliedCallable(callable, shape, application.application)
     EvidenceAppliedNestedCallable(callable, _) =>
       EvidenceAppliedNestedCallable(callable, application.application)
-    RecursiveFunction(_, _, _) as recursive => {
-      guard self.materialize_local(recursive) is Slot(callable, type_, shape) else {
+    RecursiveFunction(_, _) as recursive => {
+      guard self.materialize_local(recursive) is Slot(callable, shape) else {
         abort("recursive callable was not materialized")
       }
-      EvidenceAppliedCallable(callable, type_, shape, application.application)
+      EvidenceAppliedCallable(callable, shape, application.application)
     }
     _ =>
       raise InvalidTypeApplication(
@@ -117,7 +117,6 @@ fn FunctionLowerer::lower_construct(
     }
     let payloads = []
     for index, payload in physical.payloads {
-      let target_type = contract.payload_types[index]
       let source = self.materialize_physical_local(
         self.lower_physical_atom(payload),
       )
@@ -126,7 +125,6 @@ fn FunctionLowerer::lower_construct(
         self.materialize_planned_value_flow(
           "closed aggregate payload \{index}",
           source,
-          target_type,
           flow.target,
           flow.bridge,
         ).value,
@@ -141,14 +139,12 @@ fn FunctionLowerer::lower_construct(
   }
   let family = data.family
   let constructor_plan = data.constructor_plan
-  let storage_types = constructor_plan.storage_types
   let fields = []
   for evidence in data.stored_evidence {
     fields.push(self.materialize_runtime_evidence(evidence))
   }
   let witnesses = []
   for index, payload in physical.payloads {
-    let storage_type = storage_types[index]
     let source = self.materialize_physical_local(
       self.lower_physical_atom(payload),
     )
@@ -156,13 +152,12 @@ fn FunctionLowerer::lower_construct(
     let lowered = self.materialize_planned_value_flow(
         "data payload \{index}",
         source,
-        storage_type,
         flow.target,
         flow.bridge,
       ).value
     match lowered {
       Unit => ()
-      Slot(field, _, _) => {
+      Slot(field, _) => {
         if self.values[field.value].erased_companion is Some(witness) {
           witnesses.push(witness)
         }
@@ -190,7 +185,7 @@ fn FunctionLowerer::lower_construct(
       fields,
     ),
   )
-  LocalValue::Slot(destination, data.result_type, result_key)
+  LocalValue::Slot(destination, result_key)
 }
 
 ///|
@@ -223,10 +218,10 @@ fn FunctionLowerer::find_value(
   }
   match self.physical_program.required_global(value).producer {
     PhysicalUnit => Unit
-    PhysicalInstanceGlobal(global, type_, shape) => {
+    PhysicalInstanceGlobal(global, shape) => {
       let destination = self.fresh_metadata(shape.borrowed_value_metadata(None))
       self.emit(BorrowGlobal(destination, global))
-      LocalValue::Slot(destination, type_, shape)
+      LocalValue::Slot(destination, shape)
     }
     global => Global(global)
   }
@@ -282,46 +277,39 @@ fn FunctionLowerer::lower_literal_with_shape(
       Unit
     }
     Bool(value) => {
-      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstBool(slot, value))
-      Slot(slot, type_, key)
+      Slot(slot, key)
     }
     I64(value) => {
-      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstI64(slot, value))
-      Slot(slot, type_, key)
+      Slot(slot, key)
     }
     I32(value) => {
-      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstI32(slot, value))
-      Slot(slot, type_, key)
+      Slot(slot, key)
     }
     F32(value) => {
-      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstF32(slot, value.reinterpret_as_int()))
-      Slot(slot, type_, key)
+      Slot(slot, key)
     }
     Char(value) => {
-      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstChar(slot, value))
-      Slot(slot, type_, key)
+      Slot(slot, key)
     }
     F64(value) => {
-      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstF64(slot, value.reinterpret_as_int64()))
-      Slot(slot, type_, key)
+      Slot(slot, key)
     }
     ByteSequence(constant) => {
-      let type_ = literal.runtime_type()
       let (slot, key) = fresh()
       self.emit(ConstString(slot, constant))
-      Slot(slot, type_, key)
+      Slot(slot, key)
     }
   }
 }

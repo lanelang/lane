@@ -33,7 +33,7 @@ fn FunctionLowerer::lower_match(
       self.lower_irrefutable_match(match_, scrutinee.value, alternative)
     }
     Bool => {
-      guard scrutinee.value is Slot(condition, scrutinee_type, shape) else {
+      guard scrutinee.value is Slot(condition, shape) else {
         raise RepresentationSpecializationInvariant(
           detail="Physical ANF Bool match produced a non-slot value",
         )
@@ -42,12 +42,12 @@ fn FunctionLowerer::lower_match(
         site,
         match_,
         condition,
-        LocalValue::Slot(condition, scrutinee_type, shape),
+        LocalValue::Slot(condition, shape),
         result_shape,
       )
     }
     Literal(comparison) => {
-      guard scrutinee.value is Slot(condition, scrutinee_type, shape) else {
+      guard scrutinee.value is Slot(condition, shape) else {
         raise RepresentationSpecializationInvariant(
           detail="Physical ANF literal match produced a non-slot value",
         )
@@ -56,15 +56,14 @@ fn FunctionLowerer::lower_match(
         site,
         match_,
         condition,
-        scrutinee_type,
         shape,
         comparison,
-        LocalValue::Slot(condition, scrutinee_type, shape),
+        LocalValue::Slot(condition, shape),
         result_shape,
       )
     }
     Callable => {
-      guard scrutinee.value is Slot(_, _, _) else {
+      guard scrutinee.value is Slot(_, _) else {
         raise RepresentationSpecializationInvariant(
           detail="Physical ANF callable match produced a non-slot value",
         )
@@ -79,14 +78,12 @@ fn FunctionLowerer::lower_match(
       self.lower_irrefutable_match(match_, scrutinee.value, alternative)
     }
     Data(data) => {
-      guard scrutinee.value is Slot(condition, scrutinee_type, shape) else {
+      guard scrutinee.value is Slot(condition, shape) else {
         raise RepresentationSpecializationInvariant(
           detail="Physical ANF data match produced a non-slot value",
         )
       }
-      self.lower_data_match(
-        site, match_, condition, scrutinee_type, shape, data, result_shape,
-      )
+      self.lower_data_match(site, match_, condition, shape, data, result_shape)
     }
   }
 }
@@ -162,7 +159,6 @@ fn FunctionLowerer::lower_literal_match(
   site : @anf.AnfBindingId,
   match_ : PhysicalAnfMatch,
   initial_scrutinee : @vmcfg.ValueId,
-  scrutinee_type : @anf.RuntimeType,
   scrutinee_shape : CanonicalRuntimeTypeKey,
   comparison : PhysicalLiteralComparison,
   initial_value : LocalValue,
@@ -187,10 +183,7 @@ fn FunctionLowerer::lower_literal_match(
         detail="literal match requires a default alternative",
       )
   }
-  let join_value = self.fresh_block_value_parameter(
-    match_.result_type,
-    result_shape,
-  )
+  let join_value = self.fresh_block_value_parameter(result_shape)
   let join_block = self.new_block(join_value.0)
   let branches : Array[
     (@bytecode.BlockId, @vmcfg.ValueId, @vmcfg.ValueId?, PhysicalAnfAlternative),
@@ -247,9 +240,8 @@ fn FunctionLowerer::lower_literal_match(
       block,
       join_block,
       match_.binder,
-      LocalValue::Slot(branch_scrutinee, scrutinee_type, scrutinee_shape),
+      LocalValue::Slot(branch_scrutinee, scrutinee_shape),
       alternative,
-      match_.result_type,
       branch_environment,
     )
   }
@@ -258,9 +250,8 @@ fn FunctionLowerer::lower_literal_match(
     { value: default_block, },
     join_block,
     match_.binder,
-    LocalValue::Slot(default_scrutinee, scrutinee_type, scrutinee_shape),
+    LocalValue::Slot(default_scrutinee, scrutinee_shape),
     default_alternative,
-    match_.result_type,
     default_environment,
   )
   self.enter_block(join_block)
@@ -275,7 +266,7 @@ fn FunctionLowerer::emit_literal_equality(
   literal : PhysicalLiteral,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
   let lowered = self.lower_literal_with_shape(literal, literal.physical_shape())
-  guard lowered is Slot(expected, _, _) else {
+  guard lowered is Slot(expected, _) else {
     raise UnsupportedExpression(
       detail="literal pattern type does not match its scrutinee",
     )
@@ -346,10 +337,7 @@ fn FunctionLowerer::lower_bool_match(
   let false_block = self.new_block(
     false_environment.map(value => [value]).unwrap_or([]),
   )
-  let join_value = self.fresh_block_value_parameter(
-    match_.result_type,
-    result_shape,
-  )
+  let join_value = self.fresh_block_value_parameter(result_shape)
   let join_block = self.new_block(join_value.0)
   self.terminate(
     BranchBool(
@@ -371,7 +359,6 @@ fn FunctionLowerer::lower_bool_match(
     match_.binder,
     scrutinee,
     if_true,
-    match_.result_type,
     true_environment,
   )
   self.lower_bool_alternative(
@@ -381,7 +368,6 @@ fn FunctionLowerer::lower_bool_match(
     match_.binder,
     scrutinee,
     if_false,
-    match_.result_type,
     false_environment,
   )
   self.enter_block(join_block)

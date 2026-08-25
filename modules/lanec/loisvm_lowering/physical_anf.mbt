@@ -69,20 +69,6 @@ fn ImageLowerer::plan_physical_alternative_constructor(
 }
 
 ///|
-fn PhysicalLiteral::runtime_type(self : PhysicalLiteral) -> @anf.RuntimeType {
-  match self {
-    Unit => @anf.RuntimeType::Unit
-    Bool(_) => Scalar(Bool)
-    I64(_) => Scalar(I64)
-    I32(_) => Scalar(I32)
-    F32(_) => Scalar(F32)
-    Char(_) => Scalar(Char)
-    F64(_) => Scalar(F64)
-    ByteSequence(_) => @anf.RuntimeType::ByteSequence
-  }
-}
-
-///|
 fn PhysicalLiteral::physical_shape(
   self : PhysicalLiteral,
 ) -> PhysicalValueShape {
@@ -208,7 +194,6 @@ priv struct PhysicalAnfConstruct {
 priv struct PhysicalAnfMatch {
   scrutinee : PhysicalAnfAtom
   binder : @buslane.ValueId
-  result_type : @anf.RuntimeType
   alternatives : Array[PhysicalAnfAlternative]
   plan : PhysicalMatchPlan
 }
@@ -594,16 +579,15 @@ fn ImageLowerer::record_physical_global_contracts(
     )
     let producer = match entry.lowered {
       UnitValue => PhysicalGlobalProducer::PhysicalUnit
-      Function(function, type_) => PhysicalFunction(function, type_)
+      Function(function, _) => PhysicalFunction(function)
       Intrinsic(contract) => {
         let wrapper = self.intrinsic_wrapper(contract)
         physical.add_invocation(wrapper.function, wrapper.invocation())
         PhysicalIntrinsic(wrapper)
       }
-      FloatConstant(bits, type_) => PhysicalFloatConstant(bits, type_)
-      DoubleConstant(bits, type_) => PhysicalDoubleConstant(bits, type_)
-      InstanceGlobal(global, type_, key, _) =>
-        PhysicalInstanceGlobal(global, type_, key)
+      FloatConstant(bits, _) => PhysicalFloatConstant(bits)
+      DoubleConstant(bits, _) => PhysicalDoubleConstant(bits)
+      InstanceGlobal(global, _, key, _) => PhysicalInstanceGlobal(global, key)
     }
     physical.add_global(entry.value, { producer, contract, })
   }
@@ -617,8 +601,7 @@ fn PhysicalAnfProgram::verify_call(
   call : PhysicalAnfCall,
 ) -> Unit raise LoisvmLoweringError {
   self.verify_atom(environment, call.callee)
-  if call.arguments.length() != call.plan.arguments.length() ||
-    call.arguments.length() != call.plan.parameter_types.length() {
+  if call.arguments.length() != call.plan.arguments.length() {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF call arity disagrees with its invocation contract",
     )

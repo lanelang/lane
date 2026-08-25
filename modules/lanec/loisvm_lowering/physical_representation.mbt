@@ -110,7 +110,6 @@ priv struct PhysicalValueFlowPlan {
 ///|
 priv struct PhysicalBindingFlowPlan {
   binding : @anf.AnfBindingId
-  target_type : @anf.RuntimeType
   flow : PhysicalValueFlowPlan
 }
 
@@ -119,7 +118,6 @@ priv struct PhysicalBindingFlowPlan {
 /// by the expression plan, rather than reconstructed from its declaration.
 priv struct PhysicalParameterPlan {
   binding : @anf.AnfBindingId
-  type_ : @anf.RuntimeType
   contract : PhysicalValueContract
   erased_evidence : RuntimeEvidencePlan?
   field_erased_evidence : Array[RuntimeEvidencePlan?]
@@ -138,7 +136,6 @@ priv struct PhysicalFunctionPlan {
   capture : CallableCaptureContract
   parameters : Array[PhysicalParameterPlan]
   recursive_functions : Array[PhysicalRecursiveFunctionPlan]
-  result_type : @anf.RuntimeType
   result : PhysicalValueFlowPlan
   body : PhysicalAnfExpr
 }
@@ -160,8 +157,6 @@ priv struct PhysicalRepresentationCallTarget {
 ///|
 priv struct PhysicalRepresentationWorkerCall {
   worker : @bytecode.FunctionId
-  type_ : @anf.RuntimeType
-  parameter_types : Array[@anf.RuntimeType]
   scalar_parameters : Array[ScalarParameterPlan]
 }
 
@@ -183,11 +178,8 @@ priv struct PhysicalCallPlan {
   target : PhysicalRepresentationCallTarget?
   invocation : CanonicalCallableAbi
   witnesses : Array[RuntimeEvidencePlan]
-  parameter_types : Array[@anf.RuntimeType]
   arguments : Array[PhysicalValueFlowPlan]
   abi_result_evidence : RuntimeEvidencePlan?
-  abi_result_type : @anf.RuntimeType
-  result_type : @anf.RuntimeType
   result : PhysicalValueFlowPlan
 }
 
@@ -233,8 +225,6 @@ priv struct PhysicalErasureBridge {
 ///|
 priv struct PhysicalCallableBridge {
   adapter : CallableAdapterPlan
-  source_type : @anf.RuntimeType
-  target_type : @anf.RuntimeType
   captured_evidence : Array[RuntimeEvidencePlan]
 }
 
@@ -274,7 +264,6 @@ priv struct PhysicalDataConstructionPlan {
   family : PhysicalDataFamilyContract
   constructor_plan : PhysicalDataConstructorContract
   stored_evidence : Array[RuntimeEvidencePlan]
-  result_type : @anf.RuntimeType
 }
 
 ///|
@@ -336,13 +325,11 @@ priv struct PhysicalMatchAlternativePlan {
 
 ///|
 priv struct PhysicalMatchPayloadPlan {
-  type_ : @anf.RuntimeType
   flow : PhysicalValueFlowPlan
 }
 
 ///|
 priv struct PhysicalEvidenceApplication {
-  target_type : @anf.RuntimeType
   mode : PhysicalEvidenceApplicationMode
   adapter : PhysicalCallableBridge?
   interface : PhysicalCallableInterface
@@ -785,7 +772,6 @@ fn FunctionLowerer::apply_physical_binding_flow(
       self.materialize_planned_value_flow(
         "Physical ANF binding flow at \{Repr(planned.binding)}",
         value,
-        planned.target_type,
         planned.flow.target,
         Some(bridge),
       )
@@ -806,7 +792,6 @@ fn FunctionLowerer::materialize_physical_function_result(
   self.materialize_planned_value_flow(
     "Runtime ANF function result",
     result,
-    function.result_type,
     function.result.target,
     function.result.bridge,
   )
@@ -843,7 +828,6 @@ fn FunctionLowerer::materialize_physical_match_alternative(
   self.materialize_physical_match_alternative_plan(
     alternative.plan,
     match_.plan.site,
-    match_.result_type,
     alternative,
     result,
   )
@@ -854,7 +838,6 @@ fn FunctionLowerer::materialize_physical_match_alternative_plan(
   self : FunctionLowerer,
   planned : PhysicalMatchAlternativePlan,
   site : @anf.AnfBindingId,
-  result_type : @anf.RuntimeType,
   alternative : PhysicalAnfAlternative,
   result : PhysicalLocalValue,
 ) -> PhysicalLocalValue raise LoisvmLoweringError {
@@ -862,7 +845,6 @@ fn FunctionLowerer::materialize_physical_match_alternative_plan(
   self.materialize_planned_call_argument(
     site,
     result,
-    result_type,
     planned.result.target,
     planned.result.bridge,
   )
@@ -871,7 +853,6 @@ fn FunctionLowerer::materialize_physical_match_alternative_plan(
 ///|
 fn FunctionLowerer::fresh_planned_optional_slot(
   self : FunctionLowerer,
-  type_ : @anf.RuntimeType,
   shape : PhysicalValueShape,
   erased_evidence : RuntimeEvidencePlan?,
 ) -> (@vmcfg.ValueId?, LocalValue) raise LoisvmLoweringError {
@@ -901,7 +882,7 @@ fn FunctionLowerer::fresh_planned_optional_slot(
         }
       }
       let slot = self.fresh_metadata(key.value_metadata(erased_companion))
-      (Some(slot), LocalValue::Slot(slot, type_, key))
+      (Some(slot), LocalValue::Slot(slot, key))
     }
   }
 }
@@ -1182,12 +1163,7 @@ fn PhysicalFunctionPlanner::preplan_callable_bridge(
   })
   self.image.preplan_callable_adapter_recipe(contract.recipe)
   let adapter = self.image.planned_callable_adapter_recipe(contract.recipe)
-  {
-    adapter,
-    source_type: contract.source_type,
-    target_type: contract.target_type,
-    captured_evidence,
-  }
+  { adapter, captured_evidence, }
 }
 
 ///|
@@ -1709,7 +1685,6 @@ fn ImageLowerer::elaborate_physical_anf(
           capture: CallableCaptureContract::empty(),
           parameters: [],
           recursive_functions: [],
-          result_type,
           result,
           body,
         })
@@ -2119,7 +2094,6 @@ fn ImageLowerer::plan_physical_function(
     }
     parameters.push({
       binding: Value(parameter),
-      type_: parameter_type,
       contract: parameter_contract,
       erased_evidence: planner.preplan_erased_evidence(
         parameter_type,
@@ -2166,15 +2140,13 @@ fn ImageLowerer::plan_physical_function(
   let witnesses : Array[@bytecode.ValueAbi] = []
   let runtime_evidence_parameters = []
   for parameter in evidence_parameters {
-    if self.requires_runtime_evidence(parameter) {
-      runtime_evidence_parameters.push(parameter)
-      let metadata = runtime_evidence_metadata(parameter)
-      witnesses.push({
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-      })
-    }
+    runtime_evidence_parameters.push(parameter)
+    let metadata = runtime_evidence_metadata(parameter)
+    witnesses.push({
+      representation: metadata.representation,
+      cleanup: metadata.cleanup,
+      kind: metadata.kind,
+    })
   }
   let invocation : CanonicalCallableAbi = {
     witnesses,
@@ -2206,7 +2178,6 @@ fn ImageLowerer::plan_physical_function(
       )
       { recursive, shape, }
     }),
-    result_type,
     result,
     body,
   }
@@ -2462,7 +2433,7 @@ fn PhysicalFunctionPlanner::plan_physical_expr(
           Some(allocation.interface),
           target_interface,
         )
-        let binding_flow = { binding: port, target_type, flow, }
+        let binding_flow = { binding: port, flow, }
         ignore(
           self.append_port(
             port, target_shape, target_interface, "recursive-binding",
@@ -2534,11 +2505,7 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         source_interface,
         target_interface,
       )
-      let binding_flow : PhysicalBindingFlowPlan = {
-        binding: site,
-        target_type: self.instantiate_type(type_),
-        flow,
-      }
+      let binding_flow : PhysicalBindingFlowPlan = { binding: site, flow, }
       if flow.bridge is None && flow.source == flow.target {
         self.atoms.push((site, atom))
       }
@@ -2629,7 +2596,6 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         interface: target_interface,
       }
       let physical_application : PhysicalEvidenceApplication = {
-        target_type: type_,
         mode: if materialize {
           Materialize
         } else if self.image.runtime_type(source_type) is Concrete(Forall(_, _)) {
@@ -2866,22 +2832,14 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         target: target.map(target => {
           worker: {
             worker: target.worker.worker,
-            type_: target.worker.callable_type(),
-            parameter_types: target.worker.parameter_types,
             scalar_parameters: target.worker.scalar_parameters,
           },
           invocation: target.invocation,
         }),
         invocation,
         witnesses: semantics.witnesses,
-        parameter_types: semantics.parameter_types,
         arguments: argument_flows,
         abi_result_evidence,
-        abi_result_type: semantics.substitutions.apply_type(
-          self.image.runtime_types,
-          semantics.result_type,
-        ),
-        result_type,
         result,
       }
       let shape = self.physical.shape(result.target.shape)
@@ -3108,7 +3066,6 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
               ),
             )
           }),
-          result_type: Data(info.owner, type_arguments),
         }),
         payloads,
       }
@@ -3273,7 +3230,6 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         PhysicalAnfRhs::Match({
           scrutinee: physical_scrutinee,
           binder: match_.binder,
-          result_type,
           alternatives: physical_alternatives,
           plan,
         }),
@@ -4497,7 +4453,7 @@ fn PhysicalFunctionPlanner::plan_match_payloads(
           target: field,
           bridge: None,
         }
-        payloads[selected].push({ type_, flow, })
+        payloads[selected].push({ flow, })
         self.record_type(Value(binder), type_)
         ignore(
           self.append_port(
@@ -4621,7 +4577,7 @@ fn PhysicalFunctionPlanner::plan_match_payloads(
         constructor_plan.storage_callable_interfaces[index],
         target_interface,
       )
-      payloads[alternative_index].push({ type_: target_type, flow, })
+      payloads[alternative_index].push({ flow, })
       self.record_type(Value(binder), target_type)
       ignore(
         self.append_port(
@@ -4941,7 +4897,7 @@ fn PhysicalAnfProgram::verify_global(
   self.verify_value_contract(global.contract)
   let expected = match global.producer {
     PhysicalUnit => PhysicalValueShape::Unit
-    PhysicalFunction(function, _) =>
+    PhysicalFunction(function) =>
       PhysicalValueShape::Slot(
         CanonicalRuntimeTypeKey::Callable(self.required_invocation(function)),
       )
@@ -4954,11 +4910,11 @@ fn PhysicalAnfProgram::verify_global(
       }
       PhysicalValueShape::Slot(CanonicalRuntimeTypeKey::Callable(invocation))
     }
-    PhysicalFloatConstant(_, _) =>
+    PhysicalFloatConstant(_) =>
       PhysicalValueShape::Slot(canonical_scalar_key(F32))
-    PhysicalDoubleConstant(_, _) =>
+    PhysicalDoubleConstant(_) =>
       PhysicalValueShape::Slot(canonical_scalar_key(F64))
-    PhysicalInstanceGlobal(_, _, key) => key.physical_shape()
+    PhysicalInstanceGlobal(_, key) => key.physical_shape()
   }
   if self.shape(global.contract.shape) != expected {
     raise RepresentationSpecializationInvariant(

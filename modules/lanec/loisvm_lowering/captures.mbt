@@ -337,11 +337,10 @@ fn FunctionLowerer::capture_environment(
     let captured = self.materialize_planned_value_flow(
       "callable capture",
       source,
-      capture.type_,
       flow.target,
       flow.bridge,
     )
-    guard captured.value is Slot(slot, _, actual_shape) &&
+    guard captured.value is Slot(slot, actual_shape) &&
       capture.shape is Some(expected_shape) else {
       raise RepresentationSpecializationInvariant(
         detail="planned callable capture does not materialize as a physical slot",

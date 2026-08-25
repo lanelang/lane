@@ -93,14 +93,12 @@ test "Physical ANF verifier rejects an illegal binding flow" {
     capture: CallableCaptureContract::empty(),
     parameters: [],
     recursive_functions: [],
-    result_type: type_,
     result: test_flow(scalar, scalar, None),
     body: Let(
       {
         binding: Temp(temp~, type_~, rhs=Atom(Literal(I64(1L)))),
         rhs: Atom(atom, {
           binding: Temp(temp),
-          target_type: type_,
           flow: test_flow(scalar, erased, None),
         }),
         result: test_contract(erased),
@@ -136,14 +134,12 @@ test "Physical ANF atom cannot claim a shape different from its producer" {
     parameters: [
       {
         binding: Value(parameter),
-        type_,
         contract: test_contract(scalar),
         erased_evidence: None,
         field_erased_evidence: [],
       },
     ],
     recursive_functions: [],
-    result_type: type_,
     result: test_flow(erased, erased, None),
     body: Atom({
       producer: Binding(Value(parameter)),
@@ -165,10 +161,7 @@ test "Physical ANF global cannot claim a shape different from its producer" {
   let physical = PhysicalAnfProgram::new()
   let scalar = physical.intern(test_scalar_shape())
   physical.add_global(value, {
-    producer: PhysicalFloatConstant(
-      0,
-      @anf.RuntimeType::Scalar(@anf.RuntimeScalarType::F32),
-    ),
+    producer: PhysicalFloatConstant(0),
     contract: test_contract(scalar),
   })
   let result : Result[VerifiedPhysicalAnfProgram, LoisvmLoweringError] = Ok(
