@@ -1,15 +1,4 @@
 ///|
-fn FunctionLowerer::runtime_evidence(
-  self : FunctionLowerer,
-  parameter : @anf.RuntimeEvidenceParameter,
-  argument : @anf.RuntimeArgument,
-) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  self.materialize_runtime_evidence(
-    self.image.plan_runtime_argument_evidence(parameter, argument),
-  )
-}
-
-///|
 fn ImageLowerer::plan_runtime_argument_evidence(
   self : ImageLowerer,
   parameter : @anf.RuntimeEvidenceParameter,
@@ -24,12 +13,21 @@ fn ImageLowerer::plan_runtime_argument_evidence(
 
 ///|
 fn ImageLowerer::plan_layout_constructor_evidence(
-  _self : ImageLowerer,
+  self : ImageLowerer,
   evidence : @anf.RuntimeEvidence,
 ) -> RuntimeEvidencePlan raise LoisvmLoweringError {
   match evidence {
     Parameter(parameter) => Existing(parameter)
-    Lambda(_, _) => MaterializeLayoutConstructor(evidence)
+    Lambda(_, _) => {
+      let plan = self.plan_layout_constructor(evidence)
+      MaterializeLayoutConstructor({
+        function: plan.function,
+        evidence: plan.evidence,
+        captured_parameters: plan.captured_parameters,
+        environment_shape: plan.environment_shape,
+        arity: plan.arity,
+      })
+    }
     Apply(_, _) | Static(_) =>
       raise InvalidTypeApplication(
         detail="layout-constructor evidence is not a parameter or lambda",
@@ -130,8 +128,8 @@ fn FunctionLowerer::materialize_runtime_evidence(
       )
       destination
     }
-    MaterializeLayoutConstructor(evidence) =>
-      self.materialize_layout_constructor(evidence)
+    MaterializeLayoutConstructor(layout_constructor) =>
+      self.materialize_layout_constructor(layout_constructor)
     StaticLayout(recipe) => {
       let layout = self.image.intern_layout(recipe)
       let witness = self.fresh_metadata(layout_witness_metadata())
@@ -144,9 +142,8 @@ fn FunctionLowerer::materialize_runtime_evidence(
 ///|
 fn FunctionLowerer::materialize_layout_constructor(
   self : FunctionLowerer,
-  evidence : @anf.RuntimeEvidence,
+  plan : PhysicalLayoutConstructorReference,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  let plan = self.image.planned_layout_constructor(evidence)
   let captured = plan.captured_parameters.map(parameter => {
     self.find_witness(parameter.id)
   })
@@ -201,6 +198,7 @@ fn ImageLowerer::plan_layout_constructor(
     })
   }
   let environment_shape = self.environment_shape(0, members)
+  let body = self.plan_layout_witness(contract.body)
   let (_, plan) = self.plans.append_with_result(LayoutConstructor, fn(
     function,
   ) {
@@ -208,7 +206,7 @@ fn ImageLowerer::plan_layout_constructor(
       function,
       evidence: contract.evidence,
       parameters: contract.parameters,
-      body: contract.body,
+      body,
       captured_parameters: contract.captured_parameters,
       environment_shape,
       arity: contract.parameters.length(),
@@ -278,10 +276,12 @@ fn collect_runtime_evidence_ids(
 ///|
 fn ImageLowerer::lower_layout_constructor(
   self : ImageLowerer,
+  physical_program : PhysicalAnfProgram,
   plan : LayoutConstructorPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
+    physical_program,
     function: Some(plan.function),
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None, }],
@@ -290,8 +290,6 @@ fn ImageLowerer::lower_layout_constructor(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: RuntimeSubstitution::new(),
-    specialized_parameters: [],
     physical: None,
   }
   let evidence_parameters = []
@@ -317,7 +315,7 @@ fn ImageLowerer::lower_layout_constructor(
       lowerer.witnesses.push({ parameter: parameter.id, value: evidence, })
     }
   }
-  let result = lowerer.layout_witness(plan.body)
+  let result = lowerer.materialize_runtime_evidence(plan.body)
   lowerer.terminate(Return(Some(result)))
   let blocks : Array[@vmcfg.Block] = []
   for index, block in lowerer.blocks {

@@ -651,15 +651,13 @@ fn ImageLowerer::callable_adapter_evidence_recipe(
           self.callable_adapter_evidence_recipe(argument, evidence)
         }),
       )
-    MaterializeLayoutConstructor(constructor_evidence) => {
-      let plan = self.layout_constructor_contract(constructor_evidence)
+    MaterializeLayoutConstructor(layout_constructor) =>
       LayoutConstructor(
-        constructor_evidence,
-        plan.captured_parameters.map(parameter => {
+        layout_constructor.evidence,
+        layout_constructor.captured_parameters.map(parameter => {
           require_callable_adapter_evidence(evidence, Existing(parameter.id))
         }),
       )
-    }
     StaticLayout(recipe) => Static(recipe)
   }
 }

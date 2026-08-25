@@ -500,7 +500,7 @@ priv struct LayoutConstructorPlan {
   function : @bytecode.FunctionId
   evidence : @anf.RuntimeEvidence
   parameters : Array[@anf.RuntimeEvidenceParameter]
-  body : @anf.RuntimeEvidence
+  body : RuntimeEvidencePlan
   captured_parameters : Array[@anf.RuntimeEvidenceParameter]
   environment_shape : @bytecode.ObjectShapeId?
   arity : Int
@@ -515,10 +515,19 @@ priv struct LayoutConstructorContract {
 }
 
 ///|
+priv struct PhysicalLayoutConstructorReference {
+  function : @bytecode.FunctionId
+  evidence : @anf.RuntimeEvidence
+  captured_parameters : Array[@anf.RuntimeEvidenceParameter]
+  environment_shape : @bytecode.ObjectShapeId?
+  arity : Int
+} derive(Debug, Eq)
+
+///|
 priv enum RuntimeEvidencePlan {
   Existing(@anf.RuntimeEvidenceId)
   ApplyEvidence(@anf.RuntimeEvidenceId, Array[RuntimeEvidencePlan])
-  MaterializeLayoutConstructor(@anf.RuntimeEvidence)
+  MaterializeLayoutConstructor(PhysicalLayoutConstructorReference)
   StaticLayout(@bytecode.LayoutRecipe)
 } derive(Debug, Eq)
 
@@ -578,13 +587,6 @@ priv struct RecursiveFunctionPlan {
   value : @buslane.ValueId
   function : @bytecode.FunctionId
   type_ : @anf.RuntimeType
-}
-
-///|
-priv struct DeferredCallableAdapter {
-  source : @vmcfg.ValueId
-  contract : CallableAdapterContract
-  captured_witnesses : Array[WitnessBinding]
 }
 
 ///|

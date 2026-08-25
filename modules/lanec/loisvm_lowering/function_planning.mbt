@@ -276,15 +276,17 @@ fn extract_top_atom_function(atom : @anf.AnfAtom) -> @anf.AnfFunction? {
 ///|
 fn ImageLowerer::lower_initializer_step(
   self : ImageLowerer,
+  physical_program : PhysicalAnfProgram,
   step : InitializerStepPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
-  guard self.physical_function(step.function) is Some(physical) else {
+  guard physical_program.function(step.function) is Some(physical) else {
     raise RepresentationSpecializationInvariant(
       detail="initializer emission lacks its Physical ANF body",
     )
   }
   let lowerer : FunctionLowerer = {
     image: self,
+    physical_program,
     function: Some(step.function),
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None, }],
@@ -293,8 +295,6 @@ fn ImageLowerer::lower_initializer_step(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: RuntimeSubstitution::new(),
-    specialized_parameters: [],
     physical: Some(physical),
   }
   let result = lowerer.materialize_physical_function_result(
@@ -334,10 +334,12 @@ fn ImageLowerer::lower_initializer_step(
 ///|
 fn ImageLowerer::lower_initializer_orchestrator(
   self : ImageLowerer,
+  physical_program : PhysicalAnfProgram,
   steps : Array[InitializerStepPlan],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let lowerer : FunctionLowerer = {
     image: self,
+    physical_program,
     function: None,
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None, }],
@@ -346,8 +348,6 @@ fn ImageLowerer::lower_initializer_orchestrator(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: RuntimeSubstitution::new(),
-    specialized_parameters: [],
     physical: None,
   }
   for step in steps {
@@ -383,6 +383,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
 ///|
 fn ImageLowerer::lower_intrinsic_wrapper(
   self : ImageLowerer,
+  physical_program : PhysicalAnfProgram,
   plan : IntrinsicWrapperPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let intrinsic = plan.contract.intrinsic
@@ -390,6 +391,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   let result_type = plan.contract.result
   let lowerer : FunctionLowerer = {
     image: self,
+    physical_program,
     function: Some(plan.function),
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None, }],
@@ -398,8 +400,6 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: RuntimeSubstitution::new(),
-    specialized_parameters: [],
     physical: None,
   }
   let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))

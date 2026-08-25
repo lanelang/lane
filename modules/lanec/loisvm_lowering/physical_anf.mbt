@@ -272,7 +272,9 @@ fn PhysicalAnfRhs::append_callable_bridge_recipes(
     ApplyEvidence(application) => {
       application.callee.append_callable_bridge_recipes(recipes)
       if application.application.adapter is Some(adapter) {
-        adapter.append_recipes(recipes)
+        if !recipes.contains(adapter.adapter.recipe) {
+          recipes.push(adapter.adapter.recipe)
+        }
       }
     }
     Call(call) => {
@@ -374,6 +376,9 @@ fn PhysicalAnfProgram::verify_rhs(
     }
     ApplyEvidence(application) => {
       self.verify_atom(environment, application.callee)
+      if application.application.adapter is Some(adapter) {
+        self.verify_callable_bridge(adapter)
+      }
       let result_shape = self.shape(result.shape)
       let interface_shape = PhysicalValueShape::Slot(
         CanonicalRuntimeTypeKey::Callable(
@@ -515,8 +520,7 @@ fn PhysicalAnfProgram::verify_call(
 ) -> Unit raise LoisvmLoweringError {
   self.verify_atom(environment, call.callee)
   if call.arguments.length() != call.plan.arguments.length() ||
-    call.arguments.length() != call.plan.parameter_types.length() ||
-    call.arguments.length() != call.plan.callable_arguments.length() {
+    call.arguments.length() != call.plan.parameter_types.length() {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF call arity disagrees with its invocation contract",
     )

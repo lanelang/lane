@@ -141,7 +141,6 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
   let witness_count = self.witnesses.length()
-  let original_substitutions = self.substitutions
   self.bind_data_alternative(
     site, binder, scrutinee, scrutinee_type, scrutinee_shape, constructor_plan, alternative,
   )
@@ -154,7 +153,6 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   )
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
-  self.substitutions = original_substitutions
   result.value
 }
 
@@ -176,7 +174,6 @@ fn FunctionLowerer::lower_data_alternative(
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
   let witness_count = self.witnesses.length()
-  let original_substitutions = self.substitutions
   self.enter_block(block)
   let original_environment = self.environment
   self.enter_branch_environment(original_environment, branch_environment)
@@ -194,7 +191,6 @@ fn FunctionLowerer::lower_data_alternative(
   self.terminate(Jump({ target: join, arguments, }))
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
-  self.substitutions = original_substitutions
   self.environment = original_environment
 }
 
@@ -314,7 +310,6 @@ fn FunctionLowerer::bind_data_alternative(
       self.bindings.push({ value: value_binder, lowered: lowered.value, })
     }
   }
-  self.substitutions = alternative.plan.substitutions
 }
 
 ///|

@@ -19,13 +19,12 @@ priv struct ImageLowerer {
   callable_adapters : Array[CallableAdapterPlan]
   lifted_functions : Array[LiftedFunctionPlan]
   synthetic_parameters : Array[@anf.RuntimeEvidenceParameter]
-  generic_invocations_in_progress : Array[@bytecode.FunctionId]
-  mut physical_anf : PhysicalAnfProgram?
 }
 
 ///|
 priv struct FunctionLowerer {
   image : ImageLowerer
+  physical_program : PhysicalAnfProgram
   function : @bytecode.FunctionId?
   values : Array[@vmcfg.ValueMetadata]
   blocks : Array[LowerBlock]
@@ -34,8 +33,6 @@ priv struct FunctionLowerer {
   temps : Array[TempBinding]
   mut environment : @vmcfg.ValueId?
   witnesses : Array[WitnessBinding]
-  mut substitutions : RuntimeSubstitution
-  specialized_parameters : Array[@anf.RuntimeEvidenceId]
   physical : PhysicalFunctionPlan?
 }
 
@@ -103,8 +100,6 @@ fn lower_executable_program_to_bytecode_or_raise(
     callable_adapters: [],
     lifted_functions: [],
     synthetic_parameters: [],
-    generic_invocations_in_progress: [],
-    physical_anf: None,
   }
   lowerer.plan_declaration_data_families()
   let (callable_instances, representation_solution) = lowerer.plan_callable_instances(
@@ -132,7 +127,6 @@ fn ImageLowerer::emit_physical_anf(
   observe : (LoisvmLoweringStage) -> Unit,
 ) -> @bytecode.BytecodeImage raise LoisvmLoweringError {
   let physical = verified.program
-  self.physical_anf = Some(physical)
   let entry_function = match self.find_global(entry) {
     Some(Function(function, _)) => function
     _ => raise MissingEntry(value=entry)
@@ -144,21 +138,29 @@ fn ImageLowerer::emit_physical_anf(
     let planned = self.plans.get(plan_index)
     match planned.entry {
       Function(_, _) =>
-        functions.push(Body(self.lower_function_body(planned.function)))
+        functions.push(
+          Body(self.lower_function_body(physical, planned.function)),
+        )
       InitializerStep(step) =>
-        functions.push(Body(self.lower_initializer_step(step)))
+        functions.push(Body(self.lower_initializer_step(physical, step)))
       InitializerOrchestrator(steps) =>
-        functions.push(Body(self.lower_initializer_orchestrator(steps)))
+        functions.push(
+          Body(self.lower_initializer_orchestrator(physical, steps)),
+        )
       LiftedFunction(_) =>
-        functions.push(Body(self.lower_function_body(planned.function)))
+        functions.push(
+          Body(self.lower_function_body(physical, planned.function)),
+        )
       IntrinsicWrapper(plan) =>
-        functions.push(Body(self.lower_intrinsic_wrapper(plan)))
+        functions.push(Body(self.lower_intrinsic_wrapper(physical, plan)))
       CallableAdapter(plan) =>
-        functions.push(Body(self.lower_callable_adapter(plan)))
+        functions.push(Body(self.lower_callable_adapter(physical, plan)))
       RepresentationWorker(_) =>
-        functions.push(Body(self.lower_function_body(planned.function)))
+        functions.push(
+          Body(self.lower_function_body(physical, planned.function)),
+        )
       LayoutConstructor(plan) =>
-        functions.push(Body(self.lower_layout_constructor(plan)))
+        functions.push(Body(self.lower_layout_constructor(physical, plan)))
       RuntimeImport(import_) => functions.push(RuntimeImport(import_))
     }
     if self.plans.length() != planned_function_count {

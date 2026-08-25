@@ -733,7 +733,7 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
-      #|        ("layoutCount", 3),
+      #|        ("layoutCount", 2),
       #|        ("objectShapeCount", 2),
       #|        ("constantCount", 0),
       #|      ],

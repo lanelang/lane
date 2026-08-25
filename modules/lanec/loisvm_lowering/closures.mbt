@@ -52,14 +52,10 @@ fn FunctionLowerer::materialize_callable_value_with_abi(
 ///|
 fn FunctionLowerer::materialize_representation_worker(
   self : FunctionLowerer,
-  plan : RepresentationSpecializationPlan,
+  plan : PhysicalRepresentationWorkerCall,
   environment : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
-  self.materialize_planned_callable(
-    plan.worker,
-    plan.callable_type(),
-    environment,
-  )
+  self.materialize_planned_callable(plan.worker, plan.type_, environment)
 }
 
 ///|
@@ -73,7 +69,7 @@ fn FunctionLowerer::materialize_planned_callable(
     lowered_function,
     lowered_type,
     environment,
-    self.image.physical_invocation(lowered_function),
+    self.physical_program.required_invocation(lowered_function),
   )
 }
 

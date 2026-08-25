@@ -127,7 +127,6 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     callable_catalog: anf.callable_catalog(),
     callable_instances: CallableInstancePlan::empty(),
     representation_solution: RepresentationSolution::empty(),
-    physical_anf: None,
     runtime_types: RuntimeTypeArena::from_metadata(runtime_metadata),
     externals: { builtins: [], runtime_imports: [], },
     globals: [],
@@ -143,7 +142,6 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     materialized_data_families: [],
     finalized_data_families: [],
     synthetic_parameters: [],
-    generic_invocations_in_progress: [],
   }
 }
 

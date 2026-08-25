@@ -3,8 +3,10 @@ fn FunctionLowerer::fresh_slot(
   self : FunctionLowerer,
   type_ : @anf.RuntimeType,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  if type_ is Erased(_, evidence) {
-    return self.fresh_erased_slot(self.layout_witness(evidence), Owned)
+  if type_ is Erased(_, _) {
+    raise RepresentationSpecializationInvariant(
+      detail="VM CFG slot allocation received erased type without a physical evidence plan",
+    )
   }
   let slot : @vmcfg.ValueId = { value: self.values.length(), }
   self.values.push(self.image.slot_metadata(type_))

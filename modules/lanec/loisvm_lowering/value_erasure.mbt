@@ -9,17 +9,8 @@ fn FunctionLowerer::find_witness(
     }
   }
   raise InvalidTypeApplication(
-    detail="missing in-scope layout witness for \{Repr(parameter)}; available=\{Repr(self.witnesses.map(binding => binding.parameter))}; substitutions=\{Repr(self.substitutions)}",
+    detail="missing in-scope layout witness for \{Repr(parameter)}; available=\{Repr(self.witnesses.map(binding => binding.parameter))}",
   )
-}
-
-///|
-fn FunctionLowerer::layout_witness(
-  self : FunctionLowerer,
-  evidence : @anf.RuntimeEvidence,
-) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  let evidence = self.substitutions.apply_evidence(evidence)
-  self.materialize_runtime_evidence(self.image.plan_layout_witness(evidence))
 }
 
 ///|

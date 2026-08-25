@@ -1,9 +1,10 @@
 ///|
 fn ImageLowerer::lower_function_body(
   self : ImageLowerer,
+  physical_program : PhysicalAnfProgram,
   lowered_function : @bytecode.FunctionId,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
-  guard self.physical_function(lowered_function) is Some(physical) else {
+  guard physical_program.function(lowered_function) is Some(physical) else {
     raise RepresentationSpecializationInvariant(
       detail="VM CFG function emission lacks a physical function variant",
     )
@@ -11,6 +12,7 @@ fn ImageLowerer::lower_function_body(
   let capture = physical.capture
   let lowerer : FunctionLowerer = {
     image: self,
+    physical_program,
     function: Some(lowered_function),
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None, }],
@@ -19,8 +21,6 @@ fn ImageLowerer::lower_function_body(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: physical.substitutions,
-    specialized_parameters: physical.specialized_parameters,
     physical: Some(physical),
   }
   let input_witnesses = []
@@ -133,6 +133,7 @@ fn ImageLowerer::lower_function_body(
           let (slot, payload) = lowerer.fresh_planned_optional_slot(
             payload_type,
             lowerer.physical_shape(payload_shapes[payload_index]),
+            parameter.field_erased_evidence[payload_index],
           )
           if slot is Some(slot) {
             parameter_slots.push(slot)
@@ -145,7 +146,11 @@ fn ImageLowerer::lower_function_body(
         })
       }
       shape => {
-        let (slot, lowered) = lowerer.fresh_planned_optional_slot(type_, shape)
+        let (slot, lowered) = lowerer.fresh_planned_optional_slot(
+          type_,
+          shape,
+          parameter.erased_evidence,
+        )
         if slot is Some(slot) {
           parameter_slots.push(slot)
         }

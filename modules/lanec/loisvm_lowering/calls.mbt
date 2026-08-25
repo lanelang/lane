@@ -18,7 +18,7 @@ fn FunctionLowerer::lower_call(
   }
   if representation_target is Some(physical_target) {
     let plan = physical_target.worker
-    let contract = self.image.physical_invocation(plan.worker)
+    let contract = self.physical_program.required_invocation(plan.worker)
     let (callable, environment) = match physical_target.invocation {
       Direct => (None, None)
       Captured(function) => {
@@ -359,7 +359,8 @@ fn FunctionLowerer::fresh_physical_call_result(
       raise RepresentationSpecializationInvariant(
         detail="call at \{Repr(call.site)} planned runtime evidence for a non-erased result",
       )
-    (_, None) => self.fresh_planned_optional_slot(call.abi_result_type, shape)
+    (_, None) =>
+      self.fresh_planned_optional_slot(call.abi_result_type, shape, None)
   }
 }
 
@@ -393,11 +394,11 @@ fn FunctionLowerer::materialize_planned_value_flow(
   let target_shape = self.physical_shape(target.shape)
   let argument = self.materialize_physical_local(argument)
   let adapted = match bridge {
-    Some(Callable(contract)) =>
+    Some(Callable(callable)) =>
       self.materialize_planned_callable_bridge(
         provenance,
         argument.value,
-        contract,
+        callable,
       )
     Some(Erase(erasure)) => {
       guard target_shape is Slot(target) else {
@@ -406,11 +407,11 @@ fn FunctionLowerer::materialize_planned_value_flow(
         )
       }
       let argument = match erasure.callable {
-        Some(contract) =>
+        Some(callable) =>
           self.materialize_planned_callable_bridge(
             provenance,
             argument.value,
-            contract,
+            callable,
           )
         None => argument.value
       }
@@ -432,9 +433,11 @@ fn FunctionLowerer::materialize_planned_value_flow(
         )
       }
       let unerased_shape = match callable {
-        Some(contract) =>
+        Some(callable) =>
           PhysicalValueShape::Slot(
-            CanonicalRuntimeTypeKey::Callable(contract.recipe.source_abi),
+            CanonicalRuntimeTypeKey::Callable(
+              callable.adapter.recipe.source_abi,
+            ),
           )
         None => target_shape
       }
@@ -442,9 +445,9 @@ fn FunctionLowerer::materialize_planned_value_flow(
         source, target_type, unerased_shape,
       )
       match callable {
-        Some(contract) =>
+        Some(callable) =>
           self.materialize_planned_callable_bridge(
-            provenance, unerased, contract,
+            provenance, unerased, callable,
           )
         None => unerased
       }
@@ -507,7 +510,7 @@ fn FunctionLowerer::unerase_planned_call_argument(
 ///|
 fn FunctionLowerer::lower_representation_specialized_call(
   self : FunctionLowerer,
-  plan : RepresentationSpecializationPlan,
+  plan : PhysicalRepresentationWorkerCall,
   contract : CanonicalCallableAbi,
   values : Array[PhysicalLocalValue],
   call : PhysicalCallPlan,

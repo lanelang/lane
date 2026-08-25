@@ -1,15 +1,15 @@
 ///|
-fn ImageLowerer::callable_adapter(
+fn ImageLowerer::callable_adapter_recipe(
   self : ImageLowerer,
-  contract : CallableAdapterContract,
+  recipe : CallableAdapterRecipe,
 ) -> CallableAdapterPlan {
   for adapter in self.callable_adapters {
-    if adapter.recipe == contract.recipe {
+    if adapter.recipe == recipe {
       return adapter
     }
   }
   let members : Array[@bytecode.MemberSchema] = []
-  for metadata in contract.recipe.captured_evidence {
+  for metadata in recipe.captured_evidence {
     members.push({
       representation: metadata.representation,
       cleanup: metadata.cleanup,
@@ -29,23 +29,11 @@ fn ImageLowerer::callable_adapter(
   let (_, adapter) = self.plans.append_with_result(CallableAdapter, fn(
     function,
   ) {
-    let adapter : CallableAdapterPlan = {
-      function,
-      recipe: contract.recipe,
-      environment_shape,
-    }
+    let adapter : CallableAdapterPlan = { function, recipe, environment_shape, }
     self.callable_adapters.push(adapter)
     (CallableAdapter(adapter), adapter)
   })
   adapter
-}
-
-///|
-fn ImageLowerer::planned_callable_adapter(
-  self : ImageLowerer,
-  contract : CallableAdapterContract,
-) -> CallableAdapterPlan raise LoisvmLoweringError {
-  self.planned_callable_adapter_recipe(contract.recipe)
 }
 
 ///|
@@ -64,25 +52,17 @@ fn ImageLowerer::planned_callable_adapter_recipe(
 }
 
 ///|
-fn ImageLowerer::preplan_callable_adapter(
+fn ImageLowerer::preplan_callable_adapter_recipe(
   self : ImageLowerer,
-  contract : CallableAdapterContract,
+  recipe : CallableAdapterRecipe,
 ) -> Unit raise LoisvmLoweringError {
   for adapter in self.callable_adapters {
-    if adapter.recipe == contract.recipe {
+    if adapter.recipe == recipe {
       return
     }
   }
-  ignore(self.callable_adapter(contract))
-  self.preplan_callable_adapter_recipe_evidence(contract.recipe)
-  for entry in contract.substitutions.entries {
-    if entry.1.evidence is Lambda(_, _) {
-      ignore(self.plan_layout_constructor(entry.1.evidence))
-    }
-  }
-  for nested in contract.nested_adapters {
-    self.preplan_callable_adapter(nested)
-  }
+  ignore(self.callable_adapter_recipe(recipe))
+  self.preplan_callable_adapter_recipe_evidence(recipe)
 }
 
 ///|
@@ -114,6 +94,7 @@ fn ImageLowerer::preplan_callable_adapter_flow_recipe(
   self.preplan_callable_adapter_value_recipe(flow.target)
   self.preplan_callable_adapter_value_recipe(flow.target_shape)
   if flow.nested_adapter is Some(nested) {
+    self.preplan_callable_adapter_recipe(nested.recipe)
     self.preplan_callable_adapter_recipe_evidence(nested.recipe)
     for evidence in nested.captured_evidence {
       self.preplan_callable_adapter_evidence_recipe(evidence)
@@ -399,14 +380,12 @@ fn ImageLowerer::collect_callable_adapter_evidence_captures(
         self.collect_callable_adapter_evidence_captures(argument, captures)
       }
     }
-    MaterializeLayoutConstructor(evidence) => {
-      let layout_constructor = self.layout_constructor_contract(evidence)
+    MaterializeLayoutConstructor(layout_constructor) =>
       for parameter in layout_constructor.captured_parameters {
         if !captures.any(capture => capture.source.id == parameter.id) {
           captures.push({ source: parameter, })
         }
       }
-    }
     StaticLayout(_) => ()
   }
 }
@@ -603,33 +582,6 @@ fn runtime_type_evidence(
         None => raise UnsupportedType(type_~)
       }
   }
-}
-
-///|
-fn FunctionLowerer::adapter_witness(
-  self : FunctionLowerer,
-  parameter : @anf.RuntimeEvidenceId,
-  substitutions : RuntimeSubstitution,
-) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  let argument = match substitutions.argument(parameter) {
-    Some(argument) =>
-      Some(
-        self.substitutions.apply_argument(self.image.runtime_types, argument),
-      )
-    None =>
-      self.substitutions
-      .argument(parameter)
-      .map(argument => {
-        self.substitutions.apply_argument(self.image.runtime_types, argument)
-      })
-  }
-  if argument is Some(argument) {
-    let parameter_info = self.image.metadata
-      .evidence_parameter(parameter)
-      .unwrap_or({ id: parameter, arity: 0, })
-    return self.runtime_evidence(parameter_info, argument)
-  }
-  self.find_witness(parameter)
 }
 
 ///|
@@ -868,86 +820,36 @@ fn ImageLowerer::overlay_callable_type_parameter_alignment(
 }
 
 ///|
-fn FunctionLowerer::materialize_callable_adapter(
-  self : FunctionLowerer,
-  adaptation : DeferredCallableAdapter,
-) -> LocalValue raise LoisvmLoweringError {
-  let (plan, environment) = self.planned_callable_adapter_environment(
-    adaptation,
-  )
-  self.materialize_callable_adapter_closure(adaptation, plan, environment)
-}
-
-///|
-fn FunctionLowerer::materialize_callable_adapter_closure(
-  self : FunctionLowerer,
-  adaptation : DeferredCallableAdapter,
-  plan : CallableAdapterPlan,
-  environment : @vmcfg.ValueId,
-) -> LocalValue raise LoisvmLoweringError {
-  let target_shape = CanonicalRuntimeTypeKey::Callable(
-    adaptation.contract.recipe.target_abi,
-  )
-  let callable = self.fresh_metadata(target_shape.value_metadata(None))
-  self.emit(MakeClosure(callable, plan.function, environment))
-  LocalValue::Slot(callable, adaptation.contract.target_type, target_shape)
-}
-
-///|
 fn FunctionLowerer::materialize_planned_callable_bridge(
   self : FunctionLowerer,
   provenance : String,
   value : LocalValue,
-  contract : CallableAdapterContract,
+  callable : PhysicalCallableBridge,
 ) -> LocalValue raise LoisvmLoweringError {
+  let plan = callable.adapter
+  let recipe = plan.recipe
   let materialized = self.materialize_local(value)
   guard materialized is Slot(source, _, source_shape) &&
-    source_shape ==
-    CanonicalRuntimeTypeKey::Callable(contract.recipe.source_abi) else {
+    source_shape == CanonicalRuntimeTypeKey::Callable(recipe.source_abi) else {
     raise RepresentationSpecializationInvariant(
-      detail="planned callable bridge source is not \{Repr(contract.recipe.source_abi)} in \{provenance}",
+      detail="planned callable bridge source is not \{Repr(recipe.source_abi)} in \{provenance}",
     )
   }
-  self.materialize_callable_adapter({
-    source,
-    contract,
-    captured_witnesses: contract.captures.map(capture => {
-      let value = self.adapter_witness(
-        capture.source.id,
-        contract.substitutions,
-      ) catch {
-        error =>
-          raise RepresentationSpecializationInvariant(
-            detail="\{provenance} in \{Repr(self.function)} with specialized evidence \{Repr(self.specialized_parameters)} cannot materialize captured evidence \{Repr(capture.source)} for \{Repr(contract.source_type)} / \{Repr(contract.recipe.source_abi)} -> \{Repr(contract.target_type)} / \{Repr(contract.recipe.target_abi)} under \{Repr(contract.substitutions)}: \{Repr(error)}",
-          )
-      }
-      { parameter: capture.source.id, value, }
-    }),
-  })
-}
-
-///|
-fn FunctionLowerer::planned_callable_adapter_environment(
-  self : FunctionLowerer,
-  adaptation : DeferredCallableAdapter,
-) -> (CallableAdapterPlan, @vmcfg.ValueId) raise LoisvmLoweringError {
   if self.physical is Some(function) {
-    guard function.authorizes_bridge(adaptation.contract) else {
+    guard function.authorizes_bridge(recipe) else {
       raise RepresentationSpecializationInvariant(
-        detail="represented VM CFG emission requested \{Repr(adaptation.contract.recipe)}, but its physical function variant authorizes \{Repr(function.callable_bridge_recipes())}",
+        detail="represented VM CFG emission requested \{Repr(recipe)}, but its physical function variant authorizes \{Repr(function.callable_bridge_recipes())}",
       )
     }
   }
-  self.callable_adapter_environment(adaptation)
-}
-
-///|
-fn FunctionLowerer::callable_adapter_environment(
-  self : FunctionLowerer,
-  adaptation : DeferredCallableAdapter,
-) -> (CallableAdapterPlan, @vmcfg.ValueId) raise LoisvmLoweringError {
-  let plan = self.image.planned_callable_adapter(adaptation.contract)
-  let witnesses = adaptation.captured_witnesses.map(binding => binding.value)
+  let witnesses = callable.captured_evidence.map(evidence => {
+    self.materialize_runtime_evidence(evidence) catch {
+      error =>
+        raise RepresentationSpecializationInvariant(
+          detail="\{provenance} in \{Repr(self.function)} cannot materialize planned captured evidence \{Repr(evidence)} for \{Repr(callable.source_type)} / \{Repr(recipe.source_abi)} -> \{Repr(callable.target_type)} / \{Repr(recipe.target_abi)}: \{Repr(error)}",
+        )
+    }
+  })
   let environment = self.fresh_metadata(
     environment_metadata(plan.environment_shape),
   )
@@ -960,10 +862,13 @@ fn FunctionLowerer::callable_adapter_environment(
       plan.environment_shape,
       Immediate(environment_layout),
       [],
-      witnesses + [adaptation.source],
+      witnesses + [source],
     ),
   )
-  (plan, environment)
+  let target_shape = CanonicalRuntimeTypeKey::Callable(recipe.target_abi)
+  let adapted = self.fresh_metadata(target_shape.value_metadata(None))
+  self.emit(MakeClosure(adapted, plan.function, environment))
+  LocalValue::Slot(adapted, callable.target_type, target_shape)
 }
 
 ///|
@@ -1088,11 +993,13 @@ fn ImageLowerer::callable_type_parameter_alignment(
 ///|
 fn ImageLowerer::lower_callable_adapter(
   self : ImageLowerer,
+  physical_program : PhysicalAnfProgram,
   plan : CallableAdapterPlan,
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let recipe = plan.recipe
   let lowerer : FunctionLowerer = {
     image: self,
+    physical_program,
     function: Some(plan.function),
     values: [],
     blocks: [{ parameters: [], instructions: [], terminator: None, }],
@@ -1101,8 +1008,6 @@ fn ImageLowerer::lower_callable_adapter(
     temps: [],
     environment: None,
     witnesses: [],
-    substitutions: RuntimeSubstitution::new(),
-    specialized_parameters: [],
     physical: None,
   }
   let input_witnesses = []

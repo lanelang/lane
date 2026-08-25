@@ -335,20 +335,12 @@ test "alpha-renamed evidence aliases share one callable adapter recipe" {
     captures: [],
     nested_adapters: [],
   }
-  let physical = PhysicalAnfProgram::new()
-  physical.record_adapter_contract(left_contract)
-  physical.record_adapter_contract(right_contract)
-  debug_inspect(
-    (
-      physical.adapter_contracts.length(),
-      image.callable_adapters.length(),
-      image.plans.length(),
-    ),
-    content="(1, 0, 0)",
+  image.preplan_callable_adapter_recipe(left_contract.recipe)
+  image.preplan_callable_adapter_recipe(right_contract.recipe)
+  let left_worker = image.planned_callable_adapter_recipe(left_contract.recipe)
+  let right_worker = image.planned_callable_adapter_recipe(
+    right_contract.recipe,
   )
-  image.materialize_physical_representation_support(physical)
-  let left_worker = image.planned_callable_adapter(left_contract)
-  let right_worker = image.planned_callable_adapter(right_contract)
   debug_inspect(
     (image.callable_adapters.length(), image.plans.length()),
     content="(1, 1)",

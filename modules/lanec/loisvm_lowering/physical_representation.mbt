@@ -121,6 +121,8 @@ priv struct PhysicalParameterPlan {
   binding : @anf.AnfBindingId
   type_ : @anf.RuntimeType
   contract : PhysicalValueContract
+  erased_evidence : RuntimeEvidencePlan?
+  field_erased_evidence : Array[RuntimeEvidencePlan?]
 }
 
 ///|
@@ -133,8 +135,6 @@ priv struct PhysicalRecursiveFunctionPlan {
 priv struct PhysicalFunctionPlan {
   interface : PhysicalCallableInterface
   evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
-  substitutions : RuntimeSubstitution
-  specialized_parameters : Array[@anf.RuntimeEvidenceId]
   capture : CallableCaptureContract
   parameters : Array[PhysicalParameterPlan]
   recursive_functions : Array[PhysicalRecursiveFunctionPlan]
@@ -144,11 +144,31 @@ priv struct PhysicalFunctionPlan {
 }
 
 ///|
-priv struct PhysicalRepresentationCallTarget {
+priv struct RepresentationCallPlanningTarget {
   instance : CallableInstance
   worker : RepresentationSpecializationPlan
   substitutions : RuntimeSubstitution
   invocation : PhysicalRepresentationInvocation
+}
+
+///|
+priv struct PhysicalRepresentationCallTarget {
+  worker : PhysicalRepresentationWorkerCall
+  invocation : PhysicalRepresentationInvocation
+}
+
+///|
+priv struct PhysicalRepresentationWorkerCall {
+  worker : @bytecode.FunctionId
+  type_ : @anf.RuntimeType
+  parameter_types : Array[@anf.RuntimeType]
+  scalar_parameters : Array[ScalarParameterPlan]
+}
+
+///|
+priv struct PhysicalRepresentationWorkerContract {
+  worker : @bytecode.FunctionId
+  key : RepresentationSpecializationKey
 }
 
 ///|
@@ -161,7 +181,6 @@ priv enum PhysicalRepresentationInvocation {
 priv struct PhysicalCallPlan {
   site : @anf.AnfBindingId
   target : PhysicalRepresentationCallTarget?
-  callable_arguments : Array[CallableRepresentationTarget?]
   invocation : CanonicalCallableAbi
   witnesses : Array[RuntimeEvidencePlan]
   parameter_types : Array[@anf.RuntimeType]
@@ -173,7 +192,7 @@ priv struct PhysicalCallPlan {
 }
 
 ///|
-priv struct PhysicalCallableSemantics {
+priv struct CallableSemanticsPlan {
   substitutions : RuntimeSubstitution
   witnesses : Array[RuntimeEvidencePlan]
   parameter_types : Array[@anf.RuntimeType]
@@ -201,14 +220,22 @@ priv enum PhysicalCallableImplementation {
 ///|
 priv enum PhysicalValueBridge {
   Erase(PhysicalErasureBridge)
-  Unerase(CallableAdapterContract?)
-  Callable(CallableAdapterContract)
+  Unerase(PhysicalCallableBridge?)
+  Callable(PhysicalCallableBridge)
 }
 
 ///|
 priv struct PhysicalErasureBridge {
   evidence : RuntimeEvidencePlan
-  callable : CallableAdapterContract?
+  callable : PhysicalCallableBridge?
+}
+
+///|
+priv struct PhysicalCallableBridge {
+  adapter : CallableAdapterPlan
+  source_type : @anf.RuntimeType
+  target_type : @anf.RuntimeType
+  captured_evidence : Array[RuntimeEvidencePlan]
 }
 
 ///|
@@ -285,7 +312,6 @@ priv struct PhysicalMatchAlternativePlan {
   alternative_constructor : @buslane.AltCon
   payloads : Array[PhysicalMatchPayloadPlan]
   result : PhysicalValueFlowPlan
-  substitutions : RuntimeSubstitution
 }
 
 ///|
@@ -298,7 +324,7 @@ priv struct PhysicalMatchPayloadPlan {
 priv struct PhysicalEvidenceApplication {
   target_type : @anf.RuntimeType
   mode : PhysicalEvidenceApplicationMode
-  adapter : CallableAdapterContract?
+  adapter : PhysicalCallableBridge?
   interface : PhysicalCallableInterface
 }
 
@@ -325,9 +351,7 @@ priv struct PhysicalAnfProgram {
   interfaces : Array[(@bytecode.FunctionId, PhysicalCallableInterface)]
   globals : Array[(@buslane.ValueId, PhysicalValueContract)]
   functions : Array[(@bytecode.FunctionId, PhysicalFunctionPlan)]
-  representation_workers : Array[RepresentationSpecializationPlan]
-  adapter_contracts : Array[CallableAdapterContract]
-  layout_constructors : Array[@anf.RuntimeEvidence]
+  representation_workers : Array[PhysicalRepresentationWorkerContract]
 }
 
 ///|
@@ -365,8 +389,6 @@ fn PhysicalAnfProgram::new() -> PhysicalAnfProgram {
     globals: [],
     functions: [],
     representation_workers: [],
-    adapter_contracts: [],
-    layout_constructors: [],
   }
 }
 
@@ -395,52 +417,6 @@ fn PhysicalAnfProgram::global(
     }
   }
   None
-}
-
-///|
-fn PhysicalAnfProgram::record_adapter_contract(
-  self : PhysicalAnfProgram,
-  contract : CallableAdapterContract,
-) -> Unit {
-  if self.adapter_contracts.any(existing => existing.recipe == contract.recipe) {
-    return
-  }
-  self.adapter_contracts.push(contract)
-  for nested in contract.nested_adapters {
-    self.record_adapter_contract(nested)
-  }
-}
-
-///|
-fn PhysicalAnfProgram::record_bridge_support(
-  self : PhysicalAnfProgram,
-  bridge : PhysicalValueBridge,
-) -> Unit {
-  match bridge {
-    Erase({ callable: Some(contract), .. })
-    | Unerase(Some(contract))
-    | Callable(contract) => self.record_adapter_contract(contract)
-    Erase({ callable: None, .. }) | Unerase(None) => ()
-  }
-}
-
-///|
-fn PhysicalAnfProgram::record_runtime_argument(
-  self : PhysicalAnfProgram,
-  argument : @anf.RuntimeArgument,
-) -> Unit {
-  if argument.evidence is Lambda(_, _) &&
-    !self.layout_constructors.contains(argument.evidence) {
-    self.layout_constructors.push(argument.evidence)
-  }
-}
-
-///|
-fn PhysicalAnfProgram::has_adapter_recipe(
-  self : PhysicalAnfProgram,
-  recipe : CallableAdapterRecipe,
-) -> Bool {
-  self.adapter_contracts.any(contract => contract.recipe == recipe)
 }
 
 ///|
@@ -602,29 +578,15 @@ fn ImageLowerer::ensure_generic_callable_invocation(
       detail="callable representation has no generic physical implementation",
     )
   }
-  self.ensure_generic_function_interface(instance, implementation.function).invocation
+  self.plan_generic_callable_interface(instance, implementation.function).invocation
 }
 
 ///|
-fn ImageLowerer::ensure_generic_function_invocation(
-  self : ImageLowerer,
-  instance : Int,
-  implementation : @bytecode.FunctionId,
-) -> CanonicalCallableAbi raise LoisvmLoweringError {
-  self.ensure_generic_function_interface(instance, implementation).invocation
-}
-
-///|
-fn ImageLowerer::ensure_generic_function_interface(
+fn ImageLowerer::generic_function_interface(
   self : ImageLowerer,
   instance : Int,
   implementation : @bytecode.FunctionId,
 ) -> PhysicalCallableInterface raise LoisvmLoweringError {
-  guard self.physical_anf is Some(physical) else {
-    raise RepresentationSpecializationInvariant(
-      detail="generic callable invocation was requested outside physical representation planning",
-    )
-  }
   guard self.callable_instances.instances.get(instance) is Some(requested) &&
     self.callable_instances.generic_instance(requested.definition.function.id)
     is Some(instance) else {
@@ -632,19 +594,7 @@ fn ImageLowerer::ensure_generic_function_interface(
       detail="generic callable invocation has no canonical fallback instance",
     )
   }
-  if physical.interface(implementation) is Some(interface) {
-    return interface
-  }
-  if self.generic_invocations_in_progress.contains(implementation) {
-    raise RepresentationSpecializationInvariant(
-      detail="generic higher-order invocation contracts recursively expand through \{Repr(implementation)}",
-    )
-  }
-  self.generic_invocations_in_progress.push(implementation)
-  let interface = self.plan_generic_callable_interface(instance, implementation)
-  ignore(self.generic_invocations_in_progress.pop())
-  physical.add_interface(implementation, interface)
-  interface
+  self.plan_generic_callable_interface(instance, implementation)
 }
 
 ///|
@@ -708,28 +658,6 @@ fn PhysicalAnfProgram::function(
 }
 
 ///|
-fn ImageLowerer::physical_function(
-  self : ImageLowerer,
-  function : @bytecode.FunctionId,
-) -> PhysicalFunctionPlan? {
-  self.physical_anf.bind(plan => plan.function(function))
-}
-
-///|
-fn ImageLowerer::physical_invocation(
-  self : ImageLowerer,
-  function : @bytecode.FunctionId,
-) -> CanonicalCallableAbi raise LoisvmLoweringError {
-  guard self.physical_anf.bind(plan => plan.invocation(function))
-    is Some(invocation) else {
-    raise RepresentationSpecializationInvariant(
-      detail="emitted callable \{Repr(function)} with origins \{Repr(self.plans.entries.filter_map(planned => if planned.function == function { Some(planned.origin) } else { None }))} has no physical invocation contract",
-    )
-  }
-  invocation
-}
-
-///|
 fn PhysicalFunctionPlan::parameter(
   self : PhysicalFunctionPlan,
   index : Int,
@@ -746,9 +674,9 @@ fn PhysicalFunctionPlan::parameter(
 ///|
 fn PhysicalFunctionPlan::authorizes_bridge(
   self : PhysicalFunctionPlan,
-  contract : CallableAdapterContract,
+  recipe : CallableAdapterRecipe,
 ) -> Bool {
-  self.callable_bridge_recipes().contains(contract.recipe)
+  self.callable_bridge_recipes().contains(recipe)
 }
 
 ///|
@@ -769,21 +697,11 @@ fn PhysicalValueFlowPlan::append_callable_bridge_recipes(
   match self.bridge {
     Some(Callable(planned))
     | Some(Erase({ callable: Some(planned), .. }))
-    | Some(Unerase(Some(planned))) => planned.append_recipes(recipes)
+    | Some(Unerase(Some(planned))) =>
+      if !recipes.contains(planned.adapter.recipe) {
+        recipes.push(planned.adapter.recipe)
+      }
     Some(Erase(_)) | Some(Unerase(None)) | None => ()
-  }
-}
-
-///|
-fn CallableAdapterContract::append_recipes(
-  self : CallableAdapterContract,
-  recipes : Array[CallableAdapterRecipe],
-) -> Unit {
-  if !recipes.contains(self.recipe) {
-    recipes.push(self.recipe)
-  }
-  for nested in self.nested_adapters {
-    nested.append_recipes(recipes)
   }
 }
 
@@ -793,11 +711,6 @@ fn FunctionLowerer::apply_physical_binding_flow(
   planned : PhysicalBindingFlowPlan,
   value : PhysicalLocalValue,
 ) -> PhysicalLocalValue raise LoisvmLoweringError {
-  guard self.image.physical_anf is Some(_) else {
-    raise RepresentationSpecializationInvariant(
-      detail="Runtime ANF binding flow has no owning physical plan",
-    )
-  }
   let adapted = match planned.flow.bridge {
     None => value
     Some(bridge) =>
@@ -817,7 +730,7 @@ fn FunctionLowerer::materialize_physical_function_result(
   self : FunctionLowerer,
   result : PhysicalLocalValue,
 ) -> PhysicalLocalValue raise LoisvmLoweringError {
-  guard self.physical is Some(function) && self.image.physical_anf is Some(_) else {
+  guard self.physical is Some(function) else {
     raise RepresentationSpecializationInvariant(
       detail="Runtime ANF function has no owning physical result plan",
     )
@@ -836,13 +749,12 @@ fn FunctionLowerer::physical_parameter_shape(
   self : FunctionLowerer,
   index : Int,
 ) -> PhysicalValueShape raise LoisvmLoweringError {
-  guard self.physical is Some(function) &&
-    self.image.physical_anf is Some(physical) else {
+  guard self.physical is Some(function) else {
     raise RepresentationSpecializationInvariant(
       detail="represented function has no owning physical plan",
     )
   }
-  function.parameter(index, physical)
+  function.parameter(index, self.physical_program)
 }
 
 ///|
@@ -850,12 +762,7 @@ fn FunctionLowerer::physical_shape(
   self : FunctionLowerer,
   identity : PhysicalValueShapeId,
 ) -> PhysicalValueShape raise LoisvmLoweringError {
-  guard self.image.physical_anf is Some(physical) else {
-    raise RepresentationSpecializationInvariant(
-      detail="represented function has no owning physical plan",
-    )
-  }
-  physical.shape(identity)
+  self.physical_program.shape(identity)
 }
 
 ///|
@@ -898,6 +805,7 @@ fn FunctionLowerer::fresh_planned_optional_slot(
   self : FunctionLowerer,
   type_ : @anf.RuntimeType,
   shape : PhysicalValueShape,
+  erased_evidence : RuntimeEvidencePlan?,
 ) -> (@vmcfg.ValueId?, LocalValue) raise LoisvmLoweringError {
   match shape {
     Unit => (None, Unit)
@@ -908,14 +816,21 @@ fn FunctionLowerer::fresh_planned_optional_slot(
     Slot(key) => {
       let erased_companion = match key {
         Value({ cleanup: OwnedErased, .. }) => {
-          guard type_ is Erased(_, evidence) else {
+          guard erased_evidence is Some(evidence) else {
             raise RepresentationSpecializationInvariant(
-              detail="an erased physical port has no runtime evidence",
+              detail="an erased physical port has no planned runtime evidence",
             )
           }
-          Some(self.layout_witness(evidence))
+          Some(self.materialize_runtime_evidence(evidence))
         }
-        _ => None
+        _ => {
+          if erased_evidence is Some(_) {
+            raise RepresentationSpecializationInvariant(
+              detail="a concrete physical port carries erased runtime evidence",
+            )
+          }
+          None
+        }
       }
       let slot = self.fresh_metadata(key.value_metadata(erased_companion))
       (Some(slot), LocalValue::Slot(slot, type_, key))
@@ -1110,9 +1025,9 @@ fn PhysicalFunctionPlanner::preplan_physical_bridge(
         }
         (
           callable_type,
-          self.image.plan_callable_erasure_adaptation(
-            callable_type, source_interface,
-          ),
+          self.image
+          .plan_callable_erasure_adaptation(callable_type, source_interface)
+          .map(contract => self.preplan_callable_bridge(contract, substitutions)),
         )
       }
       _ => (source, None)
@@ -1123,7 +1038,6 @@ fn PhysicalFunctionPlanner::preplan_physical_bridge(
       ),
       callable,
     })
-    self.physical.record_bridge_support(bridge)
     return Some(bridge)
   }
   if source_is_erased && !target_is_erased {
@@ -1135,17 +1049,18 @@ fn PhysicalFunctionPlanner::preplan_physical_bridge(
             detail="\{origin} callable unerasure at \{Repr(site)} has no exact physical callable interface",
           )
         }
-        self.image.plan_erased_callable_adaptation(
+        self.image
+        .plan_erased_callable_adaptation(
           target_type, substitutions, target_callable, target_interface,
         )
+        .map(contract => self.preplan_callable_bridge(contract, substitutions))
       }
       _ =>
-        self.image.plan_value_adaptation(
-          source_type, target_type, substitutions,
-        )
+        self.image
+        .plan_value_adaptation(source_type, target_type, substitutions)
+        .map(contract => self.preplan_callable_bridge(contract, substitutions))
     }
     let bridge = PhysicalValueBridge::Unerase(callable)
-    self.physical.record_bridge_support(bridge)
     return Some(bridge)
   }
   if source_shape is Slot(Value({ kind: DataValue(source_family), .. })) &&
@@ -1185,9 +1100,43 @@ fn PhysicalFunctionPlanner::preplan_physical_bridge(
       detail="\{origin} physical flow at \{Repr(site)} from \{Repr(source_type)} / \{Repr(source_shape)} to \{Repr(target_type)} / \{Repr(target_shape)} has no representation bridge",
     )
   }
-  let bridge = PhysicalValueBridge::Callable(contract)
-  self.physical.record_bridge_support(bridge)
+  let bridge = PhysicalValueBridge::Callable(
+    self.preplan_callable_bridge(contract, substitutions),
+  )
   Some(bridge)
+}
+
+///|
+fn PhysicalFunctionPlanner::preplan_callable_bridge(
+  self : PhysicalFunctionPlanner,
+  contract : CallableAdapterContract,
+  substitutions : RuntimeSubstitution,
+) -> PhysicalCallableBridge raise LoisvmLoweringError {
+  let captured_evidence = contract.captures.map(capture => {
+    let argument = match contract.substitutions.argument(capture.source.id) {
+      Some(argument) =>
+        Some(substitutions.apply_argument(self.image.runtime_types, argument))
+      None =>
+        substitutions
+        .argument(capture.source.id)
+        .map(argument => {
+          substitutions.apply_argument(self.image.runtime_types, argument)
+        })
+    }
+    match argument {
+      Some(argument) =>
+        self.image.plan_runtime_argument_evidence(capture.source, argument)
+      None => RuntimeEvidencePlan::Existing(capture.source.id)
+    }
+  })
+  self.image.preplan_callable_adapter_recipe(contract.recipe)
+  let adapter = self.image.planned_callable_adapter_recipe(contract.recipe)
+  {
+    adapter,
+    source_type: contract.source_type,
+    target_type: contract.target_type,
+    captured_evidence,
+  }
 }
 
 ///|
@@ -1271,6 +1220,24 @@ fn PhysicalFunctionPlanner::preplan_physical_contract_flow(
 }
 
 ///|
+fn PhysicalFunctionPlanner::preplan_erased_evidence(
+  self : PhysicalFunctionPlanner,
+  type_ : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
+  shape : PhysicalValueShape,
+) -> RuntimeEvidencePlan? raise LoisvmLoweringError {
+  guard shape is Slot(Value({ cleanup: OwnedErased, .. })) else { return None }
+  let resolved = substitutions.apply_type(self.image.runtime_types, type_)
+  guard resolved is Erased(_, evidence) else {
+    raise RepresentationSpecializationInvariant(
+      detail="erased physical contract has no semantic layout evidence",
+    )
+  }
+  let plan = self.image.plan_layout_witness(evidence)
+  Some(plan)
+}
+
+///|
 fn physical_value_bridge_equal(
   left : PhysicalValueBridge,
   right : PhysicalValueBridge,
@@ -1280,16 +1247,22 @@ fn physical_value_bridge_equal(
       left.evidence == right.evidence &&
       (match (left.callable, right.callable) {
         (None, None) => true
-        (Some(left), Some(right)) => left.recipe == right.recipe
+        (Some(left), Some(right)) =>
+          left.adapter.recipe == right.adapter.recipe &&
+          left.captured_evidence == right.captured_evidence
         _ => false
       })
     (Unerase(left), Unerase(right)) =>
       match (left, right) {
         (None, None) => true
-        (Some(left), Some(right)) => left.recipe == right.recipe
+        (Some(left), Some(right)) =>
+          left.adapter.recipe == right.adapter.recipe &&
+          left.captured_evidence == right.captured_evidence
         _ => false
       }
-    (Callable(left), Callable(right)) => left.recipe == right.recipe
+    (Callable(left), Callable(right)) =>
+      left.adapter.recipe == right.adapter.recipe &&
+      left.captured_evidence == right.captured_evidence
     _ => false
   }
 }
@@ -1473,7 +1446,6 @@ fn ImageLowerer::elaborate_physical_anf(
   self : ImageLowerer,
 ) -> VerifiedPhysicalAnfProgram raise LoisvmLoweringError {
   let physical = PhysicalAnfProgram::new()
-  self.physical_anf = Some(physical)
   let generic_plan_count = self.plans.length()
   for index = 0; index < generic_plan_count; index = index + 1 {
     let planned = self.plans.get(index)
@@ -1485,16 +1457,15 @@ fn ImageLowerer::elaborate_physical_anf(
             detail="top-level callable has no generic semantic instance",
           )
         }
-        ignore(
-          self.ensure_generic_function_invocation(instance, planned.function),
+        physical.add_interface(
+          planned.function,
+          self.generic_function_interface(instance, planned.function),
         )
       }
       LiftedFunction(plan) =>
-        ignore(
-          self.ensure_generic_function_invocation(
-            plan.instance,
-            planned.function,
-          ),
+        physical.add_interface(
+          planned.function,
+          self.generic_function_interface(plan.instance, planned.function),
         )
       _ => ()
     }
@@ -1684,8 +1655,6 @@ fn ImageLowerer::elaborate_physical_anf(
         physical.add_function(planned.function, {
           interface,
           evidence_parameters: [],
-          substitutions: RuntimeSubstitution::new(),
-          specialized_parameters: [],
           capture: CallableCaptureContract::empty(),
           parameters: [],
           recursive_functions: [],
@@ -1702,9 +1671,19 @@ fn ImageLowerer::elaborate_physical_anf(
     }
     index += 1
   }
-  self.materialize_physical_representation_support(physical)
-  while index < self.plans.length() {
-    let planned = self.plans.get(index)
+  self.record_physical_support_invocations(physical)
+  physical.verify()
+}
+
+///|
+fn ImageLowerer::record_physical_support_invocations(
+  self : ImageLowerer,
+  physical : PhysicalAnfProgram,
+) -> Unit raise LoisvmLoweringError {
+  for planned in self.plans.entries {
+    if physical.invocation(planned.function) is Some(_) {
+      continue
+    }
     match planned.entry {
       CallableAdapter(plan) =>
         physical.add_invocation(planned.function, plan.recipe.target_abi)
@@ -1713,14 +1692,9 @@ fn ImageLowerer::elaborate_physical_anf(
           planned.function,
           layout_constructor_invocation(plan),
         )
-      _ =>
-        raise RepresentationSpecializationInvariant(
-          detail="physical support materialization appended a non-support function",
-        )
+      _ => ()
     }
-    index += 1
   }
-  physical.verify()
 }
 
 ///|
@@ -1788,19 +1762,6 @@ fn ImageLowerer::predeclare_physical_invocations(
         )
       }
     }
-  }
-}
-
-///|
-fn ImageLowerer::materialize_physical_representation_support(
-  self : ImageLowerer,
-  physical : PhysicalAnfProgram,
-) -> Unit raise LoisvmLoweringError {
-  for evidence in physical.layout_constructors {
-    ignore(self.plan_layout_constructor(evidence))
-  }
-  for contract in physical.adapter_contracts {
-    self.preplan_callable_adapter(contract)
   }
 }
 
@@ -1930,9 +1891,6 @@ fn ImageLowerer::plan_physical_function(
       detail="physical function parameter arity does not match Runtime ANF",
     )
   }
-  for entry in substitutions.entries {
-    physical.record_runtime_argument(entry.1)
-  }
   let planner : PhysicalFunctionPlanner = {
     image: self,
     physical,
@@ -1994,6 +1952,7 @@ fn ImageLowerer::plan_physical_function(
       }
     }
     let parameter_fields : Array[PhysicalValueContract] = []
+    let parameter_field_evidence : Array[RuntimeEvidencePlan?] = []
     let shape = match scalar {
       Some(contract) => {
         let payloads = []
@@ -2008,6 +1967,7 @@ fn ImageLowerer::plan_physical_function(
             )
             payloads.push(field)
             parameter_fields.push(field)
+            parameter_field_evidence.push(None)
             continue
           }
           let shape = match expected_invocation {
@@ -2038,6 +1998,9 @@ fn ImageLowerer::plan_physical_function(
           )
           payloads.push(field)
           parameter_fields.push(field)
+          parameter_field_evidence.push(
+            planner.preplan_erased_evidence(payload_type, substitutions, shape),
+          )
           physical_parameter_index += 1
         }
         PhysicalValueShape::Product(
@@ -2084,19 +2047,30 @@ fn ImageLowerer::plan_physical_function(
           substitutions,
         )
     }
-    let parameter_shape = planner.append_port(
-      Value(parameter),
-      shape,
-      parameter_interface,
-      "function-parameter",
-      fields=parameter_fields,
+    ignore(
+      planner.append_port(
+        Value(parameter),
+        shape,
+        parameter_interface,
+        "function-parameter",
+        fields=parameter_fields,
+      ),
     )
+    guard planner.port_contract(Value(parameter)) is Some(parameter_contract) else {
+      raise RepresentationSpecializationInvariant(
+        detail="function parameter has no physical port contract",
+      )
+    }
     parameters.push({
       binding: Value(parameter),
       type_: parameter_type,
-      contract: physical.value_contract(
-        parameter_shape, parameter_interface, parameter_fields, "function parameter",
+      contract: parameter_contract,
+      erased_evidence: planner.preplan_erased_evidence(
+        parameter_type,
+        RuntimeSubstitution::new(),
+        shape,
       ),
+      field_erased_evidence: parameter_field_evidence,
     })
   }
   let (produced, body) = planner.plan_physical_expr(
@@ -2162,8 +2136,6 @@ fn ImageLowerer::plan_physical_function(
   {
     interface,
     evidence_parameters,
-    substitutions,
-    specialized_parameters,
     capture,
     parameters,
     recursive_functions: recursive_functions.map(recursive => {
@@ -2545,9 +2517,6 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
       let applied = arguments.map(argument => {
         self.substitutions.apply_argument(self.image.runtime_types, argument)
       })
-      for argument in applied {
-        self.physical.record_runtime_argument(argument)
-      }
       let type_ = self.applied_callable_type(callee, arguments)
       let source_type = self.instantiate_type(source_type)
       let all_arguments = inherited_arguments + applied
@@ -2586,14 +2555,15 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
         )
       }
       let adapter = if materialize {
-        self.plan_evidence_application_adapter(
+        self
+        .plan_evidence_application_adapter(
           source_type, type_, all_arguments, source_interface, target_interface,
         )
+        .map(contract => {
+          self.preplan_callable_bridge(contract, self.substitutions)
+        })
       } else {
         None
-      }
-      if adapter is Some(adapter) {
-        self.physical.record_adapter_contract(adapter)
       }
       let application : DeferredEvidenceApplication = {
         source_type,
@@ -2835,8 +2805,15 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
       }
       let plan : PhysicalCallPlan = {
         site,
-        target,
-        callable_arguments,
+        target: target.map(target => {
+          worker: {
+            worker: target.worker.worker,
+            type_: target.worker.callable_type(),
+            parameter_types: target.worker.parameter_types,
+            scalar_parameters: target.worker.scalar_parameters,
+          },
+          invocation: target.invocation,
+        }),
         invocation,
         witnesses: semantics.witnesses,
         parameter_types: semantics.parameter_types,
@@ -2888,12 +2865,6 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
       let hidden_arguments = construct.hidden_arguments.map(argument => {
         self.substitutions.apply_argument(self.image.runtime_types, argument)
       })
-      for argument in type_arguments {
-        self.physical.record_runtime_argument(argument)
-      }
-      for argument in hidden_arguments {
-        self.physical.record_runtime_argument(argument)
-      }
       let construct_substitutions = RuntimeSubstitution::from_arguments(
         owner_info.evidence_parameters,
         type_arguments,
@@ -3218,7 +3189,6 @@ fn PhysicalFunctionPlanner::plan_physical_rhs(
             source_fields=source_contract.fields,
             target_fields=source_contract.fields,
           ),
-          substitutions,
         }
         alternatives.push(alternative_plan)
         physical_alternatives.push({
@@ -3404,7 +3374,7 @@ fn PhysicalFunctionPlanner::callable_atom_uses_worker(
 fn PhysicalFunctionPlanner::planned_call_result_type(
   self : PhysicalFunctionPlanner,
   callee : @anf.AnfAtom,
-  target : PhysicalRepresentationCallTarget?,
+  target : RepresentationCallPlanningTarget?,
 ) -> @anf.RuntimeType raise LoisvmLoweringError {
   if target is Some(target) {
     let (_, _, result) = function_type_parts(target.instance.definition.type_)
@@ -3467,7 +3437,7 @@ fn PhysicalFunctionPlanner::plan_representation_call_arguments(
   site : @anf.AnfBindingId,
   arguments : Array[@anf.AnfAtom],
   callable_arguments : Array[CallableRepresentationTarget?],
-  target : PhysicalRepresentationCallTarget,
+  target : RepresentationCallPlanningTarget,
   interface : PhysicalCallableInterface,
 ) -> Array[PhysicalValueFlowPlan] raise LoisvmLoweringError {
   if arguments.length() != target.worker.parameter_types.length() {
@@ -3586,7 +3556,7 @@ fn PhysicalFunctionPlanner::representation_call_preserves_identity(
   site : @anf.AnfBindingId,
   arguments : Array[@anf.AnfAtom],
   callable_arguments : Array[CallableRepresentationTarget?],
-  target : PhysicalRepresentationCallTarget,
+  target : RepresentationCallPlanningTarget,
 ) -> Bool raise LoisvmLoweringError {
   if arguments.length() != target.worker.parameter_types.length() {
     return false
@@ -3718,7 +3688,7 @@ fn PhysicalFunctionPlanner::preplan_call_value_flows(
   callable_arguments : Array[CallableRepresentationTarget?],
   source_shapes : Array[PhysicalValueShapeId],
   argument_shapes : Array[PhysicalValueShapeId],
-  semantics : PhysicalCallableSemantics,
+  semantics : CallableSemanticsPlan,
   interface : PhysicalCallableInterface,
 ) -> Array[PhysicalValueFlowPlan] raise LoisvmLoweringError {
   let parameters = semantics.parameter_types
@@ -3825,7 +3795,7 @@ fn PhysicalFunctionPlanner::callable_semantics(
   self : PhysicalFunctionPlanner,
   interface : PhysicalCallableInterface,
   substitutions : RuntimeSubstitution,
-) -> PhysicalCallableSemantics raise LoisvmLoweringError {
+) -> CallableSemanticsPlan raise LoisvmLoweringError {
   let witnesses = interface.evidence_parameters.map(parameter => {
     self.image.plan_runtime_argument_evidence(
       parameter,
@@ -3849,7 +3819,7 @@ fn PhysicalFunctionPlanner::callable_semantics(
 fn PhysicalFunctionPlanner::physical_call_interface(
   self : PhysicalFunctionPlanner,
   callee : PhysicalCallableInterface,
-  target : PhysicalRepresentationCallTarget?,
+  target : RepresentationCallPlanningTarget?,
   invocation : CanonicalCallableAbi,
 ) -> PhysicalCallableInterface raise LoisvmLoweringError {
   let interface = match target {
@@ -4269,13 +4239,9 @@ fn ImageLowerer::materialized_callable_implementation(
         )
       })
     Worker(function) => {
-      guard self.physical_anf is Some(physical) else {
-        raise RepresentationSpecializationInvariant(
-          detail="planned representation worker has no owning physical plan",
-        )
-      }
-      for worker in physical.representation_workers {
-        if worker.worker == function {
+      for planned in self.plans.entries {
+        if planned.entry is RepresentationWorker(worker) &&
+          worker.worker == function {
           return { function, type_: worker.callable_type(), }
         }
       }
@@ -4926,13 +4892,6 @@ fn PhysicalAnfProgram::verify(
       )
     }
     self.verify_expr(environment, entry.1.body)
-    for recipe in entry.1.callable_bridge_recipes() {
-      if !self.has_adapter_recipe(recipe) {
-        raise RepresentationSpecializationInvariant(
-          detail="physical function bridge has no planned callable adapter contract",
-        )
-      }
-    }
   }
   { program: self, }
 }
@@ -4985,16 +4944,13 @@ fn PhysicalAnfProgram::verify_value_flow(
           detail="physical erase bridge does not flow from a concrete shape to an erased shape",
         )
       }
-      if callable is Some(contract) {
+      if callable is Some(callable) {
+        self.verify_callable_bridge(callable)
+        let contract = callable.adapter.recipe
         guard source is Slot(Callable(invocation)) &&
-          contract.recipe.source_abi == invocation else {
+          contract.source_abi == invocation else {
           raise RepresentationSpecializationInvariant(
             detail="physical callable erasure disagrees with its source invocation contract",
-          )
-        }
-        if !self.has_adapter_recipe(contract.recipe) {
-          raise RepresentationSpecializationInvariant(
-            detail="physical callable erasure has no planned adapter contract",
           )
         }
       }
@@ -5006,34 +4962,47 @@ fn PhysicalAnfProgram::verify_value_flow(
           detail="physical unerase bridge does not flow from an erased shape to a concrete shape",
         )
       }
-      if callable is Some(contract) {
+      if callable is Some(callable) {
+        self.verify_callable_bridge(callable)
+        let contract = callable.adapter.recipe
         guard target is Slot(Callable(invocation)) &&
-          contract.recipe.target_abi == invocation else {
+          contract.target_abi == invocation else {
           raise RepresentationSpecializationInvariant(
             detail="physical callable unerasure disagrees with its target invocation contract",
           )
         }
-        if !self.has_adapter_recipe(contract.recipe) {
-          raise RepresentationSpecializationInvariant(
-            detail="physical callable unerasure has no planned adapter contract",
-          )
-        }
       }
     }
-    Callable(contract) => {
+    Callable(callable) => {
+      self.verify_callable_bridge(callable)
+      let contract = callable.adapter.recipe
       guard source is Slot(Callable(source_abi)) &&
         target is Slot(Callable(target_abi)) &&
-        contract.recipe.source_abi == source_abi &&
-        contract.recipe.target_abi == target_abi else {
+        contract.source_abi == source_abi &&
+        contract.target_abi == target_abi else {
         raise RepresentationSpecializationInvariant(
           detail="physical callable bridge disagrees with its source or target invocation contract",
         )
       }
-      if !self.has_adapter_recipe(contract.recipe) {
-        raise RepresentationSpecializationInvariant(
-          detail="physical callable bridge has no planned adapter contract",
-        )
-      }
     }
+  }
+}
+
+///|
+fn PhysicalAnfProgram::verify_callable_bridge(
+  self : PhysicalAnfProgram,
+  bridge : PhysicalCallableBridge,
+) -> Unit raise LoisvmLoweringError {
+  let recipe = bridge.adapter.recipe
+  guard self.invocation(bridge.adapter.function) is Some(invocation) &&
+    invocation == recipe.target_abi else {
+    raise RepresentationSpecializationInvariant(
+      detail="physical callable bridge adapter has no matching invocation contract",
+    )
+  }
+  if bridge.captured_evidence.length() != recipe.captured_evidence.length() {
+    raise RepresentationSpecializationInvariant(
+      detail="physical callable bridge disagrees with its adapter evidence contract",
+    )
   }
 }

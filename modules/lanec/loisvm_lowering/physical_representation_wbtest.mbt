@@ -85,8 +85,6 @@ test "Physical ANF verifier rejects an illegal binding flow" {
   physical.add_function({ value: 1, }, {
     interface,
     evidence_parameters: [],
-    substitutions: RuntimeSubstitution::new(),
-    specialized_parameters: [],
     capture: CallableCaptureContract::empty(),
     parameters: [],
     recursive_functions: [],
@@ -129,11 +127,15 @@ test "Physical ANF atom cannot claim a shape different from its producer" {
   physical.add_function({ value: 1, }, {
     interface,
     evidence_parameters: [],
-    substitutions: RuntimeSubstitution::new(),
-    specialized_parameters: [],
     capture: CallableCaptureContract::empty(),
     parameters: [
-      { binding: Value(parameter), type_, contract: test_contract(scalar), },
+      {
+        binding: Value(parameter),
+        type_,
+        contract: test_contract(scalar),
+        erased_evidence: None,
+        field_erased_evidence: [],
+      },
     ],
     recursive_functions: [],
     result_type: type_,

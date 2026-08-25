@@ -58,8 +58,8 @@ fn ImageLowerer::plan_representation_specializations(
     let instance = draft.1
     let demand = draft.2
     let mut existing = false
-    for plan in physical.representation_workers {
-      if plan.key == demand.key {
+    for planned in self.plans.entries {
+      if planned.entry is RepresentationWorker(plan) && plan.key == demand.key {
         if !plan.aliases.contains(callable) {
           plan.aliases.push(callable)
         }
@@ -126,7 +126,7 @@ fn ImageLowerer::plan_representation_specializations(
         (RepresentationWorker(plan), plan)
       },
     )
-    physical.representation_workers.push(plan)
+    physical.representation_workers.push({ worker: plan.worker, key: plan.key, })
   }
 }
 
@@ -1467,7 +1467,7 @@ fn ImageLowerer::callable_representation_interface(
       detail="generic callable interface has no canonical fallback instance",
     )
   }
-  self.ensure_generic_function_interface(instance, implementation.function)
+  self.generic_function_interface(instance, implementation.function)
 }
 
 ///|
@@ -1682,9 +1682,9 @@ fn ImageLowerer::representation_specialization_for_callable(
   self : ImageLowerer,
   callable : CallableRepresentationTarget,
 ) -> RepresentationSpecializationPlan? {
-  guard self.physical_anf is Some(physical) else { return None }
-  for plan in physical.representation_workers {
-    if plan.aliases.contains(callable) {
+  for planned in self.plans.entries {
+    if planned.entry is RepresentationWorker(plan) &&
+      plan.aliases.contains(callable) {
       return Some(plan)
     }
   }
