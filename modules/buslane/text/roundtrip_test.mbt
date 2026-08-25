@@ -23,7 +23,7 @@ fn writer() -> CanonicalTextWriter {
 test "buslane text round-trips metadata allocator state" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   metadata.name_allocator = Fresh(@buslane.BuslaneUnique::from_int(7).unwrap())
-  let program : @buslane.Program = { metadata, terms: [] }
+  let program : @buslane.Program = { metadata, terms: [], }
   let text = writer().write_program(program)
   let decoded = match parse_program_text(text) {
     Ok(decoded) => decoded
@@ -35,7 +35,7 @@ test "buslane text round-trips metadata allocator state" {
     @buslane.BuslaneUnique::from_int(0x7FFFFFFF).unwrap(),
   )
   ignore(metadata.define_value("last", Value, Primitive(Unit)))
-  let exhausted : @buslane.Program = { metadata, terms: [] }
+  let exhausted : @buslane.Program = { metadata, terms: [], }
   let exhausted_text = writer().write_program(exhausted)
   let exhausted_decoded = match parse_program_text(exhausted_text) {
     Ok(decoded) => decoded
@@ -53,15 +53,18 @@ test "buslane text round-trips metadata allocator state" {
 fn type_forms() -> Array[(String, @buslane.Type)] {
   [
     ("primitive", Primitive(I64)),
-    ("parameter", Parameter({ index: 7 })),
-    ("constructor", Constructor({ index: 7 })),
-    ("apply", Apply(Constructor({ index: 7 }), [TypeArgument(Primitive(Bool))])),
+    ("parameter", Parameter({ index: 7, })),
+    ("constructor", Constructor({ index: 7, })),
+    (
+      "apply",
+      Apply(Constructor({ index: 7, }), [TypeArgument(Primitive(Bool))]),
+    ),
     (
       "apply of an effect",
-      Apply(Constructor({ index: 7 }), [EffectArgument(Builtin(Io))]),
+      Apply(Constructor({ index: 7, }), [EffectArgument(Builtin(Io))]),
     ),
-    ("apply without arguments", Apply(Constructor({ index: 7 }), [])),
-    ("type lambda", TypeLambda([{ index: 7 }], Parameter({ index: 7 }))),
+    ("apply without arguments", Apply(Constructor({ index: 7, }), [])),
+    ("type lambda", TypeLambda([{ index: 7, }], Parameter({ index: 7, }))),
     ("type lambda without parameters", TypeLambda([], Primitive(Bool))),
     ("function", Function([Primitive(I64)], Primitive(Bool), Empty)),
     ("function without parameters", Function([], Primitive(Bool), Empty)),
@@ -69,7 +72,7 @@ fn type_forms() -> Array[(String, @buslane.Type)] {
       "function with a latent effect",
       Function([Primitive(I64)], Primitive(Bool), Builtin(Io)),
     ),
-    ("forall", Forall([{ index: 7 }], Parameter({ index: 7 }))),
+    ("forall", Forall([{ index: 7, }], Parameter({ index: 7, }))),
     ("forall without parameters", Forall([], Primitive(Bool))),
   ]
 }
@@ -85,7 +88,7 @@ fn type_contexts() -> Array[(String, (@buslane.Type) -> @buslane.Type)] {
     ),
     (
       "as a type argument",
-      hole => Apply(Constructor({ index: 1 }), [TypeArgument(hole)]),
+      hole => Apply(Constructor({ index: 1, }), [TypeArgument(hole)]),
     ),
     (
       "as a function parameter",
@@ -96,15 +99,15 @@ fn type_contexts() -> Array[(String, (@buslane.Type) -> @buslane.Type)] {
       "as a function result under a latent effect",
       hole => Function([Primitive(I64)], hole, Builtin(Io)),
     ),
-    ("as a forall body", hole => Forall([{ index: 1 }], hole)),
-    ("as a type lambda body", hole => TypeLambda([{ index: 1 }], hole)),
+    ("as a forall body", hole => Forall([{ index: 1, }], hole)),
+    ("as a type lambda body", hole => TypeLambda([{ index: 1, }], hole)),
     (
       "as an effect's type argument",
       hole => {
         Function(
           [],
           Primitive(Unit),
-          Singleton({ index: 1 }, [TypeArgument(hole)]),
+          Singleton({ index: 1, }, [TypeArgument(hole)]),
         )
       },
     ),
@@ -145,13 +148,13 @@ fn effect_forms() -> Array[(String, @buslane.Effect)] {
     ("empty", Empty),
     ("io", Builtin(Io)),
     ("panic", Builtin(Panic)),
-    ("singleton", Singleton({ index: 7 }, [])),
+    ("singleton", Singleton({ index: 7, }, [])),
     (
       "singleton with arguments",
-      Singleton({ index: 7 }, [TypeArgument(Primitive(I64))]),
+      Singleton({ index: 7, }, [TypeArgument(Primitive(I64))]),
     ),
-    ("parameter", Parameter({ index: 7 })),
-    ("union", Union([Builtin(Io), Parameter({ index: 7 })])),
+    ("parameter", Parameter({ index: 7, })),
+    ("union", Union([Builtin(Io), Parameter({ index: 7, })])),
     ("union of one", Union([Builtin(Io)])),
     ("nested union", Union([Union([Builtin(Io)]), Empty])),
   ]
@@ -180,7 +183,7 @@ fn effect_contexts() -> Array[(String, (@buslane.Effect) -> @buslane.Type)] {
     ),
     (
       "as an effect argument",
-      hole => Apply(Constructor({ index: 1 }), [EffectArgument(hole)]),
+      hole => Apply(Constructor({ index: 1, }), [EffectArgument(hole)]),
     ),
     (
       "as an effect's effect argument",
@@ -188,7 +191,7 @@ fn effect_contexts() -> Array[(String, (@buslane.Effect) -> @buslane.Type)] {
         Function(
           [],
           Primitive(Unit),
-          Singleton({ index: 1 }, [EffectArgument(hole)]),
+          Singleton({ index: 1, }, [EffectArgument(hole)]),
         )
       },
     ),
@@ -226,29 +229,29 @@ test "buslane text round-trips every effect constructor in every position" {
 ///|
 fn expr_forms() -> Array[(String, @buslane.Expr)] {
   [
-    ("ref", Ref({ index: 7 })),
+    ("ref", Ref({ index: 7, })),
     ("literal", Literal(I64(7))),
     (
       "function",
       Function({
-        parameters: [{ index: 7 }],
+        parameters: [{ index: 7, }],
         result_type: Primitive(I64),
-        body: Ref({ index: 7 }),
+        body: Ref({ index: 7, }),
       }),
     ),
-    ("call", Call(Ref({ index: 7 }), [Literal(I64(1))])),
-    ("call without arguments", Call(Ref({ index: 7 }), [])),
-    ("type lambda", TypeLambda([{ index: 7 }], Literal(Unit))),
+    ("call", Call(Ref({ index: 7, }), [Literal(I64(1))])),
+    ("call without arguments", Call(Ref({ index: 7, }), [])),
+    ("type lambda", TypeLambda([{ index: 7, }], Literal(Unit))),
     ("type lambda without parameters", TypeLambda([], Literal(Unit))),
     (
       "type application",
-      TypeApply(Ref({ index: 7 }), [TypeArgument(Primitive(I64))]),
+      TypeApply(Ref({ index: 7, }), [TypeArgument(Primitive(I64))]),
     ),
-    ("type application without arguments", TypeApply(Ref({ index: 7 }), [])),
+    ("type application without arguments", TypeApply(Ref({ index: 7, }), [])),
     (
       "construct",
       Construct({
-        data_constructor: { index: 7 },
+        data_constructor: { index: 7, },
         type_arguments: [TypeArgument(Primitive(I64))],
         hidden_witnesses: [],
         payloads: [Literal(I64(1))],
@@ -257,7 +260,7 @@ fn expr_forms() -> Array[(String, @buslane.Expr)] {
     (
       "construct with hidden witnesses",
       Construct({
-        data_constructor: { index: 7 },
+        data_constructor: { index: 7, },
         type_arguments: [TypeArgument(Primitive(I64))],
         hidden_witnesses: [TypeArgument(Primitive(Bool))],
         payloads: [Literal(I64(1))],
@@ -266,30 +269,30 @@ fn expr_forms() -> Array[(String, @buslane.Expr)] {
     (
       "construct without arguments",
       Construct({
-        data_constructor: { index: 7 },
+        data_constructor: { index: 7, },
         type_arguments: [],
         hidden_witnesses: [],
         payloads: [],
       }),
     ),
-    ("let", Let({ index: 7 }, Literal(I64(1)), Ref({ index: 7 }))),
+    ("let", Let({ index: 7, }, Literal(I64(1)), Ref({ index: 7, }))),
     (
       "letrec",
-      LetRec([{ id: { index: 7 }, rhs: Literal(I64(1)) }], Ref({ index: 7 })),
+      LetRec([{ id: { index: 7, }, rhs: Literal(I64(1)), }], Ref({ index: 7, })),
     ),
     ("letrec without bindings", LetRec([], Literal(Unit))),
     (
       "match",
       Match({
         scrutinee: Literal(I64(1)),
-        binder: { index: 7 },
+        binder: { index: 7, },
         result_type: Primitive(I64),
         alternatives: [
           {
-            alt_constructor: DataCon({ index: 7 }),
-            type_binders: [{ index: 7 }],
-            value_binders: [{ index: 8 }],
-            body: Ref({ index: 8 }),
+            alt_constructor: DataCon({ index: 7, }),
+            type_binders: [{ index: 7, }],
+            value_binders: [{ index: 8, }],
+            body: Ref({ index: 8, }),
           },
           {
             alt_constructor: Literal(I64(2)),
@@ -310,7 +313,7 @@ fn expr_forms() -> Array[(String, @buslane.Expr)] {
       "match without alternatives",
       Match({
         scrutinee: Literal(I64(1)),
-        binder: { index: 7 },
+        binder: { index: 7, },
         result_type: Primitive(I64),
         alternatives: [],
       }),
@@ -318,7 +321,7 @@ fn expr_forms() -> Array[(String, @buslane.Expr)] {
     (
       "perform",
       Perform({
-        operation: { index: 7 },
+        operation: { index: 7, },
         effect_arguments: [TypeArgument(Primitive(I64))],
         hidden_witnesses: [TypeArgument(Primitive(Bool))],
         payloads: [Literal(I64(1))],
@@ -327,7 +330,7 @@ fn expr_forms() -> Array[(String, @buslane.Expr)] {
     (
       "perform without arguments",
       Perform({
-        operation: { index: 7 },
+        operation: { index: 7, },
         effect_arguments: [],
         hidden_witnesses: [],
         payloads: [],
@@ -337,19 +340,19 @@ fn expr_forms() -> Array[(String, @buslane.Expr)] {
       "handle",
       Handle({
         body: Literal(I64(1)),
-        result_binder: { index: 7 },
+        result_binder: { index: 7, },
         result_type: Primitive(I64),
-        final_body: Ref({ index: 7 }),
+        final_body: Ref({ index: 7, }),
         handlers: [
           {
-            handled_effect: Singleton({ index: 7 }, []),
+            handled_effect: Singleton({ index: 7, }, []),
             operations: [
               {
-                operation: { index: 7 },
-                type_binders: [{ index: 7 }],
-                payload_binders: [{ index: 8 }],
-                resume_binder: { index: 9 },
-                body: Call(Resume({ index: 9 }), [Ref({ index: 8 })]),
+                operation: { index: 7, },
+                type_binders: [{ index: 7, }],
+                payload_binders: [{ index: 8, }],
+                resume_binder: { index: 9, },
+                body: Call(Resume({ index: 9, }), [Ref({ index: 8, })]),
               },
             ],
           },
@@ -360,13 +363,13 @@ fn expr_forms() -> Array[(String, @buslane.Expr)] {
       "handle without handlers",
       Handle({
         body: Literal(I64(1)),
-        result_binder: { index: 7 },
+        result_binder: { index: 7, },
         result_type: Primitive(I64),
-        final_body: Ref({ index: 7 }),
+        final_body: Ref({ index: 7, }),
         handlers: [],
       }),
     ),
-    ("resume", Resume({ index: 7 })),
+    ("resume", Resume({ index: 7, })),
   ]
 }
 
@@ -375,34 +378,34 @@ fn expr_contexts() -> Array[(String, (@buslane.Expr) -> @buslane.Expr)] {
   [
     ("on its own", hole => hole),
     ("as a call callee", hole => Call(hole, [Literal(I64(1))])),
-    ("as a call argument", hole => Call(Ref({ index: 1 }), [hole])),
+    ("as a call argument", hole => Call(Ref({ index: 1, }), [hole])),
     (
       "as a type application callee",
       hole => TypeApply(hole, [TypeArgument(Primitive(I64))]),
     ),
-    ("as a let initializer", hole => Let({ index: 1 }, hole, Literal(Unit))),
-    ("as a let body", hole => Let({ index: 1 }, Literal(Unit), hole)),
+    ("as a let initializer", hole => Let({ index: 1, }, hole, Literal(Unit))),
+    ("as a let body", hole => Let({ index: 1, }, Literal(Unit), hole)),
     (
       "as a letrec binding",
-      hole => LetRec([{ id: { index: 1 }, rhs: hole }], Literal(Unit)),
+      hole => LetRec([{ id: { index: 1, }, rhs: hole, }], Literal(Unit)),
     ),
     (
       "as a letrec body",
-      hole => LetRec([{ id: { index: 1 }, rhs: Literal(Unit) }], hole),
+      hole => LetRec([{ id: { index: 1, }, rhs: Literal(Unit), }], hole),
     ),
     (
       "as a function body",
       hole => {
-        Function({ parameters: [], result_type: Primitive(I64), body: hole })
+        Function({ parameters: [], result_type: Primitive(I64), body: hole, })
       },
     ),
-    ("as a type lambda body", hole => TypeLambda([{ index: 1 }], hole)),
+    ("as a type lambda body", hole => TypeLambda([{ index: 1, }], hole)),
     (
       "as a match scrutinee",
       hole => {
         Match({
           scrutinee: hole,
-          binder: { index: 1 },
+          binder: { index: 1, },
           result_type: Primitive(I64),
           alternatives: [],
         })
@@ -413,7 +416,7 @@ fn expr_contexts() -> Array[(String, (@buslane.Expr) -> @buslane.Expr)] {
       hole => {
         Match({
           scrutinee: Literal(Unit),
-          binder: { index: 1 },
+          binder: { index: 1, },
           result_type: Primitive(I64),
           alternatives: [
             {
@@ -430,7 +433,7 @@ fn expr_contexts() -> Array[(String, (@buslane.Expr) -> @buslane.Expr)] {
       "as a construct payload",
       hole => {
         Construct({
-          data_constructor: { index: 1 },
+          data_constructor: { index: 1, },
           type_arguments: [],
           hidden_witnesses: [],
           payloads: [hole],
@@ -441,7 +444,7 @@ fn expr_contexts() -> Array[(String, (@buslane.Expr) -> @buslane.Expr)] {
       "as a perform payload",
       hole => {
         Perform({
-          operation: { index: 1 },
+          operation: { index: 1, },
           effect_arguments: [],
           hidden_witnesses: [],
           payloads: [hole],
@@ -453,7 +456,7 @@ fn expr_contexts() -> Array[(String, (@buslane.Expr) -> @buslane.Expr)] {
       hole => {
         Handle({
           body: hole,
-          result_binder: { index: 1 },
+          result_binder: { index: 1, },
           result_type: Primitive(I64),
           final_body: Literal(Unit),
           handlers: [],
@@ -465,7 +468,7 @@ fn expr_contexts() -> Array[(String, (@buslane.Expr) -> @buslane.Expr)] {
       hole => {
         Handle({
           body: Literal(Unit),
-          result_binder: { index: 1 },
+          result_binder: { index: 1, },
           result_type: Primitive(I64),
           final_body: hole,
           handlers: [],
@@ -477,18 +480,18 @@ fn expr_contexts() -> Array[(String, (@buslane.Expr) -> @buslane.Expr)] {
       hole => {
         Handle({
           body: Literal(Unit),
-          result_binder: { index: 1 },
+          result_binder: { index: 1, },
           result_type: Primitive(I64),
           final_body: Literal(Unit),
           handlers: [
             {
-              handled_effect: Singleton({ index: 1 }, []),
+              handled_effect: Singleton({ index: 1, }, []),
               operations: [
                 {
-                  operation: { index: 1 },
+                  operation: { index: 1, },
                   type_binders: [],
                   payload_binders: [],
-                  resume_binder: { index: 2 },
+                  resume_binder: { index: 2, },
                   body: hole,
                 },
               ],
@@ -505,7 +508,7 @@ fn expr_contexts() -> Array[(String, (@buslane.Expr) -> @buslane.Expr)] {
 /// the right-hand side of a top-level binding. The metadata stays empty: this
 /// is a test of the notation, not of what the verifier makes of it.
 fn expr_program(expr : @buslane.Expr) -> @buslane.Program {
-  { metadata: MetadataRegistry(), terms: [Let({ index: 0 }, expr)] }
+  { metadata: MetadataRegistry(), terms: [Let({ index: 0, }, expr)], }
 }
 
 ///|
@@ -542,14 +545,14 @@ test "buslane text keeps a unit alternative after a postfix-capable body" {
   let subject = expr_program(
     Match({
       scrutinee: Literal(Unit),
-      binder: { index: 1 },
+      binder: { index: 1, },
       result_type: Primitive(Unit),
       alternatives: [
         {
           alt_constructor: Default,
           type_binders: [],
           value_binders: [],
-          body: Ref({ index: 1 }),
+          body: Ref({ index: 1, }),
         },
         {
           alt_constructor: Literal(Unit),
@@ -610,7 +613,7 @@ test "buslane text round-trips every literal as an expression and a pattern" {
         "as an alternative",
         Match({
           scrutinee: Literal(Unit),
-          binder: { index: 1 },
+          binder: { index: 1, },
           result_type: Primitive(I64),
           alternatives: [
             {
@@ -671,10 +674,10 @@ test "buslane text round-trips every effect a handler can name" {
     let program = expr_program(
       Handle({
         body: Literal(Unit),
-        result_binder: { index: 1 },
+        result_binder: { index: 1, },
         result_type: Primitive(I64),
         final_body: Literal(Unit),
-        handlers: [{ handled_effect, operations: [] }],
+        handlers: [{ handled_effect, operations: [], }],
       }),
     )
     let text = writer().write_program(program)
@@ -710,7 +713,7 @@ test "buslane text round-trips awkward names in every declaration" {
     Primitive(Unit),
   )
   let _value = metadata.define_value(occurrence, Value, Primitive(Unit))
-  let program : @buslane.Program = { metadata, terms: [] }
+  let program : @buslane.Program = { metadata, terms: [], }
   let text = writer().write_program(program)
   let decoded = match parse_program_text(text) {
     Ok(decoded) => decoded

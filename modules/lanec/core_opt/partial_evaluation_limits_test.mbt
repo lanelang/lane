@@ -64,7 +64,7 @@ test "core optimizer evaluates every profitable call to one callee" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   guard optimized_main_body(optimized, main) is Construct(construct) else {
@@ -129,8 +129,8 @@ test "core optimizer does not impose a fixed whole-program expansion count" {
       }),
     ),
   )
-  let program : @buslane.Program = { metadata, terms }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  let program : @buslane.Program = { metadata, terms, }
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   guard optimized_main_body(optimized, main) is Construct(construct) else {
@@ -201,7 +201,7 @@ test "core optimizer judges profitability after contextual reduction" {
       ),
       Let(
         helper,
-        Function({ parameters: [parameter], result_type: i64_type, body }),
+        Function({ parameters: [parameter], result_type: i64_type, body, }),
       ),
       Let(
         main,
@@ -213,7 +213,7 @@ test "core optimizer judges profitability after contextual reduction" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   assert_eq(optimized.terms.length(), 1)
@@ -329,7 +329,7 @@ test "core optimizer revisits dependents until semantic facts stabilize" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   assert_eq(optimized.terms.length(), 1)
@@ -381,7 +381,7 @@ test "inline executor defers calls exposed by a clone to the next plan" {
     ],
   }
   let observations : Array[CoreOptimizationObservation] = []
-  guard optimize_observed({ program, entry: main, roots: [] }, observation => {
+  guard optimize_observed({ program, entry: main, roots: [], }, observation => {
       observations.push(observation)
     })
     is Ok(optimized) else {

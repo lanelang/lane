@@ -205,7 +205,7 @@ fn StructuralDeriveDeclarations::validate_deriver(
     ) else {
     return Err("`Deriver.record` or `Deriver.enumeration` has the wrong type")
   }
-  Ok({ unit, product, void_method, sum, field, variant, record, enumeration })
+  Ok({ unit, product, void_method, sum, field, variant, record, enumeration, })
 }
 
 ///|

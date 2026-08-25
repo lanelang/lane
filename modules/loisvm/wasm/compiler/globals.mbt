@@ -135,7 +135,7 @@ fn append_i32_global(
     abort("LoisVM Wasm global layout is inconsistent at index \{index}")
   }
   wasm_module.globals.push({
-    type_: { value_type: I32, mutable: is_mutable },
+    type_: { value_type: I32, mutable: is_mutable, },
     init: [I32Const(initial)],
   })
 }

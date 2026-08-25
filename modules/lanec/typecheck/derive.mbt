@@ -207,7 +207,10 @@ fn SemanticChecker::checked_derive_deriver(
     return None
   }
   guard value is Some(value) else {
-    self.diagnostics.push({ kind: CallArityMismatch(expected=1, actual=0), loc })
+    self.diagnostics.push({
+      kind: CallArityMismatch(expected=1, actual=0),
+      loc,
+    })
     return None
   }
   let synthesis = self.check_checked_expr(scope, value, expected)
@@ -217,7 +220,7 @@ fn SemanticChecker::checked_derive_deriver(
     is Some(value) else {
     return None
   }
-  Some({ deriver: Explicit(value), effect: synthesis.effect })
+  Some({ deriver: Explicit(value), effect: synthesis.effect, })
 }
 
 ///|
@@ -341,7 +344,7 @@ fn SemanticChecker::structural_derive_metadata(
     })
     return None
   }
-  Some({ name, qualified_name: module_path + "." + name })
+  Some({ name, qualified_name: module_path + "." + name, })
 }
 
 ///|
@@ -479,7 +482,7 @@ fn SemanticChecker::checked_derive_evidence(
       context="structural derivation component evidence",
     )
     guard required is Some(required) else { return None }
-    let requirement = { component, required_type: required }
+    let requirement = { component, required_type: required, }
     let mut group_index = -1
     for index in 0..<groups.length() {
       if groups[index][0].required_type.alpha_equal(required) {

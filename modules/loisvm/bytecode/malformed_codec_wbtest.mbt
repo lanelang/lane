@@ -22,9 +22,9 @@ fn malformed_layout(value : Int) -> LayoutId {
 fn malformed_body(instructions? : Array[Instruction] = []) -> FunctionBody {
   {
     slots: [],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions, terminator: Return(None) }],
+    blocks: [{ parameters: [], instructions, terminator: Return(None), }],
   }
 }
 
@@ -33,7 +33,7 @@ fn malformed_minimal_image() -> BytecodeImage {
   {
     entry: malformed_function(1),
     initializer: None,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
     functions: [BytecodeBody(malformed_body())],
     globals: [],
@@ -76,7 +76,7 @@ fn malformed_global_image() -> BytecodeImage {
   {
     entry: malformed_function(1),
     initializer: Some(malformed_function(2)),
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
     functions: [BytecodeBody(malformed_body()), BytecodeBody(initializer)],
     globals: [
@@ -101,7 +101,7 @@ fn malformed_global_image() -> BytecodeImage {
 
 ///|
 test "decoder validates malformed initializer and global metadata" {
-  let missing_initializer = { ..malformed_global_image(), initializer: None }
+  let missing_initializer = { ..malformed_global_image(), initializer: None, }
   let invalid_initializer = {
     ..malformed_global_image(),
     initializer: Some(malformed_function(3)),
@@ -346,7 +346,7 @@ test "decoder rejects malformed result ownership" {
   let invalid = {
     ..malformed_minimal_image(),
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [],
@@ -360,7 +360,7 @@ test "decoder rejects malformed result ownership" {
     Err(
       InvalidBytecode(
         error=InvalidBytecode(
-          site=Instruction(malformed_function(1), { value: 0 }, 0),
+          site=Instruction(malformed_function(1), { value: 0, }, 0),
           detail="call result ABI does not match destination slot",
         ),
       ),

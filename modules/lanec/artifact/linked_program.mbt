@@ -44,7 +44,7 @@ pub fn executable_to_loisvm_binary(
 pub fn loisvm_linked_program_to_binary(
   image : @loisvm_bytecode.BytecodeImage,
 ) -> Result[Bytes, @loisvm_bytecode.BytecodeVerificationError] {
-  linked_program_artifact_to_binary({ bytecode: image })
+  linked_program_artifact_to_binary({ bytecode: image, })
 }
 
 ///|

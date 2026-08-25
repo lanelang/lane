@@ -13,9 +13,9 @@ fn compile_program_for_test(
   libraries : Array[String],
 ) -> @compile.CompilationOutcome[@compile.CompiledProgram] {
   @compile.compile({
-    root: { source_id: "<root>", text: root },
+    root: { source_id: "<root>", text: root, },
     libraries: libraries.mapi(fn(index, text) {
-      { source_id: "<library:\{index}>", text }
+      { source_id: "<library:\{index}>", text, }
     }),
   })
 }
@@ -36,7 +36,7 @@ fn lower_conformance_program_to_bytecode(
 ) -> Result[@loisvm_bytecode.BytecodeImage, String] {
   let executable = match
     @executable.elaborate(
-      { module_path_texts: [], program, externals, entries: [entry] },
+      { module_path_texts: [], program, externals, entries: [entry], },
       entry,
       conformance_execution_profile(),
     ) {

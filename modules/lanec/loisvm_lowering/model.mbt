@@ -107,7 +107,7 @@ priv struct FunctionPlanTable {
 
 ///|
 fn FunctionPlanTable::new() -> FunctionPlanTable {
-  { entries: [] }
+  { entries: [], }
 }
 
 ///|
@@ -177,9 +177,9 @@ fn[T] FunctionPlanTable::append_with_result(
   origin : LoisvmFunctionOrigin,
   make_entry : (@bytecode.FunctionId) -> (PlannedEntry, T),
 ) -> (PlannedFunction, T) {
-  let function : @bytecode.FunctionId = { value: self.entries.length() + 1 }
+  let function : @bytecode.FunctionId = { value: self.entries.length() + 1, }
   let (entry, result) = make_entry(function)
-  let planned = { function, entry, origin }
+  let planned = { function, entry, origin, }
   self.entries.push(planned)
   (planned, result)
 }
@@ -193,7 +193,7 @@ fn FunctionPlanTable::append_group(
   let first = self.entries.length() + 1
   let functions : Array[@bytecode.FunctionId] = []
   for index = 0; index < origins.length(); index = index + 1 {
-    functions.push({ value: first + index })
+    functions.push({ value: first + index, })
   }
   let make_entry = prepare_entries(functions)
   let planned_functions : Array[PlannedFunction] = []
@@ -291,6 +291,12 @@ priv struct CallableAdapterArgumentRecipe {
 } derive(Debug, Eq)
 
 ///|
+priv struct CallableAdapterDiscardRecipe {
+  input : Int
+  flow : CallableAdapterValueFlowRecipe
+} derive(Debug, Eq)
+
+///|
 priv enum CallableAdapterResultRecipe {
   TailCall
   Adapt(CallableAdapterValueFlowRecipe)
@@ -304,6 +310,7 @@ priv struct CallableAdapterRecipe {
   source_witnesses : Array[CallableAdapterEvidenceRecipe]
   target_parameters : Array[CallableAdapterValueRecipe]
   source_arguments : Array[CallableAdapterArgumentRecipe]
+  target_discards : Array[CallableAdapterDiscardRecipe]
   result : CallableAdapterResultRecipe
 } derive(Debug, Eq)
 
@@ -388,6 +395,7 @@ priv struct DataRepresentationConstructorPlan {
   storage_callable_demands : Array[
     Array[DataRepresentationCallableStorageDemand],
   ]
+  storage_callable_interfaces : Array[PhysicalCallableInterface?]
   storage_shapes : Array[CanonicalRuntimeTypeKey]
 } derive(Debug)
 
@@ -415,16 +423,48 @@ priv struct CanonicalCallableAbi {
 } derive(Debug, Eq)
 
 ///|
+/// The compile-time projection owned by a callable implementation boundary.
+/// `CanonicalCallableAbi` remains the pure runtime identity; this structure
+/// records which logical parameter produced each physical ABI slot.
+priv enum PhysicalCallableParameterProjection {
+  Unit
+  Slot(CanonicalRuntimeTypeKey)
+  Product(Array[PhysicalCallableParameterProjection])
+} derive(Debug, Eq)
+
+///|
+priv struct PhysicalCallableInterface {
+  evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
+  parameter_types : Array[@anf.RuntimeType]
+  result_type : @anf.RuntimeType
+  invocation : CanonicalCallableAbi
+  parameters : Array[PhysicalCallableParameterProjection]
+  parameter_callables : Array[PhysicalCallableInterface?]
+  result_callable : PhysicalCallableInterface?
+} derive(Debug, Eq)
+
+///|
+priv struct PhysicalCallableCaptureProjection {
+  binding : @anf.AnfBindingId
+  shape : CanonicalRuntimeTypeKey
+  callable : CallableRepresentationTarget?
+  worker : Bool
+} derive(Eq)
+
+///|
 priv struct RepresentationSpecializationKey {
   source_function : @anf.AnfFunctionId
   specialized_evidence : Array[(Int, CanonicalSpecializedEvidenceKey)]
   data_ports : Array[(@anf.AnfBindingId, DataRepresentationFamilyKey)]
   callable_ports : Array[(@anf.AnfBindingId, CallableRepresentationTarget)]
+  callable_allocations : Array[
+    (@anf.AnfFunctionId, CallableRepresentationTarget),
+  ]
   callable_arguments : Array[
     (@anf.AnfBindingId, Int, CallableRepresentationTarget),
   ]
   callable_result : CallableRepresentationTarget?
-  captures : Array[(@anf.AnfBindingId, CanonicalRuntimeTypeKey)]
+  captures : Array[PhysicalCallableCaptureProjection]
   parameters : Array[CanonicalRuntimeTypeKey]
   scalar_parameters : Array[
     (Int, @buslane.DataConId, Array[CanonicalRuntimeTypeKey]),
@@ -494,6 +534,7 @@ priv struct CapturePlan {
   binding : CaptureBinding
   type_ : @anf.RuntimeType
   shape : CanonicalRuntimeTypeKey?
+  callable_interface : PhysicalCallableInterface?
   member_index : Int?
 }
 
@@ -547,6 +588,7 @@ priv struct DeferredNestedCallable {
   lowered_function : @bytecode.FunctionId
   type_ : @anf.RuntimeType
   environment : @vmcfg.ValueId?
+  invocation : CanonicalCallableAbi
 }
 
 ///|
@@ -557,16 +599,16 @@ priv enum LocalValue {
   Global(GlobalValue)
   RecursiveFunction(@bytecode.FunctionId, @anf.RuntimeType, @vmcfg.ValueId?)
   NestedCallable(DeferredNestedCallable)
-  EvidenceApplied(GlobalValue, Array[@anf.RuntimeArgument])
+  EvidenceApplied(GlobalValue, DeferredEvidenceApplication)
   EvidenceAppliedNestedCallable(
     DeferredNestedCallable,
-    Array[@anf.RuntimeArgument]
+    DeferredEvidenceApplication
   )
   EvidenceAppliedCallable(
     @vmcfg.ValueId,
     @anf.RuntimeType,
     CanonicalRuntimeTypeKey,
-    Array[@anf.RuntimeArgument]
+    DeferredEvidenceApplication
   )
 }
 

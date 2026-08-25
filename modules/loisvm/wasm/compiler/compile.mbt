@@ -45,7 +45,7 @@ fn compile_observed_or_raise(
       scale = Some(observed_scale)
     }),
   )
-  { module_, functions, scale: scale.unwrap() }
+  { module_, functions, scale: scale.unwrap(), }
 }
 
 ///|
@@ -85,7 +85,7 @@ fn compile_or_raise(
     host_objects_enabled,
   )
   let fatal_tag_type = intern_function_type(wasm_module, [], [])
-  wasm_module.tags.push({ type_idx: fatal_tag_type })
+  wasm_module.tags.push({ type_idx: fatal_tag_type, })
   for catalog_entry in function_catalog.entries {
     match catalog_entry.declaration {
       Import(_) => emitter.append_import(catalog_entry)
@@ -138,7 +138,7 @@ fn compile_or_raise(
   }
   let initial_pages = (static_image.heap_base + 65535) / 65536
   wasm_module.memories.push({
-    limits: { min: initial_pages.to_int64(), max: None },
+    limits: { min: initial_pages.to_int64(), max: None, },
     is_memory64: false,
     page_size_log2: 16,
   })
@@ -152,7 +152,7 @@ fn compile_or_raise(
   wasm_module.tables.push({
     type_: {
       elem_type: FuncRef,
-      limits: { min: table_size.to_int64(), max: Some(table_size.to_int64()) },
+      limits: { min: table_size.to_int64(), max: Some(table_size.to_int64()), },
       is_table64: false,
     },
     init: Some([RefNull(FuncRef)]),
@@ -170,7 +170,7 @@ fn compile_or_raise(
     name: "lane.entry",
     desc: Func(function_catalog.require(EntryWrapper).index),
   })
-  wasm_module.exports.push({ name: "lane.memory", desc: Memory(0) })
+  wasm_module.exports.push({ name: "lane.memory", desc: Memory(0), })
   wasm_module.exports.push({
     name: "lane.runtime.string.new",
     desc: Func(function_catalog.runtime(ByteSequenceNew).index),
@@ -320,7 +320,7 @@ fn compile_body(
     GlobalSet(call_depth_global_index),
     Throw(0),
   ])
-  { locals: locals.locals, body: instructions }
+  { locals: locals.locals, body: instructions, }
 }
 
 ///|

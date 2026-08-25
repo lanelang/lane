@@ -82,7 +82,7 @@ test "render suggestions" {
   let diagnostic = @core.Diagnostic::error("missing semicolon", suggestions=[
     {
       message: "insert `;`",
-      edits: [{ span: sources.span(source, 10, 10), replacement: ";" }],
+      edits: [{ span: sources.span(source, 10, 10), replacement: ";", }],
       applicability: MachineApplicable,
     },
   ])
@@ -109,7 +109,7 @@ test "render facts and related locations" {
       },
     ],
     related_locations=[
-      { span: sources.span(source, 19, 27), message: "import requested here" },
+      { span: sources.span(source, 19, 27), message: "import requested here", },
     ],
   )
   inspect(
@@ -157,7 +157,7 @@ test "render truncates source lines by configured width" {
     @core.Label::primary(sources.span(source, 4, 18)),
   ])
   inspect(
-    render_diagnostic(diagnostic, sources, config={ color: false, width: 12 }),
+    render_diagnostic(diagnostic, sources, config={ color: false, width: 12, }),
     content=(
       #|error: wide line
       #|  --> wide.lane:1:5
@@ -174,7 +174,7 @@ test "render can color severity" {
   let sources = @source.SourceDatabase::SourceDatabase()
   let diagnostic = @core.Diagnostic::error("colored")
   inspect(
-    render_diagnostic(diagnostic, sources, config={ color: true, width: 100 }),
+    render_diagnostic(diagnostic, sources, config={ color: true, width: 100, }),
     content="\u{1b}[31merror\u{1b}[0m: colored",
   )
 }

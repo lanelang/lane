@@ -119,7 +119,7 @@ fn Resolver::define_import_exposure(
   loc : SourceSpan,
 ) -> Int {
   let id = self.import_exposures.length()
-  self.import_exposures.push({ id, module_path_text, kind, loc })
+  self.import_exposures.push({ id, module_path_text, kind, loc, })
   id
 }
 
@@ -133,7 +133,7 @@ fn Resolver::record_import_use(
     if !self.import_uses.any(fn(use_) {
         use_.exposure_id == exposure_id && use_.loc == loc
       }) {
-      self.import_uses.push({ exposure_id, loc })
+      self.import_uses.push({ exposure_id, loc, })
     }
   }
 }
@@ -160,7 +160,7 @@ fn Resolver::record_module_binding_reference(
     if !self.module_binding_references.any(fn(reference) {
         reference.exposure_id == exposure_id && reference.loc == loc
       }) {
-      self.module_binding_references.push({ exposure_id, loc })
+      self.module_binding_references.push({ exposure_id, loc, })
     }
   }
 }
@@ -183,7 +183,7 @@ fn Resolver::record_import_symbol(
     if !self.import_symbols.any(fn(item) {
         item.exposure_id == exposure_id && item.symbol == symbol
       }) {
-      self.import_symbols.push({ exposure_id, symbol })
+      self.import_symbols.push({ exposure_id, symbol, })
     }
   }
 }
@@ -249,7 +249,7 @@ fn Resolver::publish_public_export(
       return
     }
   }
-  self.public_exports.push({ export_, declaration: binding.declaration, loc })
+  self.public_exports.push({ export_, declaration: binding.declaration, loc, })
 }
 
 ///|
@@ -333,7 +333,7 @@ fn Resolver::publish_imported_type(
         interface_type_parameter_kinds(declaration.type_parameters),
         type_members=declaration.type_members.map(fn(item) { item.name }),
         fields=declaration.fields.map(fn(field) {
-          { name: field.name, symbol: field.symbol }
+          { name: field.name, symbol: field.symbol, }
         }),
         import_origin,
       )
@@ -343,7 +343,7 @@ fn Resolver::publish_imported_type(
         declaration.symbol,
         interface_type_parameter_kinds(declaration.type_parameters),
         variants=declaration.variants.map(fn(variant) {
-          { name: variant.name, symbol: variant.symbol }
+          { name: variant.name, symbol: variant.symbol, }
         }),
         import_origin,
       )
@@ -418,7 +418,7 @@ fn Resolver::publish_imported_effect(
     effect.symbol,
     interface_type_parameter_kinds(effect.type_parameters),
     operations=effect.operations.map(fn(operation) {
-      { name: operation.name, symbol: operation.symbol }
+      { name: operation.name, symbol: operation.symbol, }
     }),
     import_origin,
   )

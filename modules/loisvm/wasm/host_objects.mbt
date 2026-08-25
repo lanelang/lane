@@ -20,7 +20,7 @@ priv struct WasmHostObjects {
 fn WasmHostObjects::new(
   runtime : @loisvm_runtime.ExecutionRuntime,
 ) -> WasmHostObjects {
-  { runtime, slots: [] }
+  { runtime, slots: [], }
 }
 
 ///|
@@ -39,7 +39,7 @@ fn WasmHostObjects::insert(
       return host_object_token(index, slot.generation)
     }
   }
-  self.slots.push({ generation: 1, handle: Some(handle) })
+  self.slots.push({ generation: 1, handle: Some(handle), })
   host_object_token(self.slots.length() - 1, 1)
 }
 

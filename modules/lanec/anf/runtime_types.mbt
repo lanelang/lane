@@ -190,7 +190,7 @@ pub fn RuntimeMetadata::type_expressions(
 ///|
 fn RuntimeMetadata::snapshot(self : RuntimeMetadata) -> RuntimeMetadata {
   {
-    values: self.values.map(info => { type_: info.type_.snapshot() }),
+    values: self.values.map(info => { type_: info.type_.snapshot(), }),
     types: self.types.map(info => {
       kind: info.kind,
       evidence_parameters: info.evidence_parameters.copy(),
@@ -210,7 +210,7 @@ fn RuntimeMetadata::snapshot(self : RuntimeMetadata) -> RuntimeMetadata {
 
 ///|
 fn RuntimeArgument::snapshot(self : RuntimeArgument) -> RuntimeArgument {
-  { type_expression: self.type_expression, evidence: self.evidence.snapshot() }
+  { type_expression: self.type_expression, evidence: self.evidence.snapshot(), }
 }
 
 ///|

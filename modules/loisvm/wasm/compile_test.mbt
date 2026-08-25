@@ -3,7 +3,7 @@ fn trivial_slot(
   representation : @bytecode.Representation,
   kind? : @bytecode.SemanticValueKind = ScalarValue,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup: Trivial, kind, erased_companion: None }
+  { representation, cleanup: Trivial, kind, erased_companion: None, }
 }
 
 ///|
@@ -17,7 +17,7 @@ fn owned_slot(
     Trivial => ScalarValue
   },
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup, kind, erased_companion: None }
+  { representation, cleanup, kind, erased_companion: None, }
 }
 
 ///|
@@ -124,9 +124,9 @@ fn body(
 ) -> @bytecode.FunctionBody {
   {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: parameters },
+    inputs: { environment: None, witnesses: [], user_parameters: parameters, },
     result,
-    blocks: [{ parameters: [], instructions, terminator }],
+    blocks: [{ parameters: [], instructions, terminator, }],
   }
 }
 
@@ -139,7 +139,7 @@ fn image(functions : Array[@bytecode.FunctionEntry]) -> @bytecode.BytecodeImage 
     }
   }
   {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis,
@@ -156,7 +156,7 @@ fn edge(
   target : Int,
   arguments? : Array[@bytecode.SlotId] = [],
 ) -> @bytecode.Edge {
-  { target: { value: target }, arguments }
+  { target: { value: target, }, arguments, }
 }
 
 ///|
@@ -175,7 +175,7 @@ fn straight_line_cfg(block_count : Int) -> @bytecode.FunctionBody {
   }
   {
     slots: [],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks,
   }
@@ -205,17 +205,17 @@ fn run_entry(body : @bytecode.FunctionBody) -> Unit raise {
 ///|
 test "compiled scalar bytecode executes with Wasmoon" {
   let entry = body(slots=[trivial_slot(I64)], instructions=[
-    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
+    CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
   ])
   let target = body(
     slots=[trivial_slot(I64), trivial_slot(I64), trivial_slot(I64)],
     result=Value(I64, Trivial, ScalarValue),
     instructions=[
-      ConstI64({ value: 0 }, 40L),
-      ConstI64({ value: 1 }, 2L),
-      I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
+      ConstI64({ value: 0, }, 40L),
+      ConstI64({ value: 1, }, 2L),
+      I64Add({ value: 2, }, { value: 0, }, { value: 1, }),
     ],
-    terminator=Return(Some({ value: 2 })),
+    terminator=Return(Some({ value: 2, })),
   )
   let wasm_module = match
     compile(image([BytecodeBody(entry), BytecodeBody(target)])) {
@@ -229,7 +229,7 @@ test "compiled scalar bytecode executes with Wasmoon" {
 ///|
 test "compiled tail calls use Wasmoon tail-call support" {
   assert_true(@wasmoon_runtime.supports_tail_call())
-  let entry = body(terminator=TailCallDirect({ value: 2 }, None, [], []))
+  let entry = body(terminator=TailCallDirect({ value: 2, }, None, [], []))
   let target = body()
   let wasm_module = match
     compile(image([BytecodeBody(entry), BytecodeBody(target)])) {
@@ -269,9 +269,9 @@ test "runtime imports compile from bytecode descriptors" {
 ///|
 test "invalid Bytecode is rejected before Wasm publication" {
   let invalid_entry = body(instructions=[
-    CallDirect({ value: 2 }, None, [], [], None),
+    CallDirect({ value: 2, }, None, [], [], None),
   ])
-  let target = body(slots=[trivial_slot(I64)], parameters=[{ value: 0 }])
+  let target = body(slots=[trivial_slot(I64)], parameters=[{ value: 0, }])
   assert_true(
     compile(image([BytecodeBody(invalid_entry), BytecodeBody(target)]))
     is Err(InvalidBytecode(_)),
@@ -281,14 +281,14 @@ test "invalid Bytecode is rejected before Wasm publication" {
 ///|
 test "Wasm compiler rejects call result ownership mismatch" {
   let caller = body(slots=[owned_slot(I32, OwnedRef)], instructions=[
-    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-    Release({ value: 0 }),
+    CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+    Release({ value: 0, }),
   ])
   let target = body(
     slots=[trivial_slot(I32)],
     result=Value(I32, Trivial, ScalarValue),
-    instructions=[ConstI32({ value: 0 }, 42)],
-    terminator=Return(Some({ value: 0 })),
+    instructions=[ConstI32({ value: 0, }, 42)],
+    terminator=Return(Some({ value: 0, })),
   )
   let error = match
     compile(image([BytecodeBody(caller), BytecodeBody(target)])) {
@@ -300,7 +300,7 @@ test "Wasm compiler rejects call result ownership mismatch" {
     Some(
       InvalidBytecode(
         InvalidBytecode(
-          site=Instruction({ value: 1 }, { value: 0 }, 0),
+          site=Instruction({ value: 1, }, { value: 0, }, 0),
           detail="call result ABI does not match destination slot",
         ),
       ),
@@ -312,16 +312,16 @@ test "Wasm compiler rejects call result ownership mismatch" {
 test "structured CFG executes boolean branches and dense tag switches" {
   let branch_body : @bytecode.FunctionBody = {
     slots: [trivial_slot(I32)],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, true)],
-        terminator: BranchBool({ value: 0 }, edge(1), edge(2)),
+        instructions: [ConstBool({ value: 0, }, true)],
+        terminator: BranchBool({ value: 0, }, edge(1), edge(2)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
-      { parameters: [], instructions: [], terminator: Unreachable },
+      { parameters: [], instructions: [], terminator: Return(None), },
+      { parameters: [], instructions: [], terminator: Unreachable, },
     ],
   }
   let branch_module = match compile(image([BytecodeBody(branch_body)])) {
@@ -338,16 +338,16 @@ test "structured CFG executes boolean branches and dense tag switches" {
   )
   let switch_body : @bytecode.FunctionBody = {
     slots: [trivial_slot(I32)],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, true)],
-        terminator: SwitchTag({ value: 0 }, [edge(2), edge(1)], edge(2)),
+        instructions: [ConstBool({ value: 0, }, true)],
+        terminator: SwitchTag({ value: 0, }, [edge(2), edge(1)], edge(2)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
-      { parameters: [], instructions: [], terminator: Unreachable },
+      { parameters: [], instructions: [], terminator: Return(None), },
+      { parameters: [], instructions: [], terminator: Unreachable, },
     ],
   }
   run_entry(switch_body)
@@ -357,16 +357,16 @@ test "structured CFG executes boolean branches and dense tag switches" {
 test "reducible loops use Wasm loop control" {
   let loop_body : @bytecode.FunctionBody = {
     slots: [trivial_slot(I32)],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
-      { parameters: [], instructions: [], terminator: Jump(edge(1)) },
+      { parameters: [], instructions: [], terminator: Jump(edge(1)), },
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, false)],
-        terminator: BranchBool({ value: 0 }, edge(1), edge(2)),
+        instructions: [ConstBool({ value: 0, }, false)],
+        terminator: BranchBool({ value: 0, }, edge(1), edge(2)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
+      { parameters: [], instructions: [], terminator: Return(None), },
     ],
   }
   let wasm_module = match compile(image([BytecodeBody(loop_body)])) {
@@ -383,40 +383,40 @@ test "reducible loops use Wasm loop control" {
 test "nested reducible loops preserve structured branch depths" {
   let nested : @bytecode.FunctionBody = {
     slots: [trivial_slot(I32), trivial_slot(I32)],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, true)],
+        instructions: [ConstBool({ value: 0, }, true)],
         terminator: Jump(edge(1)),
       },
       {
         parameters: [],
         instructions: [],
-        terminator: BranchBool({ value: 0 }, edge(2), edge(6)),
+        terminator: BranchBool({ value: 0, }, edge(2), edge(6)),
       },
       {
         parameters: [],
-        instructions: [ConstBool({ value: 1 }, true)],
+        instructions: [ConstBool({ value: 1, }, true)],
         terminator: Jump(edge(3)),
       },
       {
         parameters: [],
         instructions: [],
-        terminator: BranchBool({ value: 1 }, edge(4), edge(5)),
+        terminator: BranchBool({ value: 1, }, edge(4), edge(5)),
       },
       {
         parameters: [],
-        instructions: [ConstBool({ value: 1 }, false)],
+        instructions: [ConstBool({ value: 1, }, false)],
         terminator: Jump(edge(3)),
       },
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, false)],
+        instructions: [ConstBool({ value: 0, }, false)],
         terminator: Jump(edge(1)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
+      { parameters: [], instructions: [], terminator: Return(None), },
     ],
   }
   let wasm_module = match compile(image([BytecodeBody(nested)])) {
@@ -433,25 +433,25 @@ test "nested reducible loops preserve structured branch depths" {
 test "irreducible CFG uses the dispatcher fallback" {
   let irreducible : @bytecode.FunctionBody = {
     slots: [trivial_slot(I32)],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, true)],
-        terminator: BranchBool({ value: 0 }, edge(1), edge(2)),
+        instructions: [ConstBool({ value: 0, }, true)],
+        terminator: BranchBool({ value: 0, }, edge(1), edge(2)),
       },
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, false)],
+        instructions: [ConstBool({ value: 0, }, false)],
         terminator: Jump(edge(2)),
       },
       {
         parameters: [],
         instructions: [],
-        terminator: BranchBool({ value: 0 }, edge(1), edge(3)),
+        terminator: BranchBool({ value: 0, }, edge(1), edge(3)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
+      { parameters: [], instructions: [], terminator: Return(None), },
     ],
   }
   let wasm_module = match compile(image([BytecodeBody(irreducible)])) {
@@ -512,32 +512,32 @@ test "structured CFG transfers block arguments in parallel" {
   ]
   let cfg_body : @bytecode.FunctionBody = {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstI64({ value: 0 }, 1L), ConstI64({ value: 1 }, 2L)],
-        terminator: Jump(edge(1, arguments=[{ value: 1 }, { value: 0 }])),
+        instructions: [ConstI64({ value: 0, }, 1L), ConstI64({ value: 1, }, 2L)],
+        terminator: Jump(edge(1, arguments=[{ value: 1, }, { value: 0, }])),
       },
       {
-        parameters: [{ value: 0 }, { value: 1 }],
+        parameters: [{ value: 0, }, { value: 1, }],
         instructions: [
-          ConstI64({ value: 2 }, 2L),
-          I64Eq({ value: 3 }, { value: 0 }, { value: 2 }),
+          ConstI64({ value: 2, }, 2L),
+          I64Eq({ value: 3, }, { value: 0, }, { value: 2, }),
         ],
-        terminator: BranchBool({ value: 3 }, edge(2), edge(4)),
+        terminator: BranchBool({ value: 3, }, edge(2), edge(4)),
       },
       {
         parameters: [],
         instructions: [
-          ConstI64({ value: 2 }, 1L),
-          I64Eq({ value: 3 }, { value: 1 }, { value: 2 }),
+          ConstI64({ value: 2, }, 1L),
+          I64Eq({ value: 3, }, { value: 1, }, { value: 2, }),
         ],
-        terminator: BranchBool({ value: 3 }, edge(3), edge(4)),
+        terminator: BranchBool({ value: 3, }, edge(3), edge(4)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
-      { parameters: [], instructions: [], terminator: Unreachable },
+      { parameters: [], instructions: [], terminator: Return(None), },
+      { parameters: [], instructions: [], terminator: Unreachable, },
     ],
   }
   run_entry(cfg_body)
@@ -548,22 +548,22 @@ test "packed callables execute through the canonical function table" {
   let entry = body(
     slots=[owned_slot(I64, OwnedCallable), trivial_slot(I64), trivial_slot(I64)],
     instructions=[
-      ConstFunction({ value: 0 }, { value: 2 }),
-      ConstI64({ value: 1 }, 42L),
+      ConstFunction({ value: 0, }, { value: 2, }),
+      ConstI64({ value: 1, }, 42L),
       CallValue(
-        { value: 0 },
-        { value: 1 },
+        { value: 0, },
+        { value: 1, },
         [],
-        [{ value: 1 }],
-        Some({ value: 2 }),
+        [{ value: 1, }],
+        Some({ value: 2, }),
       ),
     ],
   )
   let identity = body(
     slots=[trivial_slot(I64)],
-    parameters=[{ value: 0 }],
+    parameters=[{ value: 0, }],
     result=Value(I64, Trivial, ScalarValue),
-    terminator=Return(Some({ value: 0 })),
+    terminator=Return(Some({ value: 0, })),
   )
   let wasm_module = match
     compile(image([BytecodeBody(entry), BytecodeBody(identity)])) {
@@ -577,30 +577,30 @@ test "packed callables execute through the canonical function table" {
 ///|
 test "packed callable ownership ABI mismatch traps in both Wasm modes" {
   let entry = body(slots=[owned_slot(I64, OwnedCallable), trivial_slot(I32)], instructions=[
-    ConstFunction({ value: 0 }, { value: 2 }),
-    ConstBool({ value: 1 }, true),
-    CallValue({ value: 0 }, { value: 1 }, [], [{ value: 1 }], None),
+    ConstFunction({ value: 0, }, { value: 2, }),
+    ConstBool({ value: 1, }, true),
+    CallValue({ value: 0, }, { value: 1, }, [], [{ value: 1, }], None),
   ])
   let target = body(
     slots=[owned_slot(I32, OwnedRef)],
-    parameters=[{ value: 0 }],
-    instructions=[Release({ value: 0 })],
+    parameters=[{ value: 0, }],
+    instructions=[Release({ value: 0, })],
   )
   let bytecode_image = {
     ..image([BytecodeBody(entry), BytecodeBody(target)]),
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [
-          { representation: I32, cleanup: Trivial, kind: ScalarValue },
+          { representation: I32, cleanup: Trivial, kind: ScalarValue, },
         ],
         result: Unit,
       },
       {
         witnesses: [],
         parameters: [
-          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, },
         ],
         result: Unit,
       },
@@ -624,19 +624,19 @@ test "packed callable ownership ABI mismatch traps in both Wasm modes" {
 test "packed closure environment and indirect tail call execute" {
   let entry = body(
     slots=[
-      owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0 })),
+      owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, })),
       owned_slot(I64, OwnedCallable),
     ],
     instructions=[
-      MakeEnv({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-      MakeClosure({ value: 1 }, { value: 2 }, { value: 0 }),
+      MakeEnv({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+      MakeClosure({ value: 1, }, { value: 2, }, { value: 0, }),
     ],
-    terminator=TailCallValue({ value: 1 }, { value: 0 }, [], []),
+    terminator=TailCallValue({ value: 1, }, { value: 0, }, [], []),
   )
   let target : @bytecode.FunctionBody = {
-    slots: [owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0 }))],
+    slots: [owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, }))],
     inputs: {
-      environment: Some({ value: 0 }),
+      environment: Some({ value: 0, }),
       witnesses: [],
       user_parameters: [],
     },
@@ -644,15 +644,15 @@ test "packed closure environment and indirect tail call execute" {
     blocks: [
       {
         parameters: [],
-        instructions: [Release({ value: 0 })],
+        instructions: [Release({ value: 0, })],
         terminator: Return(None),
       },
     ],
   }
   let bytecode_image = {
     ..image([BytecodeBody(entry), BytecodeBody(target)]),
-    layouts: [Environment({ value: 0 })],
-    object_shapes: [Environment({ stored_witness_count: 0, members: [] })],
+    layouts: [Environment({ value: 0, })],
+    object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
   }
   let wasm_module = match compile(bytecode_image) {
     Ok(value) => value
@@ -672,29 +672,29 @@ test "static image materializes layout descriptors and immortal strings" {
       trivial_slot(I64),
       trivial_slot(I32),
     ],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          ConstString({ value: 0 }, { value: 0 }),
-          ByteSequenceLength({ value: 1 }, { value: 0 }),
-          Release({ value: 0 }),
-          ConstI64({ value: 2 }, 3L),
-          I64Eq({ value: 3 }, { value: 1 }, { value: 2 }),
+          ConstString({ value: 0, }, { value: 0, }),
+          ByteSequenceLength({ value: 1, }, { value: 0, }),
+          Release({ value: 0, }),
+          ConstI64({ value: 2, }, 3L),
+          I64Eq({ value: 3, }, { value: 1, }, { value: 2, }),
         ],
-        terminator: BranchBool({ value: 3 }, edge(1), edge(2)),
+        terminator: BranchBool({ value: 3, }, edge(1), edge(2)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
-      { parameters: [], instructions: [], terminator: Unreachable },
+      { parameters: [], instructions: [], terminator: Return(None), },
+      { parameters: [], instructions: [], terminator: Unreachable, },
     ],
   }
   let bytecode_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [ByteSequence],
@@ -721,16 +721,16 @@ test "static image materializes layout descriptors and immortal strings" {
 ///|
 test "ByteSequence instructions require the shared layout" {
   let entry = body(slots=[owned_slot(I32, OwnedRef), trivial_slot(I64)], instructions=[
-    ConstString({ value: 0 }, { value: 0 }),
-    ByteSequenceLength({ value: 1 }, { value: 0 }),
-    Release({ value: 0 }),
+    ConstString({ value: 0, }, { value: 0, }),
+    ByteSequenceLength({ value: 1, }, { value: 0, }),
+    Release({ value: 0, }),
   ])
   let error = match
     compile({
-      entry: { value: 1 },
+      entry: { value: 1, },
       initializer: None,
       data_family_count: 0,
-      callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+      callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
       globals: [],
       functions: [BytecodeBody(entry)],
       layouts: [],
@@ -745,24 +745,24 @@ test "ByteSequence instructions require the shared layout" {
 
 ///|
 test "fieldless data construction reuses an immortal static singleton" {
-  let owned_ref = owned_slot(I32, OwnedRef, kind=DataValue({ value: 0 }))
+  let owned_ref = owned_slot(I32, OwnedRef, kind=DataValue({ value: 0, }))
   let entry = body(slots=[owned_ref], instructions=[
-    MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-    Release({ value: 0 }),
-    MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-    Release({ value: 0 }),
+    MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+    Release({ value: 0, }),
+    MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+    Release({ value: 0, }),
   ])
   let bytecode_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 1,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [Data({ value: 0 })],
+    layouts: [Data({ value: 0, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 7,
         stored_witness_count: 0,
         members: [],
@@ -800,48 +800,48 @@ test "dynamic String primitives allocate, copy, compare, and release" {
   ]
   let entry : @bytecode.FunctionBody = {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          ConstString({ value: 0 }, { value: 0 }),
-          ConstString({ value: 1 }, { value: 1 }),
-          ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-          ConstString({ value: 3 }, { value: 2 }),
-          ByteSequenceEqual({ value: 8 }, { value: 2 }, { value: 3 }),
-          Release({ value: 3 }),
+          ConstString({ value: 0, }, { value: 0, }),
+          ConstString({ value: 1, }, { value: 1, }),
+          ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+          ConstString({ value: 3, }, { value: 2, }),
+          ByteSequenceEqual({ value: 8, }, { value: 2, }, { value: 3, }),
+          Release({ value: 3, }),
         ],
-        terminator: BranchBool({ value: 8 }, edge(1), edge(3)),
+        terminator: BranchBool({ value: 8, }, edge(1), edge(3)),
       },
       {
         parameters: [],
         instructions: [
-          ConstI64({ value: 6 }, 1L),
-          ConstI64({ value: 7 }, 2L),
-          ByteSequenceSlice({ value: 4 }, { value: 2 }, { value: 6 }, {
+          ConstI64({ value: 6, }, 1L),
+          ConstI64({ value: 7, }, 2L),
+          ByteSequenceSlice({ value: 4, }, { value: 2, }, { value: 6, }, {
             value: 7,
           }),
-          ConstString({ value: 5 }, { value: 3 }),
-          ByteSequenceEqual({ value: 8 }, { value: 4 }, { value: 5 }),
-          Release({ value: 5 }),
+          ConstString({ value: 5, }, { value: 3, }),
+          ByteSequenceEqual({ value: 8, }, { value: 4, }, { value: 5, }),
+          Release({ value: 5, }),
         ],
-        terminator: BranchBool({ value: 8 }, edge(2), edge(3)),
+        terminator: BranchBool({ value: 8, }, edge(2), edge(3)),
       },
       {
         parameters: [],
-        instructions: [Release({ value: 4 })],
+        instructions: [Release({ value: 4, })],
         terminator: Return(None),
       },
-      { parameters: [], instructions: [], terminator: Unreachable },
+      { parameters: [], instructions: [], terminator: Unreachable, },
     ],
   }
   let bytecode_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [ByteSequence],
@@ -869,11 +869,11 @@ test "dynamic String primitives allocate, copy, compare, and release" {
 
 ///|
 test "canonical Data and Environment layouts construct and project" {
-  let data_slot = owned_slot(I32, OwnedRef, kind=DataValue({ value: 0 }))
+  let data_slot = owned_slot(I32, OwnedRef, kind=DataValue({ value: 0, }))
   let environment_slot = owned_slot(
     I32,
     OwnedRef,
-    kind=EnvironmentValue({ value: 1 }),
+    kind=EnvironmentValue({ value: 1, }),
   )
   let slots = [
     data_slot,
@@ -889,59 +889,59 @@ test "canonical Data and Environment layouts construct and project" {
   ]
   let entry : @bytecode.FunctionBody = {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          ConstI64({ value: 1 }, 42L),
-          MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], [
-            { value: 1 },
+          ConstI64({ value: 1, }, 42L),
+          MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], [
+            { value: 1, },
           ]),
-          LoadTag({ value: 2 }, { value: 0 }),
-          ConstBool({ value: 3 }, true),
-          BoolEq({ value: 6 }, { value: 2 }, { value: 3 }),
+          LoadTag({ value: 2, }, { value: 0, }),
+          ConstBool({ value: 3, }, true),
+          BoolEq({ value: 6, }, { value: 2, }, { value: 3, }),
         ],
-        terminator: BranchBool({ value: 6 }, edge(1), edge(4)),
+        terminator: BranchBool({ value: 6, }, edge(1), edge(4)),
       },
       {
         parameters: [],
         instructions: [
-          BorrowField({ value: 0 }, { value: 0 }, 0, {
-            value_destination: { value: 4 },
+          BorrowField({ value: 0, }, { value: 0, }, 0, {
+            value_destination: { value: 4, },
             witness_destination: None,
           }),
-          ConstI64({ value: 5 }, 42L),
-          I64Eq({ value: 6 }, { value: 4 }, { value: 5 }),
-          Release({ value: 0 }),
+          ConstI64({ value: 5, }, 42L),
+          I64Eq({ value: 6, }, { value: 4, }, { value: 5, }),
+          Release({ value: 0, }),
         ],
-        terminator: BranchBool({ value: 6 }, edge(2), edge(4)),
+        terminator: BranchBool({ value: 6, }, edge(2), edge(4)),
       },
       {
         parameters: [],
         instructions: [
-          ConstI64({ value: 8 }, 99L),
-          MakeEnv({ value: 7 }, { value: 1 }, Immediate({ value: 2 }), [], [
-            { value: 8 },
+          ConstI64({ value: 8, }, 99L),
+          MakeEnv({ value: 7, }, { value: 1, }, Immediate({ value: 2, }), [], [
+            { value: 8, },
           ]),
-          BorrowCapture({ value: 1 }, { value: 7 }, 0, {
-            value_destination: { value: 9 },
+          BorrowCapture({ value: 1, }, { value: 7, }, 0, {
+            value_destination: { value: 9, },
             witness_destination: None,
           }),
-          ConstI64({ value: 5 }, 99L),
-          I64Eq({ value: 6 }, { value: 9 }, { value: 5 }),
-          Release({ value: 7 }),
+          ConstI64({ value: 5, }, 99L),
+          I64Eq({ value: 6, }, { value: 9, }, { value: 5, }),
+          Release({ value: 7, }),
         ],
-        terminator: BranchBool({ value: 6 }, edge(3), edge(4)),
+        terminator: BranchBool({ value: 6, }, edge(3), edge(4)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
-      { parameters: [], instructions: [], terminator: Unreachable },
+      { parameters: [], instructions: [], terminator: Return(None), },
+      { parameters: [], instructions: [], terminator: Unreachable, },
     ],
   }
   let shapes : Array[@bytecode.ObjectShape] = [
     Data({
-      family: { value: 0 },
+      family: { value: 0, },
       constructor_tag: 1,
       stored_witness_count: 0,
       members: [
@@ -966,13 +966,13 @@ test "canonical Data and Environment layouts construct and project" {
     }),
   ]
   let bytecode_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 1,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [Data({ value: 0 }), Environment({ value: 1 })],
+    layouts: [Data({ value: 0, }), Environment({ value: 1, })],
     object_shapes: shapes,
     constants: [],
   }
@@ -989,52 +989,52 @@ test "canonical Data and Environment layouts construct and project" {
 
 ///|
 test "descriptor destructors preserve owners across consuming projection" {
-  let inner_slot = owned_slot(I32, OwnedRef, kind=DataValue({ value: 0 }))
-  let outer_slot = owned_slot(I32, OwnedRef, kind=DataValue({ value: 1 }))
+  let inner_slot = owned_slot(I32, OwnedRef, kind=DataValue({ value: 0, }))
+  let outer_slot = owned_slot(I32, OwnedRef, kind=DataValue({ value: 1, }))
   let entry = body(slots=[inner_slot, outer_slot, outer_slot, inner_slot], instructions=[
-    MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-    MakeData({ value: 1 }, { value: 1 }, Immediate({ value: 2 }), [], [
-      { value: 0 },
+    MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+    MakeData({ value: 1, }, { value: 1, }, Immediate({ value: 2, }), [], [
+      { value: 0, },
     ]),
-    RetainCopy({ value: 2 }, { value: 1 }),
-    ConsumeFields({ value: 1 }, { value: 1 }, [
+    RetainCopy({ value: 2, }, { value: 1, }),
+    ConsumeFields({ value: 1, }, { value: 1, }, [
       {
         member_index: 0,
-        result: { value_destination: { value: 3 }, witness_destination: None },
+        result: { value_destination: { value: 3, }, witness_destination: None, },
       },
     ]),
-    Release({ value: 2 }),
-    Release({ value: 3 }),
+    Release({ value: 2, }),
+    Release({ value: 3, }),
   ])
   let shapes : Array[@bytecode.ObjectShape] = [
     Data({
-      family: { value: 0 },
+      family: { value: 0, },
       constructor_tag: 0,
       stored_witness_count: 0,
       members: [],
     }),
     Data({
-      family: { value: 1 },
+      family: { value: 1, },
       constructor_tag: 0,
       stored_witness_count: 0,
       members: [
         {
           representation: I32,
           cleanup: OwnedRef,
-          kind: DataValue({ value: 0 }),
+          kind: DataValue({ value: 0, }),
           witness_ordinal: None,
         },
       ],
     }),
   ]
   let bytecode_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 2,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [Data({ value: 0 }), Data({ value: 1 })],
+    layouts: [Data({ value: 0, }), Data({ value: 1, })],
     object_shapes: shapes,
     constants: [],
   }
@@ -1054,41 +1054,41 @@ test "Wasm loads an object witness independently from members" {
   let entry : @bytecode.FunctionBody = {
     slots: [
       trivial_slot(I32, kind=LayoutValue),
-      owned_slot(I32, OwnedRef, kind=DataValue({ value: 0 })),
+      owned_slot(I32, OwnedRef, kind=DataValue({ value: 0, })),
       trivial_slot(I32, kind=LayoutValue),
     ],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          ConstLayout({ value: 0 }, { value: 1 }),
+          ConstLayout({ value: 0, }, { value: 1, }),
           MakeData(
-            { value: 1 },
-            { value: 0 },
-            Immediate({ value: 2 }),
-            [{ value: 0 }],
+            { value: 1, },
+            { value: 0, },
+            Immediate({ value: 2, }),
+            [{ value: 0, }],
             [],
           ),
-          LoadObjectWitness({ value: 2 }, { value: 0 }, { value: 1 }, 0),
-          Release({ value: 1 }),
+          LoadObjectWitness({ value: 2, }, { value: 0, }, { value: 1, }, 0),
+          Release({ value: 1, }),
         ],
         terminator: Return(None),
       },
     ],
   }
   let bytecode_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 1,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [Bool, Data({ value: 0 })],
+    layouts: [Bool, Data({ value: 0, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 1,
         members: [],
@@ -1110,39 +1110,39 @@ test "OwnedErased ARC dispatches through its layout witness" {
     representation: I64,
     cleanup: OwnedErased,
     kind: ErasedValue,
-    erased_companion: Some({ value: 1 }),
+    erased_companion: Some({ value: 1, }),
   }
   let entry = body(
     slots=[
-      owned_slot(I32, OwnedRef, kind=DataValue({ value: 0 })),
+      owned_slot(I32, OwnedRef, kind=DataValue({ value: 0, })),
       trivial_slot(I32, kind=LayoutValue),
       erased_slot,
       erased_slot,
       trivial_slot(I64),
     ],
     instructions=[
-      ConstI64({ value: 4 }, 42L),
-      MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], [
-        { value: 4 },
+      ConstI64({ value: 4, }, 42L),
+      MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], [
+        { value: 4, },
       ]),
-      ConstLayout({ value: 1 }, { value: 1 }),
-      EraseI32({ value: 2 }, { value: 0 }),
-      RetainCopy({ value: 3 }, { value: 2 }),
-      Release({ value: 2 }),
-      Release({ value: 3 }),
+      ConstLayout({ value: 1, }, { value: 1, }),
+      EraseI32({ value: 2, }, { value: 0, }),
+      RetainCopy({ value: 3, }, { value: 2, }),
+      Release({ value: 2, }),
+      Release({ value: 3, }),
     ],
   )
   let bytecode_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 1,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [Data({ value: 0 })],
+    layouts: [Data({ value: 0, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [
@@ -1171,7 +1171,7 @@ test "OwnedErased ARC dispatches through its layout witness" {
 ///|
 test "Wasm returning calls enforce logical depth while tail calls preserve it" {
   let returning_entry = body(instructions=[
-    CallDirect({ value: 2 }, None, [], [], None),
+    CallDirect({ value: 2, }, None, [], [], None),
   ])
   let target = body()
   let returning_loaded = match
@@ -1195,7 +1195,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
     returning_instance.execute(),
     Err(ExecutionResourceLimit(kind=CallDepth)),
   )
-  let tail_entry = body(terminator=TailCallDirect({ value: 2 }, None, [], []))
+  let tail_entry = body(terminator=TailCallDirect({ value: 2, }, None, [], []))
   let tail_loaded = match
     load(
       image([BytecodeBody(tail_entry), BytecodeBody(target)]),
@@ -1218,7 +1218,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
 
 ///|
 test "Wasmoon execution can be interrupted at a Wasm safepoint" {
-  let entry = body(terminator=TailCallDirect({ value: 1 }, None, [], []))
+  let entry = body(terminator=TailCallDirect({ value: 1, }, None, [], []))
   let loaded = match
     load(image([BytecodeBody(entry)]), @loisvm_runtime.RuntimeRegistry::new()) {
     Ok(value) => value
@@ -1245,24 +1245,24 @@ test "Wasmoon execution can be interrupted at a Wasm safepoint" {
 test "call depth exhaustion releases arguments transferred into the callee" {
   let ref_slot = owned_slot(I32, OwnedRef)
   let entry = body(slots=[ref_slot, ref_slot, ref_slot], instructions=[
-    ConstString({ value: 0 }, { value: 0 }),
-    ConstString({ value: 1 }, { value: 1 }),
-    ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-    CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
+    ConstString({ value: 0, }, { value: 0, }),
+    ConstString({ value: 1, }, { value: 1, }),
+    ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+    CallDirect({ value: 2, }, None, [], [{ value: 2, }], None),
   ])
-  let target = body(slots=[ref_slot], parameters=[{ value: 0 }], instructions=[
-    Release({ value: 0 }),
+  let target = body(slots=[ref_slot], parameters=[{ value: 0, }], instructions=[
+    Release({ value: 0, }),
   ])
   let bytecode_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [
-          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, },
         ],
         result: Unit,
       },
@@ -1298,16 +1298,16 @@ test "call depth exhaustion releases arguments transferred into the callee" {
 test "Wasm allocator enforces canonical live heap bytes" {
   let ref_slot = owned_slot(I32, OwnedRef)
   let entry = body(slots=[ref_slot, ref_slot, ref_slot], instructions=[
-    ConstString({ value: 0 }, { value: 0 }),
-    ConstString({ value: 1 }, { value: 1 }),
-    ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-    Release({ value: 2 }),
+    ConstString({ value: 0, }, { value: 0, }),
+    ConstString({ value: 1, }, { value: 1, }),
+    ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+    Release({ value: 2, }),
   ])
   let bytecode_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [ByteSequence],
@@ -1345,20 +1345,20 @@ test "Wasm allocator enforces canonical live heap bytes" {
 test "live heap exhaustion unwinds owners from the current frame" {
   let ref_slot = owned_slot(I32, OwnedRef)
   let entry = body(slots=[ref_slot, ref_slot, ref_slot, ref_slot], instructions=[
-    ConstString({ value: 0 }, { value: 0 }),
-    ConstString({ value: 1 }, { value: 1 }),
-    ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-    ConstString({ value: 0 }, { value: 0 }),
-    ConstString({ value: 1 }, { value: 1 }),
-    ByteSequenceConcat({ value: 3 }, { value: 0 }, { value: 1 }),
-    Release({ value: 2 }),
-    Release({ value: 3 }),
+    ConstString({ value: 0, }, { value: 0, }),
+    ConstString({ value: 1, }, { value: 1, }),
+    ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+    ConstString({ value: 0, }, { value: 0, }),
+    ConstString({ value: 1, }, { value: 1, }),
+    ByteSequenceConcat({ value: 3, }, { value: 0, }, { value: 1, }),
+    Release({ value: 2, }),
+    Release({ value: 3, }),
   ])
   let bytecode_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
     layouts: [ByteSequence],
@@ -1407,16 +1407,16 @@ test "non-positive execution limits provide zero budget" {
   }
   let ref_slot = owned_slot(I32, OwnedRef)
   let allocating_entry = body(slots=[ref_slot, ref_slot, ref_slot], instructions=[
-    ConstString({ value: 0 }, { value: 0 }),
-    ConstString({ value: 1 }, { value: 1 }),
-    ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-    Release({ value: 2 }),
+    ConstString({ value: 0, }, { value: 0, }),
+    ConstString({ value: 1, }, { value: 1, }),
+    ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+    Release({ value: 2, }),
   ])
   let allocating_image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(allocating_entry)],
     layouts: [ByteSequence],

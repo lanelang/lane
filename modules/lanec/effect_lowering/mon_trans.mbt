@@ -292,7 +292,7 @@ fn finish_match(
       ),
     }
   })
-  let transformed = Expr::Match({ ..match_, scrutinee, alternatives })
+  let transformed = Expr::Match({ ..match_, scrutinee, alternatives, })
   if monadic_branch {
     bind_computation(
       program,

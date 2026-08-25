@@ -33,7 +33,7 @@ test "core optimization returns allocation failure without a partial program" {
   }
   metadata.name_allocator = Exhausted
   let metadata_before = metadata.snapshot()
-  guard optimize({ program, entry: main, roots: [] })
+  guard optimize({ program, entry: main, roots: [], })
     is Err(MetadataAllocationCompilerDefect(cause)) else {
     fail("expected a metadata allocation compiler defect")
   }

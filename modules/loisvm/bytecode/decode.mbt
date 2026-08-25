@@ -26,7 +26,7 @@ pub fn parse_bytecode_image_binary(
 fn decode_bytecode_image(
   bytes : Bytes,
 ) -> BytecodeImage raise BytecodeDecodeError {
-  let decoder = Decoder::{ reader: @bytecodec.ByteReader::from_bytes(bytes) }
+  let decoder = Decoder::{ reader: @bytecodec.ByteReader::from_bytes(bytes), }
   let entry = decoder.read_function_id()
   let initializer = decoder.read_optional_function_id()
   let abi_count = decoder.read_count(minimum_size=9, table="callable ABI")
@@ -116,7 +116,7 @@ fn Decoder::read_callable_abi(
       kind: self.read_semantic_value_kind(),
     })
   }
-  { witnesses, parameters, result: self.read_result_abi() }
+  { witnesses, parameters, result: self.read_result_abi(), }
 }
 
 ///|
@@ -149,7 +149,7 @@ fn Decoder::read_runtime_import(
   let symbol = @utf8.decode(symbol_bytes) catch {
     _ => self.fail_at(symbol_offset, "runtime import symbol is not valid UTF-8")
   }
-  { abi_major, parameters, result, symbol }
+  { abi_major, parameters, result, symbol, }
 }
 
 ///|
@@ -189,7 +189,7 @@ fn Decoder::read_function_body(
         length_offset, "function body exceeds enclosing bytecode section",
       )
   }
-  let body_decoder = Decoder::{ reader: body_reader }
+  let body_decoder = Decoder::{ reader: body_reader, }
   let slot_count = body_decoder.read_count(minimum_size=2, table="slot")
   let slots : Array[SlotMetadata] = []
   for _index in 0..<slot_count {
@@ -210,7 +210,7 @@ fn Decoder::read_function_body(
     blocks.push(body_decoder.read_block())
   }
   body_decoder.expect_end(what="function body")
-  { slots, inputs, result, blocks }
+  { slots, inputs, result, blocks, }
 }
 
 ///|
@@ -225,7 +225,7 @@ fn Decoder::read_slot_metadata(
   } else {
     None
   }
-  { representation, cleanup, kind, erased_companion }
+  { representation, cleanup, kind, erased_companion, }
 }
 
 ///|
@@ -240,7 +240,7 @@ fn Decoder::read_global_metadata(
   } else {
     None
   }
-  { representation, cleanup, kind, erased_companion }
+  { representation, cleanup, kind, erased_companion, }
 }
 
 ///|
@@ -280,7 +280,7 @@ fn Decoder::read_semantic_value_kind(
     0x03 => CallableValue
     0x04 => ByteSequenceValue
     0x05 =>
-      DataValue({ value: self.read_nonnegative_u32(expected="DataFamilyId") })
+      DataValue({ value: self.read_nonnegative_u32(expected="DataFamilyId"), })
     0x06 => EnvironmentValue(self.read_object_shape_id())
     0x07 => OpaqueReferenceValue
     0x08 => ErasedValue
@@ -349,14 +349,14 @@ fn Decoder::read_object_shape(
         expected="stored witness count",
       )
       let members = self.read_member_schemas()
-      Data({ family, constructor_tag, stored_witness_count, members })
+      Data({ family, constructor_tag, stored_witness_count, members, })
     }
     0x02 => {
       let stored_witness_count = self.read_nonnegative_u32(
         expected="stored witness count",
       )
       let members = self.read_member_schemas()
-      Environment({ stored_witness_count, members })
+      Environment({ stored_witness_count, members, })
     }
     tag => self.invalid_tag(offset~, domain="object shape", tag~)
   }
@@ -396,7 +396,7 @@ fn Decoder::read_block(self : Decoder) -> Block raise BytecodeDecodeError {
     instructions.push(self.read_instruction())
   }
   let terminator = self.read_terminator()
-  { parameters, instructions, terminator }
+  { parameters, instructions, terminator, }
 }
 
 ///|
@@ -676,7 +676,7 @@ fn Decoder::read_terminator(
 
 ///|
 fn Decoder::read_edge(self : Decoder) -> Edge raise BytecodeDecodeError {
-  { target: self.read_block_id(), arguments: self.read_slot_ids() }
+  { target: self.read_block_id(), arguments: self.read_slot_ids(), }
 }
 
 ///|
@@ -719,7 +719,7 @@ fn Decoder::read_projection_selections(
       )
     }
     previous = member_index
-    selections.push({ member_index, result: self.read_projection_result() })
+    selections.push({ member_index, result: self.read_projection_result(), })
   }
   selections
 }
@@ -744,7 +744,7 @@ fn Decoder::read_optional_slot(
   if value == 0 {
     None
   } else {
-    Some({ value: value - 1 })
+    Some({ value: value - 1, })
   }
 }
 
@@ -764,7 +764,7 @@ fn Decoder::read_function_id(
 fn Decoder::read_callable_abi_id(
   self : Decoder,
 ) -> CallableAbiId raise BytecodeDecodeError {
-  { value: self.read_nonnegative_u32(expected="CallableAbiId") }
+  { value: self.read_nonnegative_u32(expected="CallableAbiId"), }
 }
 
 ///|
@@ -783,7 +783,7 @@ fn Decoder::read_optional_function_id(
 fn Decoder::read_global_id(
   self : Decoder,
 ) -> GlobalId raise BytecodeDecodeError {
-  { value: self.read_nonnegative_u32(expected="GlobalId") }
+  { value: self.read_nonnegative_u32(expected="GlobalId"), }
 }
 
 ///|
@@ -800,26 +800,26 @@ fn Decoder::read_layout_id(
 
 ///|
 fn Decoder::read_block_id(self : Decoder) -> BlockId raise BytecodeDecodeError {
-  { value: self.read_nonnegative_u32(expected="BlockId") }
+  { value: self.read_nonnegative_u32(expected="BlockId"), }
 }
 
 ///|
 fn Decoder::read_slot_id(self : Decoder) -> SlotId raise BytecodeDecodeError {
-  { value: self.read_nonnegative_u32(expected="SlotId") }
+  { value: self.read_nonnegative_u32(expected="SlotId"), }
 }
 
 ///|
 fn Decoder::read_constant_id(
   self : Decoder,
 ) -> ConstantId raise BytecodeDecodeError {
-  { value: self.read_nonnegative_u32(expected="ConstantId") }
+  { value: self.read_nonnegative_u32(expected="ConstantId"), }
 }
 
 ///|
 fn Decoder::read_object_shape_id(
   self : Decoder,
 ) -> ObjectShapeId raise BytecodeDecodeError {
-  { value: self.read_nonnegative_u32(expected="ObjectShapeId") }
+  { value: self.read_nonnegative_u32(expected="ObjectShapeId"), }
 }
 
 ///|

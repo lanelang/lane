@@ -14,7 +14,7 @@ fn verification_slot(
         OwnedErased => ErasedValue
       }
   }
-  { representation, cleanup, kind, erased_companion: None }
+  { representation, cleanup, kind, erased_companion: None, }
 }
 
 ///|
@@ -25,9 +25,9 @@ fn verification_body(
 ) -> FunctionBody {
   {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions, terminator }],
+    blocks: [{ parameters: [], instructions, terminator, }],
   }
 }
 
@@ -47,7 +47,7 @@ fn verification_image(
     }
   }
   {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     callable_abis,
     data_family_count,
@@ -72,15 +72,15 @@ fn ordered_global_image(initialization_order : Array[Int]) -> BytecodeImage {
   let slots = initialization_order.map(_ => verification_slot(I64))
   let instructions : Array[Instruction] = []
   for slot, global in initialization_order {
-    instructions.push(ConstI64({ value: slot }, global.to_int64()))
-    instructions.push(InitGlobal({ value: global }, { value: slot }))
+    instructions.push(ConstI64({ value: slot, }, global.to_int64()))
+    instructions.push(InitGlobal({ value: global, }, { value: slot, }))
   }
   let initializer = verification_body(slots~, instructions~)
   {
     ..verification_image(verification_body(), functions=[
       BytecodeBody(initializer),
     ]),
-    initializer: Some({ value: 2 }),
+    initializer: Some({ value: 2, }),
     globals: Array::make(2, {
       representation: I64,
       cleanup: Trivial,
@@ -132,11 +132,11 @@ test "bytecode verifier enforces Fatal message shape" {
     kind=Some(ByteSequenceValue),
   )
   let fatal = {
-    ..verification_body(slots=[message], terminator=Fatal({ value: 0 })),
+    ..verification_body(slots=[message], terminator=Fatal({ value: 0, })),
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Unit,
   }
@@ -146,7 +146,7 @@ test "bytecode verifier enforces Fatal message shape" {
     ),
     Ok(()),
   )
-  let wrong_message = { ..fatal, slots: [verification_slot(I32)] }
+  let wrong_message = { ..fatal, slots: [verification_slot(I32)], }
   assert_true(
     verify_bytecode_image(
       verification_image(verification_body(), functions=[
@@ -162,8 +162,8 @@ test "bytecode verifier rejects scalar values used as object references" {
   let body = verification_body(
     slots=[verification_slot(I32), verification_slot(I32)],
     instructions=[
-      ConstI32({ value: 0 }, 42),
-      LoadTag({ value: 1 }, { value: 0 }),
+      ConstI32({ value: 0, }, 42),
+      LoadTag({ value: 1, }, { value: 0, }),
     ],
   )
   assert_true(verify_bytecode_image(verification_image(body)) is Err(_))
@@ -174,9 +174,9 @@ test "bytecode verifier does not interchange reference semantic categories" {
   let byte_sequence_body = verification_body(
     slots=[verification_slot(I32, cleanup=OwnedRef), verification_slot(I32)],
     instructions=[
-      ConstString({ value: 0 }, { value: 0 }),
-      LoadTag({ value: 1 }, { value: 0 }),
-      Release({ value: 0 }),
+      ConstString({ value: 0, }, { value: 0, }),
+      LoadTag({ value: 1, }, { value: 0, }),
+      Release({ value: 0, }),
     ],
   )
   let environment_body = verification_body(
@@ -184,14 +184,14 @@ test "bytecode verifier does not interchange reference semantic categories" {
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(EnvironmentValue({ value: 0 })),
+        kind=Some(EnvironmentValue({ value: 0, })),
       ),
       verification_slot(I32),
     ],
     instructions=[
-      MakeEnv({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-      LoadTag({ value: 1 }, { value: 0 }),
-      Release({ value: 0 }),
+      MakeEnv({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+      LoadTag({ value: 1, }, { value: 0, }),
+      Release({ value: 0, }),
     ],
   )
   let data_body = verification_body(
@@ -199,17 +199,17 @@ test "bytecode verifier does not interchange reference semantic categories" {
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(I64),
     ],
     instructions=[
-      MakeData({ value: 0 }, { value: 1 }, Immediate({ value: 2 }), [], []),
-      BorrowCapture({ value: 0 }, { value: 0 }, 0, {
-        value_destination: { value: 1 },
+      MakeData({ value: 0, }, { value: 1, }, Immediate({ value: 2, }), [], []),
+      BorrowCapture({ value: 0, }, { value: 0, }, 0, {
+        value_destination: { value: 1, },
         witness_destination: None,
       }),
-      Release({ value: 0 }),
+      Release({ value: 0, }),
     ],
   )
   let environment_shape : ObjectShape = Environment({
@@ -217,7 +217,7 @@ test "bytecode verifier does not interchange reference semantic categories" {
     members: [],
   })
   let data_shape : ObjectShape = Data({
-    family: { value: 0 },
+    family: { value: 0, },
     constructor_tag: 0,
     stored_witness_count: 0,
     members: [],
@@ -228,7 +228,7 @@ test "bytecode verifier does not interchange reference semantic categories" {
     ),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 1),
+        site=Instruction({ value: 1, }, { value: 0, }, 1),
         detail="SlotId 0 must hold a Data value",
       ),
     ),
@@ -236,12 +236,12 @@ test "bytecode verifier does not interchange reference semantic categories" {
   assert_eq(
     verify_bytecode_image({
       ..verification_image(environment_body),
-      layouts: [Environment({ value: 0 })],
+      layouts: [Environment({ value: 0, })],
       object_shapes: [environment_shape],
     }),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 1),
+        site=Instruction({ value: 1, }, { value: 0, }, 1),
         detail="SlotId 0 must hold a Data value",
       ),
     ),
@@ -250,12 +250,12 @@ test "bytecode verifier does not interchange reference semantic categories" {
     verify_bytecode_image({
       ..verification_image(data_body),
       data_family_count: 1,
-      layouts: [Environment({ value: 0 }), Data({ value: 1 })],
+      layouts: [Environment({ value: 0, }), Data({ value: 1, })],
       object_shapes: [environment_shape, data_shape],
     }),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 1),
+        site=Instruction({ value: 1, }, { value: 0, }, 1),
         detail="SlotId 0 must have EnvironmentValue({ value: 0 }) semantic kind, got DataValue({ value: 0 })",
       ),
     ),
@@ -266,11 +266,11 @@ test "bytecode verifier does not interchange reference semantic categories" {
 test "bytecode verifier owns Char and runtime import symbol semantics" {
   let invalid_char = verification_image(
     verification_body(slots=[verification_slot(I32)], instructions=[
-      ConstChar({ value: 0 }, 0xD800),
+      ConstChar({ value: 0, }, 0xD800),
     ]),
   )
   let invalid_symbol = verification_image(verification_body(), functions=[
-    RuntimeImport({ abi_major: 1, parameters: [], result: Unit, symbol: "" }),
+    RuntimeImport({ abi_major: 1, parameters: [], result: Unit, symbol: "", }),
   ])
   assert_true(verify_bytecode_image(invalid_char) is Err(_))
   assert_true(verify_bytecode_image(invalid_symbol) is Err(_))
@@ -282,7 +282,7 @@ test "bytecode verifier owns every encoding-independent image invariant" {
     Bytes::from_array([b'\xFF']),
   ])
   let non_ascii_symbol = verification_image(verification_body(), functions=[
-    RuntimeImport({ abi_major: 1, parameters: [], result: Unit, symbol: "中" }),
+    RuntimeImport({ abi_major: 1, parameters: [], result: Unit, symbol: "中", }),
   ])
   let nul_symbol = verification_image(verification_body(), functions=[
     RuntimeImport({
@@ -305,7 +305,7 @@ test "bytecode verifier owns every encoding-independent image invariant" {
     verify_bytecode_image(non_ascii_symbol)
     is Err(
       InvalidBytecode(
-        site=Function({ value: 2 }),
+        site=Function({ value: 2, }),
         detail="runtime import symbol must contain ASCII bytes only"
       )
     ),
@@ -314,7 +314,7 @@ test "bytecode verifier owns every encoding-independent image invariant" {
     verify_bytecode_image(nul_symbol)
     is Err(
       InvalidBytecode(
-        site=Function({ value: 2 }),
+        site=Function({ value: 2, }),
         detail="runtime import symbol must not contain NUL"
       )
     ),
@@ -325,13 +325,13 @@ test "bytecode verifier owns every encoding-independent image invariant" {
 fn two_constructor_data_shapes() -> Array[ObjectShape] {
   [
     Data({
-      family: { value: 0 },
+      family: { value: 0, },
       constructor_tag: 0,
       stored_witness_count: 0,
       members: [],
     }),
     Data({
-      family: { value: 0 },
+      family: { value: 0, },
       constructor_tag: 1,
       stored_witness_count: 0,
       members: [
@@ -353,14 +353,14 @@ test "bytecode verifier rejects wrong exact object shapes" {
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(I64),
     ],
     instructions=[
-      MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-      BorrowField({ value: 1 }, { value: 0 }, 0, {
-        value_destination: { value: 1 },
+      MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+      BorrowField({ value: 1, }, { value: 0, }, 0, {
+        value_destination: { value: 1, },
         witness_destination: None,
       }),
     ],
@@ -368,14 +368,14 @@ test "bytecode verifier rejects wrong exact object shapes" {
   let image = {
     ..verification_image(body),
     data_family_count: 1,
-    layouts: [Data({ value: 0 }), Data({ value: 1 })],
+    layouts: [Data({ value: 0, }), Data({ value: 1, })],
     object_shapes: two_constructor_data_shapes(),
   }
   assert_eq(
     verify_bytecode_image(image),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 1),
+        site=Instruction({ value: 1, }, { value: 0, }, 1),
         detail="SlotId 0 has ObjectShapeId 0, expected ObjectShapeId 1",
       ),
     ),
@@ -390,13 +390,13 @@ test "bytecode verifier rejects projections without exact shape proof" {
         verification_slot(
           I32,
           cleanup=OwnedRef,
-          kind=Some(DataValue({ value: 0 })),
+          kind=Some(DataValue({ value: 0, })),
         ),
         verification_slot(I64),
       ],
       instructions=[
-        BorrowField({ value: 1 }, { value: 0 }, 0, {
-          value_destination: { value: 1 },
+        BorrowField({ value: 1, }, { value: 0, }, 0, {
+          value_destination: { value: 1, },
           witness_destination: None,
         }),
       ],
@@ -404,20 +404,20 @@ test "bytecode verifier rejects projections without exact shape proof" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
   }
   let image = {
     ..verification_image(verification_body(), functions=[BytecodeBody(body)]),
     data_family_count: 1,
-    layouts: [Data({ value: 0 }), Data({ value: 1 })],
+    layouts: [Data({ value: 0, }), Data({ value: 1, })],
     object_shapes: two_constructor_data_shapes(),
   }
   assert_eq(
     verify_bytecode_image(image),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 2 }, { value: 0 }, 0),
+        site=Instruction({ value: 2, }, { value: 0, }, 0),
         detail="SlotId 0 has no proven ObjectShapeId 1",
       ),
     ),
@@ -431,7 +431,7 @@ test "bytecode verifier refines exact shape in tag switch cases" {
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(I32),
       verification_slot(I64),
@@ -439,35 +439,35 @@ test "bytecode verifier refines exact shape in tag switch cases" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [LoadTag({ value: 1 }, { value: 0 })],
+        instructions: [LoadTag({ value: 1, }, { value: 0, })],
         terminator: SwitchTag(
-          { value: 1 },
+          { value: 1, },
           [
-            { target: { value: 1 }, arguments: [] },
-            { target: { value: 2 }, arguments: [] },
+            { target: { value: 1, }, arguments: [], },
+            { target: { value: 2, }, arguments: [], },
           ],
-          { target: { value: 3 }, arguments: [] },
+          { target: { value: 3, }, arguments: [], },
         ),
       },
       {
         parameters: [],
-        instructions: [Release({ value: 0 })],
+        instructions: [Release({ value: 0, })],
         terminator: Return(None),
       },
       {
         parameters: [],
         instructions: [
-          ConsumeFields({ value: 1 }, { value: 0 }, [
+          ConsumeFields({ value: 1, }, { value: 0, }, [
             {
               member_index: 0,
               result: {
-                value_destination: { value: 2 },
+                value_destination: { value: 2, },
                 witness_destination: None,
               },
             },
@@ -477,7 +477,7 @@ test "bytecode verifier refines exact shape in tag switch cases" {
       },
       {
         parameters: [],
-        instructions: [Release({ value: 0 })],
+        instructions: [Release({ value: 0, })],
         terminator: Return(None),
       },
     ],
@@ -485,7 +485,7 @@ test "bytecode verifier refines exact shape in tag switch cases" {
   let image = {
     ..verification_image(verification_body(), functions=[BytecodeBody(body)]),
     data_family_count: 1,
-    layouts: [Data({ value: 0 }), Data({ value: 1 })],
+    layouts: [Data({ value: 0, }), Data({ value: 1, })],
     object_shapes: two_constructor_data_shapes(),
   }
   assert_eq(verify_bytecode_image(image), Ok(()))
@@ -499,24 +499,24 @@ test "bytecode verifier forgets different exact shapes at joins" {
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(I64),
     ],
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Unit,
     blocks: [
@@ -524,36 +524,36 @@ test "bytecode verifier forgets different exact shapes at joins" {
         parameters: [],
         instructions: [],
         terminator: BranchBool(
-          { value: 0 },
-          { target: { value: 1 }, arguments: [] },
-          { target: { value: 2 }, arguments: [] },
+          { value: 0, },
+          { target: { value: 1, }, arguments: [], },
+          { target: { value: 2, }, arguments: [], },
         ),
       },
       {
         parameters: [],
         instructions: [
-          MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 1 }), [], []),
+          MakeData({ value: 1, }, { value: 0, }, Immediate({ value: 1, }), [], []),
         ],
-        terminator: Jump({ target: { value: 3 }, arguments: [{ value: 1 }] }),
+        terminator: Jump({ target: { value: 3, }, arguments: [{ value: 1, }], }),
       },
       {
         parameters: [],
         instructions: [
-          ConstI64({ value: 4 }, 0L),
-          MakeData({ value: 2 }, { value: 1 }, Immediate({ value: 2 }), [], [
-            { value: 4 },
+          ConstI64({ value: 4, }, 0L),
+          MakeData({ value: 2, }, { value: 1, }, Immediate({ value: 2, }), [], [
+            { value: 4, },
           ]),
         ],
-        terminator: Jump({ target: { value: 3 }, arguments: [{ value: 2 }] }),
+        terminator: Jump({ target: { value: 3, }, arguments: [{ value: 2, }], }),
       },
       {
-        parameters: [{ value: 3 }],
+        parameters: [{ value: 3, }],
         instructions: [
-          ConsumeFields({ value: 1 }, { value: 3 }, [
+          ConsumeFields({ value: 1, }, { value: 3, }, [
             {
               member_index: 0,
               result: {
-                value_destination: { value: 4 },
+                value_destination: { value: 4, },
                 witness_destination: None,
               },
             },
@@ -566,14 +566,14 @@ test "bytecode verifier forgets different exact shapes at joins" {
   let image = {
     ..verification_image(verification_body(), functions=[BytecodeBody(body)]),
     data_family_count: 1,
-    layouts: [Data({ value: 0 }), Data({ value: 1 })],
+    layouts: [Data({ value: 0, }), Data({ value: 1, })],
     object_shapes: two_constructor_data_shapes(),
   }
   assert_eq(
     verify_bytecode_image(image),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 2 }, { value: 3 }, 0),
+        site=Instruction({ value: 2, }, { value: 3, }, 0),
         detail="SlotId 3 has no proven ObjectShapeId 1",
       ),
     ),
@@ -582,30 +582,30 @@ test "bytecode verifier forgets different exact shapes at joins" {
 
 ///|
 test "closed reference ABI cannot turn ByteSequence into Data" {
-  let data_kind = @bytecode.DataValue({ value: 0 })
+  let data_kind = @bytecode.DataValue({ value: 0, })
   let target : FunctionBody = {
     slots: [verification_slot(I32, cleanup=OwnedRef, kind=Some(data_kind))],
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Value(I32, OwnedRef, data_kind),
     blocks: [
       {
         parameters: [],
         instructions: [],
-        terminator: Return(Some({ value: 0 })),
+        terminator: Return(Some({ value: 0, })),
       },
     ],
   }
   let data_slot = verification_slot(
     I32,
     cleanup=OwnedRef,
-    kind=Some(DataValue({ value: 0 })),
+    kind=Some(DataValue({ value: 0, })),
   )
   let data_shape : ObjectShape = Data({
-    family: { value: 0 },
+    family: { value: 0, },
     constructor_tag: 0,
     stored_witness_count: 0,
     members: [],
@@ -615,8 +615,14 @@ test "closed reference ABI cannot turn ByteSequence into Data" {
       verification_body(
         slots=[verification_slot(I32, cleanup=OwnedRef), data_slot],
         instructions=[
-          ConstString({ value: 0 }, { value: 0 }),
-          CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
+          ConstString({ value: 0, }, { value: 0, }),
+          CallDirect(
+            { value: 2, },
+            None,
+            [],
+            [{ value: 0, }],
+            Some({ value: 1, }),
+          ),
         ],
       ),
       functions=[BytecodeBody(target)],
@@ -629,7 +635,7 @@ test "closed reference ABI cannot turn ByteSequence into Data" {
     verify_bytecode_image(rejected)
     is Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 1),
+        site=Instruction({ value: 1, }, { value: 0, }, 1),
         detail="call argument 0 has the wrong value shape"
       )
     ),
@@ -637,14 +643,20 @@ test "closed reference ABI cannot turn ByteSequence into Data" {
   let accepted = {
     ..verification_image(
       verification_body(slots=[data_slot, data_slot], instructions=[
-        MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-        CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
-        Release({ value: 1 }),
+        MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+        CallDirect(
+          { value: 2, },
+          None,
+          [],
+          [{ value: 0, }],
+          Some({ value: 1, }),
+        ),
+        Release({ value: 1, }),
       ]),
       functions=[BytecodeBody(target)],
     ),
     data_family_count: 1,
-    layouts: [Data({ value: 0 })],
+    layouts: [Data({ value: 0, })],
     object_shapes: [data_shape],
   }
   assert_eq(verify_bytecode_image(accepted), Ok(()))
@@ -655,14 +667,14 @@ test "bytecode verifier checks instruction representation contracts" {
   let image = verification_image(
     verification_body(
       slots=[verification_slot(I32, cleanup=OwnedRef), verification_slot(F64)],
-      instructions=[F32ToString({ value: 0 }, { value: 1 })],
+      instructions=[F32ToString({ value: 0, }, { value: 1, })],
     ),
   )
   assert_eq(
     verify_bytecode_image(image),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 0),
+        site=Instruction({ value: 1, }, { value: 0, }, 0),
         detail="SlotId 1 must be F32 + Trivial, got F64 + Trivial",
       ),
     ),
@@ -674,13 +686,13 @@ test "bytecode verifier rejects uninitialized reads and owner overwrites" {
   let uninitialized = verification_image(
     verification_body(
       slots=[verification_slot(I32, cleanup=OwnedRef), verification_slot(F32)],
-      instructions=[F32ToString({ value: 0 }, { value: 1 })],
+      instructions=[F32ToString({ value: 0, }, { value: 1, })],
     ),
   )
   let overwritten = verification_image(
     verification_body(slots=[verification_slot(I32, cleanup=OwnedRef)], instructions=[
-      ConstString({ value: 0 }, { value: 0 }),
-      ConstString({ value: 0 }, { value: 1 }),
+      ConstString({ value: 0, }, { value: 0, }),
+      ConstString({ value: 0, }, { value: 1, }),
     ]),
     constants=[b"a", b"b"],
   )
@@ -712,27 +724,31 @@ test "bytecode verifier checks direct-call ABI and edge arity" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
   }
   let wrong_call = verification_image(
     verification_body(instructions=[
-      CallDirect({ value: 2 }, None, [], [], None),
+      CallDirect({ value: 2, }, None, [], [], None),
     ]),
     functions=[BytecodeBody(target)],
   )
   let wrong_edge_body = {
     ..verification_body(
       slots=[verification_slot(I64)],
-      terminator=Jump({ target: { value: 1 }, arguments: [] }),
+      terminator=Jump({ target: { value: 1, }, arguments: [], }),
     ),
     blocks: [
       {
         parameters: [],
         instructions: [],
-        terminator: Jump({ target: { value: 1 }, arguments: [] }),
+        terminator: Jump({ target: { value: 1, }, arguments: [], }),
       },
-      { parameters: [{ value: 0 }], instructions: [], terminator: Return(None) },
+      {
+        parameters: [{ value: 0, }],
+        instructions: [],
+        terminator: Return(None),
+      },
     ],
   }
   debug_inspect(
@@ -764,18 +780,18 @@ test "bytecode verifier checks CallValue ABI identity and physical shape" {
   let callable = verification_slot(I64, cleanup=OwnedCallable)
   let argument = verification_slot(I32)
   let body = verification_body(slots=[callable, argument], instructions=[
-    ConstFunction({ value: 0 }, { value: 1 }),
-    ConstBool({ value: 1 }, true),
-    CallValue({ value: 0 }, { value: 1 }, [], [{ value: 1 }], None),
+    ConstFunction({ value: 0, }, { value: 1, }),
+    ConstBool({ value: 1, }, true),
+    CallValue({ value: 0, }, { value: 1, }, [], [{ value: 1, }], None),
   ])
   let image = {
     ..verification_image(body),
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [
-          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+          { representation: I64, cleanup: Trivial, kind: ScalarValue, },
         ],
         result: Unit,
       },
@@ -785,7 +801,7 @@ test "bytecode verifier checks CallValue ABI identity and physical shape" {
     verify_bytecode_image(image),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 2),
+        site=Instruction({ value: 1, }, { value: 0, }, 2),
         detail="call argument 0 has the wrong value shape",
       ),
     ),
@@ -799,8 +815,8 @@ test "bytecode verifier checks CallValue ABI identity and physical shape" {
           {
             parameters: [],
             instructions: [
-              ConstFunction({ value: 0 }, { value: 1 }),
-              CallValue({ value: 0 }, { value: 2 }, [], [], None),
+              ConstFunction({ value: 0, }, { value: 1, }),
+              CallValue({ value: 0, }, { value: 2, }, [], [], None),
             ],
             terminator: Return(None),
           },
@@ -812,7 +828,7 @@ test "bytecode verifier checks CallValue ABI identity and physical shape" {
     verify_bytecode_image(invalid_abi),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 1),
+        site=Instruction({ value: 1, }, { value: 0, }, 1),
         detail="CallableAbiId 2 is out of range",
       ),
     ),
@@ -827,16 +843,16 @@ test "bytecode verifier rejects a forged layout constructor arity" {
     kind=Some(LayoutConstructorValue(2)),
   )
   let caller = verification_body(slots=[constructor_slot], instructions=[
-    ConstFunction({ value: 0 }, { value: 2 }),
-    Release({ value: 0 }),
+    ConstFunction({ value: 0, }, { value: 2, }),
+    Release({ value: 0, }),
   ])
   let layout = verification_slot(I32, kind=Some(LayoutValue))
   let implementation = {
-    ..verification_body(slots=[layout], terminator=Return(Some({ value: 0 }))),
+    ..verification_body(slots=[layout], terminator=Return(Some({ value: 0, }))),
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Value(I32, Trivial, LayoutValue),
   }
@@ -846,7 +862,7 @@ test "bytecode verifier rejects a forged layout constructor arity" {
     ),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 0),
+        site=Instruction({ value: 1, }, { value: 0, }, 0),
         detail="layout constructor ABI has the wrong arity",
       ),
     ),
@@ -858,16 +874,16 @@ test "bytecode verifier rejects call result ownership mismatch" {
   let target = {
     ..verification_body(
       slots=[verification_slot(I32)],
-      instructions=[ConstI32({ value: 0 }, 42)],
-      terminator=Return(Some({ value: 0 })),
+      instructions=[ConstI32({ value: 0, }, 42)],
+      terminator=Return(Some({ value: 0, })),
     ),
     result: Value(I32, Trivial, ScalarValue),
   }
   let caller = verification_body(
     slots=[verification_slot(I32, cleanup=OwnedRef)],
     instructions=[
-      CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-      Release({ value: 0 }),
+      CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+      Release({ value: 0, }),
     ],
   )
   assert_eq(
@@ -876,7 +892,7 @@ test "bytecode verifier rejects call result ownership mismatch" {
     ),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 0),
+        site=Instruction({ value: 1, }, { value: 0, }, 0),
         detail="call result ABI does not match destination slot",
       ),
     ),
@@ -888,25 +904,25 @@ test "bytecode verifier enforces result ABI at every static call boundary" {
   let bad_return = {
     ..verification_body(
       slots=[verification_slot(I32)],
-      instructions=[ConstI32({ value: 0 }, 42)],
-      terminator=Return(Some({ value: 0 })),
+      instructions=[ConstI32({ value: 0, }, 42)],
+      terminator=Return(Some({ value: 0, })),
     ),
     result: Value(I32, OwnedRef, ByteSequenceValue),
   }
   let tail_caller = {
-    ..verification_body(terminator=TailCallDirect({ value: 3 }, None, [], [])),
+    ..verification_body(terminator=TailCallDirect({ value: 3, }, None, [], [])),
     result: Value(I32, OwnedRef, ByteSequenceValue),
   }
   let scalar_target = {
     ..verification_body(
       slots=[verification_slot(I32)],
-      instructions=[ConstI32({ value: 0 }, 42)],
-      terminator=Return(Some({ value: 0 })),
+      instructions=[ConstI32({ value: 0, }, 42)],
+      terminator=Return(Some({ value: 0, })),
     ),
     result: Value(I32, Trivial, ScalarValue),
   }
   let import_caller = verification_body(slots=[verification_slot(I32)], instructions=[
-    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
+    CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
   ])
   let string_import : RuntimeImport = {
     abi_major: 1,
@@ -968,35 +984,35 @@ test "bytecode verifier rejects an erased member with the wrong stored evidence"
         representation: I64,
         cleanup: OwnedErased,
         kind: ErasedValue,
-        erased_companion: Some({ value: 0 }),
+        erased_companion: Some({ value: 0, }),
       },
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
     ],
     instructions=[
-      ConstLayout({ value: 0 }, { value: 1 }),
-      ConstLayout({ value: 1 }, { value: 2 }),
-      EraseUnit({ value: 2 }),
+      ConstLayout({ value: 0, }, { value: 1, }),
+      ConstLayout({ value: 1, }, { value: 2, }),
+      EraseUnit({ value: 2, }),
       MakeData(
-        { value: 3 },
-        { value: 0 },
-        Immediate({ value: 3 }),
-        [{ value: 1 }],
-        [{ value: 2 }],
+        { value: 3, },
+        { value: 0, },
+        Immediate({ value: 3, }),
+        [{ value: 1, }],
+        [{ value: 2, }],
       ),
-      Release({ value: 3 }),
+      Release({ value: 3, }),
     ],
   )
   let image = {
     ..verification_image(body),
     data_family_count: 1,
-    layouts: [Unit, I64, Data({ value: 0 })],
+    layouts: [Unit, I64, Data({ value: 0, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 1,
         members: [
@@ -1014,7 +1030,7 @@ test "bytecode verifier rejects an erased member with the wrong stored evidence"
     verify_bytecode_image(image),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 3),
+        site=Instruction({ value: 1, }, { value: 0, }, 3),
         detail="erased object member does not use its stored layout witness",
       ),
     ),
@@ -1029,33 +1045,33 @@ test "bytecode verifier requires a dynamic object layout to prove its shape" {
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
     ],
     instructions=[
-      ConstLayout({ value: 0 }, { value: 1 }),
-      MakeData({ value: 1 }, { value: 0 }, Witness({ value: 0 }), [], []),
+      ConstLayout({ value: 0, }, { value: 1, }),
+      MakeData({ value: 1, }, { value: 0, }, Witness({ value: 0, }), [], []),
     ],
   )
   let image = {
     ..verification_image(body),
     data_family_count: 1,
-    layouts: [Environment({ value: 1 })],
+    layouts: [Environment({ value: 1, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [],
       }),
-      Environment({ stored_witness_count: 0, members: [] }),
+      Environment({ stored_witness_count: 0, members: [], }),
     ],
   }
   assert_eq(
     verify_bytecode_image(image),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 1),
+        site=Instruction({ value: 1, }, { value: 0, }, 1),
         detail="object layout witness references a different shape",
       ),
     ),
@@ -1066,29 +1082,37 @@ test "bytecode verifier requires a dynamic object layout to prove its shape" {
 test "bytecode verifier transfers object shape through erasure" {
   let slots = [
     verification_slot(I32, kind=Some(LayoutValue)),
-    verification_slot(I32, cleanup=OwnedRef, kind=Some(DataValue({ value: 0 }))),
+    verification_slot(
+      I32,
+      cleanup=OwnedRef,
+      kind=Some(DataValue({ value: 0, })),
+    ),
     {
       representation: I64,
       cleanup: OwnedErased,
       kind: ErasedValue,
-      erased_companion: Some({ value: 0 }),
+      erased_companion: Some({ value: 0, }),
     },
-    verification_slot(I32, cleanup=OwnedRef, kind=Some(DataValue({ value: 0 }))),
+    verification_slot(
+      I32,
+      cleanup=OwnedRef,
+      kind=Some(DataValue({ value: 0, })),
+    ),
   ]
   let instructions : Array[Instruction] = [
-    ConstLayout({ value: 0 }, { value: 2 }),
-    MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-    EraseI32({ value: 2 }, { value: 1 }),
-    UneraseI32({ value: 3 }, { value: 2 }),
-    ConsumeFields({ value: 0 }, { value: 3 }, []),
+    ConstLayout({ value: 0, }, { value: 2, }),
+    MakeData({ value: 1, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+    EraseI32({ value: 2, }, { value: 1, }),
+    UneraseI32({ value: 3, }, { value: 2, }),
+    ConsumeFields({ value: 0, }, { value: 3, }, []),
   ]
   let image = {
     ..verification_image(verification_body(slots~, instructions~)),
     data_family_count: 1,
-    layouts: [Data({ value: 0 }), Reference],
+    layouts: [Data({ value: 0, }), Reference],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [],
@@ -1102,44 +1126,48 @@ test "bytecode verifier transfers object shape through erasure" {
 test "bytecode verifier rejects unerasure into an incompatible object kind" {
   let slots = [
     verification_slot(I32, kind=Some(LayoutValue)),
-    verification_slot(I32, cleanup=OwnedRef, kind=Some(DataValue({ value: 0 }))),
+    verification_slot(
+      I32,
+      cleanup=OwnedRef,
+      kind=Some(DataValue({ value: 0, })),
+    ),
     {
       representation: I64,
       cleanup: OwnedErased,
       kind: ErasedValue,
-      erased_companion: Some({ value: 0 }),
+      erased_companion: Some({ value: 0, }),
     },
     verification_slot(
       I32,
       cleanup=OwnedRef,
-      kind=Some(EnvironmentValue({ value: 1 })),
+      kind=Some(EnvironmentValue({ value: 1, })),
     ),
   ]
   let instructions : Array[Instruction] = [
-    ConstLayout({ value: 0 }, { value: 2 }),
-    MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-    EraseI32({ value: 2 }, { value: 1 }),
-    UneraseI32({ value: 3 }, { value: 2 }),
+    ConstLayout({ value: 0, }, { value: 2, }),
+    MakeData({ value: 1, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+    EraseI32({ value: 2, }, { value: 1, }),
+    UneraseI32({ value: 3, }, { value: 2, }),
   ]
   let image = {
     ..verification_image(verification_body(slots~, instructions~)),
     data_family_count: 1,
-    layouts: [Data({ value: 0 }), Reference],
+    layouts: [Data({ value: 0, }), Reference],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [],
       }),
-      Environment({ stored_witness_count: 0, members: [] }),
+      Environment({ stored_witness_count: 0, members: [], }),
     ],
   }
   assert_eq(
     verify_bytecode_image(image),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 3),
+        site=Instruction({ value: 1, }, { value: 0, }, 3),
         detail="unerasure destination does not accept proven ObjectShapeId 0",
       ),
     ),
@@ -1153,33 +1181,33 @@ test "bytecode verifier rejects using a field borrow after owner release" {
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(I32, cleanup=OwnedRef, kind=Some(ByteSequenceValue)),
       verification_slot(I32, kind=Some(ByteSequenceValue)),
       verification_slot(I32, cleanup=OwnedRef, kind=Some(ByteSequenceValue)),
     ],
     instructions=[
-      ConstString({ value: 1 }, { value: 0 }),
-      MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], [
-        { value: 1 },
+      ConstString({ value: 1, }, { value: 0, }),
+      MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], [
+        { value: 1, },
       ]),
-      BorrowField({ value: 0 }, { value: 0 }, 0, {
-        value_destination: { value: 2 },
+      BorrowField({ value: 0, }, { value: 0, }, 0, {
+        value_destination: { value: 2, },
         witness_destination: None,
       }),
-      Release({ value: 0 }),
-      RetainCopy({ value: 3 }, { value: 2 }),
-      Release({ value: 3 }),
+      Release({ value: 0, }),
+      RetainCopy({ value: 3, }, { value: 2, }),
+      Release({ value: 3, }),
     ],
   )
   let image = {
     ..verification_image(body, constants=[b"borrowed"]),
     data_family_count: 1,
-    layouts: [Data({ value: 0 })],
+    layouts: [Data({ value: 0, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [
@@ -1197,7 +1225,7 @@ test "bytecode verifier rejects using a field borrow after owner release" {
     verify_bytecode_image(image),
     Err(
       InvalidBytecode(
-        site=Instruction({ value: 1 }, { value: 0 }, 4),
+        site=Instruction({ value: 1, }, { value: 0, }, 4),
         detail="borrowed SlotId 2 from ObjectShapeId 0 member 0 outlives its local owner",
       ),
     ),
@@ -1211,46 +1239,46 @@ test "bytecode verifier keeps a borrow live across retained and moved owners" {
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(I32, cleanup=OwnedRef, kind=Some(ByteSequenceValue)),
       verification_slot(I32, kind=Some(ByteSequenceValue)),
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(I32, cleanup=OwnedRef, kind=Some(ByteSequenceValue)),
     ],
     instructions=[
-      ConstString({ value: 1 }, { value: 0 }),
-      MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], [
-        { value: 1 },
+      ConstString({ value: 1, }, { value: 0, }),
+      MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], [
+        { value: 1, },
       ]),
-      BorrowField({ value: 0 }, { value: 0 }, 0, {
-        value_destination: { value: 2 },
+      BorrowField({ value: 0, }, { value: 0, }, 0, {
+        value_destination: { value: 2, },
         witness_destination: None,
       }),
-      RetainCopy({ value: 3 }, { value: 0 }),
-      Release({ value: 0 }),
-      Move({ value: 4 }, { value: 3 }),
-      RetainCopy({ value: 5 }, { value: 2 }),
-      Release({ value: 5 }),
-      Release({ value: 4 }),
+      RetainCopy({ value: 3, }, { value: 0, }),
+      Release({ value: 0, }),
+      Move({ value: 4, }, { value: 3, }),
+      RetainCopy({ value: 5, }, { value: 2, }),
+      Release({ value: 5, }),
+      Release({ value: 4, }),
     ],
   )
   let image = {
     ..verification_image(body, constants=[b"borrowed"]),
     data_family_count: 1,
-    layouts: [Data({ value: 0 })],
+    layouts: [Data({ value: 0, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [
@@ -1275,46 +1303,49 @@ test "bytecode verifier transfers a borrowed member root through projection" {
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 1 })),
+        kind=Some(DataValue({ value: 1, })),
       ),
-      verification_slot(I32, kind=Some(DataValue({ value: 0 }))),
+      verification_slot(I32, kind=Some(DataValue({ value: 0, }))),
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
       verification_slot(
         I32,
         cleanup=OwnedRef,
-        kind=Some(DataValue({ value: 0 })),
+        kind=Some(DataValue({ value: 0, })),
       ),
     ],
     instructions=[
-      ConstString({ value: 0 }, { value: 0 }),
-      MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 1 }), [], [
-        { value: 0 },
+      ConstString({ value: 0, }, { value: 0, }),
+      MakeData({ value: 1, }, { value: 0, }, Immediate({ value: 1, }), [], [
+        { value: 0, },
       ]),
-      MakeData({ value: 2 }, { value: 1 }, Immediate({ value: 2 }), [], [
-        { value: 1 },
+      MakeData({ value: 2, }, { value: 1, }, Immediate({ value: 2, }), [], [
+        { value: 1, },
       ]),
-      BorrowField({ value: 1 }, { value: 2 }, 0, {
-        value_destination: { value: 3 },
+      BorrowField({ value: 1, }, { value: 2, }, 0, {
+        value_destination: { value: 3, },
         witness_destination: None,
       }),
-      ConsumeFields({ value: 1 }, { value: 2 }, [
+      ConsumeFields({ value: 1, }, { value: 2, }, [
         {
           member_index: 0,
-          result: { value_destination: { value: 4 }, witness_destination: None },
+          result: {
+            value_destination: { value: 4, },
+            witness_destination: None,
+          },
         },
       ]),
-      RetainCopy({ value: 5 }, { value: 3 }),
-      Release({ value: 5 }),
-      Release({ value: 4 }),
+      RetainCopy({ value: 5, }, { value: 3, }),
+      Release({ value: 5, }),
+      Release({ value: 4, }),
     ],
   )
   let string_member : MemberSchema = {
@@ -1326,22 +1357,22 @@ test "bytecode verifier transfers a borrowed member root through projection" {
   let owned_member : MemberSchema = {
     representation: I32,
     cleanup: OwnedRef,
-    kind: DataValue({ value: 0 }),
+    kind: DataValue({ value: 0, }),
     witness_ordinal: None,
   }
   let image = {
     ..verification_image(body, constants=[b"borrowed"]),
     data_family_count: 2,
-    layouts: [Data({ value: 0 }), Data({ value: 1 })],
+    layouts: [Data({ value: 0, }), Data({ value: 1, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [string_member],
       }),
       Data({
-        family: { value: 1 },
+        family: { value: 1, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [owned_member],
@@ -1363,26 +1394,26 @@ test "bytecode verifier merges alternative owner tokens at control flow" {
     blocks: [
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, true)],
+        instructions: [ConstBool({ value: 0, }, true)],
         terminator: BranchBool(
-          { value: 0 },
-          { target: { value: 1 }, arguments: [] },
-          { target: { value: 2 }, arguments: [] },
+          { value: 0, },
+          { target: { value: 1, }, arguments: [], },
+          { target: { value: 2, }, arguments: [], },
         ),
       },
       {
         parameters: [],
-        instructions: [ConstString({ value: 1 }, { value: 0 })],
-        terminator: Jump({ target: { value: 3 }, arguments: [{ value: 1 }] }),
+        instructions: [ConstString({ value: 1, }, { value: 0, })],
+        terminator: Jump({ target: { value: 3, }, arguments: [{ value: 1, }], }),
       },
       {
         parameters: [],
-        instructions: [ConstString({ value: 2 }, { value: 1 })],
-        terminator: Jump({ target: { value: 3 }, arguments: [{ value: 2 }] }),
+        instructions: [ConstString({ value: 2, }, { value: 1, })],
+        terminator: Jump({ target: { value: 3, }, arguments: [{ value: 2, }], }),
       },
       {
-        parameters: [{ value: 3 }],
-        instructions: [Release({ value: 3 })],
+        parameters: [{ value: 3, }],
+        instructions: [Release({ value: 3, })],
         terminator: Return(None),
       },
     ],
@@ -1403,44 +1434,44 @@ test "bytecode verifier transfers a borrowed root from an input projection" {
         verification_slot(
           I32,
           cleanup=OwnedRef,
-          kind=Some(DataValue({ value: 0 })),
+          kind=Some(DataValue({ value: 0, })),
         ),
         verification_slot(I32, kind=Some(ByteSequenceValue)),
         verification_slot(I32, cleanup=OwnedRef),
         verification_slot(I32, cleanup=OwnedRef),
       ],
       instructions=[
-        BorrowField({ value: 0 }, { value: 0 }, 0, {
-          value_destination: { value: 1 },
+        BorrowField({ value: 0, }, { value: 0, }, 0, {
+          value_destination: { value: 1, },
           witness_destination: None,
         }),
-        ConsumeFields({ value: 0 }, { value: 0 }, [
+        ConsumeFields({ value: 0, }, { value: 0, }, [
           {
             member_index: 0,
             result: {
-              value_destination: { value: 2 },
+              value_destination: { value: 2, },
               witness_destination: None,
             },
           },
         ]),
-        RetainCopy({ value: 3 }, { value: 1 }),
-        Release({ value: 3 }),
-        Release({ value: 2 }),
+        RetainCopy({ value: 3, }, { value: 1, }),
+        Release({ value: 3, }),
+        Release({ value: 2, }),
       ],
     ),
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
   }
   let image = {
     ..verification_image(verification_body(), functions=[BytecodeBody(body)]),
     data_family_count: 1,
-    layouts: [Data({ value: 0 })],
+    layouts: [Data({ value: 0, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [

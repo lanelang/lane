@@ -48,6 +48,14 @@ jobs:
       - name: Build Lane executable
         run: moon build --target native --release modules/lane
 
+      - name: Check pinned Basic suite
+        run: |
+          lane_bin="$PWD/_build/native/release/build/Milky2018/lane/lane.exe"
+          (
+            cd basic
+            LANE_BIN="$lane_bin" ./test.sh
+          )
+
       - name: Check examples
         run: |
           tools/check-lane-run-examples.sh \

@@ -79,7 +79,7 @@ fn rendered_expr(
   document : Document,
   leading_form? : ExprLeadingForm = Plain,
 ) -> RenderedExpr {
-  { precedence, document, leading_form }
+  { precedence, document, leading_form, }
 }
 
 ///|
@@ -1836,7 +1836,7 @@ fn Expr::render_with_precedence(
   } else {
     rendered.leading_form
   }
-  { ..rendered, leading_form, document: trivia.decorate(self.loc(), document) }
+  { ..rendered, leading_form, document: trivia.decorate(self.loc(), document), }
 }
 
 ///|

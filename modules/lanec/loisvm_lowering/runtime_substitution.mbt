@@ -1,6 +1,6 @@
 ///|
 fn RuntimeSubstitution::new() -> RuntimeSubstitution {
-  { entries: [] }
+  { entries: [], }
 }
 
 ///|

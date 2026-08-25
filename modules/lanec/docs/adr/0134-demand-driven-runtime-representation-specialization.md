@@ -60,6 +60,26 @@ therefore keeps the whole component generic; `T -> T` may specialize. This is an
 exact closure proof. It has no call-count threshold, function-size limit,
 expansion budget, score, speculative rewrite, or fallback pass.
 
+First-class callable contracts add a separate structural boundary. A
+`CanonicalCallableAbi` recursively contains the shapes of its parameters and
+result; it does not contain a nominal reference to another callable contract.
+The planner therefore computes the exact SCC of representation demands linked
+through first-class callable ports and results. It emits no worker for a
+recursive component, and every edge targeting that component retains the
+callable's generic invocation ABI instead of trying to embed a worker contract
+in itself. Acyclic first-class edges may use a concrete worker only when its ABI
+preserves one physical slot per logical callable parameter. A worker that
+expands a closed aggregate into several physical parameters is a direct-call
+contract, not a first-class callable contract. These rules are structural, not
+recursion-depth or profitability heuristics.
+
+Callable allocation is the sole owner of materialization. Its frozen plan binds
+one semantic callable target to one implementation, one invocation ABI, and one
+capture contract. Type/evidence application carries the callable's actual
+physical ABI forward; it cannot reconstruct an ABI from type syntax. VM CFG
+emission consumes the frozen allocation contract and never independently
+reselects generic versus worker code.
+
 After every body has been lowered, function-table canonicalization computes the
 exact transitive function closure from the entry and initializer. It follows
 direct calls, tail calls, function constants, and closure construction. This
@@ -74,7 +94,9 @@ synthetic functions before VM CFG observation and bytecode finalization.
   calls either select that worker or use the generic fallback. Exact final
   reachability removes a fallback only when the complete image has no such use.
 - Stable recursive generic code may specialize without imposing an arbitrary
-  recursion or code-growth limit. Expanding recursive demand remains generic.
+  recursion or code-growth limit. Expanding recursive demand remains generic,
+  a recursive first-class callable boundary retains its generic callable ABI,
+  and scalar-expanded workers remain available only to direct calls.
 - Explore gates both sides of the tradeoff: function count records retained
   fallbacks and workers, while `eraseCount` and `uneraseCount` prove that
   concrete call paths removed representation bridges.

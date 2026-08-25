@@ -99,7 +99,7 @@ fn SemanticChecker::validate_auto_parameter_suffix(
 ) -> Bool {
   for index in first_auto..<parameters.length() {
     if !parameters[index].is_auto {
-      self.diagnostics.push({ kind: AutoParametersMustBeTrailing, loc })
+      self.diagnostics.push({ kind: AutoParametersMustBeTrailing, loc, })
       return false
     }
   }
@@ -119,17 +119,17 @@ fn SemanticChecker::collect_direct_arguments(
     match argument {
       Positional(value~, loc~, provenance~) => {
         if positional.length() >= positional_count {
-          self.diagnostics.push({ kind: AutoArgumentMustBeNamed, loc })
+          self.diagnostics.push({ kind: AutoArgumentMustBeNamed, loc, })
           return None
         }
-        positional.push({ value, loc, provenance })
+        positional.push({ value, loc, provenance, })
       }
       Named(name~, value~, loc~, provenance~) => {
         if named_direct_argument(named, name) is Some(_) {
-          self.diagnostics.push({ kind: DuplicateNamedArgument(name~), loc })
+          self.diagnostics.push({ kind: DuplicateNamedArgument(name~), loc, })
           return None
         }
-        named.push({ name, value, loc, provenance })
+        named.push({ name, value, loc, provenance, })
       }
     }
   }
@@ -143,7 +143,7 @@ fn SemanticChecker::collect_direct_arguments(
     })
     return None
   }
-  Some({ positional, named })
+  Some({ positional, named, })
 }
 
 ///|

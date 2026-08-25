@@ -36,7 +36,7 @@ test "executable pretty output emphasizes execution structure" {
         {
           value: observe,
           symbol: "observe",
-          signature: { parameters: [I64], result: Unit },
+          signature: { parameters: [I64], result: Unit, },
         },
       ],
     },

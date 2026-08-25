@@ -584,7 +584,7 @@ fn compile_frame_cleanup(
   let instructions : Array[@wasm_types.Instruction] = []
   for index, slot in slots {
     if !(slot.cleanup is Trivial) {
-      let slot_id : @bytecode.SlotId = { value: index }
+      let slot_id : @bytecode.SlotId = { value: index, }
       instructions.push(LocalGet(locals.liveness_local(slot_id).unwrap()))
       instructions.push(
         If(

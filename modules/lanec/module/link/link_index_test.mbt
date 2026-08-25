@@ -1,13 +1,13 @@
 ///|
 fn module_fingerprint(path : String) -> @artifact_model.CompilationFingerprint {
-  { value: "module:\{path}" }
+  { value: "module:\{path}", }
 }
 
 ///|
 fn interface_fingerprint(
   path : String,
 ) -> @artifact_model.CompilationFingerprint {
-  { value: "interface:\{path}" }
+  { value: "interface:\{path}", }
 }
 
 ///|
@@ -27,8 +27,8 @@ fn test_link_object(
     interface: None,
     interface_fingerprint: interface_fingerprint(path),
     canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
-    program: { metadata, terms },
-    externals: { builtins: [], runtime_imports: [] },
+    program: { metadata, terms, },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [],
     exports: [],
     imports: [],
@@ -56,15 +56,15 @@ fn exported_value_modules(
       Primitive(I64),
     )
     provider_terms.push(Let(value, Literal(I64(0L))))
-    provider_exports.push({ name: "value_\{index}", reference: Value(value) })
+    provider_exports.push({ name: "value_\{index}", reference: Value(value), })
   }
   let provider : LinkModuleObject = {
     module_path_text: "Provider",
     interface: None,
     interface_fingerprint: interface_fingerprint("Provider"),
     canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
-    program: { metadata: provider_metadata, terms: provider_terms },
-    externals: { builtins: [], runtime_imports: [] },
+    program: { metadata: provider_metadata, terms: provider_terms, },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [],
     exports: provider_exports,
     imports: [],
@@ -103,8 +103,8 @@ fn exported_value_modules(
     interface: None,
     interface_fingerprint: interface_fingerprint("Importer"),
     canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
-    program: { metadata: importer_metadata, terms: importer_terms },
-    externals: { builtins: [], runtime_imports: [] },
+    program: { metadata: importer_metadata, terms: importer_terms, },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [],
     exports: [],
     imports,
@@ -207,7 +207,7 @@ fn test_entry(
   name : String,
   value : @buslane.ValueId,
 ) -> @buslane_lowering.BuslaneEntry {
-  { module_path_text, name, value }
+  { module_path_text, name, value, }
 }
 
 ///|
@@ -258,14 +258,14 @@ test "linked tree shaking retains exports entries externals and metadata" {
         {
           value: host_log,
           symbol: "host_log",
-          signature: { parameters: [String], result: Unit },
+          signature: { parameters: [String], result: Unit, },
         },
       ],
     },
     exports: [
-      { name: "api", reference: Value(api) },
-      { name: "Runtime", reference: Effect(effect) },
-      { name: "signal", reference: Operation(signal) },
+      { name: "api", reference: Value(api), },
+      { name: "Runtime", reference: Effect(effect), },
+      { name: "signal", reference: Operation(signal), },
     ],
   }
   let root_metadata = @buslane.MetadataRegistry()

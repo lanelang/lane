@@ -139,7 +139,7 @@ test "interface validation rejects a stale public export fingerprint" {
     ..facade_artifact.interface,
     exports: facade_artifact.interface.exports.mapi(fn(index, export_) {
       if index == 0 {
-        { ..export_, expected_target_fingerprint: { value: "sha256:stale" } }
+        { ..export_, expected_target_fingerprint: { value: "sha256:stale", }, }
       } else {
         export_
       }

@@ -56,7 +56,7 @@ test "monadic-lift exposes generic continuation captures to ANF" {
             [_],
             TypeLambda([_, _], Function({ body: outer_body, .. }))
           ),
-          ..,
+          ..
         },
       ]
     ) else {
@@ -158,7 +158,7 @@ test "monadic-lift preserves explicit companion and residual existentials" {
                   TypeArgument(TypeLambda(_, Primitive(Unit))),
                   EffectArgument(Empty),
                 ],
-                ..,
+                ..
               }
             ),
             Match(
@@ -166,11 +166,11 @@ test "monadic-lift preserves explicit companion and residual existentials" {
                 alternatives: [
                   { type_binders: [opened_companion, opened_residual], .. },
                 ],
-                ..,
+                ..
               }
             )
           ),
-          ..,
+          ..
         }
       )
     ) else {

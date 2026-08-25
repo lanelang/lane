@@ -260,7 +260,7 @@ fn ExecutionInstance::retain_for_slot(
         Some(companion) => companion
         None => raise InternalFailure(detail="OwnedErased slot lacks companion")
       }
-      self.heap.retain_erased(payload, { value: frame.i32(companion) })
+      self.heap.retain_erased(payload, { value: frame.i32(companion), })
     }
     (Trivial, _) =>
       raise InternalFailure(detail="retain_copy destination is Trivial")
@@ -283,7 +283,7 @@ fn ExecutionInstance::release_for_slot(
         Some(companion) => companion
         None => raise InternalFailure(detail="OwnedErased slot lacks companion")
       }
-      self.heap.release_erased(payload, { value: frame.i32(companion) })
+      self.heap.release_erased(payload, { value: frame.i32(companion), })
     }
     (Trivial, _) => ()
     _ => raise InternalFailure(detail="release representation mismatch")
@@ -728,7 +728,7 @@ fn ExecutionInstance::cleanup_frames(self : ExecutionInstance) -> Unit {
   for frame in self.frames {
     for index in 0..<frame.owned_live.length() {
       if frame.owned_live[index] && frame.slots[index] is Some(value) {
-        self.release_for_slot(frame, { value: index }, value) catch {
+        self.release_for_slot(frame, { value: index, }, value) catch {
           _ => ()
         }
         frame.owned_live[index] = false

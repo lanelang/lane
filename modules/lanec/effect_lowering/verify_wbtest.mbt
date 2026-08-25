@@ -12,7 +12,7 @@ fn verification_function_program(
   )
   {
     metadata,
-    terms: [Let(main, Function({ parameters: [], result_type, body }))],
+    terms: [Let(main, Function({ parameters: [], result_type, body, }))],
   }
 }
 

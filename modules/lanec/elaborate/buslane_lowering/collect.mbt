@@ -25,7 +25,7 @@ fn BuslaneLowerer::add_entry(
   name : String,
   value : @buslane.ValueId,
 ) -> Unit {
-  self.entries.push({ module_path_text, name, value })
+  self.entries.push({ module_path_text, name, value, })
 }
 
 ///|

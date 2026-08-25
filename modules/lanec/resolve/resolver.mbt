@@ -184,7 +184,7 @@ fn Resolver::resolve_source_file_result(
     declarations,
     loc: source.loc,
   }
-  { source: resolved, diagnostics: self.diagnostics }
+  { source: resolved, diagnostics: self.diagnostics, }
 }
 
 ///|

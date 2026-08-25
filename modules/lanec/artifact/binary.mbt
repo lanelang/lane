@@ -199,7 +199,7 @@ fn decode_artifact_container(bytes : Bytes) -> BinaryArtifactPayload raise {
     )
   }
   let payload = header.body[:header.payload_length].to_owned()
-  { kind, payload }
+  { kind, payload, }
 }
 
 ///|

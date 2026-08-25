@@ -1,6 +1,6 @@
 ///|
 fn main_entry_name() -> PublicEntryName {
-  { module_path_text: "Main", value_name: "main" }
+  { module_path_text: "Main", value_name: "main", }
 }
 
 ///|
@@ -899,7 +899,7 @@ test "compile diagnostics render source snippets" {
     path: Some("ops.lane"),
     text: source,
   }
-  let result = @compile.check({ root: root.to_compile_input(), libraries: [] })
+  let result = @compile.check({ root: root.to_compile_input(), libraries: [], })
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
     result
@@ -934,7 +934,7 @@ test "compile warnings render source snippets" {
     path: Some("unused.lane"),
     text: source,
   }
-  let result = @compile.check({ root: root.to_compile_input(), libraries: [] })
+  let result = @compile.check({ root: root.to_compile_input(), libraries: [], })
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
     result
@@ -967,7 +967,7 @@ test "compile diagnostics convert text offsets before rendering" {
     path: Some("unicode.lane"),
     text: source,
   }
-  let result = @compile.check({ root: root.to_compile_input(), libraries: [] })
+  let result = @compile.check({ root: root.to_compile_input(), libraries: [], })
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
     result
@@ -1003,7 +1003,7 @@ test "semantic diagnostics render source snippets" {
     path: Some("point.lane"),
     text: source,
   }
-  let result = @compile.check({ root: root.to_compile_input(), libraries: [] })
+  let result = @compile.check({ root: root.to_compile_input(), libraries: [], })
   let sources = LaneSourceInput::diagnostic_sources(root, [])
   inspect(
     result

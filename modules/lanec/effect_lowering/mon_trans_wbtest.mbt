@@ -4,7 +4,7 @@ fn test_program(
   expression : Expr,
 ) -> Program raise @buslane.MetadataAllocationError {
   let result = metadata.define_value("result", Value, Primitive(I64))
-  { metadata, terms: [Let(result, expression)] }
+  { metadata, terms: [Let(result, expression)], }
 }
 
 ///|
@@ -301,7 +301,7 @@ test "mon-trans records open context adaptation" {
   })
   let output = introduce_monadic_binds({
     metadata,
-    terms: [LetRec([{ id: outer, rhs: function }])],
+    terms: [LetRec([{ id: outer, rhs: function, }])],
   }).unwrap()
   guard output.terms[0] is LetRec([{ rhs: Function(transformed), .. }]) else {
     abort("expected transformed function")

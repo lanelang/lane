@@ -444,14 +444,14 @@ fn InterfaceSymbolFreshener::freshen_type_parameter(
   parameter : @types.TypeParameter,
 ) -> @types.TypeParameter {
   match lookup_symbol_mapping(self.type_parameters, parameter.id) {
-    Some(id) => { id, name: parameter.name, kind: parameter.kind }
+    Some(id) => { id, name: parameter.name, kind: parameter.kind, }
     None => {
       let id = self.environment.registry.define_type_parameter(
         parameter.name,
         @basic.SourceSpan::dummy(),
       )
       store_symbol_mapping(self.type_parameters, parameter.id, id)
-      { id, name: parameter.name, kind: parameter.kind }
+      { id, name: parameter.name, kind: parameter.kind, }
     }
   }
 }
@@ -754,7 +754,7 @@ fn[T] store_symbol_mapping(
   source : T,
   target : T,
 ) -> Unit {
-  entries.push({ source, target })
+  entries.push({ source, target, })
 }
 
 ///|
@@ -778,5 +778,5 @@ fn[T] store_stable_symbol(
   name : String,
   target : T,
 ) -> Unit {
-  entries.push({ module_path, name, target })
+  entries.push({ module_path, name, target, })
 }

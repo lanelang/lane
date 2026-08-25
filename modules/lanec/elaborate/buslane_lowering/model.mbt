@@ -9,7 +9,7 @@ pub fn BuslaneBuiltinExternal::from_intrinsic(
   value : @buslane.ValueId,
   intrinsic : @abi.Intrinsic,
 ) -> BuslaneBuiltinExternal {
-  { value, intrinsic }
+  { value, intrinsic, }
 }
 
 ///|

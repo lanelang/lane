@@ -11,7 +11,7 @@ pub fn ExecutionProfile::new(
   builtin_effects~ : Array[@buslane.BuiltinEffect],
   supports_external_effects~ : Bool,
 ) -> ExecutionProfile {
-  { builtin_effects: builtin_effects.copy(), supports_external_effects }
+  { builtin_effects: builtin_effects.copy(), supports_external_effects, }
 }
 
 ///|

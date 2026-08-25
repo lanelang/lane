@@ -5,11 +5,11 @@ fn import_alias_snapshot(
 ) -> SemanticSnapshot {
   let workspace = SemanticWorkspace::new()
   let sources : Array[@module_frontend.SourceInput] = [
-    { source_id: "file:///Main.lane", text: root },
+    { source_id: "file:///Main.lane", text: root, },
   ]
   for library in libraries {
     let (source_id, text) = library
-    sources.push({ source_id, text })
+    sources.push({ source_id, text, })
   }
   guard workspace.replace_sources(sources) is Some(snapshot) else {
     abort("expected semantic snapshot")
@@ -224,10 +224,10 @@ test "completion exposes an alias and completes its canonical interface" {
     #|
     #|pub fn use() -> I64 { Lib.answer() }
   let libraries : Array[@module_frontend.SourceInput] = [
-    { source_id: "file:///Library.lane", text: import_alias_library() },
+    { source_id: "file:///Library.lane", text: import_alias_library(), },
   ]
   let module_entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: root },
+    { source_id: "file:///Main.lane", text: root, },
     libraries,
     "file:///Main.lane",
     4,
@@ -241,7 +241,7 @@ test "completion exposes an alias and completes its canonical interface" {
     ),
   )
   let surface_entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: root },
+    { source_id: "file:///Main.lane", text: root, },
     libraries,
     "file:///Main.lane",
     4,
@@ -430,10 +430,10 @@ test "completion excludes open and selective imports from module bindings" {
     #|
     #|pub let value : I64 = 1
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: root },
+    { source_id: "file:///Main.lane", text: root, },
     [
-      { source_id: "file:///Library.lane", text: import_alias_library() },
-      { source_id: "file:///Other.lane", text: other },
+      { source_id: "file:///Library.lane", text: import_alias_library(), },
+      { source_id: "file:///Other.lane", text: other, },
     ],
     "file:///Main.lane",
     6,

@@ -42,7 +42,7 @@ fn @bytecodec.ByteWriter::write_program(
 fn @bytecodec.ByteReader::read_program(
   self : @bytecodec.ByteReader,
 ) -> Program raise BuslaneDecodeError {
-  { metadata: self.read_metadata_registry(), terms: self.read_top_terms() }
+  { metadata: self.read_metadata_registry(), terms: self.read_top_terms(), }
 }
 
 ///|
@@ -403,7 +403,7 @@ fn @bytecodec.ByteWriter::write_type_id(
 fn @bytecodec.ByteReader::read_type_id(
   self : @bytecodec.ByteReader,
 ) -> TypeId raise BuslaneDecodeError {
-  { index: read_u32_le(self) }
+  { index: read_u32_le(self), }
 }
 
 ///|
@@ -418,7 +418,7 @@ fn @bytecodec.ByteWriter::write_type_parameter_id(
 fn @bytecodec.ByteReader::read_type_parameter_id(
   self : @bytecodec.ByteReader,
 ) -> TypeParameterId raise BuslaneDecodeError {
-  { index: read_u32_le(self) }
+  { index: read_u32_le(self), }
 }
 
 ///|
@@ -433,7 +433,7 @@ fn @bytecodec.ByteWriter::write_value_id(
 fn @bytecodec.ByteReader::read_value_id(
   self : @bytecodec.ByteReader,
 ) -> ValueId raise BuslaneDecodeError {
-  { index: read_u32_le(self) }
+  { index: read_u32_le(self), }
 }
 
 ///|
@@ -448,7 +448,7 @@ fn @bytecodec.ByteWriter::write_data_con_id(
 fn @bytecodec.ByteReader::read_data_con_id(
   self : @bytecodec.ByteReader,
 ) -> DataConId raise BuslaneDecodeError {
-  { index: read_u32_le(self) }
+  { index: read_u32_le(self), }
 }
 
 ///|
@@ -463,7 +463,7 @@ fn @bytecodec.ByteWriter::write_effect_id(
 fn @bytecodec.ByteReader::read_effect_id(
   self : @bytecodec.ByteReader,
 ) -> EffectId raise BuslaneDecodeError {
-  { index: read_u32_le(self) }
+  { index: read_u32_le(self), }
 }
 
 ///|
@@ -478,7 +478,7 @@ fn @bytecodec.ByteWriter::write_operation_id(
 fn @bytecodec.ByteReader::read_operation_id(
   self : @bytecodec.ByteReader,
 ) -> OperationId raise BuslaneDecodeError {
-  { index: read_u32_le(self) }
+  { index: read_u32_le(self), }
 }
 
 ///|
@@ -653,7 +653,7 @@ fn @bytecodec.ByteReader::read_recursive_bindings(
 ) -> Array[RecursiveBinding] raise BuslaneDecodeError {
   let items : Array[RecursiveBinding] = []
   for _ in 0..<read_u32_le(self) {
-    items.push({ id: self.read_value_id(), rhs: self.read_expr() })
+    items.push({ id: self.read_value_id(), rhs: self.read_expr(), })
   }
   items
 }

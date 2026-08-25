@@ -44,7 +44,7 @@ fn wasm_function_type(
   parameters : Array[@wasm_types.ValueType],
   results : Array[@wasm_types.ValueType],
 ) -> WasmFunctionType {
-  { parameters, results }
+  { parameters, results, }
 }
 
 ///|
@@ -177,7 +177,7 @@ fn WasmFunctionCatalog::new(
 ) -> WasmFunctionCatalog {
   {
     entries: [],
-    image_functions: Array::make(image.functions.length(), { index: -1 }),
+    image_functions: Array::make(image.functions.length(), { index: -1, }),
     physical_imports: Array::make(image.functions.length(), None),
     table_entries: [],
   }
@@ -206,9 +206,9 @@ fn WasmFunctionCatalog::add_entry(
       detail="callable table entry is not a defined body",
     )
   }
-  let handle : WasmFunctionHandle = { index: self.entries.length() }
+  let handle : WasmFunctionHandle = { index: self.entries.length(), }
   let table_slot = if callable {
-    let slot : WasmTableSlot = { index: self.table_entries.length() + 1 }
+    let slot : WasmTableSlot = { index: self.table_entries.length() + 1, }
     self.table_entries.push(handle)
     Some(slot)
   } else {
@@ -350,7 +350,7 @@ fn WasmFunctionCatalog::callable_value_table_size(
 fn WasmFunctionCatalog::provenance(
   self : WasmFunctionCatalog,
 ) -> Array[WasmFunctionProvenance] {
-  self.entries.map(entry => { index: entry.handle.index, origin: entry.origin })
+  self.entries.map(entry => { index: entry.handle.index, origin: entry.origin, })
 }
 
 ///|
@@ -464,7 +464,7 @@ fn WasmFunctionCatalog::validate(
   }
   let address_taken = address_taken_functions(image)
   for index, image_entry in image.functions {
-    let function : @bytecode.FunctionId = { value: index + 1 }
+    let function : @bytecode.FunctionId = { value: index + 1, }
     let handle = self.image_functions[index]
     if handle.index < 0 || handle.index >= self.entries.length() {
       raise InvalidFunctionCatalog(detail="image function has no Wasm body")
@@ -569,7 +569,7 @@ fn plan_wasm_function_catalog(
   }
   for index, entry in image.functions {
     if entry is RuntimeImport(import_) {
-      let function : @bytecode.FunctionId = { value: index + 1 }
+      let function : @bytecode.FunctionId = { value: index + 1, }
       let handle = catalog.add_entry(
         wasm_module,
         PhysicalRuntimeImport(function~, symbol=import_.symbol),
@@ -585,7 +585,7 @@ fn plan_wasm_function_catalog(
   }
   let address_taken = address_taken_functions(image)
   for index, entry in image.functions {
-    let function : @bytecode.FunctionId = { value: index + 1 }
+    let function : @bytecode.FunctionId = { value: index + 1, }
     let abi = entry.callable_abi().unwrap()
     let origin = match entry {
       BytecodeBody(_) => BytecodeFunction(function~)

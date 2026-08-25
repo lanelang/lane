@@ -131,7 +131,7 @@ test "measurement registries use a temporary identity namespace" {
   let persistent = registry.define_value("persistent", TopLevelValue, loc())
   assert_eq(
     (persistent, second, registry.value_metadata(value)),
-    ({ index: 1 }, { index: -10 }, None),
+    ({ index: 1, }, { index: -10, }, None),
   )
 }
 

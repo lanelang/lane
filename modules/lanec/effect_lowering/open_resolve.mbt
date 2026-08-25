@@ -39,7 +39,7 @@ fn resolve_open_expr(
   match expression {
     Ref(_) | Literal(_) => expression
     Function(function) =>
-      Function({ ..function, body: resolve_open_expr(metadata, function.body) })
+      Function({ ..function, body: resolve_open_expr(metadata, function.body), })
     Call(callee, arguments) =>
       Call(
         resolve_open_expr(metadata, callee),

@@ -12,7 +12,7 @@ fn reachable_interface_artifacts(
 ) -> OrderedInterfaceArtifactsResult {
   let diagnostics = @artifact.validate_module_interface_artifacts(interfaces)
   if !diagnostics.is_empty() {
-    return { interfaces: [], diagnostics }
+    return { interfaces: [], diagnostics, }
   }
   let ordered = []
   let visiting : Array[String] = []
@@ -30,7 +30,7 @@ fn reachable_interface_artifacts(
       diagnostics,
     )
   }
-  { interfaces: ordered, diagnostics }
+  { interfaces: ordered, diagnostics, }
 }
 
 ///|
@@ -154,5 +154,5 @@ fn CheckedModule::with_imported_interface_fingerprints(
   imported : Array[@artifact.ImportedInterfaceFingerprint],
 ) -> CheckedModule {
   let fingerprint = @artifact.module_fingerprint(self.interface, imported)
-  { ..self, fingerprint, imported_interface_fingerprints: imported }
+  { ..self, fingerprint, imported_interface_fingerprints: imported, }
 }

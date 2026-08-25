@@ -19,12 +19,12 @@ fn test_type(name : String, arguments? : Array[Type] = []) -> Type {
 
 ///|
 fn test_type_parameter(name : String) -> TypeParameter {
-  { name, name_loc: test_loc(), kind: None, loc: test_loc() }
+  { name, name_loc: test_loc(), kind: None, loc: test_loc(), }
 }
 
 ///|
 fn test_module_path(name : String) -> ModulePath {
-  { components: [name], loc: test_loc() }
+  { components: [name], loc: test_loc(), }
 }
 
 ///|

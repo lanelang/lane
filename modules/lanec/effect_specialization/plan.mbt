@@ -474,7 +474,7 @@ fn SpecializationPlanner::enqueue_visit(
     }) {
     return
   }
-  self.visits.push({ site, bindings })
+  self.visits.push({ site, bindings, })
 }
 
 ///|

@@ -21,7 +21,7 @@ fn BytecodeImage::global_lifecycle_plan(
   let root_ordinals = Array::make(self.globals.length(), -1)
   let owned_roots : Array[GlobalLifecycleRoot] = []
   for index, metadata in self.globals {
-    let global : GlobalId = { value: index }
+    let global : GlobalId = { value: index, }
     let is_companion = index + 1 < self.globals.length() &&
       self.globals[index + 1].erased_companion == Some(global)
     if !is_companion {
@@ -47,7 +47,7 @@ fn BytecodeImage::global_lifecycle_plan(
       }
     }
   }
-  { roots, root_ordinals, owned_roots }
+  { roots, root_ordinals, owned_roots, }
 }
 
 ///|

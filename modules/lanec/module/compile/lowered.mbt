@@ -65,7 +65,7 @@ fn compiled_module_from_lowered(
     ),
     imported_interface_fingerprints: module_.imported_interface_fingerprints,
   }
-  { checked: module_.checked, interface: module_.interface, object }
+  { checked: module_.checked, interface: module_.interface, object, }
 }
 
 ///|

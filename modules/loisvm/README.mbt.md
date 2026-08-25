@@ -56,16 +56,16 @@ fn example_trivial_slot(
 
 ///|
 fn example_image() -> @bytecode.BytecodeImage {
-  let left : @bytecode.SlotId = { value: 0 }
-  let right : @bytecode.SlotId = { value: 1 }
-  let sum : @bytecode.SlotId = { value: 2 }
+  let left : @bytecode.SlotId = { value: 0, }
+  let right : @bytecode.SlotId = { value: 1, }
+  let sum : @bytecode.SlotId = { value: 2, }
   let entry : @bytecode.FunctionBody = {
     slots: [
       example_trivial_slot(I64),
       example_trivial_slot(I64),
       example_trivial_slot(I64),
     ],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
@@ -74,22 +74,22 @@ fn example_image() -> @bytecode.BytecodeImage {
           ConstI64(left, 40L),
           ConstI64(right, 2L),
           I64Add(sum, left, right),
-          CallDirect({ value: 2 }, None, [], [sum], None),
+          CallDirect({ value: 2, }, None, [], [sum], None),
         ],
         terminator: Return(None),
       },
     ],
   }
   {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [
-          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+          { representation: I64, cleanup: Trivial, kind: ScalarValue, },
         ],
         result: Unit,
       },
@@ -255,7 +255,7 @@ fn readme_counter_registry(
         }
         finalized.val += 1
       }),
-      invoke=(_context, _arguments) => { value: 0L, closed: false },
+      invoke=(_context, _arguments) => { value: 0L, closed: false, },
     ),
   )
   registry.register(

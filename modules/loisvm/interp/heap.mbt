@@ -86,12 +86,12 @@ fn Heap::new(
       data.members.is_empty() &&
       layout_index is Some(index) {
       let reference = objects.length()
-      let layout : @bytecode.LayoutId = { value: index + 1 }
+      let layout : @bytecode.LayoutId = { value: index + 1, }
       objects.push(
         Some({
           ref_count: 0,
           layout,
-          payload: Data({ value: shape_index }, [], []),
+          payload: Data({ value: shape_index, }, [], []),
           size: object_allocation_size(shape),
           immortal: true,
         }),
@@ -213,7 +213,7 @@ fn Heap::reserve_byte_sequence_allocation(
   if host_length < 0 || host_length.to_int64() != length {
     raise Trap(detail="ByteSequence length is out of range")
   }
-  { allocation, length: host_length }
+  { allocation, length: host_length, }
 }
 
 ///|
@@ -264,7 +264,7 @@ fn Heap::reserve_allocation(
   size : Int64,
 ) -> HeapAllocationReservation raise ExecutionFailure {
   self.check_allocation_capacity(size)
-  { layout, size }
+  { layout, size, }
 }
 
 ///|
@@ -516,7 +516,7 @@ fn Heap::reference_layout(
 ) -> @bytecode.LayoutId raise ExecutionFailure {
   for index, recipe in self.image.layouts {
     if recipe is Reference {
-      return { value: index + 1 }
+      return { value: index + 1, }
     }
   }
   raise InternalFailure(detail="bytecode image has no Reference layout")
@@ -527,7 +527,7 @@ fn Heap::byte_sequence_layout(
   self : Heap,
 ) -> @bytecode.LayoutId raise ExecutionFailure {
   match find_byte_sequence_layout(self.image.layouts) {
-    Some(index) => { value: index + 1 }
+    Some(index) => { value: index + 1, }
     None =>
       raise InternalFailure(detail="bytecode image has no ByteSequence layout")
   }
@@ -540,7 +540,7 @@ fn callable(function : @bytecode.FunctionId, environment : Int) -> Int64 {
 
 ///|
 fn callable_function(value : Int64) -> @bytecode.FunctionId {
-  { value: (value & 0xFFFFFFFFL).to_int() }
+  { value: (value & 0xFFFFFFFFL).to_int(), }
 }
 
 ///|

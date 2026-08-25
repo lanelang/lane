@@ -374,7 +374,7 @@ pub fn statically_known_object_shape(
           if found is Some(_) {
             return None
           }
-          found = Some({ value: index })
+          found = Some({ value: index, })
         }
       }
       found

@@ -1943,6 +1943,15 @@
       }
     },
     {
+      "name": "98 recursive effectful fold",
+      "file": "examples/valid/98_recursive_effectful_fold.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "ok\nTests passed: 1, failed: 0"
+      }
+    },
+    {
       "name": "invalid 84 initialization cycle",
       "file": "examples/invalid/84_initialization_cycle.lane",
       "mode": "check-error",

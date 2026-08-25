@@ -2,16 +2,16 @@
 fn function_table_test_body(instructions : Array[Instruction]) -> FunctionEntry {
   Body({
     values: [],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions, terminator: Return(None) }],
+    blocks: [{ parameters: [], instructions, terminator: Return(None), }],
   })
 }
 
 ///|
 fn function_table_test_image(functions : Array[FunctionEntry]) -> Image {
   {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     functions,
     data_family_count: 0,
@@ -33,12 +33,12 @@ test "pre-ARC function closure consumes locally cleaned VM CFG" {
   }
   let entry : FunctionEntry = Body({
     values: [callable],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstFunction({ value: 0 }, { value: 2 })],
+        instructions: [ConstFunction({ value: 0, }, { value: 2, })],
         terminator: Return(None),
       },
     ],
@@ -89,8 +89,8 @@ test "pre-ARC function closure consumes locally cleaned VM CFG" {
 ///|
 test "pre-ARC function table merges exact bodies and their source identities" {
   let entry = function_table_test_body([
-    CallDirect({ value: 2 }, None, [], [], None),
-    CallDirect({ value: 3 }, None, [], [], None),
+    CallDirect({ value: 2, }, None, [], [], None),
+    CallDirect({ value: 3, }, None, [], [], None),
   ])
   let duplicate = function_table_test_body([])
   guard finalize_observed(
@@ -148,15 +148,15 @@ test "pre-ARC function table merges exact bodies and their source identities" {
 ///|
 test "pre-ARC function equivalence follows canonical callee classes" {
   let entry = function_table_test_body([
-    CallDirect({ value: 2 }, None, [], [], None),
-    CallDirect({ value: 4 }, None, [], [], None),
+    CallDirect({ value: 2, }, None, [], [], None),
+    CallDirect({ value: 4, }, None, [], [], None),
   ])
   let left = function_table_test_body([
-    CallDirect({ value: 3 }, None, [], [], None),
+    CallDirect({ value: 3, }, None, [], [], None),
   ])
   let leaf = function_table_test_body([])
   let right = function_table_test_body([
-    CallDirect({ value: 5 }, None, [], [], None),
+    CallDirect({ value: 5, }, None, [], [], None),
   ])
   guard finalize_observed(
       function_table_test_image([entry, left, leaf, right, leaf]),
@@ -233,26 +233,26 @@ test "pre-ARC function equivalence preserves semantic data-family ABI" {
   let family_two : ValueMetadata = {
     representation: I32,
     cleanup: OwnedRef,
-    kind: DataValue({ value: 2 }),
+    kind: DataValue({ value: 2, }),
     ownership: Owned,
     erased_companion: None,
   }
   let family_three : ValueMetadata = {
     ..family_two,
-    kind: DataValue({ value: 3 }),
+    kind: DataValue({ value: 3, }),
   }
   let entry : FunctionEntry = Body({
     values: [family_two, family_three],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-          MakeData({ value: 1 }, { value: 1 }, Immediate({ value: 2 }), [], []),
-          CallDirect({ value: 2 }, None, [], [{ value: 0 }], None),
-          CallDirect({ value: 3 }, None, [], [{ value: 1 }], None),
+          MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+          MakeData({ value: 1, }, { value: 1, }, Immediate({ value: 2, }), [], []),
+          CallDirect({ value: 2, }, None, [], [{ value: 0, }], None),
+          CallDirect({ value: 3, }, None, [], [{ value: 1, }], None),
         ],
         terminator: Return(None),
       },
@@ -264,13 +264,13 @@ test "pre-ARC function equivalence preserves semantic data-family ABI" {
       inputs: {
         environment: None,
         witnesses: [],
-        user_parameters: [{ value: 0 }],
+        user_parameters: [{ value: 0, }],
       },
       result: Unit,
       blocks: [
         {
           parameters: [],
-          instructions: [Release({ value: 0 })],
+          instructions: [Release({ value: 0, })],
           terminator: Return(None),
         },
       ],
@@ -283,16 +283,16 @@ test "pre-ARC function equivalence preserves semantic data-family ABI" {
       family_function(family_three),
     ]),
     data_family_count: 4,
-    layouts: [Data({ value: 0 }), Data({ value: 1 })],
+    layouts: [Data({ value: 0, }), Data({ value: 1, })],
     object_shapes: [
       Data({
-        family: { value: 2 },
+        family: { value: 2, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [],
       }),
       Data({
-        family: { value: 3 },
+        family: { value: 3, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [],

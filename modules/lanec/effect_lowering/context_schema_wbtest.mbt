@@ -49,7 +49,7 @@ test "dictionary schema follows operation order and CPS field types" {
     ),
   )
   assert_eq(metadata.effect_info(effect).unwrap().operations, [get, put])
-  assert_true(@buslane.verify_program({ metadata, terms: [] }).is_ok())
+  assert_true(@buslane.verify_program({ metadata, terms: [], }).is_ok())
 }
 
 ///|
@@ -81,7 +81,7 @@ test "selective CPS schema owns effect companion identities" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let schema = build_dictionary_cps_schema_or_raise(metadata)
-  guard schema.companions is [{ source, companion, residual }] else {
+  guard schema.companions is [{ source, companion, residual, }] else {
     abort("expected one effect companion binding")
   }
   assert_eq(source, effect_parameter)

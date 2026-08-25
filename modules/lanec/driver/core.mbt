@@ -22,7 +22,7 @@ pub fn list_entries(
         diagnostics: warnings.diagnostics(),
       }
     Failed(failure) =>
-      { schema_version: 1, entries: [], diagnostics: failure.diagnostics() }
+      { schema_version: 1, entries: [], diagnostics: failure.diagnostics(), }
   }
 }
 
@@ -36,7 +36,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
   let functions = ExploreFunctionGraphBuilder::new()
   let mut root_module_path_text : String? = None
   let compiled = @compile.compile_modules_observed(
-    { root: request.root_source, libraries: request.library_sources },
+    { root: request.root_source, libraries: request.library_sources, },
     observed => {
       match observed {
         Syntax(snapshot) => {
@@ -318,7 +318,7 @@ fn failed_report(
 
 ///|
 fn explore_compiler_identity() -> ExploreCompilerIdentity {
-  { name: "Milky2018/lanec", version: "0.1.0" }
+  { name: "Milky2018/lanec", version: "0.1.0", }
 }
 
 ///|

@@ -10,7 +10,7 @@ priv struct AnfScaleAccumulator {
 
 ///|
 fn metric(id : ExploreMetricId, value : Int) -> ExploreMetric {
-  { id, value }
+  { id, value, }
 }
 
 ///|
@@ -132,7 +132,7 @@ fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
     functions: accumulator.functions,
     modules: [],
   }
-  { scale, functions: accumulator.anf_functions }
+  { scale, functions: accumulator.anf_functions, }
 }
 
 ///|
@@ -432,7 +432,7 @@ fn bytecode_scale(
     metric(ObjectShapeCount, image.object_shapes.length()),
     metric(ConstantCount, image.constants.length()),
   ])
-  { metrics, functions: accumulator.functions, modules: [] }
+  { metrics, functions: accumulator.functions, modules: [], }
 }
 
 ///|

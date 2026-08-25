@@ -19,7 +19,7 @@ fn @bytecodec.ByteReader::read_externals(
       signature: self.read_host_signature(),
     })
   }
-  { builtins, runtime_imports }
+  { builtins, runtime_imports, }
 }
 
 ///|
@@ -292,7 +292,7 @@ fn @bytecodec.ByteReader::read_host_signature(
   for _ in 0..<self.read_u32_le_int() {
     parameters.push(self.read_host_value_kind())
   }
-  { parameters, result: self.read_host_value_kind() }
+  { parameters, result: self.read_host_value_kind(), }
 }
 
 ///|

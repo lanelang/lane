@@ -20,12 +20,12 @@ fn empty_module_interface(
 
 ///|
 fn invalid_reference_interface() -> ModuleInterface {
-  let missing_type : @symbol.TypeSymbolId = { index: 0 }
+  let missing_type : @symbol.TypeSymbolId = { index: 0, }
   {
     ..empty_module_interface("A", None),
     values: [
       {
-        symbol: { index: 0 },
+        symbol: { index: 0, },
         kind: Let,
         is_offered: false,
         name: "value",
@@ -40,7 +40,7 @@ fn invalid_reference_interface() -> ModuleInterface {
 ///|
 fn generic_identity_interface(binder_name : String) -> ModuleInterface {
   let parameter : @types.TypeParameter = {
-    id: { index: 0 },
+    id: { index: 0, },
     name: binder_name,
     kind: Type,
   }
@@ -48,7 +48,7 @@ fn generic_identity_interface(binder_name : String) -> ModuleInterface {
     ..empty_module_interface("A", None),
     values: [
       {
-        symbol: { index: 0 },
+        symbol: { index: 0, },
         kind: Function,
         is_offered: false,
         name: "identity",
@@ -58,7 +58,7 @@ fn generic_identity_interface(binder_name : String) -> ModuleInterface {
         ),
         parameters: Some([
           {
-            symbol: { index: 1 },
+            symbol: { index: 1, },
             is_auto: false,
             is_offered: false,
             name: "value",
@@ -81,7 +81,7 @@ fn provider_interface(
     ..empty_module_interface("Provider", None),
     values: [
       {
-        symbol: { index: 0 },
+        symbol: { index: 0, },
         kind: Let,
         is_offered: false,
         name: "selected",
@@ -90,7 +90,7 @@ fn provider_interface(
         loc: @basic.SourceSpan::dummy(),
       },
       {
-        symbol: { index: 1 },
+        symbol: { index: 1, },
         kind: Let,
         is_offered: false,
         name: "unrelated",
@@ -100,7 +100,7 @@ fn provider_interface(
       },
     ],
   }
-  { ..interface, exports: interface.owned_exports() }
+  { ..interface, exports: interface.owned_exports(), }
 }
 
 ///|
@@ -108,7 +108,7 @@ fn facade_for_selected(provider : ModuleInterface) -> ModuleInterface {
   for selected in provider.exports {
     if selected.exposed_name == "selected" &&
       selected.export_namespace == ValueNamespace {
-      return { ..empty_module_interface("Facade", None), exports: [selected] }
+      return { ..empty_module_interface("Facade", None), exports: [selected], }
     }
   }
   abort("expected provider export")
@@ -126,7 +126,7 @@ test "semantic fingerprint includes offeredness" {
   let ordinary = generic_identity_interface("T")
   let offered = {
     ..ordinary,
-    values: ordinary.values.map(fn(value) { { ..value, is_offered: true } }),
+    values: ordinary.values.map(fn(value) { { ..value, is_offered: true, } }),
   }
   assert_false(
     ordinary.semantic_fingerprint() == offered.semantic_fingerprint(),
@@ -137,7 +137,7 @@ test "semantic fingerprint includes offeredness" {
 test "semantic fingerprint tracks exported semantics" {
   let initial = empty_module_interface("A", None).semantic_fingerprint()
   let changed_hint = empty_module_interface("A", None, hints=[
-    { name: "specialize" },
+    { name: "specialize", },
   ]).semantic_fingerprint()
   let changed_module = empty_module_interface("B", None).semantic_fingerprint()
   assert_false(initial == changed_hint)

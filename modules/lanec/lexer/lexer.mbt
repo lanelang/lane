@@ -13,7 +13,7 @@ pub fn tokens_from_string(source : String) -> LexResult {
   }
   lex_tokens(source, base=source, env~)
   {
-    concrete: { source_text: source, tokens: env.tokens, trivia: env.trivia },
+    concrete: { source_text: source, tokens: env.tokens, trivia: env.trivia, },
     errors: env.errors,
   }
 }
@@ -203,7 +203,7 @@ fn lex_token(
       if starts_with_identifier_character(rest) {
         let body_end = end - 1
         env.add_token(
-          INT({ body: body.to_owned(), suffix: None }),
+          INT({ body: body.to_owned(), suffix: None, }),
           start~,
           end=body_end,
         )
@@ -373,9 +373,9 @@ fn add_numeric_literal(
     Ok(suffix) =>
       env.add_token(
         if floating {
-          DOUBLE({ body: body.to_owned(), suffix })
+          DOUBLE({ body: body.to_owned(), suffix, })
         } else {
-          INT({ body: body.to_owned(), suffix })
+          INT({ body: body.to_owned(), suffix, })
         },
         start=env.calc_offset(input, base~),
         end=env.calc_offset(rest, base~),
@@ -615,7 +615,7 @@ fn lex_quoted_literal(
   }
 
   let rest = process(input)
-  (rest, { text: buf.to_string(), scalar_count, first_scalar, valid })
+  (rest, { text: buf.to_string(), scalar_count, first_scalar, valid, })
 }
 
 ///|

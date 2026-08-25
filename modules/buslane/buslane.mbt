@@ -57,7 +57,7 @@ fn BuslaneUnique::successor(self : BuslaneUnique) -> BuslaneUnique? {
   if self.value == 0x7FFFFFFF {
     None
   } else {
-    Some({ value: self.value + 1 })
+    Some({ value: self.value + 1, })
   }
 }
 
@@ -361,7 +361,7 @@ pub(all) enum Expr {
 /// Creates an empty Buslane metadata registry.
 pub fn MetadataRegistry::MetadataRegistry() -> MetadataRegistry {
   {
-    name_allocator: Fresh({ value: 0 }),
+    name_allocator: Fresh({ value: 0, }),
     types: [],
     type_parameters: [],
     values: [],
@@ -462,7 +462,7 @@ fn MetadataRegistry::fresh_name(
     Some(next) => Fresh(next)
     None => Exhausted
   }
-  { name_space, occurrence, unique }
+  { name_space, occurrence, unique, }
 }
 
 ///|
@@ -473,7 +473,7 @@ pub fn MetadataRegistry::define_type_parameter(
   kind : Kind,
   flavor? : EffectFlavor = Algebraic,
 ) -> TypeParameterId raise MetadataAllocationError {
-  let id = TypeParameterId::{ index: self.type_parameters.length() }
+  let id = TypeParameterId::{ index: self.type_parameters.length(), }
   self.type_parameters.push({
     name: self.fresh_name(TypeParameterName, occurrence),
     kind,
@@ -490,7 +490,7 @@ pub fn MetadataRegistry::define_type(
   parameters : Array[TypeParameterId],
   flavor? : TypeFlavor = Data,
 ) -> TypeId raise MetadataAllocationError {
-  let id = TypeId::{ index: self.types.length() }
+  let id = TypeId::{ index: self.types.length(), }
   self.types.push({
     name: self.fresh_name(TypeName, occurrence),
     flavor,
@@ -509,7 +509,7 @@ pub fn MetadataRegistry::define_data_constructor(
   hidden_type_parameters : Array[TypeParameterId],
   payload_types : Array[Type],
 ) -> DataConId raise MetadataAllocationError {
-  let id = DataConId::{ index: self.data_constructors.length() }
+  let id = DataConId::{ index: self.data_constructors.length(), }
   self.data_constructors.push({
     name: self.fresh_name(DataConstructorName, occurrence),
     owner,
@@ -529,7 +529,7 @@ pub fn MetadataRegistry::define_effect(
   parameters : Array[TypeParameterId],
   flavor? : EffectFlavor = Algebraic,
 ) -> EffectId raise MetadataAllocationError {
-  let id = EffectId::{ index: self.effects.length() }
+  let id = EffectId::{ index: self.effects.length(), }
   self.effects.push({
     name: self.fresh_name(EffectName, occurrence),
     flavor,
@@ -549,7 +549,7 @@ pub fn MetadataRegistry::define_operation(
   payload_types : Array[Type],
   result_type : Type,
 ) -> OperationId raise MetadataAllocationError {
-  let id = OperationId::{ index: self.operations.length() }
+  let id = OperationId::{ index: self.operations.length(), }
   self.operations.push({
     name: self.fresh_name(OperationName, occurrence),
     owner,
@@ -570,8 +570,12 @@ pub fn MetadataRegistry::define_value(
   kind : ValueKind,
   type_ : Type,
 ) -> ValueId raise MetadataAllocationError {
-  let id = ValueId::{ index: self.values.length() }
-  self.values.push({ name: self.fresh_name(ValueName, occurrence), kind, type_ })
+  let id = ValueId::{ index: self.values.length(), }
+  self.values.push({
+    name: self.fresh_name(ValueName, occurrence),
+    kind,
+    type_,
+  })
   id
 }
 
@@ -891,7 +895,7 @@ fn AlphaContext::flip(self : AlphaContext) -> AlphaContext {
   {
     ..self,
     bindings: self.bindings.map(fn(binding) {
-      { left: binding.right, right: binding.left }
+      { left: binding.right, right: binding.left, }
     }),
   }
 }
@@ -904,7 +908,7 @@ fn AlphaContext::flip(self : AlphaContext) -> AlphaContext {
 /// that row only; letting the oriented cross-side bindings participate makes a
 /// term unequal to itself and the resulting equality intransitive.
 fn AlphaContext::same_side(self : AlphaContext) -> AlphaContext {
-  { ..self, bindings: [] }
+  { ..self, bindings: [], }
 }
 
 ///|
@@ -921,9 +925,9 @@ fn AlphaContext::with_binders(
     if !(self.binders_compatible)(left[index], right[index]) {
       return None
     }
-    next.push({ left: left[index], right: right[index] })
+    next.push({ left: left[index], right: right[index], })
   }
-  Some({ ..self, bindings: next })
+  Some({ ..self, bindings: next, })
 }
 
 ///|
@@ -1165,7 +1169,7 @@ fn TypeNormalizationBudget::consume_beta(
 
 ///|
 pub fn TypeSubstitution::TypeSubstitution() -> TypeSubstitution {
-  { entries: [] }
+  { entries: [], }
 }
 
 ///|
@@ -1204,7 +1208,7 @@ pub fn TypeSubstitution::insert(
   parameter : TypeParameterId,
   replacement : Type,
 ) -> Unit {
-  self.entries.push({ parameter, replacement: TypeArgument(replacement) })
+  self.entries.push({ parameter, replacement: TypeArgument(replacement), })
 }
 
 ///|
@@ -1213,7 +1217,7 @@ pub fn TypeSubstitution::insert_effect(
   parameter : TypeParameterId,
   replacement : Effect,
 ) -> Unit {
-  self.entries.push({ parameter, replacement: EffectArgument(replacement) })
+  self.entries.push({ parameter, replacement: EffectArgument(replacement), })
 }
 
 ///|
@@ -1222,7 +1226,7 @@ pub fn TypeSubstitution::insert_argument(
   parameter : TypeParameterId,
   replacement : GenericArgument,
 ) -> Unit {
-  self.entries.push({ parameter, replacement })
+  self.entries.push({ parameter, replacement, })
 }
 
 ///|
@@ -1346,7 +1350,7 @@ fn TypeSubstitution::lookup_effect(
 pub fn GenericArgument::normalize(
   self : GenericArgument,
 ) -> GenericArgument raise TypeNormalizationError {
-  self.normalize_with_budget({ remaining: TYPE_NORMALIZATION_BETA_LIMIT })
+  self.normalize_with_budget({ remaining: TYPE_NORMALIZATION_BETA_LIMIT, })
 }
 
 ///|
@@ -1396,13 +1400,13 @@ fn GenericArgument::substitute_with_bound(
 /// the compiler safeguard, when a malformed application cannot be reduced, or
 /// when a reduction would capture.
 pub fn Type::normalize(self : Type) -> Type raise TypeNormalizationError {
-  self.normalize_with_budget({ remaining: TYPE_NORMALIZATION_BETA_LIMIT })
+  self.normalize_with_budget({ remaining: TYPE_NORMALIZATION_BETA_LIMIT, })
 }
 
 ///|
 /// Returns the full beta-normal form of a Buslane effect's generic arguments.
 pub fn Effect::normalize(self : Effect) -> Effect raise TypeNormalizationError {
-  self.normalize_with_budget({ remaining: TYPE_NORMALIZATION_BETA_LIMIT })
+  self.normalize_with_budget({ remaining: TYPE_NORMALIZATION_BETA_LIMIT, })
 }
 
 ///|

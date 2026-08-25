@@ -36,7 +36,7 @@ fn compile_helper_function(
         I32And,
       ]
   }
-  { locals: [], body }
+  { locals: [], body, }
 }
 
 ///|

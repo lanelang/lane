@@ -101,7 +101,7 @@ fn[T] compilation_succeeded(
   if diagnostics.any(diagnostic => diagnostic.severity is Error) {
     abort("successful compilation cannot contain error diagnostics")
   }
-  Succeeded(value, { diagnostics: detached_compiler_diagnostics(diagnostics) })
+  Succeeded(value, { diagnostics: detached_compiler_diagnostics(diagnostics), })
 }
 
 ///|
@@ -111,7 +111,7 @@ fn[T] compilation_failed(
   if !diagnostics.any(diagnostic => diagnostic.severity is Error) {
     abort("failed compilation must contain an error diagnostic")
   }
-  Failed({ diagnostics: detached_compiler_diagnostics(diagnostics) })
+  Failed({ diagnostics: detached_compiler_diagnostics(diagnostics), })
 }
 
 ///|

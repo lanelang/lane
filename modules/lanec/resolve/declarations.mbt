@@ -516,7 +516,7 @@ fn Resolver::resolve_type_parameter_names(
 ) -> Array[ResolvedTypeParameter] {
   names.map(fn(name) {
     let symbol = self.registry.define_type_parameter(name, loc)
-    { symbol, name, name_loc: loc, kind: None, loc }
+    { symbol, name, name_loc: loc, kind: None, loc, }
   })
 }
 

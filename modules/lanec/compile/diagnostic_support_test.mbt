@@ -4,7 +4,7 @@ fn test_compilation_request(
   library_sources : Array[String],
 ) -> CompilationRequest {
   {
-    root: { source_id: "<root>", text: root_source },
+    root: { source_id: "<root>", text: root_source, },
     libraries: library_sources.mapi((index, source) => {
       source_id: "<library:\{index}>",
       text: source,

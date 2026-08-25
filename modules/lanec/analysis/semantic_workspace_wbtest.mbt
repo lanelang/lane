@@ -80,8 +80,8 @@ test "semantic workspace preserves imported definitions across source renames" {
     #|
     #|pub let dependent : I64 = A.value
   guard workspace.replace_sources([
-      { source_id: "file:///old-A.lane", text: source_a },
-      { source_id: "file:///B.lane", text: source_b },
+      { source_id: "file:///old-A.lane", text: source_a, },
+      { source_id: "file:///B.lane", text: source_b, },
     ])
     is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -93,8 +93,8 @@ test "semantic workspace preserves imported definitions across source renames" {
   }
   assert_eq(initial_location.source_id, "file:///old-A.lane")
   guard workspace.replace_sources([
-      { source_id: "file:///new-A.lane", text: source_a },
-      { source_id: "file:///B.lane", text: source_b },
+      { source_id: "file:///new-A.lane", text: source_a, },
+      { source_id: "file:///B.lane", text: source_b, },
     ])
     is Some(renamed) else {
     abort("expected semantic snapshot after source rename")
@@ -128,8 +128,8 @@ test "semantic workspace preserves imported alias definitions across revisions" 
     #|
     #|pub type Local = L.Number
   guard workspace.replace_sources([
-      { source_id: "file:///A.lane", text: source_a },
-      { source_id: "file:///B.lane", text: source_b },
+      { source_id: "file:///A.lane", text: source_a, },
+      { source_id: "file:///B.lane", text: source_b, },
     ])
     is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -184,9 +184,9 @@ test "semantic workspace invalidates importers only when the public interface ch
     #|
     #|pub let separate : I64 = 3
   let sources : Array[@module_frontend.SourceInput] = [
-    { source_id: "file:///A.lane", text: source_a },
-    { source_id: "file:///B.lane", text: source_b },
-    { source_id: "file:///C.lane", text: source_c },
+    { source_id: "file:///A.lane", text: source_a, },
+    { source_id: "file:///B.lane", text: source_b, },
+    { source_id: "file:///C.lane", text: source_c, },
   ]
   guard workspace.replace_sources(sources) is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -204,7 +204,10 @@ test "semantic workspace invalidates importers only when the public interface ch
     #|module A
     #|
     #|pub let value : I64 = 2
-  guard workspace.upsert_source({ source_id: "file:///A.lane", text: changed_a })
+  guard workspace.upsert_source({
+      source_id: "file:///A.lane",
+      text: changed_a,
+    })
     is Some(after_a) else {
     abort("expected semantic snapshot after changing A")
   }
@@ -290,7 +293,10 @@ test "semantic workspace invalidates importers only when the public interface ch
     #|module C
     #|
     #|pub let separate : I64 = 4
-  guard workspace.upsert_source({ source_id: "file:///C.lane", text: changed_c })
+  guard workspace.upsert_source({
+      source_id: "file:///C.lane",
+      text: changed_c,
+    })
     is Some(after_c) else {
     abort("expected semantic snapshot after changing C")
   }
@@ -323,8 +329,8 @@ test "semantic workspace refreshes importer presentation after binder rename" {
     #|  A.identity(1)
     #|}
   guard workspace.replace_sources([
-      { source_id: "file:///A.lane", text: source_a },
-      { source_id: "file:///B.lane", text: source_b },
+      { source_id: "file:///A.lane", text: source_a, },
+      { source_id: "file:///B.lane", text: source_b, },
     ])
     is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -341,7 +347,10 @@ test "semantic workspace refreshes importer presentation after binder rename" {
     .replace(old="[T]", new="[U]")
     .replace(old=" : T", new=" : U")
     .replace(old=") -> T", new=") -> U")
-  guard workspace.upsert_source({ source_id: "file:///A.lane", text: renamed_a })
+  guard workspace.upsert_source({
+      source_id: "file:///A.lane",
+      text: renamed_a,
+    })
     is Some(renamed) else {
     abort("expected renamed semantic snapshot")
   }
@@ -366,7 +375,7 @@ test "semantic workspace releases replaced revision metadata" {
   let workspace = SemanticWorkspace::new()
   let source_id = "file:///A.lane"
   guard workspace.replace_sources([
-      { source_id, text: semantic_revision_source(0) },
+      { source_id, text: semantic_revision_source(0), },
     ])
     is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -417,8 +426,8 @@ test "imported symbol metadata excludes dependency revision locals" {
     #|
     #|pub let result : I64 = A.exposed(1)
   guard workspace.replace_sources([
-      { source_id: "file:///A.lane", text: source_a },
-      { source_id: "file:///B.lane", text: source_b },
+      { source_id: "file:///A.lane", text: source_a, },
+      { source_id: "file:///B.lane", text: source_b, },
     ])
     is Some(snapshot) else {
     abort("expected semantic snapshot")
@@ -438,7 +447,10 @@ test "imported symbol metadata excludes dependency revision locals" {
 test "semantic workspace schedules wide dependent sets in topological order" {
   let workspace = SemanticWorkspace::new()
   let sources : Array[@module_frontend.SourceInput] = [
-    { source_id: "file:///A.lane", text: "module A\n\npub let value : I64 = 1" },
+    {
+      source_id: "file:///A.lane",
+      text: "module A\n\npub let value : I64 = 1",
+    },
   ]
   let expected_changed_source_ids = ["file:///A.lane"]
   for index in 0..<32 {
@@ -485,7 +497,7 @@ test "semantic workspace reuses snapshot for identical sources" {
     #|
     #|pub let answer : I64 = 42
   let sources : Array[@module_frontend.SourceInput] = [
-    { source_id: "file:///Main.lane", text: source },
+    { source_id: "file:///Main.lane", text: source, },
   ]
   guard workspace.replace_sources(sources) is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -512,8 +524,8 @@ test "semantic workspace reuses module topology for body-only edits" {
     #|
     #|pub let value : I64 = 2
   guard workspace.replace_sources([
-      { source_id: "file:///0-Main.lane", text: main_source },
-      { source_id: "file:///1-Library.lane", text: library_source },
+      { source_id: "file:///0-Main.lane", text: main_source, },
+      { source_id: "file:///1-Library.lane", text: library_source, },
     ])
     is Some(_) else {
     abort("expected initial semantic snapshot")
@@ -564,10 +576,10 @@ test "semantic workspace reuses module topology for body-only edits" {
 test "semantic workspace persistently replaces only dirty snapshot branches" {
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
-      { source_id: "file:///A.lane", text: "module A\n\npub let a : I64 = 1" },
-      { source_id: "file:///B.lane", text: "module B\n\npub let b : I64 = 2" },
-      { source_id: "file:///C.lane", text: "module C\n\npub let c : I64 = 3" },
-      { source_id: "file:///D.lane", text: "module D\n\npub let d : I64 = 4" },
+      { source_id: "file:///A.lane", text: "module A\n\npub let a : I64 = 1", },
+      { source_id: "file:///B.lane", text: "module B\n\npub let b : I64 = 2", },
+      { source_id: "file:///C.lane", text: "module C\n\npub let c : I64 = 3", },
+      { source_id: "file:///D.lane", text: "module D\n\npub let d : I64 = 4", },
     ])
     is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -607,7 +619,7 @@ test "semantic workspace reuses unchanged invalid module topology" {
     #|
     #|pub let value : I64 = 1
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
     ])
     is Some(initial_snapshot) else {
     abort("expected initial semantic snapshot")
@@ -651,8 +663,8 @@ test "semantic workspace keeps healthy modules when another source cannot parse"
     #|
     #|pub let missing =
   guard workspace.replace_sources([
-      { source_id: "file:///Healthy.lane", text: healthy },
-      { source_id: "file:///Broken.lane", text: broken },
+      { source_id: "file:///Healthy.lane", text: healthy, },
+      { source_id: "file:///Broken.lane", text: broken, },
     ])
     is Some(snapshot) else {
     abort("expected tolerant semantic snapshot")
@@ -679,7 +691,7 @@ test "semantic workspace accepts removing an explicit Unit else branch" {
     #|    ()
     #|  }
     #|}
-  guard workspace.replace_sources([{ source_id, text: explicit }])
+  guard workspace.replace_sources([{ source_id, text: explicit, }])
     is Some(initial) else {
     abort("expected initial semantic snapshot")
   }
@@ -692,7 +704,7 @@ test "semantic workspace accepts removing an explicit Unit else branch" {
     #|    ()
     #|  }
     #|}
-  guard workspace.upsert_source({ source_id, text: omitted }) is Some(updated) else {
+  guard workspace.upsert_source({ source_id, text: omitted, }) is Some(updated) else {
     abort("expected semantic snapshot after removing else")
   }
   debug_inspect(updated.diagnostics(), content="[]")
@@ -712,8 +724,8 @@ test "semantic workspace uses the last successful interface during parse recover
     #|
     #|pub let dependent : I64 = A.value
   guard workspace.replace_sources([
-      { source_id: "file:///A.lane", text: source_a },
-      { source_id: "file:///B.lane", text: source_b },
+      { source_id: "file:///A.lane", text: source_a, },
+      { source_id: "file:///B.lane", text: source_b, },
     ])
     is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -725,7 +737,7 @@ test "semantic workspace uses the last successful interface during parse recover
     #|module A
     #|
     #|pub let value =
-  guard workspace.upsert_source({ source_id: "file:///A.lane", text: broken_a })
+  guard workspace.upsert_source({ source_id: "file:///A.lane", text: broken_a, })
     is Some(recovering) else {
     abort("expected recovery semantic snapshot")
   }
@@ -768,8 +780,8 @@ test "semantic workspace uses the last successful interface during type recovery
     #|
     #|pub let dependent : I64 = A.value
   guard workspace.replace_sources([
-      { source_id: "file:///A.lane", text: source_a },
-      { source_id: "file:///B.lane", text: source_b },
+      { source_id: "file:///A.lane", text: source_a, },
+      { source_id: "file:///B.lane", text: source_b, },
     ])
     is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -781,7 +793,7 @@ test "semantic workspace uses the last successful interface during type recovery
     #|module A
     #|
     #|pub let value : I64 = true
-  guard workspace.upsert_source({ source_id: "file:///A.lane", text: broken_a })
+  guard workspace.upsert_source({ source_id: "file:///A.lane", text: broken_a, })
     is Some(recovering) else {
     abort("expected type recovery semantic snapshot")
   }
@@ -838,16 +850,16 @@ test "semantic workspace diagnostics match a fresh workspace after harmless edit
     ] {
     let (name, source_id, source) = case
     let workspace = SemanticWorkspace::new()
-    guard workspace.replace_sources([{ source_id, text: source }]) is Some(_) else {
+    guard workspace.replace_sources([{ source_id, text: source, }]) is Some(_) else {
       abort("expected initial snapshot for \{name}")
     }
     for edited in [source + "\n", "\n" + source] {
-      guard workspace.upsert_source({ source_id, text: edited })
+      guard workspace.upsert_source({ source_id, text: edited, })
         is Some(incremental) else {
         abort("expected incremental snapshot for \{name}")
       }
       let fresh_workspace = SemanticWorkspace::new()
-      guard fresh_workspace.replace_sources([{ source_id, text: edited }])
+      guard fresh_workspace.replace_sources([{ source_id, text: edited, }])
         is Some(fresh) else {
         abort("expected fresh snapshot for \{name}")
       }
@@ -923,17 +935,17 @@ test "semantic workspace does not retain removed nominal members" {
     ] {
     let (name, source_id, before, after) = case
     let workspace = SemanticWorkspace::new()
-    guard workspace.replace_sources([{ source_id, text: before }])
+    guard workspace.replace_sources([{ source_id, text: before, }])
       is Some(initial) else {
       abort("expected initial snapshot for \{name}")
     }
     assert_true(initial.diagnostics().is_empty())
-    guard workspace.upsert_source({ source_id, text: after })
+    guard workspace.upsert_source({ source_id, text: after, })
       is Some(incremental) else {
       abort("expected incremental snapshot for \{name}")
     }
     let fresh_workspace = SemanticWorkspace::new()
-    guard fresh_workspace.replace_sources([{ source_id, text: after }])
+    guard fresh_workspace.replace_sources([{ source_id, text: after, }])
       is Some(fresh) else {
       abort("expected fresh snapshot for \{name}")
     }
@@ -997,17 +1009,17 @@ test "semantic workspace does not retain removed top-level declarations" {
     ] {
     let (name, source_id, before, after) = case
     let workspace = SemanticWorkspace::new()
-    guard workspace.replace_sources([{ source_id, text: before }])
+    guard workspace.replace_sources([{ source_id, text: before, }])
       is Some(initial) else {
       abort("expected initial snapshot for \{name}")
     }
     assert_true(initial.diagnostics().is_empty())
-    guard workspace.upsert_source({ source_id, text: after })
+    guard workspace.upsert_source({ source_id, text: after, })
       is Some(incremental) else {
       abort("expected incremental snapshot for \{name}")
     }
     let fresh_workspace = SemanticWorkspace::new()
-    guard fresh_workspace.replace_sources([{ source_id, text: after }])
+    guard fresh_workspace.replace_sources([{ source_id, text: after, }])
       is Some(fresh) else {
       abort("expected fresh snapshot for \{name}")
     }

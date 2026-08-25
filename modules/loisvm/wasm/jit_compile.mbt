@@ -153,5 +153,5 @@ fn compile_wasm_module_for_jit(
     functions.push(compiled)
     function_index = function_index + 1
   }
-  verify_jit_artifact({ manifest, imports, functions })
+  verify_jit_artifact({ manifest, imports, functions, })
 }

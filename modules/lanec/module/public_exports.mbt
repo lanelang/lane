@@ -111,7 +111,7 @@ fn ModuleInterfaceCatalog::resolve_export(
     fingerprint == export_.expected_target_fingerprint else {
     return None
   }
-  Some({ export_, declaration, provider_source_id: provider.source_id })
+  Some({ export_, declaration, provider_source_id: provider.source_id, })
 }
 
 ///|

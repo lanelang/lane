@@ -57,16 +57,16 @@ test "printed WAT round-trips for a minimal module" {
 test "printed WAT round-trips for boolean branches" {
   let branch_body : @bytecode.FunctionBody = {
     slots: [trivial_slot(I32)],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, true)],
-        terminator: BranchBool({ value: 0 }, edge(1), edge(2)),
+        instructions: [ConstBool({ value: 0, }, true)],
+        terminator: BranchBool({ value: 0, }, edge(1), edge(2)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
-      { parameters: [], instructions: [], terminator: Unreachable },
+      { parameters: [], instructions: [], terminator: Return(None), },
+      { parameters: [], instructions: [], terminator: Unreachable, },
     ],
   }
   assert_wat_round_trips(image([BytecodeBody(branch_body)]), "branch_bool")
@@ -76,16 +76,16 @@ test "printed WAT round-trips for boolean branches" {
 test "printed WAT round-trips for dense tag switches" {
   let switch_body : @bytecode.FunctionBody = {
     slots: [trivial_slot(I32)],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, true)],
-        terminator: SwitchTag({ value: 0 }, [edge(2), edge(1)], edge(2)),
+        instructions: [ConstBool({ value: 0, }, true)],
+        terminator: SwitchTag({ value: 0, }, [edge(2), edge(1)], edge(2)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
-      { parameters: [], instructions: [], terminator: Unreachable },
+      { parameters: [], instructions: [], terminator: Return(None), },
+      { parameters: [], instructions: [], terminator: Unreachable, },
     ],
   }
   assert_wat_round_trips(image([BytecodeBody(switch_body)]), "switch_tag")
@@ -95,16 +95,16 @@ test "printed WAT round-trips for dense tag switches" {
 test "printed WAT round-trips for reducible loops" {
   let loop_body : @bytecode.FunctionBody = {
     slots: [trivial_slot(I32)],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
-      { parameters: [], instructions: [], terminator: Jump(edge(1)) },
+      { parameters: [], instructions: [], terminator: Jump(edge(1)), },
       {
         parameters: [],
-        instructions: [ConstBool({ value: 0 }, false)],
-        terminator: BranchBool({ value: 0 }, edge(1), edge(2)),
+        instructions: [ConstBool({ value: 0, }, false)],
+        terminator: BranchBool({ value: 0, }, edge(1), edge(2)),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
+      { parameters: [], instructions: [], terminator: Return(None), },
     ],
   }
   assert_wat_round_trips(image([BytecodeBody(loop_body)]), "loop")
@@ -112,7 +112,7 @@ test "printed WAT round-trips for reducible loops" {
 
 ///|
 test "printed WAT round-trips for a direct call" {
-  let caller = body(instructions=[CallDirect({ value: 1 }, None, [], [], None)])
+  let caller = body(instructions=[CallDirect({ value: 1, }, None, [], [], None)])
   assert_wat_round_trips(
     image([BytecodeBody(caller), BytecodeBody(body())]),
     "call_direct",
@@ -123,12 +123,12 @@ test "printed WAT round-trips for a direct call" {
 test "printed WAT round-trips for emitted F32 and conversion operations" {
   let module_ = {
     ..@wasm_types.Module::empty(),
-    types: [@wasm_types.SubType::from_func({ params: [], results: [] })],
+    types: [@wasm_types.SubType::from_func({ params: [], results: [], })],
     type_rec_groups: [0],
     funcs: [0],
     memories: [
       {
-        limits: { min: 1L, max: Some(1L) },
+        limits: { min: 1L, max: Some(1L), },
         is_memory64: false,
         page_size_log2: 16,
       },

@@ -209,7 +209,7 @@ fn ImageLowerer::emit_represented_runtime_anf(
   let provenance = finalized
     .source_functions()
     .mapi((index, sources) => {
-      let canonical_function : @bytecode.FunctionId = { value: index + 1 }
+      let canonical_function : @bytecode.FunctionId = { value: index + 1, }
       {
         function: canonical_function,
         origins: sources.map(source => {

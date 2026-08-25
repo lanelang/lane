@@ -344,8 +344,8 @@ fn compile_structured_part(
   match part {
     Plain(block) => compile_structured_block(context, block, labels)
     Loop(header, nested) => {
-      let loop_labels = labels.map(label => { ..label, depth: label.depth + 1 })
-      loop_labels.insert(0, { target: header, depth: 0 })
+      let loop_labels = labels.map(label => { ..label, depth: label.depth + 1, })
+      loop_labels.insert(0, { target: header, depth: 0, })
       [Loop(Empty, compile_structured_sequence(context, nested, loop_labels))]
     }
   }

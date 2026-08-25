@@ -3,7 +3,7 @@ fn dependency_failure_codes(
   root : @module_frontend.SourceInput,
   libraries : Array[@module_frontend.SourceInput],
 ) -> Array[(String?, String?)] {
-  match check({ root, libraries }) {
+  match check({ root, libraries, }) {
     Failed(failure) =>
       failure
       .diagnostics()

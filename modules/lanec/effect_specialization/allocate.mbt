@@ -204,7 +204,7 @@ fn EffectSpecializer::specialize_retained_value_type(
     )
   }
   let specialized = self.specialize_type(info.type_, [])
-  self.program.metadata.values[id.index] = { ..info, type_: specialized }
+  self.program.metadata.values[id.index] = { ..info, type_: specialized, }
 }
 
 ///|

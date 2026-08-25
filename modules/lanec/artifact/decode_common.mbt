@@ -29,7 +29,7 @@ fn @bytecodec.ByteReader::read_source_span(
 fn @bytecodec.ByteReader::read_compilation_fingerprint(
   self : @bytecodec.ByteReader,
 ) -> @artifact_model.CompilationFingerprint raise {
-  { value: self.read_string() }
+  { value: self.read_string(), }
 }
 
 ///|

@@ -104,7 +104,7 @@ fn lower_test_linked_program_to_bytecode(
 ) -> Result[@bytecode.BytecodeImage, LoisvmLoweringError] {
   let executable = match
     @executable.elaborate(
-      { module_path_texts: [], program, externals, entries: [entry] },
+      { module_path_texts: [], program, externals, entries: [entry], },
       entry,
       @executable.ExecutionProfile::new(
         builtin_effects=[Io, Panic],
@@ -119,8 +119,8 @@ fn lower_test_linked_program_to_bytecode(
 
 ///|
 fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
-  let program : @buslane.Program = { metadata, terms: [] }
-  let anf = @anf.lower_cps_core_to_runtime_anf({ program, retained_values: [] }).unwrap()
+  let program : @buslane.Program = { metadata, terms: [], }
+  let anf = @anf.lower_cps_core_to_runtime_anf({ program, retained_values: [], }).unwrap()
   let runtime_metadata = anf.metadata()
   {
     metadata: runtime_metadata,
@@ -129,7 +129,7 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     representation_demands: PhysicalRepresentationDemandPlan::empty(),
     physical_representations: None,
     runtime_types: RuntimeTypeArena::from_metadata(runtime_metadata),
-    externals: { builtins: [], runtime_imports: [] },
+    externals: { builtins: [], runtime_imports: [], },
     globals: [],
     instance_globals: [],
     plans: FunctionPlanTable::new(),
@@ -252,12 +252,12 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
         ],
         runtime_imports: [],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_eq(image.entry, { value: 2 })
+  assert_eq(image.entry, { value: 2, })
   guard image.functions is [BytecodeBody(helper_body), BytecodeBody(main_body)] else {
     fail("expected two bytecode bodies")
   }
@@ -268,7 +268,7 @@ test "pure scalar Buslane lowers through ANF into executable LoisVM bytecode" {
   )
   assert_true(
     contains_instruction(main_body, instruction => {
-      instruction is CallDirect({ value: 1 }, None, [], _, _)
+      instruction is CallDirect({ value: 1, }, None, [], _, _)
     }),
   )
   let loaded = match
@@ -320,7 +320,7 @@ test "runtime import origin wins over intrinsic-looking symbol" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -413,7 +413,7 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -430,7 +430,7 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
   assert_true(apply_body.blocks[0].terminator is TailCallValue(_, _, [], _))
   assert_true(
     contains_instruction(main_body, instruction => {
-      instruction is ConstFunction(_, { value: 3 })
+      instruction is ConstFunction(_, { value: 3, })
     }),
   )
   assert_true(
@@ -498,7 +498,7 @@ test "entry admission rejects residual algebraic effects before lowering" {
       {
         module_path_texts: [],
         program,
-        externals: { builtins: [], runtime_imports: [] },
+        externals: { builtins: [], runtime_imports: [], },
         entries: [entry],
       },
       entry,
@@ -593,7 +593,7 @@ test "lexical handlers and resume lower before LoisVM bytecode" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -658,7 +658,7 @@ test "primitive external functions become runtime imports" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -751,7 +751,7 @@ test "external host types erase to Opaque runtime import kinds" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -845,7 +845,7 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
       fn(observed) {
         match observed {
           InitialVmcfg(_, provenance) => initial_provenance = provenance
@@ -879,7 +879,7 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
       direct_targets.push(target)
     }
   }
-  assert_eq(direct_targets, [{ value: 3 }, { value: 2 }, { value: 3 }])
+  assert_eq(direct_targets, [{ value: 3, }, { value: 2, }, { value: 3, }])
   assert_eq(initial_provenance, final_provenance)
   debug_inspect(
     final_provenance,
@@ -960,7 +960,7 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1027,7 +1027,7 @@ test "owned String arguments are transferred through VM CFG ARC insertion" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1037,7 +1037,7 @@ test "owned String arguments are transferred through VM CFG ARC insertion" {
   }
   assert_true(
     main_body.blocks[0].terminator
-    is TailCallDirect({ value: 2 }, None, [], [{ value: 0 }]),
+    is TailCallDirect({ value: 2, }, None, [], [{ value: 0, }]),
   )
   let mut observed = ""
   let registry = @loisvm_runtime.RuntimeRegistry::new()
@@ -1127,7 +1127,7 @@ test "Bool matches lower to explicit CFG branches" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1273,7 +1273,7 @@ test "multi-use non-generic data retains its nominal object shape" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1385,7 +1385,7 @@ test "capture-free functions lower as callable values for higher-order calls" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1493,7 +1493,7 @@ test "nonescaping nested functions pass captures directly" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1660,7 +1660,7 @@ test "local recursive functions share a cycle-free captured environment" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1671,7 +1671,7 @@ test "local recursive functions share a cycle-free captured environment" {
   }
   assert_true(loop_body.inputs.environment is Some(_))
   let has_recursive_tail_call = loop_body.blocks.any(block => {
-    block.terminator is TailCallDirect({ value: 2 }, Some(_), [], _)
+    block.terminator is TailCallDirect({ value: 2, }, Some(_), [], _)
   })
   assert_true(has_recursive_tail_call)
   let mut observed = 0L
@@ -1780,7 +1780,7 @@ test "generic identity callable flow selects a concrete representation worker" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -1888,7 +1888,7 @@ test "direct generic calls use one planned concrete worker" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2046,7 +2046,7 @@ test "generic calls adapt callable arguments and callable results" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2174,7 +2174,7 @@ test "generic nested closures capture erased values and layout witnesses" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2288,7 +2288,7 @@ test "single-constructor matches keep owned captures in the current block" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2396,7 +2396,7 @@ test "closed generic data scalar replacement creates no nominal family ABI" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2415,7 +2415,7 @@ test "closed generic data scalar replacement creates no nominal family ABI" {
               witness_ordinal: Some(0),
             },
           ],
-          ..,
+          ..
         }
       )
     }),
@@ -2554,7 +2554,7 @@ test "closed existential data specializes hidden witnesses and payloads" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2695,7 +2695,7 @@ test "payload-free existential evidence disappears when no runtime use remains" 
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2792,8 +2792,8 @@ test "unused effect-kind existential evidence disappears from runtime ANF" {
   let image = match
     lower_test_linked_program_to_bytecode(
       program,
-      { builtins: [], runtime_imports: [] },
-      { module_path_text: "Main", name: "main", value: main },
+      { builtins: [], runtime_imports: [], },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -2904,7 +2904,7 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -3011,7 +3011,7 @@ test "primitive literal matches lower to comparison decision chains" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -3097,6 +3097,7 @@ test "data-family catalog remains distinct from physical materialization" {
       #|        storage_types: [],
       #|        storage_data_families: [],
       #|        storage_callable_demands: [],
+      #|        storage_callable_interfaces: [],
       #|        storage_shapes: [],
       #|      },
       #|      {
@@ -3107,6 +3108,7 @@ test "data-family catalog remains distinct from physical materialization" {
       #|        storage_types: [Erased({ index: 0 }, Parameter(Projected(0)))],
       #|        storage_data_families: [None],
       #|        storage_callable_demands: [[]],
+      #|        storage_callable_interfaces: [],
       #|        storage_shapes: [],
       #|      },
       #|    ],
@@ -3129,6 +3131,7 @@ test "data-family catalog remains distinct from physical materialization" {
       #|        storage_types: [],
       #|        storage_data_families: [],
       #|        storage_callable_demands: [],
+      #|        storage_callable_interfaces: [],
       #|        storage_shapes: [],
       #|      },
       #|      {
@@ -3139,6 +3142,7 @@ test "data-family catalog remains distinct from physical materialization" {
       #|        storage_types: [Scalar(I64)],
       #|        storage_data_families: [None],
       #|        storage_callable_demands: [[]],
+      #|        storage_callable_interfaces: [],
       #|        storage_shapes: [],
       #|      },
       #|    ],
@@ -3258,7 +3262,7 @@ test "closed repeated data uses share one specialized family end to end" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -3406,7 +3410,7 @@ test "generic nonescaping nested functions call their target directly" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")

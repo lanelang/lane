@@ -11,18 +11,22 @@ priv struct CallableAdapterEvidenceAlias {
 }
 
 ///|
-fn ImageLowerer::callable_adapter_recipe(
+fn ImageLowerer::callable_adapter_recipe_with_interfaces(
   self : ImageLowerer,
   source_type : @anf.RuntimeType,
   target_type : @anf.RuntimeType,
-  source_abi : CanonicalCallableAbi,
-  target_abi : CanonicalCallableAbi,
+  source_interface : PhysicalCallableInterface,
+  target_interface : PhysicalCallableInterface,
   source_parameter_targets : Array[Int],
   substitutions : RuntimeSubstitution,
   captures : Array[CallableAdapterEvidenceCapture],
   aliases : Array[CallableAdapterEvidenceAlias],
   nested_adapters : Array[CallableAdapterContract],
 ) -> CallableAdapterRecipe raise LoisvmLoweringError {
+  let source_abi = source_interface.invocation
+  let target_abi = target_interface.invocation
+  let source_parameter_projection = source_interface.parameters
+  let target_parameter_projection = target_interface.parameters
   let (source_type_parameters, source_parameters, source_result) = function_type_parts(
     source_type,
   )
@@ -47,6 +51,15 @@ fn ImageLowerer::callable_adapter_recipe(
         Existing(target_parameter.id),
         recipe,
       )
+      let resolved = self.callable_adapter_parameter_evidence(
+        target_parameter,
+        substitutions.apply_evidence(Parameter(target_parameter.id)),
+      )
+      match resolved {
+        Existing(_) | ApplyEvidence(_, _) =>
+          bind_callable_adapter_evidence(evidence, resolved, recipe)
+        _ => ()
+      }
       input_index += 1
     }
   }
@@ -75,11 +88,21 @@ fn ImageLowerer::callable_adapter_recipe(
   }
   if source_type_parameters.length() == target_type_parameters.length() {
     for index, source_parameter in source_type_parameters {
+      let recipe = CallableAdapterEvidenceRecipe::Input(index)
       bind_callable_adapter_evidence(
         evidence,
         Existing(source_parameter.id),
-        Input(index),
+        recipe,
       )
+      let resolved = self.callable_adapter_parameter_evidence(
+        source_parameter,
+        substitutions.apply_evidence(Parameter(source_parameter.id)),
+      )
+      match resolved {
+        Existing(_) | ApplyEvidence(_, _) =>
+          bind_callable_adapter_evidence(evidence, resolved, recipe)
+        _ => ()
+      }
     }
   }
   if source_type_parameters.length() != source_abi.witnesses.length() {
@@ -104,14 +127,20 @@ fn ImageLowerer::callable_adapter_recipe(
       }
     }
   })
-  let source_parameter_keys = self.callable_adapter_parameter_keys(
-    source_parameters,
+  let source_parameter_keys = callable_adapter_parameter_keys(
+    source_parameter_projection,
     source_abi.parameters,
   )
-  let target_parameter_keys = self.callable_adapter_parameter_keys(
-    target_parameters,
+  let target_parameter_keys = callable_adapter_parameter_keys(
+    target_parameter_projection,
     target_abi.parameters,
   )
+  if source_parameter_keys.length() != source_parameters.length() ||
+    target_parameter_keys.length() != target_parameters.length() {
+    raise RepresentationSpecializationInvariant(
+      detail="callable adapter parameter projection arity disagrees with its semantic type",
+    )
+  }
   let target_parameter_recipes = []
   let target_physical_indices = Array::make(target_parameters.length(), -1)
   for index, type_ in target_parameters {
@@ -126,7 +155,8 @@ fn ImageLowerer::callable_adapter_recipe(
       target_parameter_recipes.push(recipe)
     }
   }
-  let source_arguments = []
+  let source_arguments : Array[CallableAdapterArgumentRecipe] = []
+  let target_discards : Array[CallableAdapterDiscardRecipe] = []
   for index, source_parameter in source_parameters {
     let target_index = source_parameter_targets[index]
     let target_parameter = target_parameters[target_index]
@@ -134,6 +164,27 @@ fn ImageLowerer::callable_adapter_recipe(
     let source_key = source_parameter_keys[index]
     let target_key = target_parameter_keys[target_index]
     if source_key is None {
+      if target_key is Some(_) {
+        guard target_physical_index >= 0 else {
+          raise RepresentationSpecializationInvariant(
+            detail="callable adapter discard has no target physical parameter",
+          )
+        }
+        target_discards.push({
+          input: target_physical_index,
+          flow: self.callable_adapter_physical_value_flow_recipe(
+            target_parameter,
+            source_parameter,
+            substitutions,
+            target_key,
+            None,
+            target_interface.parameter_callables[target_index],
+            None,
+            evidence,
+            nested_adapters,
+          ),
+        })
+      }
       continue
     }
     source_arguments.push({
@@ -143,12 +194,20 @@ fn ImageLowerer::callable_adapter_recipe(
         TargetParameter(target_physical_index)
       },
       flow: self.callable_adapter_physical_value_flow_recipe(
-        target_parameter, source_parameter, substitutions, target_key, source_key,
-        evidence, nested_adapters,
+        target_parameter,
+        source_parameter,
+        substitutions,
+        target_key,
+        source_key,
+        target_interface.parameter_callables[target_index],
+        source_interface.parameter_callables[index],
+        evidence,
+        nested_adapters,
       ),
     })
   }
-  let result = if source_abi.result == target_abi.result {
+  let result = if source_abi.result == target_abi.result &&
+    source_interface.result_callable == target_interface.result_callable {
     CallableAdapterResultRecipe::TailCall
   } else {
     Adapt(
@@ -158,6 +217,8 @@ fn ImageLowerer::callable_adapter_recipe(
         substitutions,
         source_abi.result.optional_key(),
         target_abi.result.optional_key(),
+        source_interface.result_callable,
+        target_interface.result_callable,
         evidence,
         nested_adapters,
       ),
@@ -170,6 +231,7 @@ fn ImageLowerer::callable_adapter_recipe(
     source_witnesses,
     target_parameters: target_parameter_recipes,
     source_arguments,
+    target_discards,
     result,
   }
   verify_callable_adapter_recipe(recipe)
@@ -177,25 +239,29 @@ fn ImageLowerer::callable_adapter_recipe(
 }
 
 ///|
-fn ImageLowerer::callable_adapter_parameter_keys(
-  self : ImageLowerer,
-  parameters : Array[@anf.RuntimeType],
+fn callable_adapter_parameter_keys(
+  projections : Array[PhysicalCallableParameterProjection],
   physical : Array[CanonicalRuntimeTypeKey],
 ) -> Array[CanonicalRuntimeTypeKey?] raise LoisvmLoweringError {
   let keys : Array[CanonicalRuntimeTypeKey?] = []
   let mut physical_index = 0
-  for parameter in parameters {
-    if self.runtime_type(parameter) is Concrete(Unit) {
-      keys.push(None)
-      continue
+  for projection in projections {
+    match projection {
+      Unit => keys.push(None)
+      Slot(expected) => {
+        guard physical.get(physical_index) is Some(key) && key == expected else {
+          raise RepresentationSpecializationInvariant(
+            detail="callable adapter parameter projection disagrees with its physical ABI",
+          )
+        }
+        keys.push(Some(key))
+        physical_index += 1
+      }
+      Product(_) =>
+        raise RepresentationSpecializationInvariant(
+          detail="first-class callable adapter cannot expose a scalar-expanded parameter",
+        )
     }
-    guard physical.get(physical_index) is Some(key) else {
-      raise RepresentationSpecializationInvariant(
-        detail="callable adapter ABI has too few physical parameters",
-      )
-    }
-    keys.push(Some(key))
-    physical_index += 1
   }
   if physical_index != physical.length() {
     raise RepresentationSpecializationInvariant(
@@ -246,6 +312,7 @@ fn verify_callable_adapter_recipe(
       )
     }
   }
+  let target_uses = Array::make(recipe.target_abi.parameters.length(), 0)
   for index, argument in recipe.source_arguments {
     let input = match argument.input {
       TargetParameter(target) => {
@@ -254,6 +321,7 @@ fn verify_callable_adapter_recipe(
             detail="callable adapter source argument selects no target ABI parameter",
           )
         }
+        target_uses[target] += 1
         Some(input)
       }
       Unit => None
@@ -267,6 +335,27 @@ fn verify_callable_adapter_recipe(
     }
     verify_callable_adapter_identity_flow(argument.flow)
     verify_callable_adapter_nested_flow(argument.flow)
+  }
+  for discard in recipe.target_discards {
+    guard recipe.target_abi.parameters.get(discard.input) is Some(input) else {
+      raise RepresentationSpecializationInvariant(
+        detail="callable adapter discard selects no target ABI parameter",
+      )
+    }
+    target_uses[discard.input] += 1
+    if discard.flow.value.physical_key() != Some(input) ||
+      discard.flow.target.physical_key() is Some(_) {
+      raise RepresentationSpecializationInvariant(
+        detail="callable adapter discard flow disagrees with its target ABI",
+      )
+    }
+    verify_callable_adapter_identity_flow(discard.flow)
+    verify_callable_adapter_nested_flow(discard.flow)
+  }
+  if target_uses.any(count => count != 1) {
+    raise RepresentationSpecializationInvariant(
+      detail="callable adapter must consume every target physical parameter exactly once",
+    )
   }
   match recipe.result {
     TailCall =>
@@ -343,7 +432,7 @@ fn CallableAdapterValueRecipe::physical_key(
     Unit => None
     Erased(_) =>
       Some(
-        Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue }),
+        Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue, }),
       )
     Concrete(key) => Some(key)
   }
@@ -359,13 +448,13 @@ fn bind_callable_adapter_evidence(
     if binding.evidence == evidence {
       if binding.recipe != recipe {
         raise InvalidTypeApplication(
-          detail="callable adapter evidence parameter has two runtime sources",
+          detail="callable adapter evidence \{Repr(evidence)} has two runtime sources \{Repr(binding.recipe)} and \{Repr(recipe)}",
         )
       }
       return
     }
   }
-  bindings.push({ evidence, recipe })
+  bindings.push({ evidence, recipe, })
 }
 
 ///|
@@ -376,6 +465,8 @@ fn ImageLowerer::callable_adapter_physical_value_flow_recipe(
   substitutions : RuntimeSubstitution,
   value_key : CanonicalRuntimeTypeKey?,
   target_key : CanonicalRuntimeTypeKey?,
+  value_interface : PhysicalCallableInterface?,
+  target_interface : PhysicalCallableInterface?,
   evidence : Array[CallableAdapterEvidenceBinding],
   nested_adapters : Array[CallableAdapterContract],
 ) -> CallableAdapterValueFlowRecipe raise LoisvmLoweringError {
@@ -404,7 +495,8 @@ fn ImageLowerer::callable_adapter_physical_value_flow_recipe(
       source_shape, target_shape,
     ),
     nested_adapter: self.callable_adapter_nested_recipe(
-      value_type, target_type, substitutions, value_key, target_key, evidence, nested_adapters,
+      value_type, target_type, substitutions, value_key, target_key, value_interface,
+      target_interface, evidence, nested_adapters,
     ),
   }
 }
@@ -417,11 +509,14 @@ fn ImageLowerer::callable_adapter_nested_recipe(
   substitutions : RuntimeSubstitution,
   value_key : CanonicalRuntimeTypeKey?,
   target_key : CanonicalRuntimeTypeKey?,
+  value_interface : PhysicalCallableInterface?,
+  target_interface : PhysicalCallableInterface?,
   evidence : Array[CallableAdapterEvidenceBinding],
   nested_adapters : Array[CallableAdapterContract],
 ) -> CallableAdapterNestedRecipe? raise LoisvmLoweringError {
   let contract = self.callable_adapter_nested_contract(
-    value_type, target_type, substitutions, value_key, target_key,
+    value_type, target_type, substitutions, value_key, target_key, value_interface,
+    target_interface,
   )
   if contract is Some(contract) {
     nested_adapters.push(contract)
@@ -455,29 +550,82 @@ fn ImageLowerer::callable_adapter_nested_contract(
   substitutions : RuntimeSubstitution,
   value_key : CanonicalRuntimeTypeKey?,
   target_key : CanonicalRuntimeTypeKey?,
+  value_interface : PhysicalCallableInterface?,
+  target_interface : PhysicalCallableInterface?,
 ) -> CallableAdapterContract? raise LoisvmLoweringError {
-  let source_runtime = self.runtime_type(value_type)
-  let target_runtime = self.runtime_type(target_type)
-  match (source_runtime, target_runtime) {
-    (Erased(_), Concrete(Callable(_, _) | Forall(_, _) as concrete)) => {
-      let (canonical, bindings) = self.canonical_callable_type(concrete)
-      self.plan_callable_adaptation(canonical, concrete, bindings)
-    }
-    (Concrete(Callable(_, _) | Forall(_, _) as concrete), Erased(_)) => {
-      let (canonical, bindings) = self.canonical_callable_type(concrete)
-      self.plan_callable_adaptation(concrete, canonical, bindings)
-    }
-    (
-      Concrete(Callable(_, _) | Forall(_, _) as source),
-      Concrete(Callable(_, _) | Forall(_, _) as target),
-    ) =>
-      match (value_key, target_key) {
-        (Some(Callable(source_abi)), Some(Callable(target_abi))) =>
-          self.plan_callable_adaptation_with_abis(
-            source, target, substitutions, source_abi, target_abi,
-          )
-        _ => self.plan_callable_adaptation(source, target, substitutions)
+  let resolved_value = substitutions.apply_type(self.runtime_types, value_type)
+  let resolved_target = substitutions.apply_type(
+    self.runtime_types,
+    target_type,
+  )
+  match (value_key, target_key) {
+    (Some(Value({ cleanup: OwnedErased, .. })), Some(Callable(_))) => {
+      guard self.runtime_type(resolved_target)
+        is Concrete(Callable(_, _) | Forall(_, _) as concrete) else {
+        raise RepresentationSpecializationInvariant(
+          detail="callable unerasure target has no concrete callable semantic type",
+        )
       }
+      let (canonical, bindings) = self.canonical_callable_type(concrete)
+      self.plan_callable_adaptation_with_interfaces(
+        canonical,
+        concrete,
+        bindings,
+        self.canonical_callable_interface_under(canonical, bindings),
+        target_interface.unwrap_or_else(() => {
+          self.canonical_callable_interface_under(concrete, bindings)
+        }),
+      )
+    }
+    (Some(Callable(_)), Some(Value({ cleanup: OwnedErased, .. }))) => {
+      guard self.runtime_type(resolved_value)
+        is Concrete(Callable(_, _) | Forall(_, _) as concrete) else {
+        raise RepresentationSpecializationInvariant(
+          detail="callable erasure source has no concrete callable semantic type",
+        )
+      }
+      let (canonical, bindings) = self.canonical_callable_type(concrete)
+      self.plan_callable_adaptation_with_interfaces(
+        concrete,
+        canonical,
+        bindings,
+        value_interface.unwrap_or_else(() => {
+          self.canonical_callable_interface_under(concrete, bindings)
+        }),
+        self.canonical_callable_interface_under(canonical, bindings),
+      )
+    }
+    (Some(Callable(source_abi)), Some(Callable(target_abi))) => {
+      guard self.runtime_type(resolved_value)
+        is Concrete(Callable(_, _) | Forall(_, _) as source) &&
+        self.runtime_type(resolved_target)
+        is Concrete(Callable(_, _) | Forall(_, _) as target) else {
+        raise RepresentationSpecializationInvariant(
+          detail="concrete callable flow has no concrete callable semantic types",
+        )
+      }
+      let source_interface = value_interface.unwrap_or_else(() => {
+        self.callable_interface_under_with_invocation(
+          source,
+          RuntimeSubstitution::new(),
+          source_abi,
+        )
+      })
+      let target_interface = target_interface.unwrap_or_else(() => {
+        self.callable_interface_under_with_invocation(
+          target,
+          RuntimeSubstitution::new(),
+          target_abi,
+        )
+      })
+      self.plan_callable_adaptation_with_interfaces(
+        source,
+        target,
+        RuntimeSubstitution::new(),
+        source_interface,
+        target_interface,
+      )
+    }
     _ => None
   }
 }

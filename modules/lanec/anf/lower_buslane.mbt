@@ -38,9 +38,9 @@ fn lower_cps_core_to_runtime_anf_or_raise(
     raise InvalidRetention(retained_verification)
   }
   let generic_plan = runtime_generic_plan(program, retained_terms)
-  let lowerer = AnfLowerer::{ generic_plan, next_temp: 0, next_function: 0 }
+  let lowerer = AnfLowerer::{ generic_plan, next_temp: 0, next_function: 0, }
   let terms = retained_terms.map(term => lowerer.lower_top_term(term))
-  simplify_anf_program({ metadata: generic_plan.runtime_metadata(), terms })
+  simplify_anf_program({ metadata: generic_plan.runtime_metadata(), terms, })
 }
 
 ///|
@@ -95,14 +95,14 @@ fn retained_top_terms(
 
 ///|
 fn AnfLowerer::fresh_temp(self : AnfLowerer) -> AnfTempId {
-  let temp = AnfTempId::{ index: self.next_temp }
+  let temp = AnfTempId::{ index: self.next_temp, }
   self.next_temp = self.next_temp + 1
   temp
 }
 
 ///|
 fn AnfLowerer::fresh_function(self : AnfLowerer) -> AnfFunctionId {
-  let function = AnfFunctionId::{ value: self.next_function }
+  let function = AnfFunctionId::{ value: self.next_function, }
   self.next_function = self.next_function + 1
   function
 }
@@ -125,7 +125,7 @@ fn AnfLowerer::lower_recursive_binding(
   self : AnfLowerer,
   binding : @buslane.RecursiveBinding,
 ) -> AnfRecursiveBinding raise RuntimeAnfLoweringError {
-  { id: binding.id, rhs: self.lower_recursable_atom(binding.rhs, binding.id) }
+  { id: binding.id, rhs: self.lower_recursable_atom(binding.rhs, binding.id), }
 }
 
 ///|

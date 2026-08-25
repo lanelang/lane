@@ -92,7 +92,7 @@ fn ModuleInterface::fingerprints_result(
           presentation_payload.to_bytes(),
         ),
       }
-      Ok({ semantic, presentation })
+      Ok({ semantic, presentation, })
     }
     Err(message) => Err(message)
   }
@@ -120,7 +120,7 @@ fn ModuleInterface::canonical_interface_encoding(
       type_parameters: [],
     }
     encoder.write_interface()
-    Ok({ semantic: writer.to_bytes(), presentation: presentation.to_bytes() })
+    Ok({ semantic: writer.to_bytes(), presentation: presentation.to_bytes(), })
   } catch {
     InvalidCanonicalInterface(message) => Err(message)
   }

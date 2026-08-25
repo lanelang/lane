@@ -52,7 +52,7 @@ test "builtin external contract rejects metadata signature drift" {
   let metadata = object.metadata.snapshot()
   let value = builtin.value()
   let info = metadata.values[value.index]
-  metadata.values[value.index] = { ..info, type_: Primitive(I64) }
+  metadata.values[value.index] = { ..info, type_: Primitive(I64), }
   let malformed = refingerprint_test_object({ ..object, metadata, })
   debug_inspect(
     @artifact.link_module_object_artifacts([malformed]),
@@ -94,7 +94,7 @@ test "runtime import host signature is certified against metadata source type" {
     externals: {
       ..object.externals,
       runtime_imports: [
-        { ..runtime_import, signature: { parameters: [I64], result: Unit } },
+        { ..runtime_import, signature: { parameters: [I64], result: Unit, }, },
       ],
     },
   })
@@ -170,7 +170,7 @@ test "canonical Basic owner certifies the persisted Void shape" {
   }
   let metadata = object.metadata.snapshot()
   let info = metadata.types[void_type.index]
-  metadata.types[void_type.index] = { ..info, flavor: External }
+  metadata.types[void_type.index] = { ..info, flavor: External, }
   let malformed = refingerprint_test_object({ ..object, metadata, })
   debug_inspect(
     @artifact.link_module_object_artifacts([malformed]).diagnostics,
@@ -206,12 +206,12 @@ test "object artifact validation rejects every unknown Buslane identity namespac
   )
   let metadata = object.metadata.snapshot()
   let terms = object.terms.copy()
-  let unknown_type : @buslane.TypeId = { index: 1000 }
-  let unknown_parameter : @buslane.TypeParameterId = { index: 1001 }
-  let unknown_value : @buslane.ValueId = { index: 1002 }
-  let unknown_constructor : @buslane.DataConId = { index: 1003 }
-  let unknown_effect : @buslane.EffectId = { index: 1004 }
-  let unknown_operation : @buslane.OperationId = { index: 1005 }
+  let unknown_type : @buslane.TypeId = { index: 1000, }
+  let unknown_parameter : @buslane.TypeParameterId = { index: 1001, }
+  let unknown_value : @buslane.ValueId = { index: 1002, }
+  let unknown_constructor : @buslane.DataConId = { index: 1003, }
+  let unknown_effect : @buslane.EffectId = { index: 1004, }
+  let unknown_operation : @buslane.OperationId = { index: 1005, }
   ignore(
     metadata.define_value("unknown_type", Value, Constructor(unknown_type)),
   )
@@ -262,7 +262,7 @@ test "object artifact validation rejects every unknown Buslane identity namespac
     ),
   )
   terms.push(External(unknown_value))
-  let malformed = refingerprint_test_object({ ..object, metadata, terms })
+  let malformed = refingerprint_test_object({ ..object, metadata, terms, })
   debug_inspect(
     @artifact.link_module_object_artifacts([malformed]),
     content=(
@@ -367,17 +367,17 @@ test "object artifact validation rejects malformed side table references" {
       #|pub let add : (I64, I64) -> I64 = builtin("%i64_add")
     ),
   )
-  let unknown_value : @buslane.ValueId = { index: 1000 }
-  let unknown_type : @buslane.TypeId = { index: 1001 }
+  let unknown_value : @buslane.ValueId = { index: 1000, }
+  let unknown_type : @buslane.TypeId = { index: 1001, }
   let builtins = object.externals.builtins.copy()
   builtins[0] = @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
     unknown_value,
     builtins[0].intrinsic(),
   )
   let entries = object.entries.copy()
-  entries[0] = { ..entries[0], value: unknown_value }
+  entries[0] = { ..entries[0], value: unknown_value, }
   let exports = object.exports.copy()
-  exports[0] = { name: exports[0].name, reference: Type(unknown_type) }
+  exports[0] = { name: exports[0].name, reference: Type(unknown_type), }
   let malformed = refingerprint_test_object({
     ..object,
     externals: { ..object.externals, builtins, },
@@ -477,7 +477,7 @@ test "object-only linking rejects an imported name missing from its provider" {
   let objects = modules.modules.map(module_ => module_.to_object_artifact())
   for index, object in objects {
     if object.module_path_text == "Lib" {
-      objects[index] = refingerprint_test_object({ ..object, exports: [] })
+      objects[index] = refingerprint_test_object({ ..object, exports: [], })
     }
   }
   debug_inspect(
@@ -838,7 +838,7 @@ test "compile module rejects stale interface artifact fingerprint" {
     schema_version: lib_artifact.interface.schema_version,
     module_path_text: lib_artifact.interface.module_path_text,
     interface: lib_artifact.interface.interface,
-    interface_fingerprint: { value: "stale" },
+    interface_fingerprint: { value: "stale", },
     module_fingerprint: lib_artifact.interface.module_fingerprint,
     imported_interface_fingerprints: lib_artifact.interface.imported_interface_fingerprints,
   }
@@ -879,7 +879,7 @@ test "compile module rejects stale interface artifact module fingerprint" {
     module_path_text: lib_artifact.interface.module_path_text,
     interface: lib_artifact.interface.interface,
     interface_fingerprint: lib_artifact.interface.interface_fingerprint,
-    module_fingerprint: { value: "stale" },
+    module_fingerprint: { value: "stale", },
     imported_interface_fingerprints: lib_artifact.interface.imported_interface_fingerprints,
   }
   let compiled = compile_module_with_interfaces_for_test(
@@ -969,7 +969,7 @@ test "link object artifacts rejects stale object fingerprint" {
     exports: object.exports,
     imports: object.imports,
     module_fingerprint: object.module_fingerprint,
-    object_fingerprint: { value: "stale" },
+    object_fingerprint: { value: "stale", },
     imported_interface_fingerprints: object.imported_interface_fingerprints,
   }
   let linked = @artifact.link_module_object_artifacts([damaged])
@@ -1013,7 +1013,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
         entries: module_.object.entries,
         exports: module_.object.exports,
         imports: module_.object.imports,
-        module_fingerprint: { value: "stale" },
+        module_fingerprint: { value: "stale", },
         object_fingerprint: module_.object.object_fingerprint,
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
@@ -1117,7 +1117,7 @@ test "link module artifacts rejects stale imported reference fingerprint" {
           {
             module_path_text: imported.module_path_text,
             name: imported.name,
-            fingerprint: { value: "stale" },
+            fingerprint: { value: "stale", },
             reference: imported.reference,
           }
         },
@@ -1307,7 +1307,7 @@ test "link modules rejects missing compiled artifact import" {
     abort("expected Main module")
   }
   let module_ = artifact_with_imported_interfaces(module_, [
-    { module_path_text: "Missing", fingerprint: { value: "missing" } },
+    { module_path_text: "Missing", fingerprint: { value: "missing", }, },
   ])
   let linked = @artifact.link_module_artifacts({
     schema_version: 3,
@@ -1359,5 +1359,5 @@ fn artifact_with_imported_interfaces(
     ),
     imported_interface_fingerprints: imported,
   }
-  { schema_version: artifact.schema_version, interface, object }
+  { schema_version: artifact.schema_version, interface, object, }
 }

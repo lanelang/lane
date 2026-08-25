@@ -26,9 +26,9 @@ test "simplify ANF atom aliases without reordering calls" {
   let first = metadata.define_value("first", Local, Primitive(I64))
   let second = metadata.define_value("second", Local, Primitive(I64))
   let result = metadata.define_value("result", Local, Primitive(I64))
-  let first_temp = AnfTempId::{ index: 0 }
-  let alias_temp = AnfTempId::{ index: 1 }
-  let call_temp = AnfTempId::{ index: 2 }
+  let first_temp = AnfTempId::{ index: 0, }
+  let alias_temp = AnfTempId::{ index: 1, }
+  let call_temp = AnfTempId::{ index: 2, }
   let program = test_anf_program(metadata, [
     External(function),
     Let(
@@ -87,9 +87,9 @@ test "simplify ANF aliases inside function and match scopes" {
     Value,
     Function([Primitive(I64)], Primitive(I64), Empty),
   )
-  let match_result = AnfTempId::{ index: 0 }
+  let match_result = AnfTempId::{ index: 0, }
   let function = Function({
-    id: { value: 0 },
+    id: { value: 0, },
     source: Some(result),
     parameters: [parameter],
     result_type: Scalar(I64),

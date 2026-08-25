@@ -24,7 +24,7 @@ fn CheckedExpressionSynthesis::with_expectation_match(
   self : CheckedExpressionSynthesis,
   expectation_match : CheckedExpectationMatch,
 ) -> CheckedExpressionCheck {
-  { synthesis: self, expectation_match }
+  { synthesis: self, expectation_match, }
 }
 
 ///|
@@ -58,7 +58,7 @@ priv struct CheckedExpectation {
 
 ///|
 fn checked_expectation(type_ : @types.Type) -> CheckedExpectation {
-  { type_, hidden_type_parameters: [], mismatch_context: OrdinaryMismatch }
+  { type_, hidden_type_parameters: [], mismatch_context: OrdinaryMismatch, }
 }
 
 ///|
@@ -79,7 +79,7 @@ fn CheckedExpectation::with_hidden_type_parameters(
 fn CheckedExpectation::for_else_omitting_conditional(
   self : CheckedExpectation,
 ) -> CheckedExpectation {
-  { ..self, mismatch_context: ElseOmittingConditionalMismatch }
+  { ..self, mismatch_context: ElseOmittingConditionalMismatch, }
 }
 
 ///|
@@ -89,7 +89,7 @@ fn CheckedExpectation::for_numeric_literal(
 ) -> CheckedExpectation {
   match replacement {
     Some(replacement) =>
-      { ..self, mismatch_context: NumericLiteralMismatch(replacement~) }
+      { ..self, mismatch_context: NumericLiteralMismatch(replacement~), }
     None => self
   }
 }
@@ -157,7 +157,7 @@ fn SemanticChecker::report_checked_expectation_mismatch(
         ElseOmittingConditionalRequiresUnit(actual~)
     }
   }
-  self.diagnostics.push({ kind, loc })
+  self.diagnostics.push({ kind, loc, })
 }
 
 ///|
@@ -754,7 +754,7 @@ fn SemanticChecker::check_checked_if(
   let checked_else_branch = self.check_checked_expr_with_expectation(
     scope,
     else_branch,
-    { ..expectation, type_: checked_then_branch.synthesis.type_ },
+    { ..expectation, type_: checked_then_branch.synthesis.type_, },
   )
   guard self.require_checked_expression(
       checked_else_branch.synthesis,
@@ -923,7 +923,7 @@ fn SemanticChecker::check_checked_match(
       checked_scrutinee.type_,
     )
     if !matrix.is_useful(self.declarations, pattern, checked_scrutinee.type_) {
-      self.diagnostics.push({ kind: UnreachableMatchArm, loc: arm.loc })
+      self.diagnostics.push({ kind: UnreachableMatchArm, loc: arm.loc, })
     }
     matrix.add(pattern)
     let opened_type_parameters = pattern.opened_type_parameters()
@@ -944,7 +944,7 @@ fn SemanticChecker::check_checked_match(
       ) {
       Some(body) => {
         effects.push(checked_body.synthesis.effect)
-        checked_arms.push({ pattern, body, loc: arm.loc })
+        checked_arms.push({ pattern, body, loc: arm.loc, })
       }
       None => complete = false
     }
@@ -1004,7 +1004,7 @@ fn SemanticChecker::synthesize_checked_match(
       checked_scrutinee.type_,
     )
     if !matrix.is_useful(self.declarations, pattern, checked_scrutinee.type_) {
-      self.diagnostics.push({ kind: UnreachableMatchArm, loc: arm.loc })
+      self.diagnostics.push({ kind: UnreachableMatchArm, loc: arm.loc, })
     }
     matrix.add(pattern)
     let checked_body = self.synthesize_checked_expr(arm_scope, arm.body)
@@ -1025,13 +1025,13 @@ fn SemanticChecker::synthesize_checked_match(
       self.require_checked_expression(checked_body, arm.body.loc(), "match arm") {
       Some(body) => {
         effects.push(checked_body.effect)
-        checked_arms.push({ pattern, body, loc: arm.loc })
+        checked_arms.push({ pattern, body, loc: arm.loc, })
       }
       None => complete = false
     }
   }
   if !has_result {
-    self.diagnostics.push({ kind: EmptyMatchNeedsExpectedType, loc })
+    self.diagnostics.push({ kind: EmptyMatchNeedsExpectedType, loc, })
   }
   if !matrix.is_exhaustive(self.declarations, checked_scrutinee.type_) {
     self.diagnostics.push({
@@ -1175,7 +1175,7 @@ fn SemanticChecker::synthesize_checked_call_with_expected(
     }
     Error => checked_expression_none_reported(Error)
     type_ => {
-      self.diagnostics.push({ kind: NotCallable(type_), loc })
+      self.diagnostics.push({ kind: NotCallable(type_), loc, })
       checked_expression_none_reported(Error)
     }
   }
@@ -1272,7 +1272,7 @@ fn SemanticChecker::check_checked_call_arguments(
     effects.push(checked.effect)
   }
   if complete {
-    Some({ arguments: checked_arguments, effect: effect_union(effects) })
+    Some({ arguments: checked_arguments, effect: effect_union(effects), })
   } else {
     None
   }
@@ -1288,7 +1288,7 @@ fn SemanticChecker::check_checked_call_argument(
   match argument {
     Positional(value~, ..) => self.check_checked_expr(scope, value, parameter)
     Named(name~, value~, loc~, ..) => {
-      self.diagnostics.push({ kind: InvalidNamedArgument(name~), loc })
+      self.diagnostics.push({ kind: InvalidNamedArgument(name~), loc, })
       self.check_checked_expr(scope, value, parameter)
     }
   }
@@ -1394,7 +1394,7 @@ fn SemanticChecker::check_checked_function_literal(
       MatchesExpectation,
     )
   }
-  let expectation = { ..expectation, type_: expected_type }
+  let expectation = { ..expectation, type_: expected_type, }
   match expected_type {
     Forall(expected_parameters, expected_body) => {
       // Checked forall introduction mirrors the non-building checker:
@@ -1442,7 +1442,7 @@ fn SemanticChecker::check_checked_function_literal(
         return_type,
         effect,
         body,
-        { ..expectation, type_: expected_body.substitute(substitution) },
+        { ..expectation, type_: expected_body.substitute(substitution), },
         loc,
       )
       guard checked.synthesis.expression
@@ -1509,7 +1509,7 @@ fn SemanticChecker::synthesize_checked_value_reference(
     Symbol(symbol) =>
       self.synthesize_checked_symbol_value(scope, symbol, name, loc)
     Unresolved(name) => {
-      self.diagnostics.push({ kind: UnresolvedValue(name), loc })
+      self.diagnostics.push({ kind: UnresolvedValue(name), loc, })
       checked_expression_none(Error)
     }
   }
@@ -1572,7 +1572,7 @@ fn SemanticChecker::synthesize_checked_field(
         Nominal(symbol, _) => {
           guard self.declarations.checked_struct(symbol) is Some(declaration) &&
             declaration.field_named(name) is Some(field_declaration) else {
-            self.diagnostics.push({ kind: UnknownField(name~), loc })
+            self.diagnostics.push({ kind: UnknownField(name~), loc, })
             return checked_expression_none_reported(Error)
           }
           self.checked_field_from_symbol(
@@ -1589,13 +1589,13 @@ fn SemanticChecker::synthesize_checked_field(
           if checked_base.type_ is Error {
             checked_expression_none_reported(Error)
           } else {
-            self.diagnostics.push({ kind: NotAStruct(checked_base.type_), loc })
+            self.diagnostics.push({ kind: NotAStruct(checked_base.type_), loc, })
             checked_expression_none_reported(Error)
           }
         ComputationFailed => checked_expression_none_reported(Error)
       }
     Unresolved(..) => {
-      self.diagnostics.push({ kind: UnknownField(name~), loc })
+      self.diagnostics.push({ kind: UnknownField(name~), loc, })
       checked_expression_none_reported(Error)
     }
   }
@@ -1640,19 +1640,19 @@ fn checked_expression_with_effect(
   type_ : @types.Type,
   effect : @types.Effect,
 ) -> CheckedExpressionSynthesis {
-  { expression: Some(expression), type_, effect, missing_reported: false }
+  { expression: Some(expression), type_, effect, missing_reported: false, }
 }
 
 ///|
 fn checked_expression_none(type_ : @types.Type) -> CheckedExpressionSynthesis {
-  { expression: None, type_, effect: Empty, missing_reported: false }
+  { expression: None, type_, effect: Empty, missing_reported: false, }
 }
 
 ///|
 fn checked_expression_none_reported(
   type_ : @types.Type,
 ) -> CheckedExpressionSynthesis {
-  { expression: None, type_, effect: Empty, missing_reported: true }
+  { expression: None, type_, effect: Empty, missing_reported: true, }
 }
 
 ///|

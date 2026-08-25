@@ -7,7 +7,7 @@ fn FunctionLowerer::fresh_slot(
   if type_ is Erased(_, evidence) {
     return self.fresh_erased_slot(self.layout_witness(evidence), Owned)
   }
-  let slot : @vmcfg.ValueId = { value: self.values.length() }
+  let slot : @vmcfg.ValueId = { value: self.values.length(), }
   self.values.push(self.image.slot_metadata(type_))
   slot
 }
@@ -17,7 +17,7 @@ fn FunctionLowerer::fresh_metadata(
   self : FunctionLowerer,
   metadata : @vmcfg.ValueMetadata,
 ) -> @vmcfg.ValueId {
-  let value : @vmcfg.ValueId = { value: self.values.length() }
+  let value : @vmcfg.ValueId = { value: self.values.length(), }
   self.values.push(metadata)
   value
 }
@@ -227,7 +227,7 @@ fn borrowed_evidence_metadata(
   if metadata.cleanup is Trivial {
     metadata
   } else {
-    { ..metadata, ownership: Borrowed }
+    { ..metadata, ownership: Borrowed, }
   }
 }
 

@@ -64,7 +64,7 @@ fn @bytecodec.ByteReader::read_module_interface_exports(
         export_namespace: self.read_module_interface_export_namespace(),
         declaration_name: self.read_string(),
       },
-      expected_target_fingerprint: { value: self.read_string() },
+      expected_target_fingerprint: { value: self.read_string(), },
     })
   }
   exports
@@ -708,7 +708,7 @@ fn @bytecodec.ByteReader::read_optimization_hints(
 ) -> Array[@module_interface.OptimizationHint] raise {
   let items : Array[@module_interface.OptimizationHint] = []
   for _ in 0..<self.read_u32_le_int() {
-    items.push({ name: self.read_string() })
+    items.push({ name: self.read_string(), })
   }
   items
 }

@@ -19,7 +19,7 @@ fn complete_test_source_inputs(
 test "completion source indexes parser tokens and line positions" {
   let text = "module Main\r\nimport Lib\r\n\r\npub fn answer(seed : I64) -> I64 {\r\n  ans\r\n}"
   let parsed = @module_frontend.parse_module_inputs(
-    { source_id: "file:///Main.lane", text },
+    { source_id: "file:///Main.lane", text, },
     [],
   )
   guard parsed.sources.get(0) is Some(parsed_source) &&
@@ -53,7 +53,7 @@ test "completion source indexes parser tokens and line positions" {
 test "completion source columns count decoded UTF-8 scalar values" {
   let text = "module Main\n// é\npub let answer : I64 = 0"
   let parsed = @module_frontend.parse_module_inputs(
-    { source_id: "file:///Main.lane", text },
+    { source_id: "file:///Main.lane", text, },
     [],
   )
   guard parsed.sources.get(0) is Some(parsed_source) &&

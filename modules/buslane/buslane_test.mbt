@@ -116,7 +116,7 @@ test "verify buslane rejects duplicate metadata name uniques" {
     name: duplicate(operation_info.name),
   }
   debug_inspect(
-    diagnostic_kinds(verify_program({ metadata, terms: [] })),
+    diagnostic_kinds(verify_program({ metadata, terms: [], })),
     content=(
       #|[
       #|  InvalidMetadataIdentity(DuplicateUnique({ value: 1 })),
@@ -139,9 +139,9 @@ test "verify buslane rejects invalid metadata allocator states" {
   debug_inspect(
     [
       diagnostic_kinds(
-        verify_program({ metadata: premature_exhaustion, terms: [] }),
+        verify_program({ metadata: premature_exhaustion, terms: [], }),
       ),
-      diagnostic_kinds(verify_program({ metadata: repeated, terms: [] })),
+      diagnostic_kinds(verify_program({ metadata: repeated, terms: [], })),
     ],
     content=(
       #|[
@@ -163,7 +163,7 @@ test "maximum metadata allocator exhausts without overflow" {
   metadata.name_allocator = Fresh(BuslaneUnique::from_int(0x7FFFFFFF).unwrap())
   let value = metadata.define_value("last", Value, Primitive(Unit))
   assert_eq(metadata.value_info(value).unwrap().name.unique.value, 0x7FFFFFFF)
-  assert_true(verify_program({ metadata, terms: [] }).is_ok())
+  assert_true(verify_program({ metadata, terms: [], }).is_ok())
   let before = metadata.snapshot()
   try metadata.define_value("overflow", Value, Primitive(Unit)) catch {
     MetadataNameExhausted => ()
@@ -182,7 +182,7 @@ test "every metadata definition preserves an exhausted registry" {
     metadata => ignore(metadata.define_type("Type", [])),
     metadata => {
       ignore(
-        metadata.define_data_constructor("constructor", { index: 0 }, [], []),
+        metadata.define_data_constructor("constructor", { index: 0, }, [], []),
       )
     },
     metadata => ignore(metadata.define_effect("Effect", [])),
@@ -190,7 +190,7 @@ test "every metadata definition preserves an exhausted registry" {
       ignore(
         metadata.define_operation(
           "operation",
-          { index: 0 },
+          { index: 0, },
           [],
           [],
           Primitive(Unit),
@@ -575,7 +575,7 @@ test "verify buslane reports malformed effect terms" {
       Function(
         [],
         i64_type(),
-        Union([Singleton({ index: 9 }, []), Parameter(ordinary_parameter)]),
+        Union([Singleton({ index: 9, }, []), Parameter(ordinary_parameter)]),
       ),
     ),
   )
@@ -586,7 +586,7 @@ test "verify buslane reports malformed effect terms" {
       Let(
         result,
         Perform({
-          operation: { index: 8 },
+          operation: { index: 8, },
           effect_arguments: [],
           hidden_witnesses: [],
           payloads: [],
@@ -1660,7 +1660,7 @@ fn capturing_construct_program(
       ),
     )
   }
-  { metadata, terms }
+  { metadata, terms, }
 }
 
 ///|
@@ -1752,7 +1752,7 @@ test "type application that would capture fails verification" {
     Value,
     Forall([x], Forall([y], Function([Parameter(x)], Primitive(Unit), Empty))),
   )
-  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let query = ExpressionFactsQuery::new({ metadata, terms: [], })
   let result = query.synthesize(
     TypeLambda([y], TypeApply(Ref(g), [TypeArgument(Parameter(y))])),
   )
@@ -1774,7 +1774,7 @@ test "construct payload instantiation that would capture fails verification" {
   )
   let con = metadata.define_data_constructor("Con", box, [], [payload_type])
   let payload = metadata.define_value("payload", Value, payload_type)
-  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let query = ExpressionFactsQuery::new({ metadata, terms: [], })
   let result = query.synthesize(
     Construct({
       data_constructor: con,
@@ -1805,7 +1805,7 @@ test "perform instantiation that would capture fails verification" {
       Function([Parameter(element), Parameter(y)], Primitive(Unit), Empty),
     ),
   )
-  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let query = ExpressionFactsQuery::new({ metadata, terms: [], })
   let result = query.synthesize(
     Perform({
       operation: op,
@@ -1861,7 +1861,7 @@ test "handler alternative instantiation that would capture fails verification" {
     Function([Primitive(Unit)], Primitive(Unit), Empty),
   )
   let unit_value = metadata.define_value("unit", Value, Primitive(Unit))
-  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let query = ExpressionFactsQuery::new({ metadata, terms: [], })
   // The alternative reuses the payload's inner binder as its own hidden
   // binder, so instantiating the payload type for the binder check captures.
   let result = query.synthesize(
@@ -1929,7 +1929,7 @@ test "type application enforces an external row variable's flavor" {
     Value,
     Forall([row], Function([], Primitive(Unit), Parameter(row))),
   )
-  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let query = ExpressionFactsQuery::new({ metadata, terms: [], })
   let rejected = query.synthesize(
     TypeApply(Ref(g), [EffectArgument(Singleton(algebraic, []))]),
   )
@@ -2012,14 +2012,14 @@ test "a handler over a purely external row must name its handled effect" {
     Primitive(Unit),
   )
   let unit_value = metadata.define_value("unit", Value, Primitive(Unit))
-  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let query = ExpressionFactsQuery::new({ metadata, terms: [], })
   let handle_over = fn(body : ValueId) {
     Expr::Handle({
       body: Call(Ref(body), []),
       result_binder,
       result_type: Primitive(Unit),
       final_body: Ref(unit_value),
-      handlers: [{ handled_effect: Singleton(algebraic, []), operations: [] }],
+      handlers: [{ handled_effect: Singleton(algebraic, []), operations: [], }],
     })
   }
   // An External row provably lacks the algebraic effect, so handling it there
@@ -2051,7 +2051,7 @@ test "declared types enforce constructor parameter flavors" {
     Value,
     Apply(Constructor(dictionary), [EffectArgument(Singleton(algebraic, []))]),
   )
-  let diagnostics = diagnostic_kinds(verify_program({ metadata, terms: [] }))
+  let diagnostics = diagnostic_kinds(verify_program({ metadata, terms: [], }))
   assert_eq(diagnostics, [
     EffectFlavorMismatch(
       parameter=residual_row,
@@ -2063,7 +2063,7 @@ test "declared types enforce constructor parameter flavors" {
 ///|
 test "binding sites verify binder types in their own scope" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let bogus : TypeParameterId = { index: 9999 }
+  let bogus : TypeParameterId = { index: 9999, }
   let parameter = metadata.define_value("p", Parameter, Parameter(bogus))
   let local_binder = metadata.define_value(
     "f",
@@ -2170,7 +2170,7 @@ test "top-level scope grows term by term" {
   // Both initializers are evaluated where they stand, so neither may reach a
   // binding the interpreter has not established yet.
   assert_eq(
-    diagnostic_kinds(verify_program({ metadata, terms: [Let(a, Ref(a))] })),
+    diagnostic_kinds(verify_program({ metadata, terms: [Let(a, Ref(a))], })),
     [UnknownValue(a)],
   )
   assert_eq(
@@ -2183,7 +2183,7 @@ test "top-level scope grows term by term" {
     [InitializationOrderViolation(initializer=a, dependency=b)],
   )
   assert_eq(
-    verify_program({ metadata, terms: [Let(b, Literal(Unit)), Let(a, Ref(b))] }).diagnostics(),
+    verify_program({ metadata, terms: [Let(b, Literal(Unit)), Let(a, Ref(b))], }).diagnostics(),
     [],
   )
 }
@@ -2227,7 +2227,7 @@ test "a recursive group is in scope for its own right sides" {
     verify_program({
       metadata,
       terms: [
-        LetRec([{ id: ping, rhs: call(pong) }, { id: pong, rhs: call(ping) }]),
+        LetRec([{ id: ping, rhs: call(pong), }, { id: pong, rhs: call(ping), }]),
       ],
     }).diagnostics(),
     [],
@@ -2237,7 +2237,7 @@ test "a recursive group is in scope for its own right sides" {
 ///|
 test "a diagnostic carries the path the verifier took to reach it" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let missing : ValueId = { index: 9999 }
+  let missing : ValueId = { index: 9999, }
   let inner = metadata.define_value("inner", Local, Primitive(I64))
   let main = metadata.define_value(
     "main",
@@ -2275,13 +2275,13 @@ test "a diagnostic carries the path the verifier took to reach it" {
 ///|
 test "metadata diagnostics name the entity under check" {
   let metadata = MetadataRegistry::MetadataRegistry()
-  let missing : TypeParameterId = { index: 9999 }
+  let missing : TypeParameterId = { index: 9999, }
   let owner = metadata.define_type("Box", [])
   let _constructor = metadata.define_data_constructor("Box", owner, [], [
     Parameter(missing),
   ])
   inspect(
-    @prettyprinter.render(verify_program({ metadata, terms: [] }), width=100),
+    @prettyprinter.render(verify_program({ metadata, terms: [], }), width=100),
     content=(
       #|verify_result {
       #|  unknown_type_parameter tparam#9999 at data_constructor "Box"#1 (datacon#0)
@@ -2292,7 +2292,7 @@ test "metadata diagnostics name the entity under check" {
 
 ///|
 test "a top-term anchor without metadata retains its id" {
-  let missing : ValueId = { index: 9999 }
+  let missing : ValueId = { index: 9999, }
   inspect(
     @prettyprinter.render(
       verify_program({
@@ -2318,7 +2318,7 @@ test "a type argument in an effect position is a category mismatch" {
     Value,
     Forall([row], Function([], Primitive(Unit), Parameter(row))),
   )
-  let query = ExpressionFactsQuery::new({ metadata, terms: [] })
+  let query = ExpressionFactsQuery::new({ metadata, terms: [], })
   // Reporting a kind mismatch here would have to name a kind the argument
   // does not have: its kind may well be Effect, and it is still the wrong
   // category of argument.
@@ -2343,7 +2343,7 @@ test "an empty effect union is not an effect" {
     Value,
     Function([], Primitive(Unit), Union([])),
   )
-  assert_eq(diagnostic_kinds(verify_program({ metadata, terms: [] })), [
+  assert_eq(diagnostic_kinds(verify_program({ metadata, terms: [], })), [
     EmptyEffectUnion,
   ])
 }

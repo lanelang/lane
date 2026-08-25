@@ -54,7 +54,7 @@ fn canonicalize_function_table(
   let imports : Array[CanonicalRuntimeImport] = []
   for index, entry in image.functions {
     guard reachable[index] else { continue }
-    let old_id : @bytecode.FunctionId = { value: index + 1 }
+    let old_id : @bytecode.FunctionId = { value: index + 1, }
     match entry {
       Body(body) => {
         let class = equivalence_classes[index]
@@ -67,11 +67,11 @@ fn canonicalize_function_table(
         }
         match existing {
           Some(body_index) => {
-            mappings[index] = Some({ value: body_index + 1 })
+            mappings[index] = Some({ value: body_index + 1, })
             body_old_ids[body_index].push(old_id)
           }
           None => {
-            let new_id : @bytecode.FunctionId = { value: bodies.length() + 1 }
+            let new_id : @bytecode.FunctionId = { value: bodies.length() + 1, }
             mappings[index] = Some(new_id)
             bodies.push(body)
             body_classes.push(class)
@@ -89,7 +89,7 @@ fn canonicalize_function_table(
         }
         match existing {
           Some(import_) => import_.old_ids.push(old_id)
-          None => imports.push({ descriptor, old_ids: [old_id] })
+          None => imports.push({ descriptor, old_ids: [old_id], })
         }
       }
     }
@@ -120,7 +120,7 @@ fn canonicalize_function_table(
     }
   })
   for index, import_ in imports {
-    let new_id : @bytecode.FunctionId = { value: bodies.length() + index + 1 }
+    let new_id : @bytecode.FunctionId = { value: bodies.length() + index + 1, }
     for old_id in import_.old_ids {
       mappings[old_id.value - 1] = Some(new_id)
     }
@@ -176,7 +176,7 @@ fn structural_function_classes(
   for classes = initial {
     let mappings : Array[@bytecode.FunctionId?] = classes.map(class => {
       if class >= 0 {
-        Some(({ value: class + 1 } : @bytecode.FunctionId))
+        Some(({ value: class + 1, } : @bytecode.FunctionId))
       } else {
         None
       }

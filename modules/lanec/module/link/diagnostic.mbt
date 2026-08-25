@@ -84,7 +84,7 @@ fn link_diagnostic(
   kind : LinkDiagnosticKind,
   span : @basic.SourceSpan?,
 ) -> CompilerDiagnostic {
-  let diagnostic : LinkDiagnostic = { kind, span }
+  let diagnostic : LinkDiagnostic = { kind, span, }
   @compiler_diag.ToCompilerDiagnostic::to_compiler_diagnostic(
     diagnostic,
     DiagnosticContext(),

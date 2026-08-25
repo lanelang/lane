@@ -107,7 +107,7 @@ fn UnhandledComputationSchema::fresh_frame(
       schema.context_term_type(term, answer_type, frame_residual),
     )
     context_parameters.push(parameter)
-    bindings.push({ term, value: Ref(parameter) })
+    bindings.push({ term, value: Ref(parameter), })
   }
   let continuation = schema.metadata.define_cps_value(
     "%unhandled_continuation",
@@ -204,8 +204,8 @@ fn build_relay_bindings(
             unhandled.residual_effect,
           ),
         )
-        bindings.push({ term, value: Ref(id) })
-        initializers.push({ id, value })
+        bindings.push({ term, value: Ref(id), })
+        initializers.push({ id, value, })
       }
       Parameter(_) =>
         bindings.push({
@@ -215,7 +215,7 @@ fn build_relay_bindings(
       Empty | Union(_) => abort("canonical unhandled effect term expected")
     }
   }
-  { bindings, initializers }
+  { bindings, initializers, }
 }
 
 ///|

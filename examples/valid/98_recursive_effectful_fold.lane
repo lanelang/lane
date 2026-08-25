@@ -1,0 +1,31 @@
+module Examples.Valid.RecursiveEffectfulFold
+
+import Basic.Data.I64.*
+import Basic.Conv.I64.{ i64_impl_debug }
+import Basic.Ops.*
+import Test.Assert.{ Assert, assert_equal, assert_true, execute_all_tests }
+
+fn[R, E : Effect] fold(remaining : I64, accumulator : R, step : (R, I64) -> R ! E) -> R ! E {
+  if remaining == 0 {
+    accumulator
+  } else {
+    fold(remaining - 1, step(accumulator, remaining), step)
+  }
+}
+
+fn test_fold() -> Unit ! Assert {
+  offer source_info : String = "test_fold"
+  let result = fold(
+    3,
+    0,
+    fn(accumulator, value) {
+      assert_true(true)
+      accumulator + value
+    }
+  )
+  assert_equal(result, 6)
+}
+
+pub fn answer() -> Unit ! Io {
+  execute_all_tests([test_fold])
+}

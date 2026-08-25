@@ -2,14 +2,14 @@
 test "Wasm module text exposes sections and structured instructions" {
   let module_ = {
     ..@wasm_types.Module::empty(),
-    types: [@wasm_types.SubType::from_func({ params: [], results: [] })],
+    types: [@wasm_types.SubType::from_func({ params: [], results: [], })],
     type_rec_groups: [0],
     funcs: [0],
     tables: [
       {
         type_: {
           elem_type: FuncRef,
-          limits: { min: 1L, max: Some(1L) },
+          limits: { min: 1L, max: Some(1L), },
           is_table64: false,
         },
         init: Some([RefNull(FuncRef)]),
@@ -17,20 +17,20 @@ test "Wasm module text exposes sections and structured instructions" {
     ],
     memories: [
       {
-        limits: { min: 1L, max: Some(2L) },
+        limits: { min: 1L, max: Some(2L), },
         is_memory64: false,
         page_size_log2: 16,
       },
     ],
     globals: [
-      { type_: { value_type: I32, mutable: true }, init: [I32Const(0)] },
+      { type_: { value_type: I32, mutable: true, }, init: [I32Const(0)], },
     ],
     exports: [
-      { name: "run", desc: Func(0) },
-      { name: "memory", desc: Memory(0) },
+      { name: "run", desc: Func(0), },
+      { name: "memory", desc: Memory(0), },
     ],
     elems: [
-      { mode: Active(0, [I32Const(0)]), type_: FuncRef, init: [[RefFunc(0)]] },
+      { mode: Active(0, [I32Const(0)]), type_: FuncRef, init: [[RefFunc(0)]], },
     ],
     codes: [
       {
@@ -40,8 +40,8 @@ test "Wasm module text exposes sections and structured instructions" {
         ],
       },
     ],
-    datas: [{ memory_idx: 0, offset: [I32Const(0)], init: b"Lane" }],
-    tags: [{ type_idx: 0 }],
+    datas: [{ memory_idx: 0, offset: [I32Const(0)], init: b"Lane", }],
+    tags: [{ type_idx: 0, }],
   }
   inspect(
     module_to_wat(module_),

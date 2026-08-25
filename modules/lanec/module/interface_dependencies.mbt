@@ -22,7 +22,7 @@ pub(all) struct InterfaceDependencySymbols {
 pub fn ModuleInterface::dependency_symbols(
   self : ModuleInterface,
 ) -> InterfaceDependencySymbols {
-  let symbols = { types: [], effects: [] }
+  let symbols = { types: [], effects: [], }
   for type_ in self.types {
     collect_nominal_dependencies(type_, symbols)
   }
@@ -93,7 +93,7 @@ fn push_unique_path(
 pub fn ModuleInterfaceType::dependency_symbols(
   self : ModuleInterfaceType,
 ) -> InterfaceDependencySymbols {
-  let symbols = { types: [], effects: [] }
+  let symbols = { types: [], effects: [], }
   collect_nominal_dependencies(self, symbols)
   symbols
 }
@@ -102,7 +102,7 @@ pub fn ModuleInterfaceType::dependency_symbols(
 pub fn ModuleInterfaceDeclaration::dependency_symbols(
   self : ModuleInterfaceDeclaration,
 ) -> InterfaceDependencySymbols {
-  let symbols = { types: [], effects: [] }
+  let symbols = { types: [], effects: [], }
   match self {
     NominalType(type_) => collect_nominal_dependencies(type_, symbols)
     TypeAlias(alias_) =>

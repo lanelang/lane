@@ -8,7 +8,7 @@ fn SemanticChecker::check_hidden_type_escape(
   // Existential opening is scoped to the pattern arm/body. A synthesized result
   // type must not mention any hidden type parameter opened by that pattern.
   if type_.mentions_any_type_parameter(opened) {
-    self.diagnostics.push({ kind: HiddenTypeEscape(type_~), loc })
+    self.diagnostics.push({ kind: HiddenTypeEscape(type_~), loc, })
     true
   } else {
     false

@@ -284,7 +284,7 @@ fn ImageLowerer::lower_layout_constructor(
     image: self,
     function: Some(plan.function),
     values: [],
-    blocks: [{ parameters: [], instructions: [], terminator: None }],
+    blocks: [{ parameters: [], instructions: [], terminator: None, }],
     current_block: 0,
     bindings: [],
     temps: [],
@@ -298,7 +298,7 @@ fn ImageLowerer::lower_layout_constructor(
   for parameter in plan.parameters {
     let evidence = lowerer.fresh_metadata(runtime_evidence_metadata(parameter))
     evidence_parameters.push(evidence)
-    lowerer.witnesses.push({ parameter: parameter.id, value: evidence })
+    lowerer.witnesses.push({ parameter: parameter.id, value: evidence, })
   }
   if plan.environment_shape is Some(shape) {
     let environment = lowerer.fresh_metadata(environment_metadata(shape))
@@ -314,7 +314,7 @@ fn ImageLowerer::lower_layout_constructor(
           witness_destination: None,
         }),
       )
-      lowerer.witnesses.push({ parameter: parameter.id, value: evidence })
+      lowerer.witnesses.push({ parameter: parameter.id, value: evidence, })
     }
   }
   let result = lowerer.layout_witness(plan.body)

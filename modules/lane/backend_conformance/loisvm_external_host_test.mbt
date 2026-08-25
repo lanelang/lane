@@ -33,7 +33,7 @@ fn external_counter_registry(
         }
         finalized.val += 1
       }),
-      invoke=fn(_context, _arguments) { { value: 0L, closed: false } },
+      invoke=fn(_context, _arguments) { { value: 0L, closed: false, } },
     ),
   )
   registry.register(
@@ -105,7 +105,7 @@ fn run_external_counter_interpreter(
     Err(error) => fail("LoisVM interpreter load failed: \{Repr(error)}")
   }
   let result = loaded.new_instance().execute()
-  { result, observed, closed: closed.val, finalized: finalized.val }
+  { result, observed, closed: closed.val, finalized: finalized.val, }
 }
 
 ///|
@@ -128,7 +128,7 @@ fn run_external_counter_wasm(
     Err(error) => fail("LoisVM Wasm instantiation failed: \{Repr(error)}")
   }
   let result = instance.execute()
-  { result, observed, closed: closed.val, finalized: finalized.val }
+  { result, observed, closed: closed.val, finalized: finalized.val, }
 }
 
 ///|

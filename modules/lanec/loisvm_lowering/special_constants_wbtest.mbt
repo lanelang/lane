@@ -43,19 +43,19 @@ test "special float intrinsics use deterministic IEEE bit patterns" {
   assert_true(
     image.globals
     is [
-      { value: { index: 0 }, lowered: FloatConstant(2139095040, Scalar(F32)) },
-      { value: { index: 1 }, lowered: FloatConstant(-8388608, Scalar(F32)) },
-      { value: { index: 2 }, lowered: FloatConstant(2143289344, Scalar(F32)) },
+      { value: { index: 0, }, lowered: FloatConstant(2139095040, Scalar(F32)), },
+      { value: { index: 1, }, lowered: FloatConstant(-8388608, Scalar(F32)), },
+      { value: { index: 2, }, lowered: FloatConstant(2143289344, Scalar(F32)), },
       {
-        value: { index: 3 },
+        value: { index: 3, },
         lowered: DoubleConstant(9218868437227405312L, Scalar(F64)),
       },
       {
-        value: { index: 4 },
+        value: { index: 4, },
         lowered: DoubleConstant(-4503599627370496L, Scalar(F64)),
       },
       {
-        value: { index: 5 },
+        value: { index: 5, },
         lowered: DoubleConstant(9221120237041090560L, Scalar(F64)),
       },
     ],

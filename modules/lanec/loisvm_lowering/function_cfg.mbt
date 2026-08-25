@@ -25,7 +25,7 @@ fn ImageLowerer::lower_function_body(
     image: self,
     function: Some(lowered_function),
     values: [],
-    blocks: [{ parameters: [], instructions: [], terminator: None }],
+    blocks: [{ parameters: [], instructions: [], terminator: None, }],
     current_block: 0,
     bindings: [],
     temps: [],
@@ -40,7 +40,7 @@ fn ImageLowerer::lower_function_body(
     if self.requires_runtime_evidence(parameter) {
       let witness = lowerer.fresh_metadata(runtime_evidence_metadata(parameter))
       input_witnesses.push(witness)
-      lowerer.witnesses.push({ parameter: parameter.id, value: witness })
+      lowerer.witnesses.push({ parameter: parameter.id, value: witness, })
     }
   }
   if capture.environment_shape is Some(shape) {
@@ -58,7 +58,7 @@ fn ImageLowerer::lower_function_body(
           witness_destination: None,
         }),
       )
-      lowerer.witnesses.push({ parameter: parameter.id, value: evidence })
+      lowerer.witnesses.push({ parameter: parameter.id, value: evidence, })
       if evidence_plan.source != parameter.id {
         lowerer.witnesses.push({
           parameter: evidence_plan.source,
@@ -160,7 +160,7 @@ fn ImageLowerer::lower_function_body(
         if slot is Some(slot) {
           parameter_slots.push(slot)
         }
-        lowerer.bindings.push({ value: parameter, lowered })
+        lowerer.bindings.push({ value: parameter, lowered, })
       }
     }
   }
@@ -360,8 +360,8 @@ fn FunctionLowerer::new_block(
   self : FunctionLowerer,
   parameters : Array[@vmcfg.ValueId],
 ) -> @bytecode.BlockId {
-  let block : @bytecode.BlockId = { value: self.blocks.length() }
-  self.blocks.push({ parameters, instructions: [], terminator: None })
+  let block : @bytecode.BlockId = { value: self.blocks.length(), }
+  self.blocks.push({ parameters, instructions: [], terminator: None, })
   block
 }
 

@@ -19,14 +19,14 @@ priv struct ExploreFunctionGraphBuilder {
 
 ///|
 fn ExploreFunctionGraphBuilder::new() -> ExploreFunctionGraphBuilder {
-  { names: [], nodes: [], edges: [] }
+  { names: [], nodes: [], edges: [], }
 }
 
 ///|
 fn ExploreFunctionGraphBuilder::finish(
   self : ExploreFunctionGraphBuilder,
 ) -> ExploreFunctionGraph {
-  { nodes: self.nodes, edges: self.edges }
+  { nodes: self.nodes, edges: self.edges, }
 }
 
 ///|
@@ -65,7 +65,7 @@ fn ExploreFunctionGraphBuilder::observe_anf(
   }
   for function in functions {
     self.nodes.push({
-      function: { stage: Anf, index: function.function.value },
+      function: { stage: Anf, index: function.function.value, },
       roles: [self.source_role(function.source)],
     })
   }
@@ -86,12 +86,12 @@ fn ExploreFunctionGraphBuilder::observe_vmcfg(
       roles.push(self.loisvm_role(origin))
       if origin.anf_function() is Some(anf_function) {
         self.edges.push({
-          source: { stage: Anf, index: anf_function.value },
+          source: { stage: Anf, index: anf_function.value, },
           target,
         })
       }
     }
-    self.nodes.push({ function: target, roles })
+    self.nodes.push({ function: target, roles, })
   }
 }
 
@@ -103,12 +103,12 @@ fn ExploreFunctionGraphBuilder::observe_bytecode(
   for function in functions {
     let index = function.function.value
     self.nodes.push({
-      function: { stage: LoisvmBytecode, index },
+      function: { stage: LoisvmBytecode, index, },
       roles: function.origins.map(origin => self.loisvm_role(origin)),
     })
     self.edges.push({
-      source: { stage: VmcfgInitial, index },
-      target: { stage: LoisvmBytecode, index },
+      source: { stage: VmcfgInitial, index, },
+      target: { stage: LoisvmBytecode, index, },
     })
   }
 }
@@ -161,11 +161,11 @@ fn ExploreFunctionGraphBuilder::observe_wasm(
   functions : Array[@wasm_compiler.WasmFunctionProvenance],
 ) -> Unit {
   for function in functions {
-    let target : ExploreFunctionRef = { stage: Wasm, index: function.index }
-    self.nodes.push({ function: target, roles: [wasm_role(function.origin)] })
+    let target : ExploreFunctionRef = { stage: Wasm, index: function.index, }
+    self.nodes.push({ function: target, roles: [wasm_role(function.origin)], })
     if function.origin.bytecode_function() is Some(bytecode_function) {
       self.edges.push({
-        source: { stage: LoisvmBytecode, index: bytecode_function.value },
+        source: { stage: LoisvmBytecode, index: bytecode_function.value, },
         target,
       })
     }

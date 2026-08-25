@@ -1,12 +1,12 @@
 ///|
 test "module references roundtrip every closed variant" {
   let references : Array[@buslane_lowering.BuslaneModuleReference] = [
-    Type({ index: 1 }),
-    DataConstructor({ index: 2 }),
-    Effect({ index: 3 }),
-    Operation({ index: 4 }),
-    FieldSelector({ index: 5 }),
-    Value({ index: 6 }),
+    Type({ index: 1, }),
+    DataConstructor({ index: 2, }),
+    Effect({ index: 3, }),
+    Operation({ index: 4, }),
+    FieldSelector({ index: 5, }),
+    Value({ index: 6, }),
   ]
   let writer = @bytecodec.ByteWriter::new()
   for reference in references {

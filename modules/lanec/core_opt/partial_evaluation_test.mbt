@@ -31,7 +31,7 @@ test "core optimizer partially evaluates a known nonrecursive call" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -99,7 +99,7 @@ test "core optimizer partially evaluates a known generic call" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -197,12 +197,16 @@ test "core optimizer preserves distinct effects with different binder kinds" {
       ),
       Let(
         main,
-        Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Literal(Unit),
+        }),
       ),
     ],
   }
   let before = @buslane.verify_program(program)
-  guard optimize({ program, entry: main, roots: [value] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [value], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -310,7 +314,7 @@ test "core optimizer devirtualizes a known dictionary projection" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -366,7 +370,7 @@ test "core optimizer does not unfold a recursive call through an alias" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -428,7 +432,11 @@ test "core optimizer keeps a known call when contextual expansion is not profita
       External(observe),
       Let(
         helper,
-        Function({ parameters: [helper_parameter], result_type: i64_type, body }),
+        Function({
+          parameters: [helper_parameter],
+          result_type: i64_type,
+          body,
+        }),
       ),
       Let(
         main,
@@ -440,7 +448,7 @@ test "core optimizer keeps a known call when contextual expansion is not profita
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [helper] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [helper], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -507,7 +515,7 @@ test "core optimizer does not unfold a mutually recursive SCC" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -607,7 +615,7 @@ test "core optimizer preserves an escaping callable while specializing its direc
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [holder] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [holder], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -727,7 +735,7 @@ test "core optimizer eliminates a single-use call with a dynamic projection" {
       ),
     ],
   }
-  guard optimize({ program, entry: consumer, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: consumer, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -880,7 +888,7 @@ test "core optimizer materializes a top-level dictionary before devirtualizing i
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(

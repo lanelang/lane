@@ -10,7 +10,7 @@ fn wasm_global_slot(
   },
   erased_companion? : @bytecode.SlotId? = None,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup, kind, erased_companion }
+  { representation, cleanup, kind, erased_companion, }
 }
 
 ///|
@@ -20,9 +20,9 @@ fn wasm_global_body(
 ) -> @bytecode.FunctionBody {
   {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions, terminator: Return(None) }],
+    blocks: [{ parameters: [], instructions, terminator: Return(None), }],
   }
 }
 
@@ -45,23 +45,23 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
     ),
   )
   let initializer = wasm_global_body([wasm_global_slot(I64)], [
-    ConstI64({ value: 0 }, 42L),
-    InitGlobal({ value: 0 }, { value: 0 }),
+    ConstI64({ value: 0, }, 42L),
+    InitGlobal({ value: 0, }, { value: 0, }),
   ])
   let entry = wasm_global_body([wasm_global_slot(I64)], [
-    BorrowGlobal({ value: 0 }, { value: 0 }),
-    CallDirect({ value: 3 }, None, [], [{ value: 0 }], None),
+    BorrowGlobal({ value: 0, }, { value: 0, }),
+    CallDirect({ value: 3, }, None, [], [{ value: 0, }], None),
   ])
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 2 },
-    initializer: Some({ value: 1 }),
+    entry: { value: 2, },
+    initializer: Some({ value: 1, }),
     data_family_count: 0,
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [
-          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+          { representation: I64, cleanup: Trivial, kind: ScalarValue, },
         ],
         result: Unit,
       },
@@ -142,13 +142,13 @@ test "Wasm initializer and entry share one runtime context" {
     ),
   )
   let call_import = wasm_global_body([], [
-    CallDirect({ value: 3 }, None, [], [], None),
+    CallDirect({ value: 3, }, None, [], [], None),
   ])
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 2 },
-    initializer: Some({ value: 1 }),
+    entry: { value: 2, },
+    initializer: Some({ value: 1, }),
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     functions: [
       BytecodeBody(call_import),
       BytecodeBody(call_import),
@@ -214,38 +214,38 @@ fn wasm_lifecycle_initializer() -> @bytecode.FunctionBody {
       wasm_global_slot(
         I32,
         cleanup=OwnedRef,
-        kind=EnvironmentValue({ value: 0 }),
+        kind=EnvironmentValue({ value: 0, }),
       ),
       wasm_global_slot(I64, cleanup=OwnedCallable),
       wasm_global_slot(I32, kind=LayoutValue),
       wasm_global_slot(
         I64,
         cleanup=OwnedErased,
-        erased_companion=Some({ value: 5 }),
+        erased_companion=Some({ value: 5, }),
       ),
       wasm_global_slot(I64),
     ],
     [
-      ConstI64({ value: 7 }, 42L),
-      InitGlobal({ value: 0 }, { value: 7 }),
-      ConstString({ value: 0 }, { value: 0 }),
-      ConstString({ value: 1 }, { value: 1 }),
-      ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-      InitGlobal({ value: 1 }, { value: 2 }),
-      ConstString({ value: 0 }, { value: 0 }),
-      ConstString({ value: 1 }, { value: 1 }),
-      ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-      MakeEnv({ value: 3 }, { value: 0 }, Immediate({ value: 2 }), [], [
-        { value: 2 },
+      ConstI64({ value: 7, }, 42L),
+      InitGlobal({ value: 0, }, { value: 7, }),
+      ConstString({ value: 0, }, { value: 0, }),
+      ConstString({ value: 1, }, { value: 1, }),
+      ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+      InitGlobal({ value: 1, }, { value: 2, }),
+      ConstString({ value: 0, }, { value: 0, }),
+      ConstString({ value: 1, }, { value: 1, }),
+      ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+      MakeEnv({ value: 3, }, { value: 0, }, Immediate({ value: 2, }), [], [
+        { value: 2, },
       ]),
-      MakeClosure({ value: 4 }, { value: 3 }, { value: 3 }),
-      InitGlobal({ value: 2 }, { value: 4 }),
-      ConstString({ value: 0 }, { value: 0 }),
-      ConstString({ value: 1 }, { value: 1 }),
-      ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-      ConstLayout({ value: 5 }, { value: 1 }),
-      EraseI32({ value: 6 }, { value: 2 }),
-      InitGlobal({ value: 4 }, { value: 6 }),
+      MakeClosure({ value: 4, }, { value: 3, }, { value: 3, }),
+      InitGlobal({ value: 2, }, { value: 4, }),
+      ConstString({ value: 0, }, { value: 0, }),
+      ConstString({ value: 1, }, { value: 1, }),
+      ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+      ConstLayout({ value: 5, }, { value: 1, }),
+      EraseI32({ value: 6, }, { value: 2, }),
+      InitGlobal({ value: 4, }, { value: 6, }),
     ],
   )
 }
@@ -261,14 +261,14 @@ fn wasm_lifecycle_entry() -> @bytecode.FunctionBody {
       wasm_global_slot(
         I64,
         cleanup=OwnedErased,
-        erased_companion=Some({ value: 3 }),
+        erased_companion=Some({ value: 3, }),
       ),
     ],
     [
-      BorrowGlobal({ value: 0 }, { value: 0 }),
-      BorrowGlobal({ value: 1 }, { value: 1 }),
-      BorrowGlobal({ value: 2 }, { value: 2 }),
-      BorrowGlobal({ value: 4 }, { value: 4 }),
+      BorrowGlobal({ value: 0, }, { value: 0, }),
+      BorrowGlobal({ value: 1, }, { value: 1, }),
+      BorrowGlobal({ value: 2, }, { value: 2, }),
+      BorrowGlobal({ value: 4, }, { value: 4, }),
     ],
   )
 }
@@ -280,11 +280,11 @@ fn wasm_lifecycle_closure_body() -> @bytecode.FunctionBody {
       wasm_global_slot(
         I32,
         cleanup=OwnedRef,
-        kind=EnvironmentValue({ value: 0 }),
+        kind=EnvironmentValue({ value: 0, }),
       ),
     ],
     inputs: {
-      environment: Some({ value: 0 }),
+      environment: Some({ value: 0, }),
       witnesses: [],
       user_parameters: [],
     },
@@ -292,7 +292,7 @@ fn wasm_lifecycle_closure_body() -> @bytecode.FunctionBody {
     blocks: [
       {
         parameters: [],
-        instructions: [Release({ value: 0 })],
+        instructions: [Release({ value: 0, })],
         terminator: Return(None),
       },
     ],
@@ -302,10 +302,10 @@ fn wasm_lifecycle_closure_body() -> @bytecode.FunctionBody {
 ///|
 fn wasm_lifecycle_image() -> @bytecode.BytecodeImage {
   {
-    entry: { value: 2 },
-    initializer: Some({ value: 1 }),
+    entry: { value: 2, },
+    initializer: Some({ value: 1, }),
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     functions: [
       BytecodeBody(wasm_lifecycle_initializer()),
       BytecodeBody(wasm_lifecycle_entry()),
@@ -346,10 +346,10 @@ fn wasm_lifecycle_image() -> @bytecode.BytecodeImage {
         representation: I64,
         cleanup: OwnedErased,
         kind: ErasedValue,
-        erased_companion: Some({ value: 3 }),
+        erased_companion: Some({ value: 3, }),
       },
     ],
-    layouts: [ByteSequence, Environment({ value: 0 })],
+    layouts: [ByteSequence, Environment({ value: 0, })],
     object_shapes: [
       Environment({
         stored_witness_count: 0,
@@ -432,7 +432,7 @@ test "Wasm entry failures clean initialized global roots" {
     fail("expected bytecode entry")
   }
   entry.blocks[0].instructions.push(
-    CallDirect({ value: 4 }, None, [], [], None),
+    CallDirect({ value: 4, }, None, [], [], None),
   )
   let instance = wasm_global_instance(image)
   assert_eq(
@@ -450,10 +450,10 @@ test "Wasm reports invalid instance-global initialization" {
   let trivial_i64 = wasm_global_slot(I64)
   let make_image = fn(initializer, entry) -> @bytecode.BytecodeImage {
     {
-      entry: { value: 2 },
-      initializer: Some({ value: 1 }),
+      entry: { value: 2, },
+      initializer: Some({ value: 1, }),
       data_family_count: 0,
-      callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+      callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
       functions: [BytecodeBody(initializer), BytecodeBody(entry)],
       globals: [
         {
@@ -470,9 +470,9 @@ test "Wasm reports invalid instance-global initialization" {
   }
   let duplicate = make_image(
     wasm_global_body([trivial_i64], [
-      ConstI64({ value: 0 }, 1L),
-      InitGlobal({ value: 0 }, { value: 0 }),
-      InitGlobal({ value: 0 }, { value: 0 }),
+      ConstI64({ value: 0, }, 1L),
+      InitGlobal({ value: 0, }, { value: 0, }),
+      InitGlobal({ value: 0, }, { value: 0, }),
     ]),
     wasm_global_body([], []),
   )
@@ -481,7 +481,7 @@ test "Wasm reports invalid instance-global initialization" {
     wasm_global_body([], []),
   )
   let premature_read = make_image(
-    wasm_global_body([trivial_i64], [BorrowGlobal({ value: 0 }, { value: 0 })]),
+    wasm_global_body([trivial_i64], [BorrowGlobal({ value: 0, }, { value: 0, })]),
     wasm_global_body([], []),
   )
   for image in [duplicate, incomplete, premature_read] {
@@ -498,8 +498,8 @@ fn wasm_linear_global_image(count : Int) -> @bytecode.BytecodeImage {
   let instructions : Array[@bytecode.Instruction] = []
   let globals : Array[@bytecode.GlobalMetadata] = []
   for index in 0..<count {
-    instructions.push(ConstFunction({ value: index }, { value: 2 }))
-    instructions.push(InitGlobal({ value: index }, { value: index }))
+    instructions.push(ConstFunction({ value: index, }, { value: 2, }))
+    instructions.push(InitGlobal({ value: index, }, { value: index, }))
     globals.push({
       representation: I64,
       cleanup: OwnedCallable,
@@ -508,10 +508,10 @@ fn wasm_linear_global_image(count : Int) -> @bytecode.BytecodeImage {
     })
   }
   {
-    entry: { value: 2 },
-    initializer: Some({ value: 1 }),
+    entry: { value: 2, },
+    initializer: Some({ value: 1, }),
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     functions: [
       BytecodeBody(wasm_global_body(slots, instructions)),
       BytecodeBody(wasm_global_body([], [])),

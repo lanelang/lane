@@ -3,7 +3,7 @@ fn executable_test_entry(
   name : String,
   value : @buslane.ValueId,
 ) -> @buslane_lowering.BuslaneEntry {
-  { module_path_text: "Main", name, value }
+  { module_path_text: "Main", name, value, }
 }
 
 ///|
@@ -11,7 +11,7 @@ fn pure_function(
   result_type : @buslane.Type,
   body : @buslane.Expr,
 ) -> @buslane.Expr {
-  Function({ parameters: [], result_type, body })
+  Function({ parameters: [], result_type, body, })
 }
 
 ///|
@@ -32,7 +32,7 @@ test "whole-program elaboration preserves the selected entry" {
         Let(second, pure_function(unit_type, Literal(Unit))),
       ],
     },
-    externals: { builtins: [], runtime_imports: [] },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [first_entry, second_entry],
   }
   guard elaborate(linked, second_entry, test_execution_profile())
@@ -89,7 +89,7 @@ test "whole-program elaboration records ordered reachable initializer roots" {
         {
           value: observe,
           symbol: "observe",
-          signature: { parameters: [I64], result: Unit },
+          signature: { parameters: [I64], result: Unit, },
         },
       ],
     },
@@ -136,7 +136,7 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
         {
           value: println,
           symbol: "println",
-          signature: { parameters: [String], result: Unit },
+          signature: { parameters: [String], result: Unit, },
         },
       ],
     },
@@ -188,7 +188,7 @@ test "whole-program elaboration accepts a closed external effect entry" {
       metadata,
       terms: [Let(main, pure_function(unit_type, Literal(Unit)))],
     },
-    externals: { builtins: [], runtime_imports: [] },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [entry],
   }
   guard elaborate(linked, entry, test_execution_profile()) is Ok(executable) else {
@@ -244,7 +244,7 @@ test "whole-program elaboration rejects unverified effect specialization before 
         Let(main, pure_function(unit_type, Call(Ref(consume), [Ref(invalid)]))),
       ],
     },
-    externals: { builtins: [], runtime_imports: [] },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [entry],
   }
   let observed = []
@@ -308,7 +308,7 @@ test "whole-program elaboration rejects an algebraic entry effect" {
         ),
       ],
     },
-    externals: { builtins: [], runtime_imports: [] },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [entry],
   }
   debug_inspect(
@@ -369,7 +369,7 @@ test "whole-program elaboration identifies specialization metadata defects" {
         ]),
       ],
     },
-    externals: { builtins: [], runtime_imports: [] },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [entry],
   }
   guard elaborate(linked, entry, test_execution_profile())
@@ -418,7 +418,7 @@ fn elaborate_entry_with_effect(
           ),
         ],
       },
-      externals: { builtins: [], runtime_imports: [] },
+      externals: { builtins: [], runtime_imports: [], },
       entries: [entry],
     },
     entry,

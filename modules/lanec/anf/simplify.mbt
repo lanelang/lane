@@ -6,7 +6,7 @@ priv struct AnfRewriteScope {
 
 ///|
 fn simplify_anf_program(program : AnfProgram) -> AnfProgram {
-  let scope : AnfRewriteScope = { values: [], temps: [] }
+  let scope : AnfRewriteScope = { values: [], temps: [], }
   {
     metadata: program.metadata,
     terms: program.terms.map(fn(term) { simplify_top_term(term, scope) }),
@@ -52,7 +52,7 @@ fn simplify_expr(expr : AnfExpr, scope : AnfRewriteScope) -> AnfExpr {
       })
       LetRec(
         bindings.map(fn(binding) {
-          { id: binding.id, rhs: simplify_atom(binding.rhs, body_scope) }
+          { id: binding.id, rhs: simplify_atom(binding.rhs, body_scope), }
         }),
         simplify_expr(body, body_scope),
       )
@@ -194,12 +194,12 @@ fn AnfRewriteScope::with_binding(
     Value(id~, ..) => {
       let values = self.values.copy()
       values.push((id, atom))
-      { values, temps: self.temps }
+      { values, temps: self.temps, }
     }
     Temp(temp~, ..) => {
       let temps = self.temps.copy()
       temps.push((temp, atom))
-      { values: self.values, temps }
+      { values: self.values, temps, }
     }
   }
 }
@@ -220,7 +220,10 @@ fn AnfRewriteScope::without_value(
   self : AnfRewriteScope,
   id : @buslane.ValueId,
 ) -> AnfRewriteScope {
-  { values: self.values.filter(fn(entry) { entry.0 != id }), temps: self.temps }
+  {
+    values: self.values.filter(fn(entry) { entry.0 != id }),
+    temps: self.temps,
+  }
 }
 
 ///|

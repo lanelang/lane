@@ -9,7 +9,7 @@ fn import_test_slot(
     Trivial => ScalarValue
   },
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup, kind, erased_companion: None }
+  { representation, cleanup, kind, erased_companion: None, }
 }
 
 ///|
@@ -20,9 +20,9 @@ fn import_test_body(
 ) -> @bytecode.FunctionBody {
   {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions, terminator }],
+    blocks: [{ parameters: [], instructions, terminator, }],
   }
 }
 
@@ -34,14 +34,14 @@ fn import_test_image(
   constants? : Array[Bytes] = [],
 ) -> @bytecode.BytecodeImage {
   let callable_abis : Array[@bytecode.CallableAbi] = [
-    { witnesses: [], parameters: [], result: Unit },
+    { witnesses: [], parameters: [], result: Unit, },
   ]
   let import_abi = import_.callable_abi()
   if !callable_abis.contains(import_abi) {
     callable_abis.push(import_abi)
   }
   {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     callable_abis,
     data_family_count: 0,
@@ -89,8 +89,8 @@ test "JIT and interpreter modes execute the same scalar import" {
       ),
     )
     let body = import_test_body([import_test_slot(I64)], [
-      ConstI64({ value: 0 }, 42L),
-      CallDirect({ value: 2 }, None, [], [{ value: 0 }], None),
+      ConstI64({ value: 0, }, 42L),
+      CallDirect({ value: 2, }, None, [], [{ value: 0, }], None),
     ])
     let instance = loaded_instance(
       import_test_image(body, {
@@ -123,8 +123,8 @@ test "registry-backed scalar import uses its generated adapter" {
     ),
   )
   let body = import_test_body([import_test_slot(I64), import_test_slot(I64)], [
-    ConstI64({ value: 0 }, 41L),
-    CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
+    ConstI64({ value: 0, }, 41L),
+    CallDirect({ value: 2, }, None, [], [{ value: 0, }], Some({ value: 1, })),
   ])
   let instance = loaded_instance(
     import_test_image(body, {
@@ -157,7 +157,9 @@ test "Wasm adapters synthesize logical Unit runtime arguments" {
       },
     ),
   )
-  let body = import_test_body([], [CallDirect({ value: 2 }, None, [], [], None)])
+  let body = import_test_body([], [
+    CallDirect({ value: 2, }, None, [], [], None),
+  ])
   let instance = loaded_instance(
     import_test_image(body, {
       abi_major: 1,
@@ -210,28 +212,28 @@ test "String import transports multibyte UTF-8 and embedded NUL" {
       import_test_slot(I32, cleanup=OwnedRef),
     ],
     [
-      ConstString({ value: 0 }, { value: 0 }),
-      CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
-      CallDirect({ value: 3 }, None, [], [{ value: 1 }], None),
+      ConstString({ value: 0, }, { value: 0, }),
+      CallDirect({ value: 2, }, None, [], [{ value: 0, }], Some({ value: 1, })),
+      CallDirect({ value: 3, }, None, [], [{ value: 1, }], None),
     ],
   )
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [
-          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, },
         ],
         result: Value(I32, OwnedRef, ByteSequenceValue),
       },
       {
         witnesses: [],
         parameters: [
-          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, },
         ],
         result: Unit,
       },
@@ -276,7 +278,9 @@ test "runtime import failure is reported out of band" {
       invoke=(_context, _arguments) => raise Failure(message="boom"),
     ),
   )
-  let body = import_test_body([], [CallDirect({ value: 2 }, None, [], [], None)])
+  let body = import_test_body([], [
+    CallDirect({ value: 2, }, None, [], [], None),
+  ])
   let instance = loaded_instance(
     import_test_image(body, {
       abi_major: 1,
@@ -311,10 +315,10 @@ test "failing String import releases its transferred argument" {
       import_test_slot(I32, cleanup=OwnedRef),
     ],
     [
-      ConstString({ value: 0 }, { value: 0 }),
-      ConstString({ value: 1 }, { value: 1 }),
-      ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-      CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
+      ConstString({ value: 0, }, { value: 0, }),
+      ConstString({ value: 1, }, { value: 1, }),
+      ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+      CallDirect({ value: 2, }, None, [], [{ value: 2, }], None),
     ],
   )
   let instance = loaded_instance(
@@ -360,11 +364,11 @@ test "fatal import unwinding releases owners retained by the caller frame" {
       import_test_slot(I32, cleanup=OwnedRef),
     ],
     [
-      ConstString({ value: 0 }, { value: 0 }),
-      ConstString({ value: 1 }, { value: 1 }),
-      ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-      CallDirect({ value: 2 }, None, [], [], None),
-      Release({ value: 2 }),
+      ConstString({ value: 0, }, { value: 0, }),
+      ConstString({ value: 1, }, { value: 1, }),
+      ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+      CallDirect({ value: 2, }, None, [], [], None),
+      Release({ value: 2, }),
     ],
   )
   let instance = loaded_instance(
@@ -409,8 +413,8 @@ test "invalid host String results become runtime import failures" {
     ),
   )
   let body = import_test_body([import_test_slot(I32, cleanup=OwnedRef)], [
-    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-    Release({ value: 0 }),
+    CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+    Release({ value: 0, }),
   ])
   let image = import_test_image(
     body,
@@ -449,8 +453,8 @@ test "host String allocation preserves live heap resource failures" {
     ),
   )
   let body = import_test_body([import_test_slot(I32, cleanup=OwnedRef)], [
-    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-    Release({ value: 0 }),
+    CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+    Release({ value: 0, }),
   ])
   let loaded = match
     load(

@@ -111,7 +111,7 @@ fn collect_field_projections(
       selected_source == source else {
       break
     }
-    selections.push({ member_index, result })
+    selections.push({ member_index, result, })
     index += 1
   }
   (index, selections)
@@ -133,7 +133,7 @@ fn collect_capture_projections(
       selected_source == source else {
       break
     }
-    selections.push({ member_index, result })
+    selections.push({ member_index, result, })
     index += 1
   }
   (index, selections)
@@ -288,7 +288,7 @@ fn mark_projection_results_owned(
     let destination = selection.result.value_destination
     let metadata = values[destination.value]
     if metadata.ownership is Borrowed {
-      values[destination.value] = { ..metadata, ownership: Owned }
+      values[destination.value] = { ..metadata, ownership: Owned, }
     }
   }
 }

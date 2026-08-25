@@ -70,7 +70,7 @@ test "reachable local effect-generic functions specialize in lexical scope" {
     body is Let(captured_target, Literal(Unit), nested) &&
     nested
     is LetRec(
-      [{ id: target, rhs: Function({ body: Ref(captured_reference), .. }) }],
+      [{ id: target, rhs: Function({ body: Ref(captured_reference), .. }), }],
       Call(Ref(callee), [])
     ) else {
     abort("expected one lexical concrete specialization")
@@ -277,7 +277,7 @@ test "unreachable bare references do not retain effect-polymorphic definitions" 
             ),
           }),
         },
-        { id: dead, rhs: Ref(generic) },
+        { id: dead, rhs: Ref(generic), },
       ]),
     ],
   }

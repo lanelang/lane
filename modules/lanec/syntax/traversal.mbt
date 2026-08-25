@@ -102,7 +102,7 @@ fn CallArgument::for_each_child_expr(
 /// Returns the first authored `derive` expression location, including
 /// expressions nested inside declarations.
 pub fn SourceFile::first_derive_loc(self : SourceFile) -> SourceSpan? {
-  let found : Ref[SourceSpan?] = { val: None }
+  let found : Ref[SourceSpan?] = { val: None, }
   fn visit(expression : Expr, found : Ref[SourceSpan?]) -> Unit {
     if found.val is Some(_) {
       return

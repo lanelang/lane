@@ -14,15 +14,15 @@ test "Wasm compilation records every function at its emission boundary" {
   }
   let body : @bytecode.FunctionBody = {
     slots: [f32_slot, string_slot],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          ConstF32({ value: 0 }, 0),
-          F32ToString({ value: 1 }, { value: 0 }),
-          Release({ value: 1 }),
+          ConstF32({ value: 0, }, 0),
+          F32ToString({ value: 1, }, { value: 0, }),
+          Release({ value: 1, }),
         ],
         terminator: Return(None),
       },
@@ -35,14 +35,14 @@ test "Wasm compilation records every function at its emission boundary" {
     symbol: "lane.test.observe",
   }
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
     functions: [BytecodeBody(body), RuntimeImport(import_)],
     globals: [],
     layouts: [ByteSequence],
-    object_shapes: [Environment({ stored_witness_count: 0, members: [] })],
+    object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
     constants: [],
   }
   let observed = match compile_observed(image) {

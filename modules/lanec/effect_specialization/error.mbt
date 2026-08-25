@@ -30,7 +30,12 @@ fn specialization_error_context(
   source? : SpecializationSource,
   specialization_key? : Array[EffectSpecializationBinding],
 ) -> SpecializationErrorContext {
-  { detail, site, source, specialization_key: specialization_key.unwrap_or([]) }
+  {
+    detail,
+    site,
+    source,
+    specialization_key: specialization_key.unwrap_or([]),
+  }
 }
 
 ///|
@@ -39,7 +44,7 @@ fn SpecializationErrorContext::at_planner_visit(
   site : SpecializationDefinitionSite,
   specialization_key : Array[EffectSpecializationBinding],
 ) -> SpecializationErrorContext {
-  { ..self, site: Some(site), specialization_key: specialization_key.copy() }
+  { ..self, site: Some(site), specialization_key: specialization_key.copy(), }
 }
 
 ///|

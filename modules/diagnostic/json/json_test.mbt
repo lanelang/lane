@@ -1,6 +1,6 @@
 ///|
 test "diagnostic exports structured json" {
-  let source = @core.SourceId::{ value: 7 }
+  let source = @core.SourceId::{ value: 7, }
   let span = @core.SourceSpan::{
     source_id: source,
     start_offset: 2,
@@ -15,7 +15,7 @@ test "diagnostic exports structured json" {
     suggestions=[
       {
         message: "replace text",
-        edits: [{ span, replacement: "Builtins" }],
+        edits: [{ span, replacement: "Builtins", }],
         applicability: MaybeIncorrect,
       },
     ],

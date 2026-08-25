@@ -10,7 +10,7 @@ test "semantic hover preserves F32 identity" {
     #|  value
     #|}
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
     ])
     is Some(snapshot) else {
     fail("expected semantic snapshot")

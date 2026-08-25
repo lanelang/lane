@@ -33,7 +33,7 @@ fn apply_devirtualization(
     match entry {
       Body(body) => {
         let selected = match
-          direct_environment_plan(plans, { value: index + 1 }) {
+          direct_environment_plan(plans, { value: index + 1, }) {
           Some(plan) => plan.body
           None => body
         }
@@ -89,7 +89,7 @@ fn build_direct_environment_plans(
   let plans = []
   for index, candidate in candidates {
     guard !candidate.invalid && candidate.shape is Some(shape) else { continue }
-    let target : @bytecode.FunctionId = { value: index + 1 }
+    let target : @bytecode.FunctionId = { value: index + 1, }
     if build_direct_environment_plan(image, target, shape) is Some(plan) {
       plans.push(plan)
     }
@@ -217,9 +217,9 @@ fn record_callable_candidate(
   fact : CallableFlowFact,
 ) -> Unit {
   match fact {
-    KnownCallables([{ target, environment: LocalEnvironment(environment) }]) =>
+    KnownCallables([{ target, environment: LocalEnvironment(environment), }]) =>
       record_environment_candidate(candidates, target, facts[environment.value])
-    KnownCallables([{ target, environment: CaptureFree | PackedEnvironment }]) =>
+    KnownCallables([{ target, environment: CaptureFree | PackedEnvironment, }]) =>
       invalidate_environment_candidate(candidates, target)
     KnownCallables(alternatives) | Unknown(alternatives) =>
       for alternative in alternatives {
@@ -409,9 +409,11 @@ fn devirtualize_instruction(
   match instruction {
     CallValue(callable, witnesses, arguments, destination) =>
       match facts[callable.value] {
-        KnownCallables([{ target, environment: CaptureFree }]) =>
+        KnownCallables([{ target, environment: CaptureFree, }]) =>
           CallDirect(target, None, witnesses, arguments, destination)
-        KnownCallables([{ target, environment: LocalEnvironment(environment) }]) =>
+        KnownCallables(
+          [{ target, environment: LocalEnvironment(environment), }]
+        ) =>
           materialize_direct_call(
             target, environment, witnesses, arguments, destination, facts, plans,
           )
@@ -464,9 +466,11 @@ fn devirtualize_terminator(
   match terminator {
     TailCallValue(callable, witnesses, arguments) =>
       match facts[callable.value] {
-        KnownCallables([{ target, environment: CaptureFree }]) =>
+        KnownCallables([{ target, environment: CaptureFree, }]) =>
           TailCallDirect(target, None, witnesses, arguments)
-        KnownCallables([{ target, environment: LocalEnvironment(environment) }]) =>
+        KnownCallables(
+          [{ target, environment: LocalEnvironment(environment), }]
+        ) =>
           materialize_direct_tail_call(
             target, environment, witnesses, arguments, facts, plans,
           )

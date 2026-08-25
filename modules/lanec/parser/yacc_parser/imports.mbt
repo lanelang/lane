@@ -159,14 +159,14 @@ fn NominalTypeName::extended(
   let module_path : ModulePath = match self.module_path {
     // A bare name has no earlier path whose span to carry forward, so the
     // extension's own span stands for it.
-    None => { components: [self.name], loc }
+    None => { components: [self.name], loc, }
     Some(path) => {
       let components = path.components.copy()
       components.push(self.name)
-      { components, loc: self.loc }
+      { components, loc: self.loc, }
     }
   }
-  { module_path: Some(module_path), name, loc }
+  { module_path: Some(module_path), name, loc, }
 }
 
 ///|
@@ -288,7 +288,7 @@ fn local_let_item(
         initializer,
         loc,
       })
-    _ => PatternLet({ pattern, type_annotation, initializer, loc })
+    _ => PatternLet({ pattern, type_annotation, initializer, loc, })
   }
 }
 

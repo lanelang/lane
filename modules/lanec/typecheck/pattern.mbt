@@ -42,7 +42,7 @@ priv struct PatternMatrix {
 
 ///|
 fn PatternMatrix::PatternMatrix() -> PatternMatrix {
-  { rows: [], computation_error: None }
+  { rows: [], computation_error: None, }
 }
 
 ///|
@@ -199,13 +199,13 @@ fn SemanticChecker::refutable_pattern_let_site(
 ) -> RefutablePatternLetSite? {
   match pattern {
     Wildcard(..) | Binding(..) => None
-    Literal(type_~, loc~, ..) => Some({ type_, loc })
+    Literal(type_~, loc~, ..) => Some({ type_, loc, })
     Struct(fields~, ..) => self.refutable_struct_pattern_let_site(fields)
     Variant(symbol~, arguments~, type_~, loc~, ..) =>
       if self.variant_pattern_is_irrefutable(symbol) {
         self.refutable_variant_payload_pattern_let_site(arguments)
       } else {
-        Some({ type_, loc })
+        Some({ type_, loc, })
       }
   }
 }
@@ -654,7 +654,7 @@ fn SemanticChecker::check_struct_pattern(
         seen[name] = loc
       }
       if declaration.field_named(name) is None {
-        self.diagnostics.push({ kind: UnknownField(name~), loc })
+        self.diagnostics.push({ kind: UnknownField(name~), loc, })
       }
     }
   }
@@ -783,7 +783,7 @@ fn SemanticChecker::check_struct_pattern_type_binder_names(
         seen[name] = loc
       }
       if declaration.type_member_named(name) is None {
-        self.diagnostics.push({ kind: UnknownTypeMember(name~), loc })
+        self.diagnostics.push({ kind: UnknownTypeMember(name~), loc, })
       }
     }
   }
@@ -923,10 +923,11 @@ fn coverage_candidates(
     Error => []
     Primitive(Bool) =>
       [
-        { pattern: Literal(Bool(false), type_), witness: WitnessBool(false) },
-        { pattern: Literal(Bool(true), type_), witness: WitnessBool(true) },
+        { pattern: Literal(Bool(false), type_), witness: WitnessBool(false), },
+        { pattern: Literal(Bool(true), type_), witness: WitnessBool(true), },
       ]
-    Primitive(Unit) => [{ pattern: Literal(Unit, type_), witness: WitnessUnit }]
+    Primitive(Unit) =>
+      [{ pattern: Literal(Unit, type_), witness: WitnessUnit, }]
     _ =>
       match type_.decompose_nominal() {
         Some((symbol, arguments)) =>
@@ -1011,7 +1012,7 @@ fn coverage_candidate_rows(
   depth : Int,
 ) -> Array[CoverageCandidateRow] raise @types.TypeComputationError {
   if types.is_empty() {
-    return [{ patterns: [], witnesses: [] }]
+    return [{ patterns: [], witnesses: [], }]
   }
   let head_type = types[0]
   let tail_types = type_tail(types)
@@ -1022,7 +1023,7 @@ fn coverage_candidate_rows(
       patterns.append(tail.patterns)
       let witnesses = [head.witness]
       witnesses.append(tail.witnesses)
-      rows.push({ patterns, witnesses })
+      rows.push({ patterns, witnesses, })
     }
   }
   rows
@@ -1030,7 +1031,7 @@ fn coverage_candidate_rows(
 
 ///|
 fn coverage_wildcard_candidate(type_ : @types.Type) -> CoverageCandidate {
-  { pattern: Any(type_), witness: Any }
+  { pattern: Any(type_), witness: Any, }
 }
 
 ///|
@@ -1170,10 +1171,10 @@ fn complete_constructor_signatures(
   match type_ {
     Primitive(Bool) =>
       Some([
-        { tag: BoolConstructor(false), argument_types: [] },
-        { tag: BoolConstructor(true), argument_types: [] },
+        { tag: BoolConstructor(false), argument_types: [], },
+        { tag: BoolConstructor(true), argument_types: [], },
       ])
-    Primitive(Unit) => Some([{ tag: UnitConstructor, argument_types: [] }])
+    Primitive(Unit) => Some([{ tag: UnitConstructor, argument_types: [], }])
     Error
     | Primitive(I64)
     | Primitive(I32)
@@ -1222,19 +1223,21 @@ fn constructor_signature_for_pattern(
     Any(_) => None
     Literal(literal, _) =>
       match literal {
-        Bool(value) => Some({ tag: BoolConstructor(value), argument_types: [] })
+        Bool(value) =>
+          Some({ tag: BoolConstructor(value), argument_types: [], })
         I64(value) =>
-          Some({ tag: I64Constructor(value.value), argument_types: [] })
+          Some({ tag: I64Constructor(value.value), argument_types: [], })
         I32(value) =>
-          Some({ tag: I32Constructor(value.value), argument_types: [] })
-        Char(value) => Some({ tag: CharConstructor(value), argument_types: [] })
+          Some({ tag: I32Constructor(value.value), argument_types: [], })
+        Char(value) =>
+          Some({ tag: CharConstructor(value), argument_types: [], })
         F32(value) =>
-          Some({ tag: F32Constructor(value.value), argument_types: [] })
+          Some({ tag: F32Constructor(value.value), argument_types: [], })
         F64(value) =>
-          Some({ tag: F64Constructor(value.value), argument_types: [] })
+          Some({ tag: F64Constructor(value.value), argument_types: [], })
         String(value) =>
-          Some({ tag: StringConstructor(value), argument_types: [] })
-        Unit => Some({ tag: UnitConstructor, argument_types: [] })
+          Some({ tag: StringConstructor(value), argument_types: [], })
+        Unit => Some({ tag: UnitConstructor, argument_types: [], })
       }
     Variant(symbol, arguments, _) =>
       Some({

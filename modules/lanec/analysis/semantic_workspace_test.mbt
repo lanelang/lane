@@ -13,7 +13,7 @@ test "struct sequencing temporaries stay outside the semantic index" {
     #|  Pair::{ second: true, first: 1 }
     #|}
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
     ])
     is Some(snapshot) else {
     abort("expected semantic snapshot")
@@ -49,7 +49,7 @@ test "semantic snapshot composes right-nested operator inlays inner first" {
     #|
     #|pub let answer : I64 = 1 + 2 * 3
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
     ])
     is Some(snapshot) else {
     abort("expected semantic snapshot")
@@ -88,8 +88,8 @@ test "semantic snapshot queries use persistent source indexes" {
     #|  dependent
     #|}
   guard workspace.replace_sources([
-      { source_id: "file:///A.lane", text: source_a },
-      { source_id: "file:///B.lane", text: source_b },
+      { source_id: "file:///A.lane", text: source_a, },
+      { source_id: "file:///B.lane", text: source_b, },
     ])
     is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -155,8 +155,8 @@ test "local hover uses nominal tuple presentation" {
     #|  tuple(A, B)
     #|}
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: main },
-      { source_id: "file:///Tuple.lane", text: tuple },
+      { source_id: "file:///Main.lane", text: main, },
+      { source_id: "file:///Tuple.lane", text: tuple, },
     ])
     is Some(snapshot) else {
     abort("expected semantic snapshot")

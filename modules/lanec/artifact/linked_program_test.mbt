@@ -2,14 +2,14 @@
 fn minimal_loisvm_image() -> @loisvm_bytecode.BytecodeImage {
   let body : @loisvm_bytecode.FunctionBody = {
     slots: [],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+    blocks: [{ parameters: [], instructions: [], terminator: Return(None), }],
   }
   {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
     functions: [BytecodeBody(body)],
     globals: [],
@@ -49,7 +49,7 @@ test "linked program contains only current LoisVM bytecode" {
 
 ///|
 test "linked program persistence rejects invalid bytecode" {
-  let invalid = { ..minimal_loisvm_image(), entry: { value: 2 } }
+  let invalid = { ..minimal_loisvm_image(), entry: { value: 2, }, }
   let expected = Err(
     @loisvm_bytecode.BytecodeVerificationError::InvalidBytecode(
       site=Image,
@@ -57,7 +57,7 @@ test "linked program persistence rejects invalid bytecode" {
     ),
   )
   assert_eq(loisvm_linked_program_to_binary(invalid), expected)
-  assert_eq(linked_program_artifact_to_binary({ bytecode: invalid }), expected)
+  assert_eq(linked_program_artifact_to_binary({ bytecode: invalid, }), expected)
 }
 
 ///|
@@ -149,7 +149,7 @@ test "linked executable lowers through the LoisVM boundary" {
         ),
       ],
     },
-    externals: { builtins: [], runtime_imports: [] },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [entry],
   }
   let executable = match
@@ -163,7 +163,7 @@ test "linked executable lowers through the LoisVM boundary" {
   }
   assert_true(
     lower_executable_to_loisvm_bytecode(executable)
-    is Ok({ entry: { value: 1 }, functions: [BytecodeBody(_)], .. }),
+    is Ok({ entry: { value: 1, }, functions: [BytecodeBody(_)], .. }),
   )
 }
 
@@ -208,12 +208,12 @@ test "linked program roundtrips and inspects instance globals" {
         {
           value: produce,
           symbol: "lane.test.produce",
-          signature: { parameters: [], result: String },
+          signature: { parameters: [], result: String, },
         },
         {
           value: consume,
           symbol: "lane.test.consume",
-          signature: { parameters: [String], result: Unit },
+          signature: { parameters: [String], result: Unit, },
         },
       ],
     },
@@ -235,7 +235,7 @@ test "linked program roundtrips and inspects instance globals" {
   guard parse_loisvm_linked_program_binary(binary) is Ok(image) else {
     fail("linked program did not roundtrip")
   }
-  assert_eq(image.initializer, Some({ value: 3 }))
+  assert_eq(image.initializer, Some({ value: 3, }))
   assert_eq(image.globals, [
     {
       representation: I32,

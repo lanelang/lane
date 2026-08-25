@@ -1311,12 +1311,12 @@ fn empty_generic_argument_inference() -> GenericArgumentInference {
 ///|
 test "generic effect occurs-check sees latent effects in type arguments" {
   let parameter : @types.TypeParameter = {
-    id: { index: 0 },
+    id: { index: 0, },
     name: "E",
     kind: Effect,
   }
   let candidate : @types.GenericArgument = EffectArgument(
-    Singleton({ index: 0 }, [
+    Singleton({ index: 0, }, [
       TypeArgument(Function([], Primitive(Unit), Parameter(parameter.id))),
     ]),
   )
@@ -1332,7 +1332,7 @@ test "generic effect occurs-check sees latent effects in type arguments" {
 ///|
 test "generic inference records an effect lower bound atomically" {
   let parameter : @types.TypeParameter = {
-    id: { index: 0 },
+    id: { index: 0, },
     name: "E",
     kind: Effect,
   }
@@ -1416,7 +1416,7 @@ test "generic inference reports a missing failure reason as internal" {
         kind: InternalTypecheckFailure(
           label="generic argument inference failed without a recorded reason while inferring call generic arguments"
         ),
-        ..,
+        ..
       },
     ] else {
     abort(@prettyprinter.render(checker.diagnostics, width=100))

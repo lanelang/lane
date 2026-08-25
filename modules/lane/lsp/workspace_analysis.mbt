@@ -46,7 +46,7 @@ fn LspWorkspaceAnalysis::LspWorkspaceAnalysis(
   workspace_root : String?,
   documents : Map[String, DocumentSnapshot],
 ) -> LspWorkspaceAnalysis {
-  { workspace_root, documents }
+  { workspace_root, documents, }
 }
 
 ///|
@@ -70,7 +70,10 @@ fn LspWorkspaceAnalysis::update_document(
   document : DocumentSnapshot,
 ) -> Array[DiagnosticPublication] {
   let previous_revision = workspace.revision()
-  guard workspace.upsert_source({ source_id: document.uri, text: document.text })
+  guard workspace.upsert_source({
+      source_id: document.uri,
+      text: document.text,
+    })
     is Some(snapshot) else {
     return []
   }
@@ -148,7 +151,7 @@ async fn LspWorkspaceAnalysis::analysis_sources(
         scan_issues: libraries.issues,
       }
     }
-    None => { root: root_input, libraries: [], scan_issues: [] }
+    None => { root: root_input, libraries: [], scan_issues: [], }
   }
 }
 
@@ -170,7 +173,7 @@ async fn LspWorkspaceAnalysis::workspace_sources(
   sources.sort_by(fn(left, right) {
     String::compare(left.source_id, right.source_id)
   })
-  { sources, issues }
+  { sources, issues, }
 }
 
 ///|
@@ -186,7 +189,7 @@ async fn LspWorkspaceAnalysis::open_document_library_sources(
     if path.has_suffix(".lane") &&
       path_is_under_workspace(path, root) &&
       library_identities.add_and_check(identity) {
-      sources.push({ source_id: document.uri, text: document.text })
+      sources.push({ source_id: document.uri, text: document.text, })
     }
   }
   sources
@@ -220,7 +223,7 @@ async fn append_lane_sources(
       if is_workspace_root {
         raise WorkspaceRootReadFailed(path~)
       } else {
-        issues.push({ operation: ReadDirectory, path })
+        issues.push({ operation: ReadDirectory, path, })
         return
       }
   }
@@ -231,7 +234,7 @@ async fn append_lane_sources(
     let child = "\{path}/\{entry}"
     let kind = @fs.kind(child) catch {
       _ => {
-        issues.push({ operation: InspectEntry, path: child })
+        issues.push({ operation: InspectEntry, path: child, })
         continue
       }
     }
@@ -251,12 +254,12 @@ async fn append_lane_sources(
         }
         let text = @fs.read_file(child).text() catch {
           _ => {
-            issues.push({ operation: ReadSource, path: child })
+            issues.push({ operation: ReadSource, path: child, })
             continue
           }
         }
         if library_identities.add_and_check(identity) {
-          sources.push({ source_id: path_to_file_uri(child), text })
+          sources.push({ source_id: path_to_file_uri(child), text, })
         }
       }
       _ => ()

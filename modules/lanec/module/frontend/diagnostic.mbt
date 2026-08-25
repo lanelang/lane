@@ -86,7 +86,7 @@ fn module_frontend_diagnostic(
   kind : ModuleFrontendDiagnosticKind,
   span : @basic.SourceSpan?,
 ) -> CompilerDiagnostic {
-  let diagnostic : ModuleFrontendDiagnostic = { kind, span }
+  let diagnostic : ModuleFrontendDiagnostic = { kind, span, }
   @compiler_diag.ToCompilerDiagnostic::to_compiler_diagnostic(
     diagnostic,
     DiagnosticContext(),
@@ -98,7 +98,7 @@ pub fn ModuleDependencyFailure::duplicate_module(
   module_path_text : String,
   provenance : ModuleDependencyProvenance,
 ) -> ModuleDependencyFailure {
-  { kind: DuplicateModuleInput(module_path_text), provenance }
+  { kind: DuplicateModuleInput(module_path_text), provenance, }
 }
 
 ///|
@@ -123,7 +123,7 @@ pub fn ModuleDependencyFailure::import_cycle(
   module_path_text : String,
   provenance : ModuleDependencyProvenance,
 ) -> ModuleDependencyFailure {
-  { kind: ImportCycle(module_path_text), provenance }
+  { kind: ImportCycle(module_path_text), provenance, }
 }
 
 ///|

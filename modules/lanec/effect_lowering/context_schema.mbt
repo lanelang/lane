@@ -169,7 +169,7 @@ fn define_dictionary_header(
     info.name.occurrence + "%dictionary",
     parameters + [answer_parameter, residual_parameter],
   )
-  { effect, type_id, answer_parameter, residual_parameter }
+  { effect, type_id, answer_parameter, residual_parameter, }
 }
 
 ///|
@@ -678,7 +678,7 @@ fn DictionaryCpsSchema::context_pack(
       parameters.map(parameter => Parameter(parameter)),
     ),
   )
-  let pack = ContextPackSchema::{ arity, type_id }
+  let pack = ContextPackSchema::{ arity, type_id, }
   self.context_packs.push(pack)
   pack
 }

@@ -86,7 +86,14 @@ fn typecheck_declarations_with_imported_environment(
     }
   }
   {
-    declarations: { types, type_members, fields, variants, effects, operations },
+    declarations: {
+      types,
+      type_members,
+      fields,
+      variants,
+      effects,
+      operations,
+    },
     diagnostics: checker.diagnostics,
   }
 }
@@ -711,13 +718,13 @@ fn TypeExpressionChecker::synthesize_type(
   // kind. Type application is general: the callee may be any type-level
   // expression whose kind is [K_i...] -> K.
   match type_ {
-    Primitive(primitive, ..) => { type_: Primitive(primitive), kind: Type }
+    Primitive(primitive, ..) => { type_: Primitive(primitive), kind: Type, }
     Constructor(symbol~, ..) => {
       let kind = self.type_constructor_kind(symbol)
       if kind is Function(parameter_kinds, _) && parameter_kinds.is_empty() {
-        { type_: Constructor(symbol), kind: Type }
+        { type_: Constructor(symbol), kind: Type, }
       } else {
-        { type_: Constructor(symbol), kind }
+        { type_: Constructor(symbol), kind, }
       }
     }
     Alias(owner_module_path~, name~, loc~, ..) =>
@@ -772,7 +779,7 @@ fn TypeExpressionChecker::synthesize_type(
             ),
             loc,
           })
-          { type_: Error, kind: Type }
+          { type_: Error, kind: Type, }
         }
       }
     }
@@ -800,9 +807,9 @@ fn TypeExpressionChecker::synthesize_type(
           ),
           loc: resolved_type_loc(type_),
         })
-        return { type_: Error, kind: Type }
+        return { type_: Error, kind: Type, }
       }
-      { type_: Parameter(symbol), kind }
+      { type_: Parameter(symbol), kind, }
     }
     Function(type_parameters~, parameters~, result~, effect~, ..) => {
       let checked_type_parameters = check_type_parameters(
@@ -819,17 +826,17 @@ fn TypeExpressionChecker::synthesize_type(
         checked_parameters, checked_result, checked_effect,
       )
       if checked_type_parameters.is_empty() {
-        { type_: function_type, kind: Type }
+        { type_: function_type, kind: Type, }
       } else {
-        { type_: Forall(checked_type_parameters, function_type), kind: Type }
+        { type_: Forall(checked_type_parameters, function_type), kind: Type, }
       }
     }
     Unresolved(name~, arguments~, loc~) => {
       for argument in arguments {
         ignore(self.check_generic_argument(Type, argument))
       }
-      self.diagnostics.push({ kind: UnresolvedType(name), loc })
-      { type_: Error, kind: Type }
+      self.diagnostics.push({ kind: UnresolvedType(name), loc, })
+      { type_: Error, kind: Type, }
     }
   }
 }
@@ -940,7 +947,7 @@ fn TypeExpressionChecker::expand_alias(
       kind: TypeAliasCycle(name=name.display_text()),
       loc,
     })
-    return { type_: Error, kind: Type }
+    return { type_: Error, kind: Type, }
   }
   let local_alias = match owner_module_path {
     None => self.find_alias(name.local_name())
@@ -963,7 +970,7 @@ fn TypeExpressionChecker::expand_alias(
             kind: KindMismatch(expected=Type, actual=Effect),
             loc,
           })
-          { type_: Error, kind: Type }
+          { type_: Error, kind: Type, }
         }
       }
     }
@@ -971,13 +978,13 @@ fn TypeExpressionChecker::expand_alias(
       match self.find_interface_alias(owner_module_path, name) {
         Some(type_alias) =>
           match type_alias.body {
-            TypeBody(body) => { type_: body, kind: type_alias.kind }
+            TypeBody(body) => { type_: body, kind: type_alias.kind, }
             EffectBody(_) => {
               self.diagnostics.push({
                 kind: KindMismatch(expected=Type, actual=type_alias.kind),
                 loc,
               })
-              { type_: Error, kind: Type }
+              { type_: Error, kind: Type, }
             }
           }
         None => {
@@ -985,7 +992,7 @@ fn TypeExpressionChecker::expand_alias(
             kind: UnresolvedType(name.display_text()),
             loc,
           })
-          { type_: Error, kind: Type }
+          { type_: Error, kind: Type, }
         }
       }
   }
@@ -1207,5 +1214,5 @@ fn checked_type_parameter_with_kind(
   parameter : @resolve.ResolvedTypeParameter,
   kind : @types.Kind,
 ) -> @types.TypeParameter {
-  { id: parameter.symbol, name: parameter.name, kind }
+  { id: parameter.symbol, name: parameter.name, kind, }
 }

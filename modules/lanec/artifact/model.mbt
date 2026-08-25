@@ -85,7 +85,7 @@ pub fn link_module_object_artifacts(
   objects : Array[ModuleObjectArtifact],
 ) -> @module_link.LinkResult {
   match link_modules_from_object_artifacts(objects) {
-    Err(diagnostics) => { program: None, diagnostics }
+    Err(diagnostics) => { program: None, diagnostics, }
     Ok(modules) => @module_link.link_modules(modules)
   }
 }
@@ -97,7 +97,7 @@ pub fn link_module_artifacts(
   artifact : CompiledModuleSetArtifact,
 ) -> @module_link.LinkResult {
   match artifact.validate_schema() {
-    Some(diagnostic) => { program: None, diagnostics: [diagnostic] }
+    Some(diagnostic) => { program: None, diagnostics: [diagnostic], }
     None =>
       @module_link.link_reachable_modules(
         artifact.modules.map(CompiledModuleArtifact::to_link_object),
@@ -265,7 +265,7 @@ fn ModuleObjectArtifact::to_link_object(
     interface: None,
     interface_fingerprint: self.interface_fingerprint,
     canonical_basic_abi: self.canonical_basic_abi,
-    program: { metadata: self.metadata, terms: self.terms },
+    program: { metadata: self.metadata, terms: self.terms, },
     externals: self.externals,
     entries: self.entries,
     exports: self.exports,
@@ -280,5 +280,5 @@ fn ModuleObjectArtifact::to_link_object(
 fn CompiledModuleArtifact::to_link_object(
   self : CompiledModuleArtifact,
 ) -> @module_link.LinkModuleObject {
-  { ..self.object.to_link_object(), interface: Some(self.interface.interface) }
+  { ..self.object.to_link_object(), interface: Some(self.interface.interface), }
 }

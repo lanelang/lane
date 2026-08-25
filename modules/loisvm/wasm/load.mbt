@@ -73,7 +73,7 @@ pub fn load(
           }
         Interpreter => Interpreter
       }
-      Ok({ wasm_module, imports, backend })
+      Ok({ wasm_module, imports, backend, })
     }
     Err(InvalidBytecode(error)) => Err(InvalidBytecode(error))
     Err(error) => Err(BackendCompileFailure(detail=Repr(error).to_string()))
@@ -115,7 +115,7 @@ fn LoadedImage::new_instance_or_raise(
 ) -> ExecutionInstance raise @wasmoon_runtime.RuntimeError {
   let store = @wasmoon_runtime.Store::Store()
   let imports = @wasmoon_runtime.Imports::Imports()
-  let failure : RuntimeFailureState = { error: None }
+  let failure : RuntimeFailureState = { error: None, }
   let runtime = @loisvm_runtime.ExecutionRuntime::new(config~)
   let host_objects = WasmHostObjects::new(runtime)
   let runtime_context = runtime.context()
@@ -224,7 +224,7 @@ fn LoadedImage::new_instance_or_raise(
   store
   .get_global(instance.global_addrs[@compiler.max_call_depth_global()])
   .set(I32(encode_execution_limit(config.max_call_depth)))
-  { store, instance, backend: Interpreter, failure, host_objects, ready: true }
+  { store, instance, backend: Interpreter, failure, host_objects, ready: true, }
 }
 
 ///|

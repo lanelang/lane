@@ -5,42 +5,42 @@ test "F32 arithmetic and conversions agree across interpreter and Wasm backends"
   let i64 = wasm_bytes_trivial_slot(I64)
   let f64 = wasm_bytes_trivial_slot(F64)
   let edge = fn(target : Int) -> @bytecode.Edge {
-    { target: { value: target }, arguments: [] }
+    { target: { value: target, }, arguments: [], }
   }
   let body = wasm_bytes_body([f32, f32, f32, i32, i64, i64, f64, f64], [
     {
       parameters: [],
       instructions: [
-        ConstF32({ value: 0 }, Float::from_double(1.5).reinterpret_as_int()),
-        ConstF32({ value: 1 }, Float::from_double(2.25).reinterpret_as_int()),
-        F32Add({ value: 2 }, { value: 0 }, { value: 1 }),
-        ConstF32({ value: 0 }, Float::from_double(3.75).reinterpret_as_int()),
-        F32Eq({ value: 3 }, { value: 2 }, { value: 0 }),
+        ConstF32({ value: 0, }, Float::from_double(1.5).reinterpret_as_int()),
+        ConstF32({ value: 1, }, Float::from_double(2.25).reinterpret_as_int()),
+        F32Add({ value: 2, }, { value: 0, }, { value: 1, }),
+        ConstF32({ value: 0, }, Float::from_double(3.75).reinterpret_as_int()),
+        F32Eq({ value: 3, }, { value: 2, }, { value: 0, }),
       ],
-      terminator: BranchBool({ value: 3 }, edge(1), edge(3)),
+      terminator: BranchBool({ value: 3, }, edge(1), edge(3)),
     },
     {
       parameters: [],
       instructions: [
-        ConstI64({ value: 4 }, 42L),
-        I64ToF32({ value: 0 }, { value: 4 }),
-        F32ToI64({ value: 4 }, { value: 0 }),
-        ConstI64({ value: 5 }, 42L),
-        I64Eq({ value: 3 }, { value: 4 }, { value: 5 }),
+        ConstI64({ value: 4, }, 42L),
+        I64ToF32({ value: 0, }, { value: 4, }),
+        F32ToI64({ value: 4, }, { value: 0, }),
+        ConstI64({ value: 5, }, 42L),
+        I64Eq({ value: 3, }, { value: 4, }, { value: 5, }),
       ],
-      terminator: BranchBool({ value: 3 }, edge(2), edge(3)),
+      terminator: BranchBool({ value: 3, }, edge(2), edge(3)),
     },
     {
       parameters: [],
       instructions: [
-        F32ToF64({ value: 6 }, { value: 0 }),
-        ConstF64({ value: 7 }, 42.0.reinterpret_as_int64()),
-        F64Eq({ value: 3 }, { value: 6 }, { value: 7 }),
+        F32ToF64({ value: 6, }, { value: 0, }),
+        ConstF64({ value: 7, }, 42.0.reinterpret_as_int64()),
+        F64Eq({ value: 3, }, { value: 6, }, { value: 7, }),
       ],
-      terminator: BranchBool({ value: 3 }, edge(4), edge(3)),
+      terminator: BranchBool({ value: 3, }, edge(4), edge(3)),
     },
-    { parameters: [], instructions: [], terminator: Unreachable },
-    { parameters: [], instructions: [], terminator: Return(None) },
+    { parameters: [], instructions: [], terminator: Unreachable, },
+    { parameters: [], instructions: [], terminator: Return(None), },
   ])
   assert_bytes_backends(body, Completed)
 }
@@ -74,28 +74,34 @@ test "F32 host ABI agrees across interpreter and Wasm backends" {
     {
       parameters: [],
       instructions: [
-        ConstF32({ value: 0 }, expected.reinterpret_as_int()),
-        CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
-        ConstF32({ value: 0 }, expected.reinterpret_as_int()),
-        F32Eq({ value: 2 }, { value: 0 }, { value: 1 }),
+        ConstF32({ value: 0, }, expected.reinterpret_as_int()),
+        CallDirect(
+          { value: 2, },
+          None,
+          [],
+          [{ value: 0, }],
+          Some({ value: 1, }),
+        ),
+        ConstF32({ value: 0, }, expected.reinterpret_as_int()),
+        F32Eq({ value: 2, }, { value: 0, }, { value: 1, }),
       ],
       terminator: BranchBool(
-        { value: 2 },
-        { target: { value: 1 }, arguments: [] },
-        { target: { value: 2 }, arguments: [] },
+        { value: 2, },
+        { target: { value: 1, }, arguments: [], },
+        { target: { value: 2, }, arguments: [], },
       ),
     },
-    { parameters: [], instructions: [], terminator: Return(None) },
-    { parameters: [], instructions: [], terminator: Unreachable },
+    { parameters: [], instructions: [], terminator: Return(None), },
+    { parameters: [], instructions: [], terminator: Unreachable, },
   ])
   let image = {
     ..wasm_bytes_image(body),
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [
-          { representation: F32, cleanup: Trivial, kind: ScalarValue },
+          { representation: F32, cleanup: Trivial, kind: ScalarValue, },
         ],
         result: Value(F32, Trivial, ScalarValue),
       },

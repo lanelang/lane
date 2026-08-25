@@ -265,7 +265,7 @@ fn parse_run_target(target : String) -> Result[RunTarget, CliError] {
   if parts.length() != 2 || parts[0].is_empty() || parts[1].is_empty() {
     return Err(InvalidRunTarget(target~))
   }
-  Ok({ file: parts[0].to_owned(), entry: parts[1].to_owned() })
+  Ok({ file: parts[0].to_owned(), entry: parts[1].to_owned(), })
 }
 
 ///|
@@ -281,7 +281,7 @@ fn parse_public_entry_name(name : String) -> Result[PublicEntryName, Unit] {
   }
   let value_name = parts[parts.length() - 1]
   let module_path = parts[:parts.length() - 1].join(".")
-  Ok({ module_path_text: module_path, value_name })
+  Ok({ module_path_text: module_path, value_name, })
 }
 
 ///|

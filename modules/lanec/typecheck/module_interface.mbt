@@ -75,7 +75,7 @@ fn module_interface_declaration_surface(
       _ => ()
     }
   }
-  { types, effects }
+  { types, effects, }
 }
 
 ///|
@@ -199,7 +199,7 @@ fn append_interface_type_reference(
       return
     }
   }
-  references.push({ symbol, module_path, name })
+  references.push({ symbol, module_path, name, })
 }
 
 ///|
@@ -260,7 +260,7 @@ fn append_interface_effect_reference(
       return
     }
   }
-  references.push({ symbol, module_path, name })
+  references.push({ symbol, module_path, name, })
 }
 
 ///|
@@ -484,9 +484,9 @@ fn SemanticChecker::check_public_interface(
   for escape in escapes {
     match escape {
       Type(_, name, loc) =>
-        self.diagnostics.push({ kind: PrivateTypeEscape(name~), loc })
+        self.diagnostics.push({ kind: PrivateTypeEscape(name~), loc, })
       Effect(_, name, loc) =>
-        self.diagnostics.push({ kind: PrivateEffectEscape(name~), loc })
+        self.diagnostics.push({ kind: PrivateEffectEscape(name~), loc, })
     }
   }
 }

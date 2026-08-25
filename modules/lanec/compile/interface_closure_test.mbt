@@ -9,7 +9,7 @@ fn interface_closure_artifact(
   interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> @artifact.ModuleInterfaceArtifact {
   let result = compile_module_with_interfaces({
-    root: { source_id: "input.lane", text: source },
+    root: { source_id: "input.lane", text: source, },
     interfaces,
   })
   guard result is Succeeded(modules, _) else {
@@ -64,7 +64,7 @@ test "a module kept inside an implementation is not required downstream" {
     #|  total()
     #|}
   let result = compile_module_with_interfaces({
-    root: { source_id: "Main.lane", text: main },
+    root: { source_id: "Main.lane", text: main, },
     interfaces: [y],
   })
   assert_true(result is Succeeded(_, _))
@@ -97,12 +97,12 @@ test "a module named in a public signature is still required downstream" {
     #|  expose().field
     #|}
   let without_provider = compile_module_with_interfaces({
-    root: { source_id: "Main.lane", text: main },
+    root: { source_id: "Main.lane", text: main, },
     interfaces: [y],
   })
   assert_true(without_provider is Failed(_))
   let with_provider = compile_module_with_interfaces({
-    root: { source_id: "Main.lane", text: main },
+    root: { source_id: "Main.lane", text: main, },
     interfaces: [y, z],
   })
   assert_true(with_provider is Succeeded(_, _))
@@ -152,7 +152,7 @@ test "a required interface is still checked against its recorded fingerprint" {
     #|  expose().field
     #|}
   let result = compile_module_with_interfaces({
-    root: { source_id: "Main.lane", text: main },
+    root: { source_id: "Main.lane", text: main, },
     interfaces: [y, stale_z],
   })
   assert_true(result is Failed(_))

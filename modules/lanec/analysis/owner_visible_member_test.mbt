@@ -47,15 +47,15 @@ fn owner_visible_member_library(
     #|  A.circle_of(1)
     #|}
   [
-    { source_id: "file:///A.lane", text: module_a },
-    { source_id: "file:///B.lane", text: module_b },
+    { source_id: "file:///A.lane", text: module_a, },
+    { source_id: "file:///B.lane", text: module_b, },
   ]
 }
 
 ///|
 fn owner_visible_member_snapshot(main : String) -> SemanticSnapshot {
   let sources = owner_visible_member_library()
-  sources.push({ source_id: "file:///Main.lane", text: main })
+  sources.push({ source_id: "file:///Main.lane", text: main, })
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources(sources) is Some(snapshot) else {
     abort("expected semantic snapshot")
@@ -123,7 +123,7 @@ test "editing a transitively reachable module refreshes downstream analysis" {
     #|  produce().field
     #|}
   let sources = owner_visible_member_library()
-  sources.push({ source_id: "file:///Main.lane", text: main })
+  sources.push({ source_id: "file:///Main.lane", text: main, })
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources(sources) is Some(snapshot) else {
     abort("expected semantic snapshot")

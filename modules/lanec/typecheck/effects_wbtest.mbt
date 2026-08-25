@@ -36,7 +36,7 @@ test "typecheck records function effect widening in checked expressions" {
       #|let widened : () -> I64 ! Read = pure
     ),
     "widened",
-    Function([], Primitive(I64), Singleton({ index: 0 }, [])),
+    Function([], Primitive(I64), Singleton({ index: 0, }, [])),
   )
   assert_true(
     expression

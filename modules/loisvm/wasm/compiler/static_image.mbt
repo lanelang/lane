@@ -62,7 +62,7 @@ fn object_shape_layout(shape : @bytecode.ObjectShape) -> ShapeLayout {
     member_offsets.push(offset)
     offset += representation_size(field_schema.representation)
   }
-  { size: align_up(offset, 8), witness_base, member_offsets }
+  { size: align_up(offset, 8), witness_base, member_offsets, }
 }
 
 ///|
@@ -300,7 +300,7 @@ fn build_static_image(
       None,
     )
     for function_index, _ in image.functions {
-      let function : @bytecode.FunctionId = { value: function_index + 1 }
+      let function : @bytecode.FunctionId = { value: function_index + 1, }
       if function_catalog.image_table_slot(function) is Some(table_slot) {
         let abi = match image.function_callable_abi(function) {
           Some(abi) => abi

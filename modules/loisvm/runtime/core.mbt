@@ -12,7 +12,7 @@ pub fn HostStringView::new(
   length~ : Int,
   read_byte~ : (Int) -> Byte,
 ) -> HostStringView {
-  { length, read_byte }
+  { length, read_byte, }
 }
 
 ///|
@@ -100,7 +100,7 @@ pub fn ExecutionRuntime::new(
 ) -> ExecutionRuntime {
   {
     context: {
-      state: { host_objects: HostObjectTable::new(config.max_host_objects) },
+      state: { host_objects: HostObjectTable::new(config.max_host_objects), },
     },
   }
 }
@@ -180,7 +180,7 @@ pub(all) struct ExecutionConfig {
 
 ///|
 pub fn ExecutionConfig::defaults() -> ExecutionConfig {
-  { max_call_depth: None, max_live_heap_bytes: None, max_host_objects: None }
+  { max_call_depth: None, max_live_heap_bytes: None, max_host_objects: None, }
 }
 
 ///|
@@ -203,7 +203,7 @@ pub fn RuntimeBinding::new(
   result~ : RuntimeValueKind,
   invoke~ : RuntimeFunction,
 ) -> RuntimeBinding {
-  { symbol, abi_major, parameters, result, invoke }
+  { symbol, abi_major, parameters, result, invoke, }
 }
 
 ///|
@@ -244,7 +244,7 @@ pub struct RuntimeRegistry {
 
 ///|
 pub fn RuntimeRegistry::new() -> RuntimeRegistry {
-  { bindings: [] }
+  { bindings: [], }
 }
 
 ///|

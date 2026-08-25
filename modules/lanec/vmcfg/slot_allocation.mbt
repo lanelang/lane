@@ -15,7 +15,7 @@ fn allocate_physical_slots(
   let use_def = arc_final.use_def
   for value_index in 0..<value_count {
     active[value_index] = use_def.definitions[value_index] is Some(_) ||
-      use_def.use_count({ value: value_index }) > 0
+      use_def.use_count({ value: value_index, }) > 0
   }
   for value_index, metadata in body.values {
     if active[value_index] && metadata.erased_companion is Some(companion) {
@@ -101,7 +101,7 @@ fn allocate_physical_slots(
       slot_values.push([])
     }
     slot_values[slot_index].push(value_index)
-    values[value_index] = Some({ value: slot_index })
+    values[value_index] = Some({ value: slot_index, })
   }
   let plan = PhysicalSlotPlan::{
     arc_final,
@@ -109,7 +109,7 @@ fn allocate_physical_slots(
     slots: slots.map(metadata => {
       ..metadata,
       erased_companion: metadata.erased_companion.map(companion => {
-        planned_slot(values, { value: companion.value })
+        planned_slot(values, { value: companion.value, })
       }),
     }),
   }
@@ -149,13 +149,13 @@ fn validate_physical_slot_plan(
     if !active[value_index] {
       continue
     }
-    let value : ValueId = { value: value_index }
+    let value : ValueId = { value: value_index, }
     let slot = plan.slot(value)
     let logical_metadata = value_metadata_to_slot(body.values[value_index])
     let expected_metadata : @bytecode.SlotMetadata = {
       ..logical_metadata,
       erased_companion: logical_metadata.erased_companion.map(companion => {
-        planned_slot(plan.values, { value: companion.value })
+        planned_slot(plan.values, { value: companion.value, })
       }),
     }
     if plan.slots[slot.value] != expected_metadata {
@@ -164,9 +164,9 @@ fn validate_physical_slot_plan(
     for other_index in (value_index + 1)..<body.values.length() {
       if active[other_index] &&
         interference[value_index][other_index] &&
-        plan.slot({ value: other_index }) == slot {
+        plan.slot({ value: other_index, }) == slot {
         raise PhysicalSlotAllocationCompilerDefect(
-          InterferenceConflict(value, { value: other_index }, slot),
+          InterferenceConflict(value, { value: other_index, }, slot),
         )
       }
     }

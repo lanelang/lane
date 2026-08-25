@@ -50,7 +50,7 @@ pub fn CheckedSourceFile::value_use_analysis(
   for declaration in self.declarations {
     collector.collect_top_level_declaration(declaration)
   }
-  { binders: collector.binders, references: collector.references }
+  { binders: collector.binders, references: collector.references, }
 }
 
 ///|
@@ -384,7 +384,7 @@ fn CheckedValueUseCollector::add_binder(
   kind : CheckedValueUseBinderKind,
 ) -> Unit {
   match self.value_provenance(symbol) {
-    Authored => self.binders.push({ symbol, name, loc, kind })
+    Authored => self.binders.push({ symbol, name, loc, kind, })
     GeneratedLocal => ()
   }
 }
@@ -397,7 +397,7 @@ fn CheckedValueUseCollector::add_reference(
   loc : SourceSpan,
 ) -> Unit {
   if self.value_provenance(target) is Authored {
-    self.references.push({ target, origin_binder, loc })
+    self.references.push({ target, origin_binder, loc, })
   }
 }
 

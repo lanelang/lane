@@ -99,7 +99,7 @@ test "unsuffixed literal does not adapt to an expected narrow type" {
     is [
       {
         message: "write this literal as `42i32`",
-        edits: [{ span, replacement: "42i32" }],
+        edits: [{ span, replacement: "42i32", }],
         applicability: MachineApplicable,
       },
     ] else {
@@ -130,10 +130,10 @@ test "unsuffixed floating literal suggests an F32 suffix" {
           {
             edits: [{ replacement: "1.5f32", .. }],
             applicability: MachineApplicable,
-            ..,
+            ..
           },
         ],
-        ..,
+        ..
       },
     ],
   )
@@ -188,7 +188,7 @@ test "unsuffixed numeric pattern does not adapt to its scrutinee" {
       {
         edits: [{ replacement: "42i32", .. }],
         applicability: MachineApplicable,
-        ..,
+        ..
       },
     ],
   )

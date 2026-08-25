@@ -6,7 +6,7 @@ fn SemanticChecker::check_compiler_intrinsic(
   loc : SourceSpan,
 ) -> CheckedExpressionCheck {
   guard @abi.Intrinsic::from_name(name) is Some(intrinsic) else {
-    self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
+    self.diagnostics.push({ kind: UnknownBuiltin(name~), loc, })
     return undetermined_checked_expression(Error)
   }
   guard self.compiler_intrinsic_type(intrinsic, loc) is Some(actual) else {
@@ -42,7 +42,7 @@ fn SemanticChecker::synthesize_compiler_intrinsic(
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
   guard @abi.Intrinsic::from_name(name) is Some(intrinsic) else {
-    self.diagnostics.push({ kind: UnknownBuiltin(name~), loc })
+    self.diagnostics.push({ kind: UnknownBuiltin(name~), loc, })
     return checked_expression_none_reported(Error)
   }
   guard self.compiler_intrinsic_type(intrinsic, loc) is Some(type_) else {
@@ -135,7 +135,7 @@ fn SemanticChecker::synthesize_extern_binding(
   name : String,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  self.diagnostics.push({ kind: ExternNeedsExpectedType(name~), loc })
+  self.diagnostics.push({ kind: ExternNeedsExpectedType(name~), loc, })
   checked_expression_none_reported(Error)
 }
 
@@ -159,7 +159,7 @@ fn SemanticChecker::validate_extern_signature(
         return Err(DirectResultRequired)
       }
       if self.extern_effect_row(effect.canonicalize()) {
-        Ok({ parameters: parameter_kinds, result })
+        Ok({ parameters: parameter_kinds, result, })
       } else {
         Err(ExternalEffectRowRequired)
       }

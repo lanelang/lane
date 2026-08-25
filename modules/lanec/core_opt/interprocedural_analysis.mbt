@@ -34,7 +34,7 @@ fn analyze_interprocedural(
   roots : Array[@buslane.ValueId],
 ) -> InterproceduralAnalysis {
   let core = analyze_core(program)
-  let occurrence = @occurrence.analyze({ program, entry, roots })
+  let occurrence = @occurrence.analyze({ program, entry, roots, })
   let callables = []
   for definition in core.definitions {
     guard callable_parts(definition.expression)
@@ -61,12 +61,12 @@ fn analyze_interprocedural(
     for value in scc.members {
       for callable_index, callable in callables {
         if callable.value == value {
-          callables[callable_index] = { ..callable, scc: scc_index }
+          callables[callable_index] = { ..callable, scc: scc_index, }
         }
       }
     }
   }
-  { core, callables, sccs }
+  { core, callables, sccs, }
 }
 
 ///|
@@ -102,7 +102,7 @@ fn build_call_graph_sccs(
     collect_call_graph_component(index, reverse, assigned, component)
     let members = component.map(member_index => callables[member_index].value)
     let recursive = component.length() > 1 || adjacency[index].contains(index)
-    sccs.push({ members, recursive })
+    sccs.push({ members, recursive, })
   }
   sccs
 }
@@ -230,7 +230,7 @@ fn collect_known_callees(
       collect_known_callees(initializer, core, aliases, callees)
       let body_aliases = aliases.copy()
       if referenced_value(initializer) is Some(target) {
-        body_aliases.push({ value, target })
+        body_aliases.push({ value, target, })
       }
       collect_known_callees(body, core, body_aliases, callees)
     }
@@ -238,7 +238,7 @@ fn collect_known_callees(
       let body_aliases = aliases.copy()
       for binding in bindings {
         if referenced_value(binding.rhs) is Some(target) {
-          body_aliases.push({ value: binding.id, target })
+          body_aliases.push({ value: binding.id, target, })
         }
       }
       for binding in bindings {

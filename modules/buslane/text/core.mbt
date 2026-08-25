@@ -8,7 +8,7 @@ pub struct CanonicalTextWriter {
 
 ///|
 pub fn CanonicalTextWriter::CanonicalTextWriter() -> CanonicalTextWriter {
-  { marker: () }
+  { marker: (), }
 }
 
 ///|

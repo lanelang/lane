@@ -40,7 +40,7 @@ fn SourceLayout::from_ids(source_ids : Array[String]) -> SourceLayout {
   for index, source_id in source_ids {
     slots[source_id] = index
   }
-  { source_ids, slots }
+  { source_ids, slots, }
 }
 
 ///|
@@ -334,7 +334,7 @@ fn parse_cached_source(
   source : @module_frontend.SourceInput,
 ) -> CachedParsedSource {
   let parsed = @module_frontend.parse_source(source)
-  { parsed, completion_source: CompletionSource::from_parsed_source(parsed) }
+  { parsed, completion_source: CompletionSource::from_parsed_source(parsed), }
 }
 
 ///|
@@ -561,7 +561,7 @@ fn module_import_environments(
   }
   @module_interface.ModuleImportEnvironments::from_pool(
     header.imports.map(fn(import_) { import_.module_path_text }),
-    { modules: pool },
+    { modules: pool, },
   )
 }
 
@@ -632,7 +632,7 @@ fn SemanticWorkspace::snapshot_from_current_state(
     graph: self.graph_cache,
     modules: self.modules,
     definition_locations: self.definition_locations,
-    completion: { graph: self.graph_cache, modules: self.modules },
+    completion: { graph: self.graph_cache, modules: self.modules, },
     changed_source_ids,
   }
 }
@@ -726,7 +726,14 @@ pub fn SemanticSnapshot::analysis(self : SemanticSnapshot) -> AnalysisResult {
       semantic_tokens.append(module_.semantic_tokens)
     }
   })
-  { diagnostics, definitions, references, hovers, semantic_tokens, inlay_hints }
+  {
+    diagnostics,
+    definitions,
+    references,
+    hovers,
+    semantic_tokens,
+    inlay_hints,
+  }
 }
 
 ///|

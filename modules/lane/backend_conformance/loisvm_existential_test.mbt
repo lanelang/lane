@@ -138,8 +138,8 @@ test "existential lowering executes through Wasm with opened ARC witnesses" {
   let image = match
     lower_conformance_program_to_bytecode(
       program,
-      { builtins: [], runtime_imports: [] },
-      { module_path_text: "Main", name: "main", value: main },
+      { builtins: [], runtime_imports: [], },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -274,16 +274,16 @@ test "existential callable fields adapt covariant results and contravariant para
           {
             value: measure,
             symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: I64 },
+            signature: { parameters: [String], result: I64, },
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [I64], result: Unit },
+            signature: { parameters: [I64], result: Unit, },
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -457,16 +457,16 @@ test "existential callable adapters recurse through callable parameters" {
           {
             value: measure,
             symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: I64 },
+            signature: { parameters: [String], result: I64, },
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [I64], result: Unit },
+            signature: { parameters: [I64], result: Unit, },
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -661,16 +661,16 @@ test "generic container fields round-trip callable values through erasure" {
           {
             value: measure,
             symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: I64 },
+            signature: { parameters: [String], result: I64, },
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [I64], result: Unit },
+            signature: { parameters: [I64], result: Unit, },
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
@@ -833,16 +833,16 @@ test "existential callable adapters forward explicit forall witnesses" {
           {
             value: measure,
             symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: I64 },
+            signature: { parameters: [String], result: I64, },
           },
           {
             value: observe,
             symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [I64], result: Unit },
+            signature: { parameters: [I64], result: Unit, },
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")

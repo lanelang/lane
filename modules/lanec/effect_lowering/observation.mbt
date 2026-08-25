@@ -27,7 +27,7 @@ fn effect_lowering_snapshot(
   {
     stage,
     text: @prettyprinter.render(
-      EffectLoweringCode::{ terms: program.terms },
+      EffectLoweringCode::{ terms: program.terms, },
       width=100,
     ),
     scale: effect_lowering_scale(program),
@@ -36,7 +36,7 @@ fn effect_lowering_snapshot(
 
 ///|
 fn effect_lowering_scale(program : Program) -> EffectLoweringScale {
-  let accumulator : EffectLoweringScaleAccumulator = { functions: 0, calls: 0 }
+  let accumulator : EffectLoweringScaleAccumulator = { functions: 0, calls: 0, }
   let mut nodes = 0
   for term in program.terms {
     nodes += 1

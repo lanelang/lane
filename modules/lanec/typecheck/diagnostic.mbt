@@ -21,7 +21,7 @@ pub fn TypeCheckDiagnostic::with_display(
   self : TypeCheckDiagnostic,
   display : TypeDisplayContext,
 ) -> DisplayedTypeCheckDiagnostic {
-  { diagnostic: self, display }
+  { diagnostic: self, display, }
 }
 
 ///|
@@ -368,7 +368,9 @@ fn typecheck_diagnostic(
         suggestions=[
           {
             message: "write this literal as `\{replacement}`",
-            edits: [{ span: compiler_local_span(diagnostic_.loc), replacement }],
+            edits: [
+              { span: compiler_local_span(diagnostic_.loc), replacement, },
+            ],
             applicability: MachineApplicable,
           },
         ],
@@ -500,7 +502,7 @@ fn typecheck_diagnostic(
           {
             message: "remove the duplicate field entry",
             edits: [
-              { span: compiler_local_span(diagnostic_.loc), replacement: "" },
+              { span: compiler_local_span(diagnostic_.loc), replacement: "", },
             ],
             applicability: MachineApplicable,
           },
@@ -1577,7 +1579,7 @@ fn add_generic_argument_subject_label(
       Some(type_) => "`\{callee}` has type `\{display.type_text(type_)}`"
       None => "generic callee `\{callee}`"
     }
-    labels.push({ span: compiler_local_span(loc), message, style: Secondary })
+    labels.push({ span: compiler_local_span(loc), message, style: Secondary, })
   }
 }
 

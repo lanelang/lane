@@ -172,7 +172,7 @@ fn BytecodeVerifier::verify_function_flow(
   if body.inputs.environment is Some(environment) {
     initial_slots[environment.value] = flow_state_for_metadata(
       self.slot_metadata(function_site, body, environment),
-      { origin: InputOwner(environment), projections: [] },
+      { origin: InputOwner(environment), projections: [], },
     )
     initial_object_shapes[environment.value] = statically_known_object_shape(
       self.image.object_shapes,
@@ -182,13 +182,13 @@ fn BytecodeVerifier::verify_function_flow(
   for witness in body.inputs.witnesses {
     initial_slots[witness.value] = flow_state_for_metadata(
       self.slot_metadata(function_site, body, witness),
-      { origin: InputOwner(witness), projections: [] },
+      { origin: InputOwner(witness), projections: [], },
     )
   }
   for parameter in body.inputs.user_parameters {
     initial_slots[parameter.value] = flow_state_for_metadata(
       self.slot_metadata(function_site, body, parameter),
-      { origin: InputOwner(parameter), projections: [] },
+      { origin: InputOwner(parameter), projections: [], },
     )
     initial_object_shapes[parameter.value] = statically_known_object_shape(
       self.image.object_shapes,
@@ -222,7 +222,7 @@ fn BytecodeVerifier::verify_function_flow(
     }
     let state = entry.copy()
     let block = body.blocks[block_index]
-    let block_id : BlockId = { value: block_index }
+    let block_id : BlockId = { value: block_index, }
     for instruction_index, instruction in block.instructions {
       let site = BytecodeVerificationSite::Instruction(
         function, block_id, instruction_index,
@@ -334,7 +334,7 @@ fn flow_state_for_metadata(
   match metadata.cleanup {
     Trivial => LiveTrivial
     cleanup =>
-      LiveOwned(cleanup, { roots: [token], retained: [token], members: [] })
+      LiveOwned(cleanup, { roots: [token], retained: [token], members: [], })
   }
 }
 
@@ -488,7 +488,7 @@ fn local_roots_are_live(
 ///|
 fn borrow_origin_text(provenance : BorrowProvenance) -> String {
   match provenance.projections.last() {
-    Some({ shape, member_index }) =>
+    Some({ shape, member_index, }) =>
       "ObjectShapeId \{shape.value} member \{member_index}"
     None => "its root value"
   }
@@ -712,7 +712,7 @@ fn ownership_after_projection(
       })
     }
   }
-  { roots, retained, members }
+  { roots, retained, members, }
 }
 
 ///|
@@ -775,7 +775,7 @@ fn BytecodeVerifier::transfer_aggregate_ownership(
     match value {
       LiveOwned(_, ownership) => {
         append_retained_tokens(retained, ownership.retained)
-        let projection = { shape, member_index: index }
+        let projection = { shape, member_index: index, }
         members.push({
           path: [projection],
           roots: ownership.roots,
@@ -1312,18 +1312,18 @@ fn BytecodeVerifier::write_borrowed_projection(
     cleanup => {
       let provenance = match self.read_flow(site, state, source) {
         LiveOwned(OwnedRef, ownership) => {
-          let projection = { shape, member_index }
+          let projection = { shape, member_index, }
           let roots = ownership_after_projection(ownership, projection).roots
-          { root: LocalRoots(roots), projections: [] }
+          { root: LocalRoots(roots), projections: [], }
         }
         LiveBorrowed(OwnedRef, provenance) =>
-          { ..provenance, projections: provenance.projections.copy() }
+          { ..provenance, projections: provenance.projections.copy(), }
         _ =>
           self.fail(
             site, "borrowed projection source is not a live object reference",
           )
       }
-      provenance.projections.push({ shape, member_index })
+      provenance.projections.push({ shape, member_index, })
       LiveBorrowed(cleanup, provenance)
     }
   }
@@ -1438,7 +1438,7 @@ fn BytecodeVerifier::borrow_global_flow(
     match metadata.cleanup {
       Trivial => LiveTrivial
       cleanup =>
-        LiveBorrowed(cleanup, { root: GlobalRoot(global), projections: [] })
+        LiveBorrowed(cleanup, { root: GlobalRoot(global), projections: [], })
     },
   )
   state.object_shapes[destination.value] = statically_known_object_shape(
@@ -1580,7 +1580,7 @@ fn BytecodeVerifier::refine_data_shape(
     if shape is Data({ family: actual_family, constructor_tag: actual_tag, .. }) &&
       actual_family == family &&
       actual_tag == constructor_tag {
-      state.object_shapes[source.value] = Some({ value: index })
+      state.object_shapes[source.value] = Some({ value: index, })
       return
     }
   }

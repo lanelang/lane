@@ -1,8 +1,8 @@
 ///|
 test "VM CFG pretty printer exposes control flow and ownership" {
   let image : Image = {
-    entry: { value: 1 },
-    initializer: Some({ value: 1 }),
+    entry: { value: 1, },
+    initializer: Some({ value: 1, }),
     data_family_count: 0,
     functions: [
       Body({
@@ -32,21 +32,21 @@ test "VM CFG pretty printer exposes control flow and ownership" {
         inputs: {
           environment: None,
           witnesses: [],
-          user_parameters: [{ value: 2 }],
+          user_parameters: [{ value: 2, }],
         },
         result: Unit,
         blocks: [
           {
             parameters: [],
             instructions: [
-              ConstString({ value: 0 }, { value: 0 }),
-              InitGlobal({ value: 0 }, { value: 0 }),
-              BorrowGlobal({ value: 1 }, { value: 0 }),
+              ConstString({ value: 0, }, { value: 0, }),
+              InitGlobal({ value: 0, }, { value: 0, }),
+              BorrowGlobal({ value: 1, }, { value: 0, }),
               CallDirect(
-                { value: 2 },
+                { value: 2, },
                 None,
                 [],
-                [{ value: 1 }, { value: 2 }],
+                [{ value: 1, }, { value: 2, }],
                 None,
               ),
             ],
@@ -125,15 +125,17 @@ test "VM CFG pretty printer exposes control flow and ownership" {
 ///|
 test "VM CFG code view omits image summary" {
   let image : Image = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     functions: [
       Body({
         values: [],
-        inputs: { environment: None, witnesses: [], user_parameters: [] },
+        inputs: { environment: None, witnesses: [], user_parameters: [], },
         result: Unit,
-        blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+        blocks: [
+          { parameters: [], instructions: [], terminator: Return(None), },
+        ],
       }),
     ],
     globals: [],

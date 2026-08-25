@@ -7,25 +7,25 @@ fn internal_import_image(
   let slots : Array[@bytecode.SlotMetadata] = []
   let instructions : Array[@bytecode.Instruction] = []
   if uses_f32 {
-    let source : @bytecode.SlotId = { value: slots.length() }
+    let source : @bytecode.SlotId = { value: slots.length(), }
     slots.push(wasm_bytes_trivial_slot(F32))
-    let destination : @bytecode.SlotId = { value: slots.length() }
+    let destination : @bytecode.SlotId = { value: slots.length(), }
     slots.push(wasm_bytes_owned_slot())
     instructions.push(ConstF32(source, 0))
     instructions.push(F32ToString(destination, source))
     instructions.push(Release(destination))
   }
   if uses_f64 {
-    let source : @bytecode.SlotId = { value: slots.length() }
+    let source : @bytecode.SlotId = { value: slots.length(), }
     slots.push(wasm_bytes_trivial_slot(F64))
-    let destination : @bytecode.SlotId = { value: slots.length() }
+    let destination : @bytecode.SlotId = { value: slots.length(), }
     slots.push(wasm_bytes_owned_slot())
     instructions.push(ConstF64(source, 0L))
     instructions.push(F64ToString(destination, source))
     instructions.push(Release(destination))
   }
   let body = wasm_bytes_body(slots, [
-    { parameters: [], instructions, terminator: Return(None) },
+    { parameters: [], instructions, terminator: Return(None), },
   ])
   let image = wasm_bytes_image(body)
   if !uses_host_objects {
@@ -40,7 +40,7 @@ fn internal_import_image(
   {
     ..image,
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       import_.callable_abi(),
     ],
     functions: [BytecodeBody(body), RuntimeImport(import_)],
@@ -101,13 +101,13 @@ test "compiler emits selected internal imports in canonical order" {
 test "Fatal selects the private fatal String import" {
   let fatal_body : @bytecode.FunctionBody = {
     slots: [wasm_bytes_owned_slot()],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstString({ value: 0 }, { value: 0 })],
-        terminator: Fatal({ value: 0 }),
+        instructions: [ConstString({ value: 0, }, { value: 0, })],
+        terminator: Fatal({ value: 0, }),
       },
     ],
   }

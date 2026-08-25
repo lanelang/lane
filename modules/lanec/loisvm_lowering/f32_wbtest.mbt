@@ -81,7 +81,7 @@ test "generic F32 callable flow selects a concrete representation worker" {
           },
         ],
       },
-      { module_path_text: "Main", name: "main", value: main },
+      { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")

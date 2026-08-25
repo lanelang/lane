@@ -98,7 +98,7 @@ pub fn import_reachable_source_inputs(
       let inputs = [root_source]
       for module_ in graph.modules() {
         if module_.source_id != root_source.source_id {
-          inputs.push({ source_id: module_.source_id, text: module_.text })
+          inputs.push({ source_id: module_.source_id, text: module_.text, })
         }
       }
       Ok(inputs)
@@ -111,7 +111,7 @@ pub fn parse_module_inputs(
   root_source : SourceInput,
   library_sources : Array[SourceInput],
 ) -> ParseModuleInputsResult {
-  { sources: [parse_source(root_source)] + library_sources.map(parse_source) }
+  { sources: [parse_source(root_source)] + library_sources.map(parse_source), }
 }
 
 ///|
@@ -160,8 +160,8 @@ pub fn parse_source(source : SourceInput) -> ParsedSource {
 ///|
 pub fn ParsedSource::source_input(self : ParsedSource) -> SourceInput {
   match self {
-    Available(source) => { source_id: source.source_id, text: source.text }
-    Unavailable(source) => { source_id: source.source_id, text: source.text }
+    Available(source) => { source_id: source.source_id, text: source.text, }
+    Unavailable(source) => { source_id: source.source_id, text: source.text, }
   }
 }
 
@@ -248,7 +248,7 @@ fn module_header(source : @syntax.SourceFile) -> ModuleHeader {
       dependency in ["Basic.Trait.Derive", "Basic.Trait.Iso", "Basic.Data.Void"] {
       if current_module_path != dependency &&
         !imports.any(fn(import_) { import_.module_path_text == dependency }) {
-        imports.push({ module_path_text: dependency, import_span })
+        imports.push({ module_path_text: dependency, import_span, })
       }
     }
   }

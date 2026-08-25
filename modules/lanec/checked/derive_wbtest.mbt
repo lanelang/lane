@@ -36,7 +36,7 @@ test "checked derive preserves traversal substitution and value-use contracts" {
       value: evidence,
     },
   }
-  let field : CheckedDeriveField = { symbol: abi_field, name: "value" }
+  let field : CheckedDeriveField = { symbol: abi_field, name: "value", }
   let abi : CheckedDeriveAbi = {
     deriver: abi_type,
     deriver_unit: abi_field,
@@ -75,10 +75,10 @@ test "checked derive preserves traversal substitution and value-use contracts" {
         type_: parameter_type,
         value: deriver,
       }),
-      metadata: { name: "Item", qualified_name: "Test.Item" },
+      metadata: { name: "Item", qualified_name: "Test.Item", },
     },
     type_=parameter_type,
-    source={ loc: location, keyword_loc: location, close_paren_loc: location },
+    source={ loc: location, keyword_loc: location, close_paren_loc: location, },
   )
 
   let children = []
@@ -127,16 +127,20 @@ test "checked derive preserves traversal substitution and value-use contracts" {
             loc=location,
           ),
         }),
-        metadata: { name: "Item", qualified_name: "Test.Item" },
+        metadata: { name: "Item", qualified_name: "Test.Item", },
       },
       type_=Primitive(I64),
-      source={ loc: location, keyword_loc: location, close_paren_loc: location },
+      source={
+        loc: location,
+        keyword_loc: location,
+        close_paren_loc: location,
+      },
     ),
   )
 
   let source = CheckedSourceFile::{
-    module_path: { components: ["Test"], loc: location },
-    canonical_basic_abi: { types: [] },
+    module_path: { components: ["Test"], loc: location, },
+    canonical_basic_abi: { types: [], },
     declarations: [
       Let({
         is_public: false,
@@ -154,8 +158,8 @@ test "checked derive preserves traversal substitution and value-use contracts" {
   assert_eq(source.value_use_analysis(registry), {
     binders: [],
     references: [
-      { target: deriver_symbol, origin_binder: None, loc: location },
-      { target: evidence_symbol, origin_binder: None, loc: location },
+      { target: deriver_symbol, origin_binder: None, loc: location, },
+      { target: evidence_symbol, origin_binder: None, loc: location, },
     ],
   })
 }
@@ -193,7 +197,7 @@ test "checked derive recipe owns right-nested product and sum representations" {
     ((), Primitive(Bool), evidence_for("item[1]", Primitive(Bool))),
   ])
   let checked_sum = CheckedDeriveSum::make(sum, void_type, [
-    { symbol: variant, name: "item", payload },
+    { symbol: variant, name: "item", payload, },
     {
       symbol: empty_variant,
       name: "empty",
@@ -204,12 +208,12 @@ test "checked derive recipe owns right-nested product and sum representations" {
     (
       CheckedDeriveProduct::make(product, [
         (
-          CheckedDeriveField::{ symbol: first, name: "first" },
+          CheckedDeriveField::{ symbol: first, name: "first", },
           Primitive(I64),
           evidence_for("first", Primitive(I64)),
         ),
         (
-          { symbol: second, name: "second" },
+          { symbol: second, name: "second", },
           Primitive(Bool),
           evidence_for("second", Primitive(Bool)),
         ),

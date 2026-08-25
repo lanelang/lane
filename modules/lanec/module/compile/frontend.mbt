@@ -23,7 +23,7 @@ priv struct CheckedModuleSet {
 fn checked_module_interfaces(
   modules : Array[CheckedModule],
 ) -> @module_interface.ModuleInterfaceCatalog {
-  { modules: modules.map(fn(module_) { module_.interface }) }
+  { modules: modules.map(fn(module_) { module_.interface }), }
 }
 
 ///|

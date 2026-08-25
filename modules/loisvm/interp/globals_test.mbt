@@ -5,9 +5,9 @@ fn global_test_body(
 ) -> @bytecode.FunctionBody {
   {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions, terminator: Return(None) }],
+    blocks: [{ parameters: [], instructions, terminator: Return(None), }],
   }
 }
 
@@ -17,10 +17,10 @@ fn global_test_image(
   entry : @bytecode.FunctionBody,
 ) -> @bytecode.BytecodeImage {
   {
-    entry: { value: 2 },
-    initializer: Some({ value: 1 }),
+    entry: { value: 2, },
+    initializer: Some({ value: 1, }),
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     functions: [BytecodeBody(initializer), BytecodeBody(entry)],
     globals: [
       {
@@ -46,9 +46,9 @@ test "loader rejects invalid instance-global initialization" {
   }
   let duplicate = global_test_image(
     global_test_body([trivial_i64], [
-      ConstI64({ value: 0 }, 1L),
-      InitGlobal({ value: 0 }, { value: 0 }),
-      InitGlobal({ value: 0 }, { value: 0 }),
+      ConstI64({ value: 0, }, 1L),
+      InitGlobal({ value: 0, }, { value: 0, }),
+      InitGlobal({ value: 0, }, { value: 0, }),
     ]),
     global_test_body([], []),
   )
@@ -57,17 +57,17 @@ test "loader rejects invalid instance-global initialization" {
     global_test_body([], []),
   )
   let premature_read = global_test_image(
-    global_test_body([trivial_i64], [BorrowGlobal({ value: 0 }, { value: 0 })]),
+    global_test_body([trivial_i64], [BorrowGlobal({ value: 0, }, { value: 0, })]),
     global_test_body([], []),
   )
   let outside_initialization = global_test_image(
     global_test_body([trivial_i64], [
-      ConstI64({ value: 0 }, 1L),
-      InitGlobal({ value: 0 }, { value: 0 }),
+      ConstI64({ value: 0, }, 1L),
+      InitGlobal({ value: 0, }, { value: 0, }),
     ]),
     global_test_body([trivial_i64], [
-      ConstI64({ value: 0 }, 2L),
-      InitGlobal({ value: 0 }, { value: 0 }),
+      ConstI64({ value: 0, }, 2L),
+      InitGlobal({ value: 0, }, { value: 0, }),
     ]),
   )
   let cases : Array[(@bytecode.BytecodeImage, LoadError)] = [
@@ -75,7 +75,7 @@ test "loader rejects invalid instance-global initialization" {
       duplicate,
       InvalidBytecode(
         InvalidBytecode(
-          site=Instruction({ value: 1 }, { value: 0 }, 2),
+          site=Instruction({ value: 1, }, { value: 0, }, 2),
           detail="GlobalId 0 is initialized twice",
         ),
       ),
@@ -84,7 +84,7 @@ test "loader rejects invalid instance-global initialization" {
       incomplete,
       InvalidBytecode(
         InvalidBytecode(
-          site=Terminator({ value: 1 }, { value: 0 }),
+          site=Terminator({ value: 1, }, { value: 0, }),
           detail="initializer leaves GlobalId 0 uninitialized",
         ),
       ),
@@ -93,7 +93,7 @@ test "loader rejects invalid instance-global initialization" {
       premature_read,
       InvalidBytecode(
         InvalidBytecode(
-          site=Instruction({ value: 1 }, { value: 0 }, 0),
+          site=Instruction({ value: 1, }, { value: 0, }, 0),
           detail="read from uninitialized GlobalId 0",
         ),
       ),
@@ -102,7 +102,7 @@ test "loader rejects invalid instance-global initialization" {
       outside_initialization,
       InvalidBytecode(
         InvalidBytecode(
-          site=Instruction({ value: 2 }, { value: 0 }, 1),
+          site=Instruction({ value: 2, }, { value: 0, }, 1),
           detail="InitGlobal appears outside the instance initializer",
         ),
       ),

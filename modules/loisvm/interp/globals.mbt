@@ -73,7 +73,7 @@ fn ExecutionInstance::release_global(
           detail="erased companion cleanup representation mismatch",
         )
       }
-      self.heap.release_erased(payload, { value: layout })
+      self.heap.release_erased(payload, { value: layout, })
       self.globals[companion.value] = None
     }
     _ => raise InternalFailure(detail="global cleanup representation mismatch")

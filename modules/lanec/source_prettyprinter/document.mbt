@@ -55,12 +55,12 @@ pub fn Document::fits_current_line(self : Self, context : Context) -> Bool {
   if context.indent > context.width {
     return false
   }
-  let stack = [{ next_indent: context.next_indent, doc: self }]
+  let stack = [{ next_indent: context.next_indent, doc: self, }]
   let mut column = context.indent
   let mut line_comment_pending = false
   let mut has_leading_space = false
   let mut dangling_space = false
-  while stack.pop() is Some({ next_indent, doc }) {
+  while stack.pop() is Some({ next_indent, doc, }) {
     match doc {
       Empty => ()
       Line => return false
@@ -95,17 +95,17 @@ pub fn Document::fits_current_line(self : Self, context : Context) -> Bool {
         line_comment_pending = true
       }
       Concat(_, left, right) => {
-        stack.push({ next_indent, doc: right })
-        stack.push({ next_indent, doc: left })
+        stack.push({ next_indent, doc: right, })
+        stack.push({ next_indent, doc: left, })
       }
       Nest(_, amount, document) =>
-        stack.push({ next_indent: next_indent + amount, doc: document })
-      Switch(_, flat, _) => stack.push({ next_indent, doc: flat })
-      Group(_, document) => stack.push({ next_indent, doc: document })
+        stack.push({ next_indent: next_indent + amount, doc: document, })
+      Switch(_, flat, _) => stack.push({ next_indent, doc: flat, })
+      Group(_, document) => stack.push({ next_indent, doc: document, })
       Dynamic(build) =>
         stack.push({
           next_indent,
-          doc: build({ indent: column, width: context.width, next_indent }),
+          doc: build({ indent: column, width: context.width, next_indent, }),
         })
     }
     if column > context.width {
@@ -118,7 +118,7 @@ pub fn Document::fits_current_line(self : Self, context : Context) -> Bool {
 ///|
 fn render_document(width : Int, doc : Document) -> String {
   let buf = StringBuilder::new()
-  let stack = [{ indent: 0, fit: false, doc }]
+  let stack = [{ indent: 0, fit: false, doc, }]
   let mut column = 0
   // record the MandatoryLine that has not yet been decided to print
   let mut dangling_newline : Int? = None
@@ -134,7 +134,7 @@ fn render_document(width : Int, doc : Document) -> String {
     }
   }
 
-  while stack.pop() is Some({ indent, fit, doc }) {
+  while stack.pop() is Some({ indent, fit, doc, }) {
     match doc {
       Empty => ()
       Line => {
@@ -187,22 +187,22 @@ fn render_document(width : Int, doc : Document) -> String {
         line_comment_pending = true
       }
       Concat(_, l, r) => {
-        stack.push({ indent, fit, doc: r })
-        stack.push({ indent, fit, doc: l })
+        stack.push({ indent, fit, doc: r, })
+        stack.push({ indent, fit, doc: l, })
       }
-      Nest(_, i, d) => stack.push({ indent: indent + i, fit, doc: d })
+      Nest(_, i, d) => stack.push({ indent: indent + i, fit, doc: d, })
       Switch(_, a, b) =>
         stack.push(
           if fit {
-            { indent, fit, doc: a }
+            { indent, fit, doc: a, }
           } else {
-            { indent, fit, doc: b }
+            { indent, fit, doc: b, }
           },
         )
       Group(_, d) => {
         let fit = fit ||
-          d.fits_current_line({ indent: column, width, next_indent: indent })
-        stack.push({ indent, fit, doc: d })
+          d.fits_current_line({ indent: column, width, next_indent: indent, })
+        stack.push({ indent, fit, doc: d, })
       }
       MandatoryLine =>
         if !line_comment_pending {
@@ -210,8 +210,8 @@ fn render_document(width : Int, doc : Document) -> String {
         }
       MandatorySpace => if !line_comment_pending { dangling_space = true }
       Dynamic(f) => {
-        let doc = f({ indent: column, width, next_indent: indent })
-        stack.push({ indent, fit, doc })
+        let doc = f({ indent: column, width, next_indent: indent, })
+        stack.push({ indent, fit, doc, })
       }
     }
   }

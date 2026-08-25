@@ -40,7 +40,7 @@ pub fn CompiledModule::to_interface_artifact(
 fn CompiledModule::artifact_interface(
   self : CompiledModule,
 ) -> @module_interface.ModuleInterface {
-  { ..self.interface, source_id: None }
+  { ..self.interface, source_id: None, }
 }
 
 ///|

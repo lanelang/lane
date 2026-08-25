@@ -117,5 +117,5 @@ fn compile_runtime_import_adapter(
   if !results.is_empty() {
     instructions.push(LocalGet(parameters.length()))
   }
-  { locals, body: instructions }
+  { locals, body: instructions, }
 }

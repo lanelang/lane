@@ -9,7 +9,7 @@ priv struct LaneSourceInput {
 fn LaneSourceInput::to_compile_input(
   self : LaneSourceInput,
 ) -> @module_frontend.SourceInput {
-  { source_id: self.source_id, text: self.text }
+  { source_id: self.source_id, text: self.text, }
 }
 
 ///|
@@ -284,7 +284,7 @@ async fn append_library_source(
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
   identities.push(identity)
-  sources.push({ source_id: path, path: Some(path), text: source })
+  sources.push({ source_id: path, path: Some(path), text: source, })
   Ok(())
 }
 

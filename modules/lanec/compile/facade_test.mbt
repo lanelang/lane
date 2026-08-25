@@ -262,8 +262,8 @@ test "diagnostic access is isolated from nested mutation" {
   first.labels.push(label)
   first.notes.push("mutated note")
   first.helps.push("mutated help")
-  first.facts.push({ name: "mutated", value: "fact", span: first.span })
-  suggestion.edits.push({ span: label.span, replacement: "mutated" })
+  first.facts.push({ name: "mutated", value: "fact", span: first.span, })
+  suggestion.edits.push({ span: label.span, replacement: "mutated", })
   first.suggestions.push(suggestion)
   guard failure.diagnostics() is [second] else {
     abort("expected one isolated diagnostic")
@@ -393,7 +393,10 @@ test "compiled module sets reject the previous reachable-path schema" {
     abort("expected module compilation to succeed")
   }
   let artifact = modules.artifact()
-  let linked = @artifact.link_module_artifacts({ ..artifact, schema_version: 2 })
+  let linked = @artifact.link_module_artifacts({
+    ..artifact,
+    schema_version: 2,
+  })
   debug_inspect(
     linked.diagnostics.map(diagnostic => (diagnostic.code, diagnostic.message)),
     content=(

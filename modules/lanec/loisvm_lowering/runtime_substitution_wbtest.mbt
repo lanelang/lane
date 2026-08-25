@@ -1,9 +1,12 @@
 ///|
 test "runtime substitution does not expand a recursive replacement" {
-  let parameter : @anf.RuntimeEvidenceParameter = { id: Projected(0), arity: 0 }
-  let parameter_expression : @anf.RuntimeTypeExpressionId = { index: 0 }
-  let box_expression : @anf.RuntimeTypeExpressionId = { index: 1 }
-  let box : @buslane.TypeId = { index: 0 }
+  let parameter : @anf.RuntimeEvidenceParameter = {
+    id: Projected(0),
+    arity: 0,
+  }
+  let parameter_expression : @anf.RuntimeTypeExpressionId = { index: 0, }
+  let box_expression : @anf.RuntimeTypeExpressionId = { index: 1, }
+  let box : @buslane.TypeId = { index: 0, }
   let recursive_argument : @anf.RuntimeArgument = {
     type_expression: parameter_expression,
     evidence: Parameter(parameter.id),

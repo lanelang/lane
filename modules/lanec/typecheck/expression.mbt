@@ -35,7 +35,7 @@ fn SemanticChecker::expect_type(
   loc : SourceSpan,
 ) -> Unit {
   if self.type_matches(expected, actual, loc) is Some(false) {
-    self.diagnostics.push({ kind: TypeMismatch(expected~, actual~), loc })
+    self.diagnostics.push({ kind: TypeMismatch(expected~, actual~), loc, })
   }
 }
 
@@ -53,7 +53,7 @@ fn SemanticChecker::expect_numeric_literal_type(
         NumericLiteralTypeMismatch(expected~, actual~, replacement~)
       None => TypeMismatch(expected~, actual~)
     }
-    self.diagnostics.push({ kind, loc })
+    self.diagnostics.push({ kind, loc, })
   }
 }
 

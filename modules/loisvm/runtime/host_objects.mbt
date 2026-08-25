@@ -29,7 +29,7 @@ struct HostObjectStore[T] {
 
 ///|
 pub fn[T] HostObjectStore::new() -> HostObjectStore[T] {
-  { identity: { nonce: Ref(()) }, slots: [] }
+  { identity: { nonce: Ref(()), }, slots: [], }
 }
 
 ///|
@@ -46,21 +46,21 @@ fn[T] HostObjectStore::insert(
 ) -> BorrowedHostObject {
   for index, slot in self.slots {
     if slot.entry is None {
-      slot.entry = Some({ value, finalizer })
+      slot.entry = Some({ value, finalizer, })
       return {
         store_identity: self.identity,
-        key: { slot: index, generation: slot.generation },
+        key: { slot: index, generation: slot.generation, },
       }
     }
   }
   let slot : HostObjectStoreSlot[T] = {
     generation: 1,
-    entry: Some({ value, finalizer }),
+    entry: Some({ value, finalizer, }),
   }
   self.slots.push(slot)
   {
     store_identity: self.identity,
-    key: { slot: self.slots.length() - 1, generation: slot.generation },
+    key: { slot: self.slots.length() - 1, generation: slot.generation, },
   }
 }
 
@@ -136,7 +136,7 @@ pub fn[T] OwnedHostObject::new(
   {
     materialize: Some(() => {
       let object = store.insert(take(), finalizer)
-      { object, release: () => store.release(object) }
+      { object, release: () => store.release(object), }
     }),
     discard: Some(() => finalizer(take())),
   }
@@ -213,7 +213,7 @@ priv struct HostObjectTable {
 ///|
 fn HostObjectTable::new(max_live_objects : Int?) -> HostObjectTable {
   {
-    identity: { nonce: Ref(()) },
+    identity: { nonce: Ref(()), },
     slots: [],
     max_live_objects: match max_live_objects {
       None => None
@@ -247,7 +247,7 @@ fn HostObjectTable::insert(
       }
     }
   }
-  let slot : HostObjectSlot = { generation: 1, entry: Some(entry) }
+  let slot : HostObjectSlot = { generation: 1, entry: Some(entry), }
   self.slots.push(slot)
   self.live_objects += 1
   {

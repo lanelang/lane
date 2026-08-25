@@ -40,13 +40,13 @@ fn Program::initialization_order_failures(
       Let(id, initializer) => {
         top_level.push(id)
         if self.metadata.value_info(id) is Some(info) && info.kind is Function {
-          callables.push({ id, body: initializer })
+          callables.push({ id, body: initializer, })
         }
       }
       LetRec(bindings) =>
         for binding in bindings {
           top_level.push(binding.id)
-          callables.push({ id: binding.id, body: binding.rhs })
+          callables.push({ id: binding.id, body: binding.rhs, })
         }
     }
   }
@@ -70,7 +70,7 @@ fn Program::initialization_order_failures(
           collector.collect(initializer, Eager, [], dependencies)
           for dependency in dependencies {
             if !bound.contains(dependency) {
-              failures.push({ initializer: id, dependency })
+              failures.push({ initializer: id, dependency, })
             }
           }
         }

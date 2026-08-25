@@ -38,7 +38,7 @@ test "Host Object lifecycle resolves aliases and finalizes exactly once" {
   let runtime = ExecutionRuntime::new()
   let store : HostObjectStore[TestHostObject] = HostObjectStore::new()
   let finalized = Ref(0)
-  let payload = { value: 41 }
+  let payload = { value: 41, }
   let handle = adopt_for_test(
     runtime,
     OwnedHostObject::new(store, payload, finalizer=_ => finalized.val += 1),
@@ -60,12 +60,12 @@ test "Host Object slots reuse indices with new generations" {
   let store : HostObjectStore[TestHostObject] = HostObjectStore::new()
   let first = adopt_for_test(
     runtime,
-    OwnedHostObject::new(store, { value: 1 }, finalizer=_ => ()),
+    OwnedHostObject::new(store, { value: 1, }, finalizer=_ => ()),
   )
   runtime.release_host_object(first)
   let second = adopt_for_test(
     runtime,
-    OwnedHostObject::new(store, { value: 2 }, finalizer=_ => ()),
+    OwnedHostObject::new(store, { value: 2, }, finalizer=_ => ()),
   )
   debug_inspect(
     (first, second),
@@ -79,7 +79,7 @@ test "failed Host Object adoption rolls back and finalizes pending ownership" {
   let store : HostObjectStore[TestHostObject] = HostObjectStore::new()
   let finalized = Ref(0)
   let result : Result[Unit, AdoptionTestError] = runtime.adopt_host_object(
-    OwnedHostObject::new(store, { value: 1 }, finalizer=_ => finalized.val += 1),
+    OwnedHostObject::new(store, { value: 1, }, finalizer=_ => finalized.val += 1),
     _handle => Err(WrapperInitializationFailed),
   ) catch {
     _ => fail("unexpected Host Object adoption failure")
@@ -96,7 +96,7 @@ test "typed Host SDK projects Opaque through its Host Object Store" {
   let store : HostObjectStore[TestHostObject] = HostObjectStore::new()
   let handle = adopt_for_test(
     runtime,
-    OwnedHostObject::new(store, { value: 40 }, finalizer=_ => ()),
+    OwnedHostObject::new(store, { value: 40, }, finalizer=_ => ()),
   )
   let parameters = HostParameters::pair(
     HostParameters::one(HostParameter::host_object(store)),
@@ -131,7 +131,7 @@ test "panic Host Object projection through another typed store is fatal" {
   let second : HostObjectStore[TestHostObject] = HostObjectStore::new()
   let handle = adopt_for_test(
     runtime,
-    OwnedHostObject::new(first, { value: 40 }, finalizer=_ => ()),
+    OwnedHostObject::new(first, { value: 40, }, finalizer=_ => ()),
   )
   ignore(second.project(runtime.resolve_host_object(handle)))
 }
@@ -148,7 +148,7 @@ test "typed Host SDK wraps owned Opaque results" {
     result=HostResult::host_object(store, finalizer=_object => {
       finalized.val += 1
     }),
-    invoke=fn(_context, _arguments) { { value: 42 } },
+    invoke=fn(_context, _arguments) { { value: 42, } },
   )
   let owned = match binding.call(runtime.context(), []) {
     OwnedOpaque(object) => object
@@ -170,11 +170,11 @@ test "unlimited Host Object table accepts multiple live objects" {
   let store : HostObjectStore[TestHostObject] = HostObjectStore::new()
   let first = adopt_for_test(
     runtime,
-    OwnedHostObject::new(store, { value: 1 }, finalizer=_ => ()),
+    OwnedHostObject::new(store, { value: 1, }, finalizer=_ => ()),
   )
   let second = adopt_for_test(
     runtime,
-    OwnedHostObject::new(store, { value: 2 }, finalizer=_ => ()),
+    OwnedHostObject::new(store, { value: 2, }, finalizer=_ => ()),
   )
   assert_eq(runtime.live_host_objects(), 2)
   runtime.release_host_object(first)
@@ -191,12 +191,12 @@ test "bounded Host Object capacity is restored by final release" {
   let store : HostObjectStore[TestHostObject] = HostObjectStore::new()
   let first = adopt_for_test(
     runtime,
-    OwnedHostObject::new(store, { value: 1 }, finalizer=_ => ()),
+    OwnedHostObject::new(store, { value: 1, }, finalizer=_ => ()),
   )
   runtime.release_host_object(first)
   let second = adopt_for_test(
     runtime,
-    OwnedHostObject::new(store, { value: 2 }, finalizer=_ => ()),
+    OwnedHostObject::new(store, { value: 2, }, finalizer=_ => ()),
   )
   debug_inspect(second, content="{ slot: 0, generation: 2 }")
   runtime.release_host_object(second)
@@ -215,7 +215,7 @@ test "zero Host Object budget finalizes the rejected result" {
     ignore(
       adopt_for_test(
         runtime,
-        OwnedHostObject::new(store, { value: 1 }, finalizer=_ => {
+        OwnedHostObject::new(store, { value: 1, }, finalizer=_ => {
           finalized.val += 1
         }),
       ),
@@ -244,7 +244,7 @@ test "negative Host Object budget behaves as zero budget" {
     ignore(
       adopt_for_test(
         runtime,
-        OwnedHostObject::new(store, { value: 1 }, finalizer=_ => {
+        OwnedHostObject::new(store, { value: 1, }, finalizer=_ => {
           finalized.val += 1
         }),
       ),
@@ -266,7 +266,7 @@ test "stale Host Object handle is rejected" {
   let store : HostObjectStore[TestHostObject] = HostObjectStore::new()
   let handle = adopt_for_test(
     runtime,
-    OwnedHostObject::new(store, { value: 1 }, finalizer=_ => ()),
+    OwnedHostObject::new(store, { value: 1, }, finalizer=_ => ()),
   )
   runtime.release_host_object(handle)
   debug_inspect(
@@ -284,7 +284,7 @@ test "cross-execution Host Object handle is rejected" {
   let store : HostObjectStore[TestHostObject] = HostObjectStore::new()
   let handle = adopt_for_test(
     first_runtime,
-    OwnedHostObject::new(store, { value: 1 }, finalizer=_ => ()),
+    OwnedHostObject::new(store, { value: 1, }, finalizer=_ => ()),
   )
   debug_inspect(
     resolve_for_test(second_runtime, handle),
@@ -300,7 +300,7 @@ test "panic Host Object finalizer failure is fatal" {
   let store : HostObjectStore[TestHostObject] = HostObjectStore::new()
   let handle = adopt_for_test(
     runtime,
-    OwnedHostObject::new(store, { value: 1 }, finalizer=_ => {
+    OwnedHostObject::new(store, { value: 1, }, finalizer=_ => {
       abort("finalizer failed")
     }),
   )

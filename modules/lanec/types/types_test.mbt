@@ -18,7 +18,7 @@ fn test_symbols() -> (TypeSymbolId, TypeParameter, TypeParameter) {
   let option = registry.define_type("Option", Struct, 1, loc)
   let a = registry.define_type_parameter("A", loc)
   let b = registry.define_type_parameter("B", loc)
-  (option, { id: a, name: "A", kind: Type }, { id: b, name: "B", kind: Type })
+  (option, { id: a, name: "A", kind: Type, }, { id: b, name: "B", kind: Type, })
 }
 
 ///|
@@ -130,7 +130,7 @@ test "built-in effect atoms canonicalize independently" {
     "E",
     @basic.SourceSpan::dummy(),
   )
-  let parameter = TypeParameter::{ id: parameter_id, name: "E", kind: Effect }
+  let parameter = TypeParameter::{ id: parameter_id, name: "E", kind: Effect, }
   let effect = Effect::Union([
     Builtin(Io),
     Builtin(Panic),
@@ -154,8 +154,8 @@ test "built-in effect atoms canonicalize independently" {
 
 ///|
 test "effect containment is independent from effect equality" {
-  let first = EffectSymbolId::{ index: 0 }
-  let second = EffectSymbolId::{ index: 1 }
+  let first = EffectSymbolId::{ index: 0, }
+  let second = EffectSymbolId::{ index: 1, }
   let narrow = Effect::Singleton(first, [])
   let wide = Effect::Union([Singleton(first, []), Singleton(second, [])])
   assert_true(Effect::Empty.alpha_subeffect_of(narrow))

@@ -61,7 +61,7 @@ fn finish_source_elaboration(
       cause: IncompleteTypecheckOutput,
     })
   }
-  let interface = { ..interface, source_id: Some(input.source_id) }
+  let interface = { ..interface, source_id: Some(input.source_id), }
   let warnings = @lint.checked_unused_local_value_binding_diagnostics(
     source,
     resolved.symbols,

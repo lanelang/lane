@@ -46,7 +46,7 @@ fn explore_request(request_text : String) -> ExploreResult {
     Succeeded => status_ok
     Failed(_) => status_diagnostics
   }
-  { status, json: report_json(report).stringify() }
+  { status, json: report_json(report).stringify(), }
 }
 
 ///|
@@ -79,7 +79,7 @@ fn entries_request(request_text : String) -> ExploreResult {
       "type": entry.type_text,
     }),
   }
-  { status, json: response.stringify() }
+  { status, json: response.stringify(), }
 }
 
 ///|
@@ -158,7 +158,7 @@ fn parse_source_input(
       if source_id.is_empty() {
         Err("sourceId must not be empty")
       } else {
-        Ok({ source_id, text })
+        Ok({ source_id, text, })
       }
     _ => Err("expected string fields `sourceId` and `text`")
   }

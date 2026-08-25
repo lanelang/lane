@@ -485,7 +485,7 @@ fn @syntax.PatternLetDeclaration::resolve_pattern_let(
     type_.resolve_type(resolver, scope)
   })
   let pattern = self.pattern.resolve_pattern(resolver, scope)
-  { pattern, type_annotation, initializer, loc: self.loc }
+  { pattern, type_annotation, initializer, loc: self.loc, }
 }
 
 ///|

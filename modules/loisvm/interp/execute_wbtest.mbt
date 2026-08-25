@@ -20,9 +20,9 @@ fn body(
 ) -> @bytecode.FunctionBody {
   {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: parameters },
+    inputs: { environment: None, witnesses: [], user_parameters: parameters, },
     result,
-    blocks: [{ parameters: [], instructions, terminator }],
+    blocks: [{ parameters: [], instructions, terminator, }],
   }
 }
 
@@ -48,20 +48,20 @@ test "ARC releases dynamic runtime String owners" {
     slots=[owned_string, owned_string, trivial_slot(I64)],
     result=Unit,
     instructions=[
-      CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-      RetainCopy({ value: 1 }, { value: 0 }),
-      Release({ value: 0 }),
-      ByteSequenceLength({ value: 2 }, { value: 1 }),
-      Release({ value: 1 }),
+      CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+      RetainCopy({ value: 1, }, { value: 0, }),
+      Release({ value: 0, }),
+      ByteSequenceLength({ value: 2, }, { value: 1, }),
+      Release({ value: 1, }),
     ],
     terminator=Return(None),
   )
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [],
@@ -117,17 +117,17 @@ test "interpreter rejects invalid host String UTF-8" {
     slots=[owned_string],
     result=Unit,
     instructions=[
-      CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-      Release({ value: 0 }),
+      CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+      Release({ value: 0, }),
     ],
     terminator=Return(None),
   )
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [],
@@ -168,31 +168,31 @@ test "fieldless data construction reuses an immortal image singleton" {
   let owned_ref : @bytecode.SlotMetadata = {
     representation: I32,
     cleanup: OwnedRef,
-    kind: DataValue({ value: 0 }),
+    kind: DataValue({ value: 0, }),
     erased_companion: None,
   }
   let entry = body(
     slots=[owned_ref],
     result=Unit,
     instructions=[
-      MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-      Release({ value: 0 }),
-      MakeData({ value: 0 }, { value: 0 }, Immediate({ value: 1 }), [], []),
-      Release({ value: 0 }),
+      MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+      Release({ value: 0, }),
+      MakeData({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+      Release({ value: 0, }),
     ],
     terminator=Return(None),
   )
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 1,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [Data({ value: 0 })],
+    layouts: [Data({ value: 0, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 7,
         stored_witness_count: 0,
         members: [],
@@ -215,33 +215,33 @@ test "engine traps discard the instance without ARC unwinding" {
   let owned_ref : @bytecode.SlotMetadata = {
     representation: I32,
     cleanup: OwnedRef,
-    kind: DataValue({ value: 0 }),
+    kind: DataValue({ value: 0, }),
     erased_companion: None,
   }
   let entry = body(
     slots=[trivial_slot(I64), owned_ref, trivial_slot(F64), trivial_slot(I64)],
     result=Unit,
     instructions=[
-      ConstI64({ value: 0 }, 42L),
-      MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 1 }), [], [
-        { value: 0 },
+      ConstI64({ value: 0, }, 42L),
+      MakeData({ value: 1, }, { value: 0, }, Immediate({ value: 1, }), [], [
+        { value: 0, },
       ]),
-      ConstF64({ value: 2 }, (0.0 / 0.0).reinterpret_as_int64()),
-      F64ToI64({ value: 3 }, { value: 2 }),
+      ConstF64({ value: 2, }, (0.0 / 0.0).reinterpret_as_int64()),
+      F64ToI64({ value: 3, }, { value: 2, }),
     ],
     terminator=Unreachable,
   )
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 1,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     globals: [],
     functions: [BytecodeBody(entry)],
-    layouts: [Data({ value: 0 })],
+    layouts: [Data({ value: 0, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [
@@ -293,7 +293,7 @@ test "CallValue validates dynamic target and environment before consumption" {
       },
     ],
     inputs: {
-      environment: Some({ value: 0 }),
+      environment: Some({ value: 0, }),
       witnesses: [],
       user_parameters: [],
     },
@@ -301,16 +301,16 @@ test "CallValue validates dynamic target and environment before consumption" {
     blocks: [
       {
         parameters: [],
-        instructions: [Release({ value: 0 })],
+        instructions: [Release({ value: 0, })],
         terminator: Return(None),
       },
     ],
   }
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     functions: [BytecodeBody(entry), BytecodeBody(capturing_target)],
     globals: [],
     layouts: [],
@@ -319,17 +319,17 @@ test "CallValue validates dynamic target and environment before consumption" {
   }
   let loaded = LoadedImage::{
     image,
-    global_lifecycle: { roots: [], root_ordinals: [], owned_roots: [] },
+    global_lifecycle: { roots: [], root_ordinals: [], owned_roots: [], },
     bindings: [None, None],
   }
   let instance = loaded.new_instance()
   let frame = make_frame(entry, None, [], [], None)
-  frame.write({ value: 0 }, I64(callable({ value: 99 }, 0)))
+  frame.write({ value: 0, }, I64(callable({ value: 99, }, 0)))
   let error : ExecutionFailure? = try {
     instance.call_value(
       frame,
-      { value: 0 },
-      { value: 0 },
+      { value: 0, },
+      { value: 0, },
       [],
       [],
       None,
@@ -340,16 +340,16 @@ test "CallValue validates dynamic target and environment before consumption" {
     error => Some(error)
   }
   assert_true(
-    error is Some(InvalidCallable(InvalidTarget(function={ value: 99 }))),
+    error is Some(InvalidCallable(InvalidTarget(function={ value: 99, }))),
   )
   assert_eq(frame.owned_live, [true])
   let missing_environment = make_frame(entry, None, [], [], None)
-  missing_environment.write({ value: 0 }, I64(callable({ value: 2 }, 0)))
+  missing_environment.write({ value: 0, }, I64(callable({ value: 2, }, 0)))
   let environment_error : ExecutionFailure? = try {
     instance.call_value(
       missing_environment,
-      { value: 0 },
-      { value: 0 },
+      { value: 0, },
+      { value: 0, },
       [],
       [],
       None,
@@ -363,7 +363,7 @@ test "CallValue validates dynamic target and environment before consumption" {
     environment_error
     is Some(
       InvalidCallable(
-        EnvironmentMismatch(function={ value: 2 }, expected=true, actual=false)
+        EnvironmentMismatch(function={ value: 2, }, expected=true, actual=false)
       )
     ),
   )

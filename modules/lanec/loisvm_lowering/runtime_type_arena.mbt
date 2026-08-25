@@ -35,7 +35,7 @@ fn RuntimeTypeArena::intern(
       return { index, }
     }
   }
-  let id : @anf.RuntimeTypeExpressionId = { index: self.expressions.length() }
+  let id : @anf.RuntimeTypeExpressionId = { index: self.expressions.length(), }
   self.expressions.push(expression)
   id
 }

@@ -175,7 +175,7 @@ fn interface_export_text(
 
 ///|
 fn object_summary_doc(artifact : ModuleObjectArtifact) -> Document {
-  let buslane = BuslaneInspectContext::{ metadata: artifact.metadata }
+  let buslane = BuslaneInspectContext::{ metadata: artifact.metadata, }
   text("object:") +
   @prettyprinter.hardline +
   separate(@prettyprinter.hardline, [
@@ -213,7 +213,7 @@ fn buslane_program_doc(
   terms : Array[@buslane.TopTerm],
 ) -> Document {
   let program_text = @prettyprinter.render(
-    @buslane.Program::{ metadata, terms },
+    @buslane.Program::{ metadata, terms, },
     width=100,
   )
   text("buslane:") +

@@ -36,7 +36,7 @@ fn document_from_did_open(params : Json) -> DocumentSnapshot? {
   let uri = json_string_field(text_document, "uri")
   let text = json_string_field(text_document, "text")
   guard uri is Some(uri) && text is Some(text) else { return None }
-  Some({ uri, text })
+  Some({ uri, text, })
 }
 
 ///|
@@ -51,7 +51,7 @@ fn document_from_did_change(params : Json) -> DocumentSnapshot? {
   let uri = json_string_field(text_document, "uri")
   let text = json_string_field(change, "text")
   guard uri is Some(uri) && text is Some(text) else { return None }
-  Some({ uri, text })
+  Some({ uri, text, })
 }
 
 ///|
@@ -100,7 +100,7 @@ fn text_document_position_params(params : Json) -> TextDocumentPositionParams? {
   }
   let uri = json_string_field(text_document, "uri")
   guard uri is Some(uri) else { return None }
-  Some({ uri, line: position.line, character: position.character })
+  Some({ uri, line: position.line, character: position.character, })
 }
 
 ///|
@@ -134,7 +134,7 @@ fn text_document_range_params(params : Json) -> TextDocumentRangeParams? {
   guard uri is Some(uri) && start is Some(start) && end is Some(end) else {
     return None
   }
-  Some({ uri, start, end })
+  Some({ uri, start, end, })
 }
 
 ///|
@@ -143,5 +143,5 @@ fn json_position_field(json : Json, name : String) -> LspPosition? {
   let line = json_int_field(position, "line")
   let character = json_int_field(position, "character")
   guard line is Some(line) && character is Some(character) else { return None }
-  Some({ line, character })
+  Some({ line, character, })
 }

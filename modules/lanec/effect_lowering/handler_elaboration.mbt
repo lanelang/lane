@@ -1,6 +1,6 @@
 ///|
 fn elaborate_handlers(program : @buslane.Program) -> Program {
-  { metadata: program.metadata, terms: program.terms.map(elaborate_top_term) }
+  { metadata: program.metadata, terms: program.terms.map(elaborate_top_term), }
 }
 
 ///|
@@ -16,7 +16,7 @@ fn elaborate_top_term(term : @buslane.TopTerm) -> TopTerm {
 fn elaborate_recursive_binding(
   binding : @buslane.RecursiveBinding,
 ) -> RecursiveBinding {
-  { id: binding.id, rhs: elaborate_expr(binding.rhs) }
+  { id: binding.id, rhs: elaborate_expr(binding.rhs), }
 }
 
 ///|

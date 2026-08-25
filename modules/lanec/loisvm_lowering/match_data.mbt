@@ -85,7 +85,7 @@ fn FunctionLowerer::lower_data_match(
     if self.environment is Some(environment) {
       arguments.push(environment)
     }
-    cases.push({ target: block, arguments })
+    cases.push({ target: block, arguments, })
     alternatives.push(
       (
         block, branch_scrutinee, branch_environment, alternative, data_constructor,
@@ -94,7 +94,7 @@ fn FunctionLowerer::lower_data_match(
   }
   let default_block = self.new_block([])
   self.terminate(
-    SwitchTag(tag, cases, { target: default_block, arguments: [] }),
+    SwitchTag(tag, cases, { target: default_block, arguments: [], }),
   )
   for item in alternatives {
     let (
@@ -199,7 +199,7 @@ fn FunctionLowerer::lower_data_alternative(
     self.materialize_local(self.lower_expr(alternative.body)),
   )
   let arguments = self.block_value_arguments(result)
-  self.terminate(Jump({ target: join, arguments }))
+  self.terminate(Jump({ target: join, arguments, }))
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
   self.substitutions = original_substitutions
@@ -305,7 +305,7 @@ fn FunctionLowerer::bind_data_alternative(
               witness_destination: None,
             }),
           )
-          self.witnesses.push({ parameter: binder.id, value: evidence })
+          self.witnesses.push({ parameter: binder.id, value: evidence, })
           evidence_member_index += 1
         }
     }
@@ -323,7 +323,7 @@ fn FunctionLowerer::bind_data_alternative(
             shape,
             scrutinee,
             evidence_member_index + runtime_member_index(storage_shapes, index),
-            { value_destination: erased, witness_destination: Some(witness) },
+            { value_destination: erased, witness_destination: Some(witness), },
           ),
         )
         LocalValue::Slot(erased, storage_type, storage_shape)
@@ -338,7 +338,7 @@ fn FunctionLowerer::bind_data_alternative(
             shape,
             scrutinee,
             evidence_member_index + runtime_member_index(storage_shapes, index),
-            { value_destination: destination, witness_destination: None },
+            { value_destination: destination, witness_destination: None, },
           ),
         )
         LocalValue::Slot(destination, storage_type, storage_shape)
@@ -361,7 +361,7 @@ fn FunctionLowerer::bind_data_alternative(
         self.physical_shape(payload.flow.target),
         payload.flow.bridge,
       )
-      self.bindings.push({ value: value_binder, lowered })
+      self.bindings.push({ value: value_binder, lowered, })
     }
     self.substitutions = self.substitutions.overlay(branch_substitutions)
   } else {
@@ -389,14 +389,14 @@ fn FunctionLowerer::lower_bool_alternative(
   self.enter_block(block)
   let original_environment = self.environment
   self.enter_branch_environment(original_environment, branch_environment)
-  self.bindings.push({ value: binder, lowered: scrutinee })
+  self.bindings.push({ value: binder, lowered: scrutinee, })
   let result = self.materialize_planned_match_alternative(
     site,
     alternative,
     self.materialize_local(self.lower_expr(alternative.body)),
   )
   let arguments = self.block_value_arguments(result)
-  self.terminate(Jump({ target: join, arguments }))
+  self.terminate(Jump({ target: join, arguments, }))
   self.restore_bindings(value_count, temp_count)
   self.environment = original_environment
 }

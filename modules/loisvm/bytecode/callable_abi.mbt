@@ -18,7 +18,7 @@ fn CallableAbi::from_value_abis(
   parameters : Array[ValueAbi],
   result : ResultAbi,
 ) -> CallableAbi {
-  { witnesses, parameters, result }
+  { witnesses, parameters, result, }
 }
 
 ///|
@@ -107,19 +107,19 @@ pub fn BytecodeImage::function_callable_abi_id(
   id : FunctionId,
 ) -> CallableAbiId? {
   guard self.function_callable_abi(id) is Some(abi) else { return None }
-  self.callable_abis.search(abi).map(index => { value: index })
+  self.callable_abis.search(abi).map(index => { value: index, })
 }
 
 ///|
 fn runtime_value_abi(kind : RuntimeValueKind) -> ValueAbi? {
   match kind {
     Unit => None
-    Bool => Some({ representation: I32, cleanup: Trivial, kind: ScalarValue })
-    I64 => Some({ representation: I64, cleanup: Trivial, kind: ScalarValue })
-    F64 => Some({ representation: F64, cleanup: Trivial, kind: ScalarValue })
-    F32 => Some({ representation: F32, cleanup: Trivial, kind: ScalarValue })
+    Bool => Some({ representation: I32, cleanup: Trivial, kind: ScalarValue, })
+    I64 => Some({ representation: I64, cleanup: Trivial, kind: ScalarValue, })
+    F64 => Some({ representation: F64, cleanup: Trivial, kind: ScalarValue, })
+    F32 => Some({ representation: F32, cleanup: Trivial, kind: ScalarValue, })
     String =>
-      Some({ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue })
+      Some({ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, })
     Opaque =>
       Some({
         representation: I32,

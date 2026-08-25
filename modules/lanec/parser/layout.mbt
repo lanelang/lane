@@ -56,7 +56,7 @@ fn prepare_layout_tokens(concrete : @lexer.ConcreteSyntax) -> LayoutTokenStream 
       _ => ()
     }
   }
-  { tokens, separator_claims }
+  { tokens, separator_claims, }
 }
 
 ///|
@@ -166,9 +166,10 @@ fn layout_token_role(token : @lexer.Token) -> LayoutTokenRole {
     | IDENT(_)
     | FALSE
     | TRUE
-    | UNDERSCORE => { ends_item: true, starts_item: true }
-    RPAREN | RBRACE | RBRACKET => { ends_item: true, starts_item: false }
-    KIND_TYPE | KIND_EFFECT | DOTSTAR => { ends_item: true, starts_item: false }
+    | UNDERSCORE => { ends_item: true, starts_item: true, }
+    RPAREN | RBRACE | RBRACKET => { ends_item: true, starts_item: false, }
+    KIND_TYPE | KIND_EFFECT | DOTSTAR =>
+      { ends_item: true, starts_item: false, }
     RESERVED(_)
     | STRUCT
     | ENUM
@@ -188,7 +189,7 @@ fn layout_token_role(token : @lexer.Token) -> LayoutTokenRole {
     | PUB
     | LPAREN
     | LBRACE
-    | LBRACKET => { ends_item: false, starts_item: true }
+    | LBRACKET => { ends_item: false, starts_item: true, }
     EOF
     | AUTO
     | AS
@@ -219,6 +220,6 @@ fn layout_token_role(token : @lexer.Token) -> LayoutTokenRole {
     | TIGHT_COLONCOLON
     | THIN_ARROW
     | FAT_ARROW
-    | EQUAL => { ends_item: false, starts_item: false }
+    | EQUAL => { ends_item: false, starts_item: false, }
   }
 }

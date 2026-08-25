@@ -65,7 +65,7 @@ fn BytecodeVerifier::verify_function(
   }
   self.verify_distinct_slots(function_site, input_slots, "function input")
   for block_index, block in body.blocks {
-    let block_id : BlockId = { value: block_index }
+    let block_id : BlockId = { value: block_index, }
     let block_site = BytecodeVerificationSite::Block(function, block_id)
     for parameter in block.parameters {
       ignore(self.slot_metadata(block_site, body, parameter))

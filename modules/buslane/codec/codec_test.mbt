@@ -122,7 +122,7 @@ test "program binary codec roundtrips core structures" {
 
 ///|
 test "program codec writes schema version 8" {
-  let bytes = encode_program({ metadata: MetadataRegistry(), terms: [] })
+  let bytes = encode_program({ metadata: MetadataRegistry(), terms: [], })
   guard bytes is [i32le(version), ..] else {
     fail("expected Buslane codec version prefix")
   }
@@ -157,7 +157,7 @@ test "program decoder rejects invalid version" {
 
 ///|
 test "program decoder rejects trailing bytes" {
-  let bytes = encode_program({ metadata: MetadataRegistry(), terms: [] })
+  let bytes = encode_program({ metadata: MetadataRegistry(), terms: [], })
   let writer = @bytecodec.ByteWriter::new()
   writer.write_raw_bytes(bytes)
   writer.write_u8(0)
@@ -210,13 +210,13 @@ test "program codec roundtrips the last unique and exhausted allocator" {
     @buslane.BuslaneUnique::from_int(0x7FFFFFFF).unwrap(),
   )
   assert_eq(
-    decode_program(encode_program({ metadata, terms: [] })).metadata,
+    decode_program(encode_program({ metadata, terms: [], })).metadata,
     metadata,
   )
   ignore(metadata.define_value("last", Value, Primitive(Unit)))
   assert_eq(metadata.name_allocator, Exhausted)
   assert_eq(
-    decode_program(encode_program({ metadata, terms: [] })).metadata,
+    decode_program(encode_program({ metadata, terms: [], })).metadata,
     metadata,
   )
 }

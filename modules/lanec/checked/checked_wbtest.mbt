@@ -53,8 +53,8 @@ fn checked_source(
 ) -> CheckedSourceFile {
   let main = registry.define_value("main", TopLevelFunction, loc())
   {
-    module_path: { components: ["Test"], loc: loc() },
-    canonical_basic_abi: { types: [] },
+    module_path: { components: ["Test"], loc: loc(), },
+    canonical_basic_abi: { types: [], },
     declarations: [Function(checked_function(main, "main", [], body))],
     loc: loc(),
   }
@@ -102,13 +102,13 @@ test "pretty prints checked source without surface-only syntax" {
   )
   let call = CheckedExpr::Call(
     callee~,
-    arguments=[{ value, loc: loc(), provenance: Authored }],
+    arguments=[{ value, loc: loc(), provenance: Authored, }],
     type_=i64_type(),
     loc=loc(),
   )
   let source = CheckedSourceFile::{
-    module_path: { components: ["Test"], loc: loc() },
-    canonical_basic_abi: { types: [] },
+    module_path: { components: ["Test"], loc: loc(), },
+    canonical_basic_abi: { types: [], },
     declarations: [
       Let({
         is_public: true,
@@ -168,8 +168,8 @@ test "pretty prints checked thunked short circuit call shape" {
   let call = CheckedExpr::Call(
     callee=op_and,
     arguments=[
-      { value: left, loc: loc(), provenance: Synthetic },
-      { value: thunk, loc: loc(), provenance: Synthetic },
+      { value: left, loc: loc(), provenance: Synthetic, },
+      { value: thunk, loc: loc(), provenance: Synthetic, },
     ],
     type_=bool_type(),
     loc=loc(),
@@ -291,7 +291,7 @@ test "value use analysis classifies local dependency groups" {
         name: "x",
         name_loc: loc(),
         initializer: Literal(
-          literal=I64({ raw: "1", value: 1 }),
+          literal=I64({ raw: "1", value: 1, }),
           type_=i64_type(),
           loc=loc(),
         ),
@@ -339,7 +339,7 @@ test "value use analysis classifies local dependency groups" {
       ),
     ],
     result=Literal(
-      literal=I64({ raw: "0", value: 0 }),
+      literal=I64({ raw: "0", value: 0, }),
       type_=i64_type(),
       loc=loc(),
     ),
@@ -377,7 +377,7 @@ test "value use analysis does not cascade through unused captured function" {
         name: "x",
         name_loc: loc(),
         initializer: Literal(
-          literal=I64({ raw: "1", value: 1 }),
+          literal=I64({ raw: "1", value: 1, }),
           type_=i64_type(),
           loc=loc(),
         ),
@@ -394,7 +394,7 @@ test "value use analysis does not cascade through unused captured function" {
       ),
     ],
     result=Literal(
-      literal=I64({ raw: "0", value: 0 }),
+      literal=I64({ raw: "0", value: 0, }),
       type_=i64_type(),
       loc=loc(),
     ),
@@ -474,8 +474,8 @@ test "value use analysis excludes generated locals without losing authored uses"
     loc=loc(),
   )
   let source = CheckedSourceFile::{
-    module_path: { components: ["Test"], loc: loc() },
-    canonical_basic_abi: { types: [] },
+    module_path: { components: ["Test"], loc: loc(), },
+    canonical_basic_abi: { types: [], },
     declarations: [
       Function(checked_function(main, "main", [input_parameter], body)),
     ],
@@ -483,12 +483,12 @@ test "value use analysis excludes generated locals without losing authored uses"
   }
   assert_eq(source.value_use_analysis(registry), {
     binders: [
-      { symbol: input, name: "input", loc: loc(), kind: FunctionParameter },
-      { symbol: result, name: "result", loc: loc(), kind: LocalLet },
+      { symbol: input, name: "input", loc: loc(), kind: FunctionParameter, },
+      { symbol: result, name: "result", loc: loc(), kind: LocalLet, },
     ],
     references: [
-      { target: input, origin_binder: Some(result), loc: loc() },
-      { target: result, origin_binder: None, loc: loc() },
+      { target: input, origin_binder: Some(result), loc: loc(), },
+      { target: result, origin_binder: None, loc: loc(), },
     ],
   })
 }

@@ -102,7 +102,7 @@ fn CpsCallableShape::materialize_monadic(
       context_parameter_types[index],
     )
     context_parameters.push(parameter)
-    bindings.push({ term, value: Ref(parameter) })
+    bindings.push({ term, value: Ref(parameter), })
   }
   let continuation = metadata.define_cps_value(
     "%continuation",
@@ -112,7 +112,7 @@ fn CpsCallableShape::materialize_monadic(
   {
     answer_parameter,
     residual_parameter,
-    answer: { type_: self.result_type, residual: self.target_effect },
+    answer: { type_: self.result_type, residual: self.target_effect, },
     context_parameters,
     value_parameters,
     continuation,

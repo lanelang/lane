@@ -114,14 +114,14 @@ fn desugar_struct_literal_field(
 
 ///|
 fn desugar_match_arm(arm : @resolve.ResolvedMatchArm) -> DesugaredMatchArm {
-  { pattern: arm.pattern, body: desugar_expr(arm.body), loc: arm.loc }
+  { pattern: arm.pattern, body: desugar_expr(arm.body), loc: arm.loc, }
 }
 
 ///|
 fn desugar_handler_with_block(
   handler : @resolve.ResolvedHandlerWithBlock,
 ) -> DesugaredHandlerWithBlock {
-  { arms: handler.arms.map(desugar_handler_operation_arm), loc: handler.loc }
+  { arms: handler.arms.map(desugar_handler_operation_arm), loc: handler.loc, }
 }
 
 ///|

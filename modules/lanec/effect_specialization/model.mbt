@@ -37,7 +37,7 @@ fn EffectRewriteScope::new(
   owner : @buslane.ValueId,
   type_bindings : Array[EffectSpecializationBinding],
 ) -> EffectRewriteScope {
-  { owner, type_bindings, value_bindings: [], local_definition_groups: [] }
+  { owner, type_bindings, value_bindings: [], local_definition_groups: [], }
 }
 
 ///|
@@ -99,7 +99,7 @@ fn EffectRewriteScope::bind_value(
   source : @buslane.ValueId,
   target : @buslane.ValueId,
 ) -> Unit {
-  self.value_bindings.push({ source, target })
+  self.value_bindings.push({ source, target, })
 }
 
 ///|
@@ -205,7 +205,7 @@ pub fn specialize(
             specializer.root_scope(binding.id),
           )
           specializer.specialize_retained_value_type(binding.id)
-          rewritten.push({ id: binding.id, rhs })
+          rewritten.push({ id: binding.id, rhs, })
         }
         if rewritten.length() != retained_values.length() {
           raise RewriterInvariant(
@@ -254,13 +254,16 @@ pub fn specialize(
   }
   specializer.specialize_retained_declarations()
   if specialized_bindings.is_empty() {
-    return { metadata: program.metadata, terms }
+    return { metadata: program.metadata, terms, }
   }
   // Specialized definitions are function implementations, so binding them as
   // one recursive group installs closures without evaluating anything. They
   // lead the program because a retained value initializer may call one, and
   // top-level bindings are established in order.
-  { metadata: program.metadata, terms: [LetRec(specialized_bindings), ..terms] }
+  {
+    metadata: program.metadata,
+    terms: [LetRec(specialized_bindings), ..terms],
+  }
 }
 
 ///|
@@ -272,13 +275,13 @@ fn collect_effect_generic_definitions(
     match term {
       Let(id, rhs) =>
         if effect_scheme_parameters(program.metadata, id) is Some(parameters) {
-          definitions.push({ id, parameters, rhs })
+          definitions.push({ id, parameters, rhs, })
         }
       LetRec(bindings) =>
         for binding in bindings {
           if effect_scheme_parameters(program.metadata, binding.id)
             is Some(parameters) {
-            definitions.push({ id: binding.id, parameters, rhs: binding.rhs })
+            definitions.push({ id: binding.id, parameters, rhs: binding.rhs, })
           }
         }
       External(_) => ()

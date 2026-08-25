@@ -31,9 +31,9 @@ pub fn InternalRuntimeFunction::type_(
   self : InternalRuntimeFunction,
 ) -> @wasm_types.FuncType {
   match self {
-    F32ToString => { params: [F32], results: [I32] }
-    F64ToString => { params: [F64], results: [I32] }
-    FatalString => { params: [I32, I32], results: [] }
-    HostObjectRelease => { params: [I64], results: [] }
+    F32ToString => { params: [F32], results: [I32], }
+    F64ToString => { params: [F64], results: [I32], }
+    FatalString => { params: [I32, I32], results: [], }
+    HostObjectRelease => { params: [I64], results: [], }
   }
 }

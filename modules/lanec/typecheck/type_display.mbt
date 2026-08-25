@@ -24,7 +24,7 @@ pub fn TypeDisplayContext::from_names(
   effect_names : Array[(@symbol.EffectSymbolId, String)],
   type_parameter_names : Array[(@symbol.TypeParameterId, String)],
 ) -> TypeDisplayContext {
-  { registry: None, type_names, effect_names, type_parameter_names }
+  { registry: None, type_names, effect_names, type_parameter_names, }
 }
 
 ///|

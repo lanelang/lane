@@ -19,7 +19,7 @@ fn ImageLowerer::plan(
             self.add_instance_global(value)
             ignore(
               self.plans.append(Initializer(source=value), fn(function) {
-                let step = { function, value, expression }
+                let step = { function, value, expression, }
                 initializers.push(step)
                 InitializerStep(step)
               }),
@@ -60,7 +60,7 @@ fn ImageLowerer::add_instance_global(
     None => raise MissingValueMetadata(value~)
   }
   if self.runtime_type(type_) is Concrete(Unit) {
-    self.globals.push({ value, lowered: UnitValue })
+    self.globals.push({ value, lowered: UnitValue, })
     return
   }
   let family = self.representation_demands.data_family_at_global(value)
@@ -71,14 +71,14 @@ fn ImageLowerer::add_instance_global(
     )
   }
   let metadata = shape.value_metadata(None)
-  let global : @bytecode.GlobalId = { value: self.instance_globals.length() }
+  let global : @bytecode.GlobalId = { value: self.instance_globals.length(), }
   self.instance_globals.push({
     representation: metadata.representation,
     cleanup: metadata.cleanup,
     kind: metadata.kind,
     erased_companion: None,
   })
-  self.globals.push({ value, lowered: InstanceGlobal(global, type_, shape) })
+  self.globals.push({ value, lowered: InstanceGlobal(global, type_, shape), })
 }
 
 ///|
@@ -109,14 +109,14 @@ fn ImageLowerer::plan_intrinsic(
   }
   match intrinsic {
     F32Inf =>
-      self.globals.push({ value, lowered: FloatConstant(0x7f800000, type_) })
+      self.globals.push({ value, lowered: FloatConstant(0x7f800000, type_), })
     F32NegativeInf =>
       self.globals.push({
         value,
         lowered: FloatConstant(0xff800000U.reinterpret_as_int(), type_),
       })
     F32Nan =>
-      self.globals.push({ value, lowered: FloatConstant(0x7fc00000, type_) })
+      self.globals.push({ value, lowered: FloatConstant(0x7fc00000, type_), })
     F64Inf =>
       self.globals.push({
         value,
@@ -146,13 +146,13 @@ fn ImageLowerer::plan_intrinsic(
         raise UnsupportedIntrinsic(name=intrinsic.name())
       }
       let (_, parameters, result) = function_type_parts(type_)
-      let function_contract = { intrinsic, parameters, result, implementation }
+      let function_contract = { intrinsic, parameters, result, implementation, }
       match implementation {
         Direct =>
-          self.globals.push({ value, lowered: Intrinsic(function_contract) })
+          self.globals.push({ value, lowered: Intrinsic(function_contract), })
         Fatal(..) => {
           let function = self.intrinsic_wrapper(function_contract)
-          self.globals.push({ value, lowered: Function(function, type_) })
+          self.globals.push({ value, lowered: Function(function, type_), })
         }
       }
     }
@@ -196,7 +196,7 @@ fn ImageLowerer::add_plan(
     Some(info) => info.type_
     None => raise MissingValueMetadata(value~)
   }
-  self.globals.push({ value, lowered: Function(function, type_) })
+  self.globals.push({ value, lowered: Function(function, type_), })
 }
 
 ///|
@@ -288,7 +288,7 @@ fn ImageLowerer::lower_initializer_step(
     image: self,
     function: Some(step.function),
     values: [],
-    blocks: [{ parameters: [], instructions: [], terminator: None }],
+    blocks: [{ parameters: [], instructions: [], terminator: None, }],
     current_block: 0,
     bindings: [],
     temps: [],
@@ -325,7 +325,7 @@ fn ImageLowerer::lower_initializer_step(
   }
   {
     values: lowerer.values,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: result_abi,
     blocks,
   }
@@ -340,7 +340,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
     image: self,
     function: None,
     values: [],
-    blocks: [{ parameters: [], instructions: [], terminator: None }],
+    blocks: [{ parameters: [], instructions: [], terminator: None, }],
     current_block: 0,
     bindings: [],
     temps: [],
@@ -368,7 +368,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
   lowerer.terminate(Return(None))
   {
     values: lowerer.values,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
@@ -411,7 +411,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     image: self,
     function: Some(plan.function),
     values: [],
-    blocks: [{ parameters: [], instructions: [], terminator: None }],
+    blocks: [{ parameters: [], instructions: [], terminator: None, }],
     current_block: 0,
     bindings: [],
     temps: [],
@@ -435,7 +435,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
         },
         result: self.result_abi(result_type),
         blocks: [
-          { parameters: [], instructions: [], terminator: Fatal(message) },
+          { parameters: [], instructions: [], terminator: Fatal(message), },
         ],
       }
     }
@@ -482,7 +482,7 @@ fn ImageLowerer::intrinsic_wrapper(
   let function = self.plans.append(
       IntrinsicWrapper(name=contract.intrinsic.name()),
       fn(function) {
-        let wrapper = { function, contract }
+        let wrapper = { function, contract, }
         self.intrinsic_wrappers.push(wrapper)
         IntrinsicWrapper(wrapper)
       },
@@ -495,7 +495,7 @@ fn ImageLowerer::fresh_synthetic_parameter(
   self : ImageLowerer,
 ) -> @anf.RuntimeEvidenceId {
   let id = @anf.RuntimeEvidenceId::Synthetic(self.synthetic_parameters.length())
-  self.synthetic_parameters.push({ id, arity: 0 })
+  self.synthetic_parameters.push({ id, arity: 0, })
   id
 }
 

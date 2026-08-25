@@ -210,7 +210,7 @@ fn f32_to_decimal(
       vr
     }
   }
-  { mantissa: output, exponent: decimal_exponent + removed }
+  { mantissa: output, exponent: decimal_exponent + removed, }
 }
 
 ///|

@@ -19,7 +19,7 @@ test "open-resolve removes identity and empty abstract markers" {
   }
   assert_eq(
     resolve_open_contexts(identity),
-    Ok({ metadata, terms: [Let(result, Literal(Unit))] }),
+    Ok({ metadata, terms: [Let(result, Literal(Unit))], }),
   )
   let empty = Program::{
     metadata,
@@ -36,7 +36,7 @@ test "open-resolve removes identity and empty abstract markers" {
   }
   assert_eq(
     resolve_open_contexts(empty),
-    Ok({ metadata, terms: [Let(result, Literal(Unit))] }),
+    Ok({ metadata, terms: [Let(result, Literal(Unit))], }),
   )
 }
 

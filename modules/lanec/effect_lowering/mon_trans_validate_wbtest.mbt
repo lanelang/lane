@@ -4,7 +4,7 @@ fn mon_trans_validation_program(
   expression : Expr,
 ) -> Program raise @buslane.MetadataAllocationError {
   let result = metadata.define_value("result", Value, Primitive(Unit))
-  { metadata, terms: [Let(result, expression)] }
+  { metadata, terms: [Let(result, expression)], }
 }
 
 ///|

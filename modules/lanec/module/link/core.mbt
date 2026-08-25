@@ -4,7 +4,7 @@
 /// order; any diagnostic yields no partial program.
 pub fn link_modules(modules : Array[LinkModuleObject]) -> LinkResult {
   match LinkModuleIndex::from_modules(modules) {
-    Err(diagnostics) => { program: None, diagnostics }
+    Err(diagnostics) => { program: None, diagnostics, }
     Ok(index) => link_index(index, AllModules, QualifiedEntries, None)
   }
 }
@@ -18,7 +18,7 @@ pub fn link_reachable_modules(
   root_module_path_text : String,
 ) -> LinkResult {
   match LinkModuleIndex::from_modules(modules) {
-    Err(diagnostics) => { program: None, diagnostics }
+    Err(diagnostics) => { program: None, diagnostics, }
     Ok(index) =>
       link_index(
         index,
@@ -36,7 +36,7 @@ pub fn link_reachable_modules_observed(
   observe : (LinkRetentionObservation) -> Unit,
 ) -> LinkResult {
   match LinkModuleIndex::from_modules(modules) {
-    Err(diagnostics) => { program: None, diagnostics }
+    Err(diagnostics) => { program: None, diagnostics, }
     Ok(index) =>
       link_index(
         index,
@@ -61,10 +61,10 @@ fn link_index(
   let diagnostics = ordered.diagnostics +
     validate_module_exports_for_link_order(ordered.modules, index)
   if !diagnostics.is_empty() {
-    return { program: None, diagnostics }
+    return { program: None, diagnostics, }
   }
   match index.validate_order(ordered.modules) {
-    Err(diagnostics) => { program: None, diagnostics }
+    Err(diagnostics) => { program: None, diagnostics, }
     Ok(modules) => link_ordered_modules(modules, entry_mode, observe)
   }
 }
@@ -128,7 +128,7 @@ fn link_ordered_modules_with_remapper(
     program: Some({
       module_path_texts,
       program: retained_program,
-      externals: { builtins, runtime_imports },
+      externals: { builtins, runtime_imports, },
       entries,
     }),
     diagnostics: [],
@@ -314,7 +314,7 @@ fn LinkModuleIndex::from_modules(
     }
   }
   if diagnostics.is_empty() {
-    Ok({ modules, module_slots_by_path, exports_by_path })
+    Ok({ modules, module_slots_by_path, exports_by_path, })
   } else {
     Err(diagnostics)
   }
@@ -335,7 +335,7 @@ fn LinkModuleIndex::all(self : LinkModuleIndex) -> OrderedLinkModulesResult {
       diagnostics,
     )
   }
-  { modules: ordered, diagnostics }
+  { modules: ordered, diagnostics, }
 }
 
 ///|
@@ -348,7 +348,7 @@ fn LinkModuleIndex::reachable(
   let visited : @hashset.HashSet[String] = HashSet([])
   let diagnostics = []
   self.visit(root_module_path_text, visiting, visited, ordered, diagnostics)
-  { modules: ordered, diagnostics }
+  { modules: ordered, diagnostics, }
 }
 
 ///|

@@ -48,7 +48,7 @@ fn prepare_or_raise(image : Image) -> CanonicalPreArcImage raise FinalizeError {
   let canonical = canonicalize_function_table_to_fixed_point(image) catch {
     error => raise FunctionTableCanonicalizationCompilerDefect(error)
   }
-  { image: canonical.image, source_functions: canonical.source_functions }
+  { image: canonical.image, source_functions: canonical.source_functions, }
 }
 
 ///|
@@ -96,10 +96,10 @@ fn CallableAbiInterner::intern(
 ) -> @bytecode.CallableAbiId {
   for index, existing in self.entries {
     if existing == abi {
-      return { value: index }
+      return { value: index, }
     }
   }
-  let id : @bytecode.CallableAbiId = { value: self.entries.length() }
+  let id : @bytecode.CallableAbiId = { value: self.entries.length(), }
   self.entries.push(abi)
   id
 }
@@ -118,7 +118,7 @@ fn finalize_without_bytecode_verification_or_raise(
   prepared : CanonicalPreArcImage,
 ) -> @bytecode.BytecodeImage raise FinalizeError {
   let image = prepared.image
-  let callable_abis = CallableAbiInterner::{ entries: [] }
+  let callable_abis = CallableAbiInterner::{ entries: [], }
   let finalized_functions : Array[@bytecode.FunctionEntry] = []
   for entry in image.functions {
     match entry {
@@ -153,7 +153,7 @@ fn prepare_body(body : FunctionBody) -> FunctionBody raise FinalizeError {
   let body = promote_cross_block_instruction_borrows(body)
   let body = thread_owned_block_values(body)
   for index, metadata in body.values {
-    validate_metadata({ value: index }, metadata)
+    validate_metadata({ value: index, }, metadata)
   }
   body
 }
@@ -205,7 +205,7 @@ fn value_metadata_to_slot(metadata : ValueMetadata) -> @bytecode.SlotMetadata {
       cleanup: OwnedErased,
       kind: metadata.kind,
       erased_companion: metadata.erased_companion.map(fn(value) {
-        { value: value.value }
+        { value: value.value, }
       }),
     }
   }
@@ -218,7 +218,7 @@ fn value_metadata_to_slot(metadata : ValueMetadata) -> @bytecode.SlotMetadata {
     kind: metadata.kind,
     erased_companion: match metadata.ownership {
       Owned if metadata.cleanup is OwnedErased =>
-        metadata.erased_companion.map(fn(value) { { value: value.value } })
+        metadata.erased_companion.map(fn(value) { { value: value.value, } })
       _ => None
     },
   }

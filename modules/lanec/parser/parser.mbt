@@ -18,7 +18,7 @@ pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
       return Failed(
         Grammar(
           concrete,
-          [{ kind: UnexpectedEndOfInput(expected_syntax(expected)), loc }],
+          [{ kind: UnexpectedEndOfInput(expected_syntax(expected)), loc, }],
           failure_identifier_index(layout.tokens, loc, expected),
         ),
       )
@@ -31,7 +31,7 @@ pub fn parse_concrete(concrete : @lexer.ConcreteSyntax) -> ParseResult {
       return Failed(
         Grammar(
           concrete,
-          [{ kind, loc }],
+          [{ kind, loc, }],
           failure_identifier_index(
             layout.tokens,
             token_start_position(start),
@@ -97,7 +97,7 @@ fn unexpected_token_error_kind(
 
 ///|
 fn token_summary(token : @yacc_parser.Token) -> TokenSummary {
-  { label: token_label(token) }
+  { label: token_label(token), }
 }
 
 ///|
@@ -119,7 +119,7 @@ fn expected_syntax(
       | TK_MISSING_TUPLE_PATTERN_ITEM_ERROR) {
       continue
     }
-    let syntax : ExpectedSyntax = { label: token_kind_label(kind) }
+    let syntax : ExpectedSyntax = { label: token_kind_label(kind), }
     if !result.contains(syntax) {
       result.push(syntax)
     }

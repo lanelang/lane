@@ -43,7 +43,7 @@ pub fn CanonicalBasicAbi::from_module_input(
       provider, tuple, list, void_declaration, structural_derive,
     )
   }
-  { providers, void_declaration, structural_derive }
+  { providers, void_declaration, structural_derive, }
 }
 
 ///|
@@ -112,7 +112,7 @@ pub fn CanonicalBasicAbi::checked_contract(
   let types = []
   for provider in @abi.BasicTypeProvider::all() {
     if self.validate_provider(provider) is Ok(symbol) {
-      types.push(@checked.CheckedCanonicalBasicType::{ provider, symbol })
+      types.push(@checked.CheckedCanonicalBasicType::{ provider, symbol, })
     }
   }
   { types, }

@@ -14,10 +14,10 @@ fn analyze_core(program : @buslane.Program) -> CoreAnalysis {
   let definitions = []
   for term in program.terms {
     match term {
-      Let(value, expression) => definitions.push({ value, expression })
+      Let(value, expression) => definitions.push({ value, expression, })
       LetRec(bindings) =>
         for binding in bindings {
-          definitions.push({ value: binding.id, expression: binding.rhs })
+          definitions.push({ value: binding.id, expression: binding.rhs, })
         }
       External(_) => ()
     }

@@ -2,7 +2,7 @@
 /// Checks one in-memory Lane source module without linking it. Diagnostics use
 /// the synthetic source identity `<root>`; use `check` when identity matters.
 pub fn check_source(source : String) -> CompilationOutcome[Unit] {
-  check({ root: { source_id: "<root>", text: source }, libraries: [] })
+  check({ root: { source_id: "<root>", text: source, }, libraries: [], })
 }
 
 ///|
@@ -83,7 +83,7 @@ fn discard_checked_source(
 /// Compiles one in-memory Lane source module through linking, using `<root>` as
 /// its diagnostic source identity.
 pub fn compile_source(source : String) -> CompilationOutcome[CompiledProgram] {
-  compile({ root: { source_id: "<root>", text: source }, libraries: [] })
+  compile({ root: { source_id: "<root>", text: source, }, libraries: [], })
 }
 
 ///|
@@ -177,7 +177,7 @@ fn linked_outcome(
 ) -> CompilationOutcome[CompiledProgram] {
   match linked.program {
     Some(program) =>
-      compilation_succeeded({ linked: program }, linked.diagnostics)
+      compilation_succeeded({ linked: program, }, linked.diagnostics)
     None => compilation_failed(linked.diagnostics)
   }
 }

@@ -6,7 +6,7 @@ fn ImageLowerer::plan_declaration_data_families(
     let (owner, info) = item
     guard info.kind is Data else { continue }
     self.data_families.push({
-      identity: { index: self.data_families.length() },
+      identity: { index: self.data_families.length(), },
       key: Declaration(owner),
       bytecode_family: None,
       owner,
@@ -36,6 +36,7 @@ fn ImageLowerer::plan_declaration_data_families(
         storage_callable_demands: Array::makei(info.payload_types.length(), _ => {
           []
         }),
+        storage_callable_interfaces: [],
         storage_shapes: [],
       })
     }
@@ -157,16 +158,35 @@ fn ImageLowerer::finalize_data_family_contract(
         detail="data-family storage contract was finalized twice",
       )
     }
+    if !constructor_plan.storage_callable_interfaces.is_empty() {
+      raise RepresentationSpecializationInvariant(
+        detail="data-family callable storage contract was finalized twice",
+      )
+    }
     for index, storage_type in constructor_plan.storage_types {
+      let callable_interface = match storage_type {
+        Callable(_, _) | Forall(_, _) =>
+          if specialized &&
+            !constructor_plan.storage_callable_demands[index].is_empty() {
+            self.finalize_data_callable_storage_interface(
+              constructor_plan.storage_callable_demands[index],
+            )
+          } else {
+            Some(
+              self.canonical_callable_interface_under(
+                storage_type,
+                RuntimeSubstitution::new(),
+              ),
+            )
+          }
+        _ => None
+      }
+      constructor_plan.storage_callable_interfaces.push(callable_interface)
       constructor_plan.storage_shapes.push(
         self.canonical_data_storage_key(
           storage_type,
           constructor_plan.storage_data_families[index],
-          if specialized {
-            constructor_plan.storage_callable_demands[index]
-          } else {
-            []
-          },
+          callable_interface,
         ),
       )
     }
@@ -228,7 +248,7 @@ fn ImageLowerer::canonical_data_storage_key(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
   data_family : DataRepresentationFamilyKey?,
-  callable_demands : Array[DataRepresentationCallableStorageDemand],
+  callable_interface : PhysicalCallableInterface?,
 ) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
   match type_ {
     Data(owner, _) =>
@@ -236,36 +256,43 @@ fn ImageLowerer::canonical_data_storage_key(
         data_family.unwrap_or(DataRepresentationFamilyKey::Declaration(owner)),
       )
     Callable(_, _) | Forall(_, _) => {
-      guard !callable_demands.is_empty() else {
+      guard callable_interface is Some(interface) else {
         return self.canonical_runtime_value_key(type_)
       }
-      let mut selected : CanonicalCallableAbi? = None
-      for demand in callable_demands {
-        let generic = self.representation_demands.callable_component_requires_generic(
-          demand.component,
-        )
-        let has_worker = self.representation_specialization_for_callable(
-            demand.callable,
-          )
-          is Some(_)
-        let worker = demand.component >= 0 && !generic && has_worker
-        let invocation = self.callable_representation_physical_abi(
-          demand.callable,
-          worker~,
-        )
-        match selected {
-          None => selected = Some(invocation)
-          Some(existing) if existing == invocation => ()
-          Some(_) =>
-            raise RepresentationSpecializationInvariant(
-              detail="one specialized data member received incompatible callable invocation contracts",
-            )
-        }
-      }
-      CanonicalRuntimeTypeKey::Callable(selected.unwrap())
+      CanonicalRuntimeTypeKey::Callable(interface.invocation)
     }
     _ => self.canonical_runtime_type_key(type_)
   }
+}
+
+///|
+fn ImageLowerer::finalize_data_callable_storage_interface(
+  self : ImageLowerer,
+  demands : Array[DataRepresentationCallableStorageDemand],
+) -> PhysicalCallableInterface? raise LoisvmLoweringError {
+  let mut selected : PhysicalCallableInterface? = None
+  for demand in demands {
+    let generic = self.representation_demands.callable_component_requires_generic(
+      demand.component,
+    )
+    let worker = demand.component >= 0 &&
+      !generic &&
+      self.representation_specialization_for_callable(demand.callable)
+      is Some(_)
+    let interface = self.callable_representation_interface(
+      demand.callable,
+      worker~,
+    )
+    match selected {
+      None => selected = Some(interface)
+      Some(existing) if existing == interface => ()
+      Some(_) =>
+        raise RepresentationSpecializationInvariant(
+          detail="one specialized data member received incompatible callable interfaces",
+        )
+    }
+  }
+  selected
 }
 
 ///|
@@ -286,7 +313,7 @@ fn ImageLowerer::plan_specialized_data_family_with_key(
     )
   }
   let family : DataRepresentationFamilyPlan = {
-    identity: { index: self.data_families.length() },
+    identity: { index: self.data_families.length(), },
     key,
     bytecode_family: None,
     owner,
@@ -387,6 +414,7 @@ fn ImageLowerer::plan_specialized_data_family_with_key(
       storage_types,
       storage_data_families: data_families,
       storage_callable_demands: callable_demands,
+      storage_callable_interfaces: [],
       storage_shapes: [],
     })
   }

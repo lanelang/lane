@@ -20,7 +20,7 @@ fn compile_boundary_diagnostic(
   kind : CompileBoundaryDiagnosticKind,
   span : @basic.SourceSpan?,
 ) -> CompilerDiagnostic {
-  let diagnostic : CompileBoundaryDiagnostic = { kind, span }
+  let diagnostic : CompileBoundaryDiagnostic = { kind, span, }
   @compiler_diag.ToCompilerDiagnostic::to_compiler_diagnostic(
     diagnostic,
     DiagnosticContext(),

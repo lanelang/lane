@@ -87,7 +87,7 @@ test "open-resolve preserves ordered abstract context arguments" {
             [companion, effect_residual],
             TypeLambda([answer, residual], Function(transformed_function))
           ),
-          ..,
+          ..
         },
       ]
     ) else {
@@ -154,7 +154,7 @@ test "open-resolve preserves ordered abstract context arguments" {
             [_, _],
             TypeLambda([_, _], Function({ body: resolved_call, .. }))
           ),
-          ..,
+          ..
         },
       ]
     ) else {

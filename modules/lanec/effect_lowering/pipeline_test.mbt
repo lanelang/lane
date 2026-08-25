@@ -12,7 +12,11 @@ test "effect lowering exposes snapshots without transitional IR" {
     terms: [
       Let(
         answer,
-        Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Literal(Unit),
+        }),
       ),
     ],
   }

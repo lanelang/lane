@@ -18,7 +18,7 @@ fn simplify_program(
   roots : Array[@buslane.ValueId],
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
-  CoreSimplifier::{ entry, roots, observe }.run(program)
+  CoreSimplifier::{ entry, roots, observe, }.run(program)
 }
 
 ///|
@@ -60,7 +60,7 @@ fn cleanup_core(
   roots : Array[@buslane.ValueId],
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
-  CoreCleanup::{ entry, roots, observe }.run(program)
+  CoreCleanup::{ entry, roots, observe, }.run(program)
 }
 
 ///|
@@ -174,7 +174,7 @@ fn eliminate_local_common_expr(
       }
       let body_available = available.copy()
       if is_pure {
-        body_available.push({ value, initializer: rewritten_initializer })
+        body_available.push({ value, initializer: rewritten_initializer, })
       }
       Let(
         value,
@@ -304,7 +304,7 @@ fn collect_top_aliases(
     guard term is Let(value, Ref(target)) else { continue }
     if !preserved_roots.contains(value) &&
       compatible_alias(program, value, target) {
-      substitutions.push({ value, replacement: Ref(target) })
+      substitutions.push({ value, replacement: Ref(target), })
     }
   }
   substitutions
@@ -397,7 +397,7 @@ fn simplify_expr(
       }
       if can_substitute {
         let nested = substitutions.copy()
-        nested.push({ value, replacement: initializer })
+        nested.push({ value, replacement: initializer, })
         simplify_expr(program, facts, analysis, nested, body, observe)
       } else {
         let body = simplify_expr(
@@ -446,7 +446,11 @@ fn simplify_expr(
           observe,
         ),
       })
-      let rewritten = @buslane.Expr::Match({ ..match_, scrutinee, alternatives })
+      let rewritten = @buslane.Expr::Match({
+        ..match_,
+        scrutinee,
+        alternatives,
+      })
       match known_match_reduction(facts, analysis, rewritten) {
         Some(reduced) =>
           simplify_expr(
@@ -676,7 +680,7 @@ fn reduce_constructor_match(
     })
     let mut body = @buslane.Expr::Let(
       match_.binder,
-      Construct({ ..construct, payloads: payload_refs }),
+      Construct({ ..construct, payloads: payload_refs, }),
       alternative.body,
     )
     let mut index = construct.payloads.length()

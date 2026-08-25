@@ -40,14 +40,14 @@ fn SemanticIndex::upsert_hover(
   span : @basic.SourceSpan,
   contents : String,
 ) -> Unit {
-  let loc = AnalysisLocation::{ source_id: self.source_id, span }
+  let loc = AnalysisLocation::{ source_id: self.source_id, span, }
   for index, hover in self.hovers {
     if hover.location == loc {
-      self.hovers[index] = { location: loc, contents }
+      self.hovers[index] = { location: loc, contents, }
       return
     }
   }
-  self.hovers.push({ location: loc, contents })
+  self.hovers.push({ location: loc, contents, })
 }
 
 ///|
@@ -62,7 +62,7 @@ fn SemanticIndex::enrich_definition(
       self.definitions[index] = { ..definition, detail, }
       for hover_index, hover in self.hovers {
         if hover.location == previous_location {
-          self.hovers[hover_index] = { ..hover, contents: detail }
+          self.hovers[hover_index] = { ..hover, contents: detail, }
         }
       }
     }

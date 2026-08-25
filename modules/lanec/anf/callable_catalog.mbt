@@ -38,7 +38,7 @@ fn build_callable_catalog(program : AnfProgram) -> AnfCallableCatalog {
       External(_) => ()
     }
   }
-  { definitions: builder.definitions, temp_types }
+  { definitions: builder.definitions, temp_types, }
 }
 
 ///|
@@ -113,7 +113,7 @@ fn CallableCatalogBuilder::visit_recursive_group(
   let mut recursive_group : AnfRecursiveGroupId? = None
   for binding in bindings {
     if first_function_id(binding.rhs) is Some(function) {
-      recursive_group = Some({ value: function.value })
+      recursive_group = Some({ value: function.value, })
       break
     }
   }

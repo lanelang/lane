@@ -17,8 +17,8 @@ fn check_panic_module(
   void_source? : String = canonical_void_source(),
 ) -> CompilationOutcome[Unit] {
   check({
-    root: { source_id: "basic-io", text: source },
-    libraries: [{ source_id: "basic-void", text: void_source }],
+    root: { source_id: "basic-io", text: source, },
+    libraries: [{ source_id: "basic-void", text: void_source, }],
   })
 }
 
@@ -121,7 +121,7 @@ test "Void elimination composes panic into arbitrary result types" {
       ),
     },
     libraries: [
-      { source_id: "basic-void", text: canonical_void_source() },
+      { source_id: "basic-void", text: canonical_void_source(), },
       {
         source_id: "basic-io",
         text: (

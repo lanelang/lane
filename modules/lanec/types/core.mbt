@@ -121,7 +121,7 @@ pub struct TypeSubstitution {
 ///|
 /// Creates an empty type substitution.
 pub fn TypeSubstitution::TypeSubstitution() -> TypeSubstitution {
-  { entries: [] }
+  { entries: [], }
 }
 
 ///|
@@ -130,7 +130,7 @@ pub fn TypeSubstitution::single(
   parameter : TypeParameterId,
   replacement : Type,
 ) -> TypeSubstitution {
-  { entries: [{ parameter, replacement: TypeArgument(replacement) }] }
+  { entries: [{ parameter, replacement: TypeArgument(replacement), }], }
 }
 
 ///|
@@ -140,7 +140,7 @@ pub fn TypeSubstitution::insert(
   parameter : TypeParameterId,
   replacement : Type,
 ) -> Unit {
-  self.entries.push({ parameter, replacement: TypeArgument(replacement) })
+  self.entries.push({ parameter, replacement: TypeArgument(replacement), })
 }
 
 ///|
@@ -149,7 +149,7 @@ pub fn TypeSubstitution::insert_effect(
   parameter : TypeParameterId,
   replacement : Effect,
 ) -> Unit {
-  self.entries.push({ parameter, replacement: EffectArgument(replacement) })
+  self.entries.push({ parameter, replacement: EffectArgument(replacement), })
 }
 
 ///|
@@ -158,7 +158,7 @@ pub fn TypeSubstitution::insert_argument(
   parameter : TypeParameterId,
   replacement : GenericArgument,
 ) -> Unit {
-  self.entries.push({ parameter, replacement })
+  self.entries.push({ parameter, replacement, })
 }
 
 ///|
@@ -579,7 +579,7 @@ fn alpha_equal_type_parameters(
     if left_param.kind != right_param.kind {
       ok = false
     }
-    next_bindings.push({ left: left_param.id, right: right_param.id })
+    next_bindings.push({ left: left_param.id, right: right_param.id, })
   }
   ok && alpha_equal_with(next_bindings, left_body, right_body)
 }

@@ -41,7 +41,7 @@ fn BuslaneLowerer::define_runtime_import(
   type_ : @buslane.Type,
 ) -> @buslane.ValueId raise BuslaneLoweringError {
   let value = self.define_external(symbol, type_)
-  self.runtime_imports.push({ value, symbol, signature })
+  self.runtime_imports.push({ value, symbol, signature, })
   value
 }
 

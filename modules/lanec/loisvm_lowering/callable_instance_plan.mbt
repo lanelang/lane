@@ -273,7 +273,7 @@ fn CallableRepresentationTarget::instance(
       }
       Some({
         id: source_instance,
-        key: { function: source.key.function, arguments },
+        key: { function: source.key.function, arguments, },
         definition: source.definition,
         substitution,
         own_arguments,
@@ -339,7 +339,7 @@ fn DataRepresentationDemandPlan::empty() -> DataRepresentationDemandPlan {
 
 ///|
 fn ClosedAggregateScalarReplacementPlan::empty() -> ClosedAggregateScalarReplacementPlan {
-  { allocations: [], parameters: [] }
+  { allocations: [], parameters: [], }
 }
 
 ///|
@@ -389,7 +389,7 @@ priv struct CallableInstancePlan {
 
 ///|
 fn CallableInstancePlan::empty() -> CallableInstancePlan {
-  { instances: [], calls: [], rejected_recursive_groups: [] }
+  { instances: [], calls: [], rejected_recursive_groups: [], }
 }
 
 ///|
@@ -401,6 +401,7 @@ priv struct PhysicalRepresentationDemandPlan {
   callable_results : Array[CallableRepresentationResultDemand]
   callable_arguments : Array[CallableRepresentationArgumentDemand]
   callable_components : Array[CallableRepresentationPortComponent]
+  callable_materializations : Array[(Int, @anf.AnfBindingId)]
 }
 
 ///|
@@ -413,7 +414,22 @@ fn PhysicalRepresentationDemandPlan::empty() -> PhysicalRepresentationDemandPlan
     callable_results: [],
     callable_arguments: [],
     callable_components: [],
+    callable_materializations: [],
   }
+}
+
+///|
+fn PhysicalRepresentationDemandPlan::callable_port_requires_materialization(
+  self : PhysicalRepresentationDemandPlan,
+  instances : Array[Int],
+  binding : @anf.AnfBindingId,
+) -> Bool {
+  for demand in self.callable_materializations {
+    if instances.contains(demand.0) && demand.1 == binding {
+      return true
+    }
+  }
+  false
 }
 
 ///|
@@ -689,10 +705,25 @@ fn PhysicalRepresentationDemandPlan::callable_instance_at_allocation(
 }
 
 ///|
+fn PhysicalRepresentationDemandPlan::callable_allocation_assignments(
+  self : PhysicalRepresentationDemandPlan,
+  caller : Int,
+) -> Array[(@anf.AnfFunctionId, CallableRepresentationTarget)] {
+  self.callable_allocations.filter_map(allocation => {
+    if allocation.caller == caller && allocation.worker {
+      Some((allocation.function, allocation.callable))
+    } else {
+      None
+    }
+  })
+}
+
+///|
 fn PhysicalRepresentationDemandPlan::callable_allocation_uses_worker(
   self : PhysicalRepresentationDemandPlan,
   callers : Array[Int],
   function : @anf.AnfFunctionId,
+  excluded_components : Array[Int],
 ) -> Bool {
   guard !callers.is_empty() else { return false }
   for caller in callers {
@@ -702,7 +733,8 @@ fn PhysicalRepresentationDemandPlan::callable_allocation_uses_worker(
         continue
       }
       found = true
-      if !allocation.worker {
+      if !allocation.worker ||
+        excluded_components.contains(allocation.component) {
         return false
       }
     }
@@ -1151,36 +1183,6 @@ fn PhysicalRepresentationDemandPlan::callable_port_uses_worker(
 }
 
 ///|
-fn PhysicalRepresentationDemandPlan::callable_argument_uses_worker(
-  self : PhysicalRepresentationDemandPlan,
-  callers : Array[Int],
-  site : @anf.AnfBindingId,
-  argument_index : Int,
-  excluded_components : Array[Int],
-) -> Bool {
-  guard !callers.is_empty() else { return false }
-  for caller in callers {
-    let mut found = false
-    for demand in self.callable_arguments {
-      guard demand.caller == caller &&
-        demand.site == site &&
-        demand.argument_index == argument_index else {
-        continue
-      }
-      found = true
-      if excluded_components.contains(demand.component) ||
-        self.callable_component_requires_generic(demand.component) {
-        return false
-      }
-    }
-    if !found {
-      return false
-    }
-  }
-  true
-}
-
-///|
 fn PhysicalRepresentationDemandPlan::worker_callable_at_port(
   self : PhysicalRepresentationDemandPlan,
   instances : Array[Int],
@@ -1216,45 +1218,6 @@ fn PhysicalRepresentationDemandPlan::callable_result_uses_worker(
       found = true
       if excluded_components.contains(result.component) ||
         self.callable_component_requires_generic(result.component) {
-        return false
-      }
-    }
-    if !found {
-      return false
-    }
-  }
-  true
-}
-
-///|
-fn PhysicalRepresentationDemandPlan::data_callable_payload_uses_worker(
-  self : PhysicalRepresentationDemandPlan,
-  callers : Array[Int],
-  site : @anf.AnfBindingId,
-  payload_index : Int,
-  excluded_data_components : Array[Int],
-  excluded_callable_components : Array[Int],
-) -> Bool {
-  guard !callers.is_empty() else { return false }
-  for caller in callers {
-    let allocation : CallableAllocationKey = {
-      body: if caller < 0 {
-        TopLevel
-      } else {
-        Instance(caller)
-      },
-      site,
-    }
-    let mut found = false
-    for demand in self.data_representations.callable_payloads {
-      guard demand.allocation == allocation &&
-        demand.payload_index == payload_index else {
-        continue
-      }
-      found = true
-      if excluded_data_components.contains(demand.data_component) ||
-        excluded_callable_components.contains(demand.callable_component) ||
-        self.callable_component_requires_generic(demand.callable_component) {
         return false
       }
     }
@@ -1392,7 +1355,7 @@ fn ImageLowerer::callable_instance(
         detail="Runtime ANF evidence parameter lacks a type expression",
       )
     }
-    arguments.push({ type_expression, evidence: Parameter(parameter.id) })
+    arguments.push({ type_expression, evidence: Parameter(parameter.id), })
   }
   for instance in self.callable_instances.instances {
     if instance.key.function == function && instance.key.arguments == arguments {
@@ -1620,26 +1583,26 @@ fn ImageLowerer::lifted_function(
 
 ///|
 fn CallableFlowFact::empty() -> CallableFlowFact {
-  { callables: [], allocations: [], open: false }
+  { callables: [], allocations: [], open: false, }
 }
 
 ///|
 fn CallableFlowFact::open() -> CallableFlowFact {
-  { callables: [], allocations: [], open: true }
+  { callables: [], allocations: [], open: true, }
 }
 
 ///|
 fn CallableFlowFact::callable(
   callable : CallableClosureFact,
 ) -> CallableFlowFact {
-  { callables: [callable], allocations: [], open: false }
+  { callables: [callable], allocations: [], open: false, }
 }
 
 ///|
 fn CallableFlowFact::allocation(
   allocation : CallableAllocationKey,
 ) -> CallableFlowFact {
-  { callables: [], allocations: [allocation], open: false }
+  { callables: [], allocations: [allocation], open: false, }
 }
 
 ///|
@@ -1659,7 +1622,7 @@ fn merge_callable_flow_fact(
       allocations.push(allocation)
     }
   }
-  { callables, allocations, open: left.open || right.open }
+  { callables, allocations, open: left.open || right.open, }
 }
 
 ///|
@@ -2018,7 +1981,7 @@ fn CallableInstancePlanner::planned_argument(
       argument,
     )
   }
-  { argument, transform }
+  { argument, transform, }
 }
 
 ///|
@@ -2129,7 +2092,7 @@ fn CallableInstancePlanner::identity_argument(
     is Some(type_expression) else {
     abort("Runtime ANF parameter lacks a type-expression identity")
   }
-  { type_expression, evidence: Parameter(parameter.id) }
+  { type_expression, evidence: Parameter(parameter.id), }
 }
 
 ///|
@@ -2178,7 +2141,7 @@ fn CallableInstancePlanner::update_binding(
     }
   }
   if fact != CallableFlowFact::empty() {
-    self.bindings.push({ caller, binding, fact })
+    self.bindings.push({ caller, binding, fact, })
     self.changed = true
   }
 }
@@ -2251,7 +2214,7 @@ priv enum ScalarCarrierConsumer {
   ExactCall(Int, Int, @anf.AnfBindingId)
   ClosedCall(Array[Int], Int, @anf.AnfBindingId)
   Invoke
-  Construct(CallableAllocationKey)
+  Construct(CallableAllocationKey, Int)
   Match(scalar_projectable~ : Bool)
   Return(Int)
   Global(@buslane.ValueId)
@@ -2330,10 +2293,41 @@ fn CallableInstancePlanner::plan_aggregate_representations(
   let mut data_representations = analysis.finish_data_representations(
     scalar, callable_graph,
   )
+  let forced_generic_callable_components : Array[Int] = []
   let mut callable_assignments = analysis.finish_callable_assignments(
-    data_representations, callable_graph,
+    data_representations, callable_graph, forced_generic_callable_components,
   )
   while true {
+    let mut changed = false
+    for allocation in callable_assignments.allocations {
+      let instance_id = match allocation.callable {
+        Semantic(instance) | Refined(source_instance=instance, ..) => instance
+      }
+      guard allocation.generic &&
+        self.instances.get(instance_id) is Some(instance) else {
+        continue
+      }
+      for capture in instance.definition.captures {
+        let binding = match capture {
+          Value(value) => @anf.AnfBindingId::Value(value)
+          Temp(temp) => @anf.AnfBindingId::Temp(temp)
+        }
+        for component in callable_assignments.components {
+          if component.instance == allocation.caller &&
+            component.binding == binding &&
+            !forced_generic_callable_components.contains(component.component) {
+            forced_generic_callable_components.push(component.component)
+            changed = true
+          }
+        }
+      }
+    }
+    if changed {
+      callable_assignments = analysis.finish_callable_assignments(
+        data_representations, callable_graph, forced_generic_callable_components,
+      )
+      continue
+    }
     let rejected = analysis.data_components_rejected_by_generic_callables(
       data_representations, callable_assignments, callable_graph,
     )
@@ -2342,12 +2336,13 @@ fn CallableInstancePlanner::plan_aggregate_representations(
     }
     data_representations = data_representations.excluding_components(rejected)
     callable_assignments = analysis.finish_callable_assignments(
-      data_representations, callable_graph,
+      data_representations, callable_graph, forced_generic_callable_components,
     )
   }
   let callable_arguments = analysis.resolved_callable_arguments(
     callable_assignments,
   )
+  let callable_materializations = analysis.callable_materialization_ports()
   {
     scalar_replacements: scalar,
     data_representations,
@@ -2356,6 +2351,58 @@ fn CallableInstancePlanner::plan_aggregate_representations(
     callable_results: callable_assignments.results,
     callable_arguments,
     callable_components: callable_assignments.components,
+    callable_materializations,
+  }
+}
+
+///|
+fn ScalarUseAnalysis::callable_materialization_ports(
+  self : ScalarUseAnalysis,
+) -> Array[(Int, @anf.AnfBindingId)] raise LoisvmLoweringError {
+  let demands : Array[(Int, @anf.AnfBindingId)] = []
+  for usage in self.uses {
+    guard self.planner.runtime_type_at(usage.caller, usage.binding)
+      is Some(Callable(_, _) | Forall(_, _)) else {
+      continue
+    }
+    if usage.consumers.any(callable_consumer_materializes_value) {
+      demands.push((usage.caller, usage.binding))
+    }
+  }
+  let mut changed = true
+  while changed {
+    changed = false
+    for usage in self.uses {
+      guard !demands.contains((usage.caller, usage.binding)) else { continue }
+      if usage.consumers.any(consumer => {
+          match consumer {
+            Alias(caller, binding) | Join(caller, binding) =>
+              demands.contains((caller, binding))
+            _ => false
+          }
+        }) {
+        demands.push((usage.caller, usage.binding))
+        changed = true
+      }
+    }
+  }
+  demands
+}
+
+///|
+fn callable_consumer_materializes_value(
+  consumer : ScalarCarrierConsumer,
+) -> Bool {
+  match consumer {
+    Alias(_, _) | Join(_, _) | Invoke => false
+    ExactCall(_, _, _)
+    | ClosedCall(_, _, _)
+    | Construct(_, _)
+    | Match(_)
+    | Return(_)
+    | Global(_)
+    | Capture(_)
+    | UnsupportedArgument => true
   }
 }
 
@@ -2406,6 +2453,17 @@ fn ScalarUseAnalysis::data_components_rejected_by_generic_callables(
       rejected.push(payload.data_component)
     }
   }
+  for allocation in callables.allocations {
+    guard allocation.generic else { continue }
+    let instance = match allocation.callable {
+      Semantic(instance) | Refined(source_instance=instance, ..) => instance
+    }
+    for capture in data.captures {
+      if capture.instance == instance && !rejected.contains(capture.component) {
+        rejected.push(capture.component)
+      }
+    }
+  }
   for storage in self.callable_storage {
     guard self.planner.runtime_type_at(storage.caller, storage.binding)
       is Some(Callable(_, _) | Forall(_, _)) else {
@@ -2448,6 +2506,21 @@ fn ScalarUseAnalysis::data_components_rejected_by_generic_invocations(
   for invocation in self.invocations {
     guard self.callable_invocation_requires_generic(invocation, callables) else {
       continue
+    }
+    for port in data.ports {
+      if port.instance == invocation.caller &&
+        port.binding == invocation.site &&
+        !rejected.contains(port.component) {
+        rejected.push(port.component)
+      }
+    }
+    if self.find_use(invocation.caller, invocation.site) is Some(result) {
+      for allocation in data.allocations {
+        if result.fact.allocations.contains(allocation.allocation) &&
+          !rejected.contains(allocation.component) {
+          rejected.push(allocation.component)
+        }
+      }
     }
     for usage in self.uses {
       guard usage.caller == invocation.caller &&
@@ -2492,9 +2565,21 @@ fn ScalarUseAnalysis::callable_invocation_requires_generic(
   invocation : ScalarInvocationObservation,
   assignments : CallableRepresentationAssignmentPlan,
 ) -> Bool {
+  if invocation.targets.is_empty() {
+    return true
+  }
   guard self.callable_node_for_atom(invocation.callee, invocation.caller)
     is Some(node) else {
-    return false
+    return true
+  }
+  if node is Port(_, _) &&
+    invocation.targets.any(target => {
+      self.planner.instances
+      .get(target)
+      .map(instance => !instance.definition.captures.is_empty())
+      .unwrap_or(true)
+    }) {
+    return true
   }
   callable_assignment_requires_generic(assignments, node)
 }
@@ -2504,6 +2589,7 @@ fn ScalarUseAnalysis::finish_callable_assignments(
   self : ScalarUseAnalysis,
   data_representations : DataRepresentationDemandPlan,
   callable_graph : CallableRepresentationGraph,
+  forced_generic_components : Array[Int],
 ) -> CallableRepresentationAssignmentPlan raise LoisvmLoweringError {
   let constraints : Array[CallableRepresentationConstraint] = []
   for observation in self.calls {
@@ -2628,12 +2714,9 @@ fn ScalarUseAnalysis::finish_callable_assignments(
     guard callable is Some(callable) else { continue }
     let component = callable_graph.component(node)
     let generic = self.callable_component_requires_generic(
-      node, constraints, data_representations, callable_graph,
+      node, constraints, data_representations, callable_graph, forced_generic_components,
     )
-    let worker = !generic ||
-      self.callable_allocation_requires_worker_for_capture(
-        callable, constraints, data_representations, callable_graph,
-      )
+    let worker = !generic
     allocations.push({
       caller: usage.caller,
       function: usage.function,
@@ -2654,7 +2737,7 @@ fn ScalarUseAnalysis::finish_callable_assignments(
       binding,
       component: callable_graph.component(node),
       generic: self.callable_component_requires_generic(
-        node, constraints, data_representations, callable_graph,
+        node, constraints, data_representations, callable_graph, forced_generic_components,
       ),
     }
     if !components.any(existing => {
@@ -2707,48 +2790,7 @@ fn ScalarUseAnalysis::finish_callable_assignments(
       }
     }
   }
-  { allocations, ports, results, components }
-}
-
-///|
-fn ScalarUseAnalysis::callable_allocation_requires_worker_for_capture(
-  self : ScalarUseAnalysis,
-  callable : CallableRepresentationTarget,
-  constraints : Array[CallableRepresentationConstraint],
-  data_representations : DataRepresentationDemandPlan,
-  callable_graph : CallableRepresentationGraph,
-) -> Bool {
-  let instance_id = match callable {
-    Semantic(instance) | Refined(source_instance=instance, ..) => instance
-  }
-  guard self.planner.instances.get(instance_id) is Some(instance) else {
-    return false
-  }
-  if data_representations.captures.any(capture => {
-      capture.instance == instance.id
-    }) {
-    return true
-  }
-  for capture in instance.definition.captures {
-    let binding = match capture {
-      Value(value) => @anf.AnfBindingId::Value(value)
-      Temp(temp) => @anf.AnfBindingId::Temp(temp)
-    }
-    let node = CallableRepresentationNode::Port(instance.id, binding)
-    if selected_callable_node_target(
-        self.planner,
-        constraints,
-        callable_graph,
-        node,
-      )
-      is Some(_) &&
-      !self.callable_component_requires_generic(
-        node, constraints, data_representations, callable_graph,
-      ) {
-      return true
-    }
-  }
-  false
+  { allocations, ports, results, components, }
 }
 
 ///|
@@ -2892,8 +2934,12 @@ fn ScalarUseAnalysis::callable_component_requires_generic(
   constraints : Array[CallableRepresentationConstraint],
   data_representations : DataRepresentationDemandPlan,
   callable_graph : CallableRepresentationGraph,
+  forced_generic_components : Array[Int],
 ) -> Bool {
   let component = callable_graph.component(node)
+  if forced_generic_components.contains(component) {
+    return true
+  }
   guard selected_callable_node_target(
       self.planner,
       constraints,
@@ -2917,19 +2963,29 @@ fn ScalarUseAnalysis::callable_component_requires_generic(
     if usage.fact.open || usage.fact.callables.length() > 1 {
       return true
     }
-    for storage in self.callable_storage {
-      guard storage.caller == usage.caller && storage.binding == usage.binding else {
-        continue
-      }
-      if storage.open || storage.sources.is_empty() {
+    for consumer in usage.consumers {
+      if consumer is Construct(data_allocation, payload_index) &&
+        !data_representations.callable_payloads.any(payload => {
+          payload.allocation == data_allocation &&
+          payload.payload_index == payload_index
+        }) {
         return true
       }
-      for source in storage.sources {
-        if !data_representations.callable_payloads.any(payload => {
-            payload.allocation == source.0 && payload.payload_index == source.1
-          }) {
-          return true
-        }
+    }
+  }
+  for storage in self.callable_storage {
+    guard callable_graph.component(Port(storage.caller, storage.binding)) ==
+      component else {
+      continue
+    }
+    if storage.open || storage.sources.is_empty() {
+      return true
+    }
+    for source in storage.sources {
+      if !data_representations.callable_payloads.any(payload => {
+          payload.allocation == source.0 && payload.payload_index == source.1
+        }) {
+        return true
       }
     }
   }
@@ -2942,6 +2998,15 @@ fn ScalarUseAnalysis::callable_component_requires_generic(
     }
     if allocation.fact.open || allocation.fact.callables.length() > 1 {
       return true
+    }
+    for consumer in allocation.consumers {
+      if consumer is Construct(data_allocation, payload_index) &&
+        !data_representations.callable_payloads.any(payload => {
+          payload.allocation == data_allocation &&
+          payload.payload_index == payload_index
+        }) {
+        return true
+      }
     }
   }
   false
@@ -3015,9 +3080,9 @@ fn callable_representation_node_key(
   node : CallableRepresentationNode,
 ) -> CallableRepresentationNodeKey {
   match node {
-    Port(owner, Value(value)) => { owner, kind: 0, identity: value.index }
-    Port(owner, Temp(temp)) => { owner, kind: 1, identity: temp.index }
-    Allocation(owner, function) => { owner, kind: 2, identity: function.value }
+    Port(owner, Value(value)) => { owner, kind: 0, identity: value.index, }
+    Port(owner, Temp(temp)) => { owner, kind: 1, identity: temp.index, }
+    Allocation(owner, function) => { owner, kind: 2, identity: function.value, }
   }
 }
 
@@ -3153,7 +3218,7 @@ fn CallableRepresentationGraphBuilder::finish(
   for index, node in self.nodes {
     components.set(callable_representation_node_key(node), self.root(index))
   }
-  { nodes: self.nodes, components }
+  { nodes: self.nodes, components, }
 }
 
 ///|
@@ -3197,7 +3262,7 @@ fn ScalarUseAnalysis::connect_callable_consumer(
           graph.connect(source, Port(call.caller, call.site))
         }
       }
-    Invoke | Construct(_) | Match(_) | Global(_) | UnsupportedArgument => ()
+    Invoke | Construct(_, _) | Match(_) | Global(_) | UnsupportedArgument => ()
   }
 }
 
@@ -3218,7 +3283,7 @@ fn constrain_callable_node(
       return true
     }
   }
-  constraints.push({ node, targets: [target] })
+  constraints.push({ node, targets: [target], })
   true
 }
 
@@ -3397,8 +3462,8 @@ fn ScalarUseAnalysis::collect_rhs(
         },
         site,
       }
-      for payload in construct.payloads {
-        self.record_atom_use(payload, caller, Construct(allocation))
+      for index, payload in construct.payloads {
+        self.record_atom_use(payload, caller, Construct(allocation, index))
       }
     }
     Match(match_) => {
@@ -3439,11 +3504,15 @@ fn ScalarUseAnalysis::collect_rhs(
     Call(callee~, arguments~) => {
       let target = self.exact_call_target(caller, site)
       let targets = self.closed_call_targets(caller, site)
-      if target is Some(target) {
-        self.invocations.push({ caller, site, callee, targets: [target] })
-      } else if !targets.is_empty() {
-        self.invocations.push({ caller, site, callee, targets })
-      }
+      self.invocations.push({
+        caller,
+        site,
+        callee,
+        targets: match target {
+          Some(target) => [target]
+          None => targets
+        },
+      })
       self.record_atom_use(callee, caller, ScalarCarrierConsumer::Invoke)
       for index, argument in arguments {
         let fact = self.atom_fact(argument, caller)
@@ -3594,7 +3663,7 @@ fn ScalarUseAnalysis::record_binding_use(
       return
     }
   }
-  self.uses.push({ caller, binding, fact, consumers: [consumer] })
+  self.uses.push({ caller, binding, fact, consumers: [consumer], })
 }
 
 ///|
@@ -3788,9 +3857,9 @@ fn ScalarUseAnalysis::finish(
       self.planner.closed_aggregate_contract(allocation.key) is Some(contract) else {
       continue
     }
-    allocations.push({ key: allocation.key, contract })
+    allocations.push({ key: allocation.key, contract, })
   }
-  { allocations, parameters }
+  { allocations, parameters, }
 }
 
 ///|
@@ -3896,7 +3965,7 @@ fn ScalarUseAnalysis::allocation_reaches_match(
       Match(scalar_projectable=false)
       | Join(_, _)
       | ClosedCall(_, _, _)
-      | Construct(_)
+      | Construct(_, _)
       | Return(_)
       | Global(_)
       | Capture(_)
@@ -3912,6 +3981,39 @@ fn ScalarUseAnalysis::allocation_reaches_match(
 fn scalar_replacement_consumer(consumer : ScalarCarrierConsumer) -> Bool {
   consumer
   is (Alias(_, _) | ExactCall(_, _, _) | Match(scalar_projectable=true))
+}
+
+///|
+fn ScalarUseAnalysis::data_identity_flow_targets(
+  self : ScalarUseAnalysis,
+  binding : @anf.AnfBindingId,
+  consumer : ScalarCarrierConsumer,
+) -> Array[DataRepresentationUseNode] {
+  match consumer {
+    Alias(caller, binding) | Join(caller, binding) => [Port(caller, binding)]
+    ExactCall(instance, parameter_index, _) => {
+      guard self.planner.instances.get(instance) is Some(target) &&
+        target.definition.function.parameters.get(parameter_index)
+        is Some(parameter) else {
+        return []
+      }
+      [Port(instance, Value(parameter))]
+    }
+    ClosedCall(instances, parameter_index, _) =>
+      instances.filter_map(instance => {
+        self.planner.instances
+        .get(instance)
+        .bind(target => {
+          target.definition.function.parameters
+          .get(parameter_index)
+          .map(parameter => Port(instance, Value(parameter)))
+        })
+      })
+    Return(instance) => if instance < 0 { [] } else { [Result(instance)] }
+    Global(value) => [Global(value)]
+    Capture(instances) => instances.map(instance => Capture(instance, binding))
+    Match(_) | Construct(_, _) | Invoke | UnsupportedArgument => []
+  }
 }
 
 ///|
@@ -3932,20 +4034,68 @@ fn ScalarUseAnalysis::finish_data_representations(
   }
   let rejected : Array[DataRepresentationUseGroup] = []
   let edges : Array[DataRepresentationUseEdge] = []
+  let declaration_boundaries : Array[DataRepresentationUseNode] = []
   for usage in self.uses {
     let families = data_families_in_fact(usage.fact, candidates)
-    guard !families.is_empty() else { continue }
     let groups = data_groups_in_fact(usage.fact, candidates)
-    if usage.fact.open || families.length() != 1 {
+    guard self.planner.runtime_type_at(usage.caller, usage.binding)
+      is Some(Data(owner, _)) else {
       reject_data_groups(rejected, groups)
       continue
     }
-    let family = families[0]
-    guard self.planner.runtime_type_at(usage.caller, usage.binding)
-      is Some(Data(owner, _)) &&
-      family.owner == owner else {
+    if usage.fact.open || families.length() != 1 {
       reject_data_groups(rejected, groups)
+      for consumer in usage.consumers {
+        for target in self.data_identity_flow_targets(usage.binding, consumer) {
+          if !declaration_boundaries.contains(target) {
+            declaration_boundaries.push(target)
+          }
+        }
+      }
       continue
+    }
+    let family = families[0]
+    guard family.owner == owner else {
+      reject_data_groups(rejected, groups)
+      for consumer in usage.consumers {
+        for target in self.data_identity_flow_targets(usage.binding, consumer) {
+          if !declaration_boundaries.contains(target) {
+            declaration_boundaries.push(target)
+          }
+        }
+      }
+      continue
+    }
+    for invocation in self.invocations {
+      guard invocation.caller == usage.caller &&
+        invocation.site == usage.binding else {
+        continue
+      }
+      let call_result : DataRepresentationUseGroup = {
+        node: Port(usage.caller, usage.binding),
+        family,
+      }
+      connect_data_groups(edges, groups, call_result)
+      for target in invocation.targets {
+        guard self.planner.instances.get(target) is Some(instance) else {
+          reject_data_groups(rejected, groups + [call_result])
+          continue
+        }
+        let (_, _, result_type) = function_type_parts(instance.definition.type_)
+        let result_type = instance.substitution.apply_type(
+          self.planner.image.runtime_types,
+          result_type,
+        )
+        guard result_type is Data(result_owner, _) &&
+          result_owner == family.owner else {
+          reject_data_groups(rejected, groups + [call_result])
+          continue
+        }
+        connect_data_groups(edges, groups + [call_result], {
+          node: Result(target),
+          family,
+        })
+      }
     }
     for consumer in usage.consumers {
       match consumer {
@@ -4027,9 +4177,9 @@ fn ScalarUseAnalysis::finish_data_representations(
             reject_data_groups(rejected, groups)
             continue
           }
-          connect_data_groups(edges, groups, { node: Global(value), family })
+          connect_data_groups(edges, groups, { node: Global(value), family, })
         }
-        Construct(allocation) =>
+        Construct(allocation, _) =>
           if !scalar.allocations.any(replacement => {
               replacement.key == allocation
             }) &&
@@ -4118,6 +4268,11 @@ fn ScalarUseAnalysis::finish_data_representations(
   }
   let groups = data_representation_groups(candidates, edges)
   for group in groups {
+    if declaration_boundaries.contains(group.node) {
+      reject_data_groups(rejected, [group])
+    }
+  }
+  for group in groups {
     guard group.node is Port(instance_id, Value(parameter)) &&
       self.planner.instances.get(instance_id) is Some(instance) &&
       instance.definition.function.parameters.search_by(id => id == parameter)
@@ -4175,7 +4330,7 @@ fn ScalarUseAnalysis::finish_data_representations(
       }
     }
     callable_argument_candidates.push(
-      ({ draft, target_type, families }, target_groups),
+      ({ draft, target_type, families, }, target_groups),
     )
   }
   for index, left in callable_argument_candidates {
@@ -4498,12 +4653,15 @@ fn CallableInstancePlanner::representation_draft_for_fact(
   } else {
     self.instances[caller].substitution.overlay(source_instance.substitution)
   }
-  let substitutions = self.image.refine_callable_representation_substitution(
-    definition.type_,
-    target_type,
-    base,
-    parameters.map(parameter => parameter.id),
-  )
+  guard self.image.refine_callable_representation_substitution(
+      definition.type_,
+      target_type,
+      base,
+      parameters.map(parameter => parameter.id),
+    )
+    is Some(substitutions) else {
+    return None
+  }
   let lexical_arguments = definition.lexical_parameters.map(parameter => {
     let argument = substitutions
       .argument(parameter.id)
@@ -4528,7 +4686,7 @@ fn CallableInstancePlanner::representation_draft_for_fact(
       },
     })
   }
-  Some({ source_instance: source, lexical_arguments, own_arguments, caller })
+  Some({ source_instance: source, lexical_arguments, own_arguments, caller, })
 }
 
 ///|
@@ -4665,13 +4823,24 @@ fn CallableInstancePlanner::data_representation_candidate(
   let storage_types = info.payload_types.map(payload_type => {
     storage_substitutions.apply_type(self.image.runtime_types, payload_type)
   })
-  let owner_storage_types = info.payload_types.map(payload_type => {
-    owner_substitutions.apply_type(self.image.runtime_types, payload_type)
-  })
-  if info.payload_types == owner_storage_types &&
-    !owner_storage_types.any(type_ => {
-      self.image.runtime_type_may_change_physical_representation(type_)
-    }) {
+  let mut family_changes_representation = false
+  for data_constructor in owner.constructors {
+    guard self.image.metadata.data_constructor_info(data_constructor)
+      is Some(constructor_info) else {
+      raise MissingDataConstructorMetadata(data_constructor~)
+    }
+    let specialized_payloads = constructor_info.payload_types.map(payload_type => {
+      owner_substitutions.apply_type(self.image.runtime_types, payload_type)
+    })
+    if constructor_info.payload_types != specialized_payloads ||
+      specialized_payloads.any(type_ => {
+        self.image.runtime_type_may_change_physical_representation(type_)
+      }) {
+      family_changes_representation = true
+      break
+    }
+  }
+  if !family_changes_representation {
     return None
   }
   Some({
@@ -4765,7 +4934,7 @@ fn data_group_for_allocation(
   allocation : CallableAllocationKey,
   family : DataRepresentationFamilyCandidateKey,
 ) -> DataRepresentationUseGroup {
-  { node: Allocation(allocation), family }
+  { node: Allocation(allocation), family, }
 }
 
 ///|
@@ -4865,7 +5034,7 @@ fn CallableInstancePlanner::record_call(
       return
     }
   }
-  self.calls.push({ caller, site, targets: [target], open: false })
+  self.calls.push({ caller, site, targets: [target], open: false, })
   self.changed = true
 }
 
@@ -4876,7 +5045,7 @@ fn CallableInstancePlanner::record_capture_flow(
   target_instance : Int,
   binding : @anf.AnfBindingId,
 ) -> Unit {
-  let flow = { source_instance, target_instance, binding }
+  let flow = { source_instance, target_instance, binding, }
   if !self.capture_flows.contains(flow) {
     self.capture_flows.push(flow)
     self.changed = true
@@ -4898,7 +5067,7 @@ fn CallableInstancePlanner::mark_call_open(
       return
     }
   }
-  self.calls.push({ caller, site, targets: [], open: true })
+  self.calls.push({ caller, site, targets: [], open: true, })
   self.changed = true
 }
 

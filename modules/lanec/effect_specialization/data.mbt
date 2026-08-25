@@ -217,7 +217,7 @@ fn data_instance_bindings(
           ),
         )
       }
-      bindings.push({ parameter, argument: EffectArgument(specialized) })
+      bindings.push({ parameter, argument: EffectArgument(specialized), })
     }
   }
   bindings

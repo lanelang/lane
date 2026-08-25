@@ -55,7 +55,7 @@ fn borrowed_erased_value(companion : ValueId) -> ValueMetadata {
 ///|
 fn test_image(body : FunctionBody) -> Image {
   {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     functions: [Body(body)],
@@ -70,16 +70,16 @@ fn test_image(body : FunctionBody) -> Image {
 test "finalize transfers global owners and promotes global borrows" {
   let body : FunctionBody = {
     values: [owned_ref_value(), borrowed_ref_value()],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          ConstString({ value: 0 }, { value: 0 }),
-          InitGlobal({ value: 0 }, { value: 0 }),
-          BorrowGlobal({ value: 1 }, { value: 0 }),
-          CallDirect({ value: 2 }, None, [], [{ value: 1 }], None),
+          ConstString({ value: 0, }, { value: 0, }),
+          InitGlobal({ value: 0, }, { value: 0, }),
+          BorrowGlobal({ value: 1, }, { value: 0, }),
+          CallDirect({ value: 2, }, None, [], [{ value: 1, }], None),
         ],
         terminator: Return(None),
       },
@@ -88,7 +88,7 @@ test "finalize transfers global owners and promotes global borrows" {
   let image = match
     finalize_test_image_without_bytecode_verification({
       ..test_image(body),
-      initializer: Some({ value: 1 }),
+      initializer: Some({ value: 1, }),
       functions: [
         Body(body),
         RuntimeImport({
@@ -113,7 +113,7 @@ test "finalize transfers global owners and promotes global borrows" {
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
   }
-  assert_eq(image.initializer, Some({ value: 1 }))
+  assert_eq(image.initializer, Some({ value: 1, }))
   assert_eq(image.globals, [
     {
       representation: I32,
@@ -124,11 +124,11 @@ test "finalize transfers global owners and promotes global borrows" {
   ])
   assert_eq(lowered.slots.length(), 2)
   assert_eq(lowered.blocks[0].instructions, [
-    ConstString({ value: 0 }, { value: 0 }),
-    InitGlobal({ value: 0 }, { value: 0 }),
-    BorrowGlobal({ value: 1 }, { value: 0 }),
-    RetainCopy({ value: 0 }, { value: 1 }),
-    CallDirect({ value: 2 }, None, [], [{ value: 0 }], None),
+    ConstString({ value: 0, }, { value: 0, }),
+    InitGlobal({ value: 0, }, { value: 0, }),
+    BorrowGlobal({ value: 1, }, { value: 0, }),
+    RetainCopy({ value: 0, }, { value: 1, }),
+    CallDirect({ value: 2, }, None, [], [{ value: 0, }], None),
   ])
 }
 
@@ -136,18 +136,18 @@ test "finalize transfers global owners and promotes global borrows" {
 test "finalize preserves erased companions for promoted global borrows" {
   let body : FunctionBody = {
     values: [
-      { ..trivial_value(I32), kind: LayoutValue },
-      borrowed_erased_value({ value: 0 }),
+      { ..trivial_value(I32), kind: LayoutValue, },
+      borrowed_erased_value({ value: 0, }),
     ],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          ConstLayout({ value: 0 }, { value: 1 }),
-          BorrowGlobal({ value: 1 }, { value: 1 }),
-          CallDirect({ value: 2 }, None, [], [{ value: 1 }], None),
+          ConstLayout({ value: 0, }, { value: 1, }),
+          BorrowGlobal({ value: 1, }, { value: 1, }),
+          CallDirect({ value: 2, }, None, [], [{ value: 1, }], None),
         ],
         terminator: Return(None),
       },
@@ -183,20 +183,20 @@ test "finalize preserves erased companions for promoted global borrows" {
       representation: I64,
       cleanup: OwnedErased,
       kind: ErasedValue,
-      erased_companion: Some({ value: 0 }),
+      erased_companion: Some({ value: 0, }),
     },
     {
       representation: I64,
       cleanup: OwnedErased,
       kind: ErasedValue,
-      erased_companion: Some({ value: 0 }),
+      erased_companion: Some({ value: 0, }),
     },
   ])
   assert_eq(lowered.blocks[0].instructions, [
-    ConstLayout({ value: 0 }, { value: 1 }),
-    BorrowGlobal({ value: 1 }, { value: 1 }),
-    RetainCopy({ value: 2 }, { value: 1 }),
-    CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
+    ConstLayout({ value: 0, }, { value: 1, }),
+    BorrowGlobal({ value: 1, }, { value: 1, }),
+    RetainCopy({ value: 2, }, { value: 1, }),
+    CallDirect({ value: 2, }, None, [], [{ value: 2, }], None),
   ])
 }
 
@@ -207,13 +207,15 @@ test "finalize promotes a borrowed call argument to an owner" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [CallDirect({ value: 2 }, None, [], [{ value: 0 }], None)],
+        instructions: [
+          CallDirect({ value: 2, }, None, [], [{ value: 0, }], None),
+        ],
         terminator: Return(None),
       },
     ],
@@ -239,8 +241,8 @@ test "finalize promotes a borrowed call argument to an owner" {
   }
   assert_eq(lowered.slots.length(), 2)
   assert_eq(lowered.blocks[0].instructions, [
-    RetainCopy({ value: 1 }, { value: 0 }),
-    CallDirect({ value: 2 }, None, [], [{ value: 1 }], None),
+    RetainCopy({ value: 1, }, { value: 0, }),
+    CallDirect({ value: 2, }, None, [], [{ value: 1, }], None),
   ])
 }
 
@@ -258,13 +260,13 @@ test "indirect call ABI uses the finalized owned argument slot" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }, { value: 1 }],
+      user_parameters: [{ value: 0, }, { value: 1, }],
     },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [CallValue({ value: 0 }, [], [{ value: 1 }], None)],
+        instructions: [CallValue({ value: 0, }, [], [{ value: 1, }], None)],
         terminator: Return(None),
       },
     ],
@@ -281,22 +283,22 @@ test "indirect call ABI uses the finalized owned argument slot" {
     {
       witnesses: [],
       parameters: [
-        { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+        { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, },
       ],
       result: Unit,
     },
     {
       witnesses: [],
       parameters: [
-        { representation: I64, cleanup: OwnedCallable, kind: CallableValue },
-        { representation: I32, cleanup: Trivial, kind: ByteSequenceValue },
+        { representation: I64, cleanup: OwnedCallable, kind: CallableValue, },
+        { representation: I32, cleanup: Trivial, kind: ByteSequenceValue, },
       ],
       result: Unit,
     },
   ])
   assert_eq(lowered.blocks[0].instructions, [
-    RetainCopy({ value: 2 }, { value: 1 }),
-    CallValue({ value: 0 }, { value: 0 }, [], [{ value: 2 }], None),
+    RetainCopy({ value: 2, }, { value: 1, }),
+    CallValue({ value: 0, }, { value: 0, }, [], [{ value: 2, }], None),
   ])
 }
 
@@ -304,12 +306,12 @@ test "indirect call ABI uses the finalized owned argument slot" {
 test "finalize releases an owned value left live at return" {
   let body : FunctionBody = {
     values: [owned_ref_value()],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstString({ value: 0 }, { value: 0 })],
+        instructions: [ConstString({ value: 0, }, { value: 0, })],
         terminator: Return(None),
       },
     ],
@@ -323,8 +325,8 @@ test "finalize releases an owned value left live at return" {
     fail("expected bytecode body")
   }
   assert_eq(lowered.blocks[0].instructions, [
-    ConstString({ value: 0 }, { value: 0 }),
-    Release({ value: 0 }),
+    ConstString({ value: 0, }, { value: 0, }),
+    Release({ value: 0, }),
   ])
 }
 
@@ -332,13 +334,13 @@ test "finalize releases an owned value left live at return" {
 test "finalize transfers an owned return without releasing it" {
   let body : FunctionBody = {
     values: [owned_ref_value()],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Value(I32, OwnedRef, ByteSequenceValue),
     blocks: [
       {
         parameters: [],
-        instructions: [ConstString({ value: 0 }, { value: 0 })],
-        terminator: Return(Some({ value: 0 })),
+        instructions: [ConstString({ value: 0, }, { value: 0, })],
+        terminator: Return(Some({ value: 0, })),
       },
     ],
   }
@@ -351,7 +353,7 @@ test "finalize transfers an owned return without releasing it" {
     fail("expected bytecode body")
   }
   assert_eq(lowered.blocks[0].instructions, [
-    ConstString({ value: 0 }, { value: 0 }),
+    ConstString({ value: 0, }, { value: 0, }),
   ])
 }
 
@@ -362,16 +364,16 @@ test "finalize preserves object witness loads as non-consuming reads" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Value(I32, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
         instructions: [
-          LoadObjectWitness({ value: 1 }, { value: 0 }, { value: 0 }, 2),
+          LoadObjectWitness({ value: 1, }, { value: 0, }, { value: 0, }, 2),
         ],
-        terminator: Return(Some({ value: 1 })),
+        terminator: Return(Some({ value: 1, })),
       },
     ],
   }
@@ -384,8 +386,8 @@ test "finalize preserves object witness loads as non-consuming reads" {
     fail("expected bytecode body")
   }
   assert_eq(lowered.blocks[0].instructions, [
-    LoadObjectWitness({ value: 1 }, { value: 0 }, { value: 0 }, 2),
-    Release({ value: 0 }),
+    LoadObjectWitness({ value: 1, }, { value: 0, }, { value: 0, }, 2),
+    Release({ value: 0, }),
   ])
 }
 
@@ -396,15 +398,15 @@ test "finalize retains an owned call argument that is used afterward" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          CallDirect({ value: 2 }, None, [], [{ value: 0 }], None),
-          ByteSequenceLength({ value: 1 }, { value: 0 }),
+          CallDirect({ value: 2, }, None, [], [{ value: 0, }], None),
+          ByteSequenceLength({ value: 1, }, { value: 0, }),
         ],
         terminator: Return(None),
       },
@@ -431,10 +433,10 @@ test "finalize retains an owned call argument that is used afterward" {
   }
   assert_eq(lowered.slots.length(), 3)
   assert_eq(lowered.blocks[0].instructions, [
-    RetainCopy({ value: 2 }, { value: 0 }),
-    CallDirect({ value: 2 }, None, [], [{ value: 2 }], None),
-    ByteSequenceLength({ value: 1 }, { value: 0 }),
-    Release({ value: 0 }),
+    RetainCopy({ value: 2, }, { value: 0, }),
+    CallDirect({ value: 2, }, None, [], [{ value: 2, }], None),
+    ByteSequenceLength({ value: 1, }, { value: 0, }),
+    Release({ value: 0, }),
   ])
 }
 
@@ -445,20 +447,20 @@ test "finalize inserts path-specific releases for owned values at a branch" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 1 }],
+      user_parameters: [{ value: 1, }],
     },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [ConstString({ value: 0 }, { value: 0 })],
+        instructions: [ConstString({ value: 0, }, { value: 0, })],
         terminator: BranchBool(
-          { value: 1 },
-          { target: { value: 1 }, arguments: [] },
-          { target: { value: 1 }, arguments: [] },
+          { value: 1, },
+          { target: { value: 1, }, arguments: [], },
+          { target: { value: 1, }, arguments: [], },
         ),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
+      { parameters: [], instructions: [], terminator: Return(None), },
     ],
   }
   let image = match
@@ -472,20 +474,20 @@ test "finalize inserts path-specific releases for owned values at a branch" {
   assert_eq(lowered.blocks.length(), 4)
   assert_eq(
     lowered.blocks[0].terminator,
-    BranchBool({ value: 1 }, { target: { value: 2 }, arguments: [] }, {
-      target: { value: 3 },
+    BranchBool({ value: 1, }, { target: { value: 2, }, arguments: [], }, {
+      target: { value: 3, },
       arguments: [],
     }),
   )
   assert_eq(lowered.blocks[2], {
     parameters: [],
-    instructions: [Release({ value: 0 })],
-    terminator: Jump({ target: { value: 1 }, arguments: [] }),
+    instructions: [Release({ value: 0, })],
+    terminator: Jump({ target: { value: 1, }, arguments: [], }),
   })
   assert_eq(lowered.blocks[3], {
     parameters: [],
-    instructions: [Release({ value: 0 })],
-    terminator: Jump({ target: { value: 1 }, arguments: [] }),
+    instructions: [Release({ value: 0, })],
+    terminator: Jump({ target: { value: 1, }, arguments: [], }),
   })
 }
 
@@ -493,25 +495,25 @@ test "finalize inserts path-specific releases for owned values at a branch" {
 test "finalize inserts path-specific releases for every switch edge" {
   let body : FunctionBody = {
     values: [owned_ref_value(), trivial_value(I32)],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          ConstString({ value: 0 }, { value: 0 }),
-          ConstBool({ value: 1 }, true),
+          ConstString({ value: 0, }, { value: 0, }),
+          ConstBool({ value: 1, }, true),
         ],
         terminator: SwitchTag(
-          { value: 1 },
+          { value: 1, },
           [
-            { target: { value: 1 }, arguments: [] },
-            { target: { value: 1 }, arguments: [] },
+            { target: { value: 1, }, arguments: [], },
+            { target: { value: 1, }, arguments: [], },
           ],
-          { target: { value: 1 }, arguments: [] },
+          { target: { value: 1, }, arguments: [], },
         ),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
+      { parameters: [], instructions: [], terminator: Return(None), },
     ],
   }
   let image = match
@@ -526,16 +528,16 @@ test "finalize inserts path-specific releases for every switch edge" {
   assert_eq(
     lowered.blocks[0].terminator,
     SwitchTag(
-      { value: 1 },
+      { value: 1, },
       [
-        { target: { value: 2 }, arguments: [] },
-        { target: { value: 3 }, arguments: [] },
+        { target: { value: 2, }, arguments: [], },
+        { target: { value: 3, }, arguments: [], },
       ],
-      { target: { value: 4 }, arguments: [] },
+      { target: { value: 4, }, arguments: [], },
     ),
   )
   for block in lowered.blocks[2:] {
-    assert_eq(block.instructions, [Release({ value: 0 })])
+    assert_eq(block.instructions, [Release({ value: 0, })])
   }
 }
 
@@ -553,7 +555,7 @@ test "finalize threads an owned function input into its using branch" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }, { value: 1 }],
+      user_parameters: [{ value: 0, }, { value: 1, }],
     },
     result: Value(I32, Trivial, ScalarValue),
     blocks: [
@@ -561,20 +563,20 @@ test "finalize threads an owned function input into its using branch" {
         parameters: [],
         instructions: [],
         terminator: BranchBool(
-          { value: 0 },
-          { target: { value: 1 }, arguments: [] },
-          { target: { value: 2 }, arguments: [] },
+          { value: 0, },
+          { target: { value: 1, }, arguments: [], },
+          { target: { value: 2, }, arguments: [], },
         ),
       },
       {
         parameters: [],
         instructions: [],
-        terminator: TailCallValue({ value: 1 }, [], []),
+        terminator: TailCallValue({ value: 1, }, [], []),
       },
       {
         parameters: [],
-        instructions: [ConstBool({ value: 2 }, false)],
-        terminator: Return(Some({ value: 2 })),
+        instructions: [ConstBool({ value: 2, }, false)],
+        terminator: Return(Some({ value: 2, })),
       },
     ],
   }
@@ -586,16 +588,16 @@ test "finalize threads an owned function input into its using branch" {
   guard image.functions[0] is BytecodeBody(lowered) else {
     fail("expected bytecode body")
   }
-  assert_eq(lowered.blocks[1].parameters, [{ value: 1 }])
+  assert_eq(lowered.blocks[1].parameters, [{ value: 1, }])
   assert_eq(
     lowered.blocks[0].terminator,
     BranchBool(
-      { value: 0 },
-      { target: { value: 1 }, arguments: [{ value: 1 }] },
-      { target: { value: 3 }, arguments: [] },
+      { value: 0, },
+      { target: { value: 1, }, arguments: [{ value: 1, }], },
+      { target: { value: 3, }, arguments: [], },
     ),
   )
-  assert_eq(lowered.blocks[3].instructions, [Release({ value: 1 })])
+  assert_eq(lowered.blocks[3].instructions, [Release({ value: 1, })])
 }
 
 ///|
@@ -610,7 +612,7 @@ test "finalize rejects a borrowed function input used across blocks" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }, { value: 1 }],
+      user_parameters: [{ value: 0, }, { value: 1, }],
     },
     result: Value(I64, Trivial, ScalarValue),
     blocks: [
@@ -618,26 +620,26 @@ test "finalize rejects a borrowed function input used across blocks" {
         parameters: [],
         instructions: [],
         terminator: BranchBool(
-          { value: 0 },
-          { target: { value: 1 }, arguments: [] },
-          { target: { value: 2 }, arguments: [] },
+          { value: 0, },
+          { target: { value: 1, }, arguments: [], },
+          { target: { value: 2, }, arguments: [], },
         ),
       },
       {
         parameters: [],
-        instructions: [ByteSequenceLength({ value: 2 }, { value: 1 })],
-        terminator: Return(Some({ value: 2 })),
+        instructions: [ByteSequenceLength({ value: 2, }, { value: 1, })],
+        terminator: Return(Some({ value: 2, })),
       },
       {
         parameters: [],
-        instructions: [ConstI64({ value: 3 }, 0)],
-        terminator: Return(Some({ value: 3 })),
+        instructions: [ConstI64({ value: 3, }, 0)],
+        terminator: Return(Some({ value: 3, })),
       },
     ],
   }
   assert_eq(
     finalize_test_image_without_bytecode_verification(test_image(body)),
-    Err(IllegalValueMetadata(value={ value: 1 })),
+    Err(IllegalValueMetadata(value={ value: 1, })),
   )
 }
 
@@ -655,25 +657,25 @@ test "finalize promotes a borrowed global before it crosses a branch" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Unit,
     blocks: [
       {
         parameters: [],
-        instructions: [BorrowGlobal({ value: 1 }, { value: 0 })],
+        instructions: [BorrowGlobal({ value: 1, }, { value: 0, })],
         terminator: BranchBool(
-          { value: 0 },
-          { target: { value: 1 }, arguments: [] },
-          { target: { value: 2 }, arguments: [] },
+          { value: 0, },
+          { target: { value: 1, }, arguments: [], },
+          { target: { value: 2, }, arguments: [], },
         ),
       },
       {
         parameters: [],
         instructions: [],
-        terminator: TailCallValue({ value: 1 }, [], []),
+        terminator: TailCallValue({ value: 1, }, [], []),
       },
-      { parameters: [], instructions: [], terminator: Return(None) },
+      { parameters: [], instructions: [], terminator: Return(None), },
     ],
   }
   let image = match
@@ -695,21 +697,21 @@ test "finalize promotes a borrowed global before it crosses a branch" {
     fail("expected bytecode body")
   }
   assert_eq(lowered.blocks[0].instructions, [
-    BorrowGlobal({ value: 2 }, { value: 0 }),
-    RetainCopy({ value: 1 }, { value: 2 }),
+    BorrowGlobal({ value: 2, }, { value: 0, }),
+    RetainCopy({ value: 1, }, { value: 2, }),
   ])
-  assert_eq(lowered.blocks[1].parameters, [{ value: 1 }])
+  assert_eq(lowered.blocks[1].parameters, [{ value: 1, }])
   assert_eq(
     lowered.blocks[0].terminator,
     BranchBool(
-      { value: 0 },
-      { target: { value: 1 }, arguments: [{ value: 1 }] },
-      { target: { value: 3 }, arguments: [] },
+      { value: 0, },
+      { target: { value: 1, }, arguments: [{ value: 1, }], },
+      { target: { value: 3, }, arguments: [], },
     ),
   )
   assert_eq(lowered.blocks[3], {
     parameters: [],
-    instructions: [Release({ value: 1 })],
-    terminator: Jump({ target: { value: 2 }, arguments: [] }),
+    instructions: [Release({ value: 1, })],
+    terminator: Jump({ target: { value: 2, }, arguments: [], }),
   })
 }

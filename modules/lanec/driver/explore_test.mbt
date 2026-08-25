@@ -5,7 +5,7 @@ fn explore_test_request(
   entry? : String = "main",
 ) -> ExploreRequest {
   {
-    root_source: { source_id: "Main.lane", text: root },
+    root_source: { source_id: "Main.lane", text: root, },
     library_sources: libraries.mapi((index, text) => {
       source_id: "Library\{index}.lane",
       text,
@@ -718,13 +718,13 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 6),
+      #|        ("functionCount", 7),
       #|        ("importCount", 1),
-      #|        ("blockCount", 6),
-      #|        ("instructionCount", 6),
-      #|        ("valueCount", 25),
+      #|        ("blockCount", 7),
+      #|        ("instructionCount", 7),
+      #|        ("valueCount", 31),
       #|        ("directCallCount", 5),
-      #|        ("indirectCallCount", 1),
+      #|        ("indirectCallCount", 2),
       #|        ("functionReferenceCount", 3),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
@@ -738,12 +738,13 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|        ("constantCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 1, operation_count: 5, value_count: 6 },
-      #|        { index: 2, block_count: 1, operation_count: 1, value_count: 5 },
-      #|        { index: 3, block_count: 1, operation_count: 0, value_count: 1 },
-      #|        { index: 4, block_count: 1, operation_count: 0, value_count: 5 },
-      #|        { index: 5, block_count: 1, operation_count: 0, value_count: 4 },
+      #|        { index: 1, block_count: 1, operation_count: 1, value_count: 6 },
+      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 6 },
+      #|        { index: 3, block_count: 1, operation_count: 1, value_count: 5 },
+      #|        { index: 4, block_count: 1, operation_count: 0, value_count: 1 },
+      #|        { index: 5, block_count: 1, operation_count: 0, value_count: 5 },
       #|        { index: 6, block_count: 1, operation_count: 0, value_count: 4 },
+      #|        { index: 7, block_count: 1, operation_count: 0, value_count: 4 },
       #|      ],
       #|    ),
       #|  ],

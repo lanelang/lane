@@ -648,7 +648,7 @@ test "every verified top-term shape evaluates without an unbound value" {
     metadata,
     terms: [
       External(external),
-      LetRec([{ id: recursive, rhs: call(external) }]),
+      LetRec([{ id: recursive, rhs: call(external), }]),
       Let(ordinary, Call(Ref(recursive), [])),
       Let(observer, call(recursive)),
     ],

@@ -11,22 +11,22 @@ test "function catalog owns complete function and table identity" {
   ) -> @bytecode.FunctionEntry {
     BytecodeBody({
       slots: [trivial_slot, trivial_slot],
-      inputs: { environment: None, witnesses: [], user_parameters: [] },
+      inputs: { environment: None, witnesses: [], user_parameters: [], },
       result: Unit,
-      blocks: [{ parameters: [], instructions, terminator: Return(None) }],
+      blocks: [{ parameters: [], instructions, terminator: Return(None), }],
     })
   }
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
     functions: [
       body([
-        ConstFunction({ value: 0 }, { value: 3 }),
-        ConstFunction({ value: 1 }, { value: 2 }),
-        Release({ value: 0 }),
-        Release({ value: 1 }),
+        ConstFunction({ value: 0, }, { value: 3, }),
+        ConstFunction({ value: 1, }, { value: 2, }),
+        Release({ value: 0, }),
+        Release({ value: 1, }),
       ]),
       body([]),
       body([]),
@@ -344,7 +344,7 @@ test "function catalog owns complete function and table identity" {
   try
     table_import_catalog.add_entry(
       module_,
-      BytecodeFunction(function={ value: 1 }),
+      BytecodeFunction(function={ value: 1, }),
       wasm_function_type([I32], []),
       Import(module_name="test", name="callable"),
       true,

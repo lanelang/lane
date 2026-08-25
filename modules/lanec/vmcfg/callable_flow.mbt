@@ -42,7 +42,7 @@ fn analyze_callable_flow(image : Image) -> CallableFlowAnalysis {
   let bodies = image.functions.map(entry => {
     match entry {
       Body(body) =>
-        Some({ values: Array::make(body.values.length(), Unreached) })
+        Some({ values: Array::make(body.values.length(), Unreached), })
       RuntimeImport(_) => None
     }
   })
@@ -307,7 +307,7 @@ fn known_callable(
   target : @bytecode.FunctionId,
   environment : CallableEnvironmentFact,
 ) -> CallableFlowFact {
-  KnownCallables([{ target, environment }])
+  KnownCallables([{ target, environment, }])
 }
 
 ///|
@@ -440,7 +440,7 @@ fn merge_callable_alternatives(
       if existing.target == alternative.target {
         found = true
         if existing.environment != alternative.environment {
-          merged[index] = { ..existing, environment: PackedEnvironment }
+          merged[index] = { ..existing, environment: PackedEnvironment, }
         }
         break
       }
@@ -494,7 +494,7 @@ fn CallableFlowFact::cross_function(
         alternatives.map(alternative => {
           match alternative.environment {
             LocalEnvironment(_) =>
-              { ..alternative, environment: PackedEnvironment }
+              { ..alternative, environment: PackedEnvironment, }
             CaptureFree | PackedEnvironment => alternative
           }
         }),
@@ -504,7 +504,7 @@ fn CallableFlowFact::cross_function(
         alternatives.map(alternative => {
           match alternative.environment {
             LocalEnvironment(_) =>
-              { ..alternative, environment: PackedEnvironment }
+              { ..alternative, environment: PackedEnvironment, }
             CaptureFree | PackedEnvironment => alternative
           }
         }),

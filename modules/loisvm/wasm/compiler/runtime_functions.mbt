@@ -16,8 +16,8 @@ fn compile_runtime_function(
         locals: [I32, I32, I32, I32, I32, I32, I32, I32],
         body: allocator_body(),
       }
-    Free => { locals: [], body: free_body() }
-    RetainReference => { locals: [I32], body: retain_ref_body() }
+    Free => { locals: [], body: free_body(), }
+    RetainReference => { locals: [I32], body: retain_ref_body(), }
     ReleaseReference =>
       {
         locals: [I32],
@@ -76,7 +76,7 @@ fn compile_runtime_function(
         body: byte_sequence_index_body(require_byte_sequence_layout),
       }
     ByteSequenceGet =>
-      { locals: [], body: byte_sequence_get_body(byte_sequence_index) }
+      { locals: [], body: byte_sequence_get_body(byte_sequence_index), }
     ByteSequenceSet =>
       {
         locals: [I32, I32],

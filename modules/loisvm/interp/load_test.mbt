@@ -17,20 +17,20 @@ test "loader resolves all runtime imports atomically" {
   )
   let body : @bytecode.FunctionBody = {
     slots: [],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+    blocks: [{ parameters: [], instructions: [], terminator: Return(None), }],
   }
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [
-          { representation: I64, cleanup: Trivial, kind: ScalarValue },
+          { representation: I64, cleanup: Trivial, kind: ScalarValue, },
         ],
         result: Value(I64, Trivial, ScalarValue),
       },
@@ -125,14 +125,14 @@ test "loader rejects call result ownership mismatch before execution" {
         erased_companion: None,
       },
     ],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-          Release({ value: 0 }),
+          CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+          Release({ value: 0, }),
         ],
         terminator: Return(None),
       },
@@ -147,22 +147,22 @@ test "loader rejects call result ownership mismatch before execution" {
         erased_companion: None,
       },
     ],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Value(I32, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
-        instructions: [ConstI32({ value: 0 }, 42)],
-        terminator: Return(Some({ value: 0 })),
+        instructions: [ConstI32({ value: 0, }, 42)],
+        terminator: Return(Some({ value: 0, })),
       },
     ],
   }
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [],
@@ -184,7 +184,7 @@ test "loader rejects call result ownership mismatch before execution" {
     Some(
       InvalidBytecode(
         InvalidBytecode(
-          site=Instruction({ value: 1 }, { value: 0 }, 0),
+          site=Instruction({ value: 1, }, { value: 0, }, 0),
           detail="call result ABI does not match destination slot",
         ),
       ),

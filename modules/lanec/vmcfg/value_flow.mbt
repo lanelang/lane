@@ -80,7 +80,11 @@ fn analyze_use_def(body : FunctionBody) -> UseDefAnalysis raise FinalizeError {
       uses[value.value].push(TerminatorUse(block_index))
       use_counts[value.value] += 1
     }
-    blocks.push({ instructions: instruction_facts, terminator_uses, use_counts })
+    blocks.push({
+      instructions: instruction_facts,
+      terminator_uses,
+      use_counts,
+    })
   }
   for owner_index, metadata in body.values {
     guard metadata.erased_companion is Some(companion) &&
@@ -92,7 +96,7 @@ fn analyze_use_def(body : FunctionBody) -> UseDefAnalysis raise FinalizeError {
     uses[companion.value].push(MetadataUse(block, position))
     blocks[block].use_counts[companion.value] += 1
   }
-  { definitions, uses, blocks }
+  { definitions, uses, blocks, }
 }
 
 ///|

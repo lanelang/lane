@@ -202,7 +202,7 @@ test "direct calls bridge Unit-specialized CPS callables" {
     ),
   )
   let encoded = metadata.define_value("encoded", External, encoded_type)
-  let program : Program = { metadata, terms: [External(encoded)] }
+  let program : Program = { metadata, terms: [External(encoded)], }
   let bridged = lower_cps_direct_call(
     program.metadata,
     Ref(encoded),
@@ -388,15 +388,15 @@ test "selective CPS synchronizes local generic callable metadata" {
                   [
                     {
                       rhs: TypeLambda([answer, residual], Function(local_cps)),
-                      ..,
+                      ..
                     },
                   ],
                   _
                 ),
-                ..,
+                ..
               }
             ),
-            ..,
+            ..
           },
         ]
       ),
@@ -445,7 +445,7 @@ test "direct CPS lowering uses precommitted local binding metadata" {
   let source = Program::{
     metadata: metadata.snapshot(),
     terms: [
-      Let(entry, Function({ parameters: [], result_type: local_type, body })),
+      Let(entry, Function({ parameters: [], result_type: local_type, body, })),
     ],
   }
   let schema = build_dictionary_cps_schema_or_raise(metadata)
@@ -504,7 +504,7 @@ test "expected and synthesized CPS callables use one ABI shape" {
     metadata,
     terms: [
       External(choose),
-      LetRec([{ id: declared, rhs: Function(function) }]),
+      LetRec([{ id: declared, rhs: Function(function), }]),
       Let(result, Call(Ref(choose), [Ref(declared), Function(function)])),
     ],
   })
@@ -584,7 +584,7 @@ test "callable shape divergence reports the originating binding" {
   })
   let source = Program::{
     metadata: metadata.snapshot(),
-    terms: [LetRec([{ id: binding, rhs: initializer }])],
+    terms: [LetRec([{ id: binding, rhs: initializer, }])],
   }
   let schema = build_dictionary_cps_schema_or_raise(metadata)
   rewrite_cps_source_metadata(schema, collect_program_declarations(source))
@@ -636,8 +636,8 @@ test "CPS binding validation preserves declaration metadata" {
   let second = metadata.define_value("second", Local, Primitive(I64))
   let result : Result[Unit, SynthesisError] = try {
     validate_cps_recursive_binding_types(metadata, [
-      { id: first, rhs: Literal(Bool(true)) },
-      { id: second, rhs: Literal(I64(1L)) },
+      { id: first, rhs: Literal(Bool(true)), },
+      { id: second, rhs: Literal(I64(1L)), },
     ])
     Ok(())
   } catch {
@@ -783,7 +783,7 @@ test "selective CPS replaces effect polymorphism with companions" {
             [companion, effect_residual],
             TypeLambda([answer, residual], Function(transformed))
           ),
-          ..,
+          ..
         },
       ]
     ) else {
@@ -1125,7 +1125,7 @@ test "selective CPS selects a generic operation dictionary field" {
     is Match(
       {
         alternatives: [{ value_binders: [first_field, second_field], body, .. }],
-        ..,
+        ..
       }
     ) else {
     abort("expected static dictionary projection")

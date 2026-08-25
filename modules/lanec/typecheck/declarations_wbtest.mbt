@@ -437,7 +437,7 @@ test "invalid extern ABI produces checked error recovery" {
       #|let bad : (Box) -> I64 = extern("bad")
     ),
     "bad",
-    Function([Constructor({ index: 0 })], Primitive(I64), Empty),
+    Function([Constructor({ index: 0, })], Primitive(I64), Empty),
   )
   assert_true(expression is ErrorRecovery(..))
 }

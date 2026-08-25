@@ -211,7 +211,7 @@ pub fn ExpressionFactsQuery::new(program : Program) -> ExpressionFactsQuery {
   for index in 0..<program.metadata.type_parameters.length() {
     type_parameters.push({ index, })
   }
-  { program, values, type_parameters }
+  { program, values, type_parameters, }
 }
 
 ///|
@@ -226,8 +226,8 @@ pub fn ExpressionFactsQuery::synthesize(
   }
   let facts = context.synthesize_expr(
     expression,
-    { values: self.values, deferred: NoDeferredValues },
-    { parameters: self.type_parameters },
+    { values: self.values, deferred: NoDeferredValues, },
+    { parameters: self.type_parameters, },
   )
   let blockers = context.diagnostics.filter(diagnostic => {
     diagnostic.blocks_expression_facts()
@@ -235,7 +235,7 @@ pub fn ExpressionFactsQuery::synthesize(
   if blockers.is_empty() {
     Ok(facts)
   } else {
-    Err({ diagnostics: blockers })
+    Err({ diagnostics: blockers, })
   }
 }
 
@@ -269,7 +269,7 @@ pub fn ExpressionFactsQuery::has_empty_effect(
         error =>
           Err({
             diagnostics: [
-              { kind: TypeNormalizationFailure(error), provenance: [] },
+              { kind: TypeNormalizationFailure(error), provenance: [], },
             ],
           })
       }
@@ -279,10 +279,10 @@ pub fn ExpressionFactsQuery::has_empty_effect(
 ///|
 /// Verifies a complete Buslane program.
 pub fn verify_program(program : Program) -> VerifyResult {
-  let context = VerifyContext::{ program, diagnostics: [], frames: [] }
+  let context = VerifyContext::{ program, diagnostics: [], frames: [], }
   context.verify_metadata()
   context.verify_terms()
-  { diagnostics: context.diagnostics }
+  { diagnostics: context.diagnostics, }
 }
 
 ///|
@@ -304,7 +304,7 @@ fn VerifyContext::report(
   self : VerifyContext,
   kind : VerifyDiagnosticKind,
 ) -> Unit {
-  self.diagnostics.push({ kind, provenance: self.frames.copy() })
+  self.diagnostics.push({ kind, provenance: self.frames.copy(), })
 }
 
 ///|
@@ -467,7 +467,7 @@ fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
   for index, value in self.program.metadata.values {
     if value.kind.has_closed_metadata_type() {
       self.within(Metadata(Value({ index, }, value.name)), () => {
-        self.verify_value_type(value.type_, { parameters: [] })
+        self.verify_value_type(value.type_, { parameters: [], })
       })
     }
   }
@@ -522,7 +522,9 @@ fn VerifyContext::verify_operation_metadata(
   operation : OperationInfo,
 ) -> Unit {
   self.require_effect(operation.owner)
-  let scope = TypeScope::{ parameters: operation.hidden_type_parameters.copy() }
+  let scope = TypeScope::{
+    parameters: operation.hidden_type_parameters.copy(),
+  }
   if self.program.metadata.effect_info(operation.owner) is Some(owner) {
     for parameter in owner.parameters {
       scope.parameters.push(parameter)
@@ -715,7 +717,7 @@ fn VerifyContext::verify_top_let(
     initializer,
     info.type_,
     scope,
-    { parameters: [] },
+    { parameters: [], },
   )
   self.require_effect_equals(Empty, effect)
 }
@@ -741,7 +743,7 @@ fn VerifyContext::verify_top_letrec_binding(
     binding.rhs,
     info.type_,
     scope,
-    { parameters: [] },
+    { parameters: [], },
   )
   self.require_effect_equals(Empty, effect)
 }
@@ -902,7 +904,7 @@ fn VerifyContext::synthesize_call(
   guard callee_result.type_
     is Function(parameter_types, result_type, latent_effect) else {
     self.report(NotFunction(callee_result.type_))
-    return { type_: Primitive(Unit), effect: callee_result.effect }
+    return { type_: Primitive(Unit), effect: callee_result.effect, }
   }
   let effects = [callee_result.effect]
   if parameter_types.length() != arguments.length() {
@@ -928,7 +930,7 @@ fn VerifyContext::synthesize_call(
     effects.push(argument_effect)
   }
   effects.push(latent_effect)
-  { type_: result_type, effect: self.effect_union(effects) }
+  { type_: result_type, effect: self.effect_union(effects), }
 }
 
 ///|
@@ -972,18 +974,18 @@ fn VerifyContext::synthesize_type_apply(
   )
   guard callee_result.type_ is Forall(parameters, body) else {
     self.report(NotForall(callee_result.type_))
-    return { type_: Primitive(Unit), effect: callee_result.effect }
+    return { type_: Primitive(Unit), effect: callee_result.effect, }
   }
   if parameters.length() != arguments.length() {
     self.report(
       ArityMismatch(expected=parameters.length(), actual=arguments.length()),
     )
-    return { type_: body, effect: callee_result.effect }
+    return { type_: body, effect: callee_result.effect, }
   }
   let substitution = self.verified_substitution(
     parameters, arguments, type_scope,
   )
-  { type_: self.substituted(body, substitution), effect: callee_result.effect }
+  { type_: self.substituted(body, substitution), effect: callee_result.effect, }
 }
 
 ///|
@@ -1148,7 +1150,7 @@ fn VerifyContext::synthesize_handle(
   self.verify_value_type(handle.result_type, type_scope)
   guard self.verify_binder(handle.result_binder, type_scope)
     is Some(result_info) else {
-    return { type_: handle.result_type, effect: self.effect_union(effects) }
+    return { type_: handle.result_type, effect: self.effect_union(effects), }
   }
   if !self.types_definitionally_equal(result_info.type_, body_result.type_) {
     self.report(
@@ -1195,7 +1197,7 @@ fn VerifyContext::synthesize_handle(
       }
     })
   }
-  { type_: handle.result_type, effect: self.effect_union(effects) }
+  { type_: handle.result_type, effect: self.effect_union(effects), }
 }
 
 ///|
@@ -1419,7 +1421,7 @@ fn VerifyContext::synthesize_match(
     })
     effects.push(alternative_effect)
   }
-  { type_: match_.result_type, effect: self.effect_union(effects) }
+  { type_: match_.result_type, effect: self.effect_union(effects), }
 }
 
 ///|
@@ -2056,12 +2058,12 @@ fn TypeScope::contains(self : TypeScope, id : TypeParameterId) -> Bool {
 
 ///|
 fn TypeScope::copy(self : TypeScope) -> TypeScope {
-  { parameters: self.parameters.copy() }
+  { parameters: self.parameters.copy(), }
 }
 
 ///|
 fn pure_expr(type_ : Type) -> ExpressionFacts {
-  { type_, effect: Empty }
+  { type_, effect: Empty, }
 }
 
 ///|

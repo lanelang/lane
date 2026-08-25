@@ -61,7 +61,11 @@ fn elaborate_or_raise(
     entry.value,
   )
   let program = match
-    @core_opt.optimize({ program, entry: entry.value, roots: initializer_roots }) {
+    @core_opt.optimize({
+      program,
+      entry: entry.value,
+      roots: initializer_roots,
+    }) {
     Ok(program) => program
     Err(error) => raise CoreOptimizationError(error)
   }
@@ -74,7 +78,7 @@ fn elaborate_or_raise(
     entry.value,
     initializer_roots,
   )
-  { program, externals, entry, retained_values }
+  { program, externals, entry, retained_values, }
 }
 
 ///|
@@ -83,7 +87,7 @@ fn collect_retained_values(
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
 ) -> Array[@buslane.ValueId] {
-  let occurrence = @occurrence.analyze({ program, entry, roots })
+  let occurrence = @occurrence.analyze({ program, entry, roots, })
   let retained = []
   for term in program.terms {
     match term {
@@ -131,7 +135,7 @@ fn lower_effects(
   observe_executable_stage(observe, MonadicContinuationsLifted(lifted))
   let initializer_roots = collect_reachable_initializer_roots(lifted, entry)
   let optimized = match
-    @core_opt.optimize({ program: lifted, entry, roots: initializer_roots }) {
+    @core_opt.optimize({ program: lifted, entry, roots: initializer_roots, }) {
     Ok(program) => program
     Err(error) => raise CoreOptimizationError(error)
   }
@@ -165,7 +169,7 @@ fn collect_reachable_initializer_roots(
   program : @buslane.Program,
   entry : @buslane.ValueId,
 ) -> Array[@buslane.ValueId] {
-  let occurrence = @occurrence.analyze({ program, entry, roots: [] })
+  let occurrence = @occurrence.analyze({ program, entry, roots: [], })
   let roots = []
   for term in program.terms {
     match term {

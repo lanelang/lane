@@ -402,6 +402,13 @@ One semantic callable instance paired with one Callable Invocation Contract,
 exact capture shapes, and the physical assignments required by its body.
 _Avoid_: semantic callable instance, ABI-only worker key
 
+**Callable Materialization Contract**:
+The allocation-site-owned tuple of semantic callable target, selected generic
+or worker implementation, Callable Invocation Contract, and capture flows.
+Physical planning produces it once; VM CFG emission may only materialize that
+record and cannot reselect an implementation from the use site.
+_Avoid_: worker boolean, emission-time ABI reconstruction
+
 **Representation Bridge**:
 An explicit planned conversion between two Physical Value Shapes, currently
 erase, unerase, or callable adaptation.
@@ -415,6 +422,19 @@ owns at most one worker. The generic implementation remains available for open
 or incompatible components; cleaned whole-image reachability removes any
 implementation that is not actually referenced.
 _Avoid_: source-local selection, code-size score, pre-cleanup reachability
+
+**Recursive Representation Demand SCC**:
+An exact strongly connected component of representation-worker demands linked
+through first-class callable parameters, results, captures, or stored members.
+Because a Callable Invocation Contract is structural and has no recursive name,
+the planner emits no worker for a recursive demand component, and every
+first-class edge targeting it retains the generic invocation contract. Acyclic
+targets may use worker contracts only when the worker preserves one physical
+slot per logical callable parameter; scalar-expanded workers remain direct-call
+contracts. Each callable allocation freezes its implementation, invocation ABI,
+and capture contract together, and emission consumes that single fact.
+_Avoid_: DFS-order seed ABI, structural contract expansion,
+recursive callable worker ABI, implementation/ABI reselection during emission
 
 **Nominal Data Representation Family**:
 The declaration-owned uniform fallback storage ABI for one nominal data type.

@@ -31,7 +31,7 @@ fn InlineCloneContext::from_application(
   for index in 0..<parameters.length() {
     substitution.insert_argument(parameters[index], arguments[index])
   }
-  Some({ metadata, substitution, type_parameter_clones: [], value_clones: [] })
+  Some({ metadata, substitution, type_parameter_clones: [], value_clones: [], })
 }
 
 ///|
@@ -218,7 +218,7 @@ fn InlineCloneContext::clone_type_parameter(
     Type | Function(_) => TypeArgument(Parameter(cloned))
   }
   self.substitution.insert_argument(parameter, argument)
-  self.type_parameter_clones.push({ original: parameter, cloned })
+  self.type_parameter_clones.push({ original: parameter, cloned, })
   cloned
 }
 
@@ -240,7 +240,7 @@ fn InlineCloneContext::clone_value(
   ) catch {
     error => raise MetadataAllocationCompilerDefect(error)
   }
-  self.value_clones.push({ original: value, cloned })
+  self.value_clones.push({ original: value, cloned, })
   cloned
 }
 

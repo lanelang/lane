@@ -930,7 +930,7 @@ test "lsp diagnostics convert text offsets before transport" {
     ),
   }
   let result = @compile.check({
-    root: { source_id: input.source_id, text: input.text },
+    root: { source_id: input.source_id, text: input.text, },
     libraries: [],
   })
   let sources = compiler_diagnostic_sources_from_inputs([input])
@@ -991,7 +991,7 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
     ),
   }
   let result = @compile.check({
-    root: { source_id: input.source_id, text: input.text },
+    root: { source_id: input.source_id, text: input.text, },
     libraries: [],
   })
   let diagnostics = result
@@ -1038,7 +1038,7 @@ test "lsp diagnostics transport unused local warnings" {
     ),
   }
   let result = @compile.check({
-    root: { source_id: input.source_id, text: input.text },
+    root: { source_id: input.source_id, text: input.text, },
     libraries: [],
   })
   let sources = compiler_diagnostic_sources_from_inputs([input])
@@ -1073,7 +1073,7 @@ test "lsp duplicate top-level value diagnostic points at names" {
     ),
   }
   let result = @compile.check({
-    root: { source_id: input.source_id, text: input.text },
+    root: { source_id: input.source_id, text: input.text, },
     libraries: [],
   })
   let sources = compiler_diagnostic_sources_from_inputs([input])
@@ -1132,8 +1132,8 @@ test "lsp duplicate imported top-level value diagnostic points across sources" {
     ),
   }
   let result = @compile.check({
-    root: { source_id: main.source_id, text: main.text },
-    libraries: [{ source_id: lib.source_id, text: lib.text }],
+    root: { source_id: main.source_id, text: main.text, },
+    libraries: [{ source_id: lib.source_id, text: lib.text, }],
   })
   let sources = compiler_diagnostic_sources_from_inputs([main, lib])
   json_inspect(
@@ -1642,7 +1642,7 @@ async test "workspace analysis selects root import closure without json rpc" {
     #|import Lib.*
     #|
     #|pub let answer : I64 = value
-  let document = { uri: "file://\{main_path}", text: main_text }
+  let document = { uri: "file://\{main_path}", text: main_text, }
   let analysis = LspWorkspaceAnalysis(Some(workspace), Map([]))
   let sources = analysis.analysis_sources(document)
   let inputs = match

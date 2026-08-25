@@ -36,9 +36,9 @@ fn write_unit_callable_abi_table(writer : @bytecodec.ByteWriter) -> Unit {
 fn minimal_body(instructions? : Array[Instruction] = []) -> FunctionBody {
   {
     slots: [],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions, terminator: Return(None) }],
+    blocks: [{ parameters: [], instructions, terminator: Return(None), }],
   }
 }
 
@@ -47,7 +47,7 @@ fn minimal_image() -> BytecodeImage {
   {
     entry: function(1),
     initializer: None,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
     functions: [BytecodeBody(minimal_body())],
     globals: [],
@@ -90,7 +90,7 @@ fn global_image() -> BytecodeImage {
   {
     entry: function(1),
     initializer: Some(function(2)),
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
     functions: [BytecodeBody(minimal_body()), BytecodeBody(initializer)],
     globals: [
@@ -271,7 +271,7 @@ test "globals and initializer roundtrip" {
   let image = global_image()
   let binary = bytecode_image_to_binary(image).unwrap()
   assert_eq(parse_bytecode_image_binary(binary), Ok(image))
-  let initializer_only = { ..minimal_image(), initializer: Some(function(1)) }
+  let initializer_only = { ..minimal_image(), initializer: Some(function(1)), }
   let initializer_only_binary = bytecode_image_to_binary(initializer_only).unwrap()
   assert_eq(
     parse_bytecode_image_binary(initializer_only_binary),
@@ -293,7 +293,7 @@ test "F32 bytecode instructions roundtrip" {
     kind: ScalarValue,
     erased_companion: None,
   }
-  let layout_value : SlotMetadata = { ..i32, kind: LayoutValue }
+  let layout_value : SlotMetadata = { ..i32, kind: LayoutValue, }
   let i64 : SlotMetadata = {
     representation: I64,
     cleanup: Trivial,
@@ -422,12 +422,16 @@ test "function, layout, shape, and constant tables roundtrip" {
     entry: function(1),
     initializer: None,
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [
-          { representation: I64, cleanup: Trivial, kind: ScalarValue },
-          { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
+          { representation: I64, cleanup: Trivial, kind: ScalarValue, },
+          {
+            representation: I32,
+            cleanup: OwnedRef,
+            kind: OpaqueReferenceValue,
+          },
         ],
         result: Value(I32, OwnedRef, ByteSequenceValue),
       },
@@ -443,10 +447,10 @@ test "function, layout, shape, and constant tables roundtrip" {
           {
             representation: I32,
             cleanup: OwnedRef,
-            kind: DataValue({ value: 0 }),
+            kind: DataValue({ value: 0, }),
           },
         ],
-        result: Value(I32, OwnedRef, DataValue({ value: 0 })),
+        result: Value(I32, OwnedRef, DataValue({ value: 0, })),
       },
     ],
     data_family_count: 1,
@@ -476,7 +480,7 @@ test "function, layout, shape, and constant tables roundtrip" {
     ],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 7,
         stored_witness_count: 1,
         members: [
@@ -527,15 +531,19 @@ test "runtime import disassembly renders complete direct ABI signature" {
   let image = {
     ..minimal_image(),
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [
-          { representation: I32, cleanup: Trivial, kind: ScalarValue },
-          { representation: I64, cleanup: Trivial, kind: ScalarValue },
-          { representation: F64, cleanup: Trivial, kind: ScalarValue },
-          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
-          { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
+          { representation: I32, cleanup: Trivial, kind: ScalarValue, },
+          { representation: I64, cleanup: Trivial, kind: ScalarValue, },
+          { representation: F64, cleanup: Trivial, kind: ScalarValue, },
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, },
+          {
+            representation: I32,
+            cleanup: OwnedRef,
+            kind: OpaqueReferenceValue,
+          },
         ],
         result: Value(I32, OwnedRef, OpaqueReferenceValue),
       },
@@ -696,7 +704,7 @@ test "decoder reports u32 values beyond host I64 as resource limits" {
 
 ///|
 test "binary loader round-trips UTF-8 String constants" {
-  let utf8 = { ..minimal_image(), constants: [@utf8.encode("中\u{0}🙂")] }
+  let utf8 = { ..minimal_image(), constants: [@utf8.encode("中\u{0}🙂")], }
   assert_eq(
     parse_bytecode_image_binary(bytecode_image_to_binary(utf8).unwrap()),
     Ok(utf8),
@@ -719,7 +727,7 @@ test "result ABI round-trips" {
     blocks: [
       {
         parameters: [],
-        instructions: [ConstString(slot(0), { value: 0 })],
+        instructions: [ConstString(slot(0), { value: 0, })],
         terminator: Return(Some(slot(0))),
       },
     ],
@@ -727,7 +735,7 @@ test "result ABI round-trips" {
   let valid = {
     ..minimal_image(),
     callable_abis: [
-      { witnesses: [], parameters: [], result: Unit },
+      { witnesses: [], parameters: [], result: Unit, },
       {
         witnesses: [],
         parameters: [],
@@ -736,7 +744,7 @@ test "result ABI round-trips" {
       {
         witnesses: [],
         parameters: [
-          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue },
+          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, },
         ],
         result: Unit,
       },
@@ -753,10 +761,14 @@ test "result ABI round-trips" {
             erased_companion: None,
           },
         ],
-        inputs: { environment: None, witnesses: [], user_parameters: [slot(0)] },
+        inputs: {
+          environment: None,
+          witnesses: [],
+          user_parameters: [slot(0)],
+        },
         result: Unit,
         blocks: [
-          { parameters: [], instructions: [], terminator: Fatal(slot(0)) },
+          { parameters: [], instructions: [], terminator: Fatal(slot(0)), },
         ],
       }),
     ],

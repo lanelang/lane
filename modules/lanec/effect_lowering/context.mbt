@@ -53,7 +53,7 @@ fn generated_cps_answer(
       _ => ()
     }
   }
-  answer_type.map(type_ => { type_, residual: residual.unwrap_or(Empty) })
+  answer_type.map(type_ => { type_, residual: residual.unwrap_or(Empty), })
 }
 
 ///|
@@ -136,7 +136,7 @@ fn cps_call_context_requirements(
   let applied = []
   let substitution = @buslane.TypeSubstitution::TypeSubstitution()
   for index in 0..<parameters.length() {
-    applied.push({ parameter: parameters[index], argument: arguments[index] })
+    applied.push({ parameter: parameters[index], argument: arguments[index], })
     substitution.insert_argument(parameters[index], arguments[index])
   }
   guard terminal_type is Function(_, _, latent_effect) else {
@@ -235,7 +235,7 @@ fn select_cps_contexts(
       }
     }
   }
-  { values, adapted }
+  { values, adapted, }
 }
 
 ///|
@@ -303,6 +303,6 @@ fn pack_cps_context(
 fn answer_or_unit(answer : CpsAnswer?) -> CpsAnswer {
   match answer {
     Some(answer) => answer
-    None => { type_: Primitive(Unit), residual: Empty }
+    None => { type_: Primitive(Unit), residual: Empty, }
   }
 }

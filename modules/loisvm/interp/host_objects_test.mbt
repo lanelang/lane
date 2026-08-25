@@ -21,9 +21,9 @@ fn host_unit_body(
 ) -> @bytecode.FunctionBody {
   {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions, terminator: Return(None) }],
+    blocks: [{ parameters: [], instructions, terminator: Return(None), }],
   }
 }
 
@@ -42,7 +42,7 @@ fn host_object_new_binding(
     }),
     invoke=fn(_context, _arguments) {
       next_id.val += 1
-      { id: next_id.val, closed: false }
+      { id: next_id.val, closed: false, }
     },
   )
 }
@@ -53,7 +53,7 @@ fn host_object_runtime_import(
   parameters : Array[@bytecode.RuntimeValueKind],
   result : @bytecode.RuntimeValueKind,
 ) -> @bytecode.FunctionEntry {
-  RuntimeImport({ abi_major: 1, parameters, result, symbol })
+  RuntimeImport({ abi_major: 1, parameters, result, symbol, })
 }
 
 ///|
@@ -80,31 +80,34 @@ test "interpreter stores shared Host Objects in data and environments" {
   let owned_ref = host_owned_ref_slot()
   let data_ref : @bytecode.SlotMetadata = {
     ..owned_ref,
-    kind: DataValue({ value: 0 }),
+    kind: DataValue({ value: 0, }),
   }
   let environment_ref : @bytecode.SlotMetadata = {
     ..owned_ref,
-    kind: EnvironmentValue({ value: 1 }),
+    kind: EnvironmentValue({ value: 1, }),
   }
   let entry = host_unit_body(
     slots=[owned_ref, data_ref, owned_ref, owned_ref, environment_ref],
     instructions=[
-      CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-      MakeData({ value: 1 }, { value: 0 }, Immediate({ value: 2 }), [], [
-        { value: 0 },
+      CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+      MakeData({ value: 1, }, { value: 0, }, Immediate({ value: 2, }), [], [
+        { value: 0, },
       ]),
-      ConsumeFields({ value: 0 }, { value: 1 }, [
+      ConsumeFields({ value: 0, }, { value: 1, }, [
         {
           member_index: 0,
-          result: { value_destination: { value: 2 }, witness_destination: None },
+          result: {
+            value_destination: { value: 2, },
+            witness_destination: None,
+          },
         },
       ]),
-      CallDirect({ value: 3 }, None, [], [{ value: 2 }], None),
-      CallDirect({ value: 2 }, None, [], [], Some({ value: 3 })),
-      MakeEnv({ value: 4 }, { value: 1 }, Immediate({ value: 3 }), [], [
-        { value: 3 },
+      CallDirect({ value: 3, }, None, [], [{ value: 2, }], None),
+      CallDirect({ value: 2, }, None, [], [], Some({ value: 3, })),
+      MakeEnv({ value: 4, }, { value: 1, }, Immediate({ value: 3, }), [], [
+        { value: 3, },
       ]),
-      Release({ value: 4 }),
+      Release({ value: 4, }),
     ],
   )
   let owned_member : @bytecode.MemberSchema = {
@@ -114,7 +117,7 @@ test "interpreter stores shared Host Objects in data and environments" {
     witness_ordinal: None,
   }
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 1,
     callable_abis: host_object_callable_abis(),
@@ -128,15 +131,15 @@ test "interpreter stores shared Host Objects in data and environments" {
         Unit,
       ),
     ],
-    layouts: [Reference, Data({ value: 0 }), Environment({ value: 1 })],
+    layouts: [Reference, Data({ value: 0, }), Environment({ value: 1, })],
     object_shapes: [
       Data({
-        family: { value: 0 },
+        family: { value: 0, },
         constructor_tag: 0,
         stored_witness_count: 0,
         members: [owned_member],
       }),
-      Environment({ stored_witness_count: 0, members: [owned_member] }),
+      Environment({ stored_witness_count: 0, members: [owned_member], }),
     ],
     constants: [],
   }
@@ -156,13 +159,13 @@ test "interpreter finalizes Host Object globals during normal shutdown" {
   let registry = @runtime.RuntimeRegistry::new()
   registry.register(host_object_new_binding(store, next_id, finalized))
   let initializer = host_unit_body(slots=[host_owned_ref_slot()], instructions=[
-    CallDirect({ value: 3 }, None, [], [], Some({ value: 0 })),
-    InitGlobal({ value: 0 }, { value: 0 }),
+    CallDirect({ value: 3, }, None, [], [], Some({ value: 0, })),
+    InitGlobal({ value: 0, }, { value: 0, }),
   ])
   let entry = host_unit_body(slots=[], instructions=[])
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 2 },
-    initializer: Some({ value: 1 }),
+    entry: { value: 2, },
+    initializer: Some({ value: 1, }),
     data_family_count: 0,
     callable_abis: host_object_callable_abis(),
     globals: [
@@ -200,11 +203,11 @@ test "interpreter rolls back rejected Host Object results" {
   let registry = @runtime.RuntimeRegistry::new()
   registry.register(host_object_new_binding(store, next_id, finalized))
   let entry = host_unit_body(slots=[host_owned_ref_slot()], instructions=[
-    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-    Release({ value: 0 }),
+    CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+    Release({ value: 0, }),
   ])
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: host_object_callable_abis(),
@@ -296,14 +299,14 @@ test "interpreter reports Host Object use after explicit close" {
       },
     ],
     instructions=[
-      CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-      RetainCopy({ value: 1 }, { value: 0 }),
-      CallDirect({ value: 3 }, None, [], [{ value: 0 }], None),
-      CallDirect({ value: 4 }, None, [], [{ value: 1 }], Some({ value: 2 })),
+      CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+      RetainCopy({ value: 1, }, { value: 0, }),
+      CallDirect({ value: 3, }, None, [], [{ value: 0, }], None),
+      CallDirect({ value: 4, }, None, [], [{ value: 1, }], Some({ value: 2, })),
     ],
   )
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: host_object_callable_abis(),
@@ -341,7 +344,7 @@ test "interpreter reports Host Object use after explicit close" {
 ///|
 fn host_object_callable_abis() -> Array[@bytecode.CallableAbi] {
   [
-    { witnesses: [], parameters: [], result: Unit },
+    { witnesses: [], parameters: [], result: Unit, },
     {
       witnesses: [],
       parameters: [],
@@ -350,14 +353,14 @@ fn host_object_callable_abis() -> Array[@bytecode.CallableAbi] {
     {
       witnesses: [],
       parameters: [
-        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
+        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue, },
       ],
       result: Unit,
     },
     {
       witnesses: [],
       parameters: [
-        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
+        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue, },
       ],
       result: Value(I64, Trivial, ScalarValue),
     },

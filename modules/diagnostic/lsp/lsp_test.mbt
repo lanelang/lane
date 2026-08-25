@@ -49,8 +49,8 @@ test "lsp related information only carries independent source locations" {
     ],
     notes=["notes belong to the diagnostic body"],
     helps=["fix the value"],
-    facts=[{ name: "expected type", value: "`Int`", span: Some(primary) }],
-    related_locations=[{ span: related, message: "definition is here" }],
+    facts=[{ name: "expected type", value: "`Int`", span: Some(primary), }],
+    related_locations=[{ span: related, message: "definition is here", }],
   )
   json_inspect(diagnostic_to_lsp_json(diagnostic, sources), content={
     "severity": 1,
@@ -142,7 +142,7 @@ test "suggestions convert to lsp code actions" {
     suggestions=[
       {
         message: "rename value",
-        edits: [{ span, replacement: "result" }],
+        edits: [{ span, replacement: "result", }],
         applicability: MachineApplicable,
       },
     ],

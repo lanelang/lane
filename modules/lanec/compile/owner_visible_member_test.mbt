@@ -39,10 +39,10 @@ fn owner_visible_member_request(main : String) -> CompilationRequest {
     #|  A.circle_of(1)
     #|}
   {
-    root: { source_id: "Main.lane", text: main },
+    root: { source_id: "Main.lane", text: main, },
     libraries: [
-      { source_id: "A.lane", text: module_a },
-      { source_id: "B.lane", text: module_b },
+      { source_id: "A.lane", text: module_a, },
+      { source_id: "B.lane", text: module_b, },
     ],
   }
 }

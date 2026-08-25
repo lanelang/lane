@@ -10,7 +10,7 @@ fn owned_slot(
   },
   erased_companion? : @bytecode.SlotId? = None,
 ) -> @bytecode.SlotMetadata {
-  { representation, cleanup, kind, erased_companion }
+  { representation, cleanup, kind, erased_companion, }
 }
 
 ///|
@@ -21,7 +21,7 @@ fn lifecycle_initializer() -> @bytecode.FunctionBody {
       owned_ref,
       owned_ref,
       owned_ref,
-      owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0 })),
+      owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, })),
       owned_slot(I64, OwnedCallable),
       {
         representation: I32,
@@ -29,35 +29,35 @@ fn lifecycle_initializer() -> @bytecode.FunctionBody {
         kind: LayoutValue,
         erased_companion: None,
       },
-      owned_slot(I64, OwnedErased, erased_companion=Some({ value: 5 })),
+      owned_slot(I64, OwnedErased, erased_companion=Some({ value: 5, })),
       trivial_slot(I64),
     ],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          ConstI64({ value: 7 }, 42L),
-          InitGlobal({ value: 0 }, { value: 7 }),
-          ConstString({ value: 0 }, { value: 0 }),
-          ConstString({ value: 1 }, { value: 1 }),
-          ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-          InitGlobal({ value: 1 }, { value: 2 }),
-          ConstString({ value: 0 }, { value: 0 }),
-          ConstString({ value: 1 }, { value: 1 }),
-          ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-          MakeEnv({ value: 3 }, { value: 0 }, Immediate({ value: 2 }), [], [
-            { value: 2 },
+          ConstI64({ value: 7, }, 42L),
+          InitGlobal({ value: 0, }, { value: 7, }),
+          ConstString({ value: 0, }, { value: 0, }),
+          ConstString({ value: 1, }, { value: 1, }),
+          ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+          InitGlobal({ value: 1, }, { value: 2, }),
+          ConstString({ value: 0, }, { value: 0, }),
+          ConstString({ value: 1, }, { value: 1, }),
+          ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+          MakeEnv({ value: 3, }, { value: 0, }, Immediate({ value: 2, }), [], [
+            { value: 2, },
           ]),
-          MakeClosure({ value: 4 }, { value: 3 }, { value: 3 }),
-          InitGlobal({ value: 2 }, { value: 4 }),
-          ConstString({ value: 0 }, { value: 0 }),
-          ConstString({ value: 1 }, { value: 1 }),
-          ByteSequenceConcat({ value: 2 }, { value: 0 }, { value: 1 }),
-          ConstLayout({ value: 5 }, { value: 1 }),
-          EraseI32({ value: 6 }, { value: 2 }),
-          InitGlobal({ value: 4 }, { value: 6 }),
+          MakeClosure({ value: 4, }, { value: 3, }, { value: 3, }),
+          InitGlobal({ value: 2, }, { value: 4, }),
+          ConstString({ value: 0, }, { value: 0, }),
+          ConstString({ value: 1, }, { value: 1, }),
+          ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
+          ConstLayout({ value: 5, }, { value: 1, }),
+          EraseI32({ value: 6, }, { value: 2, }),
+          InitGlobal({ value: 4, }, { value: 6, }),
         ],
         terminator: Return(None),
       },
@@ -68,13 +68,13 @@ fn lifecycle_initializer() -> @bytecode.FunctionBody {
 ///|
 fn lifecycle_entry(failing? : Bool = false) -> @bytecode.FunctionBody {
   let instructions : Array[@bytecode.Instruction] = [
-    BorrowGlobal({ value: 0 }, { value: 0 }),
-    BorrowGlobal({ value: 1 }, { value: 1 }),
-    BorrowGlobal({ value: 2 }, { value: 2 }),
-    BorrowGlobal({ value: 4 }, { value: 4 }),
+    BorrowGlobal({ value: 0, }, { value: 0, }),
+    BorrowGlobal({ value: 1, }, { value: 1, }),
+    BorrowGlobal({ value: 2, }, { value: 2, }),
+    BorrowGlobal({ value: 4, }, { value: 4, }),
   ]
   if failing {
-    instructions.push(CallDirect({ value: 4 }, None, [], [], None))
+    instructions.push(CallDirect({ value: 4, }, None, [], [], None))
   }
   {
     slots: [
@@ -97,20 +97,20 @@ fn lifecycle_entry(failing? : Bool = false) -> @bytecode.FunctionBody {
         kind: LayoutValue,
         erased_companion: None,
       },
-      owned_slot(I64, OwnedErased, erased_companion=Some({ value: 3 })),
+      owned_slot(I64, OwnedErased, erased_companion=Some({ value: 3, })),
     ],
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions, terminator: Return(None) }],
+    blocks: [{ parameters: [], instructions, terminator: Return(None), }],
   }
 }
 
 ///|
 fn lifecycle_closure_body() -> @bytecode.FunctionBody {
   {
-    slots: [owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0 }))],
+    slots: [owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, }))],
     inputs: {
-      environment: Some({ value: 0 }),
+      environment: Some({ value: 0, }),
       witnesses: [],
       user_parameters: [],
     },
@@ -118,7 +118,7 @@ fn lifecycle_closure_body() -> @bytecode.FunctionBody {
     blocks: [
       {
         parameters: [],
-        instructions: [Release({ value: 0 })],
+        instructions: [Release({ value: 0, })],
         terminator: Return(None),
       },
     ],
@@ -128,10 +128,10 @@ fn lifecycle_closure_body() -> @bytecode.FunctionBody {
 ///|
 fn lifecycle_image(entry : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
   {
-    entry: { value: 2 },
-    initializer: Some({ value: 1 }),
+    entry: { value: 2, },
+    initializer: Some({ value: 1, }),
     data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     functions: [
       BytecodeBody(lifecycle_initializer()),
       BytecodeBody(entry),
@@ -172,10 +172,10 @@ fn lifecycle_image(entry : @bytecode.FunctionBody) -> @bytecode.BytecodeImage {
         representation: I64,
         cleanup: OwnedErased,
         kind: ErasedValue,
-        erased_companion: Some({ value: 3 }),
+        erased_companion: Some({ value: 3, }),
       },
     ],
-    layouts: [ByteSequence, Environment({ value: 0 })],
+    layouts: [ByteSequence, Environment({ value: 0, })],
     object_shapes: [
       Environment({
         stored_witness_count: 0,
@@ -243,7 +243,7 @@ test "cleanup-capable entry failures release initialized global roots" {
 test "cleanup-capable initializer failures release initialized global roots" {
   let initializer = lifecycle_initializer()
   initializer.blocks[0].instructions.push(
-    CallDirect({ value: 4 }, None, [], [], None),
+    CallDirect({ value: 4, }, None, [], [], None),
   )
   let image = lifecycle_image(lifecycle_entry())
   image.functions[0] = BytecodeBody(initializer)

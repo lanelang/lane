@@ -67,7 +67,7 @@ fn classify_effect_generic_use(
       if effect_contains_parameter(abstracted) {
         symbolic = true
       } else {
-        bindings.push({ parameter, argument: EffectArgument(abstracted) })
+        bindings.push({ parameter, argument: EffectArgument(abstracted), })
       }
     } else {
       retained_arguments.push(argument)

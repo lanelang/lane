@@ -112,7 +112,7 @@ test "layout separates a tuple initializer from a following unit expression" {
               items=[IntegerLiteral("1", ..), IntegerLiteral("2", ..)],
               ..
             ),
-            ..,
+            ..
           }
         ),
       ],
@@ -231,7 +231,7 @@ test "layout continues variant patterns and handler operation heads" {
               arguments=[Binding("item", ..)],
               ..
             ),
-            ..,
+            ..
           },
         ],
         ..
@@ -251,7 +251,7 @@ test "layout continues variant patterns and handler operation heads" {
         name: Unqualified(operation="op", ..),
         payload_patterns: [],
         resume_binder: "resume",
-        ..,
+        ..
       },
     ] else {
     abort("expected continued handler operation head")

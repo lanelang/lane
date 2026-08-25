@@ -30,7 +30,7 @@ fn lower_cps_direct_install(
       bindings: [],
     },
     result_type,
-    Function({ parameters: [result], result_type, body: Ref(result) }),
+    Function({ parameters: [result], result_type, body: Ref(result), }),
   )
 }
 
@@ -161,10 +161,10 @@ fn build_handler_dictionary_plan(
         unhandled.residual_effect,
       ),
     )
-    bindings.push({ term: dictionary.handled_effect, value: Ref(id) })
-    initializers.push({ id, value })
+    bindings.push({ term: dictionary.handled_effect, value: Ref(id), })
+    initializers.push({ id, value, })
   }
-  { bindings, initializers }
+  { bindings, initializers, }
 }
 
 ///|

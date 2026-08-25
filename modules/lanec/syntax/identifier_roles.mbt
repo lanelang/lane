@@ -48,7 +48,7 @@ fn SyntacticIdentifierIndex::from_slots(
 
 ///|
 pub fn SyntacticIdentifierIndex::empty() -> SyntacticIdentifierIndex {
-  { slots: [] }
+  { slots: [], }
 }
 
 ///|
@@ -56,7 +56,7 @@ pub fn SyntacticIdentifierIndex::expected_identifier(
   span : @basic.SourceSpan,
   role : SyntacticIdentifierRole,
 ) -> SyntacticIdentifierIndex {
-  { slots: [{ span, role }] }
+  { slots: [{ span, role, }], }
 }
 
 ///|
@@ -91,7 +91,7 @@ fn push_syntactic_identifier_role(
   span : @basic.SourceSpan,
   role : SyntacticIdentifierRole,
 ) -> Unit {
-  slots.push({ span, role })
+  slots.push({ span, role, })
 }
 
 ///|

@@ -35,11 +35,11 @@ fn execute_inline_plan(
   plan : InlinePlan,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> InlineExecution raise CoreOptimizeError {
-  let executor : InlineExecutor = { program, plan, observe, changed: false }
+  let executor : InlineExecutor = { program, plan, observe, changed: false, }
   let terms = program.terms.map(term => {
     match term {
       Let(value, expression) => {
-        let cursor : CallSiteCursor = { next: 0 }
+        let cursor : CallSiteCursor = { next: 0, }
         @buslane.TopTerm::Let(
           value,
           executor.rewrite_expr(value, cursor, expression),
@@ -48,7 +48,7 @@ fn execute_inline_plan(
       LetRec(bindings) =>
         LetRec(
           bindings.map(binding => {
-            let cursor : CallSiteCursor = { next: 0 }
+            let cursor : CallSiteCursor = { next: 0, }
             {
               ..binding,
               rhs: executor.rewrite_expr(binding.id, cursor, binding.rhs),
@@ -58,7 +58,7 @@ fn execute_inline_plan(
       External(_) => term
     }
   })
-  { program: { ..program, terms, }, changed: executor.changed }
+  { program: { ..program, terms, }, changed: executor.changed, }
 }
 
 ///|

@@ -93,7 +93,7 @@ fn BuslaneLowerer::lower_function_literal_value(
     Local,
     self.lower_type(type_),
   )
-  LetRec([{ id, rhs }], Ref(id))
+  LetRec([{ id, rhs, }], Ref(id))
 }
 
 ///|
@@ -209,7 +209,7 @@ fn BuslaneLowerer::lower_items(
           self.lower_type(declaration.type_),
         )
         LetRec(
-          [{ id, rhs: self.lower_function_declaration(declaration) }],
+          [{ id, rhs: self.lower_function_declaration(declaration), }],
           self.lower_items(items, index + 1, result),
         )
       }
@@ -289,7 +289,7 @@ fn BuslaneLowerer::lower_match(
   )
   let rows = arms.map(arm => {
     self.define_pattern_binders(arm.pattern)
-    { patterns: [arm.pattern], body: self.lower_expr(arm.body) }
+    { patterns: [arm.pattern], body: self.lower_expr(arm.body), }
   })
   self.lower_pattern_decision(
     [self.lower_expr(scrutinee)],
@@ -317,7 +317,7 @@ fn BuslaneLowerer::lower_pattern_as_match(
   self.lower_pattern_decision(
     [initializer],
     [binder],
-    [{ patterns: [pattern], body }],
+    [{ patterns: [pattern], body, }],
     [pattern.type_()],
     result_type,
   )

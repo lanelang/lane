@@ -7,7 +7,7 @@ pub struct CompilerDiagnosticSources {
 
 ///|
 pub fn CompilerDiagnosticSources::CompilerDiagnosticSources() -> CompilerDiagnosticSources {
-  { database: SourceDatabase(), source_ids: [], diagnostic_ids: [] }
+  { database: SourceDatabase(), source_ids: [], diagnostic_ids: [], }
 }
 
 ///|
@@ -130,7 +130,7 @@ fn CompilerDiagnostic::suggestions_to_diagnostic_suggestions(
       message: suggestion.message,
       edits: suggestion.edits.filter_map(fn(edit) {
         match self.compiler_span_to_diagnostic_span(edit.span, sources) {
-          Some(span) => Some({ span, replacement: edit.replacement })
+          Some(span) => Some({ span, replacement: edit.replacement, })
           None => None
         }
       }),

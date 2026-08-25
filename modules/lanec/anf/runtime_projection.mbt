@@ -365,7 +365,7 @@ fn RuntimeGenericPlan::runtime_lambda_parameter(
     Function(parameters, Type) => runtime_kind_evidence_arity(parameters)
     Effect | Function(_, Effect) | Function(_, Function(_, _)) => return None
   }
-  Some({ id: Projected(parameter.index), arity })
+  Some({ id: Projected(parameter.index), arity, })
 }
 
 ///|
@@ -429,7 +429,7 @@ fn RuntimeGenericPlan::intern_type_expression(
       return { index, }
     }
   }
-  let id : RuntimeTypeExpressionId = { index: self.type_expressions.length() }
+  let id : RuntimeTypeExpressionId = { index: self.type_expressions.length(), }
   self.type_expressions.push(expression)
   id
 }

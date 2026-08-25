@@ -15,6 +15,7 @@ fn FunctionLowerer::lower_nested_function(
       self.image.physical_capture(implementation.function),
       allocation,
     ),
+    invocation: allocation.interface.invocation,
   })
 }
 
@@ -23,10 +24,11 @@ fn FunctionLowerer::materialize_nested_callable(
   self : FunctionLowerer,
   callable : DeferredNestedCallable,
 ) -> LocalValue raise LoisvmLoweringError {
-  self.materialize_callable_value(
+  self.materialize_callable_value_with_abi(
     callable.lowered_function,
     callable.type_,
     callable.environment,
+    callable.invocation,
   )
 }
 
@@ -88,13 +90,14 @@ fn FunctionLowerer::materialize_planned_callable_instance(
   let implementation = self.image.materialized_callable_implementation(
     allocation.implementation,
   )
-  self.materialize_callable_value(
+  self.materialize_callable_value_with_abi(
     implementation.function,
     implementation.type_,
     self.capture_environment(
       self.image.physical_capture(implementation.function),
       allocation,
     ),
+    allocation.interface.invocation,
   )
 }
 
@@ -231,8 +234,9 @@ fn FunctionLowerer::lower_recursive_group(
       Some(_) => self.materialize_local(deferred)
       None => deferred
     }
+    let lowered = self.apply_planned_binding_flow(binding, lowered)
     self.verify_planned_value(binding, lowered)
-    self.bindings.push({ value: recursive.value, lowered })
+    self.bindings.push({ value: recursive.value, lowered, })
   }
   let result = self.lower_expr(body)
   self.restore_bindings(value_count, self.temps.length())
@@ -379,7 +383,7 @@ fn ImageLowerer::environment_shape(
     None
   } else {
     Some(
-      self.intern_object_shape(Environment({ stored_witness_count, members })),
+      self.intern_object_shape(Environment({ stored_witness_count, members, })),
     )
   }
 }
@@ -422,7 +426,7 @@ fn FunctionLowerer::bind_capture(
   value : LocalValue,
 ) -> Unit {
   match binding {
-    Value(id) => self.bindings.push({ value: id, lowered: value })
-    Temp(temp) => self.temps.push({ temp, lowered: value })
+    Value(id) => self.bindings.push({ value: id, lowered: value, })
+    Temp(temp) => self.temps.push({ temp, lowered: value, })
   }
 }

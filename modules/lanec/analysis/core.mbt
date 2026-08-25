@@ -150,7 +150,7 @@ fn add_value_semantic_token(
   match symbol {
     Value(symbol) =>
       match semantic_token_kind_for_value(registry, symbol) {
-        Some(kind) => tokens.push({ location, kind })
+        Some(kind) => tokens.push({ location, kind, })
         None => ()
       }
     _ => ()

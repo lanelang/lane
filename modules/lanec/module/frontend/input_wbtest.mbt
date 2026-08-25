@@ -35,7 +35,7 @@ test "module input headers keep aliased imports canonical" {
       source_id: "file:///Main.lane",
       text: "module App.Main\nimport Basic.Data.List as List",
     },
-    [{ source_id: "file:///List.lane", text: "module Basic.Data.List" }],
+    [{ source_id: "file:///List.lane", text: "module Basic.Data.List", }],
   )
   debug_inspect(
     parsed.sources.map(ParsedSource::diagnostics),

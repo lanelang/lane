@@ -10,23 +10,29 @@ test "physical slot plan follows peak compatible VM CFG liveness" {
   let plan = allocate_physical_slots(
     verify_arc_final_body({
       values: [scalar, scalar, scalar, scalar],
-      inputs: { environment: None, witnesses: [], user_parameters: [] },
+      inputs: { environment: None, witnesses: [], user_parameters: [], },
       result: Value(I64, Trivial, ScalarValue),
       blocks: [
         {
           parameters: [],
-          instructions: [ConstI64({ value: 0 }, 42L)],
-          terminator: Jump({ target: { value: 1 }, arguments: [{ value: 0 }] }),
+          instructions: [ConstI64({ value: 0, }, 42L)],
+          terminator: Jump({
+            target: { value: 1, },
+            arguments: [{ value: 0, }],
+          }),
         },
         {
-          parameters: [{ value: 1 }],
-          instructions: [I64Neg({ value: 2 }, { value: 1 })],
-          terminator: Jump({ target: { value: 2 }, arguments: [{ value: 2 }] }),
+          parameters: [{ value: 1, }],
+          instructions: [I64Neg({ value: 2, }, { value: 1, })],
+          terminator: Jump({
+            target: { value: 2, },
+            arguments: [{ value: 2, }],
+          }),
         },
         {
-          parameters: [{ value: 3 }],
+          parameters: [{ value: 3, }],
           instructions: [],
-          terminator: Return(Some({ value: 3 })),
+          terminator: Return(Some({ value: 3, })),
         },
       ],
     }),
@@ -72,13 +78,13 @@ test "ARC-final boundary rejects an active value without a definition" {
   try
     verify_arc_final_body({
       values: [scalar],
-      inputs: { environment: None, witnesses: [], user_parameters: [] },
+      inputs: { environment: None, witnesses: [], user_parameters: [], },
       result: Value(I64, Trivial, ScalarValue),
       blocks: [
         {
           parameters: [],
           instructions: [],
-          terminator: Return(Some({ value: 0 })),
+          terminator: Return(Some({ value: 0, })),
         },
       ],
     })
@@ -110,7 +116,7 @@ test "physical slot plan preserves simultaneous VM CFG definitions" {
       inputs: {
         environment: None,
         witnesses: [],
-        user_parameters: [{ value: 0 }, { value: 1 }],
+        user_parameters: [{ value: 0, }, { value: 1, }],
       },
       result: Unit,
       blocks: [
@@ -118,12 +124,12 @@ test "physical slot plan preserves simultaneous VM CFG definitions" {
           parameters: [],
           instructions: [],
           terminator: Jump({
-            target: { value: 1 },
-            arguments: [{ value: 0 }, { value: 1 }],
+            target: { value: 1, },
+            arguments: [{ value: 0, }, { value: 1, }],
           }),
         },
         {
-          parameters: [{ value: 2 }, { value: 3 }],
+          parameters: [{ value: 2, }, { value: 3, }],
           instructions: [],
           terminator: Return(None),
         },
@@ -173,15 +179,15 @@ test "physical slot plan consumes ARC-final VM CFG values" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          CallDirect({ value: 1 }, None, [], [{ value: 0 }], None),
-          CallDirect({ value: 1 }, None, [], [{ value: 0 }], None),
+          CallDirect({ value: 1, }, None, [], [{ value: 0, }], None),
+          CallDirect({ value: 1, }, None, [], [{ value: 0, }], None),
         ],
         terminator: Return(None),
       },

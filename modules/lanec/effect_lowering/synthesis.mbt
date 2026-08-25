@@ -131,7 +131,7 @@ fn synthesize_expr_or_raise(
           synthesize_expr_or_raise(metadata, alternative.body).effect,
         )
       }
-      { type_: match_.result_type, effect: effect_union(metadata, effects) }
+      { type_: match_.result_type, effect: effect_union(metadata, effects), }
     }
     Invoke(invoke) => synthesize_invoke(metadata, invoke)
     Install(install) => synthesize_install(metadata, install)
@@ -189,7 +189,7 @@ fn synthesize_call(
     for argument in arguments {
       effects.push(synthesize_expr_or_raise(metadata, argument).effect)
     }
-    return { type_: answer, effect: effect_union(metadata, effects) }
+    return { type_: answer, effect: effect_union(metadata, effects), }
   }
   require_arity(parameters.length(), arguments.length())
   let effects = [callee_facts.effect]
@@ -197,7 +197,7 @@ fn synthesize_call(
     effects.push(synthesize_expr_or_raise(metadata, argument).effect)
   }
   effects.push(latent_effect)
-  { type_: result, effect: effect_union(metadata, effects) }
+  { type_: result, effect: effect_union(metadata, effects), }
 }
 
 ///|
@@ -220,7 +220,7 @@ fn synthesize_type_apply(
   for index in 0..<parameters.length() {
     substitution.insert_argument(parameters[index], arguments[index])
   }
-  { type_: body.substitute(substitution), effect: callee_facts.effect }
+  { type_: body.substitute(substitution), effect: callee_facts.effect, }
 }
 
 ///|
@@ -308,7 +308,7 @@ fn synthesize_install(
       )
     }
   }
-  { type_: install.result_type, effect: effect_union(metadata, effects) }
+  { type_: install.result_type, effect: effect_union(metadata, effects), }
 }
 
 ///|
@@ -371,7 +371,7 @@ fn nominal_type(
 
 ///|
 fn pure_facts(type_ : @buslane.Type) -> ExprFacts {
-  { type_, effect: Empty }
+  { type_, effect: Empty, }
 }
 
 ///|

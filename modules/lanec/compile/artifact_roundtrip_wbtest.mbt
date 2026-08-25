@@ -648,7 +648,7 @@ test "interface artifact rejects unresolved canonical references" {
   let artifact = module_.to_interface_artifact()
   let damaged : @artifact.ModuleInterfaceArtifact = {
     ..artifact,
-    interface: { ..artifact.interface, type_references: [] },
+    interface: { ..artifact.interface, type_references: [], },
   }
   let result = compile_module_with_interfaces_for_test(
     (

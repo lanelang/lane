@@ -10,7 +10,7 @@ fn lower_all_runtime_anf(program : @buslane.Program) -> @anf.AnfProgram {
         }
     }
   }
-  @anf.lower_cps_core_to_runtime_anf({ program, retained_values }).unwrap()
+  @anf.lower_cps_core_to_runtime_anf({ program, retained_values, }).unwrap()
 }
 
 ///|
@@ -22,7 +22,7 @@ test "runtime ANF projection preserves effect-aware source metadata" {
     Builtin(Io),
   )
   let println = metadata.define_value("println", External, io_type)
-  let source : @buslane.Program = { metadata, terms: [External(println)] }
+  let source : @buslane.Program = { metadata, terms: [External(println)], }
   let runtime = lower_all_runtime_anf(source)
   debug_inspect(
     (
@@ -64,12 +64,13 @@ test "runtime ANF exposes an immutable type-expression catalog" {
   let second = runtime.metadata().type_expressions()
   assert_eq(first, second)
   guard runtime.metadata().value_info(answer)
-    is Some({ type_: Callable(parameters, _) }) else {
+    is Some({ type_: Callable(parameters, _), }) else {
     fail("expected runtime callable metadata")
   }
   parameters.push(Scalar(I64))
   assert_true(
-    runtime.metadata().value_info(answer) is Some({ type_: Callable([], Unit) }),
+    runtime.metadata().value_info(answer)
+    is Some({ type_: Callable([], Unit), }),
   )
 }
 
@@ -325,7 +326,7 @@ test "runtime ANF preserves a used higher-kinded companion" {
       ),
     ),
   )
-  let source : @buslane.Program = { metadata, terms: [External(callable)] }
+  let source : @buslane.Program = { metadata, terms: [External(callable)], }
   assert_true(@buslane.verify_program(source).is_ok())
   let runtime = lower_all_runtime_anf(source)
   debug_inspect(
@@ -358,7 +359,7 @@ test "runtime ANF beta-reduces projected type-lambda applications" {
     External,
     Function([], projected_result, Empty),
   )
-  let source : @buslane.Program = { metadata, terms: [External(callable)] }
+  let source : @buslane.Program = { metadata, terms: [External(callable)], }
   assert_true(@buslane.verify_program(source).is_ok())
   let runtime = lower_all_runtime_anf(source)
   assert_eq(
@@ -370,7 +371,7 @@ test "runtime ANF beta-reduces projected type-lambda applications" {
 ///|
 test "runtime representation equality preserves semantic value categories" {
   let registry = @buslane.MetadataRegistry::MetadataRegistry()
-  let program : @buslane.Program = { metadata: registry, terms: [] }
+  let program : @buslane.Program = { metadata: registry, terms: [], }
   let metadata = @anf.lower_cps_core_to_runtime_anf({
       program,
       retained_values: [],
@@ -394,44 +395,47 @@ test "runtime representation equality preserves semantic value categories" {
     arity: 0,
   }
   let left_argument : @anf.RuntimeArgument = {
-    type_expression: { index: 30 },
+    type_expression: { index: 30, },
     evidence: Static(I64),
   }
   let right_argument : @anf.RuntimeArgument = {
-    type_expression: { index: 40 },
+    type_expression: { index: 40, },
     evidence: Static(Bool),
   }
   assert_eq(
     [
       metadata.types_representation_equivalent(Scalar(I32), Scalar(Bool)),
       metadata.types_representation_equivalent(
-        Data({ index: 0 }, [left_argument]),
-        Data({ index: 0 }, [right_argument]),
+        Data({ index: 0, }, [left_argument]),
+        Data({ index: 0, }, [right_argument]),
       ),
       metadata.types_representation_equivalent(
-        OpaqueReference({ index: 0 }),
-        OpaqueReference({ index: 1 }),
+        OpaqueReference({ index: 0, }),
+        OpaqueReference({ index: 1, }),
       ),
       metadata.types_representation_equivalent(
         Forall(
           [left_parameter],
-          Callable([Erased({ index: 50 }, Parameter(left_parameter.id))], Unit),
+          Callable([Erased({ index: 50, }, Parameter(left_parameter.id))], Unit),
         ),
         Forall(
           [right_parameter],
-          Callable([Erased({ index: 60 }, Parameter(right_parameter.id))], Unit),
+          Callable(
+            [Erased({ index: 60, }, Parameter(right_parameter.id))],
+            Unit,
+          ),
         ),
       ),
       metadata.types_representation_equivalent(
         Forall(
           [left_parameter, left_nested],
-          Callable([Erased({ index: 70 }, Parameter(left_nested.id))], Unit),
+          Callable([Erased({ index: 70, }, Parameter(left_nested.id))], Unit),
         ),
         Forall(
           [right_parameter],
           Forall(
             [right_nested],
-            Callable([Erased({ index: 80 }, Parameter(right_nested.id))], Unit),
+            Callable([Erased({ index: 80, }, Parameter(right_nested.id))], Unit),
           ),
         ),
       ),
@@ -611,12 +615,12 @@ test "runtime ANF preserves phantom nominal constructor arity" {
               ),
               _
             ),
-            ..,
+            ..
           }
         )
       )
     ) else {
     fail("expected a projected higher-kinded application")
   }
-  assert_eq(parameters, [{ id: Projected(phantom.index), arity: 0 }])
+  assert_eq(parameters, [{ id: Projected(phantom.index), arity: 0, }])
 }

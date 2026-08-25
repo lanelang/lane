@@ -25,7 +25,7 @@ fn core_opt_test_program() -> (@buslane.Program, @buslane.ValueId) raise @buslan
 ///|
 test "core optimizer preserves a verified program and explicit roots" {
   let (program, main) = core_opt_test_program()
-  guard optimize({ program, entry: main, roots: [main] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [main], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -38,7 +38,7 @@ test "core optimizer preserves a verified program and explicit roots" {
 test "core optimizer rejects an unknown optimization root" {
   let (program, main) = core_opt_test_program()
   debug_inspect(
-    optimize({ program, entry: main, roots: [{ index: 1 }] }),
+    optimize({ program, entry: main, roots: [{ index: 1, }], }),
     content="Err(UnknownRoot({ index: 1 }))",
   )
 }
@@ -67,7 +67,7 @@ test "core optimizer eliminates compatible top-level and local aliases" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -118,7 +118,7 @@ test "core optimizer removes dead pure lets but preserves effectful calls" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -163,7 +163,7 @@ test "core optimizer removes an unused empty-effect call" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -237,7 +237,7 @@ test "core optimizer reduces trivial beta calls and known constructor matches" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
@@ -309,7 +309,7 @@ test "core cleanup shares identical pure local initializers" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [] }) is Ok(optimized) else {
+  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   guard optimized.terms

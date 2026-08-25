@@ -64,9 +64,9 @@ test "explorer renders typed metrics and explicit function lineage" {
       text: "",
       diagnostics: [],
       scale: {
-        metrics: [{ id: FunctionCount, value: 1 }],
+        metrics: [{ id: FunctionCount, value: 1, }],
         functions: [
-          { index: 7, block_count: 0, operation_count: 3, value_count: 1 },
+          { index: 7, block_count: 0, operation_count: 3, value_count: 1, },
         ],
         modules: [
           {
@@ -80,12 +80,12 @@ test "explorer renders typed metrics and explicit function lineage" {
       },
     }),
   }
-  let source : @driver.ExploreFunctionRef = { stage: Anf, index: 7 }
+  let source : @driver.ExploreFunctionRef = { stage: Anf, index: 7, }
   render_stage_observations(html, stage, {
     nodes: [
-      { function: source, roles: [SourceFunction(value=4, name=Some("main"))] },
+      { function: source, roles: [SourceFunction(value=4, name=Some("main"))], },
     ],
-    edges: [{ source: { stage: Executable, index: 4 }, target: source }],
+    edges: [{ source: { stage: Executable, index: 4, }, target: source, }],
   })
   inspect(
     html.to_string(),

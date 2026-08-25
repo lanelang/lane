@@ -389,7 +389,7 @@ fn arc_terminal_plan(terminator : Terminator) -> ArcTerminalPlan? {
         operands: [(message, Consume)],
         materialize: values => Fatal(values[0]),
       })
-    Unreachable => Some({ operands: [], materialize: _ => Unreachable })
+    Unreachable => Some({ operands: [], materialize: _ => Unreachable, })
     Jump(_) | BranchBool(_, _, _) | SwitchTag(_, _, _) => None
   }
 }

@@ -29,8 +29,8 @@ test "semantic workspace tracks imported auto arguments in top-level initializer
     #|  Into::{ into: from.from }
     #|}
   guard workspace.replace_sources([
-      { source_id: "file:///I64.lane", text: consumer },
-      { source_id: "file:///Iso.lane", text: provider },
+      { source_id: "file:///I64.lane", text: consumer, },
+      { source_id: "file:///Iso.lane", text: provider, },
     ])
     is Some(snapshot) else {
     fail("expected semantic snapshot")

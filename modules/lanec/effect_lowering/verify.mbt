@@ -4,7 +4,7 @@ fn verify_program_or_raise(
 ) -> @buslane.VerifyResult raise SynthesisError {
   let metadata = program.metadata.snapshot()
   let terms = program.terms.map(term => verification_top_term(metadata, term))
-  @buslane.verify_program({ metadata, terms })
+  @buslane.verify_program({ metadata, terms, })
 }
 
 ///|

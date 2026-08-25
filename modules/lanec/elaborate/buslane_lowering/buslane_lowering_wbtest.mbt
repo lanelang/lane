@@ -19,7 +19,7 @@ fn elaborate_buslane_source(
     Some(source) => Some(lower_checked_source_file_to_buslane(source))
     None => None
   }
-  { program, diagnostics: result.diagnostics }
+  { program, diagnostics: result.diagnostics, }
 }
 
 ///|
@@ -276,7 +276,7 @@ fn struct_literal_lowering_order(
       let payload_order = collect_struct_literal_lowering_order(
         program, initializer, evaluation_order,
       )
-      return { evaluation_order, payload_order }
+      return { evaluation_order, payload_order, }
     }
   }
   abort("expected struct literal binding")
@@ -738,7 +738,7 @@ test "buslane lowering registry covers imported references" {
       #|}
     ),
     registry,
-    { modules: [] },
+    { modules: [], },
   )
   if !lib.diagnostics.is_empty() {
     abort(@prettyprinter.render(lib.diagnostics, width=100))
@@ -767,7 +767,7 @@ test "buslane lowering registry covers imported references" {
   guard main.source is Some(main_source) else { abort("expected checked main") }
   let object = lower_checked_source_file_to_buslane_object_with_imports(
     main_source,
-    { direct: imported, available: imported },
+    { direct: imported, available: imported, },
   )
   guard object is Ok(object) else { abort("expected imported lowering") }
   debug_inspect(

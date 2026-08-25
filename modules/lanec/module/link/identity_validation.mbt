@@ -8,7 +8,7 @@ priv struct ModuleObjectIdentityValidator {
 fn validate_buslane_object(
   object : LinkModuleObject,
 ) -> Array[CompilerDiagnostic] {
-  let validator = ModuleObjectIdentityValidator::{ object, diagnostics: [] }
+  let validator = ModuleObjectIdentityValidator::{ object, diagnostics: [], }
   validator.validate_metadata()
   for term in object.program.terms {
     validator.validate_top_term(term)

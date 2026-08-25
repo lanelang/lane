@@ -17,7 +17,7 @@ fn verify_arc_final_body(
 ) -> ArcFinalBody raise FinalizeError {
   let use_def = verify_arc_final_structure(body)
   verify_arc_final_flow(body)
-  { body, use_def }
+  { body, use_def, }
 }
 
 ///|
@@ -42,12 +42,12 @@ fn verify_arc_final_structure(
     if metadata.erased_companion is Some(companion) {
       require_arc_value(body, companion)
       if body.values[companion.value].ownership is Owned {
-        arc_final_fail(InvalidValue({ value: index }))
+        arc_final_fail(InvalidValue({ value: index, }))
       }
     }
   }
   for source_index, block in body.blocks {
-    let source : @bytecode.BlockId = { value: source_index }
+    let source : @bytecode.BlockId = { value: source_index, }
     for parameter in block.parameters {
       require_arc_value(body, parameter)
     }
@@ -69,7 +69,7 @@ fn verify_arc_final_structure(
   let use_def = analyze_use_def(body)
   for value_index, uses in use_def.uses {
     if !uses.is_empty() && use_def.definitions[value_index] is None {
-      arc_final_fail(MissingDefinition({ value: value_index }))
+      arc_final_fail(MissingDefinition({ value: value_index, }))
     }
   }
   let reachable = Array::make(body.blocks.length(), false)
@@ -87,7 +87,7 @@ fn verify_arc_final_structure(
   }
   for block_index, is_reachable in reachable {
     if !is_reachable {
-      arc_final_fail(UnreachableBlock({ value: block_index }))
+      arc_final_fail(UnreachableBlock({ value: block_index, }))
     }
   }
   use_def
@@ -196,7 +196,7 @@ fn verify_arc_final_flow(body : FunctionBody) -> Unit raise FinalizeError {
     }
     let state = entry.copy()
     let block = body.blocks[block_index]
-    let block_id : @bytecode.BlockId = { value: block_index }
+    let block_id : @bytecode.BlockId = { value: block_index, }
     for instruction in block.instructions {
       apply_arc_instruction(body, block_id, state, instruction)
     }
@@ -458,7 +458,7 @@ fn require_arc_ownership_empty(
 ) -> Unit raise FinalizeError {
   for index, value_state in state {
     if value_state is LiveOwned(_) {
-      arc_final_fail(OwnedValueEscapes({ value: index }, block))
+      arc_final_fail(OwnedValueEscapes({ value: index, }, block))
     }
   }
 }
@@ -492,7 +492,7 @@ fn merge_arc_entry(
         }
       }
       (LiveOwned(_), _) | (_, LiveOwned(_)) =>
-        arc_final_fail(InconsistentOwnershipAtJoin({ value: index }, block))
+        arc_final_fail(InconsistentOwnershipAtJoin({ value: index, }, block))
       _ =>
         if !(destination[index] is Unavailable) {
           destination[index] = Unavailable

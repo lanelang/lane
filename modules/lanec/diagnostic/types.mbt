@@ -75,7 +75,7 @@ pub fn CompilerDiagnostic::with_source_id(
     source_id: Some(source_id),
     span: self.span.map(fn(span) { span.with_default_source_id(source_id) }),
     labels: self.labels.map(fn(label) {
-      { ..label, span: label.span.with_default_source_id(source_id) }
+      { ..label, span: label.span.with_default_source_id(source_id), }
     }),
     facts: self.facts.map(fn(fact) {
       {
@@ -87,7 +87,7 @@ pub fn CompilerDiagnostic::with_source_id(
       {
         ..suggestion,
         edits: suggestion.edits.map(fn(edit) {
-          { ..edit, span: edit.span.with_default_source_id(source_id) }
+          { ..edit, span: edit.span.with_default_source_id(source_id), }
         }),
       }
     }),

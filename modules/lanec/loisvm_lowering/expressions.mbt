@@ -9,8 +9,8 @@ fn FunctionLowerer::lower_expr(
       let lowered = self.lower_rhs(binding.id(), binding.rhs())
       self.verify_planned_value(binding.id(), lowered)
       match binding {
-        Value(id~, ..) => self.bindings.push({ value: id, lowered })
-        Temp(temp~, ..) => self.temps.push({ temp, lowered })
+        Value(id~, ..) => self.bindings.push({ value: id, lowered, })
+        Temp(temp~, ..) => self.temps.push({ temp, lowered, })
       }
       self.lower_expr(body)
     }
@@ -32,11 +32,13 @@ fn FunctionLowerer::lower_rhs(
   rhs : @anf.AnfRhs,
 ) -> LocalValue raise LoisvmLoweringError {
   match rhs {
-    Atom(atom) =>
-      match self.planned_callable_port(site) {
+    Atom(atom) => {
+      let lowered = match self.planned_callable_port(site) {
         Some(instance) => self.materialize_planned_callable_atom(atom, instance)
         None => self.lower_atom(atom)
       }
+      self.apply_planned_binding_flow(site, lowered)
+    }
     ApplyEvidence(callee~, arguments~) =>
       self.lower_evidence_apply(site, callee, arguments)
     Call(callee~, arguments~) => self.lower_call(site, callee, arguments)
@@ -75,31 +77,40 @@ fn FunctionLowerer::lower_evidence_apply(
   callee : @anf.AnfAtom,
   arguments : Array[@anf.RuntimeArgument],
 ) -> LocalValue raise LoisvmLoweringError {
-  let lowered = match self.planned_callable_port(site) {
-    Some(callable) => self.materialize_planned_callable_atom(callee, callable)
-    None => self.lower_atom(callee)
+  ignore(arguments)
+  let original = self.lower_atom(callee)
+  let lowered = match original {
+    EvidenceApplied(_, _)
+    | EvidenceAppliedCallable(_, _, _, _)
+    | EvidenceAppliedNestedCallable(_, _) => original
+    _ =>
+      match self.planned_callable_port(site) {
+        Some(callable) =>
+          self.materialize_planned_callable_atom(callee, callable)
+        None => original
+      }
   }
   if local_value_type(lowered) is Some(type_) &&
     !(self.image.runtime_type(type_) is Concrete(Forall(_, _))) {
     return lowered
   }
+  let application = self.planned_evidence_application(site)
   match lowered {
-    Global(global) => EvidenceApplied(global, arguments)
+    Global(global) => EvidenceApplied(global, application)
     Slot(callable, type_, shape) =>
-      EvidenceAppliedCallable(callable, type_, shape, arguments)
+      EvidenceAppliedCallable(callable, type_, shape, application)
     NestedCallable(callable) =>
-      EvidenceAppliedNestedCallable(callable, arguments)
-    EvidenceApplied(global, applied) =>
-      EvidenceApplied(global, applied + arguments)
-    EvidenceAppliedCallable(callable, type_, shape, applied) =>
-      EvidenceAppliedCallable(callable, type_, shape, applied + arguments)
-    EvidenceAppliedNestedCallable(callable, applied) =>
-      EvidenceAppliedNestedCallable(callable, applied + arguments)
+      EvidenceAppliedNestedCallable(callable, application)
+    EvidenceApplied(global, _) => EvidenceApplied(global, application)
+    EvidenceAppliedCallable(callable, type_, shape, _) =>
+      EvidenceAppliedCallable(callable, type_, shape, application)
+    EvidenceAppliedNestedCallable(callable, _) =>
+      EvidenceAppliedNestedCallable(callable, application)
     RecursiveFunction(_, _, _) as recursive => {
       guard self.materialize_local(recursive) is Slot(callable, type_, shape) else {
         abort("recursive callable was not materialized")
       }
-      EvidenceAppliedCallable(callable, type_, shape, arguments)
+      EvidenceAppliedCallable(callable, type_, shape, application)
     }
     _ =>
       raise InvalidTypeApplication(

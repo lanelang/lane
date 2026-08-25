@@ -23,7 +23,7 @@ impl @prettyprinter.Pretty for AnfCode with fn pretty(code : AnfCode) {
 
 ///|
 fn render_buslane_code(program : @buslane.Program) -> String {
-  @prettyprinter.render(BuslaneCode::{ terms: program.terms }, width=100)
+  @prettyprinter.render(BuslaneCode::{ terms: program.terms, }, width=100)
 }
 
 ///|
@@ -34,7 +34,7 @@ fn render_executable_code(program : @executable.ExecutableProgram) -> String {
 ///|
 fn render_anf_code(program : @anf.AnfProgram) -> String {
   @prettyprinter.render(
-    AnfCode::{ terms: program.terms().to_owned() },
+    AnfCode::{ terms: program.terms().to_owned(), },
     width=100,
   )
 }

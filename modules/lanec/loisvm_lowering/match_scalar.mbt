@@ -119,7 +119,7 @@ fn FunctionLowerer::lower_closed_aggregate_match(
   })
   if alternative.alt_constructor is DataCon(_) {
     for index, binder in alternative.value_binders {
-      self.bindings.push({ value: binder, lowered: payloads[index] })
+      self.bindings.push({ value: binder, lowered: payloads[index], })
     }
   }
   let result = self.materialize_planned_match_alternative(
@@ -201,7 +201,7 @@ fn FunctionLowerer::lower_literal_match(
       arguments.push(value)
     }
     self.terminate(
-      BranchBool(condition, { target: branch_block, arguments }, {
+      BranchBool(condition, { target: branch_block, arguments, }, {
         target: next_block,
         arguments,
       }),
@@ -227,7 +227,7 @@ fn FunctionLowerer::lower_literal_match(
   }
   self.lower_bool_alternative(
     site,
-    { value: default_block },
+    { value: default_block, },
     join_block,
     match_.binder,
     self.slot_value(default_scrutinee, scrutinee_type),
@@ -284,7 +284,7 @@ fn FunctionLowerer::lower_irrefutable_match(
   }
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
-  self.bindings.push({ value: match_.binder, lowered: scrutinee })
+  self.bindings.push({ value: match_.binder, lowered: scrutinee, })
   let result = self.materialize_planned_match_alternative(
     site,
     alternative,

@@ -104,11 +104,11 @@ fn FunctionLowerer::lower_call(
         callable=Some(slot),
       )
     }
-    EvidenceAppliedNestedCallable(callable, type_arguments) => {
+    EvidenceAppliedNestedCallable(callable, application) => {
       guard self.materialize_nested_callable(callable) is Slot(slot, _, _) else {
         abort("nested callable was not materialized")
       }
-      ignore(type_arguments)
+      ignore(application)
       self.lower_physical_call(
         lowered_arguments,
         physical_call,
@@ -164,13 +164,45 @@ fn FunctionLowerer::materialize_local(
     RecursiveFunction(function, type_, environment) =>
       self.materialize_callable_value(function, type_, environment)
     NestedCallable(callable) => self.materialize_nested_callable(callable)
-    EvidenceApplied(_, _)
-    | EvidenceAppliedCallable(_, _, _, _)
-    | EvidenceAppliedNestedCallable(_, _) =>
-      raise InvalidTypeApplication(
-        detail="a type-applied callable must be called before materialization",
+    EvidenceApplied(global, application) =>
+      self.materialize_evidence_application(Global(global), application)
+    EvidenceAppliedCallable(callable, type_, shape, application) =>
+      self.materialize_evidence_application(
+        Slot(callable, type_, shape),
+        application,
+      )
+    EvidenceAppliedNestedCallable(callable, application) =>
+      self.materialize_evidence_application(
+        NestedCallable(callable),
+        application,
       )
     _ => value
+  }
+}
+
+///|
+fn FunctionLowerer::materialize_evidence_application(
+  self : FunctionLowerer,
+  source : LocalValue,
+  application : DeferredEvidenceApplication,
+) -> LocalValue raise LoisvmLoweringError {
+  if !application.materialize {
+    raise RepresentationSpecializationInvariant(
+      detail="deferred evidence application \{Repr(application.binding)} for \{Repr(application.source_type)} -> \{Repr(application.target_type)} escaped without a planned materialization contract",
+    )
+  }
+  let source = self.materialize_local(source)
+  guard source is Slot(slot, _, shape) else {
+    raise RepresentationSpecializationInvariant(
+      detail="evidence application source did not materialize as a callable",
+    )
+  }
+  match application.adapter {
+    Some(contract) =>
+      self.materialize_planned_callable_bridge(
+        "evidence-application", source, contract,
+      )
+    None => Slot(slot, application.target_type, shape)
   }
 }
 
@@ -413,7 +445,7 @@ fn FunctionLowerer::materialize_planned_value_flow(
       )
     _ =>
       raise RepresentationSpecializationInvariant(
-        detail="planned call argument has no matching physical value",
+        detail="\{provenance} has the planned physical shape but is not a materialized slot for \{Repr(target_type)}",
       )
   }
 }

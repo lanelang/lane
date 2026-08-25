@@ -31,7 +31,7 @@ pub fn verify_bytecode_image(
 pub fn verify_bytecode_image_for_execution(
   image : BytecodeImage,
 ) -> Result[VerifiedBytecodeImage, BytecodeVerificationError] {
-  Ok({ image, global_lifecycle: BytecodeVerifier::{ image, }.verify() }) catch {
+  Ok({ image, global_lifecycle: BytecodeVerifier::{ image, }.verify(), }) catch {
     error => Err(error)
   }
 }
@@ -50,7 +50,7 @@ fn BytecodeVerifier::verify(
   self.verify_runtime_imports_and_constants()
   self.verify_callable_abis()
   for index, entry in self.image.functions {
-    let function : FunctionId = { value: index + 1 }
+    let function : FunctionId = { value: index + 1, }
     guard entry.callable_abi() is Some(abi) else {
       self.fail(Function(function), "function inputs do not define an ABI")
     }
@@ -75,7 +75,7 @@ fn BytecodeVerifier::verify(
   let global_dependencies = self.global_dependencies()
   for index, entry in self.image.functions {
     if entry is BytecodeBody(body) {
-      let function : FunctionId = { value: index + 1 }
+      let function : FunctionId = { value: index + 1, }
       self.verify_function(function, body)
       self.verify_function_flow(
         function, body, global_dependencies, global_lifecycle,
@@ -132,7 +132,7 @@ fn BytecodeVerifier::verify_runtime_imports_and_constants(
 ) -> Unit raise BytecodeVerificationError {
   for index, entry in self.image.functions {
     if entry is RuntimeImport(import_) {
-      let site = BytecodeVerificationSite::Function({ value: index + 1 })
+      let site = BytecodeVerificationSite::Function({ value: index + 1, })
       if import_.abi_major < 0 {
         self.fail(site, "runtime import ABI major must be nonnegative")
       }
@@ -242,7 +242,7 @@ fn BytecodeVerifier::object_layout_id(
   }
   for index, layout in self.image.layouts {
     if layout == expected {
-      return { value: index + 1 }
+      return { value: index + 1, }
     }
   }
   self.fail(site, "object operation requires a canonical layout recipe")
@@ -258,7 +258,7 @@ fn BytecodeVerifier::require_data_family_layouts(
   for index, shape in self.image.object_shapes {
     if shape is Data({ family: actual, .. }) && actual == family {
       found = true
-      ignore(self.object_layout_id(site, { value: index }))
+      ignore(self.object_layout_id(site, { value: index, }))
     }
   }
   if !found {

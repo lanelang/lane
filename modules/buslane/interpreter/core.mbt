@@ -97,49 +97,49 @@ pub fn external_failure(
 ///|
 /// Creates an integer Buslane runtime value.
 pub fn BuslaneRuntimeValue::i64(value : Int64) -> BuslaneRuntimeValue {
-  { kind: I64(value) }
+  { kind: I64(value), }
 }
 
 ///|
 /// Creates a signed 32-bit Buslane runtime value.
 pub fn BuslaneRuntimeValue::i32(value : Int) -> BuslaneRuntimeValue {
-  { kind: I32(value) }
+  { kind: I32(value), }
 }
 
 ///|
 /// Creates a character Buslane runtime value.
 pub fn BuslaneRuntimeValue::char(value : Int) -> BuslaneRuntimeValue {
-  { kind: Char(value) }
+  { kind: Char(value), }
 }
 
 ///|
 /// Creates a double Buslane runtime value.
 pub fn BuslaneRuntimeValue::f64(value : Double) -> BuslaneRuntimeValue {
-  { kind: F64(value) }
+  { kind: F64(value), }
 }
 
 ///|
 /// Creates a binary32 Buslane runtime value.
 pub fn BuslaneRuntimeValue::f32(value : Float) -> BuslaneRuntimeValue {
-  { kind: F32(value) }
+  { kind: F32(value), }
 }
 
 ///|
 /// Creates a boolean Buslane runtime value.
 pub fn BuslaneRuntimeValue::bool(value : Bool) -> BuslaneRuntimeValue {
-  { kind: Bool(value) }
+  { kind: Bool(value), }
 }
 
 ///|
 /// Creates a string Buslane runtime value.
 pub fn BuslaneRuntimeValue::string(value : String) -> BuslaneRuntimeValue {
-  { kind: String(value) }
+  { kind: String(value), }
 }
 
 ///|
 /// Returns the unit Buslane runtime value.
 pub fn BuslaneRuntimeValue::unit() -> BuslaneRuntimeValue {
-  { kind: Unit }
+  { kind: Unit, }
 }
 
 ///|
@@ -220,7 +220,7 @@ pub fn BuslaneRuntimeValue::is_function(self : BuslaneRuntimeValue) -> Bool {
 pub fn BuslaneRuntimeValue::external(
   id : @buslane.ValueId,
 ) -> BuslaneRuntimeValue {
-  { kind: External(id) }
+  { kind: External(id), }
 }
 
 ///|
@@ -228,7 +228,7 @@ pub fn BuslaneRuntimeValue::external(
 pub fn BuslaneRuntimeValue::native_function(
   handler : BuslaneNativeFunction,
 ) -> BuslaneRuntimeValue {
-  { kind: NativeFunction(handler) }
+  { kind: NativeFunction(handler), }
 }
 
 ///|
@@ -237,7 +237,7 @@ pub fn BuslaneRuntimeValue::data(
   data_constructor : @buslane.DataConId,
   arguments : Array[BuslaneRuntimeValue],
 ) -> BuslaneRuntimeValue {
-  { kind: Data(data_constructor~, arguments~) }
+  { kind: Data(data_constructor~, arguments~), }
 }
 
 ///|
@@ -249,13 +249,13 @@ fn BuslaneRuntimeValue::runtime(
 
 ///|
 fn BuslaneRuntimeValue::resume_continuation(kont : Kont) -> BuslaneRuntimeValue {
-  { kind: ResumeContinuation({ kont, }) }
+  { kind: ResumeContinuation({ kont, }), }
 }
 
 ///|
 /// Creates an empty Buslane runtime environment.
 fn BuslaneRuntimeEnvironment::BuslaneRuntimeEnvironment() -> BuslaneRuntimeEnvironment {
-  { parent: None, values: @immut_sorted_map.new() }
+  { parent: None, values: @immut_sorted_map.new(), }
 }
 
 ///|
@@ -269,7 +269,7 @@ fn BuslaneRuntimeProgram::BuslaneRuntimeProgram(
 ///|
 /// Creates an external runtime with no handlers.
 pub fn BuslaneExternalRuntime::BuslaneExternalRuntime() -> BuslaneExternalRuntime {
-  { resolvers: [], effect_handlers: [] }
+  { resolvers: [], effect_handlers: [], }
 }
 
 ///|
@@ -288,7 +288,7 @@ pub fn BuslaneExternalRuntime::add_effect_handler(
   operation : @buslane.OperationId,
   handler : BuslaneRuntimeEffectHandler,
 ) -> Unit {
-  self.effect_handlers.push({ operation, handler })
+  self.effect_handlers.push({ operation, handler, })
 }
 
 ///|
@@ -339,7 +339,7 @@ fn BuslaneExternalRuntime::resolve(
 fn BuslaneRuntimeEnvironment::child(
   self : BuslaneRuntimeEnvironment,
 ) -> BuslaneRuntimeEnvironment {
-  { parent: Some(self), values: @immut_sorted_map.new() }
+  { parent: Some(self), values: @immut_sorted_map.new(), }
 }
 
 ///|

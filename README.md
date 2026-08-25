@@ -21,12 +21,14 @@ moon check --target native --warn-list +73
 moon fmt --check
 moon test --target native
 moon build --target native --release modules/lane
+lane_bin="$PWD/_build/native/release/build/Milky2018/lane/lane.exe"
+(cd basic && LANE_BIN="$lane_bin" ./test.sh)
 tools/check-lane-run-examples.sh \
   "$PWD/_build/native/release/build/Milky2018/lane/lane.exe"
 ```
 
-The final two commands build one release `lane.exe` and run the examples and
-pinned Basic fixture against that exact executable.
+The final three commands build one release `lane.exe`, run the complete pinned
+Basic suite, and run the examples against that exact executable.
 
 The repository CI initializes the pinned `basic` submodule recursively. Do not
 set `LANE_HOME` or `LANE_SMOKE_BIN` globally for these checks; the examples

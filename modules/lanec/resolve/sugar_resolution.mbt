@@ -2,7 +2,7 @@
 fn @abi.BasicTypeProvider::resolved_name(
   self : @abi.BasicTypeProvider,
 ) -> ResolvedNominalName {
-  Qualified({ module_binding: self.module_path(), name: self.type_name() })
+  Qualified({ module_binding: self.module_path(), name: self.type_name(), })
 }
 
 ///|
@@ -11,7 +11,7 @@ fn Resolver::demand_canonical_basic_provider(
   provider : @abi.BasicTypeProvider,
   loc : SourceSpan,
 ) -> Unit {
-  self.canonical_basic_abi_demands.push({ provider, loc })
+  self.canonical_basic_abi_demands.push({ provider, loc, })
 }
 
 ///|

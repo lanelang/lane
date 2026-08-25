@@ -763,7 +763,7 @@ fn GenericArgumentInference::effect_row_pattern(
       None => concrete_terms.push(term)
     }
   }
-  Some({ concrete_terms, row_parameter })
+  Some({ concrete_terms, row_parameter, })
 }
 
 ///|
@@ -1124,7 +1124,7 @@ fn GenericArgumentInference::finish(
     ignore(self.fail(MissingGenericArguments(parameters=missing)))
     return None
   }
-  Some({ generic_arguments, substitution })
+  Some({ generic_arguments, substitution, })
 }
 
 ///|
@@ -1362,7 +1362,7 @@ fn SemanticChecker::report_internal_typecheck_failure(
   label : String,
   loc : SourceSpan,
 ) -> Unit {
-  self.diagnostics.push({ kind: InternalTypecheckFailure(label~), loc })
+  self.diagnostics.push({ kind: InternalTypecheckFailure(label~), loc, })
 }
 
 ///|
@@ -1371,7 +1371,7 @@ fn SemanticChecker::report_application_arity(
   label : String,
   loc : SourceSpan,
 ) -> Unit {
-  self.diagnostics.push({ kind: ApplicationArityMismatch(label~), loc })
+  self.diagnostics.push({ kind: ApplicationArityMismatch(label~), loc, })
 }
 
 ///|
@@ -1386,7 +1386,10 @@ fn SemanticChecker::check_application_arity(
     true
   } else {
     if report_failure {
-      self.diagnostics.push({ kind: CallArityMismatch(expected~, actual~), loc })
+      self.diagnostics.push({
+        kind: CallArityMismatch(expected~, actual~),
+        loc,
+      })
     }
     false
   }

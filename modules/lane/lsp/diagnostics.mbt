@@ -41,7 +41,7 @@ fn diagnostic_publications(
 ) -> Array[DiagnosticPublication] {
   let sources = compiler_diagnostic_sources_from_inputs(inputs)
   let publications = inputs.map(fn(input) {
-    { uri: input.source_id, diagnostics: [], sources }
+    { uri: input.source_id, diagnostics: [], sources, }
   })
   for diagnostic in diagnostics {
     let uri = match diagnostic.primary_source_id() {
@@ -66,7 +66,7 @@ fn add_diagnostic(
     }
   }
   let empty_sources = CompilerDiagnosticSources()
-  publications.push({ uri, diagnostics: [diagnostic], sources: empty_sources })
+  publications.push({ uri, diagnostics: [diagnostic], sources: empty_sources, })
 }
 
 ///|

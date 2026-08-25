@@ -21,9 +21,9 @@ fn wasm_host_body(
 ) -> @bytecode.FunctionBody {
   {
     slots,
-    inputs: { environment: None, witnesses: [], user_parameters: [] },
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
     result: Unit,
-    blocks: [{ parameters: [], instructions, terminator: Return(None) }],
+    blocks: [{ parameters: [], instructions, terminator: Return(None), }],
   }
 }
 
@@ -33,7 +33,7 @@ fn wasm_host_import(
   parameters : Array[@bytecode.RuntimeValueKind],
   result : @bytecode.RuntimeValueKind,
 ) -> @bytecode.FunctionEntry {
-  RuntimeImport({ abi_major: 1, parameters, result, symbol })
+  RuntimeImport({ abi_major: 1, parameters, result, symbol, })
 }
 
 ///|
@@ -51,7 +51,7 @@ fn wasm_host_new_binding(
     }),
     invoke=fn(_context, _arguments) {
       next_id.val += 1
-      { id: next_id.val, closed: false }
+      { id: next_id.val, closed: false, }
     },
   )
 }
@@ -95,13 +95,13 @@ test "Wasm adapters preserve shared Host Object wrappers" {
   )
   let owned_ref = wasm_host_owned_ref_slot()
   let entry = wasm_host_body(slots=[owned_ref, owned_ref], instructions=[
-    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-    RetainCopy({ value: 1 }, { value: 0 }),
-    CallDirect({ value: 3 }, None, [], [{ value: 0 }], None),
-    CallDirect({ value: 3 }, None, [], [{ value: 1 }], None),
+    CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+    RetainCopy({ value: 1, }, { value: 0, }),
+    CallDirect({ value: 3, }, None, [], [{ value: 0, }], None),
+    CallDirect({ value: 3, }, None, [], [{ value: 1, }], None),
   ])
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: wasm_host_callable_abis(),
@@ -130,12 +130,12 @@ test "Wasm normal shutdown finalizes Host Object globals" {
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(wasm_host_new_binding(store, next_id, finalized))
   let initializer = wasm_host_body(slots=[wasm_host_owned_ref_slot()], instructions=[
-    CallDirect({ value: 3 }, None, [], [], Some({ value: 0 })),
-    InitGlobal({ value: 0 }, { value: 0 }),
+    CallDirect({ value: 3, }, None, [], [], Some({ value: 0, })),
+    InitGlobal({ value: 0, }, { value: 0, }),
   ])
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 2 },
-    initializer: Some({ value: 1 }),
+    entry: { value: 2, },
+    initializer: Some({ value: 1, }),
     data_family_count: 0,
     callable_abis: wasm_host_callable_abis(),
     globals: [
@@ -169,11 +169,11 @@ test "Wasm rolls back rejected Host Object results" {
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(wasm_host_new_binding(store, next_id, finalized))
   let entry = wasm_host_body(slots=[wasm_host_owned_ref_slot()], instructions=[
-    CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-    Release({ value: 0 }),
+    CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+    Release({ value: 0, }),
   ])
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: wasm_host_callable_abis(),
@@ -255,14 +255,14 @@ test "Wasm reports Host Object use after explicit close" {
       },
     ],
     instructions=[
-      CallDirect({ value: 2 }, None, [], [], Some({ value: 0 })),
-      RetainCopy({ value: 1 }, { value: 0 }),
-      CallDirect({ value: 3 }, None, [], [{ value: 0 }], None),
-      CallDirect({ value: 4 }, None, [], [{ value: 1 }], Some({ value: 2 })),
+      CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
+      RetainCopy({ value: 1, }, { value: 0, }),
+      CallDirect({ value: 3, }, None, [], [{ value: 0, }], None),
+      CallDirect({ value: 4, }, None, [], [{ value: 1, }], Some({ value: 2, })),
     ],
   )
   let image : @bytecode.BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     callable_abis: wasm_host_callable_abis(),
@@ -296,7 +296,7 @@ test "Wasm reports Host Object use after explicit close" {
 ///|
 fn wasm_host_callable_abis() -> Array[@bytecode.CallableAbi] {
   [
-    { witnesses: [], parameters: [], result: Unit },
+    { witnesses: [], parameters: [], result: Unit, },
     {
       witnesses: [],
       parameters: [],
@@ -305,14 +305,14 @@ fn wasm_host_callable_abis() -> Array[@bytecode.CallableAbi] {
     {
       witnesses: [],
       parameters: [
-        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
+        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue, },
       ],
       result: Unit,
     },
     {
       witnesses: [],
       parameters: [
-        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue },
+        { representation: I32, cleanup: OwnedRef, kind: OpaqueReferenceValue, },
       ],
       result: Value(I64, Trivial, ScalarValue),
     },

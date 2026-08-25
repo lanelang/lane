@@ -75,7 +75,7 @@ fn CompletionSource::from_syntax(
       line_starts.push(trivia.span.end_offset)
     }
   }
-  { text, tokens: concrete.tokens, line_starts, syntax_identifiers }
+  { text, tokens: concrete.tokens, line_starts, syntax_identifiers, }
 }
 
 ///|
@@ -271,7 +271,7 @@ fn resolved_completion_owner(
   for _, binding in bindings {
     if binding.name == module_binding {
       return Some(
-        Qualified({ module_binding, name: components[components.length() - 1] }),
+        Qualified({ module_binding, name: components[components.length() - 1], }),
       )
     }
   }

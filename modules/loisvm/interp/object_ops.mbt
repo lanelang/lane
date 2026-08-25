@@ -7,7 +7,7 @@ fn ExecutionInstance::resolve_layout_operand(
   ignore(self)
   match operand {
     Immediate(layout) => layout
-    Witness(slot) => { value: frame.i32(slot) }
+    Witness(slot) => { value: frame.i32(slot), }
   }
 }
 

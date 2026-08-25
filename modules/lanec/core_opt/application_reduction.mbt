@@ -54,9 +54,9 @@ fn reduce_application(
     )
     if has_empty_effect && !requires_parameter_boundary {
       empty_argument_count += 1
-      substitutions.push({ value: parameter, replacement: argument })
+      substitutions.push({ value: parameter, replacement: argument, })
     } else {
-      materialized.push({ parameter, argument })
+      materialized.push({ parameter, argument, })
     }
   }
   let mut reduced = body

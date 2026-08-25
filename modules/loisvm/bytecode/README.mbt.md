@@ -25,9 +25,9 @@ A `FunctionBody` owns its slot table and ordered blocks. Block zero is the entry
 ///|
 test "a minimal LoisVM bytecode image round-trips" {
   let image : BytecodeImage = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
     functions: [
       BytecodeBody({
@@ -51,15 +51,15 @@ test "a minimal LoisVM bytecode image round-trips" {
             erased_companion: None,
           },
         ],
-        inputs: { environment: None, witnesses: [], user_parameters: [] },
+        inputs: { environment: None, witnesses: [], user_parameters: [], },
         result: Unit,
         blocks: [
           {
             parameters: [],
             instructions: [
-              ConstI64({ value: 0 }, 40L),
-              ConstI64({ value: 1 }, 2L),
-              I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
+              ConstI64({ value: 0, }, 40L),
+              ConstI64({ value: 1, }, 2L),
+              I64Add({ value: 2, }, { value: 0, }, { value: 1, }),
             ],
             terminator: Return(None),
           },

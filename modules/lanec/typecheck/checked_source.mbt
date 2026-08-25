@@ -424,7 +424,7 @@ fn SemanticChecker::check_checked_local_pattern_let(
     return None
   }
   Some({
-    declaration: { pattern, initializer, loc: declaration.loc },
+    declaration: { pattern, initializer, loc: declaration.loc, },
     effect: checked_initializer.effect,
   })
 }

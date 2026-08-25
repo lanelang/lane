@@ -46,6 +46,7 @@ fn PhysicalRepresentationPlan::append_parameter_keys(
 priv struct PhysicalValuePortPlan {
   binding : @anf.AnfBindingId
   shape : PhysicalValueShapeId
+  callable_interface : PhysicalCallableInterface?
   callable_instance : CallableRepresentationTarget?
   callable_worker : Bool
 }
@@ -55,6 +56,13 @@ priv struct PhysicalValueFlowPlan {
   source : PhysicalValueShapeId
   target : PhysicalValueShapeId
   bridge : PhysicalValueBridge?
+}
+
+///|
+priv struct PhysicalBindingFlowPlan {
+  binding : @anf.AnfBindingId
+  target_type : @anf.RuntimeType
+  flow : PhysicalValueFlowPlan
 }
 
 ///|
@@ -72,7 +80,9 @@ priv struct PhysicalFunctionPlan {
   calls : Array[PhysicalCallPlan]
   constructs : Array[PhysicalConstructPlan]
   matches : Array[PhysicalMatchPlan]
+  binding_flows : Array[PhysicalBindingFlowPlan]
   callable_allocations : Array[PhysicalCallableAllocationPlan]
+  evidence_applications : Array[DeferredEvidenceApplication]
 }
 
 ///|
@@ -102,6 +112,7 @@ priv struct PhysicalCallPlan {
   abi_result_type : @anf.RuntimeType
   result_type : @anf.RuntimeType
   result_callable : CallableRepresentationTarget?
+  result_interface : PhysicalCallableInterface?
   result : PhysicalValueFlowPlan
 }
 
@@ -118,6 +129,7 @@ priv struct PhysicalCallableAllocationPlan {
   function : @anf.AnfFunctionId
   callable : CallableRepresentationTarget
   implementation : PhysicalCallableImplementation
+  interface : PhysicalCallableInterface
   captures : Array[PhysicalValueFlowPlan]
 }
 
@@ -177,7 +189,11 @@ priv struct PhysicalMatchPayloadPlan {
 priv struct DeferredEvidenceApplication {
   binding : @anf.AnfBindingId
   source_type : @anf.RuntimeType
+  target_type : @anf.RuntimeType
   arguments : Array[@anf.RuntimeArgument]
+  materialize : Bool
+  adapter : CallableAdapterContract?
+  interface : PhysicalCallableInterface
 }
 
 ///|
@@ -186,6 +202,7 @@ priv struct DeferredEvidenceApplication {
 priv struct PhysicalRepresentationPlan {
   shapes : Array[PhysicalValueShape]
   invocations : Array[(@bytecode.FunctionId, CanonicalCallableAbi)]
+  interfaces : Array[(@bytecode.FunctionId, PhysicalCallableInterface)]
   functions : Array[(@bytecode.FunctionId, PhysicalFunctionPlan)]
   representation_workers : Array[RepresentationSpecializationPlan]
   adapter_contracts : Array[CallableAdapterContract]
@@ -217,6 +234,7 @@ priv struct PhysicalFunctionPlanner {
   calls : Array[PhysicalCallPlan]
   constructs : Array[PhysicalConstructPlan]
   matches : Array[PhysicalMatchPlan]
+  binding_flows : Array[PhysicalBindingFlowPlan]
   callable_allocations : Array[PhysicalCallableAllocationPlan]
   evidence_applications : Array[DeferredEvidenceApplication]
   atoms : Array[(@anf.AnfBindingId, @anf.AnfAtom)]
@@ -228,6 +246,7 @@ fn PhysicalRepresentationPlan::new() -> PhysicalRepresentationPlan {
   {
     shapes: [],
     invocations: [],
+    interfaces: [],
     functions: [],
     representation_workers: [],
     adapter_contracts: [],
@@ -291,7 +310,7 @@ fn PhysicalRepresentationPlan::intern(
       return { index, }
     }
   }
-  let identity : PhysicalValueShapeId = { index: self.shapes.length() }
+  let identity : PhysicalValueShapeId = { index: self.shapes.length(), }
   self.shapes.push(shape)
   identity
 }
@@ -350,13 +369,46 @@ fn PhysicalRepresentationPlan::add_invocation(
     if existing.0 == function {
       if existing.1 != invocation {
         raise RepresentationSpecializationInvariant(
-          detail="one callable implementation received two physical invocation contracts",
+          detail="callable implementation \{Repr(function)} received physical invocation contracts \{Repr(existing.1)} and \{Repr(invocation)}",
         )
       }
       return
     }
   }
   self.invocations.push((function, invocation))
+}
+
+///|
+fn PhysicalRepresentationPlan::add_interface(
+  self : PhysicalRepresentationPlan,
+  function : @bytecode.FunctionId,
+  interface : PhysicalCallableInterface,
+) -> Unit raise LoisvmLoweringError {
+  for existing in self.interfaces {
+    if existing.0 == function {
+      if existing.1 != interface {
+        raise RepresentationSpecializationInvariant(
+          detail="callable implementation \{Repr(function)} received two physical interface contracts",
+        )
+      }
+      return
+    }
+  }
+  self.add_invocation(function, interface.invocation)
+  self.interfaces.push((function, interface))
+}
+
+///|
+fn PhysicalRepresentationPlan::interface(
+  self : PhysicalRepresentationPlan,
+  function : @bytecode.FunctionId,
+) -> PhysicalCallableInterface? {
+  for entry in self.interfaces {
+    if entry.0 == function {
+      return Some(entry.1)
+    }
+  }
+  None
 }
 
 ///|
@@ -381,7 +433,7 @@ fn PhysicalRepresentationPlan::required_invocation(
   .invocation(function)
   .unwrap_or_else(() => {
     raise RepresentationSpecializationInvariant(
-      detail="generic function body \{Repr(function)} has no frozen invocation contract among \{Repr(self.invocations.map(entry => entry.0))}",
+      detail="generic function body \{Repr(function)} has no frozen invocation contract",
     )
   })
 }
@@ -399,7 +451,7 @@ fn ImageLowerer::ensure_generic_callable_invocation(
       detail="callable representation has no generic physical implementation",
     )
   }
-  self.ensure_generic_function_invocation(instance, implementation.function)
+  self.ensure_generic_function_interface(instance, implementation.function).invocation
 }
 
 ///|
@@ -408,13 +460,29 @@ fn ImageLowerer::ensure_generic_function_invocation(
   instance : Int,
   implementation : @bytecode.FunctionId,
 ) -> CanonicalCallableAbi raise LoisvmLoweringError {
+  self.ensure_generic_function_interface(instance, implementation).invocation
+}
+
+///|
+fn ImageLowerer::ensure_generic_function_interface(
+  self : ImageLowerer,
+  instance : Int,
+  implementation : @bytecode.FunctionId,
+) -> PhysicalCallableInterface raise LoisvmLoweringError {
   guard self.physical_representations is Some(physical) else {
     raise RepresentationSpecializationInvariant(
       detail="generic callable invocation was requested outside physical representation planning",
     )
   }
-  if physical.invocation(implementation) is Some(invocation) {
-    return invocation
+  guard self.callable_instances.instances.get(instance) is Some(requested) &&
+    self.callable_instances.generic_instance(requested.definition.function.id)
+    is Some(instance) else {
+    raise RepresentationSpecializationInvariant(
+      detail="generic callable invocation has no canonical fallback instance",
+    )
+  }
+  if physical.interface(implementation) is Some(interface) {
+    return interface
   }
   if self.generic_invocations_in_progress.contains(implementation) {
     raise RepresentationSpecializationInvariant(
@@ -422,22 +490,19 @@ fn ImageLowerer::ensure_generic_function_invocation(
     )
   }
   self.generic_invocations_in_progress.push(implementation)
-  let invocation = self.plan_generic_callable_invocation(
-    physical, instance, implementation,
-  )
+  let interface = self.plan_generic_callable_interface(instance, implementation)
   ignore(self.generic_invocations_in_progress.pop())
-  physical.add_invocation(implementation, invocation)
-  invocation
+  physical.add_interface(implementation, interface)
+  interface
 }
 
 ///|
-fn ImageLowerer::plan_generic_callable_invocation(
+fn ImageLowerer::plan_generic_callable_interface(
   self : ImageLowerer,
-  physical : PhysicalRepresentationPlan,
   instance : Int,
   implementation : @bytecode.FunctionId,
-) -> CanonicalCallableAbi raise LoisvmLoweringError {
-  guard self.callable_instances.instances.get(instance) is Some(planned) else {
+) -> PhysicalCallableInterface raise LoisvmLoweringError {
+  guard self.callable_instances.instances.get(instance) is Some(_) else {
     raise RepresentationSpecializationInvariant(
       detail="generic invocation names an unknown callable instance",
     )
@@ -454,81 +519,28 @@ fn ImageLowerer::plan_generic_callable_invocation(
       detail="generic invocation has no planned function implementation",
     )
   }
-  let (function, type_, substitutions, specialized_parameters) = match
-    selected.entry {
-    Function(_, function) =>
-      (function, planned.definition.type_, RuntimeSubstitution::new(), [])
-    LiftedFunction(plan) =>
-      (
-        plan.function,
-        plan.type_,
-        plan.substitutions,
-        plan.specialized_parameters,
-      )
+  let (function, type_, substitutions) = match selected.entry {
+    Function(value, function) => {
+      guard self.metadata.value_info(value) is Some(info) else {
+        raise RepresentationSpecializationInvariant(
+          detail="generic top-level callable has no declared type",
+        )
+      }
+      (function, info.type_, RuntimeSubstitution::new())
+    }
+    LiftedFunction(plan) => (plan.function, plan.type_, plan.substitutions)
     _ =>
       raise RepresentationSpecializationInvariant(
         detail="generic invocation points at a non-generic function variant",
       )
   }
-  let (evidence_parameters, parameter_types, result_type) = function_type_parts(
-    type_,
-  )
+  let (_, parameter_types, _) = function_type_parts(type_)
   if function.parameters.length() != parameter_types.length() {
     raise RepresentationSpecializationInvariant(
       detail="generic invocation parameter arity does not match Runtime ANF",
     )
   }
-  let excluded_data_components = self.representation_demands.data_boundary_components(
-    instance,
-    function.parameters,
-  )
-  let excluded_callable_components = self.representation_demands.callable_boundary_components(
-    instance,
-    function.parameters,
-    planned.definition.captures,
-  )
-  let planner : PhysicalFunctionPlanner = {
-    image: self,
-    physical,
-    source_function: Some(function.id),
-    substitutions,
-    specialized_parameters,
-    flow_instances: [instance],
-    scalar_instances: [instance],
-    caller_instances: [instance],
-    representation_contract: None,
-    excluded_data_components,
-    excluded_callable_components,
-    ports: [],
-    calls: [],
-    constructs: [],
-    matches: [],
-    callable_allocations: [],
-    evidence_applications: [],
-    atoms: [],
-    types: [],
-  }
-  let parameters : Array[CanonicalRuntimeTypeKey] = []
-  for index, parameter in function.parameters {
-    let shape = planner.shape_of_port(Value(parameter), parameter_types[index])
-    physical.append_parameter_keys(physical.intern(shape), parameters)
-  }
-  let witnesses : Array[@bytecode.ValueAbi] = []
-  for parameter in evidence_parameters {
-    if self.requires_runtime_evidence(parameter) {
-      let metadata = runtime_evidence_metadata(parameter)
-      witnesses.push({
-        representation: metadata.representation,
-        cleanup: metadata.cleanup,
-        kind: metadata.kind,
-      })
-    }
-  }
-  {
-    witnesses,
-    parameters,
-    result: planner.shape_of_result(result_type).canonical_result(),
-  }
+  self.canonical_callable_interface_under(type_, substitutions)
 }
 
 ///|
@@ -599,10 +611,20 @@ fn PhysicalFunctionPlan::callable_port(
 ) -> CallableRepresentationTarget? {
   for port in self.ports {
     if port.binding == binding {
-      if port.callable_worker {
-        return port.callable_instance
-      }
-      return None
+      return port.callable_instance
+    }
+  }
+  None
+}
+
+///|
+fn PhysicalFunctionPlan::binding_flow(
+  self : PhysicalFunctionPlan,
+  binding : @anf.AnfBindingId,
+) -> PhysicalBindingFlowPlan? {
+  for flow in self.binding_flows {
+    if flow.binding == binding {
+      return Some(flow)
     }
   }
   None
@@ -676,6 +698,19 @@ fn PhysicalFunctionPlan::callable_allocation(
 }
 
 ///|
+fn PhysicalFunctionPlan::evidence_application(
+  self : PhysicalFunctionPlan,
+  binding : @anf.AnfBindingId,
+) -> DeferredEvidenceApplication? {
+  for application in self.evidence_applications {
+    if application.binding == binding {
+      return Some(application)
+    }
+  }
+  None
+}
+
+///|
 fn PhysicalMatchPlan::alternative(
   self : PhysicalMatchPlan,
   alternative_constructor : @buslane.AltCon,
@@ -739,9 +774,17 @@ fn PhysicalFunctionPlan::callable_bridge_recipes(
       }
     }
   }
+  for binding in self.binding_flows {
+    binding.flow.append_callable_bridge_recipes(recipes)
+  }
   for allocation in self.callable_allocations {
     for capture in allocation.captures {
       capture.append_callable_bridge_recipes(recipes)
+    }
+  }
+  for application in self.evidence_applications {
+    if application.adapter is Some(adapter) {
+      adapter.append_recipes(recipes)
     }
   }
   recipes
@@ -795,6 +838,71 @@ fn FunctionLowerer::planned_callable_port(
   binding : @anf.AnfBindingId,
 ) -> CallableRepresentationTarget? {
   self.physical.bind(function => function.callable_port(binding))
+}
+
+///|
+fn FunctionLowerer::planned_binding_flow(
+  self : FunctionLowerer,
+  binding : @anf.AnfBindingId,
+) -> PhysicalBindingFlowPlan raise LoisvmLoweringError {
+  guard self.physical is Some(plan) && plan.binding_flow(binding) is Some(flow) else {
+    raise RepresentationSpecializationInvariant(
+      detail="VM CFG emission requested an unplanned Runtime ANF binding flow",
+    )
+  }
+  flow
+}
+
+///|
+fn FunctionLowerer::apply_planned_binding_flow(
+  self : FunctionLowerer,
+  binding : @anf.AnfBindingId,
+  value : LocalValue,
+) -> LocalValue raise LoisvmLoweringError {
+  let planned = self.planned_binding_flow(binding)
+  guard self.image.physical_representations is Some(physical) else {
+    raise RepresentationSpecializationInvariant(
+      detail="Runtime ANF binding flow has no owning physical plan",
+    )
+  }
+  let source_shape = physical.shape(planned.flow.source)
+  if self.local_physical_shape(value) != source_shape {
+    raise RepresentationSpecializationInvariant(
+      detail="Runtime ANF binding \{Repr(binding)} emitted \{Repr(self.local_physical_shape(value))}, expected \{Repr(source_shape)}",
+    )
+  }
+  let adapted = match planned.flow.bridge {
+    None => value
+    Some(bridge) =>
+      self.materialize_planned_value_flow(
+        "Runtime ANF binding flow at \{Repr(binding)}",
+        value,
+        planned.target_type,
+        physical.shape(planned.flow.target),
+        Some(bridge),
+      )
+  }
+  let target_shape = physical.shape(planned.flow.target)
+  if self.local_physical_shape(adapted) != target_shape {
+    raise RepresentationSpecializationInvariant(
+      detail="Runtime ANF binding \{Repr(binding)} produced \{Repr(self.local_physical_shape(adapted))} after its planned flow, expected \{Repr(target_shape)}",
+    )
+  }
+  adapted
+}
+
+///|
+fn FunctionLowerer::planned_evidence_application(
+  self : FunctionLowerer,
+  binding : @anf.AnfBindingId,
+) -> DeferredEvidenceApplication raise LoisvmLoweringError {
+  guard self.physical is Some(plan) &&
+    plan.evidence_application(binding) is Some(application) else {
+    raise RepresentationSpecializationInvariant(
+      detail="VM CFG emission requested an unplanned evidence application",
+    )
+  }
+  application
 }
 
 ///|
@@ -1009,7 +1117,7 @@ fn CanonicalRuntimeTypeKey::value_metadata(
       )
     Value(abi) => abi
     Callable(_) =>
-      { representation: I64, cleanup: OwnedCallable, kind: CallableValue }
+      { representation: I64, cleanup: OwnedCallable, kind: CallableValue, }
   }
   let ownership : @vmcfg.Ownership = if abi.cleanup is Trivial {
     Trivial
@@ -1034,7 +1142,7 @@ fn CanonicalRuntimeTypeKey::borrowed_value_metadata(
   if metadata.cleanup is Trivial {
     metadata
   } else {
-    { ..metadata, ownership: Borrowed }
+    { ..metadata, ownership: Borrowed, }
   }
 }
 
@@ -1119,8 +1227,12 @@ fn FunctionLowerer::local_physical_shape(
         }),
       )
     }
-    EvidenceApplied(global, arguments) => {
-      ignore(arguments)
+    EvidenceApplied(global, application) => {
+      if application.materialize {
+        return PhysicalValueShape::Slot(
+          self.physical_shape_of_type(application.target_type),
+        )
+      }
       let type_ = match global {
         Function(_, type_) => type_
         Intrinsic(contract) => contract.type_()
@@ -1131,18 +1243,26 @@ fn FunctionLowerer::local_physical_shape(
       }
       PhysicalValueShape::Slot(self.physical_shape_of_type(type_))
     }
-    EvidenceAppliedCallable(_, _, shape, arguments) => {
-      ignore(arguments)
-      PhysicalValueShape::Slot(shape)
-    }
-    EvidenceAppliedNestedCallable(callable, arguments) => {
-      ignore(arguments)
-      PhysicalValueShape::Slot(
-        CanonicalRuntimeTypeKey::Callable(
-          self.image.physical_invocation(callable.lowered_function),
-        ),
-      )
-    }
+    EvidenceAppliedCallable(_, _, shape, application) =>
+      if application.materialize {
+        PhysicalValueShape::Slot(
+          self.physical_shape_of_type(application.target_type),
+        )
+      } else {
+        PhysicalValueShape::Slot(shape)
+      }
+    EvidenceAppliedNestedCallable(callable, application) =>
+      if application.materialize {
+        PhysicalValueShape::Slot(
+          self.physical_shape_of_type(application.target_type),
+        )
+      } else {
+        PhysicalValueShape::Slot(
+          CanonicalRuntimeTypeKey::Callable(
+            self.image.physical_invocation(callable.lowered_function),
+          ),
+        )
+      }
     _ => {
       guard local_value_type(value) is Some(type_) else {
         raise RepresentationSpecializationInvariant(
@@ -1190,13 +1310,25 @@ fn PhysicalFunctionPlanner::append_port(
   self : PhysicalFunctionPlanner,
   binding : @anf.AnfBindingId,
   shape : PhysicalValueShape,
+  callable_interface : PhysicalCallableInterface?,
+  origin : String,
 ) -> PhysicalValueShapeId raise LoisvmLoweringError {
+  match (shape, callable_interface) {
+    (Slot(Callable(invocation)), Some(interface)) if interface.invocation ==
+      invocation => ()
+    (Slot(Callable(_)), _) | (_, Some(_)) =>
+      raise RepresentationSpecializationInvariant(
+        detail="\{origin} physical value port \{Repr(binding)} interface \{Repr(callable_interface)} disagrees with shape \{Repr(shape)}",
+      )
+    (_, None) => ()
+  }
   let identity = self.physical.intern(shape)
   let callable_instance = self.callable_at_port(binding)
   let callable_worker = self.callable_port_uses_worker(binding)
   for port in self.ports {
     if port.binding == binding {
       if port.shape != identity ||
+        port.callable_interface != callable_interface ||
         port.callable_instance != callable_instance ||
         port.callable_worker != callable_worker {
         raise RepresentationSpecializationInvariant(
@@ -1209,6 +1341,7 @@ fn PhysicalFunctionPlanner::append_port(
   self.ports.push({
     binding,
     shape: identity,
+    callable_interface,
     callable_instance,
     callable_worker,
   })
@@ -1227,6 +1360,8 @@ fn PhysicalFunctionPlanner::preplan_physical_bridge(
   target_shape : PhysicalValueShape,
   source_callable : CallableRepresentationTarget?,
   target_callable : CallableRepresentationTarget?,
+  source_interface : PhysicalCallableInterface?,
+  target_interface : PhysicalCallableInterface?,
 ) -> PhysicalValueBridge? raise LoisvmLoweringError {
   if source_shape == target_shape {
     return None
@@ -1249,9 +1384,17 @@ fn PhysicalFunctionPlanner::preplan_physical_bridge(
         let callable_type = self.image.callable_erasure_source_type(
           source_type, substitutions, source_callable,
         )
+        guard source_interface is Some(source_interface) &&
+          source_interface.invocation == source_abi else {
+          raise RepresentationSpecializationInvariant(
+            detail="\{origin} callable erasure at \{Repr(site)} has no exact physical callable interface",
+          )
+        }
         (
           callable_type,
-          self.image.plan_callable_erasure_adaptation(callable_type, source_abi),
+          self.image.plan_callable_erasure_adaptation(
+            callable_type, source_interface,
+          ),
         )
       }
       _ => (source, None)
@@ -1267,10 +1410,17 @@ fn PhysicalFunctionPlanner::preplan_physical_bridge(
   }
   if source_is_erased && !target_is_erased {
     let callable = match target_shape {
-      Slot(Callable(target_abi)) =>
+      Slot(Callable(target_abi)) => {
+        guard target_interface is Some(target_interface) &&
+          target_interface.invocation == target_abi else {
+          raise RepresentationSpecializationInvariant(
+            detail="\{origin} callable unerasure at \{Repr(site)} has no exact physical callable interface",
+          )
+        }
         self.image.plan_erased_callable_adaptation(
-          target_type, substitutions, target_callable, target_abi,
+          target_type, substitutions, target_callable, target_interface,
         )
+      }
       _ =>
         self.image.plan_value_adaptation(
           source_type, target_type, substitutions,
@@ -1285,7 +1435,7 @@ fn PhysicalFunctionPlanner::preplan_physical_bridge(
     let source_key = self.image.data_family_by_bytecode_id(source_family).key
     let target_key = self.image.data_family_by_bytecode_id(target_family).key
     raise RepresentationSpecializationInvariant(
-      detail="\{origin} identity-preserving data flow in \{Repr(self.source_function)} at \{Repr(site)} in \{self.caller_instances.length()} callable instances \{Repr(self.caller_instances)} crosses \{Repr(source_key)} / \{Repr(source_type)} and \{Repr(target_key)} / \{Repr(target_type)}",
+      detail="\{origin} identity-preserving data flow in \{Repr(self.source_function)} at \{Repr(site)} in \{self.caller_instances.length()} callable instances \{Repr(self.caller_instances)} with representation worker \{self.representation_contract is Some(_)} and excluded data components \{Repr(self.excluded_data_components)} crosses \{Repr(source_key)} / \{Repr(source_type)} and \{Repr(target_key)} / \{Repr(target_type)}",
     )
   }
   if source_shape is Slot(Value({ kind: DataValue(_), .. })) ||
@@ -1299,7 +1449,7 @@ fn PhysicalFunctionPlanner::preplan_physical_bridge(
       (Slot(Callable(source_abi)), Slot(Callable(target_abi))) =>
         self.image.plan_callable_representation_adaptation(
           source_callable, target_callable, source_type, target_type, substitutions,
-          source_abi, target_abi,
+          source_abi, target_abi, source_interface, target_interface,
         )
       _ =>
         self.image.plan_value_adaptation(
@@ -1335,12 +1485,42 @@ fn PhysicalFunctionPlanner::preplan_physical_value_flow(
   source_callable : CallableRepresentationTarget?,
   target_callable : CallableRepresentationTarget?,
 ) -> PhysicalValueFlowPlan raise LoisvmLoweringError {
+  self.preplan_physical_value_flow_with_interfaces(
+    origin,
+    site,
+    source_type,
+    target_type,
+    substitutions,
+    source_shape,
+    target_shape,
+    source_callable,
+    target_callable,
+    None,
+    None,
+  )
+}
+
+///|
+fn PhysicalFunctionPlanner::preplan_physical_value_flow_with_interfaces(
+  self : PhysicalFunctionPlanner,
+  origin : String,
+  site : @anf.AnfBindingId?,
+  source_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
+  substitutions : RuntimeSubstitution,
+  source_shape : PhysicalValueShape,
+  target_shape : PhysicalValueShape,
+  source_callable : CallableRepresentationTarget?,
+  target_callable : CallableRepresentationTarget?,
+  source_interface : PhysicalCallableInterface?,
+  target_interface : PhysicalCallableInterface?,
+) -> PhysicalValueFlowPlan raise LoisvmLoweringError {
   {
     source: self.physical.intern(source_shape),
     target: self.physical.intern(target_shape),
     bridge: self.preplan_physical_bridge(
       origin, site, source_type, target_type, substitutions, source_shape, target_shape,
-      source_callable, target_callable,
+      source_callable, target_callable, source_interface, target_interface,
     ),
   }
 }
@@ -1433,6 +1613,11 @@ fn PhysicalFunctionPlanner::callable_at_port(
   self : PhysicalFunctionPlanner,
   binding : @anf.AnfBindingId,
 ) -> CallableRepresentationTarget? {
+  for port in self.ports {
+    if port.binding == binding {
+      return port.callable_instance
+    }
+  }
   if self.representation_contract is Some(contract) {
     for entry in contract.callable_ports {
       if entry.0 == binding {
@@ -1462,9 +1647,13 @@ fn PhysicalFunctionPlanner::callable_allocation_uses_worker(
   self : PhysicalFunctionPlanner,
   function : @anf.AnfFunctionId,
 ) -> Bool {
+  if self.representation_contract is Some(contract) {
+    return contract.callable_allocations.any(entry => entry.0 == function)
+  }
   self.image.representation_demands.callable_allocation_uses_worker(
     self.caller_instances,
     function,
+    self.excluded_callable_components,
   )
 }
 
@@ -1473,6 +1662,11 @@ fn PhysicalFunctionPlanner::callable_port_uses_worker(
   self : PhysicalFunctionPlanner,
   binding : @anf.AnfBindingId,
 ) -> Bool {
+  for port in self.ports {
+    if port.binding == binding {
+      return port.callable_worker
+    }
+  }
   if self.representation_contract is Some(contract) {
     return contract.callable_ports.any(entry => entry.0 == binding)
   }
@@ -1504,25 +1698,6 @@ fn PhysicalFunctionPlanner::callable_at_argument(
 }
 
 ///|
-fn PhysicalFunctionPlanner::callable_argument_uses_worker(
-  self : PhysicalFunctionPlanner,
-  site : @anf.AnfBindingId,
-  argument_index : Int,
-) -> Bool {
-  if self.representation_contract is Some(contract) {
-    return contract.callable_arguments.any(entry => {
-      entry.0 == site && entry.1 == argument_index
-    })
-  }
-  self.image.representation_demands.callable_argument_uses_worker(
-    self.caller_instances,
-    site,
-    argument_index,
-    self.excluded_callable_components,
-  )
-}
-
-///|
 fn PhysicalFunctionPlanner::callable_at_result(
   self : PhysicalFunctionPlanner,
 ) -> CallableRepresentationTarget? {
@@ -1532,34 +1707,6 @@ fn PhysicalFunctionPlanner::callable_at_result(
   }
   self.image.representation_demands.callable_instance_at_result(
     self.caller_instances,
-  )
-}
-
-///|
-fn PhysicalFunctionPlanner::callable_result_uses_worker(
-  self : PhysicalFunctionPlanner,
-) -> Bool {
-  if self.representation_contract is Some(contract) {
-    return contract.callable_result is Some(_)
-  }
-  self.image.representation_demands.callable_result_uses_worker(
-    self.caller_instances,
-    self.excluded_callable_components,
-  )
-}
-
-///|
-fn PhysicalFunctionPlanner::data_callable_payload_uses_worker(
-  self : PhysicalFunctionPlanner,
-  site : @anf.AnfBindingId,
-  payload_index : Int,
-) -> Bool {
-  self.image.representation_demands.data_callable_payload_uses_worker(
-    self.caller_instances,
-    site,
-    payload_index,
-    self.excluded_data_components,
-    self.excluded_callable_components,
   )
 }
 
@@ -1634,7 +1781,13 @@ fn ImageLowerer::plan_physical_representations(
             evidence,
             parameters,
             result,
-            Some(physical.required_invocation(planned.function)),
+            Some(
+              self.callable_interface_under_with_invocation(
+                info.type_,
+                RuntimeSubstitution::new(),
+                physical.required_invocation(planned.function),
+              ),
+            ),
             CallableCaptureContract::empty(),
             [],
             None,
@@ -1668,7 +1821,13 @@ fn ImageLowerer::plan_physical_representations(
             evidence,
             parameters,
             result,
-            Some(physical.required_invocation(planned.function)),
+            Some(
+              self.callable_interface_under_with_invocation(
+                plan.type_,
+                plan.substitutions,
+                physical.required_invocation(planned.function),
+              ),
+            ),
             self.plan_lifted_physical_capture(plan),
             [],
             None,
@@ -1692,7 +1851,7 @@ fn ImageLowerer::plan_physical_representations(
             plan.residual_parameters,
             plan.parameter_types,
             plan.result_type,
-            Some(self.representation_worker_invocation(plan)),
+            Some(self.representation_worker_interface(plan)),
             self.plan_representation_worker_capture(plan),
             plan.scalar_parameters,
             Some(plan.key),
@@ -1716,6 +1875,7 @@ fn ImageLowerer::plan_physical_representations(
           calls: [],
           constructs: [],
           matches: [],
+          binding_flows: [],
           callable_allocations: [],
           evidence_applications: [],
           atoms: [],
@@ -1759,7 +1919,9 @@ fn ImageLowerer::plan_physical_representations(
           calls: planner.calls,
           constructs: planner.constructs,
           matches: planner.matches,
+          binding_flows: planner.binding_flows,
           callable_allocations: planner.callable_allocations,
+          evidence_applications: planner.evidence_applications,
         })
       }
       InitializerOrchestrator(_) =>
@@ -1820,7 +1982,7 @@ fn ImageLowerer::plan_physical_representations(
     }
     index += 1
   }
-  { anf, physical }
+  { anf, physical, }
 }
 
 ///|
@@ -1952,7 +2114,7 @@ fn ImageLowerer::plan_physical_function(
   evidence_parameters : Array[@anf.RuntimeEvidenceParameter],
   parameter_types : Array[@anf.RuntimeType],
   result_type : @anf.RuntimeType,
-  expected_invocation : CanonicalCallableAbi?,
+  expected_interface : PhysicalCallableInterface?,
   capture : CallableCaptureContract,
   scalar_parameters : Array[ScalarParameterPlan],
   representation_contract : RepresentationSpecializationKey?,
@@ -1982,11 +2144,15 @@ fn ImageLowerer::plan_physical_function(
     calls: [],
     constructs: [],
     matches: [],
+    binding_flows: [],
     callable_allocations: [],
     evidence_applications: [],
     atoms: [],
     types: [],
   }
+  let expected_invocation = expected_interface.map(interface => {
+    interface.invocation
+  })
   for captured in capture.captures {
     guard captured.shape is Some(shape) else { continue }
     let binding = match captured.binding {
@@ -1994,7 +2160,9 @@ fn ImageLowerer::plan_physical_function(
       CaptureBinding::Temp(temp) => @anf.AnfBindingId::Temp(temp)
     }
     planner.record_type(binding, captured.type_)
-    ignore(planner.append_port(binding, shape.physical_shape()))
+    let shape = shape.physical_shape()
+    let interface = captured.callable_interface
+    ignore(planner.append_port(binding, shape, interface, "capture"))
   }
   let parameters = []
   let parameter_aggregates = []
@@ -2064,18 +2232,38 @@ fn ImageLowerer::plan_physical_function(
         None => planner.instantiate_type(parameter_types[index])
       },
     )
-    parameters.push(planner.append_port(Value(parameter), shape))
+    let parameter_interface = match expected_interface {
+      Some(interface) => interface.parameter_callables[index]
+      None =>
+        planner.callable_interface_at_port(
+          Value(parameter),
+          parameter_types[index],
+          shape,
+          substitutions,
+        )
+    }
+    parameters.push(
+      planner.append_port(
+        Value(parameter),
+        shape,
+        parameter_interface,
+        "function-parameter",
+      ),
+    )
   }
   let produced = planner.plan_expr(function.body, planner.callable_at_result())
   let source_type = planner.expression_result_type(function.body)
   let result_type = planner.instantiate_type(result_type)
-  let boundary_result = planner.shape_of_result(result_type)
+  let boundary_result = match expected_invocation {
+    Some(invocation) => invocation.result.physical_shape()
+    None => planner.shape_of_result(result_type)
+  }
   if produced is Product(_) || boundary_result is Product(_) {
     raise RepresentationSpecializationInvariant(
       detail="Runtime ANF function result has no single-slot invocation shape",
     )
   }
-  let result = planner.preplan_physical_value_flow(
+  let result = planner.preplan_physical_value_flow_with_interfaces(
     "function-result",
     None,
     source_type,
@@ -2085,6 +2273,8 @@ fn ImageLowerer::plan_physical_function(
     boundary_result,
     planner.expression_result_callable_instance(function.body),
     planner.callable_at_result(),
+    planner.expression_result_callable_interface(function.body),
+    expected_interface.bind(interface => interface.result_callable),
   )
   let physical_parameters = []
   for parameter in parameters {
@@ -2123,7 +2313,9 @@ fn ImageLowerer::plan_physical_function(
     calls: planner.calls,
     constructs: planner.constructs,
     matches: planner.matches,
+    binding_flows: planner.binding_flows,
     callable_allocations: planner.callable_allocations,
+    evidence_applications: planner.evidence_applications,
   }
 }
 
@@ -2258,17 +2450,13 @@ fn PhysicalFunctionPlanner::plan_expr(
     Atom(atom) => {
       let atom = self.resolved_atom(atom)
       match result_callable {
-        Some(callable) =>
-          self.planned_atom_shape(
-            atom,
-            Some(callable),
-            self.callable_result_uses_worker(),
-          )
+        Some(callable) => self.planned_atom_shape(atom, Some(callable))
         None => {
-          self.preplan_materialized_atom(
-            atom,
-            self.atom_callable_instance(atom),
-            selected=false,
+          ignore(
+            self.preplan_materialized_atom(
+              atom,
+              self.atom_callable_instance(atom),
+            ),
           )
           self.atom_shape(atom)
         }
@@ -2281,7 +2469,13 @@ fn PhysicalFunctionPlanner::plan_expr(
           detail="Runtime ANF value producer has no planned runtime type",
         )
       }
-      ignore(self.append_port(binding.id(), produced))
+      let interface = self.callable_interface_at_port(
+        binding.id(),
+        self.port_type(binding.id()).unwrap(),
+        produced,
+        self.substitutions,
+      )
+      ignore(self.append_port(binding.id(), produced, interface, "let-binding"))
       self.plan_expr(body, result_callable)
     }
     LetRec(bindings, body) => {
@@ -2291,20 +2485,24 @@ fn PhysicalFunctionPlanner::plan_expr(
             detail="recursive Runtime ANF binding has no runtime type",
           )
         }
-        let callable = match self.callable_at_port(Value(binding.id)) {
+        let port = @anf.AnfBindingId::Value(binding.id)
+        let target_callable = self.callable_at_port(port)
+        let callable = match target_callable {
           Some(callable) => Some(callable)
           None => self.atom_callable_instance(binding.rhs)
         }
-        self.preplan_materialized_atom(
-          binding.rhs,
-          callable,
-          selected=self.callable_port_uses_worker(Value(binding.id)),
-        )
-        self.record_type(Value(binding.id), self.instantiate_type(type_))
-        if self.callable_at_port(Value(binding.id)) is Some(callable) {
+        guard self.preplan_materialized_atom(binding.rhs, callable)
+          is Some(allocation) else {
+          raise RepresentationSpecializationInvariant(
+            detail="recursive Runtime ANF binding has no callable allocation",
+          )
+        }
+        let target_type = self.instantiate_type(type_)
+        self.record_type(port, target_type)
+        if target_callable is Some(callable) {
           guard self.image.callable_representation_implementation(
               callable,
-              self.callable_port_uses_worker(Value(binding.id)),
+              self.callable_port_uses_worker(port),
             )
             is Some(_) else {
             raise RepresentationSpecializationInvariant(
@@ -2312,19 +2510,50 @@ fn PhysicalFunctionPlanner::plan_expr(
             )
           }
         }
-        let shape = match self.callable_at_port(Value(binding.id)) {
+        let target_shape = match target_callable {
           Some(callable) =>
             PhysicalValueShape::Slot(
               CanonicalRuntimeTypeKey::Callable(
                 self.callable_physical_abi(
                   callable,
-                  worker=self.callable_port_uses_worker(Value(binding.id)),
+                  worker=self.callable_port_uses_worker(port),
                 ),
               ),
             )
           None => self.atom_shape(binding.rhs)
         }
-        ignore(self.append_port(Value(binding.id), shape))
+        let source_shape = PhysicalValueShape::Slot(
+          CanonicalRuntimeTypeKey::Callable(allocation.interface.invocation),
+        )
+        let target_interface = match target_callable {
+          Some(callable) =>
+            Some(
+              self.image.callable_representation_interface(
+                callable,
+                worker=self.callable_port_uses_worker(port),
+              ),
+            )
+          None => Some(allocation.interface)
+        }
+        let flow = self.preplan_physical_value_flow_with_interfaces(
+          "recursive-binding",
+          Some(port),
+          self.planned_argument_type(binding.rhs, Some(allocation.callable)),
+          target_type,
+          self.substitutions,
+          source_shape,
+          target_shape,
+          Some(allocation.callable),
+          target_callable,
+          Some(allocation.interface),
+          target_interface,
+        )
+        self.binding_flows.push({ binding: port, target_type, flow, })
+        ignore(
+          self.append_port(
+            port, target_shape, target_interface, "recursive-binding",
+          ),
+        )
       }
       self.plan_expr(body, result_callable)
     }
@@ -2346,31 +2575,48 @@ fn PhysicalFunctionPlanner::rhs_shape(
         )
       }
       self.record_type(site, self.instantiate_type(type_))
-      match self.callable_at_port(site) {
-        Some(instance) => {
-          self.preplan_materialized_atom(
-            self.resolved_atom(atom),
-            Some(instance),
-            selected=self.callable_port_uses_worker(site),
-          )
-          PhysicalValueShape::Slot(
-            CanonicalRuntimeTypeKey::Callable(
-              self.callable_physical_abi(
-                instance,
-                worker=self.callable_port_uses_worker(site),
-              ),
-            ),
-          )
-        }
-        None => {
-          self.preplan_materialized_atom(
-            self.resolved_atom(atom),
-            self.atom_callable_instance(atom),
-            selected=false,
-          )
-          self.atom_shape(atom)
-        }
+      let atom = self.resolved_atom(atom)
+      let target_callable = self.callable_at_port(site)
+      let requested_callable = match target_callable {
+        Some(callable) => Some(callable)
+        None => self.atom_callable_instance(atom)
       }
+      let allocation = self.preplan_materialized_atom(atom, requested_callable)
+      let source_callable = match allocation {
+        Some(allocation) => Some(allocation.callable)
+        None => self.atom_callable_instance(atom)
+      }
+      let source_interface = match allocation {
+        Some(allocation) => Some(allocation.interface)
+        None => self.planned_atom_callable_interface(atom, source_callable)
+      }
+      let source_shape = self.planned_atom_shape(atom, requested_callable)
+      let target_shape = self.shape_of_port(site, self.instantiate_type(type_))
+      let target_interface = target_callable.map(callable => {
+        self.image.callable_representation_interface(
+          callable,
+          worker=self.callable_port_uses_worker(site),
+        )
+      })
+      let flow = self.preplan_physical_value_flow_with_interfaces(
+        "atom-binding",
+        Some(site),
+        self.planned_argument_type(atom, source_callable),
+        self.instantiate_type(type_),
+        self.substitutions,
+        source_shape,
+        target_shape,
+        source_callable,
+        target_callable,
+        source_interface,
+        target_interface,
+      )
+      self.binding_flows.push({
+        binding: site,
+        target_type: self.instantiate_type(type_),
+        flow,
+      })
+      target_shape
     }
     ApplyEvidence(callee~, arguments~) => {
       let inherited = self.deferred_evidence_application(callee)
@@ -2395,42 +2641,99 @@ fn PhysicalFunctionPlanner::rhs_shape(
       for argument in applied {
         self.physical.record_runtime_argument(argument)
       }
+      let type_ = self.applied_callable_type(callee, arguments)
+      let source_type = self.instantiate_type(source_type)
+      let all_arguments = inherited_arguments + applied
+      let source_interface = self
+        .planned_atom_callable_interface(
+          self.resolved_atom(callee),
+          self.atom_callable_instance(callee),
+        )
+        .unwrap_or_else(() => {
+          raise RepresentationSpecializationInvariant(
+            detail="evidence application source has no physical callable interface",
+          )
+        })
+      let materialize = !self.callable_port_uses_worker(site) &&
+        self.image.representation_demands.callable_port_requires_materialization(
+          self.caller_instances,
+          site,
+        )
+      let target_interface = if materialize {
+        self.image.canonical_callable_interface_under(
+          type_,
+          RuntimeSubstitution::new(),
+        )
+      } else {
+        self.image.callable_interface_semantic_view(
+          source_interface,
+          type_,
+          RuntimeSubstitution::new(),
+        )
+      }
+      let adapter = if materialize {
+        self.plan_evidence_application_adapter(
+          source_type, type_, all_arguments, source_interface, target_interface,
+        )
+      } else {
+        None
+      }
+      if adapter is Some(adapter) {
+        self.physical.record_adapter_contract(adapter)
+      }
       self.evidence_applications.push({
         binding: site,
         source_type,
-        arguments: inherited_arguments + applied,
+        target_type: type_,
+        arguments: all_arguments,
+        materialize,
+        adapter,
+        interface: target_interface,
       })
-      let type_ = self.applied_callable_type(callee, arguments)
       self.record_type(site, type_)
       // Evidence application is a deferred invocation view over the same
       // runtime callable. Its arguments become witness operands at the call;
       // no zero-witness callable value is materialized here.
       match self.callable_at_port(site) {
         Some(callable) => {
-          self.preplan_materialized_atom(
+          let source_shape = self.planned_atom_shape(
             self.resolved_atom(callee),
             Some(callable),
-            selected=self.callable_port_uses_worker(site),
           )
-          PhysicalValueShape::Slot(
-            CanonicalRuntimeTypeKey::Callable(
-              self.callable_physical_abi(
-                callable,
-                worker=self.callable_port_uses_worker(site),
+          if materialize {
+            PhysicalValueShape::Slot(
+              CanonicalRuntimeTypeKey::Callable(
+                self.image.canonical_callable_abi_under(
+                  type_,
+                  RuntimeSubstitution::new(),
+                ),
               ),
-            ),
-          )
+            )
+          } else {
+            source_shape
+          }
         }
-        None => self.atom_shape(callee)
+        None =>
+          if materialize {
+            PhysicalValueShape::Slot(
+              CanonicalRuntimeTypeKey::Callable(
+                self.image.canonical_callable_abi_under(
+                  type_,
+                  RuntimeSubstitution::new(),
+                ),
+              ),
+            )
+          } else {
+            self.atom_shape(callee)
+          }
       }
     }
     Call(callee~, arguments~) => {
-      let callee_semantics = self.callable_semantics(callee)
+      let callee_substitutions = self.callable_substitutions(callee)
+      let physical_callee = self.resolved_atom(callee)
+      let callee_callable = self.atom_callable_instance(callee)
       let callable_arguments = Array::makei(arguments.length(), index => {
         self.callable_at_argument(site, index)
-      })
-      let callable_argument_workers = Array::makei(arguments.length(), index => {
-        self.callable_argument_uses_worker(site, index)
       })
       let representation_candidate = self.image
         .representation_call_target(self.flow_instances, site)
@@ -2453,7 +2756,7 @@ fn PhysicalFunctionPlanner::rhs_shape(
             Some({
               instance: pair.0,
               worker: pair.1,
-              substitutions: callee_semantics.substitutions.compose(
+              substitutions: callee_substitutions.compose(
                 pair.0.substitution,
                 self.image.runtime_types,
               ),
@@ -2465,7 +2768,7 @@ fn PhysicalFunctionPlanner::rhs_shape(
         })
         .bind(target => {
           if self.representation_call_preserves_identity(
-              site, arguments, callable_arguments, callable_argument_workers, target,
+              site, arguments, callable_arguments, target,
             ) {
             Some(target)
           } else {
@@ -2474,11 +2777,7 @@ fn PhysicalFunctionPlanner::rhs_shape(
         })
       if target is None {
         for index, argument in arguments {
-          if self.planned_atom_shape(
-              argument,
-              callable_arguments[index],
-              callable_argument_workers[index],
-            )
+          if self.planned_atom_shape(argument, callable_arguments[index])
             is Product(_) {
             let candidate = match representation_candidate {
               None => "no representation worker"
@@ -2487,7 +2786,6 @@ fn PhysicalFunctionPlanner::rhs_shape(
                   self.planned_atom_shape(
                     arguments[argument_index],
                     callable_arguments[argument_index],
-                    callable_argument_workers[argument_index],
                   )
                 })
                 "worker for instance \{instance.id} has source shapes \{Repr(sources)}, scalar parameters \{Repr(worker.scalar_parameters.map(parameter => parameter.parameter_index))}, and invocation \{Repr(self.image.representation_worker_invocation(worker))}"
@@ -2499,7 +2797,7 @@ fn PhysicalFunctionPlanner::rhs_shape(
           }
         }
       }
-      let materializes = match callee {
+      let materializes = match physical_callee {
         Function(_) | EvidenceLambda(..) => true
         Ref(value) => self.port_shape(Value(value)) is None
         Temp(_) | Literal(_) => false
@@ -2507,28 +2805,26 @@ fn PhysicalFunctionPlanner::rhs_shape(
       match target {
         Some({ invocation: Captured(_), .. }) =>
           if materializes {
-            self.preplan_materialized_atom(
-              callee,
-              self.atom_callable_instance(callee),
-              selected=true,
+            ignore(
+              self.preplan_materialized_atom(physical_callee, callee_callable),
             )
           }
         Some({ invocation: Direct, .. }) => ()
         None =>
           if materializes {
-            self.preplan_materialized_atom(
-              callee,
-              self.atom_callable_instance(callee),
-              selected=false,
+            ignore(
+              self.preplan_materialized_atom(physical_callee, callee_callable),
             )
           }
       }
-      guard self.atom_shape(callee)
-        is PhysicalValueShape::Slot(Callable(callee_invocation)) else {
-        raise RepresentationSpecializationInvariant(
-          detail="Runtime ANF call producer lacks a callable physical ABI",
-        )
-      }
+      let callee_interface = self
+        .planned_atom_callable_interface(callee, callee_callable)
+        .unwrap_or_else(() => {
+          raise RepresentationSpecializationInvariant(
+            detail="Runtime ANF call producer lacks a callable physical interface",
+          )
+        })
+      let callee_invocation = callee_interface.invocation
       let result_type = self.planned_call_result_type(callee, target)
       self.record_type(site, result_type)
       let invocation = match target {
@@ -2536,30 +2832,30 @@ fn PhysicalFunctionPlanner::rhs_shape(
           self.image.representation_worker_invocation(target.worker)
         None => callee_invocation
       }
-      let semantics = match target {
-        Some(target) =>
-          self.physical_worker_semantics(target.worker, target.substitutions)
-        None =>
-          self.physical_callable_semantics(
-            callee, callee_invocation, callee_semantics,
-          )
-      }
+      let call_interface = self.physical_call_interface(
+        callee_interface, target, invocation,
+      )
+      let semantics = self.callable_semantics(
+        call_interface,
+        match target {
+          Some(target) => target.substitutions
+          None =>
+            self.callable_interface_substitutions(
+              callee, call_interface, callee_substitutions,
+            )
+        },
+      )
       let argument_flows = match target {
         Some(target) =>
           self.plan_representation_call_arguments(
-            site, arguments, callable_arguments, callable_argument_workers, target,
-            invocation,
+            site, arguments, callable_arguments, target, call_interface,
           )
         None => {
           let source_shapes = []
           for index, argument in arguments {
             source_shapes.push(
               self.physical.intern(
-                self.planned_atom_shape(
-                  argument,
-                  callable_arguments[index],
-                  callable_argument_workers[index],
-                ),
+                self.planned_atom_shape(argument, callable_arguments[index]),
               ),
             )
           }
@@ -2571,7 +2867,7 @@ fn PhysicalFunctionPlanner::rhs_shape(
           )
           self.preplan_call_value_flows(
             site, arguments, callable_arguments, source_shapes, argument_shapes,
-            semantics,
+            semantics, call_interface,
           )
         }
       }
@@ -2587,7 +2883,13 @@ fn PhysicalFunctionPlanner::rhs_shape(
       } else {
         result_callable
       }
-      let result = self.preplan_physical_value_flow(
+      let target_result_interface = self.callable_interface_at_port(
+        site,
+        result_type,
+        result,
+        semantics.substitutions,
+      )
+      let result = self.preplan_physical_value_flow_with_interfaces(
         "call-result",
         Some(site),
         semantics.result_type,
@@ -2597,6 +2899,8 @@ fn PhysicalFunctionPlanner::rhs_shape(
         result,
         bridge_callable,
         result_callable,
+        call_interface.result_callable,
+        target_result_interface,
       )
       let abi_result_evidence = if abi_result
         is PhysicalValueShape::Slot(Value({ cleanup: OwnedErased, .. })) {
@@ -2628,6 +2932,7 @@ fn PhysicalFunctionPlanner::rhs_shape(
         ),
         result_type,
         result_callable,
+        result_interface: target_result_interface,
         result,
       })
       self.physical.shape(result.target)
@@ -2688,20 +2993,20 @@ fn PhysicalFunctionPlanner::rhs_shape(
           self.excluded_data_components,
         )
       })
-      let callable_payload_workers = Array::makei(construct.payloads.length(), index => {
-        self.data_callable_payload_uses_worker(site, index)
-      })
       let payloads = []
       if scalar is Some(contract) {
         for index, target in contract.payload_types {
-          let source_type = self.planned_argument_type(
+          let source_callable = self.planned_atom_callable_target(
             construct.payloads[index],
             callable_payloads[index],
           )
+          let source_type = self.planned_argument_type(
+            construct.payloads[index],
+            source_callable,
+          )
           let source_shape = self.planned_atom_shape(
             construct.payloads[index],
-            callable_payloads[index],
-            callable_payload_workers[index],
+            source_callable,
           )
           let target_shape = self.shape_of_runtime_value_type(target)
           payloads.push(
@@ -2713,7 +3018,7 @@ fn PhysicalFunctionPlanner::rhs_shape(
               self.substitutions,
               source_shape,
               target_shape,
-              self.atom_callable_instance(construct.payloads[index]),
+              source_callable,
               callable_payloads[index],
             ),
           )
@@ -2738,11 +3043,26 @@ fn PhysicalFunctionPlanner::rhs_shape(
         )
       }
       for index, _ in info.payload_types {
-        let source_shape = self.planned_atom_shape(
-          construct.payloads[index],
+        let payload = construct.payloads[index]
+        let target_interface = constructor_plan.storage_callable_interfaces[index]
+        let source_callable = self.planned_atom_callable_target(
+          payload,
           callable_payloads[index],
-          callable_payload_workers[index],
         )
+        let allocation = self.preplan_materialized_atom(
+          payload, source_callable,
+        )
+        let source_shape = match allocation {
+          Some(allocation) =>
+            PhysicalValueShape::Slot(
+              CanonicalRuntimeTypeKey::Callable(allocation.interface.invocation),
+            )
+          None => self.planned_atom_shape(payload, source_callable)
+        }
+        let source_interface = match allocation {
+          Some(allocation) => Some(allocation.interface)
+          None => self.planned_atom_callable_interface(payload, source_callable)
+        }
         let target_shape = constructor_plan.storage_shapes[index].physical_shape()
         if source_shape
           is PhysicalValueShape::Slot(
@@ -2760,19 +3080,18 @@ fn PhysicalFunctionPlanner::rhs_shape(
           )
         }
         payloads.push(
-          self.preplan_physical_value_flow(
+          self.preplan_physical_value_flow_with_interfaces(
             "data-construction-payload",
             Some(site),
-            self.planned_argument_type(
-              construct.payloads[index],
-              callable_payloads[index],
-            ),
+            self.planned_argument_type(payload, source_callable),
             constructor_plan.storage_types[index],
             construct_substitutions,
             source_shape,
             target_shape,
-            self.atom_callable_instance(construct.payloads[index]),
+            source_callable,
             callable_payloads[index],
+            source_interface,
+            target_interface,
           ),
         )
       }
@@ -2795,15 +3114,22 @@ fn PhysicalFunctionPlanner::rhs_shape(
     }
     Match(match_) => {
       let scrutinee = self.resolved_atom(match_.scrutinee)
-      self.preplan_materialized_atom(
-        scrutinee,
-        self.atom_callable_instance(scrutinee),
-        selected=false,
+      let scrutinee_callable = self.atom_callable_instance(scrutinee)
+      ignore(self.preplan_materialized_atom(scrutinee, scrutinee_callable))
+      let scrutinee_shape = self.atom_shape(match_.scrutinee)
+      let scrutinee_interface = self.planned_atom_callable_interface(
+        scrutinee, scrutinee_callable,
       )
-      let scrutinee = self.atom_shape(match_.scrutinee)
-      ignore(self.append_port(Value(match_.binder), scrutinee))
+      ignore(
+        self.append_port(
+          Value(match_.binder),
+          scrutinee_shape,
+          scrutinee_interface,
+          "match-scrutinee",
+        ),
+      )
       let (alternative_substitutions, alternative_payloads) = self.plan_match_payloads(
-        site, match_, scrutinee,
+        site, match_, scrutinee_shape,
       )
       let result_type = self.instantiate_type(match_.result_type)
       self.record_type(site, result_type)
@@ -2841,7 +3167,7 @@ fn PhysicalFunctionPlanner::rhs_shape(
       }
       self.matches.push({
         site,
-        scrutinee: self.physical.intern(scrutinee),
+        scrutinee: self.physical.intern(scrutinee_shape),
         result_type,
         result: self.physical.intern(result),
         alternatives,
@@ -2849,6 +3175,30 @@ fn PhysicalFunctionPlanner::rhs_shape(
       result
     }
   }
+}
+
+///|
+fn PhysicalFunctionPlanner::plan_evidence_application_adapter(
+  self : PhysicalFunctionPlanner,
+  source_type : @anf.RuntimeType,
+  target_type : @anf.RuntimeType,
+  arguments : Array[@anf.RuntimeArgument],
+  source_interface : PhysicalCallableInterface,
+  target_interface : PhysicalCallableInterface,
+) -> CallableAdapterContract? raise LoisvmLoweringError {
+  let (parameters, _, _) = function_type_parts(source_type)
+  if arguments.length() > parameters.length() {
+    raise RepresentationSpecializationInvariant(
+      detail="evidence application consumes more parameters than its callable declares",
+    )
+  }
+  let substitutions = RuntimeSubstitution::new()
+  for index, argument in arguments {
+    substitutions.insert(parameters[index].id, argument)
+  }
+  self.image.plan_callable_adaptation_with_interfaces(
+    source_type, target_type, substitutions, source_interface, target_interface,
+  )
 }
 
 ///|
@@ -2895,6 +3245,24 @@ fn PhysicalFunctionPlanner::expression_result_callable_instance(
 }
 
 ///|
+fn PhysicalFunctionPlanner::expression_result_callable_interface(
+  self : PhysicalFunctionPlanner,
+  expression : @anf.AnfExpr,
+) -> PhysicalCallableInterface? raise LoisvmLoweringError {
+  match expression {
+    Atom(atom) => {
+      let atom = self.resolved_atom(atom)
+      self.planned_atom_callable_interface(
+        atom,
+        self.atom_callable_instance(atom),
+      )
+    }
+    Let(_, body) | LetRec(_, body) =>
+      self.expression_result_callable_interface(body)
+  }
+}
+
+///|
 fn PhysicalFunctionPlanner::atom_callable_instance(
   self : PhysicalFunctionPlanner,
   atom : @anf.AnfAtom,
@@ -2925,6 +3293,18 @@ fn PhysicalFunctionPlanner::atom_callable_instance(
         })
       })
     Literal(_) => None
+  }
+}
+
+///|
+fn PhysicalFunctionPlanner::planned_atom_callable_target(
+  self : PhysicalFunctionPlanner,
+  atom : @anf.AnfAtom,
+  planned : CallableRepresentationTarget?,
+) -> CallableRepresentationTarget? raise LoisvmLoweringError {
+  match materialized_function(atom) {
+    Some(function) => Some(self.materialized_callable_target(function, planned))
+    None => self.atom_callable_instance(atom)
   }
 }
 
@@ -3029,9 +3409,8 @@ fn PhysicalFunctionPlanner::plan_representation_call_arguments(
   site : @anf.AnfBindingId,
   arguments : Array[@anf.AnfAtom],
   callable_arguments : Array[CallableRepresentationTarget?],
-  callable_argument_workers : Array[Bool],
   target : PhysicalRepresentationCallTarget,
-  invocation : CanonicalCallableAbi,
+  interface : PhysicalCallableInterface,
 ) -> Array[PhysicalValueFlowPlan] raise LoisvmLoweringError {
   if arguments.length() != target.worker.parameter_types.length() {
     raise RepresentationSpecializationInvariant(
@@ -3039,6 +3418,7 @@ fn PhysicalFunctionPlanner::plan_representation_call_arguments(
     )
   }
   let flows = []
+  let invocation = interface.invocation
   let mut physical_index = 0
   for index, formal in target.worker.parameter_types {
     let mut scalar : ClosedAggregateContract? = None
@@ -3066,18 +3446,14 @@ fn PhysicalFunctionPlanner::plan_representation_call_arguments(
           physical_index += 1
         }
         let target_shape = PhysicalValueShape::Product(payload_shapes)
-        if self.planned_atom_shape(
-            arguments[index],
-            callable_arguments[index],
-            callable_argument_workers[index],
-          ) !=
+        if self.planned_atom_shape(arguments[index], callable_arguments[index]) !=
           target_shape {
           raise RepresentationSpecializationInvariant(
             detail="closed aggregate call argument disagrees with its worker contract",
           )
         }
         let shape = self.physical.intern(target_shape)
-        flows.push({ source: shape, target: shape, bridge: None })
+        flows.push({ source: shape, target: shape, bridge: None, })
       }
       None => {
         let actual = target.substitutions.apply_type(
@@ -3103,10 +3479,13 @@ fn PhysicalFunctionPlanner::plan_representation_call_arguments(
         let source_shape = self.planned_atom_shape(
           arguments[index],
           callable_arguments[index],
-          callable_argument_workers[index],
+        )
+        let source_callable = self.planned_atom_callable_target(
+          arguments[index],
+          callable_arguments[index],
         )
         flows.push(
-          self.preplan_physical_value_flow(
+          self.preplan_physical_value_flow_with_interfaces(
             "representation-call-argument",
             Some(site),
             source_type,
@@ -3114,8 +3493,13 @@ fn PhysicalFunctionPlanner::plan_representation_call_arguments(
             target.substitutions,
             source_shape,
             target_shape,
-            self.atom_callable_instance(arguments[index]),
+            source_callable,
             callable_arguments[index],
+            self.planned_atom_callable_interface(
+              arguments[index],
+              source_callable,
+            ),
+            interface.parameter_callables[index],
           ),
         )
       }
@@ -3139,13 +3523,13 @@ fn PhysicalFunctionPlanner::representation_call_preserves_identity(
   site : @anf.AnfBindingId,
   arguments : Array[@anf.AnfAtom],
   callable_arguments : Array[CallableRepresentationTarget?],
-  callable_argument_workers : Array[Bool],
   target : PhysicalRepresentationCallTarget,
 ) -> Bool raise LoisvmLoweringError {
   if arguments.length() != target.worker.parameter_types.length() {
     return false
   }
-  let invocation = self.image.representation_worker_invocation(target.worker)
+  let interface = self.image.representation_worker_interface(target.worker)
+  let invocation = interface.invocation
   let mut physical_index = 0
   for index, formal in target.worker.parameter_types {
     let mut scalar : ClosedAggregateContract? = None
@@ -3190,27 +3574,41 @@ fn PhysicalFunctionPlanner::representation_call_preserves_identity(
     let source_shape = self.planned_atom_shape(
       arguments[index],
       callable_arguments[index],
-      callable_argument_workers[index],
     )
     if source_shape != target_shape &&
-      (source_shape is Slot(Callable(_)) || target_shape is Slot(Callable(_))) {
-      guard callable_arguments[index] is Some(callable) else { return false }
+      source_shape is Slot(Callable(source_abi)) &&
+      target_shape is Slot(Callable(target_abi)) {
       let source_type = self.planned_argument_type(
         arguments[index],
-        Some(callable),
+        callable_arguments[index],
       )
-      let aligned = try {
-        let _ = self.image.align_callable_parameters(
-          source_type,
-          formal,
-          target.substitutions,
+      let adaptable = try {
+        let source_callable = self.planned_atom_callable_target(
+          arguments[index],
+          callable_arguments[index],
+        )
+        ignore(
+          self.image.plan_callable_representation_adaptation(
+            source_callable,
+            callable_arguments[index],
+            source_type,
+            formal,
+            target.substitutions,
+            source_abi,
+            target_abi,
+            self.planned_atom_callable_interface(
+              arguments[index],
+              source_callable,
+            ),
+            interface.parameter_callables[index],
+          ),
         )
         true
       } catch {
         InvalidTypeApplication(_) => false
         error => raise error
       }
-      if !aligned {
+      if !adaptable {
         return false
       }
     }
@@ -3258,6 +3656,7 @@ fn PhysicalFunctionPlanner::preplan_call_value_flows(
   source_shapes : Array[PhysicalValueShapeId],
   argument_shapes : Array[PhysicalValueShapeId],
   semantics : PhysicalCallableSemantics,
+  interface : PhysicalCallableInterface,
 ) -> Array[PhysicalValueFlowPlan] raise LoisvmLoweringError {
   let parameters = semantics.parameter_types
   let substitutions = semantics.substitutions
@@ -3278,8 +3677,12 @@ fn PhysicalFunctionPlanner::preplan_call_value_flows(
         detail="callable invocation lacks a source argument shape",
       )
     }
+    let source_callable = self.planned_atom_callable_target(
+      arguments[index],
+      callable_arguments[index],
+    )
     flows.push(
-      self.preplan_physical_value_flow(
+      self.preplan_physical_value_flow_with_interfaces(
         "call-argument",
         Some(site),
         self.planned_argument_type(arguments[index], callable_arguments[index]),
@@ -3287,8 +3690,10 @@ fn PhysicalFunctionPlanner::preplan_call_value_flows(
         substitutions,
         self.physical.shape(source_shape),
         self.physical.shape(target_shape),
-        self.atom_callable_instance(arguments[index]),
+        source_callable,
         callable_arguments[index],
+        self.planned_atom_callable_interface(arguments[index], source_callable),
+        interface.parameter_callables[index],
       ),
     )
   }
@@ -3296,10 +3701,10 @@ fn PhysicalFunctionPlanner::preplan_call_value_flows(
 }
 
 ///|
-fn PhysicalFunctionPlanner::callable_semantics(
+fn PhysicalFunctionPlanner::callable_substitutions(
   self : PhysicalFunctionPlanner,
   callee : @anf.AnfAtom,
-) -> PhysicalCallableSemantics raise LoisvmLoweringError {
+) -> RuntimeSubstitution raise LoisvmLoweringError {
   let base_substitutions = match self.atom_callable_instance(callee) {
     Some(callable) if callable.instance(self.image.callable_instances)
       is Some(instance) =>
@@ -3310,7 +3715,7 @@ fn PhysicalFunctionPlanner::callable_semantics(
     _ => self.substitutions
   }
   let deferred = self.deferred_evidence_application(callee)
-  let (callee_type, substitutions) = match deferred {
+  match deferred {
     Some(application) => {
       let (parameters, _, _) = function_type_parts(application.source_type)
       if parameters.length() != application.arguments.length() {
@@ -3318,50 +3723,47 @@ fn PhysicalFunctionPlanner::callable_semantics(
           detail="deferred evidence application does not close its callable type",
         )
       }
-      (
-        application.source_type,
-        base_substitutions.overlay(
-          RuntimeSubstitution::from_arguments(parameters, application.arguments),
-        ),
+      base_substitutions.overlay(
+        RuntimeSubstitution::from_arguments(parameters, application.arguments),
       )
     }
-    None => {
-      guard self.atom_type(callee) is Some(type_) else {
-        raise RepresentationSpecializationInvariant(
-          detail="Runtime ANF call has no semantic callee type",
-        )
-      }
-      (type_, base_substitutions)
-    }
+    None => base_substitutions
   }
-  let (evidence_parameters, parameter_types, result_type) = function_type_parts(
-    callee_type,
-  )
-  let witnesses = []
-  for parameter in evidence_parameters {
-    if self.image.requires_runtime_evidence(parameter) {
-      witnesses.push(
-        self.image.plan_runtime_argument_evidence(
-          parameter,
-          required_runtime_argument(
-            substitutions,
-            self.image.runtime_types,
-            parameter.id,
-          ),
-        ),
-      )
-    }
-  }
-  { substitutions, witnesses, parameter_types, result_type }
 }
 
 ///|
-fn PhysicalFunctionPlanner::physical_worker_semantics(
+fn PhysicalFunctionPlanner::callable_interface_substitutions(
   self : PhysicalFunctionPlanner,
-  worker : RepresentationSpecializationPlan,
+  callee : @anf.AnfAtom,
+  interface : PhysicalCallableInterface,
+  substitutions : RuntimeSubstitution,
+) -> RuntimeSubstitution raise LoisvmLoweringError {
+  guard self.deferred_evidence_application(callee) is Some(application) else {
+    return substitutions
+  }
+  if interface.evidence_parameters.is_empty() {
+    return substitutions
+  }
+  if interface.evidence_parameters.length() != application.arguments.length() {
+    raise RepresentationSpecializationInvariant(
+      detail="deferred evidence application does not match its physical callable interface",
+    )
+  }
+  substitutions.overlay(
+    RuntimeSubstitution::from_arguments(
+      interface.evidence_parameters,
+      application.arguments,
+    ),
+  )
+}
+
+///|
+fn PhysicalFunctionPlanner::callable_semantics(
+  self : PhysicalFunctionPlanner,
+  interface : PhysicalCallableInterface,
   substitutions : RuntimeSubstitution,
 ) -> PhysicalCallableSemantics raise LoisvmLoweringError {
-  let witnesses = worker.residual_parameters.map(parameter => {
+  let witnesses = interface.evidence_parameters.map(parameter => {
     self.image.plan_runtime_argument_evidence(
       parameter,
       required_runtime_argument(
@@ -3374,61 +3776,29 @@ fn PhysicalFunctionPlanner::physical_worker_semantics(
   {
     substitutions,
     witnesses,
-    parameter_types: worker.parameter_types,
-    result_type: substitutions.apply_type(
-      self.image.runtime_types,
-      worker.result_type,
-    ),
+    parameter_types: interface.parameter_types,
+    result_type: interface.result_type,
   }
 }
 
 ///|
-fn PhysicalFunctionPlanner::physical_callable_semantics(
+/// Returns the complete callable interface selected for one physical call.
+fn PhysicalFunctionPlanner::physical_call_interface(
   self : PhysicalFunctionPlanner,
-  callee : @anf.AnfAtom,
+  callee : PhysicalCallableInterface,
+  target : PhysicalRepresentationCallTarget?,
   invocation : CanonicalCallableAbi,
-  generic : PhysicalCallableSemantics,
-) -> PhysicalCallableSemantics raise LoisvmLoweringError {
-  guard self.atom_callable_instance(callee) is Some(callable) else {
-    return generic
+) -> PhysicalCallableInterface raise LoisvmLoweringError {
+  let interface = match target {
+    Some(target) => self.image.representation_worker_interface(target.worker)
+    None => callee
   }
-  if self.selected_representation_worker(callable) is Some(worker) &&
-    self.image.representation_worker_invocation(worker) == invocation {
-    return self.physical_worker_semantics(
-      worker,
-      generic.substitutions.compose(
-        worker.substitutions,
-        self.image.runtime_types,
-      ),
+  if interface.invocation != invocation {
+    raise RepresentationSpecializationInvariant(
+      detail="physical call interface disagrees with its selected invocation ABI",
     )
   }
-  guard self.image.generic_callable_representation_target(callable)
-    is Semantic(instance) &&
-    self.image.generic_callable_instance_implementation(instance)
-    is Some(implementation) &&
-    self.image.generic_callable_representation_physical_abi(callable) ==
-    invocation else {
-    return generic
-  }
-  let (evidence_parameters, parameter_types, result_type) = function_type_parts(
-    implementation.type_,
-  )
-  let witnesses = evidence_parameters.map(parameter => {
-    self.image.plan_runtime_argument_evidence(
-      parameter,
-      required_runtime_argument(
-        generic.substitutions,
-        self.image.runtime_types,
-        parameter.id,
-      ),
-    )
-  })
-  {
-    substitutions: generic.substitutions,
-    witnesses,
-    parameter_types,
-    result_type,
-  }
+  interface
 }
 
 ///|
@@ -3436,33 +3806,185 @@ fn PhysicalFunctionPlanner::planned_atom_shape(
   self : PhysicalFunctionPlanner,
   argument : @anf.AnfAtom,
   callable_instance : CallableRepresentationTarget?,
-  worker : Bool,
 ) -> PhysicalValueShape raise LoisvmLoweringError {
   if materialized_function(argument) is Some(function) {
-    let (callable, selected) = self.materialized_callable_selection(
+    let callable = self.materialized_callable_target(
       function, callable_instance,
     )
-    self.preplan_callable_allocation(function, callable, selected)
+    let allocation = self.preplan_callable_allocation(function, callable)
     PhysicalValueShape::Slot(
-      CanonicalRuntimeTypeKey::Callable(
-        self.callable_physical_abi(callable, worker=selected),
-      ),
+      CanonicalRuntimeTypeKey::Callable(allocation.interface.invocation),
     )
   } else {
     match (argument, callable_instance) {
       (Ref(value), planned) if self.port_shape(Value(value)) is None => {
-        self.preplan_materialized_atom(argument, planned, selected=worker)
-        match (self.image.find_global(value), planned) {
-          (Some(Function(_, _)), Some(callable)) =>
+        let allocation = self.preplan_materialized_atom(argument, planned)
+        match allocation {
+          Some(allocation) =>
             PhysicalValueShape::Slot(
-              CanonicalRuntimeTypeKey::Callable(
-                self.callable_physical_abi(callable, worker~),
-              ),
+              CanonicalRuntimeTypeKey::Callable(allocation.interface.invocation),
             )
-          _ => self.atom_shape(argument)
+          None => self.atom_shape(argument)
         }
       }
       _ => self.atom_shape(argument)
+    }
+  }
+}
+
+///|
+fn PhysicalFunctionPlanner::planned_atom_callable_interface(
+  self : PhysicalFunctionPlanner,
+  argument : @anf.AnfAtom,
+  callable_instance : CallableRepresentationTarget?,
+) -> PhysicalCallableInterface? raise LoisvmLoweringError {
+  if self.deferred_evidence_application(argument) is Some(application) {
+    return Some(application.interface)
+  }
+  if argument is Ref(value) &&
+    self.image.find_global(value)
+    is Some(InstanceGlobal(_, type_, Callable(invocation))) {
+    guard self.image.callable_interface_for_type_with_invocation(
+        type_,
+        RuntimeSubstitution::new(),
+        invocation,
+      )
+      is Some(interface) else {
+      raise RepresentationSpecializationInvariant(
+        detail="callable instance global has no semantic callable interface",
+      )
+    }
+    return Some(interface)
+  }
+  let local_port = match argument {
+    Ref(value) => Some(@anf.AnfBindingId::Value(value))
+    Temp(temp) => Some(@anf.AnfBindingId::Temp(temp))
+    Function(_) | EvidenceLambda(..) | Literal(_) => None
+  }
+  if local_port is Some(port) && self.port_shape(port) is Some(shape) {
+    guard self.atom_type(argument) is Some(type_) else {
+      raise RepresentationSpecializationInvariant(
+        detail="physical callable atom port has no semantic type",
+      )
+    }
+    return self.callable_interface_at_port(
+      port,
+      type_,
+      shape,
+      self.substitutions,
+    )
+  }
+  match callable_instance {
+    Some(callable) => {
+      if materialized_function(argument) is Some(function) {
+        let callable = self.materialized_callable_target(
+          function,
+          Some(callable),
+        )
+        return Some(
+          self.preplan_callable_allocation(function, callable).interface,
+        )
+      }
+      if argument is Ref(value) &&
+        self.port_shape(Value(value)) is None &&
+        self.preplan_materialized_atom(argument, Some(callable))
+        is Some(allocation) {
+        return Some(allocation.interface)
+      }
+      Some(
+        self.image.callable_representation_interface(
+          callable,
+          worker=self.callable_atom_uses_worker(argument),
+        ),
+      )
+    }
+    None => {
+      let shape = self.planned_atom_shape(argument, None)
+      guard shape is PhysicalValueShape::Slot(Callable(invocation)) else {
+        return None
+      }
+      guard self.atom_type(argument) is Some(type_) &&
+        self.image.callable_interface_for_type_with_invocation(
+          type_,
+          self.substitutions,
+          invocation,
+        )
+        is Some(interface) else {
+        raise RepresentationSpecializationInvariant(
+          detail="physical callable atom has no semantic callable interface",
+        )
+      }
+      Some(interface)
+    }
+  }
+}
+
+///|
+fn PhysicalFunctionPlanner::callable_interface_at_port(
+  self : PhysicalFunctionPlanner,
+  binding : @anf.AnfBindingId,
+  type_ : @anf.RuntimeType,
+  shape : PhysicalValueShape,
+  substitutions : RuntimeSubstitution,
+) -> PhysicalCallableInterface? raise LoisvmLoweringError {
+  guard shape is PhysicalValueShape::Slot(Callable(invocation)) else {
+    return None
+  }
+  for port in self.ports {
+    if port.binding == binding {
+      guard port.callable_interface is Some(interface) &&
+        interface.invocation == invocation else {
+        raise RepresentationSpecializationInvariant(
+          detail="callable value port has no exact physical interface",
+        )
+      }
+      return Some(interface)
+    }
+  }
+  for call in self.calls {
+    if call.site == binding {
+      guard call.result_interface is Some(interface) &&
+        interface.invocation == invocation else {
+        raise RepresentationSpecializationInvariant(
+          detail="callable call-result port has no exact physical interface",
+        )
+      }
+      return Some(interface)
+    }
+  }
+  for application in self.evidence_applications {
+    if application.binding == binding {
+      guard application.interface.invocation == invocation else {
+        raise RepresentationSpecializationInvariant(
+          detail="evidence-application port interface disagrees with its shape",
+        )
+      }
+      return Some(application.interface)
+    }
+  }
+  match self.callable_at_port(binding) {
+    Some(callable) =>
+      Some(
+        self.image.callable_representation_interface(
+          callable,
+          worker=self.callable_port_uses_worker(binding),
+        ),
+      )
+    None => {
+      let projected = self.image.callable_interface_for_type_with_invocation(
+        type_, substitutions, invocation,
+      ) catch {
+        error =>
+          raise RepresentationSpecializationInvariant(
+            detail="physical callable port \{Repr(binding)} cannot project \{Repr(type_)} under \{Repr(substitutions)} with \{Repr(invocation)}: \{Repr(error)}",
+          )
+      }
+      guard projected is Some(interface) else {
+        raise RepresentationSpecializationInvariant(
+          detail="physical callable port has no semantic callable interface",
+        )
+      }
+      Some(interface)
     }
   }
 }
@@ -3477,11 +3999,11 @@ fn materialized_function(atom : @anf.AnfAtom) -> @anf.AnfFunction? {
 }
 
 ///|
-fn PhysicalFunctionPlanner::materialized_callable_selection(
+fn PhysicalFunctionPlanner::materialized_callable_target(
   self : PhysicalFunctionPlanner,
   function : @anf.AnfFunction,
   planned : CallableRepresentationTarget?,
-) -> (CallableRepresentationTarget, Bool) raise LoisvmLoweringError {
+) -> CallableRepresentationTarget raise LoisvmLoweringError {
   let callable = match self.callable_at_allocation(function.id) {
     Some(callable) => callable
     None =>
@@ -3492,9 +4014,7 @@ fn PhysicalFunctionPlanner::materialized_callable_selection(
         )
       })
   }
-  let selected = self.callable_allocation_uses_worker(function.id) &&
-    self.selected_representation_worker(callable) is Some(_)
-  (callable, selected)
+  callable
 }
 
 ///|
@@ -3625,43 +4145,37 @@ fn PhysicalFunctionPlanner::preplan_materialized_atom(
   self : PhysicalFunctionPlanner,
   atom : @anf.AnfAtom,
   callable : CallableRepresentationTarget?,
-  selected~ : Bool,
-) -> Unit raise LoisvmLoweringError {
+) -> PhysicalCallableAllocationPlan? raise LoisvmLoweringError {
   let function = materialized_function(atom)
   if function is Some(function) {
-    let (callable, selected) = self.materialized_callable_selection(
-      function, callable,
-    )
-    guard self.image.callable_representation_implementation(callable, selected)
+    let callable = self.materialized_callable_target(function, callable)
+    guard self.image.callable_representation_implementation(callable, false)
       is Some(_) else {
       raise RepresentationSpecializationInvariant(
         detail="first-class callable has no generic implementation",
       )
     }
-    self.preplan_callable_allocation(function, callable, selected)
-    return
+    return Some(self.preplan_callable_allocation(function, callable))
+  }
+  if atom is Ref(value) &&
+    (
+      self.image.find_global(value) is None ||
+      self.image.find_global(value) is Some(Function(_, _))
+    ) &&
+    callable is Some(callable) {
+    guard callable.instance(self.image.callable_instances) is Some(instance) else {
+      raise RepresentationSpecializationInvariant(
+        detail="planned callable reference names an unknown semantic instance",
+      )
+    }
+    return Some(
+      self.preplan_callable_allocation(instance.definition.function, callable),
+    )
   }
   let type_ = match atom {
     Ref(value) =>
       match self.image.find_global(value) {
-        Some(Function(_, type_)) => {
-          if callable is Some(callable) {
-            guard callable.instance(self.image.callable_instances)
-              is Some(instance) else {
-              raise RepresentationSpecializationInvariant(
-                detail="planned global callable names an unknown semantic instance",
-              )
-            }
-            let selected = selected &&
-              self.selected_representation_worker(callable) is Some(_)
-            self.preplan_callable_allocation(
-              instance.definition.function,
-              callable,
-              selected,
-            )
-          }
-          Some(type_)
-        }
+        Some(Function(_, type_)) => Some(type_)
         Some(Intrinsic(contract)) => {
           ignore(self.image.intrinsic_wrapper(contract))
           Some(contract.type_())
@@ -3671,6 +4185,7 @@ fn PhysicalFunctionPlanner::preplan_materialized_atom(
     Literal(_) | Temp(_) | Function(_) | EvidenceLambda(..) => None
   }
   ignore(type_)
+  None
 }
 
 ///|
@@ -3717,6 +4232,36 @@ fn ImageLowerer::physical_callable_implementation(
 }
 
 ///|
+fn ImageLowerer::physical_callable_implementation_interface(
+  self : ImageLowerer,
+  callable : CallableRepresentationTarget,
+  implementation : PhysicalCallableImplementation,
+) -> PhysicalCallableInterface raise LoisvmLoweringError {
+  match implementation {
+    Generic(instance) => {
+      guard self.generic_callable_representation_target(callable)
+        is Semantic(expected) &&
+        expected == instance else {
+        raise RepresentationSpecializationInvariant(
+          detail="generic callable allocation disagrees with its canonical fallback",
+        )
+      }
+      self.callable_representation_interface(callable, worker=false)
+    }
+    Worker(function) => {
+      guard self.representation_specialization_for_callable(callable)
+        is Some(plan) &&
+        plan.worker == function else {
+        raise RepresentationSpecializationInvariant(
+          detail="representation worker allocation has no matching callable interface",
+        )
+      }
+      self.representation_worker_interface(plan)
+    }
+  }
+}
+
+///|
 fn ImageLowerer::materialized_callable_implementation(
   self : ImageLowerer,
   implementation : PhysicalCallableImplementation,
@@ -3738,7 +4283,7 @@ fn ImageLowerer::materialized_callable_implementation(
       }
       for worker in physical.representation_workers {
         if worker.worker == function {
-          return { function, type_: worker.callable_type() }
+          return { function, type_: worker.callable_type(), }
         }
       }
       raise RepresentationSpecializationInvariant(
@@ -3753,10 +4298,15 @@ fn PhysicalFunctionPlanner::preplan_callable_allocation(
   self : PhysicalFunctionPlanner,
   function : @anf.AnfFunction,
   callable : CallableRepresentationTarget,
-  selected : Bool,
-) -> Unit raise LoisvmLoweringError {
+) -> PhysicalCallableAllocationPlan raise LoisvmLoweringError {
+  let callable = self.callable_at_allocation(function.id).unwrap_or(callable)
+  let selected = self.callable_allocation_uses_worker(function.id) &&
+    self.selected_representation_worker(callable) is Some(_)
   let implementation = self.image.physical_callable_implementation(
     callable, selected,
+  )
+  let interface = self.image.physical_callable_implementation_interface(
+    callable, implementation,
   )
   let capture = self.image.callable_capture_contract(callable, selected)
   let captures : Array[PhysicalValueFlowPlan] = []
@@ -3792,24 +4342,34 @@ fn PhysicalFunctionPlanner::preplan_callable_allocation(
       Some(shape) => shape.physical_shape()
       None => PhysicalValueShape::Unit
     }
+    let callable = self.callable_at_port(binding)
+    let source_interface = self.callable_interface_at_port(
+      binding,
+      source_type,
+      source_shape,
+      self.substitutions,
+    )
     captures.push(
-      self.preplan_physical_value_flow(
+      self.preplan_physical_value_flow_with_interfaces(
         "callable capture",
-        None,
+        Some(binding),
         source_type,
         target.type_,
         self.substitutions,
         source_shape,
         target_shape,
-        self.callable_at_port(binding),
-        self.callable_at_port(binding),
+        callable,
+        callable,
+        source_interface,
+        target.callable_interface,
       ),
     )
   }
   for planned in self.callable_allocations {
     if planned.function == function.id {
       if planned.callable != callable ||
-        planned.implementation != implementation {
+        planned.implementation != implementation ||
+        planned.interface != interface {
         raise RepresentationSpecializationInvariant(
           detail="callable allocation \{Repr(function.id)} received both \{Repr(planned.callable)} via \{Repr(planned.implementation)} and \{Repr(callable)} via \{Repr(implementation)}",
         )
@@ -3826,15 +4386,18 @@ fn PhysicalFunctionPlanner::preplan_callable_allocation(
           detail="one callable allocation received two physical capture contracts",
         )
       }
-      return
+      return planned
     }
   }
-  self.callable_allocations.push({
+  let allocation = {
     function: function.id,
     callable,
     implementation,
+    interface,
     captures,
-  })
+  }
+  self.callable_allocations.push(allocation)
+  allocation
 }
 
 ///|
@@ -3917,31 +4480,43 @@ fn PhysicalFunctionPlanner::plan_match_payloads(
         self.image.runtime_types,
         info.payload_types[index],
       )
-      let source_type = constructor_plan.storage_types[index]
+      let storage_type = constructor_plan.storage_types[index]
       let source_shape = self.shape_from_key(
         constructor_plan.storage_shapes[index],
       )
       let target_type = if family.key is Specialized(_, _, _) {
-        source_type
+        storage_type
       } else {
         payload_type
       }
-      let target_shape = self.shape_of_port(Value(binder), target_type)
-      let source_callable = match
-        constructor_plan.storage_callable_demands[index] {
-        [demand] => Some(demand.callable)
-        _ => None
+      let planned_target_shape = self.shape_of_port(Value(binder), target_type)
+      // A match binder aliases the constructor field that it projects. Data
+      // identity therefore comes from the finalized storage contract; any
+      // later consumer must adapt at its own boundary instead of assigning a
+      // second family to the projection itself.
+      let target_shape = match source_shape {
+        Slot(Value({ kind: DataValue(_), .. })) => source_shape
+        _ => planned_target_shape
       }
-      let flow = self.preplan_physical_value_flow(
+      let target_callable = self.callable_at_port(Value(binder))
+      let target_interface = self.callable_interface_at_port(
+        Value(binder),
+        target_type,
+        target_shape,
+        scopes[alternative_index],
+      )
+      let flow = self.preplan_physical_value_flow_with_interfaces(
         "data-match-payload",
         Some(site),
-        source_type,
+        target_type,
         target_type,
         scopes[alternative_index],
         source_shape,
         target_shape,
-        source_callable,
-        self.callable_at_port(Value(binder)),
+        None,
+        target_callable,
+        constructor_plan.storage_callable_interfaces[index],
+        target_interface,
       )
       payloads[alternative_index].push({
         binding: binder,
@@ -3949,7 +4524,14 @@ fn PhysicalFunctionPlanner::plan_match_payloads(
         flow,
       })
       self.record_type(Value(binder), target_type)
-      ignore(self.append_port(Value(binder), target_shape))
+      ignore(
+        self.append_port(
+          Value(binder),
+          target_shape,
+          target_interface,
+          "match-payload",
+        ),
+      )
     }
   }
   (scopes, payloads)
@@ -4002,14 +4584,10 @@ fn PhysicalFunctionPlanner::atom_shape(
         }
       }
     Function(function) => {
-      let (callable, selected) = self.materialized_callable_selection(
-        function,
-        None,
-      )
+      let callable = self.materialized_callable_target(function, None)
+      let allocation = self.preplan_callable_allocation(function, callable)
       PhysicalValueShape::Slot(
-        CanonicalRuntimeTypeKey::Callable(
-          self.callable_physical_abi(callable, worker=selected),
-        ),
+        CanonicalRuntimeTypeKey::Callable(allocation.interface.invocation),
       )
     }
     EvidenceLambda(body~, ..) => {
@@ -4018,14 +4596,10 @@ fn PhysicalFunctionPlanner::atom_shape(
           detail="Runtime ANF evidence lambda has no callable definition",
         )
       }
-      let (callable, selected) = self.materialized_callable_selection(
-        function,
-        None,
-      )
+      let callable = self.materialized_callable_target(function, None)
+      let allocation = self.preplan_callable_allocation(function, callable)
       PhysicalValueShape::Slot(
-        CanonicalRuntimeTypeKey::Callable(
-          self.callable_physical_abi(callable, worker=selected),
-        ),
+        CanonicalRuntimeTypeKey::Callable(allocation.interface.invocation),
       )
     }
   }
@@ -4322,6 +4896,15 @@ fn ImageLowerer::verify_physical_representations(
       }
     }
     for allocation in entry.1.callable_allocations {
+      if allocation.interface !=
+        self.physical_callable_implementation_interface(
+          allocation.callable,
+          allocation.implementation,
+        ) {
+        raise RepresentationSpecializationInvariant(
+          detail="physical callable allocation interface disagrees with its implementation",
+        )
+      }
       let capture = self.physical_capture_for_implementation(
         allocation.implementation,
       )

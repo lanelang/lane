@@ -9,7 +9,7 @@ priv struct CallableCaptureInput {
 
 ///|
 fn CallableCaptureContract::empty() -> CallableCaptureContract {
-  { captured_evidence: [], captures: [], environment_shape: None }
+  { captured_evidence: [], captures: [], environment_shape: None, }
 }
 
 ///|
@@ -22,7 +22,7 @@ fn ImageLowerer::plan_callable_capture(
   specialized_parameters : Array[@anf.RuntimeEvidenceId],
   excluded_data_components : Array[Int],
   excluded_callable_components : Array[Int],
-  physical_captures? : Array[(@anf.AnfBindingId, CanonicalRuntimeTypeKey)]? = None,
+  physical_captures? : Array[PhysicalCallableCaptureProjection]? = None,
 ) -> CallableCaptureContract raise LoisvmLoweringError {
   self.plan_callable_captures(
     [
@@ -46,10 +46,11 @@ fn ImageLowerer::plan_callable_captures(
   inputs : Array[CallableCaptureInput],
   excluded_data_components : Array[Int],
   excluded_callable_components : Array[Int],
-  physical_captures? : Array[(@anf.AnfBindingId, CanonicalRuntimeTypeKey)]? = None,
+  physical_captures? : Array[PhysicalCallableCaptureProjection]? = None,
 ) -> CallableCaptureContract raise LoisvmLoweringError {
   let capture_types = []
   let capture_shapes : Array[CanonicalRuntimeTypeKey] = []
+  let capture_interfaces : Array[PhysicalCallableInterface?] = []
   let bindings = []
   let function_types = []
   let specialized_parameters = []
@@ -76,13 +77,52 @@ fn ImageLowerer::plan_callable_captures(
         CaptureBinding::Value(value) => @anf.AnfBindingId::Value(value)
         CaptureBinding::Temp(temp) => @anf.AnfBindingId::Temp(temp)
       }
-      let shape = self.planned_callable_capture_shape(
-        input.instances,
-        binding_id,
-        type_,
-        excluded_data_components,
-        excluded_callable_components,
-      )
+      let mut physical_projection : PhysicalCallableCaptureProjection? = None
+      if physical_captures is Some(assignments) {
+        for projection in assignments {
+          if projection.binding == binding_id {
+            physical_projection = Some(projection)
+            break
+          }
+        }
+      }
+      if physical_captures is Some(_) && physical_projection is None {
+        raise RepresentationSpecializationInvariant(
+          detail="representation worker lacks a planned physical capture port",
+        )
+      }
+      let (shape, callable_interface) = match physical_projection {
+        Some(projection) => {
+          let callable_interface = match projection.callable {
+            Some(callable) =>
+              Some(
+                self.callable_representation_interface(
+                  callable,
+                  worker=projection.worker,
+                ),
+              )
+            None =>
+              match projection.shape {
+                Callable(invocation) =>
+                  self.callable_interface_for_type_with_invocation(
+                    type_,
+                    RuntimeSubstitution::new(),
+                    invocation,
+                  )
+                _ => None
+              }
+          }
+          (projection.shape, callable_interface)
+        }
+        None =>
+          self.planned_callable_capture_representation(
+            input.instances,
+            binding_id,
+            type_,
+            excluded_data_components,
+            excluded_callable_components,
+          )
+      }
       let mut existing_index = -1
       for index, existing in bindings {
         if existing == binding {
@@ -92,15 +132,17 @@ fn ImageLowerer::plan_callable_captures(
       }
       if existing_index >= 0 {
         let index = existing_index
-        if capture_shapes[index] != shape {
+        if capture_shapes[index] != shape ||
+          capture_interfaces[index] != callable_interface {
           raise RepresentationSpecializationInvariant(
-            detail="one recursive callable group assigned two physical shapes to the same capture",
+            detail="one recursive callable group assigned two physical representations to the same capture",
           )
         }
         continue
       }
       capture_types.push(type_)
       capture_shapes.push(shape)
+      capture_interfaces.push(callable_interface)
       bindings.push(binding)
     }
   }
@@ -128,8 +170,51 @@ fn ImageLowerer::plan_callable_captures(
         }
       }
     }
-    { source, target }
+    { source, target, }
   })
+  let captures = []
+  for index, binding in bindings {
+    let type_ = capture_types[index]
+    let callable_interface = capture_interfaces[index]
+    let shape = capture_shapes[index]
+    match shape {
+      Unit =>
+        captures.push({
+          binding,
+          type_,
+          shape: None,
+          callable_interface: None,
+          member_index: None,
+        })
+      shape => {
+        match (shape, callable_interface) {
+          (Callable(invocation), Some(interface)) if interface.invocation ==
+            invocation => ()
+          (Callable(_), _) | (_, Some(_)) =>
+            raise RepresentationSpecializationInvariant(
+              detail="callable capture interface \{Repr(callable_interface)} disagrees with its physical shape \{Repr(shape)}",
+            )
+          (_, None) => ()
+        }
+        captures.push({
+          binding,
+          type_,
+          shape: Some(shape),
+          callable_interface,
+          member_index: None,
+        })
+      }
+    }
+  }
+  self.finalize_callable_capture_contract(captured_evidence, captures)
+}
+
+///|
+fn ImageLowerer::finalize_callable_capture_contract(
+  self : ImageLowerer,
+  captured_evidence : Array[CapturedEvidencePlan],
+  captures : Array[CapturePlan],
+) -> CallableCaptureContract raise LoisvmLoweringError {
   let members : Array[@bytecode.MemberSchema] = []
   for evidence in captured_evidence {
     let metadata = runtime_evidence_metadata(evidence.target)
@@ -140,35 +225,12 @@ fn ImageLowerer::plan_callable_captures(
       witness_ordinal: None,
     })
   }
-  let captures = []
+  let finalized = []
   let mut stored_witness_count = 0
-  for index, binding in bindings {
-    let type_ = capture_types[index]
-    let shape = match physical_captures {
-      Some(assignments) => {
-        let capture_binding = match binding {
-          CaptureBinding::Value(value) => @anf.AnfBindingId::Value(value)
-          CaptureBinding::Temp(temp) => @anf.AnfBindingId::Temp(temp)
-        }
-        let mut selected : CanonicalRuntimeTypeKey? = None
-        for assignment in assignments {
-          if assignment.0 == capture_binding {
-            selected = Some(assignment.1)
-            break
-          }
-        }
-        guard selected is Some(shape) else {
-          raise RepresentationSpecializationInvariant(
-            detail="representation worker lacks a planned physical capture port",
-          )
-        }
-        shape
-      }
-      None => capture_shapes[index]
-    }
-    match shape {
-      Unit => captures.push({ binding, type_, shape: None, member_index: None })
-      shape => {
+  for capture in captures {
+    match capture.shape {
+      None => finalized.push({ ..capture, member_index: None, })
+      Some(shape) => {
         let (metadata, witness_ordinal) = if shape
           is Value({ cleanup: OwnedErased, .. }) {
           let ordinal = stored_witness_count
@@ -193,31 +255,26 @@ fn ImageLowerer::plan_callable_captures(
           kind: metadata.kind,
           witness_ordinal,
         })
-        captures.push({
-          binding,
-          type_,
-          shape: Some(shape),
-          member_index: Some(member_index),
-        })
+        finalized.push({ ..capture, member_index: Some(member_index), })
       }
     }
   }
   {
     captured_evidence,
-    captures,
+    captures: finalized,
     environment_shape: self.environment_shape(stored_witness_count, members),
   }
 }
 
 ///|
-fn ImageLowerer::planned_callable_capture_shape(
+fn ImageLowerer::planned_callable_capture_representation(
   self : ImageLowerer,
   instances : Array[Int],
   binding : @anf.AnfBindingId,
   type_ : @anf.RuntimeType,
   excluded_data_components : Array[Int],
   excluded_callable_components : Array[Int],
-) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
+) -> (CanonicalRuntimeTypeKey, PhysicalCallableInterface?) raise LoisvmLoweringError {
   if self.representation_demands.callable_instance_at_port_excluding(
       instances, binding, excluded_callable_components,
     )
@@ -226,16 +283,32 @@ fn ImageLowerer::planned_callable_capture_shape(
         instances, binding, excluded_callable_components,
       ) &&
       self.representation_specialization_for_callable(callable) is Some(plan) {
-      return Callable(self.representation_worker_invocation(plan))
+      return (
+        Callable(self.representation_worker_invocation(plan)),
+        Some(self.representation_worker_interface(plan)),
+      )
     }
-    return Callable(self.generic_callable_representation_physical_abi(callable))
+    return (
+      Callable(self.generic_callable_representation_physical_abi(callable)),
+      Some(self.callable_representation_interface(callable, worker=false)),
+    )
   }
-  self.canonical_runtime_type_key_for_family(
+  let shape = self.canonical_runtime_type_key_for_family(
     type_,
     self.representation_demands.data_family_at_capture_excluding(
       instances, binding, excluded_data_components,
     ),
   )
+  let callable_interface = match shape {
+    Callable(invocation) =>
+      self.callable_interface_for_type_with_invocation(
+        type_,
+        RuntimeSubstitution::new(),
+        invocation,
+      )
+    _ => None
+  }
+  (shape, callable_interface)
 }
 
 ///|

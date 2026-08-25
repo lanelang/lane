@@ -32,7 +32,7 @@ fn CpsEnvironment::answer(
   self : CpsEnvironment,
   answer_type : @buslane.Type,
 ) -> CpsAnswer {
-  { type_: answer_type, residual: self.residual }
+  { type_: answer_type, residual: self.residual, }
 }
 
 ///|
@@ -47,7 +47,7 @@ fn rewrite_selective_cps_abis_or_raise(
   let schema = build_dictionary_cps_schema_or_raise(program.metadata)
   rewrite_cps_source_metadata(schema, declarations)
   let terms = source.terms.map(term => lower_cps_top_term(schema, source, term))
-  let output = Program::{ metadata: program.metadata, terms }
+  let output = Program::{ metadata: program.metadata, terms, }
   validate_mon_trans_output_or_raise(output)
   output
 }

@@ -37,8 +37,8 @@ pub fn lower_checked_source_files_to_buslane_result(
     }
   }
   {
-    program: { metadata: object_set.objects[0].program.metadata, terms },
-    externals: { builtins, runtime_imports },
+    program: { metadata: object_set.objects[0].program.metadata, terms, },
+    externals: { builtins, runtime_imports, },
     entries,
   }
 }
@@ -90,7 +90,7 @@ pub fn lower_checked_source_files_to_buslane_objects(
         source.canonical_basic_abi,
         fn(symbol) { lowerer.type_id(symbol) },
       ),
-      program: { metadata: lowerer.metadata, terms: external_terms },
+      program: { metadata: lowerer.metadata, terms: external_terms, },
       externals: {
         builtins: buslane_builtins_from(
           lowerer.builtin_externals,
@@ -155,7 +155,7 @@ fn lower_checked_source_file_to_buslane_object_with_imports_or_raise(
       source.canonical_basic_abi,
       fn(symbol) { lowerer.type_id(symbol) },
     ),
-    program: { metadata: lowerer.metadata, terms: external_terms },
+    program: { metadata: lowerer.metadata, terms: external_terms, },
     externals: {
       builtins: buslane_builtins_from(lowerer.builtin_externals, builtin_start),
       runtime_imports: buslane_runtime_imports_from(

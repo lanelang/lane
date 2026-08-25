@@ -160,32 +160,32 @@ struct HostResult[T] {
 
 ///|
 pub fn HostResult::unit() -> HostResult[Unit] {
-  { kind: Unit, encode: _ => Unit }
+  { kind: Unit, encode: _ => Unit, }
 }
 
 ///|
 pub fn HostResult::bool() -> HostResult[Bool] {
-  { kind: Bool, encode: value => Bool(value) }
+  { kind: Bool, encode: value => Bool(value), }
 }
 
 ///|
 pub fn HostResult::i64() -> HostResult[Int64] {
-  { kind: I64, encode: value => I64(value) }
+  { kind: I64, encode: value => I64(value), }
 }
 
 ///|
 pub fn HostResult::f64() -> HostResult[Double] {
-  { kind: F64, encode: value => F64(value) }
+  { kind: F64, encode: value => F64(value), }
 }
 
 ///|
 pub fn HostResult::f32() -> HostResult[Float] {
-  { kind: F32, encode: value => F32(value) }
+  { kind: F32, encode: value => F32(value), }
 }
 
 ///|
 pub fn HostResult::string() -> HostResult[String] {
-  { kind: String, encode: value => String(@utf8.encode(value)) }
+  { kind: String, encode: value => String(@utf8.encode(value)), }
 }
 
 ///|

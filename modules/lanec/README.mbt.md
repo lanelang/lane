@@ -113,7 +113,7 @@ test "compile a multi-module Lane source set" {
       #|pub let answer : I64 = 42
     ),
   }
-  let result = @compile.compile({ root, libraries: [library] })
+  let result = @compile.compile({ root, libraries: [library], })
   guard result is Succeeded(program, warnings) else {
     fail("expected compilation to succeed")
   }

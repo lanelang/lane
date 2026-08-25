@@ -374,17 +374,17 @@ fn command_report(
   details? : Array[String] = [],
   suggestions? : Array[CommandSuggestion] = [],
 ) -> CommandReport {
-  { code, title, fields, details, suggestions }
+  { code, title, fields, details, suggestions, }
 }
 
 ///|
 fn command_report_field(name : String, value : String) -> CommandReportField {
-  { name, value }
+  { name, value, }
 }
 
 ///|
 fn command_suggestion(message : String, command? : String) -> CommandSuggestion {
-  { message, command }
+  { message, command, }
 }
 
 ///|

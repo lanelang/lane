@@ -87,7 +87,7 @@ pub fn typecheck_source_file(
   if !checker.validate_canonical_basic_abi_demands() {
     return Ok({
       declarations: checker.declarations,
-      values: { values: [] },
+      values: { values: [], },
       diagnostics: deduplicate_typecheck_diagnostics(checker.diagnostics),
     })
   }
@@ -101,7 +101,7 @@ pub fn typecheck_source_file(
   }
   let result = {
     declarations: checker.declarations,
-    values: { values: checker.values },
+    values: { values: checker.values, },
     diagnostics: deduplicate_typecheck_diagnostics(checker.diagnostics),
   }
   let errors = invalid_input_metadata_errors(result.diagnostics)
@@ -146,7 +146,7 @@ fn SemanticChecker::seed_imported_top_level_value_type(
   let parameters = value.parameters.map(fn(parameters) {
     parameters.map(checked_value_parameter_from_interface)
   })
-  let binding = { symbol: value.symbol, type_: value.type_, parameters }
+  let binding = { symbol: value.symbol, type_: value.type_, parameters, }
   self.value_types.push(binding)
   self.ordered_value_types.push(binding)
   if value.is_offered && self.imported_offer_is_visible(value.symbol) {

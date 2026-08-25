@@ -10,7 +10,7 @@ fn runtime_anf_test_input(program : @buslane.Program) -> RuntimeAnfInput {
         }
     }
   }
-  { program, retained_values }
+  { program, retained_values, }
 }
 
 ///|
