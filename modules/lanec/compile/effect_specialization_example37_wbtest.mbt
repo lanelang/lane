@@ -58,8 +58,11 @@ test "real example 37 shares escaped callable adapter workers" {
       match stage {
         InitialVmcfg(image, provenance) => {
           let worker_ids = []
-          for item in provenance {
-            if item.origins.any(origin => origin is CallableAdapter) {
+          for item in provenance.functions {
+            if item.origins.any(origin => {
+                origin
+                is @loisvm_lowering.LoisvmFunctionOrigin::CallableAdapter(_)
+              }) {
               worker_ids.push(item.function)
             }
           }
@@ -77,8 +80,11 @@ test "real example 37 shares escaped callable adapter workers" {
           }
         }
         FinalBytecode(_, provenance) =>
-          for item in provenance {
-            if item.origins.any(origin => origin is CallableAdapter) {
+          for item in provenance.functions {
+            if item.origins.any(origin => {
+                origin
+                is @loisvm_lowering.LoisvmFunctionOrigin::CallableAdapter(_)
+              }) {
               finalized_adapter_workers += 1
             }
           }
@@ -91,7 +97,7 @@ test "real example 37 shares escaped callable adapter workers" {
   }
   assert_eq(
     (adapter_workers, adapter_materializations, finalized_adapter_workers),
-    (22, 30, 22),
+    (21, 29, 21),
   )
 }
 

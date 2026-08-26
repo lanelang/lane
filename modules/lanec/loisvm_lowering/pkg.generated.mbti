@@ -20,6 +20,9 @@ pub(all) suberror FunctionProvenanceError {
   OriginCountMismatch(functions~ : Int, origins~ : Int)
   InvalidSourceFunction(function~ : @bytecode.FunctionId)
   FinalizedFunctionCountMismatch(functions~ : Int, origins~ : Int)
+  TransitionOperationCountMismatch(function~ : @bytecode.FunctionId, events~ : Int, operations~ : Int)
+  TransitionEventStreamMismatch(function~ : @bytecode.FunctionId, source~ : @bytecode.FunctionId)
+  TransitionEventMismatch(function~ : @bytecode.FunctionId, event~ : Int, transition~ : LoisvmRepresentationTransitionId)
 } derive(Eq, @debug.Debug)
 
 pub(all) suberror LoisvmLoweringError {
@@ -42,6 +45,14 @@ pub(all) suberror LoisvmLoweringError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) struct LoisvmCallableContractNode {
+  id : Int
+  representative : Int
+  witnesses : Array[@bytecode.ValueAbi]
+  parameters : Array[LoisvmRepresentationContract]
+  result : LoisvmRepresentationContract
+} derive(Eq, @debug.Debug)
+
 pub(all) enum LoisvmFunctionOrigin {
   TopLevelFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
   LiftedFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
@@ -49,7 +60,7 @@ pub(all) enum LoisvmFunctionOrigin {
   Initializer(source~ : @buslane.ValueId)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
-  CallableAdapter
+  CallableAdapter(transition~ : LoisvmRepresentationTransitionId)
   RepresentationSpecialization(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
   LayoutConstructor
   RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
@@ -60,11 +71,69 @@ pub(all) struct LoisvmFunctionProvenance {
   origins : Array[LoisvmFunctionOrigin]
 } derive(Eq, @debug.Debug)
 
+pub(all) struct LoisvmLoweringProvenance {
+  functions : Array[LoisvmFunctionProvenance]
+  callable_contracts : Array[LoisvmCallableContractNode]
+  representation_transitions : Array[LoisvmRepresentationTransition]
+  transition_occurrences : Array[LoisvmRepresentationTransitionOccurrence]
+} derive(Eq, @debug.Debug)
+
 pub(all) enum LoisvmLoweringStage {
   Anf(@anf.AnfProgram)
-  InitialVmcfg(@vmcfg.Image, Array[LoisvmFunctionProvenance])
-  FinalBytecode(@bytecode.BytecodeImage, Array[LoisvmFunctionProvenance])
+  InitialVmcfg(@vmcfg.Image, LoisvmLoweringProvenance)
+  FinalBytecode(@bytecode.BytecodeImage, LoisvmLoweringProvenance)
 }
+
+pub(all) enum LoisvmRepresentationContract {
+  Unit
+  Value(@bytecode.ValueAbi)
+  Callable(contract~ : Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LoisvmRepresentationTransition {
+  id : LoisvmRepresentationTransitionId
+  source : LoisvmRepresentationContract
+  target : LoisvmRepresentationContract
+  kind : LoisvmRepresentationTransitionKind
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LoisvmRepresentationTransitionBoundary {
+  InitializerResult
+  FunctionResult
+  RecursiveBinding
+  AtomBinding
+  CallResult
+  ScalarConstructionPayload
+  DataConstructionPayload
+  MatchResult
+  RepresentationCallArgument
+  CallArgument
+  CallableCapture
+  DataMatchPayload
+  CallableAdapterArgument
+  CallableAdapterDiscard
+  CallableAdapterResult
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LoisvmRepresentationTransitionId {
+  index : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LoisvmRepresentationTransitionKind {
+  Erase
+  Unerase
+  CallableAdapter
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LoisvmRepresentationTransitionOccurrence {
+  event : Int
+  function : @bytecode.FunctionId
+  origins : Array[LoisvmFunctionOrigin]
+  transition : LoisvmRepresentationTransitionId
+  boundary : LoisvmRepresentationTransitionBoundary
+  binding : @anf.AnfBindingId?
+  ordinal : Int?
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 

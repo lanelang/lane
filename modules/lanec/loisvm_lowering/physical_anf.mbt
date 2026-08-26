@@ -582,7 +582,7 @@ fn ImageLowerer::record_physical_global_contracts(
       Function(function, _) => PhysicalFunction(function)
       Intrinsic(contract) => {
         let wrapper = self.intrinsic_wrapper(contract)
-        physical.add_invocation(wrapper.function, wrapper.invocation())
+        physical.add_invocation(wrapper.function, wrapper.invocation)
         PhysicalIntrinsic(wrapper)
       }
       FloatConstant(bits, _) => PhysicalFloatConstant(bits)
@@ -600,6 +600,7 @@ fn PhysicalAnfProgram::verify_call(
   result : PhysicalValueShapeId,
   call : PhysicalAnfCall,
 ) -> Unit raise LoisvmLoweringError {
+  let invocation = self.callable_contract(call.plan.invocation)
   self.verify_atom(environment, call.callee)
   if call.arguments.length() != call.plan.arguments.length() {
     raise RepresentationSpecializationInvariant(
@@ -618,7 +619,7 @@ fn PhysicalAnfProgram::verify_call(
     }
     self.append_parameter_keys(flow.target.shape, invocation_parameters)
   }
-  if invocation_parameters != call.plan.invocation.parameters {
+  if invocation_parameters != invocation.parameters {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF call argument flows disagree with its callable ABI",
     )
@@ -626,7 +627,7 @@ fn PhysicalAnfProgram::verify_call(
   self.verify_value_flow(call.plan.result)
   if call.plan.result.target.shape != result ||
     self.shape(call.plan.result.source.shape).canonical_result() !=
-    call.plan.invocation.result {
+    invocation.result {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF call result disagrees with its invocation contract",
     )
@@ -877,7 +878,7 @@ fn PhysicalAnfProgram::verify_callable_allocation(
 ) -> Unit raise LoisvmLoweringError {
   guard self.function(allocation.lowered_implementation.function)
     is Some(function) &&
-    function.interface == allocation.interface else {
+    function.interface.representation_equal(allocation.interface) else {
     raise RepresentationSpecializationInvariant(
       detail="Physical ANF callable allocation disagrees with its selected implementation",
     )

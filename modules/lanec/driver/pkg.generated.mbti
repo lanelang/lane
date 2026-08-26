@@ -5,6 +5,7 @@ import {
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/executable",
   "Milky2018/lanec/module/frontend",
+  "Milky2018/loisvm/bytecode",
   "moonbitlang/core/debug",
 }
 
@@ -28,6 +29,19 @@ pub(all) struct EntrySummary {
   module_path_text : String
   name : String
   type_text : String
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExploreAnfBindingRef {
+  Value(Int)
+  Temp(Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreCallableContractNode {
+  id : Int
+  representative : Int
+  witnesses : Array[@bytecode.ValueAbi]
+  parameters : Array[ExploreRepresentationContract]
+  result : ExploreRepresentationContract
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ExploreCompilerIdentity {
@@ -61,7 +75,7 @@ pub(all) enum ExploreFunctionRole {
   Initializer(value~ : Int, name~ : String?)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
-  CallableAdapter
+  CallableAdapter(transition~ : Int)
   RepresentationWorker(value~ : Int?, name~ : String?)
   LayoutConstructor
   RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
@@ -139,6 +153,60 @@ pub(all) struct ExploreReport {
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
   stages : ExploreStages
   functions : ExploreFunctionGraph
+  representations : ExploreRepresentationGraph
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExploreRepresentationContract {
+  Unit
+  Value(@bytecode.ValueAbi)
+  Callable(contract~ : Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreRepresentationGraph {
+  callable_contracts : Array[ExploreCallableContractNode]
+  transitions : Array[ExploreRepresentationTransition]
+  occurrences : Array[ExploreRepresentationTransitionOccurrence]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreRepresentationTransition {
+  id : Int
+  source : ExploreRepresentationContract
+  target : ExploreRepresentationContract
+  kind : ExploreRepresentationTransitionKind
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExploreRepresentationTransitionBoundary {
+  InitializerResult
+  FunctionResult
+  RecursiveBinding
+  AtomBinding
+  CallResult
+  ScalarConstructionPayload
+  DataConstructionPayload
+  MatchResult
+  RepresentationCallArgument
+  CallArgument
+  CallableCapture
+  DataMatchPayload
+  CallableAdapterArgument
+  CallableAdapterDiscard
+  CallableAdapterResult
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ExploreRepresentationTransitionKind {
+  Erase
+  Unerase
+  CallableAdapter
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ExploreRepresentationTransitionOccurrence {
+  event : Int
+  function : ExploreFunctionRef
+  transition : Int
+  roles : Array[ExploreFunctionRole]
+  boundary : ExploreRepresentationTransitionBoundary
+  binding : ExploreAnfBindingRef?
+  ordinal : Int?
 } derive(Eq, @debug.Debug)
 
 pub(all) struct ExploreRequest {

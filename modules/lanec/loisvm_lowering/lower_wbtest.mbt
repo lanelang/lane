@@ -127,6 +127,8 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     callable_catalog: anf.callable_catalog(),
     callable_instances: CallableInstancePlan::empty(),
     representation_solution: RepresentationSolution::empty(),
+    callable_contracts: PhysicalCallableContractCatalog::new(),
+    representation_transitions: PhysicalRepresentationTransitionCatalog::new(),
     runtime_types: RuntimeTypeArena::from_metadata(runtime_metadata),
     externals: { builtins: [], runtime_imports: [], },
     globals: [],
@@ -846,8 +848,10 @@ test "runtime imports are deduplicated and sorted after bytecode bodies" {
       { module_path_text: "Main", name: "main", value: main, },
       fn(observed) {
         match observed {
-          InitialVmcfg(_, provenance) => initial_provenance = provenance
-          FinalBytecode(_, provenance) => final_provenance = provenance
+          InitialVmcfg(_, provenance) =>
+            initial_provenance = provenance.functions
+          FinalBytecode(_, provenance) =>
+            final_provenance = provenance.functions
           Anf(_) => ()
         }
       },
@@ -3271,7 +3275,7 @@ test "closed repeated data uses share one specialized family end to end" {
       #|[
       #|  Data(
       #|    {
-      #|      family: { value: 0 },
+      #|      family: { value: 1 },
       #|      constructor_tag: 0,
       #|      stored_witness_count: 0,
       #|      members: [],
@@ -3279,7 +3283,7 @@ test "closed repeated data uses share one specialized family end to end" {
       #|  ),
       #|  Data(
       #|    {
-      #|      family: { value: 0 },
+      #|      family: { value: 1 },
       #|      constructor_tag: 1,
       #|      stored_witness_count: 1,
       #|      members: [
@@ -3294,7 +3298,7 @@ test "closed repeated data uses share one specialized family end to end" {
       #|  ),
       #|  Data(
       #|    {
-      #|      family: { value: 1 },
+      #|      family: { value: 0 },
       #|      constructor_tag: 0,
       #|      stored_witness_count: 0,
       #|      members: [],
@@ -3302,7 +3306,7 @@ test "closed repeated data uses share one specialized family end to end" {
       #|  ),
       #|  Data(
       #|    {
-      #|      family: { value: 1 },
+      #|      family: { value: 0 },
       #|      constructor_tag: 1,
       #|      stored_witness_count: 0,
       #|      members: [

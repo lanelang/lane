@@ -55,7 +55,7 @@ fn explore_stage_scale(
 }
 
 ///|
-test "explore protocol v6 exposes all eighteen ordered completed stages" {
+test "explore protocol v7 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -78,7 +78,7 @@ test "explore protocol v6 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  6,
+      #|  7,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -692,7 +692,7 @@ test "explore records concrete-answer CPS callback representation costs" {
   let adapter_count = report.functions.nodes
     .filter(node => {
       node.function.stage == VmcfgInitial &&
-      node.roles.any(role => role is CallableAdapter)
+      node.roles.any(role => role is CallableAdapter(_))
     })
     .length()
   debug_inspect(
@@ -916,6 +916,7 @@ test "explore keeps expanding recursive representation SCC generic" {
         #|
         #|pub fn main() -> Unit ! Io {
         #|  grow[I64](read_flag(), 42)
+        #|  grow[I64](read_flag(), 7)
         #|}
       ),
     ),
@@ -929,11 +930,66 @@ test "explore keeps expanding recursive representation SCC generic" {
       explore_stage_scale(stage)
     })
   debug_inspect(
-    (report.status, report.diagnostics, selected),
+    (
+      report.status,
+      report.diagnostics,
+      report.representations.transitions,
+      report.representations.occurrences,
+      selected,
+    ),
     content=(
       #|(
       #|  Succeeded,
       #|  [],
+      #|  [
+      #|    {
+      #|      id: 0,
+      #|      source: Value(
+      #|        {
+      #|          representation: I32,
+      #|          cleanup: OwnedRef,
+      #|          kind: DataValue({ value: 0 }),
+      #|        },
+      #|      ),
+      #|      target: Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue }),
+      #|      kind: Erase,
+      #|    },
+      #|    {
+      #|      id: 1,
+      #|      source: Value({ representation: I64, cleanup: Trivial, kind: ScalarValue }),
+      #|      target: Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue }),
+      #|      kind: Erase,
+      #|    },
+      #|  ],
+      #|  [
+      #|    {
+      #|      event: 0,
+      #|      function: { stage: VmcfgInitial, index: 1 },
+      #|      transition: 0,
+      #|      roles: [SourceFunction(value=1, name=Some("grow"))],
+      #|      boundary: CallArgument,
+      #|      binding: Some(Temp(2)),
+      #|      ordinal: Some(1),
+      #|    },
+      #|    {
+      #|      event: 0,
+      #|      function: { stage: VmcfgInitial, index: 2 },
+      #|      transition: 1,
+      #|      roles: [SourceFunction(value=5, name=Some("main"))],
+      #|      boundary: CallArgument,
+      #|      binding: Some(Temp(6)),
+      #|      ordinal: Some(1),
+      #|    },
+      #|    {
+      #|      event: 1,
+      #|      function: { stage: VmcfgInitial, index: 2 },
+      #|      transition: 1,
+      #|      roles: [SourceFunction(value=5, name=Some("main"))],
+      #|      boundary: CallArgument,
+      #|      binding: Some(Temp(9)),
+      #|      ordinal: Some(1),
+      #|    },
+      #|  ],
       #|  [
       #|    (
       #|      "vmcfg.initial",
@@ -941,14 +997,14 @@ test "explore keeps expanding recursive representation SCC generic" {
       #|        ("functionCount", 2),
       #|        ("importCount", 1),
       #|        ("blockCount", 4),
-      #|        ("instructionCount", 10),
-      #|        ("valueCount", 14),
-      #|        ("directCallCount", 3),
+      #|        ("instructionCount", 15),
+      #|        ("valueCount", 19),
+      #|        ("directCallCount", 5),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 2),
+      #|        ("eraseCount", 3),
       #|        ("uneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
@@ -959,7 +1015,7 @@ test "explore keeps expanding recursive representation SCC generic" {
       #|      ],
       #|      [
       #|        { index: 1, block_count: 3, operation_count: 5, value_count: 9 },
-      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 5 },
+      #|        { index: 2, block_count: 1, operation_count: 10, value_count: 10 },
       #|      ],
       #|    ),
       #|    (
@@ -968,14 +1024,14 @@ test "explore keeps expanding recursive representation SCC generic" {
       #|        ("functionCount", 2),
       #|        ("importCount", 1),
       #|        ("blockCount", 5),
-      #|        ("instructionCount", 11),
-      #|        ("slotCount", 12),
-      #|        ("directCallCount", 3),
+      #|        ("instructionCount", 16),
+      #|        ("slotCount", 13),
+      #|        ("directCallCount", 5),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 2),
+      #|        ("eraseCount", 3),
       #|        ("uneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 1),
@@ -987,7 +1043,7 @@ test "explore keeps expanding recursive representation SCC generic" {
       #|      ],
       #|      [
       #|        { index: 1, block_count: 4, operation_count: 6, value_count: 7 },
-      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 5 },
+      #|        { index: 2, block_count: 1, operation_count: 10, value_count: 6 },
       #|      ],
       #|    ),
       #|  ],
@@ -1025,7 +1081,7 @@ test "explore removes alpha-renamed adapters during CPS core normalization" {
   )
   let adapter_roles = report.functions.nodes.filter_map(node => {
     guard node.function.stage == VmcfgInitial &&
-      node.roles.any(role => role is CallableAdapter) else {
+      node.roles.any(role => role is CallableAdapter(_)) else {
       return None
     }
     Some(node.roles)
@@ -1477,7 +1533,7 @@ test "explore traces a named function and preserves synthetic roots" {
     ),
     content=(
       #|(
-      #|  6,
+      #|  7,
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },

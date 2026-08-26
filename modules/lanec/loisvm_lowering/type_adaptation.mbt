@@ -2,7 +2,7 @@
 fn ImageLowerer::callable_adapter_recipe(
   self : ImageLowerer,
   recipe : CallableAdapterRecipe,
-) -> CallableAdapterPlan {
+) -> CallableAdapterPlan raise LoisvmLoweringError {
   for adapter in self.callable_adapters {
     if adapter.recipe == recipe {
       return adapter
@@ -30,13 +30,26 @@ fn ImageLowerer::callable_adapter_recipe(
     shape: environment_shape,
     layout: self.intern_layout(Environment(environment_shape)),
   }
-  let (_, adapter) = self.plans.append_with_result(CallableAdapter, fn(
-    function,
-  ) {
-    let adapter : CallableAdapterPlan = { function, recipe, environment, }
-    self.callable_adapters.push(adapter)
-    (CallableAdapter(adapter), adapter)
+  let source = self.callable_contracts.canonical_identity(recipe.source_abi)
+  let target = self.callable_contracts.canonical_identity(recipe.target_abi)
+  let transition = self.representation_transitions.intern({
+    source: Callable(source),
+    target: Callable(target),
+    kind: CallableAdapter,
   })
+  let (_, adapter) = self.plans.append_with_result(
+    LoisvmFunctionOrigin::CallableAdapter(transition~),
+    fn(function) {
+      let adapter : CallableAdapterPlan = {
+        function,
+        recipe,
+        environment,
+        transition,
+      }
+      self.callable_adapters.push(adapter)
+      (PlannedEntry::CallableAdapter(adapter), adapter)
+    },
+  )
   adapter
 }
 
@@ -157,6 +170,7 @@ fn ImageLowerer::physical_callable_adapter_support(
   )
   {
     adapter: { function: plan.function, environment: plan.environment, },
+    transition: plan.transition,
     recipe: plan.recipe,
     static_layouts,
     layout_constructors,
@@ -382,8 +396,6 @@ fn ImageLowerer::plan_erased_callable_adaptation(
     return None
   }
   guard self.plan_callable_representation_adaptation(
-      None,
-      instance,
       canonical,
       source,
       bindings,
@@ -464,51 +476,24 @@ fn free_runtime_type_parameters(
 }
 
 ///|
-fn ImageLowerer::callable_adapter_evidence_captures(
+fn ImageLowerer::callable_adapter_evidence_aliases(
   self : ImageLowerer,
   source_type : @anf.RuntimeType,
   target_type : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
-) -> (
-  Array[CallableAdapterEvidenceCapture],
-  Array[CallableAdapterEvidenceAlias],
-) raise LoisvmLoweringError {
-  let captures : Array[CallableAdapterEvidenceCapture] = []
+) -> Array[CallableAdapterEvidenceAlias] raise LoisvmLoweringError {
   let aliases : Array[CallableAdapterEvidenceAlias] = []
   for parameter in free_runtime_type_parameters(self, source_type, target_type) {
     let resolved = self.callable_adapter_parameter_evidence(
       parameter,
       substitutions.apply_evidence(Parameter(parameter.id)),
     )
-    self.collect_callable_adapter_evidence_captures(resolved, captures)
     let source = Existing(parameter.id)
     if source != resolved {
       aliases.push({ evidence: source, replacement: resolved, })
     }
   }
-  let source_type = substitutions.apply_type(self.runtime_types, source_type)
-  let target_type = substitutions.apply_type(self.runtime_types, target_type)
-  let (source_parameters, _, _) = function_type_parts(source_type)
-  let (target_parameters, _, _) = function_type_parts(target_type)
-  if source_parameters.length() == target_parameters.length() {
-    return (captures, aliases)
-  }
-  for parameter in source_parameters {
-    let resolved = substitutions.apply_evidence(Parameter(parameter.id))
-    guard resolved != Parameter(parameter.id) else { continue }
-    let discovered : Array[CallableAdapterEvidenceCapture] = []
-    self.collect_callable_adapter_evidence_captures(
-      self.callable_adapter_parameter_evidence(parameter, resolved),
-      discovered,
-    )
-    for capture in discovered {
-      if !target_parameters.any(target => target.id == capture.source.id) &&
-        !captures.any(existing => existing.source.id == capture.source.id) {
-        captures.push(capture)
-      }
-    }
-  }
-  (captures, aliases)
+  aliases
 }
 
 ///|
@@ -521,41 +506,6 @@ fn ImageLowerer::callable_adapter_parameter_evidence(
     self.plan_layout_witness(evidence)
   } else {
     self.plan_layout_constructor_evidence(evidence)
-  }
-}
-
-///|
-fn ImageLowerer::collect_callable_adapter_evidence_captures(
-  self : ImageLowerer,
-  plan : RuntimeEvidencePlan,
-  captures : Array[CallableAdapterEvidenceCapture],
-) -> Unit raise LoisvmLoweringError {
-  match plan {
-    Existing(id) =>
-      if !captures.any(capture => capture.source.id == id) {
-        captures.push({
-          source: self.evidence_parameter(id).unwrap_or({ id, arity: 0, }),
-        })
-      }
-    ApplyEvidence(id, arguments) => {
-      if !captures.any(capture => capture.source.id == id) {
-        captures.push({
-          source: self
-          .evidence_parameter(id)
-          .unwrap_or({ id, arity: arguments.length(), }),
-        })
-      }
-      for argument in arguments {
-        self.collect_callable_adapter_evidence_captures(argument, captures)
-      }
-    }
-    MaterializeLayoutConstructor(layout_constructor) =>
-      for parameter in layout_constructor.captured_parameters {
-        if !captures.any(capture => capture.source.id == parameter.id) {
-          captures.push({ source: parameter, })
-        }
-      }
-    StaticLayout(_) => ()
   }
 }
 
@@ -783,21 +733,24 @@ fn ImageLowerer::plan_callable_adaptation_with_interfaces(
   source_interface : PhysicalCallableInterface,
   target_interface : PhysicalCallableInterface,
 ) -> CallableAdapterContract? raise LoisvmLoweringError {
+  let source_interface = source_interface.canonicalize(self.callable_contracts)
+  let target_interface = target_interface.canonicalize(self.callable_contracts)
   let (source_parameter_targets, adapter_substitutions) = self.align_callable_parameters(
     source_type, target_type, substitutions,
   )
   if source_interface.representation_equal(target_interface) {
     return None
   }
-  let (captures, evidence_aliases) = self.callable_adapter_evidence_captures(
+  let evidence_aliases = self.callable_adapter_evidence_aliases(
     source_type, target_type, adapter_substitutions,
   )
   let nested_adapters = []
+  let (recipe, captures) = self.callable_adapter_recipe_with_interfaces(
+    source_type, target_type, source_interface, target_interface, source_parameter_targets,
+    adapter_substitutions, evidence_aliases, nested_adapters,
+  )
   Some({
-    recipe: self.callable_adapter_recipe_with_interfaces(
-      source_type, target_type, source_interface, target_interface, source_parameter_targets,
-      adapter_substitutions, captures, evidence_aliases, nested_adapters,
-    ),
+    recipe,
     source_type,
     target_type,
     source_parameter_targets,
@@ -808,140 +761,50 @@ fn ImageLowerer::plan_callable_adaptation_with_interfaces(
 }
 
 ///|
-/// Plans the boundary between the generic implementation ABI and the one
-/// representation worker owned by a semantic callable target. The target's
-/// closed substitution is the proof that generic erased parameters and worker
-/// parameters denote the same logical values; the adapter must not try to
-/// rediscover that relation from the two lowered type spellings.
+/// Plans one callable boundary from its two verified physical interfaces.
+/// Contract-graph equality is physical only; it never licenses borrowing the
+/// semantic type or binder scope of another callable with the same ABI.
 fn ImageLowerer::plan_callable_representation_adaptation(
   self : ImageLowerer,
-  source_callable : CallableRepresentationTarget?,
-  target_callable : CallableRepresentationTarget?,
   source_type : @anf.RuntimeType,
   target_type : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
-  source_abi : CanonicalCallableAbi,
-  target_abi : CanonicalCallableAbi,
+  source_abi : PhysicalCallableContractId,
+  target_abi : PhysicalCallableContractId,
   source_interface : PhysicalCallableInterface?,
   target_interface : PhysicalCallableInterface?,
 ) -> CallableAdapterContract? raise LoisvmLoweringError {
-  let candidates = []
-  if source_callable is Some(callable) {
-    candidates.push(callable)
-  }
-  if target_callable is Some(callable) && !candidates.contains(callable) {
-    candidates.push(callable)
-  }
-  let mut boundary_substitutions = substitutions
-  boundary_substitutions = boundary_substitutions.overlay(
-    self.callable_type_parameter_alignment(source_type, target_type),
-  )
-  let mut representation_source = source_type
-  let mut representation_target = target_type
-  let mut source_interface = source_interface
-  let mut target_interface = target_interface
-  let mut owns_boundary = false
-  for callable in candidates {
-    guard callable.instance(self.callable_instances) is Some(instance) else {
-      continue
-    }
-    let semantic_type = self.callable_representation_semantic_type(callable)
-    let owns_source = self.types_representation_equivalent(
-      boundary_substitutions.apply_type(self.runtime_types, source_type),
-      boundary_substitutions.apply_type(self.runtime_types, semantic_type),
+  let source_abi = self.callable_contracts.canonical_identity(source_abi)
+  let target_abi = self.callable_contracts.canonical_identity(target_abi)
+  guard source_interface is Some(source_interface) &&
+    target_interface is Some(target_interface) else {
+    raise RepresentationSpecializationInvariant(
+      detail="callable adaptation has no verified endpoint interface",
     )
-    let owns_target = self.types_representation_equivalent(
-      boundary_substitutions.apply_type(self.runtime_types, target_type),
-      boundary_substitutions.apply_type(self.runtime_types, semantic_type),
-    )
-    if !owns_source && !owns_target {
-      continue
-    }
-    boundary_substitutions = instance.substitution.compose(
-      boundary_substitutions,
-      self.runtime_types,
-    )
-    if self.callable_representation_implementation(callable, false)
-      is Some(generic) {
-      let generic_abi = self.generic_callable_representation_physical_abi(
-        callable,
-      )
-      if source_abi == generic_abi {
-        representation_source = generic.type_
-        if source_interface is None {
-          source_interface = Some(
-            self.callable_representation_interface(callable, worker=false),
-          )
-        }
-        owns_boundary = true
-      }
-      if target_abi == generic_abi {
-        representation_target = generic.type_
-        if target_interface is None {
-          target_interface = Some(
-            self.callable_representation_interface(callable, worker=false),
-          )
-        }
-        owns_boundary = true
-      }
-    }
-    if self.representation_specialization_for_callable(callable) is Some(worker) {
-      boundary_substitutions = worker.substitutions.compose(
-        boundary_substitutions,
-        self.runtime_types,
-      )
-      let worker_type = worker.callable_type()
-      let worker_abi = self.representation_worker_invocation(worker)
-      if source_abi == worker_abi {
-        representation_source = worker_type
-        if source_interface is None {
-          source_interface = Some(self.representation_worker_interface(worker))
-        }
-        owns_boundary = true
-      }
-      if target_abi == worker_abi {
-        representation_target = worker_type
-        if target_interface is None {
-          target_interface = Some(self.representation_worker_interface(worker))
-        }
-        owns_boundary = true
-      }
-    }
   }
-  boundary_substitutions = self.overlay_callable_type_parameter_alignment(
-    boundary_substitutions, source_type, representation_source,
-  )
-  boundary_substitutions = self.overlay_callable_type_parameter_alignment(
-    boundary_substitutions, target_type, representation_target,
-  )
-  let source_interface = match source_interface {
-    Some(interface) => interface
-    None =>
-      self.canonical_callable_interface_under(
-        representation_source, boundary_substitutions,
-      )
-  }
-  let target_interface = match target_interface {
-    Some(interface) => interface
-    None =>
-      self.canonical_callable_interface_under(
-        representation_target, boundary_substitutions,
-      )
-  }
+  let source_interface = source_interface.canonicalize(self.callable_contracts)
+  let target_interface = target_interface.canonicalize(self.callable_contracts)
   if source_interface.invocation != source_abi ||
     target_interface.invocation != target_abi {
     raise RepresentationSpecializationInvariant(
       detail="callable adaptation boundary interfaces \{Repr((source_interface, target_interface))} disagree with physical ABIs \{Repr((source_abi, target_abi))}",
     )
   }
-  if owns_boundary {
-    return self.plan_callable_adaptation_with_interfaces(
-      representation_source, representation_target, boundary_substitutions, source_interface,
-      target_interface,
-    )
-  }
+  let representation_source = source_interface.semantic_type()
+  let representation_target = target_interface.semantic_type()
+  let mut boundary_substitutions = substitutions
+  boundary_substitutions = boundary_substitutions.overlay(
+    self.callable_type_parameter_alignment(source_type, target_type),
+  )
+  boundary_substitutions = self.overlay_callable_type_parameter_alignment(
+    boundary_substitutions, source_type, representation_source,
+  )
+  boundary_substitutions = self.overlay_callable_type_parameter_alignment(
+    boundary_substitutions, target_type, representation_target,
+  )
   self.plan_callable_adaptation_with_interfaces(
-    source_type, target_type, boundary_substitutions, source_interface, target_interface,
+    representation_source, representation_target, boundary_substitutions, source_interface,
+    target_interface,
   )
 }
 
@@ -973,12 +836,18 @@ fn ImageLowerer::overlay_callable_type_parameter_alignment(
       result = result.overlay(replacement)
     }
   }
-  let refinable = []
-  collect_free_runtime_type_parameters(self, implementation_type, [], refinable)
+  let (semantic_parameters, semantic_parameter_types, semantic_result_type) = function_type_parts(
+    semantic_type,
+  )
+  let (_, implementation_parameter_types, implementation_result_type) = function_type_parts(
+    implementation_type,
+  )
+  let refinable = semantic_parameters.copy()
+  collect_free_runtime_type_parameters(self, semantic_type, [], refinable)
   if !refinable.is_empty() &&
     self.refine_callable_representation_substitution(
-      implementation_type,
-      semantic_type,
+      Callable(semantic_parameter_types, semantic_result_type),
+      Callable(implementation_parameter_types, implementation_result_type),
       result,
       refinable.map(parameter => parameter.id),
     )
@@ -1160,8 +1029,12 @@ fn ImageLowerer::callable_type_parameter_alignment(
 fn lower_callable_adapter(
   physical_program : PhysicalAnfProgram,
   plan : PhysicalCallableAdapterSupport,
+  emitted_transition_events : Array[
+    PhysicalEmittedRepresentationTransitionEvent,
+  ],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   let recipe = plan.recipe
+  let target_contract = physical_program.callable_contract(recipe.target_abi)
   let lowerer : FunctionLowerer = {
     physical_program,
     function: Some(plan.adapter.function),
@@ -1174,9 +1047,10 @@ fn lower_callable_adapter(
     witnesses: [],
     physical: None,
     adapter_support: Some(plan),
+    emitted_transition_events,
   }
   let input_witnesses = []
-  for witness in recipe.target_abi.witnesses {
+  for witness in target_contract.witnesses {
     input_witnesses.push(
       lowerer.fresh_metadata(
         CanonicalRuntimeTypeKey::Value(witness).value_metadata(None),
@@ -1230,13 +1104,18 @@ fn lower_callable_adapter(
     }
     user_parameter_slots.push(slot)
   }
-  for discard in recipe.target_discards {
+  for ordinal, discard in recipe.target_discards {
     guard user_parameter_slots.get(discard.input) is Some(input) &&
       lowerer.adapt_callable_adapter_value(
         Some(input),
         discard.flow,
         input_witnesses,
         captured_evidence,
+        callable_adapter_transition_site(
+          discard.flow,
+          CallableAdapterDiscard,
+          Some(ordinal),
+        ),
       )
       is None else {
       raise RepresentationSpecializationInvariant(
@@ -1245,7 +1124,7 @@ fn lower_callable_adapter(
     }
   }
   let source_arguments = []
-  for argument in recipe.source_arguments {
+  for ordinal, argument in recipe.source_arguments {
     let input = match argument.input {
       TargetParameter(target) => {
         guard user_parameter_slots.get(target) is Some(input) else {
@@ -1262,6 +1141,11 @@ fn lower_callable_adapter(
         argument.flow,
         input_witnesses,
         captured_evidence,
+        callable_adapter_transition_site(
+          argument.flow,
+          CallableAdapterArgument,
+          Some(ordinal),
+        ),
       )
       is Some(adapted) else {
       raise RepresentationSpecializationInvariant(
@@ -1287,7 +1171,11 @@ fn lower_callable_adapter(
         ),
       )
       let result = lowerer.adapt_callable_adapter_value(
-        source_result, flow, input_witnesses, captured_evidence,
+        source_result,
+        flow,
+        input_witnesses,
+        captured_evidence,
+        callable_adapter_transition_site(flow, CallableAdapterResult, None),
       )
       lowerer.terminate(Return(result))
     }
@@ -1299,7 +1187,7 @@ fn lower_callable_adapter(
       witnesses: input_witnesses,
       user_parameters: user_parameter_slots,
     },
-    result: recipe.target_abi.result.physical_shape().result_abi(),
+    result: target_contract.result.physical_shape().result_abi(),
     blocks: [
       {
         parameters: [],
@@ -1341,15 +1229,16 @@ fn FunctionLowerer::adapt_callable_adapter_value(
   flow : CallableAdapterValueFlowRecipe,
   inputs : Array[@vmcfg.ValueId],
   captures : Array[@vmcfg.ValueId],
+  transition_site : PhysicalRepresentationTransitionSite?,
 ) -> @vmcfg.ValueId? raise LoisvmLoweringError {
-  match (flow.value, flow.target) {
+  let (adapted, operation) = match (flow.value, flow.target) {
     (Unit, Unit) => {
       if value is Some(_) {
         raise RepresentationSpecializationInvariant(
           detail="Unit callable adapter flow received a physical value",
         )
       }
-      None
+      (None, None)
     }
     (Unit, Erased(evidence)) => {
       if value is Some(_) {
@@ -1362,7 +1251,7 @@ fn FunctionLowerer::adapt_callable_adapter_value(
       )
       let destination = self.fresh_erased_slot(witness, Owned)
       self.emit(EraseUnit(destination))
-      Some(destination)
+      (Some(destination), Some(Produced(destination)))
     }
     (Erased(_), Unit) => {
       guard value is Some(source) else {
@@ -1371,9 +1260,9 @@ fn FunctionLowerer::adapt_callable_adapter_value(
         )
       }
       self.emit(UneraseUnit(source))
-      None
+      (None, Some(Consumed(source)))
     }
-    (Erased(_), Erased(_)) => value
+    (Erased(_), Erased(_)) => (value, None)
     (Concrete(_), Erased(evidence)) => {
       guard value is Some(source) else {
         raise RepresentationSpecializationInvariant(
@@ -1391,7 +1280,7 @@ fn FunctionLowerer::adapt_callable_adapter_value(
       )
       let destination = self.fresh_erased_slot(witness, Owned)
       self.emit_callable_adapter_erasure(destination, source, flow.source_shape)
-      Some(destination)
+      (Some(destination), Some(Produced(destination)))
     }
     (Erased(_), Concrete(target)) => {
       guard value is Some(source) else {
@@ -1400,13 +1289,16 @@ fn FunctionLowerer::adapt_callable_adapter_value(
         )
       }
       let concrete = self.emit_callable_adapter_unerasure(source, target)
-      Some(
-        self.materialize_nested_callable_adapter(
-          concrete,
-          flow.nested_adapter,
-          inputs,
-          captures,
+      (
+        Some(
+          self.materialize_nested_callable_adapter(
+            concrete,
+            flow.nested_adapter,
+            inputs,
+            captures,
+          ),
         ),
+        Some(Produced(concrete)),
       )
     }
     (Concrete(_), Concrete(_)) => {
@@ -1415,20 +1307,40 @@ fn FunctionLowerer::adapt_callable_adapter_value(
           detail="concrete callable adapter flow has no source",
         )
       }
-      Some(
-        self.materialize_nested_callable_adapter(
-          source,
-          flow.nested_adapter,
-          inputs,
-          captures,
-        ),
+      let adapted = self.materialize_nested_callable_adapter(
+        source,
+        flow.nested_adapter,
+        inputs,
+        captures,
       )
+      (Some(adapted), flow.transition.map(_ => Produced(adapted)))
     }
     (Unit, Concrete(_)) | (Concrete(_), Unit) =>
       raise RepresentationSpecializationInvariant(
         detail="callable adapter changes Unit into a concrete runtime value",
       )
   }
+  match (flow.transition, transition_site, operation) {
+    (None, None, None) => ()
+    (Some(transition), Some(site), Some(operation)) if transition ==
+      site.transition =>
+      self.record_representation_transition_event(site, operation)
+    _ =>
+      raise RepresentationSpecializationInvariant(
+        detail="callable adapter transition and emission event must be planned together",
+      )
+  }
+  adapted
+}
+
+///|
+fn callable_adapter_transition_site(
+  flow : CallableAdapterValueFlowRecipe,
+  boundary : LoisvmRepresentationTransitionBoundary,
+  ordinal : Int?,
+) -> PhysicalRepresentationTransitionSite? {
+  guard flow.transition is Some(transition) else { return None }
+  Some({ transition, boundary, binding: None, ordinal, })
 }
 
 ///|

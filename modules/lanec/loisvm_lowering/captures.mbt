@@ -339,6 +339,7 @@ fn FunctionLowerer::capture_environment(
       source,
       flow.target,
       flow.bridge,
+      flow.transition_site,
     )
     guard captured.value is Slot(slot, actual_shape) &&
       capture.shape is Some(expected_shape) else {

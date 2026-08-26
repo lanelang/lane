@@ -27,6 +27,20 @@ pub(all) suberror FunctionProvenanceError {
   OriginCountMismatch(functions~ : Int, origins~ : Int)
   InvalidSourceFunction(function~ : @bytecode.FunctionId)
   FinalizedFunctionCountMismatch(functions~ : Int, origins~ : Int)
+  TransitionOperationCountMismatch(
+    function~ : @bytecode.FunctionId,
+    events~ : Int,
+    operations~ : Int
+  )
+  TransitionEventStreamMismatch(
+    function~ : @bytecode.FunctionId,
+    source~ : @bytecode.FunctionId
+  )
+  TransitionEventMismatch(
+    function~ : @bytecode.FunctionId,
+    event~ : Int,
+    transition~ : LoisvmRepresentationTransitionId
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -105,7 +119,7 @@ pub(all) enum LoisvmFunctionOrigin {
   Initializer(source~ : @buslane.ValueId)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
-  CallableAdapter
+  CallableAdapter(transition~ : LoisvmRepresentationTransitionId)
   RepresentationSpecialization(
     function~ : @anf.AnfFunctionId,
     source~ : @buslane.ValueId?
@@ -166,7 +180,7 @@ fn FunctionPlanTable::contains_top_level_function(
       | Initializer(..)
       | InitializerOrchestrator
       | IntrinsicWrapper(..)
-      | CallableAdapter
+      | CallableAdapter(_)
       | LayoutConstructor
       | RuntimeImport(..) => false
     }
@@ -234,6 +248,7 @@ priv struct InitializerStepPlan {
 priv struct IntrinsicWrapperPlan {
   function : @bytecode.FunctionId
   contract : RuntimeIntrinsicFunctionContract
+  invocation : PhysicalCallableContractId
   parameter_shapes : Array[CanonicalRuntimeTypeKey]
   result_shape : CanonicalRuntimeTypeKey
 }
@@ -244,7 +259,116 @@ priv struct CallableAdapterPlan {
   function : @bytecode.FunctionId
   recipe : CallableAdapterRecipe
   environment : PhysicalEnvironmentContract
+  transition : LoisvmRepresentationTransitionId
 } derive(Debug)
+
+///|
+pub(all) struct LoisvmRepresentationTransitionId {
+  index : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) enum LoisvmRepresentationContract {
+  Unit
+  Value(@bytecode.ValueAbi)
+  Callable(contract~ : Int)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct LoisvmCallableContractNode {
+  id : Int
+  representative : Int
+  witnesses : Array[@bytecode.ValueAbi]
+  parameters : Array[LoisvmRepresentationContract]
+  result : LoisvmRepresentationContract
+} derive(Debug, Eq)
+
+///|
+pub(all) enum LoisvmRepresentationTransitionKind {
+  Erase
+  Unerase
+  CallableAdapter
+} derive(Debug, Eq)
+
+///|
+pub(all) struct LoisvmRepresentationTransition {
+  id : LoisvmRepresentationTransitionId
+  source : LoisvmRepresentationContract
+  target : LoisvmRepresentationContract
+  kind : LoisvmRepresentationTransitionKind
+} derive(Debug, Eq)
+
+///|
+pub(all) enum LoisvmRepresentationTransitionBoundary {
+  InitializerResult
+  FunctionResult
+  RecursiveBinding
+  AtomBinding
+  CallResult
+  ScalarConstructionPayload
+  DataConstructionPayload
+  MatchResult
+  RepresentationCallArgument
+  CallArgument
+  CallableCapture
+  DataMatchPayload
+  CallableAdapterArgument
+  CallableAdapterDiscard
+  CallableAdapterResult
+} derive(Debug, Eq)
+
+///|
+pub(all) struct LoisvmRepresentationTransitionOccurrence {
+  event : Int
+  function : @bytecode.FunctionId
+  origins : Array[LoisvmFunctionOrigin]
+  transition : LoisvmRepresentationTransitionId
+  boundary : LoisvmRepresentationTransitionBoundary
+  binding : @anf.AnfBindingId?
+  ordinal : Int?
+} derive(Debug, Eq)
+
+///|
+priv enum PhysicalRepresentationTransitionKind {
+  Erase
+  Unerase
+  CallableAdapter
+} derive(Eq)
+
+///|
+priv struct PhysicalRepresentationTransition {
+  source : CanonicalRuntimeTypeKey
+  target : CanonicalRuntimeTypeKey
+  kind : PhysicalRepresentationTransitionKind
+} derive(Eq)
+
+///|
+priv struct PhysicalRepresentationTransitionCatalog {
+  transitions : Array[PhysicalRepresentationTransition]
+}
+
+///|
+priv struct PhysicalRepresentationTransitionSite {
+  transition : LoisvmRepresentationTransitionId
+  boundary : LoisvmRepresentationTransitionBoundary
+  binding : @anf.AnfBindingId?
+  ordinal : Int?
+} derive(Eq)
+
+///|
+priv enum PhysicalRepresentationTransitionOperation {
+  Produced(@vmcfg.ValueId)
+  Consumed(@vmcfg.ValueId)
+} derive(Eq)
+
+///|
+priv struct PhysicalEmittedRepresentationTransitionEvent {
+  transition : LoisvmRepresentationTransitionId
+  boundary : LoisvmRepresentationTransitionBoundary
+  binding : @anf.AnfBindingId?
+  ordinal : Int?
+  operation : PhysicalRepresentationTransitionOperation
+}
 
 ///|
 priv struct CallableAdapterContract {
@@ -286,6 +410,7 @@ priv struct CallableAdapterValueFlowRecipe {
   target_shape : CallableAdapterValueRecipe
   definitionally_equal : Bool
   nested_adapter : CallableAdapterNestedRecipe?
+  transition : LoisvmRepresentationTransitionId?
 } derive(Debug, Eq)
 
 ///|
@@ -320,8 +445,8 @@ priv enum CallableAdapterResultRecipe {
 
 ///|
 priv struct CallableAdapterRecipe {
-  source_abi : CanonicalCallableAbi
-  target_abi : CanonicalCallableAbi
+  source_abi : PhysicalCallableContractId
+  target_abi : PhysicalCallableContractId
   captured_evidence : Array[@bytecode.ValueAbi]
   source_witnesses : Array[CallableAdapterEvidenceRecipe]
   target_parameters : Array[CallableAdapterValueRecipe]
@@ -334,8 +459,36 @@ priv struct CallableAdapterRecipe {
 priv enum CanonicalRuntimeTypeKey {
   Unit
   Value(@bytecode.ValueAbi)
-  Callable(CanonicalCallableAbi)
+  Callable(PhysicalCallableContractId)
 } derive(Debug, Eq)
+
+///|
+/// Canonical identity of one node in the physical callable-contract graph.
+/// Recursive invocation structure is represented by graph edges rather than
+/// recursively embedding another callable ABI value.
+priv struct PhysicalCallableContractId {
+  index : Int
+} derive(Debug, Eq)
+
+///|
+priv struct PhysicalCallableContract {
+  witnesses : Array[@bytecode.ValueAbi]
+  parameters : Array[CanonicalRuntimeTypeKey]
+  result : CanonicalRuntimeTypeKey
+} derive(Debug, Eq)
+
+///|
+priv enum PhysicalCallableContractNode {
+  Reserved
+  Defined(PhysicalCallableContract)
+}
+
+///|
+priv struct PhysicalCallableContractCatalog {
+  nodes : Array[PhysicalCallableContractNode]
+  mut representatives : Array[PhysicalCallableContractId]
+  mut canonical : Bool
+}
 
 ///|
 priv enum CanonicalRuntimeEvidenceKey {
@@ -432,15 +585,8 @@ priv enum CanonicalSpecializedEvidenceKey {
 } derive(Eq)
 
 ///|
-priv struct CanonicalCallableAbi {
-  witnesses : Array[@bytecode.ValueAbi]
-  parameters : Array[CanonicalRuntimeTypeKey]
-  result : CanonicalRuntimeTypeKey
-} derive(Debug, Eq)
-
-///|
 /// The compile-time projection owned by a callable implementation boundary.
-/// `CanonicalCallableAbi` remains the pure runtime identity; this structure
+/// `PhysicalCallableContractId` remains the pure runtime identity; this structure
 /// records which logical parameter produced each physical ABI slot.
 priv enum PhysicalCallableParameterProjection {
   Unit
@@ -451,12 +597,14 @@ priv enum PhysicalCallableParameterProjection {
 ///|
 priv struct PhysicalCallableInterface {
   evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
+  evidence_arguments : Array[@anf.RuntimeArgument]
   parameter_types : Array[@anf.RuntimeType]
   result_type : @anf.RuntimeType
-  invocation : CanonicalCallableAbi
+  invocation : PhysicalCallableContractId
+  callable_target : CallableRepresentationTarget?
   parameters : Array[PhysicalCallableParameterProjection]
-  parameter_callables : Array[PhysicalCallableInterface?]
-  result_callable : PhysicalCallableInterface?
+  parameter_callable_targets : Array[CallableRepresentationTarget?]
+  result_callable_target : CallableRepresentationTarget?
 } derive(Debug, Eq)
 
 ///|
@@ -561,6 +709,14 @@ pub(all) struct LoisvmFunctionProvenance {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct LoisvmLoweringProvenance {
+  functions : Array[LoisvmFunctionProvenance]
+  callable_contracts : Array[LoisvmCallableContractNode]
+  representation_transitions : Array[LoisvmRepresentationTransition]
+  transition_occurrences : Array[LoisvmRepresentationTransitionOccurrence]
+} derive(Debug, Eq)
+
+///|
 priv enum CaptureBinding {
   Value(@buslane.ValueId)
   Temp(@anf.AnfTempId)
@@ -617,7 +773,7 @@ priv struct DeferredNestedCallable {
   source : @anf.AnfFunctionId
   lowered_function : @bytecode.FunctionId
   environment : @vmcfg.ValueId?
-  invocation : CanonicalCallableAbi
+  invocation : PhysicalCallableContractId
 }
 
 ///|

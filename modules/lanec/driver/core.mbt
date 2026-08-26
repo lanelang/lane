@@ -34,6 +34,7 @@ pub fn list_entries(
 pub fn explore(request : ExploreRequest) -> ExploreReport {
   let stages = ExploreStageBuilder::new()
   let functions = ExploreFunctionGraphBuilder::new()
+  let representations = ExploreRepresentationGraphBuilder::new()
   let mut root_module_path_text : String? = None
   let compiled = @compile.compile_modules_observed(
     { root: request.root_source, libraries: request.library_sources, },
@@ -88,6 +89,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         None,
         stages,
         functions,
+        representations,
         diagnostics,
       )
   }
@@ -106,6 +108,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         None,
         stages,
         functions,
+        representations,
         diagnostics,
       )
   }
@@ -122,6 +125,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       None,
       stages,
       functions,
+      representations,
       diagnostics,
     )
   }
@@ -146,7 +150,8 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         exploration_error("executable elaboration failed", "\{Repr(error)}"),
       )
       return failed_report(
-        request, root_module_path_text, selected_entry, stages, functions, diagnostics,
+        request, root_module_path_text, selected_entry, stages, functions, representations,
+        diagnostics,
       )
     }
   }
@@ -165,21 +170,22 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
           stages.complete(Anf, render_anf_code(program), [], observed.scale)
         }
         InitialVmcfg(image, provenance) => {
-          functions.observe_vmcfg(provenance)
+          functions.observe_vmcfg(provenance.functions)
+          representations.observe(functions.representation_graph(provenance))
           stages.complete(
             VmcfgInitial,
             @vmcfg.image_to_code(image),
             [],
-            vmcfg_scale(image, provenance),
+            vmcfg_scale(image, provenance.functions),
           )
         }
         FinalBytecode(image, provenance) => {
-          functions.observe_bytecode(provenance)
+          functions.observe_bytecode(provenance.functions)
           stages.complete(
             LoisvmBytecode,
             @bytecode.bytecode_image_to_code(image),
             [],
-            bytecode_scale(image, provenance),
+            bytecode_scale(image, provenance.functions),
           )
         }
       }
@@ -190,7 +196,8 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         exploration_error("LoisVM lowering failed", "\{Repr(error)}"),
       )
       return failed_report(
-        request, root_module_path_text, selected_entry, stages, functions, diagnostics,
+        request, root_module_path_text, selected_entry, stages, functions, representations,
+        diagnostics,
       )
     }
   }
@@ -201,7 +208,8 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
         exploration_error("Wasm lowering failed", "\{Repr(error)}"),
       )
       return failed_report(
-        request, root_module_path_text, selected_entry, stages, functions, diagnostics,
+        request, root_module_path_text, selected_entry, stages, functions, representations,
+        diagnostics,
       )
     }
   }
@@ -224,6 +232,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     diagnostics,
     stages: stages.finish(),
     functions: functions.finish(),
+    representations: representations.finish(),
   }
 }
 
@@ -298,6 +307,7 @@ fn failed_report(
   selected_entry : EntrySummary?,
   stages : ExploreStageBuilder,
   functions : ExploreFunctionGraphBuilder,
+  representations : ExploreRepresentationGraphBuilder,
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
 ) -> ExploreReport {
   let failed_stage = stages.fail_next(diagnostics)
@@ -313,6 +323,7 @@ fn failed_report(
     diagnostics,
     stages: stages.finish(),
     functions: functions.finish(),
+    representations: representations.finish(),
   }
 }
 

@@ -38,7 +38,7 @@ fn FunctionLowerer::materialize_callable_value_with_abi(
   self : FunctionLowerer,
   lowered_function : @bytecode.FunctionId,
   environment : @vmcfg.ValueId?,
-  invocation : CanonicalCallableAbi,
+  invocation : PhysicalCallableContractId,
 ) -> LocalValue raise LoisvmLoweringError {
   self.materialize_planned_callable_with_abi(
     lowered_function, environment, invocation,
@@ -72,7 +72,7 @@ fn FunctionLowerer::materialize_planned_callable_with_abi(
   self : FunctionLowerer,
   lowered_function : @bytecode.FunctionId,
   environment : @vmcfg.ValueId?,
-  invocation : CanonicalCallableAbi,
+  invocation : PhysicalCallableContractId,
 ) -> LocalValue raise LoisvmLoweringError {
   let shape = CanonicalRuntimeTypeKey::Callable(invocation)
   let destination = self.fresh_metadata(shape.value_metadata(None))

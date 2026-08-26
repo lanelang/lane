@@ -299,6 +299,7 @@ fn lower_layout_constructor(
     witnesses: [],
     physical: None,
     adapter_support: None,
+    emitted_transition_events: [],
   }
   let evidence_parameters = []
   for parameter in plan.parameters {

@@ -2348,7 +2348,7 @@ fn RepresentationConstraintGraph::solve_collected(
   )
   let forced_generic_callable_components : Array[Int] = []
   let mut callable_assignments = self.finish_callable_assignments(
-    data_representations, callable_graph, forced_generic_callable_components,
+    scalar, data_representations, callable_graph, forced_generic_callable_components,
   )
   while true {
     let mut changed = false
@@ -2377,7 +2377,7 @@ fn RepresentationConstraintGraph::solve_collected(
     }
     if changed {
       callable_assignments = self.finish_callable_assignments(
-        data_representations, callable_graph, forced_generic_callable_components,
+        scalar, data_representations, callable_graph, forced_generic_callable_components,
       )
       continue
     }
@@ -2389,7 +2389,7 @@ fn RepresentationConstraintGraph::solve_collected(
     }
     data_representations = data_representations.excluding_components(rejected)
     callable_assignments = self.finish_callable_assignments(
-      data_representations, callable_graph, forced_generic_callable_components,
+      scalar, data_representations, callable_graph, forced_generic_callable_components,
     )
   }
   let callable_arguments = self.resolved_callable_arguments(
@@ -2676,6 +2676,7 @@ fn RepresentationConstraintGraph::callable_invocation_requires_generic(
 ///|
 fn RepresentationConstraintGraph::finish_callable_assignments(
   self : RepresentationConstraintGraph,
+  scalar : ClosedAggregateScalarReplacementPlan,
   data_representations : DataRepresentationDemandPlan,
   callable_graph : CallableRepresentationGraph,
   forced_generic_components : Array[Int],
@@ -2820,7 +2821,7 @@ fn RepresentationConstraintGraph::finish_callable_assignments(
     guard callable is Some(callable) else { continue }
     let component = callable_graph.component(node)
     let generic = self.callable_component_requires_generic(
-      node, constraints, data_representations, callable_graph, forced_generic_components,
+      node, constraints, scalar, data_representations, callable_graph, forced_generic_components,
     )
     let worker = !generic
     allocations.push({
@@ -2843,7 +2844,7 @@ fn RepresentationConstraintGraph::finish_callable_assignments(
       binding,
       component: callable_graph.component(node),
       generic: self.callable_component_requires_generic(
-        node, constraints, data_representations, callable_graph, forced_generic_components,
+        node, constraints, scalar, data_representations, callable_graph, forced_generic_components,
       ),
     }
     if !components.any(existing => {
@@ -3042,6 +3043,7 @@ fn RepresentationConstraintGraph::callable_component_requires_generic(
   self : RepresentationConstraintGraph,
   node : CallableRepresentationNode,
   constraints : Array[CallableRepresentationConstraint],
+  scalar : ClosedAggregateScalarReplacementPlan,
   data_representations : DataRepresentationDemandPlan,
   callable_graph : CallableRepresentationGraph,
   forced_generic_components : Array[Int],
@@ -3063,6 +3065,10 @@ fn RepresentationConstraintGraph::callable_component_requires_generic(
     return true
   }
   if generic_fallback && !definition.parameters.is_empty() {
+    return true
+  }
+  let owner = CallableRepresentationOwner::Callable(target)
+  if scalar.parameters.any(parameter => parameter.owner == owner) {
     return true
   }
   for usage in self.uses {

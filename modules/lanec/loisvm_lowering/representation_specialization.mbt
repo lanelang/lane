@@ -1,7 +1,6 @@
 ///|
 fn ImageLowerer::plan_representation_specializations(
   self : ImageLowerer,
-  physical : PhysicalAnfProgram,
   instances : CallableInstancePlan,
 ) -> Unit raise LoisvmLoweringError {
   let demands : Array[
@@ -97,36 +96,37 @@ fn ImageLowerer::plan_representation_specializations(
       }
       _ => []
     }
-    let (_, plan) = self.plans.append_with_result(
-      RepresentationSpecialization(
-        function=instance.definition.function.id,
-        source=instance.definition.function.source,
+    ignore(
+      self.plans.append_with_result(
+        RepresentationSpecialization(
+          function=instance.definition.function.id,
+          source=instance.definition.function.source,
+        ),
+        fn(worker) {
+          let plan : RepresentationSpecializationPlan = {
+            worker,
+            owner: callable,
+            aliases: [callable],
+            data_components: self.representation_solution.data_components_for_owner(
+              CallableRepresentationOwner::Callable(callable),
+            ),
+            callable_components: self.representation_solution.callable_components_for_target(
+              callable,
+            ),
+            key: demand.key,
+            function: instance.definition.function,
+            substitutions: demand.substitutions,
+            specialized_parameters: demand.specialized_parameters,
+            residual_parameters: demand.residual_parameters,
+            parameter_types: demand.parameter_types,
+            scalar_parameters: demand.scalar_parameters,
+            result_type: demand.result_type,
+            recursive_functions,
+          }
+          (RepresentationWorker(plan), plan)
+        },
       ),
-      fn(worker) {
-        let plan : RepresentationSpecializationPlan = {
-          worker,
-          owner: callable,
-          aliases: [callable],
-          data_components: self.representation_solution.data_components_for_owner(
-            CallableRepresentationOwner::Callable(callable),
-          ),
-          callable_components: self.representation_solution.callable_components_for_target(
-            callable,
-          ),
-          key: demand.key,
-          function: instance.definition.function,
-          substitutions: demand.substitutions,
-          specialized_parameters: demand.specialized_parameters,
-          residual_parameters: demand.residual_parameters,
-          parameter_types: demand.parameter_types,
-          scalar_parameters: demand.scalar_parameters,
-          result_type: demand.result_type,
-          recursive_functions,
-        }
-        (RepresentationWorker(plan), plan)
-      },
     )
-    physical.representation_workers.push({ worker: plan.worker, key: plan.key, })
   }
 }
 
@@ -139,114 +139,94 @@ fn ImageLowerer::complete_representation_solution(
 ) -> Array[
   (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
 ] raise LoisvmLoweringError {
-  let sccs = representation_demand_sccs(demands)
-  let states = Array::make(
-    demands.length(),
-    RepresentationDemandCompletion::Unvisited,
-  )
-  let completed = []
-  for index, draft in demands {
-    completed.push(
-      (
-        draft.0,
-        draft.1,
-        self.complete_representation_demand(index, demands, sccs, states),
-      ),
-    )
+  let demand_graph = representation_demand_sccs(demands)
+  let contracts = demands.map(_ => self.callable_contracts.reserve())
+  let completed : Array[
+    (CallableRepresentationTarget, CallableInstance, RepresentationDemand)?,
+  ] = Array::make(demands.length(), None)
+  for component in demand_graph.components {
+    for index in component {
+      let draft = demands[index]
+      let callable_allocations = draft.2.key.callable_allocations.filter(entry => {
+        representation_demand_edge_uses_worker(entry.1, demands)
+      })
+      let callable_ports = draft.2.key.callable_ports.filter(entry => {
+        representation_demand_edge_uses_worker(entry.1, demands)
+      })
+      let callable_arguments = draft.2.key.callable_arguments.filter(entry => {
+        representation_demand_edge_uses_worker(entry.2, demands)
+      })
+      let callable_result = draft.2.key.callable_result.bind(callable => {
+        if representation_demand_edge_uses_worker(callable, demands) {
+          Some(callable)
+        } else {
+          None
+        }
+      })
+      let boundary = {
+        ..draft.2,
+        key: {
+          ..draft.2.key,
+          callable_allocations,
+          callable_ports,
+          callable_arguments,
+          callable_result,
+        },
+      }
+      let demand = {
+        ..boundary,
+        key: {
+          ..boundary.key,
+          parameters: self.representation_parameter_shapes(
+            draft.0,
+            draft.1,
+            boundary,
+            demands,
+            contracts,
+          ),
+          result: self.representation_result_shape(
+            draft.0,
+            boundary,
+            demands,
+            contracts,
+          ),
+          captures: self.representation_capture_shapes(
+            draft.0,
+            draft.1,
+            boundary,
+            demands,
+            contracts,
+          ),
+        },
+      }
+      self.callable_contracts.fill(contracts[index], {
+        witnesses: demand.residual_parameters.map(parameter => {
+          value_metadata_abi(runtime_evidence_metadata(parameter))
+        }),
+        parameters: demand.key.parameters,
+        result: demand.key.result,
+      })
+      completed[index] = Some((draft.0, draft.1, demand))
+    }
   }
-  completed
+  let remapping = self.callable_contracts.canonicalize()
+  completed.map(draft => {
+    guard draft is Some(draft) else {
+      raise RepresentationSpecializationInvariant(
+        detail="finite callable-demand graph omitted a planned node",
+      )
+    }
+    (
+      draft.0,
+      draft.1,
+      { ..draft.2, key: draft.2.key.remap_callable_contracts(remapping), },
+    )
+  })
 }
 
 ///|
 priv struct RepresentationDemandSccs {
-  components : Array[Int]
-  recursive : Array[Bool]
-}
-
-///|
-priv enum RepresentationDemandCompletion {
-  Unvisited
-  Visiting
-  Completed(RepresentationDemand)
-}
-
-///|
-fn ImageLowerer::complete_representation_demand(
-  self : ImageLowerer,
-  index : Int,
-  demands : Array[
-    (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
-  ],
-  sccs : RepresentationDemandSccs,
-  states : Array[RepresentationDemandCompletion],
-) -> RepresentationDemand raise LoisvmLoweringError {
-  match states[index] {
-    Completed(demand) => return demand
-    Visiting =>
-      raise RepresentationSpecializationInvariant(
-        detail="representation demand SCC completion followed an unclassified recursive edge",
-      )
-    Unvisited => ()
-  }
-  states[index] = Visiting
-  let draft = demands[index]
-  let callable_allocations = draft.2.key.callable_allocations.filter(entry => {
-    representation_demand_edge_uses_worker(entry.1, demands, sccs)
-  })
-  let callable_ports = draft.2.key.callable_ports.filter(entry => {
-    representation_demand_edge_uses_worker(entry.1, demands, sccs)
-  })
-  let callable_arguments = draft.2.key.callable_arguments.filter(entry => {
-    representation_demand_edge_uses_worker(entry.2, demands, sccs)
-  })
-  let callable_result = draft.2.key.callable_result.bind(callable => {
-    if representation_demand_edge_uses_worker(callable, demands, sccs) {
-      Some(callable)
-    } else {
-      None
-    }
-  })
-  let boundary_demand = {
-    ..draft.2,
-    key: {
-      ..draft.2.key,
-      callable_allocations,
-      callable_ports,
-      callable_arguments,
-      callable_result,
-    },
-  }
-  let demand = {
-    ..boundary_demand,
-    key: {
-      ..boundary_demand.key,
-      parameters: self.representation_parameter_shapes(
-        draft.0,
-        draft.1,
-        boundary_demand,
-        demands,
-        sccs,
-        states,
-      ),
-      result: self.representation_result_shape(
-        draft.0,
-        boundary_demand,
-        demands,
-        sccs,
-        states,
-      ),
-      captures: self.representation_capture_shapes(
-        draft.0,
-        draft.1,
-        boundary_demand,
-        demands,
-        sccs,
-        states,
-      ),
-    },
-  }
-  states[index] = Completed(demand)
-  demand
+  components : Array[Array[Int]]
 }
 
 ///|
@@ -257,16 +237,14 @@ fn ImageLowerer::representation_result_shape(
   demands : Array[
     (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
   ],
-  sccs : RepresentationDemandSccs,
-  states : Array[RepresentationDemandCompletion],
+  contracts : Array[PhysicalCallableContractId],
 ) -> CanonicalRuntimeTypeKey raise LoisvmLoweringError {
   match
     self.representation_result_callable_abi(
       CallableRepresentationOwner::Callable(callable),
       demand,
       demands,
-      sccs,
-      states,
+      contracts,
     ) {
     Some(abi) => CanonicalRuntimeTypeKey::Callable(abi)
     None =>
@@ -287,17 +265,14 @@ fn ImageLowerer::representation_result_callable_abi(
   demands : Array[
     (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
   ],
-  sccs : RepresentationDemandSccs,
-  states : Array[RepresentationDemandCompletion],
-) -> CanonicalCallableAbi? raise LoisvmLoweringError {
+  contracts : Array[PhysicalCallableContractId],
+) -> PhysicalCallableContractId? raise LoisvmLoweringError {
   guard self.representation_solution.callable_instance_at_result([owner])
     is Some(callable) else {
     return None
   }
   if demand.key.callable_result == Some(callable) {
-    return Some(
-      self.representation_callable_abi(callable, demands, sccs, states),
-    )
+    return Some(self.representation_callable_abi(callable, demands, contracts))
   }
   Some(self.generic_callable_representation_physical_abi(callable))
 }
@@ -311,9 +286,8 @@ fn ImageLowerer::representation_port_callable_abi(
   demands : Array[
     (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
   ],
-  sccs : RepresentationDemandSccs,
-  states : Array[RepresentationDemandCompletion],
-) -> CanonicalCallableAbi? raise LoisvmLoweringError {
+  contracts : Array[PhysicalCallableContractId],
+) -> PhysicalCallableContractId? raise LoisvmLoweringError {
   guard self.representation_solution.callable_instance_at_port([owner], binding)
     is Some(callable) else {
     return None
@@ -321,9 +295,7 @@ fn ImageLowerer::representation_port_callable_abi(
   if demand.key.callable_ports.any(entry => {
       entry.0 == binding && entry.1 == callable
     }) {
-    return Some(
-      self.representation_callable_abi(callable, demands, sccs, states),
-    )
+    return Some(self.representation_callable_abi(callable, demands, contracts))
   }
   Some(self.generic_callable_representation_physical_abi(callable))
 }
@@ -335,19 +307,12 @@ fn ImageLowerer::representation_callable_abi(
   demands : Array[
     (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
   ],
-  sccs : RepresentationDemandSccs,
-  states : Array[RepresentationDemandCompletion],
-) -> CanonicalCallableAbi raise LoisvmLoweringError {
+  contracts : Array[PhysicalCallableContractId],
+) -> PhysicalCallableContractId raise LoisvmLoweringError {
   guard representation_demand_index(demands, callable) is Some(target) else {
     return self.generic_callable_representation_physical_abi(callable)
   }
-  if sccs.recursive[sccs.components[target]] ||
-    !demands[target].2.scalar_parameters.is_empty() {
-    return self.generic_callable_representation_physical_abi(callable)
-  }
-  self.representation_demand_invocation(
-    self.complete_representation_demand(target, demands, sccs, states),
-  )
+  contracts[target]
 }
 
 ///|
@@ -356,13 +321,8 @@ fn representation_demand_edge_uses_worker(
   demands : Array[
     (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
   ],
-  sccs : RepresentationDemandSccs,
 ) -> Bool {
-  guard representation_demand_index(demands, callable) is Some(target) else {
-    return false
-  }
-  !sccs.recursive[sccs.components[target]] &&
-  demands[target].2.scalar_parameters.is_empty()
+  representation_demand_index(demands, callable) is Some(_)
 }
 
 ///|
@@ -403,25 +363,23 @@ fn representation_demand_sccs(
   for index in 0..<count {
     finish_representation_demand(index, adjacency, visited, order)
   }
-  let components = Array::make(count, -1)
-  let recursive : Array[Bool] = []
+  let membership = Array::make(count, -1)
+  let components : Array[Array[Int]] = []
   for index in order.rev_iter() {
-    if components[index] >= 0 {
+    if membership[index] >= 0 {
       continue
     }
     let members : Array[Int] = []
     collect_representation_demand_component(
       index,
       reverse,
-      components,
-      recursive.length(),
+      membership,
+      components.length(),
       members,
     )
-    recursive.push(
-      members.length() > 1 || adjacency[members[0]].contains(members[0]),
-    )
+    components.push(members)
   }
-  { components, recursive, }
+  { components, }
 }
 
 ///|
@@ -485,8 +443,7 @@ fn ImageLowerer::representation_parameter_shapes(
   demands : Array[
     (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
   ],
-  sccs : RepresentationDemandSccs,
-  states : Array[RepresentationDemandCompletion],
+  contracts : Array[PhysicalCallableContractId],
 ) -> Array[CanonicalRuntimeTypeKey] raise LoisvmLoweringError {
   let owner = CallableRepresentationOwner::Callable(callable)
   let parameters : Array[CanonicalRuntimeTypeKey] = []
@@ -515,8 +472,7 @@ fn ImageLowerer::representation_parameter_shapes(
                 Value(parameter),
                 demand,
                 demands,
-                sccs,
-                states,
+                contracts,
               ) {
               Some(abi) => CanonicalRuntimeTypeKey::Callable(abi)
               None =>
@@ -731,18 +687,6 @@ fn ImageLowerer::representation_demand(
     }
     None => instance.substitution
   }
-  for index, parameter in definition.lexical_parameters {
-    let argument = instance_substitutions
-      .argument(parameter.id)
-      .unwrap_or(instance.key.arguments[index])
-    guard self.generic_argument_is_closed(argument) else { return None }
-  }
-  for index, parameter in definition.parameters {
-    let argument = instance_substitutions
-      .argument(parameter.id)
-      .unwrap_or(instance.own_arguments[index].argument)
-    guard self.generic_argument_is_closed(argument) else { return None }
-  }
   let specialized_parameters = []
   let specialized_evidence = []
   let substitutions = RuntimeSubstitution::new()
@@ -750,6 +694,7 @@ fn ImageLowerer::representation_demand(
     let argument = instance_substitutions
       .argument(parameter.id)
       .unwrap_or(instance.key.arguments[index])
+    guard self.generic_argument_is_closed(argument) else { continue }
     substitutions.insert(parameter.id, argument)
     specialized_parameters.push(parameter.id)
     specialized_evidence.push(
@@ -765,6 +710,7 @@ fn ImageLowerer::representation_demand(
     let argument = instance_substitutions
       .argument(parameter.id)
       .unwrap_or(instance.own_arguments[index].argument)
+    guard self.generic_argument_is_closed(argument) else { continue }
     substitutions.insert(parameter.id, argument)
     specialized_parameters.push(parameter.id)
     specialized_evidence.push(
@@ -780,10 +726,21 @@ fn ImageLowerer::representation_demand(
     substitutions.apply_type(self.runtime_types, type_)
   })
   let result_type = substitutions.apply_type(self.runtime_types, formal_result)
-  let (all_parameters, _, _) = function_type_parts(definition.type_)
-  let residual_parameters = all_parameters.filter(parameter => {
+  let residual_lexical_parameters = definition.lexical_parameters.filter(parameter => {
     !specialized_parameters.contains(parameter.id)
   })
+  let (callable_parameters, _, _) = function_type_parts(definition.type_)
+  let residual_parameters = callable_parameters.filter(parameter => {
+    !definition.lexical_parameters.any(lexical => lexical.id == parameter.id) &&
+    !specialized_parameters.contains(parameter.id)
+  })
+  guard self.bind_residual_scope(
+    substitutions,
+    residual_lexical_parameters + residual_parameters,
+    instance_substitutions,
+  ) else {
+    return None
+  }
   let scalar_parameters = []
   for index in 0..<parameter_types.length() {
     if self.representation_solution.scalar_parameter_contract(owner, index)
@@ -906,6 +863,38 @@ fn ImageLowerer::representation_demand(
 }
 
 ///|
+/// Rebase alpha-renamed residual evidence from a callable instance onto the
+/// worker's own residual binders. Recursive workers can then forward one
+/// verified witness scope around the callable-contract graph.
+fn ImageLowerer::bind_residual_scope(
+  self : ImageLowerer,
+  substitutions : RuntimeSubstitution,
+  residual_parameters : Array[@anf.RuntimeEvidenceParameter],
+  instance_substitutions : RuntimeSubstitution,
+) -> Bool raise LoisvmLoweringError {
+  for parameter in residual_parameters {
+    guard instance_substitutions.argument(parameter.id) is Some(argument) else {
+      continue
+    }
+    guard argument.evidence is Parameter(actual) else { return false }
+    if actual == parameter.id {
+      continue
+    }
+    guard self.evidence_parameter(actual) is Some(actual_parameter) &&
+      actual_parameter.arity == parameter.arity else {
+      return false
+    }
+    let canonical = self.identity_runtime_argument(parameter)
+    match substitutions.argument(actual) {
+      Some(existing) if existing == canonical => ()
+      Some(_) => return false
+      None => substitutions.insert(actual, canonical)
+    }
+  }
+  true
+}
+
+///|
 fn ImageLowerer::representation_capture_shapes(
   self : ImageLowerer,
   representation_target : CallableRepresentationTarget,
@@ -914,8 +903,7 @@ fn ImageLowerer::representation_capture_shapes(
   demands : Array[
     (CallableRepresentationTarget, CallableInstance, RepresentationDemand),
   ],
-  sccs : RepresentationDemandSccs,
-  states : Array[RepresentationDemandCompletion],
+  contracts : Array[PhysicalCallableContractId],
 ) -> Array[PhysicalCallableCaptureProjection] raise LoisvmLoweringError {
   let owner = CallableRepresentationOwner::Callable(representation_target)
   let captures : Array[PhysicalCallableCaptureProjection] = []
@@ -948,7 +936,7 @@ fn ImageLowerer::representation_capture_shapes(
     let shape = match callable {
       Some(_) => {
         guard self.representation_port_callable_abi(
-            owner, binding, demand, demands, sccs, states,
+            owner, binding, demand, demands, contracts,
           )
           is Some(abi) else {
           raise RepresentationSpecializationInvariant(
@@ -1024,10 +1012,10 @@ fn ImageLowerer::callable_representation_semantic_type(
 
 ///|
 fn ImageLowerer::representation_demand_invocation(
-  _self : ImageLowerer,
+  self : ImageLowerer,
   demand : RepresentationDemand,
-) -> CanonicalCallableAbi {
-  {
+) -> PhysicalCallableContractId raise LoisvmLoweringError {
+  self.intern_callable_contract({
     witnesses: demand.residual_parameters.map(parameter => {
       let metadata = runtime_evidence_metadata(parameter)
       {
@@ -1038,7 +1026,7 @@ fn ImageLowerer::representation_demand_invocation(
     }),
     parameters: demand.key.parameters,
     result: demand.key.result,
-  }
+  })
 }
 
 ///|
@@ -1059,52 +1047,37 @@ fn PhysicalCallableParameterProjection::append_keys(
 ///|
 fn PhysicalCallableInterface::verify(
   self : PhysicalCallableInterface,
+  contracts : PhysicalCallableContractCatalog,
 ) -> Unit raise LoisvmLoweringError {
+  let invocation = contracts.contract(self.invocation)
   if self.parameter_types.length() != self.parameters.length() {
     raise RepresentationSpecializationInvariant(
       detail="physical callable semantic parameters disagree with its logical parameter projection",
     )
   }
-  if self.evidence_parameters.length() != self.invocation.witnesses.length() {
+  if self.parameter_callable_targets.length() != self.parameters.length() {
     raise RepresentationSpecializationInvariant(
-      detail="physical callable evidence parameters disagree with its invocation ABI",
+      detail="physical callable target projection disagrees with its semantic parameters",
     )
   }
-  if self.parameter_callables.length() != self.parameters.length() {
+  if self.evidence_parameters.length() != invocation.witnesses.length() {
     raise RepresentationSpecializationInvariant(
-      detail="physical callable parameter interfaces disagree with its logical parameter projection",
+      detail="physical callable evidence parameters \{Repr(self.evidence_parameters)} disagree with invocation contract \{Repr(invocation)}",
+    )
+  }
+  if self.evidence_arguments.length() != self.evidence_parameters.length() {
+    raise RepresentationSpecializationInvariant(
+      detail="physical callable evidence arguments disagree with its invocation witnesses",
     )
   }
   let parameters = []
   for projection in self.parameters {
     projection.append_keys(parameters)
   }
-  if parameters != self.invocation.parameters {
+  if parameters != invocation.parameters {
     raise RepresentationSpecializationInvariant(
       detail="physical callable parameter projection does not flatten to its invocation ABI",
     )
-  }
-  for index, projection in self.parameters {
-    match (projection, self.parameter_callables[index]) {
-      (Slot(Callable(expected)), Some(parameter)) if parameter.invocation ==
-        expected => ()
-      (Slot(Callable(_)), _)
-      | (Slot(_), Some(_))
-      | (Unit, Some(_))
-      | (Product(_), Some(_)) =>
-        raise RepresentationSpecializationInvariant(
-          detail="physical callable parameter interface disagrees with its invocation ABI",
-        )
-      (_, None) => ()
-    }
-  }
-  match (self.invocation.result, self.result_callable) {
-    (Callable(expected), Some(result)) if result.invocation == expected => ()
-    (Callable(_), _) | (_, Some(_)) =>
-      raise RepresentationSpecializationInvariant(
-        detail="physical callable result projection disagrees with its invocation ABI in \{Repr(self)}",
-      )
-    (_, None) => ()
   }
 }
 
@@ -1113,47 +1086,90 @@ fn PhysicalCallableInterface::representation_equal(
   self : PhysicalCallableInterface,
   other : PhysicalCallableInterface,
 ) -> Bool {
-  if self.invocation != other.invocation {
-    return false
+  self.invocation == other.invocation
+}
+
+///|
+/// Reconstructs the semantic callable type owned by this exact interface.
+/// The physical contract graph describes only invocation layout; it must never
+/// be used to select semantic parameter or binder identities.
+fn PhysicalCallableInterface::semantic_type(
+  self : PhysicalCallableInterface,
+) -> @anf.RuntimeType {
+  let callable = @anf.RuntimeType::Callable(
+    self.parameter_types,
+    self.result_type,
+  )
+  if self.evidence_parameters.is_empty() {
+    callable
+  } else {
+    @anf.RuntimeType::Forall(self.evidence_parameters, callable)
   }
-  match (self.result_callable, other.result_callable) {
-    (Some(left), Some(right)) if !left.representation_equal(right) =>
-      return false
-    (Some(_), None) | (None, Some(_)) => return false
-    _ => ()
+}
+
+///|
+fn ImageLowerer::callable_parameter_interface(
+  self : ImageLowerer,
+  interface : PhysicalCallableInterface,
+  index : Int,
+) -> PhysicalCallableInterface? raise LoisvmLoweringError {
+  guard interface.parameters.get(index) is Some(Slot(Callable(invocation))) &&
+    interface.parameter_types.get(index) is Some(type_) else {
+    return None
   }
-  fn physical_parameters(
-    interface : PhysicalCallableInterface,
-  ) -> Array[PhysicalCallableInterface?] {
-    let result = []
-    for index, projection in interface.parameters {
-      match projection {
-        Unit => ()
-        Slot(_) => result.push(interface.parameter_callables[index])
-        Product(fields) =>
-          for field in fields {
-            let keys = []
-            field.append_keys(keys)
-            result.append(Array::make(keys.length(), None))
-          }
-      }
+  if interface.parameter_callable_targets[index] is Some(target) &&
+    self.representation_specialization_for_callable(target) is Some(worker) {
+    let nested = self.representation_worker_interface(worker)
+    if nested.invocation != invocation {
+      raise RepresentationSpecializationInvariant(
+        detail="callable parameter target disagrees with its contract-graph edge",
+      )
     }
-    result
+    return Some(
+      self.callable_interface_semantic_view(
+        nested,
+        type_,
+        RuntimeSubstitution::new(),
+      ),
+    )
   }
-  let left = physical_parameters(self)
-  let right = physical_parameters(other)
-  if left.length() != right.length() {
-    return false
+  self.callable_interface_for_type_with_invocation(
+    type_,
+    RuntimeSubstitution::new(),
+    invocation,
+  )
+}
+
+///|
+fn ImageLowerer::callable_result_interface(
+  self : ImageLowerer,
+  interface : PhysicalCallableInterface,
+) -> PhysicalCallableInterface? raise LoisvmLoweringError {
+  guard self.callable_contract(interface.invocation).result
+    is Callable(invocation) else {
+    return None
   }
-  for index, left_parameter in left {
-    match (left_parameter, right[index]) {
-      (Some(left), Some(right)) if !left.representation_equal(right) =>
-        return false
-      (Some(_), None) | (None, Some(_)) => return false
-      _ => ()
+  if interface.result_callable_target is Some(target) &&
+    self.representation_specialization_for_callable(target) is Some(worker) {
+    let nested = self.representation_worker_interface(worker)
+    if nested.invocation != invocation {
+      raise RepresentationSpecializationInvariant(
+        detail="callable result target disagrees with its contract-graph edge",
+      )
     }
+    return Some(
+      self.callable_interface_semantic_view(
+        nested,
+        interface.result_type,
+        RuntimeSubstitution::new(),
+      ),
+    )
   }
-  true
+  self.callable_interface_for_type_with_invocation(
+    interface.result_type,
+    RuntimeSubstitution::new(),
+    invocation,
+  )
 }
 
 ///|
@@ -1163,58 +1179,50 @@ fn ImageLowerer::callable_interface_semantic_view(
   type_ : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
 ) -> PhysicalCallableInterface raise LoisvmLoweringError {
-  let (_, parameter_types, result_type) = function_type_parts(type_)
+  let (type_parameters, parameter_types, _) = function_type_parts(type_)
   if parameter_types.length() != interface.parameters.length() {
     raise RepresentationSpecializationInvariant(
       detail="instantiated callable type disagrees with its physical parameter projection",
     )
   }
-  let parameter_callables = interface.parameter_callables.mapi((index, nested) => {
-    match nested {
-      Some(nested) =>
-        match
-          self.runtime_type(
-            substitutions.apply_type(self.runtime_types, parameter_types[index]),
-          ) {
-          Concrete(Callable(_, _) | Forall(_, _) as callable) =>
-            Some(
-              self.callable_interface_semantic_view(
-                nested,
-                callable,
-                RuntimeSubstitution::new(),
-              ),
-            )
-          _ => Some(nested)
-        }
-      None => None
-    }
+  let evidence_arguments = interface.evidence_arguments.map(argument => {
+    substitutions.apply_argument(self.runtime_types, argument)
   })
-  let result_callable = match interface.result_callable {
-    Some(nested) =>
-      match
-        self.runtime_type(
-          substitutions.apply_type(self.runtime_types, result_type),
-        ) {
-        Concrete(Callable(_, _) | Forall(_, _) as callable) =>
-          Some(
-            self.callable_interface_semantic_view(
-              nested,
-              callable,
-              RuntimeSubstitution::new(),
-            ),
-          )
-        _ => Some(nested)
-      }
-    None => None
+  let aligned = type_parameters
+    .length()
+    .min(interface.evidence_parameters.length())
+  let type_offset = type_parameters.length() - aligned
+  let physical_offset = interface.evidence_parameters.length() - aligned
+  for index in 0..<aligned {
+    let parameter = type_parameters[type_offset + index]
+    let physical = interface.evidence_parameters[physical_offset + index]
+    if physical.arity != parameter.arity {
+      raise RepresentationSpecializationInvariant(
+        detail="instantiated callable evidence binder disagrees with its physical witness arity",
+      )
+    }
+    evidence_arguments[physical_offset + index] = substitutions.apply_argument(
+      self.runtime_types,
+      self.identity_runtime_argument(parameter),
+    )
+  }
+  let view_substitutions = RuntimeSubstitution::new()
+  for index, parameter in interface.evidence_parameters {
+    view_substitutions.insert(parameter.id, evidence_arguments[index])
   }
   let view = {
     ..interface,
-    parameter_types,
-    result_type,
-    parameter_callables,
-    result_callable,
+    evidence_parameters: interface.evidence_parameters,
+    evidence_arguments,
+    parameter_types: interface.parameter_types.map(type_ => {
+      view_substitutions.apply_type(self.runtime_types, type_)
+    }),
+    result_type: view_substitutions.apply_type(
+      self.runtime_types,
+      interface.result_type,
+    ),
   }
-  view.verify()
+  view.verify(self.callable_contracts)
   view
 }
 
@@ -1223,7 +1231,7 @@ fn ImageLowerer::callable_interface_for_type_with_invocation(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
-  invocation : CanonicalCallableAbi,
+  invocation : PhysicalCallableContractId,
 ) -> PhysicalCallableInterface? raise LoisvmLoweringError {
   let resolved = substitutions.apply_type(self.runtime_types, type_)
   guard self.runtime_type(resolved)
@@ -1244,65 +1252,50 @@ fn ImageLowerer::callable_interface_under_with_invocation(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
-  invocation : CanonicalCallableAbi,
+  invocation : PhysicalCallableContractId,
 ) -> PhysicalCallableInterface raise LoisvmLoweringError {
   let (evidence_parameters, parameters, result) = function_type_parts(type_)
+  let contract = self.callable_contract(invocation)
   let projections = []
-  let parameter_callables = []
   let mut physical_index = 0
   for parameter in parameters {
     match self.canonical_runtime_value_key_under(parameter, substitutions) {
-      Unit => {
-        projections.push(PhysicalCallableParameterProjection::Unit)
-        parameter_callables.push(None)
-      }
+      Unit => projections.push(PhysicalCallableParameterProjection::Unit)
       _ => {
-        guard invocation.parameters.get(physical_index) is Some(key) else {
+        guard contract.parameters.get(physical_index) is Some(key) else {
           raise RepresentationSpecializationInvariant(
             detail="physical callable invocation omits a non-Unit semantic parameter",
           )
         }
         projections.push(PhysicalCallableParameterProjection::Slot(key))
-        parameter_callables.push(
-          match key {
-            Callable(nested) =>
-              self.callable_interface_for_type_with_invocation(
-                parameter, substitutions, nested,
-              )
-            _ => None
-          },
-        )
         physical_index += 1
       }
     }
   }
-  if physical_index != invocation.parameters.length() {
+  if physical_index != contract.parameters.length() {
     raise RepresentationSpecializationInvariant(
       detail="physical callable invocation has parameters outside its semantic projection",
     )
   }
-  let result_callable = match invocation.result {
-    Callable(nested) =>
-      self.callable_interface_for_type_with_invocation(
-        result, substitutions, nested,
-      )
-    _ => None
-  }
-  if invocation.result is Callable(_) && result_callable is None {
-    raise RepresentationSpecializationInvariant(
-      detail="semantic callable type \{Repr(type_)} under \{Repr(substitutions)} cannot describe invocation result \{Repr(invocation.result)}",
-    )
-  }
   let interface : PhysicalCallableInterface = {
     evidence_parameters,
-    parameter_types: parameters,
-    result_type: result,
+    evidence_arguments: evidence_parameters.map(parameter => {
+      substitutions.apply_argument(
+        self.runtime_types,
+        self.identity_runtime_argument(parameter),
+      )
+    }),
+    parameter_types: parameters.map(parameter => {
+      substitutions.apply_type(self.runtime_types, parameter)
+    }),
+    result_type: substitutions.apply_type(self.runtime_types, result),
     invocation,
+    callable_target: None,
     parameters: projections,
-    parameter_callables,
-    result_callable,
+    parameter_callable_targets: parameters.map(_ => None),
+    result_callable_target: None,
   }
-  interface.verify()
+  interface.verify(self.callable_contracts)
   interface
 }
 
@@ -1325,8 +1318,9 @@ fn ImageLowerer::representation_worker_interface(
   plan : RepresentationSpecializationPlan,
 ) -> PhysicalCallableInterface raise LoisvmLoweringError {
   let invocation = self.representation_worker_invocation(plan)
+  let invocation_contract = self.callable_contract(invocation)
   let parameters = []
-  let parameter_callables = []
+  let parameter_callable_targets = []
   let mut physical_index = 0
   for index, type_ in plan.parameter_types {
     let mut scalar : ClosedAggregateContract? = None
@@ -1340,7 +1334,7 @@ fn ImageLowerer::representation_worker_interface(
       Some(contract) => {
         let fields = []
         for _ in contract.payload_types {
-          guard invocation.parameters.get(physical_index) is Some(key) else {
+          guard invocation_contract.parameters.get(physical_index) is Some(key) else {
             raise RepresentationSpecializationInvariant(
               detail="representation worker invocation omits a scalar-expanded parameter",
             )
@@ -1349,99 +1343,61 @@ fn ImageLowerer::representation_worker_interface(
           physical_index += 1
         }
         parameters.push(PhysicalCallableParameterProjection::Product(fields))
-        parameter_callables.push(None)
+        parameter_callable_targets.push(None)
       }
       None =>
         match
           self.canonical_runtime_value_key_under(type_, plan.substitutions) {
           Unit => {
             parameters.push(PhysicalCallableParameterProjection::Unit)
-            parameter_callables.push(None)
+            parameter_callable_targets.push(None)
           }
           _ => {
-            guard invocation.parameters.get(physical_index) is Some(key) else {
+            guard invocation_contract.parameters.get(physical_index)
+              is Some(key) else {
               raise RepresentationSpecializationInvariant(
                 detail="representation worker invocation omits a non-Unit parameter",
               )
             }
             parameters.push(PhysicalCallableParameterProjection::Slot(key))
-            guard plan.function.parameters.get(index) is Some(parameter) else {
-              parameter_callables.push(
-                match key {
-                  Callable(abi) =>
-                    self.callable_interface_for_type_with_invocation(
-                      type_,
-                      plan.substitutions,
-                      abi,
-                    )
-                  _ => None
-                },
-              )
-              physical_index += 1
-              continue
-            }
-            let mut nested : CallableRepresentationTarget? = None
-            for entry in plan.key.callable_ports {
-              if entry.0 == Value(parameter) && key is Callable(_) {
-                nested = Some(entry.1)
-                break
+            let mut callable_target : CallableRepresentationTarget? = None
+            if key is Callable(_) &&
+              plan.function.parameters.get(index) is Some(parameter) {
+              for entry in plan.key.callable_ports {
+                if entry.0 == Value(parameter) {
+                  callable_target = Some(entry.1)
+                  break
+                }
               }
             }
-            parameter_callables.push(
-              match nested {
-                Some(callable) =>
-                  Some(
-                    self.callable_representation_interface(
-                      callable,
-                      worker=true,
-                    ),
-                  )
-                None =>
-                  match key {
-                    Callable(abi) =>
-                      self.callable_interface_for_type_with_invocation(
-                        type_,
-                        plan.substitutions,
-                        abi,
-                      )
-                    _ => None
-                  }
-              },
-            )
+            parameter_callable_targets.push(callable_target)
             physical_index += 1
           }
         }
     }
   }
-  if physical_index != invocation.parameters.length() {
+  if physical_index != invocation_contract.parameters.length() {
     raise RepresentationSpecializationInvariant(
       detail="representation worker invocation has parameters outside its semantic projection",
     )
   }
-  let result_callable = match invocation.result {
-    Callable(abi) =>
-      match plan.key.callable_result {
-        Some(callable) =>
-          Some(self.callable_representation_interface(callable, worker=true))
-        None =>
-          self.callable_interface_for_type_with_invocation(
-            plan.result_type,
-            plan.substitutions,
-            abi,
-          )
-      }
-    _ => None
-  }
   let interface : PhysicalCallableInterface = {
     evidence_parameters: plan.residual_parameters,
+    evidence_arguments: plan.residual_parameters.map(parameter => {
+      plan.substitutions.apply_argument(
+        self.runtime_types,
+        self.identity_runtime_argument(parameter),
+      )
+    }),
     parameter_types: plan.parameter_types,
     result_type: plan.result_type,
     invocation,
+    callable_target: Some(plan.owner),
     parameters,
-    parameter_callables,
-    result_callable,
+    parameter_callable_targets,
+    result_callable_target: plan.key.callable_result,
   }
-  interface.verify()
+  interface.verify(self.callable_contracts)
   interface
 }
 
@@ -1467,29 +1423,10 @@ fn ImageLowerer::callable_representation_interface(
       detail="generic callable interface has no canonical fallback instance",
     )
   }
-  self.generic_function_interface(instance, implementation.function)
-}
-
-///|
-fn physical_parameter_types(
-  logical : Array[@anf.RuntimeType],
-  scalar : Array[ScalarParameterPlan],
-) -> Array[@anf.RuntimeType] {
-  let physical = []
-  for index, type_ in logical {
-    let mut projected : ClosedAggregateContract? = None
-    for parameter in scalar {
-      if parameter.parameter_index == index {
-        projected = Some(parameter.contract)
-        break
-      }
-    }
-    match projected {
-      Some(contract) => physical.append(contract.payload_types)
-      None => physical.push(type_)
-    }
+  {
+    ..self.generic_function_interface(instance, implementation.function),
+    callable_target: Some(callable),
   }
-  physical
 }
 
 ///|
@@ -1733,10 +1670,32 @@ fn RepresentationSpecializationPlan::callable_type(
 }
 
 ///|
+fn physical_parameter_types(
+  logical : Array[@anf.RuntimeType],
+  scalar : Array[ScalarParameterPlan],
+) -> Array[@anf.RuntimeType] {
+  let physical = []
+  for index, type_ in logical {
+    let mut projection : ScalarParameterPlan? = None
+    for candidate in scalar {
+      if candidate.parameter_index == index {
+        projection = Some(candidate)
+        break
+      }
+    }
+    match projection {
+      Some(projection) => physical.append(projection.contract.payload_types)
+      None => physical.push(type_)
+    }
+  }
+  physical
+}
+
+///|
 fn ImageLowerer::representation_worker_invocation(
   self : ImageLowerer,
   plan : RepresentationSpecializationPlan,
-) -> CanonicalCallableAbi {
+) -> PhysicalCallableContractId raise LoisvmLoweringError {
   self.representation_demand_invocation({
     key: plan.key,
     substitutions: plan.substitutions,
@@ -1753,7 +1712,7 @@ fn ImageLowerer::callable_representation_physical_abi(
   self : ImageLowerer,
   callable : CallableRepresentationTarget,
   worker~ : Bool,
-) -> CanonicalCallableAbi raise LoisvmLoweringError {
+) -> PhysicalCallableContractId raise LoisvmLoweringError {
   if worker &&
     self.representation_specialization_for_callable(callable) is Some(plan) {
     return self.representation_worker_invocation(plan)
@@ -1765,7 +1724,7 @@ fn ImageLowerer::callable_representation_physical_abi(
 fn ImageLowerer::generic_callable_representation_physical_abi(
   self : ImageLowerer,
   callable : CallableRepresentationTarget,
-) -> CanonicalCallableAbi raise LoisvmLoweringError {
+) -> PhysicalCallableContractId raise LoisvmLoweringError {
   self.ensure_generic_callable_invocation(callable)
 }
 
@@ -1887,7 +1846,7 @@ fn ImageLowerer::canonical_callable_value_abi(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
-) -> CanonicalCallableAbi raise LoisvmLoweringError {
+) -> PhysicalCallableContractId raise LoisvmLoweringError {
   self.canonical_callable_abi_under(type_, substitutions)
 }
 
@@ -1896,7 +1855,7 @@ fn ImageLowerer::canonical_callable_abi_under(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
-) -> CanonicalCallableAbi raise LoisvmLoweringError {
+) -> PhysicalCallableContractId raise LoisvmLoweringError {
   let (type_parameters, parameters, result) = function_type_parts(type_)
   let witnesses : Array[@bytecode.ValueAbi] = []
   for parameter in type_parameters {
@@ -1914,11 +1873,11 @@ fn ImageLowerer::canonical_callable_abi_under(
       parameter_abis.push(key)
     }
   }
-  {
+  self.intern_callable_contract({
     witnesses,
     parameters: parameter_abis,
     result: self.canonical_runtime_value_key_under(result, substitutions),
-  }
+  })
 }
 
 ///|

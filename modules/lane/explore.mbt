@@ -75,7 +75,7 @@ async fn write_explore_report_atomic(
 
 ///|
 fn render_explore_html(report : @driver.ExploreReport) -> String {
-  let html = StringBuilder::new()
+  let html = StringBuilder()
   let stages = report.stages.ordered()
   html <+
     #|<!doctype html>
@@ -109,7 +109,12 @@ fn render_explore_html(report : @driver.ExploreReport) -> String {
     let class_name = if index == 0 { "stage active" } else { "stage" }
     html <+
       "<section class=\"\{class_name}\" data-stage=\"\{escape_html(stage.id)}\">"
-    render_stage_observations(html, stage, report.functions)
+    render_stage_observations(
+      html,
+      stage,
+      report.functions,
+      report.representations,
+    )
     html <+
       "<pre>\{escape_html(explore_stage_text(stage.state))}</pre></section>"
   }
@@ -130,15 +135,26 @@ fn render_stage_observations(
   html : StringBuilder,
   stage : @driver.ExploreStage,
   functions : @driver.ExploreFunctionGraph,
+  representations : @driver.ExploreRepresentationGraph,
 ) -> Unit {
   guard stage.state is Completed(snapshot) else { return }
   let nodes = functions.nodes.filter(node => {
     node.function.stage.key() == stage.id
   })
+  let show_representations = stage.id ==
+    @driver.ExploreStageId::VmcfgInitial.key()
   if snapshot.scale.metrics.is_empty() &&
     snapshot.scale.functions.is_empty() &&
     snapshot.scale.modules.is_empty() &&
-    nodes.is_empty() {
+    nodes.is_empty() &&
+    (
+      !show_representations ||
+      (
+        representations.callable_contracts.is_empty() &&
+        representations.transitions.is_empty() &&
+        representations.occurrences.is_empty()
+      )
+    ) {
     return
   }
   html <+ "<div class=\"observations\">"
@@ -189,7 +205,56 @@ fn render_stage_observations(
     }
     html <+ "</tbody></table>"
   }
+  if show_representations && !representations.callable_contracts.is_empty() {
+    html <+
+      "<table><thead><tr><th>Callable contract</th><th>Representative</th><th>Witnesses</th><th>Parameters</th><th>Result</th></tr></thead><tbody>"
+    for contract in representations.callable_contracts {
+      html <+
+        "<tr><td>#\{contract.id}</td><td>#\{contract.representative}</td><td>\{escape_html("\{Repr(contract.witnesses)}")}</td><td>\{escape_html(contract.parameters.map(representation_contract_label).join(", "))}</td><td>\{escape_html(representation_contract_label(contract.result))}</td></tr>"
+    }
+    html <+ "</tbody></table>"
+  }
+  if show_representations && !representations.transitions.is_empty() {
+    html <+
+      "<table><thead><tr><th>ABI transition</th><th>Kind</th><th>Source</th><th>Target</th></tr></thead><tbody>"
+    for transition in representations.transitions {
+      html <+
+        "<tr><td>#\{transition.id}</td><td>\{escape_html(representation_transition_kind_label(transition.kind))}</td><td>\{escape_html(representation_contract_label(transition.source))}</td><td>\{escape_html(representation_contract_label(transition.target))}</td></tr>"
+    }
+    html <+ "</tbody></table>"
+  }
+  if show_representations && !representations.occurrences.is_empty() {
+    html <+
+      "<table><thead><tr><th>Transition event</th><th>Function</th><th>Function role</th><th>Transition</th><th>Boundary</th><th>Binding</th><th>Ordinal</th></tr></thead><tbody>"
+    for occurrence in representations.occurrences {
+      html <+
+        "<tr><td>#\{occurrence.event}</td><td>\{escape_html(function_ref_label(occurrence.function))}</td><td>\{escape_html(occurrence.roles.map(function_role_label).join(", "))}</td><td>#\{occurrence.transition}</td><td>\{escape_html("\{Repr(occurrence.boundary)}")}</td><td>\{escape_html("\{Repr(occurrence.binding)}")}</td><td>\{escape_html("\{Repr(occurrence.ordinal)}")}</td></tr>"
+    }
+    html <+ "</tbody></table>"
+  }
   html <+ "</div>"
+}
+
+///|
+fn representation_contract_label(
+  contract : @driver.ExploreRepresentationContract,
+) -> String {
+  match contract {
+    Unit => "Unit"
+    Value(abi) => "\{Repr(abi)}"
+    Callable(contract~) => "callable#\{contract}"
+  }
+}
+
+///|
+fn representation_transition_kind_label(
+  kind : @driver.ExploreRepresentationTransitionKind,
+) -> String {
+  match kind {
+    Erase => "erase"
+    Unerase => "unerase"
+    CallableAdapter => "callable adapter"
+  }
 }
 
 ///|
@@ -213,7 +278,8 @@ fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
       }
     InitializerOrchestrator => "initializer orchestrator"
     IntrinsicWrapper(name~) => "intrinsic wrapper \{name}"
-    CallableAdapter => "callable adapter"
+    CallableAdapter(transition~) =>
+      "callable adapter for ABI transition#\{transition}"
     RepresentationWorker(value~, name~) =>
       match (value, name) {
         (Some(value), Some(name)) =>
@@ -263,7 +329,7 @@ fn explore_stage_text(state : @driver.ExploreStageState) -> String {
 
 ///|
 fn escape_html(text : String) -> String {
-  let escaped = StringBuilder::new()
+  let escaped = StringBuilder()
   for character in text {
     match character {
       '&' => escaped <+ "&amp;"

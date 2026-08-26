@@ -18,12 +18,21 @@ fn bool_adapter_key() -> CanonicalRuntimeTypeKey {
 }
 
 ///|
+fn test_callable_contract(
+  image : ImageLowerer,
+  parameters : Array[CanonicalRuntimeTypeKey],
+  result : CanonicalRuntimeTypeKey,
+) -> PhysicalCallableContractId raise LoisvmLoweringError {
+  image.intern_callable_contract({ witnesses: [], parameters, result, })
+}
+
+///|
 fn callable_adapter_recipe_for_test(
   image : ImageLowerer,
   source_type : @anf.RuntimeType,
   target_type : @anf.RuntimeType,
-  source_abi : CanonicalCallableAbi,
-  target_abi : CanonicalCallableAbi,
+  source_abi : PhysicalCallableContractId,
+  target_abi : PhysicalCallableContractId,
   source_parameters : Array[PhysicalCallableParameterProjection],
   target_parameters : Array[PhysicalCallableParameterProjection],
   source_parameter_targets : Array[Int],
@@ -33,8 +42,9 @@ fn callable_adapter_recipe_for_test(
   nested_adapters : Array[CallableAdapterContract],
 ) -> CallableAdapterRecipe raise LoisvmLoweringError {
   fn interface(
+    image : ImageLowerer,
     type_ : @anf.RuntimeType,
-    abi : CanonicalCallableAbi,
+    abi : PhysicalCallableContractId,
     projections : Array[PhysicalCallableParameterProjection],
   ) -> PhysicalCallableInterface raise LoisvmLoweringError {
     let (evidence_parameters, logical_parameters, logical_result) = function_type_parts(
@@ -42,39 +52,35 @@ fn callable_adapter_recipe_for_test(
     )
     {
       evidence_parameters,
+      evidence_arguments: evidence_parameters.map(parameter => {
+        image.identity_runtime_argument(parameter)
+      }),
       parameter_types: logical_parameters,
       result_type: logical_result,
       invocation: abi,
+      callable_target: None,
       parameters: projections,
-      parameter_callables: logical_parameters.mapi((index, parameter) => {
-        match projections[index] {
-          Slot(Callable(nested)) =>
-            image.callable_interface_for_type_with_invocation(
-              parameter, substitutions, nested,
-            )
-          _ => None
-        }
-      }),
-      result_callable: match abi.result {
-        Callable(nested) =>
-          image.callable_interface_for_type_with_invocation(
-            logical_result, substitutions, nested,
-          )
-        _ => None
-      },
+      parameter_callable_targets: logical_parameters.map(_ => None),
+      result_callable_target: None,
     }
   }
-  image.callable_adapter_recipe_with_interfaces(
+  let (recipe, actual_captures) = image.callable_adapter_recipe_with_interfaces(
     source_type,
     target_type,
-    interface(source_type, source_abi, source_parameters),
-    interface(target_type, target_abi, target_parameters),
+    interface(image, source_type, source_abi, source_parameters),
+    interface(image, target_type, target_abi, target_parameters),
     source_parameter_targets,
     substitutions,
-    captures,
     aliases,
     nested_adapters,
   )
+  if actual_captures.map(capture => (capture.source.id, capture.source.arity)) !=
+    captures.map(capture => (capture.source.id, capture.source.arity)) {
+    raise RepresentationSpecializationInvariant(
+      detail="test adapter recipe selected unexpected evidence captures",
+    )
+  }
+  recipe
 }
 
 ///|
@@ -101,12 +107,9 @@ test "callable adapter preserves the alias for substituted free evidence" {
     type_expression: target_expression,
     evidence: Parameter(target_parameter),
   })
-  let (captures, aliases) = image.callable_adapter_evidence_captures(
+  let aliases = image.callable_adapter_evidence_aliases(
     source_type, target_type, substitutions,
   )
-  assert_eq(captures.map(capture => capture.source), [
-    { id: target_parameter, arity: 0, },
-  ])
   assert_eq(aliases.length(), 1)
   assert_true(aliases[0].evidence is Existing(id) && id == source_parameter)
   assert_true(aliases[0].replacement is Existing(id) && id == target_parameter)
@@ -122,8 +125,8 @@ test "generic erased Unit parameters adapt to a zero-slot worker" {
     image,
     type_,
     type_,
-    { witnesses: [], parameters: [erased, erased], result, },
-    { witnesses: [], parameters: [], result, },
+    test_callable_contract(image, [erased, erased], result),
+    test_callable_contract(image, [], result),
     [Slot(erased), Slot(erased)],
     [Unit, Unit],
     [0, 1],
@@ -133,10 +136,14 @@ test "generic erased Unit parameters adapt to a zero-slot worker" {
     [],
   )
   debug_inspect(
-    recipe,
+    (
+      image.callable_contract(recipe.source_abi),
+      image.callable_contract(recipe.target_abi),
+      recipe,
+    ),
     content=(
-      #|{
-      #|  source_abi: {
+      #|(
+      #|  {
       #|    witnesses: [],
       #|    parameters: [
       #|      Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue }),
@@ -144,42 +151,100 @@ test "generic erased Unit parameters adapt to a zero-slot worker" {
       #|    ],
       #|    result: Value({ representation: I32, cleanup: Trivial, kind: ScalarValue }),
       #|  },
-      #|  target_abi: {
+      #|  {
       #|    witnesses: [],
       #|    parameters: [],
       #|    result: Value({ representation: I32, cleanup: Trivial, kind: ScalarValue }),
       #|  },
-      #|  captured_evidence: [],
-      #|  source_witnesses: [],
-      #|  target_parameters: [],
-      #|  source_arguments: [
-      #|    {
-      #|      input: Unit,
-      #|      flow: {
-      #|        value: Unit,
-      #|        source_shape: Unit,
-      #|        target: Erased(Static(Unit)),
-      #|        target_shape: Erased(Static(Unit)),
-      #|        definitionally_equal: true,
-      #|        nested_adapter: None,
+      #|  {
+      #|    source_abi: { index: 0 },
+      #|    target_abi: { index: 1 },
+      #|    captured_evidence: [],
+      #|    source_witnesses: [],
+      #|    target_parameters: [],
+      #|    source_arguments: [
+      #|      {
+      #|        input: Unit,
+      #|        flow: {
+      #|          value: Unit,
+      #|          source_shape: Unit,
+      #|          target: Erased(Static(Unit)),
+      #|          target_shape: Erased(Static(Unit)),
+      #|          definitionally_equal: true,
+      #|          nested_adapter: None,
+      #|          transition: Some({ index: 0 }),
+      #|        },
       #|      },
-      #|    },
-      #|    {
-      #|      input: Unit,
-      #|      flow: {
-      #|        value: Unit,
-      #|        source_shape: Unit,
-      #|        target: Erased(Static(Unit)),
-      #|        target_shape: Erased(Static(Unit)),
-      #|        definitionally_equal: true,
-      #|        nested_adapter: None,
+      #|      {
+      #|        input: Unit,
+      #|        flow: {
+      #|          value: Unit,
+      #|          source_shape: Unit,
+      #|          target: Erased(Static(Unit)),
+      #|          target_shape: Erased(Static(Unit)),
+      #|          definitionally_equal: true,
+      #|          nested_adapter: None,
+      #|          transition: Some({ index: 0 }),
+      #|        },
       #|      },
-      #|    },
-      #|  ],
-      #|  target_discards: [],
-      #|  result: TailCall,
-      #|}
+      #|    ],
+      #|    target_discards: [],
+      #|    result: TailCall,
+      #|  },
+      #|)
     ),
+  )
+}
+
+///|
+test "callable adapter plan and function origin share one transition identity" {
+  let image = test_image_lowerer(MetadataRegistry())
+  let type_ : @anf.RuntimeType = Callable([Unit], Scalar(Bool))
+  let result = bool_adapter_key()
+  let recipe = callable_adapter_recipe_for_test(
+    image,
+    type_,
+    type_,
+    test_callable_contract(image, [erased_adapter_key()], result),
+    test_callable_contract(image, [], result),
+    [Slot(erased_adapter_key())],
+    [Unit],
+    [0],
+    RuntimeSubstitution::new(),
+    [],
+    [],
+    [],
+  )
+  image.preplan_callable_adapter_recipe(recipe)
+  let adapter = image.planned_callable_adapter_recipe(recipe)
+  let transition = image.representation_transitions.transition(
+    adapter.transition,
+  )
+  guard image.plans.entries.last() is Some(planned) else {
+    fail("callable adapter was not planned")
+  }
+  assert_true(
+    planned.origin is LoisvmFunctionOrigin::CallableAdapter(transition~) &&
+    transition == adapter.transition,
+  )
+  assert_true(
+    transition ==
+    {
+      source: CanonicalRuntimeTypeKey::Callable(recipe.source_abi),
+      target: CanonicalRuntimeTypeKey::Callable(recipe.target_abi),
+      kind: PhysicalRepresentationTransitionKind::CallableAdapter,
+    },
+  )
+  guard recipe.source_arguments[0].flow.transition is Some(value_transition) else {
+    fail("callable adapter argument has no erase transition")
+  }
+  assert_true(
+    image.representation_transitions.transition(value_transition) ==
+    {
+      source: CanonicalRuntimeTypeKey::Unit,
+      target: erased_adapter_key(),
+      kind: PhysicalRepresentationTransitionKind::Erase,
+    },
   )
 }
 
@@ -193,8 +258,8 @@ test "zero-slot worker consumes erased Unit parameters at a generic boundary" {
     image,
     type_,
     type_,
-    { witnesses: [], parameters: [], result, },
-    { witnesses: [], parameters: [erased, erased], result, },
+    test_callable_contract(image, [], result),
+    test_callable_contract(image, [erased, erased], result),
     [Unit, Unit],
     [Slot(erased), Slot(erased)],
     [0, 1],
@@ -204,15 +269,19 @@ test "zero-slot worker consumes erased Unit parameters at a generic boundary" {
     [],
   )
   debug_inspect(
-    recipe,
+    (
+      image.callable_contract(recipe.source_abi),
+      image.callable_contract(recipe.target_abi),
+      recipe,
+    ),
     content=(
-      #|{
-      #|  source_abi: {
+      #|(
+      #|  {
       #|    witnesses: [],
       #|    parameters: [],
       #|    result: Value({ representation: I32, cleanup: Trivial, kind: ScalarValue }),
       #|  },
-      #|  target_abi: {
+      #|  {
       #|    witnesses: [],
       #|    parameters: [
       #|      Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue }),
@@ -220,36 +289,42 @@ test "zero-slot worker consumes erased Unit parameters at a generic boundary" {
       #|    ],
       #|    result: Value({ representation: I32, cleanup: Trivial, kind: ScalarValue }),
       #|  },
-      #|  captured_evidence: [],
-      #|  source_witnesses: [],
-      #|  target_parameters: [Erased(Static(Unit)), Erased(Static(Unit))],
-      #|  source_arguments: [],
-      #|  target_discards: [
-      #|    {
-      #|      input: 0,
-      #|      flow: {
-      #|        value: Erased(Static(Unit)),
-      #|        source_shape: Erased(Static(Unit)),
-      #|        target: Unit,
-      #|        target_shape: Unit,
-      #|        definitionally_equal: true,
-      #|        nested_adapter: None,
+      #|  {
+      #|    source_abi: { index: 0 },
+      #|    target_abi: { index: 1 },
+      #|    captured_evidence: [],
+      #|    source_witnesses: [],
+      #|    target_parameters: [Erased(Static(Unit)), Erased(Static(Unit))],
+      #|    source_arguments: [],
+      #|    target_discards: [
+      #|      {
+      #|        input: 0,
+      #|        flow: {
+      #|          value: Erased(Static(Unit)),
+      #|          source_shape: Erased(Static(Unit)),
+      #|          target: Unit,
+      #|          target_shape: Unit,
+      #|          definitionally_equal: true,
+      #|          nested_adapter: None,
+      #|          transition: Some({ index: 0 }),
+      #|        },
       #|      },
-      #|    },
-      #|    {
-      #|      input: 1,
-      #|      flow: {
-      #|        value: Erased(Static(Unit)),
-      #|        source_shape: Erased(Static(Unit)),
-      #|        target: Unit,
-      #|        target_shape: Unit,
-      #|        definitionally_equal: true,
-      #|        nested_adapter: None,
+      #|      {
+      #|        input: 1,
+      #|        flow: {
+      #|          value: Erased(Static(Unit)),
+      #|          source_shape: Erased(Static(Unit)),
+      #|          target: Unit,
+      #|          target_shape: Unit,
+      #|          definitionally_equal: true,
+      #|          nested_adapter: None,
+      #|          transition: Some({ index: 0 }),
+      #|        },
       #|      },
-      #|    },
-      #|  ],
-      #|  result: TailCall,
-      #|}
+      #|    ],
+      #|    result: TailCall,
+      #|  },
+      #|)
     ),
   )
 }
@@ -517,11 +592,11 @@ test "callable erasure follows the physical key after substitution reveals a cal
     type_expression: image.runtime_types.intern(Static(callable)),
     evidence: Static(Callable),
   })
-  let exact_abi : CanonicalCallableAbi = {
-    witnesses: [],
-    parameters: [bool_adapter_key()],
-    result: bool_adapter_key(),
-  }
+  let exact_abi = test_callable_contract(
+    image,
+    [bool_adapter_key()],
+    bool_adapter_key(),
+  )
   let exact_interface = image.callable_interface_under_with_invocation(
     callable,
     RuntimeSubstitution::new(),
@@ -570,8 +645,8 @@ test "callable adapter rejects identity flow across nominal data families" {
       image,
       type_,
       type_,
-      { witnesses: [], parameters: [data(1)], result: data(1), },
-      { witnesses: [], parameters: [data(2)], result: data(2), },
+      test_callable_contract(image, [data(1)], data(1)),
+      test_callable_contract(image, [data(2)], data(2)),
       [Slot(data(1))],
       [Slot(data(2))],
       [0],

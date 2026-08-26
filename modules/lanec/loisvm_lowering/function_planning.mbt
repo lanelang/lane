@@ -293,6 +293,9 @@ fn extract_top_atom_function(atom : @anf.AnfAtom) -> @anf.AnfFunction? {
 fn lower_initializer_step(
   physical_program : PhysicalAnfProgram,
   step : PhysicalInitializerStep,
+  emitted_transition_events : Array[
+    PhysicalEmittedRepresentationTransitionEvent,
+  ],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   guard physical_program.function(step.function) is Some(physical) else {
     raise RepresentationSpecializationInvariant(
@@ -311,6 +314,7 @@ fn lower_initializer_step(
     witnesses: [],
     physical: Some(physical),
     adapter_support: None,
+    emitted_transition_events,
   }
   let result = lowerer.materialize_physical_function_result(
     lowerer.materialize_physical_local(lowerer.lower_expr(physical.body)),
@@ -363,6 +367,7 @@ fn lower_initializer_orchestrator(
     witnesses: [],
     physical: None,
     adapter_support: None,
+    emitted_transition_events: [],
   }
   for step in steps {
     match physical_program.required_global(step.value).producer {
@@ -412,6 +417,7 @@ fn lower_intrinsic_wrapper(
     witnesses: [],
     physical: None,
     adapter_support: None,
+    emitted_transition_events: [],
   }
   let parameter_slots = plan.parameter_shapes.map(shape => {
     lowerer.fresh_metadata(shape.value_metadata(None))
@@ -484,26 +490,26 @@ fn ImageLowerer::intrinsic_wrapper(
     contract.result,
     RuntimeSubstitution::new(),
   )
+  let invocation = self.intern_callable_contract({
+    witnesses: [],
+    parameters: parameter_shapes,
+    result: result_shape,
+  })
   let (_, wrapper) = self.plans.append_with_result(
     IntrinsicWrapper(name=contract.intrinsic.name()),
     fn(function) {
-      let wrapper = { function, contract, parameter_shapes, result_shape, }
+      let wrapper = {
+        function,
+        contract,
+        invocation,
+        parameter_shapes,
+        result_shape,
+      }
       self.intrinsic_wrappers.push(wrapper)
       (IntrinsicWrapper(wrapper), wrapper)
     },
   )
   wrapper
-}
-
-///|
-fn IntrinsicWrapperPlan::invocation(
-  self : IntrinsicWrapperPlan,
-) -> CanonicalCallableAbi {
-  {
-    witnesses: [],
-    parameters: self.parameter_shapes,
-    result: self.result_shape,
-  }
 }
 
 ///|

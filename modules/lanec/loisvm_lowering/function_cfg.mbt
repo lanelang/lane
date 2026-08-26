@@ -2,6 +2,9 @@
 fn lower_function_body(
   physical_program : PhysicalAnfProgram,
   lowered_function : @bytecode.FunctionId,
+  emitted_transition_events : Array[
+    PhysicalEmittedRepresentationTransitionEvent,
+  ],
 ) -> @vmcfg.FunctionBody raise LoisvmLoweringError {
   guard physical_program.function(lowered_function) is Some(physical) else {
     raise RepresentationSpecializationInvariant(
@@ -21,6 +24,7 @@ fn lower_function_body(
     witnesses: [],
     physical: Some(physical),
     adapter_support: None,
+    emitted_transition_events,
   }
   let input_witnesses = []
   for parameter in physical.evidence_parameters {
@@ -196,7 +200,9 @@ fn lower_function_body(
       witnesses: input_witnesses,
       user_parameters: parameter_slots,
     },
-    result: physical.interface.invocation.result.physical_shape().result_abi(),
+    result: physical_program.callable_contract(physical.interface.invocation).result
+    .physical_shape()
+    .result_abi(),
     blocks,
   }
 }

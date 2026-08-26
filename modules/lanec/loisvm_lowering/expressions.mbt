@@ -127,6 +127,7 @@ fn FunctionLowerer::lower_construct(
           source,
           flow.target,
           flow.bridge,
+          flow.transition_site,
         ).value,
       )
     }
@@ -154,6 +155,7 @@ fn FunctionLowerer::lower_construct(
         source,
         flow.target,
         flow.bridge,
+        flow.transition_site,
       ).value
     match lowered {
       Unit => ()

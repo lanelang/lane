@@ -409,6 +409,47 @@ type syntax. Body planning verifies the contract and cannot replace it.
 _Avoid_: CallableValue layout, source function type, capture schema,
 type-derived fallback ABI
 
+**Recursive Callable Contract Graph**:
+The lowering-owned finite graph of Callable Invocation Contracts. Callable
+positions refer to graph identities instead of recursively embedding another
+contract. Reservation and completion construct recursive demand SCCs; a
+partition-refinement verifier canonicalizes bisimilar nodes while preserving
+stable aliases for provenance. Open or structurally expanding demand retains
+the generic implementation rather than inventing an unbounded worker family.
+Contract identities canonicalize only physical ABI; each recursive worker
+edge separately rebases alpha-renamed residual evidence onto the worker's
+verified binder scope.
+_Avoid_: recursive ABI tree, depth cutoff, recursion fallback, post-freeze ID
+reindexing, free evidence identity as graph structure
+
+**Representation Transition**:
+The canonical source-contract, target-contract, and operation-kind identity for
+one non-identity physical flow. Physical ANF bridge planning and callable
+adapter value-flow planning are its only producers; VM CFG emission consumes
+the attached transition and may not reclassify it from emitted opcodes.
+_Avoid_: source-type spelling, layout-only equality, Explore opcode inference
+
+**Representation Transition Occurrence**:
+A VM CFG emission event that consumes one Physical ANF transition site. The
+emitter owns its stable per-function event ordinal, transition, boundary,
+binding, optional collection ordinal, and exact produced-or-consumed VM CFG
+value anchor; repeated equal sites remain repeated events. VM CFG cleanup may
+remove an event only by removing its anchored operation. When structurally
+equal functions merge, their surviving anchored transition streams must agree,
+one representative stream survives, and its origins become the union of the
+merged functions. Final verification matches each surviving erase/unerase
+event to the corresponding typed VM CFG operation.
+_Avoid_: planner-visit set, diagnostic string site, source-binding merge key,
+kind-only instruction count, post-cleanup event inference
+
+**LoisVM Lowering Provenance**:
+The immutable observation sidecar exported with initial VM CFG and final
+bytecode: canonical function origins, the Recursive Callable Contract Graph,
+Representation Transitions, and their occurrences. Explore consumes this
+sidecar directly and never reconstructs these facts from labels, function
+positions, or instructions.
+_Avoid_: scale metric as semantic fact, renderer-owned ABI relation
+
 **Callable Producer Contract**:
 The Physical ANF fact attached to one callable-producing atom. A function or
 evidence-lambda allocation may construct the selected implementation with the

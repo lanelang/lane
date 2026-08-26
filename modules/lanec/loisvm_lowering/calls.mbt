@@ -67,6 +67,7 @@ fn FunctionLowerer::lower_call(
             argument,
             flow.target,
             flow.bridge,
+            flow.transition_site,
           ).value,
         )
       }
@@ -82,6 +83,7 @@ fn FunctionLowerer::lower_call(
         { value: result, contract: physical_call.result.source, },
         physical_call.result.target,
         physical_call.result.bridge,
+        physical_call.result.transition_site,
       ).value
     }
     Global(PhysicalFunction(function)) =>
@@ -162,7 +164,7 @@ fn FunctionLowerer::materialize_local(
       self.materialize_callable_value_with_abi(
         wrapper.function,
         None,
-        wrapper.invocation(),
+        wrapper.invocation,
       )
     RecursiveFunction(function, environment) =>
       self.materialize_callable_value(function, environment)
@@ -247,6 +249,7 @@ fn FunctionLowerer::lower_physical_call(
   direct~ : (@bytecode.FunctionId, @vmcfg.ValueId?)?,
   callable~ : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
+  let invocation = self.callable_contract(call.invocation)
   if call.arguments.length() != arguments.length() {
     raise RepresentationSpecializationInvariant(
       detail="call arguments disagree with its physical invocation contract",
@@ -262,6 +265,7 @@ fn FunctionLowerer::lower_physical_call(
       argument,
       flow.target,
       flow.bridge,
+      flow.transition_site,
     )
     match adapted.value {
       Unit => ()
@@ -280,7 +284,7 @@ fn FunctionLowerer::lower_physical_call(
         )
     }
   }
-  if argument_slots.length() != call.invocation.parameters.length() {
+  if argument_slots.length() != invocation.parameters.length() {
     raise RepresentationSpecializationInvariant(
       detail="value call arguments do not consume its physical invocation contract",
     )
@@ -309,6 +313,7 @@ fn FunctionLowerer::lower_physical_call(
     { value: destination.1, contract: call.result.source, },
     call.result.target,
     call.result.bridge,
+    call.result.transition_site,
   ).value
 }
 
@@ -317,6 +322,7 @@ fn FunctionLowerer::materialize_physical_call_witnesses(
   self : FunctionLowerer,
   call : PhysicalCallPlan,
 ) -> Array[@vmcfg.ValueId] raise LoisvmLoweringError {
+  let invocation = self.callable_contract(call.invocation)
   let witnesses = []
   for plan in call.witnesses {
     let witness = self.materialize_runtime_evidence(plan) catch {
@@ -327,9 +333,9 @@ fn FunctionLowerer::materialize_physical_call_witnesses(
     }
     witnesses.push(witness)
   }
-  if witnesses.length() != call.invocation.witnesses.length() {
+  if witnesses.length() != invocation.witnesses.length() {
     raise RepresentationSpecializationInvariant(
-      detail="call at \{Repr(call.site)} planned \{witnesses.length()} runtime witnesses for an invocation requiring \{call.invocation.witnesses.length()}: plans=\{Repr(call.witnesses)}, invocation=\{Repr(call.invocation)}",
+      detail="call at \{Repr(call.site)} planned \{witnesses.length()} runtime witnesses for an invocation requiring \{invocation.witnesses.length()}: plans=\{Repr(call.witnesses)}, invocation=\{Repr(call.invocation)}",
     )
   }
   witnesses
@@ -340,7 +346,7 @@ fn FunctionLowerer::fresh_physical_call_result(
   self : FunctionLowerer,
   call : PhysicalCallPlan,
 ) -> (@vmcfg.ValueId?, LocalValue) raise LoisvmLoweringError {
-  let shape = call.invocation.result.physical_shape()
+  let shape = self.callable_contract(call.invocation).result.physical_shape()
   match (shape, call.abi_result_evidence) {
     (
       PhysicalValueShape::Slot(Value({ cleanup: OwnedErased, .. }) as key),
@@ -374,12 +380,14 @@ fn FunctionLowerer::materialize_planned_call_argument(
   argument : PhysicalLocalValue,
   target : PhysicalValueContract,
   bridge : PhysicalValueBridge?,
+  transition_site : PhysicalRepresentationTransitionSite?,
 ) -> PhysicalLocalValue raise LoisvmLoweringError {
   self.materialize_planned_value_flow(
     "Runtime ANF flow at \{Repr(site)}",
     argument,
     target,
     bridge,
+    transition_site,
   )
 }
 
@@ -390,16 +398,19 @@ fn FunctionLowerer::materialize_planned_value_flow(
   argument : PhysicalLocalValue,
   target : PhysicalValueContract,
   bridge : PhysicalValueBridge?,
+  transition_site : PhysicalRepresentationTransitionSite?,
 ) -> PhysicalLocalValue raise LoisvmLoweringError {
   let target_shape = self.physical_shape(target.shape)
   let argument = self.materialize_physical_local(argument)
-  let adapted = match bridge {
-    Some(Callable(callable)) =>
-      self.materialize_planned_callable_bridge(
+  let (adapted, operation) = match bridge {
+    Some(Callable(callable)) => {
+      let adapted = self.materialize_planned_callable_bridge(
         provenance,
         argument.value,
         callable,
       )
+      (adapted, Some(representation_transition_result(adapted)))
+    }
     Some(Erase(erasure)) => {
       guard target_shape is Slot(target) else {
         raise RepresentationSpecializationInvariant(
@@ -422,7 +433,7 @@ fn FunctionLowerer::materialize_planned_value_flow(
           )
       }
       let erased = self.erase_planned_value(argument, witness)
-      LocalValue::Slot(erased, target)
+      (LocalValue::Slot(erased, target), Some(Produced(erased)))
     }
     Some(Unerase(callable)) => {
       guard argument.value is Slot(source, source_shape) &&
@@ -442,15 +453,24 @@ fn FunctionLowerer::materialize_planned_value_flow(
         None => target_shape
       }
       let unerased = self.unerase_planned_call_argument(source, unerased_shape)
-      match callable {
+      let operation = match unerased {
+        Unit => Consumed(source)
+        Slot(value, _) => Produced(value)
+        _ =>
+          raise RepresentationSpecializationInvariant(
+            detail="planned unerasure did not materialize a physical value",
+          )
+      }
+      let adapted = match callable {
         Some(callable) =>
           self.materialize_planned_callable_bridge(
             provenance, unerased, callable,
           )
         None => unerased
       }
+      (adapted, Some(operation))
     }
-    None => argument.value
+    None => (argument.value, None)
   }
   let value = match (target_shape, adapted) {
     (Unit, Unit) => LocalValue::Unit
@@ -465,7 +485,62 @@ fn FunctionLowerer::materialize_planned_value_flow(
         detail="\{provenance} does not materialize its planned physical value contract",
       )
   }
+  self.record_representation_transition(bridge, transition_site, operation)
   { value, contract: target, }
+}
+
+///|
+fn FunctionLowerer::record_representation_transition(
+  self : FunctionLowerer,
+  bridge : PhysicalValueBridge?,
+  transition_site : PhysicalRepresentationTransitionSite?,
+  operation : PhysicalRepresentationTransitionOperation?,
+) -> Unit raise LoisvmLoweringError {
+  match (bridge, transition_site, operation) {
+    (None, None, None) => ()
+    (Some(_), Some(site), Some(operation)) =>
+      self.record_representation_transition_event(site, operation)
+    _ =>
+      raise RepresentationSpecializationInvariant(
+        detail="representation bridge, transition, and emission event must be planned together",
+      )
+  }
+}
+
+///|
+fn FunctionLowerer::record_representation_transition_event(
+  self : FunctionLowerer,
+  site : PhysicalRepresentationTransitionSite,
+  operation : PhysicalRepresentationTransitionOperation,
+) -> Unit raise LoisvmLoweringError {
+  guard self.function is Some(_) else {
+    raise RepresentationSpecializationInvariant(
+      detail="representation transition was emitted outside a physical function",
+    )
+  }
+  ignore(
+    self.physical_program.representation_transitions.transition(site.transition),
+  )
+  self.emitted_transition_events.push({
+    transition: site.transition,
+    boundary: site.boundary,
+    binding: site.binding,
+    ordinal: site.ordinal,
+    operation,
+  })
+}
+
+///|
+fn representation_transition_result(
+  value : LocalValue,
+) -> PhysicalRepresentationTransitionOperation raise LoisvmLoweringError {
+  match value {
+    Slot(value, _) => Produced(value)
+    _ =>
+      raise RepresentationSpecializationInvariant(
+        detail="a callable representation transition has no physical result",
+      )
+  }
 }
 
 ///|
@@ -508,12 +583,14 @@ fn FunctionLowerer::unerase_planned_call_argument(
 fn FunctionLowerer::lower_representation_specialized_call(
   self : FunctionLowerer,
   plan : PhysicalRepresentationWorkerCall,
-  contract : CanonicalCallableAbi,
+  contract : PhysicalCallableContractId,
   values : Array[PhysicalLocalValue],
   call : PhysicalCallPlan,
   environment~ : @vmcfg.ValueId?,
   callable~ : @vmcfg.ValueId?,
 ) -> LocalValue raise LoisvmLoweringError {
+  let worker_contract = self.callable_contract(contract)
+  let call_contract = self.callable_contract(call.invocation)
   if values.length() != call.arguments.length() {
     raise RepresentationSpecializationInvariant(
       detail="representation-specialized call arguments do not match its worker",
@@ -552,7 +629,7 @@ fn FunctionLowerer::lower_representation_specialized_call(
           physical_index = self.append_planned_call_argument(
             arguments,
             self.materialize_local(payload),
-            contract.parameters,
+            worker_contract.parameters,
             physical_index,
           )
         }
@@ -563,23 +640,24 @@ fn FunctionLowerer::lower_representation_specialized_call(
           values[index],
           flow.target,
           flow.bridge,
+          flow.transition_site,
         )
         physical_index = self.append_planned_call_argument(
           arguments,
           adapted.value,
-          contract.parameters,
+          worker_contract.parameters,
           physical_index,
         )
       }
     }
   }
-  if physical_index != contract.parameters.length() {
+  if physical_index != worker_contract.parameters.length() {
     raise RepresentationSpecializationInvariant(
       detail="representation-specialized arguments do not consume the planned worker contract",
     )
   }
-  let abi_result_shape = contract.result.physical_shape()
-  if call.invocation.result.physical_shape() != abi_result_shape {
+  let abi_result_shape = worker_contract.result.physical_shape()
+  if call_contract.result.physical_shape() != abi_result_shape {
     raise RepresentationSpecializationInvariant(
       detail="representation-specialized result disagrees with its physical call plan",
     )
@@ -604,6 +682,7 @@ fn FunctionLowerer::lower_representation_specialized_call(
     { value: worker_result.1, contract: call.result.source, },
     call.result.target,
     call.result.bridge,
+    call.result.transition_site,
   ).value
 }
 

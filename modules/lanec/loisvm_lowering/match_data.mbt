@@ -286,6 +286,7 @@ fn FunctionLowerer::bind_data_alternative(
         { value: stored, contract: payload.flow.source, },
         payload.flow.target,
         payload.flow.bridge,
+        payload.flow.transition_site,
       )
       self.bindings.push({ value: value_binder, lowered: lowered.value, })
     }

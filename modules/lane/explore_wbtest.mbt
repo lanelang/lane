@@ -54,7 +54,7 @@ test "explorer HTML renders stage navigation and escaped code" {
 
 ///|
 test "explorer renders typed metrics and explicit function lineage" {
-  let html = StringBuilder::new()
+  let html = StringBuilder()
   let stage : @driver.ExploreStage = {
     id: "anf",
     title: "ANF",
@@ -81,12 +81,20 @@ test "explorer renders typed metrics and explicit function lineage" {
     }),
   }
   let source : @driver.ExploreFunctionRef = { stage: Anf, index: 7, }
-  render_stage_observations(html, stage, {
-    nodes: [
-      { function: source, roles: [SourceFunction(value=4, name=Some("main"))], },
-    ],
-    edges: [{ source: { stage: Executable, index: 4, }, target: source, }],
-  })
+  render_stage_observations(
+    html,
+    stage,
+    {
+      nodes: [
+        {
+          function: source,
+          roles: [SourceFunction(value=4, name=Some("main"))],
+        },
+      ],
+      edges: [{ source: { stage: Executable, index: 4, }, target: source, }],
+    },
+    { callable_contracts: [], transitions: [], occurrences: [], },
+  )
   inspect(
     html.to_string(),
     content=(
