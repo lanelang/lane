@@ -1,5 +1,5 @@
 ///|
-/// LoisVM-owned arena for runtime type expressions derived while specializing
+/// LoisVM-owned arena for runtime type expressions derived while substituting
 /// and beta-reducing Runtime ANF. The immutable Runtime ANF catalog seeds this
 /// arena but is never extended by a backend consumer.
 priv struct RuntimeTypeArena {

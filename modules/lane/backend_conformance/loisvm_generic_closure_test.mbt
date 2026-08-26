@@ -121,7 +121,7 @@ test "generic nested closures preserve erased captures in both backends" {
 }
 
 ///|
-test "nominal values preserve behavior across specialized generic boundaries" {
+test "nominal values preserve behavior across canonical generic boundaries" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let element = metadata.define_type_parameter("Element", Type)
   let identity_parameter = metadata.define_type_parameter("T", Type)

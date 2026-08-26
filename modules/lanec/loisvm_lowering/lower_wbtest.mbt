@@ -120,15 +120,14 @@ fn lower_test_linked_program_to_bytecode(
 ///|
 fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
   let program : @buslane.Program = { metadata, terms: [], }
-  let anf = @anf.lower_cps_core_to_runtime_anf({ program, retained_values: [], }).unwrap()
-  let runtime_metadata = anf.metadata()
+  let runtime_metadata = @anf.lower_cps_core_to_runtime_anf({
+      program,
+      retained_values: [],
+    })
+    .unwrap()
+    .metadata()
   {
     metadata: runtime_metadata,
-    callable_catalog: anf.callable_catalog(),
-    callable_instances: CallableInstancePlan::empty(),
-    representation_solution: RepresentationSolution::empty(),
-    callable_contracts: PhysicalCallableContractCatalog::new(),
-    representation_transitions: PhysicalRepresentationTransitionCatalog::new(),
     runtime_types: RuntimeTypeArena::from_metadata(runtime_metadata),
     externals: { builtins: [], runtime_imports: [], },
     globals: [],
@@ -139,10 +138,7 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     object_shapes: [],
     intrinsic_wrappers: [],
     callable_adapters: [],
-    lifted_functions: [],
     data_families: [],
-    materialized_data_families: [],
-    finalized_data_families: [],
     synthetic_parameters: [],
   }
 }
@@ -1173,7 +1169,7 @@ test "Bool matches lower to explicit CFG branches" {
 }
 
 ///|
-test "multi-use non-generic data retains its nominal object shape" {
+test "non-generic data construction and matching lower through object shapes" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
@@ -1186,17 +1182,6 @@ test "multi-use non-generic data retains its nominal object shape" {
   let scrutinee = metadata.define_value("scrutinee", Local, option_type)
   let binder = metadata.define_value("option", MatchBinder, option_type)
   let payload = metadata.define_value("payload", MatchBinder, i64_type)
-  let second_binder = metadata.define_value(
-    "second_option",
-    MatchBinder,
-    option_type,
-  )
-  let second_payload = metadata.define_value(
-    "second_payload",
-    MatchBinder,
-    i64_type,
-  )
-  let first_result = metadata.define_value("first_result", Local, unit_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -1216,54 +1201,32 @@ test "multi-use non-generic data retains its nominal object shape" {
               hidden_witnesses: [],
               payloads: [Literal(I64(7L))],
             }),
-            Let(
-              first_result,
-              Match({
-                scrutinee: Ref(scrutinee),
-                binder,
-                result_type: unit_type,
-                alternatives: [
-                  {
-                    alt_constructor: DataCon(none),
-                    type_binders: [],
-                    value_binders: [],
-                    body: Call(Ref(observe), [Literal(I64(0L))]),
-                  },
-                  {
-                    alt_constructor: DataCon(some),
-                    type_binders: [],
-                    value_binders: [payload],
-                    body: Call(Ref(observe), [Ref(payload)]),
-                  },
-                ],
-              }),
-              Match({
-                scrutinee: Ref(scrutinee),
-                binder: second_binder,
-                result_type: unit_type,
-                alternatives: [
-                  {
-                    alt_constructor: DataCon(none),
-                    type_binders: [],
-                    value_binders: [],
-                    body: Call(Ref(observe), [Literal(I64(0L))]),
-                  },
-                  {
-                    alt_constructor: DataCon(some),
-                    type_binders: [],
-                    value_binders: [second_payload],
-                    body: Call(Ref(observe), [Ref(second_payload)]),
-                  },
-                ],
-              }),
-            ),
+            Match({
+              scrutinee: Ref(scrutinee),
+              binder,
+              result_type: unit_type,
+              alternatives: [
+                {
+                  alt_constructor: DataCon(none),
+                  type_binders: [],
+                  value_binders: [],
+                  body: Call(Ref(observe), [Literal(I64(0L))]),
+                },
+                {
+                  alt_constructor: DataCon(some),
+                  type_binders: [],
+                  value_binders: [payload],
+                  body: Call(Ref(observe), [Ref(payload)]),
+                },
+              ],
+            }),
           ),
         }),
       ),
     ],
   }
   let image = match
-    lower_test_executable_to_bytecode(
+    lower_test_linked_program_to_bytecode(
       program,
       {
         builtins: [],
@@ -1392,21 +1355,16 @@ test "capture-free functions lower as callable values for higher-order calls" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
+  guard image.functions[1] is BytecodeBody(apply_body) else {
+    fail("expected apply bytecode body")
+  }
+  assert_true(apply_body.blocks[0].terminator is TailCallValue(_, _, [], _))
+  guard image.functions[2] is BytecodeBody(main_body) else {
+    fail("expected main bytecode body")
+  }
   assert_true(
-    image.functions.any(entry => {
-      entry is BytecodeBody(body) &&
-      body.blocks.any(block => block.terminator is TailCallValue(_, _, [], _))
-    }),
-  )
-  assert_true(
-    image.functions.any(entry => {
-      entry is BytecodeBody(body) &&
-      contains_instruction(body, instruction => {
-        instruction is ConstFunction(_, _)
-      }) &&
-      contains_instruction(body, instruction => {
-        instruction is CallDirect(_, _, _, _, _)
-      })
+    contains_instruction(main_body, instruction => {
+      instruction is ConstFunction(_, { value: 1, })
     }),
   )
   let mut observed = 0L
@@ -1701,7 +1659,7 @@ test "local recursive functions share a cycle-free captured environment" {
 }
 
 ///|
-test "generic identity callable flow selects a concrete representation worker" {
+test "generic identity calls cross explicit representation erasure bridges" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let generic_value_type = @buslane.Type::Parameter(type_parameter)
@@ -1787,21 +1745,27 @@ test "generic identity callable flow selects a concrete representation worker" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  let bodies = image.functions.filter_map(function => {
-    if function is BytecodeBody(body) {
-      Some(body)
-    } else {
-      None
-    }
-  })
+  guard image.functions[0] is BytecodeBody(identity_body) else {
+    fail("expected identity bytecode body")
+  }
+  assert_eq(identity_body.inputs.witnesses.length(), 1)
+  assert_eq(identity_body.result, Value(I64, OwnedErased, ErasedValue))
+  guard image.functions[1] is BytecodeBody(apply_body) else {
+    fail("expected apply bytecode body")
+  }
   assert_true(
-    bodies.any(body => {
-      body.inputs.witnesses.is_empty() &&
-      body.inputs.user_parameters.length() == 2 &&
-      body.result == Value(I64, Trivial, ScalarValue) &&
-      !contains_instruction(body, instruction => {
-        instruction is (ConstLayout(_, _) | EraseI64(_, _) | UneraseI64(_, _))
-      })
+    contains_instruction(apply_body, instruction => {
+      instruction is ConstLayout(_, _)
+    }),
+  )
+  assert_true(
+    contains_instruction(apply_body, instruction => {
+      instruction is EraseI64(_, _)
+    }),
+  )
+  assert_true(
+    contains_instruction(apply_body, instruction => {
+      instruction is UneraseI64(_, _)
     }),
   )
   let mut observed = 0L
@@ -1829,7 +1793,7 @@ test "generic identity callable flow selects a concrete representation worker" {
 }
 
 ///|
-test "direct generic calls use one planned concrete worker" {
+test "direct generic calls use the canonical generic worker ABI" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let generic_type = @buslane.Type::Parameter(type_parameter)
@@ -1885,7 +1849,7 @@ test "direct generic calls use one planned concrete worker" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_specialized_generic",
+            symbol: "lane.test.observe_canonical_generic",
             signature: test_host_signature(observe_type),
           },
         ],
@@ -1905,26 +1869,24 @@ test "direct generic calls use one planned concrete worker" {
   assert_eq(bodies.length(), 2)
   assert_true(
     bodies.any(body => {
-      body.inputs.witnesses.is_empty() &&
+      body.inputs.witnesses.length() == 1 &&
       body.inputs.user_parameters.length() == 1 &&
-      body.result == Value(I64, Trivial, ScalarValue) &&
+      body.result == Value(I64, OwnedErased, ErasedValue) &&
       body.blocks.all(block => block.instructions.is_empty())
     }),
   )
-  assert_false(
+  assert_true(
     bodies.any(body => {
-      contains_instruction(body, instruction => {
-        instruction is ConstLayout(_, _) ||
-        instruction is EraseI64(_, _) ||
-        instruction is UneraseI64(_, _)
-      })
+      contains_instruction(body, instruction => instruction is ConstLayout(_, _)) &&
+      contains_instruction(body, instruction => instruction is EraseI64(_, _)) &&
+      contains_instruction(body, instruction => instruction is UneraseI64(_, _))
     }),
   )
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
   registry.register(
     @loisvm_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_specialized_generic",
+      symbol="lane.test.observe_canonical_generic",
       abi_major=1,
       parameters=[I64],
       result=Unit,
@@ -2324,7 +2286,7 @@ test "single-constructor matches keep owned captures in the current block" {
 }
 
 ///|
-test "closed generic data scalar replacement creates no nominal family ABI" {
+test "generic data stores layout witnesses beside erased payloads" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let option = metadata.define_type("Option", [type_parameter])
@@ -2403,20 +2365,13 @@ test "closed generic data scalar replacement creates no nominal family ABI" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_false(
+  assert_true(
     image.object_shapes.any(shape => {
       shape
       is Data(
         {
           stored_witness_count: 1,
-          members: [
-            {
-              representation: I64,
-              cleanup: OwnedErased,
-              kind: ErasedValue,
-              witness_ordinal: Some(0),
-            },
-          ],
+          members: [{ cleanup: OwnedErased, witness_ordinal: Some(0), .. }],
           ..
         }
       )
@@ -2425,10 +2380,10 @@ test "closed generic data scalar replacement creates no nominal family ABI" {
   guard image.functions[0] is BytecodeBody(main_body) else {
     fail("expected main bytecode body")
   }
-  assert_false(
+  assert_true(
     contains_instruction(main_body, instruction => instruction is EraseI64(_, _)),
   )
-  assert_false(
+  assert_true(
     contains_instruction(main_body, instruction => {
       instruction is UneraseI64(_, _)
     }),
@@ -2458,7 +2413,7 @@ test "closed generic data scalar replacement creates no nominal family ABI" {
 }
 
 ///|
-test "closed existential data specializes hidden witnesses and payloads" {
+test "existential data opens hidden witnesses beside erased payloads" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let hidden = metadata.define_type_parameter("Hidden", Type)
   let opened = metadata.define_type_parameter("Opened", Type)
@@ -2561,33 +2516,34 @@ test "closed existential data specializes hidden witnesses and payloads" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  debug_inspect(
-    image.object_shapes,
-    content=(
-      #|[
-      #|  Data(
-      #|    {
-      #|      family: { value: 0 },
-      #|      constructor_tag: 0,
-      #|      stored_witness_count: 0,
-      #|      members: [
-      #|        {
-      #|          representation: I64,
-      #|          cleanup: Trivial,
-      #|          kind: ScalarValue,
-      #|          witness_ordinal: None,
-      #|        },
-      #|        {
-      #|          representation: I64,
-      #|          cleanup: Trivial,
-      #|          kind: ScalarValue,
-      #|          witness_ordinal: None,
-      #|        },
-      #|      ],
-      #|    },
-      #|  ),
-      #|]
-    ),
+  assert_true(
+    image.object_shapes.any(shape => {
+      shape
+      is Data(
+        {
+          stored_witness_count: 2,
+          members: [
+            { cleanup: Trivial, kind: LayoutValue, .. },
+            { cleanup: OwnedErased, witness_ordinal: Some(0), .. },
+            { cleanup: OwnedErased, witness_ordinal: Some(1), .. },
+          ],
+          ..
+        }
+      )
+    }),
+  )
+  guard image.functions[1] is BytecodeBody(main_body) else {
+    fail("expected main bytecode body")
+  }
+  assert_true(
+    contains_instruction(main_body, instruction => {
+      instruction is BorrowField(_, _, 0, { witness_destination: None, .. })
+    }),
+  )
+  assert_true(
+    contains_instruction(main_body, instruction => {
+      instruction is BorrowField(_, _, _, { witness_destination: Some(_), .. })
+    }),
   )
   let mut observed = 0L
   let registry = @loisvm_runtime.RuntimeRegistry::new()
@@ -2702,7 +2658,7 @@ test "payload-free existential evidence disappears when no runtime use remains" 
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_false(
+  assert_true(
     image.object_shapes.any(shape => {
       shape is Data({ stored_witness_count: 0, members: [], .. })
     }),
@@ -2800,7 +2756,7 @@ test "unused effect-kind existential evidence disappears from runtime ANF" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_false(
+  assert_true(
     image.object_shapes.any(shape => {
       shape is Data({ stored_witness_count: 0, members: [], .. })
     }),
@@ -3058,295 +3014,6 @@ test "primitive literal matches lower to comparison decision chains" {
 }
 
 ///|
-test "data-family catalog remains distinct from physical materialization" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let type_parameter = metadata.define_type_parameter("T", Type)
-  let option = metadata.define_type("Option", [type_parameter])
-  ignore(metadata.define_data_constructor("None", option, [], []))
-  ignore(
-    metadata.define_data_constructor("Some", option, [], [
-      Parameter(type_parameter),
-    ]),
-  )
-  let image = test_image_lowerer(metadata)
-  image.plan_declaration_data_families()
-  let i64_argument : @anf.RuntimeArgument = {
-    type_expression: image.runtime_types.intern(Static(Scalar(I64))),
-    evidence: Static(I64),
-  }
-  let family = image
-    .specialized_data_family_key_or_none(option, [i64_argument])
-    .unwrap()
-    .finalize(0)
-  ignore(
-    image.plan_specialized_data_family_with_key(family, option, [i64_argument]),
-  )
-  debug_inspect(
-    image.data_families,
-    content=(
-      #|[
-      #|  {
-      #|    identity: { index: 0 },
-      #|    key: Declaration({ index: 0 }),
-      #|    bytecode_family: None,
-      #|    owner: { index: 0 },
-      #|    constructors: [
-      #|      {
-      #|        data_constructor: { index: 0 },
-      #|        shape: None,
-      #|        storage_hidden_arguments: None,
-      #|        storage_evidence_parameters: [],
-      #|        storage_types: [],
-      #|        storage_data_families: [],
-      #|        storage_callable_demands: [],
-      #|        storage_callable_interfaces: [],
-      #|        storage_shapes: [],
-      #|      },
-      #|      {
-      #|        data_constructor: { index: 1 },
-      #|        shape: None,
-      #|        storage_hidden_arguments: None,
-      #|        storage_evidence_parameters: [],
-      #|        storage_types: [Erased({ index: 0 }, Parameter(Projected(0)))],
-      #|        storage_data_families: [None],
-      #|        storage_callable_demands: [[]],
-      #|        storage_callable_interfaces: [],
-      #|        storage_shapes: [],
-      #|      },
-      #|    ],
-      #|  },
-      #|  {
-      #|    identity: { index: 1 },
-      #|    key: Specialized(
-      #|      { index: 0 },
-      #|      [{ type_expression: Static(Scalar(I64)), evidence: Static(I64) }],
-      #|      0,
-      #|    ),
-      #|    bytecode_family: None,
-      #|    owner: { index: 0 },
-      #|    constructors: [
-      #|      {
-      #|        data_constructor: { index: 0 },
-      #|        shape: None,
-      #|        storage_hidden_arguments: None,
-      #|        storage_evidence_parameters: [],
-      #|        storage_types: [],
-      #|        storage_data_families: [],
-      #|        storage_callable_demands: [],
-      #|        storage_callable_interfaces: [],
-      #|        storage_shapes: [],
-      #|      },
-      #|      {
-      #|        data_constructor: { index: 1 },
-      #|        shape: None,
-      #|        storage_hidden_arguments: None,
-      #|        storage_evidence_parameters: [],
-      #|        storage_types: [Scalar(I64)],
-      #|        storage_data_families: [None],
-      #|        storage_callable_demands: [[]],
-      #|        storage_callable_interfaces: [],
-      #|        storage_shapes: [],
-      #|      },
-      #|    ],
-      #|  },
-      #|]
-    ),
-  )
-}
-
-///|
-test "closed repeated data uses share one specialized family end to end" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let type_parameter = metadata.define_type_parameter("T", Type)
-  let option = metadata.define_type("Option", [type_parameter])
-  let none = metadata.define_data_constructor("None", option, [], [])
-  let some = metadata.define_data_constructor("Some", option, [], [
-    Parameter(type_parameter),
-  ])
-  let i64_type = @buslane.Type::Primitive(I64)
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let option_i64 = @buslane.Type::Apply(Constructor(option), [
-    TypeArgument(i64_type),
-  ])
-  let consumed = metadata.define_value("consumed", Parameter, option_i64)
-  let option_binder = metadata.define_value("option", MatchBinder, option_i64)
-  let payload = metadata.define_value("payload", MatchBinder, i64_type)
-  let consume = metadata.define_value(
-    "consume",
-    Function,
-    test_function_type([option_i64], i64_type),
-  )
-  let selected = metadata.define_value("selected", Local, option_i64)
-  let first_result = metadata.define_value("first_result", Local, i64_type)
-  let work = metadata.define_value(
-    "work",
-    Function,
-    test_function_type([], i64_type),
-  )
-  let observe_type = test_function_type([i64_type], unit_type)
-  let observe = metadata.define_value("observe", External, observe_type)
-  let main = metadata.define_value(
-    "main",
-    Function,
-    test_function_type([], unit_type),
-  )
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      External(observe),
-      Let(
-        consume,
-        Function({
-          parameters: [consumed],
-          result_type: i64_type,
-          body: Match({
-            scrutinee: Ref(consumed),
-            binder: option_binder,
-            result_type: i64_type,
-            alternatives: [
-              {
-                alt_constructor: DataCon(none),
-                type_binders: [],
-                value_binders: [],
-                body: Literal(I64(0L)),
-              },
-              {
-                alt_constructor: DataCon(some),
-                type_binders: [],
-                value_binders: [payload],
-                body: Ref(payload),
-              },
-            ],
-          }),
-        }),
-      ),
-      Let(
-        work,
-        Function({
-          parameters: [],
-          result_type: i64_type,
-          body: Let(
-            selected,
-            Construct({
-              data_constructor: some,
-              type_arguments: [TypeArgument(i64_type)],
-              hidden_witnesses: [],
-              payloads: [Literal(I64(42L))],
-            }),
-            Let(
-              first_result,
-              Call(Ref(consume), [Ref(selected)]),
-              Call(Ref(consume), [Ref(selected)]),
-            ),
-          ),
-        }),
-      ),
-      Let(
-        main,
-        Function({
-          parameters: [],
-          result_type: unit_type,
-          body: Call(Ref(observe), [Call(Ref(work), [])]),
-        }),
-      ),
-    ],
-  }
-  let image = match
-    lower_test_executable_to_bytecode(
-      program,
-      {
-        builtins: [],
-        runtime_imports: [
-          {
-            value: observe,
-            symbol: "lane.test.observe_specialized_data_family",
-            signature: test_host_signature(observe_type),
-          },
-        ],
-      },
-      { module_path_text: "Main", name: "main", value: main, },
-    ) {
-    Ok(value) => value
-    Err(error) => fail("lowering failed: \{Repr(error)}")
-  }
-  debug_inspect(
-    image.object_shapes,
-    content=(
-      #|[
-      #|  Data(
-      #|    {
-      #|      family: { value: 1 },
-      #|      constructor_tag: 0,
-      #|      stored_witness_count: 0,
-      #|      members: [],
-      #|    },
-      #|  ),
-      #|  Data(
-      #|    {
-      #|      family: { value: 1 },
-      #|      constructor_tag: 1,
-      #|      stored_witness_count: 1,
-      #|      members: [
-      #|        {
-      #|          representation: I64,
-      #|          cleanup: OwnedErased,
-      #|          kind: ErasedValue,
-      #|          witness_ordinal: Some(0),
-      #|        },
-      #|      ],
-      #|    },
-      #|  ),
-      #|  Data(
-      #|    {
-      #|      family: { value: 0 },
-      #|      constructor_tag: 0,
-      #|      stored_witness_count: 0,
-      #|      members: [],
-      #|    },
-      #|  ),
-      #|  Data(
-      #|    {
-      #|      family: { value: 0 },
-      #|      constructor_tag: 1,
-      #|      stored_witness_count: 0,
-      #|      members: [
-      #|        {
-      #|          representation: I64,
-      #|          cleanup: Trivial,
-      #|          kind: ScalarValue,
-      #|          witness_ordinal: None,
-      #|        },
-      #|      ],
-      #|    },
-      #|  ),
-      #|]
-    ),
-  )
-  let mut observed = 0L
-  let registry = @loisvm_runtime.RuntimeRegistry::new()
-  registry.register(
-    @loisvm_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_specialized_data_family",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match @interp.load(image, registry) {
-    Ok(value) => value
-    Err(error) => fail("load failed: \{Repr(error)}")
-  }
-  assert_eq(loaded.new_instance().execute(), Ok(()))
-  assert_eq(observed, 42L)
-}
-
-///|
 test "generic nonescaping nested functions call their target directly" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
@@ -3428,9 +3095,20 @@ test "generic nonescaping nested functions call their target directly" {
       #|    parameters: [],
       #|    instructions: [
       #|      ConstI64({ value: 0 }, 42),
-      #|      CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
+      #|      ConstLayout({ value: 1 }, { value: 1 }),
+      #|      ConstLayout({ value: 2 }, { value: 1 }),
+      #|      EraseI64({ value: 3 }, { value: 0 }),
+      #|      ConstLayout({ value: 4 }, { value: 1 }),
+      #|      CallDirect(
+      #|        { value: 2 },
+      #|        None,
+      #|        [{ value: 1 }],
+      #|        [{ value: 3 }],
+      #|        Some({ value: 5 }),
+      #|      ),
+      #|      UneraseI64({ value: 0 }, { value: 5 }),
       #|    ],
-      #|    terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 1 }]),
+      #|    terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 0 }]),
       #|  },
       #|]
     ),

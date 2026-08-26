@@ -47,36 +47,7 @@ pub(all) enum AnfBinding {
   Value(id~ : @buslane.ValueId, rhs~ : AnfRhs)
   Temp(temp~ : AnfTempId, type_~ : RuntimeType, rhs~ : AnfRhs)
 } derive(Eq, @debug.Debug)
-pub fn AnfBinding::id(Self) -> AnfBindingId
-pub fn AnfBinding::type_(Self, RuntimeMetadata) -> RuntimeType?
 pub impl @prettyprinter.Pretty for AnfBinding
-
-pub(all) enum AnfBindingId {
-  Value(@buslane.ValueId)
-  Temp(AnfTempId)
-} derive(Eq, @debug.Debug)
-
-pub struct AnfCallableCatalog {
-  // private fields
-} derive(Eq, @debug.Debug)
-pub fn AnfCallableCatalog::capture_type(Self, AnfCapture, RuntimeMetadata) -> RuntimeType?
-pub fn AnfCallableCatalog::definitions(Self) -> ArrayView[AnfCallableDefinition]
-pub fn AnfCallableCatalog::find(Self, AnfFunctionId) -> AnfCallableDefinition?
-
-pub(all) struct AnfCallableDefinition {
-  function : AnfFunction
-  type_ : RuntimeType
-  parameters : Array[RuntimeEvidenceParameter]
-  lexical_parameters : Array[RuntimeEvidenceParameter]
-  captures : Array[AnfCapture]
-  owner : AnfFunctionId?
-  recursive_group : AnfRecursiveGroupId?
-} derive(Eq, @debug.Debug)
-
-pub(all) enum AnfCapture {
-  Value(@buslane.ValueId)
-  Temp(AnfTempId)
-} derive(Eq, @debug.Debug)
 
 pub(all) struct AnfConstruct {
   data_constructor : @buslane.DataConId
@@ -117,7 +88,6 @@ pub impl @prettyprinter.Pretty for AnfMatch
 pub struct AnfProgram {
   // private fields
 } derive(Eq, @debug.Debug)
-pub fn AnfProgram::callable_catalog(Self) -> AnfCallableCatalog
 pub fn AnfProgram::metadata(Self) -> RuntimeMetadata
 pub fn AnfProgram::terms(Self) -> ArrayView[AnfTopTerm]
 pub impl @prettyprinter.Pretty for AnfProgram
@@ -127,10 +97,6 @@ pub(all) struct AnfRecursiveBinding {
   rhs : AnfAtom
 } derive(Eq, @debug.Debug)
 pub impl @prettyprinter.Pretty for AnfRecursiveBinding
-
-pub(all) struct AnfRecursiveGroupId {
-  value : Int
-} derive(Eq, Hash, @debug.Debug)
 
 pub(all) enum AnfRhs {
   Atom(AnfAtom)
@@ -214,7 +180,6 @@ pub(all) struct RuntimeMetadata {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn RuntimeMetadata::data_constructor_info(Self, @buslane.DataConId) -> RuntimeDataConstructorInfo?
-pub fn RuntimeMetadata::data_types(Self) -> Array[(@buslane.TypeId, RuntimeDataInfo)]
 pub fn RuntimeMetadata::evidence_parameter(Self, RuntimeEvidenceId) -> RuntimeEvidenceParameter?
 pub fn RuntimeMetadata::parameter_type_expression(Self, RuntimeEvidenceId) -> RuntimeTypeExpressionId?
 pub fn RuntimeMetadata::type_expression(Self, RuntimeTypeExpressionId) -> RuntimeTypeExpression?

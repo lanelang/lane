@@ -123,8 +123,7 @@ pub(all) enum ExploreFunctionRole {
   Initializer(value~ : Int, name~ : String?)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
-  CallableAdapter(transition~ : Int)
-  RepresentationWorker(value~ : Int?, name~ : String?)
+  CallableAdapter
   LayoutConstructor
   RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
   InternalRuntimeImport(name~ : String)
@@ -155,82 +154,8 @@ pub(all) struct ExploreFunctionGraph {
 } derive(Debug, Eq)
 
 ///|
-pub(all) enum ExploreRepresentationContract {
-  Unit
-  Value(@bytecode.ValueAbi)
-  Callable(contract~ : Int)
-} derive(Debug, Eq)
-
-///|
-pub(all) struct ExploreCallableContractNode {
-  id : Int
-  representative : Int
-  witnesses : Array[@bytecode.ValueAbi]
-  parameters : Array[ExploreRepresentationContract]
-  result : ExploreRepresentationContract
-} derive(Debug, Eq)
-
-///|
-pub(all) enum ExploreRepresentationTransitionKind {
-  Erase
-  Unerase
-  CallableAdapter
-} derive(Debug, Eq)
-
-///|
-pub(all) struct ExploreRepresentationTransition {
-  id : Int
-  source : ExploreRepresentationContract
-  target : ExploreRepresentationContract
-  kind : ExploreRepresentationTransitionKind
-} derive(Debug, Eq)
-
-///|
-pub(all) enum ExploreRepresentationTransitionBoundary {
-  InitializerResult
-  FunctionResult
-  RecursiveBinding
-  AtomBinding
-  CallResult
-  ScalarConstructionPayload
-  DataConstructionPayload
-  MatchResult
-  RepresentationCallArgument
-  CallArgument
-  CallableCapture
-  DataMatchPayload
-  CallableAdapterArgument
-  CallableAdapterDiscard
-  CallableAdapterResult
-} derive(Debug, Eq)
-
-///|
-pub(all) enum ExploreAnfBindingRef {
-  Value(Int)
-  Temp(Int)
-} derive(Debug, Eq)
-
-///|
-pub(all) struct ExploreRepresentationTransitionOccurrence {
-  event : Int
-  function : ExploreFunctionRef
-  transition : Int
-  roles : Array[ExploreFunctionRole]
-  boundary : ExploreRepresentationTransitionBoundary
-  binding : ExploreAnfBindingRef?
-  ordinal : Int?
-} derive(Debug, Eq)
-
-///|
-pub(all) struct ExploreRepresentationGraph {
-  callable_contracts : Array[ExploreCallableContractNode]
-  transitions : Array[ExploreRepresentationTransition]
-  occurrences : Array[ExploreRepresentationTransitionOccurrence]
-} derive(Debug, Eq)
-
-///|
 /// Current Explore Report Protocol schema owned by the compiler driver.
-pub let explore_report_schema_version : Int = 7
+pub let explore_report_schema_version : Int = 8
 
 ///|
 /// Canonical total order of protocol stages. This order is also the execution
@@ -326,7 +251,6 @@ pub(all) struct ExploreReport {
   diagnostics : Array[@compiler_diag.CompilerDiagnostic]
   stages : ExploreStages
   functions : ExploreFunctionGraph
-  representations : ExploreRepresentationGraph
 } derive(Debug, Eq)
 
 ///|

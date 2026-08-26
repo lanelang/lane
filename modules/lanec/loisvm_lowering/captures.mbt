@@ -1,366 +1,101 @@
 ///|
-priv struct CallableCaptureInput {
-  owners : Array[CallableRepresentationOwner]
-  definition : @anf.AnfCallableDefinition
-  function_type : @anf.RuntimeType
-  substitutions : RuntimeSubstitution
-  specialized_parameters : Array[@anf.RuntimeEvidenceId]
-}
-
-///|
-fn CallableCaptureContract::empty() -> CallableCaptureContract {
-  { captured_evidence: [], captures: [], environment: None, }
-}
-
-///|
-fn ImageLowerer::plan_callable_capture(
-  self : ImageLowerer,
-  owners : Array[CallableRepresentationOwner],
-  definition : @anf.AnfCallableDefinition,
-  function_type : @anf.RuntimeType,
-  substitutions : RuntimeSubstitution,
-  specialized_parameters : Array[@anf.RuntimeEvidenceId],
-  excluded_data_components : Array[Int],
-  excluded_callable_components : Array[Int],
-  physical_captures? : Array[PhysicalCallableCaptureProjection]? = None,
-) -> CallableCaptureContract raise LoisvmLoweringError {
-  self.plan_callable_captures(
-    [
-      {
-        owners,
-        definition,
-        function_type,
-        substitutions,
-        specialized_parameters,
-      },
-    ],
-    excluded_data_components,
-    excluded_callable_components,
-    physical_captures~,
-  )
-}
-
-///|
-fn ImageLowerer::plan_callable_captures(
-  self : ImageLowerer,
-  inputs : Array[CallableCaptureInput],
-  excluded_data_components : Array[Int],
-  excluded_callable_components : Array[Int],
-  physical_captures? : Array[PhysicalCallableCaptureProjection]? = None,
-) -> CallableCaptureContract raise LoisvmLoweringError {
-  let capture_types = []
-  let capture_shapes : Array[CanonicalRuntimeTypeKey] = []
-  let capture_interfaces : Array[PhysicalCallableInterface?] = []
-  let bindings = []
-  let function_types = []
-  let specialized_parameters = []
-  for input in inputs {
-    function_types.push(input.function_type)
-    for parameter in input.specialized_parameters {
-      if !specialized_parameters.contains(parameter) {
-        specialized_parameters.push(parameter)
-      }
-    }
-    for capture in input.definition.captures {
-      let binding = match capture {
-        Value(value) => CaptureBinding::Value(value)
-        Temp(temp) => Temp(temp)
-      }
-      guard self.callable_catalog.capture_type(capture, self.metadata)
-        is Some(type_) else {
-        raise RepresentationSpecializationInvariant(
-          detail="Runtime ANF callable capture lacks type metadata",
-        )
-      }
-      let type_ = input.substitutions.apply_type(self.runtime_types, type_)
-      let binding_id = match binding {
-        CaptureBinding::Value(value) => @anf.AnfBindingId::Value(value)
-        CaptureBinding::Temp(temp) => @anf.AnfBindingId::Temp(temp)
-      }
-      let mut physical_projection : PhysicalCallableCaptureProjection? = None
-      if physical_captures is Some(assignments) {
-        for projection in assignments {
-          if projection.binding == binding_id {
-            physical_projection = Some(projection)
-            break
-          }
-        }
-      }
-      if physical_captures is Some(_) && physical_projection is None {
-        raise RepresentationSpecializationInvariant(
-          detail="representation worker lacks a planned physical capture port",
-        )
-      }
-      let (shape, callable_interface) = match physical_projection {
-        Some(projection) => {
-          let callable_interface = match projection.callable {
-            Some(callable) =>
-              Some(
-                self.callable_representation_interface(
-                  callable,
-                  worker=projection.worker,
-                ),
-              )
-            None =>
-              match projection.shape {
-                Callable(invocation) =>
-                  self.callable_interface_for_type_with_invocation(
-                    type_,
-                    RuntimeSubstitution::new(),
-                    invocation,
-                  )
-                _ => None
-              }
-          }
-          (projection.shape, callable_interface)
-        }
-        None =>
-          self.planned_callable_capture_representation(
-            input.owners,
-            binding_id,
-            type_,
-            excluded_data_components,
-            excluded_callable_components,
-          )
-      }
-      let mut existing_index = -1
-      for index, existing in bindings {
-        if existing == binding {
-          existing_index = index
-          break
-        }
-      }
-      if existing_index >= 0 {
-        let index = existing_index
-        if capture_shapes[index] != shape ||
-          capture_interfaces[index] != callable_interface {
-          raise RepresentationSpecializationInvariant(
-            detail="one recursive callable group assigned two physical representations to the same capture",
-          )
-        }
-        continue
-      }
-      capture_types.push(type_)
-      capture_shapes.push(shape)
-      capture_interfaces.push(callable_interface)
-      bindings.push(binding)
-    }
-  }
-  let types = function_types + capture_types
-  let captured_parameters = free_runtime_type_parameters_in_types(self, types)
-  for input in inputs {
-    let (bound, _, _) = function_type_parts(input.function_type)
-    collect_free_runtime_evidence_in_expr(
-      self,
-      input.definition.function.body,
-      bound.map(parameter => parameter.id) + input.substitutions.parameters(),
-      captured_parameters,
-    )
-  }
-  let captured_parameters = captured_parameters.filter(parameter => {
-    !specialized_parameters.contains(parameter.id)
-  })
-  let captured_evidence = captured_parameters.map(target => {
-    let mut source = target.id
-    for input in inputs {
-      for candidate in input.substitutions.parameters() {
-        if input.substitutions.apply_evidence(Parameter(candidate)) ==
-          Parameter(target.id) {
-          source = candidate
-        }
-      }
-    }
-    { source, target, }
-  })
+fn free_capture_bindings(function : @anf.AnfFunction) -> Array[CaptureBinding] {
   let captures = []
-  for index, binding in bindings {
-    let type_ = capture_types[index]
-    let callable_interface = capture_interfaces[index]
-    let shape = capture_shapes[index]
-    match shape {
-      Unit =>
-        captures.push({
-          binding,
-          type_,
-          shape: None,
-          callable_interface: None,
-          member_index: None,
-        })
-      shape => {
-        match (shape, callable_interface) {
-          (Callable(invocation), Some(interface)) if interface.invocation ==
-            invocation => ()
-          (Callable(_), _) | (_, Some(_)) =>
-            raise RepresentationSpecializationInvariant(
-              detail="callable capture interface \{Repr(callable_interface)} disagrees with its physical shape \{Repr(shape)}",
-            )
-          (_, None) => ()
-        }
-        captures.push({
-          binding,
-          type_,
-          shape: Some(shape),
-          callable_interface,
-          member_index: None,
-        })
-      }
-    }
-  }
-  self.finalize_callable_capture_contract(captured_evidence, captures)
+  collect_free_expr(function.body, function.parameters.copy(), [], captures)
+  captures
 }
 
 ///|
-fn ImageLowerer::finalize_callable_capture_contract(
-  self : ImageLowerer,
-  captured_evidence : Array[CapturedEvidencePlan],
-  captures : Array[CapturePlan],
-) -> CallableCaptureContract raise LoisvmLoweringError {
-  let members : Array[@bytecode.MemberSchema] = []
-  for evidence in captured_evidence {
-    let metadata = runtime_evidence_metadata(evidence.target)
-    members.push({
-      representation: metadata.representation,
-      cleanup: metadata.cleanup,
-      kind: metadata.kind,
-      witness_ordinal: None,
-    })
-  }
-  let finalized = []
-  let mut stored_witness_count = 0
-  for capture in captures {
-    match capture.shape {
-      None => finalized.push({ ..capture, member_index: None, })
-      Some(shape) => {
-        let (metadata, witness_ordinal) = if shape
-          is Value({ cleanup: OwnedErased, .. }) {
-          let ordinal = stored_witness_count
-          stored_witness_count = stored_witness_count + 1
-          (
-            @vmcfg.ValueMetadata::{
-              representation: I64,
-              cleanup: OwnedErased,
-              kind: ErasedValue,
-              ownership: Owned,
-              erased_companion: None,
-            },
-            Some(ordinal),
-          )
-        } else {
-          (shape.value_metadata(None), None)
-        }
-        let member_index = members.length()
-        members.push({
-          representation: metadata.representation,
-          cleanup: metadata.cleanup,
-          kind: metadata.kind,
-          witness_ordinal,
-        })
-        finalized.push({ ..capture, member_index: Some(member_index), })
+fn collect_free_expr(
+  expression : @anf.AnfExpr,
+  bound_values : Array[@buslane.ValueId],
+  bound_temps : Array[@anf.AnfTempId],
+  captures : Array[CaptureBinding],
+) -> Unit {
+  match expression {
+    Atom(atom) => collect_free_atom(atom, bound_values, bound_temps, captures)
+    Let(binding, body) => {
+      collect_free_rhs(binding.rhs(), bound_values, bound_temps, captures)
+      let next_values = bound_values.copy()
+      let next_temps = bound_temps.copy()
+      match binding {
+        Value(id~, ..) => next_values.push(id)
+        Temp(temp~, ..) => next_temps.push(temp)
       }
+      collect_free_expr(body, next_values, next_temps, captures)
     }
-  }
-  {
-    captured_evidence,
-    captures: finalized,
-    environment: self.environment_contract(stored_witness_count, members),
+    LetRec(bindings, body) => {
+      let next_values = bound_values.copy()
+      for binding in bindings {
+        next_values.push(binding.id)
+      }
+      for binding in bindings {
+        collect_free_atom(binding.rhs, next_values, bound_temps, captures)
+      }
+      collect_free_expr(body, next_values, bound_temps, captures)
+    }
   }
 }
 
 ///|
-fn ImageLowerer::planned_callable_capture_representation(
-  self : ImageLowerer,
-  owners : Array[CallableRepresentationOwner],
-  binding : @anf.AnfBindingId,
-  type_ : @anf.RuntimeType,
-  excluded_data_components : Array[Int],
-  excluded_callable_components : Array[Int],
-) -> (CanonicalRuntimeTypeKey, PhysicalCallableInterface?) raise LoisvmLoweringError {
-  if self.representation_solution.callable_instance_at_port_excluding(
-      owners, binding, excluded_callable_components,
-    )
-    is Some(callable) {
-    if self.representation_solution.callable_port_uses_worker(
-        owners, binding, excluded_callable_components,
-      ) &&
-      self.representation_specialization_for_callable(callable) is Some(plan) {
-      return (
-        Callable(self.representation_worker_invocation(plan)),
-        Some(self.representation_worker_interface(plan)),
-      )
+fn collect_free_rhs(
+  rhs : @anf.AnfRhs,
+  bound_values : Array[@buslane.ValueId],
+  bound_temps : Array[@anf.AnfTempId],
+  captures : Array[CaptureBinding],
+) -> Unit {
+  match rhs {
+    Atom(atom) | ApplyEvidence(callee=atom, ..) =>
+      collect_free_atom(atom, bound_values, bound_temps, captures)
+    Call(callee~, arguments~) => {
+      collect_free_atom(callee, bound_values, bound_temps, captures)
+      for argument in arguments {
+        collect_free_atom(argument, bound_values, bound_temps, captures)
+      }
     }
-    return (
-      Callable(self.generic_callable_representation_physical_abi(callable)),
-      Some(self.callable_representation_interface(callable, worker=false)),
-    )
+    Construct(construct) =>
+      for payload in construct.payloads {
+        collect_free_atom(payload, bound_values, bound_temps, captures)
+      }
+    Match(match_) => {
+      collect_free_atom(match_.scrutinee, bound_values, bound_temps, captures)
+      for alternative in match_.alternatives {
+        let next_values = bound_values.copy()
+        next_values.push(match_.binder)
+        next_values.append(alternative.value_binders)
+        collect_free_expr(alternative.body, next_values, bound_temps, captures)
+      }
+    }
   }
-  let shape = self.canonical_runtime_type_key_for_family(
-    type_,
-    self.representation_solution.data_family_at_capture_excluding(
-      owners, binding, excluded_data_components,
-    ),
-  )
-  let callable_interface = match shape {
-    Callable(invocation) =>
-      self.callable_interface_for_type_with_invocation(
-        type_,
-        RuntimeSubstitution::new(),
-        invocation,
-      )
-    _ => None
-  }
-  (shape, callable_interface)
 }
 
 ///|
-fn FunctionLowerer::capture_environment(
-  self : FunctionLowerer,
-  allocation : PhysicalCallableAllocationPlan,
-) -> @vmcfg.ValueId? raise LoisvmLoweringError {
-  let contract = allocation.capture
-  if allocation.captures.length() != contract.captures.length() {
-    raise RepresentationSpecializationInvariant(
-      detail="callable allocation flows disagree with its capture contract",
-    )
-  }
-  let stored_layouts = []
-  let values = []
-  for evidence in allocation.captured_evidence {
-    values.push(self.materialize_runtime_evidence(evidence))
-  }
-  for index, capture in contract.captures {
-    guard capture.member_index is Some(_) else { continue }
-    let flow = allocation.captures[index]
-    let source = self.materialize_physical_local({
-      value: self.capture_value(capture.binding),
-      contract: flow.source,
-    })
-    let captured = self.materialize_planned_value_flow(
-      "callable capture",
-      source,
-      flow.target,
-      flow.bridge,
-      flow.transition_site,
-    )
-    guard captured.value is Slot(slot, actual_shape) &&
-      capture.shape is Some(expected_shape) else {
-      raise RepresentationSpecializationInvariant(
-        detail="planned callable capture does not materialize as a physical slot",
-      )
-    }
-    if actual_shape != expected_shape {
-      raise RepresentationSpecializationInvariant(
-        detail="capture \{Repr(capture.binding)} produced \{Repr(actual_shape)}, expected \{Repr(expected_shape)}",
-      )
-    }
-    if expected_shape is Value({ cleanup: OwnedErased, .. }) {
-      guard self.values[slot.value].erased_companion is Some(witness) else {
-        raise InvalidTypeApplication(
-          detail="erased capture is missing its layout evidence",
-        )
+fn collect_free_atom(
+  atom : @anf.AnfAtom,
+  bound_values : Array[@buslane.ValueId],
+  bound_temps : Array[@anf.AnfTempId],
+  captures : Array[CaptureBinding],
+) -> Unit {
+  match atom {
+    Literal(_) => ()
+    Ref(value) => {
+      let capture = CaptureBinding::Value(value)
+      if !bound_values.contains(value) && !captures.contains(capture) {
+        captures.push(capture)
       }
-      stored_layouts.push(witness)
     }
-    values.push(slot)
+    Temp(temp) => {
+      let capture = CaptureBinding::Temp(temp)
+      if !bound_temps.contains(temp) && !captures.contains(capture) {
+        captures.push(capture)
+      }
+    }
+    Function(function) => {
+      let next_values = bound_values.copy()
+      next_values.append(function.parameters)
+      collect_free_expr(function.body, next_values, bound_temps, captures)
+    }
+    EvidenceLambda(body~, ..) =>
+      collect_free_expr(body, bound_values, bound_temps, captures)
   }
-  self.make_capture_environment(contract.environment, stored_layouts, values)
 }

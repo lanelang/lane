@@ -55,7 +55,7 @@ fn explore_stage_scale(
 }
 
 ///|
-test "explore protocol v7 exposes all eighteen ordered completed stages" {
+test "explore protocol v8 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -78,7 +78,7 @@ test "explore protocol v7 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  7,
+      #|  8,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -206,7 +206,7 @@ test "explore protocol v7 exposes all eighteen ordered completed stages" {
 }
 
 ///|
-test "explore attributes link growth and specialization cleanup" {
+test "explore attributes link growth and effect-specialization cleanup" {
   let report = explore(
     explore_test_request(
       (
@@ -432,7 +432,7 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("importCount", 1),
       #|      ("blockCount", 2),
       #|      ("instructionCount", 2),
-      #|      ("valueCount", 4),
+      #|      ("valueCount", 3),
       #|      ("directCallCount", 2),
       #|      ("indirectCallCount", 0),
       #|      ("functionReferenceCount", 0),
@@ -506,7 +506,7 @@ test "explore reports deterministic typed scale metrics" {
       #|  (
       #|    "vmcfg.initial",
       #|    [
-      #|      { index: 1, block_count: 1, operation_count: 2, value_count: 3 },
+      #|      { index: 1, block_count: 1, operation_count: 2, value_count: 2 },
       #|      { index: 2, block_count: 1, operation_count: 0, value_count: 1 },
       #|    ],
       #|  ),
@@ -523,7 +523,7 @@ test "explore reports deterministic typed scale metrics" {
 }
 
 ///|
-test "explore gates direct generic representation specialization" {
+test "explore records direct canonical generic representation costs" {
   let report = explore(
     explore_test_request(
       (
@@ -554,22 +554,22 @@ test "explore gates direct generic representation specialization" {
       }
       explore_stage_scale(stage)
     })
-  let workers = report.functions.nodes.filter(node => {
+  let adapters = report.functions.nodes.filter(node => {
     node.function.stage == VmcfgInitial &&
-    node.roles.any(role => role is RepresentationWorker(..))
+    node.roles.any(role => role is CallableAdapter)
   })
   debug_inspect(
     (
       report.status,
       report.diagnostics,
-      workers.map(node => node.roles),
+      adapters.map(node => node.roles),
       selected,
     ),
     content=(
       #|(
       #|  Succeeded,
       #|  [],
-      #|  [[RepresentationWorker(value=Some(2), name=Some("consume"))]],
+      #|  [],
       #|  [
       #|    (
       #|      "vmcfg.initial",
@@ -577,25 +577,25 @@ test "explore gates direct generic representation specialization" {
       #|        ("functionCount", 2),
       #|        ("importCount", 2),
       #|        ("blockCount", 4),
-      #|        ("instructionCount", 6),
-      #|        ("valueCount", 7),
+      #|        ("instructionCount", 12),
+      #|        ("valueCount", 15),
       #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 0),
+      #|        ("eraseCount", 2),
       #|        ("uneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
-      #|        ("layoutCount", 0),
+      #|        ("layoutCount", 2),
       #|        ("objectShapeCount", 0),
       #|        ("constantCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 1, operation_count: 5, value_count: 4 },
-      #|        { index: 2, block_count: 3, operation_count: 1, value_count: 3 },
+      #|        { index: 1, block_count: 3, operation_count: 1, value_count: 5 },
+      #|        { index: 2, block_count: 1, operation_count: 11, value_count: 10 },
       #|      ],
       #|    ),
       #|    (
@@ -603,27 +603,27 @@ test "explore gates direct generic representation specialization" {
       #|      [
       #|        ("functionCount", 2),
       #|        ("importCount", 2),
-      #|        ("blockCount", 4),
-      #|        ("instructionCount", 6),
-      #|        ("slotCount", 4),
+      #|        ("blockCount", 5),
+      #|        ("instructionCount", 13),
+      #|        ("slotCount", 10),
       #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 0),
+      #|        ("eraseCount", 2),
       #|        ("uneraseCount", 0),
       #|        ("retainCount", 0),
-      #|        ("releaseCount", 0),
+      #|        ("releaseCount", 1),
       #|        ("callableAbiCount", 3),
       #|        ("globalCount", 0),
-      #|        ("layoutCount", 0),
+      #|        ("layoutCount", 2),
       #|        ("objectShapeCount", 0),
       #|        ("constantCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 1, operation_count: 5, value_count: 2 },
-      #|        { index: 2, block_count: 3, operation_count: 1, value_count: 2 },
+      #|        { index: 1, block_count: 4, operation_count: 2, value_count: 4 },
+      #|        { index: 2, block_count: 1, operation_count: 11, value_count: 6 },
       #|      ],
       #|    ),
       #|  ],
@@ -685,21 +685,21 @@ test "explore records concrete-answer CPS callback representation costs" {
       guard stage.id == "vmcfg.initial" else { return None }
       explore_stage_scale(stage)
     })
-  let workers = report.functions.nodes.filter(node => {
+  let adapters = report.functions.nodes.filter(node => {
     node.function.stage == VmcfgInitial &&
-    node.roles.any(role => role is RepresentationWorker(..))
+    node.roles.any(role => role is CallableAdapter)
   })
   let adapter_count = report.functions.nodes
     .filter(node => {
       node.function.stage == VmcfgInitial &&
-      node.roles.any(role => role is CallableAdapter(_))
+      node.roles.any(role => role is CallableAdapter)
     })
     .length()
   debug_inspect(
     (
       report.status,
       report.diagnostics,
-      workers.map(node => node.roles),
+      adapters.map(node => node.roles),
       adapter_count,
       selected,
     ),
@@ -708,43 +708,49 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|  Succeeded,
       #|  [],
       #|  [
-      #|    [AnonymousFunction, RepresentationWorker(value=None, name=None)],
-      #|    [RepresentationWorker(value=Some(5), name=Some("apply_call"))],
-      #|    [RepresentationWorker(value=Some(26), name=Some("resume"))],
-      #|    [RepresentationWorker(value=Some(8), name=Some("answer_callback"))],
+      #|    [CallableAdapter],
+      #|    [CallableAdapter],
+      #|    [CallableAdapter],
+      #|    [CallableAdapter],
+      #|    [CallableAdapter],
       #|  ],
-      #|  0,
+      #|  5,
       #|  [
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 7),
+      #|        ("functionCount", 12),
       #|        ("importCount", 1),
-      #|        ("blockCount", 7),
-      #|        ("instructionCount", 7),
-      #|        ("valueCount", 31),
-      #|        ("directCallCount", 5),
-      #|        ("indirectCallCount", 2),
-      #|        ("functionReferenceCount", 3),
-      #|        ("closureCount", 0),
-      #|        ("environmentCount", 0),
-      #|        ("eraseCount", 0),
-      #|        ("uneraseCount", 0),
+      #|        ("blockCount", 12),
+      #|        ("instructionCount", 52),
+      #|        ("valueCount", 102),
+      #|        ("directCallCount", 3),
+      #|        ("indirectCallCount", 10),
+      #|        ("functionReferenceCount", 11),
+      #|        ("closureCount", 5),
+      #|        ("environmentCount", 5),
+      #|        ("eraseCount", 5),
+      #|        ("uneraseCount", 5),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
-      #|        ("layoutCount", 2),
-      #|        ("objectShapeCount", 2),
+      #|        ("layoutCount", 9),
+      #|        ("objectShapeCount", 7),
       #|        ("constantCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 1, operation_count: 1, value_count: 6 },
-      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 6 },
-      #|        { index: 3, block_count: 1, operation_count: 1, value_count: 5 },
-      #|        { index: 4, block_count: 1, operation_count: 0, value_count: 1 },
-      #|        { index: 5, block_count: 1, operation_count: 0, value_count: 5 },
-      #|        { index: 6, block_count: 1, operation_count: 0, value_count: 4 },
-      #|        { index: 7, block_count: 1, operation_count: 0, value_count: 4 },
+      #|        { index: 1, block_count: 1, operation_count: 1, value_count: 9 },
+      #|        { index: 2, block_count: 1, operation_count: 1, value_count: 6 },
+      #|        { index: 3, block_count: 1, operation_count: 24, value_count: 29 },
+      #|        { index: 4, block_count: 1, operation_count: 1, value_count: 5 },
+      #|        { index: 5, block_count: 1, operation_count: 6, value_count: 9 },
+      #|        { index: 6, block_count: 1, operation_count: 0, value_count: 1 },
+      #|        { index: 7, block_count: 1, operation_count: 1, value_count: 2 },
+      #|        { index: 8, block_count: 1, operation_count: 8, value_count: 15 },
+      #|        { index: 9, block_count: 1, operation_count: 4, value_count: 8 },
+      #|        { index: 10, block_count: 1, operation_count: 0, value_count: 4 },
+      #|        { index: 11, block_count: 1, operation_count: 3, value_count: 6 },
+      #|        { index: 12, block_count: 1, operation_count: 3, value_count: 8 },
       #|      ],
       #|    ),
       #|  ],
@@ -754,7 +760,7 @@ test "explore records concrete-answer CPS callback representation costs" {
 }
 
 ///|
-test "expanding recursive generic demand retains one finite fallback" {
+test "expanding recursive generic application retains a finite canonical implementation" {
   let report = explore(
     explore_test_request(
       (
@@ -774,12 +780,12 @@ test "expanding recursive generic demand retains one finite fallback" {
       ),
     ),
   )
-  let workers = report.functions.nodes.filter(node => {
+  let adapters = report.functions.nodes.filter(node => {
     node.function.stage == VmcfgInitial &&
-    node.roles.any(role => role is RepresentationWorker(..))
+    node.roles.any(role => role is CallableAdapter)
   })
   debug_inspect(
-    (report.status, report.diagnostics, workers),
+    (report.status, report.diagnostics, adapters),
     content="(Succeeded, [], [])",
   )
 }
@@ -865,27 +871,27 @@ test "explore records concrete-answer CPS normalization costs" {
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 4),
-      #|        ("instructionCount", 5),
+      #|        ("functionCount", 8),
+      #|        ("instructionCount", 28),
       #|        ("directCallCount", 4),
-      #|        ("indirectCallCount", 1),
-      #|        ("closureCount", 0),
-      #|        ("environmentCount", 0),
-      #|        ("eraseCount", 0),
-      #|        ("uneraseCount", 0),
+      #|        ("indirectCallCount", 5),
+      #|        ("closureCount", 3),
+      #|        ("environmentCount", 3),
+      #|        ("eraseCount", 2),
+      #|        ("uneraseCount", 2),
       #|      ],
       #|    ),
       #|    (
       #|      "loisvm.bytecode",
       #|      [
-      #|        ("functionCount", 4),
-      #|        ("instructionCount", 5),
+      #|        ("functionCount", 8),
+      #|        ("instructionCount", 28),
       #|        ("directCallCount", 4),
-      #|        ("indirectCallCount", 1),
-      #|        ("closureCount", 0),
-      #|        ("environmentCount", 0),
-      #|        ("eraseCount", 0),
-      #|        ("uneraseCount", 0),
+      #|        ("indirectCallCount", 5),
+      #|        ("closureCount", 3),
+      #|        ("environmentCount", 3),
+      #|        ("eraseCount", 2),
+      #|        ("uneraseCount", 2),
       #|      ],
       #|    ),
       #|  ],
@@ -895,7 +901,7 @@ test "explore records concrete-answer CPS normalization costs" {
 }
 
 ///|
-test "explore keeps expanding recursive representation SCC generic" {
+test "explore keeps expanding recursive generic applications on the canonical ABI" {
   let report = explore(
     explore_test_request(
       (
@@ -930,66 +936,11 @@ test "explore keeps expanding recursive representation SCC generic" {
       explore_stage_scale(stage)
     })
   debug_inspect(
-    (
-      report.status,
-      report.diagnostics,
-      report.representations.transitions,
-      report.representations.occurrences,
-      selected,
-    ),
+    (report.status, report.diagnostics, selected),
     content=(
       #|(
       #|  Succeeded,
       #|  [],
-      #|  [
-      #|    {
-      #|      id: 0,
-      #|      source: Value(
-      #|        {
-      #|          representation: I32,
-      #|          cleanup: OwnedRef,
-      #|          kind: DataValue({ value: 0 }),
-      #|        },
-      #|      ),
-      #|      target: Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue }),
-      #|      kind: Erase,
-      #|    },
-      #|    {
-      #|      id: 1,
-      #|      source: Value({ representation: I64, cleanup: Trivial, kind: ScalarValue }),
-      #|      target: Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue }),
-      #|      kind: Erase,
-      #|    },
-      #|  ],
-      #|  [
-      #|    {
-      #|      event: 0,
-      #|      function: { stage: VmcfgInitial, index: 1 },
-      #|      transition: 0,
-      #|      roles: [SourceFunction(value=1, name=Some("grow"))],
-      #|      boundary: CallArgument,
-      #|      binding: Some(Temp(2)),
-      #|      ordinal: Some(1),
-      #|    },
-      #|    {
-      #|      event: 0,
-      #|      function: { stage: VmcfgInitial, index: 2 },
-      #|      transition: 1,
-      #|      roles: [SourceFunction(value=5, name=Some("main"))],
-      #|      boundary: CallArgument,
-      #|      binding: Some(Temp(6)),
-      #|      ordinal: Some(1),
-      #|    },
-      #|    {
-      #|      event: 1,
-      #|      function: { stage: VmcfgInitial, index: 2 },
-      #|      transition: 1,
-      #|      roles: [SourceFunction(value=5, name=Some("main"))],
-      #|      boundary: CallArgument,
-      #|      binding: Some(Temp(9)),
-      #|      ordinal: Some(1),
-      #|    },
-      #|  ],
       #|  [
       #|    (
       #|      "vmcfg.initial",
@@ -1081,7 +1032,7 @@ test "explore removes alpha-renamed adapters during CPS core normalization" {
   )
   let adapter_roles = report.functions.nodes.filter_map(node => {
     guard node.function.stage == VmcfgInitial &&
-      node.roles.any(role => role is CallableAdapter(_)) else {
+      node.roles.any(role => role is CallableAdapter) else {
       return None
     }
     Some(node.roles)
@@ -1533,7 +1484,7 @@ test "explore traces a named function and preserves synthetic roots" {
     ),
     content=(
       #|(
-      #|  7,
+      #|  8,
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },

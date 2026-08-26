@@ -284,11 +284,12 @@ declaration-owned nominal storage are independently lowerable through this ABI.
 _Avoid_: specialization prerequisite, reference guess, closed-world layout
 
 **Representation Elaboration**:
-The deep module that transforms verified Runtime ANF and target ABI facts into
-one Verified Physical Program. It may use private analyses and work queues, but
-its interface exposes neither demand plans nor solution sidecars. It is the
-sole producer of physical value contracts and structural representation
-adaptations.
+The private lowering operation that consumes verified Runtime ANF and target
+ABI facts while constructing VM CFG. It is the sole producer of physical value
+contracts and structural representation adaptations. Substitutions, evidence
+recipes, adapter memoization, layout interning, and work queues remain private
+to LoisVM Lowering; no intermediate physical program or planning sidecar
+crosses the package boundary.
 _Avoid_: planner catalog interface, emitter type guess, specialization policy
 
 **Physical Value Contract**:
@@ -353,17 +354,11 @@ _Avoid_: instruction-adjacency pattern, reference-count eligibility, rewrite fal
 
 **Deferred Callable Adaptation**:
 The Structural Representation Adaptation between two callable contracts.
-Direct invocation may fuse parameter, call, and result conversion; only a
-first-class escape materializes a worker, environment, and closure.
-_Avoid_: eager adapter allocation, recipe sidecar, runtime-layout-only alignment
-
-**Physical ANF**:
-The compiler-private structural result of Representation Elaboration. Every
-runtime value carries one Physical Value Contract and every unequal flow is an
-explicit Structural Representation Adaptation. Its verifier proves the closed
-physical execution invariant before VM CFG emission. It may retain semantic
-provenance, but emission cannot use that provenance to reselect representation.
-_Avoid_: Runtime ANF plus sidecars, planner output, emitter fallback
+The complete structural recipe is the private identity used to share a worker;
+each materialization supplies its own callable and evidence captures. A future
+direct-call fusion must consume that same recipe rather than rederive an ABI.
+_Avoid_: consumer-visible recipe catalog, runtime-layout-only alignment,
+second direct-call adaptation path
 
 **Callable Invocation Contract**:
 The exact Physical Value Contracts of a callable's evidence inputs, user
@@ -385,8 +380,8 @@ _Avoid_: recursive structural ABI tree, callable-instance graph, source binder i
 The explicit conversion of one value from a complete source Physical Value
 Contract to a complete target contract. Identity needs no operation; current
 non-identity operations are erase, unerase, and callable adaptation. The
-elaborator owns construction and VM CFG emission consumes the operation
-mechanically.
+elaborator owns construction; VM CFG and its value metadata are the first IR
+that stores the resulting physical operation and contract.
 _Avoid_: transition sidecar, source-type spelling, layout-only equality,
 emission fallback
 
@@ -403,14 +398,6 @@ canonical runtime ABI and rewrites actual calls to that worker. Its analyses
 and work queue are private. Deleting the pass preserves valid-program lowering
 and observable behavior through the Canonical Generic ABI.
 _Avoid_: correctness boundary, consumer-visible demand plan, mandatory monomorphization
-
-**Representation Worker**:
-A concrete-ABI implementation of a generic function that consumes no
-first-order layout witnesses and avoids erased-value bridges at rewritten call
-sites. The key is the generic definition plus its complete canonical runtime
-ABI. Each key owns at most one worker; the generic implementation remains
-available for every open, indirect, unsupported, or recursively expanding use.
-_Avoid_: generic replacement, call-count key, source-spelling key
 
 **Generic Nominal Data Schema**:
 The declaration-owned uniform storage ABI for a generic nominal data type.

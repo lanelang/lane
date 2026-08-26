@@ -1,13 +1,27 @@
 ///|
-fn canonical_scalar_key(
-  representation : @bytecode.Representation,
-) -> CanonicalRuntimeTypeKey {
-  Value({ representation, cleanup: Trivial, kind: ScalarValue, })
+fn FunctionLowerer::fresh_optional_slot(
+  self : FunctionLowerer,
+  type_ : @anf.RuntimeType,
+) -> (@vmcfg.ValueId?, LocalValue) raise LoisvmLoweringError {
+  if type_ is Unit {
+    (None, Unit)
+  } else {
+    let slot = self.fresh_slot(type_)
+    (Some(slot), Slot(slot, type_))
+  }
 }
 
 ///|
-fn canonical_byte_sequence_key() -> CanonicalRuntimeTypeKey {
-  Value({ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, })
+fn FunctionLowerer::fresh_slot(
+  self : FunctionLowerer,
+  type_ : @anf.RuntimeType,
+) -> @vmcfg.ValueId raise LoisvmLoweringError {
+  if type_ is Erased(_, evidence) {
+    return self.fresh_erased_slot(self.layout_witness(evidence), Owned)
+  }
+  let slot : @vmcfg.ValueId = { value: self.values.length(), }
+  self.values.push(self.image.slot_metadata(type_))
+  slot
 }
 
 ///|
@@ -21,50 +35,21 @@ fn FunctionLowerer::fresh_metadata(
 }
 
 ///|
-fn runtime_type_mentions_any(
+fn FunctionLowerer::fresh_borrowed_slot(
+  self : FunctionLowerer,
   type_ : @anf.RuntimeType,
-  parameters : Array[@anf.RuntimeEvidenceId],
-  bound : Array[@anf.RuntimeEvidenceId],
-) -> Bool {
-  match type_ {
-    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) => false
-    Data(_, _) => false
-    Callable(arguments, result) =>
-      arguments.any(argument => {
-        runtime_type_mentions_any(argument, parameters, bound)
-      }) ||
-      runtime_type_mentions_any(result, parameters, bound)
-    Erased(_, evidence) =>
-      runtime_evidence_mentions_any(evidence, parameters, bound)
-    Forall(binders, body) => {
-      let nested = bound.copy()
-      nested.append(binders.map(binder => binder.id))
-      runtime_type_mentions_any(body, parameters, nested)
-    }
+) -> @vmcfg.ValueId raise LoisvmLoweringError {
+  if type_ is Erased(_, evidence) {
+    return self.fresh_erased_slot(self.layout_witness(evidence), Borrowed)
   }
-}
-
-///|
-fn runtime_evidence_mentions_any(
-  evidence : @anf.RuntimeEvidence,
-  parameters : Array[@anf.RuntimeEvidenceId],
-  bound : Array[@anf.RuntimeEvidenceId],
-) -> Bool {
-  match evidence {
-    Static(_) => false
-    Parameter(parameter) =>
-      !bound.contains(parameter) && parameters.contains(parameter)
-    Apply(callee, arguments) =>
-      runtime_evidence_mentions_any(callee, parameters, bound) ||
-      arguments.any(argument => {
-        runtime_evidence_mentions_any(argument, parameters, bound)
-      })
-    Lambda(binders, body) => {
-      let nested = bound.copy()
-      nested.append(binders.map(binder => binder.id))
-      runtime_evidence_mentions_any(body, parameters, nested)
-    }
+  let metadata = self.image.slot_metadata(type_)
+  let ownership : @vmcfg.Ownership = match metadata.ownership {
+    Trivial => Trivial
+    Owned | Borrowed => Borrowed
   }
+  let slot : @vmcfg.ValueId = { value: self.values.length(), }
+  self.values.push({ ..metadata, ownership, })
+  slot
 }
 
 ///|
@@ -83,19 +68,64 @@ fn FunctionLowerer::fresh_erased_slot(
 }
 
 ///|
+fn ImageLowerer::slot_metadata(
+  self : ImageLowerer,
+  type_ : @anf.RuntimeType,
+) -> @vmcfg.ValueMetadata raise LoisvmLoweringError {
+  match self.elaborate_runtime_representation(type_) {
+    Concrete(_, metadata) => metadata
+    RuntimeUnit | RuntimeErased(_) => raise UnsupportedType(type_~)
+  }
+}
+
+///|
 fn ImageLowerer::elaborate_runtime_representation(
   self : ImageLowerer,
   type_ : @anf.RuntimeType,
-) -> RuntimeRepresentation raise LoisvmLoweringError {
+) -> RuntimeRepresentation {
   let metadata : @vmcfg.ValueMetadata = match type_ {
     Unit => return RuntimeUnit
-    Erased(_, _) => return RuntimeErased
+    Erased(_, evidence) => return RuntimeErased(evidence)
     Scalar(Bool | I32 | Char | Byte) =>
-      canonical_scalar_key(I32).value_metadata(None)
-    Scalar(I64) => canonical_scalar_key(I64).value_metadata(None)
-    Scalar(F32) => canonical_scalar_key(F32).value_metadata(None)
-    Scalar(F64) => canonical_scalar_key(F64).value_metadata(None)
-    ByteSequence => canonical_byte_sequence_key().value_metadata(None)
+      {
+        representation: I32,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        ownership: Trivial,
+        erased_companion: None,
+      }
+    Scalar(I64) =>
+      {
+        representation: I64,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        ownership: Trivial,
+        erased_companion: None,
+      }
+    Scalar(F32) =>
+      {
+        representation: F32,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        ownership: Trivial,
+        erased_companion: None,
+      }
+    Scalar(F64) =>
+      {
+        representation: F64,
+        cleanup: Trivial,
+        kind: ScalarValue,
+        ownership: Trivial,
+        erased_companion: None,
+      }
+    ByteSequence =>
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: ByteSequenceValue,
+        ownership: Owned,
+        erased_companion: None,
+      }
     Callable(_, _) | Forall(_, _) =>
       {
         representation: I64,
@@ -108,9 +138,7 @@ fn ImageLowerer::elaborate_runtime_representation(
       {
         representation: I32,
         cleanup: OwnedRef,
-        kind: DataValue(
-          self.materialize_data_family(self.data_family(Declaration(owner))),
-        ),
+        kind: DataValue(self.intern_data_family(owner)),
         ownership: Owned,
         erased_companion: None,
       }
@@ -184,10 +212,23 @@ fn runtime_evidence_metadata(
 }
 
 ///|
+fn ImageLowerer::result_abi(
+  self : ImageLowerer,
+  type_ : @anf.RuntimeType,
+) -> @bytecode.ResultAbi {
+  match self.elaborate_runtime_representation(type_) {
+    RuntimeUnit => Unit
+    RuntimeErased(_) => Value(I64, OwnedErased, ErasedValue)
+    Concrete(_, metadata) =>
+      Value(metadata.representation, metadata.cleanup, metadata.kind)
+  }
+}
+
+///|
 priv enum RuntimeRepresentation {
   RuntimeUnit
   Concrete(@anf.RuntimeType, @vmcfg.ValueMetadata)
-  RuntimeErased
+  RuntimeErased(@anf.RuntimeEvidence)
 }
 
 ///|
@@ -207,12 +248,12 @@ fn ImageLowerer::types_representation_equivalent(
 
 ///|
 fn ImageLowerer::runtime_type(
-  _self : ImageLowerer,
+  self : ImageLowerer,
   type_ : @anf.RuntimeType,
 ) -> RuntimeTypeClass {
-  match type_ {
-    Unit => Concrete(Unit)
-    Erased(_, evidence) => Erased(evidence)
-    _ => Concrete(type_)
+  match self.elaborate_runtime_representation(type_) {
+    RuntimeUnit => Concrete(Unit)
+    Concrete(type_, _) => Concrete(type_)
+    RuntimeErased(evidence) => Erased(evidence)
   }
 }

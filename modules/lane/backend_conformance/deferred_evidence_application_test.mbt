@@ -33,7 +33,7 @@ test "deferred generic application preserves its producer ABI" {
 }
 
 ///|
-test "specializing an existing generic closure preserves its captures" {
+test "applying an existing generic closure preserves its captures" {
   let actual = execute_compiler_test_matrix(
     (
       #|module Main

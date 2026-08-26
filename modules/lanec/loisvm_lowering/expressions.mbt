@@ -1,16 +1,15 @@
 ///|
 fn FunctionLowerer::lower_expr(
   self : FunctionLowerer,
-  expression : PhysicalAnfExpr,
-) -> PhysicalLocalValue raise LoisvmLoweringError {
+  expression : @anf.AnfExpr,
+) -> LocalValue raise LoisvmLoweringError {
   match expression {
-    Atom(atom) => self.lower_physical_atom(atom)
+    Atom(atom) => self.lower_atom(atom)
     Let(binding, body) => {
-      let lowered = self.lower_rhs(binding.rhs, binding.result)
-      match binding.binding {
-        Value(id~, ..) =>
-          self.bindings.push({ value: id, lowered: lowered.value, })
-        Temp(temp~, ..) => self.temps.push({ temp, lowered: lowered.value, })
+      let lowered = self.lower_rhs(binding.rhs())
+      match binding {
+        Value(id~, ..) => self.bindings.push({ value: id, lowered, })
+        Temp(temp~, ..) => self.temps.push({ temp, lowered, })
       }
       self.lower_expr(body)
     }
@@ -28,68 +27,66 @@ fn @anf.AnfBinding::rhs(self : @anf.AnfBinding) -> @anf.AnfRhs {
 ///|
 fn FunctionLowerer::lower_rhs(
   self : FunctionLowerer,
-  rhs : PhysicalAnfRhs,
-  result : PhysicalValueContract,
-) -> PhysicalLocalValue raise LoisvmLoweringError {
+  rhs : @anf.AnfRhs,
+) -> LocalValue raise LoisvmLoweringError {
   match rhs {
-    Atom(atom, flow) =>
-      self.apply_physical_binding_flow(flow, self.lower_physical_atom(atom))
-    ApplyEvidence(application) =>
-      { value: self.lower_evidence_apply(application), contract: result, }
-    Call(call) => { value: self.lower_call(call), contract: result, }
-    Construct(construct) =>
-      { value: self.lower_construct(construct), contract: result, }
-    Match(match_) => { value: self.lower_match(match_), contract: result, }
+    Atom(atom) => self.lower_atom(atom)
+    ApplyEvidence(callee~, arguments~) =>
+      self.lower_evidence_apply(callee, arguments)
+    Call(callee~, arguments~) => self.lower_call(callee, arguments)
+    Construct(construct) => self.lower_construct(construct)
+    Match(match_) => self.lower_match(match_)
   }
 }
 
 ///|
-fn FunctionLowerer::lower_physical_atom(
+fn FunctionLowerer::lower_atom(
   self : FunctionLowerer,
-  atom : PhysicalAnfAtom,
-) -> PhysicalLocalValue raise LoisvmLoweringError {
-  let value = match atom.producer {
-    Binding(Value(value)) => self.find_value(value)
-    Binding(Temp(temp)) => self.find_temp(temp)
-    PhysicalAnfAtomProducer::Literal(literal) =>
-      self.lower_physical_literal(literal, atom.contract)
-    Callable(allocation) => self.lower_callable_allocation(allocation)
+  atom : @anf.AnfAtom,
+) -> LocalValue raise LoisvmLoweringError {
+  match atom {
+    Literal(literal) => self.lower_literal(literal)
+    Ref(value) => self.find_value(value)
+    Temp(temp) => self.find_temp(temp)
+    Function(function) => self.lower_nested_function(function)
+    EvidenceLambda(parameters~, body~) => {
+      let function = match extract_top_function(body) {
+        Some(function) => function
+        None =>
+          raise UnsupportedExpression(
+            detail="generic nested value must contain a function",
+          )
+      }
+      self.lower_nested_function_with_type(
+        function,
+        Forall(parameters, self.image.anf_function_type(function)),
+      )
+    }
   }
-  { value, contract: atom.contract, }
 }
 
 ///|
 fn FunctionLowerer::lower_evidence_apply(
   self : FunctionLowerer,
-  application : PhysicalAnfEvidenceApplication,
+  callee : @anf.AnfAtom,
+  arguments : Array[@anf.RuntimeArgument],
 ) -> LocalValue raise LoisvmLoweringError {
-  let lowered = self.lower_physical_atom(application.callee).value
-  match application.application.mode {
-    Materialize =>
-      return self.materialize_evidence_application(
-        lowered,
-        application.application,
-      )
-    Identity => return lowered
-    Deferred => ()
-  }
-  match lowered {
-    Global(global) => EvidenceApplied(global, application.application)
-    Slot(callable, shape) =>
-      EvidenceAppliedCallable(callable, shape, application.application)
-    NestedCallable(callable) =>
-      EvidenceAppliedNestedCallable(callable, application.application)
-    EvidenceApplied(global, _) =>
-      EvidenceApplied(global, application.application)
-    EvidenceAppliedCallable(callable, shape, _) =>
-      EvidenceAppliedCallable(callable, shape, application.application)
-    EvidenceAppliedNestedCallable(callable, _) =>
-      EvidenceAppliedNestedCallable(callable, application.application)
-    RecursiveFunction(_, _) as recursive => {
-      guard self.materialize_local(recursive) is Slot(callable, shape) else {
+  match self.lower_atom(callee) {
+    Global(global) => EvidenceApplied(global, arguments)
+    Slot(callable, type_) => EvidenceAppliedCallable(callable, type_, arguments)
+    EvidenceApplied(global, applied) =>
+      EvidenceApplied(global, applied + arguments)
+    EvidenceAppliedCallable(callable, type_, applied) =>
+      EvidenceAppliedCallable(callable, type_, applied + arguments)
+    AdaptedCallable(adaptation) =>
+      EvidenceAppliedAdaptedCallable(adaptation, arguments)
+    EvidenceAppliedAdaptedCallable(adaptation, applied) =>
+      EvidenceAppliedAdaptedCallable(adaptation, applied + arguments)
+    RecursiveFunction(_, _, _) as recursive => {
+      guard self.materialize_local(recursive) is Slot(callable, type_) else {
         abort("recursive callable was not materialized")
       }
-      EvidenceAppliedCallable(callable, shape, application.application)
+      EvidenceAppliedCallable(callable, type_, arguments)
     }
     _ =>
       raise InvalidTypeApplication(
@@ -101,93 +98,142 @@ fn FunctionLowerer::lower_evidence_apply(
 ///|
 fn FunctionLowerer::lower_construct(
   self : FunctionLowerer,
-  physical : PhysicalAnfConstruct,
+  construct : @anf.AnfConstruct,
 ) -> LocalValue raise LoisvmLoweringError {
-  let physical_construct = physical.plan
-  if physical_construct.payloads.length() != physical.payloads.length() {
-    raise RepresentationSpecializationInvariant(
-      detail="data construction disagrees with its physical payload plan",
+  let info = match
+    self.image.metadata.data_constructor_info(construct.data_constructor) {
+    Some(info) => info
+    None =>
+      raise MissingDataConstructorMetadata(
+        data_constructor=construct.data_constructor,
+      )
+  }
+  let owner_info = match self.image.metadata.type_info(info.owner) {
+    Some(info) => info
+    None =>
+      raise MissingDataConstructorMetadata(
+        data_constructor=construct.data_constructor,
+      )
+  }
+  let owner_substitutions = RuntimeSubstitution::from_arguments(
+    owner_info.evidence_parameters,
+    construct.type_arguments,
+  )
+  let hidden_substitutions = RuntimeSubstitution::from_arguments(
+    info.hidden_evidence_parameters,
+    construct.hidden_arguments,
+  )
+  let substitutions = owner_substitutions.overlay(hidden_substitutions)
+  if construct.payloads.length() != info.payload_types.length() {
+    raise InvalidDataPayloadCount(
+      data_constructor=construct.data_constructor,
+      expected=info.payload_types.length(),
+      actual=construct.payloads.length(),
     )
   }
-  if physical_construct.representation is Product(contract) {
-    if contract.payload_types.length() != physical.payloads.length() {
-      raise RepresentationSpecializationInvariant(
-        detail="closed aggregate contract does not match its allocation",
-      )
-    }
-    let payloads = []
-    for index, payload in physical.payloads {
-      let source = self.materialize_physical_local(
-        self.lower_physical_atom(payload),
-      )
-      let flow = physical_construct.payloads[index]
-      payloads.push(
-        self.materialize_planned_value_flow(
-          "closed aggregate payload \{index}",
-          source,
-          flow.target,
-          flow.bridge,
-          flow.transition_site,
-        ).value,
-      )
-    }
-    return ClosedAggregate(contract, payloads)
-  }
-  guard physical_construct.representation is Data(data) else {
-    raise RepresentationSpecializationInvariant(
-      detail="Physical ANF construction lacks a selected representation",
-    )
-  }
-  let family = data.family
-  let constructor_plan = data.constructor_plan
   let fields = []
-  for evidence in data.stored_evidence {
-    fields.push(self.materialize_runtime_evidence(evidence))
+  for parameter in info.hidden_evidence_parameters {
+    guard substitutions.argument(parameter.id) is Some(argument) else {
+      raise InvalidTypeApplication(detail="missing hidden runtime evidence")
+    }
+    fields.push(self.runtime_evidence(parameter, argument))
   }
   let witnesses = []
-  for index, payload in physical.payloads {
-    let source = self.materialize_physical_local(
-      self.lower_physical_atom(payload),
+  for index, payload in construct.payloads {
+    let formal_type = info.payload_types[index]
+    let actual_type = substitutions.apply_type(
+      self.image.runtime_types,
+      formal_type,
     )
-    let flow = physical_construct.payloads[index]
-    let lowered = self.materialize_planned_value_flow(
-        "data payload \{index}",
-        source,
-        flow.target,
-        flow.bridge,
-        flow.transition_site,
-      ).value
-    match lowered {
-      Unit => ()
-      Slot(field, _) => {
-        if self.values[field.value].erased_companion is Some(witness) {
+    let source = self.materialize_local(self.lower_atom(payload))
+    let lowered = if self.image.runtime_type(formal_type) is Erased(_) {
+      match source {
+        Slot(slot, _) if self.values[slot.value].erased_companion
+          is Some(witness) => {
           witnesses.push(witness)
+          Slot(slot, formal_type)
         }
-        fields.push(field)
+        _ => {
+          let witness = self.layout_witness(runtime_type_evidence(actual_type))
+          witnesses.push(witness)
+          Slot(self.erase_value(source, actual_type, witness), formal_type)
+        }
       }
+    } else {
+      self.adapt_local_value_with_substitutions(
+        source, actual_type, formal_type, substitutions,
+      )
+    }
+    let lowered = self.materialize_local(lowered)
+    match lowered {
+      Unit =>
+        if formal_type != Unit {
+          raise UnsupportedExpression(
+            detail="non-Unit data field has no runtime representation",
+          )
+        }
+      Slot(field, _) => fields.push(field)
       _ =>
         raise UnsupportedExpression(
           detail="data field has no runtime representation",
         )
     }
   }
-  let shape = constructor_plan.shape
-  let result_key = CanonicalRuntimeTypeKey::Value({
-    representation: I32,
-    cleanup: OwnedRef,
-    kind: DataValue(family.family),
-  })
-  let destination = self.fresh_metadata(result_key.value_metadata(None))
-  self.emit(
-    MakeData(
-      destination,
-      shape,
-      Immediate(constructor_plan.layout),
-      witnesses,
-      fields,
-    ),
+  let shape = self.image.data_shape(construct.data_constructor, info)
+  let layout = self.image.intern_layout(Data(shape))
+  let result_type = @anf.RuntimeType::Data(info.owner, construct.type_arguments)
+  let destination = self.fresh_slot(result_type)
+  self.emit(MakeData(destination, shape, Immediate(layout), witnesses, fields))
+  Slot(destination, result_type)
+}
+
+///|
+fn ImageLowerer::data_shape(
+  self : ImageLowerer,
+  data_constructor : @buslane.DataConId,
+  info : @anf.RuntimeDataConstructorInfo,
+) -> @bytecode.ObjectShapeId raise LoisvmLoweringError {
+  let members : Array[@bytecode.MemberSchema] = []
+  for parameter in info.hidden_evidence_parameters {
+    let metadata = runtime_evidence_metadata(parameter)
+    members.push({
+      representation: metadata.representation,
+      cleanup: metadata.cleanup,
+      kind: metadata.kind,
+      witness_ordinal: None,
+    })
+  }
+  let mut witness_ordinal = 0
+  for payload_type in info.payload_types {
+    if self.runtime_type(payload_type) is Erased(_) {
+      members.push({
+        representation: I64,
+        cleanup: OwnedErased,
+        kind: ErasedValue,
+        witness_ordinal: Some(witness_ordinal),
+      })
+      witness_ordinal += 1
+    } else if self.runtime_type(payload_type) is Concrete(Unit) {
+      ()
+    } else {
+      let metadata = self.slot_metadata(payload_type)
+      members.push({
+        representation: metadata.representation,
+        cleanup: metadata.cleanup,
+        kind: metadata.kind,
+        witness_ordinal: None,
+      })
+    }
+  }
+  let constructor_tag = self.constructor_tag(data_constructor, info.owner)
+  self.intern_object_shape(
+    Data({
+      family: self.intern_data_family(info.owner),
+      constructor_tag,
+      stored_witness_count: witness_ordinal,
+      members,
+    }),
   )
-  LocalValue::Slot(destination, result_key)
 }
 
 ///|
@@ -218,14 +264,15 @@ fn FunctionLowerer::find_value(
       return binding.lowered
     }
   }
-  match self.physical_program.required_global(value).producer {
-    PhysicalUnit => Unit
-    PhysicalInstanceGlobal(global, shape) => {
-      let destination = self.fresh_metadata(shape.borrowed_value_metadata(None))
+  match self.image.find_global(value) {
+    Some(UnitValue) => Unit
+    Some(InstanceGlobal(global, type_)) => {
+      let destination = self.fresh_borrowed_slot(type_)
       self.emit(BorrowGlobal(destination, global))
-      LocalValue::Slot(destination, shape)
+      Slot(destination, type_)
     }
-    global => Global(global)
+    Some(global) => Global(global)
+    None => raise MissingValueMetadata(value~)
   }
 }
 
@@ -243,75 +290,55 @@ fn FunctionLowerer::find_temp(
 }
 
 ///|
-fn FunctionLowerer::lower_physical_literal(
+fn FunctionLowerer::lower_literal(
   self : FunctionLowerer,
-  literal : PhysicalLiteral,
-  contract : PhysicalValueContract,
+  literal : @buslane.Literal,
 ) -> LocalValue raise LoisvmLoweringError {
-  self.lower_literal_with_shape(literal, self.physical_shape(contract.shape))
-}
-
-///|
-fn FunctionLowerer::lower_literal_with_shape(
-  self : FunctionLowerer,
-  literal : PhysicalLiteral,
-  planned_shape : PhysicalValueShape,
-) -> LocalValue raise LoisvmLoweringError {
-  let fresh = fn() -> (@vmcfg.ValueId, CanonicalRuntimeTypeKey) raise LoisvmLoweringError {
-    let key = match planned_shape {
-      PhysicalValueShape::Slot(key) => key
-      _ =>
-        raise RepresentationSpecializationInvariant(
-          detail="literal has no physical result slot",
-        )
-    }
-    (self.fresh_metadata(key.value_metadata(None)), key)
-  }
   match literal {
-    Unit => {
-      match planned_shape {
-        PhysicalValueShape::Unit => ()
-        _ =>
-          raise RepresentationSpecializationInvariant(
-            detail="Unit literal is not represented as Unit",
-          )
-      }
-      Unit
-    }
+    Unit => Unit
     Bool(value) => {
-      let (slot, key) = fresh()
+      let type_ = @anf.RuntimeType::Scalar(Bool)
+      let slot = self.fresh_slot(type_)
       self.emit(ConstBool(slot, value))
-      Slot(slot, key)
+      Slot(slot, type_)
     }
     I64(value) => {
-      let (slot, key) = fresh()
+      let type_ = @anf.RuntimeType::Scalar(I64)
+      let slot = self.fresh_slot(type_)
       self.emit(ConstI64(slot, value))
-      Slot(slot, key)
+      Slot(slot, type_)
     }
     I32(value) => {
-      let (slot, key) = fresh()
+      let type_ = @anf.RuntimeType::Scalar(I32)
+      let slot = self.fresh_slot(type_)
       self.emit(ConstI32(slot, value))
-      Slot(slot, key)
+      Slot(slot, type_)
     }
     F32(value) => {
-      let (slot, key) = fresh()
+      let type_ = @anf.RuntimeType::Scalar(F32)
+      let slot = self.fresh_slot(type_)
       self.emit(ConstF32(slot, value.reinterpret_as_int()))
-      Slot(slot, key)
+      Slot(slot, type_)
     }
     Char(value) => {
-      let (slot, key) = fresh()
+      let type_ = @anf.RuntimeType::Scalar(Char)
+      let slot = self.fresh_slot(type_)
       self.emit(ConstChar(slot, value))
-      Slot(slot, key)
+      Slot(slot, type_)
     }
     F64(value) => {
-      let (slot, key) = fresh()
+      let type_ = @anf.RuntimeType::Scalar(F64)
+      let slot = self.fresh_slot(type_)
       self.emit(ConstF64(slot, value.reinterpret_as_int64()))
-      Slot(slot, key)
+      Slot(slot, type_)
     }
-    ByteSequence(constant) => {
-      let (slot, key) = fresh()
+    String(value) => {
+      let type_ = @anf.RuntimeType::ByteSequence
+      let slot = self.fresh_slot(type_)
+      let constant = self.image.intern_string(value)
+      ignore(self.image.intern_layout(ByteSequence))
       self.emit(ConstString(slot, constant))
-      Slot(slot, key)
+      Slot(slot, type_)
     }
   }
 }

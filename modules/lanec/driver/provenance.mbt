@@ -18,31 +18,6 @@ priv struct ExploreFunctionGraphBuilder {
 }
 
 ///|
-priv struct ExploreRepresentationGraphBuilder {
-  mut graph : ExploreRepresentationGraph
-}
-
-///|
-fn ExploreRepresentationGraphBuilder::new() -> ExploreRepresentationGraphBuilder {
-  { graph: { callable_contracts: [], transitions: [], occurrences: [], }, }
-}
-
-///|
-fn ExploreRepresentationGraphBuilder::observe(
-  self : ExploreRepresentationGraphBuilder,
-  graph : ExploreRepresentationGraph,
-) -> Unit {
-  self.graph = graph
-}
-
-///|
-fn ExploreRepresentationGraphBuilder::finish(
-  self : ExploreRepresentationGraphBuilder,
-) -> ExploreRepresentationGraph {
-  self.graph
-}
-
-///|
 fn ExploreFunctionGraphBuilder::new() -> ExploreFunctionGraphBuilder {
   { names: [], nodes: [], edges: [], }
 }
@@ -139,95 +114,13 @@ fn ExploreFunctionGraphBuilder::observe_bytecode(
 }
 
 ///|
-fn ExploreFunctionGraphBuilder::representation_graph(
-  self : ExploreFunctionGraphBuilder,
-  provenance : @loisvm_lowering.LoisvmLoweringProvenance,
-) -> ExploreRepresentationGraph {
-  {
-    callable_contracts: provenance.callable_contracts.map(node => {
-      id: node.id,
-      representative: node.representative,
-      witnesses: node.witnesses,
-      parameters: node.parameters.map(representation_contract),
-      result: representation_contract(node.result),
-    }),
-    transitions: provenance.representation_transitions.map(transition => {
-      id: transition.id.index,
-      source: representation_contract(transition.source),
-      target: representation_contract(transition.target),
-      kind: representation_transition_kind(transition.kind),
-    }),
-    occurrences: provenance.transition_occurrences.map(occurrence => {
-      event: occurrence.event,
-      function: { stage: VmcfgInitial, index: occurrence.function.value, },
-      transition: occurrence.transition.index,
-      roles: occurrence.origins.map(origin => self.loisvm_role(origin)),
-      boundary: representation_transition_boundary(occurrence.boundary),
-      binding: occurrence.binding.map(binding => {
-        match binding {
-          Value(value) => ExploreAnfBindingRef::Value(value.index)
-          Temp(temp) => ExploreAnfBindingRef::Temp(temp.index)
-        }
-      }),
-      ordinal: occurrence.ordinal,
-    }),
-  }
-}
-
-///|
-fn representation_contract(
-  contract : @loisvm_lowering.LoisvmRepresentationContract,
-) -> ExploreRepresentationContract {
-  match contract {
-    Unit => Unit
-    Value(abi) => Value(abi)
-    Callable(contract~) => Callable(contract~)
-  }
-}
-
-///|
-fn representation_transition_kind(
-  kind : @loisvm_lowering.LoisvmRepresentationTransitionKind,
-) -> ExploreRepresentationTransitionKind {
-  match kind {
-    Erase => Erase
-    Unerase => Unerase
-    CallableAdapter => CallableAdapter
-  }
-}
-
-///|
-fn representation_transition_boundary(
-  boundary : @loisvm_lowering.LoisvmRepresentationTransitionBoundary,
-) -> ExploreRepresentationTransitionBoundary {
-  match boundary {
-    InitializerResult => InitializerResult
-    FunctionResult => FunctionResult
-    RecursiveBinding => RecursiveBinding
-    AtomBinding => AtomBinding
-    CallResult => CallResult
-    ScalarConstructionPayload => ScalarConstructionPayload
-    DataConstructionPayload => DataConstructionPayload
-    MatchResult => MatchResult
-    RepresentationCallArgument => RepresentationCallArgument
-    CallArgument => CallArgument
-    CallableCapture => CallableCapture
-    DataMatchPayload => DataMatchPayload
-    CallableAdapterArgument => CallableAdapterArgument
-    CallableAdapterDiscard => CallableAdapterDiscard
-    CallableAdapterResult => CallableAdapterResult
-  }
-}
-
-///|
 fn @loisvm_lowering.LoisvmFunctionOrigin::anf_function(
   self : @loisvm_lowering.LoisvmFunctionOrigin,
 ) -> @anf.AnfFunctionId? {
   match self {
     TopLevelFunction(function~, ..)
     | LiftedFunction(function~, ..)
-    | LiftedRecursiveFunction(function~, ..)
-    | RepresentationSpecialization(function~, ..) => Some(function)
+    | LiftedRecursiveFunction(function~, ..) => Some(function)
     _ => None
   }
 }
@@ -245,16 +138,7 @@ fn ExploreFunctionGraphBuilder::loisvm_role(
       Initializer(value=source.index, name=self.source_name(source))
     InitializerOrchestrator => InitializerOrchestrator
     IntrinsicWrapper(name~) => IntrinsicWrapper(name~)
-    CallableAdapter(transition~) => CallableAdapter(transition=transition.index)
-    RepresentationSpecialization(source~, ..) =>
-      match source {
-        Some(source) =>
-          RepresentationWorker(
-            value=Some(source.index),
-            name=self.source_name(source),
-          )
-        None => RepresentationWorker(value=None, name=None)
-      }
+    CallableAdapter => CallableAdapter
     LayoutConstructor => LayoutConstructor
     RuntimeImport(source~, symbol~) =>
       RuntimeImport(value=source.index, name=self.source_name(source), symbol~)

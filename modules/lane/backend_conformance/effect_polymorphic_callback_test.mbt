@@ -425,10 +425,9 @@ test "inlining preserves a pure callable parameter adaptation" {
 }
 
 ///|
-/// The same generic definition is demanded in two ways: `main` applies it to
+/// The same generic definition is applied in two ways: `main` applies it to
 /// `Io` directly, while `forward` passes its still-symbolic effect parameter.
-/// Both paths must execute identically regardless of whether specialization
-/// keeps the generic body, creates a concrete clone, or does both.
+/// Both paths must execute identically through the canonical generic ABI.
 test "direct and symbolically forwarded effect applications agree" {
   let actual = execute_compiler_test_matrix(
     (

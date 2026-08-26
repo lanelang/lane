@@ -1,28 +1,11 @@
 ///|
 fn FunctionLowerer::lower_match(
   self : FunctionLowerer,
-  match_ : PhysicalAnfMatch,
+  match_ : @anf.AnfMatch,
 ) -> LocalValue raise LoisvmLoweringError {
-  let site = match_.plan.site
-  let result_shape = self.physical_shape(match_.plan.result)
-  let scrutinee = self.materialize_physical_local(
-    self.lower_physical_atom(match_.scrutinee),
-  )
-  match match_.plan.representation {
-    Product => {
-      guard scrutinee.value is ClosedAggregate(contract, payloads) else {
-        raise RepresentationSpecializationInvariant(
-          detail="Physical ANF product match produced a non-product value",
-        )
-      }
-      self.lower_closed_aggregate_match(match_, contract, payloads)
-    }
+  let scrutinee = self.materialize_local(self.lower_atom(match_.scrutinee))
+  match scrutinee {
     Unit => {
-      guard scrutinee.value is Unit else {
-        raise RepresentationSpecializationInvariant(
-          detail="Physical ANF Unit match produced a non-Unit value",
-        )
-      }
       let alternative = match find_unit_alternative(match_.alternatives) {
         Some(alternative) => alternative
         None =>
@@ -30,139 +13,50 @@ fn FunctionLowerer::lower_match(
             detail="Unit match has no matching alternative",
           )
       }
-      self.lower_irrefutable_match(match_, scrutinee.value, alternative)
+      self.lower_irrefutable_match(match_, scrutinee, alternative)
     }
-    Bool => {
-      guard scrutinee.value is Slot(condition, shape) else {
-        raise RepresentationSpecializationInvariant(
-          detail="Physical ANF Bool match produced a non-slot value",
-        )
-      }
-      self.lower_bool_match(
-        site,
-        match_,
-        condition,
-        LocalValue::Slot(condition, shape),
-        result_shape,
-      )
-    }
-    Literal(comparison) => {
-      guard scrutinee.value is Slot(condition, shape) else {
-        raise RepresentationSpecializationInvariant(
-          detail="Physical ANF literal match produced a non-slot value",
-        )
-      }
-      self.lower_literal_match(
-        site,
-        match_,
-        condition,
-        shape,
-        comparison,
-        LocalValue::Slot(condition, shape),
-        result_shape,
-      )
-    }
-    Callable => {
-      guard scrutinee.value is Slot(_, _) else {
-        raise RepresentationSpecializationInvariant(
-          detail="Physical ANF callable match produced a non-slot value",
-        )
-      }
-      let alternative = match find_default_alternative(match_.alternatives) {
-        Some(alternative) => alternative
-        None =>
-          raise UnsupportedExpression(
-            detail="callable match requires a default alternative",
+    Slot(condition, scrutinee_type) => {
+      let scrutinee = LocalValue::Slot(condition, scrutinee_type)
+      match scrutinee_type {
+        Scalar(Bool) => self.lower_bool_match(match_, condition, scrutinee)
+        Scalar(I64 | I32 | Char | F32 | F64) | ByteSequence =>
+          self.lower_literal_match(match_, condition, scrutinee_type, scrutinee)
+        Callable(_, _) | Forall(_, _) => {
+          let alternative = match
+            find_default_alternative(match_.alternatives) {
+            Some(alternative) => alternative
+            None =>
+              raise UnsupportedExpression(
+                detail="callable match requires a default alternative",
+              )
+          }
+          self.lower_irrefutable_match(match_, scrutinee, alternative)
+        }
+        Data(owner, arguments) =>
+          self.lower_data_match(
+            match_, condition, scrutinee_type, owner, arguments,
           )
+        _ =>
+          raise UnsupportedExpression(detail="unsupported match scrutinee type")
       }
-      self.lower_irrefutable_match(match_, scrutinee.value, alternative)
     }
-    Data(data) => {
-      guard scrutinee.value is Slot(condition, shape) else {
-        raise RepresentationSpecializationInvariant(
-          detail="Physical ANF data match produced a non-slot value",
-        )
-      }
-      self.lower_data_match(site, match_, condition, shape, data, result_shape)
-    }
+    Global(_)
+    | RecursiveFunction(_, _, _)
+    | EvidenceApplied(_, _)
+    | EvidenceAppliedCallable(_, _, _)
+    | AdaptedCallable(_)
+    | EvidenceAppliedAdaptedCallable(_, _) =>
+      raise UnsupportedExpression(detail="match scrutinee is not materialized")
   }
-}
-
-///|
-fn FunctionLowerer::lower_closed_aggregate_match(
-  self : FunctionLowerer,
-  match_ : PhysicalAnfMatch,
-  contract : ClosedAggregateContract,
-  payloads : Array[LocalValue],
-) -> LocalValue raise LoisvmLoweringError {
-  let mut selected : PhysicalAnfAlternative? = None
-  let mut default : PhysicalAnfAlternative? = None
-  for alternative in match_.alternatives {
-    match alternative.alt_constructor {
-      DataCon(data_constructor) if data_constructor == contract.data_constructor => {
-        selected = Some(alternative)
-        break
-      }
-      Default => default = Some(alternative)
-      _ => ()
-    }
-  }
-  if selected is None {
-    selected = default
-  }
-  guard selected is Some(alternative) && alternative.evidence_binders.is_empty() else {
-    raise RepresentationSpecializationInvariant(
-      detail="closed aggregate match lacks its certified alternative",
-    )
-  }
-  match alternative.alt_constructor {
-    DataCon(_) =>
-      if alternative.value_binders.length() != payloads.length() {
-        raise RepresentationSpecializationInvariant(
-          detail="closed aggregate payload binders do not match its contract",
-        )
-      }
-    Default =>
-      if !alternative.value_binders.is_empty() {
-        raise RepresentationSpecializationInvariant(
-          detail="closed aggregate default alternative binds payloads",
-        )
-      }
-    Literal(_) =>
-      raise RepresentationSpecializationInvariant(
-        detail="closed aggregate selected a literal alternative",
-      )
-  }
-  let value_count = self.bindings.length()
-  let temp_count = self.temps.length()
-  self.bindings.push({
-    value: match_.binder,
-    lowered: ClosedAggregate(contract, payloads),
-  })
-  if alternative.alt_constructor is DataCon(_) {
-    for index, binder in alternative.value_binders {
-      self.bindings.push({ value: binder, lowered: payloads[index], })
-    }
-  }
-  let result = self.materialize_physical_match_alternative(
-    match_,
-    alternative,
-    self.materialize_physical_local(self.lower_expr(alternative.body)),
-  )
-  self.restore_bindings(value_count, temp_count)
-  result.value
 }
 
 ///|
 fn FunctionLowerer::lower_literal_match(
   self : FunctionLowerer,
-  site : @anf.AnfBindingId,
-  match_ : PhysicalAnfMatch,
+  match_ : @anf.AnfMatch,
   initial_scrutinee : @vmcfg.ValueId,
-  scrutinee_shape : CanonicalRuntimeTypeKey,
-  comparison : PhysicalLiteralComparison,
+  scrutinee_type : @anf.RuntimeType,
   initial_value : LocalValue,
-  result_shape : PhysicalValueShape,
 ) -> LocalValue raise LoisvmLoweringError {
   let literal_alternatives = match_.alternatives.filter(alternative => {
     alternative.alt_constructor is Literal(_)
@@ -183,10 +77,14 @@ fn FunctionLowerer::lower_literal_match(
         detail="literal match requires a default alternative",
       )
   }
-  let join_value = self.fresh_block_value_parameter(result_shape)
-  let join_block = self.new_block(join_value.0)
+  let join_value = self.fresh_optional_slot(match_.result_type)
+  let join_parameters = match join_value.0 {
+    Some(slot) => [slot]
+    None => []
+  }
+  let join_block = self.new_block(join_parameters)
   let branches : Array[
-    (@bytecode.BlockId, @vmcfg.ValueId, @vmcfg.ValueId?, PhysicalAnfAlternative),
+    (@bytecode.BlockId, @vmcfg.ValueId, @vmcfg.ValueId?, @anf.AnfAlternative),
   ] = []
   let mut scrutinee = initial_scrutinee
   let mut environment = self.environment
@@ -194,10 +92,10 @@ fn FunctionLowerer::lower_literal_match(
     guard alternative.alt_constructor is Literal(literal) else {
       abort("filtered literal alternative")
     }
-    let condition = self.emit_literal_equality(scrutinee, comparison, literal)
-    let branch_scrutinee = self.fresh_metadata(
-      scrutinee_shape.value_metadata(None),
+    let condition = self.emit_literal_equality(
+      scrutinee, scrutinee_type, literal,
     )
+    let branch_scrutinee = self.fresh_slot(scrutinee_type)
     let branch_environment = self.branch_environment_parameter()
     let branch_parameters = [branch_scrutinee]
     if branch_environment is Some(value) {
@@ -207,9 +105,7 @@ fn FunctionLowerer::lower_literal_match(
     branches.push(
       (branch_block, branch_scrutinee, branch_environment, alternative),
     )
-    let next_scrutinee = self.fresh_metadata(
-      scrutinee_shape.value_metadata(None),
-    )
+    let next_scrutinee = self.fresh_slot(scrutinee_type)
     let next_environment = self.branch_environment_parameter()
     let next_parameters = [next_scrutinee]
     if next_environment is Some(value) {
@@ -236,21 +132,19 @@ fn FunctionLowerer::lower_literal_match(
   for branch in branches {
     let (block, branch_scrutinee, branch_environment, alternative) = branch
     self.lower_bool_alternative(
-      site,
       block,
       join_block,
       match_.binder,
-      LocalValue::Slot(branch_scrutinee, scrutinee_shape),
+      Slot(branch_scrutinee, scrutinee_type),
       alternative,
       branch_environment,
     )
   }
   self.lower_bool_alternative(
-    site,
     { value: default_block, },
     join_block,
     match_.binder,
-    LocalValue::Slot(default_scrutinee, scrutinee_shape),
+    Slot(default_scrutinee, scrutinee_type),
     default_alternative,
     default_environment,
   )
@@ -262,24 +156,27 @@ fn FunctionLowerer::lower_literal_match(
 fn FunctionLowerer::emit_literal_equality(
   self : FunctionLowerer,
   scrutinee : @vmcfg.ValueId,
-  comparison : PhysicalLiteralComparison,
-  literal : PhysicalLiteral,
+  scrutinee_type : @anf.RuntimeType,
+  literal : @buslane.Literal,
 ) -> @vmcfg.ValueId raise LoisvmLoweringError {
-  let lowered = self.lower_literal_with_shape(literal, literal.physical_shape())
-  guard lowered is Slot(expected, _) else {
+  let lowered = self.lower_literal(literal)
+  guard lowered is Slot(expected, literal_type) &&
+    literal_type == scrutinee_type else {
     raise UnsupportedExpression(
       detail="literal pattern type does not match its scrutinee",
     )
   }
-  let condition = self.fresh_metadata(
-    canonical_scalar_key(I32).value_metadata(None),
-  )
-  let instruction : @vmcfg.Instruction = match comparison {
-    I64 => I64Eq(condition, scrutinee, expected)
-    I32 => I32Eq(condition, scrutinee, expected)
-    F32 => F32Eq(condition, scrutinee, expected)
-    F64 => F64Eq(condition, scrutinee, expected)
+  let condition = self.fresh_slot(Scalar(Bool))
+  let instruction : @vmcfg.Instruction = match scrutinee_type {
+    Scalar(I64) => I64Eq(condition, scrutinee, expected)
+    Scalar(I32 | Char) => I32Eq(condition, scrutinee, expected)
+    Scalar(F32) => F32Eq(condition, scrutinee, expected)
+    Scalar(F64) => F64Eq(condition, scrutinee, expected)
     ByteSequence => ByteSequenceEqual(condition, scrutinee, expected)
+    _ =>
+      raise UnsupportedExpression(
+        detail="unsupported literal pattern representation",
+      )
   }
   self.emit(instruction)
   condition
@@ -288,9 +185,9 @@ fn FunctionLowerer::emit_literal_equality(
 ///|
 fn FunctionLowerer::lower_irrefutable_match(
   self : FunctionLowerer,
-  match_ : PhysicalAnfMatch,
+  match_ : @anf.AnfMatch,
   scrutinee : LocalValue,
-  alternative : PhysicalAnfAlternative,
+  alternative : @anf.AnfAlternative,
 ) -> LocalValue raise LoisvmLoweringError {
   if !alternative.evidence_binders.is_empty() ||
     !alternative.value_binders.is_empty() {
@@ -301,23 +198,17 @@ fn FunctionLowerer::lower_irrefutable_match(
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
   self.bindings.push({ value: match_.binder, lowered: scrutinee, })
-  let result = self.materialize_physical_match_alternative(
-    match_,
-    alternative,
-    self.materialize_physical_local(self.lower_expr(alternative.body)),
-  )
+  let result = self.materialize_local(self.lower_expr(alternative.body))
   self.restore_bindings(value_count, temp_count)
-  result.value
+  result
 }
 
 ///|
 fn FunctionLowerer::lower_bool_match(
   self : FunctionLowerer,
-  site : @anf.AnfBindingId,
-  match_ : PhysicalAnfMatch,
+  match_ : @anf.AnfMatch,
   condition : @vmcfg.ValueId,
   scrutinee : LocalValue,
-  result_shape : PhysicalValueShape,
 ) -> LocalValue raise LoisvmLoweringError {
   let if_true = match find_bool_alternative(match_.alternatives, true) {
     Some(alternative) => alternative
@@ -337,8 +228,12 @@ fn FunctionLowerer::lower_bool_match(
   let false_block = self.new_block(
     false_environment.map(value => [value]).unwrap_or([]),
   )
-  let join_value = self.fresh_block_value_parameter(result_shape)
-  let join_block = self.new_block(join_value.0)
+  let join_value = self.fresh_optional_slot(match_.result_type)
+  let join_parameters = match join_value.0 {
+    Some(slot) => [slot]
+    None => []
+  }
+  let join_block = self.new_block(join_parameters)
   self.terminate(
     BranchBool(
       condition,
@@ -353,7 +248,6 @@ fn FunctionLowerer::lower_bool_match(
     ),
   )
   self.lower_bool_alternative(
-    site,
     true_block,
     join_block,
     match_.binder,
@@ -362,7 +256,6 @@ fn FunctionLowerer::lower_bool_match(
     true_environment,
   )
   self.lower_bool_alternative(
-    site,
     false_block,
     join_block,
     match_.binder,

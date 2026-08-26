@@ -1,7 +1,7 @@
 # RFC: Runtime representation elaboration and higher-kinded layout evidence
 
 Status: Implemented for the canonical generic ABI and higher-kinded evidence.
-The representation-specialization architecture is being corrected by
+The representation-specialization architecture is defined by
 [ADR-0138](adr/0138-uniform-generic-abi-and-optional-representation-specialization.md)
 and ISS-390.
 
@@ -11,8 +11,9 @@ Lane's source kind `Type` is semantic. Its members may use different machine
 representations: `I32`, `I64`, `F32`, `F64`, references, callables, erased
 generic values, and `Unit` all belong to `Type`.
 
-Runtime representation elaboration turns verified Runtime ANF into a closed
-physical program. Open generic code uses one canonical evidence-passing ABI:
+Runtime representation elaboration turns verified Runtime ANF into physical VM
+CFG operations and value contracts. Open generic code uses one canonical
+evidence-passing ABI:
 an erased payload is accompanied by the layout evidence needed to operate on
 it. Higher-kinded parameters carry layout constructors. Concrete code uses its
 natural ABI, and explicit structural adaptations connect concrete and generic
@@ -153,23 +154,18 @@ independently removable program rewrite.
 
 ## Representation elaboration
 
-Representation elaboration is a deep compiler module between Runtime ANF and
-VM CFG construction. Its external interface accepts a verified Runtime ANF
-program and target ABI facts and returns one verified physical program.
+Representation elaboration is private to LoisVM Lowering. The package accepts
+an admitted executable program and returns verified bytecode; internally it
+projects Runtime ANF and target ABI facts directly into VM CFG. There is no
+consumer-visible physical-program seam.
 
-Conceptually:
-
-```text
-elaborate(RuntimeAnfProgram, TargetAbi) -> VerifiedPhysicalProgram
-```
-
-The physical program contains:
+The constructed VM CFG contains:
 
 - executable program structure;
 - one authoritative physical contract for each runtime value;
 - explicit erase, unerase, and callable-adaptation operations;
 - declaration-owned object schemas;
-- finalized callable contracts required before VM CFG construction; and
+- finalized callable contracts required by VM CFG calls; and
 - enough provenance for structured compiler defects and Explore observations.
 
 The module may internally use normalization caches, substitutions, evidence
@@ -178,10 +174,10 @@ These are implementation details. It does not expose a representation-demand
 plan, constraint graph, solution, adapter-recipe catalog, or occurrence
 sidecar that another module must keep synchronized with the program.
 
-The physical-program seam is retained only because it proves an independently
-necessary invariant: all execution values and operations have closed physical
-contracts before ARC and slot allocation. It must not become a copy of Runtime
-ANF paired with planner tables.
+VM CFG finalization validates and canonicalizes this physical image before ARC,
+slot allocation, bytecode emission, and bytecode verification. A separate
+Physical ANF is not retained: the removed form duplicated the same executable
+structure and contracts without owning another necessary invariant.
 
 ## Structural adaptation
 
@@ -196,7 +192,8 @@ adapt(source_contract, target_contract, value)
   unerase operations using the authoritative evidence.
 - Callable contracts are adapted contravariantly in parameters and covariantly
   in results.
-- A directly invoked callable adaptation may fuse into the call.
+- A future directly invoked callable adaptation may fuse into the call only by
+  consuming the same complete structural recipe.
 - A first-class escape materializes one canonical worker for the complete
   source and target callable contracts; each occurrence supplies its own
   captures.
@@ -267,7 +264,8 @@ effect spelling never participate in representation selection.
 5. Concrete and symbolic generic elaborations are observationally equivalent.
 6. Generic nominal storage has one declaration-owned schema.
 7. Every physical conversion is explicit.
-8. VM CFG emission consumes verified physical contracts mechanically.
+8. VM CFG construction is the sole destination of elaborated physical
+   contracts; finalization does not reselect them from semantic types.
 9. Removing specialization changes performance only.
 
 ## Persistence
@@ -287,12 +285,14 @@ Black-box source programs are the primary evidence. They cover:
 - direct, indirect, recursive, adapted, and escaping callables;
 - effect companions under different answer and residual scopes;
 - interpreter, Wasm interpreter, and JIT agreement; and
-- the same corpus with representation specialization disabled.
+- the complete corpus through the canonical generic path without a
+  specialization prerequisite.
 
-White-box tests are reserved for physical-program verification, evidence scope,
-canonical ABI interning, and one-worker-per-key invariants that cannot be
+White-box tests are reserved for evidence scope, canonical ABI interning,
+adapter structural identity, and VM CFG verifier invariants that cannot be
 observed through a source program.
 
-Explore records code size, workers, adapters, erase/unerase operations, and
-indirect calls. These metrics evaluate optimization quality; they never decide
-whether a valid program is accepted.
+Explore records code size, callable-adapter workers, erase/unerase operations,
+and indirect calls. These metrics evaluate optimization quality; they never
+decide whether a valid program is accepted. ISS-363 owns any future comparison
+against an independently removable specialization rewrite.

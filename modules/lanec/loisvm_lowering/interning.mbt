@@ -30,21 +30,6 @@ fn ImageLowerer::intern_layout(
 }
 
 ///|
-fn ImageLowerer::required_layout(
-  self : ImageLowerer,
-  recipe : @bytecode.LayoutRecipe,
-) -> @bytecode.LayoutId raise LoisvmLoweringError {
-  for index, existing in self.layouts {
-    if existing == recipe {
-      return { value: index + 1, }
-    }
-  }
-  raise RepresentationSpecializationInvariant(
-    detail="physical plan references an unplanned runtime layout",
-  )
-}
-
-///|
 fn ImageLowerer::intern_object_shape(
   self : ImageLowerer,
   shape : @bytecode.ObjectShape,
@@ -68,18 +53,18 @@ fn ImageLowerer::intern_object_shape(
 }
 
 ///|
-fn ImageLowerer::data_family(
+fn ImageLowerer::intern_data_family(
   self : ImageLowerer,
-  key : DataRepresentationFamilyKey,
-) -> DataRepresentationFamilyPlan raise LoisvmLoweringError {
-  for family in self.data_families {
-    if family.key == key {
-      return family
+  owner : @buslane.TypeId,
+) -> @bytecode.DataFamilyId {
+  for index, existing in self.data_families {
+    if existing == owner {
+      return { value: index, }
     }
   }
-  raise RepresentationSpecializationInvariant(
-    detail="data representation family is absent from the immutable catalog",
-  )
+  let family : @bytecode.DataFamilyId = { value: self.data_families.length(), }
+  self.data_families.push(owner)
+  family
 }
 
 ///|

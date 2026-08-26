@@ -1,153 +1,50 @@
 ///|
 fn FunctionLowerer::lower_call(
   self : FunctionLowerer,
-  call : PhysicalAnfCall,
+  callee : @anf.AnfAtom,
+  arguments : Array[@anf.AnfAtom],
 ) -> LocalValue raise LoisvmLoweringError {
-  let physical_call = call.plan
-  let representation_target = physical_call.target
-  let lowered_callee = match representation_target {
-    Some({ invocation: Direct, .. }) => None
-    Some({ invocation: Captured(_), .. }) | None =>
-      Some(self.lower_physical_atom(call.callee))
-  }
-  let lowered_arguments = []
-  for argument in call.arguments {
-    lowered_arguments.push(
-      self.materialize_physical_local(self.lower_physical_atom(argument)),
-    )
-  }
-  if representation_target is Some(physical_target) {
-    let plan = physical_target.worker
-    let contract = self.physical_program.required_invocation(plan.worker)
-    let (callable, environment) = match physical_target.invocation {
-      Direct => (None, None)
-      Captured(function) => {
-        let deferred = match lowered_callee {
-          Some(
-            { value: NestedCallable(callable), .. }
-            | { value: EvidenceAppliedNestedCallable(callable, _), .. }
-          ) => Some(callable)
-          _ => None
-        }
-        guard deferred is Some(callable) && callable.source == function else {
-          raise RepresentationSpecializationInvariant(
-            detail="represented call no longer matches its planned captured invocation",
-          )
-        }
-        guard self.materialize_representation_worker(plan, callable.environment)
-          is Slot(worker, _) else {
-          abort("representation worker was not materialized")
-        }
-        (Some(worker), None)
+  let callee = self.lower_atom(callee)
+  let lowered_arguments = arguments.map(argument => {
+    self.materialize_local(self.lower_atom(argument))
+  })
+  match callee {
+    Global(Intrinsic(contract)) =>
+      self.lower_intrinsic(contract, lowered_arguments)
+    Global(Function(function, type_)) =>
+      self.lower_direct_call(function, type_, lowered_arguments, None)
+    RecursiveFunction(function, type_, environment) =>
+      self.lower_direct_call(function, type_, lowered_arguments, environment)
+    EvidenceApplied(Function(function, type_), type_arguments) =>
+      self.lower_generic_direct_call(
+        function, type_, type_arguments, lowered_arguments,
+      )
+    EvidenceAppliedCallable(callable, type_, type_arguments) =>
+      self.lower_generic_value_call(
+        callable, type_, type_arguments, lowered_arguments,
+      )
+    AdaptedCallable(adaptation) => {
+      guard self.materialize_callable_adapter(adaptation)
+        is Slot(callable, type_) else {
+        abort("callable adapter was not materialized")
       }
+      self.lower_value_call(callable, type_, lowered_arguments)
     }
-    return self.lower_representation_specialized_call(
-      plan,
-      contract,
-      lowered_arguments,
-      physical_call,
-      environment~,
-      callable~,
-    )
-  }
-  guard lowered_callee is Some(callee) else {
-    raise RepresentationSpecializationInvariant(
-      detail="ordinary call has no materialized callable",
-    )
-  }
-  match callee.value {
-    Global(PhysicalIntrinsic(wrapper)) => {
-      let contract = wrapper.contract
-      let arguments = []
-      for index, argument in lowered_arguments {
-        let flow = physical_call.arguments[index]
-        arguments.push(
-          self.materialize_planned_value_flow(
-            "intrinsic argument \{index} at \{Repr(physical_call.site)}",
-            argument,
-            flow.target,
-            flow.bridge,
-            flow.transition_site,
-          ).value,
-        )
+    EvidenceAppliedAdaptedCallable(adaptation, type_arguments) => {
+      guard self.materialize_callable_adapter(adaptation)
+        is Slot(callable, type_) else {
+        abort("callable adapter was not materialized")
       }
-      guard self.physical_shape(physical_call.result.source.shape)
-        is PhysicalValueShape::Slot(result_shape) else {
-        raise RepresentationSpecializationInvariant(
-          detail="intrinsic call has no physical result slot",
-        )
-      }
-      let result = self.lower_intrinsic(contract, arguments, result_shape)
-      self.materialize_planned_value_flow(
-        "intrinsic result at \{Repr(physical_call.site)}",
-        { value: result, contract: physical_call.result.source, },
-        physical_call.result.target,
-        physical_call.result.bridge,
-        physical_call.result.transition_site,
-      ).value
-    }
-    Global(PhysicalFunction(function)) =>
-      self.lower_physical_call(
-        lowered_arguments,
-        physical_call,
-        direct=Some((function, None)),
-        callable=None,
-      )
-    RecursiveFunction(function, environment) =>
-      self.lower_physical_call(
-        lowered_arguments,
-        physical_call,
-        direct=Some((function, environment)),
-        callable=None,
-      )
-    EvidenceApplied(PhysicalFunction(function), _) =>
-      self.lower_physical_call(
-        lowered_arguments,
-        physical_call,
-        direct=Some((function, None)),
-        callable=None,
-      )
-    EvidenceAppliedCallable(callable, _, _) =>
-      self.lower_physical_call(
-        lowered_arguments,
-        physical_call,
-        direct=None,
-        callable=Some(callable),
-      )
-    NestedCallable(callable) => {
-      guard self.materialize_nested_callable(callable) is Slot(slot, _) else {
-        abort("nested callable was not materialized")
-      }
-      self.lower_physical_call(
-        lowered_arguments,
-        physical_call,
-        direct=None,
-        callable=Some(slot),
-      )
-    }
-    EvidenceAppliedNestedCallable(callable, application) => {
-      guard self.materialize_nested_callable(callable) is Slot(slot, _) else {
-        abort("nested callable was not materialized")
-      }
-      ignore(application)
-      self.lower_physical_call(
-        lowered_arguments,
-        physical_call,
-        direct=None,
-        callable=Some(slot),
+      self.lower_generic_value_call(
+        callable, type_, type_arguments, lowered_arguments,
       )
     }
     EvidenceApplied(_, _) =>
       raise InvalidTypeApplication(
         detail="type application target is not a generic function",
       )
-    Slot(callable, _) =>
-      self.lower_physical_call(
-        lowered_arguments,
-        physical_call,
-        direct=None,
-        callable=Some(callable),
-      )
+    Slot(callable, type_) =>
+      self.lower_value_call(callable, type_, lowered_arguments)
     _ => raise UnsupportedExpression(detail="value is not callable")
   }
 }
@@ -158,569 +55,305 @@ fn FunctionLowerer::materialize_local(
   value : LocalValue,
 ) -> LocalValue raise LoisvmLoweringError {
   match value {
-    Global(PhysicalFunction(function)) =>
-      self.materialize_callable_value(function, None)
-    Global(PhysicalIntrinsic(wrapper)) =>
-      self.materialize_callable_value_with_abi(
-        wrapper.function,
-        None,
-        wrapper.invocation,
+    Global(Function(function, type_)) => {
+      let destination = self.fresh_slot(type_)
+      self.emit(ConstFunction(destination, function))
+      Slot(destination, type_)
+    }
+    Global(Intrinsic(contract)) => {
+      let type_ = contract.type_()
+      let destination = self.fresh_slot(type_)
+      self.emit(
+        ConstFunction(destination, self.image.intrinsic_wrapper(contract)),
       )
-    RecursiveFunction(function, environment) =>
-      self.materialize_callable_value(function, environment)
-    NestedCallable(callable) => self.materialize_nested_callable(callable)
-    EvidenceApplied(global, application) =>
-      self.materialize_evidence_application(Global(global), application)
-    EvidenceAppliedCallable(callable, shape, application) =>
-      self.materialize_evidence_application(Slot(callable, shape), application)
-    EvidenceAppliedNestedCallable(callable, application) =>
-      self.materialize_evidence_application(
-        NestedCallable(callable),
-        application,
+      Slot(destination, type_)
+    }
+    Global(DoubleConstant(bits, type_)) => {
+      let destination = self.fresh_slot(type_)
+      self.emit(ConstF64(destination, bits))
+      Slot(destination, type_)
+    }
+    Global(FloatConstant(bits, type_)) => {
+      let destination = self.fresh_slot(type_)
+      self.emit(ConstF32(destination, bits))
+      Slot(destination, type_)
+    }
+    RecursiveFunction(function, type_, environment) => {
+      let destination = self.fresh_slot(type_)
+      match environment {
+        Some(environment) =>
+          self.emit(MakeClosure(destination, function, environment))
+        None => self.emit(ConstFunction(destination, function))
+      }
+      Slot(destination, type_)
+    }
+    AdaptedCallable(adaptation) => self.materialize_callable_adapter(adaptation)
+    EvidenceApplied(Function(function, type_), arguments) => {
+      let source = self.fresh_slot(type_)
+      self.emit(ConstFunction(source, function))
+      self.materialize_local(
+        self.materialize_applied_callable(source, type_, arguments),
+      )
+    }
+    EvidenceAppliedCallable(callable, type_, arguments) =>
+      self.materialize_local(
+        self.materialize_applied_callable(callable, type_, arguments),
+      )
+    EvidenceAppliedAdaptedCallable(adaptation, arguments) => {
+      guard self.materialize_callable_adapter(adaptation)
+        is Slot(callable, type_) else {
+        abort("callable adapter was not materialized")
+      }
+      self.materialize_local(
+        self.materialize_applied_callable(callable, type_, arguments),
+      )
+    }
+    EvidenceApplied(_, _) =>
+      raise InvalidTypeApplication(
+        detail="type application target is not a generic function",
       )
     _ => value
   }
 }
 
 ///|
-fn FunctionLowerer::materialize_physical_local(
+fn FunctionLowerer::lower_value_call(
   self : FunctionLowerer,
-  physical : PhysicalLocalValue,
-) -> PhysicalLocalValue raise LoisvmLoweringError {
-  let value = match physical.value {
-    Global(PhysicalDoubleConstant(bits)) => {
-      guard self.physical_shape(physical.contract.shape)
-        is PhysicalValueShape::Slot(shape) else {
-        raise RepresentationSpecializationInvariant(
-          detail="F64 constant has no physical result slot",
-        )
-      }
-      let destination = self.fresh_metadata(shape.value_metadata(None))
-      self.emit(ConstF64(destination, bits))
-      LocalValue::Slot(destination, shape)
-    }
-    Global(PhysicalFloatConstant(bits)) => {
-      guard self.physical_shape(physical.contract.shape)
-        is PhysicalValueShape::Slot(shape) else {
-        raise RepresentationSpecializationInvariant(
-          detail="F32 constant has no physical result slot",
-        )
-      }
-      let destination = self.fresh_metadata(shape.value_metadata(None))
-      self.emit(ConstF32(destination, bits))
-      LocalValue::Slot(destination, shape)
-    }
-    value => self.materialize_local(value)
+  callable : @vmcfg.ValueId,
+  type_ : @anf.RuntimeType,
+  arguments : Array[LocalValue],
+) -> LocalValue raise LoisvmLoweringError {
+  let (parameters, parameter_types, result_type) = function_type_parts(type_)
+  if !parameters.is_empty() || parameter_types.length() != arguments.length() {
+    raise InvalidTypeApplication(
+      detail="value call arguments do not match its function type",
+    )
   }
-  { value, contract: physical.contract, }
+  let argument_slots = self.adapt_call_arguments(
+    arguments,
+    parameter_types,
+    self.substitutions,
+  )
+  let destination = self.fresh_optional_slot(result_type)
+  self.emit(CallValue(callable, [], argument_slots, destination.0))
+  self.adapt_local_value_with_substitutions(
+    destination.1,
+    result_type,
+    self.substitutions.apply_type(self.image.runtime_types, result_type),
+    self.substitutions,
+  )
 }
 
 ///|
-fn FunctionLowerer::materialize_evidence_application(
+fn FunctionLowerer::adapt_call_arguments(
   self : FunctionLowerer,
-  source : LocalValue,
-  application : PhysicalEvidenceApplication,
-) -> LocalValue raise LoisvmLoweringError {
-  if !(application.mode is Materialize) {
-    raise RepresentationSpecializationInvariant(
-      detail="non-materialized evidence application reached callable materialization",
+  arguments : Array[LocalValue],
+  parameter_types : Array[@anf.RuntimeType],
+  substitutions : RuntimeSubstitution,
+) -> Array[@vmcfg.ValueId] raise LoisvmLoweringError {
+  if parameter_types.length() != arguments.length() {
+    raise InvalidTypeApplication(
+      detail="call arguments do not match its function type",
     )
   }
-  let source = self.materialize_local(source)
-  guard source is Slot(slot, shape) else {
-    raise RepresentationSpecializationInvariant(
-      detail="evidence application source did not materialize as a callable",
-    )
-  }
-  match application.adapter {
-    Some(contract) =>
-      self.materialize_planned_callable_bridge(
-        "evidence-application", source, contract,
-      )
-    None => Slot(slot, shape)
-  }
-}
-
-///|
-fn FunctionLowerer::lower_physical_call(
-  self : FunctionLowerer,
-  arguments : Array[PhysicalLocalValue],
-  call : PhysicalCallPlan,
-  direct~ : (@bytecode.FunctionId, @vmcfg.ValueId?)?,
-  callable~ : @vmcfg.ValueId?,
-) -> LocalValue raise LoisvmLoweringError {
-  let invocation = self.callable_contract(call.invocation)
-  if call.arguments.length() != arguments.length() {
-    raise RepresentationSpecializationInvariant(
-      detail="call arguments disagree with its physical invocation contract",
-    )
-  }
-  let witnesses = self.materialize_physical_call_witnesses(call)
   let argument_slots = []
   for index, argument in arguments {
-    let flow = call.arguments[index]
-    let target_shape = self.physical_shape(flow.target.shape)
-    let adapted = self.materialize_planned_value_flow(
-      "call argument \{index} at \{Repr(call.site)}",
-      argument,
-      flow.target,
-      flow.bridge,
-      flow.transition_site,
+    let source_type = local_value_type(argument).unwrap_or(
+      parameter_types[index],
     )
-    match adapted.value {
+    let adapted = self.materialize_local(
+      self.adapt_local_value_with_substitutions(
+        argument,
+        source_type,
+        parameter_types[index],
+        substitutions,
+      ),
+    )
+    match adapted {
       Unit => ()
-      Slot(slot, shape) => {
-        guard target_shape is PhysicalValueShape::Slot(expected) &&
-          shape == expected else {
-          raise RepresentationSpecializationInvariant(
-            detail="value call argument disagrees with its physical invocation contract",
-          )
-        }
-        argument_slots.push(slot)
-      }
+      Slot(slot, _) => argument_slots.push(slot)
       _ =>
-        raise RepresentationSpecializationInvariant(
-          detail="value call argument is not a materialized physical value",
-        )
+        raise UnsupportedExpression(detail="call argument is not materialized")
     }
   }
-  if argument_slots.length() != invocation.parameters.length() {
-    raise RepresentationSpecializationInvariant(
-      detail="value call arguments do not consume its physical invocation contract",
-    )
-  }
-  let destination = self.fresh_physical_call_result(call)
-  match (direct, callable) {
-    (Some((function, environment)), None) =>
-      self.emit(
-        CallDirect(
-          function,
-          environment,
-          witnesses,
-          argument_slots,
-          destination.0,
-        ),
-      )
-    (None, Some(callable)) =>
-      self.emit(CallValue(callable, witnesses, argument_slots, destination.0))
-    _ =>
-      raise RepresentationSpecializationInvariant(
-        detail="physical call must select exactly one callable target",
-      )
-  }
-  self.materialize_planned_value_flow(
-    "call result at \{Repr(call.site)}",
-    { value: destination.1, contract: call.result.source, },
-    call.result.target,
-    call.result.bridge,
-    call.result.transition_site,
-  ).value
+  argument_slots
 }
 
 ///|
-fn FunctionLowerer::materialize_physical_call_witnesses(
+fn FunctionLowerer::lower_generic_direct_call(
   self : FunctionLowerer,
-  call : PhysicalCallPlan,
-) -> Array[@vmcfg.ValueId] raise LoisvmLoweringError {
-  let invocation = self.callable_contract(call.invocation)
-  let witnesses = []
-  for plan in call.witnesses {
-    let witness = self.materialize_runtime_evidence(plan) catch {
-      error =>
-        raise RepresentationSpecializationInvariant(
-          detail="call at \{Repr(call.site)} cannot materialize planned witness \{Repr(plan)}: \{Repr(error)}",
-        )
-    }
-    witnesses.push(witness)
-  }
-  if witnesses.length() != invocation.witnesses.length() {
-    raise RepresentationSpecializationInvariant(
-      detail="call at \{Repr(call.site)} planned \{witnesses.length()} runtime witnesses for an invocation requiring \{invocation.witnesses.length()}: plans=\{Repr(call.witnesses)}, invocation=\{Repr(call.invocation)}",
-    )
-  }
-  witnesses
-}
-
-///|
-fn FunctionLowerer::fresh_physical_call_result(
-  self : FunctionLowerer,
-  call : PhysicalCallPlan,
-) -> (@vmcfg.ValueId?, LocalValue) raise LoisvmLoweringError {
-  let shape = self.callable_contract(call.invocation).result.physical_shape()
-  match (shape, call.abi_result_evidence) {
-    (
-      PhysicalValueShape::Slot(Value({ cleanup: OwnedErased, .. }) as key),
-      Some(evidence),
-    ) => {
-      let companion = self.materialize_runtime_evidence(evidence) catch {
-        error =>
-          raise RepresentationSpecializationInvariant(
-            detail="call at \{Repr(call.site)} cannot materialize planned result evidence \{Repr(evidence)}: \{Repr(error)}",
-          )
-      }
-      let slot = self.fresh_metadata(key.value_metadata(Some(companion)))
-      (Some(slot), LocalValue::Slot(slot, key))
-    }
-    (PhysicalValueShape::Slot(Value({ cleanup: OwnedErased, .. })), None) =>
-      raise RepresentationSpecializationInvariant(
-        detail="call at \{Repr(call.site)} has an erased result without planned runtime evidence",
-      )
-    (_, Some(_)) =>
-      raise RepresentationSpecializationInvariant(
-        detail="call at \{Repr(call.site)} planned runtime evidence for a non-erased result",
-      )
-    (_, None) => self.fresh_planned_optional_slot(shape, None)
-  }
-}
-
-///|
-fn FunctionLowerer::materialize_planned_call_argument(
-  self : FunctionLowerer,
-  site : @anf.AnfBindingId,
-  argument : PhysicalLocalValue,
-  target : PhysicalValueContract,
-  bridge : PhysicalValueBridge?,
-  transition_site : PhysicalRepresentationTransitionSite?,
-) -> PhysicalLocalValue raise LoisvmLoweringError {
-  self.materialize_planned_value_flow(
-    "Runtime ANF flow at \{Repr(site)}",
-    argument,
-    target,
-    bridge,
-    transition_site,
+  function : @bytecode.FunctionId,
+  type_ : @anf.RuntimeType,
+  arguments : Array[@anf.RuntimeArgument],
+  values : Array[LocalValue],
+) -> LocalValue raise LoisvmLoweringError {
+  let (parameters, formal_parameters, formal_result) = function_type_parts(
+    type_,
   )
-}
-
-///|
-fn FunctionLowerer::materialize_planned_value_flow(
-  self : FunctionLowerer,
-  provenance : String,
-  argument : PhysicalLocalValue,
-  target : PhysicalValueContract,
-  bridge : PhysicalValueBridge?,
-  transition_site : PhysicalRepresentationTransitionSite?,
-) -> PhysicalLocalValue raise LoisvmLoweringError {
-  let target_shape = self.physical_shape(target.shape)
-  let argument = self.materialize_physical_local(argument)
-  let (adapted, operation) = match bridge {
-    Some(Callable(callable)) => {
-      let adapted = self.materialize_planned_callable_bridge(
-        provenance,
-        argument.value,
-        callable,
-      )
-      (adapted, Some(representation_transition_result(adapted)))
-    }
-    Some(Erase(erasure)) => {
-      guard target_shape is Slot(target) else {
-        raise RepresentationSpecializationInvariant(
-          detail="planned erasure has no physical result slot",
-        )
-      }
-      let argument = match erasure.callable {
-        Some(callable) =>
-          self.materialize_planned_callable_bridge(
-            provenance,
-            argument.value,
-            callable,
-          )
-        None => argument.value
-      }
-      let witness = self.materialize_runtime_evidence(erasure.evidence) catch {
-        error =>
-          raise RepresentationSpecializationInvariant(
-            detail="\{provenance} cannot materialize planned erasure evidence \{Repr(erasure.evidence)}: \{Repr(error)}",
-          )
-      }
-      let erased = self.erase_planned_value(argument, witness)
-      (LocalValue::Slot(erased, target), Some(Produced(erased)))
-    }
-    Some(Unerase(callable)) => {
-      guard argument.value is Slot(source, source_shape) &&
-        source_shape
-        is CanonicalRuntimeTypeKey::Value({ cleanup: OwnedErased, .. }) else {
-        raise RepresentationSpecializationInvariant(
-          detail="planned unerasure has no erased source slot",
-        )
-      }
-      let unerased_shape = match callable {
-        Some(callable) =>
-          PhysicalValueShape::Slot(
-            CanonicalRuntimeTypeKey::Callable(
-              callable.adapter.recipe.source_abi,
-            ),
-          )
-        None => target_shape
-      }
-      let unerased = self.unerase_planned_call_argument(source, unerased_shape)
-      let operation = match unerased {
-        Unit => Consumed(source)
-        Slot(value, _) => Produced(value)
-        _ =>
-          raise RepresentationSpecializationInvariant(
-            detail="planned unerasure did not materialize a physical value",
-          )
-      }
-      let adapted = match callable {
-        Some(callable) =>
-          self.materialize_planned_callable_bridge(
-            provenance, unerased, callable,
-          )
-        None => unerased
-      }
-      (adapted, Some(operation))
-    }
-    None => (argument.value, None)
-  }
-  let value = match (target_shape, adapted) {
-    (Unit, Unit) => LocalValue::Unit
-    (Slot(expected), Slot(slot, actual)) if expected == actual =>
-      LocalValue::Slot(slot, expected)
-    (Product(_, _), _) =>
-      raise RepresentationSpecializationInvariant(
-        detail="a call argument cannot expose an unlowered product shape",
-      )
-    _ =>
-      raise RepresentationSpecializationInvariant(
-        detail="\{provenance} does not materialize its planned physical value contract",
-      )
-  }
-  self.record_representation_transition(bridge, transition_site, operation)
-  { value, contract: target, }
-}
-
-///|
-fn FunctionLowerer::record_representation_transition(
-  self : FunctionLowerer,
-  bridge : PhysicalValueBridge?,
-  transition_site : PhysicalRepresentationTransitionSite?,
-  operation : PhysicalRepresentationTransitionOperation?,
-) -> Unit raise LoisvmLoweringError {
-  match (bridge, transition_site, operation) {
-    (None, None, None) => ()
-    (Some(_), Some(site), Some(operation)) =>
-      self.record_representation_transition_event(site, operation)
-    _ =>
-      raise RepresentationSpecializationInvariant(
-        detail="representation bridge, transition, and emission event must be planned together",
-      )
-  }
-}
-
-///|
-fn FunctionLowerer::record_representation_transition_event(
-  self : FunctionLowerer,
-  site : PhysicalRepresentationTransitionSite,
-  operation : PhysicalRepresentationTransitionOperation,
-) -> Unit raise LoisvmLoweringError {
-  guard self.function is Some(_) else {
-    raise RepresentationSpecializationInvariant(
-      detail="representation transition was emitted outside a physical function",
+  if formal_parameters.length() != values.length() {
+    raise InvalidTypeApplication(
+      detail="generic call argument count does not match its function type",
     )
   }
-  ignore(
-    self.physical_program.representation_transitions.transition(site.transition),
-  )
-  self.emitted_transition_events.push({
-    transition: site.transition,
-    boundary: site.boundary,
-    binding: site.binding,
-    ordinal: site.ordinal,
-    operation,
+  let arguments = arguments.map(argument => {
+    self.substitute_generic_argument(argument)
   })
-}
-
-///|
-fn representation_transition_result(
-  value : LocalValue,
-) -> PhysicalRepresentationTransitionOperation raise LoisvmLoweringError {
-  match value {
-    Slot(value, _) => Produced(value)
-    _ =>
-      raise RepresentationSpecializationInvariant(
-        detail="a callable representation transition has no physical result",
-      )
+  let substitutions = self.image.call_type_substitution(parameters, arguments)
+  let witnesses = []
+  for parameter in parameters {
+    if self.image.requires_runtime_evidence(parameter) {
+      let argument = required_runtime_argument(substitutions, parameter.id)
+      witnesses.push(self.runtime_evidence(parameter, argument))
+    }
+  }
+  let argument_slots = []
+  for index, formal in formal_parameters {
+    let actual = substitutions.apply_type(self.image.runtime_types, formal)
+    let adapted = self.materialize_local(
+      self.adapt_local_value_with_substitutions(
+        values[index],
+        actual,
+        formal,
+        substitutions,
+      ),
+    )
+    match adapted {
+      Unit => ()
+      Slot(slot, _) => argument_slots.push(slot)
+      _ =>
+        raise UnsupportedExpression(detail="call argument is not materialized")
+    }
+  }
+  let actual_result = substitutions.apply_type(
+    self.image.runtime_types,
+    formal_result,
+  )
+  if self.image.runtime_type(formal_result) is Erased(_) {
+    let witness = self.layout_witness(runtime_type_evidence(actual_result))
+    let erased_result = self.fresh_erased_slot(witness, Owned)
+    self.emit(
+      CallDirect(function, None, witnesses, argument_slots, Some(erased_result)),
+    )
+    self.unerase_value(erased_result, actual_result, substitutions)
+  } else {
+    let destination = self.fresh_optional_slot(formal_result)
+    self.emit(
+      CallDirect(function, None, witnesses, argument_slots, destination.0),
+    )
+    self.adapt_local_value_with_substitutions(
+      destination.1,
+      formal_result,
+      actual_result,
+      substitutions,
+    )
   }
 }
 
 ///|
-fn FunctionLowerer::unerase_planned_call_argument(
+fn FunctionLowerer::lower_generic_value_call(
   self : FunctionLowerer,
-  source : @vmcfg.ValueId,
-  target_shape : PhysicalValueShape,
+  callable : @vmcfg.ValueId,
+  type_ : @anf.RuntimeType,
+  arguments : Array[@anf.RuntimeArgument],
+  values : Array[LocalValue],
 ) -> LocalValue raise LoisvmLoweringError {
-  match target_shape {
-    Unit => {
-      self.emit(UneraseUnit(source))
-      Unit
+  let (parameters, formal_parameters, formal_result) = function_type_parts(
+    type_,
+  )
+  if formal_parameters.length() != values.length() {
+    raise InvalidTypeApplication(
+      detail="generic call argument count does not match its function type",
+    )
+  }
+  let substitutions = self.call_type_substitution(parameters, arguments)
+  let witnesses = []
+  for parameter in parameters {
+    if self.image.requires_runtime_evidence(parameter) {
+      let argument = required_runtime_argument(substitutions, parameter.id)
+      witnesses.push(self.runtime_evidence(parameter, argument))
     }
-    Product(_, _) =>
-      raise RepresentationSpecializationInvariant(
-        detail="planned unerasure cannot produce an unlowered product shape",
-      )
-    Slot(key) => {
-      let destination = self.fresh_metadata(key.value_metadata(None))
-      let representation = match key {
-        Unit =>
-          raise RepresentationSpecializationInvariant(
-            detail="Unit cannot be stored in a physical call slot",
-          )
-        Value(abi) => abi.representation
-        Callable(_) => @bytecode.Representation::I64
-      }
-      match representation {
-        I32 => self.emit(UneraseI32(destination, source))
-        I64 => self.emit(UneraseI64(destination, source))
-        F32 => self.emit(UneraseF32(destination, source))
-        F64 => self.emit(UneraseF64(destination, source))
-      }
-      LocalValue::Slot(destination, key)
+  }
+  let argument_slots = []
+  for index, formal in formal_parameters {
+    let actual = substitutions.apply_type(self.image.runtime_types, formal)
+    let adapted = self.materialize_local(
+      self.adapt_local_value_with_substitutions(
+        values[index],
+        actual,
+        formal,
+        substitutions,
+      ),
+    )
+    match adapted {
+      Unit => ()
+      Slot(slot, _) => argument_slots.push(slot)
+      _ =>
+        raise UnsupportedExpression(detail="call argument is not materialized")
     }
+  }
+  let actual_result = substitutions.apply_type(
+    self.image.runtime_types,
+    formal_result,
+  )
+  if self.image.runtime_type(formal_result) is Erased(_) {
+    let witness = self.layout_witness(runtime_type_evidence(actual_result))
+    let erased_result = self.fresh_erased_slot(witness, Owned)
+    self.emit(
+      CallValue(callable, witnesses, argument_slots, Some(erased_result)),
+    )
+    self.unerase_value(erased_result, actual_result, substitutions)
+  } else {
+    let destination = self.fresh_optional_slot(formal_result)
+    self.emit(CallValue(callable, witnesses, argument_slots, destination.0))
+    self.adapt_local_value_with_substitutions(
+      destination.1,
+      formal_result,
+      actual_result,
+      substitutions,
+    )
   }
 }
 
 ///|
-fn FunctionLowerer::lower_representation_specialized_call(
+
+///|
+fn FunctionLowerer::call_type_substitution(
   self : FunctionLowerer,
-  plan : PhysicalRepresentationWorkerCall,
-  contract : PhysicalCallableContractId,
-  values : Array[PhysicalLocalValue],
-  call : PhysicalCallPlan,
-  environment~ : @vmcfg.ValueId?,
-  callable~ : @vmcfg.ValueId?,
-) -> LocalValue raise LoisvmLoweringError {
-  let worker_contract = self.callable_contract(contract)
-  let call_contract = self.callable_contract(call.invocation)
-  if values.length() != call.arguments.length() {
-    raise RepresentationSpecializationInvariant(
-      detail="representation-specialized call arguments do not match its worker",
-    )
-  }
-  if call.invocation != contract {
-    raise RepresentationSpecializationInvariant(
-      detail="representation-specialized call planned \{Repr(call.invocation)}, but worker owns \{Repr(contract)}",
-    )
-  }
-  if call.arguments.length() != values.length() {
-    raise RepresentationSpecializationInvariant(
-      detail="representation-specialized call argument arity disagrees with its physical call plan",
-    )
-  }
-  let witnesses = self.materialize_physical_call_witnesses(call)
-  let arguments = []
-  let mut physical_index = 0
-  for index, flow in call.arguments {
-    let target_shape = self.physical_shape(flow.target.shape)
-    match target_shape {
-      Product(product_contract, payload_shapes) => {
-        guard flow.bridge is None &&
-          values[index].value is ClosedAggregate(aggregate_contract, payloads) &&
-          product_contract == aggregate_contract &&
-          payloads.length() == payload_shapes.length() &&
-          plan.scalar_parameters.any(parameter => {
-            parameter.parameter_index == index &&
-            parameter.contract == aggregate_contract
-          }) else {
-          raise RepresentationSpecializationInvariant(
-            detail="closed aggregate argument does not match its physical call plan",
-          )
-        }
-        for payload in payloads {
-          physical_index = self.append_planned_call_argument(
-            arguments,
-            self.materialize_local(payload),
-            worker_contract.parameters,
-            physical_index,
-          )
-        }
-      }
-      _ => {
-        let adapted = self.materialize_planned_value_flow(
-          "representation call argument \{index} at \{Repr(call.site)}",
-          values[index],
-          flow.target,
-          flow.bridge,
-          flow.transition_site,
-        )
-        physical_index = self.append_planned_call_argument(
-          arguments,
-          adapted.value,
-          worker_contract.parameters,
-          physical_index,
-        )
-      }
-    }
-  }
-  if physical_index != worker_contract.parameters.length() {
-    raise RepresentationSpecializationInvariant(
-      detail="representation-specialized arguments do not consume the planned worker contract",
-    )
-  }
-  let abi_result_shape = worker_contract.result.physical_shape()
-  if call_contract.result.physical_shape() != abi_result_shape {
-    raise RepresentationSpecializationInvariant(
-      detail="representation-specialized result disagrees with its physical call plan",
-    )
-  }
-  let worker_result = self.fresh_physical_call_result(call)
-  match callable {
-    Some(callable) =>
-      self.emit(CallValue(callable, witnesses, arguments, worker_result.0))
-    None =>
-      self.emit(
-        CallDirect(
-          plan.worker,
-          environment,
-          witnesses,
-          arguments,
-          worker_result.0,
-        ),
-      )
-  }
-  self.materialize_planned_value_flow(
-    "representation call result at \{Repr(call.site)}",
-    { value: worker_result.1, contract: call.result.source, },
-    call.result.target,
-    call.result.bridge,
-    call.result.transition_site,
-  ).value
+  parameters : Array[@anf.RuntimeEvidenceParameter],
+  arguments : Array[@anf.RuntimeArgument],
+) -> RuntimeSubstitution raise LoisvmLoweringError {
+  let arguments = arguments.map(argument => {
+    self.substitute_generic_argument(argument)
+  })
+  self.substitutions.overlay(
+    RuntimeSubstitution::from_arguments(parameters, arguments),
+  )
 }
 
 ///|
-fn FunctionLowerer::append_planned_call_argument(
+fn ImageLowerer::call_type_substitution(
+  _self : ImageLowerer,
+  parameters : Array[@anf.RuntimeEvidenceParameter],
+  arguments : Array[@anf.RuntimeArgument],
+) -> RuntimeSubstitution raise LoisvmLoweringError {
+  RuntimeSubstitution::from_arguments(parameters, arguments)
+}
+
+///|
+fn FunctionLowerer::substitute_generic_argument(
   self : FunctionLowerer,
-  arguments : Array[@vmcfg.ValueId],
-  value : LocalValue,
-  parameters : Array[CanonicalRuntimeTypeKey],
-  index : Int,
-) -> Int raise LoisvmLoweringError {
-  ignore(self)
-  match value {
-    Unit => index
-    Slot(slot, shape) => {
-      guard parameters.get(index) is Some(expected) && shape == expected else {
-        raise RepresentationSpecializationInvariant(
-          detail="representation-specialized argument disagrees with the planned worker contract",
-        )
-      }
-      arguments.push(slot)
-      index + 1
-    }
-    _ =>
-      raise RepresentationSpecializationInvariant(
-        detail="representation-specialized argument is not materialized",
-      )
-  }
+  argument : @anf.RuntimeArgument,
+) -> @anf.RuntimeArgument raise LoisvmLoweringError {
+  self.substitutions.apply_argument(self.image.runtime_types, argument)
 }
 
 ///|
 fn required_runtime_argument(
   substitution : RuntimeSubstitution,
-  runtime_types : RuntimeTypeArena,
   parameter : @anf.RuntimeEvidenceId,
 ) -> @anf.RuntimeArgument raise LoisvmLoweringError {
   match substitution.argument(parameter) {
-    Some(argument) => substitution.apply_argument(runtime_types, argument)
+    Some(argument) => argument
     None =>
       raise InvalidTypeApplication(
         detail="type substitution does not bind \{Repr(parameter)}",
@@ -729,24 +362,60 @@ fn required_runtime_argument(
 }
 
 ///|
+fn FunctionLowerer::lower_direct_call(
+  self : FunctionLowerer,
+  function : @bytecode.FunctionId,
+  type_ : @anf.RuntimeType,
+  arguments : Array[LocalValue],
+  environment : @vmcfg.ValueId?,
+) -> LocalValue raise LoisvmLoweringError {
+  let (parameters, parameter_types, result_type) = function_type_parts(type_)
+  if !parameters.is_empty() {
+    raise InvalidTypeApplication(
+      detail="direct call requires explicit generic arguments",
+    )
+  }
+  let argument_slots = self.adapt_call_arguments(
+    arguments,
+    parameter_types,
+    self.substitutions,
+  )
+  let destination = self.fresh_optional_slot(result_type)
+  self.emit(
+    CallDirect(function, environment, [], argument_slots, destination.0),
+  )
+  self.adapt_local_value_with_substitutions(
+    destination.1,
+    result_type,
+    self.substitutions.apply_type(self.image.runtime_types, result_type),
+    self.substitutions,
+  )
+}
+
+///|
 fn FunctionLowerer::lower_intrinsic(
   self : FunctionLowerer,
   contract : RuntimeIntrinsicFunctionContract,
   arguments : Array[LocalValue],
-  result_shape : CanonicalRuntimeTypeKey,
 ) -> LocalValue raise LoisvmLoweringError {
   let intrinsic = contract.intrinsic
+  let result_type = contract.result
   match (intrinsic, arguments) {
-    (
-      CharToI32
-      | I32ToChar
-      | StringToBytes
-      | BytesToString,
-      [Slot(source, shape)],
-    ) => {
-      ignore(shape)
-      return Slot(source, result_shape)
-    }
+    (CharToI32 | I32ToChar | StringToBytes | BytesToString, [Slot(source, _)]) =>
+      return Slot(source, result_type)
+    _ => ()
+  }
+  match intrinsic {
+    BytesMake
+    | BytesLength
+    | BytesGet
+    | BytesSet
+    | BytesEqual
+    | BytesConcat
+    | BytesSlice
+    | BytesIsValidUtf8
+    | F32ToString
+    | F64ToString => ignore(self.image.intern_layout(ByteSequence))
     _ => ()
   }
   let slots = arguments.map(fn(argument) {
@@ -755,7 +424,7 @@ fn FunctionLowerer::lower_intrinsic(
       _ => abort("intrinsic argument is not represented by a slot")
     }
   })
-  let destination = self.fresh_metadata(result_shape.value_metadata(None))
+  let destination = self.fresh_slot(result_type)
   let instruction : @vmcfg.Instruction = match (intrinsic, slots) {
     (I64Add, [left, right]) => I64Add(destination, left, right)
     (I64Sub, [left, right]) => I64Sub(destination, left, right)
@@ -812,7 +481,7 @@ fn FunctionLowerer::lower_intrinsic(
     _ => raise UnsupportedIntrinsic(name=intrinsic.name())
   }
   self.emit(instruction)
-  Slot(destination, result_shape)
+  Slot(destination, result_type)
 }
 
 ///|

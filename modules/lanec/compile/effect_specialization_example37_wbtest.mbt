@@ -60,8 +60,7 @@ test "real example 37 shares escaped callable adapter workers" {
           let worker_ids = []
           for item in provenance.functions {
             if item.origins.any(origin => {
-                origin
-                is @loisvm_lowering.LoisvmFunctionOrigin::CallableAdapter(_)
+                origin is @loisvm_lowering.LoisvmFunctionOrigin::CallableAdapter
               }) {
               worker_ids.push(item.function)
             }
@@ -82,8 +81,7 @@ test "real example 37 shares escaped callable adapter workers" {
         FinalBytecode(_, provenance) =>
           for item in provenance.functions {
             if item.origins.any(origin => {
-                origin
-                is @loisvm_lowering.LoisvmFunctionOrigin::CallableAdapter(_)
+                origin is @loisvm_lowering.LoisvmFunctionOrigin::CallableAdapter
               }) {
               finalized_adapter_workers += 1
             }
@@ -97,7 +95,7 @@ test "real example 37 shares escaped callable adapter workers" {
   }
   assert_eq(
     (adapter_workers, adapter_materializations, finalized_adapter_workers),
-    (21, 29, 21),
+    (21, 26, 21),
   )
 }
 

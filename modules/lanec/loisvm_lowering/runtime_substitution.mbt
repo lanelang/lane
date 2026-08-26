@@ -4,13 +4,6 @@ fn RuntimeSubstitution::new() -> RuntimeSubstitution {
 }
 
 ///|
-fn RuntimeSubstitution::parameters(
-  self : RuntimeSubstitution,
-) -> Array[@anf.RuntimeEvidenceId] {
-  self.entries.map(entry => entry.0)
-}
-
-///|
 fn RuntimeSubstitution::from_arguments(
   parameters : Array[@anf.RuntimeEvidenceParameter],
   arguments : Array[@anf.RuntimeArgument],
@@ -44,22 +37,6 @@ fn RuntimeSubstitution::overlay(
   let entries = shadowing.entries.copy()
   entries.append(self.entries)
   { entries, }
-}
-
-///|
-/// Returns the substitution obtained by applying `inner` first and `self`
-/// second. This is semantic composition; unlike `overlay`, an identity entry
-/// in `inner` cannot hide a replacement supplied by `self`.
-fn RuntimeSubstitution::compose(
-  self : RuntimeSubstitution,
-  inner : RuntimeSubstitution,
-  runtime_types : RuntimeTypeArena,
-) -> RuntimeSubstitution raise LoisvmLoweringError {
-  let composed = RuntimeSubstitution::new()
-  for entry in inner.entries {
-    composed.insert(entry.0, self.apply_argument(runtime_types, entry.1))
-  }
-  self.overlay(composed)
 }
 
 ///|
@@ -191,15 +168,6 @@ fn RuntimeSubstitution::apply_type_expression(
       )
     }
   }
-}
-
-///|
-fn RuntimeSubstitution::argument_type(
-  self : RuntimeSubstitution,
-  runtime_types : RuntimeTypeArena,
-  argument : @anf.RuntimeArgument,
-) -> @anf.RuntimeType? raise LoisvmLoweringError {
-  self.evaluate_type_expression(runtime_types, argument.type_expression, [], [])
 }
 
 ///|

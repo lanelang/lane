@@ -320,8 +320,6 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
     InitializerOrchestrator => { "kind": "initializerOrchestrator" }
     IntrinsicWrapper(name~) => { "kind": "intrinsicWrapper", "name": name }
     CallableAdapter => { "kind": "callableAdapter" }
-    RepresentationWorker(value~, name~) =>
-      { "kind": "representationWorker", "value": value, "name": name }
     LayoutConstructor => { "kind": "layoutConstructor" }
     RuntimeImport(value~, name~, symbol~) => {
       let fields : Map[String, Json] = {

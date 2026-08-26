@@ -112,7 +112,7 @@ test "global callable crosses a recursive generic boundary on every backend" {
 }
 
 ///|
-test "generic callable stored in data keeps one physical ABI on every backend" {
+test "generic callable stored in data keeps its canonical ABI on every backend" {
   let actual = execute_compiler_test_matrix(
     (
       #|module Main
@@ -150,7 +150,7 @@ test "generic callable stored in data keeps one physical ABI on every backend" {
 }
 
 ///|
-test "every constructor follows its specialized data family on every backend" {
+test "every constructor follows its declaration-owned data family on every backend" {
   let actual = execute_compiler_test_matrix(
     (
       #|module Main
@@ -463,7 +463,7 @@ test "recursive generic data results keep one family on every backend" {
 }
 
 ///|
-test "specialized generic closure captures its exact data family on every backend" {
+test "generic closure captures its declaration-owned data family on every backend" {
   let actual = execute_compiler_test_matrix(
     (
       #|module Main
@@ -606,4 +606,57 @@ test "recursive nested effect companion forwarding preserves its generic edge" {
     ),
   )
   assert_eq(actual, expected_i64_execution_matrix(42L, 0))
+}
+
+///|
+test "nested effect companion forwarding executes on every backend" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|effect Forward[E : Effect] {
+      #|  request(() -> Unit ! E) -> Unit
+      #|}
+      #|
+      #|effect Log {
+      #|  write() -> Unit
+      #|}
+      #|
+      #|fn[E : Effect] request(action : () -> Unit ! E) -> Unit ! Forward[E] {
+      #|  Forward[E]::request!(action)
+      #|}
+      #|
+      #|fn[E : Effect] nested(action : () -> Unit ! E) -> Unit ! Forward[E] {
+      #|  let invoke : () -> Unit ! Forward[E] = fn() {
+      #|    request(action)
+      #|  }
+      #|  invoke()
+      #|}
+      #|
+      #|pub fn main() -> Unit {
+      #|  handle {
+      #|    handle nested[Log](fn() { Log::write!() }) with {
+      #|      Forward[Log]::request(action, resume) => {
+      #|        action()
+      #|        resume(())
+      #|      }
+      #|    } final _value {
+      #|      ()
+      #|    }
+      #|  } with {
+      #|    Log::write(resume) => resume(())
+      #|  } final _value {
+      #|    ()
+      #|  }
+      #|}
+    ),
+  )
+  let expected = [DirectInterpreter, WasmInterpreter, WasmJit].map(backend => {
+    backend,
+    result: Ok(()),
+    i64_values: [],
+    f64_bits: [],
+    callback_calls: 0,
+  })
+  assert_eq(actual, expected)
 }

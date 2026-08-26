@@ -81,20 +81,12 @@ test "explorer renders typed metrics and explicit function lineage" {
     }),
   }
   let source : @driver.ExploreFunctionRef = { stage: Anf, index: 7, }
-  render_stage_observations(
-    html,
-    stage,
-    {
-      nodes: [
-        {
-          function: source,
-          roles: [SourceFunction(value=4, name=Some("main"))],
-        },
-      ],
-      edges: [{ source: { stage: Executable, index: 4, }, target: source, }],
-    },
-    { callable_contracts: [], transitions: [], occurrences: [], },
-  )
+  render_stage_observations(html, stage, {
+    nodes: [
+      { function: source, roles: [SourceFunction(value=4, name=Some("main"))], },
+    ],
+    edges: [{ source: { stage: Executable, index: 4, }, target: source, }],
+  })
   inspect(
     html.to_string(),
     content=(

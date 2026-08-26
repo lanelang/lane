@@ -250,27 +250,23 @@ test "executable initializer materializes function-valued data fields" {
   guard image.initializer is Some(_) else {
     fail("expected executable initializer")
   }
-  let mut found_step = false
-  let mut found_orchestrator = false
-  for entry in image.functions {
-    guard entry is BytecodeBody(body) else { continue }
-    if body.blocks[0].instructions
-      is [ConstFunction(field, _), MakeData(global, _, _, [], [actual_field])] {
-      assert_eq(actual_field, field)
-      assert_eq(body.blocks[0].terminator, Return(Some(global)))
-      found_step = true
-    }
-    if body.blocks[0].instructions
-      is [
-        CallDirect(_, None, [], [], Some(result)),
-        InitGlobal({ value: 0, }, actual_global),
-      ] {
-      assert_eq(result, actual_global)
-      found_orchestrator = true
-    }
+  guard image.functions is [_, _, BytecodeBody(step), _, BytecodeBody(body)] else {
+    fail("expected initializer bytecode body")
   }
-  assert_true(found_step)
-  assert_true(found_orchestrator)
+  guard step.blocks[0].instructions
+    is [ConstFunction(field, _), MakeData(global, _, _, [], [actual_field])] else {
+    fail("expected initializer step to materialize the function field")
+  }
+  assert_eq(actual_field, field)
+  assert_eq(step.blocks[0].terminator, Return(Some(global)))
+  guard body.blocks[0].instructions
+    is [
+      CallDirect(_, None, [], [], Some(result)),
+      InitGlobal({ value: 0, }, actual_global),
+    ] else {
+    fail("expected orchestrator to transfer the step result to its global")
+  }
+  assert_eq(result, actual_global)
   assert_eq(@bytecode.verify_bytecode_image(image), Ok(()))
 }
 

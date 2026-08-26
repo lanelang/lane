@@ -37,7 +37,7 @@ test "higher-kinded top-level callable flow agrees across execution backends" {
 }
 
 ///|
-test "closed data representation coexists with its generic fallback" {
+test "closed and generic paths share declaration-owned data representation" {
   let actual = execute_compiler_test_matrix(
     (
       #|module Main

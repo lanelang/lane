@@ -40,11 +40,12 @@ specialization.
 - Missing evidence is a structured compiler defect. No stage guesses a layout
   from source spelling, an effect, or an outer machine representation.
 
-Representation elaboration is one deep module. Its external interface is
-conceptually:
+Representation elaboration is one private operation inside LoisVM Lowering.
+Its package interface is the ordinary executable-to-bytecode lowering seam;
+conceptually the internal step is:
 
 ```text
-elaborate(RuntimeAnfProgram, TargetAbi) -> VerifiedPhysicalProgram
+construct_vmcfg(RuntimeAnfProgram, TargetAbi) -> VmcfgImage
 ```
 
 The implementation may use private worklists, substitutions, interning tables,
@@ -52,12 +53,19 @@ callable-flow analyses, and strongly connected components. These are temporary
 implementation state, not parallel outputs that consumers must understand or
 verify against the program.
 
-The resulting physical program contains the executable structure, one
-authoritative physical contract for every runtime value, and explicit
-representation adaptations. It may retain semantic type provenance for
-diagnostics and verification. Such provenance cannot be used after elaboration
-to choose a different physical contract. VM CFG emission consumes the verified
-physical program mechanically.
+The resulting VM CFG contains the executable structure, one authoritative
+physical contract for every runtime value, and explicit representation
+adaptations. It may retain semantic type provenance while it is constructed,
+but that provenance cannot become a second post-elaboration representation
+policy. VM CFG finalization then owns canonical function identity, ARC,
+physical slot allocation, bytecode emission, and bytecode verification.
+
+A separate Physical ANF is deliberately absent. The removed representation was
+a shallow copy of Runtime ANF plus planner projections and had no verifier-owned
+invariant distinct from the physical value metadata and operations already
+required by VM CFG. If a future physical IR gains a genuinely independent
+invariant, it requires a new architectural decision rather than reintroducing
+the deleted mirror as migration scaffolding.
 
 Representation adaptation is a structural operation owned by the elaborator:
 
@@ -102,8 +110,8 @@ per-call representation choices.
 
 1. Removing representation specialization leaves a correct compiler.
 2. Generic lowering does not depend on a reachable closed instantiation.
-3. Representation elaboration has one external interface and does not expose
-   planner, solution, recipe, or occurrence sidecars.
+3. Representation elaboration is private to the one LoisVM lowering interface
+   and does not expose planner, solution, recipe, or occurrence sidecars.
 4. A physical value has one authoritative execution contract.
 5. Semantic type provenance may be retained but cannot become a second
    representation producer.
@@ -124,9 +132,8 @@ per-call representation choices.
 - Optimization can be evaluated with Explore by comparing worker count,
   adapters, erase/unerase operations, and final code size, but those metrics do
   not decide semantic eligibility.
-- The physical-program seam is justified only by its closed execution
-  invariant. If it merely mirrors Runtime ANF plus sidecars, it must be
-  deepened or removed.
+- No Physical ANF seam is retained because the removed form had no independent
+  invariant beyond VM CFG physical contracts.
 - Existing planner/catalog/graph implementations are migration code, not the
   accepted architecture. ISS-390 replaces them instead of layering another
   compatibility path over them.
