@@ -18,17 +18,26 @@ pub fn module_path_text(@syntax.ModulePath) -> String
 pub(all) struct DeclarationFingerprint {
   value : String
 } derive(Eq, @debug.Debug)
+pub fn DeclarationFingerprint::equal(Self, Self) -> Bool
+pub fn DeclarationFingerprint::not_equal(Self, Self) -> Bool
+pub fn DeclarationFingerprint::to_repr(Self) -> @debug.Repr
 
 pub(all) struct InterfaceDependencySymbols {
   types : Array[@symbol.TypeSymbolId]
   effects : Array[@symbol.EffectSymbolId]
 } derive(Eq, @debug.Debug)
+pub fn InterfaceDependencySymbols::equal(Self, Self) -> Bool
+pub fn InterfaceDependencySymbols::not_equal(Self, Self) -> Bool
+pub fn InterfaceDependencySymbols::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleImportEnvironments {
   direct : ModuleInterfaceCatalog
   available : ModuleInterfaceCatalog
 } derive(Eq, @debug.Debug)
+pub fn ModuleImportEnvironments::equal(Self, Self) -> Bool
 pub fn ModuleImportEnvironments::from_pool(Array[String], ModuleInterfaceCatalog) -> Self
+pub fn ModuleImportEnvironments::not_equal(Self, Self) -> Bool
+pub fn ModuleImportEnvironments::to_repr(Self) -> @debug.Repr
 pub fn ModuleImportEnvironments::typecheck_environment(Self) -> ModuleInterfaceCatalog
 
 pub(all) struct ModuleInterface {
@@ -47,18 +56,24 @@ pub fn ModuleInterface::declaration(Self, ModuleInterfaceDeclarationRef) -> Modu
 pub fn ModuleInterface::declaration_fingerprint(Self, ModuleInterfaceDeclaration) -> Result[DeclarationFingerprint, String]
 pub fn ModuleInterface::dependency_module_paths(Self) -> Array[String]
 pub fn ModuleInterface::dependency_symbols(Self) -> InterfaceDependencySymbols
+pub fn ModuleInterface::equal(Self, Self) -> Bool
 pub fn ModuleInterface::exported_symbol_metadata(Self, @symbol.SymbolRegistry) -> @symbol.SymbolMetadataArena
+pub fn ModuleInterface::not_equal(Self, Self) -> Bool
 pub fn ModuleInterface::owned_exports(Self) -> Array[ModuleInterfaceExport]
 pub fn ModuleInterface::presentation_fingerprint(Self) -> ModuleInterfacePresentationFingerprint
 pub fn ModuleInterface::semantic_fingerprint(Self) -> ModuleInterfaceSemanticFingerprint
 pub fn ModuleInterface::semantic_fingerprint_result(Self) -> Result[ModuleInterfaceSemanticFingerprint, String]
+pub fn ModuleInterface::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceCatalog {
   modules : Array[ModuleInterface]
 } derive(Eq, @debug.Debug)
 pub fn ModuleInterfaceCatalog::ModuleInterfaceCatalog() -> Self
+pub fn ModuleInterfaceCatalog::equal(Self, Self) -> Bool
 pub fn ModuleInterfaceCatalog::find(Self, String) -> ModuleInterface?
+pub fn ModuleInterfaceCatalog::not_equal(Self, Self) -> Bool
 pub fn ModuleInterfaceCatalog::public_exports(Self, String) -> Array[ResolvedModuleInterfaceExport]
+pub fn ModuleInterfaceCatalog::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModuleInterfaceDeclaration {
   NominalType(ModuleInterfaceType)
@@ -67,12 +82,18 @@ pub(all) enum ModuleInterfaceDeclaration {
   Value(ModuleInterfaceValue)
 } derive(Eq, @debug.Debug)
 pub fn ModuleInterfaceDeclaration::dependency_symbols(Self) -> InterfaceDependencySymbols
+pub fn ModuleInterfaceDeclaration::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceDeclaration::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceDeclaration::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceDeclarationRef {
   provider_module : String
   export_namespace : ModuleInterfaceExportNamespace
   declaration_name : String
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceDeclarationRef::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceDeclarationRef::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceDeclarationRef::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceEffect {
   symbol : @symbol.EffectSymbolId
@@ -82,12 +103,18 @@ pub(all) struct ModuleInterfaceEffect {
   operations : Array[ModuleInterfaceOperation]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceEffect::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceEffect::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceEffect::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceEffectReference {
   symbol : @symbol.EffectSymbolId
   module_path : String
   name : String
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceEffectReference::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceEffectReference::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceEffectReference::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceEnum {
   symbol : @symbol.TypeSymbolId
@@ -96,6 +123,9 @@ pub(all) struct ModuleInterfaceEnum {
   variants : Array[ModuleInterfaceVariant]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceEnum::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceEnum::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceEnum::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceExport {
   export_namespace : ModuleInterfaceExportNamespace
@@ -103,18 +133,27 @@ pub(all) struct ModuleInterfaceExport {
   target : ModuleInterfaceDeclarationRef
   expected_target_fingerprint : DeclarationFingerprint
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceExport::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceExport::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceExport::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModuleInterfaceExportNamespace {
   TypeNamespace
   EffectNamespace
   ValueNamespace
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceExportNamespace::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceExportNamespace::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceExportNamespace::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceExternalType {
   symbol : @symbol.TypeSymbolId
   name : String
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceExternalType::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceExternalType::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceExternalType::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceField {
   symbol : @symbol.FieldSymbolId
@@ -123,6 +162,9 @@ pub(all) struct ModuleInterfaceField {
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceField::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceField::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceField::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceOperation {
   symbol : @symbol.OperationSymbolId
@@ -133,14 +175,23 @@ pub(all) struct ModuleInterfaceOperation {
   result : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceOperation::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceOperation::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceOperation::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfacePresentationFingerprint {
   value : String
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfacePresentationFingerprint::equal(Self, Self) -> Bool
+pub fn ModuleInterfacePresentationFingerprint::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfacePresentationFingerprint::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceSemanticFingerprint {
   value : String
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceSemanticFingerprint::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceSemanticFingerprint::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceSemanticFingerprint::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceStruct {
   symbol : @symbol.TypeSymbolId
@@ -150,6 +201,9 @@ pub(all) struct ModuleInterfaceStruct {
   fields : Array[ModuleInterfaceField]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceStruct::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceStruct::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceStruct::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModuleInterfaceType {
   Struct(ModuleInterfaceStruct)
@@ -157,6 +211,9 @@ pub(all) enum ModuleInterfaceType {
   External(ModuleInterfaceExternalType)
 } derive(Eq, @debug.Debug)
 pub fn ModuleInterfaceType::dependency_symbols(Self) -> InterfaceDependencySymbols
+pub fn ModuleInterfaceType::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceType::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceType::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceTypeAlias {
   symbol : @symbol.TypeAliasSymbolId
@@ -166,11 +223,17 @@ pub(all) struct ModuleInterfaceTypeAlias {
   kind : @types.Kind
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceTypeAlias::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceTypeAlias::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceTypeAlias::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModuleInterfaceTypeAliasBody {
   TypeBody(@types.Type)
   EffectBody(@types.Effect)
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceTypeAliasBody::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceTypeAliasBody::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceTypeAliasBody::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceTypeMember {
   symbol : @symbol.TypeMemberSymbolId
@@ -180,12 +243,18 @@ pub(all) struct ModuleInterfaceTypeMember {
   index : Int
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceTypeMember::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceTypeMember::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceTypeMember::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceTypeReference {
   symbol : @symbol.TypeSymbolId
   module_path : String
   name : String
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceTypeReference::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceTypeReference::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceTypeReference::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceValue {
   symbol : @symbol.ValueSymbolId
@@ -196,11 +265,17 @@ pub(all) struct ModuleInterfaceValue {
   parameters : Array[ModuleInterfaceValueParameter]?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceValue::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceValue::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceValue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModuleInterfaceValueKind {
   Function
   Let
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceValueKind::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceValueKind::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceValueKind::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceValueParameter {
   symbol : @symbol.ValueSymbolId
@@ -210,6 +285,9 @@ pub(all) struct ModuleInterfaceValueParameter {
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceValueParameter::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceValueParameter::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceValueParameter::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceVariant {
   symbol : @symbol.VariantSymbolId
@@ -219,16 +297,25 @@ pub(all) struct ModuleInterfaceVariant {
   payload : Array[@types.Type]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceVariant::equal(Self, Self) -> Bool
+pub fn ModuleInterfaceVariant::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceVariant::to_repr(Self) -> @debug.Repr
 
 pub(all) struct OptimizationHint {
   name : String
 } derive(Eq, @debug.Debug)
+pub fn OptimizationHint::equal(Self, Self) -> Bool
+pub fn OptimizationHint::not_equal(Self, Self) -> Bool
+pub fn OptimizationHint::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ResolvedModuleInterfaceExport {
   export_ : ModuleInterfaceExport
   declaration : ModuleInterfaceDeclaration
   provider_source_id : String?
 } derive(Eq, @debug.Debug)
+pub fn ResolvedModuleInterfaceExport::equal(Self, Self) -> Bool
+pub fn ResolvedModuleInterfaceExport::not_equal(Self, Self) -> Bool
+pub fn ResolvedModuleInterfaceExport::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

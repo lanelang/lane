@@ -36,19 +36,28 @@ pub(all) struct ModuleDependencyFailure {
 } derive(Eq, @debug.Debug)
 pub fn ModuleDependencyFailure::diagnostic(Self) -> @diagnostic.CompilerDiagnostic
 pub fn ModuleDependencyFailure::duplicate_module(String, ModuleDependencyProvenance) -> Self
+pub fn ModuleDependencyFailure::equal(Self, Self) -> Bool
 pub fn ModuleDependencyFailure::import_cycle(String, ModuleDependencyProvenance) -> Self
 pub fn ModuleDependencyFailure::missing_import(String, source_modules~ : Array[String], interface_modules~ : Array[String], provenance~ : ModuleDependencyProvenance) -> Self
+pub fn ModuleDependencyFailure::not_equal(Self, Self) -> Bool
+pub fn ModuleDependencyFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModuleDependencyFailureKind {
   DuplicateModuleInput(String)
   MissingImportWithCandidates(module_~ : String, source_modules~ : Array[String], interface_modules~ : Array[String])
   ImportCycle(String)
 } derive(Eq, @debug.Debug)
+pub fn ModuleDependencyFailureKind::equal(Self, Self) -> Bool
+pub fn ModuleDependencyFailureKind::not_equal(Self, Self) -> Bool
+pub fn ModuleDependencyFailureKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModuleDependencyProvenance {
   SourceInput(source_id~ : String, span~ : @basic.SourceSpan?)
   InterfaceArtifact(source_id~ : String, importer_module_path_text~ : String, span~ : @basic.SourceSpan?)
 } derive(Eq, @debug.Debug)
+pub fn ModuleDependencyProvenance::equal(Self, Self) -> Bool
+pub fn ModuleDependencyProvenance::not_equal(Self, Self) -> Bool
+pub fn ModuleDependencyProvenance::to_repr(Self) -> @debug.Repr
 
 pub struct ModuleGraph {
   // private fields
@@ -69,6 +78,9 @@ pub(all) struct ModuleInputHeader {
   module_path_text : String
   imports : Array[String]
 } derive(Eq, @debug.Debug)
+pub fn ModuleInputHeader::equal(Self, Self) -> Bool
+pub fn ModuleInputHeader::not_equal(Self, Self) -> Bool
+pub fn ModuleInputHeader::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ParseModuleInputsResult {
   sources : Array[ParsedSource]
@@ -102,6 +114,9 @@ pub(all) struct SourceInput {
   source_id : String
   text : String
 } derive(Eq, @debug.Debug)
+pub fn SourceInput::equal(Self, Self) -> Bool
+pub fn SourceInput::not_equal(Self, Self) -> Bool
+pub fn SourceInput::to_repr(Self) -> @debug.Repr
 
 pub struct TolerantModuleGraphResult {
   // private fields

@@ -28,6 +28,9 @@ pub(all) suberror ExecutableElaborationError {
   EffectLoweringError(@effect_lowering.SynthesisError)
   UnverifiedProgram(stage~ : String, result~ : @buslane.VerifyResult)
 } derive(Eq, @debug.Debug)
+pub fn ExecutableElaborationError::equal(Self, Self) -> Bool
+pub fn ExecutableElaborationError::not_equal(Self, Self) -> Bool
+pub fn ExecutableElaborationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum EntryAdmissionFailure {
@@ -36,6 +39,9 @@ pub(all) enum EntryAdmissionFailure {
   ReturnsNonUnit(result~ : @buslane.Type)
   HasUnsupportedEffects(effects~ : Array[@buslane.Effect])
 } derive(Eq, @debug.Debug)
+pub fn EntryAdmissionFailure::equal(Self, Self) -> Bool
+pub fn EntryAdmissionFailure::not_equal(Self, Self) -> Bool
+pub fn EntryAdmissionFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExecutableElaborationStage {
   EffectSpecialized(@buslane.Program)
@@ -51,12 +57,19 @@ pub(all) struct ExecutableProgram {
   entry : @buslane_lowering.BuslaneEntry
   retained_values : Array[@buslane.ValueId]
 } derive(Eq, @debug.Debug)
+pub fn ExecutableProgram::equal(Self, Self) -> Bool
+pub fn ExecutableProgram::not_equal(Self, Self) -> Bool
+pub fn ExecutableProgram::pretty(Self) -> @prettyprinter.Document
+pub fn ExecutableProgram::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ExecutableProgram
 
 pub struct ExecutionProfile {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ExecutionProfile::equal(Self, Self) -> Bool
 pub fn ExecutionProfile::new(builtin_effects~ : Array[@buslane.BuiltinEffect], supports_external_effects~ : Bool) -> Self
+pub fn ExecutionProfile::not_equal(Self, Self) -> Bool
+pub fn ExecutionProfile::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

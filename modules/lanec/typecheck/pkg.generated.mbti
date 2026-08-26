@@ -34,6 +34,10 @@ pub(all) struct CheckedDeclarationEnvironment {
   effects : Array[CheckedEffectDeclaration]
   operations : Array[CheckedEffectOperationDeclaration]
 } derive(Eq, @debug.Debug)
+pub fn CheckedDeclarationEnvironment::equal(Self, Self) -> Bool
+pub fn CheckedDeclarationEnvironment::not_equal(Self, Self) -> Bool
+pub fn CheckedDeclarationEnvironment::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedDeclarationEnvironment::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedDeclarationEnvironment
 
 pub(all) struct CheckedEffectDeclaration {
@@ -46,6 +50,10 @@ pub(all) struct CheckedEffectDeclaration {
   operations : Array[CheckedEffectOperationDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedEffectDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedEffectDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedEffectDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedEffectDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedEffectDeclaration
 
 pub(all) struct CheckedEffectOperationDeclaration {
@@ -58,6 +66,10 @@ pub(all) struct CheckedEffectOperationDeclaration {
   result : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedEffectOperationDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedEffectOperationDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedEffectOperationDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedEffectOperationDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedEffectOperationDeclaration
 
 pub(all) struct CheckedEnumDeclaration {
@@ -69,6 +81,10 @@ pub(all) struct CheckedEnumDeclaration {
   variants : Array[CheckedVariantDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedEnumDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedEnumDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedEnumDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedEnumDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedEnumDeclaration
 
 pub(all) struct CheckedExternalTypeDeclaration {
@@ -78,6 +94,10 @@ pub(all) struct CheckedExternalTypeDeclaration {
   name_loc : @basic.SourceSpan
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedExternalTypeDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedExternalTypeDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedExternalTypeDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedExternalTypeDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration
 
 pub(all) struct CheckedFieldDeclaration {
@@ -88,6 +108,10 @@ pub(all) struct CheckedFieldDeclaration {
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedFieldDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedFieldDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedFieldDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedFieldDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedFieldDeclaration
 
 pub(all) struct CheckedFunctionDeclaration {
@@ -100,6 +124,10 @@ pub(all) struct CheckedFunctionDeclaration {
   parameters : Array[@checked.CheckedValueParameter]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedFunctionDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedFunctionDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedFunctionDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedFunctionDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedFunctionDeclaration
 
 pub(all) struct CheckedLetDeclaration {
@@ -111,6 +139,10 @@ pub(all) struct CheckedLetDeclaration {
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedLetDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedLetDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedLetDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedLetDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedLetDeclaration
 
 pub(all) struct CheckedSourceTypeCheckResult {
@@ -118,6 +150,10 @@ pub(all) struct CheckedSourceTypeCheckResult {
   module_interface : @module.ModuleInterface?
   diagnostics : Array[TypeCheckDiagnostic]
 } derive(Eq, @debug.Debug)
+pub fn CheckedSourceTypeCheckResult::equal(Self, Self) -> Bool
+pub fn CheckedSourceTypeCheckResult::not_equal(Self, Self) -> Bool
+pub fn CheckedSourceTypeCheckResult::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedSourceTypeCheckResult::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedSourceTypeCheckResult
 
 pub(all) struct CheckedStructDeclaration {
@@ -130,6 +166,10 @@ pub(all) struct CheckedStructDeclaration {
   fields : Array[CheckedFieldDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedStructDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedStructDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedStructDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedStructDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedStructDeclaration
 
 pub(all) enum CheckedTypeDeclaration {
@@ -137,6 +177,10 @@ pub(all) enum CheckedTypeDeclaration {
   Enum(CheckedEnumDeclaration)
   External(CheckedExternalTypeDeclaration)
 } derive(Eq, @debug.Debug)
+pub fn CheckedTypeDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedTypeDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedTypeDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedTypeDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedTypeDeclaration
 
 pub(all) struct CheckedTypeMemberDeclaration {
@@ -148,17 +192,29 @@ pub(all) struct CheckedTypeMemberDeclaration {
   index : Int
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedTypeMemberDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedTypeMemberDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedTypeMemberDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedTypeMemberDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedTypeMemberDeclaration
 
 pub(all) enum CheckedValueDeclaration {
   Function(CheckedFunctionDeclaration)
   Let(CheckedLetDeclaration)
 } derive(Eq, @debug.Debug)
+pub fn CheckedValueDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedValueDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedValueDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedValueDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedValueDeclaration
 
 pub(all) struct CheckedValueEnvironment {
   values : Array[CheckedValueDeclaration]
 } derive(Eq, @debug.Debug)
+pub fn CheckedValueEnvironment::equal(Self, Self) -> Bool
+pub fn CheckedValueEnvironment::not_equal(Self, Self) -> Bool
+pub fn CheckedValueEnvironment::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedValueEnvironment::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedValueEnvironment
 
 pub(all) struct CheckedVariantDeclaration {
@@ -170,6 +226,10 @@ pub(all) struct CheckedVariantDeclaration {
   payload : Array[@types.Type]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedVariantDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedVariantDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedVariantDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedVariantDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedVariantDeclaration
 
 pub(all) struct ContextualOfferDiagnosticCandidate {
@@ -178,22 +238,33 @@ pub(all) struct ContextualOfferDiagnosticCandidate {
   source_id : String?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ContextualOfferDiagnosticCandidate::equal(Self, Self) -> Bool
+pub fn ContextualOfferDiagnosticCandidate::not_equal(Self, Self) -> Bool
+pub fn ContextualOfferDiagnosticCandidate::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ContextualOfferRequirementSite {
   AutoParameter(name~ : String)
   StructuralDeriver
 } derive(Eq, @debug.Debug)
+pub fn ContextualOfferRequirementSite::equal(Self, Self) -> Bool
+pub fn ContextualOfferRequirementSite::not_equal(Self, Self) -> Bool
+pub fn ContextualOfferRequirementSite::to_repr(Self) -> @debug.Repr
 
 pub(all) struct DeclarationTypeCheckResult {
   declarations : CheckedDeclarationEnvironment
   diagnostics : Array[TypeCheckDiagnostic]
 } derive(Eq, @debug.Debug)
+pub fn DeclarationTypeCheckResult::equal(Self, Self) -> Bool
+pub fn DeclarationTypeCheckResult::not_equal(Self, Self) -> Bool
+pub fn DeclarationTypeCheckResult::pretty(Self) -> @prettyprinter.Document
+pub fn DeclarationTypeCheckResult::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DeclarationTypeCheckResult
 
 pub struct DisplayedTypeCheckDiagnostic {
   diagnostic : TypeCheckDiagnostic
   display : TypeDisplayContext
 }
+pub fn DisplayedTypeCheckDiagnostic::to_compiler_diagnostic(Self, @diagnostic.DiagnosticContext) -> @diagnostic.CompilerDiagnostic
 pub impl @diagnostic.ToCompilerDiagnostic for DisplayedTypeCheckDiagnostic
 
 pub(all) enum ExternTypeRestriction {
@@ -203,6 +274,10 @@ pub(all) enum ExternTypeRestriction {
   DirectResultRequired
   ExternalEffectRowRequired
 } derive(Eq, @debug.Debug)
+pub fn ExternTypeRestriction::equal(Self, Self) -> Bool
+pub fn ExternTypeRestriction::not_equal(Self, Self) -> Bool
+pub fn ExternTypeRestriction::pretty(Self) -> @prettyprinter.Document
+pub fn ExternTypeRestriction::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ExternTypeRestriction
 
 pub(all) enum GenericArgumentInferenceFailure {
@@ -212,18 +287,30 @@ pub(all) enum GenericArgumentInferenceFailure {
   GenericArgumentConstraintMismatch(expected~ : @types.GenericArgument, actual~ : @types.GenericArgument)
   AmbiguousEffectRowInference(expected~ : @types.Effect, actual~ : @types.Effect)
 } derive(Eq, @debug.Debug)
+pub fn GenericArgumentInferenceFailure::equal(Self, Self) -> Bool
+pub fn GenericArgumentInferenceFailure::not_equal(Self, Self) -> Bool
+pub fn GenericArgumentInferenceFailure::pretty(Self) -> @prettyprinter.Document
+pub fn GenericArgumentInferenceFailure::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for GenericArgumentInferenceFailure
 
 pub(all) enum GenericArgumentSubject {
   Named(name~ : String)
   ExplicitExpression(callee~ : String?, callee_loc~ : @basic.SourceSpan?)
 } derive(Eq, @debug.Debug)
+pub fn GenericArgumentSubject::equal(Self, Self) -> Bool
+pub fn GenericArgumentSubject::not_equal(Self, Self) -> Bool
+pub fn GenericArgumentSubject::pretty(Self) -> @prettyprinter.Document
+pub fn GenericArgumentSubject::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for GenericArgumentSubject
 
 pub(all) struct TypeCheckDiagnostic {
   kind : TypeCheckDiagnosticKind
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn TypeCheckDiagnostic::equal(Self, Self) -> Bool
+pub fn TypeCheckDiagnostic::not_equal(Self, Self) -> Bool
+pub fn TypeCheckDiagnostic::pretty(Self) -> @prettyprinter.Document
+pub fn TypeCheckDiagnostic::to_repr(Self) -> @debug.Repr
 pub fn TypeCheckDiagnostic::with_display(Self, TypeDisplayContext) -> DisplayedTypeCheckDiagnostic
 pub impl @prettyprinter.Pretty for TypeCheckDiagnostic
 
@@ -291,11 +378,18 @@ pub(all) enum TypeCheckDiagnosticKind {
   UnqualifiedVariantPatternNeedsExpectedEnum(variant~ : String)
   GenericArgumentInferenceFailed(label~ : String, failure~ : GenericArgumentInferenceFailure)
 } derive(Eq, @debug.Debug)
+pub fn TypeCheckDiagnosticKind::equal(Self, Self) -> Bool
+pub fn TypeCheckDiagnosticKind::not_equal(Self, Self) -> Bool
+pub fn TypeCheckDiagnosticKind::pretty(Self) -> @prettyprinter.Document
+pub fn TypeCheckDiagnosticKind::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for TypeCheckDiagnosticKind
 
 pub(all) enum TypeCheckError {
   InvalidInputMetadata(Array[TypeCheckInputMetadataError])
 } derive(Eq, @debug.Debug)
+pub fn TypeCheckError::equal(Self, Self) -> Bool
+pub fn TypeCheckError::not_equal(Self, Self) -> Bool
+pub fn TypeCheckError::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TypeCheckInputMetadataError {
   UnresolvedType(name~ : String, loc~ : @basic.SourceSpan)
@@ -304,12 +398,19 @@ pub(all) enum TypeCheckInputMetadataError {
   InvalidVariantReference(label~ : String, loc~ : @basic.SourceSpan)
   MissingTopLevelLetAnnotation(loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn TypeCheckInputMetadataError::equal(Self, Self) -> Bool
+pub fn TypeCheckInputMetadataError::not_equal(Self, Self) -> Bool
+pub fn TypeCheckInputMetadataError::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TypeCheckResult {
   declarations : CheckedDeclarationEnvironment
   values : CheckedValueEnvironment
   diagnostics : Array[TypeCheckDiagnostic]
 } derive(Eq, @debug.Debug)
+pub fn TypeCheckResult::equal(Self, Self) -> Bool
+pub fn TypeCheckResult::not_equal(Self, Self) -> Bool
+pub fn TypeCheckResult::pretty(Self) -> @prettyprinter.Document
+pub fn TypeCheckResult::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for TypeCheckResult
 
 pub struct TypeDisplayContext {

@@ -40,6 +40,9 @@ pub(all) suberror WasmCompileError {
   InvalidFunctionCatalog(detail~ : String)
   ValidationFailure(detail~ : String)
 } derive(Eq, @debug.Debug)
+pub fn WasmCompileError::equal(Self, Self) -> Bool
+pub fn WasmCompileError::not_equal(Self, Self) -> Bool
+pub fn WasmCompileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) struct WasmCompileObservation {
@@ -47,6 +50,7 @@ pub(all) struct WasmCompileObservation {
   functions : Array[WasmFunctionProvenance]
   scale : WasmModuleScale
 } derive(@debug.Debug)
+pub fn WasmCompileObservation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WasmFunctionOrigin {
   InternalRuntimeImport(@wasm_abi.InternalRuntimeFunction)
@@ -57,17 +61,26 @@ pub(all) enum WasmFunctionOrigin {
   HelperFunction(WasmHelperFunctionRole)
   EntryWrapper
 } derive(Eq, @debug.Debug)
+pub fn WasmFunctionOrigin::equal(Self, Self) -> Bool
+pub fn WasmFunctionOrigin::not_equal(Self, Self) -> Bool
+pub fn WasmFunctionOrigin::to_repr(Self) -> @debug.Repr
 
 pub(all) struct WasmFunctionProvenance {
   index : Int
   origin : WasmFunctionOrigin
 } derive(Eq, @debug.Debug)
+pub fn WasmFunctionProvenance::equal(Self, Self) -> Bool
+pub fn WasmFunctionProvenance::not_equal(Self, Self) -> Bool
+pub fn WasmFunctionProvenance::to_repr(Self) -> @debug.Repr
 
 pub(all) struct WasmFunctionScale {
   index : Int
   instruction_count : Int
   local_count : Int
 } derive(Eq, @debug.Debug)
+pub fn WasmFunctionScale::equal(Self, Self) -> Bool
+pub fn WasmFunctionScale::not_equal(Self, Self) -> Bool
+pub fn WasmFunctionScale::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WasmHelperFunctionRole {
   NoopErased
@@ -80,6 +93,9 @@ pub(all) enum WasmHelperFunctionRole {
   DestroyShape(shape~ : Int)
   ByteSequenceSizer
 } derive(Eq, @debug.Debug)
+pub fn WasmHelperFunctionRole::equal(Self, Self) -> Bool
+pub fn WasmHelperFunctionRole::not_equal(Self, Self) -> Bool
+pub fn WasmHelperFunctionRole::to_repr(Self) -> @debug.Repr
 
 pub(all) struct WasmModuleScale {
   imported_function_count : Int
@@ -89,6 +105,9 @@ pub(all) struct WasmModuleScale {
   table_entry_count : Int
   functions : Array[WasmFunctionScale]
 } derive(Eq, @debug.Debug)
+pub fn WasmModuleScale::equal(Self, Self) -> Bool
+pub fn WasmModuleScale::not_equal(Self, Self) -> Bool
+pub fn WasmModuleScale::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WasmRuntimeFunctionRole {
   Allocate
@@ -108,6 +127,9 @@ pub(all) enum WasmRuntimeFunctionRole {
   ByteSequenceIsValidUtf8
   InstanceGlobalCleanup
 } derive(Eq, @debug.Debug)
+pub fn WasmRuntimeFunctionRole::equal(Self, Self) -> Bool
+pub fn WasmRuntimeFunctionRole::not_equal(Self, Self) -> Bool
+pub fn WasmRuntimeFunctionRole::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

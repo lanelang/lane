@@ -18,12 +18,18 @@ pub(all) struct AnalysisLocation {
   source_id : String
   span : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn AnalysisLocation::equal(Self, Self) -> Bool
+pub fn AnalysisLocation::not_equal(Self, Self) -> Bool
+pub fn AnalysisLocation::to_repr(Self) -> @debug.Repr
 
 pub(all) struct AnalysisPosition {
   source_id : String
   line : Int
   column : Int
 } derive(Eq, @debug.Debug)
+pub fn AnalysisPosition::equal(Self, Self) -> Bool
+pub fn AnalysisPosition::not_equal(Self, Self) -> Bool
+pub fn AnalysisPosition::to_repr(Self) -> @debug.Repr
 
 pub(all) struct AnalysisResult {
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
@@ -34,8 +40,11 @@ pub(all) struct AnalysisResult {
   inlay_hints : Array[InlayHintEntry]
 } derive(Eq, @debug.Debug)
 pub fn AnalysisResult::definition_at(Self, String, Int, Int) -> AnalysisLocation?
+pub fn AnalysisResult::equal(Self, Self) -> Bool
 pub fn AnalysisResult::hover_at(Self, String, Int, Int) -> HoverEntry?
 pub fn AnalysisResult::inlay_hints_in_range(Self, String, Int, Int, Int, Int) -> Array[InlayHintEntry]
+pub fn AnalysisResult::not_equal(Self, Self) -> Bool
+pub fn AnalysisResult::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AnalysisSymbol {
   Value(@symbol.ValueSymbolId)
@@ -49,6 +58,9 @@ pub(all) enum AnalysisSymbol {
   TypeMember(@symbol.TypeMemberSymbolId)
   ModuleBinding(source_id~ : String, exposure_id~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn AnalysisSymbol::equal(Self, Self) -> Bool
+pub fn AnalysisSymbol::not_equal(Self, Self) -> Bool
+pub fn AnalysisSymbol::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompletionEntry {
   label : String
@@ -60,6 +72,9 @@ pub(all) struct CompletionEntry {
   replace : AnalysisLocation?
   sort_text : String?
 } derive(Eq, @debug.Debug)
+pub fn CompletionEntry::equal(Self, Self) -> Bool
+pub fn CompletionEntry::not_equal(Self, Self) -> Bool
+pub fn CompletionEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CompletionKind {
   Value
@@ -72,11 +87,17 @@ pub(all) enum CompletionKind {
   Variant
   Module
 } derive(Eq, @debug.Debug)
+pub fn CompletionKind::equal(Self, Self) -> Bool
+pub fn CompletionKind::not_equal(Self, Self) -> Bool
+pub fn CompletionKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CompletionTrigger {
   Manual
   TriggerCharacter(String)
 } derive(Eq, @debug.Debug)
+pub fn CompletionTrigger::equal(Self, Self) -> Bool
+pub fn CompletionTrigger::not_equal(Self, Self) -> Bool
+pub fn CompletionTrigger::to_repr(Self) -> @debug.Repr
 
 pub(all) struct DefinitionEntry {
   symbol : AnalysisSymbol
@@ -84,29 +105,44 @@ pub(all) struct DefinitionEntry {
   label : String
   detail : String
 } derive(Eq, @debug.Debug)
+pub fn DefinitionEntry::equal(Self, Self) -> Bool
+pub fn DefinitionEntry::not_equal(Self, Self) -> Bool
+pub fn DefinitionEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) struct HoverEntry {
   location : AnalysisLocation
   contents : String
 } derive(Eq, @debug.Debug)
+pub fn HoverEntry::equal(Self, Self) -> Bool
+pub fn HoverEntry::not_equal(Self, Self) -> Bool
+pub fn HoverEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) struct InlayHintEntry {
   position : AnalysisPosition
   kind : InlayHintKind
   label : String
 } derive(Eq, @debug.Debug)
+pub fn InlayHintEntry::equal(Self, Self) -> Bool
+pub fn InlayHintEntry::not_equal(Self, Self) -> Bool
+pub fn InlayHintEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) enum InlayHintKind {
   TypeHint
   ParameterHint
   ImplicitArgumentHint
 } derive(Eq, @debug.Debug)
+pub fn InlayHintKind::equal(Self, Self) -> Bool
+pub fn InlayHintKind::not_equal(Self, Self) -> Bool
+pub fn InlayHintKind::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ReferenceEntry {
   location : AnalysisLocation
   symbol : AnalysisSymbol
   hover : String?
 } derive(Eq, @debug.Debug)
+pub fn ReferenceEntry::equal(Self, Self) -> Bool
+pub fn ReferenceEntry::not_equal(Self, Self) -> Bool
+pub fn ReferenceEntry::to_repr(Self) -> @debug.Repr
 
 pub struct SemanticSnapshot {
   // private fields
@@ -124,11 +160,17 @@ pub(all) struct SemanticTokenEntry {
   location : AnalysisLocation
   kind : SemanticTokenKind
 } derive(Eq, @debug.Debug)
+pub fn SemanticTokenEntry::equal(Self, Self) -> Bool
+pub fn SemanticTokenEntry::not_equal(Self, Self) -> Bool
+pub fn SemanticTokenEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SemanticTokenKind {
   VariableToken
   ParameterToken
 } derive(Eq, @debug.Debug)
+pub fn SemanticTokenKind::equal(Self, Self) -> Bool
+pub fn SemanticTokenKind::not_equal(Self, Self) -> Bool
+pub fn SemanticTokenKind::to_repr(Self) -> @debug.Repr
 
 pub struct SemanticWorkspace {
   // private fields

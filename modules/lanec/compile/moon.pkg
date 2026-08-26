@@ -32,3 +32,5 @@ import {
   "Milky2018/lanec/syntax",
   "moonbit-community/prettyprinter",
 }
+
+supported_targets = "+all"

@@ -13,3 +13,5 @@ import {
   "Milky2018/lanec/wasm_target" @wasm_compiler,
   "moonbit-community/prettyprinter",
 }
+
+supported_targets = "+all"

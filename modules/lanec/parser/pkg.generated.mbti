@@ -20,11 +20,18 @@ pub fn parse_string(String) -> ParseResult
 pub(all) struct ExpectedSyntax {
   label : String
 } derive(Eq, @debug.Debug)
+pub fn ExpectedSyntax::equal(Self, Self) -> Bool
+pub fn ExpectedSyntax::not_equal(Self, Self) -> Bool
+pub fn ExpectedSyntax::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ParseError {
   kind : ParseErrorKind
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ParseError::equal(Self, Self) -> Bool
+pub fn ParseError::not_equal(Self, Self) -> Bool
+pub fn ParseError::to_compiler_diagnostic(Self, @diagnostic.DiagnosticContext) -> @diagnostic.CompilerDiagnostic
+pub fn ParseError::to_repr(Self) -> @debug.Repr
 pub impl @diagnostic.ToCompilerDiagnostic for ParseError
 
 pub(all) enum ParseErrorKind {
@@ -39,30 +46,45 @@ pub fn ParseErrorKind::diagnostic_helps(Self) -> Array[String]
 pub fn ParseErrorKind::diagnostic_label(Self) -> String
 pub fn ParseErrorKind::diagnostic_notes(Self) -> Array[String]
 pub fn ParseErrorKind::diagnostic_title(Self) -> String
+pub fn ParseErrorKind::equal(Self, Self) -> Bool
+pub fn ParseErrorKind::not_equal(Self, Self) -> Bool
+pub fn ParseErrorKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ParseFailure {
   Lexical(@lexer.ConcreteSyntax, Array[@lexer.LexError])
   Grammar(@lexer.ConcreteSyntax, Array[ParseError], @syntax.SyntacticIdentifierIndex)
 } derive(Eq, @debug.Debug)
+pub fn ParseFailure::equal(Self, Self) -> Bool
+pub fn ParseFailure::not_equal(Self, Self) -> Bool
+pub fn ParseFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ParseResult {
   Parsed(ParsedSource)
   Failed(ParseFailure)
 } derive(Eq, @debug.Debug)
+pub fn ParseResult::equal(Self, Self) -> Bool
 pub fn ParseResult::lexical_errors(Self) -> Array[@lexer.LexError]
+pub fn ParseResult::not_equal(Self, Self) -> Bool
 pub fn ParseResult::parse_errors(Self) -> Array[ParseError]
 pub fn ParseResult::syntactic_identifier_index(Self) -> @syntax.SyntacticIdentifierIndex
 pub fn ParseResult::syntax(Self) -> @syntax.SourceFile?
+pub fn ParseResult::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ParsedSource {
   syntax : @syntax.SourceFile
   concrete : @lexer.ConcreteSyntax
   layout_separator_gaps : Array[Bool]
 } derive(Eq, @debug.Debug)
+pub fn ParsedSource::equal(Self, Self) -> Bool
+pub fn ParsedSource::not_equal(Self, Self) -> Bool
+pub fn ParsedSource::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TokenSummary {
   label : String
 } derive(Eq, @debug.Debug)
+pub fn TokenSummary::equal(Self, Self) -> Bool
+pub fn TokenSummary::not_equal(Self, Self) -> Bool
+pub fn TokenSummary::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

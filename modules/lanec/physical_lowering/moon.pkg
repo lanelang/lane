@@ -15,3 +15,13 @@ import {
   "Milky2018/lane_runtime/wasm" @lane_wasm_runtime,
   "Milky2018/wasm_core/encoder" @wasm_encoder,
 } for "wbtest"
+
+supported_targets = "+all"
+
+options(
+  targets: {
+    "f32_wbtest.mbt": [ "native" ],
+    "lower_wbtest.mbt": [ "native" ],
+    "wasm_execution_wbtest.mbt": [ "native" ],
+  },
+)

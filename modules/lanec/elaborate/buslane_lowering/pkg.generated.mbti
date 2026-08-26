@@ -32,17 +32,26 @@ pub(all) suberror BuslaneLoweringError {
   MissingTypeDependency(String, String)
   MissingEffectDependency(String, String)
 } derive(Eq, @debug.Debug)
+pub fn BuslaneLoweringError::equal(Self, Self) -> Bool
+pub fn BuslaneLoweringError::not_equal(Self, Self) -> Bool
+pub fn BuslaneLoweringError::to_repr(Self) -> @debug.Repr
 
 pub suberror BuslaneSourceTypeError {
   MissingValueMetadata(value~ : @buslane.ValueId)
 } derive(Eq, @debug.Debug)
+pub fn BuslaneSourceTypeError::equal(Self, Self) -> Bool
+pub fn BuslaneSourceTypeError::not_equal(Self, Self) -> Bool
+pub fn BuslaneSourceTypeError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct BuslaneBuiltinExternal {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn BuslaneBuiltinExternal::equal(Self, Self) -> Bool
 pub fn BuslaneBuiltinExternal::from_intrinsic(@buslane.ValueId, @abi.Intrinsic) -> Self
 pub fn BuslaneBuiltinExternal::intrinsic(Self) -> @abi.Intrinsic
+pub fn BuslaneBuiltinExternal::not_equal(Self, Self) -> Bool
+pub fn BuslaneBuiltinExternal::to_repr(Self) -> @debug.Repr
 pub fn BuslaneBuiltinExternal::value(Self) -> @buslane.ValueId
 
 pub(all) struct BuslaneEntry {
@@ -50,28 +59,43 @@ pub(all) struct BuslaneEntry {
   name : String
   value : @buslane.ValueId
 } derive(Eq, @debug.Debug)
+pub fn BuslaneEntry::equal(Self, Self) -> Bool
+pub fn BuslaneEntry::not_equal(Self, Self) -> Bool
+pub fn BuslaneEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) struct BuslaneExternalMap {
   builtins : Array[BuslaneBuiltinExternal]
   runtime_imports : Array[BuslaneRuntimeImport]
 } derive(Eq, @debug.Debug)
+pub fn BuslaneExternalMap::equal(Self, Self) -> Bool
+pub fn BuslaneExternalMap::not_equal(Self, Self) -> Bool
+pub fn BuslaneExternalMap::to_repr(Self) -> @debug.Repr
 
 pub(all) struct BuslaneLowerResult {
   program : @buslane.Program
   externals : BuslaneExternalMap
   entries : Array[BuslaneEntry]
 } derive(Eq, @debug.Debug)
+pub fn BuslaneLowerResult::equal(Self, Self) -> Bool
+pub fn BuslaneLowerResult::not_equal(Self, Self) -> Bool
+pub fn BuslaneLowerResult::to_repr(Self) -> @debug.Repr
 
 pub(all) struct BuslaneModuleExport {
   name : String
   reference : BuslaneModuleReference
 } derive(Eq, @debug.Debug)
+pub fn BuslaneModuleExport::equal(Self, Self) -> Bool
+pub fn BuslaneModuleExport::not_equal(Self, Self) -> Bool
+pub fn BuslaneModuleExport::to_repr(Self) -> @debug.Repr
 
 pub(all) struct BuslaneModuleImport {
   module_path_text : String
   name : String
   reference : BuslaneModuleReference
 } derive(Eq, @debug.Debug)
+pub fn BuslaneModuleImport::equal(Self, Self) -> Bool
+pub fn BuslaneModuleImport::not_equal(Self, Self) -> Bool
+pub fn BuslaneModuleImport::to_repr(Self) -> @debug.Repr
 
 pub(all) struct BuslaneModuleObject {
   module_path_text : String
@@ -82,10 +106,16 @@ pub(all) struct BuslaneModuleObject {
   exports : Array[BuslaneModuleExport]
   imports : Array[BuslaneModuleImport]
 } derive(Eq, @debug.Debug)
+pub fn BuslaneModuleObject::equal(Self, Self) -> Bool
+pub fn BuslaneModuleObject::not_equal(Self, Self) -> Bool
+pub fn BuslaneModuleObject::to_repr(Self) -> @debug.Repr
 
 pub(all) struct BuslaneModuleObjectSet {
   objects : Array[BuslaneModuleObject]
 } derive(Eq, @debug.Debug)
+pub fn BuslaneModuleObjectSet::equal(Self, Self) -> Bool
+pub fn BuslaneModuleObjectSet::not_equal(Self, Self) -> Bool
+pub fn BuslaneModuleObjectSet::to_repr(Self) -> @debug.Repr
 
 pub(all) enum BuslaneModuleReference {
   Type(@buslane.TypeId)
@@ -95,12 +125,18 @@ pub(all) enum BuslaneModuleReference {
   FieldSelector(@buslane.ValueId)
   Value(@buslane.ValueId)
 } derive(Eq, @debug.Debug)
+pub fn BuslaneModuleReference::equal(Self, Self) -> Bool
+pub fn BuslaneModuleReference::not_equal(Self, Self) -> Bool
+pub fn BuslaneModuleReference::to_repr(Self) -> @debug.Repr
 
 pub(all) struct BuslaneRuntimeImport {
   value : @buslane.ValueId
   symbol : String
   signature : @abi.HostSignature
 } derive(Eq, @debug.Debug)
+pub fn BuslaneRuntimeImport::equal(Self, Self) -> Bool
+pub fn BuslaneRuntimeImport::not_equal(Self, Self) -> Bool
+pub fn BuslaneRuntimeImport::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

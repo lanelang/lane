@@ -22,3 +22,5 @@ import {
   "moonbit-community/prettyprinter",
   "moonbitlang/x/crypto",
 }
+
+supported_targets = "+all"

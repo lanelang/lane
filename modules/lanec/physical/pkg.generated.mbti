@@ -24,6 +24,9 @@ pub fn verify_physical_program_for_execution(PhysicalProgram) -> Result[Verified
 pub(all) suberror PhysicalProgramVerificationError {
   InvalidPhysicalProgram(site~ : PhysicalVerificationSite, detail~ : String)
 } derive(Eq, @debug.Debug)
+pub fn PhysicalProgramVerificationError::equal(Self, Self) -> Bool
+pub fn PhysicalProgramVerificationError::not_equal(Self, Self) -> Bool
+pub fn PhysicalProgramVerificationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) struct Block {
@@ -31,10 +34,21 @@ pub(all) struct Block {
   instructions : Array[Instruction]
   terminator : Terminator
 } derive(Eq, @debug.Debug)
+pub fn Block::equal(Self, Self) -> Bool
+pub fn Block::not_equal(Self, Self) -> Bool
+pub fn Block::to_repr(Self) -> @debug.Repr
 
 pub(all) struct BlockId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn BlockId::compare(Self, Self) -> Int
+pub fn BlockId::equal(Self, Self) -> Bool
+pub fn BlockId::not_equal(Self, Self) -> Bool
+pub fn BlockId::op_ge(Self, Self) -> Bool
+pub fn BlockId::op_gt(Self, Self) -> Bool
+pub fn BlockId::op_le(Self, Self) -> Bool
+pub fn BlockId::op_lt(Self, Self) -> Bool
+pub fn BlockId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CallableAbi {
   witnesses : Array[ValueAbi]
@@ -42,11 +56,22 @@ pub(all) struct CallableAbi {
   result : ResultAbi
 } derive(Eq, @debug.Debug)
 pub fn CallableAbi::accepts_callsite(Self, Self) -> Bool
+pub fn CallableAbi::equal(Self, Self) -> Bool
 pub fn CallableAbi::from_slot_metadata(Array[SlotMetadata], Array[SlotMetadata], ResultAbi) -> Self
+pub fn CallableAbi::not_equal(Self, Self) -> Bool
+pub fn CallableAbi::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CallableAbiId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn CallableAbiId::compare(Self, Self) -> Int
+pub fn CallableAbiId::equal(Self, Self) -> Bool
+pub fn CallableAbiId::not_equal(Self, Self) -> Bool
+pub fn CallableAbiId::op_ge(Self, Self) -> Bool
+pub fn CallableAbiId::op_gt(Self, Self) -> Bool
+pub fn CallableAbiId::op_le(Self, Self) -> Bool
+pub fn CallableAbiId::op_lt(Self, Self) -> Bool
+pub fn CallableAbiId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Cleanup {
   Trivial
@@ -54,14 +79,33 @@ pub(all) enum Cleanup {
   OwnedCallable
   OwnedErased
 } derive(Eq, @debug.Debug)
+pub fn Cleanup::equal(Self, Self) -> Bool
+pub fn Cleanup::not_equal(Self, Self) -> Bool
+pub fn Cleanup::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ConstantId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn ConstantId::compare(Self, Self) -> Int
+pub fn ConstantId::equal(Self, Self) -> Bool
+pub fn ConstantId::not_equal(Self, Self) -> Bool
+pub fn ConstantId::op_ge(Self, Self) -> Bool
+pub fn ConstantId::op_gt(Self, Self) -> Bool
+pub fn ConstantId::op_le(Self, Self) -> Bool
+pub fn ConstantId::op_lt(Self, Self) -> Bool
+pub fn ConstantId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct DataFamilyId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn DataFamilyId::compare(Self, Self) -> Int
+pub fn DataFamilyId::equal(Self, Self) -> Bool
+pub fn DataFamilyId::not_equal(Self, Self) -> Bool
+pub fn DataFamilyId::op_ge(Self, Self) -> Bool
+pub fn DataFamilyId::op_gt(Self, Self) -> Bool
+pub fn DataFamilyId::op_le(Self, Self) -> Bool
+pub fn DataFamilyId::op_lt(Self, Self) -> Bool
+pub fn DataFamilyId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct DataShape {
   family : DataFamilyId
@@ -69,16 +113,25 @@ pub(all) struct DataShape {
   stored_witness_count : Int
   members : Array[MemberSchema]
 } derive(Eq, @debug.Debug)
+pub fn DataShape::equal(Self, Self) -> Bool
+pub fn DataShape::not_equal(Self, Self) -> Bool
+pub fn DataShape::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Edge {
   target : BlockId
   arguments : Array[SlotId]
 } derive(Eq, @debug.Debug)
+pub fn Edge::equal(Self, Self) -> Bool
+pub fn Edge::not_equal(Self, Self) -> Bool
+pub fn Edge::to_repr(Self) -> @debug.Repr
 
 pub(all) struct EnvironmentShape {
   stored_witness_count : Int
   members : Array[MemberSchema]
 } derive(Eq, @debug.Debug)
+pub fn EnvironmentShape::equal(Self, Self) -> Bool
+pub fn EnvironmentShape::not_equal(Self, Self) -> Bool
+pub fn EnvironmentShape::to_repr(Self) -> @debug.Repr
 
 pub(all) struct FunctionBody {
   slots : Array[SlotMetadata]
@@ -87,32 +140,60 @@ pub(all) struct FunctionBody {
   blocks : Array[Block]
 } derive(Eq, @debug.Debug)
 pub fn FunctionBody::callable_abi(Self) -> CallableAbi?
+pub fn FunctionBody::equal(Self, Self) -> Bool
+pub fn FunctionBody::not_equal(Self, Self) -> Bool
+pub fn FunctionBody::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FunctionEntry {
   PhysicalBody(FunctionBody)
   RuntimeImport(@lane_runtime.RuntimeImport)
 } derive(Eq, @debug.Debug)
 pub fn FunctionEntry::callable_abi(Self) -> CallableAbi?
+pub fn FunctionEntry::equal(Self, Self) -> Bool
+pub fn FunctionEntry::not_equal(Self, Self) -> Bool
+pub fn FunctionEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) struct FunctionId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn FunctionId::compare(Self, Self) -> Int
+pub fn FunctionId::equal(Self, Self) -> Bool
+pub fn FunctionId::not_equal(Self, Self) -> Bool
+pub fn FunctionId::op_ge(Self, Self) -> Bool
+pub fn FunctionId::op_gt(Self, Self) -> Bool
+pub fn FunctionId::op_le(Self, Self) -> Bool
+pub fn FunctionId::op_lt(Self, Self) -> Bool
+pub fn FunctionId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct FunctionInputs {
   environment : SlotId?
   witnesses : Array[SlotId]
   user_parameters : Array[SlotId]
 } derive(Eq, @debug.Debug)
+pub fn FunctionInputs::equal(Self, Self) -> Bool
+pub fn FunctionInputs::not_equal(Self, Self) -> Bool
+pub fn FunctionInputs::to_repr(Self) -> @debug.Repr
 
 pub(all) struct GlobalId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn GlobalId::compare(Self, Self) -> Int
+pub fn GlobalId::equal(Self, Self) -> Bool
+pub fn GlobalId::not_equal(Self, Self) -> Bool
+pub fn GlobalId::op_ge(Self, Self) -> Bool
+pub fn GlobalId::op_gt(Self, Self) -> Bool
+pub fn GlobalId::op_le(Self, Self) -> Bool
+pub fn GlobalId::op_lt(Self, Self) -> Bool
+pub fn GlobalId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct GlobalLifecyclePlan {
   roots : Array[GlobalLifecycleRoot]
   root_ordinals : Array[Int]
   owned_roots : Array[GlobalLifecycleRoot]
 } derive(Eq, @debug.Debug)
+pub fn GlobalLifecyclePlan::equal(Self, Self) -> Bool
+pub fn GlobalLifecyclePlan::not_equal(Self, Self) -> Bool
+pub fn GlobalLifecyclePlan::to_repr(Self) -> @debug.Repr
 
 pub(all) struct GlobalLifecycleRoot {
   global : GlobalId
@@ -120,6 +201,9 @@ pub(all) struct GlobalLifecycleRoot {
   cleanup : Cleanup
   owned_ordinal : Int?
 } derive(Eq, @debug.Debug)
+pub fn GlobalLifecycleRoot::equal(Self, Self) -> Bool
+pub fn GlobalLifecycleRoot::not_equal(Self, Self) -> Bool
+pub fn GlobalLifecycleRoot::to_repr(Self) -> @debug.Repr
 
 pub(all) struct GlobalMetadata {
   representation : Representation
@@ -127,6 +211,9 @@ pub(all) struct GlobalMetadata {
   kind : SemanticValueKind
   erased_companion : GlobalId?
 } derive(Eq, @debug.Debug)
+pub fn GlobalMetadata::equal(Self, Self) -> Bool
+pub fn GlobalMetadata::not_equal(Self, Self) -> Bool
+pub fn GlobalMetadata::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Instruction {
   Copy(SlotId, SlotId)
@@ -237,15 +324,29 @@ pub(all) enum Instruction {
   InitGlobal(GlobalId, SlotId)
   BorrowGlobal(SlotId, GlobalId)
 } derive(Eq, @debug.Debug)
+pub fn Instruction::equal(Self, Self) -> Bool
+pub fn Instruction::not_equal(Self, Self) -> Bool
+pub fn Instruction::to_repr(Self) -> @debug.Repr
 
 pub(all) struct LayoutId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn LayoutId::compare(Self, Self) -> Int
+pub fn LayoutId::equal(Self, Self) -> Bool
+pub fn LayoutId::not_equal(Self, Self) -> Bool
+pub fn LayoutId::op_ge(Self, Self) -> Bool
+pub fn LayoutId::op_gt(Self, Self) -> Bool
+pub fn LayoutId::op_le(Self, Self) -> Bool
+pub fn LayoutId::op_lt(Self, Self) -> Bool
+pub fn LayoutId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LayoutOperand {
   Immediate(LayoutId)
   Witness(SlotId)
 } derive(Eq, @debug.Debug)
+pub fn LayoutOperand::equal(Self, Self) -> Bool
+pub fn LayoutOperand::not_equal(Self, Self) -> Bool
+pub fn LayoutOperand::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LayoutRecipe {
   Unit
@@ -262,6 +363,9 @@ pub(all) enum LayoutRecipe {
   Environment(ObjectShapeId)
   Reference
 } derive(Eq, @debug.Debug)
+pub fn LayoutRecipe::equal(Self, Self) -> Bool
+pub fn LayoutRecipe::not_equal(Self, Self) -> Bool
+pub fn LayoutRecipe::to_repr(Self) -> @debug.Repr
 
 pub(all) struct MemberSchema {
   representation : Representation
@@ -269,15 +373,29 @@ pub(all) struct MemberSchema {
   kind : SemanticValueKind
   witness_ordinal : Int?
 } derive(Eq, @debug.Debug)
+pub fn MemberSchema::equal(Self, Self) -> Bool
+pub fn MemberSchema::not_equal(Self, Self) -> Bool
+pub fn MemberSchema::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ObjectShape {
   Data(DataShape)
   Environment(EnvironmentShape)
 } derive(Eq, @debug.Debug)
+pub fn ObjectShape::equal(Self, Self) -> Bool
+pub fn ObjectShape::not_equal(Self, Self) -> Bool
+pub fn ObjectShape::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ObjectShapeId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn ObjectShapeId::compare(Self, Self) -> Int
+pub fn ObjectShapeId::equal(Self, Self) -> Bool
+pub fn ObjectShapeId::not_equal(Self, Self) -> Bool
+pub fn ObjectShapeId::op_ge(Self, Self) -> Bool
+pub fn ObjectShapeId::op_gt(Self, Self) -> Bool
+pub fn ObjectShapeId::op_le(Self, Self) -> Bool
+pub fn ObjectShapeId::op_lt(Self, Self) -> Bool
+pub fn ObjectShapeId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct PhysicalProgram {
   entry : FunctionId
@@ -291,8 +409,12 @@ pub(all) struct PhysicalProgram {
   constants : Array[Bytes]
 } derive(Eq, @debug.Debug)
 pub fn PhysicalProgram::callable_abi(Self, CallableAbiId) -> CallableAbi?
+pub fn PhysicalProgram::equal(Self, Self) -> Bool
 pub fn PhysicalProgram::function_callable_abi(Self, FunctionId) -> CallableAbi?
 pub fn PhysicalProgram::function_callable_abi_id(Self, FunctionId) -> CallableAbiId?
+pub fn PhysicalProgram::not_equal(Self, Self) -> Bool
+pub fn PhysicalProgram::pretty(Self) -> @prettyprinter.Document
+pub fn PhysicalProgram::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for PhysicalProgram
 
 pub(all) enum PhysicalVerificationSite {
@@ -302,16 +424,25 @@ pub(all) enum PhysicalVerificationSite {
   Instruction(FunctionId, BlockId, Int)
   Terminator(FunctionId, BlockId)
 } derive(Eq, @debug.Debug)
+pub fn PhysicalVerificationSite::equal(Self, Self) -> Bool
+pub fn PhysicalVerificationSite::not_equal(Self, Self) -> Bool
+pub fn PhysicalVerificationSite::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ProjectionResult {
   value_destination : SlotId
   witness_destination : SlotId?
 } derive(Eq, @debug.Debug)
+pub fn ProjectionResult::equal(Self, Self) -> Bool
+pub fn ProjectionResult::not_equal(Self, Self) -> Bool
+pub fn ProjectionResult::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ProjectionSelection {
   member_index : Int
   result : ProjectionResult
 } derive(Eq, @debug.Debug)
+pub fn ProjectionSelection::equal(Self, Self) -> Bool
+pub fn ProjectionSelection::not_equal(Self, Self) -> Bool
+pub fn ProjectionSelection::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Representation {
   I32
@@ -319,11 +450,17 @@ pub(all) enum Representation {
   F64
   F32
 } derive(Eq, @debug.Debug)
+pub fn Representation::equal(Self, Self) -> Bool
+pub fn Representation::not_equal(Self, Self) -> Bool
+pub fn Representation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ResultAbi {
   Unit
   Value(Representation, Cleanup, SemanticValueKind)
 } derive(Eq, @debug.Debug)
+pub fn ResultAbi::equal(Self, Self) -> Bool
+pub fn ResultAbi::not_equal(Self, Self) -> Bool
+pub fn ResultAbi::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SemanticValueKind {
   ScalarValue
@@ -336,10 +473,21 @@ pub(all) enum SemanticValueKind {
   OpaqueReferenceValue
   ErasedValue
 } derive(Eq, @debug.Debug)
+pub fn SemanticValueKind::equal(Self, Self) -> Bool
+pub fn SemanticValueKind::not_equal(Self, Self) -> Bool
+pub fn SemanticValueKind::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SlotId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn SlotId::compare(Self, Self) -> Int
+pub fn SlotId::equal(Self, Self) -> Bool
+pub fn SlotId::not_equal(Self, Self) -> Bool
+pub fn SlotId::op_ge(Self, Self) -> Bool
+pub fn SlotId::op_gt(Self, Self) -> Bool
+pub fn SlotId::op_le(Self, Self) -> Bool
+pub fn SlotId::op_lt(Self, Self) -> Bool
+pub fn SlotId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SlotMetadata {
   representation : Representation
@@ -347,7 +495,10 @@ pub(all) struct SlotMetadata {
   kind : SemanticValueKind
   erased_companion : SlotId?
 } derive(Eq, @debug.Debug)
+pub fn SlotMetadata::equal(Self, Self) -> Bool
+pub fn SlotMetadata::not_equal(Self, Self) -> Bool
 pub fn SlotMetadata::result_abi(Self) -> ResultAbi
+pub fn SlotMetadata::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Terminator {
   Jump(Edge)
@@ -359,12 +510,18 @@ pub(all) enum Terminator {
   Fatal(SlotId)
   Unreachable
 } derive(Eq, @debug.Debug)
+pub fn Terminator::equal(Self, Self) -> Bool
+pub fn Terminator::not_equal(Self, Self) -> Bool
+pub fn Terminator::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ValueAbi {
   representation : Representation
   cleanup : Cleanup
   kind : SemanticValueKind
 } derive(Eq, @debug.Debug)
+pub fn ValueAbi::equal(Self, Self) -> Bool
+pub fn ValueAbi::not_equal(Self, Self) -> Bool
+pub fn ValueAbi::to_repr(Self) -> @debug.Repr
 
 pub(all) struct VerifiedPhysicalProgram {
   image : PhysicalProgram

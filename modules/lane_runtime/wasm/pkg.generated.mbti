@@ -17,6 +17,9 @@ pub(all) suberror WasmLoadError {
   RuntimeImportResolution(error~ : @lane_runtime.RuntimeImportResolutionError)
   BackendCompileFailure(detail~ : String)
 } derive(Eq, @debug.Debug)
+pub fn WasmLoadError::equal(Self, Self) -> Bool
+pub fn WasmLoadError::not_equal(Self, Self) -> Bool
+pub fn WasmLoadError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ExecutionInstance {
@@ -31,6 +34,9 @@ pub(all) enum ExecutionMode {
   Jit
   Interpreter
 } derive(Eq, @debug.Debug)
+pub fn ExecutionMode::equal(Self, Self) -> Bool
+pub fn ExecutionMode::not_equal(Self, Self) -> Bool
+pub fn ExecutionMode::to_repr(Self) -> @debug.Repr
 
 type InstanceExecutionBackend
 

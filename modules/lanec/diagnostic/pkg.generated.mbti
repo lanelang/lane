@@ -40,9 +40,12 @@ pub(all) struct CompilerDiagnostic {
   facts : Array[CompilerDiagnosticFact]
   suggestions : Array[CompilerDiagnosticSuggestion]
 } derive(Eq, @debug.Debug)
+pub fn CompilerDiagnostic::equal(Self, Self) -> Bool
+pub fn CompilerDiagnostic::not_equal(Self, Self) -> Bool
 pub fn CompilerDiagnostic::primary_source_id(Self) -> String?
 pub fn CompilerDiagnostic::source_ids(Self) -> Array[String]
 pub fn CompilerDiagnostic::to_diagnostic(Self, CompilerDiagnosticSources) -> @core.Diagnostic
+pub fn CompilerDiagnostic::to_repr(Self) -> @debug.Repr
 pub fn CompilerDiagnostic::with_source_id(Self, String) -> Self
 
 pub(all) enum CompilerDiagnosticApplicability {
@@ -51,28 +54,43 @@ pub(all) enum CompilerDiagnosticApplicability {
   HasPlaceholders
   Unspecified
 } derive(Eq, @debug.Debug)
+pub fn CompilerDiagnosticApplicability::equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticApplicability::not_equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticApplicability::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompilerDiagnosticFact {
   name : String
   value : String
   span : CompilerSourceSpan?
 } derive(Eq, @debug.Debug)
+pub fn CompilerDiagnosticFact::equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticFact::not_equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticFact::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompilerDiagnosticLabel {
   span : CompilerSourceSpan
   message : String
   style : CompilerDiagnosticLabelStyle
 } derive(Eq, @debug.Debug)
+pub fn CompilerDiagnosticLabel::equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticLabel::not_equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticLabel::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CompilerDiagnosticLabelStyle {
   Primary
   Secondary
 } derive(Eq, @debug.Debug)
+pub fn CompilerDiagnosticLabelStyle::equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticLabelStyle::not_equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticLabelStyle::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CompilerDiagnosticSeverity {
   Error
   Warning
 } derive(Eq, @debug.Debug)
+pub fn CompilerDiagnosticSeverity::equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticSeverity::not_equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticSeverity::to_repr(Self) -> @debug.Repr
 
 pub struct CompilerDiagnosticSources {
   database : @source.SourceDatabase
@@ -83,28 +101,41 @@ pub fn CompilerDiagnosticSources::CompilerDiagnosticSources() -> Self
 pub fn CompilerDiagnosticSources::add(Self, String, String, String?) -> Unit
 pub fn CompilerDiagnosticSources::find(Self, String) -> @core.SourceId?
 pub fn CompilerDiagnosticSources::source_database(Self) -> @source.SourceDatabase
+pub fn CompilerDiagnosticSources::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompilerDiagnosticSuggestion {
   message : String
   edits : Array[CompilerDiagnosticTextEdit]
   applicability : CompilerDiagnosticApplicability
 } derive(Eq, @debug.Debug)
+pub fn CompilerDiagnosticSuggestion::equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticSuggestion::not_equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticSuggestion::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompilerDiagnosticTextEdit {
   span : CompilerSourceSpan
   replacement : String
 } derive(Eq, @debug.Debug)
+pub fn CompilerDiagnosticTextEdit::equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticTextEdit::not_equal(Self, Self) -> Bool
+pub fn CompilerDiagnosticTextEdit::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CompilerSourceSpan {
   Local(@basic.SourceSpan)
   Source(source_id~ : String, span~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn CompilerSourceSpan::equal(Self, Self) -> Bool
+pub fn CompilerSourceSpan::not_equal(Self, Self) -> Bool
 pub fn CompilerSourceSpan::source_id(Self) -> String?
+pub fn CompilerSourceSpan::to_repr(Self) -> @debug.Repr
 
 pub(all) struct DiagnosticContext {
   source_id : String?
 } derive(Eq, @debug.Debug)
 pub fn DiagnosticContext::DiagnosticContext(source_id? : String) -> Self
+pub fn DiagnosticContext::equal(Self, Self) -> Bool
+pub fn DiagnosticContext::not_equal(Self, Self) -> Bool
+pub fn DiagnosticContext::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

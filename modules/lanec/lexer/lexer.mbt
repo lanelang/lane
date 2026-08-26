@@ -446,7 +446,7 @@ fn lex_quoted_literal(
   delimiter~ : Char,
   kind~ : QuotedLiteralKind,
 ) -> (StringView, QuotedLiteralValue) {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   let mut scalar_count = 0
   let mut first_scalar : Int? = None
   let mut valid = true
@@ -485,7 +485,7 @@ fn lex_quoted_literal(
       valid = false
       return input
     }
-    let digits = StringBuilder::new()
+    let digits = StringBuilder()
     let mut digit_count = 0
     let mut value = 0
     let mut hexadecimal = true

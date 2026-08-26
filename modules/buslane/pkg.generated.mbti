@@ -17,11 +17,17 @@ pub fn verify_program(Program) -> VerifyResult
 pub suberror MetadataAllocationError {
   MetadataNameExhausted
 } derive(Eq, @debug.Debug)
+pub fn MetadataAllocationError::equal(Self, Self) -> Bool
+pub fn MetadataAllocationError::not_equal(Self, Self) -> Bool
+pub fn MetadataAllocationError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror TypeNormalizationError {
   BetaReductionLimitExceeded(limit~ : Int)
   InvalidBetaSubstitution(TypeSubstitutionError)
 } derive(Eq, @debug.Debug)
+pub fn TypeNormalizationError::equal(Self, Self) -> Bool
+pub fn TypeNormalizationError::not_equal(Self, Self) -> Bool
+pub fn TypeNormalizationError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror TypeSubstitutionError {
   ArgumentCountMismatch(expected~ : Int, actual~ : Int)
@@ -30,6 +36,9 @@ pub(all) suberror TypeSubstitutionError {
   ExpectedEffectArgument(parameter~ : TypeParameterId)
   CapturedTypeParameter(parameter~ : TypeParameterId, binder~ : TypeParameterId)
 } derive(Eq, @debug.Debug)
+pub fn TypeSubstitutionError::equal(Self, Self) -> Bool
+pub fn TypeSubstitutionError::not_equal(Self, Self) -> Bool
+pub fn TypeSubstitutionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum AltCon {
@@ -37,6 +46,10 @@ pub(all) enum AltCon {
   Literal(Literal)
   DataCon(DataConId)
 } derive(Eq, @debug.Debug)
+pub fn AltCon::equal(Self, Self) -> Bool
+pub fn AltCon::not_equal(Self, Self) -> Bool
+pub fn AltCon::pretty(Self) -> @prettyprinter.Document
+pub fn AltCon::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AltCon
 
 pub(all) struct Alternative {
@@ -45,24 +58,45 @@ pub(all) struct Alternative {
   value_binders : Array[ValueId]
   body : Expr
 } derive(Eq, @debug.Debug)
+pub fn Alternative::equal(Self, Self) -> Bool
+pub fn Alternative::not_equal(Self, Self) -> Bool
+pub fn Alternative::pretty(Self) -> @prettyprinter.Document
+pub fn Alternative::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for Alternative
 
 pub(all) enum BuiltinEffect {
   Io
   Panic
 } derive(Eq, @debug.Debug)
+pub fn BuiltinEffect::equal(Self, Self) -> Bool
+pub fn BuiltinEffect::not_equal(Self, Self) -> Bool
+pub fn BuiltinEffect::to_repr(Self) -> @debug.Repr
 
 pub(all) struct BuslaneName {
   name_space : NameNamespace
   occurrence : String
   unique : BuslaneUnique
 } derive(Eq, @debug.Debug)
+pub fn BuslaneName::equal(Self, Self) -> Bool
+pub fn BuslaneName::not_equal(Self, Self) -> Bool
+pub fn BuslaneName::pretty(Self) -> @prettyprinter.Document
+pub fn BuslaneName::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for BuslaneName
 
 pub struct BuslaneUnique {
   value : Int
 } derive(Compare, Eq, Hash, @debug.Debug)
+pub fn BuslaneUnique::compare(Self, Self) -> Int
+pub fn BuslaneUnique::equal(Self, Self) -> Bool
 pub fn BuslaneUnique::from_int(Int) -> Self?
+pub fn BuslaneUnique::hash(Self) -> Int
+pub fn BuslaneUnique::hash_combine(Self, Hasher) -> Unit
+pub fn BuslaneUnique::not_equal(Self, Self) -> Bool
+pub fn BuslaneUnique::op_ge(Self, Self) -> Bool
+pub fn BuslaneUnique::op_gt(Self, Self) -> Bool
+pub fn BuslaneUnique::op_le(Self, Self) -> Bool
+pub fn BuslaneUnique::op_lt(Self, Self) -> Bool
+pub fn BuslaneUnique::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ConstructExpr {
   data_constructor : DataConId
@@ -70,11 +104,24 @@ pub(all) struct ConstructExpr {
   hidden_witnesses : Array[GenericArgument]
   payloads : Array[Expr]
 } derive(Eq, @debug.Debug)
+pub fn ConstructExpr::equal(Self, Self) -> Bool
+pub fn ConstructExpr::not_equal(Self, Self) -> Bool
+pub fn ConstructExpr::pretty(Self) -> @prettyprinter.Document
+pub fn ConstructExpr::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ConstructExpr
 
 pub(all) struct DataConId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn DataConId::compare(Self, Self) -> Int
+pub fn DataConId::equal(Self, Self) -> Bool
+pub fn DataConId::not_equal(Self, Self) -> Bool
+pub fn DataConId::op_ge(Self, Self) -> Bool
+pub fn DataConId::op_gt(Self, Self) -> Bool
+pub fn DataConId::op_le(Self, Self) -> Bool
+pub fn DataConId::op_lt(Self, Self) -> Bool
+pub fn DataConId::pretty(Self) -> @prettyprinter.Document
+pub fn DataConId::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DataConId
 
 pub(all) struct DataConInfo {
@@ -83,6 +130,10 @@ pub(all) struct DataConInfo {
   hidden_type_parameters : Array[TypeParameterId]
   payload_types : Array[Type]
 } derive(Eq, @debug.Debug)
+pub fn DataConInfo::equal(Self, Self) -> Bool
+pub fn DataConInfo::not_equal(Self, Self) -> Bool
+pub fn DataConInfo::pretty(Self) -> @prettyprinter.Document
+pub fn DataConInfo::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DataConInfo
 
 pub(all) enum Effect {
@@ -92,8 +143,12 @@ pub(all) enum Effect {
   Parameter(TypeParameterId)
   Union(Array[Effect])
 } derive(Eq, @debug.Debug)
+pub fn Effect::equal(Self, Self) -> Bool
 pub fn Effect::normalize(Self) -> Self raise TypeNormalizationError
+pub fn Effect::not_equal(Self, Self) -> Bool
+pub fn Effect::pretty(Self) -> @prettyprinter.Document
 pub fn Effect::substitute(Self, TypeSubstitution) -> Self
+pub fn Effect::to_repr(Self) -> @debug.Repr
 pub fn Effect::try_substitute(Self, TypeSubstitution) -> Self raise TypeSubstitutionError
 pub impl @prettyprinter.Pretty for Effect
 
@@ -101,10 +156,22 @@ pub(all) enum EffectFlavor {
   Algebraic
   External
 } derive(Eq, @debug.Debug)
+pub fn EffectFlavor::equal(Self, Self) -> Bool
+pub fn EffectFlavor::not_equal(Self, Self) -> Bool
+pub fn EffectFlavor::to_repr(Self) -> @debug.Repr
 
 pub(all) struct EffectId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn EffectId::compare(Self, Self) -> Int
+pub fn EffectId::equal(Self, Self) -> Bool
+pub fn EffectId::not_equal(Self, Self) -> Bool
+pub fn EffectId::op_ge(Self, Self) -> Bool
+pub fn EffectId::op_gt(Self, Self) -> Bool
+pub fn EffectId::op_le(Self, Self) -> Bool
+pub fn EffectId::op_lt(Self, Self) -> Bool
+pub fn EffectId::pretty(Self) -> @prettyprinter.Document
+pub fn EffectId::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for EffectId
 
 pub(all) struct EffectInfo {
@@ -113,6 +180,10 @@ pub(all) struct EffectInfo {
   parameters : Array[TypeParameterId]
   operations : Array[OperationId]
 } derive(Eq, @debug.Debug)
+pub fn EffectInfo::equal(Self, Self) -> Bool
+pub fn EffectInfo::not_equal(Self, Self) -> Bool
+pub fn EffectInfo::pretty(Self) -> @prettyprinter.Document
+pub fn EffectInfo::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for EffectInfo
 
 pub(all) enum Expr {
@@ -130,6 +201,10 @@ pub(all) enum Expr {
   Handle(HandleExpr)
   Resume(ValueId)
 } derive(Eq, @debug.Debug)
+pub fn Expr::equal(Self, Self) -> Bool
+pub fn Expr::not_equal(Self, Self) -> Bool
+pub fn Expr::pretty(Self) -> @prettyprinter.Document
+pub fn Expr::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for Expr
 
 pub(all) enum ExprChild {
@@ -153,6 +228,10 @@ pub(all) enum ExprChild {
   OperationAlternative(Int)
   OperationBody
 } derive(Eq, @debug.Debug)
+pub fn ExprChild::equal(Self, Self) -> Bool
+pub fn ExprChild::not_equal(Self, Self) -> Bool
+pub fn ExprChild::pretty(Self) -> @prettyprinter.Document
+pub fn ExprChild::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ExprChild
 
 pub(all) enum ExprLabel {
@@ -170,12 +249,19 @@ pub(all) enum ExprLabel {
   Handle
   Resume(ValueId)
 } derive(Eq, @debug.Debug)
+pub fn ExprLabel::equal(Self, Self) -> Bool
+pub fn ExprLabel::not_equal(Self, Self) -> Bool
+pub fn ExprLabel::pretty(Self) -> @prettyprinter.Document
+pub fn ExprLabel::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ExprLabel
 
 pub(all) struct ExpressionFacts {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ExpressionFacts::effect(Self) -> Effect
+pub fn ExpressionFacts::equal(Self, Self) -> Bool
+pub fn ExpressionFacts::not_equal(Self, Self) -> Bool
+pub fn ExpressionFacts::to_repr(Self) -> @debug.Repr
 pub fn ExpressionFacts::type_(Self) -> Type
 
 pub(all) struct ExpressionFactsQuery {
@@ -190,13 +276,21 @@ pub(all) struct FunctionExpr {
   result_type : Type
   body : Expr
 } derive(Eq, @debug.Debug)
+pub fn FunctionExpr::equal(Self, Self) -> Bool
+pub fn FunctionExpr::not_equal(Self, Self) -> Bool
+pub fn FunctionExpr::pretty(Self) -> @prettyprinter.Document
+pub fn FunctionExpr::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for FunctionExpr
 
 pub(all) enum GenericArgument {
   TypeArgument(Type)
   EffectArgument(Effect)
 } derive(Eq, @debug.Debug)
+pub fn GenericArgument::equal(Self, Self) -> Bool
 pub fn GenericArgument::normalize(Self) -> Self raise TypeNormalizationError
+pub fn GenericArgument::not_equal(Self, Self) -> Bool
+pub fn GenericArgument::pretty(Self) -> @prettyprinter.Document
+pub fn GenericArgument::to_repr(Self) -> @debug.Repr
 pub fn GenericArgument::try_substitute(Self, TypeSubstitution) -> Self raise TypeSubstitutionError
 pub impl @prettyprinter.Pretty for GenericArgument
 
@@ -207,12 +301,20 @@ pub(all) struct HandleExpr {
   final_body : Expr
   handlers : Array[HandlerTable]
 } derive(Eq, @debug.Debug)
+pub fn HandleExpr::equal(Self, Self) -> Bool
+pub fn HandleExpr::not_equal(Self, Self) -> Bool
+pub fn HandleExpr::pretty(Self) -> @prettyprinter.Document
+pub fn HandleExpr::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for HandleExpr
 
 pub(all) struct HandlerTable {
   handled_effect : Effect
   operations : Array[OperationAlternative]
 } derive(Eq, @debug.Debug)
+pub fn HandlerTable::equal(Self, Self) -> Bool
+pub fn HandlerTable::not_equal(Self, Self) -> Bool
+pub fn HandlerTable::pretty(Self) -> @prettyprinter.Document
+pub fn HandlerTable::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for HandlerTable
 
 pub(all) enum Kind {
@@ -220,6 +322,10 @@ pub(all) enum Kind {
   Effect
   Function(Array[Kind], Kind)
 } derive(Eq, @debug.Debug)
+pub fn Kind::equal(Self, Self) -> Bool
+pub fn Kind::not_equal(Self, Self) -> Bool
+pub fn Kind::pretty(Self) -> @prettyprinter.Document
+pub fn Kind::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for Kind
 
 pub(all) enum Literal {
@@ -232,6 +338,10 @@ pub(all) enum Literal {
   F32(Float)
   String(String)
 } derive(Eq, @debug.Debug)
+pub fn Literal::equal(Self, Self) -> Bool
+pub fn Literal::not_equal(Self, Self) -> Bool
+pub fn Literal::pretty(Self) -> @prettyprinter.Document
+pub fn Literal::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for Literal
 
 pub(all) struct MatchExpr {
@@ -240,6 +350,10 @@ pub(all) struct MatchExpr {
   result_type : Type
   alternatives : Array[Alternative]
 } derive(Eq, @debug.Debug)
+pub fn MatchExpr::equal(Self, Self) -> Bool
+pub fn MatchExpr::not_equal(Self, Self) -> Bool
+pub fn MatchExpr::pretty(Self) -> @prettyprinter.Document
+pub fn MatchExpr::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for MatchExpr
 
 pub(all) enum MetadataAnchor {
@@ -249,6 +363,10 @@ pub(all) enum MetadataAnchor {
   Operation(OperationId, BuslaneName)
   Value(ValueId, BuslaneName)
 } derive(Eq, @debug.Debug)
+pub fn MetadataAnchor::equal(Self, Self) -> Bool
+pub fn MetadataAnchor::not_equal(Self, Self) -> Bool
+pub fn MetadataAnchor::pretty(Self) -> @prettyprinter.Document
+pub fn MetadataAnchor::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for MetadataAnchor
 
 pub(all) enum MetadataIdentityError {
@@ -258,12 +376,19 @@ pub(all) enum MetadataIdentityError {
   NextUniqueNotFresh(next~ : BuslaneUnique, maximum~ : BuslaneUnique)
   AllocatorExhaustedBeforeMaximum(maximum_unique~ : BuslaneUnique?)
 } derive(Eq, @debug.Debug)
+pub fn MetadataIdentityError::equal(Self, Self) -> Bool
+pub fn MetadataIdentityError::not_equal(Self, Self) -> Bool
+pub fn MetadataIdentityError::pretty(Self) -> @prettyprinter.Document
+pub fn MetadataIdentityError::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for MetadataIdentityError
 
 pub(all) enum MetadataNameAllocator {
   Fresh(BuslaneUnique)
   Exhausted
 } derive(Eq, @debug.Debug)
+pub fn MetadataNameAllocator::equal(Self, Self) -> Bool
+pub fn MetadataNameAllocator::not_equal(Self, Self) -> Bool
+pub fn MetadataNameAllocator::to_repr(Self) -> @debug.Repr
 
 pub(all) struct MetadataRegistry {
   mut name_allocator : MetadataNameAllocator
@@ -287,9 +412,13 @@ pub fn MetadataRegistry::effect_info(Self, EffectId) -> EffectInfo?
 pub fn MetadataRegistry::effect_is_subeffect_of(Self, Effect, Effect) -> Bool raise TypeNormalizationError
 pub fn MetadataRegistry::effect_term_is_algebraic(Self, Effect) -> Bool
 pub fn MetadataRegistry::effects_definitionally_equal(Self, Effect, Effect) -> Bool raise TypeNormalizationError
+pub fn MetadataRegistry::equal(Self, Self) -> Bool
 pub fn MetadataRegistry::identity_errors(Self) -> Array[MetadataIdentityError]
+pub fn MetadataRegistry::not_equal(Self, Self) -> Bool
 pub fn MetadataRegistry::operation_info(Self, OperationId) -> OperationInfo?
+pub fn MetadataRegistry::pretty(Self) -> @prettyprinter.Document
 pub fn MetadataRegistry::snapshot(Self) -> Self
+pub fn MetadataRegistry::to_repr(Self) -> @debug.Repr
 pub fn MetadataRegistry::type_info(Self, TypeId) -> TypeInfo?
 pub fn MetadataRegistry::type_is_consumable_as(Self, Type, Type) -> Bool raise TypeNormalizationError
 pub fn MetadataRegistry::type_parameter_info(Self, TypeParameterId) -> TypeParameterInfo?
@@ -305,6 +434,9 @@ pub(all) enum NameNamespace {
   EffectName
   OperationName
 } derive(Eq, @debug.Debug)
+pub fn NameNamespace::equal(Self, Self) -> Bool
+pub fn NameNamespace::not_equal(Self, Self) -> Bool
+pub fn NameNamespace::to_repr(Self) -> @debug.Repr
 
 pub(all) struct OperationAlternative {
   operation : OperationId
@@ -313,11 +445,24 @@ pub(all) struct OperationAlternative {
   resume_binder : ValueId
   body : Expr
 } derive(Eq, @debug.Debug)
+pub fn OperationAlternative::equal(Self, Self) -> Bool
+pub fn OperationAlternative::not_equal(Self, Self) -> Bool
+pub fn OperationAlternative::pretty(Self) -> @prettyprinter.Document
+pub fn OperationAlternative::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for OperationAlternative
 
 pub(all) struct OperationId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn OperationId::compare(Self, Self) -> Int
+pub fn OperationId::equal(Self, Self) -> Bool
+pub fn OperationId::not_equal(Self, Self) -> Bool
+pub fn OperationId::op_ge(Self, Self) -> Bool
+pub fn OperationId::op_gt(Self, Self) -> Bool
+pub fn OperationId::op_le(Self, Self) -> Bool
+pub fn OperationId::op_lt(Self, Self) -> Bool
+pub fn OperationId::pretty(Self) -> @prettyprinter.Document
+pub fn OperationId::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for OperationId
 
 pub(all) struct OperationInfo {
@@ -327,6 +472,10 @@ pub(all) struct OperationInfo {
   payload_types : Array[Type]
   result_type : Type
 } derive(Eq, @debug.Debug)
+pub fn OperationInfo::equal(Self, Self) -> Bool
+pub fn OperationInfo::not_equal(Self, Self) -> Bool
+pub fn OperationInfo::pretty(Self) -> @prettyprinter.Document
+pub fn OperationInfo::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for OperationInfo
 
 pub(all) struct PerformExpr {
@@ -335,6 +484,10 @@ pub(all) struct PerformExpr {
   hidden_witnesses : Array[GenericArgument]
   payloads : Array[Expr]
 } derive(Eq, @debug.Debug)
+pub fn PerformExpr::equal(Self, Self) -> Bool
+pub fn PerformExpr::not_equal(Self, Self) -> Bool
+pub fn PerformExpr::pretty(Self) -> @prettyprinter.Document
+pub fn PerformExpr::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for PerformExpr
 
 pub(all) enum PrimitiveType {
@@ -349,13 +502,21 @@ pub(all) enum PrimitiveType {
   Byte
   Bytes
 } derive(Eq, @debug.Debug)
+pub fn PrimitiveType::equal(Self, Self) -> Bool
+pub fn PrimitiveType::not_equal(Self, Self) -> Bool
+pub fn PrimitiveType::pretty(Self) -> @prettyprinter.Document
+pub fn PrimitiveType::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for PrimitiveType
 
 pub(all) struct Program {
   metadata : MetadataRegistry
   terms : Array[TopTerm]
 } derive(Eq, @debug.Debug)
+pub fn Program::equal(Self, Self) -> Bool
+pub fn Program::not_equal(Self, Self) -> Bool
+pub fn Program::pretty(Self) -> @prettyprinter.Document
 pub fn Program::structural_scale(Self) -> ProgramScale
+pub fn Program::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for Program
 
 pub(all) struct ProgramScale {
@@ -367,11 +528,18 @@ pub(all) struct ProgramScale {
   type_applications : Int
   externals : Int
 } derive(Eq, @debug.Debug)
+pub fn ProgramScale::equal(Self, Self) -> Bool
+pub fn ProgramScale::not_equal(Self, Self) -> Bool
+pub fn ProgramScale::to_repr(Self) -> @debug.Repr
 
 pub(all) struct RecursiveBinding {
   id : ValueId
   rhs : Expr
 } derive(Eq, @debug.Debug)
+pub fn RecursiveBinding::equal(Self, Self) -> Bool
+pub fn RecursiveBinding::not_equal(Self, Self) -> Bool
+pub fn RecursiveBinding::pretty(Self) -> @prettyprinter.Document
+pub fn RecursiveBinding::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for RecursiveBinding
 
 pub(all) enum TopTerm {
@@ -379,6 +547,10 @@ pub(all) enum TopTerm {
   LetRec(Array[RecursiveBinding])
   External(ValueId)
 } derive(Eq, @debug.Debug)
+pub fn TopTerm::equal(Self, Self) -> Bool
+pub fn TopTerm::not_equal(Self, Self) -> Bool
+pub fn TopTerm::pretty(Self) -> @prettyprinter.Document
+pub fn TopTerm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for TopTerm
 
 pub(all) enum Type {
@@ -390,8 +562,12 @@ pub(all) enum Type {
   Function(Array[Type], Type, Effect)
   Forall(Array[TypeParameterId], Type)
 } derive(Eq, @debug.Debug)
+pub fn Type::equal(Self, Self) -> Bool
 pub fn Type::normalize(Self) -> Self raise TypeNormalizationError
+pub fn Type::not_equal(Self, Self) -> Bool
+pub fn Type::pretty(Self) -> @prettyprinter.Document
 pub fn Type::substitute(Self, TypeSubstitution) -> Self
+pub fn Type::to_repr(Self) -> @debug.Repr
 pub fn Type::try_substitute(Self, TypeSubstitution) -> Self raise TypeSubstitutionError
 pub impl @prettyprinter.Pretty for Type
 
@@ -399,10 +575,22 @@ pub(all) enum TypeFlavor {
   Data
   External
 } derive(Eq, @debug.Debug)
+pub fn TypeFlavor::equal(Self, Self) -> Bool
+pub fn TypeFlavor::not_equal(Self, Self) -> Bool
+pub fn TypeFlavor::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TypeId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn TypeId::compare(Self, Self) -> Int
+pub fn TypeId::equal(Self, Self) -> Bool
+pub fn TypeId::not_equal(Self, Self) -> Bool
+pub fn TypeId::op_ge(Self, Self) -> Bool
+pub fn TypeId::op_gt(Self, Self) -> Bool
+pub fn TypeId::op_le(Self, Self) -> Bool
+pub fn TypeId::op_lt(Self, Self) -> Bool
+pub fn TypeId::pretty(Self) -> @prettyprinter.Document
+pub fn TypeId::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for TypeId
 
 pub(all) struct TypeInfo {
@@ -411,11 +599,24 @@ pub(all) struct TypeInfo {
   parameters : Array[TypeParameterId]
   constructors : Array[DataConId]
 } derive(Eq, @debug.Debug)
+pub fn TypeInfo::equal(Self, Self) -> Bool
+pub fn TypeInfo::not_equal(Self, Self) -> Bool
+pub fn TypeInfo::pretty(Self) -> @prettyprinter.Document
+pub fn TypeInfo::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for TypeInfo
 
 pub(all) struct TypeParameterId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn TypeParameterId::compare(Self, Self) -> Int
+pub fn TypeParameterId::equal(Self, Self) -> Bool
+pub fn TypeParameterId::not_equal(Self, Self) -> Bool
+pub fn TypeParameterId::op_ge(Self, Self) -> Bool
+pub fn TypeParameterId::op_gt(Self, Self) -> Bool
+pub fn TypeParameterId::op_le(Self, Self) -> Bool
+pub fn TypeParameterId::op_lt(Self, Self) -> Bool
+pub fn TypeParameterId::pretty(Self) -> @prettyprinter.Document
+pub fn TypeParameterId::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for TypeParameterId
 
 pub(all) struct TypeParameterInfo {
@@ -423,6 +624,10 @@ pub(all) struct TypeParameterInfo {
   kind : Kind
   flavor : EffectFlavor
 } derive(Eq, @debug.Debug)
+pub fn TypeParameterInfo::equal(Self, Self) -> Bool
+pub fn TypeParameterInfo::not_equal(Self, Self) -> Bool
+pub fn TypeParameterInfo::pretty(Self) -> @prettyprinter.Document
+pub fn TypeParameterInfo::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for TypeParameterInfo
 
 pub struct TypeSubstitution {
@@ -430,27 +635,46 @@ pub struct TypeSubstitution {
 } derive(Eq, @debug.Debug)
 pub fn TypeSubstitution::TypeSubstitution() -> Self
 pub fn TypeSubstitution::effect_argument(Self, TypeParameterId) -> Effect? raise TypeSubstitutionError
+pub fn TypeSubstitution::equal(Self, Self) -> Bool
 pub fn TypeSubstitution::from_arguments(MetadataRegistry, Array[TypeParameterId], Array[GenericArgument]) -> Self raise TypeSubstitutionError
 pub fn TypeSubstitution::insert(Self, TypeParameterId, Type) -> Unit
 pub fn TypeSubstitution::insert_argument(Self, TypeParameterId, GenericArgument) -> Unit
 pub fn TypeSubstitution::insert_effect(Self, TypeParameterId, Effect) -> Unit
+pub fn TypeSubstitution::not_equal(Self, Self) -> Bool
 pub fn TypeSubstitution::overlay(Self, Self) -> Self
+pub fn TypeSubstitution::to_repr(Self) -> @debug.Repr
 pub fn TypeSubstitution::type_argument(Self, TypeParameterId) -> Type? raise TypeSubstitutionError
 
 pub struct TypeSubstitutionEntry {
   parameter : TypeParameterId
   replacement : GenericArgument
 } derive(Eq, @debug.Debug)
+pub fn TypeSubstitutionEntry::equal(Self, Self) -> Bool
+pub fn TypeSubstitutionEntry::not_equal(Self, Self) -> Bool
+pub fn TypeSubstitutionEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ValueAnchor {
   id : ValueId
   name : BuslaneName?
 } derive(Eq, @debug.Debug)
+pub fn ValueAnchor::equal(Self, Self) -> Bool
+pub fn ValueAnchor::not_equal(Self, Self) -> Bool
+pub fn ValueAnchor::pretty(Self) -> @prettyprinter.Document
+pub fn ValueAnchor::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ValueAnchor
 
 pub(all) struct ValueId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn ValueId::compare(Self, Self) -> Int
+pub fn ValueId::equal(Self, Self) -> Bool
+pub fn ValueId::not_equal(Self, Self) -> Bool
+pub fn ValueId::op_ge(Self, Self) -> Bool
+pub fn ValueId::op_gt(Self, Self) -> Bool
+pub fn ValueId::op_le(Self, Self) -> Bool
+pub fn ValueId::op_lt(Self, Self) -> Bool
+pub fn ValueId::pretty(Self) -> @prettyprinter.Document
+pub fn ValueId::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ValueId
 
 pub(all) struct ValueInfo {
@@ -458,6 +682,10 @@ pub(all) struct ValueInfo {
   kind : ValueKind
   type_ : Type
 } derive(Eq, @debug.Debug)
+pub fn ValueInfo::equal(Self, Self) -> Bool
+pub fn ValueInfo::not_equal(Self, Self) -> Bool
+pub fn ValueInfo::pretty(Self) -> @prettyprinter.Document
+pub fn ValueInfo::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ValueInfo
 
 pub(all) enum ValueKind {
@@ -468,12 +696,20 @@ pub(all) enum ValueKind {
   Local
   MatchBinder
 } derive(Eq, @debug.Debug)
+pub fn ValueKind::equal(Self, Self) -> Bool
+pub fn ValueKind::not_equal(Self, Self) -> Bool
+pub fn ValueKind::pretty(Self) -> @prettyprinter.Document
+pub fn ValueKind::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ValueKind
 
 pub(all) struct VerifyDiagnostic {
   kind : VerifyDiagnosticKind
   provenance : Array[VerifyFrame]
 } derive(Eq, @debug.Debug)
+pub fn VerifyDiagnostic::equal(Self, Self) -> Bool
+pub fn VerifyDiagnostic::not_equal(Self, Self) -> Bool
+pub fn VerifyDiagnostic::pretty(Self) -> @prettyprinter.Document
+pub fn VerifyDiagnostic::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for VerifyDiagnostic
 
 pub(all) enum VerifyDiagnosticKind {
@@ -507,6 +743,10 @@ pub(all) enum VerifyDiagnosticKind {
   InvalidCharLiteral(Int)
   InvalidMetadataIdentity(MetadataIdentityError)
 } derive(Eq, @debug.Debug)
+pub fn VerifyDiagnosticKind::equal(Self, Self) -> Bool
+pub fn VerifyDiagnosticKind::not_equal(Self, Self) -> Bool
+pub fn VerifyDiagnosticKind::pretty(Self) -> @prettyprinter.Document
+pub fn VerifyDiagnosticKind::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for VerifyDiagnosticKind
 
 pub(all) enum VerifyFrame {
@@ -515,13 +755,21 @@ pub(all) enum VerifyFrame {
   Child(ExprChild)
   Expression(ExprLabel)
 } derive(Eq, @debug.Debug)
+pub fn VerifyFrame::equal(Self, Self) -> Bool
+pub fn VerifyFrame::not_equal(Self, Self) -> Bool
+pub fn VerifyFrame::pretty(Self) -> @prettyprinter.Document
+pub fn VerifyFrame::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for VerifyFrame
 
 pub struct VerifyResult {
   diagnostics : Array[VerifyDiagnostic]
 } derive(Eq, @debug.Debug)
 pub fn VerifyResult::diagnostics(Self) -> Array[VerifyDiagnostic]
+pub fn VerifyResult::equal(Self, Self) -> Bool
 pub fn VerifyResult::is_ok(Self) -> Bool
+pub fn VerifyResult::not_equal(Self, Self) -> Bool
+pub fn VerifyResult::pretty(Self) -> @prettyprinter.Document
+pub fn VerifyResult::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for VerifyResult
 
 // Type aliases

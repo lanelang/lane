@@ -18,22 +18,34 @@ pub(all) struct ConcreteSyntax {
   tokens : Array[(Token, @basic.SourceSpan)]
   trivia : Array[GapIndexedTrivia]
 } derive(Eq, @debug.Debug)
+pub fn ConcreteSyntax::equal(Self, Self) -> Bool
+pub fn ConcreteSyntax::not_equal(Self, Self) -> Bool
+pub fn ConcreteSyntax::to_repr(Self) -> @debug.Repr
 
 pub(all) struct GapIndexedTrivia {
   kind : TriviaKind
   span : @basic.SourceSpan
   gap : Int
 } derive(Eq, @debug.Debug)
+pub fn GapIndexedTrivia::equal(Self, Self) -> Bool
+pub fn GapIndexedTrivia::not_equal(Self, Self) -> Bool
+pub fn GapIndexedTrivia::to_repr(Self) -> @debug.Repr
 
 pub(all) struct LexError {
   error : LexicalError
   span : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn LexError::equal(Self, Self) -> Bool
+pub fn LexError::not_equal(Self, Self) -> Bool
+pub fn LexError::to_repr(Self) -> @debug.Repr
 
 pub struct LexResult {
   concrete : ConcreteSyntax
   errors : Array[LexError]
 } derive(Eq, @debug.Debug)
+pub fn LexResult::equal(Self, Self) -> Bool
+pub fn LexResult::not_equal(Self, Self) -> Bool
+pub fn LexResult::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LexicalError {
   IllegalCharacter(String)
@@ -47,7 +59,10 @@ pub(all) enum LexicalError {
   EmptyCharLiteral
   MultipleCharLiteral
 } derive(Eq, @debug.Debug)
+pub fn LexicalError::equal(Self, Self) -> Bool
+pub fn LexicalError::not_equal(Self, Self) -> Bool
 pub fn LexicalError::presentation(Self) -> LexicalErrorPresentation
+pub fn LexicalError::to_repr(Self) -> @debug.Repr
 
 pub(all) struct LexicalErrorPresentation {
   code : String
@@ -124,12 +139,18 @@ pub(all) enum Token {
   EQUAL
   UNDERSCORE
 } derive(Eq, @debug.Debug)
+pub fn Token::equal(Self, Self) -> Bool
+pub fn Token::not_equal(Self, Self) -> Bool
+pub fn Token::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TriviaKind {
   Whitespace
   Newline
   LineComment
 } derive(Eq, @debug.Debug)
+pub fn TriviaKind::equal(Self, Self) -> Bool
+pub fn TriviaKind::not_equal(Self, Self) -> Bool
+pub fn TriviaKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum UnicodeEscapeError {
   MissingBraces
@@ -139,6 +160,9 @@ pub(all) enum UnicodeEscapeError {
   OutOfRange
   Surrogate
 } derive(Eq, @debug.Debug)
+pub fn UnicodeEscapeError::equal(Self, Self) -> Bool
+pub fn UnicodeEscapeError::not_equal(Self, Self) -> Bool
+pub fn UnicodeEscapeError::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

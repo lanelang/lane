@@ -27,7 +27,10 @@ pub(all) enum InternalRuntimeFunction {
   FatalString
   HostObjectRelease
 } derive(Eq, @debug.Debug)
+pub fn InternalRuntimeFunction::equal(Self, Self) -> Bool
 pub fn InternalRuntimeFunction::name(Self) -> String
+pub fn InternalRuntimeFunction::not_equal(Self, Self) -> Bool
+pub fn InternalRuntimeFunction::to_repr(Self) -> @debug.Repr
 pub fn InternalRuntimeFunction::type_(Self) -> @types.FuncType
 
 pub(all) enum RuntimeControlGlobal {
@@ -36,7 +39,10 @@ pub(all) enum RuntimeControlGlobal {
   FailureCode
   RuntimeImportFailed
 } derive(Eq, @debug.Debug)
+pub fn RuntimeControlGlobal::equal(Self, Self) -> Bool
 pub fn RuntimeControlGlobal::name(Self) -> String
+pub fn RuntimeControlGlobal::not_equal(Self, Self) -> Bool
+pub fn RuntimeControlGlobal::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

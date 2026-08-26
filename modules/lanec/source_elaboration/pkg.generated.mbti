@@ -28,6 +28,9 @@ pub(all) enum SourceElaborationCompilerDefectCause {
   InvalidTypecheckInput(@typecheck.TypeCheckError)
   IncompleteTypecheckOutput
 } derive(Eq, @debug.Debug)
+pub fn SourceElaborationCompilerDefectCause::equal(Self, Self) -> Bool
+pub fn SourceElaborationCompilerDefectCause::not_equal(Self, Self) -> Bool
+pub fn SourceElaborationCompilerDefectCause::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SourceElaborationOutcome {
   ResolutionFailed(SourceResolutionFailure)

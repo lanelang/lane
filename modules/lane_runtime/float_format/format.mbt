@@ -215,7 +215,7 @@ fn f32_to_decimal(
 
 ///|
 fn repeat_zeroes(count : Int) -> String {
-  let output = StringBuilder::new()
+  let output = StringBuilder()
   for _ in 0..<count {
     output.write_char('0')
   }

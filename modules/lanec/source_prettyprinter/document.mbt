@@ -117,7 +117,7 @@ pub fn Document::fits_current_line(self : Self, context : Context) -> Bool {
 
 ///|
 fn render_document(width : Int, doc : Document) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   let stack = [{ indent: 0, fit: false, doc, }]
   let mut column = 0
   // record the MandatoryLine that has not yet been decided to print

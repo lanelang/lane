@@ -15,6 +15,9 @@ pub(all) struct DeriveSourceSite {
   keyword_loc : SourceSpan
   close_paren_loc : SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn DeriveSourceSite::equal(Self, Self) -> Bool
+pub fn DeriveSourceSite::not_equal(Self, Self) -> Bool
+pub fn DeriveSourceSite::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SourceSpan {
   start_offset : Int
@@ -28,7 +31,10 @@ pub fn SourceSpan::ascii_after(Self, Int, Int) -> Self
 pub fn SourceSpan::ascii_prefix(Self, Int) -> Self
 pub fn SourceSpan::ascii_suffix(Self, Int) -> Self
 pub fn SourceSpan::dummy() -> Self
+pub fn SourceSpan::equal(Self, Self) -> Bool
 pub fn SourceSpan::join(Self, Self) -> Self
+pub fn SourceSpan::not_equal(Self, Self) -> Bool
+pub fn SourceSpan::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

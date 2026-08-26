@@ -23,37 +23,58 @@ pub(all) struct EntryReport {
   entries : Array[EntrySummary]
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
+pub fn EntryReport::equal(Self, Self) -> Bool
+pub fn EntryReport::not_equal(Self, Self) -> Bool
+pub fn EntryReport::to_repr(Self) -> @debug.Repr
 
 pub(all) struct EntrySummary {
   module_path_text : String
   name : String
   type_text : String
 } derive(Eq, @debug.Debug)
+pub fn EntrySummary::equal(Self, Self) -> Bool
+pub fn EntrySummary::not_equal(Self, Self) -> Bool
+pub fn EntrySummary::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreCompilerIdentity {
   name : String
   version : String
 } derive(Eq, @debug.Debug)
+pub fn ExploreCompilerIdentity::equal(Self, Self) -> Bool
+pub fn ExploreCompilerIdentity::not_equal(Self, Self) -> Bool
+pub fn ExploreCompilerIdentity::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreFunctionEdge {
   source : ExploreFunctionRef
   target : ExploreFunctionRef
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionEdge::equal(Self, Self) -> Bool
+pub fn ExploreFunctionEdge::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionEdge::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreFunctionGraph {
   nodes : Array[ExploreFunctionNode]
   edges : Array[ExploreFunctionEdge]
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionGraph::equal(Self, Self) -> Bool
+pub fn ExploreFunctionGraph::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionGraph::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreFunctionNode {
   function : ExploreFunctionRef
   roles : Array[ExploreFunctionRole]
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionNode::equal(Self, Self) -> Bool
+pub fn ExploreFunctionNode::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionNode::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreFunctionRef {
   stage : ExploreStageId
   index : Int
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionRef::equal(Self, Self) -> Bool
+pub fn ExploreFunctionRef::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionRef::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreFunctionRole {
   SourceFunction(value~ : Int, name~ : String?)
@@ -72,6 +93,9 @@ pub(all) enum ExploreFunctionRole {
   WasmHelperFunction(name~ : String, ordinal~ : Int?)
   EntryWrapper
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionRole::equal(Self, Self) -> Bool
+pub fn ExploreFunctionRole::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionRole::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreFunctionScale {
   index : Int
@@ -79,11 +103,17 @@ pub(all) struct ExploreFunctionScale {
   operation_count : Int
   value_count : Int
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionScale::equal(Self, Self) -> Bool
+pub fn ExploreFunctionScale::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionScale::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreMetric {
   id : ExploreMetricId
   value : Int
 } derive(Eq, @debug.Debug)
+pub fn ExploreMetric::equal(Self, Self) -> Bool
+pub fn ExploreMetric::not_equal(Self, Self) -> Bool
+pub fn ExploreMetric::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreMetricId {
   DeclarationCount
@@ -118,8 +148,11 @@ pub(all) enum ExploreMetricId {
   LocalCount
   TableEntryCount
 } derive(Eq, @debug.Debug)
+pub fn ExploreMetricId::equal(Self, Self) -> Bool
 pub fn ExploreMetricId::key(Self) -> String
+pub fn ExploreMetricId::not_equal(Self, Self) -> Bool
 pub fn ExploreMetricId::title(Self) -> String
+pub fn ExploreMetricId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreModuleScale {
   module_path_text : String
@@ -128,6 +161,9 @@ pub(all) struct ExploreModuleScale {
   input_value_bindings : Int
   retained_value_bindings : Int
 } derive(Eq, @debug.Debug)
+pub fn ExploreModuleScale::equal(Self, Self) -> Bool
+pub fn ExploreModuleScale::not_equal(Self, Self) -> Bool
+pub fn ExploreModuleScale::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreReport {
   schema_version : Int
@@ -139,6 +175,9 @@ pub(all) struct ExploreReport {
   stages : ExploreStages
   functions : ExploreFunctionGraph
 } derive(Eq, @debug.Debug)
+pub fn ExploreReport::equal(Self, Self) -> Bool
+pub fn ExploreReport::not_equal(Self, Self) -> Bool
+pub fn ExploreReport::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreRequest {
   root_source : @frontend.SourceInput
@@ -146,17 +185,26 @@ pub(all) struct ExploreRequest {
   entry : String
   execution_profile : @executable.ExecutionProfile
 } derive(Eq, @debug.Debug)
+pub fn ExploreRequest::equal(Self, Self) -> Bool
+pub fn ExploreRequest::not_equal(Self, Self) -> Bool
+pub fn ExploreRequest::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreRootIdentity {
   source_id : String
   module_path_text : String?
 } derive(Eq, @debug.Debug)
+pub fn ExploreRootIdentity::equal(Self, Self) -> Bool
+pub fn ExploreRootIdentity::not_equal(Self, Self) -> Bool
+pub fn ExploreRootIdentity::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreScaleObservation {
   metrics : Array[ExploreMetric]
   functions : Array[ExploreFunctionScale]
   modules : Array[ExploreModuleScale]
 } derive(Eq, @debug.Debug)
+pub fn ExploreScaleObservation::equal(Self, Self) -> Bool
+pub fn ExploreScaleObservation::not_equal(Self, Self) -> Bool
+pub fn ExploreScaleObservation::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreSnapshot {
   domain : ExploreStageDomain
@@ -165,18 +213,27 @@ pub(all) struct ExploreSnapshot {
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
   scale : ExploreScaleObservation
 } derive(Eq, @debug.Debug)
+pub fn ExploreSnapshot::equal(Self, Self) -> Bool
+pub fn ExploreSnapshot::not_equal(Self, Self) -> Bool
+pub fn ExploreSnapshot::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreStage {
   id : String
   title : String
   state : ExploreStageState
 } derive(Eq, @debug.Debug)
+pub fn ExploreStage::equal(Self, Self) -> Bool
+pub fn ExploreStage::not_equal(Self, Self) -> Bool
+pub fn ExploreStage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreStageDomain {
   Compiler
   Backend
 } derive(Eq, @debug.Debug)
+pub fn ExploreStageDomain::equal(Self, Self) -> Bool
 pub fn ExploreStageDomain::name(Self) -> String
+pub fn ExploreStageDomain::not_equal(Self, Self) -> Bool
+pub fn ExploreStageDomain::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreStageId {
   Syntax
@@ -198,23 +255,35 @@ pub(all) enum ExploreStageId {
   PhysicalProgram
   Wasm
 } derive(Eq, @debug.Debug)
+pub fn ExploreStageId::equal(Self, Self) -> Bool
 pub fn ExploreStageId::key(Self) -> String
+pub fn ExploreStageId::not_equal(Self, Self) -> Bool
+pub fn ExploreStageId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreStageState {
   Completed(ExploreSnapshot)
   Failed(Array[@diagnostic.CompilerDiagnostic])
   Unavailable
 } derive(Eq, @debug.Debug)
+pub fn ExploreStageState::equal(Self, Self) -> Bool
+pub fn ExploreStageState::not_equal(Self, Self) -> Bool
+pub fn ExploreStageState::to_repr(Self) -> @debug.Repr
 
 pub struct ExploreStages {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ExploreStages::equal(Self, Self) -> Bool
+pub fn ExploreStages::not_equal(Self, Self) -> Bool
 pub fn ExploreStages::ordered(Self) -> Array[ExploreStage]
+pub fn ExploreStages::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreStatus {
   Succeeded
   Failed(ExploreStageId)
 } derive(Eq, @debug.Debug)
+pub fn ExploreStatus::equal(Self, Self) -> Bool
+pub fn ExploreStatus::not_equal(Self, Self) -> Bool
+pub fn ExploreStatus::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreTextFormat {
   Lane
@@ -227,7 +296,10 @@ pub(all) enum ExploreTextFormat {
   PhysicalProgram
   Wat
 } derive(Eq, @debug.Debug)
+pub fn ExploreTextFormat::equal(Self, Self) -> Bool
 pub fn ExploreTextFormat::name(Self) -> String
+pub fn ExploreTextFormat::not_equal(Self, Self) -> Bool
+pub fn ExploreTextFormat::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

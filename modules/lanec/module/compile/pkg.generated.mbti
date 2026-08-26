@@ -41,16 +41,22 @@ pub struct CompiledModule {
   interface : @module.ModuleInterface
   object : ModuleObject
 } derive(Eq, @debug.Debug)
+pub fn CompiledModule::equal(Self, Self) -> Bool
+pub fn CompiledModule::not_equal(Self, Self) -> Bool
 pub fn CompiledModule::to_artifact(Self) -> @artifact.CompiledModuleArtifact
 pub fn CompiledModule::to_interface_artifact(Self) -> @artifact.ModuleInterfaceArtifact
 pub fn CompiledModule::to_object_artifact(Self) -> @artifact.ModuleObjectArtifact
+pub fn CompiledModule::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompiledModuleSet {
   root_module_path_text : String
   modules : Array[CompiledModule]
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
+pub fn CompiledModuleSet::equal(Self, Self) -> Bool
+pub fn CompiledModuleSet::not_equal(Self, Self) -> Bool
 pub fn CompiledModuleSet::to_artifact(Self) -> @artifact.CompiledModuleSetArtifact
+pub fn CompiledModuleSet::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModuleCompileStage {
   Resolved(@resolve.ResolvedSourceFile)
@@ -71,6 +77,9 @@ pub(all) struct ModuleObject {
   object_fingerprint : @model.CompilationFingerprint
   imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
+pub fn ModuleObject::equal(Self, Self) -> Bool
+pub fn ModuleObject::not_equal(Self, Self) -> Bool
+pub fn ModuleObject::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -60,6 +60,7 @@ pub fn validate_module_interface_artifacts(Array[ModuleInterfaceArtifact]) -> Ar
 
 // Errors
 type ArtifactBinaryDecodeError derive(@debug.Debug)
+pub fn ArtifactBinaryDecodeError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) struct CompiledModuleArtifact {
@@ -67,17 +68,27 @@ pub(all) struct CompiledModuleArtifact {
   interface : ModuleInterfaceArtifact
   object : ModuleObjectArtifact
 } derive(Eq, @debug.Debug)
+pub fn CompiledModuleArtifact::equal(Self, Self) -> Bool
+pub fn CompiledModuleArtifact::not_equal(Self, Self) -> Bool
+pub fn CompiledModuleArtifact::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompiledModuleSetArtifact {
   schema_version : Int
   root_module_path_text : String
   modules : Array[CompiledModuleArtifact]
 } derive(Eq, @debug.Debug)
+pub fn CompiledModuleSetArtifact::equal(Self, Self) -> Bool
+pub fn CompiledModuleSetArtifact::not_equal(Self, Self) -> Bool
+pub fn CompiledModuleSetArtifact::to_repr(Self) -> @debug.Repr
 
 pub(all) struct LinkedProgramArtifact {
   wasm : Bytes
   runtime_imports : Array[@lane_runtime.RuntimeImport]
 } derive(Eq, @debug.Debug)
+pub fn LinkedProgramArtifact::equal(Self, Self) -> Bool
+pub fn LinkedProgramArtifact::not_equal(Self, Self) -> Bool
+pub fn LinkedProgramArtifact::pretty(Self) -> @prettyprinter.Document
+pub fn LinkedProgramArtifact::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact
 
 pub(all) struct ModuleInterfaceArtifact {
@@ -88,8 +99,12 @@ pub(all) struct ModuleInterfaceArtifact {
   module_fingerprint : @model.CompilationFingerprint
   imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceArtifact::equal(Self, Self) -> Bool
 pub fn ModuleInterfaceArtifact::imported_fingerprint_diagnostic(Self, String, @model.CompilationFingerprint) -> @diagnostic.CompilerDiagnostic?
 pub fn ModuleInterfaceArtifact::imported_interface_fingerprint(Self, String) -> @model.CompilationFingerprint?
+pub fn ModuleInterfaceArtifact::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceArtifact::pretty(Self) -> @prettyprinter.Document
+pub fn ModuleInterfaceArtifact::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ModuleInterfaceArtifact
 
 pub(all) struct ModuleObjectArtifact {
@@ -107,12 +122,19 @@ pub(all) struct ModuleObjectArtifact {
   object_fingerprint : @model.CompilationFingerprint
   imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
+pub fn ModuleObjectArtifact::equal(Self, Self) -> Bool
+pub fn ModuleObjectArtifact::not_equal(Self, Self) -> Bool
+pub fn ModuleObjectArtifact::pretty(Self) -> @prettyprinter.Document
+pub fn ModuleObjectArtifact::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ModuleObjectArtifact
 
 pub(all) enum WasmExecutableError {
   Lowering(@physical_lowering.PhysicalLoweringError)
   WasmCompilation(@wasm_target.WasmCompileError)
 } derive(Eq, @debug.Debug)
+pub fn WasmExecutableError::equal(Self, Self) -> Bool
+pub fn WasmExecutableError::not_equal(Self, Self) -> Bool
+pub fn WasmExecutableError::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 pub using @model {type CompilationFingerprint}

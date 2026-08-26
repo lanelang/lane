@@ -66,11 +66,17 @@ pub struct Context {
   next_indent : Int
   width : Int
 }
+pub fn Context::output(Self, &Logger) -> Unit
+pub fn Context::to_string(Self) -> String
 pub impl Show for Context
 
 type Document
+pub fn Document::add(Self, Self) -> Self
 pub fn Document::fits_current_line(Self, Context) -> Bool
+pub fn Document::output(Self, &Logger) -> Unit
+pub fn Document::pretty(Self) -> Self
 pub fn Document::to_generic(Self) -> @prettyprinter.Document
+pub fn Document::to_string(Self) -> String
 pub impl Pretty for Document
 pub impl Add for Document
 pub impl Show for Document

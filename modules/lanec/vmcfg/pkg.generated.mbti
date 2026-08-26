@@ -25,11 +25,17 @@ pub(all) suberror FinalizeError {
   PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   PhysicalProgramVerificationCompilerDefect(@physical.PhysicalProgramVerificationError)
 } derive(Eq, @debug.Debug)
+pub fn FinalizeError::equal(Self, Self) -> Bool
+pub fn FinalizeError::not_equal(Self, Self) -> Bool
+pub fn FinalizeError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror FunctionTableCanonicalizationError {
   InvalidFunctionReference(@physical.FunctionId)
   MissingFunctionMapping(@physical.FunctionId)
 } derive(Eq, @debug.Debug)
+pub fn FunctionTableCanonicalizationError::equal(Self, Self) -> Bool
+pub fn FunctionTableCanonicalizationError::not_equal(Self, Self) -> Bool
+pub fn FunctionTableCanonicalizationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum ArcFinalBodyError {
@@ -50,17 +56,26 @@ pub(all) enum ArcFinalBodyError {
   InconsistentOwnershipAtJoin(ValueId, @physical.BlockId)
   InvalidRelease(ValueId, @physical.BlockId)
 } derive(Eq, @debug.Debug)
+pub fn ArcFinalBodyError::equal(Self, Self) -> Bool
+pub fn ArcFinalBodyError::not_equal(Self, Self) -> Bool
+pub fn ArcFinalBodyError::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Block {
   parameters : Array[ValueId]
   instructions : Array[Instruction]
   terminator : Terminator
 } derive(Eq, @debug.Debug)
+pub fn Block::equal(Self, Self) -> Bool
+pub fn Block::not_equal(Self, Self) -> Bool
+pub fn Block::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Edge {
   target : @physical.BlockId
   arguments : Array[ValueId]
 } derive(Eq, @debug.Debug)
+pub fn Edge::equal(Self, Self) -> Bool
+pub fn Edge::not_equal(Self, Self) -> Bool
+pub fn Edge::to_repr(Self) -> @debug.Repr
 
 pub struct Finalization {
   pre_arc_image : Image
@@ -77,17 +92,26 @@ pub(all) struct FunctionBody {
   result : @physical.ResultAbi
   blocks : Array[Block]
 } derive(Eq, @debug.Debug)
+pub fn FunctionBody::equal(Self, Self) -> Bool
+pub fn FunctionBody::not_equal(Self, Self) -> Bool
+pub fn FunctionBody::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FunctionEntry {
   Body(FunctionBody)
   RuntimeImport(@lane_runtime.RuntimeImport)
 } derive(Eq, @debug.Debug)
+pub fn FunctionEntry::equal(Self, Self) -> Bool
+pub fn FunctionEntry::not_equal(Self, Self) -> Bool
+pub fn FunctionEntry::to_repr(Self) -> @debug.Repr
 
 pub(all) struct FunctionInputs {
   environment : ValueId?
   witnesses : Array[ValueId]
   user_parameters : Array[ValueId]
 } derive(Eq, @debug.Debug)
+pub fn FunctionInputs::equal(Self, Self) -> Bool
+pub fn FunctionInputs::not_equal(Self, Self) -> Bool
+pub fn FunctionInputs::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Image {
   entry : @physical.FunctionId
@@ -99,6 +123,10 @@ pub(all) struct Image {
   object_shapes : Array[@physical.ObjectShape]
   constants : Array[Bytes]
 } derive(Eq, @debug.Debug)
+pub fn Image::equal(Self, Self) -> Bool
+pub fn Image::not_equal(Self, Self) -> Bool
+pub fn Image::pretty(Self) -> @prettyprinter.Document
+pub fn Image::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for Image
 
 pub(all) enum Instruction {
@@ -210,33 +238,51 @@ pub(all) enum Instruction {
   InitGlobal(@physical.GlobalId, ValueId)
   BorrowGlobal(ValueId, @physical.GlobalId)
 } derive(Eq, @debug.Debug)
+pub fn Instruction::equal(Self, Self) -> Bool
+pub fn Instruction::not_equal(Self, Self) -> Bool
+pub fn Instruction::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LayoutOperand {
   Immediate(@physical.LayoutId)
   Witness(ValueId)
 } derive(Eq, @debug.Debug)
+pub fn LayoutOperand::equal(Self, Self) -> Bool
+pub fn LayoutOperand::not_equal(Self, Self) -> Bool
+pub fn LayoutOperand::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Ownership {
   Trivial
   Owned
   Borrowed
 } derive(Eq, @debug.Debug)
+pub fn Ownership::equal(Self, Self) -> Bool
+pub fn Ownership::not_equal(Self, Self) -> Bool
+pub fn Ownership::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PhysicalSlotPlanError {
   MissingAssignment(ValueId)
   MetadataMismatch(ValueId, @physical.SlotId)
   InterferenceConflict(ValueId, ValueId, @physical.SlotId)
 } derive(Eq, @debug.Debug)
+pub fn PhysicalSlotPlanError::equal(Self, Self) -> Bool
+pub fn PhysicalSlotPlanError::not_equal(Self, Self) -> Bool
+pub fn PhysicalSlotPlanError::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ProjectionResult {
   value_destination : ValueId
   witness_destination : ValueId?
 } derive(Eq, @debug.Debug)
+pub fn ProjectionResult::equal(Self, Self) -> Bool
+pub fn ProjectionResult::not_equal(Self, Self) -> Bool
+pub fn ProjectionResult::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ProjectionSelection {
   member_index : Int
   result : ProjectionResult
 } derive(Eq, @debug.Debug)
+pub fn ProjectionSelection::equal(Self, Self) -> Bool
+pub fn ProjectionSelection::not_equal(Self, Self) -> Bool
+pub fn ProjectionSelection::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Terminator {
   Jump(Edge)
@@ -248,20 +294,37 @@ pub(all) enum Terminator {
   Fatal(ValueId)
   Unreachable
 } derive(Eq, @debug.Debug)
+pub fn Terminator::equal(Self, Self) -> Bool
+pub fn Terminator::not_equal(Self, Self) -> Bool
+pub fn Terminator::to_repr(Self) -> @debug.Repr
 
 pub(all) enum UseDefAnalysisError {
   DuplicateDefinition(ValueId, ValueDefinitionSite, ValueDefinitionSite)
 } derive(Eq, @debug.Debug)
+pub fn UseDefAnalysisError::equal(Self, Self) -> Bool
+pub fn UseDefAnalysisError::not_equal(Self, Self) -> Bool
+pub fn UseDefAnalysisError::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ValueDefinitionSite {
   FunctionInput(Int)
   BlockParameter(Int, Int)
   InstructionResult(Int, Int)
 } derive(Eq, @debug.Debug)
+pub fn ValueDefinitionSite::equal(Self, Self) -> Bool
+pub fn ValueDefinitionSite::not_equal(Self, Self) -> Bool
+pub fn ValueDefinitionSite::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ValueId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn ValueId::compare(Self, Self) -> Int
+pub fn ValueId::equal(Self, Self) -> Bool
+pub fn ValueId::not_equal(Self, Self) -> Bool
+pub fn ValueId::op_ge(Self, Self) -> Bool
+pub fn ValueId::op_gt(Self, Self) -> Bool
+pub fn ValueId::op_le(Self, Self) -> Bool
+pub fn ValueId::op_lt(Self, Self) -> Bool
+pub fn ValueId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ValueMetadata {
   representation : @physical.Representation
@@ -270,6 +333,9 @@ pub(all) struct ValueMetadata {
   ownership : Ownership
   erased_companion : ValueId?
 } derive(Eq, @debug.Debug)
+pub fn ValueMetadata::equal(Self, Self) -> Bool
+pub fn ValueMetadata::not_equal(Self, Self) -> Bool
+pub fn ValueMetadata::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

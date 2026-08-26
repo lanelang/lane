@@ -17,16 +17,25 @@ pub(all) suberror ExecutionError {
   InternalRuntimeFailure(detail~ : String)
   InstanceNotReady
 } derive(Eq, @debug.Debug)
+pub fn ExecutionError::equal(Self, Self) -> Bool
+pub fn ExecutionError::not_equal(Self, Self) -> Bool
+pub fn ExecutionError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror HostObjectFailure {
   HostObjectLimitExceeded
   InvalidHostObjectHandle(detail~ : String)
   InvalidOwnedResult(detail~ : String)
 } derive(Eq, @debug.Debug)
+pub fn HostObjectFailure::equal(Self, Self) -> Bool
+pub fn HostObjectFailure::not_equal(Self, Self) -> Bool
+pub fn HostObjectFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror RuntimeImportFailure {
   Failure(message~ : String)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeImportFailure::equal(Self, Self) -> Bool
+pub fn RuntimeImportFailure::not_equal(Self, Self) -> Bool
+pub fn RuntimeImportFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror RuntimeImportResolutionError {
   UnresolvedImport(symbol~ : String)
@@ -34,9 +43,13 @@ pub(all) suberror RuntimeImportResolutionError {
   ParameterKindsMismatch(symbol~ : String, expected~ : Array[RuntimeValueKind], actual~ : Array[RuntimeValueKind])
   ResultKindMismatch(symbol~ : String, expected~ : RuntimeValueKind, actual~ : RuntimeValueKind)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeImportResolutionError::equal(Self, Self) -> Bool
+pub fn RuntimeImportResolutionError::not_equal(Self, Self) -> Bool
+pub fn RuntimeImportResolutionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 type BorrowedHostObject
+pub fn BorrowedHostObject::to_repr(Self) -> @debug.Repr
 pub impl @debug.Debug for BorrowedHostObject
 
 pub(all) struct ExecutionConfig {
@@ -45,6 +58,9 @@ pub(all) struct ExecutionConfig {
   max_host_objects : Int?
 } derive(Eq, @debug.Debug)
 pub fn ExecutionConfig::defaults() -> Self
+pub fn ExecutionConfig::equal(Self, Self) -> Bool
+pub fn ExecutionConfig::not_equal(Self, Self) -> Bool
+pub fn ExecutionConfig::to_repr(Self) -> @debug.Repr
 
 type ExecutionRuntime
 pub fn[R, E] ExecutionRuntime::adopt_host_object(Self, OwnedHostObject, (HostObjectHandle) -> Result[R, E]) -> Result[R, E] raise HostObjectFailure
@@ -55,6 +71,7 @@ pub fn ExecutionRuntime::release_host_object(Self, HostObjectHandle) -> Unit rai
 pub fn ExecutionRuntime::resolve_host_object(Self, HostObjectHandle) -> BorrowedHostObject raise HostObjectFailure
 
 type HostObjectHandle
+pub fn HostObjectHandle::to_repr(Self) -> @debug.Repr
 pub impl @debug.Debug for HostObjectHandle
 
 type HostObjectStore[T]
@@ -89,9 +106,12 @@ pub struct HostStringView {
   read_byte : (Int) -> Byte
 }
 pub fn HostStringView::byte(Self, Int) -> Byte?
+pub fn HostStringView::equal(Self, Self) -> Bool
 pub fn HostStringView::length(Self) -> Int
 pub fn HostStringView::new(length~ : Int, read_byte~ : (Int) -> Byte) -> Self
+pub fn HostStringView::not_equal(Self, Self) -> Bool
 pub fn HostStringView::to_bytes(Self) -> Bytes
+pub fn HostStringView::to_repr(Self) -> @debug.Repr
 pub fn HostStringView::to_string(Self) -> String
 pub impl Eq for HostStringView
 pub impl @debug.Debug for HostStringView
@@ -107,9 +127,11 @@ pub(all) enum HostValue {
   BorrowedOpaque(BorrowedHostObject)
   OwnedOpaque(OwnedHostObject)
 } derive(@debug.Debug)
+pub fn HostValue::to_repr(Self) -> @debug.Repr
 
 type OwnedHostObject
 pub fn[T] OwnedHostObject::new(HostObjectStore[T], T, finalizer~ : (T) -> Unit) -> Self
+pub fn OwnedHostObject::to_repr(Self) -> @debug.Repr
 pub impl @debug.Debug for OwnedHostObject
 
 pub(all) enum ResourceLimitKind {
@@ -117,6 +139,9 @@ pub(all) enum ResourceLimitKind {
   LiveHeapBytes
   HostObjects
 } derive(Eq, @debug.Debug)
+pub fn ResourceLimitKind::equal(Self, Self) -> Bool
+pub fn ResourceLimitKind::not_equal(Self, Self) -> Bool
+pub fn ResourceLimitKind::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeBinding {
   symbol : String
@@ -141,6 +166,9 @@ pub(all) struct RuntimeImport {
   result : RuntimeValueKind
   symbol : String
 } derive(Eq, @debug.Debug)
+pub fn RuntimeImport::equal(Self, Self) -> Bool
+pub fn RuntimeImport::not_equal(Self, Self) -> Bool
+pub fn RuntimeImport::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeRegistry {
   bindings : Array[RuntimeBinding]
@@ -159,6 +187,9 @@ pub(all) enum RuntimeValueKind {
   String
   Opaque
 } derive(Eq, @debug.Debug)
+pub fn RuntimeValueKind::equal(Self, Self) -> Bool
+pub fn RuntimeValueKind::not_equal(Self, Self) -> Bool
+pub fn RuntimeValueKind::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 pub type RuntimeFunction = (RuntimeContext, Array[HostValue]) -> HostValue raise RuntimeImportFailure

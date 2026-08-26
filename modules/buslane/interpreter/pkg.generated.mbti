@@ -24,6 +24,10 @@ pub(all) suberror BuslaneRuntimeError {
   ExternalFailure(id~ : @buslane.ValueId, message~ : String)
   InvalidValue(message~ : String)
 } derive(Eq, @debug.Debug)
+pub fn BuslaneRuntimeError::equal(Self, Self) -> Bool
+pub fn BuslaneRuntimeError::not_equal(Self, Self) -> Bool
+pub fn BuslaneRuntimeError::pretty(Self) -> @prettyprinter.Document
+pub fn BuslaneRuntimeError::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for BuslaneRuntimeError
 
 // Types and methods
@@ -38,6 +42,7 @@ pub struct BuslaneRuntimeProgram {
   // private fields
 }
 pub fn BuslaneRuntimeProgram::lookup(Self, @buslane.ValueId) -> BuslaneRuntimeValue raise BuslaneRuntimeError
+pub fn BuslaneRuntimeProgram::pretty(Self) -> @prettyprinter.Document
 pub impl @prettyprinter.Pretty for BuslaneRuntimeProgram
 
 pub struct BuslaneRuntimeValue {
@@ -61,6 +66,7 @@ pub fn BuslaneRuntimeValue::i32(Int) -> Self
 pub fn BuslaneRuntimeValue::i64(Int64) -> Self
 pub fn BuslaneRuntimeValue::is_function(Self) -> Bool
 pub fn BuslaneRuntimeValue::native_function((Array[Self]) -> Self raise BuslaneRuntimeError) -> Self
+pub fn BuslaneRuntimeValue::pretty(Self) -> @prettyprinter.Document
 pub fn BuslaneRuntimeValue::pretty_with_type(Self, @buslane.Type) -> @prettyprinter.Document
 pub fn BuslaneRuntimeValue::string(String) -> Self
 pub fn BuslaneRuntimeValue::unit() -> Self

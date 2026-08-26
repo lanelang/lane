@@ -21,7 +21,10 @@ pub(all) struct RenderConfig {
   color : Bool
   width : Int
 } derive(Eq, @debug.Debug)
+pub fn RenderConfig::equal(Self, Self) -> Bool
+pub fn RenderConfig::not_equal(Self, Self) -> Bool
 pub fn RenderConfig::plain(width? : Int) -> Self
+pub fn RenderConfig::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

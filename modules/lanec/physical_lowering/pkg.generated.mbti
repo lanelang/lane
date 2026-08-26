@@ -21,6 +21,9 @@ pub(all) suberror FunctionProvenanceError {
   InvalidSourceFunction(function~ : @physical.FunctionId)
   FinalizedFunctionCountMismatch(functions~ : Int, origins~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn FunctionProvenanceError::equal(Self, Self) -> Bool
+pub fn FunctionProvenanceError::not_equal(Self, Self) -> Bool
+pub fn FunctionProvenanceError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror PhysicalLoweringError {
   RuntimeAnfCompilerDefect(@anf.RuntimeAnfLoweringError)
@@ -39,6 +42,9 @@ pub(all) suberror PhysicalLoweringError {
   VmcfgFinalizeError(@vmcfg.FinalizeError)
   FunctionProvenanceCompilerDefect(FunctionProvenanceError)
 } derive(Eq, @debug.Debug)
+pub fn PhysicalLoweringError::equal(Self, Self) -> Bool
+pub fn PhysicalLoweringError::not_equal(Self, Self) -> Bool
+pub fn PhysicalLoweringError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum PhysicalFunctionOrigin {
@@ -52,15 +58,24 @@ pub(all) enum PhysicalFunctionOrigin {
   LayoutConstructor
   RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
 } derive(Eq, @debug.Debug)
+pub fn PhysicalFunctionOrigin::equal(Self, Self) -> Bool
+pub fn PhysicalFunctionOrigin::not_equal(Self, Self) -> Bool
+pub fn PhysicalFunctionOrigin::to_repr(Self) -> @debug.Repr
 
 pub(all) struct PhysicalFunctionProvenance {
   function : @physical.FunctionId
   origins : Array[PhysicalFunctionOrigin]
 } derive(Eq, @debug.Debug)
+pub fn PhysicalFunctionProvenance::equal(Self, Self) -> Bool
+pub fn PhysicalFunctionProvenance::not_equal(Self, Self) -> Bool
+pub fn PhysicalFunctionProvenance::to_repr(Self) -> @debug.Repr
 
 pub(all) struct PhysicalLoweringProvenance {
   functions : Array[PhysicalFunctionProvenance]
 } derive(Eq, @debug.Debug)
+pub fn PhysicalLoweringProvenance::equal(Self, Self) -> Bool
+pub fn PhysicalLoweringProvenance::not_equal(Self, Self) -> Bool
+pub fn PhysicalLoweringProvenance::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PhysicalLoweringStage {
   Anf(@anf.AnfProgram)
