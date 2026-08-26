@@ -1,5 +1,6 @@
 import {
-  "Milky2018/loisvm/bytecode",
+  "Milky2018/lanec/physical",
+  "Milky2018/lane_runtime" @runtime,
   "moonbit-community/prettyprinter",
   "moonbitlang/core/encoding/utf8",
 }

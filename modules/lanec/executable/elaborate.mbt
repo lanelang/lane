@@ -1,6 +1,6 @@
 ///|
 /// Elaborates a linked entry into the deterministic whole-program form required
-/// by LoisVM lowering. The entry must belong to `linked`; every intermediate IR
+/// by physical lowering. The entry must belong to `linked`; every intermediate IR
 /// is verified and no executable is returned after a failed stage.
 pub fn elaborate(
   linked : @module_link.LinkedProgram,

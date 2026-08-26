@@ -347,11 +347,11 @@ async test "native module artifacts are binary and readable" {
   cleanup_library_fixture(workspace)
   inspect(interface.module_path_text, content="Main")
   inspect(object.module_path_text, content="Main")
-  inspect(linked_program.entry.value, content="1")
-  debug_inspect(
-    (linked_program.initializer, linked_program.globals),
-    content="(None, [])",
+  inspect(
+    byte_prefix_text(linked_program.wasm, 8),
+    content="0,97,115,109,1,0,0,0",
   )
+  debug_inspect(linked_program.runtime_imports, content="[]")
 }
 
 ///|
@@ -410,17 +410,16 @@ async test "exec executes explicit Basic Io linked input" {
     cleanup_library_fixture(workspace)
     abort("expected link to succeed")
   }
-  let image = match read_linked_program_artifact(program_path) {
-    Ok(image) => image
+  let artifact = match read_linked_program_artifact(program_path) {
+    Ok(artifact) => artifact
     Err(error) => {
       cleanup_library_fixture(workspace)
       abort(error.render_human())
     }
   }
-  assert_true(image.initializer is Some(_))
-  assert_eq(image.globals.length(), 1)
+  assert_eq(artifact.runtime_imports.map(import_ => import_.symbol), ["println"])
   let output : Array[String] = []
-  guard execute_loisvm_image_with_output(image, line => output.push(line))
+  guard execute_wasm_artifact_with_output(artifact, line => output.push(line))
     is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected exec to succeed")
@@ -694,7 +693,7 @@ test "run accepts built-in Io through an explicit Basic extern" {
   let output : Array[String] = []
   guard execute_entry_with_output(program, entry, line => output.push(line))
     is Succeeded else {
-    abort("expected run entry to succeed through LoisVM")
+    abort("expected run entry to succeed through WebAssembly")
   }
   assert_eq(output, ["hello"])
 }
@@ -732,7 +731,7 @@ test "run lowers lexical handlers before runtime effects" {
   let output : Array[String] = []
   guard execute_entry_with_output(program, entry, line => output.push(line))
     is Succeeded else {
-    abort("expected handled entry to succeed through LoisVM")
+    abort("expected handled entry to succeed through WebAssembly")
   }
   assert_eq(output, ["handled"])
 }

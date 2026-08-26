@@ -450,25 +450,25 @@ interprocedural evaluator disabled produced the following comparison:
 | Core top terms | 199 | 164 | 161 |
 | Core functions | 352 | 311 | 191 |
 | Core call nodes | 824 | 687 | 663 |
-| Bytecode functions | 798 | 731 | 700 |
-| Bytecode instructions | 6,674 | 5,933 | 5,909 |
-| Bytecode indirect calls | 505 | 408 | 363 |
-| Bytecode closures | 508 | 456 | 420 |
-| Bytecode environments | - | 456 | 434 |
-| Bytecode erase operations | - | 440 | 425 |
-| Bytecode unerase operations | - | 325 | 334 |
+| Physical Program functions | 798 | 731 | 700 |
+| Physical Program instructions | 6,674 | 5,933 | 5,909 |
+| Physical Program indirect calls | 505 | 408 | 363 |
+| Physical Program closures | 508 | 456 | 420 |
+| Physical Program environments | - | 456 | 434 |
+| Physical Program erase operations | - | 440 | 425 |
+| Physical Program unerase operations | - | 325 | 334 |
 | Wasm functions | 942 | 877 | 849 |
 | Wasm instructions | 141,839 | 125,486 | 124,761 |
 | Wasm locals | 11,905 | 10,626 | 10,661 |
 
 The implemented Core stage now occurs before effect lowering, whereas the two
 older Core columns were observed after monadic continuation lifting. Their Core
-counts therefore describe different semantic boundaries; bytecode and Wasm
+counts therefore describe different semantic boundaries; Physical Program and Wasm
 remain directly comparable. Moving to the sound source-effect boundary removes
-31 bytecode functions, 45 indirect calls, 36 closures, 22 environments, and
+31 physical functions, 45 indirect calls, 36 closures, 22 environments, and
 725 Wasm instructions relative to the pre-refactor compiler. Unerase operations
 increase by 9 and Wasm locals by 35, while total erase/unerase operations,
-bytecode instructions, and Wasm instructions all decrease. These measured
+physical instructions, and Wasm instructions all decrease. These measured
 changes are the explicit representation tradeoff for no longer running
 source-purity rewrites over generated CPS calls.
 
@@ -484,7 +484,7 @@ The refactor is accepted only if:
   regression;
 - Core call count and representation operations do not regress on the pinned
   Basic entry without an explicitly reviewed tradeoff;
-- bytecode and Wasm size remain visible alongside any compile-time change;
+- Physical Program and Wasm size remain visible alongside any compile-time change;
 - no source symbol spelling, effect identity, call frequency, or function ID
   participates in semantic eligibility.
 
@@ -492,7 +492,7 @@ The refactor is accepted only if:
 
 The refactor changes Core optimization and its typed compiler-observation
 interface. It does not change Lane syntax, source typing, Buslane syntax,
-module interfaces, module objects, linked-program artifacts, LoisVM bytecode,
+module interfaces, module objects, and linked WebAssembly artifacts,
 or Wasm ABI. No persisted artifact schema version changes.
 
 Moving the observed Core stage before effect lowering changes the ordered

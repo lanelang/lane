@@ -1,8 +1,0 @@
-import {
-  "Milky2018/bytecodec",
-  "Milky2018/loisvm/bytecode",
-  "Milky2018/loisvm/float_format",
-  "Milky2018/loisvm/wasm/internal_abi",
-  "Milky2018/wasm_core/types" @wasm_types,
-  "moonbitlang/core/encoding/utf8",
-}

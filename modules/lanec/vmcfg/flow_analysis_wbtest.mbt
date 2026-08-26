@@ -1,6 +1,6 @@
 ///|
 fn flow_scalar_metadata(
-  representation : @bytecode.Representation,
+  representation : @physical.Representation,
 ) -> ValueMetadata {
   {
     representation,

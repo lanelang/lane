@@ -1,15 +1,15 @@
 ///|
-fn finalize_test_image_without_bytecode_verification(
+fn finalize_test_image_without_physical_verification(
   image : Image,
-) -> Result[@bytecode.BytecodeImage, FinalizeError] {
+) -> Result[@physical.PhysicalProgram, FinalizeError] {
   match prepare(image) {
     Err(error) => Err(error)
-    Ok(prepared) => finalize_prepared_without_bytecode_verification(prepared)
+    Ok(prepared) => finalize_prepared_without_physical_verification(prepared)
   }
 }
 
 ///|
-fn trivial_value(representation : @bytecode.Representation) -> ValueMetadata {
+fn trivial_value(representation : @physical.Representation) -> ValueMetadata {
   {
     representation,
     cleanup: Trivial,
@@ -86,7 +86,7 @@ test "finalize transfers global owners and promotes global borrows" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification({
+    finalize_test_image_without_physical_verification({
       ..test_image(body),
       initializer: Some({ value: 1, }),
       functions: [
@@ -110,8 +110,8 @@ test "finalize transfers global owners and promotes global borrows" {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(image.initializer, Some({ value: 1, }))
   assert_eq(image.globals, [
@@ -154,7 +154,7 @@ test "finalize preserves erased companions for promoted global borrows" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification({
+    finalize_test_image_without_physical_verification({
       ..test_image(body),
       functions: [
         Body(body),
@@ -169,8 +169,8 @@ test "finalize preserves erased companions for promoted global borrows" {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(lowered.slots, [
     {
@@ -221,7 +221,7 @@ test "finalize promotes a borrowed call argument to an owner" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification({
+    finalize_test_image_without_physical_verification({
       ..test_image(body),
       functions: [
         Body(body),
@@ -236,8 +236,8 @@ test "finalize promotes a borrowed call argument to an owner" {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(lowered.slots.length(), 2)
   assert_eq(lowered.blocks[0].instructions, [
@@ -272,12 +272,12 @@ test "indirect call ABI uses the finalized owned argument slot" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification(test_image(body)) {
+    finalize_test_image_without_physical_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(image.callable_abis, [
     {
@@ -317,12 +317,12 @@ test "finalize releases an owned value left live at return" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification(test_image(body)) {
+    finalize_test_image_without_physical_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(lowered.blocks[0].instructions, [
     ConstString({ value: 0, }, { value: 0, }),
@@ -345,12 +345,12 @@ test "finalize transfers an owned return without releasing it" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification(test_image(body)) {
+    finalize_test_image_without_physical_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(lowered.blocks[0].instructions, [
     ConstString({ value: 0, }, { value: 0, }),
@@ -378,12 +378,12 @@ test "finalize preserves object witness loads as non-consuming reads" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification(test_image(body)) {
+    finalize_test_image_without_physical_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(lowered.blocks[0].instructions, [
     LoadObjectWitness({ value: 1, }, { value: 0, }, { value: 0, }, 2),
@@ -413,7 +413,7 @@ test "finalize retains an owned call argument that is used afterward" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification({
+    finalize_test_image_without_physical_verification({
       ..test_image(body),
       functions: [
         Body(body),
@@ -428,8 +428,8 @@ test "finalize retains an owned call argument that is used afterward" {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(lowered.slots.length(), 3)
   assert_eq(lowered.blocks[0].instructions, [
@@ -464,12 +464,12 @@ test "finalize inserts path-specific releases for owned values at a branch" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification(test_image(body)) {
+    finalize_test_image_without_physical_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(lowered.blocks.length(), 4)
   assert_eq(
@@ -517,12 +517,12 @@ test "finalize inserts path-specific releases for every switch edge" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification(test_image(body)) {
+    finalize_test_image_without_physical_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(lowered.blocks.length(), 5)
   assert_eq(
@@ -581,12 +581,12 @@ test "finalize threads an owned function input into its using branch" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification(test_image(body)) {
+    finalize_test_image_without_physical_verification(test_image(body)) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(lowered.blocks[1].parameters, [{ value: 1, }])
   assert_eq(
@@ -638,7 +638,7 @@ test "finalize rejects a borrowed function input used across blocks" {
     ],
   }
   assert_eq(
-    finalize_test_image_without_bytecode_verification(test_image(body)),
+    finalize_test_image_without_physical_verification(test_image(body)),
     Err(IllegalValueMetadata(value={ value: 1, })),
   )
 }
@@ -679,7 +679,7 @@ test "finalize promotes a borrowed global before it crosses a branch" {
     ],
   }
   let image = match
-    finalize_test_image_without_bytecode_verification({
+    finalize_test_image_without_physical_verification({
       ..test_image(body),
       globals: [
         {
@@ -693,8 +693,8 @@ test "finalize promotes a borrowed global before it crosses a branch" {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   assert_eq(lowered.blocks[0].instructions, [
     BorrowGlobal({ value: 2, }, { value: 0, }),

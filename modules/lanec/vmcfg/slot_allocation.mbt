@@ -1,8 +1,8 @@
 ///|
 priv struct PhysicalSlotPlan {
   arc_final : ArcFinalBody
-  slots : Array[@bytecode.SlotMetadata]
-  values : Array[@bytecode.SlotId?]
+  slots : Array[@physical.SlotMetadata]
+  values : Array[@physical.SlotId?]
 }
 
 ///|
@@ -73,8 +73,8 @@ fn allocate_physical_slots(
       }
     }
   }
-  let values : Array[@bytecode.SlotId?] = Array::make(value_count, None)
-  let slots : Array[@bytecode.SlotMetadata] = []
+  let values : Array[@physical.SlotId?] = Array::make(value_count, None)
+  let slots : Array[@physical.SlotMetadata] = []
   let slot_values : Array[Array[Int]] = []
   for value_index in 0..<value_count {
     if !active[value_index] {
@@ -152,7 +152,7 @@ fn validate_physical_slot_plan(
     let value : ValueId = { value: value_index, }
     let slot = plan.slot(value)
     let logical_metadata = value_metadata_to_slot(body.values[value_index])
-    let expected_metadata : @bytecode.SlotMetadata = {
+    let expected_metadata : @physical.SlotMetadata = {
       ..logical_metadata,
       erased_companion: logical_metadata.erased_companion.map(companion => {
         planned_slot(plan.values, { value: companion.value, })
@@ -177,7 +177,7 @@ fn validate_physical_slot_plan(
 fn PhysicalSlotPlan::slot(
   self : PhysicalSlotPlan,
   value : ValueId,
-) -> @bytecode.SlotId raise FinalizeError {
+) -> @physical.SlotId raise FinalizeError {
   planned_slot(self.values, value)
 }
 
@@ -185,15 +185,15 @@ fn PhysicalSlotPlan::slot(
 fn PhysicalSlotPlan::metadata(
   self : PhysicalSlotPlan,
   value : ValueId,
-) -> @bytecode.SlotMetadata raise FinalizeError {
+) -> @physical.SlotMetadata raise FinalizeError {
   self.slots[self.slot(value).value]
 }
 
 ///|
 fn planned_slot(
-  values : Array[@bytecode.SlotId?],
+  values : Array[@physical.SlotId?],
   value : ValueId,
-) -> @bytecode.SlotId raise FinalizeError {
+) -> @physical.SlotId raise FinalizeError {
   match values.get(value.value) {
     Some(Some(slot)) => slot
     _ => raise PhysicalSlotAllocationCompilerDefect(MissingAssignment(value))

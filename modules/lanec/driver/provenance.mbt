@@ -74,7 +74,7 @@ fn ExploreFunctionGraphBuilder::observe_anf(
 ///|
 fn ExploreFunctionGraphBuilder::observe_vmcfg(
   self : ExploreFunctionGraphBuilder,
-  functions : Array[@loisvm_lowering.LoisvmFunctionProvenance],
+  functions : Array[@physical_lowering.PhysicalFunctionProvenance],
 ) -> Unit {
   for function in functions {
     let target : ExploreFunctionRef = {
@@ -83,7 +83,7 @@ fn ExploreFunctionGraphBuilder::observe_vmcfg(
     }
     let roles = []
     for origin in function.origins {
-      roles.push(self.loisvm_role(origin))
+      roles.push(self.physical_role(origin))
       if origin.anf_function() is Some(anf_function) {
         self.edges.push({
           source: { stage: Anf, index: anf_function.value, },
@@ -96,26 +96,26 @@ fn ExploreFunctionGraphBuilder::observe_vmcfg(
 }
 
 ///|
-fn ExploreFunctionGraphBuilder::observe_bytecode(
+fn ExploreFunctionGraphBuilder::observe_physical(
   self : ExploreFunctionGraphBuilder,
-  functions : Array[@loisvm_lowering.LoisvmFunctionProvenance],
+  functions : Array[@physical_lowering.PhysicalFunctionProvenance],
 ) -> Unit {
   for function in functions {
     let index = function.function.value
     self.nodes.push({
-      function: { stage: LoisvmBytecode, index, },
-      roles: function.origins.map(origin => self.loisvm_role(origin)),
+      function: { stage: PhysicalProgram, index, },
+      roles: function.origins.map(origin => self.physical_role(origin)),
     })
     self.edges.push({
       source: { stage: VmcfgInitial, index, },
-      target: { stage: LoisvmBytecode, index, },
+      target: { stage: PhysicalProgram, index, },
     })
   }
 }
 
 ///|
-fn @loisvm_lowering.LoisvmFunctionOrigin::anf_function(
-  self : @loisvm_lowering.LoisvmFunctionOrigin,
+fn @physical_lowering.PhysicalFunctionOrigin::anf_function(
+  self : @physical_lowering.PhysicalFunctionOrigin,
 ) -> @anf.AnfFunctionId? {
   match self {
     TopLevelFunction(function~, ..)
@@ -126,9 +126,9 @@ fn @loisvm_lowering.LoisvmFunctionOrigin::anf_function(
 }
 
 ///|
-fn ExploreFunctionGraphBuilder::loisvm_role(
+fn ExploreFunctionGraphBuilder::physical_role(
   self : ExploreFunctionGraphBuilder,
-  origin : @loisvm_lowering.LoisvmFunctionOrigin,
+  origin : @physical_lowering.PhysicalFunctionOrigin,
 ) -> ExploreFunctionRole {
   match origin {
     TopLevelFunction(source~, ..)
@@ -153,9 +153,9 @@ fn ExploreFunctionGraphBuilder::observe_wasm(
   for function in functions {
     let target : ExploreFunctionRef = { stage: Wasm, index: function.index, }
     self.nodes.push({ function: target, roles: [wasm_role(function.origin)], })
-    if function.origin.bytecode_function() is Some(bytecode_function) {
+    if function.origin.physical_function() is Some(physical_function) {
       self.edges.push({
-        source: { stage: LoisvmBytecode, index: bytecode_function.value, },
+        source: { stage: PhysicalProgram, index: physical_function.value, },
         target,
       })
     }
@@ -163,12 +163,12 @@ fn ExploreFunctionGraphBuilder::observe_wasm(
 }
 
 ///|
-fn @wasm_compiler.WasmFunctionOrigin::bytecode_function(
+fn @wasm_compiler.WasmFunctionOrigin::physical_function(
   self : @wasm_compiler.WasmFunctionOrigin,
-) -> @bytecode.FunctionId? {
+) -> @physical.FunctionId? {
   match self {
     PhysicalRuntimeImport(function~, ..)
-    | BytecodeFunction(function~)
+    | PhysicalFunction(function~)
     | RuntimeImportAdapter(function~, ..) => Some(function)
     _ => None
   }
@@ -180,7 +180,7 @@ fn wasm_role(origin : @wasm_compiler.WasmFunctionOrigin) -> ExploreFunctionRole 
     InternalRuntimeImport(function) =>
       InternalRuntimeImport(name=function.name())
     PhysicalRuntimeImport(symbol~, ..) => PhysicalRuntimeImport(symbol~)
-    BytecodeFunction(_) => WasmBytecodeFunction
+    PhysicalFunction(_) => WasmPhysicalFunction
     RuntimeImportAdapter(symbol~, ..) => RuntimeImportAdapter(symbol~)
     RuntimeFunction(role) => WasmRuntimeFunction(name=wasm_runtime_name(role))
     HelperFunction(role) => wasm_helper_role(role)

@@ -266,7 +266,7 @@ fn insert_arc_branch_edge(
   if instructions.is_empty() {
     lowered
   } else {
-    let trampoline : @bytecode.BlockId = {
+    let trampoline : @physical.BlockId = {
       value: original_block_count + edge_blocks.length(),
     }
     edge_blocks.push({

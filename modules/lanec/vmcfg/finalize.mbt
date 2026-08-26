@@ -1,10 +1,10 @@
 ///|
 pub fn finalize(
   image : Image,
-) -> Result[@bytecode.BytecodeImage, FinalizeError] {
+) -> Result[@physical.PhysicalProgram, FinalizeError] {
   match finalize_observed(image) {
     Err(error) => Err(error)
-    Ok(finalized) => Ok(finalized.bytecode_image)
+    Ok(finalized) => Ok(finalized.physical_program)
   }
 }
 
@@ -15,11 +15,11 @@ pub fn finalize_observed(image : Image) -> Result[Finalization, FinalizeError] {
     Ok(prepared) =>
       match finalize_prepared(prepared) {
         Err(error) => Err(error)
-        Ok(bytecode_image) =>
+        Ok(physical_program) =>
           Ok({
             pre_arc_image: prepared.image,
             source_functions: prepared.source_functions,
-            bytecode_image,
+            physical_program,
           })
       }
   }
@@ -59,72 +59,72 @@ pub fn Finalization::pre_arc_image(self : Finalization) -> Image {
 ///|
 pub fn Finalization::source_functions(
   self : Finalization,
-) -> Array[Array[@bytecode.FunctionId]] {
+) -> Array[Array[@physical.FunctionId]] {
   self.source_functions.map(functions => functions.copy())
 }
 
 ///|
-pub fn Finalization::bytecode_image(
+pub fn Finalization::physical_program(
   self : Finalization,
-) -> @bytecode.BytecodeImage {
-  self.bytecode_image
+) -> @physical.PhysicalProgram {
+  self.physical_program
 }
 
 ///|
 fn finalize_prepared(
   prepared : CanonicalPreArcImage,
-) -> Result[@bytecode.BytecodeImage, FinalizeError] {
-  match finalize_prepared_without_bytecode_verification(prepared) {
+) -> Result[@physical.PhysicalProgram, FinalizeError] {
+  match finalize_prepared_without_physical_verification(prepared) {
     Err(error) => Err(error)
     Ok(finalized) =>
-      match @bytecode.verify_bytecode_image(finalized) {
+      match @physical.verify_physical_program(finalized) {
         Ok(_) => Ok(finalized)
-        Err(error) => Err(BytecodeVerificationCompilerDefect(error))
+        Err(error) => Err(PhysicalProgramVerificationCompilerDefect(error))
       }
   }
 }
 
 ///|
 priv struct CallableAbiInterner {
-  entries : Array[@bytecode.CallableAbi]
+  entries : Array[@physical.CallableAbi]
 }
 
 ///|
 fn CallableAbiInterner::intern(
   self : CallableAbiInterner,
-  abi : @bytecode.CallableAbi,
-) -> @bytecode.CallableAbiId {
+  abi : @physical.CallableAbi,
+) -> @physical.CallableAbiId {
   for index, existing in self.entries {
     if existing == abi {
       return { value: index, }
     }
   }
-  let id : @bytecode.CallableAbiId = { value: self.entries.length(), }
+  let id : @physical.CallableAbiId = { value: self.entries.length(), }
   self.entries.push(abi)
   id
 }
 
 ///|
-fn finalize_prepared_without_bytecode_verification(
+fn finalize_prepared_without_physical_verification(
   prepared : CanonicalPreArcImage,
-) -> Result[@bytecode.BytecodeImage, FinalizeError] {
-  Ok(finalize_without_bytecode_verification_or_raise(prepared)) catch {
+) -> Result[@physical.PhysicalProgram, FinalizeError] {
+  Ok(finalize_without_physical_verification_or_raise(prepared)) catch {
     error => Err(error)
   }
 }
 
 ///|
-fn finalize_without_bytecode_verification_or_raise(
+fn finalize_without_physical_verification_or_raise(
   prepared : CanonicalPreArcImage,
-) -> @bytecode.BytecodeImage raise FinalizeError {
+) -> @physical.PhysicalProgram raise FinalizeError {
   let image = prepared.image
   let callable_abis = CallableAbiInterner::{ entries: [], }
-  let finalized_functions : Array[@bytecode.FunctionEntry] = []
+  let finalized_functions : Array[@physical.FunctionEntry] = []
   for entry in image.functions {
     match entry {
       Body(body) =>
         finalized_functions.push(
-          BytecodeBody(finalize_prepared_body(body, callable_abis)),
+          PhysicalBody(finalize_prepared_body(body, callable_abis)),
         )
       RuntimeImport(import_) => finalized_functions.push(RuntimeImport(import_))
     }
@@ -162,7 +162,7 @@ fn prepare_body(body : FunctionBody) -> FunctionBody raise FinalizeError {
 fn finalize_prepared_body(
   body : FunctionBody,
   callable_abis : CallableAbiInterner,
-) -> @bytecode.FunctionBody raise FinalizeError {
+) -> @physical.FunctionBody raise FinalizeError {
   let slots = allocate_physical_slots(insert_arc(body))
   let body = slots.arc_final.body
   {
@@ -198,7 +198,7 @@ fn validate_metadata(
 }
 
 ///|
-fn value_metadata_to_slot(metadata : ValueMetadata) -> @bytecode.SlotMetadata {
+fn value_metadata_to_slot(metadata : ValueMetadata) -> @physical.SlotMetadata {
   if metadata.ownership is Borrowed && metadata.cleanup is OwnedErased {
     return {
       representation: metadata.representation,

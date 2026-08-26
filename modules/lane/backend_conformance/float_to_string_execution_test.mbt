@@ -1,21 +1,17 @@
 ///|
 fn run_float_format_wasm_interpreter(
-  image : @loisvm_bytecode.BytecodeImage,
+  image : @physical.PhysicalProgram,
 ) -> Array[String] raise {
   let output : Array[String] = []
   let loaded = match
-    @loisvm_wasm.load(
-      image,
-      effect_conformance_registry(output),
-      mode=Interpreter,
-    ) {
+    load_physical(image, effect_conformance_registry(output), mode=Interpreter) {
     Ok(value) => value
-    Err(error) => fail("LoisVM Wasm interpreter load failed: \{Repr(error)}")
+    Err(error) => fail("WebAssembly interpreter load failed: \{Repr(error)}")
   }
   let instance = match loaded.new_instance() {
     Ok(value) => value
     Err(error) =>
-      fail("LoisVM Wasm interpreter instantiation failed: \{Repr(error)}")
+      fail("WebAssembly interpreter instantiation failed: \{Repr(error)}")
   }
   assert_eq(instance.execute(), Ok(()))
   output

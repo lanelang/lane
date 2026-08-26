@@ -66,17 +66,17 @@ pub impl @prettyprinter.Pretty for ModuleObjectArtifact with fn pretty(
 pub impl @prettyprinter.Pretty for LinkedProgramArtifact with fn pretty(
   artifact : LinkedProgramArtifact,
 ) -> Document {
-  let disassembly = @loisvm_bytecode.bytecode_image_to_disassembly(
-      artifact.bytecode,
+  let imports = artifact.runtime_imports.map(import_ => {
+    text(
+      "\{import_.symbol}@\{import_.abi_major}: \{Repr(import_.parameters)} -> \{Repr(import_.result)}",
     )
-    .split("\n")
-    .map(StringView::to_owned)
-    .collect()
-  ignore(disassembly.pop())
-  text(
-    "Lane program artifact\nschema: \{linked_program_artifact_schema_version}\n\n" +
-    disassembly.join("\n"),
-  )
+  })
+  separate(@prettyprinter.hardline, [
+    text("Lane WebAssembly program artifact"),
+    text("schema: \{linked_program_artifact_schema_version}"),
+    text("wasm bytes: \{artifact.wasm.length()}"),
+    section_doc("runtime imports:", imports),
+  ])
 }
 
 ///|

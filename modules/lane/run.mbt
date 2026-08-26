@@ -1,10 +1,10 @@
 ///|
 async fn lane_exec(path : String, no_jit? : Bool = false) -> LaneCommandOutcome {
-  let image = match read_linked_program_artifact(path) {
-    Ok(image) => image
+  let artifact = match read_linked_program_artifact(path) {
+    Ok(artifact) => artifact
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_loisvm_image_with_output(image, line => println(line), no_jit~)
+  execute_wasm_artifact_with_output(artifact, line => println(line), no_jit~)
 }
 
 ///|
@@ -78,19 +78,19 @@ fn execute_entry_with_output(
     Ok(executable) => executable
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let image = match lower_executable_image(executable) {
-    Ok(image) => image
+  let artifact = match lower_executable_wasm(executable) {
+    Ok(artifact) => artifact
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_loisvm_image_with_output(image, write_line, no_jit~)
+  execute_wasm_artifact_with_output(artifact, write_line, no_jit~)
 }
 
 ///|
-fn lower_executable_image(
+fn lower_executable_wasm(
   executable : @executable.ExecutableProgram,
-) -> Result[@loisvm_bytecode.BytecodeImage, CliError] {
-  match @artifact.lower_executable_to_loisvm_bytecode(executable) {
-    Ok(image) => Ok(image)
+) -> Result[@artifact.LinkedProgramArtifact, CliError] {
+  match @artifact.executable_to_wasm_artifact(executable) {
+    Ok(artifact) => Ok(artifact)
     Err(error) => Err(ExecutionImageLowering(message="\{Repr(error)}"))
   }
 }
@@ -112,14 +112,23 @@ fn elaborate_command_entry(
 }
 
 ///|
-fn execute_loisvm_image_with_output(
-  image : @loisvm_bytecode.BytecodeImage,
+fn execute_wasm_artifact_with_output(
+  artifact : @artifact.LinkedProgramArtifact,
   write_line : (String) -> Unit,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
-  let mode = if no_jit { @loisvm_wasm.ExecutionMode::Interpreter } else { Jit }
+  let mode = if no_jit {
+    @lane_wasm_runtime.ExecutionMode::Interpreter
+  } else {
+    Jit
+  }
   let loaded = match
-    @loisvm_wasm.load(image, command_loisvm_runtime(write_line), mode~) {
+    @lane_wasm_runtime.load_wasm(
+      artifact.wasm,
+      artifact.runtime_imports,
+      command_runtime_registry(write_line),
+      mode~,
+    ) {
     Ok(loaded) => loaded
     Err(error) =>
       return LaneCommandOutcome::user_error(
@@ -140,12 +149,12 @@ fn execute_loisvm_image_with_output(
 }
 
 ///|
-fn command_loisvm_runtime(
+fn command_runtime_registry(
   write_line : (String) -> Unit,
-) -> @loisvm_runtime.RuntimeRegistry {
-  let registry = @loisvm_runtime.RuntimeRegistry::new()
+) -> @lane_runtime.RuntimeRegistry {
+  let registry = @lane_runtime.RuntimeRegistry::new()
   registry.register(
-    @loisvm_runtime.RuntimeBinding::new(
+    @lane_runtime.RuntimeBinding::new(
       symbol="println",
       abi_major=1,
       parameters=[String],

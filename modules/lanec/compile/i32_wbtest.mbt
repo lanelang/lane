@@ -1,6 +1,6 @@
 ///|
 test "compiler preserves I32 literal and arithmetic through executable lowering" {
-  let bytecode = compile_test_loisvm_image(
+  let physical_program = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -18,7 +18,7 @@ test "compiler preserves I32 literal and arithmetic through executable lowering"
     ),
   )
   debug_inspect(
-    bytecode,
+    physical_program,
     content=(
       #|{
       #|  entry: { value: 1 },
@@ -33,7 +33,7 @@ test "compiler preserves I32 literal and arithmetic through executable lowering"
       #|  ],
       #|  data_family_count: 0,
       #|  functions: [
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {

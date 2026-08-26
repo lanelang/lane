@@ -381,7 +381,7 @@ not introduce a root effect dictionary.
 
 ## Fatal control and execution outcomes
 
-`Fatal(message)` remains a terminator in VM CFG and LoisVM bytecode. It:
+`Fatal(message)` remains a terminator in VM CFG and the Physical Program. It:
 
 1. consumes one owned String;
 2. has no CFG successor;
@@ -404,7 +404,7 @@ runtime-import, resource, engine, and trap failures. A command adapter may map
 these outcomes to diagnostics and process statuses, but it must not flatten
 them into constructor debug text or infer one class from a message or symbol.
 
-The interpreter and Wasm/JIT implementations may use different internal unwind
+The Wasm interpreter and JIT may use different internal unwind
 mechanisms, but they must agree on:
 
 - the exact panic message;
@@ -447,10 +447,9 @@ Implementation must audit every persisted compatibility owner:
   Unit-returning intrinsic contract;
 - linked artifacts must reject any persisted intrinsic or entry contract that
   their compatibility promise can no longer validate;
-- the bytecode instruction language does not require a new Fatal tag solely
+- the compiler-private Physical Program does not require a new Fatal form solely
   because the wrapper's ordinary result ABI changes, but the enclosing linked
-  schema must advance if it promises compatibility with the changed canonical
-  intrinsic or Basic ABI;
+  schema must advance if its persisted Wasm and manifest contract changes;
 - textual inspection and canonical rendering must display the resolved Void
   result without inventing a primitive Void representation.
 
@@ -473,7 +472,7 @@ and compiler defects:
 - an unsupported closed entry effect is an execution-profile diagnostic;
 - a verified intrinsic contract that changes or disappears in a later phase is
   a structured compiler defect;
-- an invalid directly constructed or decoded Fatal instruction is a bytecode
+- an invalid compiler-constructed Fatal instruction is a Physical Program
   verification failure.
 
 No later phase may downgrade these failures into an unsupported-program string

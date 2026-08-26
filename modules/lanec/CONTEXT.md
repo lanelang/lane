@@ -1,8 +1,8 @@
 # Lane Compiler
 
 This context owns compiler vocabulary from source elaboration through verified
-LoisVM image production. Persisted bytecode and runtime terms belong to the
-LoisVM context.
+Physical Program construction and WebAssembly emission. Host ABI and execution
+terms belong to the Lane Runtime context.
 
 ## Language
 
@@ -59,7 +59,7 @@ The target-independent result of Whole-Program Elaboration containing one CPS
 Core program, one selected entry, externals, and one Executable Retention Set.
 Initializer bodies and source order remain owned only by the CPS Core terms;
 the retained set contains identities, not copied expressions or a schedule.
-_Avoid_: linked core wrapper, LoisVM image
+_Avoid_: linked core wrapper, target artifact
 
 **Executable Retention Set**:
 The exact set of top-level ValueIds reachable from the selected entry
@@ -85,8 +85,8 @@ transitive closure of the Linked Core Retention Root Set.
 _Avoid_: heuristic inlining, metadata pruning, per-module DCE
 
 **Execution Image Lowering**:
-The target-specific translation from an Executable Program to a verified
-execution image.
+The target-specific translation from an Executable Program through a verified
+Physical Program to standard WebAssembly.
 _Avoid_: semantic lowering, artifact encoding
 
 ### Source Analysis And Formatting
@@ -259,7 +259,7 @@ Whole-program optimization over verified Buslane before effect lowering and
 again over verified CPS Core after monadic lift. At both seams `Empty` denotes
 observational purity; effect information is projected away only while
 constructing runtime ANF.
-_Avoid_: effect-blind DCE, bytecode optimization
+_Avoid_: effect-blind DCE, physical-program optimization
 
 **Runtime ANF**:
 The closed backend-lowerable ANF produced only by projecting verified,
@@ -288,7 +288,7 @@ The private lowering operation that consumes verified Runtime ANF and target
 ABI facts while constructing VM CFG. It is the sole producer of physical value
 contracts and structural representation adaptations. Substitutions, evidence
 recipes, adapter memoization, layout interning, and work queues remain private
-to LoisVM Lowering; no intermediate physical program or planning sidecar
+to Physical Lowering; no intermediate planning sidecar
 crosses the package boundary.
 _Avoid_: planner catalog interface, emitter type guess, specialization policy
 
@@ -318,12 +318,12 @@ lowered directly into Runtime ANF. It never produces an ordinary Buslane
 program in which `Empty` means missing information.
 _Avoid_: residual-effect erasure pass, source-effect layout inference
 
-### VM CFG And Bytecode Production
+### VM CFG And Physical Program Production
 
 **VM CFG**:
 The compiler-private value-based control-flow graph between lower semantic IR
-and LoisVM bytecode.
-_Avoid_: persisted bytecode CFG, source control flow
+and the Physical Program.
+_Avoid_: persisted execution format, source control flow
 
 **Canonical Pre-ARC VM CFG Image**:
 The compiler-private nominal whole-image boundary produced after local
@@ -333,7 +333,7 @@ function table plus the complete old-to-canonical FunctionId relation. Function
 equivalence includes semantic value metadata and canonical referenced-function
 classes; equal rendered instructions with different data-family or callable
 ABI facts remain distinct. The public API never exposes this value before ARC,
-slot allocation, bytecode emission, and bytecode verification have completed;
+slot allocation, physical emission, and Physical Program verification have completed;
 the completed finalization only exposes its pre-ARC image as observation data.
 _Avoid_: pre-cleanup reachability, lowering-owned function-table policy,
 pretty-text identity, caller-mutable prepared image
@@ -385,7 +385,7 @@ that stores the resulting physical operation and contract.
 _Avoid_: transition sidecar, source-type spelling, layout-only equality,
 emission fallback
 
-**LoisVM Lowering Provenance**:
+**Physical Lowering Provenance**:
 The immutable source and transformation origins attached to emitted physical
 functions and explicit adaptation operations. Explore consumes this provenance
 without turning scale metrics into semantic facts or requiring a second model
@@ -426,7 +426,7 @@ _Avoid_: ownership policy, reference count
 **Runtime Ownership Analysis**:
 The VM CFG analysis that classifies reference-bearing uses as borrows, retained
 copies, releases, or ownership transfers.
-_Avoid_: source borrow checker, bytecode verifier
+_Avoid_: source borrow checker, Physical Program verifier
 
 **ARC Insertion**:
 The VM CFG transformation that materializes ownership decisions as retain,
@@ -439,17 +439,17 @@ definitions, borrow roots, and owned lifetimes satisfy the contract required by
 physical-slot planning. It carries its checked Use-Definition Analysis for the
 slot planner to consume directly. Ownership threading creates fresh block
 parameter values and rewrites each block to its local SSA version.
-_Avoid_: an unverified `FunctionBody`, final LoisVM bytecode
+_Avoid_: an unverified `FunctionBody`, final Physical Program
 
 **Physical Slot Plan**:
-The validated mapping from an ARC-Final VM CFG to compatible physical LoisVM
-slots. The plan owns the verified body it maps and is produced before bytecode
+The validated mapping from an ARC-Final VM CFG to compatible physical slots.
+The plan owns the verified body it maps and is produced before Physical Program
 construction.
-_Avoid_: post-bytecode slot rewrite, Wasm local plan
+_Avoid_: post-emission slot rewrite, Wasm local plan
 
-**Bytecode Emission**:
+**Physical Emission**:
 The one-pass projection of finalized VM CFG through a Physical Slot Plan into
-LoisVM bytecode.
+the Physical Program.
 _Avoid_: allocation pass, emitted-opcode remapping
 
 **Finalized Callable ABI**:
@@ -457,7 +457,8 @@ The canonical callable shape derived from finalized slot metadata and interned
 once for functions, runtime imports, and indirect call sites.
 _Avoid_: source-type reconstruction, verifier repair
 
-**Bytecode Finalization**:
-The boundary that produces a complete LoisVM image only after ownership,
-physical-slot, callable-ABI, and bytecode verification succeed.
-_Avoid_: partially valid image, backend-specific repair
+**Physical Program Finalization**:
+The boundary that produces a complete Physical Program only after ownership,
+physical-slot, callable-ABI, and semantic verification succeed. The WebAssembly
+emitter is its only consumer.
+_Avoid_: partially valid program, persisted VM image, backend-specific repair

@@ -128,10 +128,10 @@ test "explore request returns the complete protocol v6 report" {
       #|    ("anf", "completed", Some("compiler"), Some("anf")),
       #|    ("vmcfg.initial", "completed", Some("compiler"), Some("vmcfg")),
       #|    (
-      #|      "loisvm.bytecode",
+      #|      "physical",
       #|      "completed",
       #|      Some("compiler"),
-      #|      Some("loisvm-bytecode"),
+      #|      Some("physical-program"),
       #|    ),
       #|    ("wasm", "completed", Some("backend"), Some("wat")),
       #|  ],
@@ -270,7 +270,7 @@ test "protocol v6 encodes ordered metrics and structured function lineage" {
       #|    ),
       #|    Object(
       #|      {
-      #|        "function": Object({ "stage": String("loisvm.bytecode"), "index": Number(1) }),
+      #|        "function": Object({ "stage": String("physical"), "index": Number(1) }),
       #|        "roles": Array(
       #|          [
       #|            Object(
@@ -385,10 +385,10 @@ test "explore request accepts multiple source files" {
       #|    ("anf", "completed", Some("compiler"), Some("anf")),
       #|    ("vmcfg.initial", "completed", Some("compiler"), Some("vmcfg")),
       #|    (
-      #|      "loisvm.bytecode",
+      #|      "physical",
       #|      "completed",
       #|      Some("compiler"),
-      #|      Some("loisvm-bytecode"),
+      #|      Some("physical-program"),
       #|    ),
       #|    ("wasm", "completed", Some("backend"), Some("wat")),
       #|  ],
@@ -440,7 +440,7 @@ test "explore request preserves failed and unavailable stage states" {
       #|    ("executable", "unavailable", None, None),
       #|    ("anf", "unavailable", None, None),
       #|    ("vmcfg.initial", "unavailable", None, None),
-      #|    ("loisvm.bytecode", "unavailable", None, None),
+      #|    ("physical", "unavailable", None, None),
       #|    ("wasm", "unavailable", None, None),
       #|  ],
       #|  diagnostic_messages: ["type mismatch"],

@@ -99,7 +99,7 @@ fn select_consuming_projections_in_block(
 fn collect_field_projections(
   instructions : Array[Instruction],
   start : Int,
-  shape : @bytecode.ObjectShapeId,
+  shape : @physical.ObjectShapeId,
   source : ValueId,
 ) -> (Int, Array[ProjectionSelection]) {
   let selections = []
@@ -121,7 +121,7 @@ fn collect_field_projections(
 fn collect_capture_projections(
   instructions : Array[Instruction],
   start : Int,
-  shape : @bytecode.ObjectShapeId,
+  shape : @physical.ObjectShapeId,
   source : ValueId,
 ) -> (Int, Array[ProjectionSelection]) {
   let selections = []

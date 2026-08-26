@@ -1,8 +1,8 @@
 ///|
-fn compile_test_loisvm_image(
+fn compile_test_physical_program(
   source : String,
   library_sources? : Array[String] = [],
-) -> @bytecode.BytecodeImage raise {
+) -> @physical.PhysicalProgram raise {
   let compiled = compile_modules_for_test(source, library_sources)
   assert_eq(compiled.diagnostics, [])
   guard compiled.modules is Some(modules) else {
@@ -26,16 +26,15 @@ fn compile_test_loisvm_image(
     Ok(executable) => executable
     Err(error) => fail("executable elaboration failed: \{Repr(error)}")
   }
-  let artifact = match @artifact.executable_to_loisvm_artifact(executable) {
-    Ok(artifact) => artifact
-    Err(error) => fail("LoisVM lowering failed: \{Repr(error)}")
+  match @physical_lowering.lower_executable_program_to_physical(executable) {
+    Ok(image) => image
+    Err(error) => fail("physical lowering failed: \{Repr(error)}")
   }
-  artifact.bytecode
 }
 
 ///|
 test "compiler removes discarded empty-effect Byte and Bytes operations" {
-  let bytecode = compile_test_loisvm_image(
+  let physical_program = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -50,7 +49,7 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
     ),
   )
   debug_inspect(
-    bytecode,
+    physical_program,
     content=(
       #|{
       #|  entry: { value: 1 },
@@ -58,7 +57,7 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
       #|  callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
       #|  data_family_count: 0,
       #|  functions: [
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [],
       #|        inputs: { environment: None, witnesses: [], user_parameters: [] },
@@ -78,7 +77,7 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
 
 ///|
 test "compiler preserves Byte and Bytes through executable lowering" {
-  let bytecode = compile_test_loisvm_image(
+  let physical_program = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -104,7 +103,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
     ),
   )
   debug_inspect(
-    bytecode,
+    physical_program,
     content=(
       #|{
       #|  entry: { value: 1 },
@@ -119,7 +118,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|  ],
       #|  data_family_count: 0,
       #|  functions: [
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -203,7 +202,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
 
 ///|
 test "compiler preserves Byte and Bytes in fields enum payloads closures and globals" {
-  let bytecode = compile_test_loisvm_image(
+  let physical_program = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -243,7 +242,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
     ),
   )
   debug_inspect(
-    bytecode,
+    physical_program,
     content=(
       #|{
       #|  entry: { value: 1 },
@@ -279,7 +278,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|  ],
       #|  data_family_count: 2,
       #|  functions: [
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -382,7 +381,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -409,7 +408,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -446,7 +445,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -478,7 +477,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {

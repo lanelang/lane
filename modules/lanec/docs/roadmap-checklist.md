@@ -280,15 +280,14 @@ and unresolved or ambiguous states before Buslane lowering.
 - [x] LSP: support partial semantic analysis so navigation and hover remain
   useful when unrelated diagnostics exist. (ISS-009)
 
-## Later Execution Work
+## Execution Work
 
-- [ ] Lowered IR for closure conversion, decision trees, and execution layout
-  derived from Buslane/core rather than used as the artifact boundary.
-- [ ] Portable bytecode VM whose bytecode image is produced after linked-core
+- [x] Derive closure conversion, control flow, ARC, and execution layout from
+  linked core without making lowered IR an artifact boundary.
+- [x] Emit WebAssembly as the sole persisted execution target after linked-core
   optimization.
-- [ ] Optional per-module bytecode caches guarded by compiler version, target,
-  lowering options, and core fingerprints.
-- [ ] Linker entrypoint selection.
-- [ ] Algebraic effects and handlers.
-- [ ] Direct native, WebAssembly, or JavaScript execution targets.
-- [ ] Optional monomorphization and specialized runtime layouts.
+- [x] Keep the verified Physical Program compiler-private and omit per-module
+  target-code caches from the artifact model.
+- [x] Linker entrypoint selection.
+- [x] Algebraic effects and handlers.
+- [ ] Optional canonical-ABI representation specialization.

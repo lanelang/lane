@@ -336,7 +336,7 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
       { "kind": "internalRuntimeImport", "name": name }
     PhysicalRuntimeImport(symbol~) =>
       { "kind": "physicalRuntimeImport", "symbol": symbol }
-    WasmBytecodeFunction => { "kind": "wasmBytecodeFunction" }
+    WasmPhysicalFunction => { "kind": "wasmPhysicalFunction" }
     RuntimeImportAdapter(symbol~) =>
       { "kind": "runtimeImportAdapter", "symbol": symbol }
     WasmRuntimeFunction(name~) =>

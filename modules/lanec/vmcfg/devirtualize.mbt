@@ -1,7 +1,7 @@
 ///|
 priv struct DirectEnvironmentPlan {
-  target : @bytecode.FunctionId
-  shape : @bytecode.ObjectShapeId
+  target : @physical.FunctionId
+  shape : @physical.ObjectShapeId
   witness_ordinals : Array[Int]
   member_indices : Array[Int]
   body : FunctionBody
@@ -9,7 +9,7 @@ priv struct DirectEnvironmentPlan {
 
 ///|
 priv struct EnvironmentPlanCandidate {
-  mut shape : @bytecode.ObjectShapeId?
+  mut shape : @physical.ObjectShapeId?
   mut invalid : Bool
 }
 
@@ -89,7 +89,7 @@ fn build_direct_environment_plans(
   let plans = []
   for index, candidate in candidates {
     guard !candidate.invalid && candidate.shape is Some(shape) else { continue }
-    let target : @bytecode.FunctionId = { value: index + 1, }
+    let target : @physical.FunctionId = { value: index + 1, }
     if build_direct_environment_plan(image, target, shape) is Some(plan) {
       plans.push(plan)
     }
@@ -101,7 +101,7 @@ fn build_direct_environment_plans(
 fn reject_root_environment_plan(
   image : Image,
   candidates : Array[EnvironmentPlanCandidate],
-  target : @bytecode.FunctionId,
+  target : @physical.FunctionId,
 ) -> Unit {
   let index = target.value - 1
   if index >= 0 &&
@@ -232,7 +232,7 @@ fn record_callable_candidate(
 ///|
 fn record_environment_candidate(
   candidates : Array[EnvironmentPlanCandidate],
-  target : @bytecode.FunctionId,
+  target : @physical.FunctionId,
   environment : CallableFlowFact,
 ) -> Unit {
   let index = target.value - 1
@@ -253,7 +253,7 @@ fn record_environment_candidate(
 fn reject_capture_free_reference(
   image : Image,
   candidates : Array[EnvironmentPlanCandidate],
-  target : @bytecode.FunctionId,
+  target : @physical.FunctionId,
 ) -> Unit {
   let index = target.value - 1
   if index >= 0 &&
@@ -266,7 +266,7 @@ fn reject_capture_free_reference(
 ///|
 fn invalidate_environment_candidate(
   candidates : Array[EnvironmentPlanCandidate],
-  target : @bytecode.FunctionId,
+  target : @physical.FunctionId,
 ) -> Unit {
   let index = target.value - 1
   if index >= 0 && index < candidates.length() {
@@ -277,8 +277,8 @@ fn invalidate_environment_candidate(
 ///|
 fn build_direct_environment_plan(
   image : Image,
-  target : @bytecode.FunctionId,
-  shape_id : @bytecode.ObjectShapeId,
+  target : @physical.FunctionId,
+  shape_id : @physical.ObjectShapeId,
 ) -> DirectEnvironmentPlan? raise FinalizeError {
   let function_index = target.value - 1
   guard function_index >= 0 &&
@@ -429,7 +429,7 @@ fn devirtualize_instruction(
 
 ///|
 fn materialize_direct_call(
-  target : @bytecode.FunctionId,
+  target : @physical.FunctionId,
   environment : ValueId,
   witnesses : Array[ValueId],
   arguments : Array[ValueId],
@@ -486,7 +486,7 @@ fn devirtualize_terminator(
 
 ///|
 fn materialize_direct_tail_call(
-  target : @bytecode.FunctionId,
+  target : @physical.FunctionId,
   environment : ValueId,
   witnesses : Array[ValueId],
   arguments : Array[ValueId],
@@ -509,7 +509,7 @@ fn materialize_direct_tail_call(
 ///|
 fn local_aggregate_values(
   fact : CallableFlowFact,
-  shape : @bytecode.ObjectShapeId,
+  shape : @physical.ObjectShapeId,
 ) -> (Array[ValueId], Array[ValueId])? {
   match fact {
     KnownAggregate(selected, _, _, Some(witnesses), Some(members)) if selected ==
@@ -521,7 +521,7 @@ fn local_aggregate_values(
 ///|
 fn direct_environment_plan(
   plans : Array[DirectEnvironmentPlan],
-  target : @bytecode.FunctionId,
+  target : @physical.FunctionId,
 ) -> DirectEnvironmentPlan? {
   for plan in plans {
     if plan.target == target {

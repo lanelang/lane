@@ -23,11 +23,11 @@ source program justified:
 
 | Observation | Value |
 | --- | ---: |
-| Lane bytecode functions | 705 |
+| Physical Program functions | 705 |
 | Total Wasm functions, including imports and generated helpers | 851 |
-| Bytecode functions with one explicit static reference | 602 |
-| Bytecode functions with at most 5 operations | 344 |
-| Bytecode functions with at most 10 operations | 523 |
+| Physical functions with one explicit static reference | 602 |
+| Physical functions with at most 5 operations | 344 |
+| Physical functions with at most 10 operations | 523 |
 | Direct calls, including tail calls | 500 |
 | Indirect calls, including tail calls | 438 |
 | `make_env` operations after VM CFG finalization | 650 |
@@ -46,12 +46,12 @@ source program justified:
 
 The 2026-08-11 callable-flow and deferred-adaptation implementation was
 measured against clean Basic revision `8a7be0e`. The immediately preceding
-compiler produced 705 bytecode functions, 7,192 bytecode instructions, 438
+compiler produced 705 Physical Program functions, 7,192 physical instructions, 438
 indirect calls, 646 closures, and 650 environments. Its Wasm contained 848
 functions, 144,733 instructions, 11,372 locals, and 671 table entries.
 
 With exact callable flow and non-escaping callable-adapter fusion, the same
-program produces 702 bytecode functions, 6,453 bytecode instructions, 411
+program produces 702 Physical Program functions, 6,453 physical instructions, 411
 indirect calls, 486 closures, and 486 environments. The Wasm contains 845
 functions, 134,655 instructions, 11,041 locals, and 659 table entries. Three
 complete `test.sh` runs took 6.81, 6.95, and 6.66 seconds, compared with the
@@ -59,7 +59,7 @@ preceding 8.43 to 9.27 second range. Non-executing Explore took 0.40 seconds.
 
 These results demonstrate removal of callable representation plumbing. They do
 not demonstrate general generic-representation specialization: the resulting
-bytecode still contains 601 erase and 375 unerase operations.
+the Physical Program still contains 601 erase and 375 unerase operations.
 
 ## Representation-specialization result
 
@@ -73,7 +73,7 @@ These are historical optimization measurements, not evidence for the former
 planner architecture. ADR-0138 retains the generic fallback and canonical
 worker key but requires specialization to be a removable program rewrite.
 
-Relative to the callable-flow baseline, Lane bytecode functions increase from
+Relative to the callable-flow baseline, Physical Program functions increase from
 702 to 731 while instructions decrease from 6,453 to 5,933. Erase operations
 fall from 601 to 440 and unerase operations from 375 to 325. Closures and
 environments each fall from 486 to 456. The Wasm image increases from 845 to 876
@@ -86,7 +86,7 @@ Three complete `test.sh` runs took 5.45, 5.47, and 5.44 seconds. Non-executing
 Explore took 0.39 seconds. The preceding callable-flow baseline took 6.66 to
 6.95 seconds for `test.sh` and 0.40 seconds for Explore.
 
-Layout witnesses and erasure bridges account for 1,954 of 8,168 bytecode
+Layout witnesses and erasure bridges account for 1,954 of 8,168 physical
 operations, about 24 percent. The current VM CFG devirtualizer changes only 11
 indirect calls to direct calls and removes only 6 of 652 initial closure
 constructions and 3 of 653 initial environment constructions.
@@ -95,7 +95,7 @@ The largest three Lane functions expand to approximately 5,941, 5,248, and
 2,736 rendered Wasm instructions. The generated entry lifecycle contributes
 another approximately 1,809 instructions, including 66 unrolled global
 completeness checks and separate normal and exceptional cleanup paths. In total,
-approximately 8,168 bytecode operations expand to 153,000 rendered Wasm
+approximately 8,168 Physical Program operations expand to 153,000 rendered Wasm
 instructions.
 
 ## Priority zero: trustworthy measurement
@@ -106,7 +106,7 @@ the numbers above become targets.
 Explore Protocol v6 retains the structural observability introduced in v2 and
 now delivers the first two requirements below. One observation analysis owns
 reconstructible public-IR counts; the linker reports module retention
-contributions, and function lineage is carried by ANF, LoisVM canonicalization,
+contributions, and function lineage is carried by ANF, Physical Program finalization,
 and Wasm emission owners. Per-function scale is published only at
 identity-owning stages; tree stages remain aggregate-only. Ordinary compilation
 does not construct these observations. The remaining work starts with a pinned
@@ -118,10 +118,10 @@ clean Basic baseline.
    environment construction counts, callable table size, layout-erasure bridge
    counts, ARC counts, object-shape count, and generated helper count.
 2. Preserve function provenance from Buslane values through ANF, VM CFG,
-   bytecode, and Wasm. Presentation consumes this relationship; it must not
+   Physical Program, and Wasm. Presentation consumes this relationship; it must not
    infer it from function order or rendered identifiers.
 3. The Wasm text renderer now explicitly covers every instruction emitted by
-   LoisVM. Public round-trip tests parse and validate the complete text and
+   the Wasm emitter. Public round-trip tests parse and validate the complete text and
    preserve special floating-point constant bits.
 4. Pin a clean Basic revision and record compilation, JIT, and execution time
    separately. Image-size gates must accompany the timing gate so a runtime
@@ -211,14 +211,14 @@ ISS-390 first restores independently correct generic lowering and deletes the
 parallel models. ISS-363 and ISS-368 then own optional CPS-aware specialization
 and its measured optimization results.
 
-### 4. Trust verified bytecode facts in the Wasm compiler
+### 4. Trust verified Physical Program facts in the Wasm compiler
 
-Bytecode verification already proves global initialization order, rejects
+Physical Program verification already proves global initialization order, rejects
 duplicate initialization, and requires complete normal initialization. The Wasm
 compiler nevertheless emits runtime checks around every global initialization
 and borrow and emits a second completeness scan in the entry wrapper.
 
-The bytecode verifier should remain the sole owner of these static invariants.
+The Physical Program verifier should remain the sole owner of these static invariants.
 Wasm compilation may consume a successfully verified image without repeating
 them. Dynamic checks whose result depends on runtime data, such as bounds,
 allocation failure, and indirect-call ABI identity, remain required.
@@ -321,7 +321,7 @@ ownership graph must prove every removed retain/release pair.
 After the structural work above, apply standard sparse conditional constant
 propagation, cross-block scalar constant propagation, dead branch removal, and
 local Wasm canonicalization. The current image has only 46 boolean branches and
-29 tag switches at bytecode level, so these passes are unlikely to dominate the
+29 tag switches at Physical Program level, so these passes are unlikely to dominate the
 present JIT problem.
 
 Wasmoon lazy compilation, caching, and compiler throughput remain useful but

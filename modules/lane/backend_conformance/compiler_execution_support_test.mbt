@@ -15,7 +15,7 @@ priv struct CompilerExecutionObservations {
 ///|
 priv struct CompilerExecutionOutcome {
   backend : CompilerExecutionBackend
-  result : Result[Unit, @loisvm_runtime.ExecutionError]
+  result : Result[Unit, @lane_runtime.ExecutionError]
   i64_values : Array[Int64]
   f64_bits : Array[UInt64]
   callback_calls : Int
@@ -24,10 +24,10 @@ priv struct CompilerExecutionOutcome {
 ///|
 fn compiler_test_runtime_registry(
   observations : CompilerExecutionObservations,
-) -> @loisvm_runtime.RuntimeRegistry {
-  let registry = @loisvm_runtime.RuntimeRegistry::new()
+) -> @lane_runtime.RuntimeRegistry {
+  let registry = @lane_runtime.RuntimeRegistry::new()
   registry.register(
-    @loisvm_runtime.RuntimeBinding::new(
+    @lane_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_i64",
       abi_major=1,
       parameters=[I64],
@@ -42,7 +42,7 @@ fn compiler_test_runtime_registry(
     ),
   )
   registry.register(
-    @loisvm_runtime.RuntimeBinding::new(
+    @lane_runtime.RuntimeBinding::new(
       symbol="lane.test.observe_f64",
       abi_major=1,
       parameters=[F64],
@@ -57,7 +57,7 @@ fn compiler_test_runtime_registry(
     ),
   )
   registry.register(
-    @loisvm_runtime.RuntimeBinding::new(
+    @lane_runtime.RuntimeBinding::new(
       symbol="lane.test.callback",
       abi_major=1,
       parameters=[],
@@ -76,7 +76,7 @@ fn compiler_test_runtime_registry(
 
 ///|
 fn execute_compiler_test_image(
-  image : @loisvm_bytecode.BytecodeImage,
+  image : @physical.PhysicalProgram,
   backend : CompilerExecutionBackend,
 ) -> CompilerExecutionOutcome raise {
   let observations : CompilerExecutionObservations = {
@@ -87,19 +87,19 @@ fn execute_compiler_test_image(
   let registry = compiler_test_runtime_registry(observations)
   let result = match backend {
     DirectInterpreter => {
-      let loaded = match @loisvm_interp.load(image, registry) {
+      let loaded = match load_physical_interpreted(image, registry) {
         Ok(loaded) => loaded
         Err(error) => fail("direct interpreter load failed: \{Repr(error)}")
       }
-      loaded.new_instance().execute()
+      loaded.execute()
     }
     WasmInterpreter | WasmJit => {
       let mode = match backend {
-        WasmInterpreter => @loisvm_wasm.ExecutionMode::Interpreter
+        WasmInterpreter => @lane_wasm_runtime.ExecutionMode::Interpreter
         WasmJit => Jit
         DirectInterpreter => abort("unreachable compiler execution backend")
       }
-      let loaded = match @loisvm_wasm.load(image, registry, mode~) {
+      let loaded = match load_physical(image, registry, mode~) {
         Ok(loaded) => loaded
         Err(error) => fail("Wasm load failed: \{Repr(error)}")
       }

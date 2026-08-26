@@ -1,13 +1,13 @@
 ///|
 priv struct CanonicalRuntimeImport {
-  descriptor : @bytecode.RuntimeImport
-  old_ids : Array[@bytecode.FunctionId]
+  descriptor : @runtime.RuntimeImport
+  old_ids : Array[@physical.FunctionId]
 }
 
 ///|
 priv struct CanonicalFunctionTable {
   image : Image
-  source_functions : Array[Array[@bytecode.FunctionId]]
+  source_functions : Array[Array[@physical.FunctionId]]
 }
 
 ///|
@@ -17,7 +17,7 @@ fn canonicalize_function_table_to_fixed_point(
   for canonical = canonicalize_function_table(image) {
     let next = canonicalize_function_table(canonical.image)
     let source_functions = next.source_functions.map(sources => {
-      let original : Array[@bytecode.FunctionId] = []
+      let original : Array[@physical.FunctionId] = []
       for source in sources {
         if source.value <= 0 ||
           source.value > canonical.source_functions.length() {
@@ -44,17 +44,17 @@ fn canonicalize_function_table(
 ) -> CanonicalFunctionTable raise FunctionTableCanonicalizationError {
   let reachable = reachable_functions(image)
   let equivalence_classes = structural_function_classes(image, reachable)
-  let mappings : Array[@bytecode.FunctionId?] = Array::make(
+  let mappings : Array[@physical.FunctionId?] = Array::make(
     image.functions.length(),
     None,
   )
   let bodies : Array[FunctionBody] = []
   let body_classes : Array[Int] = []
-  let body_old_ids : Array[Array[@bytecode.FunctionId]] = []
+  let body_old_ids : Array[Array[@physical.FunctionId]] = []
   let imports : Array[CanonicalRuntimeImport] = []
   for index, entry in image.functions {
     guard reachable[index] else { continue }
-    let old_id : @bytecode.FunctionId = { value: index + 1, }
+    let old_id : @physical.FunctionId = { value: index + 1, }
     match entry {
       Body(body) => {
         let class = equivalence_classes[index]
@@ -71,7 +71,7 @@ fn canonicalize_function_table(
             body_old_ids[body_index].push(old_id)
           }
           None => {
-            let new_id : @bytecode.FunctionId = { value: bodies.length() + 1, }
+            let new_id : @physical.FunctionId = { value: bodies.length() + 1, }
             mappings[index] = Some(new_id)
             bodies.push(body)
             body_classes.push(class)
@@ -120,7 +120,7 @@ fn canonicalize_function_table(
     }
   })
   for index, import_ in imports {
-    let new_id : @bytecode.FunctionId = { value: bodies.length() + index + 1, }
+    let new_id : @physical.FunctionId = { value: bodies.length() + index + 1, }
     for old_id in import_.old_ids {
       mappings[old_id.value - 1] = Some(new_id)
     }
@@ -174,9 +174,9 @@ fn structural_function_classes(
     }
   })
   for classes = initial {
-    let mappings : Array[@bytecode.FunctionId?] = classes.map(class => {
+    let mappings : Array[@physical.FunctionId?] = classes.map(class => {
       if class >= 0 {
-        Some(({ value: class + 1, } : @bytecode.FunctionId))
+        Some(({ value: class + 1, } : @physical.FunctionId))
       } else {
         None
       }
@@ -222,7 +222,7 @@ fn reachable_functions(
   image : Image,
 ) -> Array[Bool] raise FunctionTableCanonicalizationError {
   let reachable = Array::make(image.functions.length(), false)
-  let worklist : Array[@bytecode.FunctionId] = []
+  let worklist : Array[@physical.FunctionId] = []
   mark_reachable_function(image.functions, reachable, worklist, image.entry)
   if image.initializer is Some(initializer) {
     mark_reachable_function(image.functions, reachable, worklist, initializer)
@@ -256,8 +256,8 @@ fn reachable_functions(
 fn mark_reachable_function(
   functions : Array[FunctionEntry],
   reachable : Array[Bool],
-  worklist : Array[@bytecode.FunctionId],
-  function : @bytecode.FunctionId,
+  worklist : Array[@physical.FunctionId],
+  function : @physical.FunctionId,
 ) -> Unit raise FunctionTableCanonicalizationError {
   if function.value <= 0 || function.value > functions.length() {
     raise InvalidFunctionReference(function)
@@ -271,8 +271,8 @@ fn mark_reachable_function(
 
 ///|
 fn compare_runtime_value_kinds(
-  left : Array[@bytecode.RuntimeValueKind],
-  right : Array[@bytecode.RuntimeValueKind],
+  left : Array[@runtime.RuntimeValueKind],
+  right : Array[@runtime.RuntimeValueKind],
 ) -> Int {
   let common = if left.length() < right.length() {
     left.length()
@@ -290,7 +290,7 @@ fn compare_runtime_value_kinds(
 }
 
 ///|
-fn runtime_value_kind_rank(kind : @bytecode.RuntimeValueKind) -> Int {
+fn runtime_value_kind_rank(kind : @runtime.RuntimeValueKind) -> Int {
   match kind {
     Unit => 0
     Bool => 1
@@ -305,7 +305,7 @@ fn runtime_value_kind_rank(kind : @bytecode.RuntimeValueKind) -> Int {
 ///|
 fn remap_function_body(
   body : FunctionBody,
-  mappings : Array[@bytecode.FunctionId?],
+  mappings : Array[@physical.FunctionId?],
 ) -> FunctionBody raise FunctionTableCanonicalizationError {
   {
     ..body,
@@ -322,7 +322,7 @@ fn remap_function_body(
 ///|
 fn remap_instruction_function_ids(
   instruction : Instruction,
-  mappings : Array[@bytecode.FunctionId?],
+  mappings : Array[@physical.FunctionId?],
 ) -> Instruction raise FunctionTableCanonicalizationError {
   match instruction {
     ConstFunction(destination, function) =>
@@ -348,7 +348,7 @@ fn remap_instruction_function_ids(
 ///|
 fn remap_terminator_function_ids(
   terminator : Terminator,
-  mappings : Array[@bytecode.FunctionId?],
+  mappings : Array[@physical.FunctionId?],
 ) -> Terminator raise FunctionTableCanonicalizationError {
   match terminator {
     TailCallDirect(function, environment, witnesses, arguments) =>
@@ -364,9 +364,9 @@ fn remap_terminator_function_ids(
 
 ///|
 fn remap_function_id(
-  function : @bytecode.FunctionId,
-  mappings : Array[@bytecode.FunctionId?],
-) -> @bytecode.FunctionId raise FunctionTableCanonicalizationError {
+  function : @physical.FunctionId,
+  mappings : Array[@physical.FunctionId?],
+) -> @physical.FunctionId raise FunctionTableCanonicalizationError {
   if function.value <= 0 || function.value > mappings.length() {
     raise InvalidFunctionReference(function)
   }

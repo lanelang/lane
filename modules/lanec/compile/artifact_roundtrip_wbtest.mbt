@@ -18,7 +18,7 @@ fn test_executable_program(
 }
 
 ///|
-test "module artifacts roundtrip through binary, link, and bytecode" {
+test "module artifacts roundtrip through binary, link, and Wasm" {
   let compiled = compile_modules_for_test(
     (
       #|module Main
@@ -88,18 +88,11 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   )
   let executable = test_executable_program(program)
   let linked_artifact = match
-    @artifact.executable_to_loisvm_artifact(executable) {
+    @artifact.executable_to_wasm_artifact(executable) {
     Ok(artifact) => artifact
-    Err(error) => abort("unexpected LoisVM lowering error: \{Repr(error)}")
+    Err(error) => abort("unexpected Wasm lowering error: \{Repr(error)}")
   }
-  let runtime_imports = linked_artifact.bytecode.functions.filter_map(fn(
-    function,
-  ) {
-    match function {
-      RuntimeImport(import_) => Some(import_)
-      BytecodeBody(_) => None
-    }
-  })
+  let runtime_imports : Array[@lane_runtime.RuntimeImport] = linked_artifact.runtime_imports
   debug_inspect(
     runtime_imports,
     content=(
@@ -115,7 +108,7 @@ test "module artifacts roundtrip through binary, link, and bytecode" {
   )
   let linked_binary = @artifact.linked_program_artifact_to_binary(
     linked_artifact,
-  ).unwrap()
+  )
   inspect(byte_prefix_text(linked_binary, 8), content="76,65,78,69,65,82,84,0")
   let linked_decoded = match
     @artifact.parse_linked_program_artifact_binary(linked_binary) {
@@ -714,11 +707,11 @@ test "module artifact binary rejects wrong kind" {
     abort("expected linked program")
   }
   let artifact = match
-    @artifact.executable_to_loisvm_artifact(test_executable_program(program)) {
+    @artifact.executable_to_wasm_artifact(test_executable_program(program)) {
     Ok(artifact) => artifact
-    Err(error) => abort("unexpected LoisVM lowering error: \{Repr(error)}")
+    Err(error) => abort("unexpected Wasm lowering error: \{Repr(error)}")
   }
-  let program_binary = @artifact.linked_program_artifact_to_binary(artifact).unwrap()
+  let program_binary = @artifact.linked_program_artifact_to_binary(artifact)
   if @artifact.parse_module_object_artifact_binary(program_binary)
     is Err(message) {
     inspect(

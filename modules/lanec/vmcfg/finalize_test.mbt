@@ -1,5 +1,5 @@
 ///|
-test "finalize rejects an invalid complete bytecode image" {
+test "finalize rejects an invalid complete physical program" {
   let body : FunctionBody = {
     values: [],
     inputs: { environment: None, witnesses: [], user_parameters: [], },
@@ -129,7 +129,7 @@ test "finalize derives definition and call ABIs from finalized value shapes" {
     constants: [b"Lane"],
   })
   guard image is Ok(image) else {
-    fail("expected finalized bytecode: \{Repr(image)}")
+    fail("expected finalized physical program: \{Repr(image)}")
   }
   assert_eq(image.callable_abis, [
     { witnesses: [], parameters: [], result: Unit, },
@@ -259,24 +259,24 @@ test "finalize shares callable ABIs across every callable occurrence" {
     constants: [],
   })
   guard image is Ok(image) else {
-    fail("expected finalized bytecode: \{Repr(image)}")
+    fail("expected finalized physical program: \{Repr(image)}")
   }
   guard image.functions[2]
-    is BytecodeBody(
+    is PhysicalBody(
       { blocks: [{ instructions: [CallValue(_, call_abi, _, _, _)], .. }], .. }
     ) &&
     image.functions[3]
-    is BytecodeBody(
+    is PhysicalBody(
       { blocks: [{ terminator: TailCallValue(_, tail_abi, _, _), .. }], .. }
     ) else {
     fail("expected finalized indirect calls: \{Repr(image.functions)}")
   }
-  let expected_scalar_abi : @bytecode.CallableAbi = {
+  let expected_scalar_abi : @physical.CallableAbi = {
     witnesses: [],
     parameters: [{ representation: I32, cleanup: Trivial, kind: ScalarValue, }],
     result: Value(I32, Trivial, ScalarValue),
   }
-  let expected_import_abi : @bytecode.CallableAbi = {
+  let expected_import_abi : @physical.CallableAbi = {
     witnesses: [],
     parameters: [{ representation: I64, cleanup: Trivial, kind: ScalarValue, }],
     result: Value(I64, Trivial, ScalarValue),

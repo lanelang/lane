@@ -8,7 +8,7 @@ The ABI does not require a persistent compilation session. It may retain bounded
 
 Response framing preserves ordered stage snapshots and places final status and terminal diagnostics after the streamed stage sequence, allowing a compilation failure to finish a valid Partial Explore Report. A failed host callback or transport operation aborts the transaction and never reports a truncated stream as successful.
 
-Lane Wasm remains a compiler bridge. It invokes `lanec/driver`, serializes the versioned Explore Report Protocol, and uses `loisvm/wasm/compiler` to generate the final Wasm snapshot. It does not load, instantiate, JIT-compile, or execute that generated module.
+Lane Wasm remains a compiler bridge. It invokes `lanec/driver`, serializes the versioned Explore Report Protocol, and uses `lanec/wasm_target` to generate the final Wasm snapshot. It does not load, instantiate, JIT-compile, or execute that generated module.
 
 ## Consequences
 

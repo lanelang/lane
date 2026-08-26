@@ -52,7 +52,7 @@ enum CliError {
   ArtifactLoad(path~ : String, kind~ : String, message~ : String)
   ExecutionImageLowering(message~ : String)
   ExecutionImageLoad(message~ : String)
-  ExecutionFailed(@loisvm_runtime.ExecutionError)
+  ExecutionFailed(@lane_runtime.ExecutionError)
   DuplicateObjectArtifact(module_path_text~ : String)
   RootLibraryInput(root~ : String, library~ : String)
   EntryNotFound(name~ : String, entries~ : Array[@compile.CompiledEntry])
@@ -183,13 +183,13 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
     ExecutionImageLowering(message~) =>
       command_report(
         code="E6011",
-        title="couldn't lower the linked program to LoisVM bytecode",
+        title="couldn't lower the linked program to physical program",
         fields=[command_report_field("reason", message)],
       )
     ExecutionImageLoad(message~) =>
       command_report(
         code="E6012",
-        title="couldn't load the LoisVM execution image",
+        title="couldn't load the WebAssembly execution image",
         fields=[command_report_field("reason", message)],
       )
     ExecutionFailed(error) => execution_failure_report(error)
@@ -295,7 +295,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
 
 ///|
 fn execution_failure_report(
-  error : @loisvm_runtime.ExecutionError,
+  error : @lane_runtime.ExecutionError,
 ) -> CommandReport {
   match error {
     Fatal(message~) =>
@@ -308,7 +308,7 @@ fn execution_failure_report(
         command_report_field("message", message),
       ])
     error =>
-      command_report(code="E6013", title="LoisVM execution failed", fields=[
+      command_report(code="E6013", title="WebAssembly execution failed", fields=[
         command_report_field("reason", "\{Repr(error)}"),
       ])
   }

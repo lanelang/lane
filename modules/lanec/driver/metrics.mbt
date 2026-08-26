@@ -291,7 +291,7 @@ fn lowered_metrics(
 ///|
 fn vmcfg_scale(
   image : @vmcfg.Image,
-  functions : Array[@loisvm_lowering.LoisvmFunctionProvenance],
+  functions : Array[@physical_lowering.PhysicalFunctionProvenance],
 ) -> ExploreScaleObservation {
   let accumulator = lowered_accumulator()
   let mut body_count = 0
@@ -384,9 +384,9 @@ fn observe_vmcfg_terminator(
 }
 
 ///|
-fn bytecode_scale(
-  image : @bytecode.BytecodeImage,
-  functions : Array[@loisvm_lowering.LoisvmFunctionProvenance],
+fn physical_scale(
+  image : @physical.PhysicalProgram,
+  functions : Array[@physical_lowering.PhysicalFunctionProvenance],
 ) -> ExploreScaleObservation {
   let accumulator = lowered_accumulator()
   let mut body_count = 0
@@ -394,7 +394,7 @@ fn bytecode_scale(
   let mut slot_count = 0
   for index, entry in image.functions {
     match entry {
-      BytecodeBody(body) => {
+      PhysicalBody(body) => {
         body_count += 1
         let instruction_count = body.blocks.fold(init=0, fn(total, block) {
           total + block.instructions.length()
@@ -410,9 +410,9 @@ fn bytecode_scale(
         })
         for block in body.blocks {
           for instruction in block.instructions {
-            observe_bytecode_instruction(instruction, accumulator)
+            observe_physical_instruction(instruction, accumulator)
           }
-          observe_bytecode_terminator(block.terminator, accumulator)
+          observe_physical_terminator(block.terminator, accumulator)
         }
       }
       RuntimeImport(_) => import_count += 1
@@ -436,8 +436,8 @@ fn bytecode_scale(
 }
 
 ///|
-fn observe_bytecode_instruction(
-  instruction : @bytecode.Instruction,
+fn observe_physical_instruction(
+  instruction : @physical.Instruction,
   accumulator : LoweredScaleAccumulator,
 ) -> Unit {
   match instruction {
@@ -466,8 +466,8 @@ fn observe_bytecode_instruction(
 }
 
 ///|
-fn observe_bytecode_terminator(
-  terminator : @bytecode.Terminator,
+fn observe_physical_terminator(
+  terminator : @physical.Terminator,
   accumulator : LoweredScaleAccumulator,
 ) -> Unit {
   match terminator {

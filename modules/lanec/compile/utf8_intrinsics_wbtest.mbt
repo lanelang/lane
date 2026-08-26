@@ -32,7 +32,7 @@ test "module artifacts roundtrip every Char and UTF-8 intrinsic" {
 
 ///|
 test "compiler erases representation-identical Char conversion" {
-  let bytecode = compile_test_loisvm_image(
+  let physical_program = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -46,7 +46,7 @@ test "compiler erases representation-identical Char conversion" {
     ),
   )
   debug_inspect(
-    bytecode,
+    physical_program,
     content=(
       #|{
       #|  entry: { value: 1 },
@@ -61,7 +61,7 @@ test "compiler erases representation-identical Char conversion" {
       #|  ],
       #|  data_family_count: 0,
       #|  functions: [
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {

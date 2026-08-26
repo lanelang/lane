@@ -1,0 +1,175 @@
+///|
+priv struct ExternalCounter {
+  mut value : Int64
+  mut closed : Bool
+}
+
+///|
+priv struct ExternalHostRun {
+  result : Result[Unit, @lane_runtime.ExecutionError]
+  observed : Array[Int64]
+  closed : Int
+  finalized : Int
+} derive(Debug)
+
+///|
+fn external_counter_registry(
+  observed : Array[Int64],
+  closed : Ref[Int],
+  finalized : Ref[Int],
+) -> @lane_runtime.RuntimeRegistry {
+  let counters : @lane_runtime.HostObjectStore[ExternalCounter] = @lane_runtime.HostObjectStore::new()
+  let registry = @lane_runtime.RuntimeRegistry::new()
+  registry.register(
+    @lane_runtime.RuntimeBinding::typed(
+      symbol="counter.new",
+      abi_major=1,
+      parameters=@lane_runtime.HostParameters::none(),
+      result=@lane_runtime.HostResult::host_object(counters, finalizer=(
+        counter : ExternalCounter,
+      ) => {
+        if !counter.closed {
+          counter.closed = true
+        }
+        finalized.val += 1
+      }),
+      invoke=fn(_context, _arguments) { { value: 0L, closed: false, } },
+    ),
+  )
+  registry.register(
+    @lane_runtime.RuntimeBinding::typed(
+      symbol="counter.add",
+      abi_major=1,
+      parameters=@lane_runtime.HostParameters::pair(
+        @lane_runtime.HostParameters::one(
+          @lane_runtime.HostParameter::host_object(counters),
+        ),
+        @lane_runtime.HostParameters::one(@lane_runtime.HostParameter::i64()),
+      ),
+      result=@lane_runtime.HostResult::i64(),
+      invoke=(_context, arguments : (ExternalCounter, Int64)) => {
+        if arguments.0.closed {
+          raise Failure(message="counter is closed")
+        }
+        arguments.0.value += arguments.1
+        arguments.0.value
+      },
+    ),
+  )
+  registry.register(
+    @lane_runtime.RuntimeBinding::typed(
+      symbol="counter.observe",
+      abi_major=1,
+      parameters=@lane_runtime.HostParameters::one(
+        @lane_runtime.HostParameter::i64(),
+      ),
+      result=@lane_runtime.HostResult::unit(),
+      invoke=fn(_context, value : Int64) { observed.push(value) },
+    ),
+  )
+  registry.register(
+    @lane_runtime.RuntimeBinding::typed(
+      symbol="counter.close",
+      abi_major=1,
+      parameters=@lane_runtime.HostParameters::one(
+        @lane_runtime.HostParameter::host_object(counters),
+      ),
+      result=@lane_runtime.HostResult::unit(),
+      invoke=(_context, counter : ExternalCounter) => {
+        if counter.closed {
+          raise Failure(message="counter is already closed")
+        }
+        counter.closed = true
+        closed.val += 1
+      },
+    ),
+  )
+  registry
+}
+
+///|
+fn run_external_counter_interpreter(
+  image : @physical.PhysicalProgram,
+) -> ExternalHostRun raise {
+  let observed : Array[Int64] = []
+  let closed = Ref(0)
+  let finalized = Ref(0)
+  let loaded = match
+    load_physical_interpreted(
+      image,
+      external_counter_registry(observed, closed, finalized),
+    ) {
+    Ok(value) => value
+    Err(error) => fail("WebAssembly interpreter load failed: \{Repr(error)}")
+  }
+  let result = loaded.execute()
+  { result, observed, closed: closed.val, finalized: finalized.val, }
+}
+
+///|
+fn run_external_counter_wasm(
+  image : @physical.PhysicalProgram,
+) -> ExternalHostRun raise {
+  let observed : Array[Int64] = []
+  let closed = Ref(0)
+  let finalized = Ref(0)
+  let loaded = match
+    load_physical(image, external_counter_registry(observed, closed, finalized)) {
+    Ok(value) => value
+    Err(error) => fail("WebAssembly load failed: \{Repr(error)}")
+  }
+  let instance = match loaded.new_instance() {
+    Ok(value) => value
+    Err(error) => fail("WebAssembly instantiation failed: \{Repr(error)}")
+  }
+  let result = instance.execute()
+  { result, observed, closed: closed.val, finalized: finalized.val, }
+}
+
+///|
+test "external type source executes identically across production backends" {
+  let image = compile_effect_conformance_image(
+    (
+      #|module Main
+      #|extern type Counter : Type
+      #|pub extern type CounterIo : Effect
+      #|let counter_new : () -> Counter ! CounterIo = extern("counter.new")
+      #|let counter_add : (Counter, I64) -> I64 ! CounterIo = extern("counter.add")
+      #|let counter_observe : (I64) -> Unit ! CounterIo = extern("counter.observe")
+      #|let counter_close : (Counter) -> Unit ! CounterIo = extern("counter.close")
+      #|pub fn main() -> Unit ! CounterIo {
+      #|  let counter : Counter = counter_new()
+      #|  let alias : Counter = counter
+      #|  let first : I64 = counter_add(counter, 1)
+      #|  let second : I64 = counter_add(alias, 2)
+      #|  let _first_observed : Unit = counter_observe(first)
+      #|  let _second_observed : Unit = counter_observe(second)
+      #|  counter_close(counter)
+      #|}
+    ),
+  )
+  let imports = image.functions.filter_map(fn(entry) {
+    match entry {
+      RuntimeImport(import_) =>
+        Some((import_.symbol, import_.parameters, import_.result))
+      _ => None
+    }
+  })
+  let interpreter = run_external_counter_interpreter(image)
+  let wasm = run_external_counter_wasm(image)
+  debug_inspect(
+    (imports, interpreter, wasm),
+    content=(
+      #|(
+      #|  [
+      #|    ("counter.add", [Opaque, I64], I64),
+      #|    ("counter.new", [], Opaque),
+      #|    ("counter.close", [Opaque], Unit),
+      #|    ("counter.observe", [I64], Unit),
+      #|  ],
+      #|  { result: Ok(()), observed: [1, 3], closed: 1, finalized: 1 },
+      #|  { result: Ok(()), observed: [1, 3], closed: 1, finalized: 1 },
+      #|)
+    ),
+  )
+}

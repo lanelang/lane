@@ -1,6 +1,6 @@
 ///|
-test "compiler lowers F32 literals and intrinsics to LoisVM" {
-  let bytecode = compile_test_loisvm_image(
+test "compiler lowers F32 literals and intrinsics to the physical program" {
+  let physical_program = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -30,7 +30,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
     ),
   )
   debug_inspect(
-    bytecode,
+    physical_program,
     content=(
       #|{
       #|  entry: { value: 1 },
@@ -50,7 +50,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|  ],
       #|  data_family_count: 0,
       #|  functions: [
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -93,7 +93,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -114,7 +114,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -135,7 +135,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -156,7 +156,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {

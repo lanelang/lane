@@ -1,7 +1,7 @@
 ///|
 fn arc_test_value(
   ownership : Ownership,
-  cleanup : @bytecode.Cleanup,
+  cleanup : @physical.Cleanup,
 ) -> ValueMetadata {
   {
     representation: I32,

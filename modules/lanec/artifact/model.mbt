@@ -47,20 +47,21 @@ pub(all) struct ModuleObjectArtifact {
 } derive(Debug, Eq)
 
 ///|
-/// Complete LoisVM image at the linked-program persistence boundary. The
-/// artifact codec owns the persisted schema version; it is not caller state.
-/// Encoding and decoding both pass through the LoisVM-owned semantic verifier.
+/// Complete WebAssembly executable at the linked-program persistence seam.
+/// Runtime imports retain their semantic host ABI beside the standard Wasm
+/// module because core Wasm function types do not distinguish values such as
+/// Lane strings and opaque host objects.
 pub(all) struct LinkedProgramArtifact {
-  bytecode : @loisvm_bytecode.BytecodeImage
+  wasm : Bytes
+  runtime_imports : Array[@lane_runtime.RuntimeImport]
 } derive(Debug, Eq)
 
 ///|
-/// Reports which compiler-owned phase prevented a LoisVM binary from being
-/// produced. A verification failure is a compiler defect, not an unsupported
-/// source program.
-pub(all) enum LoisvmBinaryError {
-  Lowering(@loisvm_lowering.LoisvmLoweringError)
-  BytecodeVerificationCompilerDefect(@loisvm_bytecode.BytecodeVerificationError)
+/// Reports which compiler-owned phase prevented a Wasm executable from being
+/// produced. The Wasm compiler consumes only verifier-accepted physical input.
+pub(all) enum WasmExecutableError {
+  Lowering(@physical_lowering.PhysicalLoweringError)
+  WasmCompilation(@wasm_compiler.WasmCompileError)
 } derive(Debug, Eq)
 
 ///|

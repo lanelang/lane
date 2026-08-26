@@ -28,7 +28,7 @@ whether a valid program lowers or what the program observes.
 
 Buslane owns source type correctness, kinds, substitution, type-lambda
 reduction, and definitional equality. Runtime representation elaboration owns
-the selected execution contract. LoisVM verifies only execution invariants:
+the selected execution contract. The Physical Program verifier checks only execution invariants:
 physical representation, cleanup, ownership, callable ABI, object shape, and
 layout-evidence provenance.
 
@@ -154,10 +154,11 @@ independently removable program rewrite.
 
 ## Representation elaboration
 
-Representation elaboration is private to LoisVM Lowering. The package accepts
-an admitted executable program and returns verified bytecode; internally it
-projects Runtime ANF and target ABI facts directly into VM CFG. There is no
-consumer-visible physical-program seam.
+Representation elaboration is private to Physical Lowering. The package accepts
+an admitted executable program and returns a verified Physical Program;
+internally it projects Runtime ANF and target ABI facts directly into VM CFG.
+The Physical Program is the compiler-private input to WebAssembly emission, not
+a persisted artifact or execution platform.
 
 The constructed VM CFG contains:
 
@@ -175,7 +176,7 @@ plan, constraint graph, solution, adapter-recipe catalog, or occurrence
 sidecar that another module must keep synchronized with the program.
 
 VM CFG finalization validates and canonicalizes this physical image before ARC,
-slot allocation, bytecode emission, and bytecode verification. A separate
+slot allocation, Physical Program construction, and verification. A separate
 Physical ANF is not retained: the removed form duplicated the same executable
 structure and contracts without owning another necessary invariant.
 
@@ -241,9 +242,9 @@ Representation elaboration rejects compiler-generated states in which:
 - structural adaptation cannot preserve the complete source and target
   contracts.
 
-LoisVM verifies physical representation and cleanup pairs, ownership and
+The Physical Program verifier checks representation and cleanup pairs, ownership and
 borrow lifetime, callable ABI compatibility, object shape, layout-evidence
-scope, and decoder-independent image invariants. It does not reimplement
+scope, and compiler-internal program invariants. It does not reimplement
 Buslane type equality.
 
 ## Effect companions

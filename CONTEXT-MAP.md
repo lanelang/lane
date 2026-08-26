@@ -19,13 +19,14 @@ runtime concepts. Each term has one owning context.
   analysis, effect lowering, VM CFG, and execution-image production.
 - [Lane Module Subsystem](modules/lanec/module/CONTEXT.md) — module package
   boundaries inside `lanec`.
-- [LoisVM](modules/loisvm/CONTEXT.md) — portable bytecode, verification, runtime
-  representation, host calls, and bytecode-to-Wasm execution.
+- [Lane Runtime](modules/lane_runtime/CONTEXT.md) — Wasm execution and host ABI
+  representation, host calls, and WebAssembly loading.
 
 ## Relationships
 
-- The Lane Compiler elaborates Lane source into Buslane and lowers executable
-  Buslane programs through VM CFG into verified LoisVM bytecode.
+- The Lane Compiler elaborates Lane source into Buslane, lowers executable
+  programs through VM CFG into a verified Physical Program, and emits
+  WebAssembly as the sole execution image.
 - The Lane Command and Lane Wasm are hosts of compiler APIs; neither owns
   compiler semantics.
 - Each execution host owns the Execution Profile it supplies to compiler
@@ -35,10 +36,10 @@ runtime concepts. Each term has one owning context.
 - The Canonical Basic ABI package owns the module-input adapter and its identity
   and certification states; resolution and type checking consume them without
   rediscovering providers.
-- Lane artifacts and LoisVM codecs use Bytecodec primitives while retaining
-  ownership of their domain schemas and validation.
+- Lane artifact codecs use Bytecodec primitives while retaining ownership of
+  their domain schemas and validation.
 - Source-language and artifact terms belong to Lane Workspace; compiler-only
   transformations belong to Lane Compiler; persisted execution and runtime
-  terms belong to LoisVM.
+  terms belong to Lane Runtime.
 - Use **MoonBit module** or **MoonBit package** for repository packaging and
   **Module** for a Lane source-language namespace.

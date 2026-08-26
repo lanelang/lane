@@ -9,7 +9,7 @@ and lower compiler IRs.
 
 **Buslane Core Language**:
 The typed expression-tree language used as Lane's canonical semantic core.
-_Avoid_: source AST, ANF, bytecode
+_Avoid_: source AST, ANF, Physical Program
 
 **Buslane Program**:
 A Metadata Registry and an ordered sequence of top-level terms.
@@ -45,7 +45,7 @@ _Avoid_: duplicated optimizer classification, cached AST annotation
 
 **Buslane Interpreter**:
 The reference evaluator for verified Buslane programs.
-_Avoid_: source interpreter, LoisVM
+_Avoid_: source interpreter, Lane runtime
 
 ### Type And Effect Logic
 

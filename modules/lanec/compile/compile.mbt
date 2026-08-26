@@ -163,7 +163,7 @@ pub fn link_modules_observed(
 
 ///|
 /// Validates and links persisted module object artifacts. Schema, fingerprint,
-/// import, and bytecode-independent metadata invariants are checked before any
+/// import, and physical-program-independent metadata invariants are checked before any
 /// artifact contributes to the linked program.
 pub fn link_module_objects(
   objects : Array[@artifact.ModuleObjectArtifact],

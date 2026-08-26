@@ -192,10 +192,10 @@ test "explore protocol v8 exposes all eighteen ordered completed stages" {
       #|      Some("function f1("),
       #|    ),
       #|    (
-      #|      "loisvm.bytecode",
+      #|      "physical",
       #|      "completed",
       #|      Some("compiler"),
-      #|      Some("loisvm-bytecode"),
+      #|      Some("physical-program"),
       #|      Some("function f1 abi=abi0("),
       #|    ),
       #|    ("wasm", "completed", Some("backend"), Some("wat"), Some("(module")),
@@ -379,7 +379,7 @@ test "explore reports deterministic typed scale metrics" {
   let selected = first_scales.filter_map(fn(scale) {
     if [
         "buslane.effect-specialized", "buslane.core-optimized", "anf", "vmcfg.initial",
-        "loisvm.bytecode", "wasm",
+        "physical", "wasm",
       ].contains(scale.0) {
       Some((scale.0, scale.1))
     } else {
@@ -449,7 +449,7 @@ test "explore reports deterministic typed scale metrics" {
       #|    ],
       #|  ),
       #|  (
-      #|    "loisvm.bytecode",
+      #|    "physical",
       #|    [
       #|      ("functionCount", 2),
       #|      ("importCount", 1),
@@ -486,7 +486,7 @@ test "explore reports deterministic typed scale metrics" {
     ),
   )
   let lowered_functions = first_scales.filter_map(fn(scale) {
-    if ["anf", "vmcfg.initial", "loisvm.bytecode"].contains(scale.0) {
+    if ["anf", "vmcfg.initial", "physical"].contains(scale.0) {
       Some((scale.0, scale.2))
     } else {
       None
@@ -511,7 +511,7 @@ test "explore reports deterministic typed scale metrics" {
       #|    ],
       #|  ),
       #|  (
-      #|    "loisvm.bytecode",
+      #|    "physical",
       #|    [
       #|      { index: 1, block_count: 1, operation_count: 2, value_count: 2 },
       #|      { index: 2, block_count: 1, operation_count: 0, value_count: 1 },
@@ -549,7 +549,7 @@ test "explore records direct canonical generic representation costs" {
   let selected = report.stages
     .ordered()
     .filter_map(stage => {
-      guard stage.id == "vmcfg.initial" || stage.id == "loisvm.bytecode" else {
+      guard stage.id == "vmcfg.initial" || stage.id == "physical" else {
         return None
       }
       explore_stage_scale(stage)
@@ -599,7 +599,7 @@ test "explore records direct canonical generic representation costs" {
       #|      ],
       #|    ),
       #|    (
-      #|      "loisvm.bytecode",
+      #|      "physical",
       #|      [
       #|        ("functionCount", 2),
       #|        ("importCount", 2),
@@ -824,7 +824,7 @@ test "explore records concrete-answer CPS normalization costs" {
       guard stage.id == "buslane.monadic-lifted" ||
         stage.id == "buslane.cps-core-optimized" ||
         stage.id == "vmcfg.initial" ||
-        stage.id == "loisvm.bytecode" else {
+        stage.id == "physical" else {
         return None
       }
       guard explore_stage_scale(stage) is Some((id, metrics, _)) else {
@@ -882,7 +882,7 @@ test "explore records concrete-answer CPS normalization costs" {
       #|      ],
       #|    ),
       #|    (
-      #|      "loisvm.bytecode",
+      #|      "physical",
       #|      [
       #|        ("functionCount", 8),
       #|        ("instructionCount", 28),
@@ -930,7 +930,7 @@ test "explore keeps expanding recursive generic applications on the canonical AB
   let selected = report.stages
     .ordered()
     .filter_map(stage => {
-      guard stage.id == "vmcfg.initial" || stage.id == "loisvm.bytecode" else {
+      guard stage.id == "vmcfg.initial" || stage.id == "physical" else {
         return None
       }
       explore_stage_scale(stage)
@@ -970,7 +970,7 @@ test "explore keeps expanding recursive generic applications on the canonical AB
       #|      ],
       #|    ),
       #|    (
-      #|      "loisvm.bytecode",
+      #|      "physical",
       #|      [
       #|        ("functionCount", 2),
       #|        ("importCount", 1),
@@ -1129,7 +1129,7 @@ test "explore parse failure marks syntax failed and later stages unavailable" {
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
       #|    ("vmcfg.initial", "unavailable"),
-      #|    ("loisvm.bytecode", "unavailable"),
+      #|    ("physical", "unavailable"),
       #|    ("wasm", "unavailable"),
       #|  ],
       #|)
@@ -1224,7 +1224,7 @@ test "explore graph failure preserves syntax and fails resolved" {
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
       #|    ("vmcfg.initial", "unavailable"),
-      #|    ("loisvm.bytecode", "unavailable"),
+      #|    ("physical", "unavailable"),
       #|    ("wasm", "unavailable"),
       #|  ],
       #|)
@@ -1312,7 +1312,7 @@ test "explore resolve failure preserves syntax and fails resolved" {
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
       #|    ("vmcfg.initial", "unavailable"),
-      #|    ("loisvm.bytecode", "unavailable"),
+      #|    ("physical", "unavailable"),
       #|    ("wasm", "unavailable"),
       #|  ],
       #|)
@@ -1375,7 +1375,7 @@ test "explore typecheck and entry-selection failures retain completed stages" {
       #|      ("executable", "unavailable"),
       #|      ("anf", "unavailable"),
       #|      ("vmcfg.initial", "unavailable"),
-      #|      ("loisvm.bytecode", "unavailable"),
+      #|      ("physical", "unavailable"),
       #|      ("wasm", "unavailable"),
       #|    ],
       #|  ),
@@ -1398,7 +1398,7 @@ test "explore typecheck and entry-selection failures retain completed stages" {
       #|      ("executable", "unavailable"),
       #|      ("anf", "unavailable"),
       #|      ("vmcfg.initial", "unavailable"),
-      #|      ("loisvm.bytecode", "unavailable"),
+      #|      ("physical", "unavailable"),
       #|      ("wasm", "unavailable"),
       #|    ],
       #|  ),
@@ -1495,10 +1495,10 @@ test "explore traces a named function and preserves synthetic roots" {
       #|      [[SourceFunction(value=1, name=Some("main"))]],
       #|    ),
       #|    (
-      #|      { stage: LoisvmBytecode, index: 1 },
+      #|      { stage: PhysicalProgram, index: 1 },
       #|      [[SourceFunction(value=1, name=Some("main"))]],
       #|    ),
-      #|    ({ stage: Wasm, index: 0 }, [[WasmBytecodeFunction]]),
+      #|    ({ stage: Wasm, index: 0 }, [[WasmPhysicalFunction]]),
       #|  ],
       #|  [{ function: { stage: Wasm, index: 24 }, roles: [EntryWrapper] }],
       #|  false,

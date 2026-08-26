@@ -224,7 +224,7 @@ fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
     }
     InternalRuntimeImport(name~) => "internal runtime import \{name}"
     PhysicalRuntimeImport(symbol~) => "physical runtime import \{symbol}"
-    WasmBytecodeFunction => "Wasm body for bytecode function"
+    WasmPhysicalFunction => "WebAssembly body for physical function"
     RuntimeImportAdapter(symbol~) => "runtime import adapter \{symbol}"
     WasmRuntimeFunction(name~) => "Wasm runtime function \{name}"
     WasmHelperFunction(name~, ordinal~) =>

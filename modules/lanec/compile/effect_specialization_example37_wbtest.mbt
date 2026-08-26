@@ -52,7 +52,7 @@ test "real example 37 shares escaped callable adapter workers" {
   let mut adapter_workers = 0
   let mut adapter_materializations = 0
   let mut finalized_adapter_workers = 0
-  let lowered = @loisvm_lowering.lower_executable_program_to_bytecode_observed(
+  let lowered = @physical_lowering.lower_executable_program_to_physical_observed(
     executable,
     stage => {
       match stage {
@@ -60,7 +60,8 @@ test "real example 37 shares escaped callable adapter workers" {
           let worker_ids = []
           for item in provenance.functions {
             if item.origins.any(origin => {
-                origin is @loisvm_lowering.LoisvmFunctionOrigin::CallableAdapter
+                origin
+                is @physical_lowering.PhysicalFunctionOrigin::CallableAdapter
               }) {
               worker_ids.push(item.function)
             }
@@ -78,10 +79,11 @@ test "real example 37 shares escaped callable adapter workers" {
             }
           }
         }
-        FinalBytecode(_, provenance) =>
+        FinalPhysicalProgram(_, provenance) =>
           for item in provenance.functions {
             if item.origins.any(origin => {
-                origin is @loisvm_lowering.LoisvmFunctionOrigin::CallableAdapter
+                origin
+                is @physical_lowering.PhysicalFunctionOrigin::CallableAdapter
               }) {
               finalized_adapter_workers += 1
             }
@@ -91,7 +93,7 @@ test "real example 37 shares escaped callable adapter workers" {
     },
   )
   guard lowered is Ok(_) else {
-    abort("expected LoisVM lowering to complete: \{Repr(lowered)}")
+    abort("expected physical lowering to complete: \{Repr(lowered)}")
   }
   assert_eq(
     (adapter_workers, adapter_materializations, finalized_adapter_workers),

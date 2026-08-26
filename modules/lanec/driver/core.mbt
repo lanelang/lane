@@ -157,37 +157,43 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     buslane_scale(executable.program),
   )
   let image = match
-    @loisvm_lowering.lower_executable_program_to_bytecode_observed(executable, observed => {
-      match observed {
-        Anf(program) => {
-          let observed = anf_observation(program)
-          functions.observe_anf(executable.program.metadata, observed.functions)
-          stages.complete(Anf, render_anf_code(program), [], observed.scale)
+    @physical_lowering.lower_executable_program_to_physical_observed(
+      executable,
+      observed => {
+        match observed {
+          Anf(program) => {
+            let observed = anf_observation(program)
+            functions.observe_anf(
+              executable.program.metadata,
+              observed.functions,
+            )
+            stages.complete(Anf, render_anf_code(program), [], observed.scale)
+          }
+          InitialVmcfg(image, provenance) => {
+            functions.observe_vmcfg(provenance.functions)
+            stages.complete(
+              VmcfgInitial,
+              @vmcfg.image_to_code(image),
+              [],
+              vmcfg_scale(image, provenance.functions),
+            )
+          }
+          FinalPhysicalProgram(image, provenance) => {
+            functions.observe_physical(provenance.functions)
+            stages.complete(
+              PhysicalProgram,
+              @physical.physical_program_to_code(image),
+              [],
+              physical_scale(image, provenance.functions),
+            )
+          }
         }
-        InitialVmcfg(image, provenance) => {
-          functions.observe_vmcfg(provenance.functions)
-          stages.complete(
-            VmcfgInitial,
-            @vmcfg.image_to_code(image),
-            [],
-            vmcfg_scale(image, provenance.functions),
-          )
-        }
-        FinalBytecode(image, provenance) => {
-          functions.observe_bytecode(provenance.functions)
-          stages.complete(
-            LoisvmBytecode,
-            @bytecode.bytecode_image_to_code(image),
-            [],
-            bytecode_scale(image, provenance.functions),
-          )
-        }
-      }
-    }) {
+      },
+    ) {
     Ok(image) => image
     Err(error) => {
       diagnostics.push(
-        exploration_error("LoisVM lowering failed", "\{Repr(error)}"),
+        exploration_error("Physical lowering failed", "\{Repr(error)}"),
       )
       return failed_report(
         request, root_module_path_text, selected_entry, stages, functions, diagnostics,
@@ -198,7 +204,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     Ok(wasm) => wasm
     Err(error) => {
       diagnostics.push(
-        exploration_error("Wasm lowering failed", "\{Repr(error)}"),
+        exploration_error("WebAssembly lowering failed", "\{Repr(error)}"),
       )
       return failed_report(
         request, root_module_path_text, selected_entry, stages, functions, diagnostics,

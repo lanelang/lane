@@ -107,7 +107,7 @@ async fn write_linked_program_artifact(
   path : String,
   program : @executable.ExecutableProgram,
 ) -> Result[Unit, CliError] {
-  let bytes = match @artifact.executable_to_loisvm_binary(program) {
+  let bytes = match @artifact.executable_to_wasm_binary(program) {
     Ok(bytes) => bytes
     Err(error) => return Err(ExecutionImageLowering(message="\{Repr(error)}"))
   }
@@ -120,15 +120,19 @@ async fn write_linked_program_artifact(
 ///|
 async fn read_linked_program_artifact(
   path : String,
-) -> Result[@loisvm_bytecode.BytecodeImage, CliError] {
+) -> Result[@artifact.LinkedProgramArtifact, CliError] {
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
-  match @artifact.parse_loisvm_linked_program_binary(bytes) {
-    Ok(image) => Ok(image)
+  match @artifact.parse_linked_program_artifact_binary(bytes) {
+    Ok(artifact) => Ok(artifact)
     Err(message) =>
       Err(
-        ArtifactLoad(path~, kind="linked program bytecode artifact", message~),
+        ArtifactLoad(
+          path~,
+          kind="linked WebAssembly program artifact",
+          message~,
+        ),
       )
   }
 }

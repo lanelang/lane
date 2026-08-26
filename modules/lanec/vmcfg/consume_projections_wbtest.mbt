@@ -80,12 +80,12 @@ test "select consuming field projection for returned owned member" {
     ),
   )
   let image = match
-    finalize_test_image_without_bytecode_verification(test_image(body)) {
+    finalize_test_image_without_physical_verification(test_image(body)) {
     Ok(image) => image
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   debug_inspect(
     lowered.blocks[0].instructions,

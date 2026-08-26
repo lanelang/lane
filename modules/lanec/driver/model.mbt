@@ -33,7 +33,7 @@ pub(all) enum ExploreTextFormat {
   EffectLowering
   Anf
   Vmcfg
-  LoisvmBytecode
+  PhysicalProgram
   Wat
 } derive(Debug, Eq)
 
@@ -128,7 +128,7 @@ pub(all) enum ExploreFunctionRole {
   RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
   InternalRuntimeImport(name~ : String)
   PhysicalRuntimeImport(symbol~ : String)
-  WasmBytecodeFunction
+  WasmPhysicalFunction
   RuntimeImportAdapter(symbol~ : String)
   WasmRuntimeFunction(name~ : String)
   WasmHelperFunction(name~ : String, ordinal~ : Int?)
@@ -177,7 +177,7 @@ pub(all) enum ExploreStageId {
   Executable
   Anf
   VmcfgInitial
-  LoisvmBytecode
+  PhysicalProgram
   Wasm
 } derive(Debug, Eq)
 
@@ -384,16 +384,16 @@ let explore_stage_catalog : Array[ExploreStageDescriptor] = [
     text_format: Vmcfg,
   },
   {
-    id: LoisvmBytecode,
-    key: "loisvm.bytecode",
-    title: "LoisVM Bytecode (ARC and Slot Finalization)",
+    id: PhysicalProgram,
+    key: "physical",
+    title: "Physical Program (ARC and Slot Finalization)",
     domain: Compiler,
-    text_format: LoisvmBytecode,
+    text_format: PhysicalProgram,
   },
   {
     id: Wasm,
     key: "wasm",
-    title: "Wasm (LoisVM Backend Lowering)",
+    title: "WebAssembly",
     domain: Backend,
     text_format: Wat,
   },
@@ -452,7 +452,7 @@ pub fn ExploreTextFormat::name(self : ExploreTextFormat) -> String {
     EffectLowering => "buslane-effect-lowering"
     Anf => "anf"
     Vmcfg => "vmcfg"
-    LoisvmBytecode => "loisvm-bytecode"
+    PhysicalProgram => "physical-program"
     Wat => "wat"
   }
 }

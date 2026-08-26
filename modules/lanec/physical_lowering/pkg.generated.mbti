@@ -1,0 +1,73 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/physical_lowering"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/anf",
+  "Milky2018/lanec/executable",
+  "Milky2018/lanec/physical",
+  "Milky2018/lanec/vmcfg",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn lower_executable_program_to_physical(@executable.ExecutableProgram) -> Result[@physical.PhysicalProgram, PhysicalLoweringError]
+
+pub fn lower_executable_program_to_physical_observed(@executable.ExecutableProgram, (PhysicalLoweringStage) -> Unit) -> Result[@physical.PhysicalProgram, PhysicalLoweringError]
+
+// Errors
+pub(all) suberror FunctionProvenanceError {
+  OriginCountMismatch(functions~ : Int, origins~ : Int)
+  InvalidSourceFunction(function~ : @physical.FunctionId)
+  FinalizedFunctionCountMismatch(functions~ : Int, origins~ : Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror PhysicalLoweringError {
+  RuntimeAnfCompilerDefect(@anf.RuntimeAnfLoweringError)
+  MissingValueMetadata(value~ : @buslane.ValueId)
+  MissingDataConstructorMetadata(data_constructor~ : @buslane.DataConId)
+  MissingExternal(value~ : @buslane.ValueId)
+  MissingEntry(value~ : @buslane.ValueId)
+  UnsupportedType(type_~ : @anf.RuntimeType)
+  UnsupportedTopLevel(value~ : @buslane.ValueId)
+  UnsupportedExpression(detail~ : String)
+  UnsupportedGenericData(data_constructor~ : @buslane.DataConId)
+  InvalidDataPayloadCount(data_constructor~ : @buslane.DataConId, expected~ : Int, actual~ : Int)
+  InvalidTypeApplication(detail~ : String)
+  UnsupportedIntrinsic(name~ : String)
+  UnterminatedBlock(block~ : Int)
+  VmcfgFinalizeError(@vmcfg.FinalizeError)
+  FunctionProvenanceCompilerDefect(FunctionProvenanceError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum PhysicalFunctionOrigin {
+  TopLevelFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  LiftedFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  LiftedRecursiveFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  Initializer(source~ : @buslane.ValueId)
+  InitializerOrchestrator
+  IntrinsicWrapper(name~ : String)
+  CallableAdapter
+  LayoutConstructor
+  RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct PhysicalFunctionProvenance {
+  function : @physical.FunctionId
+  origins : Array[PhysicalFunctionOrigin]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct PhysicalLoweringProvenance {
+  functions : Array[PhysicalFunctionProvenance]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum PhysicalLoweringStage {
+  Anf(@anf.AnfProgram)
+  InitialVmcfg(@vmcfg.Image, PhysicalLoweringProvenance)
+  FinalPhysicalProgram(@physical.PhysicalProgram, PhysicalLoweringProvenance)
+}
+
+// Type aliases
+
+// Traits

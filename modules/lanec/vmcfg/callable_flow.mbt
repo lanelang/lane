@@ -7,7 +7,7 @@ priv enum CallableEnvironmentFact {
 
 ///|
 priv struct CallableAlternative {
-  target : @bytecode.FunctionId
+  target : @physical.FunctionId
   environment : CallableEnvironmentFact
 } derive(Debug, Eq)
 
@@ -17,7 +17,7 @@ priv enum CallableFlowFact {
   Unknown(Array[CallableAlternative])
   KnownCallables(Array[CallableAlternative])
   KnownAggregate(
-    @bytecode.ObjectShapeId,
+    @physical.ObjectShapeId,
     Array[CallableFlowFact],
     Array[CallableFlowFact],
     Array[ValueId]?,
@@ -290,7 +290,7 @@ fn terminator_edges(terminator : Terminator) -> Array[Edge] {
 ///|
 fn aggregate_member_fact(
   fact : CallableFlowFact,
-  shape : @bytecode.ObjectShapeId,
+  shape : @physical.ObjectShapeId,
   member_index : Int,
 ) -> CallableFlowFact {
   match fact {
@@ -304,7 +304,7 @@ fn aggregate_member_fact(
 
 ///|
 fn known_callable(
-  target : @bytecode.FunctionId,
+  target : @physical.FunctionId,
   environment : CallableEnvironmentFact,
 ) -> CallableFlowFact {
   KnownCallables([{ target, environment, }])
@@ -313,7 +313,7 @@ fn known_callable(
 ///|
 fn function_result_fact(
   results : Array[CallableFlowFact],
-  target : @bytecode.FunctionId,
+  target : @physical.FunctionId,
 ) -> CallableFlowFact {
   let index = target.value - 1
   if index >= 0 && index < results.length() {

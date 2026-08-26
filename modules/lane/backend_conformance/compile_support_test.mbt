@@ -29,11 +29,11 @@ fn conformance_execution_profile() -> @executable.ExecutionProfile {
 }
 
 ///|
-fn lower_conformance_program_to_bytecode(
+fn lower_conformance_program_to_physical(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
   entry : @buslane_lowering.BuslaneEntry,
-) -> Result[@loisvm_bytecode.BytecodeImage, String] {
+) -> Result[@physical.PhysicalProgram, String] {
   let executable = match
     @executable.elaborate(
       { module_path_texts: [], program, externals, entries: [entry], },
@@ -43,7 +43,7 @@ fn lower_conformance_program_to_bytecode(
     Ok(executable) => executable
     Err(error) => return Err("elaboration failed: \{Repr(error)}")
   }
-  match @loisvm_lowering.lower_executable_program_to_bytecode(executable) {
+  match @physical_lowering.lower_executable_program_to_physical(executable) {
     Ok(image) => Ok(image)
     Err(error) => Err("lowering failed: \{Repr(error)}")
   }
