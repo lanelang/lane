@@ -510,7 +510,8 @@ the function-identity ownership contract.
 - profile-guided optimization or hotness annotations;
 - moving general Core optimization after ANF;
 - reconstructing effects from syntax, source names, or runtime ABI;
-- changing the current representation-specialization plan;
+- changing the Canonical Generic ABI or optional representation-specialization
+  rewrite from ADR-0138;
 - treating devirtualization, adapter fusion, or worker specialization as
   accepted source-level inlining;
 - defining final lowering-relevant profitability weights in this refactor.

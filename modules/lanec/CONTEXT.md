@@ -271,48 +271,32 @@ Buslane `Type`, `Effect`, `Kind`, `GenericArgument`, or type-lambda syntax.
 Stable Buslane declaration IDs survive only as nominal symbols. Nominal runtime
 arguments select construction and projection evidence, but do not define a
 data value's callable ABI. Higher-kinded nominal arguments are eta-expanded at
-this boundary. Physical elaboration consumes Runtime ANF; VM CFG emission
-consumes only verified Physical ANF.
+this boundary. Every top-level and nested callable has a stable Runtime ANF
+identity, lexical evidence scope, captures, and recursive-group identity.
+Representation Elaboration consumes Runtime ANF.
 _Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering
 
-**Runtime ANF Callable Catalog**:
-The complete pre-emission inventory of Runtime ANF callables. It assigns each
-top-level and nested function one stable identity together with its lexical
-evidence scope, owner, recursive group, captures, and allocation provenance.
-LoisVM planning consumes this catalog instead of discovering functions while
-emitting bodies.
-_Avoid_: source value as function identity, emission-time function allocation
+**Canonical Generic ABI**:
+The complete evidence-passing execution contract used whenever a runtime type
+remains open. Ordinary values use an erased payload plus layout evidence;
+higher-kinded values use explicit layout constructors. Generic definitions and
+declaration-owned nominal storage are independently lowerable through this ABI.
+_Avoid_: specialization prerequisite, reference guess, closed-world layout
 
-**Runtime Value Port**:
-A stable producer, consumer, parameter, result, capture, aggregate, or join
-position in one semantic callable instance to which physical shape is assigned.
-_Avoid_: source type, function-wide family context
+**Representation Elaboration**:
+The deep module that transforms verified Runtime ANF and target ABI facts into
+one Verified Physical Program. It may use private analyses and work queues, but
+its interface exposes neither demand plans nor solution sidecars. It is the
+sole producer of physical value contracts and structural representation
+adaptations.
+_Avoid_: planner catalog interface, emitter type guess, specialization policy
 
-**Physical Value Shape**:
-The one interned runtime representation selected for a Runtime Value Port,
-including exact erased-evidence, callable-ABI, or data-family identity.
-_Avoid_: Value ABI alone, candidate family set, semantic type
-
-**Representation Constraint Graph**:
-The lowering-private graph collected from Runtime ANF after semantic callable
-flow reaches a fixed point. Its stable nodes are runtime value ports and
-callable targets; its edges express identity flow and explicit non-local
-representation requirements. Its solver owns specialized families, callable
-targets, workers, and bridge requirements, but does not duplicate canonical
-scalar classification on every node.
-_Avoid_: callable-instance side effects, emitter query tables, source-type key
-
-**Representation Solution**:
-The complete immutable assignment of non-local representation choices produced
-by solving the Representation Constraint Graph. It is an input to Physical ANF
-materialization, not an IR consumed beside the original Runtime ANF tree.
-_Avoid_: demand sidecar, ambient family array, emission-time choice
-
-**LoisVM Runtime Type Arena**:
-The lowering-private arena seeded from Runtime ANF's immutable type-expression
-catalog. It owns expressions derived by runtime substitution and beta
-reduction; no derived identity is written back into Runtime ANF.
-_Avoid_: mutable Runtime ANF metadata, Buslane normalization, shared intern table
+**Physical Value Contract**:
+The authoritative execution representation of one value after Representation
+Elaboration, including slot representation, cleanup, semantic runtime value
+category, object or callable shape, and required layout-evidence provenance.
+Semantic type provenance may coexist with this contract but cannot override it.
+_Avoid_: source type identity, machine width alone, candidate contract set
 
 **Runtime Generic Plan**:
 The fixed-point fact set constructed at the CPS-Core-to-Runtime-ANF boundary
@@ -368,159 +352,78 @@ Devirtualization and environment-ABI planning consume this fact directly.
 _Avoid_: instruction-adjacency pattern, reference-count eligibility, rewrite fallback
 
 **Deferred Callable Adaptation**:
-The lowering-local structural conversion between two callable representations.
-Direct invocation fuses the conversion into the call; only first-class escape
-materializes an adapter function, environment, and closure.
-_Avoid_: eager adapter allocation, runtime-layout-only type alignment
-
-**Callable Adapter Recipe**:
-The canonical lowering-owned identity of one materialized callable conversion,
-containing its source and target runtime ABIs, physical parameter alignment,
-evidence sources, concrete layout recipes, nested callable conversions, and
-result operation. The recipe is interned before its adapter FunctionId is
-allocated; each materialization site supplies its own captured values to the
-one worker selected by that recipe.
-_Avoid_: source-type spelling key, VM CFG body equivalence, call-site worker allocation
+The Structural Representation Adaptation between two callable contracts.
+Direct invocation may fuse parameter, call, and result conversion; only a
+first-class escape materializes a worker, environment, and closure.
+_Avoid_: eager adapter allocation, recipe sidecar, runtime-layout-only alignment
 
 **Physical ANF**:
-The compiler-private structural IR materialized from Runtime ANF and one
-Representation Solution. Its constructor is the sole owner of the final
-Physical Value Contract at every call, construction, match, binding, capture,
-allocation, join, and function boundary: it combines solved non-local choices
-with canonical runtime-type classification exactly once. Its verifier proves
-the complete physical contract before VM CFG emission.
-_Avoid_: unchanged Runtime ANF plus sidecars, site-key lookup, emitter fallback
-
-**Callable Instance Plan**:
-The typed Runtime ANF fixed point over callable identities, evidence
-applications, aliases, parameters, results, finite allocation sites, aggregate
-members, and recursive groups. It owns only semantic flow and supplies those
-facts to the Representation Constraint Graph; it never selects physical
-families, workers, bridges, or final function reachability.
-_Avoid_: recursively nested aggregate fact, first-seen recursion, emission-time demand
+The compiler-private structural result of Representation Elaboration. Every
+runtime value carries one Physical Value Contract and every unequal flow is an
+explicit Structural Representation Adaptation. Its verifier proves the closed
+physical execution invariant before VM CFG emission. It may retain semantic
+provenance, but emission cannot use that provenance to reselect representation.
+_Avoid_: Runtime ANF plus sidecars, planner output, emitter fallback
 
 **Callable Invocation Contract**:
-The exact Physical Value Shapes of a callable's evidence inputs, user
+The exact Physical Value Contracts of a callable's evidence inputs, user
 parameters, and result, independent of the closure environment that implements
-it. The Representation Solution freezes every generic implementation
-contract before planning workers or function bodies; higher-order contracts
-refer to those frozen facts rather than reconstructing an ABI from Runtime ANF
-type syntax. Body planning verifies the contract and cannot replace it.
+it. Generic callables obtain this contract from the Canonical Generic ABI;
+specialization may produce another closed contract without invalidating the
+generic implementation.
 _Avoid_: CallableValue layout, source function type, capture schema,
 type-derived fallback ABI
 
-**Recursive Callable Contract Graph**:
-The lowering-owned finite graph of Callable Invocation Contracts. Callable
-positions refer to graph identities instead of recursively embedding another
-contract. Reservation and completion construct recursive demand SCCs; a
-partition-refinement verifier canonicalizes bisimilar nodes while preserving
-stable aliases for provenance. Open or structurally expanding demand retains
-the generic implementation rather than inventing an unbounded worker family.
-Contract identities canonicalize only physical ABI; each recursive worker
-edge separately rebases alpha-renamed residual evidence onto the worker's
-verified binder scope.
-_Avoid_: recursive ABI tree, depth cutoff, recursion fallback, post-freeze ID
-reindexing, free evidence identity as graph structure
+**Physical Callable ABI Graph**:
+The physical ABI owner's finite nominal graph for recursive Callable Invocation
+Contracts. It describes executable call compatibility only. Semantic callable
+flow, binder scope, specialization demand, and worker selection do not enter
+its identity.
+_Avoid_: recursive structural ABI tree, callable-instance graph, source binder identity
 
-**Representation Transition**:
-The canonical source-contract, target-contract, and operation-kind identity for
-one non-identity physical flow. Physical ANF bridge planning and callable
-adapter value-flow planning are its only producers; VM CFG emission consumes
-the attached transition and may not reclassify it from emitted opcodes.
-_Avoid_: source-type spelling, layout-only equality, Explore opcode inference
-
-**Representation Transition Occurrence**:
-A VM CFG emission event that consumes one Physical ANF transition site. The
-emitter owns its stable per-function event ordinal, transition, boundary,
-binding, optional collection ordinal, and exact produced-or-consumed VM CFG
-value anchor; repeated equal sites remain repeated events. VM CFG cleanup may
-remove an event only by removing its anchored operation. When structurally
-equal functions merge, their surviving anchored transition streams must agree,
-one representative stream survives, and its origins become the union of the
-merged functions. Final verification matches each surviving erase/unerase
-event to the corresponding typed VM CFG operation.
-_Avoid_: planner-visit set, diagnostic string site, source-binding merge key,
-kind-only instruction count, post-cleanup event inference
+**Structural Representation Adaptation**:
+The explicit conversion of one value from a complete source Physical Value
+Contract to a complete target contract. Identity needs no operation; current
+non-identity operations are erase, unerase, and callable adaptation. The
+elaborator owns construction and VM CFG emission consumes the operation
+mechanically.
+_Avoid_: transition sidecar, source-type spelling, layout-only equality,
+emission fallback
 
 **LoisVM Lowering Provenance**:
-The immutable observation sidecar exported with initial VM CFG and final
-bytecode: canonical function origins, the Recursive Callable Contract Graph,
-Representation Transitions, and their occurrences. Explore consumes this
-sidecar directly and never reconstructs these facts from labels, function
-positions, or instructions.
-_Avoid_: scale metric as semantic fact, renderer-owned ABI relation
+The immutable source and transformation origins attached to emitted physical
+functions and explicit adaptation operations. Explore consumes this provenance
+without turning scale metrics into semantic facts or requiring a second model
+of the lowered program.
+_Avoid_: planner sidecar, rendered-label identity, scale metric as semantic fact
 
-**Callable Producer Contract**:
-The Physical ANF fact attached to one callable-producing atom. A function or
-evidence-lambda allocation may construct the selected implementation with the
-captures in its lexical environment. A reference to an existing callable must
-retain that value's frozen invocation and environment; it cannot recreate the
-source definition under a different representation. A consumer that requires
-another invocation names an explicit callable bridge.
-_Avoid_: rematerializing a callable reference from its source function,
-semantic-target-derived producer ABI, capture reconstruction at a use site
-
-**Function Representation Variant**:
-One semantic callable instance paired with one Callable Invocation Contract,
-exact capture shapes, and the physical assignments required by its body.
-_Avoid_: semantic callable instance, ABI-only worker key
-
-**Callable Materialization Contract**:
-The allocation-site-owned tuple of semantic callable target, selected generic
-or worker implementation, Callable Invocation Contract, and capture flows.
-Physical planning produces it once; VM CFG emission may only materialize that
-record and cannot reselect an implementation from the use site.
-_Avoid_: worker boolean, emission-time ABI reconstruction
-
-**Representation Bridge**:
-An explicit planned conversion between two Physical Value Shapes, currently
-erase, unerase, or callable adaptation.
-_Avoid_: emission fallback, implicit data-family reboxing
+**Representation Specialization**:
+An optional program rewrite that clones one generic definition for a closed
+canonical runtime ABI and rewrites actual calls to that worker. Its analyses
+and work queue are private. Deleting the pass preserves valid-program lowering
+and observable behavior through the Canonical Generic ABI.
+_Avoid_: correctness boundary, consumer-visible demand plan, mandatory monomorphization
 
 **Representation Worker**:
 A concrete-ABI implementation of a generic function that consumes no
-first-order layout witnesses and introduces no erased-value bridges at its
-planned direct call sites. Each complete canonical physical function contract
-owns at most one worker. The generic implementation remains available for open
-or incompatible components; cleaned whole-image reachability removes any
-implementation that is not actually referenced.
-_Avoid_: source-local selection, code-size score, pre-cleanup reachability
+first-order layout witnesses and avoids erased-value bridges at rewritten call
+sites. The key is the generic definition plus its complete canonical runtime
+ABI. Each key owns at most one worker; the generic implementation remains
+available for every open, indirect, unsupported, or recursively expanding use.
+_Avoid_: generic replacement, call-count key, source-spelling key
 
-**Recursive Representation Demand SCC**:
-An exact strongly connected component of representation-worker demands linked
-through first-class callable parameters, results, captures, or stored members.
-Because a Callable Invocation Contract is structural and has no recursive name,
-the planner emits no worker for a recursive demand component, and every
-first-class edge targeting it retains the generic invocation contract. Acyclic
-targets may use worker contracts only when the worker preserves one physical
-slot per logical callable parameter; scalar-expanded workers remain direct-call
-contracts. Each callable allocation freezes its implementation, invocation ABI,
-and capture contract together, and emission consumes that single fact.
-_Avoid_: DFS-order seed ABI, structural contract expansion,
-recursive callable worker ABI, implementation/ABI reselection during emission
+**Generic Nominal Data Schema**:
+The declaration-owned uniform storage ABI for a generic nominal data type.
+Representation-dependent members use the Canonical Generic ABI and carry the
+evidence required for storage, projection, and destruction. Closed arguments
+do not create another nominal family as part of ordinary lowering.
+_Avoid_: allocation-local family, specialized storage prerequisite, ambient family set
 
-**Nominal Data Representation Family**:
-The declaration-owned uniform fallback storage ABI for one nominal data type.
-It is the canonical generic choice for every open, existential,
-recursive-expanding, unproved joined, or incompatible use.
-_Avoid_: allocation-local object shape under the declaration family,
-runtime-ABI-only family key, hidden-binder specialization
-
-**Specialized Data Representation Family**:
-A Representation Solution identity owning one nominal owner's complete
-constructor tag, member-shape, and stored-evidence contract. Its identity
-includes nested physical shapes, not only closed source arguments.
-_Avoid_: per-allocation family, body-wide type guess, partial constructor family,
-emission-time family discovery, reboxing fallback
-
-**Closed Aggregate Scalar Replacement Plan**:
-The immutable proof that one aggregate allocation does not escape and that
-every reachable consumer has exact allocation identity. The plan forwards
-payload facts directly to those consumers and removes the allocation; it never
-changes the nominal family's storage ABI. An open, escaping, or ambiguous use
-keeps the ordinary allocation unchanged.
-_Avoid_: alternate object shape under one family, optimistic escape assumption,
-emission-time scalar replacement discovery
+**Closed Aggregate Scalar Replacement**:
+An optional escape-proven rewrite that forwards one allocation's fields to all
+known consumers and removes the allocation without changing nominal family
+identity. Ambiguous or escaping values keep the ordinary object.
+_Avoid_: alternate nominal schema, optimistic escape assumption, lowering fallback
 
 **Erased Callable Position ABI**:
 The invocation contract declared by a callable-shaped erased position or by a

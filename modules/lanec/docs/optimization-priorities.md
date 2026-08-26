@@ -69,6 +69,10 @@ canonical runtime ABI, proves recursive demand closure, retains generic
 fallbacks for open uses, and relies on exact whole-image reachability to remove
 only physically unreachable functions.
 
+These are historical optimization measurements, not evidence for the former
+planner architecture. ADR-0138 retains the generic fallback and canonical
+worker key but requires specialization to be a removable program rewrite.
+
 Relative to the callable-flow baseline, Lane bytecode functions increase from
 702 to 731 while instructions decrease from 6,453 to 5,933. Erase operations
 fall from 601 to 440 and unerase operations from 375 to 325. Closures and
@@ -172,63 +176,40 @@ Truly polymorphic code needs layout witnesses and erased values. A call whose
 type arguments and companion witnesses are concrete should not retain the same
 runtime plumbing merely because it passed through a generic definition.
 
-Introduce demand-driven representation specialization that is profitable only
-when it removes concrete ABI work. It must:
+The correctness baseline is the Canonical Generic ABI from ADR-0138. Generic
+functions and generic nominal storage must lower correctly when representation
+specialization is disabled. Specialization is then an optional program rewrite
+that is useful only when it removes concrete ABI work. It must:
 
 - propagate the concrete layout through the specialized body;
 - cancel matching erase and unerase operations;
 - eliminate constant witness arguments and captures;
 - canonicalize identity adapters and compose adjacent adapters;
-- avoid unrestricted whole-program monomorphization.
+- create at most one worker for a closed canonical ABI key;
+- leave open, indirect, unsupported, and recursively expanding uses generic;
+- rewrite actual definitions and calls rather than publishing planner output
+  for lowering to consume; and
+- remain removable without changing valid-program acceptance or behavior.
 
 The optimization owns representation specialization. Effect specialization and
-source type substitution remain separate semantic operations.
+source type substitution remain separate semantic operations. Generic nominal
+storage initially stays declaration-owned and uniform; non-escaping aggregates
+may be scalar-replaced without introducing specialized nominal families.
 
-The callable-adapter portion was delivered on 2026-08-11: callable adaptation
-is now a deferred structural lowering value, direct invocation fuses it into
-the source call, and only first-class escape materializes an adapter closure.
-Demand-driven first-order generic representation specialization is now also
-delivered. One immutable plan owns canonical runtime-ABI keys, one worker per
-key, and exact recursive-SCC closure; the generic body remains available for
-all other calls. Explore regression gates show one worker shared by `Bool` and
-`I32`, zero erase/unerase operations on those concrete paths, and rejection of
-the expanding `T -> Box[T]` recursive family. Erased callable payloads now use
-the ABI declared by their formal erased position in both directions, so CPS
-answer specialization cannot silently change a continuation's dynamic call
-contract. Higher-kinded layout-constructor evidence and general bridge
-cancellation outside planned direct calls remain open in this priority.
+Structural callable adaptation is part of representation elaboration, not
+specialization. A direct invocation may fuse the conversion; only first-class
+escape materializes a worker. The worker is keyed by the complete structural
+source and target contracts, and function-table processing does not rediscover
+its identity from emitted instructions.
 
-The Coroutine Scheduler follow-up classified the remaining lowering artifacts
-instead of treating every erased operation as interchangeable. Of its 48
-`erase_*`/`unerase_*` instructions, 44 were inside 30 callable-adapter workers.
-Those workers represented only 20 distinct runtime contracts: synthetic
-parameter identities had caused ten duplicate physical bodies, and one further
-worker was a definitionally aligned identity conversion. Identity elimination
-and the canonical Callable Adapter Recipe reduce the VM CFG to 19 adapter
-workers and 29 total representation bridges. Adapter identity is now fixed
-before VM CFG construction; function-table processing no longer reconstructs
-it from emitted bodies. VM CFG functions fall from 87 to 76, instructions from
-500 to 428, and indirect calls from 63 to 52; finalized bytecode instructions
-fall from 426 to 373.
-
-The remaining 25 adapter-local bridges cross real CPS answer-type
-erased/concrete ABI boundaries; the other four occur in ordinary functions.
-Deleting them locally would change ownership or call ABI. Removing those
-boundaries requires a future exact higher-kinded/CPS representation
-specialization whose plan proves the finite answer-ABI demand set. It is not
-adapter deduplication or peephole cancellation.
-
-The first CPS-aware follow-up runs the ordinary effect-aware Core optimizer
-again after monadic lift. Selective CPS preserves `Empty` as observational
-purity; runtime effect projection now occurs only while constructing ANF. On
-example 37 this reduces the initial VM CFG from 76 to 62 functions, 428 to 388
-instructions, 52 to 44 indirect calls, 51 to 46 closures/environments, and 29
-to 26 representation bridges. Final bytecode has 337 instructions, and Wasm
-has 116 functions, 10,419 instructions, and 87 table entries. A deep-ABI
-consumer-only worker experiment was rejected because its small bridge reduction
-increased closures, layouts, and Wasm size. The remaining work is therefore the
-typed producer-and-consumer instance plan in ADR-0136, not another local
-lowering trigger.
+Earlier implementations reduced Scheduler adapter and bridge counts but did so
+through a persistent Callable Instance Plan, Representation Constraint Graph,
+specialized data-family catalog, Recursive Callable Contract Graph, and
+structural Physical ANF. Those measurements remain useful historical baselines;
+the architecture is superseded because lowering depended on the optimization.
+ISS-390 first restores independently correct generic lowering and deletes the
+parallel models. ISS-363 and ISS-368 then own optional CPS-aware specialization
+and its measured optimization results.
 
 ### 4. Trust verified bytecode facts in the Wasm compiler
 
@@ -354,13 +335,15 @@ eagerly compile avoidable functions and representation plumbing.
 2. Remove duplicated global runtime checks and compact entry lifecycle cleanup.
 3. Add the Core static-value summary and consume it in match and projection
    reduction.
-4. Extend the delivered first-order representation workers with canonical
-   higher-kinded evidence keys and general bridge cancellation.
-5. Add constructor scalar replacement, pair-aware witness propagation, and
+4. Complete ISS-390 so canonical generic lowering is independently correct and
+   representation specialization is removable.
+5. Reintroduce closed representation workers as an optional rewrite, then add
+   general structural adaptation cancellation.
+6. Add constructor scalar replacement, pair-aware witness propagation, and
    immutable-global borrow reuse.
-6. Coalesce residual ARC operations.
-7. Intern identical shape destructor plans.
-8. Apply conventional CFG and Wasm cleanup to the smaller program.
+7. Coalesce residual ARC operations.
+8. Intern identical shape destructor plans.
+9. Apply conventional CFG and Wasm cleanup to the smaller program.
 
 Each completed item must update the pinned Explore metrics and the end-to-end
 Basic timing. A smaller source-level IR without a smaller executable image is
