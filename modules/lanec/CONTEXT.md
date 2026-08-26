@@ -354,9 +354,10 @@ _Avoid_: instruction-adjacency pattern, reference-count eligibility, rewrite fal
 
 **Deferred Callable Adaptation**:
 The Structural Representation Adaptation between two callable contracts.
-The complete structural recipe is the private identity used to share a worker;
-each materialization supplies its own callable and evidence captures. A future
-direct-call fusion must consume that same recipe rather than rederive an ABI.
+The complete structural physical contract is the private key used to share an
+escaping worker; each materialization supplies its own callable and evidence
+captures. Direct invocation consumes the same contract and may fuse conversion
+into the call without materializing a worker.
 _Avoid_: consumer-visible recipe catalog, runtime-layout-only alignment,
 second direct-call adaptation path
 

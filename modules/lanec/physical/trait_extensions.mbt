@@ -29,6 +29,27 @@ pub extend CallableAbiId with Debug::{to_repr}
 pub extend CallableAbiId with Eq::{not_equal, equal}
 
 ///|
+pub extend CallableAbiNode with Debug::{to_repr}
+
+///|
+pub extend CallableAbiNode with Eq::{not_equal, equal}
+
+///|
+pub extend CallableAbiNodeId with Compare::{op_lt, op_le, op_ge, compare, op_gt}
+
+///|
+pub extend CallableAbiNodeId with Debug::{to_repr}
+
+///|
+pub extend CallableAbiNodeId with Eq::{not_equal, equal}
+
+///|
+pub extend CallableValueAbi with Debug::{to_repr}
+
+///|
+pub extend CallableValueAbi with Eq::{not_equal, equal}
+
+///|
 pub extend Cleanup with Debug::{to_repr}
 
 ///|

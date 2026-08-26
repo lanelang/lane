@@ -40,9 +40,9 @@ specialization.
 - Missing evidence is a structured compiler defect. No stage guesses a layout
   from source spelling, an effect, or an outer machine representation.
 
-Representation elaboration is one private operation inside LoisVM Lowering.
-Its package interface is the ordinary executable-to-bytecode lowering seam;
-conceptually the internal step is:
+Representation elaboration is one private operation inside Physical Lowering.
+Its package interface is the ordinary executable-to-Physical-Program lowering
+seam; conceptually the internal step is:
 
 ```text
 construct_vmcfg(RuntimeAnfProgram, TargetAbi) -> VmcfgImage
@@ -58,7 +58,8 @@ physical contract for every runtime value, and explicit representation
 adaptations. It may retain semantic type provenance while it is constructed,
 but that provenance cannot become a second post-elaboration representation
 policy. VM CFG finalization then owns canonical function identity, ARC,
-physical slot allocation, bytecode emission, and bytecode verification.
+physical slot allocation and Physical Program verification. WebAssembly
+emission consumes only that verified program.
 
 A separate Physical ANF is deliberately absent. The removed representation was
 a shallow copy of Runtime ANF plus planner projections and had no verifier-owned
@@ -110,7 +111,7 @@ per-call representation choices.
 
 1. Removing representation specialization leaves a correct compiler.
 2. Generic lowering does not depend on a reachable closed instantiation.
-3. Representation elaboration is private to the one LoisVM lowering interface
+3. Representation elaboration is private to the one Physical Lowering interface
    and does not expose planner, solution, recipe, or occurrence sidecars.
 4. A physical value has one authoritative execution contract.
 5. Semantic type provenance may be retained but cannot become a second
@@ -119,8 +120,9 @@ per-call representation choices.
 7. Each specialized key and each materialized structural callable adaptation
    produces at most one worker.
 8. Generic nominal storage has one declaration-owned schema.
-9. VM CFG, ARC-final VM CFG, physical-slot planning, bytecode, and Wasm remain
-   distinct because each owns an independently necessary invariant.
+9. VM CFG, ARC-final VM CFG, physical-slot planning, the verified Physical
+   Program, and Wasm remain distinct because each owns an independently
+   necessary invariant.
 
 ## Consequences
 

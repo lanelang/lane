@@ -23,13 +23,8 @@ fn FunctionLowerer::lower_call(
       self.lower_generic_value_call(
         callable, type_, type_arguments, lowered_arguments,
       )
-    AdaptedCallable(adaptation) => {
-      guard self.materialize_callable_adapter(adaptation)
-        is Slot(callable, type_) else {
-        abort("callable adapter was not materialized")
-      }
-      self.lower_value_call(callable, type_, lowered_arguments)
-    }
+    AdaptedCallable(adaptation) =>
+      self.lower_adapted_call(adaptation, lowered_arguments)
     EvidenceAppliedAdaptedCallable(adaptation, type_arguments) => {
       guard self.materialize_callable_adapter(adaptation)
         is Slot(callable, type_) else {

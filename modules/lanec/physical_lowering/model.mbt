@@ -199,85 +199,58 @@ priv struct IntrinsicWrapperPlan {
 #warnings("-unused_value")
 priv struct CallableAdapterPlan {
   function : @physical.FunctionId
-  recipe : CallableAdapterRecipe
+  key : CallableAdapterWorkerKey
+  contract : CallableAdapterContract
   environment_shape : @physical.ObjectShapeId
 } derive(Debug)
 
 ///|
 priv struct CallableAdapterContract {
-  recipe : CallableAdapterRecipe
+  source_type : @anf.RuntimeType
   target_type : @anf.RuntimeType
+  source_parameter_targets : Array[Int]
   substitutions : RuntimeSubstitution
   captured_parameters : Array[@anf.RuntimeEvidenceParameter]
-}
+} derive(Debug)
 
 ///|
-priv enum CallableAdapterEvidenceRecipe {
+priv enum PhysicalEvidenceContract {
   Input(Int)
   Capture(Int)
-  Apply(CallableAdapterEvidenceRecipe, Array[CallableAdapterEvidenceRecipe])
-  LayoutConstructor(@anf.RuntimeEvidence, Array[CallableAdapterEvidenceRecipe])
+  Bound(Int)
+  Apply(PhysicalEvidenceContract, Array[PhysicalEvidenceContract])
+  Lambda(Array[Int], PhysicalEvidenceContract)
   Static(@physical.LayoutRecipe)
 } derive(Debug, Eq)
 
 ///|
-priv enum CallableAdapterValueRecipe {
+priv enum PhysicalValueContract {
   Unit
-  Erased(CallableAdapterEvidenceRecipe)
-  Concrete(CanonicalRuntimeTypeKey, @physical.LayoutRecipe)
+  Erased
+  Open(PhysicalEvidenceContract)
+  Concrete(@physical.ValueAbi, @physical.LayoutRecipe)
+  Callable(PhysicalCallableContract)
 } derive(Debug, Eq)
 
 ///|
-priv struct CallableAdapterValueFlowRecipe {
-  value : CallableAdapterValueRecipe
-  source_shape : CallableAdapterValueRecipe
-  target : CallableAdapterValueRecipe
-  target_shape : CallableAdapterValueRecipe
-  definitionally_equal : Bool
-  nested_adapter : CallableAdapterNestedRecipe?
+priv struct PhysicalValueBoundary {
+  abi : PhysicalValueContract
+  shape : PhysicalValueContract
 } derive(Debug, Eq)
 
 ///|
-priv struct CallableAdapterNestedRecipe {
-  recipe : CallableAdapterRecipe
-  captured_evidence : Array[CallableAdapterEvidenceRecipe]
+priv struct PhysicalCallableContract {
+  abi : @physical.CallableAbiNodeId
+  evidence_arguments : Array[PhysicalEvidenceContract]
+  parameters : Array[PhysicalValueBoundary]
+  result : PhysicalValueBoundary
 } derive(Debug, Eq)
 
 ///|
-priv struct CallableAdapterArgumentRecipe {
-  target : Int?
-  flow : CallableAdapterValueFlowRecipe
-} derive(Debug, Eq)
-
-///|
-priv enum CallableAdapterResultRecipe {
-  TailCall
-  Adapt(CallableAdapterValueFlowRecipe)
-} derive(Debug, Eq)
-
-///|
-priv struct CallableAdapterRecipe {
-  source_abi : CanonicalCallableAbi
-  target_abi : CanonicalCallableAbi
-  captured_evidence : Array[@physical.ValueAbi]
-  source_witnesses : Array[CallableAdapterEvidenceRecipe]
-  target_parameters : Array[CallableAdapterValueRecipe]
-  source_arguments : Array[CallableAdapterArgumentRecipe]
-  result : CallableAdapterResultRecipe
-} derive(Debug, Eq)
-
-///|
-priv enum CanonicalRuntimeTypeKey {
-  Unit
-  Value(@physical.ValueAbi)
-  Callable(CanonicalCallableAbi)
-} derive(Debug, Eq)
-
-///|
-priv struct CanonicalCallableAbi {
-  witnesses : Array[@physical.ValueAbi]
-  parameters : Array[CanonicalRuntimeTypeKey]
-  result : CanonicalRuntimeTypeKey
+priv struct CallableAdapterWorkerKey {
+  source : PhysicalCallableContract
+  target : PhysicalCallableContract
+  source_parameter_targets : Array[Int]
 } derive(Debug, Eq)
 
 ///|
@@ -376,7 +349,7 @@ priv struct WitnessBinding {
 ///|
 priv struct RuntimeSubstitution {
   entries : Array[(@anf.RuntimeEvidenceId, @anf.RuntimeArgument)]
-}
+} derive(Debug)
 
 ///|
 priv struct ValueBinding {

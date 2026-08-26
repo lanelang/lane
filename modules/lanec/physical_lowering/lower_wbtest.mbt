@@ -138,6 +138,7 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     object_shapes: [],
     intrinsic_wrappers: [],
     callable_adapters: [],
+    callable_abi_graph: @physical.CallableAbiGraph::new(),
     data_families: [],
     synthetic_parameters: [],
   }
@@ -2015,6 +2016,59 @@ test "generic calls adapt callable arguments and callable results" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
+  debug_inspect(
+    image.functions,
+    content=(
+      #|[
+      #|  PhysicalBody(
+      #|    {
+      #|      slots: [
+      #|        {
+      #|          representation: I32,
+      #|          cleanup: OwnedRef,
+      #|          kind: ByteSequenceValue,
+      #|          erased_companion: None,
+      #|        },
+      #|        {
+      #|          representation: I64,
+      #|          cleanup: Trivial,
+      #|          kind: ScalarValue,
+      #|          erased_companion: None,
+      #|        },
+      #|      ],
+      #|      inputs: { environment: None, witnesses: [], user_parameters: [] },
+      #|      result: Unit,
+      #|      blocks: [
+      #|        {
+      #|          parameters: [],
+      #|          instructions: [
+      #|            ConstString({ value: 0 }, { value: 0 }),
+      #|            CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
+      #|          ],
+      #|          terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 1 }]),
+      #|        },
+      #|      ],
+      #|    },
+      #|  ),
+      #|  RuntimeImport(
+      #|    {
+      #|      abi_major: 1,
+      #|      parameters: [String],
+      #|      result: I64,
+      #|      symbol: "lane.test.generic_string_length",
+      #|    },
+      #|  ),
+      #|  RuntimeImport(
+      #|    {
+      #|      abi_major: 1,
+      #|      parameters: [I64],
+      #|      result: Unit,
+      #|      symbol: "lane.test.observe_generic_callable",
+      #|    },
+      #|  ),
+      #|]
+    ),
+  )
   let mut observed = 0L
   let registry = @lane_runtime.RuntimeRegistry::new()
   registry.register(

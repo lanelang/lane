@@ -12,6 +12,7 @@ priv struct ImageLowerer {
   object_shapes : Array[@physical.ObjectShape]
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
   callable_adapters : Array[CallableAdapterPlan]
+  callable_abi_graph : @physical.CallableAbiGraph
   synthetic_parameters : Array[@anf.RuntimeEvidenceParameter]
 }
 
@@ -85,6 +86,7 @@ fn lower_executable_program_to_physical_or_raise(
     object_shapes: [],
     intrinsic_wrappers: [],
     callable_adapters: [],
+    callable_abi_graph: @physical.CallableAbiGraph::new(),
     synthetic_parameters: [],
   }
   let initializer = lowerer.plan(anf)
