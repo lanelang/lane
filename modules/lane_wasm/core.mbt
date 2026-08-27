@@ -258,7 +258,10 @@ fn indirect_call_origin_json(
 ) -> Json {
   (match origin {
     SourceBound => "sourceBound"
-    Anonymous => "anonymous"
+    SourceAnonymous => "sourceAnonymous"
+    HandlerElaboration => "handlerElaboration"
+    MonadicTransformation => "monadicTransformation"
+    SelectiveCps => "selectiveCps"
     CallableAdapter => "callableAdapter"
     RepresentationWorker => "representationWorker"
     Initialization => "initialization"
@@ -372,7 +375,10 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
       }
       fields.to_json()
     }
-    AnonymousFunction => { "kind": "anonymous" }
+    SourceAnonymousFunction => { "kind": "sourceAnonymous" }
+    HandlerElaborationFunction => { "kind": "handlerElaboration" }
+    MonadicTransformationFunction => { "kind": "monadicTransformation" }
+    SelectiveCpsFunction => { "kind": "selectiveCps" }
     Initializer(value~, name~) => {
       let fields : Map[String, Json] = {
         "kind": "initializer".to_json(),

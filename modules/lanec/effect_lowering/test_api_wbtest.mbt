@@ -43,7 +43,7 @@ fn validate_open_resolve_output(
 fn lift_monadic_continuations(
   program : Program,
 ) -> Result[@buslane.Program, SynthesisError] {
-  Ok(lift_monadic_continuations_or_raise(program)) catch {
+  Ok(lift_monadic_continuations_or_raise(program).program) catch {
     error => Err(error)
   }
 }

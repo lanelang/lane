@@ -25,6 +25,7 @@ test "selective CPS removes concrete open-context markers" {
         {
           id: outer,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [],
             result_type: Primitive(I64),
             body: Call(Ref(callee), []),
@@ -70,6 +71,7 @@ test "open-resolve preserves ordered abstract context arguments" {
           rhs: TypeLambda(
             [effect_parameter],
             Function({
+              origin: SourceWritten,
               parameters: [action],
               result_type: Primitive(I64),
               body: Call(Ref(action), []),

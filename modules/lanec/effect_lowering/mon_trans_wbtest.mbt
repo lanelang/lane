@@ -280,6 +280,7 @@ test "mon-trans records open context adaptation" {
     ),
   )
   let function = Function({
+    origin: SourceWritten,
     parameters: [],
     result_type: Primitive(I64),
     body: Let(
@@ -347,6 +348,7 @@ test "mon-trans binds calls with an abstract effect" {
           rhs: TypeLambda(
             [effect_parameter],
             Function({
+              origin: SourceWritten,
               parameters: [],
               result_type: Primitive(I64),
               body: Let(local_value, Call(Ref(callee), []), Ref(local_value)),

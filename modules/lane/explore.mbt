@@ -213,7 +213,10 @@ fn indirect_call_origin_label(
 ) -> String {
   match origin {
     SourceBound => "source-bound"
-    Anonymous => "anonymous"
+    SourceAnonymous => "source anonymous"
+    HandlerElaboration => "handler elaboration"
+    MonadicTransformation => "monadic transformation"
+    SelectiveCps => "selective CPS"
     CallableAdapter => "callable adapter"
     RepresentationWorker => "representation worker"
     Initialization => "initialization"
@@ -275,7 +278,10 @@ fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
         Some(name) => "source \{name} (value#\{value})"
         None => "source value#\{value}"
       }
-    AnonymousFunction => "anonymous function"
+    SourceAnonymousFunction => "source anonymous function"
+    HandlerElaborationFunction => "handler elaboration function"
+    MonadicTransformationFunction => "monadic transformation function"
+    SelectiveCpsFunction => "selective CPS function"
     Initializer(value~, name~) =>
       match name {
         Some(name) => "initializer for \{name} (value#\{value})"

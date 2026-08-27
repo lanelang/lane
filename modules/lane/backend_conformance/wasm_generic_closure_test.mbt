@@ -19,6 +19,10 @@ fn lower_unoptimized_test_program(
     externals,
     entry,
     retained_values,
+    function_origins: @function_origin.FunctionOriginCatalog::uniform(
+      program,
+      SourceWritten,
+    ),
   })
 }
 

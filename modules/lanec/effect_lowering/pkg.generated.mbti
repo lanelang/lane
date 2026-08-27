@@ -3,19 +3,21 @@ package "Milky2018/lanec/effect_lowering"
 
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/function_origin",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub fn lower_effects(@buslane.Program) -> Result[@buslane.Program, SynthesisError]
+pub fn lower_effects(@buslane.Program) -> Result[EffectLoweringResult, SynthesisError]
 
-pub fn lower_effects_observed(@buslane.Program, (EffectLoweringSnapshot) -> Unit) -> Result[@buslane.Program, SynthesisError]
+pub fn lower_effects_observed(@buslane.Program, (EffectLoweringSnapshot) -> Unit) -> Result[EffectLoweringResult, SynthesisError]
 
 // Errors
 pub(all) suberror SynthesisError {
   InvalidProgram(stage~ : EffectLoweringVerificationStage, result~ : @buslane.VerifyResult)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
+  FunctionOriginCompilerDefect
   UnknownValue(@buslane.ValueId)
   UnknownType(@buslane.TypeId)
   UnknownTypeParameter(@buslane.TypeParameterId)
@@ -46,6 +48,14 @@ pub fn SynthesisError::not_equal(Self, Self) -> Bool
 pub fn SynthesisError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+pub(all) struct EffectLoweringResult {
+  program : @buslane.Program
+  function_origins : @function_origin.FunctionOriginCatalog
+} derive(Eq, @debug.Debug)
+pub fn EffectLoweringResult::equal(Self, Self) -> Bool
+pub fn EffectLoweringResult::not_equal(Self, Self) -> Bool
+pub fn EffectLoweringResult::to_repr(Self) -> @debug.Repr
+
 pub(all) struct EffectLoweringScale {
   top_terms : Int
   functions : Int

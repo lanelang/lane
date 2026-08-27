@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/function_origin"
+
+import {
+  "Milky2018/buslane",
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum FunctionOrigin {
+  SourceWritten
+  HandlerElaboration
+  MonadicTransformation
+  SelectiveCps
+} derive(Eq, @debug.Debug)
+pub fn FunctionOrigin::equal(Self, Self) -> Bool
+pub fn FunctionOrigin::not_equal(Self, Self) -> Bool
+pub fn FunctionOrigin::to_repr(Self) -> @debug.Repr
+
+pub struct FunctionOriginCatalog {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn FunctionOriginCatalog::equal(Self, Self) -> Bool
+pub fn FunctionOriginCatalog::new() -> Self
+pub fn FunctionOriginCatalog::not_equal(Self, Self) -> Bool
+pub fn FunctionOriginCatalog::origin(Self, @buslane.FunctionExpr) -> FunctionOrigin?
+pub fn FunctionOriginCatalog::record(Self, @buslane.FunctionExpr, FunctionOrigin) -> Bool
+pub fn FunctionOriginCatalog::to_repr(Self) -> @debug.Repr
+pub fn FunctionOriginCatalog::transfer(Self, @buslane.FunctionExpr, @buslane.FunctionExpr) -> Bool
+pub fn FunctionOriginCatalog::uniform(@buslane.Program, FunctionOrigin) -> Self
+
+// Type aliases
+
+// Traits

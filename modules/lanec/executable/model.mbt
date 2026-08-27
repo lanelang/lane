@@ -10,6 +10,7 @@ pub(all) struct ExecutableProgram {
   externals : @buslane_lowering.BuslaneExternalMap
   entry : @buslane_lowering.BuslaneEntry
   retained_values : Array[@buslane.ValueId]
+  function_origins : @function_origin.FunctionOriginCatalog
 } derive(Debug, Eq)
 
 ///|

@@ -26,7 +26,7 @@ fn ImageLowerer::callable_adapter(
     witness_ordinal: None,
   })
   let environment_shape = self.intern_object_shape(
-    @physical.Environment({ stored_witness_count: 0, members, }),
+    Environment({ stored_witness_count: 0, members, }),
   )
   let (_, adapter) = self.plans.append_with_result(CallableAdapter, fn(
     function,

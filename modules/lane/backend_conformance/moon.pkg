@@ -2,6 +2,7 @@ import {
   "Milky2018/buslane",
   "Milky2018/lanec/compile",
   "Milky2018/lanec/executable",
+  "Milky2018/lanec/function_origin",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/physical_lowering",
   "Milky2018/lanec/physical",

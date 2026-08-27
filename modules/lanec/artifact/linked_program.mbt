@@ -15,8 +15,8 @@ pub fn executable_to_wasm_artifact(
   }
   let runtime_imports = physical.functions.filter_map(fn(entry) {
     match entry {
-      @physical.RuntimeImport(import_) => Some(import_)
-      @physical.PhysicalBody(_) => None
+      RuntimeImport(import_) => Some(import_)
+      PhysicalBody(_) => None
     }
   })
   Ok({

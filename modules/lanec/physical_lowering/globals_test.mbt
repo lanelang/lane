@@ -243,6 +243,10 @@ test "executable initializer materializes function-valued data fields" {
       externals: { builtins: [], runtime_imports: [], },
       entry,
       retained_values: [helper, consume, stored, main],
+      function_origins: @function_origin.FunctionOriginCatalog::uniform(
+        program,
+        SourceWritten,
+      ),
     }) {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")

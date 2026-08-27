@@ -3,6 +3,7 @@ package "Milky2018/lanec/anf"
 
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/function_origin",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
@@ -20,6 +21,7 @@ pub(all) suberror RuntimeAnfLoweringError {
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MissingType(@buslane.TypeId)
   MissingDataConstructor(@buslane.DataConId)
+  MissingFunctionOrigin
   InvalidRuntimeProjection(detail~ : String)
   ResidualPerform(@buslane.OperationId)
   ResidualHandle
@@ -90,6 +92,7 @@ pub impl @prettyprinter.Pretty for AnfExpr
 pub(all) struct AnfFunction {
   id : AnfFunctionId
   source : @buslane.ValueId?
+  origin : @function_origin.FunctionOrigin
   parameters : Array[@buslane.ValueId]
   result_type : RuntimeType
   body : AnfExpr
@@ -183,6 +186,7 @@ pub impl @prettyprinter.Pretty for AnfTopTerm
 pub(all) struct RuntimeAnfInput {
   program : @buslane.Program
   retained_values : Array[@buslane.ValueId]
+  function_origins : @function_origin.FunctionOriginCatalog
 }
 
 pub(all) struct RuntimeArgument {

@@ -13,6 +13,7 @@ pub struct AnfProgram {
 pub(all) struct RuntimeAnfInput {
   program : @buslane.Program
   retained_values : Array[@buslane.ValueId]
+  function_origins : @function_origin.FunctionOriginCatalog
 }
 
 ///|
@@ -35,6 +36,7 @@ pub(all) suberror RuntimeAnfLoweringError {
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MissingType(@buslane.TypeId)
   MissingDataConstructor(@buslane.DataConId)
+  MissingFunctionOrigin
   InvalidRuntimeProjection(detail~ : String)
   ResidualPerform(@buslane.OperationId)
   ResidualHandle
@@ -101,6 +103,7 @@ pub(all) enum AnfAtom {
 pub(all) struct AnfFunction {
   id : AnfFunctionId
   source : @buslane.ValueId?
+  origin : @function_origin.FunctionOrigin
   parameters : Array[@buslane.ValueId]
   result_type : RuntimeType
   body : AnfExpr

@@ -5,6 +5,7 @@ import {
   "Milky2018/buslane",
   "Milky2018/lanec/anf",
   "Milky2018/lanec/executable",
+  "Milky2018/lanec/function_origin",
   "Milky2018/lanec/physical",
   "Milky2018/lanec/vmcfg",
   "moonbitlang/core/debug",
@@ -49,7 +50,10 @@ pub fn PhysicalLoweringError::to_repr(Self) -> @debug.Repr
 // Types and methods
 pub(all) enum IndirectCallOrigin {
   SourceBound
-  Anonymous
+  SourceAnonymous
+  HandlerElaboration
+  MonadicTransformation
+  SelectiveCps
   CallableAdapter
   RepresentationWorker
   Initialization
@@ -60,13 +64,13 @@ pub fn IndirectCallOrigin::not_equal(Self, Self) -> Bool
 pub fn IndirectCallOrigin::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PhysicalFunctionOrigin {
-  TopLevelFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
-  LiftedFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
-  LiftedRecursiveFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  TopLevelFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin)
+  LiftedFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin)
+  LiftedRecursiveFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin)
   Initializer(source~ : @buslane.ValueId)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
-  RepresentationWorker(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  RepresentationWorker(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin)
   CallableAdapter
   LayoutConstructor
   RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)

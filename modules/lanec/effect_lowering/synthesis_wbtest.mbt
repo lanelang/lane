@@ -130,6 +130,7 @@ test "effect synthesis removes installed effects and includes clause effects" {
           {
             operation: handled_operation,
             callable: Monomorphic({
+              origin: SourceWritten,
               parameters: [resume_value],
               result_type: Primitive(I64),
               body: Invoke({
@@ -144,6 +145,7 @@ test "effect synthesis removes installed effects and includes clause effects" {
       },
     ],
     final_clause: {
+      origin: SourceWritten,
       parameters: [body_result],
       result_type: Primitive(I64),
       body: Invoke({

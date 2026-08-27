@@ -101,7 +101,10 @@ pub fn ExploreFunctionRef::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreFunctionRole {
   SourceFunction(value~ : Int, name~ : String?)
-  AnonymousFunction
+  SourceAnonymousFunction
+  HandlerElaborationFunction
+  MonadicTransformationFunction
+  SelectiveCpsFunction
   Initializer(value~ : Int, name~ : String?)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
@@ -144,7 +147,10 @@ pub fn ExploreIndirectCallObservation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreIndirectCallOrigin {
   SourceBound
-  Anonymous
+  SourceAnonymous
+  HandlerElaboration
+  MonadicTransformation
+  SelectiveCps
   CallableAdapter
   RepresentationWorker
   Initialization

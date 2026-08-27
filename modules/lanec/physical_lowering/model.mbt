@@ -74,18 +74,28 @@ priv enum PlannedEntry {
 
 ///|
 pub(all) enum PhysicalFunctionOrigin {
-  TopLevelFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
-  LiftedFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
+  TopLevelFunction(
+    function~ : @anf.AnfFunctionId,
+    source~ : @buslane.ValueId?,
+    origin~ : @function_origin.FunctionOrigin
+  )
+  LiftedFunction(
+    function~ : @anf.AnfFunctionId,
+    source~ : @buslane.ValueId?,
+    origin~ : @function_origin.FunctionOrigin
+  )
   LiftedRecursiveFunction(
     function~ : @anf.AnfFunctionId,
-    source~ : @buslane.ValueId?
+    source~ : @buslane.ValueId?,
+    origin~ : @function_origin.FunctionOrigin
   )
   Initializer(source~ : @buslane.ValueId)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
   RepresentationWorker(
     function~ : @anf.AnfFunctionId,
-    source~ : @buslane.ValueId?
+    source~ : @buslane.ValueId?,
+    origin~ : @function_origin.FunctionOrigin
   )
   CallableAdapter
   LayoutConstructor
@@ -306,7 +316,10 @@ pub(all) struct PhysicalFunctionProvenance {
 ///|
 pub(all) enum IndirectCallOrigin {
   SourceBound
-  Anonymous
+  SourceAnonymous
+  HandlerElaboration
+  MonadicTransformation
+  SelectiveCps
   CallableAdapter
   RepresentationWorker
   Initialization

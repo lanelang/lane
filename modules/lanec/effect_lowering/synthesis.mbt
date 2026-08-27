@@ -21,6 +21,7 @@ pub(all) suberror SynthesisError {
   )
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
+  FunctionOriginCompilerDefect
   UnknownValue(@buslane.ValueId)
   UnknownType(@buslane.TypeId)
   UnknownTypeParameter(@buslane.TypeParameterId)

@@ -10,7 +10,14 @@ fn lower_all_runtime_anf(program : @buslane.Program) -> @anf.AnfProgram {
         }
     }
   }
-  @anf.lower_cps_core_to_runtime_anf({ program, retained_values, }).unwrap()
+  @anf.lower_cps_core_to_runtime_anf({
+    program,
+    retained_values,
+    function_origins: @function_origin.FunctionOriginCatalog::uniform(
+      program,
+      SourceWritten,
+    ),
+  }).unwrap()
 }
 
 ///|
@@ -104,6 +111,10 @@ test "runtime ANF contains only retained top-level terms" {
   let runtime = @anf.lower_cps_core_to_runtime_anf({
     program: source,
     retained_values: [retained],
+    function_origins: @function_origin.FunctionOriginCatalog::uniform(
+      source,
+      SourceWritten,
+    ),
   }).unwrap()
   assert_true(runtime.terms() is [Let(actual, _)] && actual == retained)
 }
@@ -139,6 +150,10 @@ test "runtime ANF rejects a retention set with a missing dependency" {
     @anf.lower_cps_core_to_runtime_anf({
       program: source,
       retained_values: [entry],
+      function_origins: @function_origin.FunctionOriginCatalog::uniform(
+        source,
+        SourceWritten,
+      ),
     })
     is Err(InvalidRetention(_)),
   )
@@ -167,6 +182,10 @@ test "runtime ANF rejects malformed retained-value sets" {
     @anf.lower_cps_core_to_runtime_anf({
       program: source,
       retained_values: [entry, entry],
+      function_origins: @function_origin.FunctionOriginCatalog::uniform(
+        source,
+        SourceWritten,
+      ),
     })
     is Err(DuplicateRetainedValue(actual)) &&
     actual == entry,
@@ -175,6 +194,10 @@ test "runtime ANF rejects malformed retained-value sets" {
     @anf.lower_cps_core_to_runtime_anf({
       program: source,
       retained_values: [entry, orphan],
+      function_origins: @function_origin.FunctionOriginCatalog::uniform(
+        source,
+        SourceWritten,
+      ),
     })
     is Err(UnknownRetainedValue(actual)) &&
     actual == orphan,
@@ -255,6 +278,7 @@ test "runtime ANF removes effect-only binders and applications atomically" {
       #|            {
       #|              id: { value: 0 },
       #|              source: Some({ index: 0 }),
+      #|              origin: SourceWritten,
       #|              parameters: [],
       #|              result_type: Data({ index: 0 }, []),
       #|              body: Let(
@@ -283,6 +307,7 @@ test "runtime ANF removes effect-only binders and applications atomically" {
       #|            {
       #|              id: { value: 1 },
       #|              source: Some({ index: 1 }),
+      #|              origin: SourceWritten,
       #|              parameters: [],
       #|              result_type: Data({ index: 0 }, []),
       #|              body: Let(
@@ -375,6 +400,10 @@ test "runtime representation equality preserves semantic value categories" {
   let metadata = @anf.lower_cps_core_to_runtime_anf({
       program,
       retained_values: [],
+      function_origins: @function_origin.FunctionOriginCatalog::uniform(
+        program,
+        SourceWritten,
+      ),
     })
     .unwrap()
     .metadata()
@@ -506,6 +535,7 @@ test "runtime ANF eta-expands a nominal type constructor argument" {
       #|          {
       #|            id: { value: 0 },
       #|            source: Some({ index: 1 }),
+      #|            origin: SourceWritten,
       #|            parameters: [],
       #|            result_type: Data(
       #|              { index: 0 },

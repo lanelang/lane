@@ -1,6 +1,7 @@
 ///|
 priv struct AnfLowerer {
   generic_plan : RuntimeGenericPlan
+  function_origins : @function_origin.FunctionOriginCatalog
   mut next_temp : Int
   mut next_function : Int
 }
@@ -38,7 +39,12 @@ fn lower_cps_core_to_runtime_anf_or_raise(
     raise InvalidRetention(retained_verification)
   }
   let generic_plan = runtime_generic_plan(program, retained_terms)
-  let lowerer = AnfLowerer::{ generic_plan, next_temp: 0, next_function: 0, }
+  let lowerer = AnfLowerer::{
+    generic_plan,
+    function_origins: input.function_origins,
+    next_temp: 0,
+    next_function: 0,
+  }
   let terms = retained_terms.map(term => lowerer.lower_top_term(term))
   simplify_anf_program({ metadata: generic_plan.runtime_metadata(), terms, })
 }
@@ -277,9 +283,13 @@ fn AnfLowerer::lower_function(
   source : @buslane.ValueId?,
 ) -> AnfFunction raise RuntimeAnfLoweringError {
   let id = self.fresh_function()
+  guard self.function_origins.origin(function) is Some(origin) else {
+    raise MissingFunctionOrigin
+  }
   {
     id,
     source,
+    origin,
     parameters: function.parameters,
     result_type: self.generic_plan.runtime_type(function.result_type),
     body: self.lower_expr(function.body),

@@ -174,6 +174,7 @@ fn lower_cps_function(
         function.parameters,
       )
       Function({
+        origin: function.origin,
         parameters: value_parameters,
         result_type: shape.result_type,
         body: lower_cps_direct_expr(schema, program, function.body, None),
@@ -193,6 +194,7 @@ fn lower_cps_function(
           frame.result_type,
           Ref(frame.continuation),
         ),
+        function.origin,
       )
     }
   }
@@ -383,7 +385,7 @@ fn lower_cps_effectful_result_call(
     }
   }
   let produced : Expr = Call(lowered_callee, lowered_arguments)
-  let expanded = frame.wrap(frame.forward(produced))
+  let expanded = frame.wrap(frame.forward(produced), SelectiveCps)
   let mut result = expanded
   for binding in bindings.rev_iter() {
     result = Let(binding.0, binding.1, result)
@@ -477,6 +479,7 @@ fn build_empty_context_direct_call(
   call_arguments.append(arguments)
   call_arguments.push(
     Function({
+      origin: SelectiveCps,
       parameters: [continuation_parameter],
       result_type,
       body: Ref(continuation_parameter),
@@ -538,6 +541,7 @@ fn lower_cps_with_continuation(
     }
     Bind(bind) => {
       let next = Expr::Function({
+        origin: bind.continuation.origin,
         parameters: [bind.binder],
         result_type: answer_type,
         body: lower_cps_with_continuation(

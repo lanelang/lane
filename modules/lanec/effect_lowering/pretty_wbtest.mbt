@@ -43,6 +43,7 @@ test "effect lowering pretty prints handler elaboration" {
                 {
                   operation,
                   callable: Polymorphic([operation_parameter], {
+                    origin: SourceWritten,
                     parameters: [payload, resume_value],
                     result_type: Primitive(I64),
                     body: Call(Ref(resume_value), [Ref(payload)]),
@@ -52,6 +53,7 @@ test "effect lowering pretty prints handler elaboration" {
             },
           ],
           final_clause: {
+            origin: SourceWritten,
             parameters: [final_value],
             result_type: Primitive(I64),
             body: Ref(final_value),
@@ -121,6 +123,7 @@ test "effect lowering pretty prints monadic context adaptation" {
           }),
           binder,
           continuation: {
+            origin: SourceWritten,
             parameters: [binder],
             result_type: Primitive(I64),
             body: Ref(binder),

@@ -33,7 +33,11 @@ fn FunctionLowerer::lower_nested_function_with_type(
     members,
   )
   let function_id = self.image.plans.append(
-      LiftedFunction(function=function.id, source=function.source),
+      LiftedFunction(
+        function=function.id,
+        source=function.source,
+        origin=function.origin,
+      ),
       _ => {
         LiftedFunction({
           function,
@@ -107,7 +111,11 @@ fn FunctionLowerer::lower_recursive_group(
   let origins : Array[PhysicalFunctionOrigin] = []
   for function in functions {
     origins.push(
-      LiftedRecursiveFunction(function=function.id, source=function.source),
+      LiftedRecursiveFunction(
+        function=function.id,
+        source=function.source,
+        origin=function.origin,
+      ),
     )
   }
   let recursive_functions : Array[RecursiveFunctionPlan] = []
@@ -406,9 +414,7 @@ fn ImageLowerer::environment_shape(
     None
   } else {
     Some(
-      self.intern_object_shape(
-        @physical.Environment({ stored_witness_count, members, }),
-      ),
+      self.intern_object_shape(Environment({ stored_witness_count, members, })),
     )
   }
 }

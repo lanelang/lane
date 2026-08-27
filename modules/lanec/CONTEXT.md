@@ -261,6 +261,17 @@ observational purity; effect information is projected away only while
 constructing runtime ANF.
 _Avoid_: effect-blind DCE, physical-program optimization
 
+**Function Origin**:
+The typed, non-semantic provenance assigned by the transformation that creates
+a callable: source-written, handler elaboration, monadic transformation, or
+selective CPS. Effect Lowering owns creation; CPS Core optimization explicitly
+transfers the transient catalog entry when rebuilding or cloning a function;
+Runtime ANF then internalizes it. Physical lowering and Explore may add
+orthogonal structural roles such as Callable Adapter or Representation Worker,
+but never infer origin from names, source-binding absence, traversal position,
+or rendered IR.
+_Avoid_: optimization input, runtime ABI fact, anonymous-means-CPS heuristic
+
 **Runtime ANF**:
 The closed backend-lowerable ANF produced only by projecting verified,
 effect-aware CPS Core through the Executable Retention Set. It owns
@@ -272,7 +283,8 @@ Stable Buslane declaration IDs survive only as nominal symbols. Nominal runtime
 arguments select construction and projection evidence, but do not define a
 data value's callable ABI. Higher-kinded nominal arguments are eta-expanded at
 this boundary. Every top-level and nested callable has a stable Runtime ANF
-identity, lexical evidence scope, captures, and recursive-group identity.
+identity, explicit Function Origin, lexical evidence scope, captures, and
+recursive-group identity.
 Representation Elaboration consumes Runtime ANF.
 _Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering
 

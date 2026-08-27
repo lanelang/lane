@@ -117,6 +117,7 @@ fn adapt_direct_argument_to_cps(
     TypeLambda(
       [callable.answer_parameter, callable.residual_parameter],
       Function({
+        origin: SelectiveCps,
         parameters,
         result_type: Parameter(callable.answer_parameter),
         body: Call(Ref(continuation), [Call(Ref(source), value_parameters)]),

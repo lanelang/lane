@@ -83,7 +83,7 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
   if !verified_lifted.is_ok() {
     fail("monadic-lift program did not verify: \{Repr(verified_lifted)}")
   }
-  let verified = @buslane.verify_program(lowered)
+  let verified = @buslane.verify_program(lowered.program)
   if !verified.is_ok() {
     fail("lowered program did not verify: \{Repr(verified)}")
   }

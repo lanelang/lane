@@ -46,7 +46,7 @@ test "entry request enumerates artifact-defined entries" {
 }
 
 ///|
-test "explore request returns the complete protocol v9 report" {
+test "explore request returns the complete protocol v10 report" {
   debug_inspect(
     response_summary(
       parsed_response_json(
@@ -64,7 +64,7 @@ test "explore request returns the complete protocol v9 report" {
     ),
     content=(
       #|{
-      #|  schema_version: 9,
+      #|  schema_version: 10,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -137,7 +137,7 @@ test "explore request returns the complete protocol v9 report" {
 }
 
 ///|
-test "protocol v9 encodes ordered metrics and structured function lineage" {
+test "protocol v10 encodes ordered metrics and structured function lineage" {
   let response = parsed_response_json(
     (
       #|{
@@ -157,7 +157,7 @@ test "protocol v9 encodes ordered metrics and structured function lineage" {
       "functions": { "nodes": Array(nodes), "edges": Array(edges), .. },
       ..
     } else {
-    fail("missing protocol v9 observability fields")
+    fail("missing protocol v10 observability fields")
   }
   let anf_observations = stages.filter_map(stage => {
     match stage {
@@ -194,7 +194,7 @@ test "protocol v9 encodes ordered metrics and structured function lineage" {
     ),
     content=(
       #|(
-      #|  9,
+      #|  10,
       #|  [
       #|    [
       #|      Object(
@@ -293,7 +293,7 @@ test "protocol v9 encodes ordered metrics and structured function lineage" {
 }
 
 ///|
-test "protocol v9 encodes structured indirect call provenance" {
+test "protocol v10 encodes structured indirect call provenance" {
   let response = parsed_response_json(
     (
       #|{
@@ -362,7 +362,7 @@ test "explore request accepts multiple source files" {
     ),
     content=(
       #|{
-      #|  schema_version: 9,
+      #|  schema_version: 10,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -453,7 +453,7 @@ test "explore request preserves failed and unavailable stage states" {
     ),
     content=(
       #|{
-      #|  schema_version: 9,
+      #|  schema_version: 10,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: None,
@@ -492,7 +492,7 @@ test "explore request rejects malformed requests" {
     content=(
       #|Object(
       #|  {
-      #|    "schemaVersion": Number(9),
+      #|    "schemaVersion": Number(10),
       #|    "status": Number(3),
       #|    "diagnostics": Array(
       #|      [

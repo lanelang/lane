@@ -55,7 +55,63 @@ fn explore_stage_scale(
 }
 
 ///|
-test "explore protocol v9 exposes all eighteen ordered completed stages" {
+test "Explore preserves source-written nested and CPS-introduced function origins" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|effect Ask {
+        #|  ask() -> I64
+        #|}
+        #|
+        #|fn[Eff : Effect] invoke(
+        #|  callback : (I64) -> I64 ! Eff
+        #|) -> I64 ! Eff {
+        #|  callback(0)
+        #|}
+        #|
+        #|pub extern type Host : Effect
+        #|let observe : (I64) -> Unit ! Host = extern("observe")
+        #|
+        #|pub fn main() -> Unit ! Host {
+        #|  let result = handle invoke[{ Ask }](fn(_value) {
+        #|    let asked = Ask::ask!()
+        #|    asked
+        #|  }) with {
+        #|    Ask::ask(resume) => resume(42)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|  observe(result)
+        #|}
+      ),
+    ),
+  )
+  let anf_roles = report.functions.nodes.filter_map(node => {
+    if node.function.stage == Anf {
+      Some(node.roles)
+    } else {
+      None
+    }
+  })
+  debug_inspect(
+    anf_roles,
+    content=(
+      #|[
+      #|  [SourceFunction(value=3, name=Some("main"))],
+      #|  [SelectiveCpsFunction],
+      #|  [SelectiveCpsFunction],
+      #|  [SourceFunction(value=13, name=Some("function_literal"))],
+      #|  [MonadicTransformationFunction],
+      #|  [HandlerElaborationFunction],
+      #|]
+    ),
+  )
+}
+
+///|
+test "explore protocol v10 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -78,7 +134,7 @@ test "explore protocol v9 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  9,
+      #|  10,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -731,7 +787,7 @@ test "explore records concrete-answer CPS callback representation costs" {
       exact_packed_calls,
       indirect_calls.any(call => call.boundaries.is_empty()),
     ),
-    (6, 3, 3, 5, false),
+    (6, 2, 3, 5, false),
   )
   debug_inspect(
     (
@@ -1526,7 +1582,7 @@ test "explore traces a named function and preserves synthetic roots" {
     ),
     content=(
       #|(
-      #|  9,
+      #|  10,
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },

@@ -16,6 +16,7 @@ priv struct InlineCloneContext {
   substitution : @buslane.TypeSubstitution
   type_parameter_clones : Array[TypeParameterClone]
   value_clones : Array[ValueClone]
+  function_origins : @function_origin.FunctionOriginCatalog?
 }
 
 ///|
@@ -31,7 +32,13 @@ fn InlineCloneContext::from_application(
   for index in 0..<parameters.length() {
     substitution.insert_argument(parameters[index], arguments[index])
   }
-  Some({ metadata, substitution, type_parameter_clones: [], value_clones: [], })
+  Some({
+    metadata,
+    substitution,
+    type_parameter_clones: [],
+    value_clones: [],
+    function_origins: None,
+  })
 }
 
 ///|
@@ -42,11 +49,13 @@ fn InlineCloneContext::clone_function(
   let parameters = function.parameters.map(parameter => {
     self.clone_value(parameter)
   })
-  {
+  let cloned : @buslane.FunctionExpr = {
     parameters,
     result_type: self.rewrite_type(function.result_type),
     body: self.clone_expr(function.body),
   }
+  transfer_function_origin(self.function_origins, function, cloned)
+  cloned
 }
 
 ///|

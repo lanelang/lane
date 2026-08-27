@@ -65,7 +65,11 @@ fn FunctionLowerer::representation_worker(
     self.image.runtime_types,
   )
   let (_, worker) = self.image.plans.append_with_result(
-    RepresentationWorker(function=body.id, source=body.source),
+    RepresentationWorker(
+      function=body.id,
+      source=body.source,
+      origin=body.origin,
+    ),
     fn(function) {
       let worker : RepresentationWorkerPlan = {
         function,
@@ -120,6 +124,7 @@ fn specialize_anf_function(
   {
     id: function.id,
     source: function.source,
+    origin: function.origin,
     parameters: function.parameters,
     result_type: substitutions.apply_type(runtime_types, function.result_type),
     body: specialize_anf_expr(function.body, substitutions, runtime_types),

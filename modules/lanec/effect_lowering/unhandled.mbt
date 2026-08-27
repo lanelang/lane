@@ -136,6 +136,7 @@ fn UnhandledFrame::wrap(self : UnhandledFrame, body : Expr) -> Expr {
   TypeLambda(
     [self.answer_parameter, self.residual_parameter],
     Function({
+      origin: SelectiveCps,
       parameters: self.context_parameters + [self.continuation],
       result_type: self.answer_type,
       body,
@@ -315,6 +316,7 @@ fn build_relay_field(
     Ref(operation_result_parameter),
   ])
   let resume_continuation = Expr::Function({
+    origin: SelectiveCps,
     parameters: [operation_result_parameter],
     result_type: frame.answer_type,
     body: unhandled.run(
@@ -351,6 +353,7 @@ fn build_relay_field(
     resume_continuation,
   )
   let function = Expr::Function({
+    origin: SelectiveCps,
     parameters,
     result_type: unhandled.type_,
     body: frame.wrap(field_body),

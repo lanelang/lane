@@ -2,6 +2,12 @@
 pub extend EffectLoweringScale with Debug::{to_repr}
 
 ///|
+pub extend EffectLoweringResult with Debug::{to_repr}
+
+///|
+pub extend EffectLoweringResult with Eq::{not_equal, equal}
+
+///|
 pub extend EffectLoweringScale with Eq::{not_equal, equal}
 
 ///|

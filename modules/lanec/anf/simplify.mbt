@@ -146,6 +146,7 @@ fn simplify_atom(atom : AnfAtom, scope : AnfRewriteScope) -> AnfAtom {
       Function({
         id: function.id,
         source: function.source,
+        origin: function.origin,
         parameters: function.parameters,
         result_type: function.result_type,
         body: simplify_expr(function.body, function_scope),

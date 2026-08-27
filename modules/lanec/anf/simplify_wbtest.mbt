@@ -91,6 +91,7 @@ test "simplify ANF aliases inside function and match scopes" {
   let function = Function({
     id: { value: 0, },
     source: Some(result),
+    origin: SourceWritten,
     parameters: [parameter],
     result_type: Scalar(I64),
     body: Let(
@@ -129,6 +130,7 @@ test "simplify ANF aliases inside function and match scopes" {
       #|        {
       #|          id: { value: 0 },
       #|          source: Some({ index: 3 }),
+      #|          origin: SourceWritten,
       #|          parameters: [{ index: 0 }],
       #|          result_type: Scalar(I64),
       #|          body: Let(

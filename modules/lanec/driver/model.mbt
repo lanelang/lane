@@ -123,7 +123,10 @@ pub(all) struct ExploreFunctionRef {
 ///|
 pub(all) enum ExploreFunctionRole {
   SourceFunction(value~ : Int, name~ : String?)
-  AnonymousFunction
+  SourceAnonymousFunction
+  HandlerElaborationFunction
+  MonadicTransformationFunction
+  SelectiveCpsFunction
   Initializer(value~ : Int, name~ : String?)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
@@ -161,7 +164,10 @@ pub(all) struct ExploreFunctionGraph {
 ///|
 pub(all) enum ExploreIndirectCallOrigin {
   SourceBound
-  Anonymous
+  SourceAnonymous
+  HandlerElaboration
+  MonadicTransformation
+  SelectiveCps
   CallableAdapter
   RepresentationWorker
   Initialization
@@ -205,7 +211,7 @@ pub(all) struct ExploreIndirectCallObservation {
 
 ///|
 /// Current Explore Report Protocol schema owned by the compiler driver.
-pub let explore_report_schema_version : Int = 9
+pub let explore_report_schema_version : Int = 10
 
 ///|
 /// Canonical total order of protocol stages. This order is also the execution

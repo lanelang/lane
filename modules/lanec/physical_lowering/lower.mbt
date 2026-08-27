@@ -87,6 +87,7 @@ fn lower_executable_program_to_physical_or_raise(
     @anf.lower_cps_core_to_runtime_anf({
       program,
       retained_values: executable.retained_values,
+      function_origins: executable.function_origins,
     }) {
     Ok(anf) => anf
     Err(error) => raise RuntimeAnfCompilerDefect(error)
@@ -224,12 +225,25 @@ fn PhysicalFunctionOrigin::indirect_call_origin(
   self : PhysicalFunctionOrigin,
 ) -> IndirectCallOrigin {
   match self {
-    TopLevelFunction(source=Some(_), ..)
-    | LiftedFunction(source=Some(_), ..)
-    | LiftedRecursiveFunction(source=Some(_), ..) => SourceBound
-    TopLevelFunction(source=None, ..)
-    | LiftedFunction(source=None, ..)
-    | LiftedRecursiveFunction(source=None, ..) => Anonymous
+    TopLevelFunction(source=Some(_), origin=SourceWritten, ..)
+    | LiftedFunction(source=Some(_), origin=SourceWritten, ..)
+    | LiftedRecursiveFunction(source=Some(_), origin=SourceWritten, ..) =>
+      SourceBound
+    TopLevelFunction(source=None, origin=SourceWritten, ..)
+    | LiftedFunction(source=None, origin=SourceWritten, ..)
+    | LiftedRecursiveFunction(source=None, origin=SourceWritten, ..) =>
+      SourceAnonymous
+    TopLevelFunction(origin=HandlerElaboration, ..)
+    | LiftedFunction(origin=HandlerElaboration, ..)
+    | LiftedRecursiveFunction(origin=HandlerElaboration, ..) =>
+      HandlerElaboration
+    TopLevelFunction(origin=MonadicTransformation, ..)
+    | LiftedFunction(origin=MonadicTransformation, ..)
+    | LiftedRecursiveFunction(origin=MonadicTransformation, ..) =>
+      MonadicTransformation
+    TopLevelFunction(origin=SelectiveCps, ..)
+    | LiftedFunction(origin=SelectiveCps, ..)
+    | LiftedRecursiveFunction(origin=SelectiveCps, ..) => SelectiveCps
     CallableAdapter => CallableAdapter
     RepresentationWorker(..) => RepresentationWorker
     Initializer(..) | InitializerOrchestrator => Initialization

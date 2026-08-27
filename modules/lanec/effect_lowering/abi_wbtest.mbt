@@ -42,6 +42,7 @@ test "selective CPS keeps Io-only definitions and calls direct" {
         {
           id: main,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [],
             result_type: Primitive(Unit),
             body: Call(Ref(println), [Literal(String("hello"))]),
@@ -81,6 +82,7 @@ test "selective CPS keeps external-effect definitions and calls direct" {
         {
           id: main,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [],
             result_type: Primitive(I64),
             body: Call(Ref(vector_get), [Literal(I64(0L))]),
@@ -139,6 +141,7 @@ test "selective CPS preserves Io on mixed callable and continuation types" {
         {
           id: main,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [],
             result_type: Primitive(Unit),
             body: Let(
@@ -282,6 +285,7 @@ test "selective CPS rewrites monadic function and tail call ABI" {
         {
           id: outer,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [input],
             result_type: Primitive(I64),
             body: Call(Ref(callee), [Ref(input)]),
@@ -357,6 +361,7 @@ test "selective CPS synchronizes local generic callable metadata" {
         {
           id: outer,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [],
             result_type: local_type,
             body: LetRec(
@@ -364,6 +369,7 @@ test "selective CPS synchronizes local generic callable metadata" {
                 {
                   id: local_function,
                   rhs: Function({
+                    origin: SourceWritten,
                     parameters: [],
                     result_type: Primitive(I64),
                     body: Literal(I64(1L)),
@@ -434,6 +440,7 @@ test "direct CPS lowering uses precommitted local binding metadata" {
   let body : Expr = Let(
     local_function,
     Function({
+      origin: SourceWritten,
       parameters: [],
       result_type: Primitive(I64),
       body: Literal(I64(1L)),
@@ -445,7 +452,15 @@ test "direct CPS lowering uses precommitted local binding metadata" {
   let source = Program::{
     metadata: metadata.snapshot(),
     terms: [
-      Let(entry, Function({ parameters: [], result_type: local_type, body, })),
+      Let(
+        entry,
+        Function({
+          origin: SourceWritten,
+          parameters: [],
+          result_type: local_type,
+          body,
+        }),
+      ),
     ],
   }
   let schema = build_dictionary_cps_schema_or_raise(metadata)
@@ -491,6 +506,7 @@ test "expected and synthesized CPS callables use one ABI shape" {
   let declared = metadata.define_value("declared", Function, callable_type)
   let result = metadata.define_value("result", Value, Primitive(Unit))
   let function = FunctionExpr::{
+    origin: SourceWritten,
     parameters: [],
     result_type: Primitive(I64),
     body: Invoke({
@@ -578,6 +594,7 @@ test "callable shape divergence reports the originating binding" {
   let callable_type : @buslane.Type = Function([], Primitive(I64), latent)
   let binding = metadata.define_value("binding", Local, callable_type)
   let initializer : Expr = Function({
+    origin: SourceWritten,
     parameters: [],
     result_type: Primitive(I64),
     body: Literal(I64(1L)),
@@ -621,6 +638,7 @@ test "CPS binding validation accepts a narrower residual effect" {
     metadata,
     binding,
     Function({
+      origin: SourceWritten,
       parameters: [],
       result_type: Primitive(Unit),
       body: Literal(Unit),
@@ -693,6 +711,7 @@ test "selective CPS composes an explicit bind continuation" {
         {
           id: outer,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [],
             result_type: Primitive(I64),
             body: Let(
@@ -761,6 +780,7 @@ test "selective CPS replaces effect polymorphism with companions" {
           rhs: TypeLambda(
             [effect_parameter],
             Function({
+              origin: SourceWritten,
               parameters: [],
               result_type: Primitive(I64),
               body: Call(
@@ -853,6 +873,7 @@ test "selective CPS calls a first-class effectful callable" {
         {
           id: apply,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [action],
             result_type: Primitive(I64),
             body: Call(Ref(action), []),
@@ -936,6 +957,7 @@ test "selective CPS preserves effectful argument evaluation order" {
         {
           id: outer,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [],
             result_type: Primitive(I64),
             body: Call(Ref(combine), [
@@ -1024,6 +1046,7 @@ test "selective CPS shares one continuation after monadic match branches" {
         {
           id: outer,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [],
             result_type: Primitive(I64),
             body: Let(
@@ -1101,6 +1124,7 @@ test "selective CPS selects a generic operation dictionary field" {
         {
           id: outer,
           rhs: Function({
+            origin: SourceWritten,
             parameters: [],
             result_type: Primitive(Unit),
             body: Invoke({

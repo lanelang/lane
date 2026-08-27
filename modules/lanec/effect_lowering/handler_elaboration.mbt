@@ -26,6 +26,7 @@ fn elaborate_expr(expression : @buslane.Expr) -> Expr {
     Literal(literal) => Literal(literal)
     Function(function) =>
       Function({
+        origin: SourceWritten,
         parameters: function.parameters,
         result_type: function.result_type,
         body: elaborate_expr(function.body),
@@ -83,6 +84,7 @@ fn elaborate_handle(handle : @buslane.HandleExpr) -> Expr {
       elaborate_handler_dictionary(table, handle.result_type)
     }),
     final_clause: {
+      origin: HandlerElaboration,
       parameters: [handle.result_binder],
       result_type: handle.result_type,
       body: elaborate_expr(handle.final_body),
@@ -111,6 +113,7 @@ fn elaborate_operation_clause(
   let parameters = alternative.payload_binders.copy()
   parameters.push(alternative.resume_binder)
   let function : FunctionExpr = {
+    origin: HandlerElaboration,
     parameters,
     result_type,
     body: elaborate_expr(alternative.body),

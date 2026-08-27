@@ -225,7 +225,7 @@ fn ImageLowerer::data_shape(
   }
   let constructor_tag = self.constructor_tag(data_constructor, info.owner)
   self.intern_object_shape(
-    @physical.Data({
+    Data({
       family: self.intern_data_family(info.owner),
       constructor_tag,
       stored_witness_count: witness_ordinal,

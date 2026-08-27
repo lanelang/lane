@@ -97,8 +97,11 @@ test "real example 37 shares escaped callable adapter workers" {
   )
   assert_eq(summarize_indirect_calls(indirect_calls), {
     total: 44,
-    source_bound: 12,
-    anonymous: 13,
+    source_bound: 9,
+    source_anonymous: 0,
+    handler_elaboration: 0,
+    monadic_transformation: 7,
+    selective_cps: 9,
     callable_adapter: 18,
     representation_worker: 0,
     initialization: 1,
@@ -117,7 +120,10 @@ test "real example 37 shares escaped callable adapter workers" {
 priv struct IndirectCallSummary {
   total : Int
   mut source_bound : Int
-  mut anonymous : Int
+  mut source_anonymous : Int
+  mut handler_elaboration : Int
+  mut monadic_transformation : Int
+  mut selective_cps : Int
   mut callable_adapter : Int
   mut representation_worker : Int
   mut initialization : Int
@@ -138,7 +144,10 @@ fn summarize_indirect_calls(
   let summary : IndirectCallSummary = {
     total: calls.length(),
     source_bound: 0,
-    anonymous: 0,
+    source_anonymous: 0,
+    handler_elaboration: 0,
+    monadic_transformation: 0,
+    selective_cps: 0,
     callable_adapter: 0,
     representation_worker: 0,
     initialization: 0,
@@ -155,7 +164,10 @@ fn summarize_indirect_calls(
     for origin in call.origins {
       match origin {
         SourceBound => summary.source_bound += 1
-        Anonymous => summary.anonymous += 1
+        SourceAnonymous => summary.source_anonymous += 1
+        HandlerElaboration => summary.handler_elaboration += 1
+        MonadicTransformation => summary.monadic_transformation += 1
+        SelectiveCps => summary.selective_cps += 1
         CallableAdapter => summary.callable_adapter += 1
         RepresentationWorker => summary.representation_worker += 1
         Initialization => summary.initialization += 1

@@ -30,7 +30,12 @@ fn lower_cps_direct_install(
       bindings: [],
     },
     result_type,
-    Function({ parameters: [result], result_type, body: Ref(result), }),
+    Function({
+      origin: SelectiveCps,
+      parameters: [result],
+      result_type,
+      body: Ref(result),
+    }),
   )
 }
 
@@ -258,6 +263,7 @@ fn lower_handler_operation_clause(
   )
   source_parameters.push(direct_resume)
   let function = Expr::Function({
+    origin: SelectiveCps,
     parameters: source_parameters,
     result_type: unhandled.type_,
     body: Let(source_resume, resume_value, clause_body),
@@ -313,6 +319,7 @@ fn build_handler_resume_value(
   let resumed = Expr::Call(Ref(direct_resume), [Ref(parameter)])
   if cps_effects_definitionally_equal(program.metadata, unhandled.effect, Empty) {
     Function({
+      origin: SelectiveCps,
       parameters: [parameter],
       result_type: unhandled.result_type,
       body: resumed,
@@ -341,6 +348,7 @@ fn UnhandledFrame::wrap_with_parameter(
   TypeLambda(
     [self.answer_parameter, self.residual_parameter],
     Function({
+      origin: SelectiveCps,
       parameters: self.context_parameters + [parameter, self.continuation],
       result_type: self.answer_type,
       body,
@@ -359,6 +367,7 @@ fn build_unhandled_result_continuation(
     unhandled.result_type,
   )
   Function({
+    origin: SelectiveCps,
     parameters: [result],
     result_type: unhandled.type_,
     body: unhandled.pure(schema, Ref(result)),
@@ -375,6 +384,7 @@ fn lower_handler_final_clause(
 ) -> Expr raise SynthesisError {
   require_arity(1, final_clause.parameters.length())
   Function({
+    origin: final_clause.origin,
     parameters: final_clause.parameters,
     result_type: unhandled.type_,
     body: lower_cps_with_continuation(

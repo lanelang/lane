@@ -10,12 +10,7 @@ test "linked program persists Wasm and its semantic runtime imports" {
   let artifact : LinkedProgramArtifact = {
     wasm: minimal_wasm_module(),
     runtime_imports: [
-      {
-        abi_major: 1,
-        parameters: [@lane_runtime.String],
-        result: @lane_runtime.Unit,
-        symbol: "println",
-      },
+      { abi_major: 1, parameters: [String], result: Unit, symbol: "println", },
     ],
   }
   let binary = linked_program_artifact_to_binary(artifact)

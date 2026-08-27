@@ -2,6 +2,7 @@
 priv struct ObservedAnfFunction {
   function : @anf.AnfFunctionId
   source : @buslane.ValueId?
+  origin : @function_origin.FunctionOrigin
 }
 
 ///|
@@ -42,14 +43,21 @@ fn ExploreFunctionGraphBuilder::source_name(
 }
 
 ///|
-fn ExploreFunctionGraphBuilder::source_role(
+fn ExploreFunctionGraphBuilder::semantic_role(
   self : ExploreFunctionGraphBuilder,
   source : @buslane.ValueId?,
+  origin : @function_origin.FunctionOrigin,
 ) -> ExploreFunctionRole {
-  match source {
-    Some(value) =>
-      SourceFunction(value=value.index, name=self.source_name(value))
-    None => AnonymousFunction
+  match origin {
+    SourceWritten =>
+      match source {
+        Some(value) =>
+          SourceFunction(value=value.index, name=self.source_name(value))
+        None => SourceAnonymousFunction
+      }
+    HandlerElaboration => HandlerElaborationFunction
+    MonadicTransformation => MonadicTransformationFunction
+    SelectiveCps => SelectiveCpsFunction
   }
 }
 
@@ -66,7 +74,7 @@ fn ExploreFunctionGraphBuilder::observe_anf(
   for function in functions {
     self.nodes.push({
       function: { stage: Anf, index: function.function.value, },
-      roles: [self.source_role(function.source)],
+      roles: [self.semantic_role(function.source, function.origin)],
     })
   }
 }
@@ -83,7 +91,7 @@ fn ExploreFunctionGraphBuilder::observe_vmcfg(
     }
     let roles = []
     for origin in function.origins {
-      roles.push(self.physical_role(origin))
+      roles.append(self.physical_roles(origin))
       if origin.anf_function() is Some(anf_function) {
         self.edges.push({
           source: { stage: Anf, index: anf_function.value, },
@@ -102,10 +110,11 @@ fn ExploreFunctionGraphBuilder::observe_physical(
 ) -> Unit {
   for function in functions {
     let index = function.function.value
-    self.nodes.push({
-      function: { stage: PhysicalProgram, index, },
-      roles: function.origins.map(origin => self.physical_role(origin)),
-    })
+    let roles = []
+    for origin in function.origins {
+      roles.append(self.physical_roles(origin))
+    }
+    self.nodes.push({ function: { stage: PhysicalProgram, index, }, roles, })
     self.edges.push({
       source: { stage: VmcfgInitial, index, },
       target: { stage: PhysicalProgram, index, },
@@ -127,23 +136,31 @@ fn @physical_lowering.PhysicalFunctionOrigin::anf_function(
 }
 
 ///|
-fn ExploreFunctionGraphBuilder::physical_role(
+fn ExploreFunctionGraphBuilder::physical_roles(
   self : ExploreFunctionGraphBuilder,
   origin : @physical_lowering.PhysicalFunctionOrigin,
-) -> ExploreFunctionRole {
+) -> Array[ExploreFunctionRole] {
   match origin {
-    TopLevelFunction(source~, ..)
-    | LiftedFunction(source~, ..)
-    | LiftedRecursiveFunction(source~, ..) => self.source_role(source)
-    RepresentationWorker(..) => RepresentationWorker
+    TopLevelFunction(source~, origin~, ..)
+    | LiftedFunction(source~, origin~, ..)
+    | LiftedRecursiveFunction(source~, origin~, ..) =>
+      [self.semantic_role(source, origin)]
+    RepresentationWorker(source~, origin~, ..) =>
+      [self.semantic_role(source, origin), RepresentationWorker]
     Initializer(source~) =>
-      Initializer(value=source.index, name=self.source_name(source))
-    InitializerOrchestrator => InitializerOrchestrator
-    IntrinsicWrapper(name~) => IntrinsicWrapper(name~)
-    CallableAdapter => CallableAdapter
-    LayoutConstructor => LayoutConstructor
+      [Initializer(value=source.index, name=self.source_name(source))]
+    InitializerOrchestrator => [InitializerOrchestrator]
+    IntrinsicWrapper(name~) => [IntrinsicWrapper(name~)]
+    CallableAdapter => [CallableAdapter]
+    LayoutConstructor => [LayoutConstructor]
     RuntimeImport(source~, symbol~) =>
-      RuntimeImport(value=source.index, name=self.source_name(source), symbol~)
+      [
+        RuntimeImport(
+          value=source.index,
+          name=self.source_name(source),
+          symbol~,
+        ),
+      ]
   }
 }
 

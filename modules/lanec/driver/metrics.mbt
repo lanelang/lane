@@ -150,6 +150,7 @@ fn observe_anf_function(
   accumulator.anf_functions.push({
     function: function.id,
     source: function.source,
+    origin: function.origin,
   })
   accumulator.function_count += 1
   body_nodes

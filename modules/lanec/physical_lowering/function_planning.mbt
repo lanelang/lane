@@ -13,7 +13,11 @@ fn ImageLowerer::plan(
             self.add_plan(
               value,
               Function(value, function),
-              TopLevelFunction(function=function.id, source=function.source),
+              TopLevelFunction(
+                function=function.id,
+                source=function.source,
+                origin=function.origin,
+              ),
             )
           None => {
             self.add_instance_global(value)
@@ -33,7 +37,11 @@ fn ImageLowerer::plan(
               self.add_plan(
                 binding.id,
                 Function(binding.id, function),
-                TopLevelFunction(function=function.id, source=function.source),
+                TopLevelFunction(
+                  function=function.id,
+                  source=function.source,
+                  origin=function.origin,
+                ),
               )
             None => raise UnsupportedTopLevel(value=binding.id)
           }
@@ -167,7 +175,7 @@ fn ImageLowerer::plan_runtime_import(
   }
   self.add_plan(
     value,
-    RuntimeImport(@lane_runtime.RuntimeImport::{
+    RuntimeImport({
       abi_major: 1,
       parameters: parameter_kinds,
       result: result_kind,

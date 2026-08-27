@@ -292,7 +292,10 @@ fn explore_indirect_calls(
     origins: call.origins.map(origin => {
       match origin {
         SourceBound => SourceBound
-        Anonymous => Anonymous
+        SourceAnonymous => SourceAnonymous
+        HandlerElaboration => HandlerElaboration
+        MonadicTransformation => MonadicTransformation
+        SelectiveCps => SelectiveCps
         CallableAdapter => CallableAdapter
         RepresentationWorker => RepresentationWorker
         Initialization => Initialization

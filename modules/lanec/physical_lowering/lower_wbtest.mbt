@@ -76,6 +76,10 @@ fn lower_test_executable_to_physical_observed(
       externals,
       entry,
       retained_values: test_retained_values(program),
+      function_origins: @function_origin.FunctionOriginCatalog::uniform(
+        program,
+        SourceWritten,
+      ),
     },
     observe,
   )
@@ -93,6 +97,10 @@ fn lower_test_executable_to_physical_without_representation_specialization(
       externals,
       entry,
       retained_values: test_retained_values(program),
+      function_origins: @function_origin.FunctionOriginCatalog::uniform(
+        program,
+        SourceWritten,
+      ),
     },
     _ => (),
     false,
@@ -141,6 +149,10 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
   let runtime_metadata = @anf.lower_cps_core_to_runtime_anf({
       program,
       retained_values: [],
+      function_origins: @function_origin.FunctionOriginCatalog::uniform(
+        program,
+        SourceWritten,
+      ),
     })
     .unwrap()
     .metadata()
@@ -193,6 +205,10 @@ test "function plans allocate source and synthetic origins atomically" {
   let anf = @anf.lower_cps_core_to_runtime_anf({
     program,
     retained_values: test_retained_values(program),
+    function_origins: @function_origin.FunctionOriginCatalog::uniform(
+      program,
+      SourceWritten,
+    ),
   }).unwrap()
   ignore(lowerer.plan(anf))
   debug_inspect(
@@ -202,7 +218,11 @@ test "function plans allocate source and synthetic origins atomically" {
       #|  ({ value: 1 }, Initializer(source={ index: 0 })),
       #|  (
       #|    { value: 2 },
-      #|    TopLevelFunction(function={ value: 0 }, source=Some({ index: 1 })),
+      #|    TopLevelFunction(
+      #|      function={ value: 0 },
+      #|      source=Some({ index: 1 }),
+      #|      origin=SourceWritten,
+      #|    ),
       #|  ),
       #|  ({ value: 3 }, InitializerOrchestrator),
       #|]
@@ -908,7 +928,13 @@ test "runtime imports are deduplicated and sorted after physical bodies" {
       #|[
       #|  {
       #|    function: { value: 1 },
-      #|    origins: [TopLevelFunction(function={ value: 0 }, source=Some({ index: 5 }))],
+      #|    origins: [
+      #|      TopLevelFunction(
+      #|        function={ value: 0 },
+      #|        source=Some({ index: 5 }),
+      #|        origin=SourceWritten,
+      #|      ),
+      #|    ],
       #|  },
       #|  {
       #|    function: { value: 2 },

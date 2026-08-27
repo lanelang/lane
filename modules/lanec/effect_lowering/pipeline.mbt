@@ -29,6 +29,13 @@ pub(all) struct EffectLoweringScale {
 } derive(Debug, Eq)
 
 ///|
+/// Verified CPS Core together with transformation-owned function provenance.
+pub(all) struct EffectLoweringResult {
+  program : @buslane.Program
+  function_origins : @function_origin.FunctionOriginCatalog
+} derive(Debug, Eq)
+
+///|
 /// A read-only observation of a verified private stage. It deliberately carries
 /// no constructible transitional AST.
 pub(all) struct EffectLoweringSnapshot {
@@ -42,7 +49,7 @@ pub(all) struct EffectLoweringSnapshot {
 /// Every private stage is checked before its snapshot is reported.
 pub fn lower_effects(
   program : @buslane.Program,
-) -> Result[@buslane.Program, SynthesisError] {
+) -> Result[EffectLoweringResult, SynthesisError] {
   Ok(lower_effects_or_raise(program, None)) catch {
     error => Err(error)
   }
@@ -53,7 +60,7 @@ pub fn lower_effects(
 pub fn lower_effects_observed(
   program : @buslane.Program,
   observe : (EffectLoweringSnapshot) -> Unit,
-) -> Result[@buslane.Program, SynthesisError] {
+) -> Result[EffectLoweringResult, SynthesisError] {
   Ok(lower_effects_or_raise(program, Some(observe))) catch {
     error => Err(error)
   }
@@ -63,7 +70,7 @@ pub fn lower_effects_observed(
 fn lower_effects_or_raise(
   program : @buslane.Program,
   observe : ((EffectLoweringSnapshot) -> Unit)?,
-) -> @buslane.Program raise SynthesisError {
+) -> EffectLoweringResult raise SynthesisError {
   require_buslane_program(Input, program)
   let elaborated = elaborate_handlers(program)
   require_transitional_program(HandlerElaboration, elaborated)
@@ -78,7 +85,7 @@ fn lower_effects_or_raise(
   require_transitional_program(OpenContextResolution, resolved)
   observe_effect_lowering_stage(observe, OpenContextsResolved, resolved)
   let lifted = lift_monadic_continuations_or_raise(resolved)
-  require_buslane_program(CpsCore, lifted)
+  require_buslane_program(CpsCore, lifted.program)
   lifted
 }
 

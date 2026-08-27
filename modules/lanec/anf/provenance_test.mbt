@@ -37,6 +37,10 @@ test "ANF assigns stable identities and preserves binding provenance" {
   let lowered = @anf.lower_cps_core_to_runtime_anf({
     program,
     retained_values: [outer],
+    function_origins: @function_origin.FunctionOriginCatalog::uniform(
+      program,
+      SourceWritten,
+    ),
   }).unwrap()
   debug_inspect(
     lowered.terms(),
@@ -51,6 +55,7 @@ test "ANF assigns stable identities and preserves binding provenance" {
       #|            {
       #|              id: { value: 0 },
       #|              source: Some({ index: 0 }),
+      #|              origin: SourceWritten,
       #|              parameters: [],
       #|              result_type: Scalar(I64),
       #|              body: Let(
@@ -61,6 +66,7 @@ test "ANF assigns stable identities and preserves binding provenance" {
       #|                      {
       #|                        id: { value: 1 },
       #|                        source: Some({ index: 1 }),
+      #|                        origin: SourceWritten,
       #|                        parameters: [],
       #|                        result_type: Scalar(I64),
       #|                        body: Atom(Literal(I64(42))),

@@ -62,6 +62,7 @@ fn transform_function(
 ) -> FunctionExpr raise SynthesisError {
   let body_facts = synthesize_expr_or_raise(program.metadata, function.body)
   {
+    origin: function.origin,
     parameters: function.parameters,
     result_type: function.result_type,
     body: transform_expr(
@@ -382,6 +383,7 @@ fn bind_computation(
         computation,
         binder,
         continuation: {
+          origin: MonadicTransformation,
           parameters: [binder],
           result_type: answer_type,
           body: next(Ref(binder)),

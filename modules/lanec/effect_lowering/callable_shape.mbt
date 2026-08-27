@@ -126,10 +126,15 @@ fn CpsCallableShape::materialize_monadic(
 }
 
 ///|
-fn CpsCallableFrame::wrap(self : CpsCallableFrame, body : Expr) -> Expr {
+fn CpsCallableFrame::wrap(
+  self : CpsCallableFrame,
+  body : Expr,
+  origin : @function_origin.FunctionOrigin,
+) -> Expr {
   TypeLambda(
     [self.answer_parameter, self.residual_parameter],
     Function({
+      origin,
       parameters: self.context_parameters +
       self.value_parameters +
       [self.continuation],

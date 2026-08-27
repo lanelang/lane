@@ -71,14 +71,21 @@ fn elaborate_or_raise(
   }
   require_verified("core optimization", program)
   observe_executable_stage(observe, CoreOptimized(program))
-  let program = lower_effects(program, entry.value, observe)
+  let lowered = lower_effects(program, entry.value, observe)
+  let program = lowered.program
   let initializer_roots = collect_initializer_roots(program)
   let retained_values = collect_retained_values(
     program,
     entry.value,
     initializer_roots,
   )
-  { program, externals, entry, retained_values, }
+  {
+    program,
+    externals,
+    entry,
+    retained_values,
+    function_origins: lowered.function_origins,
+  }
 }
 
 ///|
@@ -122,7 +129,7 @@ fn lower_effects(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   observe : ((ExecutableElaborationStage) -> Unit)?,
-) -> @buslane.Program raise ExecutableElaborationError {
+) -> @effect_lowering.EffectLoweringResult raise ExecutableElaborationError {
   let lifted = match observe {
     None => unwrap_effect_lowering(@effect_lowering.lower_effects(program))
     Some(emit) =>
@@ -132,16 +139,22 @@ fn lower_effects(
         }),
       )
   }
-  observe_executable_stage(observe, MonadicContinuationsLifted(lifted))
-  let initializer_roots = collect_reachable_initializer_roots(lifted, entry)
+  observe_executable_stage(observe, MonadicContinuationsLifted(lifted.program))
+  let initializer_roots = collect_reachable_initializer_roots(
+    lifted.program,
+    entry,
+  )
   let optimized = match
-    @core_opt.optimize({ program: lifted, entry, roots: initializer_roots, }) {
+    @core_opt.optimize_preserving_function_origins(
+      { program: lifted.program, entry, roots: initializer_roots, },
+      lifted.function_origins,
+    ) {
     Ok(program) => program
     Err(error) => raise CoreOptimizationError(error)
   }
   require_verified("CPS core optimization", optimized)
   observe_executable_stage(observe, CpsCoreOptimized(optimized))
-  optimized
+  { ..lifted, program: optimized, }
 }
 
 ///|

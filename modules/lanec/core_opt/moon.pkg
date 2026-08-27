@@ -1,4 +1,5 @@
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/function_origin",
   "Milky2018/lanec/occurrence",
 }

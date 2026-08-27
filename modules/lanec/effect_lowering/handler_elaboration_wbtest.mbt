@@ -79,6 +79,7 @@ test "handler elaboration replaces effect syntax with invoke and install" {
                 {
                   operation,
                   callable: Monomorphic({
+                    origin: HandlerElaboration,
                     parameters: [payload, resume_value],
                     result_type: Primitive(I64),
                     body: Let(
@@ -92,6 +93,7 @@ test "handler elaboration replaces effect syntax with invoke and install" {
             },
           ],
           final_clause: {
+            origin: HandlerElaboration,
             parameters: [result_binder],
             result_type: Primitive(I64),
             body: Ref(result_binder),
@@ -168,6 +170,7 @@ test "handler elaboration turns generic operation clauses into type lambdas" {
   assert_eq(
     install.dictionaries[0].operations[0].callable,
     Polymorphic([clause_type], {
+      origin: HandlerElaboration,
       parameters: [payload, resume_value],
       result_type: Primitive(I64),
       body: Literal(I64(1L)),

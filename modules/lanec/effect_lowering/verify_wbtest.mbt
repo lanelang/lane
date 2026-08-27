@@ -12,7 +12,12 @@ fn verification_function_program(
   )
   {
     metadata,
-    terms: [Let(main, Function({ parameters: [], result_type, body, }))],
+    terms: [
+      Let(
+        main,
+        Function({ origin: SourceWritten, parameters: [], result_type, body, }),
+      ),
+    ],
   }
 }
 
@@ -82,6 +87,7 @@ test "extended verifier checks Bind computation and continuation alignment" {
           computation: Literal(I64(42L)),
           binder,
           continuation: {
+            origin: SourceWritten,
             parameters: [binder],
             result_type: Primitive(Unit),
             body: Literal(Unit),
@@ -135,6 +141,7 @@ test "extended verifier checks Install final-clause input" {
           result_type: Primitive(Unit),
           dictionaries: [],
           final_clause: {
+            origin: SourceWritten,
             parameters: [final_parameter],
             result_type: Primitive(Unit),
             body: Literal(Unit),
@@ -250,6 +257,7 @@ test "extended verifier checks OpenContext effect scope and inclusion" {
         TypeLambda(
           [bound],
           Function({
+            origin: SourceWritten,
             parameters: [],
             result_type: Primitive(Unit),
             body: OpenContext({

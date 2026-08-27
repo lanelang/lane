@@ -187,6 +187,7 @@ fn InlinePlanner::plan_nonrecursive_call(
     cloned.parameters,
     arguments,
     cloned.body,
+    None,
     _ => (),
   )
   let original = @buslane.Expr::Call(callee, arguments)

@@ -24,6 +24,7 @@ fn reduce_application(
   parameters : Array[@buslane.ValueId],
   arguments : Array[@buslane.Expr],
   body : @buslane.Expr,
+  function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> ReducedApplication raise CoreOptimizeError {
   if parameters.length() != arguments.length() {
@@ -65,7 +66,7 @@ fn reduce_application(
   }
   {
     expression: simplify_expr(
-      program, facts, analysis, substitutions, reduced, observe,
+      program, facts, analysis, substitutions, reduced, function_origins, observe,
     ),
     empty_argument_count,
     materialized_argument_count: materialized.length(),

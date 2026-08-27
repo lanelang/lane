@@ -178,6 +178,7 @@ fn lower_cps_monadic_let(
     expression,
     answer_type,
     Function({
+      origin: SelectiveCps,
       parameters: [binder],
       result_type: answer_type,
       body: lower_cps_with_continuation(
@@ -214,6 +215,7 @@ fn lower_cps_bind_computation(
     computation,
     binder: parameter,
     continuation: {
+      origin: SelectiveCps,
       parameters: [parameter],
       result_type: answer_type,
       body: Call(continuation, [Ref(parameter)]),

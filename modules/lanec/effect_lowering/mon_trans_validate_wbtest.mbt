@@ -48,6 +48,7 @@ test "mon-trans validator reports every forbidden residual form" {
           result_type: Primitive(Unit),
           dictionaries: [],
           final_clause: {
+            origin: SourceWritten,
             parameters: [final_parameter],
             result_type: Primitive(Unit),
             body: Ref(final_parameter),
@@ -72,6 +73,7 @@ test "mon-trans validator reports every forbidden residual form" {
           computation: Literal(Unit),
           binder: bind_parameter,
           continuation: {
+            origin: SourceWritten,
             parameters: [bind_parameter],
             result_type: Primitive(Unit),
             body: Ref(bind_parameter),

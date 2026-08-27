@@ -10,7 +10,14 @@ fn runtime_anf_test_input(program : @buslane.Program) -> RuntimeAnfInput {
         }
     }
   }
-  { program, retained_values, }
+  {
+    program,
+    retained_values,
+    function_origins: @function_origin.FunctionOriginCatalog::uniform(
+      program,
+      SourceWritten,
+    ),
+  }
 }
 
 ///|

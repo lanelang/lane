@@ -930,7 +930,7 @@ test "physical verifier enforces result ABI at every static call boundary" {
   let string_import : @runtime.RuntimeImport = {
     abi_major: 1,
     parameters: [],
-    result: @runtime.String,
+    result: String,
     symbol: "lane.test.string",
   }
   debug_inspect(

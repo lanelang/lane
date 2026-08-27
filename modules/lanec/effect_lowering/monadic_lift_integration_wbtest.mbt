@@ -36,6 +36,7 @@ test "monadic-lift exposes generic continuation captures to ANF" {
           rhs: TypeLambda(
             [captured_type],
             Function({
+              origin: SourceWritten,
               parameters: [captured],
               result_type: Parameter(captured_type),
               body: Let(ignored, Call(Ref(tick), []), Ref(captured)),

@@ -37,6 +37,7 @@ priv enum Expr {
 
 ///|
 priv struct FunctionExpr {
+  origin : @function_origin.FunctionOrigin
   parameters : Array[@buslane.ValueId]
   result_type : @buslane.Type
   body : Expr

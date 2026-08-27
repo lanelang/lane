@@ -7,6 +7,7 @@ import {
   "Milky2018/lanec/effect_lowering",
   "Milky2018/lanec/effect_specialization",
   "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/function_origin",
   "Milky2018/lanec/module/link",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
@@ -56,6 +57,7 @@ pub(all) struct ExecutableProgram {
   externals : @buslane_lowering.BuslaneExternalMap
   entry : @buslane_lowering.BuslaneEntry
   retained_values : Array[@buslane.ValueId]
+  function_origins : @function_origin.FunctionOriginCatalog
 } derive(Eq, @debug.Debug)
 pub fn ExecutableProgram::equal(Self, Self) -> Bool
 pub fn ExecutableProgram::not_equal(Self, Self) -> Bool
