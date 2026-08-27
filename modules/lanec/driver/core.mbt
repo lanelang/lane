@@ -171,20 +171,22 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
           }
           InitialVmcfg(image, provenance) => {
             functions.observe_vmcfg(provenance.functions)
-            stages.complete(
+            stages.complete_with_indirect_calls(
               VmcfgInitial,
               @vmcfg.image_to_code(image),
               [],
               vmcfg_scale(image, provenance.functions),
+              explore_indirect_calls(VmcfgInitial, provenance.indirect_calls),
             )
           }
           FinalPhysicalProgram(image, provenance) => {
             functions.observe_physical(provenance.functions)
-            stages.complete(
+            stages.complete_with_indirect_calls(
               PhysicalProgram,
               @physical.physical_program_to_code(image),
               [],
               physical_scale(image, provenance.functions),
+              explore_indirect_calls(PhysicalProgram, provenance.indirect_calls),
             )
           }
         }
@@ -256,7 +258,83 @@ fn ExploreStageBuilder::complete(
     text,
     diagnostics,
     scale,
+    indirect_calls: [],
   })
+}
+
+///|
+fn ExploreStageBuilder::complete_with_indirect_calls(
+  self : ExploreStageBuilder,
+  id : ExploreStageId,
+  text : String,
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
+  scale : ExploreScaleObservation,
+  indirect_calls : Array[ExploreIndirectCallObservation],
+) -> Unit {
+  self.states[id.index()] = Completed({
+    domain: id.domain(),
+    text_format: id.text_format(),
+    text,
+    diagnostics,
+    scale,
+    indirect_calls,
+  })
+}
+
+///|
+fn explore_indirect_calls(
+  stage : ExploreStageId,
+  calls : Array[@physical_lowering.PhysicalIndirectCallObservation],
+) -> Array[ExploreIndirectCallObservation] {
+  calls.map(call => {
+    function: { stage, index: call.function.value, },
+    ordinal: call.ordinal,
+    origins: call.origins.map(origin => {
+      match origin {
+        SourceBound => SourceBound
+        Anonymous => Anonymous
+        CallableAdapter => CallableAdapter
+        RepresentationWorker => RepresentationWorker
+        Initialization => Initialization
+        RuntimeSupport => RuntimeSupport
+      }
+    }),
+    resolution: explore_indirect_call_resolution(stage, call.resolution),
+    boundaries: call.boundaries.map(boundary => {
+      match boundary {
+        Alias => Alias
+        BlockParameter => BlockParameter
+        FunctionParameter => FunctionParameter
+        FunctionResult => FunctionResult
+        AggregateStorage => AggregateStorage
+        GlobalStorage => GlobalStorage
+        OpaqueInput => OpaqueInput
+        OpaqueOperation => OpaqueOperation
+      }
+    }),
+  })
+}
+
+///|
+fn explore_indirect_call_resolution(
+  stage : ExploreStageId,
+  resolution : @vmcfg.IndirectCallResolution,
+) -> ExploreIndirectCallResolution {
+  match resolution {
+    ExactTarget(target, environment) =>
+      ExactTarget(
+        { stage, index: target.value, },
+        match environment {
+          CaptureFree => CaptureFree
+          Local => Local
+          Packed => Packed
+        },
+      )
+    MultipleTargets(targets) =>
+      MultipleTargets(targets.map(target => { stage, index: target.value, }))
+    UnknownTargets(targets) =>
+      UnknownTargets(targets.map(target => { stage, index: target.value, }))
+  }
 }
 
 ///|

@@ -52,17 +52,16 @@ test "real example 37 shares escaped callable adapter workers" {
   let mut adapter_workers = 0
   let mut adapter_materializations = 0
   let mut finalized_adapter_workers = 0
+  let mut indirect_calls = []
   let lowered = @physical_lowering.lower_executable_program_to_physical_observed(
     executable,
     stage => {
       match stage {
         InitialVmcfg(image, provenance) => {
+          indirect_calls = provenance.indirect_calls
           let worker_ids = []
           for item in provenance.functions {
-            if item.origins.any(origin => {
-                origin
-                is @physical_lowering.PhysicalFunctionOrigin::CallableAdapter
-              }) {
+            if item.origins.any(origin => origin is CallableAdapter) {
               worker_ids.push(item.function)
             }
           }
@@ -81,10 +80,7 @@ test "real example 37 shares escaped callable adapter workers" {
         }
         FinalPhysicalProgram(_, provenance) =>
           for item in provenance.functions {
-            if item.origins.any(origin => {
-                origin
-                is @physical_lowering.PhysicalFunctionOrigin::CallableAdapter
-              }) {
+            if item.origins.any(origin => origin is CallableAdapter) {
               finalized_adapter_workers += 1
             }
           }
@@ -99,6 +95,86 @@ test "real example 37 shares escaped callable adapter workers" {
     (adapter_workers, adapter_materializations, finalized_adapter_workers),
     (21, 26, 21),
   )
+  assert_eq(summarize_indirect_calls(indirect_calls), {
+    total: 44,
+    source_bound: 12,
+    anonymous: 13,
+    callable_adapter: 18,
+    representation_worker: 0,
+    initialization: 1,
+    runtime_support: 0,
+    exact_capture_free: 0,
+    exact_local: 0,
+    exact_packed: 9,
+    multiple_targets: 35,
+    unknown_with_candidates: 0,
+    unknown_without_candidates: 0,
+    calls_without_boundary: 0,
+  })
+}
+
+///|
+priv struct IndirectCallSummary {
+  total : Int
+  mut source_bound : Int
+  mut anonymous : Int
+  mut callable_adapter : Int
+  mut representation_worker : Int
+  mut initialization : Int
+  mut runtime_support : Int
+  mut exact_capture_free : Int
+  mut exact_local : Int
+  mut exact_packed : Int
+  mut multiple_targets : Int
+  mut unknown_with_candidates : Int
+  mut unknown_without_candidates : Int
+  mut calls_without_boundary : Int
+} derive(Debug, Eq)
+
+///|
+fn summarize_indirect_calls(
+  calls : Array[@physical_lowering.PhysicalIndirectCallObservation],
+) -> IndirectCallSummary {
+  let summary : IndirectCallSummary = {
+    total: calls.length(),
+    source_bound: 0,
+    anonymous: 0,
+    callable_adapter: 0,
+    representation_worker: 0,
+    initialization: 0,
+    runtime_support: 0,
+    exact_capture_free: 0,
+    exact_local: 0,
+    exact_packed: 0,
+    multiple_targets: 0,
+    unknown_with_candidates: 0,
+    unknown_without_candidates: 0,
+    calls_without_boundary: 0,
+  }
+  for call in calls {
+    for origin in call.origins {
+      match origin {
+        SourceBound => summary.source_bound += 1
+        Anonymous => summary.anonymous += 1
+        CallableAdapter => summary.callable_adapter += 1
+        RepresentationWorker => summary.representation_worker += 1
+        Initialization => summary.initialization += 1
+        RuntimeSupport => summary.runtime_support += 1
+      }
+    }
+    match call.resolution {
+      ExactTarget(_, CaptureFree) => summary.exact_capture_free += 1
+      ExactTarget(_, Local) => summary.exact_local += 1
+      ExactTarget(_, Packed) => summary.exact_packed += 1
+      MultipleTargets(_) => summary.multiple_targets += 1
+      UnknownTargets([]) => summary.unknown_without_candidates += 1
+      UnknownTargets(_) => summary.unknown_with_candidates += 1
+    }
+    if call.boundaries.is_empty() {
+      summary.calls_without_boundary += 1
+    }
+  }
+  summary
 }
 
 ///|

@@ -53,6 +53,36 @@ pub extend ExploreFunctionScale with Debug::{to_repr}
 pub extend ExploreFunctionScale with Eq::{not_equal, equal}
 
 ///|
+pub extend ExploreIndirectCallObservation with Debug::{to_repr}
+
+///|
+pub extend ExploreIndirectCallObservation with Eq::{not_equal, equal}
+
+///|
+pub extend ExploreIndirectCallOrigin with Debug::{to_repr}
+
+///|
+pub extend ExploreIndirectCallOrigin with Eq::{not_equal, equal}
+
+///|
+pub extend ExploreCallableFlowBoundary with Debug::{to_repr}
+
+///|
+pub extend ExploreCallableFlowBoundary with Eq::{not_equal, equal}
+
+///|
+pub extend ExploreCallableEnvironmentKnowledge with Debug::{to_repr}
+
+///|
+pub extend ExploreCallableEnvironmentKnowledge with Eq::{not_equal, equal}
+
+///|
+pub extend ExploreIndirectCallResolution with Debug::{to_repr}
+
+///|
+pub extend ExploreIndirectCallResolution with Eq::{not_equal, equal}
+
+///|
 pub extend ExploreMetric with Debug::{to_repr}
 
 ///|

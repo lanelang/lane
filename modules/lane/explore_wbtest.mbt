@@ -78,6 +78,15 @@ test "explorer renders typed metrics and explicit function lineage" {
           },
         ],
       },
+      indirect_calls: [
+        {
+          function: { stage: Anf, index: 7, },
+          ordinal: 0,
+          origins: [SourceBound],
+          resolution: UnknownTargets([]),
+          boundaries: [FunctionParameter],
+        },
+      ],
     }),
   }
   let source : @driver.ExploreFunctionRef = { stage: Anf, index: 7, }
@@ -90,7 +99,7 @@ test "explorer renders typed metrics and explicit function lineage" {
   inspect(
     html.to_string(),
     content=(
-      #|<div class="observations"><div class="metrics"><span class="metric">functionCount: 1</span></div><table><thead><tr><th>Function</th><th>Blocks</th><th>Operations</th><th>Values/locals</th></tr></thead><tbody><tr><td>7</td><td>0</td><td>3</td><td>1</td></tr></tbody></table><table><thead><tr><th>Module</th><th>Input top terms</th><th>Retained top terms</th><th>Input values</th><th>Retained values</th></tr></thead><tbody><tr><td>Main</td><td>2</td><td>1</td><td>3</td><td>1</td></tr></tbody></table><table><thead><tr><th>Function lineage</th><th>Role</th><th>From</th></tr></thead><tbody><tr><td>anf#7</td><td>source main (value#4)</td><td>executable#4</td></tr></tbody></table></div>
+      #|<div class="observations"><div class="metrics"><span class="metric">functionCount: 1</span></div><table><thead><tr><th>Function</th><th>Blocks</th><th>Operations</th><th>Values/locals</th></tr></thead><tbody><tr><td>7</td><td>0</td><td>3</td><td>1</td></tr></tbody></table><table><thead><tr><th>Module</th><th>Input top terms</th><th>Retained top terms</th><th>Input values</th><th>Retained values</th></tr></thead><tbody><tr><td>Main</td><td>2</td><td>1</td><td>3</td><td>1</td></tr></tbody></table><table><thead><tr><th>Indirect call</th><th>Origin</th><th>Resolution</th><th>Flow</th></tr></thead><tbody><tr><td>anf#7 call#0</td><td>source-bound</td><td>unknown</td><td>function parameter</td></tr></tbody></table><table><thead><tr><th>Function lineage</th><th>Role</th><th>From</th></tr></thead><tbody><tr><td>anf#7</td><td>source main (value#4)</td><td>executable#4</td></tr></tbody></table></div>
     ),
   )
 }

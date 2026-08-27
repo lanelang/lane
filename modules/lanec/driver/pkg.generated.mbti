@@ -36,6 +36,29 @@ pub fn EntrySummary::equal(Self, Self) -> Bool
 pub fn EntrySummary::not_equal(Self, Self) -> Bool
 pub fn EntrySummary::to_repr(Self) -> @debug.Repr
 
+pub(all) enum ExploreCallableEnvironmentKnowledge {
+  CaptureFree
+  Local
+  Packed
+} derive(Eq, @debug.Debug)
+pub fn ExploreCallableEnvironmentKnowledge::equal(Self, Self) -> Bool
+pub fn ExploreCallableEnvironmentKnowledge::not_equal(Self, Self) -> Bool
+pub fn ExploreCallableEnvironmentKnowledge::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ExploreCallableFlowBoundary {
+  Alias
+  BlockParameter
+  FunctionParameter
+  FunctionResult
+  AggregateStorage
+  GlobalStorage
+  OpaqueInput
+  OpaqueOperation
+} derive(Eq, @debug.Debug)
+pub fn ExploreCallableFlowBoundary::equal(Self, Self) -> Bool
+pub fn ExploreCallableFlowBoundary::not_equal(Self, Self) -> Bool
+pub fn ExploreCallableFlowBoundary::to_repr(Self) -> @debug.Repr
+
 pub(all) struct ExploreCompilerIdentity {
   name : String
   version : String
@@ -107,6 +130,38 @@ pub(all) struct ExploreFunctionScale {
 pub fn ExploreFunctionScale::equal(Self, Self) -> Bool
 pub fn ExploreFunctionScale::not_equal(Self, Self) -> Bool
 pub fn ExploreFunctionScale::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ExploreIndirectCallObservation {
+  function : ExploreFunctionRef
+  ordinal : Int
+  origins : Array[ExploreIndirectCallOrigin]
+  resolution : ExploreIndirectCallResolution
+  boundaries : Array[ExploreCallableFlowBoundary]
+} derive(Eq, @debug.Debug)
+pub fn ExploreIndirectCallObservation::equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallObservation::not_equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallObservation::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ExploreIndirectCallOrigin {
+  SourceBound
+  Anonymous
+  CallableAdapter
+  RepresentationWorker
+  Initialization
+  RuntimeSupport
+} derive(Eq, @debug.Debug)
+pub fn ExploreIndirectCallOrigin::equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallOrigin::not_equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallOrigin::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ExploreIndirectCallResolution {
+  ExactTarget(ExploreFunctionRef, ExploreCallableEnvironmentKnowledge)
+  MultipleTargets(Array[ExploreFunctionRef])
+  UnknownTargets(Array[ExploreFunctionRef])
+} derive(Eq, @debug.Debug)
+pub fn ExploreIndirectCallResolution::equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallResolution::not_equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallResolution::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreMetric {
   id : ExploreMetricId
@@ -217,6 +272,7 @@ pub(all) struct ExploreSnapshot {
   text : String
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
   scale : ExploreScaleObservation
+  indirect_calls : Array[ExploreIndirectCallObservation]
 } derive(Eq, @debug.Debug)
 pub fn ExploreSnapshot::equal(Self, Self) -> Bool
 pub fn ExploreSnapshot::not_equal(Self, Self) -> Bool

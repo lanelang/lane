@@ -5,6 +5,12 @@ pub extend FunctionProvenanceError with Debug::{to_repr}
 pub extend FunctionProvenanceError with Eq::{not_equal, equal}
 
 ///|
+pub extend IndirectCallOrigin with Debug::{to_repr}
+
+///|
+pub extend IndirectCallOrigin with Eq::{not_equal, equal}
+
+///|
 pub extend PhysicalFunctionOrigin with Debug::{to_repr}
 
 ///|
@@ -21,6 +27,12 @@ pub extend PhysicalLoweringError with Debug::{to_repr}
 
 ///|
 pub extend PhysicalLoweringError with Eq::{not_equal, equal}
+
+///|
+pub extend PhysicalIndirectCallObservation with Debug::{to_repr}
+
+///|
+pub extend PhysicalIndirectCallObservation with Eq::{not_equal, equal}
 
 ///|
 pub extend PhysicalLoweringProvenance with Debug::{to_repr}

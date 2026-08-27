@@ -11,6 +11,18 @@ pub extend Block with Debug::{to_repr}
 pub extend Block with Eq::{not_equal, equal}
 
 ///|
+pub extend CallableEnvironmentKnowledge with Debug::{to_repr}
+
+///|
+pub extend CallableEnvironmentKnowledge with Eq::{not_equal, equal}
+
+///|
+pub extend CallableFlowBoundary with Debug::{to_repr}
+
+///|
+pub extend CallableFlowBoundary with Eq::{not_equal, equal}
+
+///|
 pub extend Edge with Debug::{to_repr}
 
 ///|
@@ -60,6 +72,18 @@ pub extend Instruction with Debug::{to_repr}
 
 ///|
 pub extend Instruction with Eq::{not_equal, equal}
+
+///|
+pub extend IndirectCallObservation with Debug::{to_repr}
+
+///|
+pub extend IndirectCallObservation with Eq::{not_equal, equal}
+
+///|
+pub extend IndirectCallResolution with Debug::{to_repr}
+
+///|
+pub extend IndirectCallResolution with Eq::{not_equal, equal}
 
 ///|
 pub extend LayoutOperand with Debug::{to_repr}

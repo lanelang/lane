@@ -138,6 +138,7 @@ fn render_stage_observations(
   if snapshot.scale.metrics.is_empty() &&
     snapshot.scale.functions.is_empty() &&
     snapshot.scale.modules.is_empty() &&
+    snapshot.indirect_calls.is_empty() &&
     nodes.is_empty() {
     return
   }
@@ -168,6 +169,20 @@ fn render_stage_observations(
     }
     html <+ "</tbody></table>"
   }
+  if !snapshot.indirect_calls.is_empty() {
+    html <+
+      "<table><thead><tr><th>Indirect call</th><th>Origin</th><th>Resolution</th><th>Flow</th></tr></thead><tbody>"
+    for call in snapshot.indirect_calls {
+      let origins = call.origins.map(indirect_call_origin_label).join(", ")
+      let resolution = indirect_call_resolution_label(call.resolution)
+      let boundaries = call.boundaries
+        .map(callable_flow_boundary_label)
+        .join(" → ")
+      html <+
+        "<tr><td>\{escape_html(function_ref_label(call.function))} call#\{call.ordinal}</td><td>\{escape_html(origins)}</td><td>\{escape_html(resolution)}</td><td>\{escape_html(boundaries)}</td></tr>"
+    }
+    html <+ "</tbody></table>"
+  }
   if !nodes.is_empty() {
     html <+
       "<table><thead><tr><th>Function lineage</th><th>Role</th><th>From</th></tr></thead><tbody>"
@@ -190,6 +205,61 @@ fn render_stage_observations(
     html <+ "</tbody></table>"
   }
   html <+ "</div>"
+}
+
+///|
+fn indirect_call_origin_label(
+  origin : @driver.ExploreIndirectCallOrigin,
+) -> String {
+  match origin {
+    SourceBound => "source-bound"
+    Anonymous => "anonymous"
+    CallableAdapter => "callable adapter"
+    RepresentationWorker => "representation worker"
+    Initialization => "initialization"
+    RuntimeSupport => "runtime support"
+  }
+}
+
+///|
+fn callable_flow_boundary_label(
+  boundary : @driver.ExploreCallableFlowBoundary,
+) -> String {
+  match boundary {
+    Alias => "alias"
+    BlockParameter => "block parameter"
+    FunctionParameter => "function parameter"
+    FunctionResult => "function result"
+    AggregateStorage => "aggregate storage"
+    GlobalStorage => "global storage"
+    OpaqueInput => "opaque input"
+    OpaqueOperation => "opaque operation"
+  }
+}
+
+///|
+fn indirect_call_resolution_label(
+  resolution : @driver.ExploreIndirectCallResolution,
+) -> String {
+  match resolution {
+    ExactTarget(target, environment) => {
+      let environment = match environment {
+        CaptureFree => "capture-free"
+        Local => "local environment"
+        Packed => "packed environment"
+      }
+      "exact \{function_ref_label(target)} (\{environment})"
+    }
+    MultipleTargets(targets) => {
+      let targets = targets.map(function_ref_label).join(", ")
+      "multiple: \{targets}"
+    }
+    UnknownTargets([]) => "unknown"
+    UnknownTargets(targets) => {
+      let targets = targets.map(function_ref_label).join(", ")
+      "unknown; candidates: \{targets}"
+    }
+  }
 }
 
 ///|

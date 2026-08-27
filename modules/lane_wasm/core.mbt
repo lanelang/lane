@@ -228,6 +228,9 @@ fn stage_json(stage : @driver.ExploreStage) -> Json {
       fields["modules"] = snapshot.scale.modules
         .map(module_scale_json)
         .to_json()
+      fields["indirectCalls"] = snapshot.indirect_calls
+        .map(indirect_call_json)
+        .to_json()
     }
     Failed(diagnostics) => {
       fields["status"] = "failed"
@@ -236,6 +239,69 @@ fn stage_json(stage : @driver.ExploreStage) -> Json {
     Unavailable => fields["status"] = "unavailable"
   }
   fields.to_json()
+}
+
+///|
+fn indirect_call_json(call : @driver.ExploreIndirectCallObservation) -> Json {
+  {
+    "function": function_ref_json(call.function),
+    "ordinal": call.ordinal,
+    "origins": call.origins.map(indirect_call_origin_json).to_json(),
+    "resolution": indirect_call_resolution_json(call.resolution),
+    "boundaries": call.boundaries.map(callable_flow_boundary_json).to_json(),
+  }
+}
+
+///|
+fn indirect_call_origin_json(
+  origin : @driver.ExploreIndirectCallOrigin,
+) -> Json {
+  (match origin {
+    SourceBound => "sourceBound"
+    Anonymous => "anonymous"
+    CallableAdapter => "callableAdapter"
+    RepresentationWorker => "representationWorker"
+    Initialization => "initialization"
+    RuntimeSupport => "runtimeSupport"
+  }).to_json()
+}
+
+///|
+fn callable_flow_boundary_json(
+  boundary : @driver.ExploreCallableFlowBoundary,
+) -> Json {
+  (match boundary {
+    Alias => "alias"
+    BlockParameter => "blockParameter"
+    FunctionParameter => "functionParameter"
+    FunctionResult => "functionResult"
+    AggregateStorage => "aggregateStorage"
+    GlobalStorage => "globalStorage"
+    OpaqueInput => "opaqueInput"
+    OpaqueOperation => "opaqueOperation"
+  }).to_json()
+}
+
+///|
+fn indirect_call_resolution_json(
+  resolution : @driver.ExploreIndirectCallResolution,
+) -> Json {
+  match resolution {
+    ExactTarget(target, environment) =>
+      {
+        "kind": "exact",
+        "target": function_ref_json(target),
+        "environment": match environment {
+          CaptureFree => "captureFree"
+          Local => "local"
+          Packed => "packed"
+        },
+      }
+    MultipleTargets(targets) =>
+      { "kind": "multiple", "targets": targets.map(function_ref_json) }
+    UnknownTargets(targets) =>
+      { "kind": "unknown", "knownTargets": targets.map(function_ref_json) }
+  }
 }
 
 ///|

@@ -16,13 +16,63 @@ pub fn finalize_observed(image : Image) -> Result[Finalization, FinalizeError] {
       match finalize_prepared(prepared) {
         Err(error) => Err(error)
         Ok(physical_program) =>
-          Ok({
-            pre_arc_image: prepared.image,
-            source_functions: prepared.source_functions,
-            physical_program,
-          })
+          match
+            verify_indirect_call_observations(
+              physical_program,
+              prepared.indirect_calls,
+            ) {
+            Err(error) => Err(error)
+            Ok(_) =>
+              Ok({
+                pre_arc_image: prepared.image,
+                source_functions: prepared.source_functions,
+                indirect_calls: prepared.indirect_calls,
+                physical_program,
+              })
+          }
       }
   }
+}
+
+///|
+fn verify_indirect_call_observations(
+  program : @physical.PhysicalProgram,
+  observations : Array[IndirectCallObservation],
+) -> Result[Unit, FinalizeError] {
+  let observed = Array::make(program.functions.length(), 0)
+  for observation in observations {
+    observed[observation.function.value - 1] += 1
+  }
+  for index, entry in program.functions {
+    let physical = match entry {
+      RuntimeImport(_) => 0
+      PhysicalBody(body) =>
+        body.blocks.fold(init=0, fn(total, block) {
+          let calls = block.instructions.fold(init=0, fn(total, instruction) {
+            if instruction is CallValue(_, _, _, _, _) {
+              total + 1
+            } else {
+              total
+            }
+          })
+          if block.terminator is TailCallValue(_, _, _, _) {
+            total + calls + 1
+          } else {
+            total + calls
+          }
+        })
+    }
+    if observed[index] != physical {
+      return Err(
+        IndirectCallObservationMismatch(
+          { value: index + 1, },
+          observed[index],
+          physical,
+        ),
+      )
+    }
+  }
+  Ok(())
 }
 
 ///|
@@ -48,7 +98,11 @@ fn prepare_or_raise(image : Image) -> CanonicalPreArcImage raise FinalizeError {
   let canonical = canonicalize_function_table_to_fixed_point(image) catch {
     error => raise FunctionTableCanonicalizationCompilerDefect(error)
   }
-  { image: canonical.image, source_functions: canonical.source_functions, }
+  {
+    image: canonical.image,
+    source_functions: canonical.source_functions,
+    indirect_calls: observe_indirect_calls(canonical.image),
+  }
 }
 
 ///|
@@ -61,6 +115,21 @@ pub fn Finalization::source_functions(
   self : Finalization,
 ) -> Array[Array[@physical.FunctionId]] {
   self.source_functions.map(functions => functions.copy())
+}
+
+///|
+pub fn Finalization::indirect_calls(
+  self : Finalization,
+) -> Array[IndirectCallObservation] {
+  self.indirect_calls.map(observation => {
+    ..observation,
+    boundaries: observation.boundaries.copy(),
+    resolution: match observation.resolution {
+      ExactTarget(target, environment) => ExactTarget(target, environment)
+      MultipleTargets(targets) => MultipleTargets(targets.copy())
+      UnknownTargets(targets) => UnknownTargets(targets.copy())
+    },
+  })
 }
 
 ///|

@@ -198,8 +198,56 @@ fn lower_executable_program_to_physical_or_raise(
   }
   let provenance : PhysicalLoweringProvenance = {
     functions: function_provenance,
+    indirect_calls: finalized
+    .indirect_calls()
+    .map(call => {
+      let origins = function_provenance[call.function.value - 1].origins.map(origin => {
+        origin.indirect_call_origin()
+      })
+      deduplicate_indirect_call_origins(origins)
+      {
+        function: call.function,
+        ordinal: call.ordinal,
+        origins,
+        resolution: call.resolution,
+        boundaries: call.boundaries,
+      }
+    }),
   }
   observe(InitialVmcfg(finalized.pre_arc_image(), provenance))
   observe(FinalPhysicalProgram(image, provenance))
   image
+}
+
+///|
+fn PhysicalFunctionOrigin::indirect_call_origin(
+  self : PhysicalFunctionOrigin,
+) -> IndirectCallOrigin {
+  match self {
+    TopLevelFunction(source=Some(_), ..)
+    | LiftedFunction(source=Some(_), ..)
+    | LiftedRecursiveFunction(source=Some(_), ..) => SourceBound
+    TopLevelFunction(source=None, ..)
+    | LiftedFunction(source=None, ..)
+    | LiftedRecursiveFunction(source=None, ..) => Anonymous
+    CallableAdapter => CallableAdapter
+    RepresentationWorker(..) => RepresentationWorker
+    Initializer(..) | InitializerOrchestrator => Initialization
+    IntrinsicWrapper(..) | LayoutConstructor | RuntimeImport(..) =>
+      RuntimeSupport
+  }
+}
+
+///|
+fn deduplicate_indirect_call_origins(
+  origins : Array[IndirectCallOrigin],
+) -> Unit {
+  let mut write = 0
+  for _, origin in origins {
+    if !origins[:write].contains(origin) {
+      origins[write] = origin
+      write += 1
+    }
+  }
+  origins.truncate(write)
 }

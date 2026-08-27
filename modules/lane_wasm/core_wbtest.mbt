@@ -46,7 +46,7 @@ test "entry request enumerates artifact-defined entries" {
 }
 
 ///|
-test "explore request returns the complete protocol v6 report" {
+test "explore request returns the complete protocol v9 report" {
   debug_inspect(
     response_summary(
       parsed_response_json(
@@ -64,7 +64,7 @@ test "explore request returns the complete protocol v6 report" {
     ),
     content=(
       #|{
-      #|  schema_version: 6,
+      #|  schema_version: 9,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -127,12 +127,7 @@ test "explore request returns the complete protocol v6 report" {
       #|    ("executable", "completed", Some("compiler"), Some("buslane")),
       #|    ("anf", "completed", Some("compiler"), Some("anf")),
       #|    ("vmcfg.initial", "completed", Some("compiler"), Some("vmcfg")),
-      #|    (
-      #|      "physical",
-      #|      "completed",
-      #|      Some("compiler"),
-      #|      Some("physical-program"),
-      #|    ),
+      #|    ("physical", "completed", Some("compiler"), Some("physical-program")),
       #|    ("wasm", "completed", Some("backend"), Some("wat")),
       #|  ],
       #|  diagnostic_messages: [],
@@ -142,7 +137,7 @@ test "explore request returns the complete protocol v6 report" {
 }
 
 ///|
-test "protocol v6 encodes ordered metrics and structured function lineage" {
+test "protocol v9 encodes ordered metrics and structured function lineage" {
   let response = parsed_response_json(
     (
       #|{
@@ -162,7 +157,7 @@ test "protocol v6 encodes ordered metrics and structured function lineage" {
       "functions": { "nodes": Array(nodes), "edges": Array(edges), .. },
       ..
     } else {
-    fail("missing protocol v6 observability fields")
+    fail("missing protocol v9 observability fields")
   }
   let anf_observations = stages.filter_map(stage => {
     match stage {
@@ -199,7 +194,7 @@ test "protocol v6 encodes ordered metrics and structured function lineage" {
     ),
     content=(
       #|(
-      #|  6,
+      #|  9,
       #|  [
       #|    [
       #|      Object(
@@ -298,6 +293,52 @@ test "protocol v6 encodes ordered metrics and structured function lineage" {
 }
 
 ///|
+test "protocol v9 encodes structured indirect call provenance" {
+  let response = parsed_response_json(
+    (
+      #|{
+      #|  "root": {
+      #|    "sourceId": "main.lane",
+      #|    "text": "module Main\npub extern type Host : Effect\nlet choose : () -> Bool ! Host = extern(\"choose\")\nlet observe : (I64) -> Unit ! Host = extern(\"observe\")\nfn left(_value : I64) -> I64 { 1 }\nfn right(_value : I64) -> I64 { 2 }\npub fn main() -> Unit ! Host {\n  let callable = if choose() { left } else { right }\n  observe(callable(42))\n}"
+      #|  },
+      #|  "libraries": [],
+      #|  "entry": "main"
+      #|}
+    ),
+  )
+  let calls = match response {
+    { "stages": Array(stages), .. } =>
+      stages.filter_map(stage => {
+        match stage {
+          { "id": String("vmcfg.initial"), "indirectCalls": Array(calls), .. } =>
+            Some(calls)
+          _ => None
+        }
+      })
+    _ => abort("expected Explore stages")
+  }
+  assert_true(
+    calls
+    is [
+      [
+        {
+          "function": { "stage": String("vmcfg.initial"), .. },
+          "ordinal": Number(0, ..),
+          "origins": Array([String("sourceBound")]),
+          "resolution": {
+            "kind": String("multiple"),
+            "targets": Array([_, _]),
+            ..
+          },
+          "boundaries": Array([String("blockParameter")]),
+          ..
+        },
+      ],
+    ],
+  )
+}
+
+///|
 test "explore request accepts multiple source files" {
   debug_inspect(
     response_summary(
@@ -321,7 +362,7 @@ test "explore request accepts multiple source files" {
     ),
     content=(
       #|{
-      #|  schema_version: 6,
+      #|  schema_version: 9,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: Some("Main.main"),
@@ -384,12 +425,7 @@ test "explore request accepts multiple source files" {
       #|    ("executable", "completed", Some("compiler"), Some("buslane")),
       #|    ("anf", "completed", Some("compiler"), Some("anf")),
       #|    ("vmcfg.initial", "completed", Some("compiler"), Some("vmcfg")),
-      #|    (
-      #|      "physical",
-      #|      "completed",
-      #|      Some("compiler"),
-      #|      Some("physical-program"),
-      #|    ),
+      #|    ("physical", "completed", Some("compiler"), Some("physical-program")),
       #|    ("wasm", "completed", Some("backend"), Some("wat")),
       #|  ],
       #|  diagnostic_messages: [],
@@ -417,7 +453,7 @@ test "explore request preserves failed and unavailable stage states" {
     ),
     content=(
       #|{
-      #|  schema_version: 6,
+      #|  schema_version: 9,
       #|  compiler: "Milky2018/lanec@0.1.0",
       #|  root: "main.lane:Main",
       #|  selected_entry: None,
@@ -456,7 +492,7 @@ test "explore request rejects malformed requests" {
     content=(
       #|Object(
       #|  {
-      #|    "schemaVersion": Number(6),
+      #|    "schemaVersion": Number(9),
       #|    "status": Number(3),
       #|    "diagnostics": Array(
       #|      [

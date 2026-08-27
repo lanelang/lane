@@ -21,6 +21,7 @@ pub(all) suberror FinalizeError {
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
   UseDefAnalysisCompilerDefect(UseDefAnalysisError)
   FunctionTableCanonicalizationCompilerDefect(FunctionTableCanonicalizationError)
+  IndirectCallObservationMismatch(@physical.FunctionId, Int, Int)
   ArcFinalVerificationCompilerDefect(ArcFinalBodyError)
   PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   PhysicalProgramVerificationCompilerDefect(@physical.PhysicalProgramVerificationError)
@@ -69,6 +70,29 @@ pub fn Block::equal(Self, Self) -> Bool
 pub fn Block::not_equal(Self, Self) -> Bool
 pub fn Block::to_repr(Self) -> @debug.Repr
 
+pub(all) enum CallableEnvironmentKnowledge {
+  CaptureFree
+  Local
+  Packed
+} derive(Eq, @debug.Debug)
+pub fn CallableEnvironmentKnowledge::equal(Self, Self) -> Bool
+pub fn CallableEnvironmentKnowledge::not_equal(Self, Self) -> Bool
+pub fn CallableEnvironmentKnowledge::to_repr(Self) -> @debug.Repr
+
+pub(all) enum CallableFlowBoundary {
+  Alias
+  BlockParameter
+  FunctionParameter
+  FunctionResult
+  AggregateStorage
+  GlobalStorage
+  OpaqueInput
+  OpaqueOperation
+} derive(Eq, @debug.Debug)
+pub fn CallableFlowBoundary::equal(Self, Self) -> Bool
+pub fn CallableFlowBoundary::not_equal(Self, Self) -> Bool
+pub fn CallableFlowBoundary::to_repr(Self) -> @debug.Repr
+
 pub(all) struct Edge {
   target : @physical.BlockId
   arguments : Array[ValueId]
@@ -80,8 +104,10 @@ pub fn Edge::to_repr(Self) -> @debug.Repr
 pub struct Finalization {
   pre_arc_image : Image
   source_functions : Array[Array[@physical.FunctionId]]
+  indirect_calls : Array[IndirectCallObservation]
   physical_program : @physical.PhysicalProgram
 }
+pub fn Finalization::indirect_calls(Self) -> Array[IndirectCallObservation]
 pub fn Finalization::physical_program(Self) -> @physical.PhysicalProgram
 pub fn Finalization::pre_arc_image(Self) -> Image
 pub fn Finalization::source_functions(Self) -> Array[Array[@physical.FunctionId]]
@@ -128,6 +154,25 @@ pub fn Image::not_equal(Self, Self) -> Bool
 pub fn Image::pretty(Self) -> @prettyprinter.Document
 pub fn Image::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for Image
+
+pub(all) struct IndirectCallObservation {
+  function : @physical.FunctionId
+  ordinal : Int
+  resolution : IndirectCallResolution
+  boundaries : Array[CallableFlowBoundary]
+} derive(Eq, @debug.Debug)
+pub fn IndirectCallObservation::equal(Self, Self) -> Bool
+pub fn IndirectCallObservation::not_equal(Self, Self) -> Bool
+pub fn IndirectCallObservation::to_repr(Self) -> @debug.Repr
+
+pub(all) enum IndirectCallResolution {
+  ExactTarget(@physical.FunctionId, CallableEnvironmentKnowledge)
+  MultipleTargets(Array[@physical.FunctionId])
+  UnknownTargets(Array[@physical.FunctionId])
+} derive(Eq, @debug.Debug)
+pub fn IndirectCallResolution::equal(Self, Self) -> Bool
+pub fn IndirectCallResolution::not_equal(Self, Self) -> Bool
+pub fn IndirectCallResolution::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Instruction {
   Copy(ValueId, ValueId)

@@ -446,7 +446,7 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
     ] else {
     fail("expected apply, main, intrinsic wrapper, and runtime import")
   }
-  assert_true(apply_body.blocks[0].terminator is TailCallValue(_, _, [], _))
+  assert_true(apply_body.blocks[0].terminator is TailCallDirect(_, None, [], _))
   assert_true(
     contains_instruction(main_body, instruction => {
       instruction is ConstFunction(_, { value: 3, })
@@ -1381,7 +1381,7 @@ test "capture-free functions lower as callable values for higher-order calls" {
   guard image.functions[1] is PhysicalBody(apply_body) else {
     fail("expected apply physical body")
   }
-  assert_true(apply_body.blocks[0].terminator is TailCallValue(_, _, [], _))
+  assert_true(apply_body.blocks[0].terminator is TailCallDirect(_, None, [], _))
   guard image.functions[2] is PhysicalBody(main_body) else {
     fail("expected main physical body")
   }

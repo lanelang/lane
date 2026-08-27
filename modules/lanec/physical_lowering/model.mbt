@@ -304,8 +304,28 @@ pub(all) struct PhysicalFunctionProvenance {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum IndirectCallOrigin {
+  SourceBound
+  Anonymous
+  CallableAdapter
+  RepresentationWorker
+  Initialization
+  RuntimeSupport
+} derive(Debug, Eq)
+
+///|
+pub(all) struct PhysicalIndirectCallObservation {
+  function : @physical.FunctionId
+  ordinal : Int
+  origins : Array[IndirectCallOrigin]
+  resolution : @vmcfg.IndirectCallResolution
+  boundaries : Array[@vmcfg.CallableFlowBoundary]
+} derive(Debug, Eq)
+
+///|
 pub(all) struct PhysicalLoweringProvenance {
   functions : Array[PhysicalFunctionProvenance]
+  indirect_calls : Array[PhysicalIndirectCallObservation]
 } derive(Debug, Eq)
 
 ///|

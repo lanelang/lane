@@ -159,8 +159,53 @@ pub(all) struct ExploreFunctionGraph {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum ExploreIndirectCallOrigin {
+  SourceBound
+  Anonymous
+  CallableAdapter
+  RepresentationWorker
+  Initialization
+  RuntimeSupport
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ExploreCallableFlowBoundary {
+  Alias
+  BlockParameter
+  FunctionParameter
+  FunctionResult
+  AggregateStorage
+  GlobalStorage
+  OpaqueInput
+  OpaqueOperation
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ExploreCallableEnvironmentKnowledge {
+  CaptureFree
+  Local
+  Packed
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ExploreIndirectCallResolution {
+  ExactTarget(ExploreFunctionRef, ExploreCallableEnvironmentKnowledge)
+  MultipleTargets(Array[ExploreFunctionRef])
+  UnknownTargets(Array[ExploreFunctionRef])
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ExploreIndirectCallObservation {
+  function : ExploreFunctionRef
+  ordinal : Int
+  origins : Array[ExploreIndirectCallOrigin]
+  resolution : ExploreIndirectCallResolution
+  boundaries : Array[ExploreCallableFlowBoundary]
+} derive(Debug, Eq)
+
+///|
 /// Current Explore Report Protocol schema owned by the compiler driver.
-pub let explore_report_schema_version : Int = 8
+pub let explore_report_schema_version : Int = 9
 
 ///|
 /// Canonical total order of protocol stages. This order is also the execution
@@ -194,6 +239,7 @@ pub(all) struct ExploreSnapshot {
   text : String
   diagnostics : Array[@compiler_diag.CompilerDiagnostic]
   scale : ExploreScaleObservation
+  indirect_calls : Array[ExploreIndirectCallObservation]
 } derive(Debug, Eq)
 
 ///|

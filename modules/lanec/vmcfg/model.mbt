@@ -4,6 +4,40 @@ pub(all) struct ValueId {
 } derive(Debug, Eq, Compare)
 
 ///|
+pub(all) enum CallableFlowBoundary {
+  Alias
+  BlockParameter
+  FunctionParameter
+  FunctionResult
+  AggregateStorage
+  GlobalStorage
+  OpaqueInput
+  OpaqueOperation
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CallableEnvironmentKnowledge {
+  CaptureFree
+  Local
+  Packed
+} derive(Debug, Eq)
+
+///|
+pub(all) enum IndirectCallResolution {
+  ExactTarget(@physical.FunctionId, CallableEnvironmentKnowledge)
+  MultipleTargets(Array[@physical.FunctionId])
+  UnknownTargets(Array[@physical.FunctionId])
+} derive(Debug, Eq)
+
+///|
+pub(all) struct IndirectCallObservation {
+  function : @physical.FunctionId
+  ordinal : Int
+  resolution : IndirectCallResolution
+  boundaries : Array[CallableFlowBoundary]
+} derive(Debug, Eq)
+
+///|
 pub(all) enum Ownership {
   Trivial
   Owned
@@ -279,12 +313,14 @@ pub(all) suberror FunctionTableCanonicalizationError {
 priv struct CanonicalPreArcImage {
   image : Image
   source_functions : Array[Array[@physical.FunctionId]]
+  indirect_calls : Array[IndirectCallObservation]
 }
 
 ///|
 pub struct Finalization {
   pre_arc_image : Image
   source_functions : Array[Array[@physical.FunctionId]]
+  indirect_calls : Array[IndirectCallObservation]
   physical_program : @physical.PhysicalProgram
 }
 
@@ -296,6 +332,7 @@ pub(all) suberror FinalizeError {
   FunctionTableCanonicalizationCompilerDefect(
     FunctionTableCanonicalizationError
   )
+  IndirectCallObservationMismatch(@physical.FunctionId, Int, Int)
   ArcFinalVerificationCompilerDefect(ArcFinalBodyError)
   PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
   PhysicalProgramVerificationCompilerDefect(

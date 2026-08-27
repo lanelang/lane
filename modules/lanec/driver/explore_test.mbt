@@ -55,7 +55,7 @@ fn explore_stage_scale(
 }
 
 ///|
-test "explore protocol v8 exposes all eighteen ordered completed stages" {
+test "explore protocol v9 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -78,7 +78,7 @@ test "explore protocol v8 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  8,
+      #|  9,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -708,6 +708,31 @@ test "explore records concrete-answer CPS callback representation costs" {
       node.roles.any(role => role is CallableAdapter)
     })
     .length()
+  let mut indirect_calls = []
+  for stage in report.stages.ordered() {
+    if stage.id == "vmcfg.initial" && stage.state is Completed(snapshot) {
+      indirect_calls = snapshot.indirect_calls
+    }
+  }
+  let source_calls = indirect_calls
+    .filter(call => call.origins.contains(SourceBound))
+    .length()
+  let adapter_calls = indirect_calls
+    .filter(call => call.origins.contains(CallableAdapter))
+    .length()
+  let exact_packed_calls = indirect_calls
+    .filter(call => call.resolution is ExactTarget(_, Packed))
+    .length()
+  assert_eq(
+    (
+      indirect_calls.length(),
+      source_calls,
+      adapter_calls,
+      exact_packed_calls,
+      indirect_calls.any(call => call.boundaries.is_empty()),
+    ),
+    (6, 3, 3, 5, false),
+  )
   debug_inspect(
     (
       report.status,
@@ -737,8 +762,8 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|        ("blockCount", 12),
       #|        ("instructionCount", 55),
       #|        ("valueCount", 92),
-      #|        ("directCallCount", 3),
-      #|        ("indirectCallCount", 9),
+      #|        ("directCallCount", 6),
+      #|        ("indirectCallCount", 6),
       #|        ("functionReferenceCount", 10),
       #|        ("closureCount", 5),
       #|        ("environmentCount", 5),
@@ -902,7 +927,7 @@ test "explore records concrete-answer CPS normalization costs" {
       #|      "physical",
       #|      [
       #|        ("functionCount", 7),
-      #|        ("instructionCount", 30),
+      #|        ("instructionCount", 29),
       #|        ("directCallCount", 4),
       #|        ("indirectCallCount", 4),
       #|        ("closureCount", 3),
@@ -1501,7 +1526,7 @@ test "explore traces a named function and preserves synthetic roots" {
     ),
     content=(
       #|(
-      #|  8,
+      #|  9,
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },

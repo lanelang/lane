@@ -47,6 +47,18 @@ pub fn PhysicalLoweringError::not_equal(Self, Self) -> Bool
 pub fn PhysicalLoweringError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+pub(all) enum IndirectCallOrigin {
+  SourceBound
+  Anonymous
+  CallableAdapter
+  RepresentationWorker
+  Initialization
+  RuntimeSupport
+} derive(Eq, @debug.Debug)
+pub fn IndirectCallOrigin::equal(Self, Self) -> Bool
+pub fn IndirectCallOrigin::not_equal(Self, Self) -> Bool
+pub fn IndirectCallOrigin::to_repr(Self) -> @debug.Repr
+
 pub(all) enum PhysicalFunctionOrigin {
   TopLevelFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
   LiftedFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
@@ -71,8 +83,20 @@ pub fn PhysicalFunctionProvenance::equal(Self, Self) -> Bool
 pub fn PhysicalFunctionProvenance::not_equal(Self, Self) -> Bool
 pub fn PhysicalFunctionProvenance::to_repr(Self) -> @debug.Repr
 
+pub(all) struct PhysicalIndirectCallObservation {
+  function : @physical.FunctionId
+  ordinal : Int
+  origins : Array[IndirectCallOrigin]
+  resolution : @vmcfg.IndirectCallResolution
+  boundaries : Array[@vmcfg.CallableFlowBoundary]
+} derive(Eq, @debug.Debug)
+pub fn PhysicalIndirectCallObservation::equal(Self, Self) -> Bool
+pub fn PhysicalIndirectCallObservation::not_equal(Self, Self) -> Bool
+pub fn PhysicalIndirectCallObservation::to_repr(Self) -> @debug.Repr
+
 pub(all) struct PhysicalLoweringProvenance {
   functions : Array[PhysicalFunctionProvenance]
+  indirect_calls : Array[PhysicalIndirectCallObservation]
 } derive(Eq, @debug.Debug)
 pub fn PhysicalLoweringProvenance::equal(Self, Self) -> Bool
 pub fn PhysicalLoweringProvenance::not_equal(Self, Self) -> Bool
