@@ -48,6 +48,32 @@ pub fn PhysicalLoweringError::not_equal(Self, Self) -> Bool
 pub fn PhysicalLoweringError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+pub(all) struct CallableAdapterReason {
+  source : PhysicalCallableContractId
+  target : PhysicalCallableContractId
+  differences : Array[CallableContractDifference]
+} derive(Eq, @debug.Debug)
+pub fn CallableAdapterReason::equal(Self, Self) -> Bool
+pub fn CallableAdapterReason::not_equal(Self, Self) -> Bool
+pub fn CallableAdapterReason::to_repr(Self) -> @debug.Repr
+
+pub(all) struct CallableAdapterWorkerContractId {
+  value : Int
+} derive(Eq, @debug.Debug)
+pub fn CallableAdapterWorkerContractId::equal(Self, Self) -> Bool
+pub fn CallableAdapterWorkerContractId::not_equal(Self, Self) -> Bool
+pub fn CallableAdapterWorkerContractId::to_repr(Self) -> @debug.Repr
+
+pub(all) enum CallableContractDifference {
+  Invocation
+  Evidence
+  Parameter(Int)
+  Result
+} derive(Eq, @debug.Debug)
+pub fn CallableContractDifference::equal(Self, Self) -> Bool
+pub fn CallableContractDifference::not_equal(Self, Self) -> Bool
+pub fn CallableContractDifference::to_repr(Self) -> @debug.Repr
+
 pub(all) enum IndirectCallOrigin {
   SourceBound
   SourceAnonymous
@@ -63,6 +89,13 @@ pub fn IndirectCallOrigin::equal(Self, Self) -> Bool
 pub fn IndirectCallOrigin::not_equal(Self, Self) -> Bool
 pub fn IndirectCallOrigin::to_repr(Self) -> @debug.Repr
 
+pub(all) struct PhysicalCallableContractId {
+  value : Int
+} derive(Eq, @debug.Debug)
+pub fn PhysicalCallableContractId::equal(Self, Self) -> Bool
+pub fn PhysicalCallableContractId::not_equal(Self, Self) -> Bool
+pub fn PhysicalCallableContractId::to_repr(Self) -> @debug.Repr
+
 pub(all) enum PhysicalFunctionOrigin {
   TopLevelFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin)
   LiftedFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin)
@@ -70,8 +103,8 @@ pub(all) enum PhysicalFunctionOrigin {
   Initializer(source~ : @buslane.ValueId)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
-  RepresentationWorker(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin)
-  CallableAdapter
+  RepresentationWorker(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin, contract~ : RepresentationWorkerContractId)
+  CallableAdapter(contract~ : CallableAdapterWorkerContractId, reason~ : CallableAdapterReason)
   LayoutConstructor
   RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
 } derive(Eq, @debug.Debug)
@@ -111,6 +144,13 @@ pub(all) enum PhysicalLoweringStage {
   InitialVmcfg(@vmcfg.Image, PhysicalLoweringProvenance)
   FinalPhysicalProgram(@physical.PhysicalProgram, PhysicalLoweringProvenance)
 }
+
+pub(all) struct RepresentationWorkerContractId {
+  value : Int
+} derive(Eq, @debug.Debug)
+pub fn RepresentationWorkerContractId::equal(Self, Self) -> Bool
+pub fn RepresentationWorkerContractId::not_equal(Self, Self) -> Bool
+pub fn RepresentationWorkerContractId::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

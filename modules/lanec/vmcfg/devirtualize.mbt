@@ -14,13 +14,27 @@ priv struct EnvironmentPlanCandidate {
 }
 
 ///|
+priv struct DevirtualizedImage {
+  image : Image
+  direct_environment_targets : Array[@physical.FunctionId]
+}
+
+///|
+#warnings("-unused_value")
 fn devirtualize_image(image : Image) -> Image raise FinalizeError {
+  devirtualize_image_with_direct_environments(image).image
+}
+
+///|
+fn devirtualize_image_with_direct_environments(
+  image : Image,
+) -> DevirtualizedImage raise FinalizeError {
   let flow = analyze_callable_flow(image)
-  apply_devirtualization(
-    image,
-    flow,
-    build_direct_environment_plans(image, flow),
-  )
+  let plans = build_direct_environment_plans(image, flow)
+  {
+    image: apply_devirtualization(image, flow, plans),
+    direct_environment_targets: plans.map(plan => plan.target),
+  }
 }
 
 ///|

@@ -12,8 +12,11 @@ priv struct ImageLowerer {
   object_shapes : Array[@physical.ObjectShape]
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
   representation_workers : Array[RepresentationWorkerPlan]
+  representation_worker_contracts : RepresentationWorkerContractCatalog
   representation_worker_candidates : Array[@anf.AnfFunctionId]
   callable_adapters : Array[CallableAdapterPlan]
+  callable_adapter_worker_contracts : CallableAdapterWorkerContractCatalog
+  physical_callable_contracts : PhysicalCallableContractCatalog
   callable_abi_graph : @physical.CallableAbiGraph
   synthetic_parameters : Array[@anf.RuntimeEvidenceParameter]
   active_specialization_ancestry : Array[@physical.FunctionId]
@@ -112,8 +115,11 @@ fn lower_executable_program_to_physical_or_raise(
     object_shapes: [],
     intrinsic_wrappers: [],
     representation_workers: [],
+    representation_worker_contracts: { entries: [], },
     representation_worker_candidates,
     callable_adapters: [],
+    callable_adapter_worker_contracts: { entries: [], },
+    physical_callable_contracts: { entries: [], },
     callable_abi_graph: @physical.CallableAbiGraph::new(),
     synthetic_parameters: [],
     active_specialization_ancestry: [],
@@ -244,7 +250,7 @@ fn PhysicalFunctionOrigin::indirect_call_origin(
     TopLevelFunction(origin=SelectiveCps, ..)
     | LiftedFunction(origin=SelectiveCps, ..)
     | LiftedRecursiveFunction(origin=SelectiveCps, ..) => SelectiveCps
-    CallableAdapter => CallableAdapter
+    CallableAdapter(..) => CallableAdapter
     RepresentationWorker(..) => RepresentationWorker
     Initializer(..) | InitializerOrchestrator => Initialization
     IntrinsicWrapper(..) | LayoutConstructor | RuntimeImport(..) =>

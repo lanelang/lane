@@ -834,6 +834,7 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|        ("layoutCount", 6),
       #|        ("objectShapeCount", 4),
       #|        ("constantCount", 0),
+      #|        ("duplicateRuntimeAbiWorkerCount", 0),
       #|      ],
       #|      [
       #|        { index: 1, block_count: 1, operation_count: 1, value_count: 9 },
@@ -1164,6 +1165,7 @@ test "explore bounds expanding recursive specialization to one worker" {
       #|        ("layoutCount", 3),
       #|        ("objectShapeCount", 1),
       #|        ("constantCount", 0),
+      #|        ("duplicateRuntimeAbiWorkerCount", 0),
       #|      ],
       #|      [
       #|        { index: 1, block_count: 3, operation_count: 5, value_count: 9 },
@@ -1193,6 +1195,7 @@ test "explore bounds expanding recursive specialization to one worker" {
       #|        ("layoutCount", 3),
       #|        ("objectShapeCount", 1),
       #|        ("constantCount", 0),
+      #|        ("duplicateRuntimeAbiWorkerCount", 0),
       #|      ],
       #|      [
       #|        { index: 1, block_count: 4, operation_count: 6, value_count: 7 },

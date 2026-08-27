@@ -41,9 +41,13 @@ fn FunctionLowerer::representation_worker(
     RuntimeSubstitution::new(),
     [],
   )
-  let key : RepresentationWorkerKey = { source, callable, arguments, }
+  let contract = self.image.representation_worker_contracts.intern({
+    source,
+    callable,
+    arguments,
+  })
   for worker in self.image.representation_workers {
-    if worker.key == key {
+    if worker.contract == contract {
       return Some((worker.function, worker.type_))
     }
   }
@@ -65,11 +69,12 @@ fn FunctionLowerer::representation_worker(
       function=body.id,
       source=body.source,
       origin=body.origin,
+      contract~,
     ),
     fn(function) {
       let worker : RepresentationWorkerPlan = {
         function,
-        key,
+        contract,
         body: specialized_body,
         type_: target_type,
         substitutions,
@@ -84,6 +89,21 @@ fn FunctionLowerer::representation_worker(
     },
   )
   Some((worker.function, worker.type_))
+}
+
+///|
+fn RepresentationWorkerContractCatalog::intern(
+  self : RepresentationWorkerContractCatalog,
+  contract : RepresentationWorkerContract,
+) -> RepresentationWorkerContractId {
+  for index, existing in self.entries {
+    if existing == contract {
+      return { value: index, }
+    }
+  }
+  let id : RepresentationWorkerContractId = { value: self.entries.length(), }
+  self.entries.push(contract)
+  id
 }
 
 ///|

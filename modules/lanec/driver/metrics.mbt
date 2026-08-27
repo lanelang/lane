@@ -327,6 +327,42 @@ fn lowered_metrics(
 }
 
 ///|
+fn duplicate_runtime_abi_worker_count(
+  functions : Array[@physical_lowering.PhysicalFunctionProvenance],
+) -> (Bool, Int) {
+  let representation_contracts : Array[
+    @physical_lowering.RepresentationWorkerContractId,
+  ] = []
+  let adapter_contracts : Array[
+    @physical_lowering.CallableAdapterWorkerContractId,
+  ] = []
+  let mut duplicate_count = 0
+  for function in functions {
+    for origin in function.origins {
+      match origin {
+        RepresentationWorker(contract~, ..) =>
+          if representation_contracts.contains(contract) {
+            duplicate_count += 1
+          } else {
+            representation_contracts.push(contract)
+          }
+        CallableAdapter(contract~, ..) =>
+          if adapter_contracts.contains(contract) {
+            duplicate_count += 1
+          } else {
+            adapter_contracts.push(contract)
+          }
+        _ => ()
+      }
+    }
+  }
+  (
+    !representation_contracts.is_empty() || !adapter_contracts.is_empty(),
+    duplicate_count,
+  )
+}
+
+///|
 fn vmcfg_scale(
   image : @vmcfg.Image,
   functions : Array[@physical_lowering.PhysicalFunctionProvenance],
@@ -360,8 +396,7 @@ fn vmcfg_scale(
       RuntimeImport(_) => import_count += 1
     }
   }
-  {
-    metrics: lowered_metrics(
+  let metrics = lowered_metrics(
       accumulator,
       body_count,
       import_count,
@@ -373,10 +408,14 @@ fn vmcfg_scale(
       metric(LayoutCount, image.layouts.length()),
       metric(ObjectShapeCount, image.object_shapes.length()),
       metric(ConstantCount, image.constants.length()),
-    ],
-    functions: accumulator.functions,
-    modules: [],
+    ]
+  let (has_runtime_abi_workers, duplicate_count) = duplicate_runtime_abi_worker_count(
+    functions,
+  )
+  if has_runtime_abi_workers {
+    metrics.push(metric(DuplicateRuntimeAbiWorkerCount, duplicate_count))
   }
+  { metrics, functions: accumulator.functions, modules: [], }
 }
 
 ///|
@@ -470,6 +509,12 @@ fn physical_scale(
     metric(ObjectShapeCount, image.object_shapes.length()),
     metric(ConstantCount, image.constants.length()),
   ])
+  let (has_runtime_abi_workers, duplicate_count) = duplicate_runtime_abi_worker_count(
+    functions,
+  )
+  if has_runtime_abi_workers {
+    metrics.push(metric(DuplicateRuntimeAbiWorkerCount, duplicate_count))
+  }
   { metrics, functions: accumulator.functions, modules: [], }
 }
 

@@ -63,6 +63,7 @@ pub(all) enum ExploreMetricId {
   ClosureCount
   EnvironmentCount
   CallableAbiCount
+  DuplicateRuntimeAbiWorkerCount
   GlobalCount
   LayoutCount
   ObjectShapeCount
@@ -542,6 +543,7 @@ pub fn ExploreMetricId::key(self : ExploreMetricId) -> String {
     ClosureCount => "closureCount"
     EnvironmentCount => "environmentCount"
     CallableAbiCount => "callableAbiCount"
+    DuplicateRuntimeAbiWorkerCount => "duplicateRuntimeAbiWorkerCount"
     GlobalCount => "globalCount"
     LayoutCount => "layoutCount"
     ObjectShapeCount => "objectShapeCount"
@@ -584,6 +586,7 @@ pub fn ExploreMetricId::title(self : ExploreMetricId) -> String {
     ClosureCount => "Closures"
     EnvironmentCount => "Environments"
     CallableAbiCount => "Callable ABIs"
+    DuplicateRuntimeAbiWorkerCount => "Duplicate runtime-ABI workers"
     GlobalCount => "Globals"
     LayoutCount => "Layouts"
     ObjectShapeCount => "Object shapes"

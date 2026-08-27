@@ -84,7 +84,11 @@ fn prepare(image : Image) -> Result[CanonicalPreArcImage, FinalizeError] {
 
 ///|
 fn prepare_or_raise(image : Image) -> CanonicalPreArcImage raise FinalizeError {
-  let image = devirtualize_image(image)
+  let devirtualized = devirtualize_image_with_direct_environments(image)
+  let image = inline_single_use_direct_functions(
+    devirtualized.image,
+    devirtualized.direct_environment_targets,
+  )
   let image = select_consuming_projections(image)
   let image = {
     ..image,

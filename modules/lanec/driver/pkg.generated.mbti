@@ -203,6 +203,7 @@ pub(all) enum ExploreMetricId {
   ClosureCount
   EnvironmentCount
   CallableAbiCount
+  DuplicateRuntimeAbiWorkerCount
   GlobalCount
   LayoutCount
   ObjectShapeCount

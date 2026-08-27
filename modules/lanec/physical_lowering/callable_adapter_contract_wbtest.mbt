@@ -41,10 +41,36 @@ test "alpha-renamed evidence captures share one callable adapter worker" {
     is Some(right_contract) else {
     fail("expected the right callable boundary to need adaptation")
   }
+  let (left_contract_id, left_reason) = image.callable_adapter_worker_contract(
+    left_contract,
+  )
+  let (right_contract_id, right_reason) = image.callable_adapter_worker_contract(
+    right_contract,
+  )
   let left_worker = image.callable_adapter(left_contract)
   let right_worker = image.callable_adapter(right_contract)
-  assert_eq(image.callable_adapters.length(), 1)
-  assert_eq(left_worker.function, right_worker.function)
+  assert_eq(
+    (
+      image.callable_adapters.length(),
+      left_worker.function,
+      right_worker.function,
+      left_contract_id,
+      right_contract_id,
+      left_reason,
+      right_reason,
+    ),
+    (
+      1,
+      left_worker.function,
+      left_worker.function,
+      left_contract_id,
+      left_contract_id,
+      left_reason,
+      left_reason,
+    ),
+  )
+  assert_false(left_reason.source == left_reason.target)
+  assert_false(left_reason.differences.is_empty())
 }
 
 ///|

@@ -102,9 +102,13 @@ pub(all) enum PhysicalFunctionOrigin {
   RepresentationWorker(
     function~ : @anf.AnfFunctionId,
     source~ : @buslane.ValueId?,
-    origin~ : @function_origin.FunctionOrigin
+    origin~ : @function_origin.FunctionOrigin,
+    contract~ : RepresentationWorkerContractId
   )
-  CallableAdapter
+  CallableAdapter(
+    contract~ : CallableAdapterWorkerContractId,
+    reason~ : CallableAdapterReason
+  )
   LayoutConstructor
   RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
 } derive(Debug, Eq)
@@ -218,20 +222,57 @@ priv struct IntrinsicWrapperPlan {
 }
 
 ///|
-/// A worker owns both its externally visible callable contract and the closed
-/// runtime arguments used to rewrite its body. Uniform generic nominal storage
-/// can hide those arguments from the outer callable ABI even though nested
-/// callable adaptations still depend on them.
-priv struct RepresentationWorkerKey {
+pub(all) struct PhysicalCallableContractId {
+  value : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) struct RepresentationWorkerContractId {
+  value : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CallableAdapterWorkerContractId {
+  value : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CallableContractDifference {
+  Invocation
+  Evidence
+  Parameter(Int)
+  Result
+} derive(Debug, Eq)
+
+///|
+pub(all) struct CallableAdapterReason {
+  source : PhysicalCallableContractId
+  target : PhysicalCallableContractId
+  differences : Array[CallableContractDifference]
+} derive(Debug, Eq)
+
+///|
+/// A worker contract owns both its externally visible callable contract and
+/// the closed runtime arguments used to rewrite its body. The source function
+/// remains part of the contract because ABI equality does not imply semantic
+/// implementation equality. Uniform generic nominal storage can hide runtime
+/// arguments from the outer callable ABI even though nested adaptations still
+/// depend on them.
+priv struct RepresentationWorkerContract {
   source : @physical.FunctionId
-  callable : PhysicalCallableContract
+  callable : PhysicalCallableContractId
   arguments : Array[@anf.RuntimeArgument]
 } derive(Eq)
 
 ///|
+priv struct RepresentationWorkerContractCatalog {
+  entries : Array[RepresentationWorkerContract]
+}
+
+///|
 priv struct RepresentationWorkerPlan {
   function : @physical.FunctionId
-  key : RepresentationWorkerKey
+  contract : RepresentationWorkerContractId
   body : @anf.AnfFunction
   type_ : @anf.RuntimeType
   substitutions : RuntimeSubstitution
@@ -246,7 +287,7 @@ priv struct RepresentationWorkerPlan {
 #warnings("-unused_value")
 priv struct CallableAdapterPlan {
   function : @physical.FunctionId
-  key : CallableAdapterWorkerKey
+  worker_contract : CallableAdapterWorkerContractId
   contract : CallableAdapterContract
   environment_shape : @physical.ObjectShapeId
 } derive(Debug)
@@ -268,7 +309,7 @@ priv enum PhysicalEvidenceContract {
   Apply(PhysicalEvidenceContract, Array[PhysicalEvidenceContract])
   Lambda(Array[Int], PhysicalEvidenceContract)
   Static(@physical.LayoutRecipe)
-} derive(Debug, Eq)
+} derive(Eq)
 
 ///|
 priv enum PhysicalValueContract {
@@ -276,14 +317,14 @@ priv enum PhysicalValueContract {
   Erased
   Open(PhysicalEvidenceContract)
   Concrete(@physical.ValueAbi, @physical.LayoutRecipe)
-  Callable(PhysicalCallableContract)
-} derive(Debug, Eq)
+  Callable(PhysicalCallableContractId)
+} derive(Eq)
 
 ///|
 priv struct PhysicalValueBoundary {
   abi : PhysicalValueContract
   shape : PhysicalValueContract
-} derive(Debug, Eq)
+} derive(Eq)
 
 ///|
 priv struct PhysicalCallableContract {
@@ -291,14 +332,24 @@ priv struct PhysicalCallableContract {
   evidence_arguments : Array[PhysicalEvidenceContract]
   parameters : Array[PhysicalValueBoundary]
   result : PhysicalValueBoundary
-} derive(Debug, Eq)
+} derive(Eq)
 
 ///|
-priv struct CallableAdapterWorkerKey {
-  source : PhysicalCallableContract
-  target : PhysicalCallableContract
+priv struct PhysicalCallableContractCatalog {
+  entries : Array[PhysicalCallableContract]
+}
+
+///|
+priv struct CallableAdapterWorkerContract {
+  source : PhysicalCallableContractId
+  target : PhysicalCallableContractId
   source_parameter_targets : Array[Int]
-} derive(Debug, Eq)
+} derive(Eq)
+
+///|
+priv struct CallableAdapterWorkerContractCatalog {
+  entries : Array[CallableAdapterWorkerContract]
+}
 
 ///|
 priv struct LayoutConstructorPlan {

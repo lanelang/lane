@@ -3,9 +3,11 @@ fn ImageLowerer::callable_adapter(
   self : ImageLowerer,
   contract : CallableAdapterContract,
 ) -> CallableAdapterPlan raise PhysicalLoweringError {
-  let key = self.callable_adapter_worker_key(contract)
+  let (worker_contract, reason) = self.callable_adapter_worker_contract(
+    contract,
+  )
   for adapter in self.callable_adapters {
-    if adapter.key == key {
+    if adapter.worker_contract == worker_contract {
       return adapter
     }
   }
@@ -28,18 +30,19 @@ fn ImageLowerer::callable_adapter(
   let environment_shape = self.intern_object_shape(
     Environment({ stored_witness_count: 0, members, }),
   )
-  let (_, adapter) = self.plans.append_with_result(CallableAdapter, fn(
-    function,
-  ) {
-    let adapter : CallableAdapterPlan = {
-      function,
-      key,
-      contract,
-      environment_shape,
-    }
-    self.callable_adapters.push(adapter)
-    (CallableAdapter(adapter), adapter)
-  })
+  let (_, adapter) = self.plans.append_with_result(
+    CallableAdapter(contract=worker_contract, reason~),
+    fn(function) {
+      let adapter : CallableAdapterPlan = {
+        function,
+        worker_contract,
+        contract,
+        environment_shape,
+      }
+      self.callable_adapters.push(adapter)
+      (CallableAdapter(adapter), adapter)
+    },
+  )
   adapter
 }
 
@@ -290,33 +293,25 @@ fn ImageLowerer::plan_callable_adaptation(
   target_type : @anf.RuntimeType,
   substitutions : RuntimeSubstitution,
 ) -> CallableAdapterContract? raise PhysicalLoweringError {
-  if self.types_representation_equivalent(source_type, target_type) {
-    return None
-  }
   let (source_parameter_targets, adapter_substitutions) = self.align_callable_parameters(
     source_type, target_type, substitutions,
   )
-  let (_, _, source_result) = function_type_parts(source_type)
-  let (_, _, target_result) = function_type_parts(target_type)
-  if self.types_representation_equivalent(
-      adapter_substitutions.apply_type(self.runtime_types, source_result),
-      adapter_substitutions.apply_type(self.runtime_types, target_result),
-    ) &&
-    self.callable_types_share_runtime_abi(
-      source_type, target_type, adapter_substitutions,
-    ) {
-    return None
-  }
   let captured_parameters = free_runtime_type_parameters_under(
     self, source_type, target_type, adapter_substitutions,
   )
-  Some({
+  let contract : CallableAdapterContract = {
     source_type,
     target_type,
     source_parameter_targets,
     substitutions: adapter_substitutions,
     captured_parameters,
-  })
+  }
+  let (source, target) = self.callable_adapter_contract_boundaries(contract)
+  if source == target {
+    None
+  } else {
+    Some(contract)
+  }
 }
 
 ///|
@@ -679,15 +674,6 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
         Concrete(Callable(_, _) | Forall(_, _) as type_) => type_
         _ => target_runtime_type
       }
-      if self.image.types_representation_equivalent(source_shape, target_shape) &&
-        self.image.callable_types_share_runtime_abi(
-          source_callable_type, target_callable_type, substitutions,
-        ) {
-        return match value {
-          Slot(slot, _) => Slot(slot, target_shape)
-          _ => value
-        }
-      }
       guard self.materialize_local(value) is Slot(source, _) else {
         raise InvalidTypeApplication(
           detail="callable value is not materialized",
@@ -719,17 +705,6 @@ fn FunctionLowerer::adapt_local_value_with_substitutions(
       Slot(slot, target_runtime_type)
     }
   }
-}
-
-///|
-fn ImageLowerer::callable_types_share_runtime_abi(
-  self : ImageLowerer,
-  source_type : @anf.RuntimeType,
-  target_type : @anf.RuntimeType,
-  substitutions : RuntimeSubstitution,
-) -> Bool raise PhysicalLoweringError {
-  self.physical_callable_abi_contract(source_type, substitutions) ==
-  self.physical_callable_abi_contract(target_type, substitutions)
 }
 
 ///|

@@ -394,6 +394,29 @@ generic implementation.
 _Avoid_: CallableValue layout, source function type, capture schema,
 type-derived fallback ABI
 
+**Callable Implementation Contract**:
+The Physical Lowering-owned identity used to intern an emitted callable worker.
+It combines a semantic implementation identity with the complete Callable
+Invocation Contract and every closed runtime argument that rewrites the body.
+The semantic identity is mandatory because two functions with the same calling
+convention need not compute the same result; the closed arguments are mandatory
+because Generic Nominal Data Schemas can hide nested representation differences
+from the outer invocation boundary. Closure environment shape belongs to the
+implementation, not to callable compatibility, and therefore never changes the
+meaning of the Physical Callable ABI Graph.
+_Avoid_: ABI-equality-means-body-equality, source spelling as ABI, outer shape only
+
+**Callable Adapter Worker Contract**:
+The interned source invocation contract, target invocation contract, and exact
+parameter alignment for one escaping Structural Representation Adaptation.
+Physical Lowering emits at most one worker for this identity. Its provenance
+retains a structured list of the evidence, parameter, result, or invocation
+differences that justify the non-identity adaptation. A directly invoked
+adaptation is fused at the call; if whole-image callable flow later proves a
+formerly escaping closure has one direct use, VM CFG moves its single-block
+body into that call without cloning code.
+_Avoid_: rendered type pair, layout ID pair, adapter name, size threshold
+
 **Physical Callable ABI Graph**:
 The physical ABI owner's finite nominal graph for recursive Callable Invocation
 Contracts. It describes executable call compatibility only. Semantic callable

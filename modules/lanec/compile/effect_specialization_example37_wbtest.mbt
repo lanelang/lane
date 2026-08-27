@@ -55,6 +55,10 @@ test "real example 37 classifies residual representation adaptation" {
   let mut generic_abi_erasures = 0
   let mut generic_abi_unerasures = 0
   let adapter_worker_ids = []
+  let adapter_worker_contracts : Array[
+    @physical_lowering.CallableAdapterWorkerContractId,
+  ] = []
+  let mut invalid_adapter_reasons = 0
   let mut indirect_calls = []
   let lowered = @physical_lowering.lower_executable_program_to_physical_observed(
     executable,
@@ -63,8 +67,22 @@ test "real example 37 classifies residual representation adaptation" {
         InitialVmcfg(image, provenance) => {
           indirect_calls = provenance.indirect_calls
           for item in provenance.functions {
-            if item.origins.any(origin => origin is CallableAdapter) {
+            if item.origins.any(origin => origin is CallableAdapter(..)) {
               adapter_worker_ids.push(item.function)
+              for origin in item.origins {
+                guard origin is CallableAdapter(contract~, reason~) else {
+                  continue
+                }
+                if adapter_worker_contracts.contains(contract) {
+                  invalid_adapter_reasons += 1
+                } else {
+                  adapter_worker_contracts.push(contract)
+                }
+                if reason.source == reason.target ||
+                  reason.differences.is_empty() {
+                  invalid_adapter_reasons += 1
+                }
+              }
             }
           }
           adapter_workers = adapter_worker_ids.length()
@@ -95,7 +113,7 @@ test "real example 37 classifies residual representation adaptation" {
         }
         FinalPhysicalProgram(_, provenance) =>
           for item in provenance.functions {
-            if item.origins.any(origin => origin is CallableAdapter) {
+            if item.origins.any(origin => origin is CallableAdapter(..)) {
               finalized_adapter_workers += 1
             }
           }
@@ -113,15 +131,19 @@ test "real example 37 classifies residual representation adaptation" {
       finalized_adapter_workers,
       generic_abi_erasures,
       generic_abi_unerasures,
+      adapter_worker_contracts.length(),
+      invalid_adapter_reasons,
       summarize_adapter_flow(indirect_calls, adapter_worker_ids),
     ),
     (
-      21,
+      20,
       26,
-      21,
+      20,
       15,
       11,
-      { indirect_targets: 20, aggregate_stored_targets: 20, direct_only: 1, },
+      20,
+      0,
+      { indirect_targets: 20, aggregate_stored_targets: 20, direct_only: 0, },
     ),
   )
   assert_eq(summarize_indirect_calls(indirect_calls), {
@@ -129,9 +151,9 @@ test "real example 37 classifies residual representation adaptation" {
     source_bound: 9,
     source_anonymous: 0,
     handler_elaboration: 0,
-    monadic_transformation: 7,
+    monadic_transformation: 8,
     selective_cps: 9,
-    callable_adapter: 18,
+    callable_adapter: 17,
     representation_worker: 0,
     initialization: 1,
     runtime_support: 0,
