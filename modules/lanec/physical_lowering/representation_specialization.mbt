@@ -41,11 +41,12 @@ fn FunctionLowerer::representation_worker(
   guard self.image.representation_worker_candidates.contains(body.id) else {
     return None
   }
-  let callable = self.image.physical_callable_abi_contract(
+  let callable = self.image.physical_callable_contract(
     target_type,
     RuntimeSubstitution::new(),
+    [],
   )
-  let key : RepresentationWorkerKey = { source, callable, }
+  let key : RepresentationWorkerKey = { source, callable, arguments, }
   for worker in self.image.representation_workers {
     if worker.key == key {
       return Some((worker.function, worker.type_))
@@ -116,6 +117,9 @@ fn ImageLowerer::lower_representation_worker(
 }
 
 ///|
+/// Instantiates worker-local use sites and annotations. Nominal constructor
+/// payload contracts remain declaration-owned Runtime Metadata and are never
+/// rewritten by representation specialization.
 fn specialize_anf_function(
   function : @anf.AnfFunction,
   substitutions : RuntimeSubstitution,
@@ -327,18 +331,24 @@ fn representation_specialization_candidates(
   let metadata = program.metadata()
   let uses : Array[RepresentationCandidateUse] = []
   for term in program.terms() {
-    guard term is Let(value, expression) &&
-      extract_top_function(expression) is Some(function) &&
-      metadata.value_info(value) is Some(info) &&
-      info.type_ is Forall(_, _) else {
-      continue
+    match term {
+      Let(value, expression) =>
+        if extract_top_function(expression) is Some(function) {
+          record_representation_candidate(metadata, value, function, uses)
+        }
+      LetRec(bindings) =>
+        for binding in bindings {
+          if extract_top_atom_function(binding.rhs) is Some(function) {
+            record_representation_candidate(
+              metadata,
+              binding.id,
+              function,
+              uses,
+            )
+          }
+        }
+      External(_) => ()
     }
-    uses.push({
-      value,
-      function: function.id,
-      has_closed_application: false,
-      open: false,
-    })
   }
   for term in program.terms() {
     match term {
@@ -365,6 +375,24 @@ fn representation_specialization_candidates(
     } else {
       None
     }
+  })
+}
+
+///|
+fn record_representation_candidate(
+  metadata : @anf.RuntimeMetadata,
+  value : @buslane.ValueId,
+  function : @anf.AnfFunction,
+  uses : Array[RepresentationCandidateUse],
+) -> Unit {
+  guard metadata.value_info(value) is Some(info) && info.type_ is Forall(_, _) else {
+    return
+  }
+  uses.push({
+    value,
+    function: function.id,
+    has_closed_application: false,
+    open: false,
   })
 }
 

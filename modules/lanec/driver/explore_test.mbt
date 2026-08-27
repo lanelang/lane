@@ -854,7 +854,7 @@ test "explore records concrete-answer CPS callback representation costs" {
 }
 
 ///|
-test "expanding recursive generic application retains a finite canonical implementation" {
+test "expanding recursive generic application uses one finite worker and fallback" {
   let report = explore(
     explore_test_request(
       (
@@ -882,9 +882,110 @@ test "expanding recursive generic application retains a finite canonical impleme
     node.function.stage == VmcfgInitial &&
     node.roles.any(role => role is RepresentationWorker)
   })
+  assert_eq(
+    (report.status, report.diagnostics, adapters.length(), workers.length()),
+    (Succeeded, [], 0, 1),
+  )
+}
+
+///|
+test "explore attributes a closed effect worker nominal ABI crossing" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|effect Tick {
+        #|  tick(I64) -> I64
+        #|}
+        #|
+        #|let record_callback : () -> Unit ! Io = extern("record_callback")
+        #|let observe : (I64) -> Unit ! Io = extern("observe")
+        #|
+        #|fn[T, R, Eff : Effect] apply(
+        #|  value : T,
+        #|  callback : (T) -> R ! Eff
+        #|) -> R ! Eff {
+        #|  callback(value)
+        #|}
+        #|
+        #|fn[T, R, Eff : Effect] forward(
+        #|  value : T,
+        #|  callback : (T) -> R ! Eff
+        #|) -> R ! Eff {
+        #|  apply[T, R, Eff](value, callback)
+        #|}
+        #|
+        #|fn increment_mixed(value : I64) -> I64 ! { Tick, Io } {
+        #|  record_callback()
+        #|  Tick::tick!(value)
+        #|}
+        #|
+        #|pub fn main() -> Unit ! Io {
+        #|  let direct = handle apply[I64, I64, { Tick, Io }](41, increment_mixed) with {
+        #|    Tick::tick(value, resume) => resume(value)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|  observe(direct)
+        #|  let forwarded = handle forward[I64, I64, { Tick, Io }](41, increment_mixed) with {
+        #|    Tick::tick(value, resume) => resume(value)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|  observe(forwarded)
+        #|}
+      ),
+    ),
+  )
+  let workers = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is RepresentationWorker)
+  })
+  let adapters = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is CallableAdapter)
+  })
+  let mut metrics = []
+  let mut worker_calls = []
+  for stage in report.stages.ordered() {
+    if stage.id == "vmcfg.initial" && stage.state is Completed(snapshot) {
+      metrics = snapshot.scale.metrics
+        .filter(metric => {
+          metric.id.key() == "genericAbiEraseCount" ||
+          metric.id.key() == "genericAbiUneraseCount"
+        })
+        .map(metric => (metric.id.key(), metric.value))
+      worker_calls = snapshot.indirect_calls.filter(call => {
+        call.origins.contains(RepresentationWorker)
+      })
+    }
+  }
   debug_inspect(
-    (report.status, report.diagnostics, adapters, workers),
-    content="(Succeeded, [], [], [])",
+    (
+      report.status,
+      report.diagnostics,
+      workers.length(),
+      adapters.length(),
+      metrics,
+      worker_calls.map(call => {
+        (
+          call.origins,
+          call.resolution is ExactTarget(_, Packed),
+          call.boundaries,
+        )
+      }),
+    ),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [],
+      #|  1,
+      #|  3,
+      #|  [("genericAbiEraseCount", 2), ("genericAbiUneraseCount", 2)],
+      #|  [([RepresentationWorker], true, [AggregateStorage, FunctionParameter])],
+      #|)
+    ),
   )
 }
 
@@ -999,7 +1100,7 @@ test "explore records concrete-answer CPS normalization costs" {
 }
 
 ///|
-test "explore keeps expanding recursive generic applications on the canonical ABI" {
+test "explore bounds expanding recursive specialization to one worker" {
   let report = explore(
     explore_test_request(
       (
@@ -1043,12 +1144,12 @@ test "explore keeps expanding recursive generic applications on the canonical AB
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 2),
+      #|        ("functionCount", 3),
       #|        ("importCount", 1),
-      #|        ("blockCount", 4),
-      #|        ("instructionCount", 15),
-      #|        ("valueCount", 19),
-      #|        ("directCallCount", 5),
+      #|        ("blockCount", 7),
+      #|        ("instructionCount", 17),
+      #|        ("valueCount", 22),
+      #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
@@ -1064,18 +1165,19 @@ test "explore keeps expanding recursive generic applications on the canonical AB
       #|      ],
       #|      [
       #|        { index: 1, block_count: 3, operation_count: 5, value_count: 9 },
-      #|        { index: 2, block_count: 1, operation_count: 10, value_count: 10 },
+      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 4 },
+      #|        { index: 3, block_count: 3, operation_count: 7, value_count: 9 },
       #|      ],
       #|    ),
       #|    (
       #|      "physical",
       #|      [
-      #|        ("functionCount", 2),
+      #|        ("functionCount", 3),
       #|        ("importCount", 1),
-      #|        ("blockCount", 5),
-      #|        ("instructionCount", 16),
-      #|        ("slotCount", 13),
-      #|        ("directCallCount", 5),
+      #|        ("blockCount", 8),
+      #|        ("instructionCount", 18),
+      #|        ("slotCount", 16),
+      #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
@@ -1084,7 +1186,7 @@ test "explore keeps expanding recursive generic applications on the canonical AB
       #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 1),
-      #|        ("callableAbiCount", 3),
+      #|        ("callableAbiCount", 4),
       #|        ("globalCount", 0),
       #|        ("layoutCount", 3),
       #|        ("objectShapeCount", 1),
@@ -1092,7 +1194,8 @@ test "explore keeps expanding recursive generic applications on the canonical AB
       #|      ],
       #|      [
       #|        { index: 1, block_count: 4, operation_count: 6, value_count: 7 },
-      #|        { index: 2, block_count: 1, operation_count: 10, value_count: 6 },
+      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 2 },
+      #|        { index: 3, block_count: 3, operation_count: 7, value_count: 7 },
       #|      ],
       #|    ),
       #|  ],

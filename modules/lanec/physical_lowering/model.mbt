@@ -211,9 +211,14 @@ priv struct IntrinsicWrapperPlan {
 }
 
 ///|
+/// A worker owns both its externally visible callable contract and the closed
+/// runtime arguments used to rewrite its body. Uniform generic nominal storage
+/// can hide those arguments from the outer callable ABI even though nested
+/// callable adaptations still depend on them.
 priv struct RepresentationWorkerKey {
   source : @physical.FunctionId
-  callable : @physical.CallableAbiNodeId
+  callable : PhysicalCallableContract
+  arguments : Array[@anf.RuntimeArgument]
 } derive(Eq)
 
 ///|

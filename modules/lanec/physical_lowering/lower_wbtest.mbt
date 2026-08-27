@@ -2043,6 +2043,182 @@ test "closed generic calls specialize without changing the canonical fallback" {
 }
 
 ///|
+test "closed worker preserves a generic nominal callable field contract" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let type_parameter = metadata.define_type_parameter("T", Type)
+  let generic_type = @buslane.Type::Parameter(type_parameter)
+  let generic_producer_type = test_function_type([], generic_type)
+  let box = metadata.define_type("ProducerBox", [type_parameter])
+  let boxed = metadata.define_data_constructor("ProducerBox", box, [], [
+    generic_producer_type,
+  ])
+  let generic_box_type = @buslane.Type::Apply(Constructor(box), [
+    TypeArgument(generic_type),
+  ])
+  let invoke_type = @buslane.Type::Forall(
+    [type_parameter],
+    test_function_type([generic_box_type], generic_type),
+  )
+  let box_parameter = metadata.define_value("box", Parameter, generic_box_type)
+  let match_binder = metadata.define_value(
+    "matched_box",
+    MatchBinder,
+    generic_box_type,
+  )
+  let producer_binder = metadata.define_value(
+    "producer",
+    MatchBinder,
+    generic_producer_type,
+  )
+  let invoke = metadata.define_value("invoke", Function, invoke_type)
+  let i64_type = @buslane.Type::Primitive(I64)
+  let i64_producer_type = test_function_type([], i64_type)
+  let producer = metadata.define_value(
+    "produce_i64",
+    Function,
+    i64_producer_type,
+  )
+  let i64_box_type = @buslane.Type::Apply(Constructor(box), [
+    TypeArgument(i64_type),
+  ])
+  let boxed_value = metadata.define_value("boxed", Local, i64_box_type)
+  let result = metadata.define_value("result", Local, i64_type)
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let observe_type = test_function_type([i64_type], unit_type)
+  let observe = metadata.define_value("observe", External, observe_type)
+  let main_type = test_function_type([], unit_type)
+  let main = metadata.define_value("main", Function, main_type)
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      External(observe),
+      Let(
+        producer,
+        Function({
+          parameters: [],
+          result_type: i64_type,
+          body: Literal(I64(42L)),
+        }),
+      ),
+      LetRec([
+        {
+          id: invoke,
+          rhs: TypeLambda(
+            [type_parameter],
+            Function({
+              parameters: [box_parameter],
+              result_type: generic_type,
+              body: Match({
+                scrutinee: Ref(box_parameter),
+                binder: match_binder,
+                result_type: generic_type,
+                alternatives: [
+                  {
+                    alt_constructor: DataCon(boxed),
+                    type_binders: [],
+                    value_binders: [producer_binder],
+                    body: Call(Ref(producer_binder), []),
+                  },
+                ],
+              }),
+            }),
+          ),
+        },
+      ]),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Let(
+            boxed_value,
+            Construct({
+              data_constructor: boxed,
+              type_arguments: [TypeArgument(i64_type)],
+              hidden_witnesses: [],
+              payloads: [Ref(producer)],
+            }),
+            Let(
+              result,
+              Call(TypeApply(Ref(invoke), [TypeArgument(i64_type)]), [
+                Ref(boxed_value),
+              ]),
+              Call(Ref(observe), [Ref(result)]),
+            ),
+          ),
+        }),
+      ),
+    ],
+  }
+  let externals : @buslane_lowering.BuslaneExternalMap = {
+    builtins: [],
+    runtime_imports: [
+      {
+        value: observe,
+        symbol: "lane.test.observe_nominal_callable",
+        signature: test_host_signature(observe_type),
+      },
+    ],
+  }
+  let entry : @buslane_lowering.BuslaneEntry = {
+    module_path_text: "Main",
+    name: "main",
+    value: main,
+  }
+  let mut worker_count = 0
+  let specialized = match
+    lower_test_executable_to_physical_observed(program, externals, entry, stage => {
+      if stage is InitialVmcfg(_, provenance) {
+        worker_count = provenance.functions
+          .filter(item => {
+            item.origins.any(origin => origin is RepresentationWorker(..))
+          })
+          .length()
+      }
+    }) {
+    Ok(image) => image
+    Err(error) => fail("specialized lowering failed: \{Repr(error)}")
+  }
+  assert_eq(worker_count, 1)
+  let generic = match
+    lower_test_executable_to_physical_without_representation_specialization(
+      program, externals, entry,
+    ) {
+    Ok(image) => image
+    Err(error) => fail("generic lowering failed: \{Repr(error)}")
+  }
+  let observations = []
+  let registry = @lane_runtime.RuntimeRegistry::new()
+  registry.register(
+    @lane_runtime.RuntimeBinding::new(
+      symbol="lane.test.observe_nominal_callable",
+      abi_major=1,
+      parameters=[I64],
+      result=Unit,
+      invoke=fn(_context, arguments) {
+        guard arguments is [I64(value)] else {
+          abort("expected one I64 observation")
+        }
+        observations.push(value)
+        Unit
+      },
+    ),
+  )
+  let specialized_loaded = match
+    load_physical_interpreted(specialized, registry) {
+    Ok(loaded) => loaded
+    Err(error) => fail("specialized load failed: \{Repr(error)}")
+  }
+  assert_eq(specialized_loaded.execute(), Ok(()))
+  let generic_loaded = match load_physical_interpreted(generic, registry) {
+    Ok(loaded) => loaded
+    Err(error) => fail("generic load failed: \{Repr(error)}")
+  }
+  assert_eq(generic_loaded.execute(), Ok(()))
+  assert_eq(observations, [42L, 42L])
+}
+
+///|
 test "generic calls adapt callable arguments and callable results" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)

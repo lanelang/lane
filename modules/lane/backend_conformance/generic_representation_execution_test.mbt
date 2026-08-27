@@ -660,3 +660,64 @@ test "nested effect companion forwarding executes on every backend" {
   })
   assert_eq(actual, expected)
 }
+
+///|
+test "workers distinguish nested nominal contracts with one outer ABI" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|struct Left { value : I64 }
+      #|struct Middle { value : I64 }
+      #|struct Alternate { value : I64 }
+      #|struct Right { value : I64 }
+      #|
+      #|struct Connector[S, T] {
+      #|  convert : (S) -> T
+      #|}
+      #|
+      #|let add : (I64, I64) -> I64 = builtin("%i64_add")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|
+      #|fn[A, B, C] compose(
+      #|  outer : Connector[A, B],
+      #|  inner : Connector[B, C]
+      #|) -> Connector[A, C] {
+      #|  Connector::{
+      #|    convert: fn(value) { inner.convert(outer.convert(value)) }
+      #|  }
+      #|}
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  let through_middle = compose[Left, Middle, Right](
+      #|    Connector::{
+      #|      convert: fn(left : Left) {
+      #|        Middle::{ value: add(left.value, 1) }
+      #|      }
+      #|    },
+      #|    Connector::{
+      #|      convert: fn(middle : Middle) {
+      #|        Right::{ value: add(middle.value, 1) }
+      #|      }
+      #|    }
+      #|  )
+      #|  let through_alternate = compose[Left, Alternate, Right](
+      #|    Connector::{
+      #|      convert: fn(left : Left) {
+      #|        Alternate::{ value: add(left.value, 10) }
+      #|      }
+      #|    },
+      #|    Connector::{
+      #|      convert: fn(alternate : Alternate) {
+      #|        Right::{ value: add(alternate.value, 10) }
+      #|      }
+      #|    }
+      #|  )
+      #|  let first = through_middle.convert(Left::{ value: 20 })
+      #|  let second = through_alternate.convert(Left::{ value: 1 })
+      #|  observe(add(first.value, second.value))
+      #|}
+    ),
+  )
+  assert_eq(actual, expected_i64_execution_matrix(43L, 0))
+}

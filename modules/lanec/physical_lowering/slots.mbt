@@ -1,13 +1,11 @@
 ///|
+/// Allocates exactly the physical contract described by `type_`. Generic
+/// instantiation belongs to the caller that selected that contract; slot
+/// allocation never reinterprets it through ambient worker substitutions.
 fn FunctionLowerer::fresh_optional_slot(
   self : FunctionLowerer,
   type_ : @anf.RuntimeType,
 ) -> (@vmcfg.ValueId?, LocalValue) raise PhysicalLoweringError {
-  let type_ = if self.image.active_specialization_ancestry.is_empty() {
-    type_
-  } else {
-    self.substitutions.apply_type(self.image.runtime_types, type_)
-  }
   if type_ is Unit {
     (None, Unit)
   } else {
@@ -21,11 +19,6 @@ fn FunctionLowerer::fresh_slot(
   self : FunctionLowerer,
   type_ : @anf.RuntimeType,
 ) -> @vmcfg.ValueId raise PhysicalLoweringError {
-  let type_ = if self.image.active_specialization_ancestry.is_empty() {
-    type_
-  } else {
-    self.substitutions.apply_type(self.image.runtime_types, type_)
-  }
   if type_ is Erased(_, evidence) {
     return self.fresh_erased_slot(self.layout_witness(evidence), Owned)
   }
@@ -49,11 +42,6 @@ fn FunctionLowerer::fresh_borrowed_slot(
   self : FunctionLowerer,
   type_ : @anf.RuntimeType,
 ) -> @vmcfg.ValueId raise PhysicalLoweringError {
-  let type_ = if self.image.active_specialization_ancestry.is_empty() {
-    type_
-  } else {
-    self.substitutions.apply_type(self.image.runtime_types, type_)
-  }
   if type_ is Erased(_, evidence) {
     return self.fresh_erased_slot(self.layout_witness(evidence), Borrowed)
   }
