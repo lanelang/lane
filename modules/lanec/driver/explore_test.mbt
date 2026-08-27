@@ -111,7 +111,7 @@ test "Explore preserves source-written nested and CPS-introduced function origin
 }
 
 ///|
-test "explore protocol v10 exposes all eighteen ordered completed stages" {
+test "explore protocol v11 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -134,7 +134,7 @@ test "explore protocol v10 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  10,
+      #|  11,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -494,8 +494,8 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("functionReferenceCount", 0),
       #|      ("closureCount", 0),
       #|      ("environmentCount", 0),
-      #|      ("eraseCount", 0),
-      #|      ("uneraseCount", 0),
+      #|      ("genericAbiEraseCount", 0),
+      #|      ("genericAbiUneraseCount", 0),
       #|      ("retainCount", 0),
       #|      ("releaseCount", 0),
       #|      ("globalCount", 0),
@@ -517,8 +517,8 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("functionReferenceCount", 0),
       #|      ("closureCount", 0),
       #|      ("environmentCount", 0),
-      #|      ("eraseCount", 0),
-      #|      ("uneraseCount", 0),
+      #|      ("genericAbiEraseCount", 0),
+      #|      ("genericAbiUneraseCount", 0),
       #|      ("retainCount", 0),
       #|      ("releaseCount", 0),
       #|      ("callableAbiCount", 3),
@@ -653,8 +653,8 @@ test "explore records direct canonical generic representation costs" {
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 2),
-      #|        ("uneraseCount", 0),
+      #|        ("genericAbiEraseCount", 2),
+      #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
@@ -680,8 +680,8 @@ test "explore records direct canonical generic representation costs" {
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 2),
-      #|        ("uneraseCount", 0),
+      #|        ("genericAbiEraseCount", 2),
+      #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 1),
       #|        ("callableAbiCount", 3),
@@ -823,8 +823,8 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|        ("functionReferenceCount", 10),
       #|        ("closureCount", 5),
       #|        ("environmentCount", 5),
-      #|        ("eraseCount", 5),
-      #|        ("uneraseCount", 5),
+      #|        ("genericAbiEraseCount", 5),
+      #|        ("genericAbiUneraseCount", 5),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
@@ -935,7 +935,7 @@ test "explore records concrete-answer CPS normalization costs" {
             [
               "topTermCount", "nodeCount", "callCount", "functionCount", "instructionCount",
               "directCallCount", "indirectCallCount", "closureCount", "environmentCount",
-              "eraseCount", "uneraseCount",
+              "genericAbiEraseCount", "genericAbiUneraseCount",
             ].contains(metric.0)
           }),
         ),
@@ -975,8 +975,8 @@ test "explore records concrete-answer CPS normalization costs" {
       #|        ("indirectCallCount", 4),
       #|        ("closureCount", 3),
       #|        ("environmentCount", 3),
-      #|        ("eraseCount", 2),
-      #|        ("uneraseCount", 2),
+      #|        ("genericAbiEraseCount", 2),
+      #|        ("genericAbiUneraseCount", 2),
       #|      ],
       #|    ),
       #|    (
@@ -988,8 +988,8 @@ test "explore records concrete-answer CPS normalization costs" {
       #|        ("indirectCallCount", 4),
       #|        ("closureCount", 3),
       #|        ("environmentCount", 3),
-      #|        ("eraseCount", 2),
-      #|        ("uneraseCount", 2),
+      #|        ("genericAbiEraseCount", 2),
+      #|        ("genericAbiUneraseCount", 2),
       #|      ],
       #|    ),
       #|  ],
@@ -1053,8 +1053,8 @@ test "explore keeps expanding recursive generic applications on the canonical AB
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 3),
-      #|        ("uneraseCount", 0),
+      #|        ("genericAbiEraseCount", 3),
+      #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
@@ -1080,8 +1080,8 @@ test "explore keeps expanding recursive generic applications on the canonical AB
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 3),
-      #|        ("uneraseCount", 0),
+      #|        ("genericAbiEraseCount", 3),
+      #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 1),
       #|        ("callableAbiCount", 3),
@@ -1582,7 +1582,7 @@ test "explore traces a named function and preserves synthetic roots" {
     ),
     content=(
       #|(
-      #|  10,
+      #|  11,
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },

@@ -17,7 +17,7 @@ test "real example 45 lifted snapshot verifies" {
 }
 
 ///|
-test "real example 37 shares escaped callable adapter workers" {
+test "real example 37 classifies residual representation adaptation" {
   let fixture_path = "examples/valid/37_coroutine_scheduler.lane"
   let result = compile({
     root: {
@@ -52,6 +52,9 @@ test "real example 37 shares escaped callable adapter workers" {
   let mut adapter_workers = 0
   let mut adapter_materializations = 0
   let mut finalized_adapter_workers = 0
+  let mut generic_abi_erasures = 0
+  let mut generic_abi_unerasures = 0
+  let adapter_worker_ids = []
   let mut indirect_calls = []
   let lowered = @physical_lowering.lower_executable_program_to_physical_observed(
     executable,
@@ -59,20 +62,32 @@ test "real example 37 shares escaped callable adapter workers" {
       match stage {
         InitialVmcfg(image, provenance) => {
           indirect_calls = provenance.indirect_calls
-          let worker_ids = []
           for item in provenance.functions {
             if item.origins.any(origin => origin is CallableAdapter) {
-              worker_ids.push(item.function)
+              adapter_worker_ids.push(item.function)
             }
           }
-          adapter_workers = worker_ids.length()
+          adapter_workers = adapter_worker_ids.length()
           for entry in image.functions {
             guard entry is Body(body) else { continue }
             for block in body.blocks {
               for instruction in block.instructions {
                 if instruction is MakeClosure(_, function, _) &&
-                  worker_ids.contains(function) {
+                  adapter_worker_ids.contains(function) {
                   adapter_materializations += 1
+                }
+                match instruction {
+                  EraseI32(_, _)
+                  | EraseI64(_, _)
+                  | EraseF32(_, _)
+                  | EraseF64(_, _)
+                  | EraseUnit(_) => generic_abi_erasures += 1
+                  UneraseI32(_, _)
+                  | UneraseI64(_, _)
+                  | UneraseF32(_, _)
+                  | UneraseF64(_, _)
+                  | UneraseUnit(_) => generic_abi_unerasures += 1
+                  _ => ()
                 }
               }
             }
@@ -92,8 +107,22 @@ test "real example 37 shares escaped callable adapter workers" {
     abort("expected physical lowering to complete: \{Repr(lowered)}")
   }
   assert_eq(
-    (adapter_workers, adapter_materializations, finalized_adapter_workers),
-    (21, 26, 21),
+    (
+      adapter_workers,
+      adapter_materializations,
+      finalized_adapter_workers,
+      generic_abi_erasures,
+      generic_abi_unerasures,
+      summarize_adapter_flow(indirect_calls, adapter_worker_ids),
+    ),
+    (
+      21,
+      26,
+      21,
+      15,
+      11,
+      { indirect_targets: 20, aggregate_stored_targets: 20, direct_only: 1, },
+    ),
   )
   assert_eq(summarize_indirect_calls(indirect_calls), {
     total: 44,
@@ -114,6 +143,43 @@ test "real example 37 shares escaped callable adapter workers" {
     unknown_without_candidates: 0,
     calls_without_boundary: 0,
   })
+}
+
+///|
+priv struct AdapterFlowSummary {
+  indirect_targets : Int
+  aggregate_stored_targets : Int
+  direct_only : Int
+} derive(Debug, Eq)
+
+///|
+fn summarize_adapter_flow(
+  calls : Array[@physical_lowering.PhysicalIndirectCallObservation],
+  adapters : Array[@physical.FunctionId],
+) -> AdapterFlowSummary {
+  let indirect_targets = []
+  let aggregate_stored_targets = []
+  for call in calls {
+    let targets = match call.resolution {
+      ExactTarget(target, _) => [target]
+      MultipleTargets(targets) | UnknownTargets(targets) => targets
+    }
+    for target in targets {
+      guard adapters.contains(target) else { continue }
+      if !indirect_targets.contains(target) {
+        indirect_targets.push(target)
+      }
+      if call.boundaries.contains(AggregateStorage) &&
+        !aggregate_stored_targets.contains(target) {
+        aggregate_stored_targets.push(target)
+      }
+    }
+  }
+  {
+    indirect_targets: indirect_targets.length(),
+    aggregate_stored_targets: aggregate_stored_targets.length(),
+    direct_only: adapters.length() - indirect_targets.length(),
+  }
 }
 
 ///|

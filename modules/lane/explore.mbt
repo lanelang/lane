@@ -217,7 +217,7 @@ fn indirect_call_origin_label(
     HandlerElaboration => "handler elaboration"
     MonadicTransformation => "monadic transformation"
     SelectiveCps => "selective CPS"
-    CallableAdapter => "callable adapter"
+    CallableAdapter => "structural callable adapter"
     RepresentationWorker => "representation worker"
     Initialization => "initialization"
     RuntimeSupport => "runtime support"
@@ -290,7 +290,7 @@ fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
     InitializerOrchestrator => "initializer orchestrator"
     IntrinsicWrapper(name~) => "intrinsic wrapper \{name}"
     RepresentationWorker => "representation worker"
-    CallableAdapter => "callable adapter"
+    CallableAdapter => "structural callable adapter"
     LayoutConstructor => "layout constructor"
     RuntimeImport(value~, name~, symbol~) => {
       let source = match name {

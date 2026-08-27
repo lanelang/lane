@@ -211,7 +211,7 @@ pub(all) struct ExploreIndirectCallObservation {
 
 ///|
 /// Current Explore Report Protocol schema owned by the compiler driver.
-pub let explore_report_schema_version : Int = 10
+pub let explore_report_schema_version : Int = 11
 
 ///|
 /// Canonical total order of protocol stages. This order is also the execution
@@ -542,8 +542,8 @@ pub fn ExploreMetricId::key(self : ExploreMetricId) -> String {
     LayoutCount => "layoutCount"
     ObjectShapeCount => "objectShapeCount"
     ConstantCount => "constantCount"
-    EraseCount => "eraseCount"
-    UneraseCount => "uneraseCount"
+    EraseCount => "genericAbiEraseCount"
+    UneraseCount => "genericAbiUneraseCount"
     RetainCount => "retainCount"
     ReleaseCount => "releaseCount"
     LocalCount => "localCount"
@@ -584,8 +584,8 @@ pub fn ExploreMetricId::title(self : ExploreMetricId) -> String {
     LayoutCount => "Layouts"
     ObjectShapeCount => "Object shapes"
     ConstantCount => "Constants"
-    EraseCount => "Erasures"
-    UneraseCount => "Unerasures"
+    EraseCount => "Canonical Generic ABI erasures"
+    UneraseCount => "Canonical Generic ABI unerasures"
     RetainCount => "Retains"
     ReleaseCount => "Releases"
     LocalCount => "Wasm locals"
