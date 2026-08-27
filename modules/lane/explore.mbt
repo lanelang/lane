@@ -273,6 +273,10 @@ fn function_ref_label(function : @driver.ExploreFunctionRef) -> String {
 ///|
 fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
   match role {
+    RuntimeAnfTopLevelRoot => "Runtime ANF top-level root"
+    RuntimeAnfEscapingClosure => "Runtime ANF escaping closure"
+    RuntimeAnfDirectFunction => "Runtime ANF direct-only function"
+    RuntimeAnfJoinPoint => "Runtime ANF join point"
     SourceFunction(value~, name~) =>
       match name {
         Some(name) => "source \{name} (value#\{value})"

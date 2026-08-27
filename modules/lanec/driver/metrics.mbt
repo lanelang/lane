@@ -108,10 +108,11 @@ fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
   for term in program.terms() {
     nodes += 1
     match term {
-      Let(_, expression) => nodes += observe_anf_expr(expression, accumulator)
+      Let(_, expression) =>
+        nodes += observe_anf_top_expr(expression, accumulator)
       LetRec(bindings) =>
         for binding in bindings {
-          nodes += 1 + observe_anf_atom(binding.rhs, accumulator)
+          nodes += 1 + observe_anf_top_atom(binding.rhs, accumulator)
         }
       External(_) => ()
     }
@@ -139,6 +140,7 @@ fn anf_observation(program : @anf.AnfProgram) -> AnfStageObservation {
 fn observe_anf_function(
   function : @anf.AnfFunction,
   accumulator : AnfScaleAccumulator,
+  disposition : ExploreFunctionRole,
 ) -> Int {
   let body_nodes = observe_anf_expr(function.body, accumulator)
   accumulator.functions.push({
@@ -151,9 +153,39 @@ fn observe_anf_function(
     function: function.id,
     source: function.source,
     origin: function.origin,
+    disposition,
   })
   accumulator.function_count += 1
   body_nodes
+}
+
+///|
+fn observe_anf_top_expr(
+  expression : @anf.AnfExpr,
+  accumulator : AnfScaleAccumulator,
+) -> Int {
+  match expression {
+    Atom(atom) => 1 + observe_anf_top_atom(atom, accumulator)
+    _ => observe_anf_expr(expression, accumulator)
+  }
+}
+
+///|
+fn observe_anf_top_atom(
+  atom : @anf.AnfAtom,
+  accumulator : AnfScaleAccumulator,
+) -> Int {
+  match atom {
+    Function(function) =>
+      1 + observe_anf_function(function, accumulator, RuntimeAnfTopLevelRoot)
+    EvidenceLambda(parameters~, body~) => {
+      accumulator.generic_binder_count += parameters.length()
+      1 + observe_anf_top_expr(body, accumulator)
+    }
+    DirectFunction(_) | JoinPoint(_) =>
+      abort("Runtime ANF top-level callable has a lexical disposition")
+    Literal(_) | Ref(_) | Temp(_) => 1
+  }
 }
 
 ///|
@@ -219,7 +251,12 @@ fn observe_anf_atom(
 ) -> Int {
   match atom {
     Literal(_) | Ref(_) | Temp(_) => 1
-    Function(function) => 1 + observe_anf_function(function, accumulator)
+    Function(function) =>
+      1 + observe_anf_function(function, accumulator, RuntimeAnfEscapingClosure)
+    DirectFunction(function) =>
+      1 + observe_anf_function(function, accumulator, RuntimeAnfDirectFunction)
+    JoinPoint(function) =>
+      1 + observe_anf_function(function, accumulator, RuntimeAnfJoinPoint)
     EvidenceLambda(parameters~, body~) => {
       accumulator.generic_binder_count += parameters.length()
       1 + observe_anf_expr(body, accumulator)

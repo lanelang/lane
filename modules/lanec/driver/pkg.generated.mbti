@@ -100,6 +100,10 @@ pub fn ExploreFunctionRef::not_equal(Self, Self) -> Bool
 pub fn ExploreFunctionRef::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreFunctionRole {
+  RuntimeAnfTopLevelRoot
+  RuntimeAnfEscapingClosure
+  RuntimeAnfDirectFunction
+  RuntimeAnfJoinPoint
   SourceFunction(value~ : Int, name~ : String?)
   SourceAnonymousFunction
   HandlerElaborationFunction

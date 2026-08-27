@@ -276,6 +276,8 @@ fn anf_atom_doc(atom : AnfAtom) -> Document {
     Ref(id) => id.pretty()
     Temp(temp) => temp.pretty()
     Function(function) => function.pretty()
+    DirectFunction(function) => text("direct") + space + function.pretty()
+    JoinPoint(function) => text("join") + space + function.pretty()
     EvidenceLambda(parameters~, body~) =>
       text("fn") +
       runtime_evidence_parameters_doc(parameters) +

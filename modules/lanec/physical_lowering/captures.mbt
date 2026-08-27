@@ -90,7 +90,7 @@ fn collect_free_atom(
         captures.push(capture)
       }
     }
-    Function(function) => {
+    Function(function) | DirectFunction(function) | JoinPoint(function) => {
       let next_values = bound_values.copy()
       next_values.append(function.parameters)
       collect_free_expr(function.body, next_values, bound_temps, captures)

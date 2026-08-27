@@ -46,7 +46,11 @@ fn lower_cps_core_to_runtime_anf_or_raise(
     next_function: 0,
   }
   let terms = retained_terms.map(term => lowerer.lower_top_term(term))
-  simplify_anf_program({ metadata: generic_plan.runtime_metadata(), terms, })
+  let anf = classify_anf_callables(
+    simplify_anf_program({ metadata: generic_plan.runtime_metadata(), terms, }),
+  )
+  verify_callable_dispositions(anf)
+  anf
 }
 
 ///|

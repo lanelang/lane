@@ -122,6 +122,10 @@ pub(all) struct ExploreFunctionRef {
 
 ///|
 pub(all) enum ExploreFunctionRole {
+  RuntimeAnfTopLevelRoot
+  RuntimeAnfEscapingClosure
+  RuntimeAnfDirectFunction
+  RuntimeAnfJoinPoint
   SourceFunction(value~ : Int, name~ : String?)
   SourceAnonymousFunction
   HandlerElaborationFunction

@@ -145,7 +145,7 @@ fn FunctionLowerer::lower_irrefutable_data_alternative(
   self.bind_data_alternative(
     binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
   )
-  let result = self.materialize_local(self.lower_expr(alternative.body))
+  let result = self.materialize_expression_result(alternative.body)
   self.restore_bindings(value_count, temp_count)
   self.restore_witnesses(witness_count)
   self.substitutions = original_substitutions
@@ -175,12 +175,22 @@ fn FunctionLowerer::lower_data_alternative(
   self.bind_data_alternative(
     binder, scrutinee, scrutinee_type, data_constructor, alternative, substitutions,
   )
-  let result = self.materialize_local(self.lower_expr(alternative.body))
+  let result = self.materialize_expression_result(alternative.body)
+  if result is ControlTransferred {
+    self.restore_bindings(value_count, temp_count)
+    self.restore_witnesses(witness_count)
+    self.substitutions = original_substitutions
+    self.environment = original_environment
+    return
+  }
   let arguments = match result {
     Unit => []
     Slot(slot, _) => [slot]
     Global(_)
     | RecursiveFunction(_, _, _)
+    | DirectFunction(_, _, _, _)
+    | JoinTarget(_, _)
+    | ControlTransferred
     | EvidenceApplied(_, _)
     | EvidenceAppliedCallable(_, _, _)
     | EvidenceAppliedFunction(_, _, _, _)
@@ -333,12 +343,20 @@ fn FunctionLowerer::lower_bool_alternative(
   let original_environment = self.environment
   self.enter_branch_environment(original_environment, branch_environment)
   self.bindings.push({ value: binder, lowered: scrutinee, })
-  let result = self.materialize_local(self.lower_expr(alternative.body))
+  let result = self.materialize_expression_result(alternative.body)
+  if result is ControlTransferred {
+    self.restore_bindings(value_count, temp_count)
+    self.environment = original_environment
+    return
+  }
   let arguments = match result {
     Unit => []
     Slot(slot, _) => [slot]
     Global(_)
     | RecursiveFunction(_, _, _)
+    | DirectFunction(_, _, _, _)
+    | JoinTarget(_, _)
+    | ControlTransferred
     | EvidenceApplied(_, _)
     | EvidenceAppliedCallable(_, _, _)
     | EvidenceAppliedFunction(_, _, _, _)

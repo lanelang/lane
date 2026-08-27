@@ -216,3 +216,188 @@ test "runtime ANF rejects residual handlers" {
     is Err(ResidualHandle),
   )
 }
+
+///|
+fn nested_callable_disposition_program(
+  recursive_body : (@buslane.ValueId, @buslane.ValueId, @buslane.ValueId) -> @buslane.Expr,
+  enclosing_body : (@buslane.ValueId) -> @buslane.Expr,
+  main_result : @buslane.Type,
+) -> @buslane.Program raise @buslane.MetadataAllocationError {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let i64 = @buslane.Type::Primitive(I64)
+  let loop_type = @buslane.Type::Function([i64], i64, Empty)
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], main_result, Empty),
+  )
+  let recursive = metadata.define_value("loop", Local, loop_type)
+  let parameter = metadata.define_value("n", Parameter, i64)
+  let non_tail_result = metadata.define_value("result", Local, i64)
+  {
+    metadata,
+    terms: [
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: main_result,
+          body: LetRec(
+            [
+              {
+                id: recursive,
+                rhs: Function({
+                  parameters: [parameter],
+                  result_type: i64,
+                  body: recursive_body(recursive, parameter, non_tail_result),
+                }),
+              },
+            ],
+            enclosing_body(recursive),
+          ),
+        }),
+      ),
+    ],
+  }
+}
+
+///|
+fn nested_callable_atom(program : @buslane.Program) -> AnfAtom {
+  let anf = lower_cps_core_to_runtime_anf(runtime_anf_test_input(program)).unwrap()
+  guard anf.terms()[0] is Let(_, Atom(Function(main))) &&
+    main.body is LetRec([binding], _) else {
+    abort("expected one nested recursive callable")
+  }
+  binding.rhs
+}
+
+///|
+test "runtime ANF classifies a saturated tail-only recursive group as a join point" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let program = nested_callable_disposition_program(
+    (recursive, parameter, _) => Call(Ref(recursive), [Ref(parameter)]),
+    recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+    i64,
+  )
+  assert_true(nested_callable_atom(program) is JoinPoint(_))
+}
+
+///|
+test "runtime ANF classifies a saturated non-tail recursive group as direct" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let program = nested_callable_disposition_program(
+    (recursive, parameter, result) => {
+      Let(result, Call(Ref(recursive), [Ref(parameter)]), Literal(I64(1L)))
+    },
+    recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+    i64,
+  )
+  assert_true(nested_callable_atom(program) is DirectFunction(_))
+}
+
+///|
+test "runtime ANF preserves closure semantics for a returned local function" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let loop_type = @buslane.Type::Function([i64], i64, Empty)
+  let program = nested_callable_disposition_program(
+    (_, parameter, _) => Ref(parameter),
+    recursive => Ref(recursive),
+    loop_type,
+  )
+  assert_true(nested_callable_atom(program) is Function(_))
+}
+
+///|
+test "runtime ANF verifier rejects a first-class join point" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let lowered = lower_cps_core_to_runtime_anf(
+    runtime_anf_test_input(
+      nested_callable_disposition_program(
+        (recursive, parameter, _) => Call(Ref(recursive), [Ref(parameter)]),
+        recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+        i64,
+      ),
+    ),
+  ).unwrap()
+  guard lowered.terms is [Let(main_id, Atom(Function(main)))] &&
+    main.body is LetRec([binding], _) &&
+    binding.rhs is JoinPoint(function) else {
+    fail("expected one classified join point")
+  }
+  let invalid : AnfProgram = {
+    metadata: lowered.metadata,
+    terms: [
+      Let(
+        main_id,
+        Atom(
+          Function({
+            ..main,
+            body: LetRec(
+              [{ ..binding, rhs: JoinPoint(function), }],
+              Atom(Ref(binding.id)),
+            ),
+          }),
+        ),
+      ),
+    ],
+  }
+  let verification : Result[Unit, RuntimeAnfLoweringError] = try {
+    verify_callable_dispositions(invalid)
+    Ok(())
+  } catch {
+    error => Err(error)
+  }
+  assert_true(verification is Err(InvalidCallableDisposition(_)))
+}
+
+///|
+test "runtime ANF verifier rejects an unsaturated direct-only call" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let lowered = lower_cps_core_to_runtime_anf(
+    runtime_anf_test_input(
+      nested_callable_disposition_program(
+        (recursive, parameter, result) => {
+          Let(result, Call(Ref(recursive), [Ref(parameter)]), Literal(I64(1L)))
+        },
+        recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+        i64,
+      ),
+    ),
+  ).unwrap()
+  guard lowered.terms is [Let(main_id, Atom(Function(main)))] &&
+    main.body is LetRec([binding], _) &&
+    binding.rhs is DirectFunction(function) else {
+    fail("expected one classified direct-only function")
+  }
+  let invalid : AnfProgram = {
+    metadata: lowered.metadata,
+    terms: [
+      Let(
+        main_id,
+        Atom(
+          Function({
+            ..main,
+            body: LetRec(
+              [{ ..binding, rhs: DirectFunction(function), }],
+              Let(
+                Temp(
+                  temp={ index: 999, },
+                  type_=Scalar(I64),
+                  rhs=Call(callee=Ref(binding.id), arguments=[]),
+                ),
+                Atom(Temp({ index: 999, })),
+              ),
+            ),
+          }),
+        ),
+      ),
+    ],
+  }
+  let verification : Result[Unit, RuntimeAnfLoweringError] = try {
+    verify_callable_dispositions(invalid)
+    Ok(())
+  } catch {
+    error => Err(error)
+  }
+  assert_true(verification is Err(InvalidCallableDisposition(_)))
+}

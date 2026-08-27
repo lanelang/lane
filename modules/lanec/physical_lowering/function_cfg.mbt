@@ -7,7 +7,7 @@ fn ImageLowerer::lower_function_body(
   result_type : @anf.RuntimeType,
   captured_parameters : Array[@anf.RuntimeEvidenceParameter],
   captures : Array[CapturePlan],
-  environment_shape : @physical.ObjectShapeId?,
+  capture_abi : LiftedCaptureAbi,
   recursive_functions : Array[RecursiveFunctionPlan],
   substitutions : RuntimeSubstitution,
 ) -> @vmcfg.FunctionBody raise PhysicalLoweringError {
@@ -30,60 +30,111 @@ fn ImageLowerer::lower_function_body(
       lowerer.witnesses.push({ parameter: parameter.id, value: witness, })
     }
   }
-  if environment_shape is Some(shape) {
-    let environment = lowerer.fresh_metadata(environment_metadata(shape))
-    lowerer.environment = Some(environment)
-    for index, parameter in captured_parameters {
-      let metadata = runtime_evidence_metadata(parameter)
-      let evidence = lowerer.fresh_metadata(
-        borrowed_evidence_metadata(metadata),
-      )
-      lowerer.emit(
-        BorrowCapture(shape, environment, index, {
-          value_destination: evidence,
-          witness_destination: None,
-        }),
-      )
-      lowerer.witnesses.push({ parameter: parameter.id, value: evidence, })
-    }
-    for capture in captures {
-      if capture.member_index is Some(member_index) {
-        let (destination, witness_destination) = if self.runtime_type(
-            capture.type_,
+  let direct_capture_witnesses : Array[@vmcfg.ValueId] = []
+  let direct_capture_slots : Array[@vmcfg.ValueId] = []
+  match capture_abi {
+    ClosureEnvironment(environment_shape) =>
+      if environment_shape is Some(shape) {
+        let environment = lowerer.fresh_metadata(environment_metadata(shape))
+        lowerer.environment = Some(environment)
+        for index, parameter in captured_parameters {
+          let metadata = runtime_evidence_metadata(parameter)
+          let evidence = lowerer.fresh_metadata(
+            borrowed_evidence_metadata(metadata),
           )
-          is Erased(_) {
-          let witness = lowerer.fresh_metadata(layout_witness_metadata())
-          (lowerer.fresh_erased_slot(witness, Borrowed), Some(witness))
-        } else {
-          (lowerer.fresh_borrowed_slot(capture.type_), None)
+          lowerer.emit(
+            BorrowCapture(shape, environment, index, {
+              value_destination: evidence,
+              witness_destination: None,
+            }),
+          )
+          lowerer.witnesses.push({ parameter: parameter.id, value: evidence, })
         }
-        lowerer.emit(
-          BorrowCapture(shape, environment, member_index, {
-            value_destination: destination,
-            witness_destination,
-          }),
-        )
-        lowerer.bind_capture(capture.binding, Slot(destination, capture.type_))
+        for capture in captures {
+          if capture.member_index is Some(member_index) {
+            let (destination, witness_destination) = if self.runtime_type(
+                capture.type_,
+              )
+              is Erased(_) {
+              let witness = lowerer.fresh_metadata(layout_witness_metadata())
+              (lowerer.fresh_erased_slot(witness, Borrowed), Some(witness))
+            } else {
+              (lowerer.fresh_borrowed_slot(capture.type_), None)
+            }
+            lowerer.emit(
+              BorrowCapture(shape, environment, member_index, {
+                value_destination: destination,
+                witness_destination,
+              }),
+            )
+            lowerer.bind_capture(
+              capture.binding,
+              Slot(destination, capture.type_),
+            )
+          } else {
+            lowerer.bind_capture(capture.binding, Unit)
+          }
+        }
       } else {
-        lowerer.bind_capture(capture.binding, Unit)
+        for capture in captures {
+          lowerer.bind_capture(capture.binding, Unit)
+        }
       }
-    }
-  } else {
-    for capture in captures {
-      lowerer.bind_capture(capture.binding, Unit)
+    DirectInputs(direct_captures) => {
+      for parameter in captured_parameters {
+        let evidence = lowerer.fresh_metadata(
+          runtime_evidence_metadata(parameter),
+        )
+        input_witnesses.push(evidence)
+        direct_capture_witnesses.push(evidence)
+        lowerer.witnesses.push({ parameter: parameter.id, value: evidence, })
+      }
+      let erased_witnesses : Array[@vmcfg.ValueId] = []
+      for capture in direct_captures {
+        if capture.erased_witness {
+          let witness = lowerer.fresh_metadata(layout_witness_metadata())
+          input_witnesses.push(witness)
+          direct_capture_witnesses.push(witness)
+          erased_witnesses.push(witness)
+        }
+      }
+      let mut erased_index = 0
+      for capture in direct_captures {
+        if self.runtime_type(capture.type_) is Concrete(Unit) {
+          lowerer.bind_capture(capture.binding, Unit)
+        } else {
+          let slot = if capture.erased_witness {
+            let witness = erased_witnesses[erased_index]
+            erased_index += 1
+            lowerer.fresh_erased_slot(witness, Owned)
+          } else {
+            lowerer.fresh_slot(capture.type_)
+          }
+          direct_capture_slots.push(slot)
+          lowerer.bind_capture(capture.binding, Slot(slot, capture.type_))
+        }
+      }
     }
   }
   for recursive in recursive_functions {
-    lowerer.bindings.push({
-      value: recursive.value,
-      lowered: RecursiveFunction(
-        recursive.function,
-        recursive.type_,
-        lowerer.environment,
-      ),
-    })
+    let lowered = match capture_abi {
+      ClosureEnvironment(_) =>
+        RecursiveFunction(
+          recursive.function,
+          recursive.type_,
+          lowerer.environment,
+        )
+      DirectInputs(_) =>
+        DirectFunction(
+          recursive.function,
+          recursive.type_,
+          direct_capture_witnesses,
+          direct_capture_slots,
+        )
+    }
+    lowerer.bindings.push({ value: recursive.value, lowered, })
   }
-  let parameter_slots : Array[@vmcfg.ValueId] = []
+  let parameter_slots : Array[@vmcfg.ValueId] = direct_capture_slots.copy()
   for index, parameter in function.parameters {
     let type_ = parameter_types[index]
     if self.runtime_type(type_) is Concrete(Unit) {
@@ -109,6 +160,9 @@ fn ImageLowerer::lower_function_body(
         Slot(slot, _) => Return(Some(slot))
         Global(_)
         | RecursiveFunction(_, _, _)
+        | DirectFunction(_, _, _, _)
+        | JoinTarget(_, _)
+        | ControlTransferred
         | EvidenceApplied(_, _)
         | EvidenceAppliedCallable(_, _, _)
         | EvidenceAppliedFunction(_, _, _, _)

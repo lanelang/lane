@@ -45,7 +45,7 @@ fn FunctionLowerer::lower_nested_function_with_type(
           substitutions: self.substitutions,
           captured_parameters,
           captures: capture_plans,
-          environment_shape,
+          capture_abi: ClosureEnvironment(environment_shape),
           recursive_functions: [],
           specialization_ancestry: self.image.active_specialization_ancestry.copy(),
         })
@@ -57,6 +57,48 @@ fn FunctionLowerer::lower_nested_function_with_type(
     ) {
     environment => RecursiveFunction(function_id, function_type, environment)
   }
+}
+
+///|
+fn FunctionLowerer::lower_nested_direct_function(
+  self : FunctionLowerer,
+  function : @anf.AnfFunction,
+) -> LocalValue raise PhysicalLoweringError {
+  let function_type = self.substitutions.apply_type(
+    self.image.runtime_types,
+    self.image.anf_function_type(function),
+  )
+  let capture_bindings = free_capture_bindings(function)
+  let captured_parameters = self.captured_runtime_parameters(
+    [function],
+    [function_type],
+    capture_bindings,
+  )
+  let (capture_plans, captured_witnesses, captured_values) = self.prepare_direct_captures(
+    capture_bindings, captured_parameters,
+  )
+  let function_id = self.image.plans.append(
+      LiftedFunction(
+        function=function.id,
+        source=function.source,
+        origin=function.origin,
+      ),
+      _ => {
+        LiftedFunction({
+          function,
+          type_: function_type,
+          substitutions: self.substitutions,
+          captured_parameters,
+          captures: [],
+          capture_abi: DirectInputs(capture_plans),
+          recursive_functions: [],
+          specialization_ancestry: self.image.active_specialization_ancestry.copy(),
+        })
+      },
+    ).function
+  DirectFunction(
+    function_id, function_type, captured_witnesses, captured_values,
+  )
 }
 
 ///|
@@ -135,7 +177,7 @@ fn FunctionLowerer::lower_recursive_group(
           substitutions: self.substitutions,
           captured_parameters,
           captures: capture_plans,
-          environment_shape,
+          capture_abi: ClosureEnvironment(environment_shape),
           recursive_functions,
           specialization_ancestry: self.image.active_specialization_ancestry.copy(),
         })
@@ -150,6 +192,94 @@ fn FunctionLowerer::lower_recursive_group(
         recursive.function,
         recursive.type_,
         environment,
+      ),
+    })
+  }
+  let result = self.lower_expr(body)
+  self.restore_bindings(value_count, self.temps.length())
+  result
+}
+
+///|
+fn FunctionLowerer::lower_direct_recursive_group(
+  self : FunctionLowerer,
+  bindings : Array[@anf.AnfRecursiveBinding],
+  body : @anf.AnfExpr,
+) -> LocalValue raise PhysicalLoweringError {
+  let functions : Array[@anf.AnfFunction] = []
+  let recursive_values : Array[@buslane.ValueId] = []
+  let recursive_types : Array[@anf.RuntimeType] = []
+  for binding in bindings {
+    guard binding.rhs is DirectFunction(function) else {
+      raise invalid_runtime_anf_callable_disposition(
+        detail="a direct recursive group contains a non-direct callable",
+      )
+    }
+    let type_ = match self.image.metadata.value_info(binding.id) {
+      Some(info) => info.type_
+      None => raise MissingValueMetadata(value=binding.id)
+    }
+    functions.push(function)
+    recursive_values.push(binding.id)
+    recursive_types.push(
+      self.substitutions.apply_type(self.image.runtime_types, type_),
+    )
+  }
+  let capture_bindings = []
+  for function in functions {
+    for capture in free_capture_bindings(function) {
+      if !recursive_values_contain_capture(recursive_values, capture) &&
+        !capture_bindings.contains(capture) {
+        capture_bindings.push(capture)
+      }
+    }
+  }
+  let captured_parameters = self.captured_runtime_parameters(
+    functions, recursive_types, capture_bindings,
+  )
+  let (capture_plans, captured_witnesses, captured_values) = self.prepare_direct_captures(
+    capture_bindings, captured_parameters,
+  )
+  let recursive_functions : Array[RecursiveFunctionPlan] = []
+  let origins = functions.map(function => {
+    LiftedRecursiveFunction(
+      function=function.id,
+      source=function.source,
+      origin=function.origin,
+    )
+  })
+  ignore(
+    self.image.plans.append_group(origins, fn(function_ids) {
+      for index, function_id in function_ids {
+        recursive_functions.push({
+          value: recursive_values[index],
+          function: function_id,
+          type_: recursive_types[index],
+        })
+      }
+      fn(index) {
+        LiftedFunction({
+          function: functions[index],
+          type_: recursive_types[index],
+          substitutions: self.substitutions,
+          captured_parameters,
+          captures: [],
+          capture_abi: DirectInputs(capture_plans),
+          recursive_functions,
+          specialization_ancestry: self.image.active_specialization_ancestry.copy(),
+        })
+      }
+    }),
+  )
+  let value_count = self.bindings.length()
+  for recursive in recursive_functions {
+    self.bindings.push({
+      value: recursive.value,
+      lowered: DirectFunction(
+        recursive.function,
+        recursive.type_,
+        captured_witnesses,
+        captured_values,
       ),
     })
   }
@@ -179,12 +309,17 @@ fn FunctionLowerer::captured_runtime_parameters(
     match self.capture_value(binding) {
       Slot(_, type_)
       | RecursiveFunction(_, type_, _)
+      | DirectFunction(_, type_, _, _)
       | EvidenceAppliedCallable(_, type_, _)
       | EvidenceAppliedFunction(_, type_, _, _) => types.push(type_)
       AdaptedCallable(adaptation)
       | EvidenceAppliedAdaptedCallable(adaptation, _) =>
         types.push(adaptation.contract.target_type)
       Global(_) | Unit | EvidenceApplied(_, _) => ()
+      JoinTarget(_, _) | ControlTransferred =>
+        raise invalid_runtime_anf_callable_disposition(
+          detail="a control-only value was captured by a callable",
+        )
     }
   }
   let parameters = free_runtime_type_parameters_in_types(self.image, types)
@@ -318,7 +453,7 @@ fn collect_free_runtime_evidence_in_atom(
 ) -> Unit {
   match atom {
     Literal(_) | Ref(_) | Temp(_) => ()
-    Function(function) =>
+    Function(function) | DirectFunction(function) | JoinPoint(function) =>
       collect_free_runtime_evidence_in_expr(
         image,
         function.body,
@@ -331,6 +466,48 @@ fn collect_free_runtime_evidence_in_atom(
       collect_free_runtime_evidence_in_expr(image, body, nested, parameters)
     }
   }
+}
+
+///|
+fn FunctionLowerer::prepare_direct_captures(
+  self : FunctionLowerer,
+  bindings : Array[CaptureBinding],
+  captured_parameters : Array[@anf.RuntimeEvidenceParameter],
+) -> (Array[DirectCapturePlan], Array[@vmcfg.ValueId], Array[@vmcfg.ValueId]) raise PhysicalLoweringError {
+  let plans : Array[DirectCapturePlan] = []
+  let witnesses = captured_parameters.map(parameter => {
+    self.find_witness(parameter.id)
+  })
+  let values = []
+  for binding in bindings {
+    match self.capture_value(binding) {
+      Global(_) => ()
+      Unit => plans.push({ binding, type_: Unit, erased_witness: false, })
+      JoinTarget(_, _) | ControlTransferred =>
+        raise invalid_runtime_anf_callable_disposition(
+          detail="a control-only value was captured by a direct callable",
+        )
+      captured => {
+        guard self.materialize_local(captured) is Slot(slot, type_) else {
+          raise invalid_runtime_anf_callable_disposition(
+            detail="a direct capture cannot be materialized",
+          )
+        }
+        let erased_witness = self.image.runtime_type(type_) is Erased(_)
+        if erased_witness {
+          guard self.values[slot.value].erased_companion is Some(witness) else {
+            raise InvalidTypeApplication(
+              detail="erased direct capture is missing its layout evidence",
+            )
+          }
+          witnesses.push(witness)
+        }
+        plans.push({ binding, type_, erased_witness, })
+        values.push(slot)
+      }
+    }
+  }
+  (plans, witnesses, values)
 }
 
 ///|

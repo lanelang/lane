@@ -557,12 +557,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|      erased_companion: None,
       #|    },
       #|  ],
-      #|  layouts: [
-      #|    Data({ value: 0 }),
-      #|    Data({ value: 1 }),
-      #|    Environment({ value: 2 }),
-      #|    ByteSequence,
-      #|  ],
+      #|  layouts: [Data({ value: 0 }), Data({ value: 1 }), ByteSequence],
       #|  object_shapes: [
       #|    Data(
       #|      {
@@ -601,19 +596,6 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|            representation: I32,
       #|            cleanup: OwnedRef,
       #|            kind: ByteSequenceValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
-      #|    Environment(
-      #|      {
-      #|        stored_witness_count: 0,
-      #|        members: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 1 }),
       #|            witness_ordinal: None,
       #|          },
       #|        ],

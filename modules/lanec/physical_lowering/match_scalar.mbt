@@ -42,6 +42,9 @@ fn FunctionLowerer::lower_match(
     }
     Global(_)
     | RecursiveFunction(_, _, _)
+    | DirectFunction(_, _, _, _)
+    | JoinTarget(_, _)
+    | ControlTransferred
     | EvidenceApplied(_, _)
     | EvidenceAppliedCallable(_, _, _)
     | EvidenceAppliedFunction(_, _, _, _)
@@ -199,7 +202,7 @@ fn FunctionLowerer::lower_irrefutable_match(
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
   self.bindings.push({ value: match_.binder, lowered: scrutinee, })
-  let result = self.materialize_local(self.lower_expr(alternative.body))
+  let result = self.materialize_expression_result(alternative.body)
   self.restore_bindings(value_count, temp_count)
   result
 }

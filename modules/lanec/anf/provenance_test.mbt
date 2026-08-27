@@ -62,7 +62,7 @@ test "ANF assigns stable identities and preserves binding provenance" {
       #|                Value(
       #|                  id={ index: 1 },
       #|                  rhs=Atom(
-      #|                    Function(
+      #|                    JoinPoint(
       #|                      {
       #|                        id: { value: 1 },
       #|                        source: Some({ index: 1 }),

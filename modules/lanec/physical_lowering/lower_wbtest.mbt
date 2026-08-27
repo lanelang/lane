@@ -1507,7 +1507,7 @@ test "nonescaping nested functions pass captures directly" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_eq(image.object_shapes.length(), 1)
+  assert_eq(image.object_shapes.length(), 0)
   guard image.functions[0] is PhysicalBody(main_body) else {
     fail("expected main physical body")
   }
@@ -1530,7 +1530,7 @@ test "nonescaping nested functions pass captures directly" {
       #|          { value: 2 },
       #|          None,
       #|          [],
-      #|          [{ value: 0 }, { value: 2 }],
+      #|          [{ value: 2 }, { value: 0 }],
       #|          Some({ value: 1 }),
       #|        ),
       #|      ],
@@ -1540,7 +1540,7 @@ test "nonescaping nested functions pass captures directly" {
       #|  {
       #|    environment: None,
       #|    witnesses: [],
-      #|    user_parameters: [{ value: 1 }, { value: 0 }],
+      #|    user_parameters: [{ value: 0 }, { value: 1 }],
       #|  },
       #|  [
       #|    {
@@ -1577,7 +1577,7 @@ test "nonescaping nested functions pass captures directly" {
 }
 
 ///|
-test "local recursive functions share a cycle-free captured environment" {
+test "tail-recursive local functions become local join points" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)
   let bool_type = @buslane.Type::Primitive(Bool)
@@ -1674,15 +1674,17 @@ test "local recursive functions share a cycle-free captured environment" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_eq(image.object_shapes.length(), 1)
-  guard image.functions[1] is PhysicalBody(loop_body) else {
-    fail("expected lifted recursive physical body")
-  }
-  assert_true(loop_body.inputs.environment is Some(_))
-  let has_recursive_tail_call = loop_body.blocks.any(block => {
-    block.terminator is TailCallDirect({ value: 2, }, Some(_), [], _)
+  assert_eq(image.object_shapes.length(), 0)
+  let bodies = image.functions.filter_map(function => {
+    if function is PhysicalBody(body) {
+      Some(body)
+    } else {
+      None
+    }
   })
-  assert_true(has_recursive_tail_call)
+  assert_eq(bodies.length(), 1)
+  assert_true(bodies[0].blocks.length() > 1)
+  assert_true(bodies[0].blocks.any(block => block.terminator is Jump(_)))
   let mut observed = 0L
   let registry = @lane_runtime.RuntimeRegistry::new()
   registry.register(

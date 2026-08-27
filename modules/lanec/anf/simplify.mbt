@@ -79,7 +79,7 @@ fn AnfBinding::with_rhs(self : AnfBinding, rhs : AnfRhs) -> AnfBinding {
 fn atom_is_copyable(atom : AnfAtom) -> Bool {
   match atom {
     Literal(_) | Ref(_) | Temp(_) => true
-    Function(_) | EvidenceLambda(_) => false
+    Function(_) | DirectFunction(_) | JoinPoint(_) | EvidenceLambda(_) => false
   }
 }
 
@@ -136,21 +136,27 @@ fn simplify_atom(atom : AnfAtom, scope : AnfRewriteScope) -> AnfAtom {
         Some(replacement) => simplify_atom(replacement, scope)
         None => atom
       }
-    Function(function) => {
+    Function(function) | DirectFunction(function) | JoinPoint(function) => {
       let function_scope = function.parameters.fold(init=scope, fn(
         scope,
         parameter,
       ) {
         scope.without_value(parameter)
       })
-      Function({
+      let simplified = {
         id: function.id,
         source: function.source,
         origin: function.origin,
         parameters: function.parameters,
         result_type: function.result_type,
         body: simplify_expr(function.body, function_scope),
-      })
+      }
+      match atom {
+        Function(_) => Function(simplified)
+        DirectFunction(_) => DirectFunction(simplified)
+        JoinPoint(_) => JoinPoint(simplified)
+        _ => abort("callable atom changed during simplification")
+      }
     }
     EvidenceLambda(parameters~, body~) =>
       EvidenceLambda(parameters~, body=simplify_expr(body, scope))

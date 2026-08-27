@@ -284,9 +284,21 @@ arguments select construction and projection evidence, but do not define a
 data value's callable ABI. Higher-kinded nominal arguments are eta-expanded at
 this boundary. Every top-level and nested callable has a stable Runtime ANF
 identity, explicit Function Origin, lexical evidence scope, captures, and
-recursive-group identity.
+recursive-group identity. It also owns each lexical callable's Runtime Callable
+Disposition before any environment, closure, adapter, or callable-table entry
+can be allocated.
 Representation Elaboration consumes Runtime ANF.
 _Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering
+
+**Runtime Callable Disposition**:
+The verified Runtime ANF fact that classifies a lexical callable as a local join
+point, a lifted direct-only function, or an escaping closure from exact
+saturated-call, tail-position, and first-class-use structure. A join point is
+local VM CFG control flow. A direct-only function receives captures as explicit
+physical inputs. Only an escaping closure may allocate an environment or become
+table-addressable. Physical Lowering consumes this fact and never recomputes
+escape policy.
+_Avoid_: function-origin heuristic, closure-conversion sidecar, late VM CFG escape guess
 
 **Canonical Generic ABI**:
 The complete evidence-passing execution contract used whenever a runtime type

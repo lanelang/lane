@@ -20,20 +20,15 @@ fn FunctionLowerer::representation_worker(
   )
   guard runtime_type_is_closed(target_type, []) else { return None }
   let source_plan = self.image.plans.get(source.value - 1)
-  let (
-    body,
-    captured_parameters,
-    captures,
-    environment_shape,
-    recursive_functions,
-  ) = match source_plan.entry {
-    Function(_, body) => (body, [], [], None, [])
+  let (body, captured_parameters, captures, capture_abi, recursive_functions) = match
+    source_plan.entry {
+    Function(_, body) => (body, [], [], ClosureEnvironment(None), [])
     LiftedFunction(plan) =>
       (
         plan.function,
         plan.captured_parameters,
         plan.captures,
-        plan.environment_shape,
+        plan.capture_abi,
         plan.recursive_functions,
       )
     _ => return None
@@ -80,7 +75,7 @@ fn FunctionLowerer::representation_worker(
         substitutions,
         captured_parameters,
         captures,
-        environment_shape,
+        capture_abi,
         recursive_functions,
         ancestry,
       }
@@ -107,7 +102,7 @@ fn ImageLowerer::lower_representation_worker(
     result_type,
     plan.captured_parameters,
     plan.captures,
-    plan.environment_shape,
+    plan.capture_abi,
     plan.recursive_functions,
     plan.substitutions,
   )
@@ -246,6 +241,12 @@ fn specialize_anf_atom(
     Literal(_) | Ref(_) | Temp(_) => atom
     Function(function) =>
       Function(specialize_anf_function(function, substitutions, runtime_types))
+    DirectFunction(function) =>
+      DirectFunction(
+        specialize_anf_function(function, substitutions, runtime_types),
+      )
+    JoinPoint(function) =>
+      JoinPoint(specialize_anf_function(function, substitutions, runtime_types))
     EvidenceLambda(parameters~, body~) => {
       let nested = substitutions.without_parameters(parameters)
       EvidenceLambda(
@@ -476,7 +477,7 @@ fn collect_representation_candidate_atom(
 ) -> Unit {
   match atom {
     Ref(value) => mark_representation_candidate_open(value, uses)
-    Function(function) =>
+    Function(function) | DirectFunction(function) | JoinPoint(function) =>
       collect_representation_candidate_expr(
         function.body,
         uses,

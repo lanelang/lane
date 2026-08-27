@@ -39,6 +39,13 @@ priv enum GlobalValue {
 }
 
 ///|
+fn invalid_runtime_anf_callable_disposition(
+  detail~ : String,
+) -> PhysicalLoweringError {
+  RuntimeAnfCompilerDefect(InvalidCallableDisposition(detail~))
+}
+
+///|
 priv struct RuntimeIntrinsicFunctionContract {
   intrinsic : @abi.Intrinsic
   parameters : Array[@anf.RuntimeType]
@@ -230,7 +237,7 @@ priv struct RepresentationWorkerPlan {
   substitutions : RuntimeSubstitution
   captured_parameters : Array[@anf.RuntimeEvidenceParameter]
   captures : Array[CapturePlan]
-  environment_shape : @physical.ObjectShapeId?
+  capture_abi : LiftedCaptureAbi
   recursive_functions : Array[RecursiveFunctionPlan]
   ancestry : Array[@physical.FunctionId]
 }
@@ -360,13 +367,26 @@ priv struct CapturePlan {
 }
 
 ///|
+priv struct DirectCapturePlan {
+  binding : CaptureBinding
+  type_ : @anf.RuntimeType
+  erased_witness : Bool
+}
+
+///|
+priv enum LiftedCaptureAbi {
+  ClosureEnvironment(@physical.ObjectShapeId?)
+  DirectInputs(Array[DirectCapturePlan])
+}
+
+///|
 priv struct LiftedFunctionPlan {
   function : @anf.AnfFunction
   type_ : @anf.RuntimeType
   substitutions : RuntimeSubstitution
   captured_parameters : Array[@anf.RuntimeEvidenceParameter]
   captures : Array[CapturePlan]
-  environment_shape : @physical.ObjectShapeId?
+  capture_abi : LiftedCaptureAbi
   recursive_functions : Array[RecursiveFunctionPlan]
   specialization_ancestry : Array[@physical.FunctionId]
 }
@@ -391,6 +411,14 @@ priv enum LocalValue {
   Slot(@vmcfg.ValueId, @anf.RuntimeType)
   Global(GlobalValue)
   RecursiveFunction(@physical.FunctionId, @anf.RuntimeType, @vmcfg.ValueId?)
+  DirectFunction(
+    @physical.FunctionId,
+    @anf.RuntimeType,
+    Array[@vmcfg.ValueId],
+    Array[@vmcfg.ValueId]
+  )
+  JoinTarget(@physical.BlockId, @anf.RuntimeType)
+  ControlTransferred
   EvidenceApplied(GlobalValue, Array[@anf.RuntimeArgument])
   EvidenceAppliedCallable(
     @vmcfg.ValueId,

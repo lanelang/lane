@@ -365,6 +365,10 @@ fn function_ref_json(function : @driver.ExploreFunctionRef) -> Json {
 ///|
 fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
   match role {
+    RuntimeAnfTopLevelRoot => { "kind": "runtimeAnfTopLevelRoot" }
+    RuntimeAnfEscapingClosure => { "kind": "runtimeAnfEscapingClosure" }
+    RuntimeAnfDirectFunction => { "kind": "runtimeAnfDirectFunction" }
+    RuntimeAnfJoinPoint => { "kind": "runtimeAnfJoinPoint" }
     SourceFunction(value~, name~) => {
       let fields : Map[String, Json] = {
         "kind": "source".to_json(),

@@ -99,12 +99,15 @@ test "Explore preserves source-written nested and CPS-introduced function origin
     anf_roles,
     content=(
       #|[
-      #|  [SourceFunction(value=3, name=Some("main"))],
-      #|  [SelectiveCpsFunction],
-      #|  [SelectiveCpsFunction],
-      #|  [SourceFunction(value=13, name=Some("function_literal"))],
-      #|  [MonadicTransformationFunction],
-      #|  [HandlerElaborationFunction],
+      #|  [SourceFunction(value=3, name=Some("main")), RuntimeAnfTopLevelRoot],
+      #|  [SelectiveCpsFunction, RuntimeAnfEscapingClosure],
+      #|  [SelectiveCpsFunction, RuntimeAnfJoinPoint],
+      #|  [
+      #|    SourceFunction(value=13, name=Some("function_literal")),
+      #|    RuntimeAnfEscapingClosure,
+      #|  ],
+      #|  [MonadicTransformationFunction, RuntimeAnfEscapingClosure],
+      #|  [HandlerElaborationFunction, RuntimeAnfEscapingClosure],
       #|]
     ),
   )
@@ -813,12 +816,12 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 12),
+      #|        ("functionCount", 11),
       #|        ("importCount", 1),
       #|        ("blockCount", 12),
       #|        ("instructionCount", 55),
-      #|        ("valueCount", 92),
-      #|        ("directCallCount", 6),
+      #|        ("valueCount", 90),
+      #|        ("directCallCount", 5),
       #|        ("indirectCallCount", 6),
       #|        ("functionReferenceCount", 10),
       #|        ("closureCount", 5),
@@ -836,15 +839,14 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|        { index: 1, block_count: 1, operation_count: 1, value_count: 9 },
       #|        { index: 2, block_count: 1, operation_count: 1, value_count: 6 },
       #|        { index: 3, block_count: 1, operation_count: 23, value_count: 24 },
-      #|        { index: 4, block_count: 1, operation_count: 1, value_count: 4 },
+      #|        { index: 4, block_count: 2, operation_count: 1, value_count: 6 },
       #|        { index: 5, block_count: 1, operation_count: 6, value_count: 8 },
       #|        { index: 6, block_count: 1, operation_count: 0, value_count: 1 },
       #|        { index: 7, block_count: 1, operation_count: 1, value_count: 2 },
       #|        { index: 8, block_count: 1, operation_count: 8, value_count: 13 },
       #|        { index: 9, block_count: 1, operation_count: 6, value_count: 8 },
-      #|        { index: 10, block_count: 1, operation_count: 0, value_count: 4 },
-      #|        { index: 11, block_count: 1, operation_count: 4, value_count: 6 },
-      #|        { index: 12, block_count: 1, operation_count: 4, value_count: 7 },
+      #|        { index: 10, block_count: 1, operation_count: 4, value_count: 6 },
+      #|        { index: 11, block_count: 1, operation_count: 4, value_count: 7 },
       #|      ],
       #|    ),
       #|  ],
@@ -1070,9 +1072,9 @@ test "explore records concrete-answer CPS normalization costs" {
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 7),
+      #|        ("functionCount", 6),
       #|        ("instructionCount", 28),
-      #|        ("directCallCount", 4),
+      #|        ("directCallCount", 3),
       #|        ("indirectCallCount", 4),
       #|        ("closureCount", 3),
       #|        ("environmentCount", 3),
@@ -1083,9 +1085,9 @@ test "explore records concrete-answer CPS normalization costs" {
       #|    (
       #|      "physical",
       #|      [
-      #|        ("functionCount", 7),
+      #|        ("functionCount", 6),
       #|        ("instructionCount", 29),
-      #|        ("directCallCount", 4),
+      #|        ("directCallCount", 3),
       #|        ("indirectCallCount", 4),
       #|        ("closureCount", 3),
       #|        ("environmentCount", 3),
@@ -1689,7 +1691,7 @@ test "explore traces a named function and preserves synthetic roots" {
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },
-      #|      [[SourceFunction(value=1, name=Some("main"))]],
+      #|      [[SourceFunction(value=1, name=Some("main")), RuntimeAnfTopLevelRoot]],
       #|    ),
       #|    (
       #|      { stage: VmcfgInitial, index: 1 },

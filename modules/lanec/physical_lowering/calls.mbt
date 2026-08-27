@@ -15,6 +15,12 @@ fn FunctionLowerer::lower_call(
       self.lower_direct_call(function, type_, lowered_arguments, None)
     RecursiveFunction(function, type_, environment) =>
       self.lower_direct_call(function, type_, lowered_arguments, environment)
+    DirectFunction(function, type_, witnesses, captures) =>
+      self.lower_captured_direct_call(
+        function, type_, witnesses, captures, lowered_arguments,
+      )
+    JoinTarget(block, type_) =>
+      self.lower_join_call(block, type_, lowered_arguments)
     EvidenceApplied(Function(function, type_), type_arguments) =>
       match self.representation_worker(function, type_, type_arguments) {
         Some((worker, worker_type)) =>
@@ -102,6 +108,18 @@ fn FunctionLowerer::materialize_local(
       }
       Slot(destination, type_)
     }
+    DirectFunction(_, _, _, _) =>
+      raise invalid_runtime_anf_callable_disposition(
+        detail="a direct-only callable reached a first-class value boundary",
+      )
+    JoinTarget(_, _) =>
+      raise invalid_runtime_anf_callable_disposition(
+        detail="a join point reached a first-class value boundary",
+      )
+    ControlTransferred =>
+      raise invalid_runtime_anf_callable_disposition(
+        detail="terminated control flow reached value materialization",
+      )
     AdaptedCallable(adaptation) => self.materialize_callable_adapter(adaptation)
     EvidenceApplied(Function(function, type_), arguments) =>
       match self.representation_worker(function, type_, arguments) {
@@ -152,6 +170,41 @@ fn FunctionLowerer::materialize_local(
       )
     _ => value
   }
+}
+
+///|
+fn FunctionLowerer::lower_captured_direct_call(
+  self : FunctionLowerer,
+  function : @physical.FunctionId,
+  type_ : @anf.RuntimeType,
+  captured_witnesses : Array[@vmcfg.ValueId],
+  captured_values : Array[@vmcfg.ValueId],
+  arguments : Array[LocalValue],
+) -> LocalValue raise PhysicalLoweringError {
+  let (parameters, parameter_types, result_type) = function_type_parts(type_)
+  if !parameters.is_empty() {
+    raise invalid_runtime_anf_callable_disposition(
+      detail="a generic callable was classified as direct-only",
+    )
+  }
+  let argument_slots = captured_values +
+    self.adapt_call_arguments(arguments, parameter_types, self.substitutions)
+  let destination = self.fresh_optional_slot(result_type)
+  self.emit(
+    CallDirect(
+      function,
+      None,
+      captured_witnesses,
+      argument_slots,
+      destination.0,
+    ),
+  )
+  self.adapt_local_value_with_substitutions(
+    destination.1,
+    result_type,
+    self.substitutions.apply_type(self.image.runtime_types, result_type),
+    self.substitutions,
+  )
 }
 
 ///|

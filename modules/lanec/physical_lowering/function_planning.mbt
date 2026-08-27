@@ -276,7 +276,7 @@ fn ImageLowerer::lower_function(
     result_type,
     [],
     [],
-    None,
+    ClosureEnvironment(None),
     [],
     RuntimeSubstitution::new(),
   )
@@ -393,7 +393,7 @@ fn ImageLowerer::lower_lifted_function(
     result_type,
     plan.captured_parameters,
     plan.captures,
-    plan.environment_shape,
+    plan.capture_abi,
     plan.recursive_functions,
     plan.substitutions,
   )

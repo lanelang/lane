@@ -38,6 +38,7 @@ pub(all) suberror RuntimeAnfLoweringError {
   MissingDataConstructor(@buslane.DataConId)
   MissingFunctionOrigin
   InvalidRuntimeProjection(detail~ : String)
+  InvalidCallableDisposition(detail~ : String)
   ResidualPerform(@buslane.OperationId)
   ResidualHandle
 } derive(Debug, Eq)
@@ -95,7 +96,14 @@ pub(all) enum AnfAtom {
   Literal(@buslane.Literal)
   Ref(@buslane.ValueId)
   Temp(AnfTempId)
+  /// A retained top-level function or a lexical function that requires
+  /// first-class closure semantics.
   Function(AnfFunction)
+  /// A lexical function used only by saturated direct calls. Captures are
+  /// physical inputs rather than members of a closure environment.
+  DirectFunction(AnfFunction)
+  /// A saturated tail-only lexical function owned by its enclosing function.
+  JoinPoint(AnfFunction)
   EvidenceLambda(parameters~ : Array[RuntimeEvidenceParameter], body~ : AnfExpr)
 } derive(Debug, Eq)
 

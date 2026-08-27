@@ -742,12 +742,15 @@ fn local_value_type(value : LocalValue) -> @anf.RuntimeType? {
     | Global(InstanceGlobal(_, type_)) => Some(type_)
     Global(Intrinsic(contract)) => Some(contract.type_())
     RecursiveFunction(_, type_, _)
+    | DirectFunction(_, type_, _, _)
+    | JoinTarget(_, type_)
     | EvidenceAppliedCallable(_, type_, _)
     | EvidenceAppliedFunction(_, type_, _, _) => Some(type_)
     AdaptedCallable(adaptation)
     | EvidenceAppliedAdaptedCallable(adaptation, _) =>
       Some(adaptation.contract.target_type)
-    Global(UnitValue) | Unit | EvidenceApplied(_, _) => None
+    Global(UnitValue) | Unit | ControlTransferred | EvidenceApplied(_, _) =>
+      None
   }
 }
 

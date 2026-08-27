@@ -23,6 +23,7 @@ pub(all) suberror RuntimeAnfLoweringError {
   MissingDataConstructor(@buslane.DataConId)
   MissingFunctionOrigin
   InvalidRuntimeProjection(detail~ : String)
+  InvalidCallableDisposition(detail~ : String)
   ResidualPerform(@buslane.OperationId)
   ResidualHandle
 } derive(Eq, @debug.Debug)
@@ -48,6 +49,8 @@ pub(all) enum AnfAtom {
   Ref(@buslane.ValueId)
   Temp(AnfTempId)
   Function(AnfFunction)
+  DirectFunction(AnfFunction)
+  JoinPoint(AnfFunction)
   EvidenceLambda(parameters~ : Array[RuntimeEvidenceParameter], body~ : AnfExpr)
 } derive(Eq, @debug.Debug)
 pub fn AnfAtom::equal(Self, Self) -> Bool

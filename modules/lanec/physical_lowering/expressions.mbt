@@ -5,15 +5,37 @@ fn FunctionLowerer::lower_expr(
 ) -> LocalValue raise PhysicalLoweringError {
   match expression {
     Atom(atom) => self.lower_atom(atom)
+    Let(Value(id~, rhs=Atom(JoinPoint(function))), body) =>
+      self.lower_join_group([{ id, rhs: JoinPoint(function), }], body)
     Let(binding, body) => {
       let lowered = self.lower_rhs(binding.rhs())
+      if lowered is ControlTransferred {
+        return ControlTransferred
+      }
       match binding {
         Value(id~, ..) => self.bindings.push({ value: id, lowered, })
         Temp(temp~, ..) => self.temps.push({ temp, lowered, })
       }
       self.lower_expr(body)
     }
-    LetRec(bindings, body) => self.lower_recursive_group(bindings, body)
+    LetRec(bindings, body) => {
+      guard !bindings.is_empty() else {
+        raise invalid_runtime_anf_callable_disposition(
+          detail="an empty recursive callable group reached physical lowering",
+        )
+      }
+      let first = bindings[0]
+      match first.rhs {
+        Function(_) | EvidenceLambda(_) =>
+          self.lower_recursive_group(bindings, body)
+        DirectFunction(_) => self.lower_direct_recursive_group(bindings, body)
+        JoinPoint(_) => self.lower_join_group(bindings, body)
+        Literal(_) | Ref(_) | Temp(_) =>
+          raise invalid_runtime_anf_callable_disposition(
+            detail="a recursive group contains a non-callable binding",
+          )
+      }
+    }
   }
 }
 
@@ -40,6 +62,19 @@ fn FunctionLowerer::lower_rhs(
 }
 
 ///|
+fn FunctionLowerer::materialize_expression_result(
+  self : FunctionLowerer,
+  expression : @anf.AnfExpr,
+) -> LocalValue raise PhysicalLoweringError {
+  let result = self.lower_expr(expression)
+  if result is ControlTransferred {
+    result
+  } else {
+    self.materialize_local(result)
+  }
+}
+
+///|
 fn FunctionLowerer::lower_atom(
   self : FunctionLowerer,
   atom : @anf.AnfAtom,
@@ -49,6 +84,11 @@ fn FunctionLowerer::lower_atom(
     Ref(value) => self.find_value(value)
     Temp(temp) => self.find_temp(temp)
     Function(function) => self.lower_nested_function(function)
+    DirectFunction(function) => self.lower_nested_direct_function(function)
+    JoinPoint(_) =>
+      raise invalid_runtime_anf_callable_disposition(
+        detail="a join point escaped its lexical binding",
+      )
     EvidenceLambda(parameters~, body~) => {
       let function = match extract_top_function(body) {
         Some(function) => function

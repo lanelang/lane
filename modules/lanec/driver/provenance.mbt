@@ -3,6 +3,7 @@ priv struct ObservedAnfFunction {
   function : @anf.AnfFunctionId
   source : @buslane.ValueId?
   origin : @function_origin.FunctionOrigin
+  disposition : ExploreFunctionRole
 }
 
 ///|
@@ -74,7 +75,10 @@ fn ExploreFunctionGraphBuilder::observe_anf(
   for function in functions {
     self.nodes.push({
       function: { stage: Anf, index: function.function.value, },
-      roles: [self.semantic_role(function.source, function.origin)],
+      roles: [
+        self.semantic_role(function.source, function.origin),
+        function.disposition,
+      ],
     })
   }
 }
