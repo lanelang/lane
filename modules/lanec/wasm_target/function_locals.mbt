@@ -2,9 +2,13 @@
 priv struct FunctionLocalPlan {
   parameter_count : Int
   locals : Array[@wasm_types.ValueType]
+  slot_local_count : Int
+  control_local_count : Int
+  arc_local_count : Int
   transfer_locals : Array[Array[Int]]
   dispatcher_local : Int?
-  liveness_locals : Array[Int]
+  slot_cleanups : Array[@physical.Cleanup]
+  erased_liveness_locals : Array[Int]
 }
 
 ///|
@@ -67,19 +71,29 @@ fn plan_function_locals(
   } else {
     None
   }
-  let liveness_locals = Array::make(body.slots.length(), -1)
+  let erased_liveness_locals = Array::make(body.slots.length(), -1)
+  let mut erased_owned_count = 0
   for index, slot in body.slots {
-    if !(slot.cleanup is Trivial) {
-      liveness_locals[index] = parameter_count + locals.length()
+    if slot.cleanup is OwnedErased {
+      erased_liveness_locals[index] = parameter_count + locals.length()
       locals.push(I32)
+      erased_owned_count += 1
     }
   }
   {
     parameter_count,
     locals,
+    slot_local_count: body.slots.length(),
+    control_local_count: i32_pool.length() +
+    i64_pool.length() +
+    f32_pool.length() +
+    f64_pool.length() +
+    (if dispatcher_local is Some(_) { 1 } else { 0 }),
+    arc_local_count: erased_owned_count,
     transfer_locals,
     dispatcher_local,
-    liveness_locals,
+    slot_cleanups: body.slots.map(slot => slot.cleanup),
+    erased_liveness_locals,
   }
 }
 
@@ -106,16 +120,11 @@ fn FunctionLocalPlan::dispatcher_state_local(self : FunctionLocalPlan) -> Int {
 }
 
 ///|
-fn FunctionLocalPlan::liveness_local(
+fn FunctionLocalPlan::erased_liveness_local(
   self : FunctionLocalPlan,
   slot : @physical.SlotId,
-) -> Int? {
-  let local_index = self.liveness_locals[slot.value]
-  if local_index < 0 {
-    None
-  } else {
-    Some(local_index)
-  }
+) -> Int {
+  self.erased_liveness_locals[slot.value]
 }
 
 ///|
@@ -123,9 +132,9 @@ fn FunctionLocalPlan::mark_slot_live(
   self : FunctionLocalPlan,
   slot : @physical.SlotId,
 ) -> Array[@wasm_types.Instruction] {
-  match self.liveness_local(slot) {
-    None => []
-    Some(local_index) => [I32Const(1), LocalSet(local_index)]
+  match self.slot_cleanups[slot.value] {
+    Trivial | OwnedRef | OwnedCallable => []
+    OwnedErased => [I32Const(1), LocalSet(self.erased_liveness_local(slot))]
   }
 }
 
@@ -134,8 +143,36 @@ fn FunctionLocalPlan::mark_slot_dead(
   self : FunctionLocalPlan,
   slot : @physical.SlotId,
 ) -> Array[@wasm_types.Instruction] {
-  match self.liveness_local(slot) {
-    None => []
-    Some(local_index) => [I32Const(0), LocalSet(local_index)]
+  match self.slot_cleanups[slot.value] {
+    Trivial => []
+    OwnedRef => [I32Const(0), LocalSet(self.slot_local(slot))]
+    OwnedCallable => [I64Const(0L), LocalSet(self.slot_local(slot))]
+    OwnedErased => [I32Const(0), LocalSet(self.erased_liveness_local(slot))]
+  }
+}
+
+///|
+fn FunctionLocalPlan::mark_slot_dead_after_definition(
+  self : FunctionLocalPlan,
+  source : @physical.SlotId,
+  destination : @physical.SlotId,
+) -> Array[@wasm_types.Instruction] {
+  if source == destination {
+    []
+  } else {
+    self.mark_slot_dead(source)
+  }
+}
+
+///|
+fn FunctionLocalPlan::test_slot_live(
+  self : FunctionLocalPlan,
+  slot : @physical.SlotId,
+) -> Array[@wasm_types.Instruction] {
+  match self.slot_cleanups[slot.value] {
+    Trivial => abort("trivial slot does not require a liveness test")
+    OwnedRef => [LocalGet(self.slot_local(slot))]
+    OwnedCallable => [LocalGet(self.slot_local(slot)), I64Eqz, I32Eqz]
+    OwnedErased => [LocalGet(self.erased_liveness_local(slot))]
   }
 }

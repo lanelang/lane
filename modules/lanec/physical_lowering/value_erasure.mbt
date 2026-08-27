@@ -8,6 +8,12 @@ fn FunctionLowerer::find_witness(
       return binding.value
     }
   }
+  if self.substitutions.argument(parameter) is Some(argument) {
+    let parameter = self.image.metadata
+      .evidence_parameter(parameter)
+      .unwrap_or({ id: parameter, arity: 0, })
+    return self.runtime_evidence(parameter, argument)
+  }
   let requested = self.substitutions.apply_evidence(Parameter(parameter))
   for binding in self.witnesses {
     if self.substitutions.apply_evidence(Parameter(binding.parameter)) ==

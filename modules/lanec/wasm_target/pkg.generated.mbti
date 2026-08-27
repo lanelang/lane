@@ -52,6 +52,32 @@ pub(all) struct WasmCompileObservation {
 } derive(@debug.Debug)
 pub fn WasmCompileObservation::to_repr(Self) -> @debug.Repr
 
+pub(all) enum WasmExpansionCategory {
+  FunctionAbi
+  PhysicalStorage
+  PhysicalOpcode(WasmPhysicalOpcodeFamily)
+  ControlFlow
+  RuntimeGuard
+  ArcUnwind
+  RuntimeImportAdapter
+  RuntimeSupport
+  HelperSupport
+  EntryLifecycle
+} derive(Eq, @debug.Debug)
+pub fn WasmExpansionCategory::equal(Self, Self) -> Bool
+pub fn WasmExpansionCategory::key(Self) -> String
+pub fn WasmExpansionCategory::not_equal(Self, Self) -> Bool
+pub fn WasmExpansionCategory::to_repr(Self) -> @debug.Repr
+
+pub(all) struct WasmExpansionScale {
+  category : WasmExpansionCategory
+  mut instruction_count : Int
+  mut local_count : Int
+} derive(Eq, @debug.Debug)
+pub fn WasmExpansionScale::equal(Self, Self) -> Bool
+pub fn WasmExpansionScale::not_equal(Self, Self) -> Bool
+pub fn WasmExpansionScale::to_repr(Self) -> @debug.Repr
+
 pub(all) enum WasmFunctionOrigin {
   InternalRuntimeImport(@wasm_abi.InternalRuntimeFunction)
   PhysicalRuntimeImport(function~ : @physical.FunctionId, symbol~ : String)
@@ -77,12 +103,14 @@ pub(all) struct WasmFunctionScale {
   index : Int
   instruction_count : Int
   local_count : Int
+  expansions : Array[WasmExpansionScale]
 } derive(Eq, @debug.Debug)
 pub fn WasmFunctionScale::equal(Self, Self) -> Bool
 pub fn WasmFunctionScale::not_equal(Self, Self) -> Bool
 pub fn WasmFunctionScale::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WasmHelperFunctionRole {
+  CallableAbiGuard
   NoopErased
   RetainReferenceErased
   ReleaseReferenceErased
@@ -103,11 +131,28 @@ pub(all) struct WasmModuleScale {
   instruction_count : Int
   local_count : Int
   table_entry_count : Int
+  if_count : Int
+  unreachable_count : Int
+  expansions : Array[WasmExpansionScale]
   functions : Array[WasmFunctionScale]
 } derive(Eq, @debug.Debug)
 pub fn WasmModuleScale::equal(Self, Self) -> Bool
 pub fn WasmModuleScale::not_equal(Self, Self) -> Bool
 pub fn WasmModuleScale::to_repr(Self) -> @debug.Repr
+
+pub(all) enum WasmPhysicalOpcodeFamily {
+  Ownership
+  Callable
+  Object
+  ByteSequence
+  Scalar
+  Erasure
+  Global
+  ControlTransfer
+} derive(Eq, @debug.Debug)
+pub fn WasmPhysicalOpcodeFamily::equal(Self, Self) -> Bool
+pub fn WasmPhysicalOpcodeFamily::not_equal(Self, Self) -> Bool
+pub fn WasmPhysicalOpcodeFamily::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WasmRuntimeFunctionRole {
   Allocate

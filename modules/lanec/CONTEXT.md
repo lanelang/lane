@@ -394,10 +394,12 @@ of the lowered program.
 _Avoid_: planner sidecar, rendered-label identity, scale metric as semantic fact
 
 **Representation Specialization**:
-An optional program rewrite that clones one generic definition for a closed
-canonical runtime ABI and rewrites actual calls to that worker. Its analyses
-and work queue are private. Deleting the pass preserves valid-program lowering
-and observable behavior through the Canonical Generic ABI.
+An optional rewrite that clones one generic definition for each closed direct
+evidence-application ABI and rewrites those calls to the interned worker. Its
+candidate facts, substitutions, recursion ancestry, and worker table are
+private to Physical Lowering. Callable flow through first-class values belongs
+to VM CFG Callable-Flow Analysis. Deleting the rewrite preserves valid-program
+lowering and observable behavior through the Canonical Generic ABI.
 _Avoid_: correctness boundary, consumer-visible demand plan, mandatory monomorphization
 
 **Generic Nominal Data Schema**:
@@ -463,3 +465,20 @@ The boundary that produces a complete Physical Program only after ownership,
 physical-slot, callable-ABI, and semantic verification succeed. The WebAssembly
 emitter is its only consumer.
 _Avoid_: partially valid program, persisted VM image, backend-specific repair
+
+**Wasm Expansion Accounting**:
+The Wasm emission owner's exact attribution of every emitted instruction and
+local to function ABI setup, physical storage, a physical opcode family,
+control flow, runtime guards, ARC unwinding, runtime imports, runtime support,
+helpers, or entry lifecycle. Each emitted defined function must account for its
+complete code and locals before it enters the Wasm module. Explore aggregates
+these owned facts; it does not infer them from rendered WAT.
+_Avoid_: WAT parsing, sampled costs, heuristic attribution
+
+**Callable ABI Guard Helper**:
+The single private Wasm helper that validates the dynamic callable-table target
+and complete Callable ABI compatibility before an indirect call transfers any
+owner. Its compatibility matrix is produced from the finalized callable ABI
+catalog. Call sites provide the packed callable and expected ABI identity; they
+do not reproduce the guard policy.
+_Avoid_: per-call inlined ABI policy, Wasm value-type equality

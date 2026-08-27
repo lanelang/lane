@@ -90,7 +90,7 @@ fn compile_or_raise(
     match catalog_entry.declaration {
       Import(_) => emitter.append_import(catalog_entry)
       Defined => {
-        let code = match catalog_entry.origin {
+        let compiled = match catalog_entry.origin {
           PhysicalFunction(function~) => {
             guard image.functions[function.value - 1] is PhysicalBody(body) else {
               raise InvalidFunctionCatalog(
@@ -111,28 +111,48 @@ fn compile_or_raise(
                 detail="runtime adapter role does not name a runtime import",
               )
             }
-            compile_runtime_import_adapter(
-              import_,
-              @physical.runtime_import_callable_abi(import_),
-              function_catalog.physical_import(function),
-              function_catalog,
+            account_whole_function(
+              compile_runtime_import_adapter(
+                import_,
+                @physical.runtime_import_callable_abi(import_),
+                function_catalog.physical_import(function),
+                function_catalog,
+              ),
+              RuntimeImportAdapter,
             )
           }
           RuntimeFunction(role) =>
-            compile_runtime_function(role, function_catalog, static_image)
+            account_whole_function(
+              compile_runtime_function(role, function_catalog, static_image),
+              RuntimeSupport,
+            )
           HelperFunction(role) =>
-            compile_helper_function(role, static_image, function_catalog)
+            account_whole_function(
+              compile_helper_function(role, static_image, function_catalog),
+              if role is CallableAbiGuard {
+                RuntimeGuard
+              } else {
+                HelperSupport
+              },
+            )
           EntryWrapper =>
-            {
-              locals: [],
-              body: compile_entry_lifecycle(image, function_catalog),
-            }
+            account_whole_function(
+              {
+                locals: [],
+                body: compile_entry_lifecycle(image, function_catalog),
+              },
+              EntryLifecycle,
+            )
           InternalRuntimeImport(_) | PhysicalRuntimeImport(_) =>
             raise InvalidFunctionCatalog(
               detail="catalog import was classified as a definition",
             )
         }
-        emitter.append_defined(catalog_entry, code)
+        emitter.append_defined(
+          catalog_entry,
+          compiled.code,
+          compiled.expansions,
+        )
       }
     }
   }
@@ -245,7 +265,7 @@ fn compile_body(
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
   function_catalog : WasmFunctionCatalog,
-) -> @wasm_types.FunctionCode raise WasmCompileError {
+) -> CompiledWasmFunction raise WasmCompileError {
   let parameter_count = 1 +
     body.inputs.witnesses.length() +
     body.inputs.user_parameters.length()
@@ -262,6 +282,7 @@ fn compile_body(
   let locals = plan_function_locals(
     body, parameter_count, uses_cfg, use_dispatcher,
   )
+  let expansions : Array[WasmExpansionScale] = []
   let context : FunctionCompilationContext = {
     function_id,
     locals,
@@ -269,6 +290,7 @@ fn compile_body(
     wasm_module,
     static_image,
     function_catalog,
+    expansions,
   }
   let instructions : Array[@wasm_types.Instruction] = []
   let needs_frame_cleanup = body.slots.any(fn(slot) {
@@ -292,35 +314,86 @@ fn compile_body(
     instructions.append(context.mark_slot_live(slot))
     parameter_index += 1
   }
-  let guarded_body : Array[@wasm_types.Instruction] = call_depth_prologue()
+  add_expansion(
+    expansions,
+    FunctionAbi,
+    wasm_instruction_array_size(instructions),
+    0,
+  )
+  add_expansion(expansions, PhysicalStorage, 0, locals.slot_local_count)
+  add_expansion(expansions, ControlFlow, 0, locals.control_local_count)
+  add_expansion(expansions, ArcUnwind, 0, locals.arc_local_count)
+  let prologue = call_depth_prologue()
+  add_expansion(
+    expansions,
+    RuntimeGuard,
+    wasm_instruction_array_size(prologue),
+    0,
+  )
+  let guarded_body : Array[@wasm_types.Instruction] = prologue
+  let source_instruction_count_before = expansion_instruction_count(expansions)
+  let compiled_control : Array[@wasm_types.Instruction] = []
   if structured is Some(sequence) {
-    guarded_body.append(compile_structured_cfg(context, sequence))
+    compiled_control.append(compile_structured_cfg(context, sequence))
   } else if use_balanced_dispatcher {
-    guarded_body.push(compile_balanced_dispatcher(context))
+    compiled_control.push(compile_balanced_dispatcher(context))
   } else if use_dispatcher {
-    guarded_body.push(compile_dispatcher(context))
+    compiled_control.push(compile_dispatcher(context))
   } else {
     for instruction in body.blocks[0].instructions {
-      guarded_body.append(context.compile_instruction(instruction))
+      compiled_control.append(context.compile_instruction(instruction))
     }
-    guarded_body.append(context.compile_terminator(body.blocks[0].terminator))
-  }
-  instructions.push(
-    Block(Empty, [TryTable(Empty, [Catch(0, 0)], guarded_body), Unreachable]),
-  )
-  if needs_frame_cleanup {
-    instructions.append(
-      compile_frame_cleanup(locals, body.slots, wasm_module, function_catalog),
+    compiled_control.append(
+      context.compile_terminator(body.blocks[0].terminator),
     )
   }
-  instructions.append([
-    GlobalGet(call_depth_global_index),
-    I32Const(1),
-    I32Sub,
-    GlobalSet(call_depth_global_index),
-    Throw(0),
-  ])
-  { locals: locals.locals, body: instructions, }
+  let source_instruction_count = expansion_instruction_count(expansions) -
+    source_instruction_count_before
+  add_expansion(
+    expansions,
+    ControlFlow,
+    wasm_instruction_array_size(compiled_control) - source_instruction_count,
+    0,
+  )
+  guarded_body.append(compiled_control)
+  if needs_frame_cleanup {
+    let wrapper : Array[@wasm_types.Instruction] = [
+      Block(Empty, [TryTable(Empty, [Catch(0, 0)], guarded_body), Unreachable]),
+    ]
+    instructions.append(wrapper)
+    add_expansion(
+      expansions,
+      ArcUnwind,
+      wasm_instruction_array_size(wrapper) -
+      wasm_instruction_array_size(guarded_body),
+      0,
+    )
+    let cleanup = compile_frame_cleanup(
+      locals,
+      body.slots,
+      wasm_module,
+      function_catalog,
+    )
+    instructions.append(cleanup)
+    let rethrow : Array[@wasm_types.Instruction] = [
+      GlobalGet(call_depth_global_index),
+      I32Const(1),
+      I32Sub,
+      GlobalSet(call_depth_global_index),
+      Throw(0),
+    ]
+    instructions.append(rethrow)
+    add_expansion(
+      expansions,
+      ArcUnwind,
+      wasm_instruction_array_size(cleanup) +
+      wasm_instruction_array_size(rethrow),
+      0,
+    )
+  } else {
+    instructions.append(guarded_body)
+  }
+  { code: { locals: locals.locals, body: instructions, }, expansions, }
 }
 
 ///|

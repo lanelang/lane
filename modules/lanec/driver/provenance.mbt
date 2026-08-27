@@ -120,7 +120,8 @@ fn @physical_lowering.PhysicalFunctionOrigin::anf_function(
   match self {
     TopLevelFunction(function~, ..)
     | LiftedFunction(function~, ..)
-    | LiftedRecursiveFunction(function~, ..) => Some(function)
+    | LiftedRecursiveFunction(function~, ..)
+    | RepresentationWorker(function~, ..) => Some(function)
     _ => None
   }
 }
@@ -134,6 +135,7 @@ fn ExploreFunctionGraphBuilder::physical_role(
     TopLevelFunction(source~, ..)
     | LiftedFunction(source~, ..)
     | LiftedRecursiveFunction(source~, ..) => self.source_role(source)
+    RepresentationWorker(..) => RepresentationWorker
     Initializer(source~) =>
       Initializer(value=source.index, name=self.source_name(source))
     InitializerOrchestrator => InitializerOrchestrator
@@ -215,6 +217,8 @@ fn wasm_helper_role(
   role : @wasm_compiler.WasmHelperFunctionRole,
 ) -> ExploreFunctionRole {
   match role {
+    CallableAbiGuard =>
+      WasmHelperFunction(name="callable ABI guard", ordinal=None)
     NoopErased => WasmHelperFunction(name="noop erased", ordinal=None)
     RetainReferenceErased =>
       WasmHelperFunction(name="retain reference erased", ordinal=None)

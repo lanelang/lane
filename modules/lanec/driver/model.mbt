@@ -73,6 +73,10 @@ pub(all) enum ExploreMetricId {
   ReleaseCount
   LocalCount
   TableEntryCount
+  WasmIfCount
+  WasmUnreachableCount
+  WasmExpansionInstructionCount(String)
+  WasmExpansionLocalCount(String)
 } derive(Debug, Eq)
 
 ///|
@@ -123,6 +127,7 @@ pub(all) enum ExploreFunctionRole {
   Initializer(value~ : Int, name~ : String?)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
+  RepresentationWorker
   CallableAdapter
   LayoutConstructor
   RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
@@ -491,6 +496,11 @@ pub fn ExploreMetricId::key(self : ExploreMetricId) -> String {
     ReleaseCount => "releaseCount"
     LocalCount => "localCount"
     TableEntryCount => "tableEntryCount"
+    WasmIfCount => "wasmIfCount"
+    WasmUnreachableCount => "wasmUnreachableCount"
+    WasmExpansionInstructionCount(category) =>
+      "wasmExpansion.\{category}.instructionCount"
+    WasmExpansionLocalCount(category) => "wasmExpansion.\{category}.localCount"
   }
 }
 
@@ -528,5 +538,9 @@ pub fn ExploreMetricId::title(self : ExploreMetricId) -> String {
     ReleaseCount => "Releases"
     LocalCount => "Wasm locals"
     TableEntryCount => "Table entries"
+    WasmIfCount => "Wasm if instructions"
+    WasmUnreachableCount => "Wasm unreachable instructions"
+    WasmExpansionInstructionCount(category) => "Wasm \{category} instructions"
+    WasmExpansionLocalCount(category) => "Wasm \{category} locals"
   }
 }

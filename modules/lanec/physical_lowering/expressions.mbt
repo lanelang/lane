@@ -78,16 +78,14 @@ fn FunctionLowerer::lower_evidence_apply(
       EvidenceApplied(global, applied + arguments)
     EvidenceAppliedCallable(callable, type_, applied) =>
       EvidenceAppliedCallable(callable, type_, applied + arguments)
+    EvidenceAppliedFunction(function, type_, environment, applied) =>
+      EvidenceAppliedFunction(function, type_, environment, applied + arguments)
     AdaptedCallable(adaptation) =>
       EvidenceAppliedAdaptedCallable(adaptation, arguments)
     EvidenceAppliedAdaptedCallable(adaptation, applied) =>
       EvidenceAppliedAdaptedCallable(adaptation, applied + arguments)
-    RecursiveFunction(_, _, _) as recursive => {
-      guard self.materialize_local(recursive) is Slot(callable, type_) else {
-        abort("recursive callable was not materialized")
-      }
-      EvidenceAppliedCallable(callable, type_, arguments)
-    }
+    RecursiveFunction(function, type_, environment) =>
+      EvidenceAppliedFunction(function, type_, environment, arguments)
     _ =>
       raise InvalidTypeApplication(
         detail="type application target is not a generic callable",

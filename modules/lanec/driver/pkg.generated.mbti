@@ -82,6 +82,7 @@ pub(all) enum ExploreFunctionRole {
   Initializer(value~ : Int, name~ : String?)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
+  RepresentationWorker
   CallableAdapter
   LayoutConstructor
   RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
@@ -147,6 +148,10 @@ pub(all) enum ExploreMetricId {
   ReleaseCount
   LocalCount
   TableEntryCount
+  WasmIfCount
+  WasmUnreachableCount
+  WasmExpansionInstructionCount(String)
+  WasmExpansionLocalCount(String)
 } derive(Eq, @debug.Debug)
 pub fn ExploreMetricId::equal(Self, Self) -> Bool
 pub fn ExploreMetricId::key(Self) -> String

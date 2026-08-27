@@ -104,6 +104,25 @@ fn contains_loop(instructions : Array[@wasm_types.Instruction]) -> Bool {
 }
 
 ///|
+fn contains_try_table(instructions : Array[@wasm_types.Instruction]) -> Bool {
+  for instruction in instructions {
+    match instruction {
+      TryTable(_, _, _) => return true
+      Block(_, body) | Loop(_, body) =>
+        if contains_try_table(body) {
+          return true
+        }
+      If(_, consequent, alternate) =>
+        if contains_try_table(consequent) || contains_try_table(alternate) {
+          return true
+        }
+      _ => ()
+    }
+  }
+  false
+}
+
+///|
 test "control depth follows the structured instruction tree" {
   let module_ = @wasm_types.Module::simple(
     [],
@@ -567,13 +586,36 @@ test "packed callables execute through the canonical function table" {
     result=Value(I64, Trivial, ScalarValue),
     terminator=Return(Some({ value: 0, })),
   )
-  let wasm_module = match
-    compile(image([PhysicalBody(entry), PhysicalBody(identity)])) {
+  let observed = match
+    compile_observed(image([PhysicalBody(entry), PhysicalBody(identity)])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
+  let wasm_module = observed.module_
+  let abi_guards = observed.functions.filter(function => {
+    function.origin is HelperFunction(CallableAbiGuard)
+  })
+  guard abi_guards is [abi_guard] else {
+    fail("expected exactly one callable ABI guard helper")
+  }
+  let guard_scale = observed.scale.functions.filter(function => {
+    function.index == abi_guard.index
+  })
+  guard guard_scale is [guard_scale] else {
+    fail("expected one observed callable ABI guard")
+  }
+  debug_inspect(
+    guard_scale.expansions,
+    content="[{ category: RuntimeGuard, instruction_count: 24, local_count: 0 }]",
+  )
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+}
+
+///|
+test "trivial frames propagate fatal exceptions without a cleanup wrapper" {
+  let observed = compile_observed(image([PhysicalBody(body())])).unwrap()
+  assert_false(contains_try_table(observed.module_.codes[0].body))
 }
 
 ///|

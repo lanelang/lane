@@ -372,10 +372,13 @@ fn ImageLowerer::lower_lifted_function(
   self : ImageLowerer,
   plan : LiftedFunctionPlan,
 ) -> @vmcfg.FunctionBody raise PhysicalLoweringError {
+  let previous = self.active_specialization_ancestry.copy()
+  self.active_specialization_ancestry.clear()
+  self.active_specialization_ancestry.append(plan.specialization_ancestry)
   let (type_parameters, parameter_types, result_type) = function_type_parts(
     plan.type_,
   )
-  self.lower_function_body(
+  let body = self.lower_function_body(
     plan.function,
     type_parameters,
     parameter_types,
@@ -386,6 +389,9 @@ fn ImageLowerer::lower_lifted_function(
     plan.recursive_functions,
     plan.substitutions,
   )
+  self.active_specialization_ancestry.clear()
+  self.active_specialization_ancestry.append(previous)
+  body
 }
 
 ///|

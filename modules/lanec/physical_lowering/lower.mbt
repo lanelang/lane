@@ -11,9 +11,13 @@ priv struct ImageLowerer {
   layouts : Array[@physical.LayoutRecipe]
   object_shapes : Array[@physical.ObjectShape]
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
+  representation_workers : Array[RepresentationWorkerPlan]
+  representation_worker_candidates : Array[@anf.AnfFunctionId]
   callable_adapters : Array[CallableAdapterPlan]
   callable_abi_graph : @physical.CallableAbiGraph
   synthetic_parameters : Array[@anf.RuntimeEvidenceParameter]
+  active_specialization_ancestry : Array[@physical.FunctionId]
+  representation_specialization_enabled : Bool
 }
 
 ///|
@@ -50,7 +54,22 @@ pub fn lower_executable_program_to_physical_observed(
   executable : @executable.ExecutableProgram,
   observe : (PhysicalLoweringStage) -> Unit,
 ) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
-  Ok(lower_executable_program_to_physical_or_raise(executable, observe)) catch {
+  lower_executable_program_to_physical_observed_with_specialization(
+    executable, observe, true,
+  )
+}
+
+///|
+fn lower_executable_program_to_physical_observed_with_specialization(
+  executable : @executable.ExecutableProgram,
+  observe : (PhysicalLoweringStage) -> Unit,
+  representation_specialization_enabled : Bool,
+) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
+  Ok(
+    lower_executable_program_to_physical_or_raise(
+      executable, observe, representation_specialization_enabled,
+    ),
+  ) catch {
     error => Err(error)
   }
 }
@@ -59,6 +78,7 @@ pub fn lower_executable_program_to_physical_observed(
 fn lower_executable_program_to_physical_or_raise(
   executable : @executable.ExecutableProgram,
   observe : (PhysicalLoweringStage) -> Unit,
+  representation_specialization_enabled : Bool,
 ) -> @physical.PhysicalProgram raise PhysicalLoweringError {
   let program = executable.program
   let externals = executable.externals
@@ -73,6 +93,11 @@ fn lower_executable_program_to_physical_or_raise(
   }
   observe(Anf(anf))
   let metadata = anf.metadata()
+  let representation_worker_candidates = if representation_specialization_enabled {
+    representation_specialization_candidates(anf)
+  } else {
+    []
+  }
   let lowerer : ImageLowerer = {
     metadata,
     runtime_types: RuntimeTypeArena::from_metadata(metadata),
@@ -85,9 +110,13 @@ fn lower_executable_program_to_physical_or_raise(
     layouts: [],
     object_shapes: [],
     intrinsic_wrappers: [],
+    representation_workers: [],
+    representation_worker_candidates,
     callable_adapters: [],
     callable_abi_graph: @physical.CallableAbiGraph::new(),
     synthetic_parameters: [],
+    active_specialization_ancestry: [],
+    representation_specialization_enabled,
   }
   let initializer = lowerer.plan(anf)
   let entry_function = match lowerer.find_global(entry.value) {
@@ -109,6 +138,8 @@ fn lower_executable_program_to_physical_or_raise(
         functions.push(Body(lowerer.lower_lifted_function(plan)))
       IntrinsicWrapper(plan) =>
         functions.push(Body(lowerer.lower_intrinsic_wrapper(plan)))
+      RepresentationWorker(plan) =>
+        functions.push(Body(lowerer.lower_representation_worker(plan)))
       CallableAdapter(plan) =>
         functions.push(Body(lowerer.lower_callable_adapter(plan)))
       LayoutConstructor(plan) =>

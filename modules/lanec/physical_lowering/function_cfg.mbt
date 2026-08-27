@@ -85,7 +85,11 @@ fn ImageLowerer::lower_function_body(
   }
   let parameter_slots : Array[@vmcfg.ValueId] = []
   for index, parameter in function.parameters {
-    let type_ = parameter_types[index]
+    let type_ = if self.active_specialization_ancestry.is_empty() {
+      parameter_types[index]
+    } else {
+      substitutions.apply_type(self.runtime_types, parameter_types[index])
+    }
     if self.runtime_type(type_) is Concrete(Unit) {
       lowerer.bindings.push({ value: parameter, lowered: Unit, })
     } else {
@@ -94,7 +98,22 @@ fn ImageLowerer::lower_function_body(
       lowerer.bindings.push({ value: parameter, lowered: Slot(slot, type_), })
     }
   }
-  let result = lowerer.materialize_local(lowerer.lower_expr(function.body))
+  let lowered_result = lowerer.lower_expr(function.body)
+  let result_type = if self.active_specialization_ancestry.is_empty() {
+    result_type
+  } else {
+    substitutions.apply_type(self.runtime_types, result_type)
+  }
+  let result = if self.active_specialization_ancestry.is_empty() {
+    lowerer.materialize_local(lowered_result)
+  } else {
+    let source_type = local_value_type(lowered_result).unwrap_or(result_type)
+    lowerer.materialize_local(
+      lowerer.adapt_local_value_with_substitutions(
+        lowered_result, source_type, result_type, substitutions,
+      ),
+    )
+  }
   let terminator : @vmcfg.Terminator = match lowerer.take_tail_call(result) {
     Some(terminator) => terminator
     None =>
@@ -105,6 +124,7 @@ fn ImageLowerer::lower_function_body(
         | RecursiveFunction(_, _, _)
         | EvidenceApplied(_, _)
         | EvidenceAppliedCallable(_, _, _)
+        | EvidenceAppliedFunction(_, _, _, _)
         | AdaptedCallable(_)
         | EvidenceAppliedAdaptedCallable(_, _) =>
           raise UnsupportedExpression(

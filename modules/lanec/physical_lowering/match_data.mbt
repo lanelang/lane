@@ -183,6 +183,7 @@ fn FunctionLowerer::lower_data_alternative(
     | RecursiveFunction(_, _, _)
     | EvidenceApplied(_, _)
     | EvidenceAppliedCallable(_, _, _)
+    | EvidenceAppliedFunction(_, _, _, _)
     | AdaptedCallable(_)
     | EvidenceAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(
@@ -340,6 +341,7 @@ fn FunctionLowerer::lower_bool_alternative(
     | RecursiveFunction(_, _, _)
     | EvidenceApplied(_, _)
     | EvidenceAppliedCallable(_, _, _)
+    | EvidenceAppliedFunction(_, _, _, _)
     | AdaptedCallable(_)
     | EvidenceAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(

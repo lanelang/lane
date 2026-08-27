@@ -20,6 +20,7 @@ pub(all) enum WasmRuntimeFunctionRole {
 
 ///|
 pub(all) enum WasmHelperFunctionRole {
+  CallableAbiGuard
   NoopErased
   RetainReferenceErased
   ReleaseReferenceErased
@@ -105,6 +106,7 @@ fn WasmFunctionEmitter::append_defined(
   self : WasmFunctionEmitter,
   entry : WasmFunctionCatalogEntry,
   code : @wasm_types.FunctionCode,
+  expansions : Array[WasmExpansionScale],
 ) -> Unit raise WasmCompileError {
   if entry.declaration is Import(_) {
     raise InvalidFunctionCatalog(detail="catalog import emitted as definition")
@@ -116,11 +118,26 @@ fn WasmFunctionEmitter::append_defined(
   }
   self.module_.funcs.push(entry.type_index)
   self.module_.codes.push(code)
+  let instruction_count = wasm_instruction_array_size(code.body)
+  let local_count = code.locals.length()
+  if expansions.fold(init=0, fn(total, expansion) {
+      total + expansion.instruction_count
+    }) !=
+    instruction_count ||
+    expansions.fold(init=0, fn(total, expansion) {
+      total + expansion.local_count
+    }) !=
+    local_count {
+    raise InvalidFunctionCatalog(
+      detail="Wasm expansion accounting does not cover the emitted function",
+    )
+  }
   if self.record_scale {
     self.function_scales.push({
       index: entry.handle.index,
-      instruction_count: wasm_instruction_array_size(code.body),
-      local_count: code.locals.length(),
+      instruction_count,
+      local_count,
+      expansions,
     })
   }
   self.emitted_function_count += 1

@@ -446,7 +446,8 @@ fn LoadedImage::create_instance_backend(
       @wasmoon_wast.register_instance_funcrefs_for_jit(
         jit_module, instance, store,
       )
-      jit_module.alloc_wasm_stack(16L * 1024L * 1024L) |> ignore
+      jit_module.configure_native_fiber_stack_size(16L * 1024L * 1024L)
+      |> ignore
       guard @wasmoon_wast.init_jit_memories_from_store(
           instance, store, jit_module,
         )

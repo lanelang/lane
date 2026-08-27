@@ -16,9 +16,29 @@ fn FunctionLowerer::lower_call(
     RecursiveFunction(function, type_, environment) =>
       self.lower_direct_call(function, type_, lowered_arguments, environment)
     EvidenceApplied(Function(function, type_), type_arguments) =>
-      self.lower_generic_direct_call(
-        function, type_, type_arguments, lowered_arguments,
-      )
+      match self.representation_worker(function, type_, type_arguments) {
+        Some((worker, worker_type)) =>
+          self.lower_direct_call(worker, worker_type, lowered_arguments, None)
+        None =>
+          self.lower_generic_direct_call(
+            function,
+            type_,
+            type_arguments,
+            lowered_arguments,
+            None,
+          )
+      }
+    EvidenceAppliedFunction(function, type_, environment, type_arguments) =>
+      match self.representation_worker(function, type_, type_arguments) {
+        Some((worker, worker_type)) =>
+          self.lower_direct_call(
+            worker, worker_type, lowered_arguments, environment,
+          )
+        None =>
+          self.lower_generic_direct_call(
+            function, type_, type_arguments, lowered_arguments, environment,
+          )
+      }
     EvidenceAppliedCallable(callable, type_, type_arguments) =>
       self.lower_generic_value_call(
         callable, type_, type_arguments, lowered_arguments,
@@ -83,13 +103,36 @@ fn FunctionLowerer::materialize_local(
       Slot(destination, type_)
     }
     AdaptedCallable(adaptation) => self.materialize_callable_adapter(adaptation)
-    EvidenceApplied(Function(function, type_), arguments) => {
-      let source = self.fresh_slot(type_)
-      self.emit(ConstFunction(source, function))
-      self.materialize_local(
-        self.materialize_applied_callable(source, type_, arguments),
-      )
-    }
+    EvidenceApplied(Function(function, type_), arguments) =>
+      match self.representation_worker(function, type_, arguments) {
+        Some((worker, worker_type)) =>
+          self.materialize_local(RecursiveFunction(worker, worker_type, None))
+        None => {
+          let source = self.fresh_slot(type_)
+          self.emit(ConstFunction(source, function))
+          self.materialize_local(
+            self.materialize_applied_callable(source, type_, arguments),
+          )
+        }
+      }
+    EvidenceAppliedFunction(function, type_, environment, arguments) =>
+      match self.representation_worker(function, type_, arguments) {
+        Some((worker, worker_type)) =>
+          self.materialize_local(
+            RecursiveFunction(worker, worker_type, environment),
+          )
+        None => {
+          guard self.materialize_local(
+              RecursiveFunction(function, type_, environment),
+            )
+            is Slot(source, _) else {
+            abort("known generic callable was not materialized")
+          }
+          self.materialize_local(
+            self.materialize_applied_callable(source, type_, arguments),
+          )
+        }
+      }
     EvidenceAppliedCallable(callable, type_, arguments) =>
       self.materialize_local(
         self.materialize_applied_callable(callable, type_, arguments),
@@ -181,6 +224,7 @@ fn FunctionLowerer::lower_generic_direct_call(
   type_ : @anf.RuntimeType,
   arguments : Array[@anf.RuntimeArgument],
   values : Array[LocalValue],
+  environment : @vmcfg.ValueId?,
 ) -> LocalValue raise PhysicalLoweringError {
   let (parameters, formal_parameters, formal_result) = function_type_parts(
     type_,
@@ -227,13 +271,25 @@ fn FunctionLowerer::lower_generic_direct_call(
     let witness = self.layout_witness(runtime_type_evidence(actual_result))
     let erased_result = self.fresh_erased_slot(witness, Owned)
     self.emit(
-      CallDirect(function, None, witnesses, argument_slots, Some(erased_result)),
+      CallDirect(
+        function,
+        environment,
+        witnesses,
+        argument_slots,
+        Some(erased_result),
+      ),
     )
     self.unerase_value(erased_result, actual_result, substitutions)
   } else {
     let destination = self.fresh_optional_slot(formal_result)
     self.emit(
-      CallDirect(function, None, witnesses, argument_slots, destination.0),
+      CallDirect(
+        function,
+        environment,
+        witnesses,
+        argument_slots,
+        destination.0,
+      ),
     )
     self.adapt_local_value_with_substitutions(
       destination.1,

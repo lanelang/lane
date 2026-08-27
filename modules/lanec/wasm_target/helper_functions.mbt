@@ -7,6 +7,31 @@ fn compile_helper_function(
   let retain_ref = catalog.runtime(RetainReference)
   let release_ref = catalog.runtime(ReleaseReference)
   let body : Array[@wasm_types.Instruction] = match role {
+    CallableAbiGuard =>
+      [
+        LocalGet(0),
+        I32WrapI64,
+        I32Eqz,
+        LocalGet(0),
+        I32WrapI64,
+        I32Const(static_image.callable_table_size),
+        I32GeU,
+        I32Or,
+        If(Empty, [Unreachable], []),
+        I32Const(static_image.callable_abi_table_base),
+        LocalGet(0),
+        I32WrapI64,
+        I32Const(static_image.callable_abis.length()),
+        I32Mul,
+        LocalGet(1),
+        I32Add,
+        I32Const(2),
+        I32Shl,
+        I32Add,
+        I32Load(0, 2, 0L),
+        I32Eqz,
+        If(Empty, [Unreachable], []),
+      ]
     NoopErased | DestroyNoop => []
     RetainReferenceErased => [LocalGet(0), I32WrapI64, retain_ref.call()]
     ReleaseReferenceErased => [LocalGet(0), I32WrapI64, release_ref.call()]

@@ -82,6 +82,24 @@ fn lower_test_executable_to_physical_observed(
 }
 
 ///|
+fn lower_test_executable_to_physical_without_representation_specialization(
+  program : @buslane.Program,
+  externals : @buslane_lowering.BuslaneExternalMap,
+  entry : @buslane_lowering.BuslaneEntry,
+) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
+  lower_executable_program_to_physical_observed_with_specialization(
+    {
+      program,
+      externals,
+      entry,
+      retained_values: test_retained_values(program),
+    },
+    _ => (),
+    false,
+  )
+}
+
+///|
 fn test_retained_values(program : @buslane.Program) -> Array[@buslane.ValueId] {
   let values = []
   for term in program.terms {
@@ -137,10 +155,14 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     layouts: [],
     object_shapes: [],
     intrinsic_wrappers: [],
+    representation_workers: [],
+    representation_worker_candidates: [],
     callable_adapters: [],
     callable_abi_graph: @physical.CallableAbiGraph::new(),
     data_families: [],
     synthetic_parameters: [],
+    active_specialization_ancestry: [],
+    representation_specialization_enabled: false,
   }
 }
 
@@ -1794,7 +1816,7 @@ test "generic identity calls cross explicit representation erasure bridges" {
 }
 
 ///|
-test "direct generic calls use the canonical generic worker ABI" {
+test "closed generic calls specialize without changing the canonical fallback" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let generic_type = @buslane.Type::Parameter(type_parameter)
@@ -1804,11 +1826,14 @@ test "direct generic calls use the canonical generic worker ABI" {
   )
   let parameter = metadata.define_value("value", Parameter, generic_type)
   let identity = metadata.define_value("identity", Function, identity_type)
+  let bool_type = @buslane.Type::Primitive(Bool)
   let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
+  let bool_result = metadata.define_value("bool_result", Local, bool_type)
   let result = metadata.define_value("result", Local, i64_type)
+  let second_result = metadata.define_value("second_result", Local, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -1832,18 +1857,59 @@ test "direct generic calls use the canonical generic worker ABI" {
           parameters: [],
           result_type: unit_type,
           body: Let(
-            result,
-            Call(TypeApply(Ref(identity), [TypeArgument(i64_type)]), [
-              Literal(I64(42L)),
+            bool_result,
+            Call(TypeApply(Ref(identity), [TypeArgument(bool_type)]), [
+              Literal(Bool(true)),
             ]),
-            Call(Ref(observe), [Ref(result)]),
+            Let(
+              result,
+              Call(TypeApply(Ref(identity), [TypeArgument(i64_type)]), [
+                Literal(I64(42L)),
+              ]),
+              Let(
+                second_result,
+                Call(TypeApply(Ref(identity), [TypeArgument(i64_type)]), [
+                  Ref(result),
+                ]),
+                Call(Ref(observe), [Ref(second_result)]),
+              ),
+            ),
           ),
         }),
       ),
     ],
   }
-  let image = match
-    lower_test_executable_to_physical(
+  let mut representation_worker_count = 0
+  let specialized_image = match
+    lower_test_executable_to_physical_observed(
+      program,
+      {
+        builtins: [],
+        runtime_imports: [
+          {
+            value: observe,
+            symbol: "lane.test.observe_canonical_generic",
+            signature: test_host_signature(observe_type),
+          },
+        ],
+      },
+      { module_path_text: "Main", name: "main", value: main, },
+      stage => {
+        if stage is InitialVmcfg(_, provenance) {
+          representation_worker_count = provenance.functions
+            .filter(item => {
+              item.origins.any(origin => origin is RepresentationWorker(..))
+            })
+            .length()
+        }
+      },
+    ) {
+    Ok(value) => value
+    Err(error) => fail("lowering failed: \{Repr(error)}")
+  }
+  assert_eq(representation_worker_count, 2)
+  let generic_image = match
+    lower_test_executable_to_physical_without_representation_specialization(
       program,
       {
         builtins: [],
@@ -1858,18 +1924,18 @@ test "direct generic calls use the canonical generic worker ABI" {
       { module_path_text: "Main", name: "main", value: main, },
     ) {
     Ok(value) => value
-    Err(error) => fail("lowering failed: \{Repr(error)}")
+    Err(error) => fail("generic lowering failed: \{Repr(error)}")
   }
-  let bodies = image.functions.filter_map(function => {
+  let generic_bodies = generic_image.functions.filter_map(function => {
     if function is PhysicalBody(body) {
       Some(body)
     } else {
       None
     }
   })
-  assert_eq(bodies.length(), 2)
+  assert_eq(generic_bodies.length(), 2)
   assert_true(
-    bodies.any(body => {
+    generic_bodies.any(body => {
       body.inputs.witnesses.length() == 1 &&
       body.inputs.user_parameters.length() == 1 &&
       body.result == Value(I64, OwnedErased, ErasedValue) &&
@@ -1877,10 +1943,45 @@ test "direct generic calls use the canonical generic worker ABI" {
     }),
   )
   assert_true(
-    bodies.any(body => {
+    generic_bodies.any(body => {
       contains_instruction(body, instruction => instruction is ConstLayout(_, _)) &&
+      contains_instruction(body, instruction => instruction is EraseI32(_, _)) &&
       contains_instruction(body, instruction => instruction is EraseI64(_, _)) &&
       contains_instruction(body, instruction => instruction is UneraseI64(_, _))
+    }),
+  )
+  let specialized_bodies = specialized_image.functions.filter_map(function => {
+    if function is PhysicalBody(body) {
+      Some(body)
+    } else {
+      None
+    }
+  })
+  assert_eq(specialized_bodies.length(), 3)
+  assert_true(
+    specialized_bodies.any(body => {
+      body.inputs.witnesses.is_empty() &&
+      body.inputs.user_parameters.length() == 1 &&
+      body.result == Value(I64, Trivial, ScalarValue) &&
+      body.blocks.all(block => block.instructions.is_empty())
+    }),
+  )
+  assert_true(
+    specialized_bodies.any(body => {
+      body.inputs.witnesses.is_empty() &&
+      body.inputs.user_parameters.length() == 1 &&
+      body.result == Value(I32, Trivial, ScalarValue) &&
+      body.blocks.all(block => block.instructions.is_empty())
+    }),
+  )
+  assert_false(
+    specialized_bodies.any(body => {
+      contains_instruction(body, instruction => {
+        instruction is EraseI32(_, _) ||
+        instruction is UneraseI32(_, _) ||
+        instruction is EraseI64(_, _) ||
+        instruction is UneraseI64(_, _)
+      })
     }),
   )
   let mut observed = 0L
@@ -1899,11 +2000,19 @@ test "direct generic calls use the canonical generic worker ABI" {
       },
     ),
   )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let loaded = match load_physical_interpreted(specialized_image, registry) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.execute(), Ok(()))
+  assert_eq(observed, 42L)
+  observed = 0L
+  let generic_loaded = match
+    load_physical_interpreted(generic_image, registry) {
+    Ok(value) => value
+    Err(error) => fail("generic load failed: \{Repr(error)}")
+  }
+  assert_eq(generic_loaded.execute(), Ok(()))
   assert_eq(observed, 42L)
 }
 

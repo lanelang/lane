@@ -69,6 +69,7 @@ fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
 ///|
 fn helper_function_type(role : WasmHelperFunctionRole) -> WasmFunctionType {
   match role {
+    CallableAbiGuard => wasm_function_type([I64, I32], [])
     NoopErased
     | RetainReferenceErased
     | ReleaseReferenceErased
@@ -102,8 +103,30 @@ fn runtime_function_roles() -> Array[WasmRuntimeFunctionRole] {
 }
 
 ///|
-fn helper_function_roles(shape_count : Int) -> Array[WasmHelperFunctionRole] {
-  let roles = [
+fn image_uses_indirect_calls(image : @physical.PhysicalProgram) -> Bool {
+  for entry in image.functions {
+    guard entry is PhysicalBody(body) else { continue }
+    for block in body.blocks {
+      if block.instructions.any(instruction => {
+          instruction is CallValue(_, _, _, _, _)
+        }) ||
+        block.terminator is TailCallValue(_, _, _, _) {
+        return true
+      }
+    }
+  }
+  false
+}
+
+///|
+fn helper_function_roles(
+  image : @physical.PhysicalProgram,
+) -> Array[WasmHelperFunctionRole] {
+  let roles : Array[WasmHelperFunctionRole] = []
+  if image_uses_indirect_calls(image) {
+    roles.push(CallableAbiGuard)
+  }
+  roles.append([
     NoopErased,
     RetainReferenceErased,
     ReleaseReferenceErased,
@@ -111,8 +134,8 @@ fn helper_function_roles(shape_count : Int) -> Array[WasmHelperFunctionRole] {
     ReleaseCallable,
     DestroyNoop,
     DestroyHostObject,
-  ]
-  for shape in 0..<shape_count {
+  ])
+  for shape in 0..<image.object_shapes.length() {
     roles.push(DestroyShape(shape~))
   }
   roles.push(ByteSequenceSizer)
@@ -507,7 +530,7 @@ fn WasmFunctionCatalog::validate(
       detail="instance-global cleanup does not match lifecycle plan",
     )
   }
-  for role in helper_function_roles(image.object_shapes.length()) {
+  for role in helper_function_roles(image) {
     let handle = match self.find(HelperFunction(role)) {
       Some(handle) => handle
       None =>
@@ -515,9 +538,10 @@ fn WasmFunctionCatalog::validate(
           detail="missing helper function: \{Repr(role)}",
         )
     }
-    if self.entry(handle).table_slot is None {
+    let is_layout_helper = !(role is CallableAbiGuard)
+    if (self.entry(handle).table_slot is Some(_)) != is_layout_helper {
       raise InvalidFunctionCatalog(
-        detail="helper function is missing its callable-table slot: \{Repr(role)}",
+        detail="helper function table membership does not match its role: \{Repr(role)}",
       )
     }
   }
@@ -614,14 +638,14 @@ fn plan_wasm_function_catalog(
       ),
     )
   }
-  for role in helper_function_roles(image.object_shapes.length()) {
+  for role in helper_function_roles(image) {
     ignore(
       catalog.add_entry(
         wasm_module,
         HelperFunction(role),
         helper_function_type(role),
         Defined,
-        true,
+        !(role is CallableAbiGuard),
       ),
     )
   }

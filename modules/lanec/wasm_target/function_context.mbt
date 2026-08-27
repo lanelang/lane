@@ -6,6 +6,7 @@ priv struct FunctionCompilationContext {
   wasm_module : @wasm_types.Module
   static_image : StaticImage
   function_catalog : WasmFunctionCatalog
+  expansions : Array[WasmExpansionScale]
 }
 
 ///|
@@ -13,7 +14,7 @@ fn FunctionCompilationContext::compile_instruction(
   self : FunctionCompilationContext,
   instruction : @physical.Instruction,
 ) -> Array[@wasm_types.Instruction] {
-  compile_instruction(
+  let compiled = compile_instruction(
     self.locals,
     self.body.slots,
     self.wasm_module,
@@ -21,6 +22,11 @@ fn FunctionCompilationContext::compile_instruction(
     self.function_catalog,
     instruction,
   )
+  self.record_expansion(
+    PhysicalOpcode(physical_opcode_family(instruction)),
+    compiled,
+  )
+  compiled
 }
 
 ///|
@@ -28,7 +34,7 @@ fn FunctionCompilationContext::compile_terminator(
   self : FunctionCompilationContext,
   terminator : @physical.Terminator,
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
-  compile_terminator(
+  let compiled = compile_terminator(
     self.function_id,
     self.locals,
     self.wasm_module,
@@ -36,6 +42,8 @@ fn FunctionCompilationContext::compile_terminator(
     self.function_catalog,
     terminator,
   )
+  self.record_expansion(PhysicalOpcode(ControlTransfer), compiled)
+  compiled
 }
 
 ///|

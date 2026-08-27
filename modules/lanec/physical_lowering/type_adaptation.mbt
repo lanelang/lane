@@ -741,8 +741,9 @@ fn local_value_type(value : LocalValue) -> @anf.RuntimeType? {
     | Global(DoubleConstant(_, type_))
     | Global(InstanceGlobal(_, type_)) => Some(type_)
     Global(Intrinsic(contract)) => Some(contract.type_())
-    RecursiveFunction(_, type_, _) | EvidenceAppliedCallable(_, type_, _) =>
-      Some(type_)
+    RecursiveFunction(_, type_, _)
+    | EvidenceAppliedCallable(_, type_, _)
+    | EvidenceAppliedFunction(_, type_, _, _) => Some(type_)
     AdaptedCallable(adaptation)
     | EvidenceAppliedAdaptedCallable(adaptation, _) =>
       Some(adaptation.contract.target_type)

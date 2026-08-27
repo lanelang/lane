@@ -481,14 +481,33 @@ fn observe_physical_terminator(
 fn wasm_scale(
   scale : @wasm_compiler.WasmModuleScale,
 ) -> ExploreScaleObservation {
+  let metrics = [
+    metric(FunctionCount, scale.defined_function_count),
+    metric(ImportCount, scale.imported_function_count),
+    metric(InstructionCount, scale.instruction_count),
+    metric(LocalCount, scale.local_count),
+    metric(TableEntryCount, scale.table_entry_count),
+    metric(WasmIfCount, scale.if_count),
+    metric(WasmUnreachableCount, scale.unreachable_count),
+  ]
+  for expansion in scale.expansions {
+    let category = expansion.category.key()
+    if expansion.instruction_count != 0 {
+      metrics.push(
+        metric(
+          WasmExpansionInstructionCount(category),
+          expansion.instruction_count,
+        ),
+      )
+    }
+    if expansion.local_count != 0 {
+      metrics.push(
+        metric(WasmExpansionLocalCount(category), expansion.local_count),
+      )
+    }
+  }
   {
-    metrics: [
-      metric(FunctionCount, scale.defined_function_count),
-      metric(ImportCount, scale.imported_function_count),
-      metric(InstructionCount, scale.instruction_count),
-      metric(LocalCount, scale.local_count),
-      metric(TableEntryCount, scale.table_entry_count),
-    ],
+    metrics,
     functions: scale.functions.map(function => {
       index: function.index,
       block_count: 0,

@@ -43,6 +43,7 @@ fn FunctionLowerer::lower_nested_function_with_type(
           captures: capture_plans,
           environment_shape,
           recursive_functions: [],
+          specialization_ancestry: self.image.active_specialization_ancestry.copy(),
         })
       },
     ).function
@@ -50,16 +51,7 @@ fn FunctionLowerer::lower_nested_function_with_type(
     self.make_capture_environment(
       environment_shape, stored_layouts, capture_slots,
     ) {
-    None => {
-      let destination = self.fresh_slot(function_type)
-      self.emit(ConstFunction(destination, function_id))
-      Slot(destination, function_type)
-    }
-    Some(environment) => {
-      let destination = self.fresh_slot(function_type)
-      self.emit(MakeClosure(destination, function_id, environment))
-      Slot(destination, function_type)
-    }
+    environment => RecursiveFunction(function_id, function_type, environment)
   }
 }
 
@@ -137,6 +129,7 @@ fn FunctionLowerer::lower_recursive_group(
           captures: capture_plans,
           environment_shape,
           recursive_functions,
+          specialization_ancestry: self.image.active_specialization_ancestry.copy(),
         })
       }
     }),
@@ -178,7 +171,8 @@ fn FunctionLowerer::captured_runtime_parameters(
     match self.capture_value(binding) {
       Slot(_, type_)
       | RecursiveFunction(_, type_, _)
-      | EvidenceAppliedCallable(_, type_, _) => types.push(type_)
+      | EvidenceAppliedCallable(_, type_, _)
+      | EvidenceAppliedFunction(_, type_, _, _) => types.push(type_)
       AdaptedCallable(adaptation)
       | EvidenceAppliedAdaptedCallable(adaptation, _) =>
         types.push(adaptation.contract.target_type)

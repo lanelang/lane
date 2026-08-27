@@ -477,9 +477,22 @@ test "explore reports deterministic typed scale metrics" {
       #|    [
       #|      ("functionCount", 27),
       #|      ("importCount", 1),
-      #|      ("instructionCount", 806),
+      #|      ("instructionCount", 790),
       #|      ("localCount", 34),
       #|      ("tableEntryCount", 8),
+      #|      ("wasmIfCount", 47),
+      #|      ("wasmUnreachableCount", 10),
+      #|      ("wasmExpansion.physicalStorage.localCount", 3),
+      #|      ("wasmExpansion.runtimeGuard.instructionCount", 22),
+      #|      ("wasmExpansion.physicalOpcode.scalar.instructionCount", 2),
+      #|      ("wasmExpansion.physicalOpcode.callable.instructionCount", 4),
+      #|      ("wasmExpansion.physicalOpcode.controlTransfer.instructionCount", 13),
+      #|      ("wasmExpansion.functionAbi.instructionCount", 2),
+      #|      ("wasmExpansion.runtimeImportAdapter.instructionCount", 7),
+      #|      ("wasmExpansion.runtimeSupport.instructionCount", 715),
+      #|      ("wasmExpansion.runtimeSupport.localCount", 31),
+      #|      ("wasmExpansion.helperSupport.instructionCount", 22),
+      #|      ("wasmExpansion.entryLifecycle.instructionCount", 3),
       #|    ],
       #|  ),
       #|]
@@ -723,7 +736,7 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|        ("importCount", 1),
       #|        ("blockCount", 12),
       #|        ("instructionCount", 55),
-      #|        ("valueCount", 93),
+      #|        ("valueCount", 92),
       #|        ("directCallCount", 3),
       #|        ("indirectCallCount", 9),
       #|        ("functionReferenceCount", 10),
@@ -742,7 +755,7 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|        { index: 1, block_count: 1, operation_count: 1, value_count: 9 },
       #|        { index: 2, block_count: 1, operation_count: 1, value_count: 6 },
       #|        { index: 3, block_count: 1, operation_count: 23, value_count: 24 },
-      #|        { index: 4, block_count: 1, operation_count: 1, value_count: 5 },
+      #|        { index: 4, block_count: 1, operation_count: 1, value_count: 4 },
       #|        { index: 5, block_count: 1, operation_count: 6, value_count: 8 },
       #|        { index: 6, block_count: 1, operation_count: 0, value_count: 1 },
       #|        { index: 7, block_count: 1, operation_count: 1, value_count: 2 },
@@ -784,9 +797,13 @@ test "expanding recursive generic application retains a finite canonical impleme
     node.function.stage == VmcfgInitial &&
     node.roles.any(role => role is CallableAdapter)
   })
+  let workers = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is RepresentationWorker)
+  })
   debug_inspect(
-    (report.status, report.diagnostics, adapters),
-    content="(Succeeded, [], [])",
+    (report.status, report.diagnostics, adapters, workers),
+    content="(Succeeded, [], [], [])",
   )
 }
 

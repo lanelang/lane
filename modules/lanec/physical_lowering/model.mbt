@@ -66,6 +66,7 @@ priv enum PlannedEntry {
   InitializerOrchestrator(Array[InitializerStepPlan])
   LiftedFunction(LiftedFunctionPlan)
   IntrinsicWrapper(IntrinsicWrapperPlan)
+  RepresentationWorker(RepresentationWorkerPlan)
   CallableAdapter(CallableAdapterPlan)
   LayoutConstructor(LayoutConstructorPlan)
   RuntimeImport(@lane_runtime.RuntimeImport)
@@ -82,6 +83,10 @@ pub(all) enum PhysicalFunctionOrigin {
   Initializer(source~ : @buslane.ValueId)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
+  RepresentationWorker(
+    function~ : @anf.AnfFunctionId,
+    source~ : @buslane.ValueId?
+  )
   CallableAdapter
   LayoutConstructor
   RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
@@ -196,6 +201,26 @@ priv struct IntrinsicWrapperPlan {
 }
 
 ///|
+priv struct RepresentationWorkerKey {
+  source : @physical.FunctionId
+  callable : @physical.CallableAbiNodeId
+} derive(Eq)
+
+///|
+priv struct RepresentationWorkerPlan {
+  function : @physical.FunctionId
+  key : RepresentationWorkerKey
+  body : @anf.AnfFunction
+  type_ : @anf.RuntimeType
+  substitutions : RuntimeSubstitution
+  captured_parameters : Array[@anf.RuntimeEvidenceParameter]
+  captures : Array[CapturePlan]
+  environment_shape : @physical.ObjectShapeId?
+  recursive_functions : Array[RecursiveFunctionPlan]
+  ancestry : Array[@physical.FunctionId]
+}
+
+///|
 #warnings("-unused_value")
 priv struct CallableAdapterPlan {
   function : @physical.FunctionId
@@ -305,6 +330,7 @@ priv struct LiftedFunctionPlan {
   captures : Array[CapturePlan]
   environment_shape : @physical.ObjectShapeId?
   recursive_functions : Array[RecursiveFunctionPlan]
+  specialization_ancestry : Array[@physical.FunctionId]
 }
 
 ///|
@@ -331,6 +357,12 @@ priv enum LocalValue {
   EvidenceAppliedCallable(
     @vmcfg.ValueId,
     @anf.RuntimeType,
+    Array[@anf.RuntimeArgument]
+  )
+  EvidenceAppliedFunction(
+    @physical.FunctionId,
+    @anf.RuntimeType,
+    @vmcfg.ValueId?,
     Array[@anf.RuntimeArgument]
   )
   AdaptedCallable(DeferredCallableAdapter)

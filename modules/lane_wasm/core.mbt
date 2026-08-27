@@ -319,6 +319,7 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
     }
     InitializerOrchestrator => { "kind": "initializerOrchestrator" }
     IntrinsicWrapper(name~) => { "kind": "intrinsicWrapper", "name": name }
+    RepresentationWorker => { "kind": "representationWorker" }
     CallableAdapter => { "kind": "callableAdapter" }
     LayoutConstructor => { "kind": "layoutConstructor" }
     RuntimeImport(value~, name~, symbol~) => {

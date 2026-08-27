@@ -18,7 +18,7 @@ fn compile_instruction(
         LocalGet(locals.slot_local(source)),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_dead(source))
+      result.append(locals.mark_slot_dead_after_definition(source, destination))
       result.append(locals.mark_slot_live(destination))
       result
     }
@@ -146,7 +146,9 @@ fn compile_instruction(
       result
     }
     CallValue(callable, abi_id, witnesses, arguments, destination) => {
-      let result = validate_callable_abi(locals, static_image, callable, abi_id)
+      let result = validate_callable_abi(
+        locals, function_catalog, callable, abi_id,
+      )
       result.append([
         LocalGet(locals.slot_local(callable)),
         I64Const(32L),
@@ -320,7 +322,7 @@ fn compile_instruction(
         function_catalog.runtime(ByteSequenceSet).call(),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_dead(source))
+      result.append(locals.mark_slot_dead_after_definition(source, destination))
       result.append(locals.mark_slot_live(destination))
       result
     }
@@ -331,8 +333,8 @@ fn compile_instruction(
         function_catalog.runtime(ByteSequenceConcat).call(),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_dead(left))
-      result.append(locals.mark_slot_dead(right))
+      result.append(locals.mark_slot_dead_after_definition(left, destination))
+      result.append(locals.mark_slot_dead_after_definition(right, destination))
       result.append(locals.mark_slot_live(destination))
       result
     }
@@ -344,7 +346,7 @@ fn compile_instruction(
         function_catalog.runtime(ByteSequenceSlice).call(),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_dead(string))
+      result.append(locals.mark_slot_dead_after_definition(string, destination))
       result.append(locals.mark_slot_live(destination))
       result
     }
@@ -585,7 +587,7 @@ fn compile_frame_cleanup(
   for index, slot in slots {
     if !(slot.cleanup is Trivial) {
       let slot_id : @physical.SlotId = { value: index, }
-      instructions.push(LocalGet(locals.liveness_local(slot_id).unwrap()))
+      instructions.append(locals.test_slot_live(slot_id))
       instructions.push(
         If(
           Empty,
@@ -920,7 +922,7 @@ fn compile_terminator(
     }
     TailCallValue(callable, abi_id, witnesses, arguments) => {
       let instructions = validate_callable_abi(
-        locals, static_image, callable, abi_id,
+        locals, function_catalog, callable, abi_id,
       )
       instructions.append([
         GlobalGet(call_depth_global_index),
@@ -1007,33 +1009,14 @@ fn indirect_type(
 ///|
 fn validate_callable_abi(
   locals : FunctionLocalPlan,
-  static_image : StaticImage,
+  function_catalog : WasmFunctionCatalog,
   callable : @physical.SlotId,
   expected : @physical.CallableAbiId,
 ) -> Array[@wasm_types.Instruction] {
   [
     LocalGet(locals.slot_local(callable)),
-    I32WrapI64,
-    I32Eqz,
-    LocalGet(locals.slot_local(callable)),
-    I32WrapI64,
-    I32Const(static_image.callable_table_size),
-    I32GeU,
-    I32Or,
-    If(Empty, [Unreachable], []),
-    I32Const(static_image.callable_abi_table_base),
-    LocalGet(locals.slot_local(callable)),
-    I32WrapI64,
-    I32Const(static_image.callable_abis.length()),
-    I32Mul,
     I32Const(expected.value),
-    I32Add,
-    I32Const(2),
-    I32Shl,
-    I32Add,
-    I32Load(0, 2, 0L),
-    I32Eqz,
-    If(Empty, [Unreachable], []),
+    function_catalog.helper(CallableAbiGuard).call(),
   ]
 }
 

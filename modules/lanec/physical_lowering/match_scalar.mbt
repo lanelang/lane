@@ -44,6 +44,7 @@ fn FunctionLowerer::lower_match(
     | RecursiveFunction(_, _, _)
     | EvidenceApplied(_, _)
     | EvidenceAppliedCallable(_, _, _)
+    | EvidenceAppliedFunction(_, _, _, _)
     | AdaptedCallable(_)
     | EvidenceAppliedAdaptedCallable(_, _) =>
       raise UnsupportedExpression(detail="match scrutinee is not materialized")

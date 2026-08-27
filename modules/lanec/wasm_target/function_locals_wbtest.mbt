@@ -41,7 +41,7 @@ test "trivial functions omit frame liveness locals" {
 }
 
 ///|
-test "CFG functions allocate only required transfer and liveness locals" {
+test "CFG functions share packed liveness state across owned slots" {
   let trivial_i64 : @physical.SlotMetadata = {
     representation: I64,
     cleanup: Trivial,
@@ -94,6 +94,59 @@ test "CFG functions allocate only required transfer and liveness locals" {
   }
   debug_inspect(
     wasm_module.codes[0].locals,
-    content="[I64, I32, I64, I32, I64, I32, I32, I32]",
+    content="[I64, I32, I64, I32, I64, I32]",
+  )
+}
+
+///|
+test "reference ownership uses the physical slot as its liveness state" {
+  let owned_string : @physical.SlotMetadata = {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: ByteSequenceValue,
+    erased_companion: None,
+  }
+  let slots = Array::make(65, owned_string)
+  let body : @physical.FunctionBody = {
+    slots,
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
+    result: Unit,
+    blocks: [{ parameters: [], instructions: [], terminator: Unreachable, }],
+  }
+  let plan = plan_function_locals(body, 1, false, false)
+  assert_eq(plan.slot_local_count, 65)
+  assert_eq(plan.arc_local_count, 0)
+  assert_eq(plan.locals.length(), 65)
+  debug_inspect(
+    plan.mark_slot_dead({ value: 64, }),
+    content="[I32Const(0), LocalSet(65)]",
+  )
+}
+
+///|
+test "erased ownership retains an explicit liveness local" {
+  let erased_value : @physical.SlotMetadata = {
+    representation: I64,
+    cleanup: OwnedErased,
+    kind: ErasedValue,
+    erased_companion: Some({ value: 0, }),
+  }
+  let body : @physical.FunctionBody = {
+    slots: [erased_value],
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
+    result: Unit,
+    blocks: [{ parameters: [], instructions: [], terminator: Unreachable, }],
+  }
+  let plan = plan_function_locals(body, 1, false, false)
+  assert_eq(plan.slot_local_count, 1)
+  assert_eq(plan.arc_local_count, 1)
+  debug_inspect(plan.locals, content="[I64, I32]")
+  debug_inspect(
+    plan.mark_slot_live({ value: 0, }),
+    content="[I32Const(1), LocalSet(2)]",
+  )
+  debug_inspect(
+    plan.mark_slot_dead({ value: 0, }),
+    content="[I32Const(0), LocalSet(2)]",
   )
 }

@@ -26,6 +26,24 @@ pub extend WasmFunctionScale with Debug::{to_repr}
 pub extend WasmFunctionScale with Eq::{not_equal, equal}
 
 ///|
+pub extend WasmPhysicalOpcodeFamily with Debug::{to_repr}
+
+///|
+pub extend WasmPhysicalOpcodeFamily with Eq::{not_equal, equal}
+
+///|
+pub extend WasmExpansionCategory with Debug::{to_repr}
+
+///|
+pub extend WasmExpansionCategory with Eq::{not_equal, equal}
+
+///|
+pub extend WasmExpansionScale with Debug::{to_repr}
+
+///|
+pub extend WasmExpansionScale with Eq::{not_equal, equal}
+
+///|
 pub extend WasmHelperFunctionRole with Debug::{to_repr}
 
 ///|

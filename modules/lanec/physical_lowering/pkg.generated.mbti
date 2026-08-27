@@ -54,6 +54,7 @@ pub(all) enum PhysicalFunctionOrigin {
   Initializer(source~ : @buslane.ValueId)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
+  RepresentationWorker(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?)
   CallableAdapter
   LayoutConstructor
   RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
