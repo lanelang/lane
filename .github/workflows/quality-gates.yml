@@ -54,6 +54,8 @@ jobs:
           (
             cd basic
             LANE_BIN="$lane_bin" ./test.sh
+            "$lane_bin" run test/entry.lane:test_entry \
+              --lib-dir . --no-basic --no-jit
           )
 
       - name: Check examples

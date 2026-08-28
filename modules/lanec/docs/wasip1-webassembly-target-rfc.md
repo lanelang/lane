@@ -2,8 +2,11 @@
 
 ## Status
 
-Implemented. The remaining release gate is end-to-end validation of the pinned
-Basic revision and the complete valid-example corpus.
+Implemented and release-qualified on 2026-08-28 against Basic revision
+`807f78b4bd31` and the Wasmoon dependency family at `0.12.6`. Native compiler
+tests, the complete example corpus, Basic under both Wasmoon interpreter and
+JIT modes, the complete Lane WebAssembly Profile probes, and the raw WASI
+command-module contract pass at this baseline.
 
 ## Summary
 
