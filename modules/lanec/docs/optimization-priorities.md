@@ -7,63 +7,62 @@ The measurements identify missing facts and transformations; future work must
 re-measure the same boundaries instead of tuning limits until one snapshot
 looks smaller.
 
-## Current reproducible baseline
+## Current reproducible comparison
 
-The current baseline was recorded on 2026-08-28 from Lane
-`75e2bdd73b444493d798b555dbc603749ae65b14`, pinned Basic
-`807f78b4bd3106b1223c13884849b317f831e285`, and the Wasmoon dependency family
-at `0.12.6`. The host was Apple Silicon running macOS 26.5.2 with MoonBit nightly
-2026-08-26. Both programs were loaded from committed repository inputs with
+The comparison was recorded on 2026-08-28 from the pre-milestone Lane commit
+`75e2bdd73b444493d798b555dbc603749ae65b14` and the post-transformation commit
+`eeca63d24accca34a6cdc49a7cac8637ceabdf4c`. Both use pinned Basic
+`807f78b4bd3106b1223c13884849b317f831e285`, the Wasmoon dependency family at
+`0.12.6`, Apple Silicon running macOS 26.5.2, and MoonBit nightly 2026-08-26.
+The programs were loaded from committed repository inputs with
 `--lib-dir basic --no-basic`.
 
-Explore is the owner-produced structural observation boundary. The tables below
-come from its typed scale facts; no IR or Wasm text was searched to reconstruct
-counts.
+Explore is the owner-produced structural observation boundary. The tables come
+from typed scale facts; no IR or Wasm text was searched to reconstruct counts.
+The Coroutine Scheduler is unchanged by this local aggregate transformation:
+it remains at 60 Physical functions, 349 Physical instructions, 414 slots, 101
+Wasm functions, 8,346 Wasm instructions, and 480 Wasm locals.
 
-| Stage metric | Coroutine scheduler | Basic test entry |
-| --- | ---: | ---: |
-| Core-optimized functions | 15 | 146 |
-| Core-optimized nodes | 234 | 3,956 |
-| Selective-CPS functions | 45 | 286 |
-| Selective-CPS nodes | 416 | 4,757 |
-| Runtime ANF functions | 39 | 254 |
-| Runtime ANF nodes | 659 | 7,272 |
-| Initial VM CFG functions | 60 | 382 |
-| Initial VM CFG instructions | 307 | 3,953 |
-| Initial direct / indirect calls | 22 / 43 | 450 / 150 |
-| Initial closures / environments | 48 / 50 | 362 / 383 |
-| Physical functions | 60 | 382 |
-| Physical instructions | 349 | 4,594 |
-| Physical slots | 414 | 4,045 |
-| Physical erase / unerase operations | 15 / 11 | 330 / 149 |
-| Physical retain / release operations | 13 / 29 | 372 / 286 |
-| Callable ABI count | 29 | 121 |
-| Wasm functions / imports | 101 / 1 | 490 / 3 |
-| Wasm instructions | 8,346 | 72,967 |
-| Wasm locals | 480 | 4,803 |
-| Wasm table entries | 80 | 365 |
-| Wasm `if` / `unreachable` instructions | 389 / 74 | 3,357 / 486 |
+| Basic metric | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Core-optimized functions / nodes | 146 / 3,956 | 146 / 3,956 | 0 / 0 |
+| Selective-CPS functions / nodes | 286 / 4,757 | 286 / 4,757 | 0 / 0 |
+| Runtime ANF functions / nodes | 254 / 7,272 | 254 / 7,263 | 0 / -9 |
+| Initial VM CFG functions | 382 | 381 | -1 |
+| Initial VM CFG instructions / values | 3,953 / 6,239 | 3,932 / 6,214 | -21 / -25 |
+| Initial direct / indirect calls | 450 / 150 | 451 / 148 | +1 / -2 |
+| Initial closures / environments | 362 / 383 | 361 / 381 | -1 / -2 |
+| Physical functions / instructions | 382 / 4,594 | 381 / 4,573 | -1 / -21 |
+| Physical slots | 4,045 | 4,030 | -15 |
+| Physical erase / unerase operations | 330 / 149 | 327 / 146 | -3 / -3 |
+| Physical retain / release operations | 372 / 286 | 372 / 286 | 0 / 0 |
+| Callable ABI count | 121 | 121 | 0 |
+| Wasm functions / imports | 490 / 3 | 489 / 3 | -1 / 0 |
+| Wasm instructions / locals | 72,967 / 4,803 | 72,672 / 4,782 | -295 / -21 |
+| Wasm table entries | 365 | 363 | -2 |
+| Wasm `if` / `unreachable` instructions | 3,357 / 486 | 3,344 / 485 | -13 / -1 |
 
-Three warm-process command invocations produced these wall-clock ranges:
+The focused public example proves the ownership boundary directly. Its two
+effectful constructor payloads execute once in source order, yet the final VM
+CFG has no object shape, closure, environment, or indirect call. The Basic
+comparison shows the same rewrite crossing Runtime ANF and reducing physical
+functions, instructions, slots, representation bridges, and final Wasm. Its
+explicit retain/release counts do not move, so this milestone does not claim an
+ARC optimization that it did not perform.
 
-| Boundary | Coroutine scheduler | Basic test entry |
-| --- | ---: | ---: |
-| Explore through Wasm plus report rendering | 0.04-0.05 s | 0.74-0.76 s |
-| Complete compile, JIT load, and execution | 0.16 s | 1.94-1.95 s |
-| Complete compile, interpreter load, and execution | 0.04 s | 0.69-0.71 s |
+Three warm-process invocations at each commit produced these wall-clock ranges:
+
+| Boundary | Scheduler before | Scheduler after | Basic before | Basic after |
+| --- | ---: | ---: | ---: | ---: |
+| Explore through Wasm plus report rendering | 0.04-0.05 s | 0.04-0.05 s | 0.74-0.76 s | 0.74-0.75 s |
+| Complete compile, JIT load, and execution | 0.16 s | 0.16 s | 1.94-1.95 s | 1.92-2.00 s |
+| Complete compile, interpreter load, and execution | 0.04 s | 0.03-0.04 s | 0.69-0.71 s | 0.69-0.71 s |
 
 The CLI does not persist the raw Wasm produced by `run`, so these measurements
-do not pretend to derive a standalone JIT or execution time by subtraction.
-They establish an explicit compiler-pipeline boundary and two complete engine
-boundaries. Structural metrics remain the regression evidence when host or
-runtime timing changes.
-
-The current facts justify constructor propagation before another backend
-rewrite. Core optimization reduces a constructor match only when the referenced
-top-level definition is syntactically a constructor. A conservative static-value
-summary can expose the same fact through pure binding spines, and non-escaping
-aggregate replacement can then remove object, ARC, and Wasm work at the earliest
-boundary that understands the source value.
+do not derive a fictional standalone JIT or execution time by subtraction.
+They establish one compiler-pipeline boundary and two complete engine
+boundaries. The timing ranges overlap; the demonstrated result is structural,
+not a claimed throughput improvement.
 
 ## Historical baselines
 
@@ -85,24 +84,14 @@ heuristics.
 
 ### 1. Summarize immutable top-level values to weak-head normal form
 
-Core optimization currently recognizes a static constructor only when the top
-definition is syntactically a `Construct`. It misses closed pure initializers
-whose final value lies behind a `Let` or `LetRec` spine. In the observed program,
-one such value ends in a known `datacon#8` but is projected through a `match` 19
-times.
+Delivered by ISS-410. `CoreAnalysis` is the sole producer of cycle-aware,
+conservative literal and constructor head facts through pure aliases and local
+`Let` spines. Known-match reduction consumes this fact rather than inspecting a
+top-level definition's syntax. Effectful spines and cycles remain unknown.
 
-`CoreAnalysis` should be the sole owner of a conservative static-value summary:
-
-- unknown;
-- literal;
-- constructor with summarized payloads;
-- known callable with captured substitutions.
-
-The analysis must preserve strict evaluation and effects while looking through
-closed, pure binding spines. Match reduction, field projection, known-call
-analysis, and reachability then consume the same summary. This should expose
-dictionary fields as known callables, eliminate repeated constructor matches,
-and enable the later priorities without inventing another fact producer.
+Callable identity deliberately remains with the interprocedural callable-flow
+owner. Adding callables to the static-head summary would duplicate a richer
+fact rather than deepen this analysis.
 
 ### 2. Replace peephole devirtualization with callable-flow analysis
 
@@ -230,42 +219,52 @@ optimization policy.
 
 ### 7. Propagate constructors and scalar-replace aggregates
 
-Extend constructor knowledge through local bindings and pure initializer
-summaries. A known construct followed by projection, match, reconstruction, or a
-non-escaping use should pass its fields directly. This targets the observed 225
-`make_data`, 277 `borrow_field`, 61 `consume_fields`, and 196 Core matches.
+Delivered by ISS-411. Core optimization now removes a local known-constructor
+allocation only after one lexical traversal proves that every use is a
+destructuring match, no whole value escapes, no nested function or recursive
+group captures it, and no existential binder is opened. Payloads are bound at
+the original constructor point, preserving strict left-to-right, exactly-once
+evaluation. Unsupported uses retain the original aggregate; there is no
+fallback representation and no downstream escape analysis.
+
+The pinned Basic result is intentionally modest: one Physical function, 21
+Physical instructions, 15 slots, and 295 Wasm instructions disappear. The
+focused example reaches zero object shapes. This is the correct proof boundary,
+not a promise that every aggregate is scalar-replaceable.
 
 ### 8. Intern generated shape destructors
 
-The current Wasm backend emits one destructor function per object shape. In the
-observed image, 126 functions contain only 72 distinct rendered bodies. Intern a
-structured destructor plan before function and callable-table allocation, then
-map every compatible shape to the shared function. This is preferable to a
-generic runtime interpreter as the first step because it reduces JIT work
-without adding release-time dispatch.
+This is not a current scheduled optimization. The earlier claim that 126
+functions contained 72 distinct bodies came from the deleted backend and from
+rendered-text comparison. The current Basic image has 84 object shapes and
+attributes 18,847 Wasm instructions to object operations, but those aggregate
+facts do not prove duplicate destructor semantics. A future proposal must first
+add owner-produced structured destructor-plan identity and demonstrate actual
+duplication; it must not infer sharing from rendered bodies.
 
 ### 9. Propagate erased values and witnesses as one fact
 
-VM CFG scalar propagation deliberately excludes erased companion slots, leaving
-many repeated `const_layout` operations. Model an erased payload and its layout
-witness as one paired representation fact. Pair-aware constant propagation may
-reuse witnesses and cancel locally inverse bridges without separating the
-ownership proof from its companion.
+Tracked by ISS-413. The post-milestone Basic image still contains 327 erasures,
+146 unerasures, and 2,659 Wasm instructions attributed to erasure. Model an
+erased payload and its layout witness as one VM CFG fact. Pair-aware propagation
+may reuse a witness and cancel locally inverse bridges only when representation,
+cleanup, and ownership agree.
 
 ### 10. Hoist immutable global borrows
 
-After verification, an Instance Global is immutable until lifecycle cleanup.
-Repeated borrows of the same global within a function may share one loaded
-value, subject to the paired erased-witness rule. This should be expressed as a
-VM CFG value fact rather than a Wasm text peephole.
+This remains a possible consequence of paired erased-witness propagation, not
+an active task. Current Explore facts do not count repeated same-global borrows,
+so there is no owner-produced evidence that a separate global optimization is
+profitable. Re-evaluate it after ISS-413 instead of opening an overlapping pass.
 
 ### 11. Coalesce ARC operations after upstream simplification
 
-Run ownership-aware retain/release coalescing only after callable
-devirtualization and aggregate scalar replacement. Those transformations remove
-the objects that cause many current ARC operations; optimizing ARC first would
-spend complexity preserving temporary lowering artifacts. The ARC-final
-ownership graph must prove every removed retain/release pair.
+Tracked by ISS-414. The current Basic Physical Program retains 372 times and
+releases 286 times, while the Wasm emitter attributes 20,351 instructions to
+ARC and unwind support. ISS-414 first separates mandatory ownership operations,
+per-frame unwind scaffolding, and shared support. Any removal must be proved by
+the ARC-final lifetime plan; any sharing must be interned before Wasm indices
+are allocated.
 
 ## Priority three: conventional residual optimization
 
@@ -281,17 +280,24 @@ eagerly compile avoidable functions and representation plumbing.
 
 ## Recommended implementation order
 
-1. Make `CoreAnalysis` the sole owner of conservative static-value summaries
-   and remove downstream syntax guessing.
-2. Consume those summaries to propagate constructors and scalar-replace only
-   aggregates proven not to escape.
-3. Remeasure the pinned scheduler and Basic inputs at the same typed Explore
-   boundaries.
-4. Use the resulting facts to decide between pair-aware erased-witness
-   propagation, immutable-global borrow reuse, ARC coalescing, or destructor
-   interning.
-5. Apply conventional CFG and Wasm cleanup only after structural work has
-   removed its temporary inputs.
+ISS-410 and ISS-411 completed static-head ownership and local scalar
+replacement, and ISS-412 remeasured their complete downstream result. The next
+order is now evidence-driven:
+
+1. Complete ISS-413 so erased payloads and witnesses propagate as one fact,
+   then remeasure the 473 remaining representation bridges.
+2. Complete ISS-414 using the resulting ARC-final program, separating ownership
+   demand from unwind implementation before changing either.
+3. Re-measure object, callable, global, and conventional CFG costs. Open another
+   task only when an owner-produced fact demonstrates a removable structure.
+
+The current Wasm expansion categories explain this ordering. Basic attributes
+20,351 instructions to ARC/unwind, 18,847 to object operations, 7,564 to
+callables, 4,215 to runtime guards, and 2,659 to erasure. Only erasure already
+has a precise paired semantic fact to deepen. ARC/unwind has a verified lifetime
+owner but needs finer attribution. The object and callable totals include
+necessary semantics and therefore do not by themselves authorize another
+rewrite.
 
 Each completed item must update the pinned Explore metrics and the end-to-end
 Basic timing. A smaller source-level IR without a smaller executable image is
