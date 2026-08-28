@@ -28,6 +28,7 @@ pub struct LoadedImage {
   wasm_module : @wasm_types.Module
   imports : Array[(@lane_runtime.RuntimeImport, @lane_runtime.RuntimeBinding)]
   control_globals : RuntimeControlGlobals
+  priv runtime_services : RuntimeServices
   priv backend : LoadedExecutionBackend
 }
 
@@ -91,6 +92,11 @@ fn load_module(
       ),
     )
   }
+  let runtime_services = match
+    resolve_runtime_services(wasm_module, runtime_imports) {
+    Ok(services) => services
+    Err(detail) => return Err(InvalidWasm(detail~))
+  }
   let imports : Array[
     (@lane_runtime.RuntimeImport, @lane_runtime.RuntimeBinding),
   ] = []
@@ -115,7 +121,7 @@ fn load_module(
       }
     Interpreter => Interpreter
   }
-  Ok({ wasm_module, imports, control_globals, backend, })
+  Ok({ wasm_module, imports, control_globals, runtime_services, backend, })
 }
 
 ///|
@@ -173,6 +179,113 @@ fn runtime_import_manifest_matches(
     manifest_index += 1
   }
   manifest_index == runtime_imports.length()
+}
+
+///|
+struct RuntimeServices {
+  string_new : Int?
+  host_object_new : Int?
+}
+
+///|
+fn RuntimeServices::function(
+  self : RuntimeServices,
+  service : @internal_abi.RuntimeService,
+) -> Int raise @wasmoon_runtime.RuntimeError {
+  let function = match service {
+    StringNew => self.string_new
+    HostObjectNew => self.host_object_new
+  }
+  match function {
+    Some(index) => index
+    None => raise UndefinedElement
+  }
+}
+
+///|
+fn wasm_function_type(
+  wasm_module : @wasm_types.Module,
+  function_index : Int,
+) -> @wasm_types.FuncType? {
+  let mut imported_function_index = 0
+  for import_ in wasm_module.imports {
+    guard import_.desc is Func(type_index) else { continue }
+    if imported_function_index == function_index {
+      return Some(wasm_module.validated_func_type_at(type_index))
+    }
+    imported_function_index += 1
+  }
+  let defined_index = function_index - imported_function_index
+  if defined_index < 0 || defined_index >= wasm_module.funcs.length() {
+    return None
+  }
+  Some(wasm_module.validated_func_type_at(wasm_module.funcs[defined_index]))
+}
+
+///|
+fn runtime_service_required(
+  service : @internal_abi.RuntimeService,
+  wasm_module : @wasm_types.Module,
+  runtime_imports : Array[@lane_runtime.RuntimeImport],
+) -> Bool {
+  if runtime_imports.any(import_ => {
+      service.required_by_import_result(import_.result)
+    }) {
+    return true
+  }
+  @internal_abi.functions().any(function => {
+    service.required_by_internal_import(function) &&
+    wasm_module.imports.any(import_ => {
+      import_.mod_name == @internal_abi.module_name() &&
+      import_.name == function.name()
+    })
+  })
+}
+
+///|
+fn resolve_runtime_services(
+  wasm_module : @wasm_types.Module,
+  runtime_imports : Array[@lane_runtime.RuntimeImport],
+) -> Result[RuntimeServices, String] {
+  let mut string_new : Int? = None
+  let mut host_object_new : Int? = None
+  for service in @internal_abi.runtime_services() {
+    let required = runtime_service_required(
+      service, wasm_module, runtime_imports,
+    )
+    let mut exported : Int? = None
+    for export_ in wasm_module.exports {
+      if export_.name == service.name() {
+        guard export_.desc is Func(index) else {
+          return Err(
+            "Wasm runtime service `\{service.name()}` is not a function",
+          )
+        }
+        exported = Some(index)
+      }
+    }
+    match (required, exported) {
+      (true, None) =>
+        return Err("Wasm runtime service `\{service.name()}` is missing")
+      (false, Some(_)) =>
+        return Err(
+          "Wasm runtime service `\{service.name()}` is not required by the retained host imports",
+        )
+      (true, Some(index)) => {
+        if wasm_function_type(wasm_module, index) != Some(service.type_()) {
+          return Err(
+            "Wasm runtime service `\{service.name()}` has the wrong function type",
+          )
+        }
+        match service {
+          StringNew => string_new = Some(index)
+          HostObjectNew => host_object_new = Some(index)
+        }
+      }
+      (false, None) => ()
+    }
+  }
+  Ok({ string_new, host_object_new, })
 }
 
 ///|
@@ -290,7 +403,11 @@ fn LoadedImage::new_instance_or_raise(
     guard values is [F32(value)] else { raise TypeMismatch }
     [
       I32(
-        copy_host_string(caller, @utf8.encode(@float_format.format_f32(value))),
+        copy_host_string(
+          caller,
+          @utf8.encode(@float_format.format_f32(value)),
+          self.runtime_services,
+        ),
       ),
     ]
   }
@@ -300,7 +417,11 @@ fn LoadedImage::new_instance_or_raise(
     guard values is [F64(value)] else { raise TypeMismatch }
     [
       I32(
-        copy_host_string(caller, @utf8.encode(@float_format.format_f64(value))),
+        copy_host_string(
+          caller,
+          @utf8.encode(@float_format.format_f64(value)),
+          self.runtime_services,
+        ),
       ),
     ]
   }
@@ -382,6 +503,7 @@ fn LoadedImage::new_instance_or_raise(
         runtime_context,
         host_objects,
         self.control_globals,
+        self.runtime_services,
         values,
       )
     }

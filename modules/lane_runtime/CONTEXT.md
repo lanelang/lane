@@ -60,6 +60,15 @@ The compiler-private named contract shared by Wasm emission and the matching
 runtime adapter for internal helpers and control globals.
 _Avoid_: numeric function/global offsets, public Runtime Registry
 
+**Runtime Service Capability**:
+A restricted nested-call service required by the result contract of a retained
+user or internal Runtime Import. The shared Wasm ABI catalog owns each service's
+name, physical function type, and import requirements. Wasm emission certifies
+the service against its concrete static layout before exporting it; loading
+derives the same capability set from validated imports and resolves exactly
+those exports once.
+_Avoid_: unconditional service export, layout-zero sentinel, per-call export lookup
+
 **Wasm Artifact**:
 A standard WebAssembly module plus its semantic Runtime Import manifest. The
 manifest is necessary because Wasm physical signatures cannot distinguish, for

@@ -92,18 +92,180 @@ test "JIT and interpreter modes execute the same scalar import" {
       ConstI64({ value: 0, }, 42L),
       CallDirect({ value: 2, }, None, [], [{ value: 0, }], None),
     ])
-    let instance = loaded_instance(
-      import_test_image(body, {
-        abi_major: 1,
-        parameters: [I64],
-        result: Unit,
-        symbol: "lane.test.observe_mode",
-      }),
-      registry,
-      mode~,
-    )
+    let image = import_test_image(body, {
+      abi_major: 1,
+      parameters: [I64],
+      result: Unit,
+      symbol: "lane.test.observe_mode",
+    })
+    let loaded = match load(image, registry, mode~) {
+      Ok(value) => value
+      Err(error) => fail("load failed: \{Repr(error)}")
+    }
+    debug_inspect(runtime_service_exports(loaded.wasm_module()), content="[]")
+    let instance = match loaded.new_instance() {
+      Ok(value) => value
+      Err(error) => fail("instantiate failed: \{Repr(error)}")
+    }
     assert_eq(instance.execute(), Ok(()))
     assert_eq(observed, 42L)
+  }
+}
+
+///|
+test "loader enforces the runtime service capability contract" {
+  let scalar_import : @lane_runtime.RuntimeImport = {
+    abi_major: 1,
+    parameters: [],
+    result: Unit,
+    symbol: "lane.test.scalar_service_contract",
+  }
+  let scalar_image = import_test_image(import_test_body([], []), scalar_import)
+  let scalar_module = match
+    @wasm_target.compile(certify_physical_program_test(scalar_image)) {
+    Ok(value) => value
+    Err(error) => fail("compile failed: \{Repr(error)}")
+  }
+  guard exported_function_index(scalar_module, "lane.entry")
+    is Some(entry_function) else {
+    fail("compiled module has no entry function")
+  }
+  scalar_module.exports.push({
+    name: "lane.runtime.string.new",
+    desc: Func(entry_function),
+  })
+  let extra = @lane_wasm_runtime.load_wasm(
+    encode_wasm_module(scalar_module),
+    [scalar_import],
+    @lane_runtime.RuntimeRegistry::new(),
+    mode=Interpreter,
+  )
+
+  let string_import : @lane_runtime.RuntimeImport = {
+    abi_major: 1,
+    parameters: [],
+    result: String,
+    symbol: "lane.test.string_service_contract",
+  }
+  let compile_string_module = fn() raise {
+    let string_image = import_test_image(
+      import_test_body([], []),
+      string_import,
+      layouts=[ByteSequence],
+    )
+    match @wasm_target.compile(certify_physical_program_test(string_image)) {
+      Ok(value) => value
+      Err(error) => fail("compile failed: \{Repr(error)}")
+    }
+  }
+  let missing_module = compile_string_module()
+  for index, export_ in missing_module.exports {
+    if export_.name == "lane.runtime.string.new" {
+      ignore(missing_module.exports.remove(index))
+      break
+    }
+  }
+  let missing = @lane_wasm_runtime.load_wasm(
+    encode_wasm_module(missing_module),
+    [string_import],
+    @lane_runtime.RuntimeRegistry::new(),
+    mode=Interpreter,
+  )
+  let wrong_type_module = compile_string_module()
+  guard exported_function_index(wrong_type_module, "lane.entry")
+    is Some(string_entry_function) else {
+    fail("compiled module has no entry function")
+  }
+  for index, export_ in wrong_type_module.exports {
+    if export_.name == "lane.runtime.string.new" {
+      wrong_type_module.exports[index] = {
+        name: export_.name,
+        desc: Func(string_entry_function),
+      }
+    }
+  }
+  let wrong_type = @lane_wasm_runtime.load_wasm(
+    encode_wasm_module(wrong_type_module),
+    [string_import],
+    @lane_runtime.RuntimeRegistry::new(),
+    mode=Interpreter,
+  )
+  let error = result => {
+    match result {
+      Ok(_) => None
+      Err(error) => Some(error)
+    }
+  }
+  debug_inspect(
+    (error(extra), error(missing), error(wrong_type)),
+    content=(
+      #|(
+      #|  Some(InvalidWasm(detail="Wasm runtime service `lane.runtime.string.new` is not required by the retained host imports")),
+      #|  Some(InvalidWasm(detail="Wasm runtime service `lane.runtime.string.new` is missing")),
+      #|  Some(InvalidWasm(detail="Wasm runtime service `lane.runtime.string.new` has the wrong function type")),
+      #|)
+    ),
+  )
+}
+
+///|
+test "compiler rejects a runtime service without its physical layout" {
+  let body = import_test_body([], [])
+  let string_result = compile_test_image(
+    import_test_image(body, {
+      abi_major: 1,
+      parameters: [],
+      result: String,
+      symbol: "lane.test.missing_string_layout",
+    }),
+  )
+  let opaque_result = compile_test_image(
+    import_test_image(body, {
+      abi_major: 1,
+      parameters: [],
+      result: Opaque,
+      symbol: "lane.test.missing_opaque_layout",
+    }),
+  )
+  assert_true(
+    string_result is Err(MissingRuntimeServiceLayout(service=StringNew)),
+  )
+  assert_true(
+    opaque_result is Err(MissingRuntimeServiceLayout(service=HostObjectNew)),
+  )
+}
+
+///|
+test "input-only reference imports do not export construction services" {
+  let body = import_test_body([], [])
+  let cases : Array[(@lane_runtime.RuntimeImport, @physical.LayoutRecipe)] = [
+    (
+      {
+        abi_major: 1,
+        parameters: [String],
+        result: Unit,
+        symbol: "lane.test.string_input_only",
+      },
+      ByteSequence,
+    ),
+    (
+      {
+        abi_major: 1,
+        parameters: [Opaque],
+        result: Unit,
+        symbol: "lane.test.opaque_input_only",
+      },
+      Reference,
+    ),
+  ]
+  for case in cases {
+    let (import_, layout) = case
+    let module_ = match
+      compile_test_image(import_test_image(body, import_, layouts=[layout])) {
+      Ok(value) => value
+      Err(error) => fail("compile failed: \{Repr(error)}")
+    }
+    debug_inspect(runtime_service_exports(module_), content="[]")
   }
 }
 
@@ -259,7 +421,18 @@ test "String import transports multibyte UTF-8 and embedded NUL" {
     constants: [@utf8.encode("中\u{0}")],
   }
   for mode in [@lane_wasm_runtime.ExecutionMode::Jit, Interpreter] {
-    let instance = loaded_instance(image, registry, mode~)
+    let loaded = match load(image, registry, mode~) {
+      Ok(value) => value
+      Err(error) => fail("load failed: \{Repr(error)}")
+    }
+    debug_inspect(
+      runtime_service_exports(loaded.wasm_module()),
+      content="[\"lane.runtime.string.new\"]",
+    )
+    let instance = match loaded.new_instance() {
+      Ok(value) => value
+      Err(error) => fail("instantiate failed: \{Repr(error)}")
+    }
     assert_eq(instance.execute(), Ok(()))
     assert_eq(observed_input, "中\u{0}")
     assert_eq(observed_output, "中\u{0}🙂")

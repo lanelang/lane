@@ -115,7 +115,19 @@ test "Wasm adapters preserve shared Host Object wrappers" {
     object_shapes: [],
     constants: [],
   }
-  let result = load_wasm_host_instance(image, registry).execute()
+  let loaded = match load(image, registry) {
+    Ok(value) => value
+    Err(error) => fail("load failed: \{Repr(error)}")
+  }
+  debug_inspect(
+    runtime_service_exports(loaded.wasm_module()),
+    content="[\"lane.runtime.host_object.new\"]",
+  )
+  let instance = match loaded.new_instance() {
+    Ok(value) => value
+    Err(error) => fail("instantiate failed: \{Repr(error)}")
+  }
+  let result = instance.execute()
   debug_inspect(
     (result, observed, finalized.val),
     content="(Ok(()), [1, 1], 1)",

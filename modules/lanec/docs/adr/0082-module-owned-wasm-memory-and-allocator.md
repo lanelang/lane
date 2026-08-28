@@ -1,6 +1,6 @@
 # Module-owned Wasm memory and allocator
 
-A generated Lane Wasm module defines one canonical non-shared wasm32 memory and exports it under the stable internal ABI name `"lane.memory"`. The module does not import host-owned memory. Wasmoon runtime imports use the current RuntimeContext to access approved String and byte-buffer ranges through this export. RuntimeContext may also invoke a designated module-owned allocation service such as `"lane.runtime.string.new"` while ordinary Lane execution is paused.
+A generated Lane Wasm module defines one canonical non-shared wasm32 memory and exports it under the stable internal ABI name `"lane.memory"`. The module does not import host-owned memory. Wasmoon runtime imports use the current RuntimeContext to access approved String and byte-buffer ranges through this export. When a retained host-import result requires it, the module also exports the corresponding certified allocation service, such as `"lane.runtime.string.new"`, for RuntimeContext to invoke while ordinary Lane execution is paused.
 
 Linear-memory address zero is reserved. Active data segments materialize image-owned pooled String objects, layout descriptors, and other static execution data at low addresses during instantiation. Immutable global `heap_base:i32` identifies the first eight-byte-aligned address available to the dynamic Lane heap. The module has no start function; allocator globals use constant initializers. Per-execution Lane Instance Globals are initialized later in the linear-memory Instance Root Table as specified by ADR-0113.
 
@@ -23,7 +23,7 @@ Consequences:
 
 - Lane modules define rather than import canonical memory.
 - Canonical memory is exported as `"lane.memory"` for runtime integration.
-- Restricted runtime services may allocate while ordinary Lane execution is paused.
+- Restricted runtime services may allocate while ordinary Lane execution is paused; a service is exported only when a retained host-import result requires it and its static layout is present.
 - Address zero is reserved and `heap_base` is immutable and eight-byte aligned.
 - Active data segments initialize static memory without a start function.
 - Initial pages minimally cover `heap_base`, and memory declares no maximum.

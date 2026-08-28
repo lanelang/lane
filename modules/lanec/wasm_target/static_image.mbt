@@ -21,6 +21,29 @@ priv struct StaticImage {
 }
 
 ///|
+priv struct WasmRuntimeLayoutIds {
+  byte_sequence : Int
+  reference : Int
+}
+
+///|
+fn wasm_runtime_layout_ids(
+  image : @physical.PhysicalProgram,
+) -> WasmRuntimeLayoutIds {
+  let mut byte_sequence = 0
+  let mut reference = 0
+  for index, layout in image.layouts {
+    if layout is ByteSequence {
+      byte_sequence = index + 1
+    }
+    if layout is Reference {
+      reference = index + 1
+    }
+  }
+  { byte_sequence, reference, }
+}
+
+///|
 priv struct ShapeLayout {
   size : Int
   witness_base : Int
@@ -170,15 +193,17 @@ fn build_static_image(
   write_zeroes(writer, 8)
   let layout_table_base = writer.length()
   write_zeroes(writer, 32)
-  let mut byte_sequence_layout_id = 0
-  let mut reference_layout_id = 0
+  let byte_sequence_layout_id = match
+    function_catalog.runtime_service_layout(StringNew) {
+    Some(layout_id) => layout_id
+    None => function_catalog.runtime_layouts.byte_sequence
+  }
+  let reference_layout_id = match
+    function_catalog.runtime_service_layout(HostObjectNew) {
+    Some(layout_id) => layout_id
+    None => function_catalog.runtime_layouts.reference
+  }
   for index, layout in image.layouts {
-    if layout == ByteSequence {
-      byte_sequence_layout_id = index + 1
-    }
-    if layout == Reference {
-      reference_layout_id = index + 1
-    }
     match layout {
       Data(shape) | Environment(shape) =>
         shape_layout_ids[shape.value] = index + 1

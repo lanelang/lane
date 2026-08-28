@@ -12,6 +12,7 @@ fn invoke_runtime_binding(
   runtime_context : @lane_runtime.RuntimeContext,
   host_objects : WasmHostObjects,
   control_globals : RuntimeControlGlobals,
+  runtime_services : RuntimeServices,
   values : Array[@wasm_types.Value],
 ) -> Array[@wasm_types.Value] raise @wasmoon_runtime.RuntimeError {
   let arguments : Array[@lane_runtime.HostValue] = []
@@ -97,6 +98,7 @@ fn invoke_runtime_binding(
       failure,
       runtime,
       host_objects,
+      runtime_services,
     )
   catch {
     error => {
@@ -179,6 +181,7 @@ fn host_result_to_wasm(
   failure : RuntimeFailureState,
   runtime : @lane_runtime.ExecutionRuntime,
   host_objects : WasmHostObjects,
+  runtime_services : RuntimeServices,
 ) -> Array[@wasm_types.Value] raise @wasmoon_runtime.RuntimeError {
   match (kind, value) {
     (Unit, Unit) => []
@@ -200,7 +203,7 @@ fn host_result_to_wasm(
           }
         },
       )
-      [I32(copy_host_string(caller, bytes))]
+      [I32(copy_host_string(caller, bytes, runtime_services))]
     }
     (Opaque, OwnedOpaque(object)) => {
       let adopted : Result[Int, @wasmoon_runtime.RuntimeError] = runtime.adopt_host_object(
@@ -208,7 +211,7 @@ fn host_result_to_wasm(
         handle => {
           let token = host_objects.insert(handle)
           let allocated : Result[Int, @wasmoon_runtime.RuntimeError] = Ok(
-            copy_host_object(caller, token),
+            copy_host_object(caller, token, runtime_services),
           ) catch {
             error => Err(error)
           }
@@ -256,22 +259,13 @@ fn host_result_to_wasm(
 fn copy_host_object(
   caller : @wasmoon_runtime.Caller,
   token : Int64,
+  runtime_services : RuntimeServices,
 ) -> Int raise @wasmoon_runtime.RuntimeError {
   let instance = caller.instance()
-  let mut service_index = -1
-  for export_ in instance.exports {
-    if export_.name == "lane.runtime.host_object.new" &&
-      export_.desc is Func(index) {
-      service_index = index
-    }
-  }
-  if service_index < 0 {
-    raise UndefinedElement
-  }
   let allocated = @executor.call_func_by_index(
     caller.store(),
     instance,
-    service_index,
+    runtime_services.function(HostObjectNew),
     [I64(token)],
   )
   guard allocated is [I32(reference)] else { raise TypeMismatch }
@@ -282,21 +276,13 @@ fn copy_host_object(
 fn copy_host_string(
   caller : @wasmoon_runtime.Caller,
   bytes : Bytes,
+  runtime_services : RuntimeServices,
 ) -> Int raise @wasmoon_runtime.RuntimeError {
   let instance = caller.instance()
-  let mut service_index = -1
-  for export_ in instance.exports {
-    if export_.name == "lane.runtime.string.new" && export_.desc is Func(index) {
-      service_index = index
-    }
-  }
-  if service_index < 0 {
-    raise UndefinedElement
-  }
   let allocated = @executor.call_func_by_index(
     caller.store(),
     instance,
-    service_index,
+    runtime_services.function(StringNew),
     [I32(bytes.length())],
   )
   guard allocated is [I32(reference)] else { raise TypeMismatch }

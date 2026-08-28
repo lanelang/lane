@@ -55,6 +55,10 @@ test "Wasm compilation records every function at its emission boundary" {
   }
   assert_eq(module_to_wat(observed.module_), module_to_wat(ordinary))
   debug_inspect(
+    runtime_service_exports(observed.module_),
+    content="[\"lane.runtime.string.new\"]",
+  )
+  debug_inspect(
     observed.functions,
     content=(
       #|[
@@ -79,12 +83,11 @@ test "Wasm compilation records every function at its emission boundary" {
       #|  { index: 6, origin: RuntimeFunction(RetainReference) },
       #|  { index: 7, origin: RuntimeFunction(ReleaseReference) },
       #|  { index: 8, origin: RuntimeFunction(ByteSequenceNew) },
-      #|  { index: 9, origin: RuntimeFunction(HostObjectNew) },
-      #|  { index: 10, origin: HelperFunction(RetainReferenceErased) },
-      #|  { index: 11, origin: HelperFunction(ReleaseReferenceErased) },
-      #|  { index: 12, origin: HelperFunction(DestroyNoop) },
-      #|  { index: 13, origin: HelperFunction(ByteSequenceSizer) },
-      #|  { index: 14, origin: EntryWrapper },
+      #|  { index: 9, origin: HelperFunction(RetainReferenceErased) },
+      #|  { index: 10, origin: HelperFunction(ReleaseReferenceErased) },
+      #|  { index: 11, origin: HelperFunction(DestroyNoop) },
+      #|  { index: 12, origin: HelperFunction(ByteSequenceSizer) },
+      #|  { index: 13, origin: EntryWrapper },
       #|]
     ),
   )

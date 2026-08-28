@@ -20,6 +20,35 @@ fn runtime_import_manifest(
 }
 
 ///|
+fn runtime_service_exports(module_ : @wasm_types.Module) -> Array[String] {
+  module_.exports.filter_map(export_ => {
+    if @internal_abi.runtime_services().any(service => {
+        service.name() == export_.name
+      }) {
+      Some(export_.name)
+    } else {
+      None
+    }
+  })
+}
+
+///|
+fn exported_function_index(module_ : @wasm_types.Module, name : String) -> Int? {
+  for export_ in module_.exports {
+    if export_.name == name && export_.desc is Func(index) {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn encode_wasm_module(module_ : @wasm_types.Module) -> Bytes {
+  let encoded = @wasm_encoder.encode(module_)
+  Bytes::from_iter(encoded.iter().map(value => value.to_byte()))
+}
+
+///|
 fn load(
   image : @physical.PhysicalProgram,
   registry : @lane_runtime.RuntimeRegistry,
@@ -33,11 +62,9 @@ fn load(
     Ok(module_) => module_
     Err(error) => return Err(WasmCompilation(error))
   }
-  let encoded = @wasm_encoder.encode(module_)
-  let wasm = Bytes::from_iter(encoded.iter().map(value => value.to_byte()))
   match
     @lane_wasm_runtime.load_wasm(
-      wasm,
+      encode_wasm_module(module_),
       runtime_import_manifest(image),
       registry,
       mode~,

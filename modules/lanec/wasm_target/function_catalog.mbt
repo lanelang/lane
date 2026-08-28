@@ -39,7 +39,15 @@ priv struct WasmFunctionCatalog {
   table_entries : Array[WasmFunctionHandle]
   roots : Array[WasmFunctionOrigin]
   required : Array[WasmFunctionOrigin]
+  runtime_services : Array[WasmRuntimeServiceCapability]
+  runtime_layouts : WasmRuntimeLayoutIds
 }
+
+///|
+priv struct WasmRuntimeServiceCapability {
+  service : @internal_abi.RuntimeService
+  layout_id : Int
+} derive(Eq)
 
 ///|
 fn wasm_function_type(
@@ -148,6 +156,8 @@ fn address_taken_functions(image : @physical.PhysicalProgram) -> Array[Bool] {
 fn WasmFunctionCatalog::new(
   image : @physical.PhysicalProgram,
   requirements : WasmFunctionRequirements,
+  runtime_services : Array[WasmRuntimeServiceCapability],
+  runtime_layouts : WasmRuntimeLayoutIds,
 ) -> WasmFunctionCatalog {
   {
     entries: [],
@@ -156,7 +166,26 @@ fn WasmFunctionCatalog::new(
     table_entries: [],
     roots: requirements.roots,
     required: requirements.required,
+    runtime_services,
+    runtime_layouts,
   }
+}
+
+///|
+fn certify_runtime_services(
+  runtime_layouts : WasmRuntimeLayoutIds,
+  required : Array[@internal_abi.RuntimeService],
+) -> Array[WasmRuntimeServiceCapability] raise WasmCompileError {
+  required.map(service => {
+    let layout_id = match service {
+      StringNew => runtime_layouts.byte_sequence
+      HostObjectNew => runtime_layouts.reference
+    }
+    if layout_id == 0 {
+      raise MissingRuntimeServiceLayout(service~)
+    }
+    { service, layout_id, }
+  })
 }
 
 ///|
@@ -251,6 +280,19 @@ fn WasmFunctionCatalog::requires(
   origin : WasmFunctionOrigin,
 ) -> Bool {
   self.required.contains(origin)
+}
+
+///|
+fn WasmFunctionCatalog::runtime_service_layout(
+  self : WasmFunctionCatalog,
+  service : @internal_abi.RuntimeService,
+) -> Int? {
+  for capability in self.runtime_services {
+    if capability.service == service {
+      return Some(capability.layout_id)
+    }
+  }
+  None
 }
 
 ///|
@@ -404,6 +446,22 @@ fn WasmFunctionCatalog::validate(
   global_lifecycle : @physical.GlobalLifecyclePlan,
   wasm_module : @wasm_types.Module,
 ) -> Unit raise WasmCompileError {
+  let actual_layouts = wasm_runtime_layout_ids(image)
+  if self.runtime_layouts.byte_sequence != actual_layouts.byte_sequence ||
+    self.runtime_layouts.reference != actual_layouts.reference {
+    raise InvalidFunctionCatalog(
+      detail="runtime layout identities differ from the physical layout table",
+    )
+  }
+  let expected_services = certify_runtime_services(
+    self.runtime_layouts,
+    runtime_services_for_required_origins(image, self.required),
+  )
+  if self.runtime_services != expected_services {
+    raise InvalidFunctionCatalog(
+      detail="runtime service capabilities differ from retained host imports",
+    )
+  }
   for root in self.roots {
     if !self.requires(root) {
       raise InvalidFunctionCatalog(
@@ -577,7 +635,19 @@ fn plan_wasm_function_catalog(
   let requirements = plan_wasm_function_requirements(
     image, global_lifecycle, host_objects_enabled,
   )
-  let catalog = WasmFunctionCatalog::new(image, requirements)
+  let runtime_layouts = wasm_runtime_layout_ids(image)
+  let runtime_services = certify_runtime_services(
+    runtime_layouts,
+    requirements.runtime_services,
+  )
+  if host_objects_enabled && runtime_layouts.reference == 0 {
+    raise ValidationFailure(
+      detail="Opaque runtime imports require a Reference layout",
+    )
+  }
+  let catalog = WasmFunctionCatalog::new(
+    image, requirements, runtime_services, runtime_layouts,
+  )
   for function in @internal_abi.functions() {
     if catalog.requires(InternalRuntimeImport(function)) {
       catalog.declare_internal_import(wasm_module, function)

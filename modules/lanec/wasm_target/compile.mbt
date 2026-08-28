@@ -9,6 +9,7 @@ pub(all) suberror WasmCompileError {
     actual~ : Int
   )
   MissingByteSequenceLayout
+  MissingRuntimeServiceLayout(service~ : @internal_abi.RuntimeService)
   InvalidFunctionCatalog(detail~ : String)
   ValidationFailure(detail~ : String)
 } derive(Debug, Eq)
@@ -62,11 +63,6 @@ fn compile_or_raise(
     }
   })
   let host_objects_enabled = imports.any(runtime_import_uses_host_objects)
-  if host_objects_enabled && !image.layouts.any(layout => layout is Reference) {
-    raise ValidationFailure(
-      detail="Opaque runtime imports require a Reference layout",
-    )
-  }
   let function_catalog = plan_wasm_function_catalog(
     image, global_lifecycle, host_objects_enabled, wasm_module,
   )
@@ -185,14 +181,14 @@ fn compile_or_raise(
     desc: Func(function_catalog.require(EntryWrapper).index),
   })
   wasm_module.exports.push({ name: "lane.memory", desc: Memory(0), })
-  wasm_module.exports.push({
-    name: "lane.runtime.string.new",
-    desc: Func(function_catalog.runtime(ByteSequenceNew).index),
-  })
-  wasm_module.exports.push({
-    name: "lane.runtime.host_object.new",
-    desc: Func(function_catalog.runtime(HostObjectNew).index),
-  })
+  for capability in function_catalog.runtime_services {
+    wasm_module.exports.push({
+      name: capability.service.name(),
+      desc: Func(
+        function_catalog.runtime(runtime_service_function(capability.service)).index,
+      ),
+    })
+  }
   if observe is Some(emit) {
     emit(
       function_catalog.provenance(),

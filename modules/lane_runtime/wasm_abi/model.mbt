@@ -95,3 +95,52 @@ pub fn runtime_import_results(
     F32 => [F32]
   }
 }
+
+///|
+pub(all) enum RuntimeService {
+  StringNew
+  HostObjectNew
+} derive(Debug, Eq)
+
+///|
+pub fn runtime_services() -> Array[RuntimeService] {
+  [StringNew, HostObjectNew]
+}
+
+///|
+pub fn RuntimeService::name(self : RuntimeService) -> String {
+  match self {
+    StringNew => "lane.runtime.string.new"
+    HostObjectNew => "lane.runtime.host_object.new"
+  }
+}
+
+///|
+pub fn RuntimeService::type_(self : RuntimeService) -> @wasm_types.FuncType {
+  match self {
+    StringNew => { params: [I32], results: [I32], }
+    HostObjectNew => { params: [I64], results: [I32], }
+  }
+}
+
+///|
+pub fn RuntimeService::required_by_import_result(
+  self : RuntimeService,
+  result : @lane_runtime.RuntimeValueKind,
+) -> Bool {
+  match (self, result) {
+    (StringNew, String) | (HostObjectNew, Opaque) => true
+    _ => false
+  }
+}
+
+///|
+pub fn RuntimeService::required_by_internal_import(
+  self : RuntimeService,
+  function : InternalRuntimeFunction,
+) -> Bool {
+  match (self, function) {
+    (StringNew, F32ToString | F64ToString) => true
+    _ => false
+  }
+}

@@ -292,11 +292,7 @@ test "runtime imports compile from physical descriptors" {
   assert_eq(@wasm_target.runtime_results_for_import(import_), [I32])
   assert_true(
     compile_test_image(image([PhysicalBody(body()), RuntimeImport(import_)]))
-    is Err(
-      ValidationFailure(
-        detail="Opaque runtime imports require a Reference layout"
-      )
-    ),
+    is Err(MissingRuntimeServiceLayout(service=HostObjectNew)),
   )
   assert_true(compile_test_image(physical_program) is Ok(_))
 }
@@ -918,17 +914,7 @@ test "dynamic String primitives allocate, copy, compare, and release" {
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
-  let allocated = @executor.call_exported_func(
-    store,
-    instance,
-    "lane.runtime.string.new",
-    [I32(3)],
-  )
-  guard allocated is [I32(reference)] else { fail("expected String reference") }
-  let memory = store.get_mem(instance.mem_addrs[0])
-  assert_eq(memory.load_i32(reference), 1)
-  assert_eq(memory.load_i32(reference + 4), 1)
-  assert_eq(memory.load_i32(reference + 8), 3)
+  debug_inspect(runtime_service_exports(wasm_module), content="[]")
 }
 
 ///|

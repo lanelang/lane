@@ -2,6 +2,24 @@
 priv struct WasmFunctionRequirements {
   roots : Array[WasmFunctionOrigin]
   required : Array[WasmFunctionOrigin]
+  runtime_services : Array[@internal_abi.RuntimeService]
+}
+
+///|
+fn runtime_service_function(
+  service : @internal_abi.RuntimeService,
+) -> WasmRuntimeFunctionRole {
+  match service {
+    StringNew => ByteSequenceNew
+    HostObjectNew => WasmRuntimeFunctionRole::HostObjectNew
+  }
+}
+
+///|
+fn runtime_service_dependencies(
+  services : Array[@internal_abi.RuntimeService],
+) -> Array[WasmFunctionOrigin] {
+  services.map(service => RuntimeFunction(runtime_service_function(service)))
 }
 
 ///|
@@ -261,7 +279,25 @@ fn wasm_function_dependencies(
   origin : WasmFunctionOrigin,
 ) -> Array[WasmFunctionOrigin] raise WasmCompileError {
   match origin {
-    InternalRuntimeImport(_) | PhysicalRuntimeImport(_) => []
+    InternalRuntimeImport(function) =>
+      runtime_service_dependencies(
+        @internal_abi.runtime_services().filter(service => {
+          service.required_by_internal_import(function)
+        }),
+      )
+    PhysicalRuntimeImport(function~, symbol=_) =>
+      match image.functions[function.value - 1] {
+        RuntimeImport(import_) =>
+          runtime_service_dependencies(
+            @internal_abi.runtime_services().filter(service => {
+              service.required_by_import_result(import_.result)
+            }),
+          )
+        PhysicalBody(_) =>
+          raise InvalidFunctionCatalog(
+            detail="physical import requirement names a physical body",
+          )
+      }
     PhysicalFunction(function~) =>
       match image.functions[function.value - 1] {
         PhysicalBody(body) => physical_body_dependencies(image, body)
@@ -363,12 +399,33 @@ fn plan_wasm_function_requirements(
     let function : @physical.FunctionId = { value: index + 1, }
     require_wasm_function(roots, image_function_origin(image, function))
   }
-  require_wasm_function(roots, RuntimeFunction(ByteSequenceNew))
-  require_wasm_function(roots, RuntimeFunction(HostObjectNew))
   for layout in image.layouts {
     require_layout_support(roots, layout, host_objects_enabled)
   }
   require_wasm_function(roots, EntryWrapper)
   let required = close_wasm_function_roots(image, global_lifecycle, roots)
-  { roots, required, }
+  let runtime_services = runtime_services_for_required_origins(image, required)
+  { roots, required, runtime_services, }
+}
+
+///|
+fn runtime_services_for_required_origins(
+  image : @physical.PhysicalProgram,
+  required : Array[WasmFunctionOrigin],
+) -> Array[@internal_abi.RuntimeService] {
+  @internal_abi.runtime_services().filter(service => {
+    required.any(origin => {
+      match origin {
+        InternalRuntimeImport(function) =>
+          service.required_by_internal_import(function)
+        PhysicalRuntimeImport(function~, symbol=_) =>
+          match image.functions[function.value - 1] {
+            RuntimeImport(import_) =>
+              service.required_by_import_result(import_.result)
+            PhysicalBody(_) => false
+          }
+        _ => false
+      }
+    })
+  })
 }
