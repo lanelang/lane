@@ -360,6 +360,10 @@ The type representation must distinguish a runtime primitive type constructor fr
 
 Module interfaces and module objects encode `Array[T]` in exported types and encode Array intrinsic bindings as ordinary `Forall` values. Semantic fingerprints, binary artifact codecs, inspection output, linker remapping, and interface-closure traversal must preserve the constructor and its type argument.
 
+This representation advances the Buslane codec to version 9, the module
+interface schema to version 15, and the module object schema to version 26.
+Current-only decoders reject versions 8, 14, and 25 respectively.
+
 Array adds no provider module identity. Importing or omitting Basic does not change the meaning or identity of `Array[T]`.
 
 ### Checked core, Buslane, and Runtime ANF

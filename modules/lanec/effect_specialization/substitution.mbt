@@ -62,7 +62,8 @@ fn generic_argument_contains_effect_parameter(
 ///|
 fn type_contains_effect_parameter(type_ : @buslane.Type) -> Bool {
   match type_ {
-    Primitive(_) | Parameter(_) | Constructor(_) => false
+    Primitive(_) | BuiltinConstructor(_) | Parameter(_) | Constructor(_) =>
+      false
     Apply(callee, arguments) =>
       type_contains_effect_parameter(callee) ||
       arguments.any(generic_argument_contains_effect_parameter)
@@ -141,7 +142,8 @@ fn abstract_specialized_type(
     }
   }
   match type_ {
-    Primitive(_) | Parameter(_) | Constructor(_) => type_
+    Primitive(_) | BuiltinConstructor(_) | Parameter(_) | Constructor(_) =>
+      type_
     Apply(callee, nested) =>
       Apply(
         abstract_specialized_type(callee, parameters, arguments, metadata),

@@ -130,7 +130,7 @@ fn ProgramDeclarations::walk_type(
   type_ : @buslane.Type,
 ) -> Unit {
   match type_ {
-    Primitive(_) | Parameter(_) => ()
+    Primitive(_) | BuiltinConstructor(_) | Parameter(_) => ()
     Constructor(type_id) => self.mark_type(type_id)
     Apply(callee, arguments) => {
       self.walk_type(callee)

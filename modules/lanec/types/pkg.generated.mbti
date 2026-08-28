@@ -32,6 +32,17 @@ pub fn BuiltinEffect::equal(Self, Self) -> Bool
 pub fn BuiltinEffect::not_equal(Self, Self) -> Bool
 pub fn BuiltinEffect::to_repr(Self) -> @debug.Repr
 
+pub(all) enum BuiltinTypeConstructor {
+  Array
+} derive(Eq, @debug.Debug)
+pub fn BuiltinTypeConstructor::equal(Self, Self) -> Bool
+pub fn BuiltinTypeConstructor::from_name(String) -> Self?
+pub fn BuiltinTypeConstructor::name(Self) -> String
+pub fn BuiltinTypeConstructor::not_equal(Self, Self) -> Bool
+pub fn BuiltinTypeConstructor::pretty(Self) -> @prettyprinter.Document
+pub fn BuiltinTypeConstructor::to_repr(Self) -> @debug.Repr
+pub impl @prettyprinter.Pretty for BuiltinTypeConstructor
+
 pub(all) enum Effect {
   Empty
   Builtin(BuiltinEffect)
@@ -100,6 +111,7 @@ pub impl @prettyprinter.Pretty for PrimitiveType
 pub(all) enum Type {
   Error
   Primitive(PrimitiveType)
+  BuiltinConstructor(BuiltinTypeConstructor)
   Constructor(@symbol.TypeSymbolId)
   Apply(Type, Array[GenericArgument])
   TypeLambda(Array[TypeParameter], Type)

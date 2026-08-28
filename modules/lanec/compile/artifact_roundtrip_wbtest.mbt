@@ -219,7 +219,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 14
+      #|schema: 15
       #|
       #|imported interfaces:
       #|  (none)
@@ -293,7 +293,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 25
+      #|schema: 26
       #|
       #|imported interfaces:
       #|  (none)
@@ -411,7 +411,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 14
+      #|schema: 15
       #|
       #|imported interfaces:
       #|  (none)
@@ -825,7 +825,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 14
+      #|schema: 15
       #|
       #|imported interfaces:
       #|  (none)
@@ -847,7 +847,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 25
+      #|schema: 26
       #|
       #|imported interfaces:
       #|  (none)
@@ -1025,14 +1025,14 @@ test "module binaries reject immediately preceding schema versions" {
   let interface_bytes = @artifact.module_interface_artifact_to_binary(
     module_.to_interface_artifact(),
   ).to_array()
-  interface_bytes[14] = b'\x0D'
+  interface_bytes[14] = b'\x0E'
   interface_bytes[15] = b'\x00'
   interface_bytes[16] = b'\x00'
   interface_bytes[17] = b'\x00'
   let object_bytes = @artifact.module_object_artifact_to_binary(
     module_.to_object_artifact(),
   ).to_array()
-  object_bytes[14] = b'\x15'
+  object_bytes[14] = b'\x19'
   object_bytes[15] = b'\x00'
   object_bytes[16] = b'\x00'
   object_bytes[17] = b'\x00'
@@ -1052,7 +1052,7 @@ test "module binaries reject immediately preceding schema versions" {
     Ok(_) => fail("expected old object schema failure")
   }
   assert_eq(messages, [
-    "unsupported interface artifact schema version 13", "unsupported object artifact schema version 21",
+    "unsupported interface artifact schema version 14", "unsupported object artifact schema version 25",
   ])
 }
 
@@ -1144,7 +1144,7 @@ test "tuple signatures use safe nominal artifact presentation" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 14
+      #|schema: 15
       #|
       #|imported interfaces:
       #|  Basic.Data.Tuple: sha256:b8cc828dc42a4df958a95aea3b3d1a2f0d7ba5b4ed5818057621e3c69bd99885

@@ -65,6 +65,7 @@ pub(all) enum Token {
   STRING_TYPE
   BYTE_TYPE
   BYTES_TYPE
+  ARRAY_TYPE
   IO
   PANIC
   FORALL
@@ -133,6 +134,7 @@ pub(all) enum TokenKind {
   TK_STRING_TYPE
   TK_BYTE_TYPE
   TK_BYTES_TYPE
+  TK_ARRAY_TYPE
   TK_IO
   TK_PANIC
   TK_FORALL

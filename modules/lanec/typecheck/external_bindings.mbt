@@ -58,37 +58,76 @@ fn SemanticChecker::compiler_intrinsic_type(
   loc : SourceSpan,
 ) -> @types.Type? {
   match intrinsic.signature() {
-    Value(kind) => self.intrinsic_value_type(kind, loc)
-    Function(parameters~, result~, effect~, ..) => {
+    Value(type_parameters~, type_~) => {
+      let binders = self.intrinsic_type_parameters(type_parameters, loc)
+      guard self.intrinsic_value_type(type_, binders, loc) is Some(type_) else {
+        return None
+      }
+      Some(
+        if binders.is_empty() {
+          type_
+        } else {
+          @types.Forall(binders, type_)
+        },
+      )
+    }
+    Function(type_parameters~, parameters~, result~, effect~, ..) => {
+      let binders = self.intrinsic_type_parameters(type_parameters, loc)
       let checked_parameters = []
       for parameter in parameters {
-        guard self.intrinsic_value_type(parameter, loc) is Some(type_) else {
+        guard self.intrinsic_value_type(parameter, binders, loc) is Some(type_) else {
           return None
         }
         checked_parameters.push(type_)
       }
-      guard self.intrinsic_value_type(result, loc) is Some(result_type) else {
+      guard self.intrinsic_value_type(result, binders, loc) is Some(result_type) else {
         return None
       }
+      let function = @types.Type::Function(
+        checked_parameters,
+        result_type,
+        match effect {
+          Pure => @types.Effect::Empty
+          BuiltinIo => @types.Builtin(@types.Io)
+          BuiltinPanic => @types.Builtin(@types.Panic)
+        },
+      )
       Some(
-        Function(
-          checked_parameters,
-          result_type,
-          match effect {
-            Pure => Empty
-            BuiltinIo => Builtin(Io)
-            BuiltinPanic => Builtin(Panic)
-          },
-        ),
+        if binders.is_empty() {
+          function
+        } else {
+          @types.Forall(binders, function)
+        },
       )
     }
   }
 }
 
 ///|
+fn SemanticChecker::intrinsic_type_parameters(
+  self : SemanticChecker,
+  kinds : Array[@abi.IntrinsicTypeParameterKind],
+  loc : SourceSpan,
+) -> Array[@types.TypeParameter] {
+  kinds.mapi(fn(index, kind) {
+    {
+      id: self.resolved_source.symbols.define_type_parameter(
+        "$intrinsic_type_parameter_\{index}",
+        loc,
+      ),
+      name: "T\{index}",
+      kind: match kind {
+        Type => @types.Type
+      },
+    }
+  })
+}
+
+///|
 fn SemanticChecker::intrinsic_value_type(
   self : SemanticChecker,
   kind : @abi.IntrinsicType,
+  type_parameters : Array[@types.TypeParameter],
   loc : SourceSpan,
 ) -> @types.Type? {
   match kind {
@@ -103,6 +142,18 @@ fn SemanticChecker::intrinsic_value_type(
     Byte => Some(Primitive(Byte))
     Bytes => Some(Primitive(Bytes))
     CanonicalBasicVoid => self.canonical_basic_void_type(loc)
+    Parameter(index) => Some(Parameter(type_parameters[index].id))
+    Apply(Array, arguments) => {
+      let checked_arguments = []
+      for argument in arguments {
+        guard self.intrinsic_value_type(argument, type_parameters, loc)
+          is Some(type_) else {
+          return None
+        }
+        checked_arguments.push(@types.TypeArgument(type_))
+      }
+      Some(Apply(BuiltinConstructor(Array), checked_arguments))
+    }
   }
 }
 

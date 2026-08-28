@@ -71,7 +71,7 @@ fn @types.Type::mentions_any_type_parameter_with_bound(
   bound : Array[TypeParameterId],
 ) -> Bool {
   match self {
-    Error | Primitive(_) | Constructor(_) => false
+    Error | Primitive(_) | BuiltinConstructor(_) | Constructor(_) => false
     Apply(callee, arguments) =>
       callee.mentions_any_type_parameter_with_bound(parameters, bound) ||
       arguments.any(fn(argument) {

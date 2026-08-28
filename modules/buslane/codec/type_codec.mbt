@@ -202,6 +202,7 @@ fn @bytecodec.ByteWriter::write_type(
       self.write_u8(0)
       self.write_primitive_type(primitive)
     }
+    BuiltinConstructor(Array) => self.write_u8(7)
     Parameter(id) => {
       self.write_u8(1)
       self.write_type_parameter_id(id)
@@ -267,6 +268,10 @@ fn @bytecodec.ByteReader::read_type(
     [u8be(6), .. rest] => {
       self.update_view(rest)
       Forall(self.read_type_parameter_ids(), self.read_type())
+    }
+    [u8be(7), .. rest] => {
+      self.update_view(rest)
+      BuiltinConstructor(Array)
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

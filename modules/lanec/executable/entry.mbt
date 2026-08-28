@@ -117,7 +117,7 @@ fn entry_argument_is_closed(argument : @buslane.GenericArgument) -> Bool {
 ///|
 fn entry_type_is_closed(type_ : @buslane.Type) -> Bool {
   match type_ {
-    Primitive(_) | Parameter(_) | Constructor(_) => true
+    Primitive(_) | BuiltinConstructor(_) | Parameter(_) | Constructor(_) => true
     Apply(callee, arguments) =>
       entry_type_is_closed(callee) && arguments.all(entry_argument_is_closed)
     TypeLambda(_, body) | Forall(_, body) => entry_type_is_closed(body)

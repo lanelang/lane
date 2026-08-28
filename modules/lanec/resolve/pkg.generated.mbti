@@ -600,6 +600,7 @@ pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration
 
 pub(all) enum ResolvedType {
   Primitive(@types.PrimitiveType, loc~ : @basic.SourceSpan)
+  BuiltinConstructor(@types.BuiltinTypeConstructor, loc~ : @basic.SourceSpan)
   Constructor(symbol~ : @symbol.TypeSymbolId, name~ : ResolvedNominalName, loc~ : @basic.SourceSpan)
   Alias(symbol~ : @symbol.TypeAliasSymbolId, owner_module_path~ : String?, name~ : ResolvedNominalName, loc~ : @basic.SourceSpan)
   Apply(callee~ : ResolvedType, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)

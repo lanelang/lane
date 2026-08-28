@@ -107,8 +107,14 @@ pub(all) enum PrimitiveType {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum BuiltinTypeConstructor {
+  Array
+} derive(Debug, Eq)
+
+///|
 pub(all) enum Type {
   Primitive(PrimitiveType)
+  BuiltinConstructor(BuiltinTypeConstructor)
   Parameter(TypeParameterId)
   Constructor(TypeId)
   Apply(Type, Array[GenericArgument])
@@ -934,6 +940,7 @@ fn AlphaContext::with_binders(
 fn alpha_equal_with(context : AlphaContext, left : Type, right : Type) -> Bool {
   match (left, right) {
     (Primitive(left), Primitive(right)) => left == right
+    (BuiltinConstructor(left), BuiltinConstructor(right)) => left == right
     (Parameter(left), Parameter(right)) =>
       alpha_equal_parameter(context.bindings, left, right)
     (Constructor(left_id), Constructor(right_id)) => left_id == right_id
@@ -1295,7 +1302,7 @@ fn GenericArgument::mentions_free(
 ///|
 fn Type::mentions_free(self : Type, id : TypeParameterId) -> Bool {
   match self {
-    Primitive(_) | Constructor(_) => false
+    Primitive(_) | BuiltinConstructor(_) | Constructor(_) => false
     Parameter(parameter) => parameter == id
     Apply(callee, arguments) =>
       callee.mentions_free(id) ||
@@ -1415,7 +1422,7 @@ fn Type::normalize_with_budget(
   budget : TypeNormalizationBudget,
 ) -> Type raise TypeNormalizationError {
   match self {
-    Primitive(_) | Parameter(_) | Constructor(_) => self
+    Primitive(_) | BuiltinConstructor(_) | Parameter(_) | Constructor(_) => self
     Apply(callee, arguments) => {
       let normalized_callee = callee.normalize_with_budget(budget)
       let normalized_arguments = arguments.map(argument => {
@@ -1496,7 +1503,7 @@ fn Type::substitute_with_bound(
   bound : Array[TypeParameterId],
 ) -> Type raise TypeSubstitutionError {
   match self {
-    Primitive(_) | Constructor(_) => self
+    Primitive(_) | BuiltinConstructor(_) | Constructor(_) => self
     Parameter(parameter) =>
       match substitution.lookup_type(parameter, bound) {
         Some(replacement) => replacement

@@ -72,6 +72,13 @@ pub fn BuiltinEffect::equal(Self, Self) -> Bool
 pub fn BuiltinEffect::not_equal(Self, Self) -> Bool
 pub fn BuiltinEffect::to_repr(Self) -> @debug.Repr
 
+pub(all) enum BuiltinTypeConstructor {
+  Array
+} derive(Eq, @debug.Debug)
+pub fn BuiltinTypeConstructor::equal(Self, Self) -> Bool
+pub fn BuiltinTypeConstructor::not_equal(Self, Self) -> Bool
+pub fn BuiltinTypeConstructor::to_repr(Self) -> @debug.Repr
+
 pub(all) struct BuslaneName {
   name_space : NameNamespace
   occurrence : String
@@ -556,6 +563,7 @@ pub impl @prettyprinter.Pretty for TopTerm
 
 pub(all) enum Type {
   Primitive(PrimitiveType)
+  BuiltinConstructor(BuiltinTypeConstructor)
   Parameter(TypeParameterId)
   Constructor(TypeId)
   Apply(Type, Array[GenericArgument])

@@ -463,6 +463,7 @@ fn GenericArgumentInference::type_kind(
 ) -> @types.Kind? {
   match type_ {
     Error | Primitive(_) | Function(_, _, _) | Forall(_, _) => Some(Type)
+    BuiltinConstructor(_) => Some(Function([Type], Type))
     Constructor(symbol) => self.nominal_type_kind(symbol)
     Apply(callee, _) =>
       match self.type_kind(callee, bound) {

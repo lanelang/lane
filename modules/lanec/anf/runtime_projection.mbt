@@ -270,7 +270,7 @@ fn RuntimeGenericPlan::observe_type(
   type_ : @buslane.Type,
 ) -> Unit {
   match type_ {
-    Primitive(_) | Constructor(_) => ()
+    Primitive(_) | BuiltinConstructor(_) | Constructor(_) => ()
     Parameter(parameter) => self.mark_live(parameter)
     Apply(callee, arguments) => {
       self.observe_type(callee)
@@ -614,6 +614,10 @@ fn RuntimeGenericPlan::normalized_runtime_type(
     Primitive(F32) => Scalar(F32)
     Primitive(Byte) => Scalar(Byte)
     Primitive(String) | Primitive(Bytes) => ByteSequence
+    BuiltinConstructor(_) =>
+      raise InvalidRuntimeProjection(
+        detail="an unapplied builtin type constructor has no runtime representation",
+      )
     Parameter(parameter) => {
       let expression = self.intern_type_expression(
         Parameter(Projected(parameter.index)),

@@ -302,7 +302,7 @@ fn InlineCloneContext::rename_type_parameters(
   type_ : @buslane.Type,
 ) -> @buslane.Type {
   match type_ {
-    Primitive(_) | Constructor(_) => type_
+    Primitive(_) | BuiltinConstructor(_) | Constructor(_) => type_
     Parameter(parameter) => Parameter(self.renamed_type_parameter(parameter))
     Apply(callee, arguments) =>
       Apply(

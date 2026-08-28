@@ -1176,6 +1176,7 @@ fn complete_constructor_signatures(
       ])
     Primitive(Unit) => Some([{ tag: UnitConstructor, argument_types: [], }])
     Error
+    | BuiltinConstructor(_)
     | Primitive(I64)
     | Primitive(I32)
     | Primitive(Char)

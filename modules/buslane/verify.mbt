@@ -1806,6 +1806,7 @@ fn VerifyContext::synthesize_type_kind(
 ) -> Kind {
   match type_ {
     Primitive(_) => Type
+    BuiltinConstructor(Array) => Function([Type], Type)
     Parameter(parameter) => {
       if !scope.contains(parameter) {
         self.report(UnknownTypeParameter(parameter))

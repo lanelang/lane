@@ -3,7 +3,13 @@ fn expected_direct_intrinsic(
   parameters~ : Array[IntrinsicType],
   result~ : IntrinsicType,
 ) -> IntrinsicSignature {
-  Function(parameters~, result~, effect=Pure, implementation=Direct)
+  Function(
+    type_parameters=[],
+    parameters~,
+    result~,
+    effect=Pure,
+    implementation=Direct,
+  )
 }
 
 ///|
@@ -18,6 +24,7 @@ test "panic intrinsic owns its exact Panic signature" {
       Some(Panic),
       "%panic",
       Function(
+        type_parameters=[],
         parameters=[String],
         result=CanonicalBasicVoid,
         effect=BuiltinPanic,
@@ -185,11 +192,78 @@ test "WASI fd_write bridge owns its exact effectful signature" {
       Some(WasiFdWrite),
       "%wasi_fd_write",
       Function(
+        type_parameters=[],
         parameters=[I32, Bytes],
         result=I32,
         effect=BuiltinIo,
         implementation=Direct,
       ),
     ),
+  )
+}
+
+///|
+test "Array intrinsics own one closed polymorphic contract" {
+  let array = Apply(Array, [Parameter(0)])
+  assert_eq(
+    [
+      (ArrayEmpty.name(), ArrayEmpty.signature()),
+      (ArrayMake.name(), ArrayMake.signature()),
+      (ArrayLength.name(), ArrayLength.signature()),
+      (ArrayGet.name(), ArrayGet.signature()),
+      (ArraySet.name(), ArraySet.signature()),
+    ],
+    [
+      (
+        "%array_empty",
+        Function(
+          type_parameters=[Type],
+          parameters=[],
+          result=array,
+          effect=Pure,
+          implementation=Direct,
+        ),
+      ),
+      (
+        "%array_make",
+        Function(
+          type_parameters=[Type],
+          parameters=[I64, Parameter(0)],
+          result=array,
+          effect=Pure,
+          implementation=Direct,
+        ),
+      ),
+      (
+        "%array_length",
+        Function(
+          type_parameters=[Type],
+          parameters=[array],
+          result=I64,
+          effect=Pure,
+          implementation=Direct,
+        ),
+      ),
+      (
+        "%array_get",
+        Function(
+          type_parameters=[Type],
+          parameters=[array, I64],
+          result=Parameter(0),
+          effect=Pure,
+          implementation=Direct,
+        ),
+      ),
+      (
+        "%array_set",
+        Function(
+          type_parameters=[Type],
+          parameters=[array, I64, Parameter(0)],
+          result=array,
+          effect=Pure,
+          implementation=Direct,
+        ),
+      ),
+    ],
   )
 }

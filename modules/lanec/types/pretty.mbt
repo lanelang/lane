@@ -6,6 +6,13 @@ pub impl @prettyprinter.Pretty for PrimitiveType with fn pretty(
 }
 
 ///|
+pub impl @prettyprinter.Pretty for BuiltinTypeConstructor with fn pretty(
+  builtin : BuiltinTypeConstructor,
+) {
+  text(builtin.name())
+}
+
+///|
 pub impl @prettyprinter.Pretty for Kind with fn pretty(kind : Kind) {
   match kind {
     Type => text("Type")
@@ -54,6 +61,7 @@ pub impl @prettyprinter.Pretty for Type with fn pretty(type_ : Type) {
   match type_ {
     Error => text("<error>")
     Primitive(primitive) => primitive.pretty()
+    BuiltinConstructor(builtin) => builtin.pretty()
     Constructor(symbol) => symbol.pretty()
     Apply(callee, arguments) =>
       group(callee.pretty() + bracketed(arguments.map(GenericArgument::pretty)))

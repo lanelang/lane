@@ -53,6 +53,7 @@ test "buslane text round-trips metadata allocator state" {
 fn type_forms() -> Array[(String, @buslane.Type)] {
   [
     ("primitive", Primitive(I64)),
+    ("built-in constructor", BuiltinConstructor(Array)),
     ("parameter", Parameter({ index: 7, })),
     ("constructor", Constructor({ index: 7, })),
     (

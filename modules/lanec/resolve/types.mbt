@@ -11,38 +11,42 @@ fn @syntax.Type::resolve_type(
 ) -> ResolvedType {
   match self {
     Name(name~, loc~) =>
-      // Type names are resolved in the language order: primitives first, then
+      // Type names are resolved in the language order: builtins first, then
       // in-scope type parameters, then nominal type constructors, then aliases.
       match @types.PrimitiveType::from_name(name) {
         Some(primitive) => Primitive(primitive, loc~)
         None =>
-          match scope.type_parameter(name) {
-            Some(symbol) => Parameter(symbol~, name~, loc~)
+          match @types.BuiltinTypeConstructor::from_name(name) {
+            Some(builtin) => BuiltinConstructor(builtin, loc~)
             None =>
-              match resolver.type_binding(name) {
-                Some(binding) => {
-                  resolver.record_import_use(binding.import_origin, loc)
-                  Constructor(
-                    symbol=binding.symbol,
-                    name=Unqualified(name),
-                    loc~,
-                  )
-                }
+              match scope.type_parameter(name) {
+                Some(symbol) => Parameter(symbol~, name~, loc~)
                 None =>
-                  match resolver.type_alias_binding(name) {
+                  match resolver.type_binding(name) {
                     Some(binding) => {
                       resolver.record_import_use(binding.import_origin, loc)
-                      Alias(
+                      Constructor(
                         symbol=binding.symbol,
-                        owner_module_path=binding.owner_module_path,
                         name=Unqualified(name),
                         loc~,
                       )
                     }
-                    None => {
-                      resolver.report(UnresolvedType(name), loc)
-                      Unresolved(name~, arguments=[], loc~)
-                    }
+                    None =>
+                      match resolver.type_alias_binding(name) {
+                        Some(binding) => {
+                          resolver.record_import_use(binding.import_origin, loc)
+                          Alias(
+                            symbol=binding.symbol,
+                            owner_module_path=binding.owner_module_path,
+                            name=Unqualified(name),
+                            loc~,
+                          )
+                        }
+                        None => {
+                          resolver.report(UnresolvedType(name), loc)
+                          Unresolved(name~, arguments=[], loc~)
+                        }
+                      }
                   }
               }
           }

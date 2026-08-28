@@ -719,6 +719,8 @@ fn TypeExpressionChecker::synthesize_type(
   // expression whose kind is [K_i...] -> K.
   match type_ {
     Primitive(primitive, ..) => { type_: Primitive(primitive), kind: Type, }
+    BuiltinConstructor(builtin, ..) =>
+      { type_: BuiltinConstructor(builtin), kind: Function([Type], Type), }
     Constructor(symbol~, ..) => {
       let kind = self.type_constructor_kind(symbol)
       if kind is Function(parameter_kinds, _) && parameter_kinds.is_empty() {
@@ -1155,6 +1157,7 @@ fn check_resolved_kind(kind : @resolve.ResolvedKind) -> @types.Kind {
 fn resolved_type_loc(type_ : @resolve.ResolvedType) -> SourceSpan {
   match type_ {
     Primitive(_, loc~) => loc
+    BuiltinConstructor(_, loc~) => loc
     Constructor(loc~, ..) => loc
     Alias(loc~, ..) => loc
     Apply(loc~, ..) => loc
@@ -1179,6 +1182,7 @@ fn resolved_generic_argument_loc(
 fn resolved_type_name(type_ : @resolve.ResolvedType) -> String {
   match type_ {
     Primitive(primitive, ..) => @prettyprinter.render(primitive, width=80)
+    BuiltinConstructor(builtin, ..) => builtin.name()
     Constructor(name~, ..) | Alias(name~, ..) => name.display_text()
     Unresolved(name~, ..) => name
     Parameter(name~, ..) => name

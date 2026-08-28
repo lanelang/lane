@@ -194,7 +194,7 @@ fn ModuleObjectIdentityValidator::validate_type(
   type_ : @buslane.Type,
 ) -> Unit {
   match type_ {
-    Primitive(_) => ()
+    Primitive(_) | BuiltinConstructor(_) => ()
     Parameter(id) => self.require_type_parameter(id)
     Constructor(id) => self.require_type(id)
     Apply(callee, arguments) => {

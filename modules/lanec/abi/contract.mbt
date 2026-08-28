@@ -27,6 +27,18 @@ pub(all) enum IntrinsicType {
   Byte
   Bytes
   CanonicalBasicVoid
+  Parameter(Int)
+  Apply(IntrinsicTypeConstructor, Array[IntrinsicType])
+} derive(Debug, Eq)
+
+///|
+pub(all) enum IntrinsicTypeConstructor {
+  Array
+} derive(Debug, Eq)
+
+///|
+pub(all) enum IntrinsicTypeParameterKind {
+  Type
 } derive(Debug, Eq)
 
 ///|
@@ -44,8 +56,12 @@ pub(all) enum IntrinsicFunctionImplementation {
 
 ///|
 pub(all) enum IntrinsicSignature {
-  Value(IntrinsicType)
+  Value(
+    type_parameters~ : Array[IntrinsicTypeParameterKind],
+    type_~ : IntrinsicType
+  )
   Function(
+    type_parameters~ : Array[IntrinsicTypeParameterKind],
     parameters~ : Array[IntrinsicType],
     result~ : IntrinsicType,
     effect~ : IntrinsicEffect,
@@ -58,7 +74,32 @@ fn pure_intrinsic_function(
   parameters~ : Array[IntrinsicType],
   result~ : IntrinsicType,
 ) -> IntrinsicSignature {
-  Function(parameters~, result~, effect=Pure, implementation=Direct)
+  Function(
+    type_parameters=[],
+    parameters~,
+    result~,
+    effect=Pure,
+    implementation=Direct,
+  )
+}
+
+///|
+fn array_parameter() -> IntrinsicType {
+  Apply(Array, [Parameter(0)])
+}
+
+///|
+fn generic_array_intrinsic_function(
+  parameters~ : Array[IntrinsicType],
+  result~ : IntrinsicType,
+) -> IntrinsicSignature {
+  Function(
+    type_parameters=[Type],
+    parameters~,
+    result~,
+    effect=Pure,
+    implementation=Direct,
+  )
 }
 
 ///|
@@ -247,6 +288,11 @@ pub(all) enum Intrinsic {
   BytesLength
   BytesGet
   BytesSet
+  ArrayEmpty
+  ArrayMake
+  ArrayLength
+  ArrayGet
+  ArraySet
   WasiFdWrite
 } derive(Debug, Eq)
 
@@ -314,6 +360,11 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
     "%bytes_length" => Some(BytesLength)
     "%bytes_get" => Some(BytesGet)
     "%bytes_set" => Some(BytesSet)
+    "%array_empty" => Some(ArrayEmpty)
+    "%array_make" => Some(ArrayMake)
+    "%array_length" => Some(ArrayLength)
+    "%array_get" => Some(ArrayGet)
+    "%array_set" => Some(ArraySet)
     "%wasi_fd_write" => Some(WasiFdWrite)
     _ => None
   }
@@ -383,6 +434,11 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
     BytesLength => "%bytes_length"
     BytesGet => "%bytes_get"
     BytesSet => "%bytes_set"
+    ArrayEmpty => "%array_empty"
+    ArrayMake => "%array_make"
+    ArrayLength => "%array_length"
+    ArrayGet => "%array_get"
+    ArraySet => "%array_set"
     WasiFdWrite => "%wasi_fd_write"
   }
 }
@@ -392,6 +448,7 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
   match self {
     Panic =>
       Function(
+        type_parameters=[],
         parameters=[String],
         result=CanonicalBasicVoid,
         effect=BuiltinPanic,
@@ -414,13 +471,13 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
     F64Neg => pure_intrinsic_function(parameters=[F64], result=F64)
     F64Equal | F64Less =>
       pure_intrinsic_function(parameters=[F64, F64], result=Bool)
-    F64Inf | F64NegativeInf | F64Nan => Value(F64)
+    F64Inf | F64NegativeInf | F64Nan => Value(type_parameters=[], type_=F64)
     F32Add | F32Sub | F32Mul | F32Div =>
       pure_intrinsic_function(parameters=[F32, F32], result=F32)
     F32Neg => pure_intrinsic_function(parameters=[F32], result=F32)
     F32Equal | F32Less =>
       pure_intrinsic_function(parameters=[F32, F32], result=Bool)
-    F32Inf | F32NegativeInf | F32Nan => Value(F32)
+    F32Inf | F32NegativeInf | F32Nan => Value(type_parameters=[], type_=F32)
     I64ToF64 => pure_intrinsic_function(parameters=[I64], result=F64)
     F64ToI64 => pure_intrinsic_function(parameters=[F64], result=I64)
     I64ToF32 => pure_intrinsic_function(parameters=[I64], result=F32)
@@ -447,8 +504,31 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
     BytesGet => pure_intrinsic_function(parameters=[Bytes, I64], result=Byte)
     BytesSet =>
       pure_intrinsic_function(parameters=[Bytes, I64, Byte], result=Bytes)
+    ArrayEmpty =>
+      generic_array_intrinsic_function(parameters=[], result=array_parameter())
+    ArrayMake =>
+      generic_array_intrinsic_function(
+        parameters=[I64, Parameter(0)],
+        result=array_parameter(),
+      )
+    ArrayLength =>
+      generic_array_intrinsic_function(
+        parameters=[array_parameter()],
+        result=I64,
+      )
+    ArrayGet =>
+      generic_array_intrinsic_function(
+        parameters=[array_parameter(), I64],
+        result=Parameter(0),
+      )
+    ArraySet =>
+      generic_array_intrinsic_function(
+        parameters=[array_parameter(), I64, Parameter(0)],
+        result=array_parameter(),
+      )
     WasiFdWrite =>
       Function(
+        type_parameters=[],
         parameters=[I32, Bytes],
         result=I32,
         effect=BuiltinIo,

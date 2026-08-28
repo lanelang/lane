@@ -698,7 +698,7 @@ fn SemanticIndex::collect_resolved_type(
   type_ : @resolve.ResolvedType,
 ) -> Unit {
   match type_ {
-    Primitive(_) => ()
+    Primitive(_) | BuiltinConstructor(_) => ()
     Constructor(symbol~, name~, loc~) =>
       self.add_reference(Type(symbol), loc, Some("type \{name.display_text()}"))
     Alias(symbol~, name~, loc~, ..) =>

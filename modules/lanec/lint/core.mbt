@@ -408,7 +408,7 @@ fn LintCollector::collect_checked_type(
       self.use_import_symbol(TypeSymbol(symbol))
       self.add_top_level_reference(TopLevelType(symbol))
     }
-    Error | Primitive(_) => ()
+    Error | Primitive(_) | BuiltinConstructor(_) => ()
     Apply(callee, arguments) => {
       self.collect_checked_type(callee)
       for argument in arguments {
@@ -836,7 +836,7 @@ fn LintCollector::collect_type(
   type_ : @resolve.ResolvedType,
 ) -> Unit {
   match type_ {
-    Primitive(_) => ()
+    Primitive(_) | BuiltinConstructor(_) => ()
     Constructor(symbol~, ..) =>
       self.add_top_level_reference(TopLevelType(symbol))
     Alias(symbol~, ..) => self.add_top_level_reference(TopLevelAlias(symbol))

@@ -118,6 +118,11 @@ pub(all) enum Intrinsic {
   BytesLength
   BytesGet
   BytesSet
+  ArrayEmpty
+  ArrayMake
+  ArrayLength
+  ArrayGet
+  ArraySet
   WasiFdWrite
 } derive(Eq, @debug.Debug)
 pub fn Intrinsic::equal(Self, Self) -> Bool
@@ -145,8 +150,8 @@ pub fn IntrinsicFunctionImplementation::not_equal(Self, Self) -> Bool
 pub fn IntrinsicFunctionImplementation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum IntrinsicSignature {
-  Value(IntrinsicType)
-  Function(parameters~ : Array[IntrinsicType], result~ : IntrinsicType, effect~ : IntrinsicEffect, implementation~ : IntrinsicFunctionImplementation)
+  Value(type_parameters~ : Array[IntrinsicTypeParameterKind], type_~ : IntrinsicType)
+  Function(type_parameters~ : Array[IntrinsicTypeParameterKind], parameters~ : Array[IntrinsicType], result~ : IntrinsicType, effect~ : IntrinsicEffect, implementation~ : IntrinsicFunctionImplementation)
 } derive(Eq, @debug.Debug)
 pub fn IntrinsicSignature::equal(Self, Self) -> Bool
 pub fn IntrinsicSignature::not_equal(Self, Self) -> Bool
@@ -164,10 +169,26 @@ pub(all) enum IntrinsicType {
   Byte
   Bytes
   CanonicalBasicVoid
+  Parameter(Int)
+  Apply(IntrinsicTypeConstructor, Array[IntrinsicType])
 } derive(Eq, @debug.Debug)
 pub fn IntrinsicType::equal(Self, Self) -> Bool
 pub fn IntrinsicType::not_equal(Self, Self) -> Bool
 pub fn IntrinsicType::to_repr(Self) -> @debug.Repr
+
+pub(all) enum IntrinsicTypeConstructor {
+  Array
+} derive(Eq, @debug.Debug)
+pub fn IntrinsicTypeConstructor::equal(Self, Self) -> Bool
+pub fn IntrinsicTypeConstructor::not_equal(Self, Self) -> Bool
+pub fn IntrinsicTypeConstructor::to_repr(Self) -> @debug.Repr
+
+pub(all) enum IntrinsicTypeParameterKind {
+  Type
+} derive(Eq, @debug.Debug)
+pub fn IntrinsicTypeParameterKind::equal(Self, Self) -> Bool
+pub fn IntrinsicTypeParameterKind::not_equal(Self, Self) -> Bool
+pub fn IntrinsicTypeParameterKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ValueKind {
   Unit

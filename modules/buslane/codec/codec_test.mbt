@@ -121,25 +121,25 @@ test "program binary codec roundtrips core structures" {
 }
 
 ///|
-test "program codec writes schema version 8" {
+test "program codec writes schema version 9" {
   let bytes = encode_program({ metadata: MetadataRegistry(), terms: [], })
   guard bytes is [i32le(version), ..] else {
     fail("expected Buslane codec version prefix")
   }
-  assert_eq(version, 8)
+  assert_eq(version, 9)
 }
 
 ///|
-test "program decoder rejects schema version 7 at the version boundary" {
+test "program decoder rejects schema version 8 at the version boundary" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(7)
+  writer.write_u32_le_int(8)
   let error = try {
     ignore(decode_program(writer.to_bytes()))
     None
   } catch {
     error => Some(error)
   }
-  debug_inspect(error, content="Some(UnsupportedCodecVersion(version=7))")
+  debug_inspect(error, content="Some(UnsupportedCodecVersion(version=8))")
 }
 
 ///|
@@ -178,7 +178,7 @@ test "program decoder rejects trailing bytes" {
 ///|
 test "program decoder rejects invalid top term tag" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(7) // codec version
+  writer.write_u32_le_int(9) // codec version
   writer.write_u8(0) // fresh metadata name allocator
   writer.write_u32_le_int(0) // metadata next_unique
   writer.write_u32_le_int(0) // types
@@ -198,7 +198,7 @@ test "program decoder rejects invalid top term tag" {
   debug_inspect(
     error,
     content=(
-      #|Some(UnsupportedCodecVersion(version=7))
+      #|Some(InvalidTag(offset=37, domain="TopTerm", tag=99))
     ),
   )
 }
@@ -224,7 +224,7 @@ test "program codec roundtrips the last unique and exhausted allocator" {
 ///|
 test "program decoder rejects an invalid metadata allocator tag" {
   let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(7)
+  writer.write_u32_le_int(9)
   writer.write_u8(99)
   let error = try {
     ignore(decode_program(writer.to_bytes()))
@@ -235,7 +235,7 @@ test "program decoder rejects an invalid metadata allocator tag" {
   debug_inspect(
     error,
     content=(
-      #|Some(UnsupportedCodecVersion(version=7))
+      #|Some(InvalidTag(offset=4, domain="metadata name allocator", tag=99))
     ),
   )
 }
@@ -270,6 +270,18 @@ test "program codec roundtrips Char type and literal" {
     metadata,
     terms: [Let(value, Literal(Char(0x1F600)))],
   }
+  assert_eq(decode_program(encode_program(program)), program)
+}
+
+///|
+test "program codec roundtrips the built-in Array constructor" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let value = metadata.define_value(
+    "values",
+    Value,
+    Apply(BuiltinConstructor(Array), [TypeArgument(Primitive(I64))]),
+  )
+  let program : Program = { metadata, terms: [External(value)], }
   assert_eq(decode_program(encode_program(program)), program)
 }
 

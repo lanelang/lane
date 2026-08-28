@@ -252,6 +252,7 @@ fn keyword_token(name : String) -> Token raise BuslaneTextLexerError {
     "String" => STRING_TYPE
     "Byte" => BYTE_TYPE
     "Bytes" => BYTES_TYPE
+    "Array" => ARRAY_TYPE
     "forall" => FORALL
     "in" => IN
     "as" => AS

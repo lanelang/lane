@@ -102,7 +102,14 @@ fn BuslaneLowerer::lower_function_effect_widen(
   value : @checked.CheckedExpr,
   target_type : @types.Type,
 ) -> @buslane.Expr raise BuslaneLoweringError {
-  guard target_type is Function(parameters, result, _) else {
+  let (type_parameters, parameters, result) = match target_type {
+    Function(parameters, result, _) => ([], parameters, result)
+    Forall(type_parameters, Function(parameters, result, _)) =>
+      (type_parameters, parameters, result)
+    _ => abort("function effect widening target must be a function scheme")
+  }
+  if !type_parameters.is_empty() &&
+    !(value.type_() is Forall(_, Function(_, _, _))) {
     abort("function effect widening target must be a function")
   }
   let source = self.define_fresh_value(
@@ -122,25 +129,33 @@ fn BuslaneLowerer::lower_function_effect_widen(
       self.lower_type(parameter),
     )
   })
+  let callee = if type_parameters.is_empty() {
+    @buslane.Expr::Ref(source)
+  } else {
+    @buslane.Expr::TypeApply(
+      @buslane.Expr::Ref(source),
+      type_parameters.map(parameter => {
+        self.lower_type_parameter_argument(parameter)
+      }),
+    )
+  }
+  let function = @buslane.Expr::Function({
+    parameters: lowered_parameters,
+    result_type: self.lower_type(result),
+    body: Call(callee, lowered_parameters.map(parameter => Ref(parameter))),
+  })
+  let rhs = if type_parameters.is_empty() {
+    function
+  } else {
+    TypeLambda(
+      type_parameters.map(parameter => self.type_parameter_id(parameter.id)),
+      function,
+    )
+  }
   Let(
     source,
     self.lower_expr(value),
-    LetRec(
-      [
-        {
-          id: wrapper,
-          rhs: Function({
-            parameters: lowered_parameters,
-            result_type: self.lower_type(result),
-            body: Call(
-              Ref(source),
-              lowered_parameters.map(parameter => Ref(parameter)),
-            ),
-          }),
-        },
-      ],
-      Ref(wrapper),
-    ),
+    LetRec([{ id: wrapper, rhs, }], Ref(wrapper)),
   )
 }
 
@@ -367,6 +382,7 @@ fn BuslaneLowerer::lower_type(
   match type_ {
     Error => Primitive(Unit)
     Primitive(primitive) => Primitive(lower_primitive_type(primitive))
+    BuiltinConstructor(Array) => BuiltinConstructor(Array)
     Constructor(symbol) => Constructor(self.type_id(symbol))
     Apply(callee, arguments) =>
       Apply(
