@@ -86,6 +86,164 @@ test "runtime ANF exposes an immutable type-expression catalog" {
 }
 
 ///|
+test "runtime ANF projects generic Array calls through ordinary evidence application" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let element = metadata.define_type_parameter("Element", Type)
+  let generic_array = @buslane.Type::Apply(BuiltinConstructor(Array), [
+    TypeArgument(Parameter(element)),
+  ])
+  let array_i64 = @buslane.Type::Apply(BuiltinConstructor(Array), [
+    TypeArgument(Primitive(I64)),
+  ])
+  let array_empty = metadata.define_value(
+    "array_empty",
+    External,
+    Forall([element], Function([], generic_array, Empty)),
+  )
+  let specialized = metadata.define_value(
+    "specialized",
+    Local,
+    Function([], array_i64, Empty),
+  )
+  let answer = metadata.define_value(
+    "answer",
+    Function,
+    Function([], array_i64, Empty),
+  )
+  let direct_answer = metadata.define_value(
+    "direct_answer",
+    Function,
+    Function([], array_i64, Empty),
+  )
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      External(array_empty),
+      Let(
+        answer,
+        Function({
+          parameters: [],
+          result_type: array_i64,
+          body: Let(
+            specialized,
+            TypeApply(Ref(array_empty), [TypeArgument(Primitive(I64))]),
+            Call(Ref(specialized), []),
+          ),
+        }),
+      ),
+      Let(
+        direct_answer,
+        Function({
+          parameters: [],
+          result_type: array_i64,
+          body: Call(
+            TypeApply(Ref(array_empty), [TypeArgument(Primitive(I64))]),
+            [],
+          ),
+        }),
+      ),
+    ],
+  }
+  assert_true(@buslane.verify_program(source).is_ok())
+  let runtime = lower_all_runtime_anf(source)
+  debug_inspect(
+    runtime.metadata().value_info(array_empty),
+    content=(
+      #|Some(
+      #|  {
+      #|    type_: Forall(
+      #|      [{ id: Projected(0), arity: 0 }],
+      #|      Callable(
+      #|        [],
+      #|        Array({ type_expression: { index: 1 }, evidence: Parameter(Projected(0)) }),
+      #|      ),
+      #|    ),
+      #|  },
+      #|)
+    ),
+  )
+  debug_inspect(
+    runtime.terms(),
+    content=(
+      #|<ArrayView:
+      #|  [
+      #|    External({ index: 0 }),
+      #|    Let(
+      #|      { index: 2 },
+      #|      Atom(
+      #|        Function(
+      #|          {
+      #|            id: { value: 0 },
+      #|            source: Some({ index: 2 }),
+      #|            origin: SourceWritten,
+      #|            parameters: [],
+      #|            result_type: Array({ type_expression: { index: 0 }, evidence: Static(I64) }),
+      #|            body: Let(
+      #|              Temp(
+      #|                temp={ index: 0 },
+      #|                type_=Callable(
+      #|                  [],
+      #|                  Array({ type_expression: { index: 0 }, evidence: Static(I64) }),
+      #|                ),
+      #|                rhs=ApplyEvidence(
+      #|                  callee=Ref({ index: 0 }),
+      #|                  arguments=[{ type_expression: { index: 0 }, evidence: Static(I64) }],
+      #|                ),
+      #|              ),
+      #|              Let(
+      #|                Temp(
+      #|                  temp={ index: 1 },
+      #|                  type_=Array({ type_expression: { index: 0 }, evidence: Static(I64) }),
+      #|                  rhs=Call(callee=Temp({ index: 0 }), arguments=[]),
+      #|                ),
+      #|                Atom(Temp({ index: 1 })),
+      #|              ),
+      #|            ),
+      #|          },
+      #|        ),
+      #|      ),
+      #|    ),
+      #|    Let(
+      #|      { index: 3 },
+      #|      Atom(
+      #|        Function(
+      #|          {
+      #|            id: { value: 1 },
+      #|            source: Some({ index: 3 }),
+      #|            origin: SourceWritten,
+      #|            parameters: [],
+      #|            result_type: Array({ type_expression: { index: 0 }, evidence: Static(I64) }),
+      #|            body: Let(
+      #|              Temp(
+      #|                temp={ index: 2 },
+      #|                type_=Callable(
+      #|                  [],
+      #|                  Array({ type_expression: { index: 0 }, evidence: Static(I64) }),
+      #|                ),
+      #|                rhs=ApplyEvidence(
+      #|                  callee=Ref({ index: 0 }),
+      #|                  arguments=[{ type_expression: { index: 0 }, evidence: Static(I64) }],
+      #|                ),
+      #|              ),
+      #|              Let(
+      #|                Temp(
+      #|                  temp={ index: 3 },
+      #|                  type_=Array({ type_expression: { index: 0 }, evidence: Static(I64) }),
+      #|                  rhs=Call(callee=Temp({ index: 2 }), arguments=[]),
+      #|                ),
+      #|                Atom(Temp({ index: 3 })),
+      #|              ),
+      #|            ),
+      #|          },
+      #|        ),
+      #|      ),
+      #|    ),
+      #|  ]>
+    ),
+  )
+}
+
+///|
 test "runtime ANF contains only retained top-level terms" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let function_type = @buslane.Type::Function([], Primitive(Unit), Empty)
@@ -443,6 +601,10 @@ test "runtime representation equality preserves semantic value categories" {
         Data({ index: 0, }, [right_argument]),
       ),
       metadata.types_representation_equivalent(
+        Array(left_argument),
+        Array(right_argument),
+      ),
+      metadata.types_representation_equivalent(
         Forall(
           [left_parameter],
           Callable([Erased({ index: 50, }, Parameter(left_parameter.id))], Unit),
@@ -469,7 +631,7 @@ test "runtime representation equality preserves semantic value categories" {
         ),
       ),
     ],
-    [false, true, true, true],
+    [false, true, true, true, true],
   )
 }
 

@@ -302,6 +302,7 @@ fn runtime_type_is_closed(
 ) -> Bool {
   match type_ {
     Unit | Scalar(_) | ByteSequence => true
+    Array(argument) => runtime_evidence_is_closed(argument.evidence, bound)
     Data(_, arguments) =>
       arguments.all(argument => {
         runtime_evidence_is_closed(argument.evidence, bound)

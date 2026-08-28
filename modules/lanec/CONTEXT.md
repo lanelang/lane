@@ -277,8 +277,12 @@ The closed backend-lowerable ANF produced only by projecting verified,
 effect-aware CPS Core through the Executable Retention Set. It owns
 `RuntimeType`, `RuntimeEvidence`, retained top-level terms, and an immutable
 runtime type-expression catalog; these distinguish scalar, byte-sequence,
-nominal reference, data, callable, and erased representations without carrying
-Buslane `Type`, `Effect`, `Kind`, `GenericArgument`, or type-lambda syntax.
+primitive Array, nominal reference, data, callable, and erased representations
+without carrying Buslane `Type`, `Effect`, `Kind`, `GenericArgument`, or
+type-lambda syntax. A primitive Array value carries exactly one
+`RuntimeArgument` for its element representation while its own natural layout
+is a reference. Generic Array intrinsics use the same evidence lambdas and
+evidence applications as every other runtime-polymorphic callable.
 Stable Buslane declaration IDs survive only as nominal symbols. Nominal runtime
 arguments select construction and projection evidence, but do not define a
 data value's callable ABI. Higher-kinded nominal arguments are eta-expanded at

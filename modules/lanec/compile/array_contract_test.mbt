@@ -122,3 +122,33 @@ test "Array types and builtin contracts roundtrip through module artifacts" {
     Ok(module_.object),
   )
 }
+
+///|
+test "exported Array intrinsics remain first-class across a module boundary" {
+  guard compile_modules({
+      root: {
+        source_id: "main",
+        text: (
+          #|module Main
+          #|import ArrayLibrary.{ array_empty }
+          #|
+          #|let make_empty : () -> Array[I64] = array_empty[I64]
+          #|
+          #|pub fn answer() -> Array[I64] { make_empty() }
+        ),
+      },
+      libraries: [
+        {
+          source_id: "array-library",
+          text: (
+            #|module ArrayLibrary
+            #|pub let array_empty : [Element]() -> Array[Element] = builtin("%array_empty")
+          ),
+        },
+      ],
+    })
+    is Succeeded(modules, _) else {
+    fail("exported first-class Array intrinsic did not compile")
+  }
+  assert_true(link_modules(modules) is Succeeded(_))
+}

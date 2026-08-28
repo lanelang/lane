@@ -61,6 +61,7 @@ fn FunctionLowerer::erase_value(
           Slot(source, _),
           Scalar(Bool | I32 | Char | Byte)
           | ByteSequence
+          | Array(_)
           | Data(_, _),
         ) => self.emit(EraseI32(destination, source))
         (Slot(source, _), Scalar(I64)) =>
@@ -111,7 +112,10 @@ fn FunctionLowerer::unerase_value(
           self.emit(UneraseUnit(source))
           Unit
         }
-        Scalar(Bool | I32 | Char | Byte) | ByteSequence | Data(_, _) => {
+        Scalar(Bool | I32 | Char | Byte)
+        | ByteSequence
+        | Array(_)
+        | Data(_, _) => {
           let destination = self.fresh_slot(runtime_type)
           self.emit(UneraseI32(destination, source))
           Slot(destination, target_type)

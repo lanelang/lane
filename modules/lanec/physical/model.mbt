@@ -66,6 +66,7 @@ pub(all) enum SemanticValueKind {
   LayoutConstructorValue(Int)
   CallableValue
   ByteSequenceValue
+  ArrayValue
   DataValue(DataFamilyId)
   EnvironmentValue(ObjectShapeId)
   ErasedValue

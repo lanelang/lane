@@ -273,6 +273,8 @@ fn RuntimeSubstitution::apply_type_with(
 ) -> @anf.RuntimeType raise PhysicalLoweringError {
   match type_ {
     Unit | Scalar(_) | ByteSequence => type_
+    Array(element) =>
+      Array(self.apply_argument_with(runtime_types, element, bound, visited))
     Data(owner, arguments) =>
       Data(
         owner,

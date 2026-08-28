@@ -592,6 +592,8 @@ fn PhysicalProgramVerifier::legal_metadata(
       representation == I64 && (cleanup == Trivial || cleanup == OwnedCallable)
     ByteSequenceValue =>
       representation == I32 && (cleanup == Trivial || cleanup == OwnedRef)
+    ArrayValue =>
+      representation == I32 && (cleanup == Trivial || cleanup == OwnedRef)
     DataValue(family) => {
       if family.value < 0 || family.value >= self.image.data_family_count {
         self.fail(site, "DataFamilyId \{family.value} is out of range")

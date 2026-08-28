@@ -670,6 +670,88 @@ test "Runtime ANF boundary rejects a missing type expression" {
 }
 
 ///|
+test "Runtime ANF boundary rejects free Array element evidence" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let lowered = lower_cps_core_to_runtime_anf(
+    runtime_anf_test_input(
+      nested_callable_disposition_program(
+        (_, parameter, _) => Ref(parameter),
+        recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+        i64,
+      ),
+    ),
+  ).unwrap()
+  guard lowered.terms is [Let(main_id, Atom(Function(main)))] else {
+    fail("expected one top-level function")
+  }
+  let missing = RuntimeEvidenceId::Projected(999)
+  let invalid : AnfProgram = {
+    metadata: lowered.metadata,
+    terms: [
+      Let(
+        main_id,
+        Atom(
+          Function({
+            ..main,
+            result_type: Array({
+              type_expression: { index: 0, },
+              evidence: Parameter(missing),
+            }),
+          }),
+        ),
+      ),
+    ],
+  }
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(InvalidRuntimeAnf({ kind: MissingEvidenceParameter(actual), .. })) &&
+    actual == missing,
+  )
+}
+
+///|
+test "Runtime ANF boundary rejects a higher-kinded Array element witness" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let lowered = lower_cps_core_to_runtime_anf(
+    runtime_anf_test_input(
+      nested_callable_disposition_program(
+        (_, parameter, _) => Ref(parameter),
+        recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+        i64,
+      ),
+    ),
+  ).unwrap()
+  guard lowered.terms is [Let(main_id, Atom(Function(main)))] else {
+    fail("expected one top-level function")
+  }
+  let invalid : AnfProgram = {
+    metadata: lowered.metadata,
+    terms: [
+      Let(
+        main_id,
+        Atom(
+          Function({
+            ..main,
+            result_type: Array({
+              type_expression: { index: 0, },
+              evidence: Lambda([{ id: Projected(999), arity: 0, }], Static(I64)),
+            }),
+          }),
+        ),
+      ),
+    ],
+  }
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(
+      InvalidRuntimeAnf(
+        { kind: EvidenceArityMismatch(expected=0, actual=1), .. }
+      )
+    ),
+  )
+}
+
+///|
 test "Runtime ANF boundary rejects an empty recursive group" {
   let i64 = @buslane.Type::Primitive(I64)
   let lowered = lower_cps_core_to_runtime_anf(

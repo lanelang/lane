@@ -618,6 +618,8 @@ fn RuntimeGenericPlan::normalized_runtime_type(
       raise InvalidRuntimeProjection(
         detail="an unapplied builtin type constructor has no runtime representation",
       )
+    Apply(BuiltinConstructor(Array), [TypeArgument(element)]) =>
+      Array(self.runtime_argument(element))
     Parameter(parameter) => {
       let expression = self.intern_type_expression(
         Parameter(Projected(parameter.index)),
