@@ -8,6 +8,8 @@ priv struct StaticImage {
   singleton_refs : Array[Int]
   singleton_layout_ids : Array[Int]
   byte_sequence_layout_id : Int
+  array_layout_id : Int
+  layout_count : Int
   shape_layouts : Array[ShapeLayout]
   shape_layout_ids : Array[Int]
   object_shapes : Array[@physical.ObjectShape]
@@ -23,6 +25,7 @@ priv struct StaticImage {
 ///|
 priv struct WasmRuntimeLayoutIds {
   byte_sequence : Int
+  array : Int
   reference : Int
 }
 
@@ -31,16 +34,20 @@ fn wasm_runtime_layout_ids(
   image : @physical.PhysicalProgram,
 ) -> WasmRuntimeLayoutIds {
   let mut byte_sequence = 0
+  let mut array = 0
   let mut reference = 0
   for index, layout in image.layouts {
     if layout is ByteSequence {
       byte_sequence = index + 1
     }
+    if layout is Array {
+      array = index + 1
+    }
     if layout is Reference {
       reference = index + 1
     }
   }
-  { byte_sequence, reference, }
+  { byte_sequence, array, reference, }
 }
 
 ///|
@@ -116,8 +123,8 @@ fn layout_fixed_size(
 ) -> Int? {
   match layout {
     Unit | Bool | I64 | I32 | Char | F64 | F32 | Callable | Byte => Some(0)
-    Array | Reference => Some(0)
-    ByteSequence => None
+    Reference => Some(0)
+    ByteSequence | Array => None
     Data(shape) | Environment(shape) => {
       ignore(image)
       Some(shape_layouts[shape.value].size)
@@ -178,6 +185,25 @@ fn image_requires_byte_sequence_layout(
 }
 
 ///|
+fn image_requires_array_layout(image : @physical.PhysicalProgram) -> Bool {
+  for function in image.functions {
+    guard function is PhysicalBody(body) else { continue }
+    for block in body.blocks {
+      if block.instructions.any(instruction => {
+          instruction is ArrayEmpty(_, _) ||
+          instruction is ArrayMake(_, _, _) ||
+          instruction is ArrayLength(_, _) ||
+          instruction is ArrayGet(_, _, _) ||
+          instruction is ArraySet(_, _, _, _)
+        }) {
+        return true
+      }
+    }
+  }
+  false
+}
+
+///|
 fn build_static_image(
   image : @physical.PhysicalProgram,
   global_lifecycle : @physical.GlobalLifecyclePlan,
@@ -190,6 +216,7 @@ fn build_static_image(
   let layout_table_base = writer.length()
   write_zeroes(writer, 32)
   let byte_sequence_layout_id = function_catalog.runtime_layouts.byte_sequence
+  let array_layout_id = function_catalog.runtime_layouts.array
   for index, layout in image.layouts {
     match layout {
       Data(shape) | Environment(shape) =>
@@ -206,7 +233,13 @@ fn build_static_image(
         writer.write_u32_le_int(2)
         writer.write_u32_le_int(
           function_catalog.table_slot(
-            function_catalog.helper(ByteSequenceSizer),
+            function_catalog.helper(
+              match layout {
+                ByteSequence => ByteSequenceSizer
+                Array => ArraySizer
+                _ => abort("fixed-size layout selected a dynamic sizer")
+              },
+            ),
           ).index,
         )
       }
@@ -256,16 +289,22 @@ fn build_static_image(
         | F32
         | Callable
         | ByteSequence
-        | Array
         | Byte
         | Reference =>
           function_catalog.table_slot(function_catalog.helper(DestroyNoop)).index
+        Array =>
+          function_catalog.table_slot(function_catalog.helper(DestroyArray)).index
       },
     )
     writer.write_u32_le_int(0)
   }
   if image_requires_byte_sequence_layout(image) && byte_sequence_layout_id == 0 {
     raise MissingByteSequenceLayout
+  }
+  if image_requires_array_layout(image) && array_layout_id == 0 {
+    raise InvalidFunctionCatalog(
+      detail="Array instructions require an Array layout recipe",
+    )
   }
   let constant_refs : Array[Int] = []
   for constant in image.constants {
@@ -368,6 +407,8 @@ fn build_static_image(
     singleton_refs,
     singleton_layout_ids,
     byte_sequence_layout_id,
+    array_layout_id,
+    layout_count: image.layouts.length(),
     shape_layouts,
     shape_layout_ids,
     object_shapes: image.object_shapes,

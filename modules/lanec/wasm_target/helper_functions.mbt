@@ -108,8 +108,85 @@ fn compile_helper_function(
         I32Const(-8),
         I32And,
       ]
+    ArraySizer => array_sizer_body()
+    DestroyArray =>
+      destroy_array_body(
+        static_image.layout_count,
+        intern_function_type(wasm_module, [I64], []),
+      )
   }
-  { locals: [], body, }
+  {
+    locals: match role {
+      DestroyArray => [I32, I32]
+      _ => []
+    },
+    body,
+  }
+}
+
+///|
+fn array_sizer_body() -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    I32Const(536870909),
+    I32GtU,
+    If(Empty, [Unreachable], []),
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    I32Const(3),
+    I32Shl,
+    I32Const(16),
+    I32Add,
+  ]
+}
+
+///|
+fn destroy_array_body(
+  layout_count : Int,
+  erased_release_type : Int,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    I32Load(0, 2, 12L),
+    LocalSet(1),
+    LocalGet(1),
+    I32Eqz,
+    LocalGet(1),
+    I32Const(layout_count),
+    I32GtU,
+    I32Or,
+    If(Empty, [Unreachable], []),
+    I32Const(0),
+    LocalSet(2),
+    Block(Empty, [
+      Loop(Empty, [
+        LocalGet(2),
+        LocalGet(0),
+        I32Load(0, 2, 8L),
+        I32GeU,
+        BrIf(1),
+        LocalGet(0),
+        LocalGet(2),
+        I32Const(3),
+        I32Shl,
+        I32Add,
+        I64Load(0, 3, 16L),
+        LocalGet(1),
+        I32Const(5),
+        I32Shl,
+        GlobalGet(layout_table_base_global_index),
+        I32Add,
+        I32Load(0, 2, 20L),
+        CallIndirect(erased_release_type, 0),
+        LocalGet(2),
+        I32Const(1),
+        I32Add,
+        LocalSet(2),
+        Br(0),
+      ]),
+    ]),
+  ]
 }
 
 ///|
