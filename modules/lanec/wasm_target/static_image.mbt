@@ -104,6 +104,7 @@ fn layout_rep_kind(layout : @physical.LayoutRecipe) -> Int {
     I32 => 12
     Char => 13
     F32 => 14
+    Array => 15
   }
 }
 
@@ -115,7 +116,7 @@ fn layout_fixed_size(
 ) -> Int? {
   match layout {
     Unit | Bool | I64 | I32 | Char | F64 | F32 | Callable | Byte => Some(0)
-    Reference => Some(0)
+    Array | Reference => Some(0)
     ByteSequence => None
     Data(shape) | Environment(shape) => {
       ignore(image)
@@ -213,7 +214,7 @@ fn build_static_image(
     writer.write_u32_le_int(
       match layout {
         Unit | Bool | I64 | I32 | Char | F64 | F32 | Callable | Byte => 1
-        ByteSequence | Data(_) | Environment(_) | Reference => 8
+        ByteSequence | Array | Data(_) | Environment(_) | Reference => 8
       },
     )
     writer.write_u32_le_int(
@@ -222,7 +223,7 @@ fn build_static_image(
           function_catalog.table_slot(function_catalog.helper(NoopErased)).index
         Callable =>
           function_catalog.table_slot(function_catalog.helper(RetainCallable)).index
-        ByteSequence | Data(_) | Environment(_) | Reference =>
+        ByteSequence | Array | Data(_) | Environment(_) | Reference =>
           function_catalog.table_slot(
             function_catalog.helper(RetainReferenceErased),
           ).index
@@ -234,7 +235,7 @@ fn build_static_image(
           function_catalog.table_slot(function_catalog.helper(NoopErased)).index
         Callable =>
           function_catalog.table_slot(function_catalog.helper(ReleaseCallable)).index
-        ByteSequence | Data(_) | Environment(_) | Reference =>
+        ByteSequence | Array | Data(_) | Environment(_) | Reference =>
           function_catalog.table_slot(
             function_catalog.helper(ReleaseReferenceErased),
           ).index
@@ -255,6 +256,7 @@ fn build_static_image(
         | F32
         | Callable
         | ByteSequence
+        | Array
         | Byte
         | Reference =>
           function_catalog.table_slot(function_catalog.helper(DestroyNoop)).index

@@ -36,6 +36,19 @@ fn FunctionLowerer::layout_witness(
 }
 
 ///|
+fn FunctionLowerer::layout_operand(
+  self : FunctionLowerer,
+  evidence : @anf.RuntimeEvidence,
+) -> @vmcfg.LayoutOperand raise PhysicalLoweringError {
+  let evidence = self.substitutions.apply_evidence(evidence)
+  let plan = self.image.plan_layout_witness(evidence)
+  match plan {
+    StaticLayout(recipe) => Immediate(self.image.intern_layout(recipe))
+    _ => Witness(self.materialize_runtime_evidence(plan))
+  }
+}
+
+///|
 fn FunctionLowerer::erase_value(
   self : FunctionLowerer,
   value : LocalValue,

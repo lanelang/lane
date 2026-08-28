@@ -344,7 +344,7 @@ fn require_layout_support(
         HelperFunction(DestroyShape(shape=shape.value)),
       )
     }
-    Reference => {
+    Array | Reference => {
       require_wasm_function(roots, HelperFunction(RetainReferenceErased))
       require_wasm_function(roots, HelperFunction(ReleaseReferenceErased))
       require_wasm_function(roots, HelperFunction(DestroyNoop))

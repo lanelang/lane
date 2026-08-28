@@ -320,6 +320,8 @@ fn arc_destination_roots(
     MakeEnv(_, _, _, _, captures) => captures
     MakeClosure(_, _, environment) => [environment]
     ByteSequenceSet(_, source, _, _) => [source]
+    ArrayMake(_, _, fill) => [fill]
+    ArraySet(_, source, _, value) => [source, value]
     EraseI32(_, source)
     | UneraseI32(_, source)
     | EraseI64(_, source)

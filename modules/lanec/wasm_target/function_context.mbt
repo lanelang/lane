@@ -13,9 +13,10 @@ priv struct FunctionCompilationContext {
 fn FunctionCompilationContext::compile_instruction(
   self : FunctionCompilationContext,
   instruction : @physical.Instruction,
-) -> Array[@wasm_types.Instruction] {
+) -> Array[@wasm_types.Instruction] raise WasmCompileError {
   let state_before = self.locals.arc_frame_state_instructions()
   let compiled = compile_instruction(
+    self.function_id,
     self.locals,
     self.body.slots,
     self.wasm_module,

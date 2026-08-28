@@ -1,12 +1,13 @@
 ///|
 fn compile_instruction(
+  function_id : Int,
   locals : FunctionLocalPlan,
   slots : Array[@physical.SlotMetadata],
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
   function_catalog : WasmFunctionCatalog,
   instruction : @physical.Instruction,
-) -> Array[@wasm_types.Instruction] {
+) -> Array[@wasm_types.Instruction] raise WasmCompileError {
   match instruction {
     Copy(destination, source) =>
       [
@@ -529,6 +530,15 @@ fn compile_instruction(
       result.append(locals.mark_slot_live(destination))
       result
     }
+    ArrayEmpty(_, _)
+    | ArrayMake(_, _, _)
+    | ArrayLength(_, _)
+    | ArrayGet(_, _, _)
+    | ArraySet(_, _, _, _) as unsupported =>
+      raise UnsupportedInstruction(
+        function_id~,
+        instruction="\{Repr(unsupported)}",
+      )
     F64ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
         I32Const(@internal_abi.float_text_capacity()),

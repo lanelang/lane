@@ -148,6 +148,7 @@ pub(all) enum WasmPhysicalOpcodeFamily {
   Callable
   Object
   ByteSequence
+  Array
   Scalar
   Erasure
   Global

@@ -1108,6 +1108,30 @@ fn PhysicalProgramVerifier::apply_instruction_flow(
       ignore(self.read_flow(site, state, fill))
       self.write_from_metadata(site, body, state, destination)
     }
+    ArrayEmpty(destination, layout) => {
+      if layout is Witness(witness) {
+        ignore(self.read_flow(site, state, witness))
+      }
+      self.write_from_metadata(site, body, state, destination)
+    }
+    ArrayMake(destination, length, fill) => {
+      ignore(self.read_flow(site, state, length))
+      self.require_erased_companion_live(site, body, state, fill)
+      ignore(self.consume_owner(site, body, state, fill))
+      self.write_from_metadata(site, body, state, destination)
+    }
+    ArrayGet(destination, source, index) => {
+      ignore(self.read_flow(site, state, source))
+      ignore(self.read_flow(site, state, index))
+      self.write_from_metadata(site, body, state, destination)
+    }
+    ArraySet(destination, source, index, value) => {
+      ignore(self.read_flow(site, state, index))
+      self.require_erased_companion_live(site, body, state, value)
+      ignore(self.consume_owner(site, body, state, source))
+      ignore(self.consume_owner(site, body, state, value))
+      self.write_from_metadata(site, body, state, destination)
+    }
     F32ToString(destination, source) | F64ToString(destination, source) => {
       ignore(self.read_flow(site, state, source))
       self.write_from_metadata(site, body, state, destination)
@@ -1196,6 +1220,7 @@ fn PhysicalProgramVerifier::apply_trivial_instruction_flow(
     | I64ToByte(destination, source)
     | ByteSequenceLength(destination, source)
     | ByteSequenceIsValidUtf8(destination, source)
+    | ArrayLength(destination, source)
     | I32Neg(destination, source)
     | I32ToI64(destination, source)
     | I64ToI32(destination, source)

@@ -27,6 +27,11 @@ fn physical_opcode_family(
     | ByteSequenceIsValidUtf8(_, _)
     | F32ToString(_, _)
     | F64ToString(_, _) => ByteSequence
+    ArrayEmpty(_, _)
+    | ArrayMake(_, _, _)
+    | ArrayLength(_, _)
+    | ArrayGet(_, _, _)
+    | ArraySet(_, _, _, _) => Array
     WasiFdWrite(_, _, _) => ByteSequence
     EraseI32(_, _)
     | UneraseI32(_, _)

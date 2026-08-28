@@ -4,6 +4,7 @@ pub(all) enum WasmPhysicalOpcodeFamily {
   Callable
   Object
   ByteSequence
+  Array
   Scalar
   Erasure
   Global
@@ -17,6 +18,7 @@ fn WasmPhysicalOpcodeFamily::key(self : WasmPhysicalOpcodeFamily) -> String {
     Callable => "callable"
     Object => "object"
     ByteSequence => "byteSequence"
+    Array => "array"
     Scalar => "scalar"
     Erasure => "erasure"
     Global => "global"

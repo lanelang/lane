@@ -11,6 +11,7 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | I64ToByte(_, source)
     | ByteSequenceLength(_, source)
     | ByteSequenceIsValidUtf8(_, source)
+    | ArrayLength(_, source)
     | I32Neg(_, source)
     | I32ToI64(_, source)
     | I64ToI32(_, source)
@@ -42,6 +43,8 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | ByteSequenceEqual(_, left, right)
     | ByteSequenceMake(_, left, right)
     | ByteSequenceGet(_, left, right)
+    | ArrayMake(_, left, right)
+    | ArrayGet(_, left, right)
     | I32Add(_, left, right)
     | I32Sub(_, left, right)
     | I32Mul(_, left, right)
@@ -88,7 +91,8 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | F64Gt(_, left, right)
     | F64Ge(_, left, right) => [left, right]
     ByteSequenceSlice(_, string, start, length)
-    | ByteSequenceSet(_, string, start, length) => [string, start, length]
+    | ByteSequenceSet(_, string, start, length)
+    | ArraySet(_, string, start, length) => [string, start, length]
     CallDirect(_, environment, witnesses, arguments, _) => {
       let uses = []
       if environment is Some(value) {
@@ -107,6 +111,7 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
       uses.append(fields)
       uses
     }
+    ArrayEmpty(_, layout) => layout_uses(layout)
     BorrowField(_, source, _, _)
     | ConsumeFields(_, source, _)
     | BorrowCapture(_, source, _, _)
@@ -204,6 +209,11 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | ByteSequenceConcat(destination, _, _)
     | ByteSequenceSlice(destination, _, _, _)
     | ByteSequenceIsValidUtf8(destination, _)
+    | ArrayEmpty(destination, _)
+    | ArrayMake(destination, _, _)
+    | ArrayLength(destination, _)
+    | ArrayGet(destination, _, _)
+    | ArraySet(destination, _, _, _)
     | I32Add(destination, _, _)
     | I32Sub(destination, _, _)
     | I32Mul(destination, _, _)

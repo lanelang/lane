@@ -68,6 +68,48 @@ test "physical verifier accepts a complete minimal image" {
 }
 
 ///|
+test "physical verifier owns Array operation shape contracts" {
+  let array = verification_slot(I32, cleanup=OwnedRef, kind=Some(ArrayValue))
+  let valid = {
+    ..verification_image(
+      verification_body(slots=[array], instructions=[
+        ArrayEmpty({ value: 0, }, Immediate({ value: 1, })),
+        Release({ value: 0, }),
+      ]),
+    ),
+    layouts: [I64],
+  }
+  assert_eq(verify_physical_program(valid), Ok(()))
+
+  let wrong_layout = { ..valid, layouts: [], }
+  let wrong_fill = {
+    ..verification_image(
+      verification_body(
+        slots=[array, verification_slot(I64), verification_slot(I64)],
+        instructions=[
+          ConstI64({ value: 1, }, 1L),
+          ConstI64({ value: 2, }, 0L),
+          ArrayMake({ value: 0, }, { value: 1, }, { value: 2, }),
+        ],
+      ),
+    ),
+  }
+  let missing_get_companion = verification_image(
+    verification_body(
+      slots=[
+        array,
+        verification_slot(I64),
+        verification_slot(I64, cleanup=OwnedErased),
+      ],
+      instructions=[ArrayGet({ value: 2, }, { value: 0, }, { value: 1, })],
+    ),
+  )
+  assert_true(verify_physical_program(wrong_layout) is Err(_))
+  assert_true(verify_physical_program(wrong_fill) is Err(_))
+  assert_true(verify_physical_program(missing_get_companion) is Err(_))
+}
+
+///|
 fn ordered_global_image(initialization_order : Array[Int]) -> PhysicalProgram {
   let slots = initialization_order.map(_ => verification_slot(I64))
   let instructions : Array[Instruction] = []

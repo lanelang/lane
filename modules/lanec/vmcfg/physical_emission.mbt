@@ -158,6 +158,16 @@ fn emit_instruction(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(slot(destination), slot(source))
+    ArrayEmpty(destination, layout) =>
+      ArrayEmpty(slot(destination), emit_layout_operand(slots, layout))
+    ArrayMake(destination, length, fill) =>
+      ArrayMake(slot(destination), slot(length), slot(fill))
+    ArrayLength(destination, source) =>
+      ArrayLength(slot(destination), slot(source))
+    ArrayGet(destination, source, index) =>
+      ArrayGet(slot(destination), slot(source), slot(index))
+    ArraySet(destination, source, index, value) =>
+      ArraySet(slot(destination), slot(source), slot(index), slot(value))
     WasiFdWrite(destination, fd, bytes) =>
       WasiFdWrite(slot(destination), slot(fd), slot(bytes))
     I32Add(destination, left, right) =>

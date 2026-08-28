@@ -143,8 +143,14 @@ fn ImageLowerer::plan_intrinsic(
       guard intrinsic.signature() is Function(implementation~, ..) else {
         raise UnsupportedIntrinsic(name=intrinsic.name())
       }
-      let (_, parameters, result) = function_type_parts(type_)
-      let function_contract = { intrinsic, parameters, result, implementation, }
+      let (evidence_parameters, parameters, result) = function_type_parts(type_)
+      let function_contract = {
+        intrinsic,
+        evidence_parameters,
+        parameters,
+        result,
+        implementation,
+      }
       match implementation {
         Direct =>
           self.globals.push({ value, lowered: Intrinsic(function_contract), })
@@ -408,6 +414,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   plan : IntrinsicWrapperPlan,
 ) -> @vmcfg.FunctionBody raise PhysicalLoweringError {
   let intrinsic = plan.contract.intrinsic
+  let evidence_parameters = plan.contract.evidence_parameters
   let parameter_types = plan.contract.parameters
   let result_type = plan.contract.result
   let lowerer : FunctionLowerer = {
@@ -421,6 +428,12 @@ fn ImageLowerer::lower_intrinsic_wrapper(
     witnesses: [],
     substitutions: RuntimeSubstitution::new(),
   }
+  let witness_slots = []
+  for parameter in evidence_parameters {
+    let witness = lowerer.fresh_metadata(runtime_evidence_metadata(parameter))
+    witness_slots.push(witness)
+    lowerer.witnesses.push({ parameter: parameter.id, value: witness, })
+  }
   let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
   match plan.contract.implementation {
     Fatal(message_parameter~) => {
@@ -430,7 +443,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
         values: lowerer.values,
         inputs: {
           environment: None,
-          witnesses: [],
+          witnesses: witness_slots,
           user_parameters: parameter_slots,
         },
         result: self.result_abi(result_type),
@@ -444,7 +457,11 @@ fn ImageLowerer::lower_intrinsic_wrapper(
       for index, slot in parameter_slots {
         arguments.push(Slot(slot, parameter_types[index]))
       }
-      let result = lowerer.lower_intrinsic(plan.contract, arguments)
+      let result = lowerer.lower_intrinsic(
+        plan.contract,
+        arguments,
+        RuntimeSubstitution::new(),
+      )
       guard result is Slot(result_slot, _) else {
         raise UnsupportedIntrinsic(name=intrinsic.name())
       }
@@ -453,7 +470,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
         values: lowerer.values,
         inputs: {
           environment: None,
-          witnesses: [],
+          witnesses: witness_slots,
           user_parameters: parameter_slots,
         },
         result: self.result_abi(result_type),

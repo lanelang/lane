@@ -338,6 +338,65 @@ fn PhysicalProgramVerifier::verify_instruction(
       self.expect_kind(site, body, index, ScalarValue)
       self.expect_kind(site, body, value, ScalarValue)
     }
+    ArrayEmpty(destination, layout) => {
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        I32,
+        OwnedRef,
+        ArrayValue,
+      )
+      self.verify_array_layout_operand(site, body, layout)
+    }
+    ArrayMake(destination, length, fill) => {
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        I32,
+        OwnedRef,
+        ArrayValue,
+      )
+      self.expect_value_shape(site, body, length, I64, Trivial, ScalarValue)
+      self.expect_value_shape(site, body, fill, I64, OwnedErased, ErasedValue)
+    }
+    ArrayLength(destination, source) => {
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        I64,
+        Trivial,
+        ScalarValue,
+      )
+      self.expect_value_shape(site, body, source, I32, OwnedRef, ArrayValue)
+    }
+    ArrayGet(destination, source, index) => {
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        I64,
+        OwnedErased,
+        ErasedValue,
+      )
+      self.expect_value_shape(site, body, source, I32, OwnedRef, ArrayValue)
+      self.expect_value_shape(site, body, index, I64, Trivial, ScalarValue)
+    }
+    ArraySet(destination, source, index, value) => {
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        I32,
+        OwnedRef,
+        ArrayValue,
+      )
+      self.expect_value_shape(site, body, source, I32, OwnedRef, ArrayValue)
+      self.expect_value_shape(site, body, index, I64, Trivial, ScalarValue)
+      self.expect_value_shape(site, body, value, I64, OwnedErased, ErasedValue)
+    }
     ByteSequenceEqual(destination, left, right) => {
       self.expect_slot(site, body, destination, I32, Trivial)
       self.expect_kind(site, body, destination, ScalarValue)
@@ -486,6 +545,20 @@ fn PhysicalProgramVerifier::verify_instruction(
       self.verify_init_global(site, body, global, source)
     BorrowGlobal(destination, global) =>
       self.verify_borrow_global(site, body, destination, global)
+  }
+}
+
+///|
+fn PhysicalProgramVerifier::verify_array_layout_operand(
+  self : PhysicalProgramVerifier,
+  site : PhysicalVerificationSite,
+  body : FunctionBody,
+  layout : LayoutOperand,
+) -> Unit raise PhysicalProgramVerificationError {
+  match layout {
+    Immediate(layout) => ignore(self.layout_recipe(site, layout))
+    Witness(witness) =>
+      self.expect_value_shape(site, body, witness, I32, Trivial, LayoutValue)
   }
 }
 

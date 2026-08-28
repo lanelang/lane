@@ -220,6 +220,16 @@ fn render_instruction(instruction : Instruction) -> String {
       "byte_sequence_slice \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(start)}, \{render_slot(length)}"
     ByteSequenceIsValidUtf8(destination, source) =>
       unary_instruction("byte_sequence_is_valid_utf8", destination, source)
+    ArrayEmpty(destination, layout) =>
+      "array_empty \{render_slot(destination)}, \{render_layout_operand(layout)}"
+    ArrayMake(destination, length, fill) =>
+      binary_instruction("array_make", destination, length, fill)
+    ArrayLength(destination, source) =>
+      unary_instruction("array_length", destination, source)
+    ArrayGet(destination, source, index) =>
+      binary_instruction("array_get", destination, source, index)
+    ArraySet(destination, source, index, value) =>
+      "array_set \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(index)}, \{render_slot(value)}"
     WasiFdWrite(destination, fd, bytes) =>
       binary_instruction("wasi_fd_write", destination, fd, bytes)
     I32Add(destination, left, right) =>
@@ -555,6 +565,7 @@ fn render_layout_recipe(recipe : LayoutRecipe) -> String {
     F32 => "f32"
     Callable => "callable"
     ByteSequence => "byte_sequence"
+    Array => "array"
     Data(shape) => "data(\{render_shape(shape)})"
     Environment(shape) => "environment(\{render_shape(shape)})"
     Reference => "reference"

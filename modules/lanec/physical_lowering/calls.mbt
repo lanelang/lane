@@ -10,7 +10,17 @@ fn FunctionLowerer::lower_call(
   })
   match callee {
     Global(Intrinsic(contract)) =>
-      self.lower_intrinsic(contract, lowered_arguments)
+      if contract.evidence_parameters.is_empty() {
+        self.lower_intrinsic(
+          contract,
+          lowered_arguments,
+          RuntimeSubstitution::new(),
+        )
+      } else {
+        raise InvalidTypeApplication(
+          detail="generic intrinsic call is missing runtime arguments",
+        )
+      }
     Global(Function(function, type_)) =>
       self.lower_direct_call(function, type_, lowered_arguments, None)
     RecursiveFunction(function, type_, environment) =>
@@ -21,6 +31,15 @@ fn FunctionLowerer::lower_call(
       )
     JoinTarget(block, type_) =>
       self.lower_join_call(block, type_, lowered_arguments)
+    EvidenceApplied(Intrinsic(contract), type_arguments) =>
+      self.lower_intrinsic(
+        contract,
+        lowered_arguments,
+        self.call_type_substitution(
+          contract.evidence_parameters,
+          type_arguments,
+        ),
+      )
     EvidenceApplied(Function(function, type_), type_arguments) =>
       match self.representation_worker(function, type_, type_arguments) {
         Some((worker, worker_type)) =>
@@ -122,6 +141,14 @@ fn FunctionLowerer::materialize_local(
         detail="verified Runtime ANF materialized terminated control flow",
       )
     AdaptedCallable(adaptation) => self.materialize_callable_adapter(adaptation)
+    EvidenceApplied(Intrinsic(contract), arguments) => {
+      let type_ = contract.type_()
+      let source = self.fresh_slot(type_)
+      self.emit(ConstFunction(source, self.image.intrinsic_wrapper(contract)))
+      self.materialize_local(
+        self.materialize_applied_callable(source, type_, arguments),
+      )
+    }
     EvidenceApplied(Function(function, type_), arguments) =>
       match self.representation_worker(function, type_, arguments) {
         Some((worker, worker_type)) =>
@@ -508,9 +535,24 @@ fn FunctionLowerer::lower_intrinsic(
   self : FunctionLowerer,
   contract : RuntimeIntrinsicFunctionContract,
   arguments : Array[LocalValue],
+  substitutions : RuntimeSubstitution,
 ) -> LocalValue raise PhysicalLoweringError {
   let intrinsic = contract.intrinsic
-  let result_type = contract.result
+  let array_intrinsic = match intrinsic {
+    @abi.Intrinsic::ArrayEmpty
+    | @abi.Intrinsic::ArrayMake
+    | @abi.Intrinsic::ArrayLength
+    | @abi.Intrinsic::ArrayGet
+    | @abi.Intrinsic::ArraySet => true
+    _ => false
+  }
+  if array_intrinsic {
+    return self.lower_array_intrinsic(contract, arguments, substitutions)
+  }
+  let result_type = substitutions.apply_type(
+    self.image.runtime_types,
+    contract.result,
+  )
   match (intrinsic, arguments) {
     (CharToI32 | I32ToChar | StringToBytes | BytesToString, [Slot(source, _)]) =>
       return Slot(source, result_type)
@@ -595,6 +637,103 @@ fn FunctionLowerer::lower_intrinsic(
   }
   self.emit(instruction)
   Slot(destination, result_type)
+}
+
+///|
+fn FunctionLowerer::lower_array_intrinsic(
+  self : FunctionLowerer,
+  contract : RuntimeIntrinsicFunctionContract,
+  arguments : Array[LocalValue],
+  substitutions : RuntimeSubstitution,
+) -> LocalValue raise PhysicalLoweringError {
+  ignore(self.image.intern_layout(@physical.LayoutRecipe::Array))
+  let intrinsic = contract.intrinsic
+  let result_type = substitutions.apply_type(
+    self.image.runtime_types,
+    contract.result,
+  )
+  let array_type = match intrinsic {
+    @abi.Intrinsic::ArrayEmpty
+    | @abi.Intrinsic::ArrayMake
+    | @abi.Intrinsic::ArraySet => result_type
+    @abi.Intrinsic::ArrayLength | @abi.Intrinsic::ArrayGet =>
+      substitutions.apply_type(self.image.runtime_types, contract.parameters[0])
+    _ => raise UnsupportedIntrinsic(name=intrinsic.name())
+  }
+  guard array_type is @anf.RuntimeType::Array(element) else {
+    raise RepresentationElaborationInvariant(
+      detail="Array intrinsic contract does not contain an Array type",
+    )
+  }
+  let element = substitutions.apply_argument(self.image.runtime_types, element)
+  match (intrinsic, arguments) {
+    (@abi.Intrinsic::ArrayEmpty, []) => {
+      let destination = self.fresh_slot(result_type)
+      let layout = self.layout_operand(element.evidence)
+      self.emit(@vmcfg.Instruction::ArrayEmpty(destination, layout))
+      Slot(destination, result_type)
+    }
+    (@abi.Intrinsic::ArrayMake, [length, fill]) => {
+      let element_witness = self.layout_witness(element.evidence)
+      guard self.materialize_local(length) is Slot(length, _) else {
+        raise RepresentationElaborationInvariant(
+          detail="Array.make length is not represented by a slot",
+        )
+      }
+      let fill_type = local_value_type(fill).unwrap_or(
+        substitutions.apply_type(
+          self.image.runtime_types,
+          contract.parameters[1],
+        ),
+      )
+      let fill = self.erase_value(fill, fill_type, element_witness)
+      let destination = self.fresh_slot(result_type)
+      self.emit(@vmcfg.Instruction::ArrayMake(destination, length, fill))
+      Slot(destination, result_type)
+    }
+    (@abi.Intrinsic::ArrayLength, [source]) => {
+      guard self.materialize_local(source) is Slot(source, _) else {
+        raise RepresentationElaborationInvariant(
+          detail="Array.length source is not represented by a slot",
+        )
+      }
+      let destination = self.fresh_slot(result_type)
+      self.emit(@vmcfg.Instruction::ArrayLength(destination, source))
+      Slot(destination, result_type)
+    }
+    (@abi.Intrinsic::ArrayGet, [source, index]) => {
+      let element_witness = self.layout_witness(element.evidence)
+      guard self.materialize_local(source) is Slot(source, _) &&
+        self.materialize_local(index) is Slot(index, _) else {
+        raise RepresentationElaborationInvariant(
+          detail="Array.get operands are not represented by slots",
+        )
+      }
+      let erased = self.fresh_erased_slot(element_witness, Owned)
+      self.emit(@vmcfg.Instruction::ArrayGet(erased, source, index))
+      self.unerase_value(erased, result_type, substitutions)
+    }
+    (@abi.Intrinsic::ArraySet, [source, index, value]) => {
+      let element_witness = self.layout_witness(element.evidence)
+      guard self.materialize_local(source) is Slot(source, _) &&
+        self.materialize_local(index) is Slot(index, _) else {
+        raise RepresentationElaborationInvariant(
+          detail="Array.set operands are not represented by slots",
+        )
+      }
+      let value_type = local_value_type(value).unwrap_or(
+        substitutions.apply_type(
+          self.image.runtime_types,
+          contract.parameters[2],
+        ),
+      )
+      let value = self.erase_value(value, value_type, element_witness)
+      let destination = self.fresh_slot(result_type)
+      self.emit(@vmcfg.Instruction::ArraySet(destination, source, index, value))
+      Slot(destination, result_type)
+    }
+    _ => raise UnsupportedIntrinsic(name=intrinsic.name())
+  }
 }
 
 ///|

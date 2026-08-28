@@ -148,6 +148,29 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
           ByteSequenceSet(destination, values[0], values[1], values[2])
         },
       }
+    ArrayEmpty(destination, layout) =>
+      {
+        operands: layout_uses(layout).map(value => (value, Borrow)),
+        materialize: values => {
+          let layout = match layout {
+            Immediate(layout) => Immediate(layout)
+            Witness(_) => Witness(values[0])
+          }
+          ArrayEmpty(destination, layout)
+        },
+      }
+    ArrayMake(destination, length, fill) =>
+      {
+        operands: [(length, Borrow), (fill, Consume)],
+        materialize: values => ArrayMake(destination, values[0], values[1]),
+      }
+    ArraySet(destination, source, index, value) =>
+      {
+        operands: [(source, Consume), (index, Borrow), (value, Consume)],
+        materialize: values => {
+          ArraySet(destination, values[0], values[1], values[2])
+        },
+      }
     ByteSequenceConcat(destination, left, right) =>
       {
         operands: [(left, Consume), (right, Consume)],
@@ -222,6 +245,8 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
     | ByteSequenceGet(_, _, _)
     | ByteSequenceEqual(_, _, _)
     | ByteSequenceIsValidUtf8(_, _)
+    | ArrayLength(_, _)
+    | ArrayGet(_, _, _)
     | I32Add(_, _, _)
     | I32Sub(_, _, _)
     | I32Mul(_, _, _)
