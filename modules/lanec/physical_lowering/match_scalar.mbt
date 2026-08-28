@@ -9,7 +9,7 @@ fn FunctionLowerer::lower_match(
       let alternative = match find_unit_alternative(match_.alternatives) {
         Some(alternative) => alternative
         None =>
-          raise UnsupportedExpression(
+          raise RepresentationElaborationInvariant(
             detail="Unit match has no matching alternative",
           )
       }
@@ -26,7 +26,7 @@ fn FunctionLowerer::lower_match(
             find_default_alternative(match_.alternatives) {
             Some(alternative) => alternative
             None =>
-              raise UnsupportedExpression(
+              raise RepresentationElaborationInvariant(
                 detail="callable match requires a default alternative",
               )
           }
@@ -37,7 +37,9 @@ fn FunctionLowerer::lower_match(
             match_, condition, scrutinee_type, owner, arguments,
           )
         _ =>
-          raise UnsupportedExpression(detail="unsupported match scrutinee type")
+          raise RepresentationElaborationInvariant(
+            detail="unsupported match scrutinee type",
+          )
       }
     }
     Global(_)
@@ -50,7 +52,9 @@ fn FunctionLowerer::lower_match(
     | EvidenceAppliedFunction(_, _, _, _)
     | AdaptedCallable(_)
     | EvidenceAppliedAdaptedCallable(_, _) =>
-      raise UnsupportedExpression(detail="match scrutinee is not materialized")
+      raise RepresentationElaborationInvariant(
+        detail="match scrutinee is not materialized",
+      )
   }
 }
 
@@ -69,7 +73,9 @@ fn FunctionLowerer::lower_literal_match(
     let alternative = match find_default_alternative(match_.alternatives) {
       Some(alternative) => alternative
       None =>
-        raise UnsupportedExpression(detail="literal match has no alternatives")
+        raise RepresentationElaborationInvariant(
+          detail="literal match has no alternatives",
+        )
     }
     return self.lower_irrefutable_match(match_, initial_value, alternative)
   }
@@ -77,7 +83,7 @@ fn FunctionLowerer::lower_literal_match(
     find_default_alternative(match_.alternatives) {
     Some(alternative) => alternative
     None =>
-      raise UnsupportedExpression(
+      raise RepresentationElaborationInvariant(
         detail="literal match requires a default alternative",
       )
   }
@@ -166,7 +172,7 @@ fn FunctionLowerer::emit_literal_equality(
   let lowered = self.lower_literal(literal)
   guard lowered is Slot(expected, literal_type) &&
     literal_type == scrutinee_type else {
-    raise UnsupportedExpression(
+    raise RepresentationElaborationInvariant(
       detail="literal pattern type does not match its scrutinee",
     )
   }
@@ -178,7 +184,7 @@ fn FunctionLowerer::emit_literal_equality(
     Scalar(F64) => F64Eq(condition, scrutinee, expected)
     ByteSequence => ByteSequenceEqual(condition, scrutinee, expected)
     _ =>
-      raise UnsupportedExpression(
+      raise RepresentationElaborationInvariant(
         detail="unsupported literal pattern representation",
       )
   }
@@ -195,7 +201,7 @@ fn FunctionLowerer::lower_irrefutable_match(
 ) -> LocalValue raise PhysicalLoweringError {
   if !alternative.evidence_binders.is_empty() ||
     !alternative.value_binders.is_empty() {
-    raise UnsupportedExpression(
+    raise RepresentationElaborationInvariant(
       detail="irrefutable alternative cannot bind payloads",
     )
   }
@@ -217,12 +223,16 @@ fn FunctionLowerer::lower_bool_match(
   let if_true = match find_bool_alternative(match_.alternatives, true) {
     Some(alternative) => alternative
     None =>
-      raise UnsupportedExpression(detail="Bool match lacks a true alternative")
+      raise RepresentationElaborationInvariant(
+        detail="Bool match lacks a true alternative",
+      )
   }
   let if_false = match find_bool_alternative(match_.alternatives, false) {
     Some(alternative) => alternative
     None =>
-      raise UnsupportedExpression(detail="Bool match lacks a false alternative")
+      raise RepresentationElaborationInvariant(
+        detail="Bool match lacks a false alternative",
+      )
   }
   let true_environment = self.branch_environment_parameter()
   let false_environment = self.branch_environment_parameter()

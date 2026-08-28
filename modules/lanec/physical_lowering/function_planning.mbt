@@ -43,7 +43,10 @@ fn ImageLowerer::plan(
                   origin=function.origin,
                 ),
               )
-            None => raise UnsupportedTopLevel(value=binding.id)
+            None =>
+              raise RepresentationElaborationInvariant(
+                detail="verified Runtime ANF top-level recursion is not callable",
+              )
           }
         }
     }
@@ -63,10 +66,7 @@ fn ImageLowerer::add_instance_global(
   self : ImageLowerer,
   value : @buslane.ValueId,
 ) -> Unit raise PhysicalLoweringError {
-  let type_ = match self.metadata.value_info(value) {
-    Some(info) => info.type_
-    None => raise MissingValueMetadata(value~)
-  }
+  let type_ = self.metadata.verified_value_info(value).type_
   if self.runtime_type(type_) is Concrete(Unit) {
     self.globals.push({ value, lowered: UnitValue, })
     return
@@ -104,10 +104,7 @@ fn ImageLowerer::plan_intrinsic(
   external : @buslane_lowering.BuslaneBuiltinExternal,
 ) -> Unit raise PhysicalLoweringError {
   let intrinsic = external.intrinsic()
-  let type_ = match self.metadata.value_info(value) {
-    Some(info) => info.type_
-    None => raise MissingValueMetadata(value~)
-  }
+  let type_ = self.metadata.verified_value_info(value).type_
   match intrinsic {
     F32Inf =>
       self.globals.push({ value, lowered: FloatConstant(0x7f800000, type_), })
@@ -165,7 +162,7 @@ fn ImageLowerer::plan_runtime_import(
   self : ImageLowerer,
   value : @buslane.ValueId,
   import_ : @buslane_lowering.BuslaneRuntimeImport,
-) -> Unit raise PhysicalLoweringError {
+) -> Unit {
   let parameter_kinds = import_.signature.parameters.map(
     runtime_import_value_kind,
   )
@@ -191,12 +188,9 @@ fn ImageLowerer::add_plan(
   value : @buslane.ValueId,
   plan : PlannedEntry,
   origin : PhysicalFunctionOrigin,
-) -> Unit raise PhysicalLoweringError {
+) -> Unit {
   let function = self.plans.append(origin, _ => plan).function
-  let type_ = match self.metadata.value_info(value) {
-    Some(info) => info.type_
-    None => raise MissingValueMetadata(value~)
-  }
+  let type_ = self.metadata.verified_value_info(value).type_
   self.globals.push({ value, lowered: Function(function, type_), })
 }
 
@@ -262,10 +256,7 @@ fn ImageLowerer::lower_function(
   value : @buslane.ValueId,
   function : @anf.AnfFunction,
 ) -> @vmcfg.FunctionBody raise PhysicalLoweringError {
-  let type_ = match self.metadata.value_info(value) {
-    Some(info) => info.type_
-    None => raise MissingValueMetadata(value~)
-  }
+  let type_ = self.metadata.verified_value_info(value).type_
   let (type_parameters, parameter_types, result_type) = function_type_parts(
     type_,
   )
@@ -304,7 +295,7 @@ fn ImageLowerer::lower_initializer_step(
     (Some(InstanceGlobal(_, type_)), Slot(source, _)) =>
       (self.result_abi(type_), Some(source))
     _ =>
-      raise UnsupportedExpression(
+      raise RepresentationElaborationInvariant(
         detail="top-level initializer result does not match its instance global",
       )
   }
@@ -355,7 +346,7 @@ fn ImageLowerer::lower_initializer_orchestrator(
         lowerer.emit(InitGlobal(global, destination))
       }
       _ =>
-        raise UnsupportedExpression(
+        raise RepresentationElaborationInvariant(
           detail="top-level initializer step does not match an instance global",
         )
     }

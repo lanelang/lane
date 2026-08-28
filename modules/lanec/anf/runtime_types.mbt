@@ -134,6 +134,16 @@ pub fn RuntimeMetadata::value_info(
 }
 
 ///|
+/// Returns metadata whose presence was established by the `AnfProgram`
+/// construction boundary.
+pub fn RuntimeMetadata::verified_value_info(
+  self : RuntimeMetadata,
+  value : @buslane.ValueId,
+) -> RuntimeValueInfo {
+  self.values[value.index]
+}
+
+///|
 pub fn RuntimeMetadata::evidence_parameter(
   self : RuntimeMetadata,
   parameter : RuntimeEvidenceId,
@@ -153,11 +163,31 @@ pub fn RuntimeMetadata::type_info(
 }
 
 ///|
+/// Returns nominal metadata whose presence was established by the
+/// `AnfProgram` construction boundary.
+pub fn RuntimeMetadata::verified_type_info(
+  self : RuntimeMetadata,
+  type_ : @buslane.TypeId,
+) -> RuntimeDataInfo {
+  self.types[type_.index]
+}
+
+///|
 pub fn RuntimeMetadata::data_constructor_info(
   self : RuntimeMetadata,
   data_constructor : @buslane.DataConId,
 ) -> RuntimeDataConstructorInfo? {
   self.data_constructors.get(data_constructor.index)
+}
+
+///|
+/// Returns constructor metadata whose presence and owner relationship were
+/// established by the `AnfProgram` construction boundary.
+pub fn RuntimeMetadata::verified_data_constructor_info(
+  self : RuntimeMetadata,
+  data_constructor : @buslane.DataConId,
+) -> RuntimeDataConstructorInfo {
+  self.data_constructors[data_constructor.index]
 }
 
 ///|

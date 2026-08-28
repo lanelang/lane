@@ -20,8 +20,8 @@ fn FunctionLowerer::lower_expr(
     }
     LetRec(bindings, body) => {
       guard !bindings.is_empty() else {
-        raise invalid_runtime_anf_callable_disposition(
-          detail="an empty recursive callable group reached physical lowering",
+        raise RepresentationElaborationInvariant(
+          detail="verified Runtime ANF contains an empty recursive group",
         )
       }
       let first = bindings[0]
@@ -31,8 +31,8 @@ fn FunctionLowerer::lower_expr(
         DirectFunction(_) => self.lower_direct_recursive_group(bindings, body)
         JoinPoint(_) => self.lower_join_group(bindings, body)
         Literal(_) | Ref(_) | Temp(_) =>
-          raise invalid_runtime_anf_callable_disposition(
-            detail="a recursive group contains a non-callable binding",
+          raise RepresentationElaborationInvariant(
+            detail="verified Runtime ANF contains a non-callable recursive group",
           )
       }
     }
@@ -86,15 +86,15 @@ fn FunctionLowerer::lower_atom(
     Function(function) => self.lower_nested_function(function)
     DirectFunction(function) => self.lower_nested_direct_function(function)
     JoinPoint(_) =>
-      raise invalid_runtime_anf_callable_disposition(
-        detail="a join point escaped its lexical binding",
+      raise RepresentationElaborationInvariant(
+        detail="verified Runtime ANF join point escaped its lexical binding",
       )
     EvidenceLambda(parameters~, body~) => {
       let function = match extract_top_function(body) {
         Some(function) => function
         None =>
-          raise UnsupportedExpression(
-            detail="generic nested value must contain a function",
+          raise RepresentationElaborationInvariant(
+            detail="verified Runtime ANF generic value is not callable",
           )
       }
       self.lower_nested_function_with_type(
@@ -138,21 +138,10 @@ fn FunctionLowerer::lower_construct(
   self : FunctionLowerer,
   construct : @anf.AnfConstruct,
 ) -> LocalValue raise PhysicalLoweringError {
-  let info = match
-    self.image.metadata.data_constructor_info(construct.data_constructor) {
-    Some(info) => info
-    None =>
-      raise MissingDataConstructorMetadata(
-        data_constructor=construct.data_constructor,
-      )
-  }
-  let owner_info = match self.image.metadata.type_info(info.owner) {
-    Some(info) => info
-    None =>
-      raise MissingDataConstructorMetadata(
-        data_constructor=construct.data_constructor,
-      )
-  }
+  let info = self.image.metadata.verified_data_constructor_info(
+    construct.data_constructor,
+  )
+  let owner_info = self.image.metadata.verified_type_info(info.owner)
   let owner_substitutions = RuntimeSubstitution::from_arguments(
     owner_info.evidence_parameters,
     construct.type_arguments,
@@ -163,10 +152,8 @@ fn FunctionLowerer::lower_construct(
   )
   let substitutions = owner_substitutions.overlay(hidden_substitutions)
   if construct.payloads.length() != info.payload_types.length() {
-    raise InvalidDataPayloadCount(
-      data_constructor=construct.data_constructor,
-      expected=info.payload_types.length(),
-      actual=construct.payloads.length(),
+    raise RepresentationElaborationInvariant(
+      detail="verified Runtime ANF constructor payload arity is invalid",
     )
   }
   let fields = []
@@ -206,13 +193,13 @@ fn FunctionLowerer::lower_construct(
     match lowered {
       Unit =>
         if formal_type != Unit {
-          raise UnsupportedExpression(
+          raise RepresentationElaborationInvariant(
             detail="non-Unit data field has no runtime representation",
           )
         }
       Slot(field, _) => fields.push(field)
       _ =>
-        raise UnsupportedExpression(
+        raise RepresentationElaborationInvariant(
           detail="data field has no runtime representation",
         )
     }
@@ -280,16 +267,15 @@ fn ImageLowerer::constructor_tag(
   data_constructor : @buslane.DataConId,
   owner : @buslane.TypeId,
 ) -> Int raise PhysicalLoweringError {
-  let owner_info = match self.metadata.type_info(owner) {
-    Some(info) => info
-    None => raise MissingDataConstructorMetadata(data_constructor~)
-  }
+  let owner_info = self.metadata.verified_type_info(owner)
   for index, candidate in owner_info.constructors {
     if candidate == data_constructor {
       return index
     }
   }
-  raise MissingDataConstructorMetadata(data_constructor~)
+  raise RepresentationElaborationInvariant(
+    detail="verified Runtime ANF constructor is absent from its owner family",
+  )
 }
 
 ///|
@@ -310,7 +296,10 @@ fn FunctionLowerer::find_value(
       Slot(destination, type_)
     }
     Some(global) => Global(global)
-    None => raise MissingValueMetadata(value~)
+    None =>
+      raise RepresentationElaborationInvariant(
+        detail="verified Runtime ANF value is absent from lowering scope",
+      )
   }
 }
 
@@ -324,7 +313,9 @@ fn FunctionLowerer::find_temp(
       return binding.lowered
     }
   }
-  raise UnsupportedExpression(detail="unknown ANF temporary")
+  raise RepresentationElaborationInvariant(
+    detail="verified Runtime ANF temporary is absent from lowering scope",
+  )
 }
 
 ///|

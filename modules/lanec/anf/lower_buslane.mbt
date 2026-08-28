@@ -49,7 +49,7 @@ fn lower_cps_core_to_runtime_anf_or_raise(
   let anf = classify_anf_callables(
     simplify_anf_program({ metadata: generic_plan.runtime_metadata(), terms, }),
   )
-  verify_callable_dispositions(anf)
+  verify_runtime_anf(anf)
   anf
 }
 

@@ -66,7 +66,8 @@ fn FunctionLowerer::lower_call(
       )
     Slot(callable, type_) =>
       self.lower_value_call(callable, type_, lowered_arguments)
-    _ => raise UnsupportedExpression(detail="value is not callable")
+    _ =>
+      raise RepresentationElaborationInvariant(detail="value is not callable")
   }
 }
 
@@ -109,16 +110,16 @@ fn FunctionLowerer::materialize_local(
       Slot(destination, type_)
     }
     DirectFunction(_, _, _, _) =>
-      raise invalid_runtime_anf_callable_disposition(
-        detail="a direct-only callable reached a first-class value boundary",
+      raise RepresentationElaborationInvariant(
+        detail="verified Runtime ANF direct callable reached a value boundary",
       )
     JoinTarget(_, _) =>
-      raise invalid_runtime_anf_callable_disposition(
-        detail="a join point reached a first-class value boundary",
+      raise RepresentationElaborationInvariant(
+        detail="verified Runtime ANF join point reached a value boundary",
       )
     ControlTransferred =>
-      raise invalid_runtime_anf_callable_disposition(
-        detail="terminated control flow reached value materialization",
+      raise RepresentationElaborationInvariant(
+        detail="verified Runtime ANF materialized terminated control flow",
       )
     AdaptedCallable(adaptation) => self.materialize_callable_adapter(adaptation)
     EvidenceApplied(Function(function, type_), arguments) =>
@@ -183,8 +184,8 @@ fn FunctionLowerer::lower_captured_direct_call(
 ) -> LocalValue raise PhysicalLoweringError {
   let (parameters, parameter_types, result_type) = function_type_parts(type_)
   if !parameters.is_empty() {
-    raise invalid_runtime_anf_callable_disposition(
-      detail="a generic callable was classified as direct-only",
+    raise RepresentationElaborationInvariant(
+      detail="verified Runtime ANF generic callable is direct-only",
     )
   }
   let argument_slots = captured_values +
@@ -264,7 +265,9 @@ fn FunctionLowerer::adapt_call_arguments(
       Unit => ()
       Slot(slot, _) => argument_slots.push(slot)
       _ =>
-        raise UnsupportedExpression(detail="call argument is not materialized")
+        raise RepresentationElaborationInvariant(
+          detail="call argument is not materialized",
+        )
     }
   }
   argument_slots
@@ -313,7 +316,9 @@ fn FunctionLowerer::lower_generic_direct_call(
       Unit => ()
       Slot(slot, _) => argument_slots.push(slot)
       _ =>
-        raise UnsupportedExpression(detail="call argument is not materialized")
+        raise RepresentationElaborationInvariant(
+          detail="call argument is not materialized",
+        )
     }
   }
   let actual_result = substitutions.apply_type(
@@ -392,7 +397,9 @@ fn FunctionLowerer::lower_generic_value_call(
       Unit => ()
       Slot(slot, _) => argument_slots.push(slot)
       _ =>
-        raise UnsupportedExpression(detail="call argument is not materialized")
+        raise RepresentationElaborationInvariant(
+          detail="call argument is not materialized",
+        )
     }
   }
   let actual_result = substitutions.apply_type(

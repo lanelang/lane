@@ -12,13 +12,13 @@ fn FunctionLowerer::lower_join_group(
   body : @anf.AnfExpr,
 ) -> LocalValue raise PhysicalLoweringError {
   guard !bindings.is_empty() else {
-    raise invalid_runtime_anf_callable_disposition(
-      detail="an empty join-point group reached physical lowering",
+    raise RepresentationElaborationInvariant(
+      detail="verified Runtime ANF contains an empty join-point group",
     )
   }
   guard bindings[0].rhs is JoinPoint(first) else {
-    raise invalid_runtime_anf_callable_disposition(
-      detail="a join-point group contains a non-join callable",
+    raise RepresentationElaborationInvariant(
+      detail="verified Runtime ANF join-point group has another disposition",
     )
   }
   let result_type = self.substitutions.apply_type(
@@ -31,8 +31,8 @@ fn FunctionLowerer::lower_join_group(
   let plans : Array[LocalJoinPointPlan] = []
   for binding in bindings {
     guard binding.rhs is JoinPoint(function) else {
-      raise invalid_runtime_anf_callable_disposition(
-        detail="a join-point group contains mixed callable dispositions",
+      raise RepresentationElaborationInvariant(
+        detail="verified Runtime ANF join-point group has mixed dispositions",
       )
     }
     let actual_result = self.substitutions.apply_type(
@@ -40,18 +40,17 @@ fn FunctionLowerer::lower_join_group(
       function.result_type,
     )
     if actual_result != result_type {
-      raise invalid_runtime_anf_callable_disposition(
-        detail="join points in one group have different result types",
+      raise RepresentationElaborationInvariant(
+        detail="verified Runtime ANF join-point group has mixed result types",
       )
     }
     let parameters : Array[LocalValue] = []
     let block_parameters : Array[@vmcfg.ValueId] = []
     for parameter in function.parameters {
-      let type_ = match self.image.metadata.value_info(parameter) {
-        Some(info) =>
-          self.substitutions.apply_type(self.image.runtime_types, info.type_)
-        None => raise MissingValueMetadata(value=parameter)
-      }
+      let type_ = self.substitutions.apply_type(
+        self.image.runtime_types,
+        self.image.metadata.verified_value_info(parameter).type_,
+      )
       if self.image.runtime_type(type_) is Concrete(Unit) {
         parameters.push(Unit)
       } else {
@@ -69,11 +68,10 @@ fn FunctionLowerer::lower_join_group(
   let binding_count = self.bindings.length()
   let temp_count = self.temps.length()
   for index, binding in bindings {
-    let function_type = match self.image.metadata.value_info(binding.id) {
-      Some(info) =>
-        self.substitutions.apply_type(self.image.runtime_types, info.type_)
-      None => raise MissingValueMetadata(value=binding.id)
-    }
+    let function_type = self.substitutions.apply_type(
+      self.image.runtime_types,
+      self.image.metadata.verified_value_info(binding.id).type_,
+    )
     self.bindings.push({
       value: binding.id,
       lowered: JoinTarget(plans[index].block, function_type),
@@ -122,8 +120,8 @@ fn FunctionLowerer::route_join_result(
     Unit => []
     Slot(slot, _) => [slot]
     _ =>
-      raise invalid_runtime_anf_callable_disposition(
-        detail="a join-point branch returned an unapplied callable",
+      raise RepresentationElaborationInvariant(
+        detail="verified Runtime ANF join-point branch has no value result",
       )
   }
   self.terminate(Jump({ target: result_block, arguments, }))
@@ -138,8 +136,8 @@ fn FunctionLowerer::lower_join_call(
 ) -> LocalValue raise PhysicalLoweringError {
   let (parameters, parameter_types, _) = function_type_parts(type_)
   if !parameters.is_empty() {
-    raise invalid_runtime_anf_callable_disposition(
-      detail="a generic callable was classified as a join point",
+    raise RepresentationElaborationInvariant(
+      detail="verified Runtime ANF generic callable is a join point",
     )
   }
   let arguments = self.adapt_call_arguments(

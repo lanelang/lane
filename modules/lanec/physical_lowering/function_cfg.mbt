@@ -168,7 +168,7 @@ fn ImageLowerer::lower_function_body(
         | EvidenceAppliedFunction(_, _, _, _)
         | AdaptedCallable(_)
         | EvidenceAppliedAdaptedCallable(_, _) =>
-          raise UnsupportedExpression(
+          raise RepresentationElaborationInvariant(
             detail="function returns an unapplied callable",
           )
       }

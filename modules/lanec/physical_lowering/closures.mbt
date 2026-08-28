@@ -114,14 +114,11 @@ fn FunctionLowerer::lower_recursive_group(
     let function = match extract_top_atom_function(binding.rhs) {
       Some(function) => function
       None =>
-        raise UnsupportedExpression(
-          detail="local recursive bindings must contain functions",
+        raise RepresentationElaborationInvariant(
+          detail="verified Runtime ANF recursive binding is not callable",
         )
     }
-    let type_ = match self.image.metadata.value_info(binding.id) {
-      Some(info) => info.type_
-      None => raise MissingValueMetadata(value=binding.id)
-    }
+    let type_ = self.image.metadata.verified_value_info(binding.id).type_
     functions.push(function)
     recursive_values.push(binding.id)
     recursive_types.push(
@@ -211,14 +208,11 @@ fn FunctionLowerer::lower_direct_recursive_group(
   let recursive_types : Array[@anf.RuntimeType] = []
   for binding in bindings {
     guard binding.rhs is DirectFunction(function) else {
-      raise invalid_runtime_anf_callable_disposition(
-        detail="a direct recursive group contains a non-direct callable",
+      raise RepresentationElaborationInvariant(
+        detail="verified Runtime ANF direct group contains another disposition",
       )
     }
-    let type_ = match self.image.metadata.value_info(binding.id) {
-      Some(info) => info.type_
-      None => raise MissingValueMetadata(value=binding.id)
-    }
+    let type_ = self.image.metadata.verified_value_info(binding.id).type_
     functions.push(function)
     recursive_values.push(binding.id)
     recursive_types.push(
@@ -317,8 +311,8 @@ fn FunctionLowerer::captured_runtime_parameters(
         types.push(adaptation.contract.target_type)
       Global(_) | Unit | EvidenceApplied(_, _) => ()
       JoinTarget(_, _) | ControlTransferred =>
-        raise invalid_runtime_anf_callable_disposition(
-          detail="a control-only value was captured by a callable",
+        raise RepresentationElaborationInvariant(
+          detail="verified Runtime ANF captured a control-only value",
         )
     }
   }
@@ -484,13 +478,13 @@ fn FunctionLowerer::prepare_direct_captures(
       Global(_) => ()
       Unit => plans.push({ binding, type_: Unit, erased_witness: false, })
       JoinTarget(_, _) | ControlTransferred =>
-        raise invalid_runtime_anf_callable_disposition(
-          detail="a control-only value was captured by a direct callable",
+        raise RepresentationElaborationInvariant(
+          detail="verified Runtime ANF direct callable captured a control-only value",
         )
       captured => {
         guard self.materialize_local(captured) is Slot(slot, type_) else {
-          raise invalid_runtime_anf_callable_disposition(
-            detail="a direct capture cannot be materialized",
+          raise RepresentationElaborationInvariant(
+            detail="verified Runtime ANF direct capture cannot be materialized",
           )
         }
         let erased_witness = self.image.runtime_type(type_) is Erased(_)
@@ -643,12 +637,9 @@ fn FunctionLowerer::bind_capture(
 fn ImageLowerer::anf_function_type(
   self : ImageLowerer,
   function : @anf.AnfFunction,
-) -> @anf.RuntimeType raise PhysicalLoweringError {
+) -> @anf.RuntimeType {
   let parameters = function.parameters.map(parameter => {
-    match self.metadata.value_info(parameter) {
-      Some(info) => info.type_
-      None => raise MissingValueMetadata(value=parameter)
-    }
+    self.metadata.verified_value_info(parameter).type_
   })
   Callable(parameters, function.result_type)
 }

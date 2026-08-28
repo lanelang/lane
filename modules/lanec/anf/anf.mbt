@@ -38,9 +38,64 @@ pub(all) suberror RuntimeAnfLoweringError {
   MissingDataConstructor(@buslane.DataConId)
   MissingFunctionOrigin
   InvalidRuntimeProjection(detail~ : String)
-  InvalidCallableDisposition(detail~ : String)
+  InvalidRuntimeAnf(RuntimeAnfVerificationFailure)
   ResidualPerform(@buslane.OperationId)
   ResidualHandle
+} derive(Debug, Eq)
+
+///|
+/// A structural path into Runtime ANF. Runtime ANF has no source spans at this
+/// boundary, so verifier failures retain the IR location that established the
+/// invalid fact.
+pub(all) enum RuntimeAnfVerificationFrame {
+  MetadataValue(@buslane.ValueId)
+  MetadataType(@buslane.TypeId)
+  MetadataDataConstructor(@buslane.DataConId)
+  MetadataEvidence(RuntimeEvidenceId)
+  MetadataTypeExpression(RuntimeTypeExpressionId)
+  TopTerm(Int)
+  AnfFunction(AnfFunctionId)
+  ValueBinding(@buslane.ValueId)
+  TempBinding(AnfTempId)
+  RecursiveBinding(Int)
+  Alternative(Int)
+} derive(Debug, Eq)
+
+///|
+pub(all) struct RuntimeAnfVerificationFailure {
+  kind : RuntimeAnfVerificationError
+  path : Array[RuntimeAnfVerificationFrame]
+} derive(Debug, Eq)
+
+///|
+pub(all) enum RuntimeAnfVerificationError {
+  MissingValueMetadata(@buslane.ValueId)
+  MissingTypeMetadata(@buslane.TypeId)
+  MissingDataConstructorMetadata(@buslane.DataConId)
+  MissingTypeExpression(RuntimeTypeExpressionId)
+  MissingEvidenceParameter(RuntimeEvidenceId)
+  InvalidEvidenceParameter(RuntimeEvidenceParameter)
+  InvalidTypeExpression(RuntimeTypeExpressionId)
+  EvidenceArityMismatch(expected~ : Int, actual~ : Int)
+  DuplicateValue(@buslane.ValueId)
+  DuplicateTemp(AnfTempId)
+  DuplicateFunction(AnfFunctionId)
+  DuplicateEvidence(RuntimeEvidenceId)
+  UnboundValue(@buslane.ValueId)
+  UnboundTemp(AnfTempId)
+  UnboundEvidence(RuntimeEvidenceId)
+  InitializationOrderViolation(@buslane.ValueId)
+  RuntimeTypeMismatch(expected~ : RuntimeType, actual~ : RuntimeType)
+  NotCallable(RuntimeType)
+  NotPolymorphic(RuntimeType)
+  ArityMismatch(expected~ : Int, actual~ : Int)
+  InvalidNominalType(@buslane.TypeId)
+  InvalidDataConstructor(@buslane.DataConId)
+  InvalidAlternative
+  InvalidRecursiveGroup
+  InvalidTopLevelCallable
+  InvalidGenericValue
+  CallableDispositionMismatch(detail~ : String)
 } derive(Debug, Eq)
 
 ///|

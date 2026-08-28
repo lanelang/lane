@@ -21,6 +21,18 @@ fn runtime_anf_test_input(program : @buslane.Program) -> RuntimeAnfInput {
 }
 
 ///|
+fn verify_forged_runtime_anf(
+  program : AnfProgram,
+) -> Result[Unit, RuntimeAnfLoweringError] {
+  try {
+    verify_runtime_anf(program)
+    Ok(())
+  } catch {
+    error => Err(error)
+  }
+}
+
+///|
 test "lower buslane function call to ANF" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let result = metadata.define_value("value", Value, Primitive(I64))
@@ -347,7 +359,10 @@ test "runtime ANF verifier rejects a first-class join point" {
   } catch {
     error => Err(error)
   }
-  assert_true(verification is Err(InvalidCallableDisposition(_)))
+  assert_true(
+    verification
+    is Err(InvalidRuntimeAnf({ kind: CallableDispositionMismatch(_), .. })),
+  )
 }
 
 ///|
@@ -399,5 +414,205 @@ test "runtime ANF verifier rejects an unsaturated direct-only call" {
   } catch {
     error => Err(error)
   }
-  assert_true(verification is Err(InvalidCallableDisposition(_)))
+  assert_true(
+    verification
+    is Err(InvalidRuntimeAnf({ kind: CallableDispositionMismatch(_), .. })),
+  )
+}
+
+///|
+test "Runtime ANF boundary rejects a top-level value without metadata" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let source : @buslane.Program = { metadata, terms: [], }
+  let lowered = lower_cps_core_to_runtime_anf(runtime_anf_test_input(source)).unwrap()
+  let missing : @buslane.ValueId = { index: 0, }
+  let invalid : AnfProgram = {
+    metadata: lowered.metadata,
+    terms: [External(missing)],
+  }
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(
+      InvalidRuntimeAnf(
+        { kind: MissingValueMetadata(actual), path: [TopTerm(0)], }
+      )
+    ) &&
+    actual == missing,
+  )
+}
+
+///|
+test "Runtime ANF boundary rejects an unbound temporary" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let lowered = lower_cps_core_to_runtime_anf(
+    runtime_anf_test_input(
+      nested_callable_disposition_program(
+        (_, parameter, _) => Ref(parameter),
+        recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+        i64,
+      ),
+    ),
+  ).unwrap()
+  guard lowered.terms is [Let(main_id, Atom(Function(main)))] else {
+    fail("expected one top-level function")
+  }
+  let missing : AnfTempId = { index: 999, }
+  let invalid : AnfProgram = {
+    metadata: lowered.metadata,
+    terms: [
+      Let(main_id, Atom(Function({ ..main, body: Atom(Temp(missing)), }))),
+    ],
+  }
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(
+      InvalidRuntimeAnf(
+        { kind: UnboundTemp(actual), path: [TopTerm(0), AnfFunction(_)], }
+      )
+    ) &&
+    actual == missing,
+  )
+}
+
+///|
+test "Runtime ANF boundary rejects an unbound value with complete metadata" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let lowered = lower_cps_core_to_runtime_anf(
+    runtime_anf_test_input(
+      nested_callable_disposition_program(
+        (_, parameter, _) => Ref(parameter),
+        recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+        i64,
+      ),
+    ),
+  ).unwrap()
+  guard lowered.terms is [Let(main_id, Atom(Function(main)))] &&
+    main.body is LetRec([binding], _) &&
+    anf_atom_function(binding.rhs) is Some(nested) &&
+    nested.parameters is [unbound] else {
+    fail("expected one nested function parameter")
+  }
+  let invalid : AnfProgram = {
+    metadata: lowered.metadata,
+    terms: [Let(main_id, Atom(Function({ ..main, body: Atom(Ref(unbound)), })))],
+  }
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(InvalidRuntimeAnf({ kind: UnboundValue(actual), .. })) &&
+    actual == unbound,
+  )
+}
+
+///|
+test "Runtime ANF boundary rejects a missing type expression" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let lowered = lower_cps_core_to_runtime_anf(
+    runtime_anf_test_input(
+      nested_callable_disposition_program(
+        (_, parameter, _) => Ref(parameter),
+        recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+        i64,
+      ),
+    ),
+  ).unwrap()
+  guard lowered.terms is [Let(main_id, Atom(Function(main)))] else {
+    fail("expected one top-level function")
+  }
+  let missing : RuntimeTypeExpressionId = { index: 999, }
+  let temp : AnfTempId = { index: 999, }
+  let invalid : AnfProgram = {
+    metadata: lowered.metadata,
+    terms: [
+      Let(
+        main_id,
+        Atom(
+          Function({
+            ..main,
+            body: Let(
+              Temp(
+                temp~,
+                type_=Erased(missing, Static(I64)),
+                rhs=Atom(Literal(I64(0L))),
+              ),
+              Atom(Temp(temp)),
+            ),
+          }),
+        ),
+      ),
+    ],
+  }
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(InvalidRuntimeAnf({ kind: MissingTypeExpression(actual), .. })) &&
+    actual == missing,
+  )
+}
+
+///|
+test "Runtime ANF boundary rejects an empty recursive group" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let lowered = lower_cps_core_to_runtime_anf(
+    runtime_anf_test_input(
+      nested_callable_disposition_program(
+        (_, parameter, _) => Ref(parameter),
+        recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+        i64,
+      ),
+    ),
+  ).unwrap()
+  guard lowered.terms is [Let(main_id, Atom(Function(main)))] else {
+    fail("expected one top-level function")
+  }
+  let invalid : AnfProgram = {
+    metadata: lowered.metadata,
+    terms: [
+      Let(
+        main_id,
+        Atom(Function({ ..main, body: LetRec([], Atom(Literal(I64(0L)))), })),
+      ),
+    ],
+  }
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(InvalidRuntimeAnf({ kind: InvalidRecursiveGroup, .. })),
+  )
+}
+
+///|
+test "Runtime ANF boundary includes callable disposition verification" {
+  let i64 = @buslane.Type::Primitive(I64)
+  let lowered = lower_cps_core_to_runtime_anf(
+    runtime_anf_test_input(
+      nested_callable_disposition_program(
+        (recursive, parameter, result) => {
+          Let(result, Call(Ref(recursive), [Ref(parameter)]), Literal(I64(1L)))
+        },
+        recursive => Call(Ref(recursive), [Literal(I64(0L))]),
+        i64,
+      ),
+    ),
+  ).unwrap()
+  guard lowered.terms is [Let(main_id, Atom(Function(main)))] &&
+    main.body is LetRec([binding], body) &&
+    binding.rhs is DirectFunction(function) else {
+    fail("expected one direct-only recursive function")
+  }
+  let invalid : AnfProgram = {
+    metadata: lowered.metadata,
+    terms: [
+      Let(
+        main_id,
+        Atom(
+          Function({
+            ..main,
+            body: LetRec([{ ..binding, rhs: Function(function), }], body),
+          }),
+        ),
+      ),
+    ],
+  }
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(InvalidRuntimeAnf({ kind: CallableDispositionMismatch(_), .. })),
+  )
 }

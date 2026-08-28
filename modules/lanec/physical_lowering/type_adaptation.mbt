@@ -490,7 +490,7 @@ fn FunctionLowerer::lower_structurally_adapted_call(
       Unit => ()
       Slot(slot, _) => source_arguments.push(slot)
       _ =>
-        raise UnsupportedExpression(
+        raise RepresentationElaborationInvariant(
           detail="adapted call argument is not materialized",
         )
     }
@@ -833,7 +833,7 @@ fn ImageLowerer::lower_callable_adapter(
       Unit => ()
       Slot(slot, _) => source_arguments.push(slot)
       _ =>
-        raise UnsupportedExpression(
+        raise RepresentationElaborationInvariant(
           detail="callable adapter argument is not materialized",
         )
     }
@@ -867,7 +867,7 @@ fn ImageLowerer::lower_callable_adapter(
     Unit => lowerer.terminate(Return(None))
     Slot(slot, _) => lowerer.terminate(Return(Some(slot)))
     _ =>
-      raise UnsupportedExpression(
+      raise RepresentationElaborationInvariant(
         detail="callable adapter result is not materialized",
       )
   }

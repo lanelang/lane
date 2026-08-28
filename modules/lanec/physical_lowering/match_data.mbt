@@ -10,7 +10,9 @@ fn FunctionLowerer::lower_data_match(
   let owner_info = match self.image.metadata.type_info(owner) {
     Some(info) => info
     None =>
-      raise UnsupportedExpression(detail="data match owner metadata is missing")
+      raise RepresentationElaborationInvariant(
+        detail="data match owner metadata is missing",
+      )
   }
   let substitutions = RuntimeSubstitution::from_arguments(
     owner_info.evidence_parameters,
@@ -24,7 +26,7 @@ fn FunctionLowerer::lower_data_match(
       find_data_alternative(match_.alternatives, data_constructor) {
       Some(alternative) => alternative
       None =>
-        raise UnsupportedExpression(
+        raise RepresentationElaborationInvariant(
           detail="data match lacks a constructor or default alternative",
         )
     }
@@ -61,7 +63,7 @@ fn FunctionLowerer::lower_data_match(
       find_data_alternative(match_.alternatives, data_constructor) {
       Some(alternative) => alternative
       None =>
-        raise UnsupportedExpression(
+        raise RepresentationElaborationInvariant(
           detail="data match lacks a constructor or default alternative",
         )
     }
@@ -196,7 +198,7 @@ fn FunctionLowerer::lower_data_alternative(
     | EvidenceAppliedFunction(_, _, _, _)
     | AdaptedCallable(_)
     | EvidenceAppliedAdaptedCallable(_, _) =>
-      raise UnsupportedExpression(
+      raise RepresentationElaborationInvariant(
         detail="match alternative returns an unapplied callable",
       )
   }
@@ -217,10 +219,9 @@ fn FunctionLowerer::bind_data_alternative(
   alternative : @anf.AnfAlternative,
   substitutions : RuntimeSubstitution,
 ) -> Unit raise PhysicalLoweringError {
-  let info = match self.image.metadata.data_constructor_info(data_constructor) {
-    Some(info) => info
-    None => raise MissingDataConstructorMetadata(data_constructor~)
-  }
+  let info = self.image.metadata.verified_data_constructor_info(
+    data_constructor,
+  )
   let binds_payloads = alternative.alt_constructor is DataCon(_)
   if binds_payloads {
     if alternative.evidence_binders.length() !=
@@ -240,10 +241,8 @@ fn FunctionLowerer::bind_data_alternative(
     0
   }
   if alternative.value_binders.length() != expected_binders {
-    raise InvalidDataPayloadCount(
-      data_constructor~,
-      expected=expected_binders,
-      actual=alternative.value_binders.length(),
+    raise RepresentationElaborationInvariant(
+      detail="verified Runtime ANF alternative payload arity is invalid",
     )
   }
   self.bindings.push({
@@ -335,7 +334,9 @@ fn FunctionLowerer::lower_bool_alternative(
 ) -> Unit raise PhysicalLoweringError {
   if !alternative.evidence_binders.is_empty() ||
     !alternative.value_binders.is_empty() {
-    raise UnsupportedExpression(detail="Bool alternatives cannot bind payloads")
+    raise RepresentationElaborationInvariant(
+      detail="Bool alternatives cannot bind payloads",
+    )
   }
   let value_count = self.bindings.length()
   let temp_count = self.temps.length()
@@ -362,7 +363,7 @@ fn FunctionLowerer::lower_bool_alternative(
     | EvidenceAppliedFunction(_, _, _, _)
     | AdaptedCallable(_)
     | EvidenceAppliedAdaptedCallable(_, _) =>
-      raise UnsupportedExpression(
+      raise RepresentationElaborationInvariant(
         detail="match alternative returns an unapplied callable",
       )
   }

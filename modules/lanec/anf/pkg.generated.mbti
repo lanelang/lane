@@ -23,7 +23,7 @@ pub(all) suberror RuntimeAnfLoweringError {
   MissingDataConstructor(@buslane.DataConId)
   MissingFunctionOrigin
   InvalidRuntimeProjection(detail~ : String)
-  InvalidCallableDisposition(detail~ : String)
+  InvalidRuntimeAnf(RuntimeAnfVerificationFailure)
   ResidualPerform(@buslane.OperationId)
   ResidualHandle
 } derive(Eq, @debug.Debug)
@@ -192,6 +192,64 @@ pub(all) struct RuntimeAnfInput {
   function_origins : @function_origin.FunctionOriginCatalog
 }
 
+pub(all) enum RuntimeAnfVerificationError {
+  MissingValueMetadata(@buslane.ValueId)
+  MissingTypeMetadata(@buslane.TypeId)
+  MissingDataConstructorMetadata(@buslane.DataConId)
+  MissingTypeExpression(RuntimeTypeExpressionId)
+  MissingEvidenceParameter(RuntimeEvidenceId)
+  InvalidEvidenceParameter(RuntimeEvidenceParameter)
+  InvalidTypeExpression(RuntimeTypeExpressionId)
+  EvidenceArityMismatch(expected~ : Int, actual~ : Int)
+  DuplicateValue(@buslane.ValueId)
+  DuplicateTemp(AnfTempId)
+  DuplicateFunction(AnfFunctionId)
+  DuplicateEvidence(RuntimeEvidenceId)
+  UnboundValue(@buslane.ValueId)
+  UnboundTemp(AnfTempId)
+  UnboundEvidence(RuntimeEvidenceId)
+  InitializationOrderViolation(@buslane.ValueId)
+  RuntimeTypeMismatch(expected~ : RuntimeType, actual~ : RuntimeType)
+  NotCallable(RuntimeType)
+  NotPolymorphic(RuntimeType)
+  ArityMismatch(expected~ : Int, actual~ : Int)
+  InvalidNominalType(@buslane.TypeId)
+  InvalidDataConstructor(@buslane.DataConId)
+  InvalidAlternative
+  InvalidRecursiveGroup
+  InvalidTopLevelCallable
+  InvalidGenericValue
+  CallableDispositionMismatch(detail~ : String)
+} derive(Eq, @debug.Debug)
+pub fn RuntimeAnfVerificationError::equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationError::not_equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationError::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RuntimeAnfVerificationFailure {
+  kind : RuntimeAnfVerificationError
+  path : Array[RuntimeAnfVerificationFrame]
+} derive(Eq, @debug.Debug)
+pub fn RuntimeAnfVerificationFailure::equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationFailure::not_equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationFailure::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RuntimeAnfVerificationFrame {
+  MetadataValue(@buslane.ValueId)
+  MetadataType(@buslane.TypeId)
+  MetadataDataConstructor(@buslane.DataConId)
+  MetadataEvidence(RuntimeEvidenceId)
+  MetadataTypeExpression(RuntimeTypeExpressionId)
+  TopTerm(Int)
+  AnfFunction(AnfFunctionId)
+  ValueBinding(@buslane.ValueId)
+  TempBinding(AnfTempId)
+  RecursiveBinding(Int)
+  Alternative(Int)
+} derive(Eq, @debug.Debug)
+pub fn RuntimeAnfVerificationFrame::equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationFrame::not_equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationFrame::to_repr(Self) -> @debug.Repr
+
 pub(all) struct RuntimeArgument {
   type_expression : RuntimeTypeExpressionId
   evidence : RuntimeEvidence
@@ -290,6 +348,9 @@ pub fn RuntimeMetadata::type_expressions(Self) -> ArrayView[RuntimeTypeExpressio
 pub fn RuntimeMetadata::type_info(Self, @buslane.TypeId) -> RuntimeDataInfo?
 pub fn RuntimeMetadata::types_representation_equivalent(Self, RuntimeType, RuntimeType) -> Bool
 pub fn RuntimeMetadata::value_info(Self, @buslane.ValueId) -> RuntimeValueInfo?
+pub fn RuntimeMetadata::verified_data_constructor_info(Self, @buslane.DataConId) -> RuntimeDataConstructorInfo
+pub fn RuntimeMetadata::verified_type_info(Self, @buslane.TypeId) -> RuntimeDataInfo
+pub fn RuntimeMetadata::verified_value_info(Self, @buslane.ValueId) -> RuntimeValueInfo
 
 pub(all) enum RuntimeNominalKind {
   Data

@@ -1,19 +1,11 @@
 ///|
 pub(all) suberror PhysicalLoweringError {
   RuntimeAnfCompilerDefect(@anf.RuntimeAnfLoweringError)
-  MissingValueMetadata(value~ : @buslane.ValueId)
-  MissingDataConstructorMetadata(data_constructor~ : @buslane.DataConId)
   MissingExternal(value~ : @buslane.ValueId)
   MissingEntry(value~ : @buslane.ValueId)
   UnsupportedType(type_~ : @anf.RuntimeType)
-  UnsupportedTopLevel(value~ : @buslane.ValueId)
-  UnsupportedExpression(detail~ : String)
+  RepresentationElaborationInvariant(detail~ : String)
   UnsupportedGenericData(data_constructor~ : @buslane.DataConId)
-  InvalidDataPayloadCount(
-    data_constructor~ : @buslane.DataConId,
-    expected~ : Int,
-    actual~ : Int
-  )
   InvalidTypeApplication(detail~ : String)
   UnsupportedIntrinsic(name~ : String)
   UnterminatedBlock(block~ : Int)
@@ -36,13 +28,6 @@ priv enum GlobalValue {
   FloatConstant(Int, @anf.RuntimeType)
   DoubleConstant(Int64, @anf.RuntimeType)
   InstanceGlobal(@physical.GlobalId, @anf.RuntimeType)
-}
-
-///|
-fn invalid_runtime_anf_callable_disposition(
-  detail~ : String,
-) -> PhysicalLoweringError {
-  RuntimeAnfCompilerDefect(InvalidCallableDisposition(detail~))
 }
 
 ///|

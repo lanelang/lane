@@ -125,6 +125,24 @@ pub extend RuntimeAnfLoweringError with Debug::{to_repr}
 pub extend RuntimeAnfLoweringError with Eq::{not_equal, equal}
 
 ///|
+pub extend RuntimeAnfVerificationError with Debug::{to_repr}
+
+///|
+pub extend RuntimeAnfVerificationError with Eq::{not_equal, equal}
+
+///|
+pub extend RuntimeAnfVerificationFailure with Debug::{to_repr}
+
+///|
+pub extend RuntimeAnfVerificationFailure with Eq::{not_equal, equal}
+
+///|
+pub extend RuntimeAnfVerificationFrame with Debug::{to_repr}
+
+///|
+pub extend RuntimeAnfVerificationFrame with Eq::{not_equal, equal}
+
+///|
 pub extend RuntimeArgument with @prettyprinter.Pretty::{pretty}
 
 ///|

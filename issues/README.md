@@ -417,6 +417,7 @@ graph TD
   ISS_395["ISS-395: Share implementations by complete runtime ABI"]
   ISS_396["ISS-396: Catalog only reachable Wasm support"]
   ISS_397["ISS-397: Make exported Wasm runtime services layout-valid"]
+  ISS_398["ISS-398: Make Runtime ANF a fully verified boundary"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

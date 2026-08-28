@@ -10,14 +10,18 @@ fn lower_all_runtime_anf(program : @buslane.Program) -> @anf.AnfProgram {
         }
     }
   }
-  @anf.lower_cps_core_to_runtime_anf({
-    program,
-    retained_values,
-    function_origins: @function_origin.FunctionOriginCatalog::uniform(
+  match
+    @anf.lower_cps_core_to_runtime_anf({
       program,
-      SourceWritten,
-    ),
-  }).unwrap()
+      retained_values,
+      function_origins: @function_origin.FunctionOriginCatalog::uniform(
+        program,
+        SourceWritten,
+      ),
+    }) {
+    Ok(program) => program
+    Err(error) => abort("unexpected Runtime ANF failure: \{Repr(error)}")
+  }
 }
 
 ///|

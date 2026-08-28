@@ -286,9 +286,15 @@ this boundary. Every top-level and nested callable has a stable Runtime ANF
 identity, explicit Function Origin, lexical evidence scope, captures, and
 recursive-group identity. It also owns each lexical callable's Runtime Callable
 Disposition before any environment, closure, adapter, or callable-table entry
-can be allocated.
-Representation Elaboration consumes Runtime ANF.
-_Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering
+can be allocated. Its sole construction boundary verifies the complete runtime
+metadata and type-expression catalogs, lexical value/temporary/evidence scope,
+identity uniqueness, recursive groups, ANF expression contracts, and callable
+disposition after all Runtime ANF rewrites. `AnfProgram` is therefore the
+opaque verifier-proven value; Representation Elaboration consumes its total
+metadata accessors and never reclassifies malformed Runtime ANF as a physical
+lowering limitation.
+_Avoid_: general Buslane ANF, effect-erased Buslane, backend node filtering,
+late metadata or lexical-scope validation
 
 **Runtime Callable Disposition**:
 The verified Runtime ANF fact that classifies a lexical callable as a local join
