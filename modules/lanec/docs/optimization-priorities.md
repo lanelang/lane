@@ -242,13 +242,20 @@ facts do not prove duplicate destructor semantics. A future proposal must first
 add owner-produced structured destructor-plan identity and demonstrate actual
 duplication; it must not infer sharing from rendered bodies.
 
-### 9. Propagate erased values and witnesses as one fact
+### 9. Preserve erased payload and witness contracts across ABI boundaries
 
-Tracked by ISS-413. The post-milestone Basic image still contains 327 erasures,
-146 unerasures, and 2,659 Wasm instructions attributed to erasure. Model an
-erased payload and its layout witness as one VM CFG fact. Pair-aware propagation
-may reuse a witness and cancel locally inverse bridges only when representation,
-cleanup, and ownership agree.
+ISS-413 investigated whether the post-milestone Basic totals—327 erasures, 146
+unerasures, and 2,659 Wasm instructions attributed to erasure—contained local
+inverse bridges or duplicate static witnesses. A complete-contract experiment
+changed neither Basic nor the coroutine scheduler. The remaining bridges cross
+generic calls, aggregate storage, or dynamic callable boundaries; they are the
+canonical generic ABI rather than local VM CFG redundancy.
+
+`ValueMetadata.erased_companion` remains the payload/witness relation, erasure
+instructions remain the representation-transfer owner, and ARC remains the
+ownership-transfer owner. Do not add a local pair-propagation pass without new
+owner-produced evidence. A future reduction must come from closed-ABI
+specialization that removes the boundary itself.
 
 ### 10. Hoist immutable global borrows
 
