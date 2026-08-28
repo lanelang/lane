@@ -8,9 +8,7 @@ No ready issues.
 
 ## Unresolved Issues
 
-| ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
-| --- | --- | ---: | --- | --- | --- | --- | --- |
-| [ISS-296](ISS-296.md) | in_progress | 4 | epic | codex | none | none | Implement pure generic Array values |
+No unresolved issues.
 
 ## Dependency Graph
 
