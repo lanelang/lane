@@ -10,7 +10,6 @@ No ready issues.
 
 | ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
 | --- | --- | ---: | --- | --- | --- | --- | --- |
-| [ISS-216](ISS-216.md) | deferred | 4 | epic | unassigned | none | none | Design advanced external host ABI capabilities |
 | [ISS-296](ISS-296.md) | deferred | 4 | epic | unassigned | none | none | Implement pure generic Array values |
 
 ## Dependency Graph
