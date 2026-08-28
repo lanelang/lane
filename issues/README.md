@@ -10,6 +10,12 @@ No ready issues.
 
 | ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
 | --- | --- | ---: | --- | --- | --- | --- | --- |
+| [ISS-407](ISS-407.md) | in_progress | 1 | epic | codex | ISS-408, ISS-409, ISS-410, ISS-411, ISS-412 | none | Reduce residual Wasm work after the sole-target migration |
+| [ISS-408](ISS-408.md) | in_progress | 1 | task | codex | none | ISS-407, ISS-409 | Certify the Wasm-only release baseline |
+| [ISS-409](ISS-409.md) | open | 1 | task | unassigned | ISS-408 | ISS-407, ISS-410 | Rebaseline Explore after the Wasm-only migration |
+| [ISS-410](ISS-410.md) | open | 1 | task | unassigned | ISS-409 | ISS-407, ISS-411 | Make CoreAnalysis own static value summaries |
+| [ISS-412](ISS-412.md) | open | 1 | task | unassigned | ISS-411 | ISS-407 | Rebaseline and close the aggregate optimization milestone |
+| [ISS-411](ISS-411.md) | open | 2 | task | unassigned | ISS-410 | ISS-407, ISS-412 | Scalar-replace proven non-escaping aggregates |
 | [ISS-216](ISS-216.md) | deferred | 4 | epic | unassigned | none | none | Design advanced external host ABI capabilities |
 | [ISS-296](ISS-296.md) | deferred | 4 | epic | unassigned | none | none | Implement pure generic Array values |
 
@@ -423,6 +429,12 @@ graph TD
   ISS_404["ISS-404: Persist raw WebAssembly executables"]
   ISS_405["ISS-405: Close the WebAssembly-only migration"]
   ISS_406["ISS-406: Delete Opaque host-object externs"]
+  ISS_407["ISS-407: Reduce residual Wasm work after the sole-target migration"]
+  ISS_408["ISS-408: Certify the Wasm-only release baseline"]
+  ISS_409["ISS-409: Rebaseline Explore after the Wasm-only migration"]
+  ISS_410["ISS-410: Make CoreAnalysis own static value summaries"]
+  ISS_411["ISS-411: Scalar-replace proven non-escaping aggregates"]
+  ISS_412["ISS-412: Rebaseline and close the aggregate optimization milestone"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -767,6 +779,15 @@ graph TD
   ISS_406 --> ISS_403
   ISS_401 --> ISS_404
   ISS_404 --> ISS_405
+  ISS_408 --> ISS_407
+  ISS_409 --> ISS_407
+  ISS_410 --> ISS_407
+  ISS_411 --> ISS_407
+  ISS_412 --> ISS_407
+  ISS_408 --> ISS_409
+  ISS_409 --> ISS_410
+  ISS_410 --> ISS_411
+  ISS_411 --> ISS_412
 ```
 
 ## Warnings
