@@ -45,11 +45,11 @@ test "Wasm compilation records every function at its emission boundary" {
     object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
     constants: [],
   }
-  let observed = match compile_observed(image) {
+  let observed = match compile_observed(certify_physical_program_test(image)) {
     Ok(observed) => observed
     Err(error) => fail("observed compile failed: \{Repr(error)}")
   }
-  let ordinary = match compile(image) {
+  let ordinary = match compile(certify_physical_program_test(image)) {
     Ok(module_) => module_
     Err(error) => fail("ordinary compile failed: \{Repr(error)}")
   }

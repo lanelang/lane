@@ -151,9 +151,9 @@ test "linked tree shaking remains deterministic for many modules and symbols" {
   )
   assert_eq(
     (
-      program.program.metadata.values.length(),
-      program.program.terms.length(),
-      @buslane.verify_program(program.program).is_ok(),
+      program.program.program().metadata.values.length(),
+      program.program.program().terms.length(),
+      @buslane.verify_program(program.program.program()).is_ok(),
     ),
     (module_count * values_per_module, 0, true),
   )
@@ -173,9 +173,9 @@ test "symbol-rich imports reuse indexed provider exports" {
   assert_eq(
     (
       program.module_path_texts,
-      program.program.metadata.values.length(),
-      program.program.terms.length(),
-      @buslane.verify_program(program.program).is_ok(),
+      program.program.program().metadata.values.length(),
+      program.program.program().terms.length(),
+      @buslane.verify_program(program.program.program()).is_ok(),
     ),
     (["Provider", "Importer"], value_count * 2, value_count, true),
   )
@@ -298,13 +298,15 @@ test "linked tree shaking retains exports entries externals and metadata" {
   debug_inspect(
     (
       linked.module_path_texts,
-      linked_term_names(linked.program),
+      linked_term_names(linked.program.program()),
       linked.entries.map(entry => (entry.module_path_text, entry.name)),
       linked.externals.builtins.map(builtin => builtin.intrinsic()),
       linked.externals.runtime_imports.map(import_ => import_.symbol),
-      linked.program.metadata.effects.map(info => info.name.occurrence),
-      linked.program.metadata.operations.map(info => info.name.occurrence),
-      @buslane.verify_program(linked.program).is_ok(),
+      linked.program.program().metadata.effects.map(info => info.name.occurrence),
+      linked.program.program().metadata.operations.map(info => {
+        info.name.occurrence
+      }),
+      @buslane.verify_program(linked.program.program()).is_ok(),
     ),
     content=(
       #|(
@@ -371,7 +373,10 @@ test "linked entry policy determines whole-program retention roots" {
     abort("expected complete linked program")
   }
   assert_eq(
-    (linked_term_names(reachable.program), linked_term_names(complete.program)),
+    (
+      linked_term_names(reachable.program.program()),
+      linked_term_names(complete.program.program()),
+    ),
     (
       ["let root_entry"],
       ["let dependency_helper", "let dependency_entry", "let root_entry"],

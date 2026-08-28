@@ -8,11 +8,11 @@ import {
 }
 
 // Values
-pub fn optimize(CoreOptimizeRequest) -> Result[@buslane.Program, CoreOptimizeError]
+pub fn optimize(CoreOptimizeRequest) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
 
-pub fn optimize_observed(CoreOptimizeRequest, (CoreOptimizationObservation) -> Unit) -> Result[@buslane.Program, CoreOptimizeError]
+pub fn optimize_observed(CoreOptimizeRequest, (CoreOptimizationObservation) -> Unit) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
 
-pub fn optimize_preserving_function_origins(CoreOptimizeRequest, @function_origin.FunctionOriginCatalog) -> Result[@buslane.Program, CoreOptimizeError]
+pub fn optimize_preserving_function_origins(CoreOptimizeRequest, @function_origin.FunctionOriginCatalog) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
 
 // Errors
 pub(all) suberror CoreOptimizeError {
@@ -24,6 +24,7 @@ pub(all) suberror CoreOptimizeError {
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
   MissingFunctionOriginCompilerDefect
   ConflictingFunctionOriginCompilerDefect
+  OutputVerificationCompilerDefect(@buslane.VerifyResult)
 } derive(Eq, @debug.Debug)
 pub fn CoreOptimizeError::equal(Self, Self) -> Bool
 pub fn CoreOptimizeError::not_equal(Self, Self) -> Bool
@@ -57,7 +58,7 @@ pub fn CoreOptimizationObservation::not_equal(Self, Self) -> Bool
 pub fn CoreOptimizationObservation::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CoreOptimizeRequest {
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
 } derive(Eq, @debug.Debug)

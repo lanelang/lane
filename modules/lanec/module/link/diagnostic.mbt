@@ -71,6 +71,7 @@ priv enum LinkDiagnosticKind {
   )
   StaleModuleObject(module_path_text~ : String, reason~ : String)
   LinkMetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
+  LinkedProgramCompilerDefect(@buslane.VerifyResult)
 }
 
 ///|
@@ -208,6 +209,15 @@ impl @compiler_diag.ToCompilerDiagnostic for LinkDiagnostic with fn to_compiler_
         code="E4999",
         label="Buslane metadata identity allocation failed",
         note="the linker exhausted its metadata identity space: \{Repr(error)}",
+        help="report this compiler defect with the input module artifacts",
+      )
+    LinkedProgramCompilerDefect(result) =>
+      compile_report(
+        "internal compiler error while linking",
+        diagnostic_.span,
+        code="E4999",
+        label="the linked Buslane program violates its verifier contract",
+        note="the linker produced invalid Buslane: \{Repr(result)}",
         help="report this compiler defect with the input module artifacts",
       )
   }

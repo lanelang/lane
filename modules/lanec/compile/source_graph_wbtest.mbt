@@ -597,7 +597,7 @@ test "link modules produces Buslane program from reachable module objects" {
     content="answer",
   )
   inspect(
-    @prettyprinter.render(program.program, width=100),
+    @prettyprinter.render(program.program.program(), width=100),
     content=(
       #|buslane {
       #|  metadata {
@@ -611,7 +611,10 @@ test "link modules produces Buslane program from reachable module objects" {
     ),
   )
   inspect(
-    @prettyprinter.render(@buslane.verify_program(program.program), width=100),
+    @prettyprinter.render(
+      @buslane.verify_program(program.program.program()),
+      width=100,
+    ),
     content="verify_result {}",
   )
 }
@@ -651,10 +654,13 @@ test "link modules remaps effect operations through one identity" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  assert_eq(program.program.metadata.effects.length(), 1)
-  assert_eq(program.program.metadata.operations.length(), 1)
+  assert_eq(program.program.program().metadata.effects.length(), 1)
+  assert_eq(program.program.program().metadata.operations.length(), 1)
   inspect(
-    @prettyprinter.render(@buslane.verify_program(program.program), width=100),
+    @prettyprinter.render(
+      @buslane.verify_program(program.program.program()),
+      width=100,
+    ),
     content="verify_result {}",
   )
 }
@@ -686,10 +692,13 @@ test "link modules remaps data constructors through one identity" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  assert_eq(program.program.metadata.types.length(), 1)
-  assert_eq(program.program.metadata.data_constructors.length(), 1)
+  assert_eq(program.program.program().metadata.types.length(), 1)
+  assert_eq(program.program.program().metadata.data_constructors.length(), 1)
   inspect(
-    @prettyprinter.render(@buslane.verify_program(program.program), width=100),
+    @prettyprinter.render(
+      @buslane.verify_program(program.program.program()),
+      width=100,
+    ),
     content="verify_result {}",
   )
 }

@@ -51,7 +51,21 @@ fn PhysicalProgram::global_lifecycle_plan(
 }
 
 ///|
-pub(all) struct VerifiedPhysicalProgram {
-  image : PhysicalProgram
-  global_lifecycle : GlobalLifecyclePlan
+pub struct VerifiedPhysicalProgram {
+  priv image : PhysicalProgram
+  priv global_lifecycle : GlobalLifecyclePlan
+} derive(Debug, Eq)
+
+///|
+pub fn VerifiedPhysicalProgram::image(
+  self : VerifiedPhysicalProgram,
+) -> PhysicalProgram {
+  self.image
+}
+
+///|
+pub fn VerifiedPhysicalProgram::global_lifecycle(
+  self : VerifiedPhysicalProgram,
+) -> GlobalLifecyclePlan {
+  self.global_lifecycle
 }

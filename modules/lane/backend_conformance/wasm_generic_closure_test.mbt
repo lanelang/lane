@@ -15,7 +15,7 @@ fn lower_unoptimized_test_program(
     }
   }
   @physical_lowering.lower_executable_program_to_physical({
-    program,
+    program: program.certify().unwrap(),
     externals,
     entry,
     retained_values,
@@ -23,7 +23,7 @@ fn lower_unoptimized_test_program(
       program,
       SourceWritten,
     ),
-  })
+  }).map(verified => verified.image())
 }
 
 ///|

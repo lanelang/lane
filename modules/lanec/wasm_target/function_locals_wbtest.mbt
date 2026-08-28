@@ -33,7 +33,7 @@ test "trivial functions omit frame liveness locals" {
     object_shapes: [],
     constants: [],
   }
-  let wasm_module = match compile(image) {
+  let wasm_module = match compile(certify_physical_program_wbtest(image)) {
     Ok(module_) => module_
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -88,7 +88,7 @@ test "CFG functions share packed liveness state across owned slots" {
     object_shapes: [],
     constants: [b"Lane"],
   }
-  let wasm_module = match compile(image) {
+  let wasm_module = match compile(certify_physical_program_wbtest(image)) {
     Ok(module_) => module_
     Err(error) => fail("compile failed: \{Repr(error)}")
   }

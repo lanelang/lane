@@ -24,20 +24,18 @@ pub fn lower_cps_core_to_runtime_anf(
 fn lower_cps_core_to_runtime_anf_or_raise(
   input : RuntimeAnfInput,
 ) -> AnfProgram raise RuntimeAnfLoweringError {
-  let program = input.program
-  let verification = @buslane.verify_program(program)
-  if !verification.is_ok() {
-    raise InvalidCpsCore(verification)
-  }
+  let program = input.program.program()
   validate_retained_values(program.terms, input.retained_values)
   let retained_terms = retained_top_terms(program.terms, input.retained_values)
-  let retained_verification = @buslane.verify_program({
+  let retained_program : @buslane.Program = {
     metadata: program.metadata,
     terms: retained_terms,
-  })
-  if !retained_verification.is_ok() {
-    raise InvalidRetention(retained_verification)
   }
+  let retained = match retained_program.certify() {
+    Ok(program) => program
+    Err(result) => raise InvalidRetention(result)
+  }
+  let program = retained.program()
   let generic_plan = runtime_generic_plan(program, retained_terms)
   let lowerer = AnfLowerer::{
     generic_plan,

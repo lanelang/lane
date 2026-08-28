@@ -170,7 +170,7 @@ pub fn CompiledProgram::buslane_text(
   self : CompiledProgram,
   width? : Int = 100,
 ) -> String {
-  render_buslane_program(self.linked.program, width)
+  render_buslane_program(self.linked.program.program(), width)
 }
 
 ///|
@@ -178,7 +178,7 @@ pub fn CompiledProgram::buslane_text(
 pub fn CompiledProgram::buslane_scale(
   self : CompiledProgram,
 ) -> @buslane.ProgramScale {
-  self.linked.program.structural_scale()
+  self.linked.program.program().structural_scale()
 }
 
 ///|
@@ -228,7 +228,7 @@ pub fn CompiledProgram::entry_type(
   guard self.linked.entries.contains(entry.entry) else { return None }
   Some(
     @buslane_lowering.source_value_type(
-      self.linked.program.metadata,
+      self.linked.program.program().metadata,
       entry.entry.value,
     ),
   ) catch {

@@ -314,7 +314,7 @@ fn lifted_fixture_diagnostics(
     ),
     stage => {
       if stage is MonadicContinuationsLifted(lifted) {
-        lifted_verification = Some(@buslane.verify_program(lifted))
+        lifted_verification = Some(@buslane.verify_program(lifted.program()))
       }
     },
   )

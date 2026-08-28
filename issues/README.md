@@ -418,6 +418,7 @@ graph TD
   ISS_396["ISS-396: Catalog only reachable Wasm support"]
   ISS_397["ISS-397: Make exported Wasm runtime services layout-valid"]
   ISS_398["ISS-398: Make Runtime ANF a fully verified boundary"]
+  ISS_399["ISS-399: Propagate verified IR certificates through backend seams"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

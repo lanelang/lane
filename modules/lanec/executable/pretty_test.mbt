@@ -15,21 +15,18 @@ test "executable pretty output emphasizes execution structure" {
   }
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
-    program: {
-      metadata,
-      terms: [
-        External(observe),
-        Let(initialized, Literal(I64(42))),
-        Let(
-          main,
-          Function({
-            parameters: [],
-            result_type: unit_type,
-            body: Call(Ref(observe), [Ref(initialized)]),
-          }),
-        ),
-      ],
-    },
+    program: executable_test_program(metadata, [
+      External(observe),
+      Let(initialized, Literal(I64(42))),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Call(Ref(observe), [Ref(initialized)]),
+        }),
+      ),
+    ]),
     externals: {
       builtins: [],
       runtime_imports: [

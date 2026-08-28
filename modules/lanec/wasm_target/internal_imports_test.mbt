@@ -85,7 +85,7 @@ test "compiler emits selected internal imports in canonical order" {
   for case in cases {
     let (uses_f32, uses_f64, uses_host_objects, functions) = case
     let image = internal_import_image(uses_f32~, uses_f64~, uses_host_objects~)
-    let wasm_module = match compile(image) {
+    let wasm_module = match compile(certify_physical_program_test(image)) {
       Ok(module_) => module_
       Err(error) => fail("compile failed: \{Repr(error)}")
     }
@@ -121,7 +121,7 @@ test "Fatal selects the private fatal String import" {
     functions: base.functions + [PhysicalBody(fatal_body)],
     constants: [b"boom"],
   }
-  let module_ = match compile(image) {
+  let module_ = match compile(certify_physical_program_test(image)) {
     Ok(module_) => module_
     Err(error) => fail("compile failed: \{Repr(error)}")
   }

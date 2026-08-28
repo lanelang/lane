@@ -21,7 +21,7 @@ test "origin-preserving optimization rejects an unowned function" {
   }
   assert_eq(
     @core_opt.optimize_preserving_function_origins(
-      { program, entry, roots: [], },
+      { program: program.certify().unwrap(), entry, roots: [], },
       @function_origin.FunctionOriginCatalog::new(),
     ),
     Err(MissingFunctionOriginCompilerDefect),

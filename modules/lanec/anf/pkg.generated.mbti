@@ -13,7 +13,6 @@ pub fn lower_cps_core_to_runtime_anf(RuntimeAnfInput) -> Result[AnfProgram, Runt
 
 // Errors
 pub(all) suberror RuntimeAnfLoweringError {
-  InvalidCpsCore(@buslane.VerifyResult)
   InvalidRetention(@buslane.VerifyResult)
   DuplicateRetainedValue(@buslane.ValueId)
   UnknownRetainedValue(@buslane.ValueId)
@@ -187,7 +186,7 @@ pub fn AnfTopTerm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfTopTerm
 
 pub(all) struct RuntimeAnfInput {
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   retained_values : Array[@buslane.ValueId]
   function_origins : @function_origin.FunctionOriginCatalog
 }

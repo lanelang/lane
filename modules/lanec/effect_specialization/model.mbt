@@ -151,9 +151,10 @@ priv struct EffectSpecializer {
 
 ///|
 pub fn specialize(
-  program : @buslane.Program,
+  verified : @buslane.VerifiedProgram,
   entry : @buslane.ValueId,
-) -> @buslane.Program raise SpecializationError {
+) -> @buslane.VerifiedProgram raise SpecializationError {
+  let program = verified.program()
   let definitions = collect_effect_generic_definitions(program)
   let planned_definitions = collect_plannable_definitions(program)
   let plan = plan_effect_specializations_with_definitions(
@@ -253,16 +254,21 @@ pub fn specialize(
     index = index + 1
   }
   specializer.specialize_retained_declarations()
-  if specialized_bindings.is_empty() {
-    return { metadata: program.metadata, terms, }
+  let output : @buslane.Program = if specialized_bindings.is_empty() {
+    { metadata: program.metadata, terms, }
+  } else {
+    // Specialized definitions are function implementations, so binding them as
+    // one recursive group installs closures without evaluating anything. They
+    // lead the program because a retained value initializer may call one, and
+    // top-level bindings are established in order.
+    {
+      metadata: program.metadata,
+      terms: [LetRec(specialized_bindings), ..terms],
+    }
   }
-  // Specialized definitions are function implementations, so binding them as
-  // one recursive group installs closures without evaluating anything. They
-  // lead the program because a retained value initializer may call one, and
-  // top-level bindings are established in order.
-  {
-    metadata: program.metadata,
-    terms: [LetRec(specialized_bindings), ..terms],
+  match output.certify() {
+    Ok(program) => program
+    Err(result) => raise OutputVerificationCompilerDefect(result)
   }
 }
 

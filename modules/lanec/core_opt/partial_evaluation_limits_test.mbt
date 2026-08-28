@@ -64,18 +64,23 @@ test "core optimizer evaluates every profitable call to one callee" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  guard optimized_main_body(optimized, main) is Construct(construct) else {
+  guard optimized_main_body(optimized.program(), main) is Construct(construct) else {
     fail("expected optimized aggregate construction")
   }
-  assert_eq(optimized.terms.length(), 1)
+  assert_eq(optimized.program().terms.length(), 1)
   assert_eq(construct.payloads.length(), 8)
   for index, payload in construct.payloads {
     assert_eq(payload, Literal(I64(index.to_int64())))
   }
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -130,18 +135,23 @@ test "core optimizer does not impose a fixed whole-program expansion count" {
     ),
   )
   let program : @buslane.Program = { metadata, terms, }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  guard optimized_main_body(optimized, main) is Construct(construct) else {
+  guard optimized_main_body(optimized.program(), main) is Construct(construct) else {
     fail("expected optimized aggregate construction")
   }
-  assert_eq(optimized.terms.length(), 1)
+  assert_eq(optimized.program().terms.length(), 1)
   assert_eq(construct.payloads.length(), 80)
   for index, payload in construct.payloads {
     assert_eq(payload, Literal(I64(index.to_int64())))
   }
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -213,12 +223,17 @@ test "core optimizer judges profitability after contextual reduction" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  assert_eq(optimized.terms.length(), 1)
-  assert_eq(optimized_main_body(optimized, main), Literal(I64(42L)))
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_eq(optimized.program().terms.length(), 1)
+  assert_eq(optimized_main_body(optimized.program(), main), Literal(I64(42L)))
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -329,12 +344,17 @@ test "core optimizer revisits dependents until semantic facts stabilize" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  assert_eq(optimized.terms.length(), 1)
-  assert_eq(optimized_main_body(optimized, main), Literal(I64(1L)))
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_eq(optimized.program().terms.length(), 1)
+  assert_eq(optimized_main_body(optimized.program(), main), Literal(I64(1L)))
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -381,9 +401,10 @@ test "inline executor defers calls exposed by a clone to the next plan" {
     ],
   }
   let observations : Array[CoreOptimizationObservation] = []
-  guard optimize_observed({ program, entry: main, roots: [], }, observation => {
-      observations.push(observation)
-    })
+  guard optimize_observed(
+      { program: program.certify().unwrap(), entry: main, roots: [], },
+      observation => observations.push(observation),
+    )
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -394,6 +415,6 @@ test "inline executor defers calls exposed by a clone to the next plan" {
     }
   })
   assert_eq(accepted, [leaf, outer, leaf])
-  assert_eq(optimized_main_body(optimized, main), Literal(I64(42L)))
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_eq(optimized_main_body(optimized.program(), main), Literal(I64(42L)))
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }

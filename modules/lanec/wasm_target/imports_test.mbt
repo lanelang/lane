@@ -578,7 +578,8 @@ test "Wasm loading authenticates the manifest against physical import types" {
     symbol: "lane.test.contract",
   }
   let image = import_test_image(import_test_body([], []), descriptor)
-  let module_ = match @wasm_target.compile(image) {
+  let module_ = match
+    @wasm_target.compile(certify_physical_program_test(image)) {
     Ok(module_) => module_
     Err(error) => fail("Wasm compilation failed: \{Repr(error)}")
   }

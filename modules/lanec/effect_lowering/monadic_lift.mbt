@@ -1,7 +1,7 @@
 ///|
 fn lift_monadic_continuations_or_raise(
   program : Program,
-) -> EffectLoweringResult raise SynthesisError {
+) -> (@buslane.Program, @function_origin.FunctionOriginCatalog) raise SynthesisError {
   validate_open_resolve_output_or_raise(program)
   let function_origins = @function_origin.FunctionOriginCatalog::new()
   let lowered : @buslane.Program = {
@@ -10,7 +10,7 @@ fn lift_monadic_continuations_or_raise(
       lift_monadic_top_term(term, function_origins)
     }),
   }
-  { program: lowered, function_origins, }
+  (lowered, function_origins)
 }
 
 ///|

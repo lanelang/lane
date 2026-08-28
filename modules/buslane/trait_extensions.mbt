@@ -486,3 +486,9 @@ pub extend VerifyResult with Debug::{to_repr}
 
 ///|
 pub extend VerifyResult with Eq::{not_equal, equal}
+
+///|
+pub extend VerifiedProgram with Debug::{to_repr}
+
+///|
+pub extend VerifiedProgram with Eq::{not_equal, equal}

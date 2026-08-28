@@ -36,7 +36,12 @@ fn lower_conformance_program_to_physical(
 ) -> Result[@physical.PhysicalProgram, String] {
   let executable = match
     @executable.elaborate(
-      { module_path_texts: [], program, externals, entries: [entry], },
+      {
+        module_path_texts: [],
+        program: program.certify().unwrap(),
+        externals,
+        entries: [entry],
+      },
       entry,
       conformance_execution_profile(),
     ) {
@@ -44,7 +49,7 @@ fn lower_conformance_program_to_physical(
     Err(error) => return Err("elaboration failed: \{Repr(error)}")
   }
   match @physical_lowering.lower_executable_program_to_physical(executable) {
-    Ok(image) => Ok(image)
+    Ok(image) => Ok(image.image())
     Err(error) => Err("lowering failed: \{Repr(error)}")
   }
 }

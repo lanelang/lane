@@ -29,7 +29,7 @@ priv struct ValidatedLinkModuleObject {
 /// linker order and whose metadata identities have been remapped exactly once.
 pub(all) struct LinkedProgram {
   module_path_texts : Array[String]
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
 } derive(Debug, Eq)

@@ -27,7 +27,7 @@ fn compile_test_physical_program(
     Err(error) => fail("executable elaboration failed: \{Repr(error)}")
   }
   match @physical_lowering.lower_executable_program_to_physical(executable) {
-    Ok(image) => image
+    Ok(image) => image.image()
     Err(error) => fail("physical lowering failed: \{Repr(error)}")
   }
 }

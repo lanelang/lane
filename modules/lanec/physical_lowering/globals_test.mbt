@@ -14,7 +14,12 @@ fn lower_test_linked_program_to_physical(
 ) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
   let executable = match
     @executable.elaborate(
-      { module_path_texts: [], program, externals, entries: [entry], },
+      {
+        module_path_texts: [],
+        program: program.certify().unwrap(),
+        externals,
+        entries: [entry],
+      },
       entry,
       @executable.ExecutionProfile::new(
         builtin_effects=[Io, Panic],
@@ -24,7 +29,9 @@ fn lower_test_linked_program_to_physical(
     Ok(executable) => executable
     Err(error) => abort("test executable elaboration failed: \{Repr(error)}")
   }
-  lower_executable_program_to_physical(executable)
+  lower_executable_program_to_physical(executable).map(verified => {
+    verified.image()
+  })
 }
 
 ///|
@@ -239,7 +246,7 @@ test "executable initializer materializes function-valued data fields" {
   }
   let image = match
     lower_executable_program_to_physical({
-      program,
+      program: program.certify().unwrap(),
       externals: { builtins: [], runtime_imports: [], },
       entry,
       retained_values: [helper, consume, stored, main],
@@ -248,7 +255,7 @@ test "executable initializer materializes function-valued data fields" {
         SourceWritten,
       ),
     }) {
-    Ok(image) => image
+    Ok(image) => image.image()
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   guard image.initializer is Some(_) else {

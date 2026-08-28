@@ -44,7 +44,7 @@ test "function catalog closes dependencies before allocating identities" {
   let module_ = @wasm_types.Module::empty()
   let catalog = plan_wasm_function_catalog(
     image,
-    verified.global_lifecycle,
+    verified.global_lifecycle(),
     false,
     module_,
   )
@@ -122,7 +122,7 @@ test "function catalog rejects an omitted dependency before emission" {
   let module_ = @wasm_types.Module::empty()
   let catalog = plan_wasm_function_catalog(
     image,
-    verified.global_lifecycle,
+    verified.global_lifecycle(),
     false,
     module_,
   )
@@ -137,7 +137,7 @@ test "function catalog rejects an omitted dependency before emission" {
   }
   debug_inspect(
     try {
-      incomplete.validate(image, verified.global_lifecycle, module_)
+      incomplete.validate(image, verified.global_lifecycle(), module_)
       Ok(())
     } catch {
       error => Err(error)

@@ -3,7 +3,11 @@ fn load_physical_interpreted(
   image : @physical.PhysicalProgram,
   registry : @lane_runtime.RuntimeRegistry,
 ) -> Result[@lane_wasm_runtime.LoadedImage, String] {
-  let module_ = match @wasm_target.compile(image) {
+  let verified = match @physical.verify_physical_program_for_execution(image) {
+    Ok(verified) => verified
+    Err(error) => return Err("Physical verification failed: \{Repr(error)}")
+  }
+  let module_ = match @wasm_target.compile(verified) {
     Ok(module_) => module_
     Err(error) => return Err("Wasm compilation failed: \{Repr(error)}")
   }

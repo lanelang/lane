@@ -31,11 +31,16 @@ test "core optimizer partially evaluates a known nonrecursive call" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    (optimized.terms, @buslane.verify_program(optimized)),
+    (optimized.program().terms, @buslane.verify_program(optimized.program())),
     content=(
       #|(
       #|  [
@@ -99,11 +104,16 @@ test "core optimizer partially evaluates a known generic call" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    (optimized.terms, @buslane.verify_program(optimized)),
+    (optimized.program().terms, @buslane.verify_program(optimized.program())),
     content=(
       #|(
       #|  [
@@ -206,11 +216,16 @@ test "core optimizer preserves distinct effects with different binder kinds" {
     ],
   }
   let before = @buslane.verify_program(program)
-  guard optimize({ program, entry: main, roots: [value], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [value],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    (before, @buslane.verify_program(optimized)),
+    (before, @buslane.verify_program(optimized.program())),
     content="({ diagnostics: [] }, { diagnostics: [] })",
   )
 }
@@ -314,11 +329,16 @@ test "core optimizer devirtualizes a known dictionary projection" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    (optimized.terms, @buslane.verify_program(optimized)),
+    (optimized.program().terms, @buslane.verify_program(optimized.program())),
     content=(
       #|(
       #|  [
@@ -370,11 +390,16 @@ test "core optimizer does not unfold a recursive call through an alias" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    (optimized.terms, @buslane.verify_program(optimized)),
+    (optimized.program().terms, @buslane.verify_program(optimized.program())),
     content=(
       #|(
       #|  [
@@ -448,14 +473,19 @@ test "core optimizer keeps a known call when contextual expansion is not profita
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [helper], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [helper],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
     (
-      optimized.terms.length(),
-      optimized.terms[2],
-      @buslane.verify_program(optimized),
+      optimized.program().terms.length(),
+      optimized.program().terms[2],
+      @buslane.verify_program(optimized.program()),
     ),
     content=(
       #|(
@@ -515,11 +545,16 @@ test "core optimizer does not unfold a mutually recursive SCC" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    (optimized.terms, @buslane.verify_program(optimized)),
+    (optimized.program().terms, @buslane.verify_program(optimized.program())),
     content=(
       #|(
       #|  [
@@ -615,11 +650,16 @@ test "core optimizer preserves an escaping callable while specializing its direc
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [holder], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [holder],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    (optimized.terms, @buslane.verify_program(optimized)),
+    (optimized.program().terms, @buslane.verify_program(optimized.program())),
     content=(
       #|(
       #|  [
@@ -735,11 +775,16 @@ test "core optimizer eliminates a single-use call with a dynamic projection" {
       ),
     ],
   }
-  guard optimize({ program, entry: consumer, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: consumer,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    (optimized.terms, @buslane.verify_program(optimized)),
+    (optimized.program().terms, @buslane.verify_program(optimized.program())),
     content=(
       #|(
       #|  [
@@ -888,11 +933,16 @@ test "core optimizer materializes a top-level dictionary before devirtualizing i
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    (optimized.terms, @buslane.verify_program(optimized)),
+    (optimized.program().terms, @buslane.verify_program(optimized.program())),
     content=(
       #|(
       #|  [

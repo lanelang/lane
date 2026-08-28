@@ -13,7 +13,8 @@ pub fn executable_to_wasm_artifact(
     Ok(module_) => module_
     Err(error) => return Err(WasmCompilation(error))
   }
-  let runtime_imports = physical.functions.filter_map(fn(entry) {
+  let physical_image = physical.image()
+  let runtime_imports = physical_image.functions.filter_map(fn(entry) {
     match entry {
       RuntimeImport(import_) => Some(import_)
       PhysicalBody(_) => None

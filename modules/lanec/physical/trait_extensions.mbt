@@ -270,3 +270,9 @@ pub extend ValueAbi with Debug::{to_repr}
 
 ///|
 pub extend ValueAbi with Eq::{not_equal, equal}
+
+///|
+pub extend VerifiedPhysicalProgram with Debug::{to_repr}
+
+///|
+pub extend VerifiedPhysicalProgram with Eq::{not_equal, equal}

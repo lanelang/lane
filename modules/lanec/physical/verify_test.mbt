@@ -99,7 +99,7 @@ test "physical verifier owns canonical instance-global initialization order" {
     fail("ordered global initialization should verify")
   }
   debug_inspect(
-    verified.global_lifecycle,
+    verified.global_lifecycle(),
     content=(
       #|{
       #|  roots: [

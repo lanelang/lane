@@ -512,6 +512,7 @@ pub(all) struct Program {
   metadata : MetadataRegistry
   terms : Array[TopTerm]
 } derive(Eq, @debug.Debug)
+pub fn Program::certify(Self) -> Result[VerifiedProgram, VerifyResult]
 pub fn Program::equal(Self, Self) -> Bool
 pub fn Program::not_equal(Self, Self) -> Bool
 pub fn Program::pretty(Self) -> @prettyprinter.Document
@@ -701,6 +702,14 @@ pub fn ValueKind::not_equal(Self, Self) -> Bool
 pub fn ValueKind::pretty(Self) -> @prettyprinter.Document
 pub fn ValueKind::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ValueKind
+
+pub struct VerifiedProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn VerifiedProgram::equal(Self, Self) -> Bool
+pub fn VerifiedProgram::not_equal(Self, Self) -> Bool
+pub fn VerifiedProgram::program(Self) -> Program
+pub fn VerifiedProgram::to_repr(Self) -> @debug.Repr
 
 pub(all) struct VerifyDiagnostic {
   kind : VerifyDiagnosticKind

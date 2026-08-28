@@ -124,10 +124,20 @@ fn link_ordered_modules_with_remapper(
   if observe is Some(emit) {
     emit(link_retention_observation(remapped_objects, retained_program))
   }
+  let verified_program = match retained_program.certify() {
+    Ok(program) => program
+    Err(result) =>
+      return {
+        program: None,
+        diagnostics: [
+          link_diagnostic(LinkedProgramCompilerDefect(result), None),
+        ],
+      }
+  }
   {
     program: Some({
       module_path_texts,
-      program: retained_program,
+      program: verified_program,
       externals: { builtins, runtime_imports, },
       entries,
     }),

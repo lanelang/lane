@@ -40,11 +40,15 @@ test "core optimizer reduces a direct lambda with a complex empty argument" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  assert_eq(optimized_entry_body(optimized, entry), Call(Ref(producer), []))
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_eq(
+    optimized_entry_body(optimized.program(), entry),
+    Call(Ref(producer), []),
+  )
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -81,14 +85,15 @@ test "core optimizer preserves a pure callable adaptation boundary" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   assert_eq(
-    optimized_entry_body(optimized, entry),
+    optimized_entry_body(optimized.program(), entry),
     Let(parameter, Ref(action), Ref(parameter)),
   )
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -123,11 +128,15 @@ test "core optimizer reduces a known call with a complex empty argument" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  assert_eq(optimized_entry_body(optimized, entry), Call(Ref(producer), []))
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_eq(
+    optimized_entry_body(optimized.program(), entry),
+    Call(Ref(producer), []),
+  )
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -162,12 +171,13 @@ test "core optimizer removes an unused complex empty argument" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  assert_eq(optimized_entry_body(optimized, entry), Literal(Unit))
-  assert_eq(optimized.terms.length(), 1)
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_eq(optimized_entry_body(optimized.program(), entry), Literal(Unit))
+  assert_eq(optimized.program().terms.length(), 1)
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -213,17 +223,18 @@ test "core optimizer may duplicate a complex empty argument when profitable" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  guard optimized_entry_body(optimized, entry) is Construct(construct) else {
+  guard optimized_entry_body(optimized.program(), entry) is Construct(construct) else {
     fail("expected the direct application to reduce")
   }
   assert_eq(construct.payloads, [
     Call(Ref(producer), []),
     Call(Ref(producer), []),
   ])
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -266,10 +277,11 @@ test "core optimizer evaluates nonempty arguments once in source order" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  guard optimized_entry_body(optimized, entry)
+  guard optimized_entry_body(optimized.program(), entry)
     is Let(
       _,
       Call(Ref(actual_first), []),
@@ -278,7 +290,7 @@ test "core optimizer evaluates nonempty arguments once in source order" {
     fail("expected ordered one-time argument bindings")
   }
   assert_eq((actual_first, actual_second), (first, second))
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -316,15 +328,16 @@ test "core optimizer treats an operationless user effect as nonempty" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  guard optimized_entry_body(optimized, entry)
+  guard optimized_entry_body(optimized.program(), entry)
     is Let(_, Call(Ref(actual_observe), []), Literal(Unit)) else {
     fail("expected the user effect argument to execute once")
   }
   assert_eq(actual_observe, observe)
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -376,16 +389,17 @@ test "core optimizer binds a multiply used nonempty argument only once" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  guard optimized_entry_body(optimized, entry)
+  guard optimized_entry_body(optimized.program(), entry)
     is Let(binding, Call(Ref(actual_observe), []), Construct(construct)) else {
     fail("expected one binding around the duplicated uses")
   }
   assert_eq(actual_observe, observe)
   assert_eq(construct.payloads, [Ref(binding), Ref(binding)])
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -418,11 +432,15 @@ test "core optimizer inlines a callable with a nonempty latent effect" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  assert_eq(optimized_entry_body(optimized, entry), Call(Ref(output), []))
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_eq(
+    optimized_entry_body(optimized.program(), entry),
+    Call(Ref(output), []),
+  )
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -484,10 +502,11 @@ test "core optimizer freshens nested type lambda binders at every inline site" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  guard optimized_entry_body(optimized, entry) is Construct(construct) &&
+  guard optimized_entry_body(optimized.program(), entry) is Construct(construct) &&
     construct.payloads
     is [
       TypeLambda([left_type_parameter], Function(left_function)),
@@ -500,7 +519,7 @@ test "core optimizer freshens nested type lambda binders at every inline site" {
   assert_true(left_type_parameter != right_type_parameter)
   assert_eq(left_function.result_type, Parameter(left_type_parameter))
   assert_eq(right_function.result_type, Parameter(right_type_parameter))
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -566,21 +585,23 @@ test "core optimizer freshens existential match binders while inlining" {
       ),
     ],
   }
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  guard optimized_entry_body(optimized, entry) is Match(match_) &&
+  guard optimized_entry_body(optimized.program(), entry) is Match(match_) &&
     match_.alternatives is [alternative] &&
     alternative.type_binders is [cloned_opened] &&
     alternative.value_binders is [cloned_payload] else {
     fail("expected one cloned existential alternative")
   }
   assert_true(cloned_opened != opened)
-  guard optimized.metadata.value_info(cloned_payload) is Some(payload_info) else {
+  guard optimized.program().metadata.value_info(cloned_payload)
+    is Some(payload_info) else {
     fail("expected cloned payload metadata")
   }
   assert_eq(payload_info.type_, Parameter(cloned_opened))
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -657,18 +678,21 @@ test "core optimizer freshens handler operation type binders while inlining" {
     ],
   }
   assert_true(@buslane.verify_program(program).is_ok())
-  guard optimize({ program, entry, roots: [], }) is Ok(optimized) else {
+  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  guard optimized_entry_body(optimized, entry) is Handle(handle) &&
+  guard optimized_entry_body(optimized.program(), entry) is Handle(handle) &&
     handle.handlers is [{ operations: [operation], .. }] &&
     operation.type_binders is [cloned_opened] else {
     fail("expected one cloned polymorphic handler operation")
   }
   assert_true(cloned_opened != opened)
   guard operation.payload_binders is [cloned_payload] &&
-    optimized.metadata.value_info(cloned_payload) is Some(payload_info) &&
-    optimized.metadata.value_info(operation.resume_binder) is Some(resume_info) else {
+    optimized.program().metadata.value_info(cloned_payload)
+    is Some(payload_info) &&
+    optimized.program().metadata.value_info(operation.resume_binder)
+    is Some(resume_info) else {
     fail("expected cloned handler binder metadata")
   }
   assert_eq(payload_info.type_, Parameter(cloned_opened))
@@ -676,7 +700,7 @@ test "core optimizer freshens handler operation type binders while inlining" {
     resume_info.type_,
     Function([Parameter(cloned_opened)], i64_type, Empty),
   )
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }
 
 ///|
@@ -712,9 +736,10 @@ test "core optimizer reports typed application reduction observations" {
     ],
   }
   let observations : Array[CoreOptimizationObservation] = []
-  guard optimize_observed({ program, entry, roots: [], }, observation => {
-      observations.push(observation)
-    })
+  guard optimize_observed(
+      { program: program.certify().unwrap(), entry, roots: [], },
+      observation => observations.push(observation),
+    )
     is Ok(optimized) else {
     fail("expected observed core optimization to succeed")
   }
@@ -724,120 +749,10 @@ test "core optimizer reports typed application reduction observations" {
     ApplicationAccepted(site~, empty_arguments=1, materialized_arguments=0),
     ProgramChanged(net_calls_removed=1, net_top_terms_removed=1),
   ])
-  assert_eq(optimized_entry_body(optimized, entry), Call(Ref(producer), []))
-}
-
-///|
-test "core optimizer reports an application arity compiler defect" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let parameter = metadata.define_value("value", Parameter, unit_type)
-  let entry = metadata.define_value(
-    "entry",
-    Function,
-    Function([], unit_type, Empty),
-  )
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      Let(
-        entry,
-        Function({
-          parameters: [],
-          result_type: unit_type,
-          body: Call(
-            Function({
-              parameters: [parameter],
-              result_type: unit_type,
-              body: Ref(parameter),
-            }),
-            [],
-          ),
-        }),
-      ),
-    ],
-  }
   assert_eq(
-    optimize({ program, entry, roots: [], }),
-    Err(ApplicationArityCompilerDefect(expected=1, actual=0)),
+    optimized_entry_body(optimized.program(), entry),
+    Call(Ref(producer), []),
   )
 }
 
 ///|
-test "core optimizer preserves a failed expression-facts query" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let parameter = metadata.define_value("value", Parameter, unit_type)
-  let entry = metadata.define_value(
-    "entry",
-    Function,
-    Function([], unit_type, Empty),
-  )
-  let unknown : @buslane.ValueId = { index: 99, }
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      Let(
-        entry,
-        Function({
-          parameters: [],
-          result_type: unit_type,
-          body: Call(
-            Function({
-              parameters: [parameter],
-              result_type: unit_type,
-              body: Ref(parameter),
-            }),
-            [Ref(unknown)],
-          ),
-        }),
-      ),
-    ],
-  }
-  assert_true(
-    optimize({ program, entry, roots: [], })
-    is Err(ExpressionFactsCompilerDefect(_)),
-  )
-}
-
-///|
-test "failed known-call reduction does not mutate input metadata" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let helper_type = @buslane.Type::Function([unit_type], unit_type, Empty)
-  let parameter = metadata.define_value("value", Parameter, unit_type)
-  let helper = metadata.define_value("helper", Function, helper_type)
-  let entry = metadata.define_value(
-    "entry",
-    Function,
-    Function([], unit_type, Empty),
-  )
-  let unknown : @buslane.ValueId = { index: 99, }
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      Let(
-        helper,
-        Function({
-          parameters: [parameter],
-          result_type: unit_type,
-          body: Ref(parameter),
-        }),
-      ),
-      Let(
-        entry,
-        Function({
-          parameters: [],
-          result_type: unit_type,
-          body: Call(Ref(helper), [Ref(unknown)]),
-        }),
-      ),
-    ],
-  }
-  let metadata_before = metadata.snapshot()
-  assert_true(
-    optimize({ program, entry, roots: [], })
-    is Err(ExpressionFactsCompilerDefect(_)),
-  )
-  assert_eq(metadata, metadata_before)
-}

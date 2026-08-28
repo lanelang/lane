@@ -11,7 +11,7 @@ pub struct AnfProgram {
 /// executable reachability. Runtime ANF construction projects only these
 /// terms; backend consumers never recompute source-program occurrence facts.
 pub(all) struct RuntimeAnfInput {
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   retained_values : Array[@buslane.ValueId]
   function_origins : @function_origin.FunctionOriginCatalog
 }
@@ -28,7 +28,6 @@ pub fn AnfProgram::terms(self : AnfProgram) -> ArrayView[AnfTopTerm] {
 
 ///|
 pub(all) suberror RuntimeAnfLoweringError {
-  InvalidCpsCore(@buslane.VerifyResult)
   InvalidRetention(@buslane.VerifyResult)
   DuplicateRetainedValue(@buslane.ValueId)
   UnknownRetainedValue(@buslane.ValueId)

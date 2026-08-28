@@ -76,6 +76,7 @@ fn observe_effect_specialized_top_terms(
       ),
       stage => {
         if stage is EffectSpecialized(specialized) {
+          let specialized = specialized.program()
           for term in specialized.terms {
             match term {
               Let(id, _) =>

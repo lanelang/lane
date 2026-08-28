@@ -321,7 +321,7 @@ pub struct Finalization {
   pre_arc_image : Image
   source_functions : Array[Array[@physical.FunctionId]]
   indirect_calls : Array[IndirectCallObservation]
-  physical_program : @physical.PhysicalProgram
+  physical_program : @physical.VerifiedPhysicalProgram
 }
 
 ///|

@@ -57,7 +57,10 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
       ),
     ],
   }
-  let specialized = @effect_specialization.specialize(program, entry)
+  let specialized = @effect_specialization.specialize(
+    program.certify().unwrap(),
+    entry,
+  )
   // The generic original is no longer a term but is still in the registry.
   guard metadata.value_info(generic) is Some(_) else {
     fail("expected the replaced definition to keep its metadata")
@@ -69,10 +72,10 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
     entry,
     Some(stage => {
       if stage is MonadicContinuationsLifted(lifted) {
-        lifted_generic_type = lifted.metadata
+        lifted_generic_type = lifted.program().metadata
           .value_info(generic)
           .map(info => info.type_)
-        lifted_verification = Some(@buslane.verify_program(lifted))
+        lifted_verification = Some(@buslane.verify_program(lifted.program()))
       }
     }),
   )
@@ -83,7 +86,7 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
   if !verified_lifted.is_ok() {
     fail("monadic-lift program did not verify: \{Repr(verified_lifted)}")
   }
-  let verified = @buslane.verify_program(lowered.program)
+  let verified = @buslane.verify_program(lowered.program.program())
   if !verified.is_ok() {
     fail("lowered program did not verify: \{Repr(verified)}")
   }
@@ -332,14 +335,20 @@ fn assert_cps_stage_entry_effect(
   let mut optimized_actual = None
   ignore(
     lower_effects(
-      source,
+      source.certify().unwrap(),
       entry,
       Some(stage => {
         match stage {
           MonadicContinuationsLifted(program) =>
-            lifted_actual = synthesized_top_function_type(program, entry)
+            lifted_actual = synthesized_top_function_type(
+              program.program(),
+              entry,
+            )
           CpsCoreOptimized(program) =>
-            optimized_actual = synthesized_top_function_type(program, entry)
+            optimized_actual = synthesized_top_function_type(
+              program.program(),
+              entry,
+            )
           _ => ()
         }
       }),

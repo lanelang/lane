@@ -41,7 +41,7 @@ priv struct FunctionLowerer {
 /// pipeline has already completed. This package does not choose target policy.
 pub fn lower_executable_program_to_physical(
   executable : @executable.ExecutableProgram,
-) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
+) -> Result[@physical.VerifiedPhysicalProgram, PhysicalLoweringError] {
   lower_executable_program_to_physical_observed(executable, _ => ())
 }
 
@@ -56,7 +56,7 @@ pub(all) enum PhysicalLoweringStage {
 pub fn lower_executable_program_to_physical_observed(
   executable : @executable.ExecutableProgram,
   observe : (PhysicalLoweringStage) -> Unit,
-) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
+) -> Result[@physical.VerifiedPhysicalProgram, PhysicalLoweringError] {
   lower_executable_program_to_physical_observed_with_specialization(
     executable, observe, true,
   )
@@ -67,7 +67,7 @@ fn lower_executable_program_to_physical_observed_with_specialization(
   executable : @executable.ExecutableProgram,
   observe : (PhysicalLoweringStage) -> Unit,
   representation_specialization_enabled : Bool,
-) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
+) -> Result[@physical.VerifiedPhysicalProgram, PhysicalLoweringError] {
   Ok(
     lower_executable_program_to_physical_or_raise(
       executable, observe, representation_specialization_enabled,
@@ -82,7 +82,7 @@ fn lower_executable_program_to_physical_or_raise(
   executable : @executable.ExecutableProgram,
   observe : (PhysicalLoweringStage) -> Unit,
   representation_specialization_enabled : Bool,
-) -> @physical.PhysicalProgram raise PhysicalLoweringError {
+) -> @physical.VerifiedPhysicalProgram raise PhysicalLoweringError {
   let program = executable.program
   let externals = executable.externals
   let entry = executable.entry
@@ -194,7 +194,8 @@ fn lower_executable_program_to_physical_or_raise(
         }),
       }
     })
-  let image = finalized.physical_program()
+  let verified = finalized.physical_program()
+  let image = verified.image()
   if image.functions.length() != function_provenance.length() {
     raise FunctionProvenanceCompilerDefect(
       FinalizedFunctionCountMismatch(
@@ -223,7 +224,7 @@ fn lower_executable_program_to_physical_or_raise(
   }
   observe(InitialVmcfg(finalized.pre_arc_image(), provenance))
   observe(FinalPhysicalProgram(image, provenance))
-  image
+  verified
 }
 
 ///|

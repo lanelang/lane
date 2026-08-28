@@ -12,7 +12,8 @@ fn assert_wat_round_trips(
   image_ : @physical.PhysicalProgram,
   label : String,
 ) -> Unit raise {
-  let module_ = match @wasm_target.compile(image_) {
+  let module_ = match
+    @wasm_target.compile(certify_physical_program_test(image_)) {
     Ok(module_) => module_
     Err(error) => fail("\{label}: compile failed: \{Repr(error)}")
   }

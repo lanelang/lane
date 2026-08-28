@@ -2163,6 +2163,41 @@ test "binder kinds stay interchangeable across a lowering rewrite" {
 }
 
 ///|
+test "a match binder is visible in every alternative" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let scrutinee = metadata.define_value("scrutinee", Value, Primitive(I64))
+  let match_binder = metadata.define_value(
+    "matched",
+    MatchBinder,
+    Primitive(I64),
+  )
+  let result = metadata.define_value("result", Value, Primitive(I64))
+  let program : Program = {
+    metadata,
+    terms: [
+      Let(scrutinee, Literal(I64(1L))),
+      Let(
+        result,
+        Match({
+          scrutinee: Ref(scrutinee),
+          binder: match_binder,
+          result_type: Primitive(I64),
+          alternatives: [
+            {
+              alt_constructor: Default,
+              type_binders: [],
+              value_binders: [],
+              body: Ref(match_binder),
+            },
+          ],
+        }),
+      ),
+    ],
+  }
+  assert_eq(verify_program(program).diagnostics(), [])
+}
+
+///|
 test "top-level scope grows term by term" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let a = metadata.define_value("a", Value, Primitive(Unit))

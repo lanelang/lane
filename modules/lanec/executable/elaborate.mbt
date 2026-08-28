@@ -16,11 +16,11 @@ pub fn elaborate(
 /// Stable observation points in the exact order used by executable elaboration.
 /// A variant is emitted only after that stage has passed its verifier.
 pub(all) enum ExecutableElaborationStage {
-  EffectSpecialized(@buslane.Program)
-  CoreOptimized(@buslane.Program)
+  EffectSpecialized(@buslane.VerifiedProgram)
+  CoreOptimized(@buslane.VerifiedProgram)
   EffectLowering(@effect_lowering.EffectLoweringSnapshot)
-  MonadicContinuationsLifted(@buslane.Program)
-  CpsCoreOptimized(@buslane.Program)
+  MonadicContinuationsLifted(@buslane.VerifiedProgram)
+  CpsCoreOptimized(@buslane.VerifiedProgram)
 }
 
 ///|
@@ -47,17 +47,20 @@ fn elaborate_or_raise(
   if !linked.entries.any(entry => entry == selected_entry) {
     raise EntryNotLinked(selected_entry.value)
   }
-  validate_executable_entry(linked.program.metadata, selected_entry, profile)
+  validate_executable_entry(
+    linked.program.program().metadata,
+    selected_entry,
+    profile,
+  )
   let program = linked.program
   let externals = linked.externals
   let entry = selected_entry
   let program = @effect_specialization.specialize(program, entry.value) catch {
     error => raise effect_specialization_elaboration_error(error)
   }
-  require_verified("effect specialization", program)
   observe_executable_stage(observe, EffectSpecialized(program))
   let initializer_roots = collect_reachable_initializer_roots(
-    program,
+    program.program(),
     entry.value,
   )
   let program = match
@@ -69,13 +72,13 @@ fn elaborate_or_raise(
     Ok(program) => program
     Err(error) => raise CoreOptimizationError(error)
   }
-  require_verified("core optimization", program)
   observe_executable_stage(observe, CoreOptimized(program))
   let lowered = lower_effects(program, entry.value, observe)
   let program = lowered.program
-  let initializer_roots = collect_initializer_roots(program)
+  let raw_program = program.program()
+  let initializer_roots = collect_initializer_roots(raw_program)
   let retained_values = collect_retained_values(
-    program,
+    raw_program,
     entry.value,
     initializer_roots,
   )
@@ -126,7 +129,7 @@ fn effect_specialization_elaboration_error(
 
 ///|
 fn lower_effects(
-  program : @buslane.Program,
+  program : @buslane.VerifiedProgram,
   entry : @buslane.ValueId,
   observe : ((ExecutableElaborationStage) -> Unit)?,
 ) -> @effect_lowering.EffectLoweringResult raise ExecutableElaborationError {
@@ -141,7 +144,7 @@ fn lower_effects(
   }
   observe_executable_stage(observe, MonadicContinuationsLifted(lifted.program))
   let initializer_roots = collect_reachable_initializer_roots(
-    lifted.program,
+    lifted.program.program(),
     entry,
   )
   let optimized = match
@@ -152,7 +155,6 @@ fn lower_effects(
     Ok(program) => program
     Err(error) => raise CoreOptimizationError(error)
   }
-  require_verified("CPS core optimization", optimized)
   observe_executable_stage(observe, CpsCoreOptimized(optimized))
   { ..lifted, program: optimized, }
 }
@@ -267,22 +269,5 @@ fn top_level_type_is_callable(type_ : @buslane.Type) -> Bool {
     Function(_, _, _) => true
     Forall(_, body) | TypeLambda(_, body) => top_level_type_is_callable(body)
     _ => false
-  }
-}
-
-///|
-/// Rejects a program the Buslane verifier does not accept.
-///
-/// Effect lowering assumes its input is well typed, and every later stage
-/// assumes the same of what it produces. Nothing checked either until now,
-/// which is how a representation that lied about effects survived long enough
-/// to delete a handler installation.
-fn require_verified(
-  stage : String,
-  program : @buslane.Program,
-) -> Unit raise ExecutableElaborationError {
-  let result = @buslane.verify_program(program)
-  if !result.is_ok() {
-    raise UnverifiedProgram(stage~, result~)
   }
 }

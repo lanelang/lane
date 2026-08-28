@@ -72,7 +72,7 @@ fn lower_test_executable_to_physical_observed(
 ) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
   lower_executable_program_to_physical_observed(
     {
-      program,
+      program: program.certify().unwrap(),
       externals,
       entry,
       retained_values: test_retained_values(program),
@@ -82,7 +82,7 @@ fn lower_test_executable_to_physical_observed(
       ),
     },
     observe,
-  )
+  ).map(verified => verified.image())
 }
 
 ///|
@@ -93,7 +93,7 @@ fn lower_test_executable_to_physical_without_representation_specialization(
 ) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
   lower_executable_program_to_physical_observed_with_specialization(
     {
-      program,
+      program: program.certify().unwrap(),
       externals,
       entry,
       retained_values: test_retained_values(program),
@@ -104,7 +104,7 @@ fn lower_test_executable_to_physical_without_representation_specialization(
     },
     _ => (),
     false,
-  )
+  ).map(verified => verified.image())
 }
 
 ///|
@@ -130,7 +130,12 @@ fn lower_test_linked_program_to_physical(
 ) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
   let executable = match
     @executable.elaborate(
-      { module_path_texts: [], program, externals, entries: [entry], },
+      {
+        module_path_texts: [],
+        program: program.certify().unwrap(),
+        externals,
+        entries: [entry],
+      },
       entry,
       @executable.ExecutionProfile::new(
         builtin_effects=[Io, Panic],
@@ -140,14 +145,16 @@ fn lower_test_linked_program_to_physical(
     Ok(executable) => executable
     Err(error) => abort("test executable elaboration failed: \{Repr(error)}")
   }
-  lower_executable_program_to_physical(executable)
+  lower_executable_program_to_physical(executable).map(verified => {
+    verified.image()
+  })
 }
 
 ///|
 fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
   let program : @buslane.Program = { metadata, terms: [], }
   let runtime_metadata = @anf.lower_cps_core_to_runtime_anf({
-      program,
+      program: program.certify().unwrap(),
       retained_values: [],
       function_origins: @function_origin.FunctionOriginCatalog::uniform(
         program,
@@ -206,7 +213,7 @@ test "function plans allocate source and synthetic origins atomically" {
   }
   let lowerer = test_image_lowerer(metadata)
   let anf = @anf.lower_cps_core_to_runtime_anf({
-    program,
+    program: program.certify().unwrap(),
     retained_values: test_retained_values(program),
     function_origins: @function_origin.FunctionOriginCatalog::uniform(
       program,
@@ -539,7 +546,7 @@ test "entry admission rejects residual algebraic effects before lowering" {
     @executable.elaborate(
       {
         module_path_texts: [],
-        program,
+        program: program.certify().unwrap(),
         externals: { builtins: [], runtime_imports: [], },
         entries: [entry],
       },

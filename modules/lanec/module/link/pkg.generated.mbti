@@ -67,7 +67,7 @@ pub fn LinkedModuleRetention::to_repr(Self) -> @debug.Repr
 
 pub(all) struct LinkedProgram {
   module_path_texts : Array[String]
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
 } derive(Eq, @debug.Debug)

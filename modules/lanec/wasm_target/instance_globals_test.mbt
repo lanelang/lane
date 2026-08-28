@@ -525,7 +525,9 @@ fn wasm_linear_global_image(count : Int) -> @physical.PhysicalProgram {
 
 ///|
 fn lifecycle_function_scale(count : Int) -> (Int, Int) {
-  let observed = @wasm_target.compile_observed(wasm_linear_global_image(count)).unwrap()
+  let observed = @wasm_target.compile_observed(
+    certify_physical_program_test(wasm_linear_global_image(count)),
+  ).unwrap()
   let scale = observed.scale
   let mut cleanup_size = -1
   let mut entry_size = -1

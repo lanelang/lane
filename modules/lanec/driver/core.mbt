@@ -154,7 +154,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     Executable,
     render_executable_code(executable),
     [],
-    buslane_scale(executable.program),
+    buslane_scale(executable.program.program()),
   )
   let image = match
     @physical_lowering.lower_executable_program_to_physical_observed(
@@ -164,7 +164,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
           Anf(program) => {
             let observed = anf_observation(program)
             functions.observe_anf(
-              executable.program.metadata,
+              executable.program.program().metadata,
               observed.functions,
             )
             stages.complete(Anf, render_anf_code(program), [], observed.scale)
@@ -431,8 +431,8 @@ fn executable_stage(
     EffectSpecialized(program) =>
       (
         BuslaneEffectSpecialized,
-        render_buslane_code(program),
-        buslane_scale(program),
+        render_buslane_code(program.program()),
+        buslane_scale(program.program()),
       )
     EffectLowering(snapshot) => {
       let stage = match snapshot.stage {
@@ -446,20 +446,20 @@ fn executable_stage(
     MonadicContinuationsLifted(program) =>
       (
         BuslaneMonadicLifted,
-        render_buslane_code(program),
-        buslane_scale(program),
+        render_buslane_code(program.program()),
+        buslane_scale(program.program()),
       )
     CpsCoreOptimized(program) =>
       (
         BuslaneCpsCoreOptimized,
-        render_buslane_code(program),
-        buslane_scale(program),
+        render_buslane_code(program.program()),
+        buslane_scale(program.program()),
       )
     CoreOptimized(program) =>
       (
         BuslaneCoreOptimized,
-        render_buslane_code(program),
-        buslane_scale(program),
+        render_buslane_code(program.program()),
+        buslane_scale(program.program()),
       )
   }
 }

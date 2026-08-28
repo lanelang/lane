@@ -8,14 +8,20 @@ pub impl @prettyprinter.Pretty for ExecutableProgram with fn pretty(
   text("executable") +
   space +
   @lanec_pretty.braced_block([
-    executable_entry_doc(executable.program.metadata, executable.entry),
-    executable_externals_doc(executable.program.metadata, executable.externals),
+    executable_entry_doc(
+      executable.program.program().metadata,
+      executable.entry,
+    ),
+    executable_externals_doc(
+      executable.program.program().metadata,
+      executable.externals,
+    ),
     executable_order_doc(
-      executable.program,
+      executable.program.program(),
       executable.retained_values,
       executable.entry.value,
     ),
-    @lanec_pretty.section("program", [executable.program.pretty()]),
+    @lanec_pretty.section("program", [executable.program.program().pretty()]),
   ])
 }
 

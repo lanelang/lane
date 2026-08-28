@@ -8,9 +8,9 @@ import {
 }
 
 // Values
-pub fn lower_effects(@buslane.Program) -> Result[EffectLoweringResult, SynthesisError]
+pub fn lower_effects(@buslane.VerifiedProgram) -> Result[EffectLoweringResult, SynthesisError]
 
-pub fn lower_effects_observed(@buslane.Program, (EffectLoweringSnapshot) -> Unit) -> Result[EffectLoweringResult, SynthesisError]
+pub fn lower_effects_observed(@buslane.VerifiedProgram, (EffectLoweringSnapshot) -> Unit) -> Result[EffectLoweringResult, SynthesisError]
 
 // Errors
 pub(all) suberror SynthesisError {
@@ -49,7 +49,7 @@ pub fn SynthesisError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) struct EffectLoweringResult {
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   function_origins : @function_origin.FunctionOriginCatalog
 } derive(Eq, @debug.Debug)
 pub fn EffectLoweringResult::equal(Self, Self) -> Bool
@@ -86,7 +86,6 @@ pub fn EffectLoweringSnapshotStage::not_equal(Self, Self) -> Bool
 pub fn EffectLoweringSnapshotStage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum EffectLoweringVerificationStage {
-  Input
   HandlerElaboration
   MonadicTransformation
   SelectiveCpsRewrite

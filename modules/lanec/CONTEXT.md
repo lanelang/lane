@@ -516,10 +516,24 @@ once for functions, runtime imports, and indirect call sites.
 _Avoid_: source-type reconstruction, verifier repair
 
 **Physical Program Finalization**:
-The boundary that produces a complete Physical Program only after ownership,
-physical-slot, callable-ABI, and semantic verification succeed. The WebAssembly
-emitter is its only consumer.
+The boundary that produces an opaque Verified Physical Program only after
+ownership, physical-slot, callable-ABI, and semantic verification succeed. The
+certificate contains the verifier-owned Global Lifecycle Plan beside the
+read-only complete Physical Program. The WebAssembly emitter consumes only this
+certificate and does not repeat Physical Program verification.
 _Avoid_: partially valid program, persisted VM image, backend-specific repair
+
+**Raw Physical Program**:
+The constructible complete physical syntax used by focused verifier tests and
+untrusted construction boundaries. It cannot enter WebAssembly emission until
+Physical Program Finalization certifies it.
+_Avoid_: finalized compiler output, Wasm compiler input
+
+**Verified Physical Program**:
+The opaque result of Physical Program verification, pairing the accepted image
+with its derived Global Lifecycle Plan. VM CFG finalization is its compiler
+producer and WebAssembly emission is its compiler consumer.
+_Avoid_: raw image plus a repeated verifier call, consumer-derived lifecycle
 
 **Wasm Expansion Accounting**:
 The Wasm emission owner's exact attribution of every emitted instruction and

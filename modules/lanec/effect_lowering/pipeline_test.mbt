@@ -20,12 +20,13 @@ test "effect lowering exposes snapshots without transitional IR" {
       ),
     ],
   }
+  let verified = source.certify().unwrap()
   let snapshots = []
-  let lowered = lower_effects_observed(source, snapshot => {
+  let lowered = lower_effects_observed(verified, snapshot => {
     snapshots.push(snapshot)
   }).unwrap()
-  assert_true(@buslane.verify_program(lowered.program).is_ok())
-  assert_eq(lower_effects(source), Ok(lowered))
+  assert_true(@buslane.verify_program(lowered.program.program()).is_ok())
+  assert_eq(lower_effects(verified), Ok(lowered))
   debug_inspect(
     snapshots,
     content=(
@@ -56,16 +57,15 @@ test "effect lowering exposes snapshots without transitional IR" {
 }
 
 ///|
-test "effect lowering rejects an unverified Buslane input" {
+test "invalid Buslane cannot enter effect lowering" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let answer = metadata.define_value("answer", Value, Primitive(Unit))
   let source : @buslane.Program = {
     metadata,
     terms: [Let(answer, Literal(I64(42L)))],
   }
-  guard lower_effects(source) is Err(InvalidProgram(stage~, result~)) else {
-    fail("expected invalid input to be rejected")
+  guard source.certify() is Err(result) else {
+    fail("expected Buslane certification to reject invalid input")
   }
-  assert_eq(stage, Input)
   assert_false(result.is_ok())
 }

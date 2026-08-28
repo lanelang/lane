@@ -44,7 +44,7 @@ fn compile_effect_conformance_image(
     Err(error) => fail("effect conformance elaboration failed: \{Repr(error)}")
   }
   match @physical_lowering.lower_executable_program_to_physical(executable) {
-    Ok(image) => image
+    Ok(image) => image.image()
     Err(error) => fail("effect conformance lowering failed: \{Repr(error)}")
   }
 }

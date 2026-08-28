@@ -139,6 +139,14 @@ pub struct VerifyResult {
 } derive(Debug, Eq)
 
 ///|
+/// A Buslane program accepted by the Buslane verifier. Compiler
+/// transformations consume this opaque value and must certify every newly
+/// produced program before returning it.
+pub struct VerifiedProgram {
+  priv program : Program
+} derive(Debug, Eq)
+
+///|
 priv struct VerifyContext {
   program : Program
   diagnostics : Array[VerifyDiagnostic]
@@ -283,6 +291,30 @@ pub fn verify_program(program : Program) -> VerifyResult {
   context.verify_metadata()
   context.verify_terms()
   { diagnostics: context.diagnostics, }
+}
+
+///|
+/// Certifies a raw interchange program for compiler consumption.
+pub fn Program::certify(
+  self : Program,
+) -> Result[VerifiedProgram, VerifyResult] {
+  let result = verify_program(self)
+  if result.is_ok() {
+    Ok({
+      program: { metadata: self.metadata.snapshot(), terms: self.terms.copy(), },
+    })
+  } else {
+    Err(result)
+  }
+}
+
+///|
+/// Returns the certified program for read-only compiler transformation.
+pub fn VerifiedProgram::program(self : VerifiedProgram) -> Program {
+  {
+    metadata: self.program.metadata.snapshot(),
+    terms: self.program.terms.copy(),
+  }
 }
 
 ///|
@@ -1408,6 +1440,8 @@ fn VerifyContext::synthesize_match(
   }
   self.verify_match_shape(match_, scrutinee_result.type_)
   let effects = [scrutinee_result.effect]
+  let alternative_scope = value_scope.copy()
+  alternative_scope.values.push(match_.binder)
   for index in 0..<match_.alternatives.length() {
     let alternative = match_.alternatives[index]
     let alternative_effect = self.within(Child(MatchAlternative(index)), () => {
@@ -1415,7 +1449,7 @@ fn VerifyContext::synthesize_match(
         alternative,
         scrutinee_result.type_,
         match_.result_type,
-        value_scope,
+        alternative_scope,
         type_scope,
       )
     })

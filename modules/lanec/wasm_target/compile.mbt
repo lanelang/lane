@@ -1,6 +1,5 @@
 ///|
 pub(all) suberror WasmCompileError {
-  InvalidPhysicalProgram(@physical.PhysicalProgramVerificationError)
   UnsupportedInstruction(function_id~ : Int, instruction~ : String)
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(
@@ -16,7 +15,7 @@ pub(all) suberror WasmCompileError {
 
 ///|
 pub fn compile(
-  image : @physical.PhysicalProgram,
+  image : @physical.VerifiedPhysicalProgram,
 ) -> Result[@wasm_types.Module, WasmCompileError] {
   Ok(compile_or_raise(image, None)) catch {
     error => Err(error)
@@ -25,7 +24,7 @@ pub fn compile(
 
 ///|
 pub fn compile_observed(
-  image : @physical.PhysicalProgram,
+  image : @physical.VerifiedPhysicalProgram,
 ) -> Result[WasmCompileObservation, WasmCompileError] {
   Ok(compile_observed_or_raise(image)) catch {
     error => Err(error)
@@ -34,7 +33,7 @@ pub fn compile_observed(
 
 ///|
 fn compile_observed_or_raise(
-  image : @physical.PhysicalProgram,
+  image : @physical.VerifiedPhysicalProgram,
 ) -> WasmCompileObservation raise WasmCompileError {
   let mut functions = []
   let mut scale : WasmModuleScale? = None
@@ -50,14 +49,11 @@ fn compile_observed_or_raise(
 
 ///|
 fn compile_or_raise(
-  image : @physical.PhysicalProgram,
+  verified : @physical.VerifiedPhysicalProgram,
   observe : ((Array[WasmFunctionProvenance], WasmModuleScale) -> Unit)?,
 ) -> @wasm_types.Module raise WasmCompileError {
-  let verified = match @physical.verify_physical_program_for_execution(image) {
-    Ok(verified) => verified
-    Err(error) => raise InvalidPhysicalProgram(error)
-  }
-  let image = verified.image
+  let image = verified.image()
+  let global_lifecycle = verified.global_lifecycle()
   let wasm_module = @wasm_types.Module::empty()
   let imports = image.functions.filter_map(fn(entry) {
     match entry {
@@ -72,17 +68,11 @@ fn compile_or_raise(
     )
   }
   let function_catalog = plan_wasm_function_catalog(
-    image,
-    verified.global_lifecycle,
-    host_objects_enabled,
-    wasm_module,
+    image, global_lifecycle, host_objects_enabled, wasm_module,
   )
   let emitter = WasmFunctionEmitter::new(wasm_module, observe is Some(_))
   let static_image = build_static_image(
-    image,
-    verified.global_lifecycle,
-    function_catalog,
-    host_objects_enabled,
+    image, global_lifecycle, function_catalog, host_objects_enabled,
   )
   let fatal_tag_type = intern_function_type(wasm_module, [], [])
   wasm_module.tags.push({ type_idx: fatal_tag_type, })

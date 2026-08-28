@@ -26,7 +26,11 @@ test "reachable local effect-generic functions specialize in lexical scope" {
   )
   let captured = metadata.define_value("captured", Local, unit_type)
   let local_function = metadata.define_value("local", Local, local_type)
-  let entry_type = @buslane.Type::Function([], unit_type, Empty)
+  let entry_type = @buslane.Type::Function(
+    [],
+    unit_type,
+    Singleton(log_effect, []),
+  )
   let entry = metadata.define_value("entry", Function, entry_type)
   let program : @buslane.Program = {
     metadata,
@@ -65,8 +69,12 @@ test "reachable local effect-generic functions specialize in lexical scope" {
       ),
     ],
   }
-  let specialized = specialize(program, entry)
-  guard specialized.terms is [Let(_, Function({ body, .. }))] &&
+  let verified = match program.certify() {
+    Ok(program) => program
+    Err(result) => abort("invalid test input: \{Repr(result)}")
+  }
+  let specialized = specialize(verified, entry)
+  guard specialized.program().terms is [Let(_, Function({ body, .. }))] &&
     body is Let(captured_target, Literal(Unit), nested) &&
     nested
     is LetRec(
@@ -80,7 +88,7 @@ test "reachable local effect-generic functions specialize in lexical scope" {
   assert_eq(target, callee)
   assert_true(target != local_function)
   assert_eq(
-    specialized.metadata.value_info(target).map(info => info.type_),
+    specialized.program().metadata.value_info(target).map(info => info.type_),
     Some(Function([], unit_type, Singleton(log_effect, []))),
   )
 }
@@ -96,7 +104,11 @@ test "reachable effect applications create concrete callable instances" {
     Function([], unit_type, Parameter(effect_parameter)),
   )
   let generic = metadata.define_value("generic", Function, generic_type)
-  let entry_type = @buslane.Type::Function([], unit_type, Empty)
+  let entry_type = @buslane.Type::Function(
+    [],
+    unit_type,
+    Singleton(log_effect, []),
+  )
   let entry = metadata.define_value("entry", Function, entry_type)
   let program : @buslane.Program = {
     metadata,
@@ -129,8 +141,9 @@ test "reachable effect applications create concrete callable instances" {
       ]),
     ],
   }
-  let specialized = specialize(program, entry)
-  guard specialized.terms is [LetRec([instance]), LetRec(entry_bindings)] else {
+  let specialized = specialize(program.certify().unwrap(), entry)
+  guard specialized.program().terms
+    is [LetRec([instance]), LetRec(entry_bindings)] else {
     abort("expected one specialized callable and one retained entry")
   }
   guard entry_bindings is [{ rhs: Function(entry_function), .. }] &&
@@ -140,7 +153,7 @@ test "reachable effect applications create concrete callable instances" {
   assert_true(target != generic)
   assert_eq(instance.id, target)
   assert_eq(
-    specialized.metadata.value_info(target).map(info => info.type_),
+    specialized.program().metadata.value_info(target).map(info => info.type_),
     Some(Function([], unit_type, Singleton(log_effect, []))),
   )
   assert_true(instance.rhs is Function(_))
@@ -227,9 +240,9 @@ test "runtime polymorphism propagates through symbolic effect forwarding" {
       ]),
     ],
   }
-  let specialized = specialize(program, entry)
-  assert_eq(@buslane.verify_program(specialized).diagnostics, [])
-  guard specialized.terms is [LetRec(bindings)] else {
+  let specialized = specialize(program.certify().unwrap(), entry)
+  assert_eq(@buslane.verify_program(specialized.program()).diagnostics, [])
+  guard specialized.program().terms is [LetRec(bindings)] else {
     abort("expected every symbolic forwarding definition to be retained")
   }
   assert_eq(bindings.map(binding => binding.id), [leaf, middle, outer, entry])
@@ -246,7 +259,11 @@ test "unreachable bare references do not retain effect-polymorphic definitions" 
     Function([], unit_type, Parameter(effect_parameter)),
   )
   let generic = metadata.define_value("generic", Function, generic_type)
-  let entry_type = @buslane.Type::Function([], unit_type, Empty)
+  let entry_type = @buslane.Type::Function(
+    [],
+    unit_type,
+    Singleton(log_effect, []),
+  )
   let entry = metadata.define_value("entry", Function, entry_type)
   let dead = metadata.define_value("dead", Function, generic_type)
   let program : @buslane.Program = {
@@ -277,12 +294,17 @@ test "unreachable bare references do not retain effect-polymorphic definitions" 
             ),
           }),
         },
-        { id: dead, rhs: Ref(generic), },
       ]),
+      Let(dead, Ref(generic)),
     ],
   }
-  let specialized = specialize(program, entry)
-  guard specialized.terms is [LetRec([instance]), LetRec([entry_binding])] else {
+  let verified = match program.certify() {
+    Ok(program) => program
+    Err(result) => abort("invalid test input: \{Repr(result)}")
+  }
+  let specialized = specialize(verified, entry)
+  guard specialized.program().terms
+    is [LetRec([instance]), LetRec([entry_binding])] else {
     abort("expected dead references to leave one concrete specialization")
   }
   assert_eq(entry_binding.id, entry)
@@ -306,6 +328,13 @@ test "handler residual effects specialize before answer-type CPS" {
     unit_type,
   )
   let log_effect = metadata.define_effect("Log", [])
+  let log_operation = metadata.define_operation(
+    "log",
+    log_effect,
+    [],
+    [],
+    unit_type,
+  )
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let residual = @buslane.Effect::Parameter(effect_parameter)
   let handled = @buslane.Effect::Singleton(coroutine, [])
@@ -323,8 +352,13 @@ test "handler residual effects specialize before answer-type CPS" {
     Parameter,
     Function([unit_type], unit_type, residual),
   )
-  let entry_type = @buslane.Type::Function([], unit_type, Empty)
+  let entry_type = @buslane.Type::Function(
+    [],
+    unit_type,
+    Singleton(log_effect, []),
+  )
   let entry = metadata.define_value("entry", Function, entry_type)
+  let action_step = metadata.define_value("action_step", Local, unit_type)
   let concrete_residual = @buslane.Effect::Singleton(log_effect, [])
   let concrete_action_type = @buslane.Type::Function(
     [],
@@ -376,7 +410,21 @@ test "handler residual effects specialize before answer-type CPS" {
                 Function({
                   parameters: [],
                   result_type: unit_type,
-                  body: Literal(Unit),
+                  body: Let(
+                    action_step,
+                    Perform({
+                      operation: yield_operation,
+                      effect_arguments: [],
+                      hidden_witnesses: [],
+                      payloads: [],
+                    }),
+                    Perform({
+                      operation: log_operation,
+                      effect_arguments: [],
+                      hidden_witnesses: [],
+                      payloads: [],
+                    }),
+                  ),
                 }),
               ],
             ),
@@ -385,25 +433,31 @@ test "handler residual effects specialize before answer-type CPS" {
       ]),
     ],
   }
-  let specialized = specialize(program, entry)
-  guard specialized.terms is [LetRec([instance]), LetRec(_)] &&
+  let verified = match program.certify() {
+    Ok(program) => program
+    Err(result) => abort("invalid test input: \{Repr(result)}")
+  }
+  let specialized = specialize(verified, entry)
+  guard specialized.program().terms is [LetRec([instance]), LetRec(_)] &&
     instance.rhs is Function(function) &&
     function.body is Handle(handle) &&
     handle.handlers is [{ operations: [operation], .. }] else {
     abort("expected a specialized handler instance")
   }
   assert_eq(
-    specialized.metadata.value_info(instance.id).map(info => info.type_),
+    specialized.program().metadata
+    .value_info(instance.id)
+    .map(info => info.type_),
     Some(Function([concrete_action_type], unit_type, concrete_residual)),
   )
   assert_eq(
-    specialized.metadata
+    specialized.program().metadata
     .value_info(function.parameters[0])
     .map(info => info.type_),
     Some(concrete_action_type),
   )
   assert_eq(
-    specialized.metadata
+    specialized.program().metadata
     .value_info(operation.resume_binder)
     .map(info => info.type_),
     Some(Function([unit_type], unit_type, concrete_residual)),
@@ -499,10 +553,18 @@ test "effect specialization rewrites retained declarations that name a specializ
   })
   let source_type_count = metadata.types.length()
   let source_constructor_count = metadata.data_constructors.length()
-  let specialized = specialize(program, entry)
-  assert_eq(metadata.types.length(), source_type_count + 1)
-  assert_eq(metadata.data_constructors.length(), source_constructor_count + 1)
-  let result = @buslane.verify_program(specialized)
+  let specialized = specialize(program.certify().unwrap(), entry)
+  assert_eq(metadata.types.length(), source_type_count)
+  assert_eq(metadata.data_constructors.length(), source_constructor_count)
+  assert_eq(
+    specialized.program().metadata.types.length(),
+    source_type_count + 1,
+  )
+  assert_eq(
+    specialized.program().metadata.data_constructors.length(),
+    source_constructor_count + 1,
+  )
+  let result = @buslane.verify_program(specialized.program())
   if !result.is_ok() {
     fail("specialized program did not verify: \{Repr(result)}")
   }

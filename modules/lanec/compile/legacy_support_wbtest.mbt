@@ -118,7 +118,7 @@ fn test_compile_result(
   match outcome {
     Succeeded(program, warnings) =>
       {
-        program: Some(program.linked.program),
+        program: Some(program.linked.program.program()),
         externals: program.linked.externals,
         entries: program.linked.entries,
         diagnostics: warnings.diagnostics(),

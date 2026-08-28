@@ -173,6 +173,20 @@ fn image(
 }
 
 ///|
+fn compile_test_image(
+  image : @physical.PhysicalProgram,
+) -> Result[@wasm_types.Module, WasmCompileError] {
+  @wasm_target.compile(certify_physical_program_test(image))
+}
+
+///|
+fn compile_test_image_observed(
+  image : @physical.PhysicalProgram,
+) -> Result[WasmCompileObservation, WasmCompileError] {
+  @wasm_target.compile_observed(certify_physical_program_test(image))
+}
+
+///|
 fn edge(
   target : Int,
   arguments? : Array[@physical.SlotId] = [],
@@ -215,7 +229,7 @@ fn ceiling_log2(value : Int) -> Int {
 
 ///|
 fn run_entry(body : @physical.FunctionBody) -> Unit raise {
-  let wasm_module = match compile(image([PhysicalBody(body)])) {
+  let wasm_module = match compile_test_image(image([PhysicalBody(body)])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -239,7 +253,7 @@ test "compiled scalar Physical Program executes with Wasmoon" {
     terminator=Return(Some({ value: 2, })),
   )
   let wasm_module = match
-    compile(image([PhysicalBody(entry), PhysicalBody(target)])) {
+    compile_test_image(image([PhysicalBody(entry), PhysicalBody(target)])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -253,7 +267,7 @@ test "compiled tail calls use Wasmoon tail-call support" {
   let entry = body(terminator=TailCallDirect({ value: 2, }, None, [], []))
   let target = body()
   let wasm_module = match
-    compile(image([PhysicalBody(entry), PhysicalBody(target)])) {
+    compile_test_image(image([PhysicalBody(entry), PhysicalBody(target)])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -277,30 +291,32 @@ test "runtime imports compile from physical descriptors" {
   assert_eq(@wasm_target.physical_runtime_parameters_for_import(import_), [I64])
   assert_eq(@wasm_target.runtime_results_for_import(import_), [I32])
   assert_true(
-    compile(image([PhysicalBody(body()), RuntimeImport(import_)]))
+    compile_test_image(image([PhysicalBody(body()), RuntimeImport(import_)]))
     is Err(
       ValidationFailure(
         detail="Opaque runtime imports require a Reference layout"
       )
     ),
   )
-  assert_true(compile(physical_program) is Ok(_))
+  assert_true(compile_test_image(physical_program) is Ok(_))
 }
 
 ///|
-test "invalid Physical Program is rejected before Wasm publication" {
+test "invalid Physical Program is rejected at certification" {
   let invalid_entry = body(instructions=[
     CallDirect({ value: 2, }, None, [], [], None),
   ])
   let target = body(slots=[trivial_slot(I64)], parameters=[{ value: 0, }])
   assert_true(
-    compile(image([PhysicalBody(invalid_entry), PhysicalBody(target)]))
-    is Err(InvalidPhysicalProgram(_)),
+    @physical.verify_physical_program(
+      image([PhysicalBody(invalid_entry), PhysicalBody(target)]),
+    )
+    is Err(_),
   )
 }
 
 ///|
-test "Wasm compiler rejects call result ownership mismatch" {
+test "Physical certification rejects call result ownership mismatch" {
   let caller = body(slots=[owned_slot(I32, OwnedRef)], instructions=[
     CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
     Release({ value: 0, }),
@@ -312,7 +328,9 @@ test "Wasm compiler rejects call result ownership mismatch" {
     terminator=Return(Some({ value: 0, })),
   )
   let error = match
-    compile(image([PhysicalBody(caller), PhysicalBody(target)])) {
+    @physical.verify_physical_program(
+      image([PhysicalBody(caller), PhysicalBody(target)]),
+    ) {
     Ok(_) => None
     Err(error) => Some(error)
   }
@@ -320,10 +338,8 @@ test "Wasm compiler rejects call result ownership mismatch" {
     error,
     Some(
       InvalidPhysicalProgram(
-        InvalidPhysicalProgram(
-          site=Instruction({ value: 1, }, { value: 0, }, 0),
-          detail="call result ABI does not match destination slot",
-        ),
+        site=Instruction({ value: 1, }, { value: 0, }, 0),
+        detail="call result ABI does not match destination slot",
       ),
     ),
   )
@@ -345,7 +361,8 @@ test "structured CFG executes boolean branches and dense tag switches" {
       { parameters: [], instructions: [], terminator: Unreachable, },
     ],
   }
-  let branch_module = match compile(image([PhysicalBody(branch_body)])) {
+  let branch_module = match
+    compile_test_image(image([PhysicalBody(branch_body)])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -390,7 +407,7 @@ test "reducible loops use Wasm loop control" {
       { parameters: [], instructions: [], terminator: Return(None), },
     ],
   }
-  let wasm_module = match compile(image([PhysicalBody(loop_body)])) {
+  let wasm_module = match compile_test_image(image([PhysicalBody(loop_body)])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -440,7 +457,7 @@ test "nested reducible loops preserve structured branch depths" {
       { parameters: [], instructions: [], terminator: Return(None), },
     ],
   }
-  let wasm_module = match compile(image([PhysicalBody(nested)])) {
+  let wasm_module = match compile_test_image(image([PhysicalBody(nested)])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -475,7 +492,8 @@ test "irreducible CFG uses the dispatcher fallback" {
       { parameters: [], instructions: [], terminator: Return(None), },
     ],
   }
-  let wasm_module = match compile(image([PhysicalBody(irreducible)])) {
+  let wasm_module = match
+    compile_test_image(image([PhysicalBody(irreducible)])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -487,14 +505,14 @@ test "irreducible CFG uses the dispatcher fallback" {
 ///|
 test "straight-line CFG selects the balanced dispatcher above the cutoff" {
   let small_module = match
-    compile(image([PhysicalBody(straight_line_cfg(16))])) {
+    compile_test_image(image([PhysicalBody(straight_line_cfg(16))])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
   assert_false(contains_loop(small_module.codes[0].body))
   assert_false(contains_br_table(small_module.codes[0].body))
   let large_module = match
-    compile(image([PhysicalBody(straight_line_cfg(17))])) {
+    compile_test_image(image([PhysicalBody(straight_line_cfg(17))])) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -508,7 +526,7 @@ test "straight-line CFG selects the balanced dispatcher above the cutoff" {
 test "balanced dispatcher control depth grows logarithmically" {
   for block_count in [17, 64, 257] {
     let wasm_module = match
-      compile(image([PhysicalBody(straight_line_cfg(block_count))])) {
+      compile_test_image(image([PhysicalBody(straight_line_cfg(block_count))])) {
       Ok(value) => value
       Err(error) => fail("compile failed: \{Repr(error)}")
     }
@@ -587,7 +605,9 @@ test "packed callables execute through the canonical function table" {
     terminator=Return(Some({ value: 0, })),
   )
   let observed = match
-    compile_observed(image([PhysicalBody(entry), PhysicalBody(identity)])) {
+    compile_test_image_observed(
+      image([PhysicalBody(entry), PhysicalBody(identity)]),
+    ) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -614,7 +634,7 @@ test "packed callables execute through the canonical function table" {
 
 ///|
 test "trivial frames propagate fatal exceptions without a cleanup wrapper" {
-  let observed = compile_observed(image([PhysicalBody(body())])).unwrap()
+  let observed = compile_test_image_observed(image([PhysicalBody(body())])).unwrap()
   assert_false(contains_try_table(observed.module_.codes[0].body))
 }
 
@@ -698,7 +718,7 @@ test "packed closure environment and indirect tail call execute" {
     layouts: [Environment({ value: 0, })],
     object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
   }
-  let wasm_module = match compile(physical_program) {
+  let wasm_module = match compile_test_image(physical_program) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -745,7 +765,7 @@ test "static image materializes layout descriptors and immortal strings" {
     object_shapes: [],
     constants: [b"abc"],
   }
-  let wasm_module = match compile(physical_program) {
+  let wasm_module = match compile_test_image(physical_program) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -770,7 +790,7 @@ test "ByteSequence instructions require the shared layout" {
     Release({ value: 0, }),
   ])
   let error = match
-    compile({
+    compile_test_image({
       entry: { value: 1, },
       initializer: None,
       data_family_count: 0,
@@ -814,7 +834,7 @@ test "fieldless data construction reuses an immortal static singleton" {
     ],
     constants: [],
   }
-  let wasm_module = match compile(physical_program) {
+  let wasm_module = match compile_test_image(physical_program) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -892,7 +912,7 @@ test "dynamic String primitives allocate, copy, compare, and release" {
     object_shapes: [],
     constants: [b"ab", b"cd", b"abcd", b"bc"],
   }
-  let wasm_module = match compile(physical_program) {
+  let wasm_module = match compile_test_image(physical_program) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -1020,7 +1040,7 @@ test "canonical Data and Environment layouts construct and project" {
     object_shapes: shapes,
     constants: [],
   }
-  let wasm_module = match compile(physical_program) {
+  let wasm_module = match compile_test_image(physical_program) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -1082,7 +1102,7 @@ test "descriptor destructors preserve owners across consuming projection" {
     object_shapes: shapes,
     constants: [],
   }
-  let wasm_module = match compile(physical_program) {
+  let wasm_module = match compile_test_image(physical_program) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -1140,7 +1160,7 @@ test "Wasm loads an object witness independently from members" {
     ],
     constants: [],
   }
-  let wasm_module = match compile(physical_program) {
+  let wasm_module = match compile_test_image(physical_program) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
@@ -1201,7 +1221,7 @@ test "OwnedErased ARC dispatches through its layout witness" {
     ],
     constants: [],
   }
-  let wasm_module = match compile(physical_program) {
+  let wasm_module = match compile_test_image(physical_program) {
     Ok(value) => value
     Err(error) => fail("compile failed: \{Repr(error)}")
   }

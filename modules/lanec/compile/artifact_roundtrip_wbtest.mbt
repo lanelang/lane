@@ -117,7 +117,10 @@ test "module artifacts roundtrip through binary, link, and Wasm" {
   }
   assert_eq(linked_decoded, linked_artifact)
   inspect(
-    @prettyprinter.render(@buslane.verify_program(program.program), width=100),
+    @prettyprinter.render(
+      @buslane.verify_program(program.program.program()),
+      width=100,
+    ),
     content="verify_result {}",
   )
 }
@@ -454,10 +457,10 @@ test "external flavors roundtrip through artifacts and linking" {
   }
   debug_inspect(
     (
-      program.program.metadata.types.map(info => {
+      program.program.program().metadata.types.map(info => {
         (info.name.occurrence, info.flavor)
       }),
-      program.program.metadata.effects.map(info => {
+      program.program.program().metadata.effects.map(info => {
         (info.name.occurrence, info.flavor)
       }),
     ),
@@ -1113,7 +1116,7 @@ test "link module artifacts orders reachable modules by imports" {
     abort("expected linked program")
   }
   inspect(
-    @prettyprinter.render(program.program, width=100),
+    @prettyprinter.render(program.program.program(), width=100),
     content=(
       #|buslane {
       #|  metadata {

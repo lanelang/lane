@@ -65,6 +65,8 @@ fn contextualize_planner_error(
       )
     MetadataAllocationCompilerDefect(context, error) =>
       MetadataAllocationCompilerDefect(context, error)
+    OutputVerificationCompilerDefect(result) =>
+      OutputVerificationCompilerDefect(result)
     PlannerInvariant(context) =>
       PlannerInvariant(context.at_planner_visit(site, specialization_key))
     AllocatorInvariant(context) => AllocatorInvariant(context)
@@ -167,4 +169,5 @@ pub(all) suberror SpecializationError {
   PlannerInvariant(SpecializationErrorContext)
   AllocatorInvariant(SpecializationErrorContext)
   RewriterInvariant(SpecializationErrorContext)
+  OutputVerificationCompilerDefect(@buslane.VerifyResult)
 } derive(Debug, Eq)

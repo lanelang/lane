@@ -553,7 +553,10 @@ test "compile module with interface artifact then link object artifacts" {
     content="Lib.box,Main.answer",
   )
   inspect(
-    @prettyprinter.render(@buslane.verify_program(program.program), width=100),
+    @prettyprinter.render(
+      @buslane.verify_program(program.program.program()),
+      width=100,
+    ),
     content="verify_result {}",
   )
 }

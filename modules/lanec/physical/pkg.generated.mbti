@@ -559,10 +559,14 @@ pub fn ValueAbi::equal(Self, Self) -> Bool
 pub fn ValueAbi::not_equal(Self, Self) -> Bool
 pub fn ValueAbi::to_repr(Self) -> @debug.Repr
 
-pub(all) struct VerifiedPhysicalProgram {
-  image : PhysicalProgram
-  global_lifecycle : GlobalLifecyclePlan
-}
+pub struct VerifiedPhysicalProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn VerifiedPhysicalProgram::equal(Self, Self) -> Bool
+pub fn VerifiedPhysicalProgram::global_lifecycle(Self) -> GlobalLifecyclePlan
+pub fn VerifiedPhysicalProgram::image(Self) -> PhysicalProgram
+pub fn VerifiedPhysicalProgram::not_equal(Self, Self) -> Bool
+pub fn VerifiedPhysicalProgram::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -25,11 +25,19 @@ fn core_opt_test_program() -> (@buslane.Program, @buslane.ValueId) raise @buslan
 ///|
 test "core optimizer preserves a verified program and explicit roots" {
   let (program, main) = core_opt_test_program()
-  guard optimize({ program, entry: main, roots: [main], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [main],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    (optimized == program, @buslane.verify_program(optimized).is_ok()),
+    (
+      optimized.program() == program,
+      @buslane.verify_program(optimized.program()).is_ok(),
+    ),
     content="(true, true)",
   )
 }
@@ -38,7 +46,11 @@ test "core optimizer preserves a verified program and explicit roots" {
 test "core optimizer rejects an unknown optimization root" {
   let (program, main) = core_opt_test_program()
   debug_inspect(
-    optimize({ program, entry: main, roots: [{ index: 1, }], }),
+    optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [{ index: 1, }],
+    }),
     content="Err(UnknownRoot({ index: 1 }))",
   )
 }
@@ -67,11 +79,16 @@ test "core optimizer eliminates compatible top-level and local aliases" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    optimized.terms,
+    optimized.program().terms,
     content=(
       #|[
       #|  External({ index: 0 }),
@@ -95,7 +112,7 @@ test "core optimizer removes dead pure lets but preserves effectful calls" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
   let io_function_type = @buslane.Type::Function([], unit_type, Builtin(Io))
-  let main_type = @buslane.Type::Function([], unit_type, Empty)
+  let main_type = @buslane.Type::Function([], unit_type, Builtin(Io))
   let println = metadata.define_value("println", External, io_function_type)
   let dead = metadata.define_value("dead", Local, unit_type)
   let observed = metadata.define_value("observed", Local, unit_type)
@@ -118,11 +135,16 @@ test "core optimizer removes dead pure lets but preserves effectful calls" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    optimized.terms,
+    optimized.program().terms,
     content=(
       #|[
       #|  External({ index: 0 }),
@@ -163,11 +185,16 @@ test "core optimizer removes an unused empty-effect call" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    optimized.terms,
+    optimized.program().terms,
     content=(
       #|[
       #|  Let(
@@ -237,11 +264,16 @@ test "core optimizer reduces trivial beta calls and known constructor matches" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
   debug_inspect(
-    optimized.terms,
+    optimized.program().terms,
     content=(
       #|[
       #|  Let(
@@ -309,10 +341,15 @@ test "core cleanup shares identical pure local initializers" {
       ),
     ],
   }
-  guard optimize({ program, entry: main, roots: [], }) is Ok(optimized) else {
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
-  guard optimized.terms
+  guard optimized.program().terms
     is [
       Let(
         _,
@@ -325,5 +362,5 @@ test "core cleanup shares identical pure local initializers" {
   }
   assert_eq(retained, left)
   assert_eq(payloads, [Ref(left), Ref(left)])
-  assert_true(@buslane.verify_program(optimized).is_ok())
+  assert_true(@buslane.verify_program(optimized.program()).is_ok())
 }

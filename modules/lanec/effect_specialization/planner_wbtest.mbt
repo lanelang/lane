@@ -199,7 +199,12 @@ test "phantom generic type arguments contribute nominal data demands" {
       },
     ],
   })
-  assert_eq(@buslane.verify_program(specialize(program, entry)).diagnostics, [])
+  assert_eq(
+    @buslane.verify_program(
+      specialize(program.certify().unwrap(), entry).program(),
+    ).diagnostics,
+    [],
+  )
 }
 
 ///|
@@ -526,9 +531,9 @@ test "callable planner keeps generic and concrete demands independently" {
     data_demands: [],
   })
   assert_eq(plan_effect_specializations(program, entry), plan)
-  let specialized = specialize(program, entry)
-  assert_eq(@buslane.verify_program(specialized).diagnostics, [])
-  guard specialized.terms
+  let specialized = specialize(program.certify().unwrap(), entry)
+  assert_eq(@buslane.verify_program(specialized.program()).diagnostics, [])
+  guard specialized.program().terms
     is [
       LetRec(
         [

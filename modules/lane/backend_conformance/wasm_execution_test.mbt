@@ -1,5 +1,6 @@
 ///|
 suberror BackendLoadError {
+  InvalidPhysicalProgram(@physical.PhysicalProgramVerificationError)
   WasmCompilation(@wasm_target.WasmCompileError)
   InvalidWasm(detail~ : String)
   RuntimeImportResolution(error~ : @lane_runtime.RuntimeImportResolutionError)
@@ -12,7 +13,11 @@ fn load_physical(
   registry : @lane_runtime.RuntimeRegistry,
   mode? : @lane_wasm_runtime.ExecutionMode = Jit,
 ) -> Result[@lane_wasm_runtime.LoadedImage, BackendLoadError] {
-  let module_ = match @wasm_target.compile(image) {
+  let verified = match @physical.verify_physical_program_for_execution(image) {
+    Ok(verified) => verified
+    Err(error) => return Err(InvalidPhysicalProgram(error))
+  }
+  let module_ = match @wasm_target.compile(verified) {
     Ok(module_) => module_
     Err(error) => return Err(WasmCompilation(error))
   }

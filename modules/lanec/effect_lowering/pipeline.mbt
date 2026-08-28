@@ -2,7 +2,6 @@
 /// A verified seam in the effect-lowering pipeline. Only the input and CPS Core
 /// output are public IRs; the middle variants identify private snapshot points.
 pub(all) enum EffectLoweringVerificationStage {
-  Input
   HandlerElaboration
   MonadicTransformation
   SelectiveCpsRewrite
@@ -31,7 +30,7 @@ pub(all) struct EffectLoweringScale {
 ///|
 /// Verified CPS Core together with transformation-owned function provenance.
 pub(all) struct EffectLoweringResult {
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   function_origins : @function_origin.FunctionOriginCatalog
 } derive(Debug, Eq)
 
@@ -48,7 +47,7 @@ pub(all) struct EffectLoweringSnapshot {
 /// Lowers verified effect-aware Buslane into verified effect-aware CPS Core.
 /// Every private stage is checked before its snapshot is reported.
 pub fn lower_effects(
-  program : @buslane.Program,
+  program : @buslane.VerifiedProgram,
 ) -> Result[EffectLoweringResult, SynthesisError] {
   Ok(lower_effects_or_raise(program, None)) catch {
     error => Err(error)
@@ -58,7 +57,7 @@ pub fn lower_effects(
 ///|
 /// Lowers effects while reporting verified private transformation points.
 pub fn lower_effects_observed(
-  program : @buslane.Program,
+  program : @buslane.VerifiedProgram,
   observe : (EffectLoweringSnapshot) -> Unit,
 ) -> Result[EffectLoweringResult, SynthesisError] {
   Ok(lower_effects_or_raise(program, Some(observe))) catch {
@@ -68,10 +67,10 @@ pub fn lower_effects_observed(
 
 ///|
 fn lower_effects_or_raise(
-  program : @buslane.Program,
+  verified : @buslane.VerifiedProgram,
   observe : ((EffectLoweringSnapshot) -> Unit)?,
 ) -> EffectLoweringResult raise SynthesisError {
-  require_buslane_program(Input, program)
+  let program = verified.program()
   let elaborated = elaborate_handlers(program)
   require_transitional_program(HandlerElaboration, elaborated)
   observe_effect_lowering_stage(observe, HandlersElaborated, elaborated)
@@ -84,9 +83,12 @@ fn lower_effects_or_raise(
   let resolved = resolve_open_contexts_or_raise(transformed)
   require_transitional_program(OpenContextResolution, resolved)
   observe_effect_lowering_stage(observe, OpenContextsResolved, resolved)
-  let lifted = lift_monadic_continuations_or_raise(resolved)
-  require_buslane_program(CpsCore, lifted.program)
-  lifted
+  let (lifted, function_origins) = lift_monadic_continuations_or_raise(resolved)
+  let certified = match lifted.certify() {
+    Ok(program) => program
+    Err(result) => raise InvalidProgram(stage=CpsCore, result~)
+  }
+  { program: certified, function_origins, }
 }
 
 ///|
@@ -112,12 +114,3 @@ fn require_transitional_program(
 }
 
 ///|
-fn require_buslane_program(
-  stage : EffectLoweringVerificationStage,
-  program : @buslane.Program,
-) -> Unit raise SynthesisError {
-  let result = @buslane.verify_program(program)
-  if !result.is_ok() {
-    raise InvalidProgram(stage~, result~)
-  }
-}

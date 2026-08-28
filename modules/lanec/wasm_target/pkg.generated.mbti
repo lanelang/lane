@@ -10,9 +10,9 @@ import {
 }
 
 // Values
-pub fn compile(@physical.PhysicalProgram) -> Result[@types.Module, WasmCompileError]
+pub fn compile(@physical.VerifiedPhysicalProgram) -> Result[@types.Module, WasmCompileError]
 
-pub fn compile_observed(@physical.PhysicalProgram) -> Result[WasmCompileObservation, WasmCompileError]
+pub fn compile_observed(@physical.VerifiedPhysicalProgram) -> Result[WasmCompileObservation, WasmCompileError]
 
 pub fn failure_code_global() -> Int
 
@@ -32,7 +32,6 @@ pub fn runtime_results_for_import(@lane_runtime.RuntimeImport) -> Array[@types.V
 
 // Errors
 pub(all) suberror WasmCompileError {
-  InvalidPhysicalProgram(@physical.PhysicalProgramVerificationError)
   UnsupportedInstruction(function_id~ : Int, instruction~ : String)
   InvalidBlockTarget(function_id~ : Int, target~ : Int)
   InvalidEdgeArity(function_id~ : Int, target~ : Int, expected~ : Int, actual~ : Int)

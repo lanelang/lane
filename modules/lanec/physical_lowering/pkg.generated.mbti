@@ -12,9 +12,9 @@ import {
 }
 
 // Values
-pub fn lower_executable_program_to_physical(@executable.ExecutableProgram) -> Result[@physical.PhysicalProgram, PhysicalLoweringError]
+pub fn lower_executable_program_to_physical(@executable.ExecutableProgram) -> Result[@physical.VerifiedPhysicalProgram, PhysicalLoweringError]
 
-pub fn lower_executable_program_to_physical_observed(@executable.ExecutableProgram, (PhysicalLoweringStage) -> Unit) -> Result[@physical.PhysicalProgram, PhysicalLoweringError]
+pub fn lower_executable_program_to_physical_observed(@executable.ExecutableProgram, (PhysicalLoweringStage) -> Unit) -> Result[@physical.VerifiedPhysicalProgram, PhysicalLoweringError]
 
 // Errors
 pub(all) suberror FunctionProvenanceError {

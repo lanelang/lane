@@ -12,7 +12,7 @@ fn lower_all_runtime_anf(program : @buslane.Program) -> @anf.AnfProgram {
   }
   match
     @anf.lower_cps_core_to_runtime_anf({
-      program,
+      program: program.certify().unwrap(),
       retained_values,
       function_origins: @function_origin.FunctionOriginCatalog::uniform(
         program,
@@ -113,7 +113,7 @@ test "runtime ANF contains only retained top-level terms" {
     ],
   }
   let runtime = @anf.lower_cps_core_to_runtime_anf({
-    program: source,
+    program: source.certify().unwrap(),
     retained_values: [retained],
     function_origins: @function_origin.FunctionOriginCatalog::uniform(
       source,
@@ -152,7 +152,7 @@ test "runtime ANF rejects a retention set with a missing dependency" {
   }
   assert_true(
     @anf.lower_cps_core_to_runtime_anf({
-      program: source,
+      program: source.certify().unwrap(),
       retained_values: [entry],
       function_origins: @function_origin.FunctionOriginCatalog::uniform(
         source,
@@ -184,7 +184,7 @@ test "runtime ANF rejects malformed retained-value sets" {
   }
   assert_true(
     @anf.lower_cps_core_to_runtime_anf({
-      program: source,
+      program: source.certify().unwrap(),
       retained_values: [entry, entry],
       function_origins: @function_origin.FunctionOriginCatalog::uniform(
         source,
@@ -196,7 +196,7 @@ test "runtime ANF rejects malformed retained-value sets" {
   )
   assert_true(
     @anf.lower_cps_core_to_runtime_anf({
-      program: source,
+      program: source.certify().unwrap(),
       retained_values: [entry, orphan],
       function_origins: @function_origin.FunctionOriginCatalog::uniform(
         source,
@@ -402,7 +402,7 @@ test "runtime representation equality preserves semantic value categories" {
   let registry = @buslane.MetadataRegistry::MetadataRegistry()
   let program : @buslane.Program = { metadata: registry, terms: [], }
   let metadata = @anf.lower_cps_core_to_runtime_anf({
-      program,
+      program: program.certify().unwrap(),
       retained_values: [],
       function_origins: @function_origin.FunctionOriginCatalog::uniform(
         program,

@@ -1,7 +1,7 @@
 ///|
 pub fn finalize(
   image : Image,
-) -> Result[@physical.PhysicalProgram, FinalizeError] {
+) -> Result[@physical.VerifiedPhysicalProgram, FinalizeError] {
   match finalize_observed(image) {
     Err(error) => Err(error)
     Ok(finalized) => Ok(finalized.physical_program)
@@ -18,7 +18,7 @@ pub fn finalize_observed(image : Image) -> Result[Finalization, FinalizeError] {
         Ok(physical_program) =>
           match
             verify_indirect_call_observations(
-              physical_program,
+              physical_program.image(),
               prepared.indirect_calls,
             ) {
             Err(error) => Err(error)
@@ -139,19 +139,19 @@ pub fn Finalization::indirect_calls(
 ///|
 pub fn Finalization::physical_program(
   self : Finalization,
-) -> @physical.PhysicalProgram {
+) -> @physical.VerifiedPhysicalProgram {
   self.physical_program
 }
 
 ///|
 fn finalize_prepared(
   prepared : CanonicalPreArcImage,
-) -> Result[@physical.PhysicalProgram, FinalizeError] {
+) -> Result[@physical.VerifiedPhysicalProgram, FinalizeError] {
   match finalize_prepared_without_physical_verification(prepared) {
     Err(error) => Err(error)
     Ok(finalized) =>
-      match @physical.verify_physical_program(finalized) {
-        Ok(_) => Ok(finalized)
+      match @physical.verify_physical_program_for_execution(finalized) {
+        Ok(verified) => Ok(verified)
         Err(error) => Err(PhysicalProgramVerificationCompilerDefect(error))
       }
   }

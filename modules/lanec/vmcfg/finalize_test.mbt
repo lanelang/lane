@@ -131,6 +131,7 @@ test "finalize derives definition and call ABIs from finalized value shapes" {
   guard image is Ok(image) else {
     fail("expected finalized physical program: \{Repr(image)}")
   }
+  let image = image.image()
   assert_eq(image.callable_abis, [
     { witnesses: [], parameters: [], result: Unit, },
     {
@@ -261,6 +262,7 @@ test "finalize shares callable ABIs across every callable occurrence" {
   guard image is Ok(image) else {
     fail("expected finalized physical program: \{Repr(image)}")
   }
+  let image = image.image()
   guard image.functions[2]
     is PhysicalBody(
       { blocks: [{ instructions: [CallValue(_, call_abi, _, _, _)], .. }], .. }

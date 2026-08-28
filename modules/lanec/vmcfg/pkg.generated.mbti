@@ -9,7 +9,7 @@ import {
 }
 
 // Values
-pub fn finalize(Image) -> Result[@physical.PhysicalProgram, FinalizeError]
+pub fn finalize(Image) -> Result[@physical.VerifiedPhysicalProgram, FinalizeError]
 
 pub fn finalize_observed(Image) -> Result[Finalization, FinalizeError]
 
@@ -105,10 +105,10 @@ pub struct Finalization {
   pre_arc_image : Image
   source_functions : Array[Array[@physical.FunctionId]]
   indirect_calls : Array[IndirectCallObservation]
-  physical_program : @physical.PhysicalProgram
+  physical_program : @physical.VerifiedPhysicalProgram
 }
 pub fn Finalization::indirect_calls(Self) -> Array[IndirectCallObservation]
-pub fn Finalization::physical_program(Self) -> @physical.PhysicalProgram
+pub fn Finalization::physical_program(Self) -> @physical.VerifiedPhysicalProgram
 pub fn Finalization::pre_arc_image(Self) -> Image
 pub fn Finalization::source_functions(Self) -> Array[Array[@physical.FunctionId]]
 
