@@ -7,128 +7,79 @@ The measurements identify missing facts and transformations; future work must
 re-measure the same boundaries instead of tuning limits until one snapshot
 looks smaller.
 
-## Observed baseline
+## Current reproducible baseline
 
-The measurements below came from the 2026-08-11 compiler and a local Basic
-`test/entry.lane:test_entry` build with `--lib-dir . --no-basic`. The Basic
-worktree contained uncommitted changes, so these values are diagnostic evidence
-rather than a reproducible release baseline. A committed Basic revision must be
-pinned before turning them into regression gates.
+The current baseline was recorded on 2026-08-28 from Lane
+`75e2bdd73b444493d798b555dbc603749ae65b14`, pinned Basic
+`807f78b4bd3106b1223c13884849b317f831e285`, and the Wasmoon dependency family
+at `0.12.6`. The host was Apple Silicon running macOS 26.5.2 with MoonBit nightly
+2026-08-26. Both programs were loaded from committed repository inputs with
+`--lib-dir basic --no-basic`.
 
-The complete run took about 8.60 seconds, while non-executing exploration
-through Wasm generation took about 0.39 seconds. Approximately 95 percent of the
-wall time therefore remained at the Wasmoon JIT and execution boundary. The
-generated image still gave that boundary substantially more work than the
-source program justified:
+Explore is the owner-produced structural observation boundary. The tables below
+come from its typed scale facts; no IR or Wasm text was searched to reconstruct
+counts.
 
-| Observation | Value |
-| --- | ---: |
-| Physical Program functions | 705 |
-| Total Wasm functions, including imports and generated helpers | 851 |
-| Physical functions with one explicit static reference | 602 |
-| Physical functions with at most 5 operations | 344 |
-| Physical functions with at most 10 operations | 523 |
-| Direct calls, including tail calls | 500 |
-| Indirect calls, including tail calls | 438 |
-| `make_env` operations after VM CFG finalization | 650 |
-| `make_closure` operations after VM CFG finalization | 646 |
-| Callable table entries | 672 |
-| `const_layout` operations | 981 |
-| `erase_*` operations | 597 |
-| `unerase_*` operations | 376 |
-| `retain_copy` operations | 623 |
-| `release` operations | 410 |
-| Instance globals | 66 |
-| Shape destructor functions | 126 |
-| Distinct rendered shape destructor bodies | 72 |
+| Stage metric | Coroutine scheduler | Basic test entry |
+| --- | ---: | ---: |
+| Core-optimized functions | 15 | 146 |
+| Core-optimized nodes | 234 | 3,956 |
+| Selective-CPS functions | 45 | 286 |
+| Selective-CPS nodes | 416 | 4,757 |
+| Runtime ANF functions | 39 | 254 |
+| Runtime ANF nodes | 659 | 7,272 |
+| Initial VM CFG functions | 60 | 382 |
+| Initial VM CFG instructions | 307 | 3,953 |
+| Initial direct / indirect calls | 22 / 43 | 450 / 150 |
+| Initial closures / environments | 48 / 50 | 362 / 383 |
+| Physical functions | 60 | 382 |
+| Physical instructions | 349 | 4,594 |
+| Physical slots | 414 | 4,045 |
+| Physical erase / unerase operations | 15 / 11 | 330 / 149 |
+| Physical retain / release operations | 13 / 29 | 372 / 286 |
+| Callable ABI count | 29 | 121 |
+| Wasm functions / imports | 101 / 1 | 490 / 3 |
+| Wasm instructions | 8,346 | 72,967 |
+| Wasm locals | 480 | 4,803 |
+| Wasm table entries | 80 | 365 |
+| Wasm `if` / `unreachable` instructions | 389 / 74 | 3,357 / 486 |
 
-## Callable-flow and adapter result
+Three warm-process command invocations produced these wall-clock ranges:
 
-The 2026-08-11 callable-flow and deferred-adaptation implementation was
-measured against clean Basic revision `8a7be0e`. The immediately preceding
-compiler produced 705 Physical Program functions, 7,192 physical instructions, 438
-indirect calls, 646 closures, and 650 environments. Its Wasm contained 848
-functions, 144,733 instructions, 11,372 locals, and 671 table entries.
+| Boundary | Coroutine scheduler | Basic test entry |
+| --- | ---: | ---: |
+| Explore through Wasm plus report rendering | 0.04-0.05 s | 0.74-0.76 s |
+| Complete compile, JIT load, and execution | 0.16 s | 1.94-1.95 s |
+| Complete compile, interpreter load, and execution | 0.04 s | 0.69-0.71 s |
 
-With exact callable flow and non-escaping callable-adapter fusion, the same
-program produces 702 Physical Program functions, 6,453 physical instructions, 411
-indirect calls, 486 closures, and 486 environments. The Wasm contains 845
-functions, 134,655 instructions, 11,041 locals, and 659 table entries. Three
-complete `test.sh` runs took 6.81, 6.95, and 6.66 seconds, compared with the
-preceding 8.43 to 9.27 second range. Non-executing Explore took 0.40 seconds.
+The CLI does not persist the raw Wasm produced by `run`, so these measurements
+do not pretend to derive a standalone JIT or execution time by subtraction.
+They establish an explicit compiler-pipeline boundary and two complete engine
+boundaries. Structural metrics remain the regression evidence when host or
+runtime timing changes.
 
-These results demonstrate removal of callable representation plumbing. They do
-not demonstrate general generic-representation specialization: the resulting
-the Physical Program still contains 601 erase and 375 unerase operations.
+The current facts justify constructor propagation before another backend
+rewrite. Core optimization reduces a constructor match only when the referenced
+top-level definition is syntactically a constructor. A conservative static-value
+summary can expose the same fact through pure binding spines, and non-escaping
+aggregate replacement can then remove object, ARC, and Wasm work at the earliest
+boundary that understands the source value.
 
-## Representation-specialization result
+## Historical baselines
 
-Demand-driven first-order representation workers were measured on 2026-08-11
-against the same clean Basic revision `8a7be0e`. The plan deduplicates by
-canonical runtime ABI, proves recursive demand closure, retains generic
-fallbacks for open uses, and relies on exact whole-image reachability to remove
-only physically unreachable functions.
+Measurements from 2026-08-11 covered the deleted semantic-runtime and bytecode
+architecture. They included 702-731 physical functions, 5,933-6,453 physical
+instructions, 845-876 Wasm functions, and 129,753-134,655 rendered Wasm
+instructions for an earlier Basic revision. They remain useful evidence for why
+callable-flow and representation specialization were introduced, but they are
+not a baseline for the current raw-Wasm pipeline.
 
-These are historical optimization measurements, not evidence for the former
-planner architecture. ADR-0138 retains the generic fallback and canonical
-worker key but requires specialization to be a removable program rewrite.
-
-Relative to the callable-flow baseline, Physical Program functions increase from
-702 to 731 while instructions decrease from 6,453 to 5,933. Erase operations
-fall from 601 to 440 and unerase operations from 375 to 325. Closures and
-environments each fall from 486 to 456. The Wasm image increases from 845 to 876
-functions, but rendered instructions decrease from 134,655 to 129,753, locals
-from 11,041 to 10,623, and table entries from 659 to 633. Thus Explore exposes
-the multiversioning cost rather than hiding it, while both executable code size
-and representation plumbing decrease.
-
-Three complete `test.sh` runs took 5.45, 5.47, and 5.44 seconds. Non-executing
-Explore took 0.39 seconds. The preceding callable-flow baseline took 6.66 to
-6.95 seconds for `test.sh` and 0.40 seconds for Explore.
-
-Layout witnesses and erasure bridges account for 1,954 of 8,168 physical
-operations, about 24 percent. The current VM CFG devirtualizer changes only 11
-indirect calls to direct calls and removes only 6 of 652 initial closure
-constructions and 3 of 653 initial environment constructions.
-
-The largest three Lane functions expand to approximately 5,941, 5,248, and
-2,736 rendered Wasm instructions. The generated entry lifecycle contributes
-another approximately 1,809 instructions, including 66 unrolled global
-completeness checks and separate normal and exceptional cleanup paths. In total,
-approximately 8,168 Physical Program operations expand to 153,000 rendered Wasm
-instructions.
-
-## Priority zero: trustworthy measurement
-
-Optimization work needs a deterministic, machine-readable feedback loop before
-the numbers above become targets.
-
-Explore Protocol v6 retains the structural observability introduced in v2 and
-now delivers the first two requirements below. One observation analysis owns
-reconstructible public-IR counts; the linker reports module retention
-contributions, and function lineage is carried by ANF, Physical Program finalization,
-and Wasm emission owners. Per-function scale is published only at
-identity-owning stages; tree stages remain aggregate-only. Ordinary compilation
-does not construct these observations. The remaining work starts with a pinned
-clean Basic baseline.
-
-1. Add per-stage metrics to Explore without making the human-facing IR text a
-   serialization format. At minimum, record function count, operation count,
-   maximum function size, direct and indirect call counts, closure and
-   environment construction counts, callable table size, layout-erasure bridge
-   counts, ARC counts, object-shape count, and generated helper count.
-2. Preserve function provenance from Buslane values through ANF, VM CFG,
-   Physical Program, and Wasm. Presentation consumes this relationship; it must not
-   infer it from function order or rendered identifiers.
-3. The Wasm text renderer now explicitly covers every instruction emitted by
-   the Wasm emitter. Public round-trip tests parse and validate the complete text and
-   preserve special floating-point constant bits.
-4. Pin a clean Basic revision and record compilation, JIT, and execution time
-   separately. Image-size gates must accompany the timing gate so a runtime
-   change cannot hide compiler output growth.
-
-These metrics are evidence, not policy. No optimization decision should be
-defined by the observed function IDs or by machine-specific wall-clock values.
+Explore Protocol v6 now provides owner-produced aggregate metrics and preserves
+function provenance at identity-owning stages. Tree stages remain
+aggregate-only, and ordinary compilation does not construct observations. These
+metrics are evidence, not optimization policy: decisions must not depend on
+observed function IDs, rendered text, machine-specific timing, or numeric growth
+heuristics.
 
 ## Priority one: remove structural expansion
 
@@ -330,20 +281,17 @@ eagerly compile avoidable functions and representation plumbing.
 
 ## Recommended implementation order
 
-1. Pin a clean Basic baseline using the delivered Explore v2 metrics and
-   provenance.
-2. Remove duplicated global runtime checks and compact entry lifecycle cleanup.
-3. Add the Core static-value summary and consume it in match and projection
-   reduction.
-4. Complete ISS-390 so canonical generic lowering is independently correct and
-   representation specialization is removable.
-5. Reintroduce closed representation workers as an optional rewrite, then add
-   general structural adaptation cancellation.
-6. Add constructor scalar replacement, pair-aware witness propagation, and
-   immutable-global borrow reuse.
-7. Coalesce residual ARC operations.
-8. Intern identical shape destructor plans.
-9. Apply conventional CFG and Wasm cleanup to the smaller program.
+1. Make `CoreAnalysis` the sole owner of conservative static-value summaries
+   and remove downstream syntax guessing.
+2. Consume those summaries to propagate constructors and scalar-replace only
+   aggregates proven not to escape.
+3. Remeasure the pinned scheduler and Basic inputs at the same typed Explore
+   boundaries.
+4. Use the resulting facts to decide between pair-aware erased-witness
+   propagation, immutable-global borrow reuse, ARC coalescing, or destructor
+   interning.
+5. Apply conventional CFG and Wasm cleanup only after structural work has
+   removed its temporary inputs.
 
 Each completed item must update the pinned Explore metrics and the end-to-end
 Basic timing. A smaller source-level IR without a smaller executable image is
