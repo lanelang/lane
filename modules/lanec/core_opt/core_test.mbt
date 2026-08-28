@@ -292,6 +292,87 @@ test "core optimizer reduces trivial beta calls and known constructor matches" {
 }
 
 ///|
+test "core optimizer reduces a constructor match through a pure binding spine" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let i64_type = @buslane.Type::Primitive(I64)
+  let box_type = metadata.define_type("Box", [])
+  let box_constructor = metadata.define_data_constructor("box", box_type, [], [
+    i64_type,
+  ])
+  let box_value_type = @buslane.Type::Constructor(box_type)
+  let local_box = metadata.define_value("local_box", Local, box_value_type)
+  let boxed = metadata.define_value("boxed", Value, box_value_type)
+  let match_binder = metadata.define_value(
+    "matched",
+    MatchBinder,
+    box_value_type,
+  )
+  let field = metadata.define_value("field", MatchBinder, i64_type)
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], i64_type, Empty),
+  )
+  let constructed = @buslane.Expr::Construct({
+    data_constructor: box_constructor,
+    type_arguments: [],
+    hidden_witnesses: [],
+    payloads: [Literal(I64(42L))],
+  })
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(boxed, Let(local_box, constructed, Ref(local_box))),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: i64_type,
+          body: Match({
+            scrutinee: Ref(boxed),
+            binder: match_binder,
+            result_type: i64_type,
+            alternatives: [
+              {
+                alt_constructor: DataCon(box_constructor),
+                type_binders: [],
+                value_binders: [field],
+                body: Ref(field),
+              },
+            ],
+          }),
+        }),
+      ),
+    ],
+  }
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
+    fail("expected core optimization to succeed")
+  }
+  debug_inspect(
+    optimized.program().terms,
+    content=(
+      #|[
+      #|  Let(
+      #|    { index: 4 },
+      #|    Function(
+      #|      {
+      #|        parameters: [],
+      #|        result_type: Primitive(I64),
+      #|        body: Literal(I64(42)),
+      #|      },
+      #|    ),
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "core cleanup shares identical pure local initializers" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let item = metadata.define_type("Item", [])

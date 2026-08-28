@@ -526,7 +526,7 @@ fn simplify_expr(
         scrutinee,
         alternatives,
       })
-      match known_match_reduction(facts, analysis, rewritten) {
+      match known_match_reduction(analysis, rewritten) {
         Some(reduced) =>
           simplify_expr(
             program, facts, analysis, substitutions, reduced, function_origins, observe,
@@ -690,21 +690,18 @@ fn Array::find_replacement(
 
 ///|
 fn known_match_reduction(
-  facts : @buslane.ExpressionFactsQuery,
   analysis : CoreAnalysis,
   expression : @buslane.Expr,
-) -> @buslane.Expr? raise CoreOptimizeError {
+) -> @buslane.Expr? {
   guard expression is Match(match_) else { return None }
   match match_.scrutinee {
     Construct(construct) => reduce_constructor_match(match_, construct)
     Ref(value) =>
-      match analysis.find_top_definition(value) {
-        Some(Construct(construct)) if match_.alternatives.all(alternative => {
+      match analysis.find_static_value(value) {
+        Some(StaticConstructor(construct)) if match_.alternatives.all(alternative => {
             count_value_uses(alternative.body, match_.binder) == 0
-          }) &&
-          construct.payloads.all(payload => {
-            expression_has_empty_effect(facts, payload)
           }) => reduce_static_constructor_projection(match_, construct)
+        Some(StaticLiteral(literal)) => reduce_literal_match(match_, literal)
         _ => None
       }
     Literal(literal) => reduce_literal_match(match_, literal)

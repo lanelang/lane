@@ -32,7 +32,7 @@ fn analyze_interprocedural(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
-) -> InterproceduralAnalysis {
+) -> InterproceduralAnalysis raise CoreOptimizeError {
   let core = analyze_core(program)
   let occurrence = @occurrence.analyze({ program, entry, roots, })
   let callables = []
