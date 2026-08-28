@@ -158,6 +158,9 @@ fn physical_body_dependencies(
   for slot in body.slots {
     require_reference_operation(dependencies, slot.cleanup, false)
   }
+  for entry in plan_frame_cleanup(body.slots) {
+    require_wasm_function(dependencies, HelperFunction(entry.helper()))
+  }
   for block in body.blocks {
     for instruction in block.instructions {
       require_physical_instruction_dependencies(
@@ -232,8 +235,12 @@ fn helper_function_dependencies(
     CallableAbiGuard | NoopErased | DestroyNoop | ByteSequenceSizer => ()
     RetainReferenceErased | RetainCallable =>
       dependencies.push(RuntimeFunction(RetainReference))
-    ReleaseReferenceErased | ReleaseCallable =>
+    ReleaseReferenceErased
+    | ReleaseCallable
+    | CleanupLiveReference
+    | CleanupLiveCallable =>
       dependencies.push(RuntimeFunction(ReleaseReference))
+    CleanupLiveErased => ()
     DestroyShape(shape~) => {
       let members = match image.object_shapes[shape] {
         Data(shape) => shape.members

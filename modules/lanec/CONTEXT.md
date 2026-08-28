@@ -554,11 +554,28 @@ _Avoid_: raw image plus a repeated verifier call, consumer-derived lifecycle
 **Wasm Expansion Accounting**:
 The Wasm emission owner's exact attribution of every emitted instruction and
 local to function ABI setup, physical storage, a physical opcode family,
-control flow, runtime guards, ARC unwinding, runtime imports, runtime support,
-helpers, or entry lifecycle. Each emitted defined function must account for its
-complete code and locals before it enters the Wasm module. Explore aggregates
-these owned facts; it does not infer them from rendered WAT.
+control flow, runtime guards, ARC frame state, per-frame ARC unwinding, shared
+ARC cleanup support, runtime imports, runtime support, helpers, or entry
+lifecycle. Each emitted defined function must account for its complete code and
+locals before it enters the Wasm module. Explore aggregates these owned facts;
+it does not infer them from rendered WAT.
 _Avoid_: WAT parsing, sampled costs, heuristic attribution
+
+**Frame Cleanup Plan**:
+The single Wasm-planning projection of a Verified Physical Program function's
+slot metadata into typed reference, callable, and erased cleanup entries. It is
+produced before the function catalog allocates identities; requirements and
+emission consume the same plan. Physical verification remains the owner of
+ownership and erased-companion validity, so the plan does not infer semantics
+from emitted Wasm or repair invalid input.
+_Avoid_: repeated slot scans, emitter-owned cleanup policy, inline cleanup body
+
+**Shared Frame Cleanup Helper**:
+One canonical Wasm implementation for each complete Frame Cleanup Plan entry
+kind. A function's unwind path supplies its verified slot values and liveness;
+the helper owns only the shared release mechanics. These helpers are ordinary
+direct-call support and never occupy the callable table.
+_Avoid_: per-slot release expansion, callable-table helper, ARC optimization
 
 **Callable ABI Guard Helper**:
 The single private Wasm helper that validates the dynamic callable-table target

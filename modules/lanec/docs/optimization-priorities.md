@@ -266,12 +266,25 @@ profitable. Re-evaluate it after ISS-413 instead of opening an overlapping pass.
 
 ### 11. Coalesce ARC operations after upstream simplification
 
-Tracked by ISS-414. The current Basic Physical Program retains 372 times and
-releases 286 times, while the Wasm emitter attributes 20,351 instructions to
-ARC and unwind support. ISS-414 first separates mandatory ownership operations,
-per-frame unwind scaffolding, and shared support. Any removal must be proved by
-the ARC-final lifetime plan; any sharing must be interned before Wasm indices
-are allocated.
+Delivered by ISS-414. The Physical Program remains the ownership-semantics
+owner: Basic still contains 372 retains and 286 releases. The Wasm target now
+projects verified slot metadata once into a typed Frame Cleanup Plan and shares
+one complete helper for reference, callable, and erased cleanup. Per-frame
+unwind code only supplies the verified slot values and liveness. It no longer
+reconstructs or expands the release policy for every owning slot.
+
+Explore now separates frame-state maintenance, per-frame unwind, and shared
+cleanup support. On the pinned programs, the structural result is:
+
+| Program | Wasm instructions before | after | ARC unwind before | after | shared cleanup |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Basic | 72,672 | 61,928 | 20,351 | 9,584 | 23 |
+| coroutine scheduler | 8,346 | 7,140 | 2,377 | 1,148 | 23 |
+
+The three extra direct helpers do not enter the callable table. Physical
+function, instruction, slot, retain/release, and representation-bridge counts
+are unchanged. This is deliberately implementation sharing at the Wasm
+boundary, not an unsupported claim that ARC demands were removed.
 
 ## Priority three: conventional residual optimization
 

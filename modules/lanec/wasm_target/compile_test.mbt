@@ -614,6 +614,34 @@ test "trivial frames propagate fatal exceptions without a cleanup wrapper" {
 }
 
 ///|
+test "observed expansion separates frame state unwind and shared cleanup" {
+  let reference = owned_slot(I32, OwnedRef)
+  let owning_body = body(slots=[reference], instructions=[
+    ConstString({ value: 0, }, { value: 0, }),
+    Release({ value: 0, }),
+  ])
+  let observed = compile_test_image_observed({
+    ..image([PhysicalBody(owning_body), PhysicalBody(owning_body)]),
+    layouts: [ByteSequence],
+    constants: [b"owned"],
+  }).unwrap()
+  debug_inspect(
+    observed.scale.expansions.filter(expansion => {
+      expansion.category is ArcFrameState ||
+      expansion.category is ArcUnwind ||
+      expansion.category is ArcCleanupSupport
+    }),
+    content=(
+      #|[
+      #|  { category: ArcFrameState, instruction_count: 4, local_count: 0 },
+      #|  { category: ArcUnwind, instruction_count: 20, local_count: 0 },
+      #|  { category: ArcCleanupSupport, instruction_count: 4, local_count: 0 },
+      #|]
+    ),
+  )
+}
+
+///|
 test "packed callable ownership ABI mismatch traps in both Wasm modes" {
   let entry = body(slots=[owned_slot(I64, OwnedCallable), trivial_slot(I32)], instructions=[
     ConstFunction({ value: 0, }, { value: 2, }),
@@ -1309,6 +1337,106 @@ test "call depth exhaustion releases arguments transferred into the callee" {
     instance.store.get_global(instance.instance.global_addrs[4]).get(),
     I32(0),
   )
+}
+
+///|
+test "shared unwind helpers release callable and erased arguments" {
+  let environment = owned_slot(
+    I32,
+    OwnedRef,
+    kind=EnvironmentValue({ value: 0, }),
+  )
+  let callable = owned_slot(I64, OwnedCallable)
+  let callable_entry = body(slots=[environment, callable], instructions=[
+    MakeEnv({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+    MakeClosure({ value: 1, }, { value: 3, }, { value: 0, }),
+    CallDirect({ value: 2, }, None, [], [{ value: 1, }], None),
+  ])
+  let callable_target = body(slots=[callable], parameters=[{ value: 0, }], instructions=[
+    Release({ value: 0, }),
+  ])
+  let callable_body : @physical.FunctionBody = {
+    slots: [environment],
+    inputs: {
+      environment: Some({ value: 0, }),
+      witnesses: [],
+      user_parameters: [],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [Release({ value: 0, })],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let callable_image = {
+    ..image([
+      PhysicalBody(callable_entry),
+      PhysicalBody(callable_target),
+      PhysicalBody(callable_body),
+    ]),
+    layouts: [Environment({ value: 0, })],
+    object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
+  }
+  let layout = trivial_slot(I32, kind=LayoutValue)
+  let erased : @physical.SlotMetadata = {
+    representation: I64,
+    cleanup: OwnedErased,
+    kind: ErasedValue,
+    erased_companion: Some({ value: 0, }),
+  }
+  let reference = owned_slot(I32, OwnedRef)
+  let erased_entry = body(slots=[layout, reference, erased], instructions=[
+    ConstLayout({ value: 0, }, { value: 1, }),
+    ConstString({ value: 1, }, { value: 0, }),
+    EraseI32({ value: 2, }, { value: 1, }),
+    CallDirect({ value: 2, }, None, [{ value: 0, }], [{ value: 2, }], None),
+  ])
+  let erased_target : @physical.FunctionBody = {
+    slots: [layout, erased],
+    inputs: {
+      environment: None,
+      witnesses: [{ value: 0, }],
+      user_parameters: [{ value: 1, }],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [Release({ value: 1, })],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let erased_image = {
+    ..image([PhysicalBody(erased_entry), PhysicalBody(erased_target)]),
+    layouts: [ByteSequence],
+    constants: [b"owned"],
+  }
+  for case in [("callable", callable_image), ("erased", erased_image)] {
+    let (name, physical_program) = case
+    for mode in [@lane_wasm_runtime.ExecutionMode::Interpreter, Jit] {
+      let loaded = match load(physical_program, mode~) {
+        Ok(value) => value
+        Err(error) => fail("\{name} load failed: \{Repr(error)}")
+      }
+      let instance = match
+        loaded.new_instance(config={
+          max_call_depth: Some(1),
+          max_live_heap_bytes: None,
+        }) {
+        Ok(value) => value
+        Err(error) => fail("instantiate failed: \{Repr(error)}")
+      }
+      assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
+      assert_eq(
+        instance.store.get_global(instance.instance.global_addrs[4]).get(),
+        I32(0),
+      )
+    }
+  }
 }
 
 ///|

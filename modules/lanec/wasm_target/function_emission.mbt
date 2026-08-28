@@ -25,6 +25,9 @@ pub(all) enum WasmHelperFunctionRole {
   ReleaseReferenceErased
   RetainCallable
   ReleaseCallable
+  CleanupLiveReference
+  CleanupLiveCallable
+  CleanupLiveErased
   DestroyNoop
   DestroyShape(shape~ : Int)
   ByteSequenceSizer

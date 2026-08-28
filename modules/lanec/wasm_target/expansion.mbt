@@ -111,15 +111,10 @@ fn physical_opcode_family(
 }
 
 ///|
-fn FunctionCompilationContext::record_expansion(
+fn FunctionCompilationContext::record_expansion_count(
   self : FunctionCompilationContext,
   category : WasmExpansionCategory,
-  instructions : Array[@wasm_types.Instruction],
+  instruction_count : Int,
 ) -> Unit {
-  add_expansion(
-    self.expansions,
-    category,
-    wasm_instruction_array_size(instructions),
-    0,
-  )
+  add_expansion(self.expansions, category, instruction_count, 0)
 }

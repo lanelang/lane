@@ -110,10 +110,12 @@ fn compile_or_raise(
               compile_helper_function(
                 role, static_image, function_catalog, wasm_module,
               ),
-              if role is CallableAbiGuard {
-                RuntimeGuard
-              } else {
-                HelperSupport
+              match role {
+                CallableAbiGuard => RuntimeGuard
+                CleanupLiveReference
+                | CleanupLiveCallable
+                | CleanupLiveErased => ArcCleanupSupport
+                _ => HelperSupport
               },
             )
           EntryWrapper =>
@@ -271,9 +273,7 @@ fn compile_body(
     expansions,
   }
   let instructions : Array[@wasm_types.Instruction] = []
-  let needs_frame_cleanup = body.slots.any(fn(slot) {
-    !(slot.cleanup is Trivial)
-  })
+  let frame_cleanup = plan_frame_cleanup(body.slots)
   let mut parameter_index = 1
   if body.inputs.environment is Some(slot) {
     instructions.push(LocalGet(0))
@@ -295,7 +295,14 @@ fn compile_body(
   add_expansion(
     expansions,
     FunctionAbi,
-    wasm_instruction_array_size(instructions),
+    wasm_instruction_array_size(instructions) -
+    locals.arc_frame_state_instructions(),
+    0,
+  )
+  add_expansion(
+    expansions,
+    ArcFrameState,
+    locals.arc_frame_state_instructions(),
     0,
   )
   add_expansion(expansions, PhysicalStorage, 0, locals.slot_local_count)
@@ -334,7 +341,7 @@ fn compile_body(
     0,
   )
   guarded_body.append(compiled_control)
-  if needs_frame_cleanup {
+  if !frame_cleanup.is_empty() {
     let wrapper : Array[@wasm_types.Instruction] = [
       Block(Empty, [TryTable(Empty, [Catch(0, 0)], guarded_body), Unreachable]),
     ]
@@ -346,12 +353,7 @@ fn compile_body(
       wasm_instruction_array_size(guarded_body),
       0,
     )
-    let cleanup = compile_frame_cleanup(
-      locals,
-      body.slots,
-      wasm_module,
-      function_catalog,
-    )
+    let cleanup = compile_frame_cleanup(locals, frame_cleanup, function_catalog)
     instructions.append(cleanup)
     let rethrow : Array[@wasm_types.Instruction] = [
       GlobalGet(call_depth_global_index),

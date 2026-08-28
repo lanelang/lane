@@ -256,6 +256,12 @@ fn wasm_helper_role(
       WasmHelperFunction(name="release reference erased", ordinal=None)
     RetainCallable => WasmHelperFunction(name="retain callable", ordinal=None)
     ReleaseCallable => WasmHelperFunction(name="release callable", ordinal=None)
+    CleanupLiveReference =>
+      WasmHelperFunction(name="cleanup live reference", ordinal=None)
+    CleanupLiveCallable =>
+      WasmHelperFunction(name="cleanup live callable", ordinal=None)
+    CleanupLiveErased =>
+      WasmHelperFunction(name="cleanup live erased", ordinal=None)
     DestroyNoop => WasmHelperFunction(name="destroy noop", ordinal=None)
     DestroyShape(shape~) =>
       WasmHelperFunction(name="destroy shape", ordinal=Some(shape))

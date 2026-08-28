@@ -55,7 +55,9 @@ pub(all) enum WasmExpansionCategory {
   PhysicalOpcode(WasmPhysicalOpcodeFamily)
   ControlFlow
   RuntimeGuard
+  ArcFrameState
   ArcUnwind
+  ArcCleanupSupport
   RuntimeImportAdapter
   RuntimeSupport
   HelperSupport
@@ -114,6 +116,9 @@ pub(all) enum WasmHelperFunctionRole {
   ReleaseReferenceErased
   RetainCallable
   ReleaseCallable
+  CleanupLiveReference
+  CleanupLiveCallable
+  CleanupLiveErased
   DestroyNoop
   DestroyShape(shape~ : Int)
   ByteSequenceSizer

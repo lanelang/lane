@@ -77,6 +77,9 @@ fn helper_function_type(role : WasmHelperFunctionRole) -> WasmFunctionType {
     | ReleaseReferenceErased
     | RetainCallable
     | ReleaseCallable => wasm_function_type([I64], [])
+    CleanupLiveReference => wasm_function_type([I32], [])
+    CleanupLiveCallable => wasm_function_type([I64], [])
+    CleanupLiveErased => wasm_function_type([I64, I32, I32], [])
     DestroyNoop | DestroyShape(_) => wasm_function_type([I32], [])
     ByteSequenceSizer => wasm_function_type([I32], [I32])
   }
@@ -114,6 +117,9 @@ fn helper_function_order(
     ReleaseReferenceErased,
     RetainCallable,
     ReleaseCallable,
+    CleanupLiveReference,
+    CleanupLiveCallable,
+    CleanupLiveErased,
     DestroyNoop,
   ]
   for shape in 0..<image.object_shapes.length() {
@@ -121,6 +127,17 @@ fn helper_function_order(
   }
   roles.push(ByteSequenceSizer)
   roles
+}
+
+///|
+fn helper_is_layout_callback(role : WasmHelperFunctionRole) -> Bool {
+  match role {
+    CallableAbiGuard
+    | CleanupLiveReference
+    | CleanupLiveCallable
+    | CleanupLiveErased => false
+    _ => true
+  }
 }
 
 ///|
@@ -584,7 +601,7 @@ fn WasmFunctionCatalog::validate(
   }
   for role in helper_function_order(image) {
     guard self.find(HelperFunction(role)) is Some(handle) else { continue }
-    let is_layout_helper = !(role is CallableAbiGuard)
+    let is_layout_helper = helper_is_layout_callback(role)
     if (self.entry(handle).table_slot is Some(_)) != is_layout_helper {
       raise InvalidFunctionCatalog(
         detail="helper function table membership does not match its role: \{Repr(role)}",
@@ -702,7 +719,7 @@ fn plan_wasm_function_catalog(
         HelperFunction(role),
         helper_function_type(role),
         Defined,
-        !(role is CallableAbiGuard),
+        helper_is_layout_callback(role),
       ),
     )
   }

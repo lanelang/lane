@@ -9,6 +9,7 @@ priv struct FunctionLocalPlan {
   dispatcher_local : Int?
   slot_cleanups : Array[@physical.Cleanup]
   erased_liveness_locals : Array[Int]
+  mut arc_frame_state_instruction_count : Int
 }
 
 ///|
@@ -94,6 +95,7 @@ fn plan_function_locals(
     dispatcher_local,
     slot_cleanups: body.slots.map(slot => slot.cleanup),
     erased_liveness_locals,
+    arc_frame_state_instruction_count: 0,
   }
 }
 
@@ -132,10 +134,15 @@ fn FunctionLocalPlan::mark_slot_live(
   self : FunctionLocalPlan,
   slot : @physical.SlotId,
 ) -> Array[@wasm_types.Instruction] {
-  match self.slot_cleanups[slot.value] {
+  let instructions : Array[@wasm_types.Instruction] = match
+    self.slot_cleanups[slot.value] {
     Trivial | OwnedRef | OwnedCallable => []
     OwnedErased => [I32Const(1), LocalSet(self.erased_liveness_local(slot))]
   }
+  self.arc_frame_state_instruction_count += wasm_instruction_array_size(
+    instructions,
+  )
+  instructions
 }
 
 ///|
@@ -143,12 +150,17 @@ fn FunctionLocalPlan::mark_slot_dead(
   self : FunctionLocalPlan,
   slot : @physical.SlotId,
 ) -> Array[@wasm_types.Instruction] {
-  match self.slot_cleanups[slot.value] {
+  let instructions : Array[@wasm_types.Instruction] = match
+    self.slot_cleanups[slot.value] {
     Trivial => []
     OwnedRef => [I32Const(0), LocalSet(self.slot_local(slot))]
     OwnedCallable => [I64Const(0L), LocalSet(self.slot_local(slot))]
     OwnedErased => [I32Const(0), LocalSet(self.erased_liveness_local(slot))]
   }
+  self.arc_frame_state_instruction_count += wasm_instruction_array_size(
+    instructions,
+  )
+  instructions
 }
 
 ///|
@@ -165,14 +177,8 @@ fn FunctionLocalPlan::mark_slot_dead_after_definition(
 }
 
 ///|
-fn FunctionLocalPlan::test_slot_live(
+fn FunctionLocalPlan::arc_frame_state_instructions(
   self : FunctionLocalPlan,
-  slot : @physical.SlotId,
-) -> Array[@wasm_types.Instruction] {
-  match self.slot_cleanups[slot.value] {
-    Trivial => abort("trivial slot does not require a liveness test")
-    OwnedRef => [LocalGet(self.slot_local(slot))]
-    OwnedCallable => [LocalGet(self.slot_local(slot)), I64Eqz, I32Eqz]
-    OwnedErased => [LocalGet(self.erased_liveness_local(slot))]
-  }
+) -> Int {
+  self.arc_frame_state_instruction_count
 }

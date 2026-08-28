@@ -613,57 +613,23 @@ fn compile_erased_ownership_call(
 ///|
 fn compile_frame_cleanup(
   locals : FunctionLocalPlan,
-  slots : Array[@physical.SlotMetadata],
-  wasm_module : @wasm_types.Module,
+  plan : Array[FrameCleanupEntry],
   function_catalog : WasmFunctionCatalog,
 ) -> Array[@wasm_types.Instruction] {
   let instructions : Array[@wasm_types.Instruction] = []
-  for index, slot in slots {
-    if !(slot.cleanup is Trivial) {
-      let slot_id : @physical.SlotId = { value: index, }
-      instructions.append(locals.test_slot_live(slot_id))
-      instructions.push(
-        If(
-          Empty,
-          compile_slot_release(
-            locals, slots, wasm_module, function_catalog, slot_id,
-          ),
-          [],
-        ),
-      )
+  for entry in plan {
+    match entry {
+      Reference(slot) | Callable(slot) =>
+        instructions.push(LocalGet(locals.slot_local(slot)))
+      Erased(slot, witness) => {
+        instructions.push(LocalGet(locals.slot_local(slot)))
+        instructions.push(LocalGet(locals.slot_local(witness)))
+        instructions.push(LocalGet(locals.erased_liveness_local(slot)))
+      }
     }
+    instructions.push(function_catalog.helper(entry.helper()).call())
   }
   instructions
-}
-
-///|
-fn compile_slot_release(
-  locals : FunctionLocalPlan,
-  slots : Array[@physical.SlotMetadata],
-  wasm_module : @wasm_types.Module,
-  function_catalog : WasmFunctionCatalog,
-  source : @physical.SlotId,
-) -> Array[@wasm_types.Instruction] {
-  match slots[source.value].cleanup {
-    Trivial => []
-    OwnedRef =>
-      [
-        LocalGet(locals.slot_local(source)),
-        function_catalog.runtime(ReleaseReference).call(),
-      ]
-    OwnedCallable =>
-      [
-        LocalGet(locals.slot_local(source)),
-        I64Const(32L),
-        I64ShrU,
-        I32WrapI64,
-        function_catalog.runtime(ReleaseReference).call(),
-      ]
-    OwnedErased => {
-      let witness = slots[source.value].erased_companion.unwrap()
-      compile_erased_ownership_call(locals, wasm_module, source, witness, 20)
-    }
-  }
 }
 
 ///|

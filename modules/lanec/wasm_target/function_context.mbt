@@ -14,6 +14,7 @@ fn FunctionCompilationContext::compile_instruction(
   self : FunctionCompilationContext,
   instruction : @physical.Instruction,
 ) -> Array[@wasm_types.Instruction] {
+  let state_before = self.locals.arc_frame_state_instructions()
   let compiled = compile_instruction(
     self.locals,
     self.body.slots,
@@ -22,9 +23,12 @@ fn FunctionCompilationContext::compile_instruction(
     self.function_catalog,
     instruction,
   )
-  self.record_expansion(
+  let state_instructions = self.locals.arc_frame_state_instructions() -
+    state_before
+  self.record_expansion_count(ArcFrameState, state_instructions)
+  self.record_expansion_count(
     PhysicalOpcode(physical_opcode_family(instruction)),
-    compiled,
+    wasm_instruction_array_size(compiled) - state_instructions,
   )
   compiled
 }
@@ -34,6 +38,7 @@ fn FunctionCompilationContext::compile_terminator(
   self : FunctionCompilationContext,
   terminator : @physical.Terminator,
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
+  let state_before = self.locals.arc_frame_state_instructions()
   let compiled = compile_terminator(
     self.function_id,
     self.locals,
@@ -42,7 +47,13 @@ fn FunctionCompilationContext::compile_terminator(
     self.function_catalog,
     terminator,
   )
-  self.record_expansion(PhysicalOpcode(ControlTransfer), compiled)
+  let state_instructions = self.locals.arc_frame_state_instructions() -
+    state_before
+  self.record_expansion_count(ArcFrameState, state_instructions)
+  self.record_expansion_count(
+    PhysicalOpcode(ControlTransfer),
+    wasm_instruction_array_size(compiled) - state_instructions,
+  )
   compiled
 }
 
