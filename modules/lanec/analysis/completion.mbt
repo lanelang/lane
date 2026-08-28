@@ -253,7 +253,7 @@ fn CompletionIndex::add_identifier_entries(
     }
   }
   match space {
-    AnySpace | TypeSpace =>
+    AnySpace | TypeSpace => {
       for primitive in @types.PrimitiveType::all() {
         let name = primitive.name()
         add_completion_entry(
@@ -267,6 +267,20 @@ fn CompletionIndex::add_identifier_entries(
           "30",
         )
       }
+      for builtin in @types.BuiltinTypeConstructor::all() {
+        let name = builtin.name()
+        add_completion_entry(
+          entries,
+          source_id,
+          prefix,
+          replace,
+          name,
+          Type,
+          Some("builtin type constructor \{name} : [Type] -> Type"),
+          "30",
+        )
+      }
+    }
     _ => ()
   }
   add_module_binding_entries(entries, module_, source_id, prefix, replace)

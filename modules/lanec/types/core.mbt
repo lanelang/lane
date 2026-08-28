@@ -18,6 +18,11 @@ pub(all) enum BuiltinTypeConstructor {
 } derive(Debug, Eq)
 
 ///|
+pub fn BuiltinTypeConstructor::all() -> Array[BuiltinTypeConstructor] {
+  [Array]
+}
+
+///|
 pub fn PrimitiveType::all() -> Array[PrimitiveType] {
   [I64, I32, F64, F32, Bool, String, Char, Unit, Byte, Bytes]
 }
@@ -52,10 +57,12 @@ pub fn PrimitiveType::from_name(name : String) -> PrimitiveType? {
 pub fn BuiltinTypeConstructor::from_name(
   name : String,
 ) -> BuiltinTypeConstructor? {
-  match name {
-    "Array" => Some(Array)
-    _ => None
+  for builtin in BuiltinTypeConstructor::all() {
+    if builtin.name() == name {
+      return Some(builtin)
+    }
   }
+  None
 }
 
 ///|

@@ -2462,6 +2462,30 @@
       "expect": {
         "equals": "left\nright\nsum=3"
       }
+    },
+    {
+      "name": "118 generic Arrays",
+      "file": "examples/valid/118_generic_arrays.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "ok\nTests passed: 1, failed: 0"
+      }
+    },
+    {
+      "name": "invalid 119 Array intrinsic signature mismatch",
+      "file": "examples/invalid/119_array_intrinsic_signature_mismatch.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/119_array_intrinsic_signature_mismatch.lane:4:61",
+          "error[E3027]",
+          "builtin `%array_get` has the wrong type",
+          "builtin signatures and effects are fixed by the compiler",
+          "change the annotation or use the builtin with its canonical type"
+        ]
+      }
     }
   ]
 }

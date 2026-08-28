@@ -1,0 +1,72 @@
+module Examples.Valid.GenericArrays
+
+import Basic.Builtins as Builtins
+import Basic.Data.Array as Arrays
+import Basic.Data.Void.{ Void }
+import Basic.Conv.I64.{ i64_impl_debug }
+import Basic.Data.I64.{ i64_impl_equal }
+import Basic.Data.List.{ List }
+import Basic.Eff.Bound.{ OutOfBound }
+import Test.Assert.{ Assert, assert_equal, assert_true, execute_all_tests }
+
+fn assert_in_bounds(
+  action : () -> Unit ! { OutOfBound, Assert },
+  auto offer info : String
+) -> Unit ! Assert {
+  handle action() with {
+    out_of_min[R](_resume) => assert_true(false)
+    out_of_max[R](_resume) => assert_true(false)
+  } final _value {
+    ()
+  }
+}
+
+fn[T] is_out_of_bounds(action : () -> T ! OutOfBound) -> Bool {
+  handle action() with {
+    out_of_min[R](_resume) => true
+    out_of_max[R](_resume) => true
+  } final _value {
+    false
+  }
+}
+
+fn test_generic_arrays() -> Unit ! Assert {
+  offer source_info : String = "test_generic_arrays"
+  assert_in_bounds(
+    fn() {
+      let original = Arrays.make[I64](3, 4)
+      let changed = Arrays.set[I64](original, 1, 9)
+      assert_equal(Arrays.length[I64](original), 3)
+      assert_equal(Arrays.get[I64](original, 1), 4)
+      assert_equal(Arrays.get[I64](changed, 1), 9)
+      let inner = Arrays.make[I64](1, 7)
+      let nested = Arrays.make[Array[I64]](1, inner)
+      assert_equal(Arrays.get[I64](Arrays.get[Array[I64]](nested, 0), 0), 7)
+      let functions = Arrays.make[(I64) -> I64](
+        1,
+        fn(value : I64) {
+          value
+        }
+      )
+      assert_equal(Arrays.get[(I64) -> I64](functions, 0)(12), 12)
+      let raw_make : (I64, I64) -> Array[I64] = Builtins.array_make[I64]
+      let raw = raw_make(1, 21)
+      assert_equal(Builtins.array_get[I64](raw, 0), 21)
+      let empty_void : Array[Void] = Arrays.empty[Void]()
+      assert_equal(Arrays.length[Void](empty_void), 0)
+    }
+  )
+  assert_true(
+    is_out_of_bounds[I64](
+      fn() {
+        let values = Arrays.make[I64](1, 0)
+        Arrays.get[I64](values, 1)
+      }
+    )
+  )
+}
+
+pub fn answer() -> Unit ! Io {
+  [test_generic_arrays]
+    |> execute_all_tests()
+}

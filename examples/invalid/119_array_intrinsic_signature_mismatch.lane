@@ -1,0 +1,4 @@
+// invalid: Array builtin declarations must use their canonical polymorphic signature
+module Examples.Invalid.ArrayIntrinsicSignatureMismatch
+
+pub let array_get : [Element](Array[Element], I64) -> I64 = builtin("%array_get")
