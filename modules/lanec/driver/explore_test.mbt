@@ -704,7 +704,7 @@ test "explore records direct canonical generic representation costs" {
 }
 
 ///|
-test "explore records concrete-answer CPS callback representation costs" {
+test "explore records elimination of concrete-answer callback representation costs" {
   let report = explore(
     explore_test_request(
       (
@@ -789,7 +789,7 @@ test "explore records concrete-answer CPS callback representation costs" {
       exact_packed_calls,
       indirect_calls.any(call => call.boundaries.is_empty()),
     ),
-    (6, 2, 3, 5, false),
+    (0, 0, 0, 0, false),
   )
   debug_inspect(
     (
@@ -803,95 +803,35 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|(
       #|  Succeeded,
       #|  [],
-      #|  [
-      #|    [
-      #|      CallableAdapter(
-      #|        contract={ value: 0 },
-      #|        reason={
-      #|          source: { value: 4 },
-      #|          target: { value: 6 },
-      #|          differences: [Invocation, Parameter(0), Result],
-      #|        },
-      #|      ),
-      #|    ],
-      #|    [
-      #|      CallableAdapter(
-      #|        contract={ value: 1 },
-      #|        reason={
-      #|          source: { value: 12 },
-      #|          target: { value: 14 },
-      #|          differences: [Invocation, Parameter(0), Parameter(1), Parameter(2)],
-      #|        },
-      #|      ),
-      #|    ],
-      #|    [
-      #|      CallableAdapter(
-      #|        contract={ value: 2 },
-      #|        reason={
-      #|          source: { value: 3 },
-      #|          target: { value: 15 },
-      #|          differences: [Invocation, Parameter(0), Result],
-      #|        },
-      #|      ),
-      #|    ],
-      #|    [
-      #|      CallableAdapter(
-      #|        contract={ value: 3 },
-      #|        reason={
-      #|          source: { value: 5 },
-      #|          target: { value: 3 },
-      #|          differences: [Invocation, Result],
-      #|        },
-      #|      ),
-      #|    ],
-      #|    [
-      #|      CallableAdapter(
-      #|        contract={ value: 4 },
-      #|        reason={
-      #|          source: { value: 16 },
-      #|          target: { value: 1 },
-      #|          differences: [Invocation, Parameter(0)],
-      #|        },
-      #|      ),
-      #|    ],
-      #|  ],
-      #|  5,
+      #|  [],
+      #|  0,
       #|  [
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 11),
+      #|        ("functionCount", 3),
       #|        ("importCount", 1),
-      #|        ("blockCount", 12),
-      #|        ("instructionCount", 55),
-      #|        ("valueCount", 90),
-      #|        ("directCallCount", 5),
-      #|        ("indirectCallCount", 6),
-      #|        ("functionReferenceCount", 10),
-      #|        ("closureCount", 5),
-      #|        ("environmentCount", 5),
-      #|        ("genericAbiEraseCount", 5),
-      #|        ("genericAbiUneraseCount", 5),
+      #|        ("blockCount", 4),
+      #|        ("instructionCount", 3),
+      #|        ("valueCount", 8),
+      #|        ("directCallCount", 3),
+      #|        ("indirectCallCount", 0),
+      #|        ("functionReferenceCount", 1),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("genericAbiEraseCount", 0),
+      #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
-      #|        ("layoutCount", 6),
-      #|        ("objectShapeCount", 4),
+      #|        ("layoutCount", 0),
+      #|        ("objectShapeCount", 0),
       #|        ("constantCount", 0),
-      #|        ("duplicateRuntimeAbiWorkerCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 1, operation_count: 1, value_count: 9 },
-      #|        { index: 2, block_count: 1, operation_count: 1, value_count: 6 },
-      #|        { index: 3, block_count: 1, operation_count: 23, value_count: 24 },
-      #|        { index: 4, block_count: 2, operation_count: 1, value_count: 6 },
-      #|        { index: 5, block_count: 1, operation_count: 6, value_count: 8 },
-      #|        { index: 6, block_count: 1, operation_count: 0, value_count: 1 },
-      #|        { index: 7, block_count: 1, operation_count: 1, value_count: 2 },
-      #|        { index: 8, block_count: 1, operation_count: 8, value_count: 13 },
-      #|        { index: 9, block_count: 1, operation_count: 6, value_count: 8 },
-      #|        { index: 10, block_count: 1, operation_count: 4, value_count: 6 },
-      #|        { index: 11, block_count: 1, operation_count: 4, value_count: 7 },
+      #|        { index: 1, block_count: 1, operation_count: 2, value_count: 2 },
+      #|        { index: 2, block_count: 2, operation_count: 1, value_count: 5 },
+      #|        { index: 3, block_count: 1, operation_count: 0, value_count: 1 },
       #|      ],
       #|    ),
       #|  ],
@@ -1037,7 +977,7 @@ test "explore attributes a closed effect worker nominal ABI crossing" {
 }
 
 ///|
-test "explore records concrete-answer CPS normalization costs" {
+test "explore records concrete-answer CPS cleanup after scalar replacement" {
   let report = explore(
     explore_test_request(
       (
@@ -1110,34 +1050,34 @@ test "explore records concrete-answer CPS normalization costs" {
       #|      [
       #|        ("topTermCount", 3),
       #|        ("functionCount", 4),
-      #|        ("nodeCount", 31),
+      #|        ("nodeCount", 27),
       #|        ("callCount", 5),
       #|      ],
       #|    ),
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 6),
-      #|        ("instructionCount", 28),
-      #|        ("directCallCount", 3),
-      #|        ("indirectCallCount", 4),
-      #|        ("closureCount", 3),
-      #|        ("environmentCount", 3),
-      #|        ("genericAbiEraseCount", 2),
-      #|        ("genericAbiUneraseCount", 2),
+      #|        ("functionCount", 3),
+      #|        ("instructionCount", 5),
+      #|        ("directCallCount", 4),
+      #|        ("indirectCallCount", 0),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("genericAbiEraseCount", 0),
+      #|        ("genericAbiUneraseCount", 0),
       #|      ],
       #|    ),
       #|    (
       #|      "physical",
       #|      [
-      #|        ("functionCount", 6),
-      #|        ("instructionCount", 29),
-      #|        ("directCallCount", 3),
-      #|        ("indirectCallCount", 4),
-      #|        ("closureCount", 3),
-      #|        ("environmentCount", 3),
-      #|        ("genericAbiEraseCount", 2),
-      #|        ("genericAbiUneraseCount", 2),
+      #|        ("functionCount", 3),
+      #|        ("instructionCount", 6),
+      #|        ("directCallCount", 4),
+      #|        ("indirectCallCount", 0),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("genericAbiEraseCount", 0),
+      #|        ("genericAbiUneraseCount", 0),
       #|      ],
       #|    ),
       #|  ],

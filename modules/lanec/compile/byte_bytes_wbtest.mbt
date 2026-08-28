@@ -201,7 +201,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
 }
 
 ///|
-test "compiler preserves Byte and Bytes in fields enum payloads closures and globals" {
+test "compiler scalar-replaces Byte and Bytes fields while preserving closures and globals" {
   let physical_program = compile_test_physical_program(
     (
       #|module Test
@@ -261,13 +261,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|    },
       #|    {
       #|      witnesses: [],
-      #|      parameters: [
-      #|        {
-      #|          representation: I32,
-      #|          cleanup: OwnedRef,
-      #|          kind: DataValue({ value: 1 }),
-      #|        },
-      #|      ],
+      #|      parameters: [{ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue }],
       #|      result: Value(I32, Trivial, ScalarValue),
       #|    },
       #|    {
@@ -276,17 +270,11 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|      result: Unit,
       #|    },
       #|  ],
-      #|  data_family_count: 2,
+      #|  data_family_count: 0,
       #|  functions: [
       #|    PhysicalBody(
       #|      {
       #|        slots: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
       #|          {
       #|            representation: I32,
       #|            cleanup: Trivial,
@@ -295,20 +283,8 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          },
       #|          {
       #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 0 }),
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 1 }),
       #|            erased_companion: None,
       #|          },
       #|          {
@@ -330,53 +306,13 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            parameters: [],
       #|            instructions: [
-      #|              BorrowGlobal({ value: 0 }, { value: 0 }),
-      #|              BorrowGlobal({ value: 1 }, { value: 1 }),
-      #|              RetainCopy({ value: 6 }, { value: 1 }),
-      #|              MakeData(
-      #|                { value: 2 },
-      #|                { value: 0 },
-      #|                Immediate({ value: 1 }),
-      #|                [],
-      #|                [{ value: 0 }, { value: 6 }],
-      #|              ),
-      #|              BorrowField(
-      #|                { value: 0 },
-      #|                { value: 2 },
-      #|                0,
-      #|                { value_destination: { value: 0 }, witness_destination: None },
-      #|              ),
-      #|              BorrowField(
-      #|                { value: 0 },
-      #|                { value: 2 },
-      #|                1,
-      #|                { value_destination: { value: 1 }, witness_destination: None },
-      #|              ),
-      #|              BorrowField(
-      #|                { value: 0 },
-      #|                { value: 2 },
-      #|                0,
-      #|                { value_destination: { value: 3 }, witness_destination: None },
-      #|              ),
-      #|              BorrowField(
-      #|                { value: 0 },
-      #|                { value: 2 },
-      #|                1,
-      #|                { value_destination: { value: 1 }, witness_destination: None },
-      #|              ),
-      #|              RetainCopy({ value: 6 }, { value: 1 }),
-      #|              MakeData(
-      #|                { value: 4 },
-      #|                { value: 1 },
-      #|                Immediate({ value: 2 }),
-      #|                [],
-      #|                [{ value: 0 }, { value: 6 }],
-      #|              ),
-      #|              CallDirect({ value: 5 }, None, [], [{ value: 4 }], Some({ value: 0 })),
-      #|              ByteToI64({ value: 5 }, { value: 0 }),
-      #|              Release({ value: 2 }),
+      #|              BorrowGlobal({ value: 0 }, { value: 1 }),
+      #|              BorrowGlobal({ value: 0 }, { value: 1 }),
+      #|              RetainCopy({ value: 3 }, { value: 0 }),
+      #|              CallDirect({ value: 5 }, None, [], [{ value: 3 }], Some({ value: 1 })),
+      #|              ByteToI64({ value: 2 }, { value: 1 }),
       #|            ],
-      #|            terminator: TailCallDirect({ value: 6 }, None, [], [{ value: 5 }]),
+      #|            terminator: TailCallDirect({ value: 6 }, None, [], [{ value: 2 }]),
       #|          },
       #|        ],
       #|      },
@@ -483,23 +419,17 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            representation: I32,
       #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 1 }),
+      #|            kind: ByteSequenceValue,
       #|            erased_companion: None,
       #|          },
       #|          {
-      #|            representation: I32,
+      #|            representation: I64,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
       #|            erased_companion: None,
       #|          },
       #|          {
       #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ByteSequenceValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I64,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
       #|            erased_companion: None,
@@ -511,25 +441,13 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            parameters: [],
       #|            instructions: [
-      #|              BorrowField(
-      #|                { value: 1 },
-      #|                { value: 0 },
-      #|                0,
-      #|                { value_destination: { value: 1 }, witness_destination: None },
-      #|              ),
-      #|              BorrowField(
-      #|                { value: 1 },
-      #|                { value: 0 },
-      #|                1,
-      #|                { value_destination: { value: 2 }, witness_destination: None },
-      #|              ),
-      #|              ConstI64({ value: 3 }, 0),
-      #|              I64ToByte({ value: 1 }, { value: 3 }),
-      #|              ByteToI64({ value: 3 }, { value: 1 }),
-      #|              ByteSequenceGet({ value: 1 }, { value: 2 }, { value: 3 }),
+      #|              ConstI64({ value: 1 }, 0),
+      #|              I64ToByte({ value: 2 }, { value: 1 }),
+      #|              ByteToI64({ value: 1 }, { value: 2 }),
+      #|              ByteSequenceGet({ value: 2 }, { value: 0 }, { value: 1 }),
       #|              Release({ value: 0 }),
       #|            ],
-      #|            terminator: Return(Some({ value: 1 })),
+      #|            terminator: Return(Some({ value: 2 })),
       #|          },
       #|        ],
       #|      },
@@ -557,51 +475,8 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|      erased_companion: None,
       #|    },
       #|  ],
-      #|  layouts: [Data({ value: 0 }), Data({ value: 1 }), ByteSequence],
-      #|  object_shapes: [
-      #|    Data(
-      #|      {
-      #|        family: { value: 0 },
-      #|        constructor_tag: 0,
-      #|        stored_witness_count: 0,
-      #|        members: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: ByteSequenceValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
-      #|    Data(
-      #|      {
-      #|        family: { value: 1 },
-      #|        constructor_tag: 0,
-      #|        stored_witness_count: 0,
-      #|        members: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: ByteSequenceValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
-      #|  ],
+      #|  layouts: [ByteSequence],
+      #|  object_shapes: [],
       #|  constants: [],
       #|}
     ),

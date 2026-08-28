@@ -1059,6 +1059,8 @@ test "non-generic data construction and matching lower through object shapes" {
   let scrutinee = metadata.define_value("scrutinee", Local, option_type)
   let binder = metadata.define_value("option", MatchBinder, option_type)
   let payload = metadata.define_value("payload", MatchBinder, i64_type)
+  let rebound = metadata.define_value("rebound", MatchBinder, option_type)
+  let reprojected = metadata.define_value("reprojected", MatchBinder, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -1093,7 +1095,25 @@ test "non-generic data construction and matching lower through object shapes" {
                   alt_constructor: DataCon(some),
                   type_binders: [],
                   value_binders: [payload],
-                  body: Call(Ref(observe), [Ref(payload)]),
+                  body: Match({
+                    scrutinee: Ref(binder),
+                    binder: rebound,
+                    result_type: unit_type,
+                    alternatives: [
+                      {
+                        alt_constructor: DataCon(none),
+                        type_binders: [],
+                        value_binders: [],
+                        body: Call(Ref(observe), [Literal(I64(0L))]),
+                      },
+                      {
+                        alt_constructor: DataCon(some),
+                        type_binders: [],
+                        value_binders: [reprojected],
+                        body: Call(Ref(observe), [Ref(reprojected)]),
+                      },
+                    ],
+                  }),
                 },
               ],
             }),
@@ -2076,6 +2096,8 @@ test "generic data stores layout witnesses beside erased payloads" {
   let scrutinee = metadata.define_value("scrutinee", Local, option_int)
   let binder = metadata.define_value("option", MatchBinder, option_int)
   let payload = metadata.define_value("payload", MatchBinder, i64_type)
+  let rebound = metadata.define_value("rebound", MatchBinder, option_int)
+  let reprojected = metadata.define_value("reprojected", MatchBinder, i64_type)
   let main_type = test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
@@ -2110,7 +2132,25 @@ test "generic data stores layout witnesses beside erased payloads" {
                   alt_constructor: DataCon(some),
                   type_binders: [],
                   value_binders: [payload],
-                  body: Call(Ref(observe), [Ref(payload)]),
+                  body: Match({
+                    scrutinee: Ref(binder),
+                    binder: rebound,
+                    result_type: unit_type,
+                    alternatives: [
+                      {
+                        alt_constructor: DataCon(none),
+                        type_binders: [],
+                        value_binders: [],
+                        body: Call(Ref(observe), [Literal(I64(0L))]),
+                      },
+                      {
+                        alt_constructor: DataCon(some),
+                        type_binders: [],
+                        value_binders: [reprojected],
+                        body: Call(Ref(observe), [Ref(reprojected)]),
+                      },
+                    ],
+                  }),
                 },
               ],
             }),

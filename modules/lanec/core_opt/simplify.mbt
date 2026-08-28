@@ -473,6 +473,11 @@ fn simplify_expr(
         let body = simplify_expr(
           program, facts, analysis, substitutions, body, function_origins, observe,
         )
+        if initializer is Construct(construct) &&
+          scalar_replace_local_construct(value, construct, body)
+          is Some(reduced) {
+          return reduced
+        }
         if count_value_uses(body, value) == 0 &&
           expression_has_empty_effect(facts, original_initializer) {
           body

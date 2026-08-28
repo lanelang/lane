@@ -1,0 +1,24 @@
+module Examples.Valid.ScalarReplacedLocalAggregate
+
+import Basic.Data.I64.*
+import Basic.Io.{ println }
+import Basic.Ops.*
+
+struct ObservedPair {
+  left : I64
+  right : I64
+}
+
+fn observe(label : String, value : I64) -> I64 ! Io {
+  println(label)
+  value
+}
+
+pub fn answer() -> Unit ! Io {
+  let pair = ObservedPair::{ left: observe("left", 1), right: observe("right", 2) }
+  if pair.left + pair.right == 3 {
+    println("sum=3")
+  } else {
+    println("bad")
+  }
+}

@@ -2453,6 +2453,15 @@
           "the declaration must use the canonical WASI core signature"
         ]
       }
+    },
+    {
+      "name": "117 scalar-replaced local aggregate",
+      "file": "examples/valid/117_scalar_replaced_local_aggregate.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "left\nright\nsum=3"
+      }
     }
   ]
 }

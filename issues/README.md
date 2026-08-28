@@ -10,9 +10,8 @@ No ready issues.
 
 | ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
 | --- | --- | ---: | --- | --- | --- | --- | --- |
-| [ISS-407](ISS-407.md) | in_progress | 1 | epic | codex | ISS-411, ISS-412 | none | Reduce residual Wasm work after the sole-target migration |
-| [ISS-411](ISS-411.md) | in_progress | 2 | task | codex | none | ISS-407, ISS-412 | Scalar-replace proven non-escaping aggregates |
-| [ISS-412](ISS-412.md) | open | 1 | task | unassigned | ISS-411 | ISS-407 | Rebaseline and close the aggregate optimization milestone |
+| [ISS-407](ISS-407.md) | in_progress | 1 | epic | codex | ISS-412 | none | Reduce residual Wasm work after the sole-target migration |
+| [ISS-412](ISS-412.md) | in_progress | 1 | task | codex | none | ISS-407 | Rebaseline and close the aggregate optimization milestone |
 | [ISS-216](ISS-216.md) | deferred | 4 | epic | unassigned | none | none | Design advanced external host ABI capabilities |
 | [ISS-296](ISS-296.md) | deferred | 4 | epic | unassigned | none | none | Implement pure generic Array values |
 
