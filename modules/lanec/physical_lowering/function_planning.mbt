@@ -163,22 +163,14 @@ fn ImageLowerer::plan_runtime_import(
   value : @buslane.ValueId,
   import_ : @buslane_lowering.BuslaneRuntimeImport,
 ) -> Unit {
-  let parameter_kinds = import_.signature.parameters.map(
-    runtime_import_value_kind,
-  )
-  let result_kind = runtime_import_value_kind(import_.signature.result)
-  if parameter_kinds.any(kind => kind is Opaque) || result_kind is Opaque {
-    let _reference_layout = self.intern_layout(Reference)
-  }
   self.add_plan(
     value,
-    RuntimeImport({
-      abi_major: 1,
-      parameters: parameter_kinds,
-      result: result_kind,
-      symbol: import_.symbol,
-    }),
-    RuntimeImport(source=value, symbol=import_.symbol),
+    RuntimeImport(import_.contract),
+    RuntimeImport(
+      source=value,
+      module_name=import_.contract.module_name,
+      field_name=import_.contract.field_name,
+    ),
   )
 }
 

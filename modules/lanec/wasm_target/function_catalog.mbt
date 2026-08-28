@@ -39,15 +39,8 @@ priv struct WasmFunctionCatalog {
   table_entries : Array[WasmFunctionHandle]
   roots : Array[WasmFunctionOrigin]
   required : Array[WasmFunctionOrigin]
-  runtime_services : Array[WasmRuntimeServiceCapability]
   runtime_layouts : WasmRuntimeLayoutIds
 }
-
-///|
-priv struct WasmRuntimeServiceCapability {
-  service : @internal_abi.RuntimeService
-  layout_id : Int
-} derive(Eq)
 
 ///|
 fn wasm_function_type(
@@ -67,7 +60,6 @@ fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
     ByteSequenceEqual | ByteSequenceConcat =>
       wasm_function_type([I32, I32], [I32])
     ByteSequenceSlice => wasm_function_type([I32, I64, I64], [I32])
-    HostObjectNew => wasm_function_type([I64], [I32])
     ByteSequenceMake => wasm_function_type([I64, I32], [I32])
     ByteSequenceIndex | ByteSequenceGet => wasm_function_type([I32, I64], [I32])
     ByteSequenceSet => wasm_function_type([I32, I64, I32], [I32])
@@ -85,8 +77,7 @@ fn helper_function_type(role : WasmHelperFunctionRole) -> WasmFunctionType {
     | ReleaseReferenceErased
     | RetainCallable
     | ReleaseCallable => wasm_function_type([I64], [])
-    DestroyNoop | DestroyHostObject | DestroyShape(_) =>
-      wasm_function_type([I32], [])
+    DestroyNoop | DestroyShape(_) => wasm_function_type([I32], [])
     ByteSequenceSizer => wasm_function_type([I32], [I32])
   }
 }
@@ -103,7 +94,6 @@ fn runtime_function_order() -> Array[WasmRuntimeFunctionRole] {
     ByteSequenceEqual,
     ByteSequenceConcat,
     ByteSequenceSlice,
-    HostObjectNew,
     ByteSequenceMake,
     ByteSequenceIndex,
     ByteSequenceGet,
@@ -125,7 +115,6 @@ fn helper_function_order(
     RetainCallable,
     ReleaseCallable,
     DestroyNoop,
-    DestroyHostObject,
   ]
   for shape in 0..<image.object_shapes.length() {
     roles.push(DestroyShape(shape~))
@@ -156,7 +145,6 @@ fn address_taken_functions(image : @physical.PhysicalProgram) -> Array[Bool] {
 fn WasmFunctionCatalog::new(
   image : @physical.PhysicalProgram,
   requirements : WasmFunctionRequirements,
-  runtime_services : Array[WasmRuntimeServiceCapability],
   runtime_layouts : WasmRuntimeLayoutIds,
 ) -> WasmFunctionCatalog {
   {
@@ -166,26 +154,8 @@ fn WasmFunctionCatalog::new(
     table_entries: [],
     roots: requirements.roots,
     required: requirements.required,
-    runtime_services,
     runtime_layouts,
   }
-}
-
-///|
-fn certify_runtime_services(
-  runtime_layouts : WasmRuntimeLayoutIds,
-  required : Array[@internal_abi.RuntimeService],
-) -> Array[WasmRuntimeServiceCapability] raise WasmCompileError {
-  required.map(service => {
-    let layout_id = match service {
-      StringNew => runtime_layouts.byte_sequence
-      HostObjectNew => runtime_layouts.reference
-    }
-    if layout_id == 0 {
-      raise MissingRuntimeServiceLayout(service~)
-    }
-    { service, layout_id, }
-  })
 }
 
 ///|
@@ -254,6 +224,27 @@ fn WasmFunctionCatalog::declare_internal_import(
 }
 
 ///|
+fn WasmFunctionCatalog::declare_wasi_preview1_import(
+  self : WasmFunctionCatalog,
+  wasm_module : @wasm_types.Module,
+  import_ : @wasm_abi.WasiPreview1Import,
+) -> Unit raise WasmCompileError {
+  let contract = import_.contract()
+  ignore(
+    self.add_entry(
+      wasm_module,
+      WasiPreview1Import(import_),
+      wasm_function_type(
+        contract.core_parameters().map(core_value_type),
+        contract.core_results().map(core_value_type),
+      ),
+      Import(module_name=contract.module_name, name=contract.field_name),
+      false,
+    ),
+  )
+}
+
+///|
 fn WasmFunctionCatalog::entry(
   self : WasmFunctionCatalog,
   handle : WasmFunctionHandle,
@@ -280,19 +271,6 @@ fn WasmFunctionCatalog::requires(
   origin : WasmFunctionOrigin,
 ) -> Bool {
   self.required.contains(origin)
-}
-
-///|
-fn WasmFunctionCatalog::runtime_service_layout(
-  self : WasmFunctionCatalog,
-  service : @internal_abi.RuntimeService,
-) -> Int? {
-  for capability in self.runtime_services {
-    if capability.service == service {
-      return Some(capability.layout_id)
-    }
-  }
-  None
 }
 
 ///|
@@ -339,6 +317,14 @@ fn WasmFunctionCatalog::internal_import(
   function : @internal_abi.InternalRuntimeFunction,
 ) -> WasmFunctionHandle {
   self.require(InternalRuntimeImport(function))
+}
+
+///|
+fn WasmFunctionCatalog::wasi_preview1_import(
+  self : WasmFunctionCatalog,
+  import_ : @wasm_abi.WasiPreview1Import,
+) -> WasmFunctionHandle {
+  self.require(WasiPreview1Import(import_))
 }
 
 ///|
@@ -403,7 +389,14 @@ fn expected_function_type(
       let type_ = function.type_()
       wasm_function_type(type_.params, type_.results)
     }
-    PhysicalRuntimeImport(function~, symbol=_) => {
+    WasiPreview1Import(import_) => {
+      let contract = import_.contract()
+      wasm_function_type(
+        contract.core_parameters().map(core_value_type),
+        contract.core_results().map(core_value_type),
+      )
+    }
+    PhysicalRuntimeImport(function~, ..) => {
       if function.value <= 0 || function.value > image.functions.length() {
         raise InvalidFunctionCatalog(
           detail="physical import role has an invalid FunctionId",
@@ -421,7 +414,7 @@ fn expected_function_type(
         runtime_results(import_),
       )
     }
-    PhysicalFunction(function~) | RuntimeImportAdapter(function~, symbol=_) => {
+    PhysicalFunction(function~) | RuntimeImportAdapter(function~, ..) => {
       if function.value <= 0 || function.value > image.functions.length() {
         raise InvalidFunctionCatalog(
           detail="image function role has an invalid FunctionId",
@@ -451,15 +444,6 @@ fn WasmFunctionCatalog::validate(
     self.runtime_layouts.reference != actual_layouts.reference {
     raise InvalidFunctionCatalog(
       detail="runtime layout identities differ from the physical layout table",
-    )
-  }
-  let expected_services = certify_runtime_services(
-    self.runtime_layouts,
-    runtime_services_for_required_origins(image, self.required),
-  )
-  if self.runtime_services != expected_services {
-    raise InvalidFunctionCatalog(
-      detail="runtime service capabilities differ from retained host imports",
     )
   }
   for root in self.roots {
@@ -574,10 +558,18 @@ fn WasmFunctionCatalog::validate(
         }
       RuntimeImport(import_) =>
         if self.entry(handle).origin !=
-          RuntimeImportAdapter(function~, symbol=import_.symbol) ||
+          RuntimeImportAdapter(
+            function~,
+            module_name=import_.module_name,
+            field_name=import_.field_name,
+          ) ||
           self.physical_imports[index] is None ||
           self.entry(self.physical_imports[index].unwrap()).origin !=
-          PhysicalRuntimeImport(function~, symbol=import_.symbol) {
+          PhysicalRuntimeImport(
+            function~,
+            module_name=import_.module_name,
+            field_name=import_.field_name,
+          ) {
           raise InvalidFunctionCatalog(
             detail="runtime import mapping is inconsistent",
           )
@@ -629,34 +621,29 @@ fn WasmFunctionHandle::ref_func(
 fn plan_wasm_function_catalog(
   image : @physical.PhysicalProgram,
   global_lifecycle : @physical.GlobalLifecyclePlan,
-  host_objects_enabled : Bool,
   wasm_module : @wasm_types.Module,
 ) -> WasmFunctionCatalog raise WasmCompileError {
-  let requirements = plan_wasm_function_requirements(
-    image, global_lifecycle, host_objects_enabled,
-  )
+  let requirements = plan_wasm_function_requirements(image, global_lifecycle)
   let runtime_layouts = wasm_runtime_layout_ids(image)
-  let runtime_services = certify_runtime_services(
-    runtime_layouts,
-    requirements.runtime_services,
-  )
-  if host_objects_enabled && runtime_layouts.reference == 0 {
-    raise ValidationFailure(
-      detail="Opaque runtime imports require a Reference layout",
-    )
-  }
-  let catalog = WasmFunctionCatalog::new(
-    image, requirements, runtime_services, runtime_layouts,
-  )
+  let catalog = WasmFunctionCatalog::new(image, requirements, runtime_layouts)
   for function in @internal_abi.functions() {
     if catalog.requires(InternalRuntimeImport(function)) {
       catalog.declare_internal_import(wasm_module, function)
     }
   }
+  for import_ in @wasm_abi.wasi_preview1_imports() {
+    if catalog.requires(WasiPreview1Import(import_)) {
+      catalog.declare_wasi_preview1_import(wasm_module, import_)
+    }
+  }
   for index, entry in image.functions {
     if entry is RuntimeImport(import_) {
       let function : @physical.FunctionId = { value: index + 1, }
-      let origin = PhysicalRuntimeImport(function~, symbol=import_.symbol)
+      let origin = PhysicalRuntimeImport(
+        function~,
+        module_name=import_.module_name,
+        field_name=import_.field_name,
+      )
       guard catalog.requires(origin) else { continue }
       let handle = catalog.add_entry(
         wasm_module,
@@ -665,7 +652,7 @@ fn plan_wasm_function_catalog(
           physical_runtime_parameters(import_),
           runtime_results(import_),
         ),
-        Import(module_name="lane.runtime.v1", name=import_.symbol),
+        Import(module_name=import_.module_name, name=import_.field_name),
         false,
       )
       catalog.physical_imports[index] = Some(handle)
@@ -678,7 +665,11 @@ fn plan_wasm_function_catalog(
     let origin = match entry {
       PhysicalBody(_) => PhysicalFunction(function~)
       RuntimeImport(import_) =>
-        RuntimeImportAdapter(function~, symbol=import_.symbol)
+        RuntimeImportAdapter(
+          function~,
+          module_name=import_.module_name,
+          field_name=import_.field_name,
+        )
     }
     catalog.image_functions[index] = catalog.add_entry(
       wasm_module,

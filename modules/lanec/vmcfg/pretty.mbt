@@ -70,19 +70,15 @@ fn image_code_lines(image : Image) -> Array[String] {
 ///|
 fn render_function_entry(id : Int, entry : FunctionEntry) -> Array[String] {
   match entry {
-    RuntimeImport(import_) => {
-      let parameters = import_.parameters
-        .map(render_runtime_value_kind)
-        .join(", ")
+    RuntimeImport(import_) =>
       [
         "function f\{id} = runtime_import(",
-        "  symbol=\{Repr(import_.symbol)},",
-        "  abi_major=\{import_.abi_major},",
-        "  parameters=[\{parameters}],",
-        "  result=\{render_runtime_value_kind(import_.result)}",
+        "  module=\{Repr(import_.module_name)},",
+        "  field=\{Repr(import_.field_name)},",
+        "  parameters=\{Repr(import_.parameters)},",
+        "  result=\{Repr(import_.result)}",
         ")",
       ]
-    }
     Body(body) => {
       let lines = [
         "function f\{id}(",
@@ -180,6 +176,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "byte_sequence_slice \{render_value(destination)}, \{render_value(source)}, \{render_value(start)}, \{render_value(length)}"
     ByteSequenceIsValidUtf8(destination, source) =>
       unary_instruction("byte_sequence_is_valid_utf8", destination, source)
+    WasiFdWrite(destination, fd, bytes) =>
+      binary_instruction("wasi_fd_write", destination, fd, bytes)
     I32Add(destination, left, right) =>
       binary_instruction("i32_add", destination, left, right)
     I32Sub(destination, left, right) =>
@@ -507,19 +505,6 @@ fn render_result(result : @physical.ResultAbi) -> String {
     Unit => "unit"
     Value(representation, cleanup, kind) =>
       "\{render_representation(representation)} + \{render_cleanup(cleanup)} + \{Repr(kind)}"
-  }
-}
-
-///|
-fn render_runtime_value_kind(kind : @runtime.RuntimeValueKind) -> String {
-  match kind {
-    Unit => "unit"
-    Bool => "bool"
-    I64 => "i64"
-    F32 => "f32"
-    F64 => "f64"
-    String => "string"
-    Opaque => "opaque"
   }
 }
 

@@ -37,6 +37,7 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | UneraseF64(_, source)
     | UneraseUnit(source)
     | InitGlobal(_, source) => [source]
+    WasiFdWrite(_, fd, bytes) => [fd, bytes]
     ByteSequenceConcat(_, left, right)
     | ByteSequenceEqual(_, left, right)
     | ByteSequenceMake(_, left, right)
@@ -274,6 +275,7 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | UneraseF64(destination, _)
     | EraseUnit(destination)
     | BorrowGlobal(destination, _) => [destination]
+    WasiFdWrite(destination, _, _) => [destination]
     CallDirect(_, _, _, _, destination) | CallValue(_, _, _, destination) =>
       destination.map(value => [value]).unwrap_or([])
     BorrowField(_, _, _, result) | BorrowCapture(_, _, _, result) =>

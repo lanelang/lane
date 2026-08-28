@@ -37,21 +37,21 @@ test "reject run target without entry suffix" {
 
 ///|
 test "reject exec target with entry suffix" {
-  let error = InvalidExecTarget(target="program.lbp:Main.main")
+  let error = InvalidExecTarget(target="program.wasm:Main.main")
   debug_inspect(
     error,
-    content="InvalidExecTarget(target=\"program.lbp:Main.main\")",
+    content="InvalidExecTarget(target=\"program.wasm:Main.main\")",
   )
   inspect(
     error.render_human(),
     content=(
-      #|error[E6008]: invalid exec target `program.lbp:Main.main`
-      #|  expected: FILE.lbp
+      #|error[E6008]: invalid exec target `program.wasm:Main.main`
+      #|  expected: FILE.wasm
       #|
-      #|`lane exec` executes the entry selected when the linked program artifact was produced.
+      #|`lane exec` executes the entry selected when the WebAssembly module was linked.
       #|
       #|Example:
-      #|  lane exec program.lbp
+      #|  lane exec program.wasm
     ),
   )
 }
@@ -269,7 +269,7 @@ async test "native module artifacts are binary and readable" {
   let workspace = ".tmp-lane-binary-artifacts"
   let interface_path = "\{workspace}/Main.lmi"
   let object_path = "\{workspace}/Main.lmo"
-  let program_path = "\{workspace}/Main.lbp"
+  let program_path = "\{workspace}/Main.wasm"
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
   let compiled = @compile.compile_module_with_interfaces({
@@ -307,7 +307,7 @@ async test "native module artifacts are binary and readable" {
       abort("executable elaboration failed: \{Repr(error)}")
     }
   }
-  match write_linked_program_artifact(program_path, executable) {
+  match write_wasm_executable(program_path, executable) {
     Ok(_) => ()
     Err(error) => {
       cleanup_library_fixture(workspace)
@@ -322,7 +322,7 @@ async test "native module artifacts are binary and readable" {
     content="76,65,78,69,65,82,84,0",
   )
   inspect(byte_prefix_text(object_bytes, 8), content="76,65,78,69,65,82,84,0")
-  inspect(byte_prefix_text(program_bytes, 8), content="76,65,78,69,65,82,84,0")
+  inspect(byte_prefix_text(program_bytes, 8), content="0,97,115,109,1,0,0,0")
   let interface = match read_module_interface_artifact(interface_path) {
     Ok(artifact) => artifact
     Err(error) => {
@@ -337,8 +337,8 @@ async test "native module artifacts are binary and readable" {
       abort(error.render_human())
     }
   }
-  let linked_program = match read_linked_program_artifact(program_path) {
-    Ok(program) => program
+  let wasm = match read_wasm_executable(program_path) {
+    Ok(wasm) => wasm
     Err(error) => {
       cleanup_library_fixture(workspace)
       abort(error.render_human())
@@ -347,11 +347,24 @@ async test "native module artifacts are binary and readable" {
   cleanup_library_fixture(workspace)
   inspect(interface.module_path_text, content="Main")
   inspect(object.module_path_text, content="Main")
-  inspect(
-    byte_prefix_text(linked_program.wasm, 8),
-    content="0,97,115,109,1,0,0,0",
+  inspect(byte_prefix_text(wasm, 8), content="0,97,115,109,1,0,0,0")
+}
+
+///|
+fn wasi_basic_io_source() -> String {
+  (
+    #|module Basic.Io
+    #|
+    #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
+    #|let bytes_concat : (Bytes, Bytes) -> Bytes = builtin("%bytes_concat")
+    #|let wasi_fd_write : (I32, Bytes) -> I32 ! Io = builtin("%wasi_fd_write")
+    #|
+    #|pub fn println(value : String) -> Unit ! Io {
+    #|  let bytes = bytes_concat(string_to_bytes(value), string_to_bytes("\n"))
+    #|  let _errno = wasi_fd_write(1i32, bytes)
+    #|  ()
+    #|}
   )
-  debug_inspect(linked_program.runtime_imports, content="[]")
 }
 
 ///|
@@ -363,16 +376,10 @@ async test "exec executes explicit Basic Io linked input" {
   let main_source = "\{workspace}/Main.lane"
   let main_interface = "\{workspace}/Main.lmi"
   let main_object = "\{workspace}/Main.lmo"
-  let program_path = "\{workspace}/program.lbp"
+  let program_path = "\{workspace}/program.wasm"
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
-  write_source_file(
-    basic_source,
-    (
-      #|module Basic.Io
-      #|pub let println : (String) -> Unit ! Io = extern("println")
-    ),
-  )
+  write_source_file(basic_source, wasi_basic_io_source())
   write_source_file(
     main_source,
     (
@@ -410,22 +417,24 @@ async test "exec executes explicit Basic Io linked input" {
     cleanup_library_fixture(workspace)
     abort("expected link to succeed")
   }
-  let artifact = match read_linked_program_artifact(program_path) {
-    Ok(artifact) => artifact
+  let wasm = match read_wasm_executable(program_path) {
+    Ok(wasm) => wasm
     Err(error) => {
       cleanup_library_fixture(workspace)
       abort(error.render_human())
     }
   }
-  assert_eq(artifact.runtime_imports.map(import_ => import_.symbol), ["println"])
-  let output : Array[String] = []
-  guard execute_wasm_artifact_with_output(artifact, line => output.push(line))
+  let output : Array[Byte] = []
+  guard execute_wasm_with_wasi_stdout(
+      wasm,
+      Some(bytes => output.append(bytes.to_array())),
+    )
     is Succeeded else {
     cleanup_library_fixture(workspace)
     abort("expected exec to succeed")
   }
   cleanup_library_fixture(workspace)
-  inspect(output.join("\n"), content="hello")
+  assert_eq(Bytes::from_array(output), b"hello\n")
 }
 
 ///|
@@ -433,7 +442,7 @@ async test "link rejects private selected entry" {
   let workspace = ".tmp-lane-link-private-entry"
   let source = "\{workspace}/Main.lane"
   let object = "\{workspace}/Main.lmo"
-  let program = "\{workspace}/program.lbp"
+  let program = "\{workspace}/program.wasm"
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
   write_source_file(
@@ -474,7 +483,7 @@ async test "link rejects non-function selected entry" {
   let workspace = ".tmp-lane-link-value-entry"
   let source = "\{workspace}/Main.lane"
   let object = "\{workspace}/Main.lmo"
-  let program = "\{workspace}/program.lbp"
+  let program = "\{workspace}/program.wasm"
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
   write_source_file(
@@ -514,7 +523,7 @@ async test "link rejects unsupported selected entry effects" {
   let workspace = ".tmp-lane-link-unsupported-effects"
   let source = "\{workspace}/Main.lane"
   let object = "\{workspace}/Main.lmo"
-  let program = "\{workspace}/program.lbp"
+  let program = "\{workspace}/program.wasm"
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
   write_source_file(
@@ -562,10 +571,10 @@ test "invalid link entry diagnostic explains expected public symbol form" {
       #|error[E6010]: invalid link entry `main`
       #|  expected: Module.value
       #|
-      #|`lane link` selects one exported entry before producing a linked program artifact.
+      #|`lane link` selects one exported entry before producing a WebAssembly module.
       #|
       #|Example:
-      #|  lane link --entry Main.main -o program.lbp Main.lmo
+      #|  lane link --entry Main.main -o program.wasm Main.lmo
     ),
   )
 }
@@ -669,9 +678,7 @@ test "run executes pure unit function entries without rendering Unit" {
 
 ///|
 test "run accepts built-in Io through an explicit Basic extern" {
-  let basic_io =
-    #|module Basic.Io
-    #|pub let println : (String) -> Unit ! Io = extern("println")
+  let basic_io = wasi_basic_io_source()
   let result = compile_program_for_test(
     (
       #|module Test
@@ -690,19 +697,21 @@ test "run accepts built-in Io through an explicit Basic extern" {
   guard elaborate_command_entry(program, entry) is Ok(_) else {
     abort("expected Io entry admission to succeed")
   }
-  let output : Array[String] = []
-  guard execute_entry_with_output(program, entry, line => output.push(line))
+  let output : Array[Byte] = []
+  guard execute_entry_with_output(
+      program,
+      entry,
+      write_stdout=Some(bytes => output.append(bytes.to_array())),
+    )
     is Succeeded else {
     abort("expected run entry to succeed through WebAssembly")
   }
-  assert_eq(output, ["hello"])
+  assert_eq(Bytes::from_array(output), b"hello\n")
 }
 
 ///|
 test "run lowers lexical handlers before runtime effects" {
-  let basic_io =
-    #|module Basic.Io
-    #|pub let println : (String) -> Unit ! Io = extern("println")
+  let basic_io = wasi_basic_io_source()
   let result = compile_program_for_test(
     (
       #|module Test
@@ -728,12 +737,16 @@ test "run lowers lexical handlers before runtime effects" {
   let program = successful_compilation(result)
   let entry = find_entry(program.entries(), "main")
   guard entry is Ok(entry) else { abort("expected entry") }
-  let output : Array[String] = []
-  guard execute_entry_with_output(program, entry, line => output.push(line))
+  let output : Array[Byte] = []
+  guard execute_entry_with_output(
+      program,
+      entry,
+      write_stdout=Some(bytes => output.append(bytes.to_array())),
+    )
     is Succeeded else {
     abort("expected handled entry to succeed through WebAssembly")
   }
-  assert_eq(output, ["handled"])
+  assert_eq(Bytes::from_array(output), b"handled\n")
 }
 
 ///|

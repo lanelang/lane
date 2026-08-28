@@ -26,10 +26,7 @@ let max_call_depth_global_index = 7
 let failure_code_global_index = 8
 
 ///|
-let runtime_import_failed_global_index = 9
-
-///|
-let initialized_owned_root_count_global_index = 10
+let initialized_owned_root_count_global_index = 9
 
 ///|
 pub fn max_live_heap_bytes_global() -> Int {
@@ -44,11 +41,6 @@ pub fn max_call_depth_global() -> Int {
 ///|
 pub fn failure_code_global() -> Int {
   failure_code_global_index
-}
-
-///|
-pub fn runtime_import_failed_global() -> Int {
-  runtime_import_failed_global_index
 }
 
 ///|
@@ -112,12 +104,6 @@ fn append_runtime_globals(
   )
   append_i32_global(
     wasm_module,
-    index=runtime_import_failed_global_index,
-    is_mutable=true,
-    initial=0,
-  )
-  append_i32_global(
-    wasm_module,
     index=initialized_owned_root_count_global_index,
     is_mutable=true,
     initial=0,
@@ -133,10 +119,6 @@ fn append_runtime_globals(
   wasm_module.exports.push({
     name: @internal_abi.RuntimeControlGlobal::FailureCode.name(),
     desc: Global(failure_code_global_index),
-  })
-  wasm_module.exports.push({
-    name: @internal_abi.RuntimeControlGlobal::RuntimeImportFailed.name(),
-    desc: Global(runtime_import_failed_global_index),
   })
 }
 

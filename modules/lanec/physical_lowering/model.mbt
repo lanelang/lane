@@ -61,7 +61,7 @@ priv enum PlannedEntry {
   RepresentationWorker(RepresentationWorkerPlan)
   CallableAdapter(CallableAdapterPlan)
   LayoutConstructor(LayoutConstructorPlan)
-  RuntimeImport(@lane_runtime.RuntimeImport)
+  RuntimeImport(@wasm_abi.ImportContract)
 }
 
 ///|
@@ -95,7 +95,11 @@ pub(all) enum PhysicalFunctionOrigin {
     reason~ : CallableAdapterReason
   )
   LayoutConstructor
-  RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
+  RuntimeImport(
+    source~ : @buslane.ValueId,
+    module_name~ : String,
+    field_name~ : String
+  )
 } derive(Debug, Eq)
 
 ///|

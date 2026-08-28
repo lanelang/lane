@@ -7,9 +7,13 @@ import {
   "Milky2018/lanec/physical_lowering",
   "Milky2018/lanec/physical",
   "Milky2018/lanec/wasm_target",
+  "Milky2018/lane_wasm_abi" @wasm_abi,
   "Milky2018/lane_runtime/wasm" @lane_wasm_runtime,
   "Milky2018/lane_runtime",
   "Milky2018/wasm_core/encoder" @wasm_encoder,
+  "Milky2018/wasm_core/types" @wasm_types,
+  "Milky2018/wasmoon/runtime" @wasmoon_runtime,
+  "moonbitlang/core/encoding/utf8",
 } for "test"
 
 supported_targets = "native"

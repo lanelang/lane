@@ -99,17 +99,21 @@ test "generic nested closures preserve erased captures in both backends" {
     lower_conformance_program_to_physical(
       program,
       {
-        builtins: [],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            measure,
+            BytesLength,
+          ),
+        ],
         runtime_imports: [
           {
-            value: measure,
-            symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: I64, },
-          },
-          {
             value: observe,
-            symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [I64], result: Unit, },
+            contract: {
+              module_name: "lane.test",
+              field_name: "lane.test.observe_callable_boundary",
+              parameters: [Direct(I64)],
+              result: Unit,
+            },
           },
         ],
       },
@@ -236,17 +240,21 @@ test "nominal values preserve behavior across canonical generic boundaries" {
     lower_unoptimized_test_program(
       program,
       {
-        builtins: [],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            measure,
+            BytesLength,
+          ),
+        ],
         runtime_imports: [
           {
-            value: measure,
-            symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: I64, },
-          },
-          {
             value: observe,
-            symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [I64], result: Unit, },
+            contract: {
+              module_name: "lane.test",
+              field_name: "lane.test.observe_callable_boundary",
+              parameters: [Direct(I64)],
+              result: Unit,
+            },
           },
         ],
       },

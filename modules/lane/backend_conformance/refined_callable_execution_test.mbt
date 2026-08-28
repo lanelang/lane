@@ -56,7 +56,7 @@ test "refined run_write callable owns its closed result representation" {
       #|  Write[I64]::write!(42)
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let result = run_write[Unit, I64, {}](write_42, i64_monoid)()
@@ -77,7 +77,7 @@ test "one generic callable supports two independent refined contracts" {
       #|
       #|let i64_identity : (I64) -> I64 = identity[I64]
       #|let bool_identity : (Bool) -> Bool = identity[Bool]
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  if bool_identity(true) {

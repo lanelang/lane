@@ -72,7 +72,7 @@ test "Explore preserves source-written nested and CPS-introduced function origin
         #|}
         #|
         #|pub extern type Host : Effect
-        #|let observe : (I64) -> Unit ! Host = extern("observe")
+        #|let observe : (I64) -> Unit ! Host = extern("lane.test", "observe")
         #|
         #|pub fn main() -> Unit ! Host {
         #|  let result = handle invoke[{ Ask }](fn(_value) {
@@ -271,7 +271,7 @@ test "explore attributes link growth and effect-specialization cleanup" {
       (
         #|module Main
         #|import Lib.{ live, invoke }
-        #|let observe : (I64) -> Unit ! Io = extern("observe")
+        #|let observe : (I64) -> Unit ! Io = extern("lane.test", "observe")
         #|fn pure() -> Unit { () }
         #|pub fn main() -> Unit ! Io {
         #|  invoke[{}](pure)
@@ -420,7 +420,7 @@ test "explore reports deterministic typed scale metrics" {
   let request = explore_test_request(
     (
       #|module Main
-      #|let observe : (I64) -> Unit ! Io = extern("observe")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "observe")
       #|
       #|fn apply(f : (I64) -> I64, value : I64) -> I64 {
       #|  f(value)
@@ -536,7 +536,7 @@ test "explore reports deterministic typed scale metrics" {
       #|    [
       #|      ("functionCount", 4),
       #|      ("importCount", 1),
-      #|      ("instructionCount", 53),
+      #|      ("instructionCount", 51),
       #|      ("localCount", 3),
       #|      ("tableEntryCount", 0),
       #|      ("wasmIfCount", 3),
@@ -548,7 +548,7 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("wasmExpansion.physicalOpcode.callable.instructionCount", 4),
       #|      ("wasmExpansion.physicalOpcode.controlTransfer.instructionCount", 13),
       #|      ("wasmExpansion.functionAbi.instructionCount", 2),
-      #|      ("wasmExpansion.runtimeImportAdapter.instructionCount", 7),
+      #|      ("wasmExpansion.runtimeImportAdapter.instructionCount", 5),
       #|      ("wasmExpansion.entryLifecycle.instructionCount", 3),
       #|    ],
       #|  ),
@@ -598,8 +598,9 @@ test "explore records direct canonical generic representation costs" {
     explore_test_request(
       (
         #|module Main
-        #|let read_flag : () -> Bool ! Io = extern("read_flag")
-        #|let touch : () -> Unit ! Io = extern("touch")
+        #|let read_flag : () -> I32 ! Io = extern("lane.test", "read_flag")
+        #|let touch : () -> Unit ! Io = extern("lane.test", "touch")
+        #|let i32_equal : (I32, I32) -> Bool = builtin("%i32_equal")
         #|
         #|fn[T] consume(flag : Bool, value : T) -> Unit ! Io {
         #|  if flag {
@@ -610,8 +611,8 @@ test "explore records direct canonical generic representation costs" {
         #|}
         #|
         #|pub fn main() -> Unit ! Io {
-        #|  consume[Bool](read_flag(), true)
-        #|  consume[I32](read_flag(), 42i32)
+        #|  consume[Bool](i32_equal(read_flag(), 0i32), true)
+        #|  consume[I32](i32_equal(read_flag(), 0i32), 42i32)
         #|}
       ),
     ),
@@ -647,8 +648,8 @@ test "explore records direct canonical generic representation costs" {
       #|        ("functionCount", 2),
       #|        ("importCount", 2),
       #|        ("blockCount", 4),
-      #|        ("instructionCount", 12),
-      #|        ("valueCount", 15),
+      #|        ("instructionCount", 15),
+      #|        ("valueCount", 19),
       #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
@@ -665,7 +666,7 @@ test "explore records direct canonical generic representation costs" {
       #|      ],
       #|      [
       #|        { index: 1, block_count: 3, operation_count: 1, value_count: 5 },
-      #|        { index: 2, block_count: 1, operation_count: 11, value_count: 10 },
+      #|        { index: 2, block_count: 1, operation_count: 14, value_count: 14 },
       #|      ],
       #|    ),
       #|    (
@@ -674,8 +675,8 @@ test "explore records direct canonical generic representation costs" {
       #|        ("functionCount", 2),
       #|        ("importCount", 2),
       #|        ("blockCount", 5),
-      #|        ("instructionCount", 13),
-      #|        ("slotCount", 10),
+      #|        ("instructionCount", 16),
+      #|        ("slotCount", 11),
       #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
@@ -693,7 +694,7 @@ test "explore records direct canonical generic representation costs" {
       #|      ],
       #|      [
       #|        { index: 1, block_count: 4, operation_count: 2, value_count: 4 },
-      #|        { index: 2, block_count: 1, operation_count: 11, value_count: 6 },
+      #|        { index: 2, block_count: 1, operation_count: 14, value_count: 7 },
       #|      ],
       #|    ),
       #|  ],
@@ -736,7 +737,7 @@ test "explore records concrete-answer CPS callback representation costs" {
         #|}
         #|
         #|pub extern type Host : Effect
-        #|let observe : (I64) -> Unit ! Host = extern("observe")
+        #|let observe : (I64) -> Unit ! Host = extern("lane.test", "observe")
         #|
         #|pub fn main() -> Unit ! Host {
         #|  let result = handle forwarded[{ Ask }](answer_callback) with {
@@ -945,8 +946,8 @@ test "explore attributes a closed effect worker nominal ABI crossing" {
         #|  tick(I64) -> I64
         #|}
         #|
-        #|let record_callback : () -> Unit ! Io = extern("record_callback")
-        #|let observe : (I64) -> Unit ! Io = extern("observe")
+        #|let record_callback : () -> Unit ! Io = extern("lane.test", "record_callback")
+        #|let observe : (I64) -> Unit ! Io = extern("lane.test", "observe")
         #|
         #|fn[T, R, Eff : Effect] apply(
         #|  value : T,
@@ -1045,8 +1046,8 @@ test "explore records concrete-answer CPS normalization costs" {
         #|  ping(I64) -> I64
         #|}
         #|
-        #|let add : (I64, I64) -> I64 = extern("add")
-        #|let observe : (I64) -> Unit ! Io = extern("observe")
+        #|let add : (I64, I64) -> I64 = extern("lane.test", "add")
+        #|let observe : (I64) -> Unit ! Io = extern("lane.test", "observe")
         #|
         #|fn computation() -> I64 ! Probe {
         #|  Probe::ping!(40)
@@ -1151,7 +1152,8 @@ test "explore bounds expanding recursive specialization to one worker" {
     explore_test_request(
       (
         #|module Main
-        #|let read_flag : () -> Bool ! Io = extern("read_flag")
+        #|let read_flag : () -> I32 ! Io = extern("lane.test", "read_flag")
+        #|let i32_equal : (I32, I32) -> Bool = builtin("%i32_equal")
         #|
         #|enum Box[T] {
         #|  box(T)
@@ -1166,8 +1168,8 @@ test "explore bounds expanding recursive specialization to one worker" {
         #|}
         #|
         #|pub fn main() -> Unit ! Io {
-        #|  grow[I64](read_flag(), 42)
-        #|  grow[I64](read_flag(), 7)
+        #|  grow[I64](i32_equal(read_flag(), 0i32), 42)
+        #|  grow[I64](i32_equal(read_flag(), 0i32), 7)
         #|}
       ),
     ),
@@ -1193,8 +1195,8 @@ test "explore bounds expanding recursive specialization to one worker" {
       #|        ("functionCount", 3),
       #|        ("importCount", 1),
       #|        ("blockCount", 7),
-      #|        ("instructionCount", 17),
-      #|        ("valueCount", 22),
+      #|        ("instructionCount", 20),
+      #|        ("valueCount", 26),
       #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
@@ -1212,7 +1214,7 @@ test "explore bounds expanding recursive specialization to one worker" {
       #|      ],
       #|      [
       #|        { index: 1, block_count: 3, operation_count: 5, value_count: 9 },
-      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 4 },
+      #|        { index: 2, block_count: 1, operation_count: 8, value_count: 8 },
       #|        { index: 3, block_count: 3, operation_count: 7, value_count: 9 },
       #|      ],
       #|    ),
@@ -1222,8 +1224,8 @@ test "explore bounds expanding recursive specialization to one worker" {
       #|        ("functionCount", 3),
       #|        ("importCount", 1),
       #|        ("blockCount", 8),
-      #|        ("instructionCount", 18),
-      #|        ("slotCount", 16),
+      #|        ("instructionCount", 21),
+      #|        ("slotCount", 18),
       #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
@@ -1242,7 +1244,7 @@ test "explore bounds expanding recursive specialization to one worker" {
       #|      ],
       #|      [
       #|        { index: 1, block_count: 4, operation_count: 6, value_count: 7 },
-      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 2 },
+      #|        { index: 2, block_count: 1, operation_count: 8, value_count: 4 },
       #|        { index: 3, block_count: 3, operation_count: 7, value_count: 7 },
       #|      ],
       #|    ),
@@ -1268,7 +1270,7 @@ test "explore removes alpha-renamed adapters during CPS core normalization" {
         #|}
         #|
         #|let add : (I64, I64) -> I64 = builtin("%i64_add")
-        #|let sink : (I64) -> Unit ! Io = extern("sink")
+        #|let sink : (I64) -> Unit ! Io = extern("lane.test", "sink")
         #|
         #|let left : Left[I64] = Left::{ apply: add }
         #|let right : Right[I64] = Right::{ apply: add }
@@ -1762,7 +1764,7 @@ test "every Explore function scale consumes an IR-owned identity" {
     explore_test_request(
       (
         #|module Main
-        #|let observe : (I64) -> Unit ! Io = extern("observe")
+        #|let observe : (I64) -> Unit ! Io = extern("lane.test", "observe")
         #|fn apply(f : (I64) -> I64, value : I64) -> I64 { f(value) }
         #|pub fn main() -> Unit ! Io {
         #|  observe(apply(fn(value) { value }, 42))

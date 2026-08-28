@@ -21,7 +21,7 @@ test "argparse accepts complete Lane artifact commands" {
         "explore", "--output", "report.html", "Main.lane:main",
       ]),
       lane_subcommand_values([
-        "link", "--entry", "Main.main", "--output", "program.lbp", "Main.lmo",
+        "link", "--entry", "Main.main", "--output", "program.wasm", "Main.lmo",
       ]),
     ],
     content=(
@@ -42,7 +42,7 @@ test "argparse accepts complete Lane artifact commands" {
       #|    "link",
       #|    {
       #|      "entry": ["Main.main"],
-      #|      "output": ["program.lbp"],
+      #|      "output": ["program.wasm"],
       #|      "objects": ["Main.lmo"],
       #|    },
       #|  ),

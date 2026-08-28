@@ -414,7 +414,7 @@ The first implementation does not require monomorphization or element-width spec
 
 ### Physical Program model
 
-The Physical Program adds the `Array` Layout Recipe and five fixed-shape instructions corresponding to the VMCFG operations. Their operands encode destinations and source slots explicitly; only `ArrayEmpty` additionally encodes a Layout Operand. These compiler-private forms do not independently change the linked artifact schema.
+The Physical Program adds the `Array` Layout Recipe and five fixed-shape instructions corresponding to the VMCFG operations. Their operands encode destinations and source slots explicitly; only `ArrayEmpty` additionally encodes a Layout Operand. These compiler-private forms are not persisted and do not change an artifact schema.
 
 The physical instruction contract contains runtime representation and ownership facts but no source type. An Array source or result is `I32 + OwnedRef`; an element source or result is `I64 + OwnedErased` with its required companion; `ArrayEmpty` uses the existing immediate-or-witness Layout Operand form.
 
@@ -523,8 +523,8 @@ The collection roles are intentionally distinct:
 
 ### Serialization and execution
 
-- Interfaces, module objects, linked artifacts, semantic fingerprints, and inspection output preserve `Array[T]` and polymorphic intrinsic types.
-- Array Layout Recipe and instruction encode, decode, disassemble, and validation tests round-trip.
+- Interfaces, module objects, semantic fingerprints, and inspection output preserve `Array[T]` and polymorphic intrinsic types; linked executables are raw WebAssembly modules.
+- Physical validation and WebAssembly emission tests cover the Array Layout Recipe and instructions; the compiler-private Physical Program has no codec.
 - Compiler-generated slots have the documented representation, cleanup, ownership, and companion metadata.
 - Wasm interpreter and JIT execution agree for every valid semantic case.
 - A malformed Physical Program with a zero or out-of-range element LayoutId, a non-Array object, a missing or uninitialized result companion, or a value/result companion that disagrees with the object-stored layout is rejected as a compiler defect rather than becoming source-level reflection, a cast, or another layout-selection path.

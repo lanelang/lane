@@ -132,6 +132,7 @@ pub(all) enum Instruction {
   ByteSequenceConcat(ValueId, ValueId, ValueId)
   ByteSequenceSlice(ValueId, ValueId, ValueId, ValueId)
   ByteSequenceIsValidUtf8(ValueId, ValueId)
+  WasiFdWrite(ValueId, ValueId, ValueId)
   I32Add(ValueId, ValueId, ValueId)
   I32Sub(ValueId, ValueId, ValueId)
   I32Mul(ValueId, ValueId, ValueId)
@@ -249,7 +250,7 @@ priv struct ArcFinalBody {
 ///|
 pub(all) enum FunctionEntry {
   Body(FunctionBody)
-  RuntimeImport(@runtime.RuntimeImport)
+  RuntimeImport(@wasm_abi.ImportContract)
 } derive(Debug, Eq)
 
 ///|

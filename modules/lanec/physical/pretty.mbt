@@ -90,19 +90,15 @@ fn render_function_entry(
   abi : String,
 ) -> Array[String] {
   match entry {
-    RuntimeImport(import_) => {
-      let parameters = import_.parameters
-        .map(render_runtime_value_kind)
-        .join(", ")
+    RuntimeImport(import_) =>
       [
         "function f\{id} abi=\{abi} = runtime_import(",
-        "  symbol=\{Repr(import_.symbol)},",
-        "  abi_major=\{import_.abi_major},",
-        "  parameters=[\{parameters}],",
-        "  result=\{render_runtime_value_kind(import_.result)}",
+        "  module=\{Repr(import_.module_name)},",
+        "  field=\{Repr(import_.field_name)},",
+        "  parameters=\{Repr(import_.parameters)},",
+        "  result=\{Repr(import_.result)}",
         ")",
       ]
-    }
     PhysicalBody(body) => {
       let lines = [
         "function f\{id} abi=\{abi}(",
@@ -154,19 +150,6 @@ fn render_callable_abi(abi : CallableAbi) -> String {
   let parameters = abi.parameters.map(render_operand).join(", ")
   let witnesses = abi.witnesses.map(render_operand).join(", ")
   "fn(witnesses=[\{witnesses}], parameters=[\{parameters}]) -> \{render_result(abi.result)}"
-}
-
-///|
-fn render_runtime_value_kind(kind : @runtime.RuntimeValueKind) -> String {
-  match kind {
-    Unit => "unit"
-    Bool => "bool"
-    I64 => "i64"
-    F64 => "f64"
-    F32 => "f32"
-    String => "string"
-    Opaque => "opaque"
-  }
 }
 
 ///|
@@ -237,6 +220,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "byte_sequence_slice \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(start)}, \{render_slot(length)}"
     ByteSequenceIsValidUtf8(destination, source) =>
       unary_instruction("byte_sequence_is_valid_utf8", destination, source)
+    WasiFdWrite(destination, fd, bytes) =>
+      binary_instruction("wasi_fd_write", destination, fd, bytes)
     I32Add(destination, left, right) =>
       binary_instruction("i32_add", destination, left, right)
     I32Sub(destination, left, right) =>

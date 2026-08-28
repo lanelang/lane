@@ -426,12 +426,8 @@ fn RuntimeAnfVerifier::match_is_exhaustive(
         alternatives.contains(DataCon(data_constructor))
       })
     }
-    Scalar(_)
-    | ByteSequence
-    | OpaqueReference(_)
-    | Callable(_, _)
-    | Forall(_, _)
-    | Erased(_, _) => false
+    Scalar(_) | ByteSequence | Callable(_, _) | Forall(_, _) | Erased(_, _) =>
+      false
   }
 }
 
@@ -694,12 +690,6 @@ fn RuntimeAnfVerifier::verify_type_mode(
 ) -> Unit raise RuntimeAnfLoweringError {
   match type_ {
     Unit | Scalar(_) | ByteSequence => ()
-    OpaqueReference(owner) => {
-      let info = self.require_type_info(owner, path)
-      if info.kind != OpaqueReference {
-        self.fail(InvalidNominalType(owner), path)
-      }
-    }
     Data(owner, arguments) => {
       let info = self.require_type_info(owner, path)
       if info.kind != Data {

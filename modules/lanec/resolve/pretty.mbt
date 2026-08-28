@@ -763,7 +763,13 @@ pub impl @prettyprinter.Pretty for ResolvedExpr with fn pretty(
       @pretty.bracketed_inline([capability.pretty(), target.pretty()]) +
       @pretty.parenthesized_inline(arguments.map(ResolvedCallArgument::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
-    Extern(name, ..) => text("extern") + text("(") + text(name) + text(")")
+    Extern(module_name~, field_name~, ..) =>
+      text("extern") +
+      text("(") +
+      text(module_name) +
+      text(", ") +
+      text(field_name) +
+      text(")")
     FunctionLiteral(
       type_parameters~,
       parameters~,

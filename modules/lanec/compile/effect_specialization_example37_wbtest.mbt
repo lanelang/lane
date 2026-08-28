@@ -335,7 +335,15 @@ fn effect_example_test_libraries() -> Array[@module_frontend.SourceInput] {
       text: (
         #|module Basic.Io
         #|
-        #|pub let println : (String) -> Unit ! Io = extern("println")
+        #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
+        #|let bytes_concat : (Bytes, Bytes) -> Bytes = builtin("%bytes_concat")
+        #|let wasi_fd_write : (I32, Bytes) -> I32 ! Io = builtin("%wasi_fd_write")
+        #|
+        #|pub fn println(value : String) -> Unit ! Io {
+        #|  let bytes = bytes_concat(string_to_bytes(value), string_to_bytes("\n"))
+        #|  let _errno = wasi_fd_write(1i32, bytes)
+        #|  ()
+        #|}
       ),
     },
     {

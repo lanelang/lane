@@ -14,15 +14,6 @@ pub extend CompiledModuleSetArtifact with Debug::{to_repr}
 pub extend CompiledModuleSetArtifact with Eq::{not_equal, equal}
 
 ///|
-pub extend LinkedProgramArtifact with @prettyprinter.Pretty::{pretty}
-
-///|
-pub extend LinkedProgramArtifact with Debug::{to_repr}
-
-///|
-pub extend LinkedProgramArtifact with Eq::{not_equal, equal}
-
-///|
 pub extend ModuleInterfaceArtifact with @prettyprinter.Pretty::{pretty}
 
 ///|

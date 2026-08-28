@@ -151,7 +151,7 @@ pub(all) enum Expr {
   TupleLiteral(items~ : Array[Expr], loc~ : @basic.SourceSpan)
   Derive(capability~ : Type, target~ : Type, arguments~ : Array[CallArgument], source~ : @basic.DeriveSourceSite)
   Builtin(String, loc~ : @basic.SourceSpan)
-  Extern(String, loc~ : @basic.SourceSpan)
+  Extern(module_name~ : String, field_name~ : String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[TypeParameter], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, effect~ : EffectTerm?, body~ : Expr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : EffectOperationName, type_witnesses~ : Array[GenericArgument], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
   TypeApplication(callee~ : Expr, arguments~ : Array[GenericArgument], loc~ : @basic.SourceSpan)

@@ -1,35 +1,11 @@
 ///|
-fn callable_boundary_registry(
-  observed : Array[Int64],
-) -> @lane_runtime.RuntimeRegistry {
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.string_length",
-      abi_major=1,
-      parameters=[String],
-      result=I64,
-      invoke=fn(_context, arguments) {
-        guard arguments is [BorrowedString(value)] else { return I64(-1L) }
-        I64(value.length().to_int64())
-      },
-    ),
-  )
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_callable_boundary",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed.push(value)
-        }
-        Unit
-      },
-    ),
-  )
-  registry
+fn callable_boundary_registry(observed : Array[Int64]) -> TestHostBindings {
+  let host = TestHostBindings::new()
+  host.byte_sequence_length("lane.test.string_length")
+  host.observe_i64("lane.test.observe_callable_boundary", value => {
+    observed.push(value)
+  })
+  host
 }
 
 ///|
@@ -41,7 +17,7 @@ fn execute_callable_image_in_both_backends(
   let interpreted = match
     load_physical_interpreted(
       image,
-      callable_boundary_registry(interpreted_observed),
+      host=callable_boundary_registry(interpreted_observed),
     ) {
     Ok(value) => value
     Err(error) => fail("interpreter load failed: \{Repr(error)}")
@@ -50,7 +26,7 @@ fn execute_callable_image_in_both_backends(
   assert_eq(interpreted_observed, [expected])
   let wasm_observed = []
   let wasm = match
-    load_physical(image, callable_boundary_registry(wasm_observed)) {
+    load_physical(image, host=callable_boundary_registry(wasm_observed)) {
     Ok(value) => value
     Err(error) => fail("Wasm load failed: \{Repr(error)}")
   }
@@ -147,8 +123,7 @@ test "existential lowering executes through Wasm with opened ARC witnesses" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  let loaded = match
-    load_physical(image, @lane_runtime.RuntimeRegistry::new()) {
+  let loaded = match load_physical(image) {
     Ok(value) => value
     Err(error) => fail("Wasm load failed: \{Repr(error)}")
   }
@@ -272,17 +247,21 @@ test "existential callable fields adapt covariant results and contravariant para
     lower_conformance_program_to_physical(
       program,
       {
-        builtins: [],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            measure,
+            BytesLength,
+          ),
+        ],
         runtime_imports: [
           {
-            value: measure,
-            symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: I64, },
-          },
-          {
             value: observe,
-            symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [I64], result: Unit, },
+            contract: {
+              module_name: "lane.test",
+              field_name: "lane.test.observe_callable_boundary",
+              parameters: [Direct(I64)],
+              result: Unit,
+            },
           },
         ],
       },
@@ -455,17 +434,21 @@ test "existential callable adapters recurse through callable parameters" {
     lower_conformance_program_to_physical(
       program,
       {
-        builtins: [],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            measure,
+            BytesLength,
+          ),
+        ],
         runtime_imports: [
           {
-            value: measure,
-            symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: I64, },
-          },
-          {
             value: observe,
-            symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [I64], result: Unit, },
+            contract: {
+              module_name: "lane.test",
+              field_name: "lane.test.observe_callable_boundary",
+              parameters: [Direct(I64)],
+              result: Unit,
+            },
           },
         ],
       },
@@ -659,17 +642,21 @@ test "generic container fields round-trip callable values through erasure" {
     lower_conformance_program_to_physical(
       program,
       {
-        builtins: [],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            measure,
+            BytesLength,
+          ),
+        ],
         runtime_imports: [
           {
-            value: measure,
-            symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: I64, },
-          },
-          {
             value: observe,
-            symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [I64], result: Unit, },
+            contract: {
+              module_name: "lane.test",
+              field_name: "lane.test.observe_callable_boundary",
+              parameters: [Direct(I64)],
+              result: Unit,
+            },
           },
         ],
       },
@@ -831,17 +818,21 @@ test "existential callable adapters forward explicit forall witnesses" {
     lower_conformance_program_to_physical(
       program,
       {
-        builtins: [],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            measure,
+            BytesLength,
+          ),
+        ],
         runtime_imports: [
           {
-            value: measure,
-            symbol: "lane.test.string_length",
-            signature: { parameters: [String], result: I64, },
-          },
-          {
             value: observe,
-            symbol: "lane.test.observe_callable_boundary",
-            signature: { parameters: [I64], result: Unit, },
+            contract: {
+              module_name: "lane.test",
+              field_name: "lane.test.observe_callable_boundary",
+              parameters: [Direct(I64)],
+              result: Unit,
+            },
           },
         ],
       },

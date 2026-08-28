@@ -32,8 +32,12 @@ test "executable pretty output emphasizes execution structure" {
       runtime_imports: [
         {
           value: observe,
-          symbol: "observe",
-          signature: { parameters: [I64], result: Unit, },
+          contract: {
+            module_name: "lane.test",
+            field_name: "observe",
+            parameters: [Direct(I64)],
+            result: Unit,
+          },
         },
       ],
     },
@@ -46,7 +50,7 @@ test "executable pretty output emphasizes execution structure" {
       #|executable {
       #|  entry Main.main = value#2 : () -> Unit ! Io
       #|  externals {
-      #|    runtime_import "observe" as value#0 : (I64) -> Unit ! Io
+      #|    runtime_import "lane.test"."observe" as value#0 : (I64) -> Unit ! Io
       #|  }
       #|  execution_order {
       #|    initialize value#1

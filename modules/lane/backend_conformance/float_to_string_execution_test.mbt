@@ -2,19 +2,7 @@
 fn run_float_format_wasm_interpreter(
   image : @physical.PhysicalProgram,
 ) -> Array[String] raise {
-  let output : Array[String] = []
-  let loaded = match
-    load_physical(image, effect_conformance_registry(output), mode=Interpreter) {
-    Ok(value) => value
-    Err(error) => fail("WebAssembly interpreter load failed: \{Repr(error)}")
-  }
-  let instance = match loaded.new_instance() {
-    Ok(value) => value
-    Err(error) =>
-      fail("WebAssembly interpreter instantiation failed: \{Repr(error)}")
-  }
-  assert_eq(instance.execute(), Ok(()))
-  output
+  run_effect_conformance(image, Interpreter)
 }
 
 ///|
@@ -23,7 +11,8 @@ test "floating-point strings are identical across all execution backends" {
     (
       #|module Main
       #|
-      #|let println : (String) -> Unit ! Io = extern("println")
+      #|import Basic.Io.{ println }
+      #|
       #|let f32_to_string : (F32) -> String = builtin("%f32_to_string")
       #|let f64_to_string : (F64) -> String = builtin("%f64_to_string")
       #|let f32_inf : F32 = builtin("%f32_inf")

@@ -6,7 +6,7 @@ test "compiler preserves I32 literal and arithmetic through executable lowering"
       #|
       #|let add : (I32, I32) -> I32 = builtin("%i32_add")
       #|let to_int : (I32) -> I64 = builtin("%i32_to_i64")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe")
       #|
       #|pub fn answer() -> Unit ! Io {
       #|  let minimum : I32 = -2147483648i32
@@ -97,10 +97,10 @@ test "compiler preserves I32 literal and arithmetic through executable lowering"
       #|    ),
       #|    RuntimeImport(
       #|      {
-      #|        abi_major: 1,
-      #|        parameters: [I64],
+      #|        module_name: "lane.test",
+      #|        field_name: "lane.test.observe",
+      #|        parameters: [Direct(I64)],
       #|        result: Unit,
-      #|        symbol: "lane.test.observe",
       #|      },
       #|    ),
       #|  ],

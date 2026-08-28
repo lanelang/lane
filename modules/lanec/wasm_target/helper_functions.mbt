@@ -52,12 +52,6 @@ fn compile_helper_function(
         I32WrapI64,
         catalog.runtime(ReleaseReference).call(),
       ]
-    DestroyHostObject =>
-      [
-        LocalGet(0),
-        I64Load(0, 3, 8L),
-        catalog.internal_import(HostObjectRelease).call(),
-      ]
     DestroyShape(shape~) =>
       destroy_shape_body(
         static_image,

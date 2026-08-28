@@ -469,7 +469,7 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
   let b_object = workspace + "/b.lmo"
   let c_interface = workspace + "/c.lmi"
   let c_object = workspace + "/c.lmo"
-  let linked_program = workspace + "/program.lbp"
+  let wasm = workspace + "/program.wasm"
   let a_compile = run_moon_lane([
     "compile", a_path, "-I", a_interface, "-o", a_object,
   ])
@@ -503,13 +503,13 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
     return c_compile
   }
   let link = run_moon_lane([
-    "link", "--entry", "C.main", "--output", linked_program, c_object,
+    "link", "--entry", "C.main", "--output", wasm, c_object,
     b_object, a_object,
   ])
   if link.code != 0 {
     return link
   }
-  run_moon_lane(["exec", linked_program])
+  run_moon_lane(["exec", wasm])
 }
 
 async fn run_moon_lane(lane_args : Array[String]) -> LaneRunResult {

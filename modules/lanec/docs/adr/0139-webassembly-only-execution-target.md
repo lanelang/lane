@@ -4,6 +4,10 @@
 
 Accepted.
 
+The executable-container and semantic runtime-manifest portions are superseded
+by the implemented WASI Preview 1 WebAssembly Target RFC. The sole-target and
+compiler-private Physical Program decisions remain in force.
+
 ## Context
 
 Lane previously exposed a persisted LoisVM bytecode image, an independent

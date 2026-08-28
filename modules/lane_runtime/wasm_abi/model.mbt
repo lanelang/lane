@@ -3,7 +3,6 @@ pub(all) enum InternalRuntimeFunction {
   F32ToString
   F64ToString
   FatalString
-  HostObjectRelease
 } derive(Debug, Eq)
 
 ///|
@@ -12,8 +11,13 @@ pub fn module_name() -> String {
 }
 
 ///|
+pub fn float_text_capacity() -> Int {
+  32
+}
+
+///|
 pub fn functions() -> Array[InternalRuntimeFunction] {
-  [F32ToString, F64ToString, FatalString, HostObjectRelease]
+  [F32ToString, F64ToString, FatalString]
 }
 
 ///|
@@ -22,7 +26,6 @@ pub fn InternalRuntimeFunction::name(self : InternalRuntimeFunction) -> String {
     F32ToString => "f32_to_string"
     F64ToString => "f64_to_string"
     FatalString => "fatal_string"
-    HostObjectRelease => "host_object.release"
   }
 }
 
@@ -31,10 +34,9 @@ pub fn InternalRuntimeFunction::type_(
   self : InternalRuntimeFunction,
 ) -> @wasm_types.FuncType {
   match self {
-    F32ToString => { params: [F32], results: [I32], }
-    F64ToString => { params: [F64], results: [I32], }
+    F32ToString => { params: [F32, I32], results: [I32], }
+    F64ToString => { params: [F64, I32], results: [I32], }
     FatalString => { params: [I32, I32], results: [], }
-    HostObjectRelease => { params: [I64], results: [], }
   }
 }
 
@@ -43,7 +45,6 @@ pub(all) enum RuntimeControlGlobal {
   MaxLiveHeapBytes
   MaxCallDepth
   FailureCode
-  RuntimeImportFailed
 } derive(Debug, Eq)
 
 ///|
@@ -52,95 +53,10 @@ pub fn RuntimeControlGlobal::name(self : RuntimeControlGlobal) -> String {
     MaxLiveHeapBytes => "lane.runtime.control.max_live_heap_bytes"
     MaxCallDepth => "lane.runtime.control.max_call_depth"
     FailureCode => "lane.runtime.control.failure_code"
-    RuntimeImportFailed => "lane.runtime.control.runtime_import_failed"
   }
 }
 
 ///|
 pub fn runtime_control_globals() -> Array[RuntimeControlGlobal] {
-  [MaxLiveHeapBytes, MaxCallDepth, FailureCode, RuntimeImportFailed]
-}
-
-///|
-pub fn runtime_import_parameters(
-  import_ : @lane_runtime.RuntimeImport,
-) -> Array[@wasm_types.ValueType] {
-  let parameters : Array[@wasm_types.ValueType] = []
-  for kind in import_.parameters {
-    match kind {
-      Unit => ()
-      Bool => parameters.push(I32)
-      I64 => parameters.push(I64)
-      F64 => parameters.push(F64)
-      F32 => parameters.push(F32)
-      Opaque => parameters.push(I64)
-      String => {
-        parameters.push(I32)
-        parameters.push(I32)
-      }
-    }
-  }
-  parameters
-}
-
-///|
-pub fn runtime_import_results(
-  import_ : @lane_runtime.RuntimeImport,
-) -> Array[@wasm_types.ValueType] {
-  match import_.result {
-    Unit => []
-    Bool | String | Opaque => [I32]
-    I64 => [I64]
-    F64 => [F64]
-    F32 => [F32]
-  }
-}
-
-///|
-pub(all) enum RuntimeService {
-  StringNew
-  HostObjectNew
-} derive(Debug, Eq)
-
-///|
-pub fn runtime_services() -> Array[RuntimeService] {
-  [StringNew, HostObjectNew]
-}
-
-///|
-pub fn RuntimeService::name(self : RuntimeService) -> String {
-  match self {
-    StringNew => "lane.runtime.string.new"
-    HostObjectNew => "lane.runtime.host_object.new"
-  }
-}
-
-///|
-pub fn RuntimeService::type_(self : RuntimeService) -> @wasm_types.FuncType {
-  match self {
-    StringNew => { params: [I32], results: [I32], }
-    HostObjectNew => { params: [I64], results: [I32], }
-  }
-}
-
-///|
-pub fn RuntimeService::required_by_import_result(
-  self : RuntimeService,
-  result : @lane_runtime.RuntimeValueKind,
-) -> Bool {
-  match (self, result) {
-    (StringNew, String) | (HostObjectNew, Opaque) => true
-    _ => false
-  }
-}
-
-///|
-pub fn RuntimeService::required_by_internal_import(
-  self : RuntimeService,
-  function : InternalRuntimeFunction,
-) -> Bool {
-  match (self, function) {
-    (StringNew, F32ToString | F64ToString) => true
-    _ => false
-  }
+  [MaxLiveHeapBytes, MaxCallDepth, FailureCode]
 }

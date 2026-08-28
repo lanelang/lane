@@ -335,10 +335,11 @@ Both Wasm engine modes implement identical valid-input behavior:
   failure boundary only for allocations that remain after optimization and are
   actually executed.
 
-The linked program carries only the current WebAssembly format and semantic
-runtime-import manifest. Adding primitives or changing persisted semantic
-contracts advances the affected Buslane or artifact schema versions. Decoders
-reject older versions instead of adding legacy branches.
+The linked executable is a raw WebAssembly module. Adding primitives or
+changing persisted semantic contracts advances the affected interface or
+module-object schema versions; executable compatibility is governed by the Lane
+WebAssembly profile. Decoders reject older Lane artifact versions instead of
+adding legacy branches.
 
 ## Standard-library boundary
 

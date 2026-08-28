@@ -68,7 +68,6 @@ pub(all) enum SemanticValueKind {
   ByteSequenceValue
   DataValue(DataFamilyId)
   EnvironmentValue(ObjectShapeId)
-  OpaqueReferenceValue
   ErasedValue
 } derive(Debug, Eq)
 
@@ -214,6 +213,7 @@ pub(all) enum Instruction {
   ByteSequenceConcat(SlotId, SlotId, SlotId)
   ByteSequenceSlice(SlotId, SlotId, SlotId, SlotId)
   ByteSequenceIsValidUtf8(SlotId, SlotId)
+  WasiFdWrite(SlotId, SlotId, SlotId)
   I32Add(SlotId, SlotId, SlotId)
   I32Sub(SlotId, SlotId, SlotId)
   I32Mul(SlotId, SlotId, SlotId)
@@ -325,7 +325,7 @@ pub(all) struct FunctionBody {
 ///|
 pub(all) enum FunctionEntry {
   PhysicalBody(FunctionBody)
-  RuntimeImport(@runtime.RuntimeImport)
+  RuntimeImport(@wasm_abi.ImportContract)
 } derive(Debug, Eq)
 
 ///|

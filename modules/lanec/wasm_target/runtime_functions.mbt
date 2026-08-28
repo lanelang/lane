@@ -61,14 +61,6 @@ fn compile_runtime_function(
           catalog.runtime(ReleaseReference),
         ),
       }
-    HostObjectNew =>
-      {
-        locals: [I32],
-        body: host_object_new_body(
-          catalog.runtime(Allocate),
-          static_image.reference_layout_id,
-        ),
-      }
     ByteSequenceMake =>
       {
         locals: [I32, I32, I32],
@@ -389,28 +381,6 @@ fn require_byte_sequence_layout_body(
     I32Const(byte_sequence_layout_id),
     I32Ne,
     If(Empty, [Unreachable], []),
-  ]
-}
-
-///|
-fn host_object_new_body(
-  allocate_function : WasmFunctionHandle,
-  reference_layout_id : Int,
-) -> Array[@wasm_types.Instruction] {
-  [
-    I32Const(16),
-    allocate_function.call(),
-    LocalSet(1),
-    LocalGet(1),
-    I32Const(1),
-    I32Store(0, 2, 0L),
-    LocalGet(1),
-    I32Const(reference_layout_id),
-    I32Store(0, 2, 4L),
-    LocalGet(1),
-    LocalGet(0),
-    I64Store(0, 3, 8L),
-    LocalGet(1),
   ]
 }
 

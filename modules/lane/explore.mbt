@@ -296,17 +296,21 @@ fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
     RepresentationWorker => "representation worker"
     CallableAdapter(..) => "structural callable adapter"
     LayoutConstructor => "layout constructor"
-    RuntimeImport(value~, name~, symbol~) => {
+    RuntimeImport(value~, name~, module_name~, field_name~) => {
       let source = match name {
         Some(name) => "\{name} (value#\{value})"
         None => "value#\{value}"
       }
-      "runtime import \{symbol} for \{source}"
+      "runtime import \{module_name}.\{field_name} for \{source}"
     }
     InternalRuntimeImport(name~) => "internal runtime import \{name}"
-    PhysicalRuntimeImport(symbol~) => "physical runtime import \{symbol}"
+    WasiPreview1Import(module_name~, field_name~) =>
+      "WASI Preview 1 import \{module_name}.\{field_name}"
+    PhysicalRuntimeImport(module_name~, field_name~) =>
+      "physical runtime import \{module_name}.\{field_name}"
     WasmPhysicalFunction => "WebAssembly body for physical function"
-    RuntimeImportAdapter(symbol~) => "runtime import adapter \{symbol}"
+    RuntimeImportAdapter(module_name~, field_name~) =>
+      "runtime import adapter \{module_name}.\{field_name}"
     WasmRuntimeFunction(name~) => "Wasm runtime function \{name}"
     WasmHelperFunction(name~, ordinal~) =>
       match ordinal {

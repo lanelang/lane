@@ -38,7 +38,7 @@ test "compiler erases representation-identical Char conversion" {
       #|
       #|let char_to_i32 : (Char) -> I32 = builtin("%char_to_i32")
       #|let i32_to_int : (I32) -> I64 = builtin("%i32_to_i64")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe")
       #|
       #|pub fn answer() -> Unit ! Io {
       #|  observe(i32_to_int(char_to_i32('😀')))
@@ -93,10 +93,10 @@ test "compiler erases representation-identical Char conversion" {
       #|    ),
       #|    RuntimeImport(
       #|      {
-      #|        abi_major: 1,
-      #|        parameters: [I64],
+      #|        module_name: "lane.test",
+      #|        field_name: "lane.test.observe",
+      #|        parameters: [Direct(I64)],
       #|        result: Unit,
-      #|        symbol: "lane.test.observe",
       #|      },
       #|    ),
       #|  ],

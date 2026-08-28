@@ -15,8 +15,7 @@ fn @bytecodec.ByteReader::read_externals(
   for _ in 0..<self.read_u32_le_int() {
     runtime_imports.push({
       value: self.read_buslane_value_id(),
-      symbol: self.read_string(),
-      signature: self.read_host_signature(),
+      contract: self.read_wasm_import_contract(),
     })
   }
   { builtins, runtime_imports, }
@@ -272,6 +271,10 @@ fn @bytecodec.ByteReader::read_intrinsic(
       self.update_view(rest)
       F64ToString
     }
+    [u8be(61), .. rest] => {
+      self.update_view(rest)
+      WasiFdWrite
+    }
     [u8be(tag), .. rest] => {
       self.update_view(rest)
       invalid_binary_tag(
@@ -285,20 +288,65 @@ fn @bytecodec.ByteReader::read_intrinsic(
 }
 
 ///|
-fn @bytecodec.ByteReader::read_host_signature(
+fn @bytecodec.ByteReader::read_wasm_import_contract(
   self : @bytecodec.ByteReader,
-) -> @abi.HostSignature raise {
+) -> @wasm_abi.ImportContract raise {
   let parameters = []
+  let module_name = self.read_string()
+  let field_name = self.read_string()
   for _ in 0..<self.read_u32_le_int() {
-    parameters.push(self.read_host_value_kind())
+    parameters.push(self.read_wasm_import_parameter())
   }
-  { parameters, result: self.read_host_value_kind(), }
+  {
+    module_name,
+    field_name,
+    parameters,
+    result: self.read_wasm_import_result(),
+  }
 }
 
 ///|
-fn @bytecodec.ByteReader::read_host_value_kind(
+fn @bytecodec.ByteReader::read_wasm_import_parameter(
   self : @bytecodec.ByteReader,
-) -> @abi.ValueKind raise {
+) -> @wasm_abi.ImportParameter raise {
+  let offset = self.offset()
+  match self.view() {
+    [u8be(0), .. rest] => {
+      self.update_view(rest)
+      ErasedUnit
+    }
+    [u8be(1), .. rest] => {
+      self.update_view(rest)
+      Direct(I32)
+    }
+    [u8be(2), .. rest] => {
+      self.update_view(rest)
+      Direct(I64)
+    }
+    [u8be(3), .. rest] => {
+      self.update_view(rest)
+      Direct(F32)
+    }
+    [u8be(4), .. rest] => {
+      self.update_view(rest)
+      Direct(F64)
+    }
+    [u8be(tag), .. rest] => {
+      self.update_view(rest)
+      invalid_binary_tag(
+        offset~,
+        domain="WasmImportParameter",
+        tag=tag.reinterpret_as_int(),
+      )
+    }
+    _ => unexpected_u8(self)
+  }
+}
+
+///|
+fn @bytecodec.ByteReader::read_wasm_import_result(
+  self : @bytecodec.ByteReader,
+) -> @wasm_abi.ImportResult raise {
   let offset = self.offset()
   match self.view() {
     [u8be(0), .. rest] => {
@@ -307,33 +355,25 @@ fn @bytecodec.ByteReader::read_host_value_kind(
     }
     [u8be(1), .. rest] => {
       self.update_view(rest)
-      Bool
+      Direct(I32)
     }
     [u8be(2), .. rest] => {
       self.update_view(rest)
-      I64
+      Direct(I64)
     }
     [u8be(3), .. rest] => {
       self.update_view(rest)
-      F64
+      Direct(F32)
     }
     [u8be(4), .. rest] => {
       self.update_view(rest)
-      String
-    }
-    [u8be(5), .. rest] => {
-      self.update_view(rest)
-      Opaque
-    }
-    [u8be(6), .. rest] => {
-      self.update_view(rest)
-      F32
+      Direct(F64)
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)
       invalid_binary_tag(
         offset~,
-        domain="HostValueKind",
+        domain="WasmImportResult",
         tag=tag.reinterpret_as_int(),
       )
     }

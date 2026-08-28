@@ -270,7 +270,7 @@ fn collect_expression_identifier_roles(
     | BoolLiteral(_)
     | UnitLiteral(_)
     | Builtin(_)
-    | Extern(_) => ()
+    | Extern(..) => ()
     Var(_, loc~) => push_syntactic_identifier_role(slots, loc, ValueIdentifier)
     QualifiedVariant(
       owner~,

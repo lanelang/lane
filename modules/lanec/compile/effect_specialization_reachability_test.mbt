@@ -183,8 +183,8 @@ test "effect specialization retains only reachable externals" {
       (
         #|module Main
         #|
-        #|pub let reachable_host : () -> Unit = extern("reachable")
-        #|let unreachable_host : () -> Unit = extern("unreachable")
+        #|pub let reachable_host : () -> Unit = extern("lane.test", "reachable")
+        #|let unreachable_host : () -> Unit = extern("lane.test", "unreachable")
         #|
         #|pub fn answer() -> Unit {
         #|  reachable_host()

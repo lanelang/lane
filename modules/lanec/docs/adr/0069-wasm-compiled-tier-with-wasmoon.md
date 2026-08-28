@@ -1,5 +1,9 @@
 # Wasm compiled tier with Wasmoon
 
+> **Partially superseded.** WebAssembly is now the sole execution target and
+> linked executables are raw modules. Historical Wasmoon engine rationale
+> remains applicable where it does not depend on the deleted bytecode runtime.
+
 The ASCII String transport assumption in this ADR is superseded by ADR 0124's valid UTF-8 ByteSequence and host ABI contract.
 
 Lane uses WebAssembly, rather than MilkIR, as the compiled representation below LoisVM bytecode. The compiled pipeline is `linked Buslane/core -> LoisVM bytecode -> WebAssembly module -> WebAssembly engine`. LoisVM bytecode remains the common executable input: `loisvm/interp` executes it directly, while the Wasm backend decodes the same trusted image and lowers it to WebAssembly. The backend does not bypass bytecode by consuming compiler-private Buslane, ANF, or VM CFG representations.

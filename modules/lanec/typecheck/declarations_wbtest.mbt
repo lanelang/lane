@@ -276,8 +276,8 @@ test "typecheck distinguishes compiler intrinsics from extern bindings" {
   let result = expect_checked_source_result(
     (
       #|let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
-      #|let host_clock : () -> I64 = extern("clock")
-      #|let host_println : (String) -> Unit ! Io = extern("println")
+      #|let host_clock : () -> I64 = extern("lane.test", "clock")
+      #|let host_write : (I32) -> Unit ! Io = extern("lane.test", "write")
     ),
   )
   guard result.source is Some(source) else { abort("expected checked source") }
@@ -286,19 +286,29 @@ test "typecheck distinguishes compiler intrinsics from extern bindings" {
     abort("expected compiler intrinsic")
   }
   guard source.declarations[1]
-    is Let({ initializer: ExternBinding(signature=pure_signature, ..), .. }) else {
+    is Let({ initializer: ExternBinding(contract=pure_contract, ..), .. }) else {
     abort("expected pure extern binding")
   }
   guard source.declarations[2]
-    is Let({ initializer: ExternBinding(signature=io_signature, ..), .. }) else {
+    is Let({ initializer: ExternBinding(contract=io_contract, ..), .. }) else {
     abort("expected Io extern binding")
   }
   debug_inspect(
-    [pure_signature, io_signature],
+    [pure_contract, io_contract],
     content=(
       #|[
-      #|  { parameters: [], result: I64 },
-      #|  { parameters: [String], result: Unit },
+      #|  {
+      #|    module_name: "lane.test",
+      #|    field_name: "clock",
+      #|    parameters: [],
+      #|    result: Direct(I64),
+      #|  },
+      #|  {
+      #|    module_name: "lane.test",
+      #|    field_name: "write",
+      #|    parameters: [Direct(I32)],
+      #|    result: Unit,
+      #|  },
       #|]
     ),
   )
@@ -315,14 +325,14 @@ test "typecheck rejects unsupported extern ABI shapes" {
       #|struct Box {
       #|  value : I64
       #|}
-      #|let scalar : I64 = extern("scalar")
-      #|let generic : [A](A) -> A = extern("generic")
-      #|let aggregate_parameter : (Box) -> I64 = extern("aggregate_parameter")
-      #|let aggregate_result : () -> Box = extern("aggregate_result")
+      #|let scalar : I64 = extern("lane.test", "scalar")
+      #|let generic : [A](A) -> A = extern("lane.test", "generic")
+      #|let aggregate_parameter : (Box) -> I64 = extern("lane.test", "aggregate_parameter")
+      #|let aggregate_result : () -> Box = extern("lane.test", "aggregate_result")
       #|fn[E : Effect] open_effect() -> (I64) -> I64 ! E {
-      #|  extern("open_effect")
+      #|  extern("lane.test", "open_effect")
       #|}
-      #|let algebraic_effect : () -> Unit ! Log = extern("algebraic_effect")
+      #|let algebraic_effect : () -> Unit ! Log = extern("lane.test", "algebraic_effect")
     ),
   )
   debug_inspect(
@@ -331,22 +341,22 @@ test "typecheck rejects unsupported extern ABI shapes" {
       #|[
       #|  {
       #|    kind: InvalidExternType(
-      #|      name="scalar",
+      #|      name="lane.test.scalar",
       #|      type_=Primitive(I64),
       #|      restriction=FunctionRequired,
       #|    ),
       #|    loc: {
       #|      start_offset: 99,
-      #|      end_offset: 115,
+      #|      end_offset: 128,
       #|      start_line: 8,
       #|      start_column: 20,
       #|      end_line: 8,
-      #|      end_column: 36,
+      #|      end_column: 49,
       #|    },
       #|  },
       #|  {
       #|    kind: InvalidExternType(
-      #|      name="generic",
+      #|      name="lane.test.generic",
       #|      type_=Forall(
       #|        [{ id: { index: 0 }, name: "A", kind: Type }],
       #|        Function([Parameter({ index: 0 })], Parameter({ index: 0 }), Empty),
@@ -354,72 +364,72 @@ test "typecheck rejects unsupported extern ABI shapes" {
       #|      restriction=MonomorphicRequired,
       #|    ),
       #|    loc: {
-      #|      start_offset: 144,
-      #|      end_offset: 161,
+      #|      start_offset: 157,
+      #|      end_offset: 187,
       #|      start_line: 9,
       #|      start_column: 29,
       #|      end_line: 9,
-      #|      end_column: 46,
+      #|      end_column: 59,
       #|    },
       #|  },
       #|  {
       #|    kind: InvalidExternType(
-      #|      name="aggregate_parameter",
+      #|      name="lane.test.aggregate_parameter",
       #|      type_=Function([Constructor({ index: 0 })], Primitive(I64), Empty),
       #|      restriction=DirectParameterRequired(index=0),
       #|    ),
       #|    loc: {
-      #|      start_offset: 203,
-      #|      end_offset: 232,
+      #|      start_offset: 229,
+      #|      end_offset: 271,
       #|      start_line: 10,
       #|      start_column: 42,
       #|      end_line: 10,
-      #|      end_column: 71,
+      #|      end_column: 84,
       #|    },
       #|  },
       #|  {
       #|    kind: InvalidExternType(
-      #|      name="aggregate_result",
+      #|      name="lane.test.aggregate_result",
       #|      type_=Function([], Constructor({ index: 0 }), Empty),
       #|      restriction=DirectResultRequired,
       #|    ),
       #|    loc: {
-      #|      start_offset: 268,
-      #|      end_offset: 294,
+      #|      start_offset: 307,
+      #|      end_offset: 346,
       #|      start_line: 11,
       #|      start_column: 36,
       #|      end_line: 11,
-      #|      end_column: 62,
+      #|      end_column: 75,
       #|    },
       #|  },
       #|  {
       #|    kind: InvalidExternType(
-      #|      name="open_effect",
+      #|      name="lane.test.open_effect",
       #|      type_=Function([Primitive(I64)], Primitive(I64), Parameter({ index: 1 })),
       #|      restriction=ExternalEffectRowRequired,
       #|    ),
       #|    loc: {
-      #|      start_offset: 348,
-      #|      end_offset: 369,
+      #|      start_offset: 400,
+      #|      end_offset: 434,
       #|      start_line: 13,
       #|      start_column: 3,
       #|      end_line: 13,
-      #|      end_column: 24,
+      #|      end_column: 37,
       #|    },
       #|  },
       #|  {
       #|    kind: InvalidExternType(
-      #|      name="algebraic_effect",
+      #|      name="lane.test.algebraic_effect",
       #|      type_=Function([], Primitive(Unit), Singleton({ index: 0 }, [])),
       #|      restriction=ExternalEffectRowRequired,
       #|    ),
       #|    loc: {
-      #|      start_offset: 414,
-      #|      end_offset: 440,
+      #|      start_offset: 479,
+      #|      end_offset: 518,
       #|      start_line: 15,
       #|      start_column: 43,
       #|      end_line: 15,
-      #|      end_column: 69,
+      #|      end_column: 82,
       #|    },
       #|  },
       #|]
@@ -434,7 +444,7 @@ test "invalid extern ABI produces checked error recovery" {
       #|struct Box {
       #|  value : I64
       #|}
-      #|let bad : (Box) -> I64 = extern("bad")
+      #|let bad : (Box) -> I64 = extern("lane.test", "bad")
     ),
     "bad",
     Function([Constructor({ index: 0, })], Primitive(I64), Empty),
@@ -443,14 +453,14 @@ test "invalid extern ABI produces checked error recovery" {
 }
 
 ///|
-test "typecheck accepts external types and closed external effect rows" {
+test "typecheck accepts external type declarations and scalar external effects" {
   let result = expect_checked_source_result(
     (
       #|extern type Fd : Type
       #|extern type VectorOp[A : Type] : Effect
       #|type Handle = Fd
-      #|let open_fd : (String) -> Fd ! VectorOp[I64] = extern("fd.open")
-      #|let close_fd : (Handle) -> Unit ! { VectorOp[I64], Io } = extern("fd.close")
+      #|let read_fd : (I64) -> I64 ! VectorOp[I64] = extern("lane.test", "fd.read")
+      #|let close_fd : (I64) -> Unit ! { VectorOp[I64], Io } = extern("lane.test", "fd.close")
     ),
   )
   inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")

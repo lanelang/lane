@@ -1,6 +1,6 @@
 import {
   "Milky2018/lanec/physical",
-  "Milky2018/lane_runtime" @runtime,
+  "Milky2018/lane_wasm_abi" @wasm_abi,
   "moonbit-community/prettyprinter",
   "moonbitlang/core/encoding/utf8",
 }

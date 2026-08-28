@@ -227,9 +227,9 @@ fn SemanticChecker::check_checked_expr_with_expectation(
   match expression {
     Builtin(name, loc~) =>
       self.check_compiler_intrinsic(name, expectation.type_, loc)
-    Extern(name, loc~) =>
+    Extern(module_name~, field_name~, loc~) =>
       self
-      .check_extern_binding(name, expectation.type_, loc)
+      .check_extern_binding(module_name, field_name, expectation.type_, loc)
       .with_expectation_match(MatchesExpectation)
     ErrorRecovery(loc~) =>
       checked_expression(
@@ -481,7 +481,8 @@ fn SemanticChecker::synthesize_checked_expr(
         loc,
       )
     Builtin(name, loc~) => self.synthesize_compiler_intrinsic(name, loc)
-    Extern(name, loc~) => self.synthesize_extern_binding(name, loc)
+    Extern(module_name~, field_name~, loc~) =>
+      self.synthesize_extern_binding(module_name, field_name, loc)
     ErrorRecovery(..) => checked_expression_none_reported(Error)
   }
 }

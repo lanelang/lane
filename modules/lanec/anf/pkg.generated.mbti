@@ -378,7 +378,6 @@ pub(all) enum RuntimeType {
   Unit
   Scalar(RuntimeScalarType)
   ByteSequence
-  OpaqueReference(@buslane.TypeId)
   Data(@buslane.TypeId, Array[RuntimeArgument])
   Callable(Array[RuntimeType], RuntimeType)
   Erased(RuntimeTypeExpressionId, RuntimeEvidence)

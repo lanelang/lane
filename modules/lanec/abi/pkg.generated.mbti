@@ -118,6 +118,7 @@ pub(all) enum Intrinsic {
   BytesLength
   BytesGet
   BytesSet
+  WasiFdWrite
 } derive(Eq, @debug.Debug)
 pub fn Intrinsic::equal(Self, Self) -> Bool
 pub fn Intrinsic::from_name(String) -> Self?
@@ -175,7 +176,6 @@ pub(all) enum ValueKind {
   F64
   F32
   String
-  Opaque
 } derive(Eq, @debug.Debug)
 pub fn ValueKind::equal(Self, Self) -> Bool
 pub fn ValueKind::not_equal(Self, Self) -> Bool

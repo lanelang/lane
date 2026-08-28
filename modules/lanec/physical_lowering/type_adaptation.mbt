@@ -123,7 +123,7 @@ fn collect_free_runtime_type_parameters(
   parameters : Array[@anf.RuntimeEvidenceParameter],
 ) -> Unit {
   match type_ {
-    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) => ()
+    Unit | Scalar(_) | ByteSequence => ()
     Erased(_, evidence) =>
       collect_free_runtime_evidence(image, evidence, bound, parameters)
     Data(_, _) => ()

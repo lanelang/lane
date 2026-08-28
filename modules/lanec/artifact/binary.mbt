@@ -8,13 +8,6 @@ let artifact_binary_kind_interface = 1
 let artifact_binary_kind_object = 2
 
 ///|
-let artifact_binary_kind_program = 3
-
-///|
-/// Selects the only linked-program payload accepted or emitted by this codec.
-let linked_program_artifact_schema_version = 17
-
-///|
 priv struct BinaryArtifactPayload {
   kind : Int
   payload : Bytes
@@ -48,10 +41,6 @@ pub fn artifact_binary_to_inspect_text(bytes : Bytes) -> Result[String, String] 
       kind if kind == artifact_binary_kind_object =>
         artifact_to_inspect_text(
           decode_module_object_artifact_payload(decoded.payload),
-        )
-      kind if kind == artifact_binary_kind_program =>
-        artifact_to_inspect_text(
-          decode_linked_program_artifact_payload(decoded.payload),
         )
       kind => raise InvalidKind(kind~)
     }
@@ -116,35 +105,6 @@ pub fn parse_module_object_artifact_binary(
 }
 
 ///|
-/// Deterministically encodes the final Wasm module and its semantic host-import
-/// manifest. Wasm validation belongs to executable production and loading.
-pub fn linked_program_artifact_to_binary(
-  artifact : LinkedProgramArtifact,
-) -> Bytes {
-  let writer = @bytecodec.ByteWriter::new()
-  writer.write_u32_le_int(linked_program_artifact_schema_version)
-  writer.write_u32_le_int(artifact.runtime_imports.length())
-  for import_ in artifact.runtime_imports {
-    writer.write_runtime_import(import_)
-  }
-  writer.write_bytes(artifact.wasm)
-  artifact_payload_to_binary(artifact_binary_kind_program, writer.to_bytes())
-}
-
-///|
-/// Decodes linked-program framing. Wasm parsing, validation and import binding
-/// are performed atomically by the execution target when the artifact is used.
-pub fn parse_linked_program_artifact_binary(
-  bytes : Bytes,
-) -> Result[LinkedProgramArtifact, String] {
-  artifact_binary_decode_result(fn() raise {
-    decode_linked_program_artifact_payload(
-      binary_artifact_payload(bytes, expected_kind=artifact_binary_kind_program),
-    )
-  })
-}
-
-///|
 fn artifact_payload_to_binary(kind : Int, payload : Bytes) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_raw_bytes(artifact_binary_magic())
@@ -172,8 +132,7 @@ fn decode_artifact_container(bytes : Bytes) -> BinaryArtifactPayload raise {
   }
   let kind = header.kind
   if kind != artifact_binary_kind_interface &&
-    kind != artifact_binary_kind_object &&
-    kind != artifact_binary_kind_program {
+    kind != artifact_binary_kind_object {
     raise InvalidKind(kind~)
   }
   if header.payload_length < 0 || header.body.length() < header.payload_length {
@@ -256,8 +215,6 @@ fn artifact_binary_kind_name(kind : Int) -> String {
     "interface"
   } else if kind == artifact_binary_kind_object {
     "object"
-  } else if kind == artifact_binary_kind_program {
-    "program"
   } else {
     "unknown(\{kind})"
   }
@@ -360,88 +317,4 @@ fn decode_module_object_artifact_payload(
   }
   reader.expect_end()
   artifact
-}
-
-///|
-fn decode_linked_program_artifact_payload(
-  payload : Bytes,
-) -> LinkedProgramArtifact raise {
-  let reader = @bytecodec.ByteReader::from_bytes(payload)
-  let schema_version = reader.read_u32_le_int()
-  if schema_version != linked_program_artifact_schema_version {
-    raise UnsupportedArtifactSchema(kind="program", version=schema_version)
-  }
-  let runtime_imports = []
-  for _ in 0..<reader.read_u32_le_int() {
-    runtime_imports.push(reader.read_runtime_import())
-  }
-  let wasm = reader.read_bytes()
-  reader.expect_end()
-  { wasm, runtime_imports, }
-}
-
-///|
-fn @bytecodec.ByteWriter::write_runtime_import(
-  self : @bytecodec.ByteWriter,
-  import_ : @lane_runtime.RuntimeImport,
-) -> Unit {
-  self.write_u32_le_int(import_.abi_major)
-  self.write_u32_le_int(import_.parameters.length())
-  for parameter in import_.parameters {
-    self.write_runtime_value_kind(parameter)
-  }
-  self.write_runtime_value_kind(import_.result)
-  self.write_string(import_.symbol)
-}
-
-///|
-fn @bytecodec.ByteWriter::write_runtime_value_kind(
-  self : @bytecodec.ByteWriter,
-  kind : @lane_runtime.RuntimeValueKind,
-) -> Unit {
-  self.write_u8(
-    match kind {
-      Unit => 0x00
-      Bool => 0x01
-      I64 => 0x02
-      F64 => 0x03
-      String => 0x04
-      Opaque => 0x05
-      F32 => 0x06
-    },
-  )
-}
-
-///|
-fn @bytecodec.ByteReader::read_runtime_import(
-  self : @bytecodec.ByteReader,
-) -> @lane_runtime.RuntimeImport raise {
-  let abi_major = self.read_u32_le_int()
-  let parameters = []
-  for _ in 0..<self.read_u32_le_int() {
-    parameters.push(self.read_runtime_value_kind())
-  }
-  {
-    abi_major,
-    parameters,
-    result: self.read_runtime_value_kind(),
-    symbol: self.read_string(),
-  }
-}
-
-///|
-fn @bytecodec.ByteReader::read_runtime_value_kind(
-  self : @bytecodec.ByteReader,
-) -> @lane_runtime.RuntimeValueKind raise {
-  let offset = self.offset()
-  match self.read_u8() {
-    0x00 => Unit
-    0x01 => Bool
-    0x02 => I64
-    0x03 => F64
-    0x04 => String
-    0x05 => Opaque
-    0x06 => F32
-    tag => invalid_binary_tag(offset~, domain="runtime value kind", tag~)
-  }
 }

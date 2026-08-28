@@ -1,0 +1,8 @@
+module InvalidExternalHostObjectValues
+
+extern type Vector : Type
+
+extern type VectorIo : Effect
+
+// WASI Preview 1 has no portable opaque host-object value representation.
+let vector_new : (I64) -> Vector ! VectorIo = extern("lane.test", "vector.new")

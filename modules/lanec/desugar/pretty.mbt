@@ -203,7 +203,13 @@ pub impl @prettyprinter.Pretty for DesugaredExpr with fn pretty(
       @pretty.bracketed_inline([capability.pretty(), target.pretty()]) +
       @pretty.parenthesized_inline(arguments.map(DesugaredCallArgument::pretty))
     Builtin(name, ..) => text("builtin") + text("(") + text(name) + text(")")
-    Extern(name, ..) => text("extern") + text("(") + text(name) + text(")")
+    Extern(module_name~, field_name~, ..) =>
+      text("extern") +
+      text("(") +
+      text(module_name) +
+      text(", ") +
+      text(field_name) +
+      text(")")
     ErrorRecovery(..) => text("<error-recovery>")
     FunctionLiteral(
       type_parameters~,

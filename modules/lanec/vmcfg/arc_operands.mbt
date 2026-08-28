@@ -283,6 +283,7 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
     | F64ToF32(_, _)
     | F32ToString(_, _)
     | F64ToString(_, _)
+    | WasiFdWrite(_, _, _)
     | EraseUnit(_)
     | BorrowGlobal(_, _) =>
       {

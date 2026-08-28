@@ -63,23 +63,6 @@ pub impl @prettyprinter.Pretty for ModuleObjectArtifact with fn pretty(
 }
 
 ///|
-pub impl @prettyprinter.Pretty for LinkedProgramArtifact with fn pretty(
-  artifact : LinkedProgramArtifact,
-) -> Document {
-  let imports = artifact.runtime_imports.map(import_ => {
-    text(
-      "\{import_.symbol}@\{import_.abi_major}: \{Repr(import_.parameters)} -> \{Repr(import_.result)}",
-    )
-  })
-  separate(@prettyprinter.hardline, [
-    text("Lane WebAssembly program artifact"),
-    text("schema: \{linked_program_artifact_schema_version}"),
-    text("wasm bytes: \{artifact.wasm.length()}"),
-    section_doc("runtime imports:", imports),
-  ])
-}
-
-///|
 fn artifact_header_doc(
   kind : String,
   schema_version : Int,
@@ -627,7 +610,7 @@ fn BuslaneInspectContext::runtime_import_text(
   self : BuslaneInspectContext,
   import_ : @buslane_lowering.BuslaneRuntimeImport,
 ) -> String {
-  "\{import_.symbol} : \{self.source_type_text(import_.value)}"
+  "\{import_.contract.module_name}.\{import_.contract.field_name} : \{self.source_type_text(import_.value)}"
 }
 
 ///|

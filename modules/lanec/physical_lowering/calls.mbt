@@ -527,6 +527,7 @@ fn FunctionLowerer::lower_intrinsic(
     | BytesIsValidUtf8
     | F32ToString
     | F64ToString => ignore(self.image.intern_layout(ByteSequence))
+    WasiFdWrite => ignore(self.image.intern_layout(ByteSequence))
     _ => ()
   }
   let slots = arguments.map(fn(argument) {
@@ -589,6 +590,7 @@ fn FunctionLowerer::lower_intrinsic(
     (BytesSlice, [source, start, length]) =>
       ByteSequenceSlice(destination, source, start, length)
     (BytesIsValidUtf8, [source]) => ByteSequenceIsValidUtf8(destination, source)
+    (WasiFdWrite, [fd, bytes]) => WasiFdWrite(destination, fd, bytes)
     _ => raise UnsupportedIntrinsic(name=intrinsic.name())
   }
   self.emit(instruction)

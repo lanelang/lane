@@ -91,8 +91,12 @@ test "whole-program elaboration records ordered reachable initializer roots" {
       runtime_imports: [
         {
           value: observe,
-          symbol: "observe",
-          signature: { parameters: [I64], result: Unit, },
+          contract: {
+            module_name: "lane.test",
+            field_name: "observe",
+            parameters: [Direct(I64)],
+            result: Unit,
+          },
         },
       ],
     },
@@ -108,12 +112,8 @@ test "whole-program elaboration records ordered reachable initializer roots" {
 test "whole-program elaboration accepts an Io entry without a root handler" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
-  let string_type = @buslane.Type::Primitive(String)
-  let println_type = @buslane.Type::Function(
-    [string_type],
-    unit_type,
-    Builtin(Io),
-  )
+  let i64_type = @buslane.Type::Primitive(I64)
+  let println_type = @buslane.Type::Function([i64_type], unit_type, Builtin(Io))
   let main_type = @buslane.Type::Function([], unit_type, Builtin(Io))
   let println = metadata.define_value("println", External, println_type)
   let main = metadata.define_value("main", Function, main_type)
@@ -124,7 +124,7 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       External(println),
       Let(
         main,
-        pure_function(unit_type, Call(Ref(println), [Literal(String("hello"))])),
+        pure_function(unit_type, Call(Ref(println), [Literal(I64(42L))])),
       ),
     ]),
     externals: {
@@ -132,8 +132,12 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       runtime_imports: [
         {
           value: println,
-          symbol: "println",
-          signature: { parameters: [String], result: Unit, },
+          contract: {
+            module_name: "lane.test",
+            field_name: "println",
+            parameters: [Direct(I64)],
+            result: Unit,
+          },
         },
       ],
     },
@@ -157,12 +161,16 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       #|    runtime_imports: [
       #|      {
       #|        value: { index: 0 },
-      #|        symbol: "println",
-      #|        signature: { parameters: [String], result: Unit },
+      #|        contract: {
+      #|          module_name: "lane.test",
+      #|          field_name: "println",
+      #|          parameters: [Direct(I64)],
+      #|          result: Unit,
+      #|        },
       #|      },
       #|    ],
       #|  },
-      #|  Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+      #|  Function([Primitive(I64)], Primitive(Unit), Builtin(Io)),
       #|  Function([], Primitive(Unit), Builtin(Io)),
       #|)
     ),

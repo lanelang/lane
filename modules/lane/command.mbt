@@ -104,7 +104,7 @@ fn lane_command_spec() -> Command {
         options=[
           link_entry_option(),
           output_option(
-            "Write the linked program artifact here, conventionally `.lbp`.",
+            "Write the linked WebAssembly module here, conventionally `.wasm`.",
           ),
         ],
         flags=[verbose_flag()],
@@ -118,10 +118,10 @@ fn lane_command_spec() -> Command {
       ),
       Command(
         "exec",
-        about="Run a linked Lane program artifact.",
+        about="Run a linked Lane WebAssembly module.",
         flags=[no_jit_flag()],
         positionals=[
-          artifact_positional_arg("program", "Linked program artifact to run."),
+          artifact_positional_arg("program", "WebAssembly module to run."),
         ],
       ),
       Command(

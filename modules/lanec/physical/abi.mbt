@@ -58,18 +58,18 @@ pub fn FunctionBody::callable_abi(self : FunctionBody) -> CallableAbi? {
 
 ///|
 pub fn runtime_import_callable_abi(
-  import_ : @runtime.RuntimeImport,
+  import_ : @wasm_abi.ImportContract,
 ) -> CallableAbi {
   let parameters = []
   for parameter in import_.parameters {
-    if runtime_value_abi(parameter) is Some(abi) {
+    if import_parameter_value_abi(parameter) is Some(abi) {
       parameters.push(abi)
     }
   }
   CallableAbi::from_value_abis(
     [],
     parameters,
-    match runtime_value_abi(import_.result) {
+    match import_result_value_abi(import_.result) {
       Some(abi) => abi.result_abi()
       None => Unit
     },
@@ -113,21 +113,34 @@ pub fn PhysicalProgram::function_callable_abi_id(
 }
 
 ///|
-fn runtime_value_abi(kind : @runtime.RuntimeValueKind) -> ValueAbi? {
-  match kind {
+fn core_value_abi(type_ : @wasm_abi.CoreValueType) -> ValueAbi {
+  {
+    representation: match type_ {
+      I32 => I32
+      I64 => I64
+      F32 => F32
+      F64 => F64
+    },
+    cleanup: Trivial,
+    kind: ScalarValue,
+  }
+}
+
+///|
+fn import_parameter_value_abi(
+  parameter : @wasm_abi.ImportParameter,
+) -> ValueAbi? {
+  match parameter {
+    ErasedUnit => None
+    Direct(type_) => Some(core_value_abi(type_))
+  }
+}
+
+///|
+fn import_result_value_abi(result : @wasm_abi.ImportResult) -> ValueAbi? {
+  match result {
     Unit => None
-    Bool => Some({ representation: I32, cleanup: Trivial, kind: ScalarValue, })
-    I64 => Some({ representation: I64, cleanup: Trivial, kind: ScalarValue, })
-    F64 => Some({ representation: F64, cleanup: Trivial, kind: ScalarValue, })
-    F32 => Some({ representation: F32, cleanup: Trivial, kind: ScalarValue, })
-    String =>
-      Some({ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, })
-    Opaque =>
-      Some({
-        representation: I32,
-        cleanup: OwnedRef,
-        kind: OpaqueReferenceValue,
-      })
+    Direct(type_) => Some(core_value_abi(type_))
   }
 }
 

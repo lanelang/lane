@@ -479,7 +479,7 @@ test "pre-buslane lowering contract covers source-only forms and witnesses" {
       #|  op.add(a, b)
       #|}
       #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
-      #|let external_int : () -> I64 = extern("%external_int")
+      #|let external_int : () -> I64 = extern("lane.test", "%external_int")
       #|struct Box[A] {
       #|  value : A
       #|}

@@ -2,7 +2,7 @@
 package "Milky2018/lanec/physical"
 
 import {
-  "Milky2018/lane_runtime",
+  "Milky2018/lane_wasm_abi",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
@@ -12,7 +12,7 @@ pub fn physical_program_to_code(PhysicalProgram) -> String
 
 pub fn physical_program_to_disassembly(PhysicalProgram) -> String
 
-pub fn runtime_import_callable_abi(@lane_runtime.RuntimeImport) -> CallableAbi
+pub fn runtime_import_callable_abi(@lane_wasm_abi.ImportContract) -> CallableAbi
 
 pub fn statically_known_object_shape(Array[ObjectShape], SemanticValueKind) -> ObjectShapeId?
 
@@ -182,7 +182,7 @@ pub fn FunctionBody::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FunctionEntry {
   PhysicalBody(FunctionBody)
-  RuntimeImport(@lane_runtime.RuntimeImport)
+  RuntimeImport(@lane_wasm_abi.ImportContract)
 } derive(Eq, @debug.Debug)
 pub fn FunctionEntry::callable_abi(Self) -> CallableAbi?
 pub fn FunctionEntry::equal(Self, Self) -> Bool
@@ -286,6 +286,7 @@ pub(all) enum Instruction {
   ByteSequenceConcat(SlotId, SlotId, SlotId)
   ByteSequenceSlice(SlotId, SlotId, SlotId, SlotId)
   ByteSequenceIsValidUtf8(SlotId, SlotId)
+  WasiFdWrite(SlotId, SlotId, SlotId)
   I32Add(SlotId, SlotId, SlotId)
   I32Sub(SlotId, SlotId, SlotId)
   I32Mul(SlotId, SlotId, SlotId)
@@ -506,7 +507,6 @@ pub(all) enum SemanticValueKind {
   ByteSequenceValue
   DataValue(DataFamilyId)
   EnvironmentValue(ObjectShapeId)
-  OpaqueReferenceValue
   ErasedValue
 } derive(Eq, @debug.Debug)
 pub fn SemanticValueKind::equal(Self, Self) -> Bool

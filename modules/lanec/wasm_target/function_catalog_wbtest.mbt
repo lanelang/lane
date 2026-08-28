@@ -45,7 +45,6 @@ test "function catalog closes dependencies before allocating identities" {
   let catalog = plan_wasm_function_catalog(
     image,
     verified.global_lifecycle(),
-    false,
     module_,
   )
   debug_inspect(
@@ -130,7 +129,6 @@ test "function catalog rejects an omitted dependency before emission" {
   let catalog = plan_wasm_function_catalog(
     image,
     verified.global_lifecycle(),
-    false,
     module_,
   )
   let incomplete = {
@@ -149,74 +147,6 @@ test "function catalog rejects an omitted dependency before emission" {
     },
     content=(
       #|Err(InvalidFunctionCatalog(detail="function dependency is absent from the closure: RuntimeFunction(ReleaseReference) -> RuntimeFunction(Free)"))
-    ),
-  )
-}
-
-///|
-test "function catalog certifies runtime services against physical layouts" {
-  let body : @physical.FunctionBody = {
-    slots: [],
-    inputs: { environment: None, witnesses: [], user_parameters: [], },
-    result: Unit,
-    blocks: [{ parameters: [], instructions: [], terminator: Return(None), }],
-  }
-  let string_import : @lane_runtime.RuntimeImport = {
-    abi_major: 1,
-    parameters: [],
-    result: String,
-    symbol: "lane.test.string_result",
-  }
-  let opaque_import : @lane_runtime.RuntimeImport = {
-    abi_major: 1,
-    parameters: [],
-    result: Opaque,
-    symbol: "lane.test.opaque_result",
-  }
-  let image : @physical.PhysicalProgram = {
-    entry: { value: 1, },
-    initializer: None,
-    callable_abis: [
-      { witnesses: [], parameters: [], result: Unit, },
-      @physical.runtime_import_callable_abi(string_import),
-      @physical.runtime_import_callable_abi(opaque_import),
-    ],
-    data_family_count: 0,
-    functions: [
-      PhysicalBody(body),
-      RuntimeImport(string_import),
-      RuntimeImport(opaque_import),
-    ],
-    globals: [],
-    layouts: [Reference, ByteSequence],
-    object_shapes: [],
-    constants: [],
-  }
-  let verified = match @physical.verify_physical_program_for_execution(image) {
-    Ok(verified) => verified
-    Err(error) => fail("verification failed: \{Repr(error)}")
-  }
-  let catalog = plan_wasm_function_catalog(
-    image,
-    verified.global_lifecycle(),
-    true,
-    @wasm_types.Module::empty(),
-  )
-  debug_inspect(
-    (
-      catalog.runtime_services.map(capability => {
-        (capability.service, capability.layout_id)
-      }),
-      catalog.required.filter(origin => {
-        origin == RuntimeFunction(ByteSequenceNew) ||
-        origin == RuntimeFunction(HostObjectNew)
-      }),
-    ),
-    content=(
-      #|(
-      #|  [(StringNew, 2), (HostObjectNew, 1)],
-      #|  [RuntimeFunction(ByteSequenceNew), RuntimeFunction(HostObjectNew)],
-      #|)
     ),
   )
 }

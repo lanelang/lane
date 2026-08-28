@@ -443,10 +443,6 @@ test "runtime representation equality preserves semantic value categories" {
         Data({ index: 0, }, [right_argument]),
       ),
       metadata.types_representation_equivalent(
-        OpaqueReference({ index: 0, }),
-        OpaqueReference({ index: 1, }),
-      ),
-      metadata.types_representation_equivalent(
         Forall(
           [left_parameter],
           Callable([Erased({ index: 50, }, Parameter(left_parameter.id))], Unit),
@@ -473,7 +469,7 @@ test "runtime representation equality preserves semantic value categories" {
         ),
       ),
     ],
-    [false, true, false, true, true],
+    [false, true, true, true],
   )
 }
 

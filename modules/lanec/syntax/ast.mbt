@@ -336,7 +336,7 @@ pub(all) enum Expr {
     source~ : @basic.DeriveSourceSite
   )
   Builtin(String, loc~ : SourceSpan)
-  Extern(String, loc~ : SourceSpan)
+  Extern(module_name~ : String, field_name~ : String, loc~ : SourceSpan)
   FunctionLiteral(
     type_parameters~ : Array[TypeParameter],
     parameters~ : Array[FunctionLiteralParameter],
@@ -399,7 +399,7 @@ pub fn Expr::loc(self : Expr) -> SourceSpan {
     | ListLiteral(loc~, ..)
     | TupleLiteral(loc~, ..)
     | Builtin(_, loc~)
-    | Extern(_, loc~)
+    | Extern(loc~, ..)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)
     | TypeApplication(loc~, ..)

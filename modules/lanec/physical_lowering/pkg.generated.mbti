@@ -102,7 +102,7 @@ pub(all) enum PhysicalFunctionOrigin {
   RepresentationWorker(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin, contract~ : RepresentationWorkerContractId)
   CallableAdapter(contract~ : CallableAdapterWorkerContractId, reason~ : CallableAdapterReason)
   LayoutConstructor
-  RuntimeImport(source~ : @buslane.ValueId, symbol~ : String)
+  RuntimeImport(source~ : @buslane.ValueId, module_name~ : String, field_name~ : String)
 } derive(Eq, @debug.Debug)
 pub fn PhysicalFunctionOrigin::equal(Self, Self) -> Bool
 pub fn PhysicalFunctionOrigin::not_equal(Self, Self) -> Bool

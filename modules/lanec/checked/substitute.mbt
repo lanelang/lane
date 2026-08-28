@@ -10,13 +10,8 @@ pub fn CheckedExpr::substitute(
       Value(name~, symbol~, type_=type_.substitute(substitution), loc~)
     CompilerIntrinsic(intrinsic~, type_~, loc~) =>
       CompilerIntrinsic(intrinsic~, type_=type_.substitute(substitution), loc~)
-    ExternBinding(name~, signature~, type_~, loc~) =>
-      ExternBinding(
-        name~,
-        signature~,
-        type_=type_.substitute(substitution),
-        loc~,
-      )
+    ExternBinding(contract~, type_~, loc~) =>
+      ExternBinding(contract~, type_=type_.substitute(substitution), loc~)
     ErrorRecovery(type_~, loc~) =>
       ErrorRecovery(type_=type_.substitute(substitution), loc~)
     FunctionLiteral(

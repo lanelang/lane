@@ -109,14 +109,16 @@ fn SemanticChecker::intrinsic_value_type(
 ///|
 fn SemanticChecker::check_extern_binding(
   self : SemanticChecker,
-  name : String,
+  module_name : String,
+  field_name : String,
   expected : @types.Type,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
-  match self.validate_extern_signature(expected, loc) {
-    Ok(signature) =>
+  let name = "\{module_name}.\{field_name}"
+  match self.validate_extern_contract(module_name, field_name, expected, loc) {
+    Ok(contract) =>
       checked_expression(
-        ExternBinding(name~, signature~, type_=expected, loc~),
+        ExternBinding(contract~, type_=expected, loc~),
         expected,
       )
     Err(restriction) => {
@@ -132,48 +134,65 @@ fn SemanticChecker::check_extern_binding(
 ///|
 fn SemanticChecker::synthesize_extern_binding(
   self : SemanticChecker,
-  name : String,
+  module_name : String,
+  field_name : String,
   loc : SourceSpan,
 ) -> CheckedExpressionSynthesis {
+  let name = "\{module_name}.\{field_name}"
   self.diagnostics.push({ kind: ExternNeedsExpectedType(name~), loc, })
   checked_expression_none_reported(Error)
 }
 
 ///|
-fn SemanticChecker::validate_extern_signature(
+fn SemanticChecker::validate_extern_contract(
   self : SemanticChecker,
+  module_name : String,
+  field_name : String,
   type_ : @types.Type,
   loc : SourceSpan,
-) -> Result[@abi.HostSignature, ExternTypeRestriction] {
+) -> Result[@wasm_abi.ImportContract, ExternTypeRestriction] {
   match type_ {
     Forall(_) | TypeLambda(_) => Err(MonomorphicRequired)
     Function(parameters, result, effect) => {
-      let parameter_kinds = []
+      let parameter_contracts = []
       for index, parameter in parameters {
-        guard self.extern_value_kind(parameter, loc) is Some(kind) else {
+        guard self.extern_parameter_contract(parameter, loc) is Some(contract) else {
           return Err(DirectParameterRequired(index~))
         }
-        parameter_kinds.push(kind)
+        parameter_contracts.push(contract)
       }
-      guard self.extern_value_kind(result, loc) is Some(result) else {
+      guard self.extern_result_contract(result, loc) is Some(result_contract) else {
         return Err(DirectResultRequired)
       }
-      if self.extern_effect_row(effect.canonicalize()) {
-        Ok({ parameters: parameter_kinds, result, })
-      } else {
-        Err(ExternalEffectRowRequired)
+      if !self.extern_effect_row(effect.canonicalize()) {
+        return Err(ExternalEffectRowRequired)
       }
+      let contract : @wasm_abi.ImportContract = {
+        module_name,
+        field_name,
+        parameters: parameter_contracts,
+        result: result_contract,
+      }
+      if module_name == "wasi_snapshot_preview1" {
+        guard @wasm_abi.wasi_preview1_contract(field_name) is Some(canonical) else {
+          return Err(UnknownWasiPreview1Import(field_name~))
+        }
+        if contract != canonical {
+          return Err(WasiPreview1ContractMismatch(expected=canonical))
+        }
+      }
+      Ok(contract)
     }
     _ => Err(FunctionRequired)
   }
 }
 
 ///|
-fn SemanticChecker::extern_value_kind(
+fn SemanticChecker::extern_parameter_contract(
   self : SemanticChecker,
   type_ : @types.Type,
   loc : SourceSpan,
-) -> @abi.ValueKind? {
+) -> @wasm_abi.ImportParameter? {
   match
     normalize_type_or_error(
       self.diagnostics,
@@ -181,18 +200,33 @@ fn SemanticChecker::extern_value_kind(
       loc,
       context="external value type",
     ) {
+    Primitive(Unit) => Some(ErasedUnit)
+    Primitive(I32) => Some(Direct(I32))
+    Primitive(I64) => Some(Direct(I64))
+    Primitive(F32) => Some(Direct(F32))
+    Primitive(F64) => Some(Direct(F64))
+    _ => None
+  }
+}
+
+///|
+fn SemanticChecker::extern_result_contract(
+  self : SemanticChecker,
+  type_ : @types.Type,
+  loc : SourceSpan,
+) -> @wasm_abi.ImportResult? {
+  match
+    normalize_type_or_error(
+      self.diagnostics,
+      type_,
+      loc,
+      context="external result type",
+    ) {
     Primitive(Unit) => Some(Unit)
-    Primitive(Bool) => Some(Bool)
-    Primitive(I64) => Some(I64)
-    Primitive(F32) => Some(F32)
-    Primitive(F64) => Some(F64)
-    Primitive(String) => Some(String)
-    Constructor(symbol) =>
-      if self.declarations.checked_external_type(symbol) is Some(_) {
-        Some(Opaque)
-      } else {
-        None
-      }
+    Primitive(I32) => Some(Direct(I32))
+    Primitive(I64) => Some(Direct(I64))
+    Primitive(F32) => Some(Direct(F32))
+    Primitive(F64) => Some(Direct(F64))
     _ => None
   }
 }

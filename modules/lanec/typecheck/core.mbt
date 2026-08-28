@@ -245,6 +245,8 @@ pub(all) enum ExternTypeRestriction {
   DirectParameterRequired(index~ : Int)
   DirectResultRequired
   ExternalEffectRowRequired
+  UnknownWasiPreview1Import(field_name~ : String)
+  WasiPreview1ContractMismatch(expected~ : @wasm_abi.ImportContract)
 } derive(Debug, Eq)
 
 ///|

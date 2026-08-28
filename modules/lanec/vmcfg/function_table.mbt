@@ -1,6 +1,6 @@
 ///|
 priv struct CanonicalRuntimeImport {
-  descriptor : @runtime.RuntimeImport
+  descriptor : @wasm_abi.ImportContract
   old_ids : Array[@physical.FunctionId]
 }
 
@@ -94,31 +94,7 @@ fn canonicalize_function_table(
       }
     }
   }
-  imports.sort_by(fn(left, right) {
-    let symbol_order = String::compare(
-      left.descriptor.symbol,
-      right.descriptor.symbol,
-    )
-    if symbol_order != 0 {
-      symbol_order
-    } else {
-      let abi_order = left.descriptor.abi_major - right.descriptor.abi_major
-      if abi_order != 0 {
-        abi_order
-      } else {
-        let parameter_order = compare_runtime_value_kinds(
-          left.descriptor.parameters,
-          right.descriptor.parameters,
-        )
-        if parameter_order != 0 {
-          parameter_order
-        } else {
-          runtime_value_kind_rank(left.descriptor.result) -
-          runtime_value_kind_rank(right.descriptor.result)
-        }
-      }
-    }
-  })
+  imports.sort_by(fn(left, right) { left.descriptor.compare(right.descriptor) })
   for index, import_ in imports {
     let new_id : @physical.FunctionId = { value: bodies.length() + index + 1, }
     for old_id in import_.old_ids {
@@ -266,39 +242,6 @@ fn mark_reachable_function(
   if !reachable[index] {
     reachable[index] = true
     worklist.push(function)
-  }
-}
-
-///|
-fn compare_runtime_value_kinds(
-  left : Array[@runtime.RuntimeValueKind],
-  right : Array[@runtime.RuntimeValueKind],
-) -> Int {
-  let common = if left.length() < right.length() {
-    left.length()
-  } else {
-    right.length()
-  }
-  for index in 0..<common {
-    let order = runtime_value_kind_rank(left[index]) -
-      runtime_value_kind_rank(right[index])
-    if order != 0 {
-      return order
-    }
-  }
-  left.length() - right.length()
-}
-
-///|
-fn runtime_value_kind_rank(kind : @runtime.RuntimeValueKind) -> Int {
-  match kind {
-    Unit => 0
-    Bool => 1
-    I64 => 2
-    F64 => 3
-    String => 4
-    Opaque => 5
-    F32 => 6
   }
 }
 

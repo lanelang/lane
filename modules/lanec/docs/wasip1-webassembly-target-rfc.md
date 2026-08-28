@@ -2,9 +2,8 @@
 
 ## Status
 
-Accepted for implementation. The migration described here has not started.
-Existing artifact, runtime-import, and module-ABI ADRs continue to describe the
-current implementation until their owning stages are replaced.
+Implemented. The remaining release gate is end-to-end validation of the pinned
+Basic revision and the complete valid-example corpus.
 
 ## Summary
 
@@ -23,7 +22,7 @@ the feature profile defined below.
 
 ## Motivation
 
-The current executable artifact contains WebAssembly bytes plus a Lane-specific
+The previous executable artifact contained WebAssembly bytes plus a Lane-specific
 runtime-import manifest. Loading then reconstructs a semantic host ABI through
 the Runtime Registry, Runtime Value Kinds, Runtime Context, runtime services,
 and an Opaque Host Object Table. That design was useful while Lane supported an
@@ -228,7 +227,7 @@ of layering another adapter over the current runtime.
    WASI imports through the canonical catalog.
 5. **Delete the semantic host runtime.** Remove the runtime manifest, Runtime
    Registry, Runtime Value Kinds, runtime services, Opaque Host Object Table,
-   `lane.runtime.v1`, `lane.entry`, and `lane.memory`.
+   and `lane.runtime.v1`. Keep the standard `_start` and `memory` exports.
 6. **Delete the linked executable container.** Make link output and `exec`
    consume raw WebAssembly bytes, then advance or retire any artifact schemas
    whose only purpose was wrapping executable Wasm.

@@ -338,8 +338,8 @@ persisted artifact or independently executable VM language.
 _Avoid_: linked artifact, persisted instruction format, second runtime target
 
 **WebAssembly Execution Image**:
-The sole persisted and executable Lane target image, paired with its semantic
-runtime-import manifest in a linked-program artifact.
+The sole persisted and executable Lane target image: a standards-valid raw
+WebAssembly module whose import section owns its physical host contract.
 _Avoid_: Physical Program, canonical core, per-module cache
 
 **Closure Conversion**:
@@ -439,8 +439,8 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
 - Buslane external value metadata does not store runtime names; a **Buslane External Map** belongs to the compiler, linker, or runtime.
 - The **Compiler Facade** may return a **Buslane External Map** alongside a **Buslane Program**.
 - Buslane v1 has no module namespace; a future **Buslane Unit** may wrap a program with linking metadata.
-- A **Canonical Core Artifact** is the semantic source of truth for `.lmo` and
-  linked `.lbp` artifacts.
+- A **Canonical Core Artifact** is the semantic source of truth for relocatable
+  `.lmo` artifacts.
 - ANF is a derived representation below Buslane and must not become the
   artifact boundary.
 - **Execution Image Lowering** happens after linking and any whole-program

@@ -9,12 +9,11 @@ import {
 }
 
 // Values
-pub fn load_wasm(Bytes, Array[@lane_runtime.RuntimeImport], @lane_runtime.RuntimeRegistry, mode? : ExecutionMode) -> Result[LoadedImage, WasmLoadError]
+pub fn load_wasm(Bytes, mode? : ExecutionMode, wasi_stdout? : ((Bytes) -> Unit)?, configure_host? : (@runtime.Linker) -> Unit raise @runtime.RuntimeError) -> Result[LoadedImage, WasmLoadError]
 
 // Errors
 pub(all) suberror WasmLoadError {
   InvalidWasm(detail~ : String)
-  RuntimeImportResolution(error~ : @lane_runtime.RuntimeImportResolutionError)
   BackendCompileFailure(detail~ : String)
 } derive(Eq, @debug.Debug)
 pub fn WasmLoadError::equal(Self, Self) -> Bool
@@ -44,7 +43,6 @@ type LoadedExecutionBackend
 
 pub struct LoadedImage {
   wasm_module : @types.Module
-  imports : Array[(@lane_runtime.RuntimeImport, @lane_runtime.RuntimeBinding)]
   control_globals : RuntimeControlGlobals
   // private fields
 }
@@ -56,8 +54,7 @@ type RuntimeControlGlobals
 
 type RuntimeFailureState
 
-type RuntimeServices
-
 // Type aliases
+pub type HostLinkerConfiguration = (@runtime.Linker) -> Unit raise @runtime.RuntimeError
 
 // Traits

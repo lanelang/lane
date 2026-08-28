@@ -695,6 +695,8 @@ fn map_instruction_values(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(transform(destination), transform(source))
+    WasiFdWrite(destination, fd, bytes) =>
+      WasiFdWrite(transform(destination), transform(fd), transform(bytes))
     I32Add(destination, left, right) =>
       I32Add(transform(destination), transform(left), transform(right))
     I32Sub(destination, left, right) =>

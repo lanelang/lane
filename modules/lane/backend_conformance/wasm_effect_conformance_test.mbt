@@ -3,7 +3,14 @@ fn effect_conformance_basic_io() -> String {
   (
     #|module Basic.Io
     #|import Basic.Data.Void.{ Void }
-    #|pub let println : (String) -> Unit ! Io = extern("println")
+    #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
+    #|let bytes_concat : (Bytes, Bytes) -> Bytes = builtin("%bytes_concat")
+    #|let wasi_fd_write : (I32, Bytes) -> I32 ! Io = builtin("%wasi_fd_write")
+    #|pub fn println(value : String) -> Unit ! Io {
+    #|  let bytes = bytes_concat(string_to_bytes(value), string_to_bytes("\n"))
+    #|  let _errno = wasi_fd_write(1i32, bytes)
+    #|  ()
+    #|}
     #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
   )
 }
@@ -50,79 +57,77 @@ fn compile_effect_conformance_image(
 }
 
 ///|
-fn effect_conformance_registry(
-  output : Array[String],
-) -> @lane_runtime.RuntimeRegistry {
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="println",
-      abi_major=1,
-      parameters=[String],
-      result=Unit,
-      invoke=(_context, arguments) => {
-        guard arguments is [BorrowedString(line)] else {
-          raise Failure(message="println expects one String argument")
-        }
-        output.push(line.to_string())
-        Unit
-      },
-    ),
-  )
-  registry
+fn effect_conformance_output(bytes : Array[Byte]) -> Array[String] raise {
+  @utf8.decode(Bytes::from_array(bytes))
+  .split("\n")
+  .filter(line => line != "")
+  .map(line => line.to_owned())
+  .to_array()
+}
+
+///|
+fn run_effect_conformance(
+  image : @physical.PhysicalProgram,
+  mode : @lane_wasm_runtime.ExecutionMode,
+) -> Array[String] raise {
+  let (result, output) = execute_effect_conformance(image, mode)
+  assert_eq(result, Ok(()))
+  output
+}
+
+///|
+fn execute_effect_conformance(
+  image : @physical.PhysicalProgram,
+  mode : @lane_wasm_runtime.ExecutionMode,
+) -> (Result[Unit, @lane_runtime.ExecutionError], Array[String]) raise {
+  let output : Array[Byte] = []
+  let loaded = match
+    load_physical(
+      image,
+      mode~,
+      wasi_stdout=Some(bytes => output.append(bytes.to_array())),
+    ) {
+    Ok(value) => value
+    Err(error) => fail("WebAssembly load failed: \{Repr(error)}")
+  }
+  (loaded.execute(), effect_conformance_output(output))
 }
 
 ///|
 fn run_effect_conformance_interpreter(
   image : @physical.PhysicalProgram,
 ) -> Array[String] raise {
-  let output : Array[String] = []
-  let loaded = match
-    load_physical_interpreted(image, effect_conformance_registry(output)) {
-    Ok(value) => value
-    Err(error) => fail("WebAssembly interpreter load failed: \{Repr(error)}")
-  }
-  assert_eq(loaded.execute(), Ok(()))
-  output
+  run_effect_conformance(image, Interpreter)
 }
 
 ///|
 fn run_effect_conformance_wasm(
   image : @physical.PhysicalProgram,
 ) -> Array[String] raise {
-  let output : Array[String] = []
-  let loaded = match load_physical(image, effect_conformance_registry(output)) {
-    Ok(value) => value
-    Err(error) => fail("WebAssembly load failed: \{Repr(error)}")
-  }
-  let instance = match loaded.new_instance() {
-    Ok(value) => value
-    Err(error) => fail("WebAssembly instantiation failed: \{Repr(error)}")
-  }
-  assert_eq(instance.execute(), Ok(()))
-  output
+  run_effect_conformance(image, Jit)
 }
 
 ///|
 fn assert_effect_erased_host_boundary(
   image : @physical.PhysicalProgram,
 ) -> Unit raise {
-  let imports : Array[
-    (
-      String,
-      Int,
-      Array[@lane_runtime.RuntimeValueKind],
-      @lane_runtime.RuntimeValueKind,
-    ),
-  ] = []
+  let imports : Array[@wasm_abi.ImportContract] = []
   for function in image.functions {
     if function is RuntimeImport(import_) {
-      imports.push(
-        (import_.symbol, import_.abi_major, import_.parameters, import_.result),
-      )
+      imports.push(import_)
     }
   }
-  assert_eq(imports, [("println", 1, [String], Unit)])
+  assert_eq(imports, [])
+  assert_true(
+    image.functions.any(function => {
+      function is PhysicalBody(body) &&
+      body.blocks.any(block => {
+        block.instructions.any(instruction => {
+          instruction is WasiFdWrite(_, _, _)
+        })
+      })
+    }),
+  )
 }
 
 ///|
@@ -416,146 +421,6 @@ test "effect lowering preserves a resumed operation result across branching" {
 }
 
 ///|
-fn interpreter_resolution_error(
-  image : @physical.PhysicalProgram,
-  registry : @lane_runtime.RuntimeRegistry,
-) -> @lane_runtime.RuntimeImportResolutionError raise {
-  match load_physical_interpreted(image, registry) {
-    Err(RuntimeImportResolution(error~)) => error
-    Err(error) =>
-      fail("unexpected WebAssembly interpreter load failure: \{Repr(error)}")
-    Ok(_) => fail("expected WebAssembly interpreter load to fail")
-  }
-}
-
-///|
-fn wasm_resolution_error(
-  image : @physical.PhysicalProgram,
-  registry : @lane_runtime.RuntimeRegistry,
-) -> @lane_runtime.RuntimeImportResolutionError raise {
-  match load_physical(image, registry) {
-    Err(RuntimeImportResolution(error~)) => error
-    Err(error) => fail("unexpected WebAssembly load failure: \{Repr(error)}")
-    Ok(_) => fail("expected WebAssembly load to fail")
-  }
-}
-
-///|
-fn effect_conformance_failing_registry(
-  message : String,
-) -> @lane_runtime.RuntimeRegistry {
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="println",
-      abi_major=1,
-      parameters=[String],
-      result=Unit,
-      invoke=(_context, _arguments) => raise Failure(message~),
-    ),
-  )
-  registry
-}
-
-///|
-fn run_effect_conformance_interpreter_failure(
-  image : @physical.PhysicalProgram,
-  registry : @lane_runtime.RuntimeRegistry,
-) -> Result[Unit, @lane_runtime.ExecutionError] raise {
-  let loaded = match load_physical_interpreted(image, registry) {
-    Ok(value) => value
-    Err(error) => fail("WebAssembly interpreter load failed: \{Repr(error)}")
-  }
-  loaded.execute()
-}
-
-///|
-fn run_effect_conformance_wasm_failure(
-  image : @physical.PhysicalProgram,
-  registry : @lane_runtime.RuntimeRegistry,
-) -> Result[Unit, @lane_runtime.ExecutionError] raise {
-  let loaded = match load_physical(image, registry) {
-    Ok(value) => value
-    Err(error) => fail("WebAssembly load failed: \{Repr(error)}")
-  }
-  let instance = match loaded.new_instance() {
-    Ok(value) => value
-    Err(error) => fail("WebAssembly instantiation failed: \{Repr(error)}")
-  }
-  instance.execute()
-}
-
-///|
-test "runtime import resolution agrees across production backends" {
-  let image = compile_effect_conformance_image(
-    (
-      #|module Main
-      #|import Basic.Io.*
-      #|pub fn main() -> Unit ! Io {
-      #|  println("hello")
-      #|}
-    ),
-  )
-  let missing = @lane_runtime.RuntimeRegistry::new()
-  let incompatible = @lane_runtime.RuntimeRegistry::new()
-  incompatible.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="println",
-      abi_major=2,
-      parameters=[String],
-      result=Unit,
-      invoke=(_context, _arguments) => Unit,
-    ),
-  )
-  debug_inspect(
-    (
-      interpreter_resolution_error(image, missing),
-      wasm_resolution_error(image, missing),
-      interpreter_resolution_error(image, incompatible),
-      wasm_resolution_error(image, incompatible),
-    ),
-    content=(
-      #|(
-      #|  UnresolvedImport(symbol="println"),
-      #|  UnresolvedImport(symbol="println"),
-      #|  AbiMismatch(symbol="println", expected_major=1, actual_major=2),
-      #|  AbiMismatch(symbol="println", expected_major=1, actual_major=2),
-      #|)
-    ),
-  )
-}
-
-///|
-test "runtime import failures agree across production backends" {
-  let image = compile_effect_conformance_image(
-    (
-      #|module Main
-      #|import Basic.Io.*
-      #|pub fn main() -> Unit ! Io {
-      #|  println("hello")
-      #|}
-    ),
-  )
-  let interpreter = run_effect_conformance_interpreter_failure(
-    image,
-    effect_conformance_failing_registry("boom"),
-  )
-  let wasm = run_effect_conformance_wasm_failure(
-    image,
-    effect_conformance_failing_registry("boom"),
-  )
-  debug_inspect(
-    (interpreter, wasm),
-    content=(
-      #|(
-      #|  Err(RuntimeImportFailure(symbol="println", message="boom")),
-      #|  Err(RuntimeImportFailure(symbol="println", message="boom")),
-      #|)
-    ),
-  )
-}
-
-///|
 test "statement-position panic is fatal and does not continue on either backend" {
   let image = compile_effect_conformance_image(
     (
@@ -568,16 +433,11 @@ test "statement-position panic is fatal and does not continue on either backend"
       #|}
     ),
   )
-  let interpreter_output : Array[String] = []
-  let interpreter = run_effect_conformance_interpreter_failure(
+  let (interpreter, interpreter_output) = execute_effect_conformance(
     image,
-    effect_conformance_registry(interpreter_output),
+    Interpreter,
   )
-  let wasm_output : Array[String] = []
-  let wasm = run_effect_conformance_wasm_failure(
-    image,
-    effect_conformance_registry(wasm_output),
-  )
+  let (wasm, wasm_output) = execute_effect_conformance(image, Jit)
   debug_inspect(
     (interpreter, interpreter_output, wasm, wasm_output),
     content=(
@@ -603,16 +463,11 @@ test "first-class panic preserves fatal control on either backend" {
       #|}
     ),
   )
-  let interpreter_output : Array[String] = []
-  let interpreter = run_effect_conformance_interpreter_failure(
+  let (interpreter, interpreter_output) = execute_effect_conformance(
     image,
-    effect_conformance_registry(interpreter_output),
+    Interpreter,
   )
-  let wasm_output : Array[String] = []
-  let wasm = run_effect_conformance_wasm_failure(
-    image,
-    effect_conformance_registry(wasm_output),
-  )
+  let (wasm, wasm_output) = execute_effect_conformance(image, Jit)
   assert_eq(
     (interpreter, interpreter_output, wasm, wasm_output),
     (Err(Fatal(message="forwarded")), [], Err(Fatal(message="forwarded")), []),

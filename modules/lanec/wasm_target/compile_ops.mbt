@@ -307,6 +307,26 @@ fn compile_instruction(
         I64ExtendI32U,
         LocalSet(locals.slot_local(destination)),
       ]
+    WasiFdWrite(destination, fd, bytes) =>
+      [
+        LocalGet(locals.slot_local(bytes)),
+        function_catalog.runtime(RequireByteSequenceLayout).call(),
+        I32Const(static_image.wasi_iovec_base),
+        LocalGet(locals.slot_local(bytes)),
+        I32Const(12),
+        I32Add,
+        I32Store(0, 2, 0L),
+        I32Const(static_image.wasi_iovec_base),
+        LocalGet(locals.slot_local(bytes)),
+        I32Load(0, 2, 8L),
+        I32Store(0, 2, 4L),
+        LocalGet(locals.slot_local(fd)),
+        I32Const(static_image.wasi_iovec_base),
+        I32Const(1),
+        I32Const(static_image.wasi_iovec_base + 8),
+        function_catalog.wasi_preview1_import(FdWrite).call(),
+        LocalSet(locals.slot_local(destination)),
+      ]
     ByteSequenceGet(destination, source, index) =>
       [
         LocalGet(locals.slot_local(source)),
@@ -495,18 +515,32 @@ fn compile_instruction(
       unary(locals, destination, source, F32DemoteF64)
     F32ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(locals.slot_local(source)),
-        function_catalog.internal_import(F32ToString).call(),
+        I32Const(@internal_abi.float_text_capacity()),
+        function_catalog.runtime(ByteSequenceNew).call(),
         LocalSet(locals.slot_local(destination)),
+        LocalGet(locals.slot_local(destination)),
+        LocalGet(locals.slot_local(source)),
+        LocalGet(locals.slot_local(destination)),
+        I32Const(12),
+        I32Add,
+        function_catalog.internal_import(F32ToString).call(),
+        I32Store(0, 2, 8L),
       ]
       result.append(locals.mark_slot_live(destination))
       result
     }
     F64ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
-        LocalGet(locals.slot_local(source)),
-        function_catalog.internal_import(F64ToString).call(),
+        I32Const(@internal_abi.float_text_capacity()),
+        function_catalog.runtime(ByteSequenceNew).call(),
         LocalSet(locals.slot_local(destination)),
+        LocalGet(locals.slot_local(destination)),
+        LocalGet(locals.slot_local(source)),
+        LocalGet(locals.slot_local(destination)),
+        I32Const(12),
+        I32Add,
+        function_catalog.internal_import(F64ToString).call(),
+        I32Store(0, 2, 8L),
       ]
       result.append(locals.mark_slot_live(destination))
       result

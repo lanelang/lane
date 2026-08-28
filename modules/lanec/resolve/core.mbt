@@ -610,7 +610,7 @@ pub(all) enum ResolvedExpr {
     source~ : @basic.DeriveSourceSite
   )
   Builtin(String, loc~ : SourceSpan)
-  Extern(String, loc~ : SourceSpan)
+  Extern(module_name~ : String, field_name~ : String, loc~ : SourceSpan)
   FunctionLiteral(
     type_parameters~ : Array[ResolvedTypeParameter],
     parameters~ : Array[ResolvedFunctionLiteralParameter],

@@ -46,23 +46,18 @@ test "F32 arithmetic and conversions agree across interpreter and Wasm backends"
 }
 
 ///|
-fn f32_echo_registry() -> @lane_runtime.RuntimeRegistry {
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.echo_f32",
-      abi_major=1,
-      parameters=[F32],
-      result=F32,
-      invoke=fn(_context, arguments) {
-        guard arguments is [F32(value)] else {
-          abort("expected one F32 host argument")
-        }
-        F32(value)
+fn f32_echo_host() -> (@wasmoon_runtime.Linker) -> Unit raise @wasmoon_runtime.RuntimeError {
+  linker => {
+    linker.add_host_func(
+      "lane.test",
+      "echo_f32",
+      arguments => {
+        guard arguments is [F32(value)] else { raise TypeMismatch }
+        [F32(value)]
       },
-    ),
-  )
-  registry
+      func_type={ params: [F32], results: [F32], },
+    )
+  }
 }
 
 ///|
@@ -109,19 +104,20 @@ test "F32 host ABI agrees across interpreter and Wasm backends" {
     functions: [
       PhysicalBody(body),
       RuntimeImport({
-        abi_major: 1,
-        parameters: [F32],
-        result: F32,
-        symbol: "lane.test.echo_f32",
+        module_name: "lane.test",
+        field_name: "echo_f32",
+        parameters: [Direct(F32)],
+        result: Direct(F32),
       }),
     ],
   }
-  let direct = match load_interpreted(image, f32_echo_registry()) {
+  let direct = match
+    load(image, mode=Interpreter, configure_host=f32_echo_host()) {
     Ok(loaded) => loaded.execute()
     Err(error) => fail("direct interpreter load failed: \{Repr(error)}")
   }
   let execute_wasm = fn(mode : @lane_wasm_runtime.ExecutionMode) {
-    let loaded = match load(image, f32_echo_registry(), mode~) {
+    let loaded = match load(image, mode~, configure_host=f32_echo_host()) {
       Ok(value) => value
       Err(error) => abort("Wasm load failed: \{Repr(error)}")
     }

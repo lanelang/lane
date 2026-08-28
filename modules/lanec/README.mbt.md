@@ -25,8 +25,8 @@ Lane source
 
 The Physical Program is a compiler-private, non-persisted contract between
 physical lowering and the WebAssembly target. It has no public codec or
-independent execution engine. A linked program artifact persists exactly one
-WebAssembly module plus its semantic runtime-import manifest.
+independent execution engine. A linked executable is exactly one raw
+WebAssembly module; its import and export sections are the execution contract.
 
 WebAssembly is Lane's sole execution target. `lane run` and `lane exec` load
 the same artifact and select either Wasmoon's JIT or, with `--no-jit`,
@@ -89,13 +89,14 @@ the selected entry.
 
 - Module interfaces persist imported and exported semantic contracts.
 - Module objects persist checked, linkable implementation data.
-- Linked-program artifacts persist WebAssembly plus a runtime-import manifest.
+- Linked executables are raw WebAssembly modules.
 - Compilation fingerprints reject stale or mismatched inputs.
 
 Artifact schemas are current-only compiler contracts, not archival formats.
-Incompatible schemas are rejected and regenerated. Linked artifact loading
-validates the WebAssembly module and proves that each semantic runtime import
-matches the module's physical import contract before execution.
+Incompatible module interfaces and objects are rejected and regenerated.
+Executable loading validates the raw WebAssembly module; WASI contracts are
+certified by the shared catalog and other imports are linked by exact core Wasm
+function type.
 
 ## Development
 

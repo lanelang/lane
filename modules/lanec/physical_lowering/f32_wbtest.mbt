@@ -76,8 +76,9 @@ test "generic F32 calls cross explicit representation erasure bridges" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_generic_f32",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_generic_f32", observe_type,
+            ),
           },
         ],
       },
@@ -110,22 +111,9 @@ test "generic F32 calls cross explicit representation erasure bridges" {
     }),
   )
   let mut observed = Float::from_double(0.0)
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_generic_f32",
-      abi_major=1,
-      parameters=[F32],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [F32(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_f32("lane.test.observe_generic_f32", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }

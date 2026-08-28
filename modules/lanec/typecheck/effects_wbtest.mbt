@@ -1529,13 +1529,20 @@ test "typecheck does not let an effect alias shadow built-in Io" {
       #|  write(String) -> Unit
       #|}
       #|type Io = { Console }
-      #|let write : (String) -> Unit ! Io = extern("%write")
+      #|let write : (String) -> Unit ! Io = extern("lane.test", "%write")
       #|fn run() -> Unit ! Io {
       #|  write("hello")
       #|}
     ),
   )
-  inspect(@prettyprinter.render(result.diagnostics, width=100), content="[]")
+  inspect(
+    @prettyprinter.render(result.diagnostics, width=100),
+    content=(
+      #|[
+      #|  invalid_extern_type lane.test.%write (String) -> Unit ! Io direct_parameter_required[0] @ 6:37-6:66
+      #|]
+    ),
+  )
   debug_inspect(checked_function_effect(result, "run"), content="Builtin(Io)")
 }
 

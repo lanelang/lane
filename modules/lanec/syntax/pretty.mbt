@@ -1550,7 +1550,7 @@ fn Expr::render_with_precedence(
         ),
       )
     }
-    Extern(name, loc~) => {
+    Extern(module_name~, field_name~, loc~) => {
       let (dangling, force_break) = trivia.take_delimited(
         '(',
         loc.start_offset,
@@ -1561,8 +1561,8 @@ fn Expr::render_with_precedence(
         10,
         keyword("extern") +
         parenthesized_comma_list(
-          [source_string(name)],
-          item_spans=[loc],
+          [source_string(module_name), source_string(field_name)],
+          item_spans=[loc, loc],
           trivia~,
           dangling~,
           force_break~,

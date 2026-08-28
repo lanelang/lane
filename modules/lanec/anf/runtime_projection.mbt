@@ -633,7 +633,10 @@ fn RuntimeGenericPlan::normalized_runtime_type(
           }
           Data(owner, arguments)
         }
-        External => OpaqueReference(owner)
+        External =>
+          raise InvalidRuntimeProjection(
+            detail="external nominal values have no WebAssembly representation",
+          )
       }
     }
     Apply(Parameter(parameter), arguments) => {

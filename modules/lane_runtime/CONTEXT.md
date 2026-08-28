@@ -1,102 +1,65 @@
 # Lane Runtime
 
-This module owns the host ABI and execution of Lane-generated WebAssembly.
+This module loads and executes compiler-generated WebAssembly through Wasmoon.
 WebAssembly is Lane's only deployable execution language. The compiler-private
 Physical Program is neither accepted nor executed here.
 
 ## Language
 
-### Host ABI
+### WebAssembly Loading
 
-**Runtime Import**:
-A versioned synchronous host operation identified by symbol, parameter value
-kinds, and result value kind.
-_Avoid_: source effect operation, Wasm function type alone
+**Wasm Artifact**:
+A standards-valid raw WebAssembly module. Its import and export sections are
+the complete public execution contract; no Lane manifest accompanies it.
+_Avoid_: Physical Program, semantic runtime descriptor, linked container
 
-**Runtime Value Kind**:
-The semantic host category of a runtime-import operand: Unit, Bool, I64, F32,
-F64, String, or Opaque. It preserves distinctions erased by core Wasm value
-types.
-_Avoid_: Lane source type, physical slot representation
+**Core Wasm Host Import**:
+An imported core WebAssembly function identified by module name, field name,
+and exact core function type. Wasmoon Linker configuration supplies its host
+implementation.
+_Avoid_: source extern declaration, semantic host value category
 
-**Runtime Registry**:
-The host-owned set of typed Runtime Bindings supplied when a Wasm artifact is
-loaded.
-_Avoid_: compiler intrinsic table, per-call symbol lookup
+**WASI Preview 1 Host**:
+The standard host implementation registered for
+`wasi_snapshot_preview1` imports. The shared ABI catalog validates the subset
+emitted by Lane before instantiation.
+_Avoid_: Basic API, semantic I/O registry
 
-**Runtime Binding**:
-A host implementation paired with its complete Runtime Import contract.
-_Avoid_: unchecked host callback, source extern declaration
+**Host Linker Configuration**:
+An embedding callback that adds implementations for non-WASI core Wasm imports
+to the Wasmoon Linker before instantiation. Wasmoon owns signature matching.
+_Avoid_: Runtime Registry, per-call symbol lookup
 
-**Runtime Import Contract Validation**:
-The load-time equality check between every artifact Runtime Import and its
-Runtime Binding before an executable is published.
-_Avoid_: arity-only checking, source type checking
-
-**Runtime Context**:
-Borrowed execution-local host services supplied implicitly to Runtime Imports.
-_Avoid_: Lane value, process-global state
-
-**Opaque Host Object**:
-A host-owned value represented in generated Wasm by an execution-local managed
-handle.
-_Avoid_: serialized host pointer, persistent identity
-
-**Host Object Table**:
-The execution-owned table connecting opaque handles to typed host payloads and
-their cleanup behavior.
-_Avoid_: process-global registry, Wasm linear-memory object
+**Loaded Wasm Executable**:
+A parsed and validated Wasm Artifact whose selected engine mode is prepared for
+fresh instantiation.
+_Avoid_: active execution state, partially resolved semantic manifest
 
 ### WebAssembly Execution
 
-**Lane Wasm Module ABI**:
-The public contract between generated Lane WebAssembly and an embedding host:
-the exported entry, named runtime-control globals, and versioned Runtime
-Imports.
-_Avoid_: source module exports, compiler-private helper indices
-
 **Lane Wasm Internal Runtime ABI**:
 The compiler-private named contract shared by Wasm emission and the matching
-runtime adapter for internal helpers and control globals.
-_Avoid_: numeric function/global offsets, public Runtime Registry
-
-**Runtime Service Capability**:
-A restricted nested-call service required by the result contract of a retained
-user or internal Runtime Import. The shared Wasm ABI catalog owns each service's
-name, physical function type, and import requirements. Wasm emission certifies
-the service against its concrete static layout before exporting it; loading
-derives the same capability set from validated imports and resolves exactly
-those exports once.
-_Avoid_: unconditional service export, layout-zero sentinel, per-call export lookup
-
-**Wasm Artifact**:
-A standard WebAssembly module plus its semantic Runtime Import manifest. The
-manifest is necessary because Wasm physical signatures cannot distinguish, for
-example, String from Opaque when both use `i32`.
-_Avoid_: Physical Program, independent VM image
-
-**Loaded Wasm Executable**:
-A validated Wasm Artifact whose Runtime Imports are resolved and whose selected
-engine mode is ready to instantiate.
-_Avoid_: partially loaded artifact, active execution state
+runtime adapter for deterministic float formatting, fatal control, and runtime
+control globals.
+_Avoid_: public host ABI, numeric function or global offsets
 
 **Execution Mode**:
 The engine selection for the same WebAssembly module: Wasmoon interpreter or
 Wasmoon JIT. It changes implementation strategy, not Lane semantics or artifact
 format.
-_Avoid_: separate backend, fallback execution language
+_Avoid_: separate compiler backend, fallback execution language
 
 **Execution Instance**:
-The single-shot Wasm instance, Runtime Context, host-object table, and resource
-limits used by one execution attempt.
+The single-shot Wasm instance and resource limits used by one execution
+attempt.
 _Avoid_: Loaded Wasm Executable, reusable failed instance
 
-**Runtime Import Failure**:
-A fatal out-of-band host-call failure that produces no Lane value and ends the
-current execution.
-_Avoid_: handleable Lane effect, recoverable result
+**Fatal Outcome**:
+Compiler-owned terminal control carrying a validated UTF-8 message after Lane
+cleanup has run.
+_Avoid_: handleable Lane effect, host import error
 
 **Engine Trap**:
 A WebAssembly engine failure outside portable Lane execution semantics,
 reported with best-effort engine detail.
-_Avoid_: Runtime Import Failure, Lane panic
+_Avoid_: Fatal Outcome, source diagnostic

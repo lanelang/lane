@@ -359,8 +359,7 @@ pub(all) enum CheckedExpr {
     loc~ : SourceSpan
   )
   ExternBinding(
-    name~ : String,
-    signature~ : @abi.HostSignature,
+    contract~ : @wasm_abi.ImportContract,
     type_~ : @types.Type,
     loc~ : SourceSpan
   )

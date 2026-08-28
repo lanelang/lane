@@ -6,7 +6,6 @@ pub(all) enum ValueKind {
   F64
   F32
   String
-  Opaque
 } derive(Debug, Eq)
 
 ///|
@@ -248,6 +247,7 @@ pub(all) enum Intrinsic {
   BytesLength
   BytesGet
   BytesSet
+  WasiFdWrite
 } derive(Debug, Eq)
 
 ///|
@@ -314,6 +314,7 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
     "%bytes_length" => Some(BytesLength)
     "%bytes_get" => Some(BytesGet)
     "%bytes_set" => Some(BytesSet)
+    "%wasi_fd_write" => Some(WasiFdWrite)
     _ => None
   }
 }
@@ -382,6 +383,7 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
     BytesLength => "%bytes_length"
     BytesGet => "%bytes_get"
     BytesSet => "%bytes_set"
+    WasiFdWrite => "%wasi_fd_write"
   }
 }
 
@@ -445,5 +447,12 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
     BytesGet => pure_intrinsic_function(parameters=[Bytes, I64], result=Byte)
     BytesSet =>
       pure_intrinsic_function(parameters=[Bytes, I64, Byte], result=Bytes)
+    WasiFdWrite =>
+      Function(
+        parameters=[I32, Bytes],
+        result=I32,
+        effect=BuiltinIo,
+        implementation=Direct,
+      )
   }
 }

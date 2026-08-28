@@ -145,14 +145,6 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Owned,
         erased_companion: None,
       }
-    OpaqueReference(_) =>
-      {
-        representation: I32,
-        cleanup: OwnedRef,
-        kind: OpaqueReferenceValue,
-        ownership: Owned,
-        erased_companion: None,
-      }
   }
   Concrete(type_, metadata)
 }

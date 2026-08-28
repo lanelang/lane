@@ -1,0 +1,8 @@
+module Examples.Valid115
+
+// WASI declarations use the standardized core WebAssembly signature.
+pub let fd_write : (I32, I32, I32, I32) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
+
+pub fn answer() -> Unit {
+  ()
+}

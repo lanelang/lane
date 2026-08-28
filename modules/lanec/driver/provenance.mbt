@@ -157,12 +157,13 @@ fn ExploreFunctionGraphBuilder::physical_roles(
     IntrinsicWrapper(name~) => [IntrinsicWrapper(name~)]
     CallableAdapter(contract~, reason~) => [CallableAdapter(contract~, reason~)]
     LayoutConstructor => [LayoutConstructor]
-    RuntimeImport(source~, symbol~) =>
+    RuntimeImport(source~, module_name~, field_name~) =>
       [
         RuntimeImport(
           value=source.index,
           name=self.source_name(source),
-          symbol~,
+          module_name~,
+          field_name~,
         ),
       ]
   }
@@ -202,9 +203,18 @@ fn wasm_role(origin : @wasm_compiler.WasmFunctionOrigin) -> ExploreFunctionRole 
   match origin {
     InternalRuntimeImport(function) =>
       InternalRuntimeImport(name=function.name())
-    PhysicalRuntimeImport(symbol~, ..) => PhysicalRuntimeImport(symbol~)
+    WasiPreview1Import(import_) => {
+      let contract = import_.contract()
+      WasiPreview1Import(
+        module_name=contract.module_name,
+        field_name=contract.field_name,
+      )
+    }
+    PhysicalRuntimeImport(module_name~, field_name~, ..) =>
+      PhysicalRuntimeImport(module_name~, field_name~)
     PhysicalFunction(_) => WasmPhysicalFunction
-    RuntimeImportAdapter(symbol~, ..) => RuntimeImportAdapter(symbol~)
+    RuntimeImportAdapter(module_name~, field_name~, ..) =>
+      RuntimeImportAdapter(module_name~, field_name~)
     RuntimeFunction(role) => WasmRuntimeFunction(name=wasm_runtime_name(role))
     HelperFunction(role) => wasm_helper_role(role)
     EntryWrapper => EntryWrapper
@@ -223,7 +233,6 @@ fn wasm_runtime_name(role : @wasm_compiler.WasmRuntimeFunctionRole) -> String {
     ByteSequenceEqual => "byte sequence equal"
     ByteSequenceConcat => "byte sequence concat"
     ByteSequenceSlice => "byte sequence slice"
-    HostObjectNew => "host object new"
     ByteSequenceMake => "byte sequence make"
     ByteSequenceIndex => "byte sequence index"
     ByteSequenceGet => "byte sequence get"
@@ -248,8 +257,6 @@ fn wasm_helper_role(
     RetainCallable => WasmHelperFunction(name="retain callable", ordinal=None)
     ReleaseCallable => WasmHelperFunction(name="release callable", ordinal=None)
     DestroyNoop => WasmHelperFunction(name="destroy noop", ordinal=None)
-    DestroyHostObject =>
-      WasmHelperFunction(name="destroy host object", ordinal=None)
     DestroyShape(shape~) =>
       WasmHelperFunction(name="destroy shape", ordinal=Some(shape))
     ByteSequenceSizer =>

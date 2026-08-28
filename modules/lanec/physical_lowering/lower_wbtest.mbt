@@ -15,26 +15,41 @@ fn test_io_function_type(
 }
 
 ///|
-fn test_host_signature(type_ : @buslane.Type) -> @abi.HostSignature {
+fn test_import_contract(
+  field_name : String,
+  type_ : @buslane.Type,
+) -> @wasm_abi.ImportContract {
   guard type_ is Function(parameters, result, _) else {
     abort("test runtime import must be a function")
   }
   {
-    parameters: parameters.map(test_host_value_kind),
-    result: test_host_value_kind(result),
+    module_name: "lane.test",
+    field_name,
+    parameters: parameters.map(test_import_parameter),
+    result: test_import_result(result),
   }
 }
 
 ///|
-fn test_host_value_kind(type_ : @buslane.Type) -> @abi.ValueKind {
+fn test_import_parameter(type_ : @buslane.Type) -> @wasm_abi.ImportParameter {
+  match type_ {
+    Primitive(Unit) => ErasedUnit
+    Primitive(I32) => Direct(I32)
+    Primitive(I64) => Direct(I64)
+    Primitive(F32) => Direct(F32)
+    Primitive(F64) => Direct(F64)
+    _ => abort("test runtime import must use a direct ABI type")
+  }
+}
+
+///|
+fn test_import_result(type_ : @buslane.Type) -> @wasm_abi.ImportResult {
   match type_ {
     Primitive(Unit) => Unit
-    Primitive(Bool) => Bool
-    Primitive(I64) => I64
-    Primitive(F32) => F32
-    Primitive(F64) => F64
-    Primitive(String) => String
-    Constructor(_) => Opaque
+    Primitive(I32) => Direct(I32)
+    Primitive(I64) => Direct(I64)
+    Primitive(F32) => Direct(F32)
+    Primitive(F64) => Direct(F64)
     _ => abort("test runtime import must use a direct ABI type")
   }
 }
@@ -320,8 +335,7 @@ test "pure scalar Buslane lowers through ANF into executable Physical Program" {
       instruction is CallDirect({ value: 1, }, None, [], _, _)
     }),
   )
-  let loaded = match
-    load_physical_interpreted(image, @lane_runtime.RuntimeRegistry::new()) {
+  let loaded = match load_physical_interpreted(image) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -364,8 +378,7 @@ test "runtime import origin wins over intrinsic-looking symbol" {
         runtime_imports: [
           {
             value: import_,
-            symbol: "%i64_add",
-            signature: test_host_signature(import_type),
+            contract: test_import_contract("%i64_add", import_type),
           },
         ],
       },
@@ -381,10 +394,10 @@ test "runtime import origin wins over intrinsic-looking symbol" {
     import_,
     content=(
       #|{
-      #|  abi_major: 1,
-      #|  parameters: [I64, I64],
-      #|  result: I64,
-      #|  symbol: "%i64_add",
+      #|  module_name: "lane.test",
+      #|  field_name: "%i64_add",
+      #|  parameters: [Direct(I64), Direct(I64)],
+      #|  result: Direct(I64),
       #|}
     ),
   )
@@ -457,8 +470,9 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_intrinsic_value",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_intrinsic_value", observe_type,
+            ),
           },
         ],
       },
@@ -488,22 +502,11 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
     }),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_intrinsic_value",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_intrinsic_value", value => {
+    observed = value
+  })
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -637,8 +640,9 @@ test "lexical handlers and resume lower before the Physical Program" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_handled_value",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_handled_value", observe_type,
+            ),
           },
         ],
       },
@@ -648,22 +652,9 @@ test "lexical handlers and resume lower before the Physical Program" {
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_handled_value",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_handled_value", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -702,8 +693,7 @@ test "primitive external functions become runtime imports" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract("lane.test.observe", observe_type),
           },
         ],
       },
@@ -718,32 +708,19 @@ test "primitive external functions become runtime imports" {
       PhysicalBody(_),
       RuntimeImport(
         {
-          abi_major: 1,
-          parameters: [I64],
+          module_name: "lane.test",
+          field_name: "lane.test.observe",
+          parameters: [Direct(I64)],
           result: Unit,
-          symbol: "lane.test.observe",
         }
       ),
     ],
   )
   assert_eq(image.layouts, [])
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -752,90 +729,6 @@ test "primitive external functions become runtime imports" {
 }
 
 ///|
-test "external host types erase to Opaque runtime import kinds" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let fd = metadata.define_type("Fd", [], flavor=External)
-  let fd_type = @buslane.Type::Constructor(fd)
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let open_type = test_function_type([], fd_type)
-  let close_type = test_function_type([fd_type], unit_type)
-  let open = metadata.define_value("open", External, open_type)
-  let close = metadata.define_value("close", External, close_type)
-  let handle = metadata.define_value("handle", Local, fd_type)
-  let main_type = test_function_type([], unit_type)
-  let main = metadata.define_value("main", Function, main_type)
-  let image = match
-    lower_test_linked_program_to_physical(
-      {
-        metadata,
-        terms: [
-          External(open),
-          External(close),
-          Let(
-            main,
-            Function({
-              parameters: [],
-              result_type: unit_type,
-              body: Let(
-                handle,
-                Call(Ref(open), []),
-                Call(Ref(close), [Ref(handle)]),
-              ),
-            }),
-          ),
-        ],
-      },
-      {
-        builtins: [],
-        runtime_imports: [
-          {
-            value: open,
-            symbol: "lane.test.open",
-            signature: test_host_signature(open_type),
-          },
-          {
-            value: close,
-            symbol: "lane.test.close",
-            signature: test_host_signature(close_type),
-          },
-        ],
-      },
-      { module_path_text: "Main", name: "main", value: main, },
-    ) {
-    Ok(image) => image
-    Err(error) => fail("lowering failed: \{Repr(error)}")
-  }
-  debug_inspect(
-    (
-      image.layouts,
-      image.functions.filter_map(fn(entry) {
-        match entry {
-          RuntimeImport(import_) => Some(import_)
-          PhysicalBody(_) => None
-        }
-      }),
-    ),
-    content=(
-      #|(
-      #|  [Reference],
-      #|  [
-      #|    {
-      #|      abi_major: 1,
-      #|      parameters: [],
-      #|      result: Opaque,
-      #|      symbol: "lane.test.open",
-      #|    },
-      #|    {
-      #|      abi_major: 1,
-      #|      parameters: [Opaque],
-      #|      result: Unit,
-      #|      symbol: "lane.test.close",
-      #|    },
-      #|  ],
-      #|)
-    ),
-  )
-}
 
 ///|
 test "runtime imports are deduplicated and sorted after physical bodies" {
@@ -879,18 +772,15 @@ test "runtime imports are deduplicated and sorted after physical bodies" {
         runtime_imports: [
           {
             value: z_first,
-            symbol: "lane.test.z",
-            signature: test_host_signature(import_type),
+            contract: test_import_contract("lane.test.z", import_type),
           },
           {
             value: a,
-            symbol: "lane.test.a",
-            signature: test_host_signature(import_type),
+            contract: test_import_contract("lane.test.a", import_type),
           },
           {
             value: z_second,
-            symbol: "lane.test.z",
-            signature: test_host_signature(import_type),
+            contract: test_import_contract("lane.test.z", import_type),
           },
         ],
       },
@@ -912,8 +802,8 @@ test "runtime imports are deduplicated and sorted after physical bodies" {
     image.functions
     is [
       PhysicalBody(_),
-      RuntimeImport({ symbol: "lane.test.a", .. }),
-      RuntimeImport({ symbol: "lane.test.z", .. }),
+      RuntimeImport({ field_name: "lane.test.a", .. }),
+      RuntimeImport({ field_name: "lane.test.z", .. }),
     ],
   )
   guard image.functions[0] is PhysicalBody(main_body) else {
@@ -948,13 +838,27 @@ test "runtime imports are deduplicated and sorted after physical bodies" {
       #|  },
       #|  {
       #|    function: { value: 2 },
-      #|    origins: [RuntimeImport(source={ index: 1 }, symbol="lane.test.a")],
+      #|    origins: [
+      #|      RuntimeImport(
+      #|        source={ index: 1 },
+      #|        module_name="lane.test",
+      #|        field_name="lane.test.a",
+      #|      ),
+      #|    ],
       #|  },
       #|  {
       #|    function: { value: 3 },
       #|    origins: [
-      #|      RuntimeImport(source={ index: 0 }, symbol="lane.test.z"),
-      #|      RuntimeImport(source={ index: 2 }, symbol="lane.test.z"),
+      #|      RuntimeImport(
+      #|        source={ index: 0 },
+      #|        module_name="lane.test",
+      #|        field_name="lane.test.z",
+      #|      ),
+      #|      RuntimeImport(
+      #|        source={ index: 2 },
+      #|        module_name="lane.test",
+      #|        field_name="lane.test.z",
+      #|      ),
       #|    ],
       #|  },
       #|]
@@ -963,20 +867,20 @@ test "runtime imports are deduplicated and sorted after physical bodies" {
 }
 
 ///|
-test "runtime imports with equal symbols and distinct kinds remain distinct" {
+test "runtime imports with equal symbols and distinct core types remain distinct" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
   let i64_import_type = test_io_function_type([Primitive(I64)], unit_type)
-  let bool_import_type = test_io_function_type([Primitive(Bool)], unit_type)
+  let i32_import_type = test_io_function_type([Primitive(I32)], unit_type)
   let i64_import = metadata.define_value(
     "observe_int",
     External,
     i64_import_type,
   )
-  let bool_import = metadata.define_value(
-    "observe_bool",
+  let i32_import = metadata.define_value(
+    "observe_i32",
     External,
-    bool_import_type,
+    i32_import_type,
   )
   let first = metadata.define_value("first", Local, unit_type)
   let main_type = test_io_function_type([], unit_type)
@@ -987,7 +891,7 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
         metadata,
         terms: [
           External(i64_import),
-          External(bool_import),
+          External(i32_import),
           Let(
             main,
             Function({
@@ -996,7 +900,7 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
               body: Let(
                 first,
                 Call(Ref(i64_import), [Literal(I64(1L))]),
-                Call(Ref(bool_import), [Literal(Bool(true))]),
+                Call(Ref(i32_import), [Literal(I32(1))]),
               ),
             }),
           ),
@@ -1007,13 +911,11 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
         runtime_imports: [
           {
             value: i64_import,
-            symbol: "lane.test.observe",
-            signature: test_host_signature(i64_import_type),
+            contract: test_import_contract("lane.test.observe", i64_import_type),
           },
           {
-            value: bool_import,
-            symbol: "lane.test.observe",
-            signature: test_host_signature(bool_import_type),
+            value: i32_import,
+            contract: test_import_contract("lane.test.observe", i32_import_type),
           },
         ],
       },
@@ -1032,92 +934,20 @@ test "runtime imports with equal symbols and distinct kinds remain distinct" {
     content=(
       #|[
       #|  {
-      #|    abi_major: 1,
-      #|    parameters: [Bool],
+      #|    module_name: "lane.test",
+      #|    field_name: "lane.test.observe",
+      #|    parameters: [Direct(I32)],
       #|    result: Unit,
-      #|    symbol: "lane.test.observe",
       #|  },
       #|  {
-      #|    abi_major: 1,
-      #|    parameters: [I64],
+      #|    module_name: "lane.test",
+      #|    field_name: "lane.test.observe",
+      #|    parameters: [Direct(I64)],
       #|    result: Unit,
-      #|    symbol: "lane.test.observe",
       #|  },
       #|]
     ),
   )
-}
-
-///|
-test "owned String arguments are transferred through VM CFG ARC insertion" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let string_type = @buslane.Type::Primitive(String)
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let observe_type = test_function_type([string_type], unit_type)
-  let observe = metadata.define_value("observe", External, observe_type)
-  let main_type = test_function_type([], unit_type)
-  let main = metadata.define_value("main", Function, main_type)
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      External(observe),
-      Let(
-        main,
-        Function({
-          parameters: [],
-          result_type: unit_type,
-          body: Call(Ref(observe), [Literal(String("Lane"))]),
-        }),
-      ),
-    ],
-  }
-  let image = match
-    lower_test_linked_program_to_physical(
-      program,
-      {
-        builtins: [],
-        runtime_imports: [
-          {
-            value: observe,
-            symbol: "lane.test.observe_string",
-            signature: test_host_signature(observe_type),
-          },
-        ],
-      },
-      { module_path_text: "Main", name: "main", value: main, },
-    ) {
-    Ok(value) => value
-    Err(error) => fail("lowering failed: \{Repr(error)}")
-  }
-  guard image.functions[0] is PhysicalBody(main_body) else {
-    fail("expected main physical body")
-  }
-  assert_true(
-    main_body.blocks[0].terminator
-    is TailCallDirect({ value: 2, }, None, [], [{ value: 0, }]),
-  )
-  let mut observed = ""
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_string",
-      abi_major=1,
-      parameters=[String],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [BorrowedString(value)] {
-          observed = value.to_string()
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
-    Ok(value) => value
-    Err(error) => fail("load failed: \{Repr(error)}")
-  }
-  assert_eq(loaded.execute(), Ok(()))
-  assert_eq(observed, "Lane")
 }
 
 ///|
@@ -1126,8 +956,10 @@ test "Bool matches lower to explicit CFG branches" {
   let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
   let bool_type = @buslane.Type::Primitive(Bool)
-  let read_type = test_function_type([], bool_type)
+  let read_type = test_function_type([], i64_type)
   let read = metadata.define_value("read", External, read_type)
+  let equal_type = test_function_type([i64_type, i64_type], bool_type)
+  let equal = metadata.define_value("equal", External, equal_type)
   let observe_type = test_function_type([i64_type], unit_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let binder = metadata.define_value("condition", MatchBinder, bool_type)
@@ -1137,6 +969,7 @@ test "Bool matches lower to explicit CFG branches" {
     metadata,
     terms: [
       External(read),
+      External(equal),
       External(observe),
       Let(
         main,
@@ -1144,7 +977,7 @@ test "Bool matches lower to explicit CFG branches" {
           parameters: [],
           result_type: unit_type,
           body: Match({
-            scrutinee: Call(Ref(read), []),
+            scrutinee: Call(Ref(equal), [Call(Ref(read), []), Literal(I64(0L))]),
             binder,
             result_type: unit_type,
             alternatives: [
@@ -1170,17 +1003,22 @@ test "Bool matches lower to explicit CFG branches" {
     lower_test_linked_program_to_physical(
       program,
       {
-        builtins: [],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            equal,
+            I64Equal,
+          ),
+        ],
         runtime_imports: [
           {
             value: read,
-            symbol: "lane.test.read_branch",
-            signature: test_host_signature(read_type),
+            contract: test_import_contract("lane.test.read_branch", read_type),
           },
           {
             value: observe,
-            symbol: "lane.test.observe_branch",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_branch", observe_type,
+            ),
           },
         ],
       },
@@ -1189,37 +1027,17 @@ test "Bool matches lower to explicit CFG branches" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  guard image.functions[0] is PhysicalBody(main_body) else {
-    fail("expected main physical body")
+  guard image.functions
+    is [PhysicalBody(main_body), RuntimeImport(_), RuntimeImport(_)] else {
+    fail("expected main, read, and observe functions")
   }
   assert_eq(main_body.blocks.length(), 3)
   assert_true(main_body.blocks[0].terminator is BranchBool(_, _, _))
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.read_branch",
-      abi_major=1,
-      parameters=[],
-      result=Bool,
-      invoke=fn(_context, _arguments) { Bool(true) },
-    ),
-  )
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_branch",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.provide_i64("lane.test.read_branch", 0L)
+  host.observe_i64("lane.test.observe_branch", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1292,8 +1110,9 @@ test "non-generic data construction and matching lower through object shapes" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_data",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_data", observe_type,
+            ),
           },
         ],
       },
@@ -1313,22 +1132,9 @@ test "non-generic data construction and matching lower through object shapes" {
   )
   assert_true(main_body.blocks[0].terminator is SwitchTag(_, _, _))
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_data",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_data", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1404,8 +1210,9 @@ test "capture-free functions lower as callable values for higher-order calls" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_higher_order",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_higher_order", observe_type,
+            ),
           },
         ],
       },
@@ -1427,22 +1234,9 @@ test "capture-free functions lower as callable values for higher-order calls" {
     }),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_higher_order",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_higher_order", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1507,8 +1301,9 @@ test "nonescaping nested functions pass captures directly" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_closure",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_closure", observe_type,
+            ),
           },
         ],
       },
@@ -1563,22 +1358,9 @@ test "nonescaping nested functions pass captures directly" {
     ),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_closure",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_closure", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1674,8 +1456,9 @@ test "tail-recursive local functions become local join points" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_recursive",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_recursive", observe_type,
+            ),
           },
         ],
       },
@@ -1696,22 +1479,9 @@ test "tail-recursive local functions become local join points" {
   assert_true(bodies[0].blocks.length() > 1)
   assert_true(bodies[0].blocks.any(block => block.terminator is Jump(_)))
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_recursive",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_recursive", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1796,8 +1566,9 @@ test "generic identity calls cross explicit representation erasure bridges" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_generic",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_generic", observe_type,
+            ),
           },
         ],
       },
@@ -1830,22 +1601,9 @@ test "generic identity calls cross explicit representation erasure bridges" {
     }),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_generic",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_generic", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1926,8 +1684,9 @@ test "closed generic calls specialize without changing the canonical fallback" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_canonical_generic",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_canonical_generic", observe_type,
+            ),
           },
         ],
       },
@@ -1954,8 +1713,9 @@ test "closed generic calls specialize without changing the canonical fallback" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_canonical_generic",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_canonical_generic", observe_type,
+            ),
           },
         ],
       },
@@ -2023,30 +1783,18 @@ test "closed generic calls specialize without changing the canonical fallback" {
     }),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_canonical_generic",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(specialized_image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_canonical_generic", value => {
+    observed = value
+  })
+  let loaded = match load_physical_interpreted(specialized_image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
   assert_eq(loaded.execute(), Ok(()))
   assert_eq(observed, 42L)
   observed = 0L
-  let generic_loaded = match
-    load_physical_interpreted(generic_image, registry) {
+  let generic_loaded = match load_physical_interpreted(generic_image, host~) {
     Ok(value) => value
     Err(error) => fail("generic load failed: \{Repr(error)}")
   }
@@ -2167,8 +1915,9 @@ test "closed worker preserves a generic nominal callable field contract" {
     runtime_imports: [
       {
         value: observe,
-        symbol: "lane.test.observe_nominal_callable",
-        signature: test_host_signature(observe_type),
+        contract: test_import_contract(
+          "lane.test.observe_nominal_callable", observe_type,
+        ),
       },
     ],
   }
@@ -2200,363 +1949,21 @@ test "closed worker preserves a generic nominal callable field contract" {
     Err(error) => fail("generic lowering failed: \{Repr(error)}")
   }
   let observations = []
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_nominal_callable",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        guard arguments is [I64(value)] else {
-          abort("expected one I64 observation")
-        }
-        observations.push(value)
-        Unit
-      },
-    ),
-  )
-  let specialized_loaded = match
-    load_physical_interpreted(specialized, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_nominal_callable", value => {
+    observations.push(value)
+  })
+  let specialized_loaded = match load_physical_interpreted(specialized, host~) {
     Ok(loaded) => loaded
     Err(error) => fail("specialized load failed: \{Repr(error)}")
   }
   assert_eq(specialized_loaded.execute(), Ok(()))
-  let generic_loaded = match load_physical_interpreted(generic, registry) {
+  let generic_loaded = match load_physical_interpreted(generic, host~) {
     Ok(loaded) => loaded
     Err(error) => fail("generic load failed: \{Repr(error)}")
   }
   assert_eq(generic_loaded.execute(), Ok(()))
   assert_eq(observations, [42L, 42L])
-}
-
-///|
-test "generic calls adapt callable arguments and callable results" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let type_parameter = metadata.define_type_parameter("T", Type)
-  let generic_type = @buslane.Type::Parameter(type_parameter)
-  let generic_callable_type = test_function_type([], generic_type)
-  let passthrough_type = @buslane.Type::Forall(
-    [type_parameter],
-    test_function_type([generic_callable_type], generic_callable_type),
-  )
-  let callable_parameter = metadata.define_value(
-    "callable",
-    Parameter,
-    generic_callable_type,
-  )
-  let passthrough = metadata.define_value(
-    "passthrough",
-    Function,
-    passthrough_type,
-  )
-  let string_type = @buslane.Type::Primitive(String)
-  let i64_type = @buslane.Type::Primitive(I64)
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let string_callable_type = test_function_type([], string_type)
-  let producer = metadata.define_value(
-    "producer",
-    Function,
-    string_callable_type,
-  )
-  let measure_type = test_function_type([string_type], i64_type)
-  let measure = metadata.define_value("measure", External, measure_type)
-  let observe_type = test_function_type([i64_type], unit_type)
-  let observe = metadata.define_value("observe", External, observe_type)
-  let adapted = metadata.define_value("adapted", Local, string_callable_type)
-  let produced = metadata.define_value("produced", Local, string_type)
-  let measured = metadata.define_value("measured", Local, i64_type)
-  let main_type = test_function_type([], unit_type)
-  let main = metadata.define_value("main", Function, main_type)
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      External(measure),
-      External(observe),
-      Let(
-        passthrough,
-        TypeLambda(
-          [type_parameter],
-          Function({
-            parameters: [callable_parameter],
-            result_type: generic_callable_type,
-            body: Ref(callable_parameter),
-          }),
-        ),
-      ),
-      Let(
-        producer,
-        Function({
-          parameters: [],
-          result_type: string_type,
-          body: Literal(String("Lane")),
-        }),
-      ),
-      Let(
-        main,
-        Function({
-          parameters: [],
-          result_type: unit_type,
-          body: Let(
-            adapted,
-            Call(TypeApply(Ref(passthrough), [TypeArgument(string_type)]), [
-              Ref(producer),
-            ]),
-            Let(
-              produced,
-              Call(Ref(adapted), []),
-              Let(
-                measured,
-                Call(Ref(measure), [Ref(produced)]),
-                Call(Ref(observe), [Ref(measured)]),
-              ),
-            ),
-          ),
-        }),
-      ),
-    ],
-  }
-  let image = match
-    lower_test_linked_program_to_physical(
-      program,
-      {
-        builtins: [],
-        runtime_imports: [
-          {
-            value: measure,
-            symbol: "lane.test.generic_string_length",
-            signature: test_host_signature(measure_type),
-          },
-          {
-            value: observe,
-            symbol: "lane.test.observe_generic_callable",
-            signature: test_host_signature(observe_type),
-          },
-        ],
-      },
-      { module_path_text: "Main", name: "main", value: main, },
-    ) {
-    Ok(value) => value
-    Err(error) => fail("lowering failed: \{Repr(error)}")
-  }
-  debug_inspect(
-    image.functions,
-    content=(
-      #|[
-      #|  PhysicalBody(
-      #|    {
-      #|      slots: [
-      #|        {
-      #|          representation: I32,
-      #|          cleanup: OwnedRef,
-      #|          kind: ByteSequenceValue,
-      #|          erased_companion: None,
-      #|        },
-      #|        {
-      #|          representation: I64,
-      #|          cleanup: Trivial,
-      #|          kind: ScalarValue,
-      #|          erased_companion: None,
-      #|        },
-      #|      ],
-      #|      inputs: { environment: None, witnesses: [], user_parameters: [] },
-      #|      result: Unit,
-      #|      blocks: [
-      #|        {
-      #|          parameters: [],
-      #|          instructions: [
-      #|            ConstString({ value: 0 }, { value: 0 }),
-      #|            CallDirect({ value: 2 }, None, [], [{ value: 0 }], Some({ value: 1 })),
-      #|          ],
-      #|          terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 1 }]),
-      #|        },
-      #|      ],
-      #|    },
-      #|  ),
-      #|  RuntimeImport(
-      #|    {
-      #|      abi_major: 1,
-      #|      parameters: [String],
-      #|      result: I64,
-      #|      symbol: "lane.test.generic_string_length",
-      #|    },
-      #|  ),
-      #|  RuntimeImport(
-      #|    {
-      #|      abi_major: 1,
-      #|      parameters: [I64],
-      #|      result: Unit,
-      #|      symbol: "lane.test.observe_generic_callable",
-      #|    },
-      #|  ),
-      #|]
-    ),
-  )
-  let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.generic_string_length",
-      abi_major=1,
-      parameters=[String],
-      result=I64,
-      invoke=fn(_context, arguments) {
-        guard arguments is [BorrowedString(value)] else { return I64(-1L) }
-        I64(value.length().to_int64())
-      },
-    ),
-  )
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_generic_callable",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
-    Ok(value) => value
-    Err(error) => fail("load failed: \{Repr(error)}")
-  }
-  assert_eq(loaded.execute(), Ok(()))
-  assert_eq(observed, 4L)
-}
-
-///|
-test "generic nested closures capture erased values and layout witnesses" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let type_parameter = metadata.define_type_parameter("T", Type)
-  let generic_type = @buslane.Type::Parameter(type_parameter)
-  let generic_callable_type = test_function_type([], generic_type)
-  let make_type = @buslane.Type::Forall(
-    [type_parameter],
-    test_function_type([generic_type], generic_callable_type),
-  )
-  let captured = metadata.define_value("captured", Parameter, generic_type)
-  let make = metadata.define_value("make", Function, make_type)
-  let string_type = @buslane.Type::Primitive(String)
-  let i64_type = @buslane.Type::Primitive(I64)
-  let unit_type = @buslane.Type::Primitive(Unit)
-  let string_callable_type = test_function_type([], string_type)
-  let measure_type = test_function_type([string_type], i64_type)
-  let measure = metadata.define_value("measure", External, measure_type)
-  let observe_type = test_function_type([i64_type], unit_type)
-  let observe = metadata.define_value("observe", External, observe_type)
-  let closure = metadata.define_value("closure", Local, string_callable_type)
-  let produced = metadata.define_value("produced", Local, string_type)
-  let measured = metadata.define_value("measured", Local, i64_type)
-  let main_type = test_function_type([], unit_type)
-  let main = metadata.define_value("main", Function, main_type)
-  let program : @buslane.Program = {
-    metadata,
-    terms: [
-      External(measure),
-      External(observe),
-      Let(
-        make,
-        TypeLambda(
-          [type_parameter],
-          Function({
-            parameters: [captured],
-            result_type: generic_callable_type,
-            body: Function({
-              parameters: [],
-              result_type: generic_type,
-              body: Ref(captured),
-            }),
-          }),
-        ),
-      ),
-      Let(
-        main,
-        Function({
-          parameters: [],
-          result_type: unit_type,
-          body: Let(
-            closure,
-            Call(TypeApply(Ref(make), [TypeArgument(string_type)]), [
-              Literal(String("Lane")),
-            ]),
-            Let(
-              produced,
-              Call(Ref(closure), []),
-              Let(
-                measured,
-                Call(Ref(measure), [Ref(produced)]),
-                Call(Ref(observe), [Ref(measured)]),
-              ),
-            ),
-          ),
-        }),
-      ),
-    ],
-  }
-  let image = match
-    lower_test_linked_program_to_physical(
-      program,
-      {
-        builtins: [],
-        runtime_imports: [
-          {
-            value: measure,
-            symbol: "lane.test.captured_string_length",
-            signature: test_host_signature(measure_type),
-          },
-          {
-            value: observe,
-            symbol: "lane.test.observe_generic_capture",
-            signature: test_host_signature(observe_type),
-          },
-        ],
-      },
-      { module_path_text: "Main", name: "main", value: main, },
-    ) {
-    Ok(value) => value
-    Err(error) => fail("lowering failed: \{Repr(error)}")
-  }
-  let observed : Array[Int64] = []
-  fn registry(observed : Array[Int64]) -> @lane_runtime.RuntimeRegistry {
-    let registry = @lane_runtime.RuntimeRegistry::new()
-    registry.register(
-      @lane_runtime.RuntimeBinding::new(
-        symbol="lane.test.captured_string_length",
-        abi_major=1,
-        parameters=[String],
-        result=I64,
-        invoke=fn(_context, arguments) {
-          guard arguments is [BorrowedString(value)] else { return I64(-1L) }
-          I64(value.length().to_int64())
-        },
-      ),
-    )
-    registry.register(
-      @lane_runtime.RuntimeBinding::new(
-        symbol="lane.test.observe_generic_capture",
-        abi_major=1,
-        parameters=[I64],
-        result=Unit,
-        invoke=fn(_context, arguments) {
-          if arguments is [I64(value)] {
-            observed.push(value)
-          }
-          Unit
-        },
-      ),
-    )
-    registry
-  }
-  let interpreted = match load_physical_interpreted(image, registry(observed)) {
-    Ok(value) => value
-    Err(error) => fail("interpreter load failed: \{Repr(error)}")
-  }
-  assert_eq(interpreted.execute(), Ok(()))
-  assert_eq(observed, [4L])
 }
 
 ///|
@@ -2624,8 +2031,7 @@ test "single-constructor matches keep owned captures in the current block" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.single_box",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract("lane.test.single_box", observe_type),
           },
         ],
       },
@@ -2641,20 +2047,9 @@ test "single-constructor matches keep owned captures in the current block" {
     main_body.blocks.any(block => block.terminator is SwitchTag(_, _, _)),
   )
   let mut observed = false
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.single_box",
-      abi_major=1,
-      parameters=[],
-      result=Unit,
-      invoke=fn(_context, _arguments) {
-        observed = true
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.signal("lane.test.single_box", () => observed = true)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -2732,8 +2127,9 @@ test "generic data stores layout witnesses beside erased payloads" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_generic_data",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_generic_data", observe_type,
+            ),
           },
         ],
       },
@@ -2766,22 +2162,9 @@ test "generic data stores layout witnesses beside erased payloads" {
     }),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_generic_data",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_generic_data", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -2883,8 +2266,9 @@ test "existential data opens hidden witnesses beside erased payloads" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_existential_payload",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_existential_payload", observe_type,
+            ),
           },
         ],
       },
@@ -2923,22 +2307,11 @@ test "existential data opens hidden witnesses beside erased payloads" {
     }),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_existential_payload",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_existential_payload", value => {
+    observed = value
+  })
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -3025,8 +2398,9 @@ test "payload-free existential evidence disappears when no runtime use remains" 
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_existential_witness",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_existential_witness", observe_type,
+            ),
           },
         ],
       },
@@ -3049,22 +2423,11 @@ test "payload-free existential evidence disappears when no runtime use remains" 
     }),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_existential_witness",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_existential_witness", value => {
+    observed = value
+  })
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -3146,8 +2509,7 @@ test "unused effect-kind existential evidence disappears from runtime ANF" {
       instruction is LoadObjectWitness(_, _, _, _)
     }),
   )
-  let loaded = match
-    load_physical_interpreted(image, @lane_runtime.RuntimeRegistry::new()) {
+  let loaded = match load_physical_interpreted(image) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -3234,8 +2596,9 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_unit_abi",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_unit_abi", observe_type,
+            ),
           },
         ],
       },
@@ -3254,22 +2617,9 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
     }),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_unit_abi",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_unit_abi", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -3336,13 +2686,15 @@ test "primitive literal matches lower to comparison decision chains" {
         runtime_imports: [
           {
             value: read,
-            symbol: "lane.test.read_literal_match",
-            signature: test_host_signature(read_type),
+            contract: test_import_contract(
+              "lane.test.read_literal_match", read_type,
+            ),
           },
           {
             value: observe,
-            symbol: "lane.test.observe_literal_match",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_literal_match", observe_type,
+            ),
           },
         ],
       },
@@ -3358,31 +2710,10 @@ test "primitive literal matches lower to comparison decision chains" {
     contains_instruction(main_body, instruction => instruction is I64Eq(_, _, _)),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.read_literal_match",
-      abi_major=1,
-      parameters=[],
-      result=I64,
-      invoke=fn(_context, _arguments) { I64(2L) },
-    ),
-  )
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_literal_match",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.provide_i64("lane.test.read_literal_match", 2L)
+  host.observe_i64("lane.test.observe_literal_match", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -3451,8 +2782,9 @@ test "generic nonescaping nested functions call their target directly" {
         runtime_imports: [
           {
             value: observe,
-            symbol: "lane.test.observe_nested_generic",
-            signature: test_host_signature(observe_type),
+            contract: test_import_contract(
+              "lane.test.observe_nested_generic", observe_type,
+            ),
           },
         ],
       },
@@ -3491,22 +2823,9 @@ test "generic nonescaping nested functions call their target directly" {
     ),
   )
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_nested_generic",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
-  let loaded = match load_physical_interpreted(image, registry) {
+  let host = TestHostBindings::new()
+  host.observe_i64("lane.test.observe_nested_generic", value => observed = value)
+  let loaded = match load_physical_interpreted(image, host~) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }

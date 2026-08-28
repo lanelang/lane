@@ -2,6 +2,7 @@
 package "Milky2018/lanec/typecheck"
 
 import {
+  "Milky2018/lane_wasm_abi",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/canonical_basic_abi",
   "Milky2018/lanec/checked",
@@ -273,6 +274,8 @@ pub(all) enum ExternTypeRestriction {
   DirectParameterRequired(index~ : Int)
   DirectResultRequired
   ExternalEffectRowRequired
+  UnknownWasiPreview1Import(field_name~ : String)
+  WasiPreview1ContractMismatch(expected~ : @lane_wasm_abi.ImportContract)
 } derive(Eq, @debug.Debug)
 pub fn ExternTypeRestriction::equal(Self, Self) -> Bool
 pub fn ExternTypeRestriction::not_equal(Self, Self) -> Bool

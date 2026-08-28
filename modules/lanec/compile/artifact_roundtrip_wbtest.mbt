@@ -30,7 +30,7 @@ test "module artifacts roundtrip through binary, link, and Wasm" {
     [
       (
         #|module Lib
-        #|let host_answer : () -> Unit = extern("lane.test.answer")
+        #|let host_answer : () -> Unit = extern("lane.test", "lane.test.answer")
         #|pub fn answer() -> Unit {
         #|  host_answer()
         #|}
@@ -80,42 +80,20 @@ test "module artifacts roundtrip through binary, link, and Wasm" {
       program.externals.builtins.map(fn(external) {
         external.intrinsic().name()
       }),
-      program.externals.runtime_imports.map(fn(import_) { import_.symbol }),
+      program.externals.runtime_imports.map(fn(import_) {
+        (import_.contract.module_name, import_.contract.field_name)
+      }),
     ),
     content=(
-      #|([], ["lane.test.answer"])
+      #|([], [("lane.test", "lane.test.answer")])
     ),
   )
   let executable = test_executable_program(program)
-  let linked_artifact = match
-    @artifact.executable_to_wasm_artifact(executable) {
-    Ok(artifact) => artifact
+  let wasm = match @artifact.executable_to_wasm_binary(executable) {
+    Ok(wasm) => wasm
     Err(error) => abort("unexpected Wasm lowering error: \{Repr(error)}")
   }
-  let runtime_imports : Array[@lane_runtime.RuntimeImport] = linked_artifact.runtime_imports
-  debug_inspect(
-    runtime_imports,
-    content=(
-      #|[
-      #|  {
-      #|    abi_major: 1,
-      #|    parameters: [],
-      #|    result: Unit,
-      #|    symbol: "lane.test.answer",
-      #|  },
-      #|]
-    ),
-  )
-  let linked_binary = @artifact.linked_program_artifact_to_binary(
-    linked_artifact,
-  )
-  inspect(byte_prefix_text(linked_binary, 8), content="76,65,78,69,65,82,84,0")
-  let linked_decoded = match
-    @artifact.parse_linked_program_artifact_binary(linked_binary) {
-    Ok(artifact) => artifact
-    Err(message) => abort(message)
-  }
-  assert_eq(linked_decoded, linked_artifact)
+  inspect(byte_prefix_text(wasm, 8), content="0,97,115,109,1,0,0,0")
   inspect(
     @prettyprinter.render(
       @buslane.verify_program(program.program.program()),
@@ -266,7 +244,7 @@ test "built-in Io roundtrips through typed artifacts" {
   let compiled = compile_modules_for_test(
     (
       #|module Main
-      #|pub let println : (String) -> Unit ! Io = extern("println")
+      #|pub let write : (I32, Bytes) -> I32 ! Io = builtin("%wasi_fd_write")
       #|pub fn run(action : () -> Unit ! Io) -> Unit ! Io {
       #|  action()
       #|}
@@ -301,7 +279,7 @@ test "built-in Io roundtrips through typed artifacts" {
     })
     .join("\n"),
     content=(
-      #|println: (String) -> Unit ! Io
+      #|write: (I32, Bytes) -> I32 ! Io
       #|run: (() -> Unit ! Io) -> Unit ! Io
     ),
   )
@@ -315,7 +293,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 22
+      #|schema: 25
       #|
       #|imported interfaces:
       #|  (none)
@@ -324,23 +302,23 @@ test "built-in Io roundtrips through typed artifacts" {
       #|imports:
       #|  (none)
       #|exports:
-      #|  value println
+      #|  value write
       #|  value run
       #|public entries:
-      #|  Main.println : (String) -> Unit ! Io
+      #|  Main.write : (I32, Bytes) -> I32 ! Io
       #|  Main.run : (() -> Unit ! Io) -> Unit ! Io
       #|compiler intrinsics:
-      #|  (none)
+      #|  %wasi_fd_write : (I32, Bytes) -> I32 ! Io
       #|runtime imports:
-      #|  println : (String) -> Unit ! Io
+      #|  (none)
       #|buslane:
       #|  buslane {
       #|    metadata {
       #|      next_unique#4;
-      #|      value value#0 = "println"#0 value : (String) -> Unit ! Io;
+      #|      value value#0 = "write"#0 value : (I32, Bytes) -> I32 ! Io;
       #|      value value#1 = "run"#1 function : (() -> Unit ! Io) -> Unit ! Io;
       #|      value value#2 = "action"#2 parameter : () -> Unit ! Io;
-      #|      value value#3 = "println"#3 external : (String) -> Unit ! Io;
+      #|      value value#3 = "%wasi_fd_write"#3 external : (I32, Bytes) -> I32 ! Io;
       #|    }
       #|    external value#3
       #|    letrec {
@@ -386,7 +364,7 @@ test "external flavors roundtrip through artifacts and linking" {
     (
       #|module Main
       #|import Lib.*
-      #|pub fn use(fd : Fd) -> I64 ! VectorOp[I64] {
+      #|pub fn use(fd : I64) -> I64 ! VectorOp[I64] {
       #|  read(fd)
       #|}
     ),
@@ -395,7 +373,7 @@ test "external flavors roundtrip through artifacts and linking" {
         #|module Lib
         #|pub extern type Fd : Type
         #|pub extern type VectorOp[A : Type] : Effect
-        #|pub let read : (Fd) -> I64 ! VectorOp[I64] = extern("vector.read")
+        #|pub let read : (I64) -> I64 ! VectorOp[I64] = extern("lane.test", "vector.read")
       ),
     ],
   )
@@ -446,7 +424,7 @@ test "external flavors roundtrip through artifacts and linking" {
       #|type aliases:
       #|  (none)
       #|values:
-      #|  pub let read : (Fd) -> I64 ! VectorOp[I64]
+      #|  pub let read : (I64) -> I64 ! VectorOp[I64]
       #|
     ),
   )
@@ -709,20 +687,18 @@ test "module artifact binary rejects wrong kind" {
   guard linked.program is Some(program) else {
     abort("expected linked program")
   }
-  let artifact = match
-    @artifact.executable_to_wasm_artifact(test_executable_program(program)) {
-    Ok(artifact) => artifact
+  let wasm = match
+    @artifact.executable_to_wasm_binary(test_executable_program(program)) {
+    Ok(wasm) => wasm
     Err(error) => abort("unexpected Wasm lowering error: \{Repr(error)}")
   }
-  let program_binary = @artifact.linked_program_artifact_to_binary(artifact)
-  if @artifact.parse_module_object_artifact_binary(program_binary)
-    is Err(message) {
+  if @artifact.parse_module_object_artifact_binary(wasm) is Err(message) {
     inspect(
       message,
-      content="wrong artifact binary kind: expected object, got program",
+      content="invalid artifact binary: expected Lane artifact magic at byte 0",
     )
   } else {
-    abort("expected program binary to fail object parsing")
+    abort("expected raw Wasm to fail object artifact parsing")
   }
 }
 
@@ -871,7 +847,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 22
+      #|schema: 25
       #|
       #|imported interfaces:
       #|  (none)

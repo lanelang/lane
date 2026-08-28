@@ -68,7 +68,7 @@ fn erased_reference_with_wrong_object_shape() -> @physical.PhysicalProgram {
 test "unerasure validates recovered object shape across production backends" {
   let image = erased_reference_with_wrong_object_shape()
   assert_eq(@physical.verify_physical_program(image), Ok(()))
-  for backend in [DirectInterpreter, WasmInterpreter, WasmJit] {
+  for backend in [WasmInterpreter, WasmJit] {
     let outcome = execute_compiler_test_image(image, backend)
     assert_true(outcome.result is Err(EngineTrap(detail=_)))
   }

@@ -1,5 +1,9 @@
 # Lane Wasm module and runtime-service ABI
 
+> **Superseded.** The WASI Preview 1 WebAssembly Target RFC replaces this
+> public ABI with `_start`, `memory`, WASI Preview 1, and direct core Wasm
+> imports. No runtime-service capability export remains.
+
 A generated Lane Wasm module exposes one stable program entry, `"lane.entry":() -> ()`. The wrapper invokes the executable entry selected by `lane link`, whose Lane type is exactly a zero-argument function returning `Unit`. No other Lane function is exported. The module also exports canonical memory as `"lane.memory"` and may export explicitly designated non-Lane runtime services. Entry and service wrappers are direct Wasm exports outside the canonical function table and Lane callable namespace.
 
 Runtime imports use WebAssembly module namespace `"lane.runtime.v1"`. Each import field name is the stable versioned registry symbol. Portable bytecode stores the symbol, ABI major, and complete direct-value parameter and result kinds; runtime loading validates that signature against the registry before Wasm compilation or execution.

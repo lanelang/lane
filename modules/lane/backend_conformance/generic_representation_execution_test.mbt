@@ -11,7 +11,7 @@ test "finite recursive effect-polymorphic callables execute on every backend" {
       #|let add : (I64, I64) -> I64 = builtin("%i64_add")
       #|let subtract : (I64, I64) -> I64 = builtin("%i64_sub")
       #|let equal : (I64, I64) -> Bool = builtin("%i64_equal")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn[R, E : Effect] fold(
       #|  remaining : I64,
@@ -69,7 +69,7 @@ test "global callable crosses a recursive generic boundary on every backend" {
       #|let add : (I64, I64) -> I64 = builtin("%i64_add")
       #|let subtract : (I64, I64) -> I64 = builtin("%i64_sub")
       #|let equal : (I64, I64) -> Bool = builtin("%i64_equal")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn[R, E : Effect] fold(
       #|  remaining : I64,
@@ -135,7 +135,7 @@ test "generic callable stored in data keeps its canonical ABI on every backend" 
       #|  }
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let equal_unit = equal_deriver.record[Unit, Unit](
@@ -162,7 +162,7 @@ test "every constructor follows its declaration-owned data family on every backe
       #|
       #|let equal : (I64, I64) -> Bool = builtin("%i64_equal")
       #|let subtract : (I64, I64) -> I64 = builtin("%i64_sub")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn seek(offset : I64, remaining : I64) -> Optional[I64] {
       #|  if equal(remaining, 0) {
@@ -214,7 +214,7 @@ test "a data join keeps the generic family required by one branch on every backe
       #|  }
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let sequence = decoder.decode[I64](stored(empty()), 42)
@@ -283,7 +283,7 @@ test "recursive higher-kinded callable adapters preserve data values on every ba
       #|}
       #|
       #|let i64_equal : (I64, I64) -> Bool = builtin("%i64_equal")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let equal = sequence_equal(Equal::{ equal: i64_equal })
@@ -322,7 +322,7 @@ test "recursive higher-kinded callable aliases preserve data values on every bac
       #|}
       #|
       #|let add : (I64, I64) -> I64 = builtin("%i64_add")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn[T] sequence_measure(element : Measure[T]) -> Measure[Sequence[T]] {
       #|  let recursive : Measure[Sequence[T]] = recursive_measure.defer(
@@ -388,7 +388,7 @@ test "one generic handler returns distinct runtime representations on every back
       #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
       #|let bytes_length : (Bytes) -> I64 = builtin("%bytes_length")
       #|let add : (I64, I64) -> I64 = builtin("%i64_add")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn test_bound() -> Unit ! { Assert, Io } {
       #|  let scalar = expect_in_bounds[Char](fn() { possible_bound('中', false) }, '\0')
@@ -448,7 +448,7 @@ test "recursive generic data results keep one family on every backend" {
       #|  }
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let result : Optional[I64] = last(cons(1, cons(42, Sequence::empty())))
@@ -476,7 +476,7 @@ test "generic closure captures its declaration-owned data family on every backen
       #|  fn() { box }
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  observe(defer_box(Box::{ value: 42 })().value)
@@ -505,7 +505,7 @@ test "generic stored closure forces its captured callable to the generic ABI" {
       #|}
       #|
       #|let add : (I64, I64) -> I64 = builtin("%i64_add")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let increment = lift(fn(value) {
@@ -543,7 +543,7 @@ test "higher-kinded callable stored in data keeps its generic metadata argument"
       #|  }
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let wrapped = deriver.field[I64](
@@ -582,7 +582,7 @@ test "recursive nested effect companion forwarding preserves its generic edge" {
       #|  invoke()
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  handle {
@@ -651,7 +651,7 @@ test "nested effect companion forwarding executes on every backend" {
       #|}
     ),
   )
-  let expected = [DirectInterpreter, WasmInterpreter, WasmJit].map(backend => {
+  let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
     result: Ok(()),
     i64_values: [],
@@ -677,7 +677,7 @@ test "workers distinguish nested nominal contracts with one outer ABI" {
       #|}
       #|
       #|let add : (I64, I64) -> I64 = builtin("%i64_add")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn[A, B, C] compose(
       #|  outer : Connector[A, B],

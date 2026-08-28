@@ -67,7 +67,9 @@ fn executable_externals_doc(
     externals.runtime_imports.map(external => {
       text("runtime_import") +
       space +
-      string(external.symbol) +
+      string(external.contract.module_name) +
+      text(".") +
+      string(external.contract.field_name) +
       space +
       text("as") +
       space +

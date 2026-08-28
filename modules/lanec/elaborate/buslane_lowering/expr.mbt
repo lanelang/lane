@@ -8,8 +8,8 @@ fn BuslaneLowerer::lower_expr(
     Value(symbol~, ..) => Ref(self.value_id(symbol))
     CompilerIntrinsic(intrinsic~, type_~, ..) =>
       Ref(self.define_builtin_external(intrinsic, self.lower_type(type_)))
-    ExternBinding(name~, signature~, type_~, ..) =>
-      Ref(self.define_runtime_import(name, signature, self.lower_type(type_)))
+    ExternBinding(contract~, type_~, ..) =>
+      Ref(self.define_runtime_import(contract, self.lower_type(type_)))
     ErrorRecovery(_) =>
       abort("invalid checked expression reached Buslane lowering")
     FunctionLiteral(

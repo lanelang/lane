@@ -125,7 +125,6 @@ fn runtime_types_alpha_equal(
   match (left, right) {
     (Unit, Unit) | (ByteSequence, ByteSequence) => true
     (Scalar(left), Scalar(right)) => left == right
-    (OpaqueReference(left), OpaqueReference(right)) => left == right
     (Data(left_owner, left_arguments), Data(right_owner, right_arguments)) =>
       left_owner == right_owner &&
       runtime_argument_arrays_alpha_equal(
@@ -200,7 +199,6 @@ fn RuntimeMetadata::runtime_types_equal(
 ) -> Bool {
   match (left, right) {
     (Unit, Unit) | (ByteSequence, ByteSequence) => true
-    (OpaqueReference(left), OpaqueReference(right)) => left == right
     (Scalar(left), Scalar(right)) => left == right
     // Runtime data values carry their own erased-field witnesses. Nominal
     // arguments select those witnesses when constructing or projecting the

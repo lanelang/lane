@@ -3,7 +3,7 @@ test "dependent initializers execute in term order before entry" {
   let source =
     #|module Test
     #|
-    #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+    #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
     #|
     #|fn identity(value : I64) -> I64 { value }
     #|
@@ -21,7 +21,7 @@ test "function-valued initializer retains its producer callable contract" {
   let source =
     #|module Test
     #|
-    #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+    #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
     #|
     #|let identity : (I64) -> I64 = fn(value) { value }
     #|
@@ -35,7 +35,7 @@ test "recursive function groups remain atomic around eager initialization" {
   let source =
     #|module Test
     #|
-    #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+    #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
     #|
     #|fn first(stop : Bool) -> I64 {
     #|  if stop { 7 } else { second(true) }

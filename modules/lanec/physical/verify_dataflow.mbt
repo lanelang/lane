@@ -1215,7 +1215,8 @@ fn PhysicalProgramVerifier::apply_trivial_instruction_flow(
       self.write_trivial_after_reads(site, body, state, destination, [
         source, index,
       ])
-    ByteSequenceEqual(destination, left, right)
+    WasiFdWrite(destination, left, right)
+    | ByteSequenceEqual(destination, left, right)
     | I32Add(destination, left, right)
     | I32Sub(destination, left, right)
     | I32Mul(destination, left, right)

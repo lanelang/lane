@@ -263,14 +263,19 @@ test "physical verifier does not interchange reference semantic categories" {
 }
 
 ///|
-test "physical verifier owns Char and runtime import symbol semantics" {
+test "physical verifier owns Char and runtime import name semantics" {
   let invalid_char = verification_image(
     verification_body(slots=[verification_slot(I32)], instructions=[
       ConstChar({ value: 0, }, 0xD800),
     ]),
   )
   let invalid_symbol = verification_image(verification_body(), functions=[
-    RuntimeImport({ abi_major: 1, parameters: [], result: Unit, symbol: "", }),
+    RuntimeImport({
+      module_name: "lane.test",
+      field_name: "",
+      parameters: [],
+      result: Unit,
+    }),
   ])
   assert_true(verify_physical_program(invalid_char) is Err(_))
   assert_true(verify_physical_program(invalid_symbol) is Err(_))
@@ -282,14 +287,19 @@ test "physical verifier owns every encoding-independent image invariant" {
     Bytes::from_array([b'\xFF']),
   ])
   let non_ascii_symbol = verification_image(verification_body(), functions=[
-    RuntimeImport({ abi_major: 1, parameters: [], result: Unit, symbol: "中", }),
+    RuntimeImport({
+      module_name: "lane.test",
+      field_name: "中",
+      parameters: [],
+      result: Unit,
+    }),
   ])
   let nul_symbol = verification_image(verification_body(), functions=[
     RuntimeImport({
-      abi_major: 1,
+      module_name: "lane.test",
+      field_name: "lane\u{0}symbol",
       parameters: [],
       result: Unit,
-      symbol: "lane\u{0}symbol",
     }),
   ])
   assert_true(
@@ -306,7 +316,7 @@ test "physical verifier owns every encoding-independent image invariant" {
     is Err(
       InvalidPhysicalProgram(
         site=Function({ value: 2, }),
-        detail="runtime import symbol must contain ASCII bytes only"
+        detail="runtime import field name must contain ASCII bytes only"
       )
     ),
   )
@@ -315,7 +325,7 @@ test "physical verifier owns every encoding-independent image invariant" {
     is Err(
       InvalidPhysicalProgram(
         site=Function({ value: 2, }),
-        detail="runtime import symbol must not contain NUL"
+        detail="runtime import field name must not contain NUL"
       )
     ),
   )
@@ -924,14 +934,17 @@ test "physical verifier enforces result ABI at every static call boundary" {
     ),
     result: Value(I32, Trivial, ScalarValue),
   }
-  let import_caller = verification_body(slots=[verification_slot(I32)], instructions=[
-    CallDirect({ value: 2, }, None, [], [], Some({ value: 0, })),
-  ])
-  let string_import : @runtime.RuntimeImport = {
-    abi_major: 1,
+  let import_caller = verification_body(
+    slots=[
+      verification_slot(I32, cleanup=OwnedRef, kind=Some(ByteSequenceValue)),
+    ],
+    instructions=[CallDirect({ value: 2, }, None, [], [], Some({ value: 0, }))],
+  )
+  let scalar_import : @wasm_abi.ImportContract = {
+    module_name: "lane.test",
+    field_name: "lane.test.string",
     parameters: [],
-    result: String,
-    symbol: "lane.test.string",
+    result: Direct(I32),
   }
   debug_inspect(
     (
@@ -948,7 +961,7 @@ test "physical verifier enforces result ABI at every static call boundary" {
       ),
       verify_physical_program(
         verification_image(import_caller, functions=[
-          RuntimeImport(string_import),
+          RuntimeImport(scalar_import),
         ]),
       ),
     ),

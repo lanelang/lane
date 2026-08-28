@@ -17,6 +17,7 @@ import {
   "Milky2018/bytecodec@0.1.0",
   "Milky2018/diagnostic@0.1.0",
   "Milky2018/lane_runtime@0.1.0",
+  "Milky2018/lane_wasm_abi@0.1.0",
   "Milky2018/wasm_core@0.12.5",
   "Milky2018/wasmoon@0.12.5",
   "moonbit-community/prettyprinter@0.4.10",

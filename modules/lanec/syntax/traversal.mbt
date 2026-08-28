@@ -9,7 +9,7 @@ pub fn Expr::for_each_child_expr(self : Expr, visit : (Expr) -> Unit) -> Unit {
     | UnitLiteral(_)
     | Var(_)
     | Builtin(_)
-    | Extern(_) => ()
+    | Extern(..) => ()
     QualifiedVariant(arguments~, ..)
     | ListLiteral(items=arguments, ..)
     | TupleLiteral(items=arguments, ..) =>

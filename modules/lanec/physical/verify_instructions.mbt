@@ -313,6 +313,14 @@ fn PhysicalProgramVerifier::verify_instruction(
       self.expect_kind(site, body, destination, ScalarValue)
       self.expect_kind(site, body, source, ByteSequenceValue)
     }
+    WasiFdWrite(destination, fd, bytes) => {
+      self.expect_slot(site, body, destination, I32, Trivial)
+      self.expect_slot(site, body, fd, I32, Trivial)
+      self.expect_kind(site, body, destination, ScalarValue)
+      self.expect_kind(site, body, fd, ScalarValue)
+      self.expect_slot(site, body, bytes, I32, OwnedRef)
+      self.expect_kind(site, body, bytes, ByteSequenceValue)
+    }
     ByteSequenceGet(destination, source, index) => {
       self.expect_slot(site, body, destination, I32, Trivial)
       self.expect_kind(site, body, destination, ScalarValue)

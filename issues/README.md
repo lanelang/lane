@@ -416,6 +416,13 @@ graph TD
   ISS_397["ISS-397: Make exported Wasm runtime services layout-valid"]
   ISS_398["ISS-398: Make Runtime ANF a fully verified boundary"]
   ISS_399["ISS-399: Propagate verified IR certificates through backend seams"]
+  ISS_400["ISS-400: Remove the legacy semantic host-runtime stack"]
+  ISS_401["ISS-401: Make the Wasm Physical Program own core import contracts"]
+  ISS_402["ISS-402: Lower source externs and Basic I/O to WASI Preview 1"]
+  ISS_403["ISS-403: Delete the semantic Lane host runtime"]
+  ISS_404["ISS-404: Persist raw WebAssembly executables"]
+  ISS_405["ISS-405: Close the WebAssembly-only migration"]
+  ISS_406["ISS-406: Delete Opaque host-object externs"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -749,6 +756,17 @@ graph TD
   ISS_390 --> ISS_393
   ISS_394 --> ISS_395
   ISS_395 --> ISS_396
+  ISS_401 --> ISS_400
+  ISS_402 --> ISS_400
+  ISS_403 --> ISS_400
+  ISS_404 --> ISS_400
+  ISS_405 --> ISS_400
+  ISS_406 --> ISS_400
+  ISS_401 --> ISS_402
+  ISS_402 --> ISS_403
+  ISS_406 --> ISS_403
+  ISS_401 --> ISS_404
+  ISS_404 --> ISS_405
 ```
 
 ## Warnings

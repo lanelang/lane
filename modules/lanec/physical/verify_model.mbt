@@ -133,21 +133,8 @@ fn PhysicalProgramVerifier::verify_runtime_imports_and_constants(
   for index, entry in self.image.functions {
     if entry is RuntimeImport(import_) {
       let site = PhysicalVerificationSite::Function({ value: index + 1, })
-      if import_.abi_major < 0 {
-        self.fail(site, "runtime import ABI major must be nonnegative")
-      }
-      let symbol = @utf8.encode(import_.symbol)
-      if symbol.is_empty() {
-        self.fail(site, "runtime import symbol must be nonempty")
-      }
-      for byte in symbol {
-        if byte.to_int() > 0x7F {
-          self.fail(site, "runtime import symbol must contain ASCII bytes only")
-        }
-        if byte == b'\x00' {
-          self.fail(site, "runtime import symbol must not contain NUL")
-        }
-      }
+      self.verify_wasm_name(site, import_.module_name, "module name")
+      self.verify_wasm_name(site, import_.field_name, "field name")
     }
   }
   for constant in self.image.constants {
@@ -156,6 +143,27 @@ fn PhysicalProgramVerifier::verify_runtime_imports_and_constants(
         _ => self.fail(Image, "String constant must contain valid UTF-8")
       },
     )
+  }
+}
+
+///|
+fn PhysicalProgramVerifier::verify_wasm_name(
+  self : PhysicalProgramVerifier,
+  site : PhysicalVerificationSite,
+  name : String,
+  what : String,
+) -> Unit raise PhysicalProgramVerificationError {
+  let bytes = @utf8.encode(name)
+  if bytes.is_empty() {
+    self.fail(site, "runtime import \{what} must be nonempty")
+  }
+  for byte in bytes {
+    if byte.to_int() > 0x7F {
+      self.fail(site, "runtime import \{what} must contain ASCII bytes only")
+    }
+    if byte == b'\x00' {
+      self.fail(site, "runtime import \{what} must not contain NUL")
+    }
   }
 }
 
@@ -582,7 +590,7 @@ fn PhysicalProgramVerifier::legal_metadata(
       (cleanup == Trivial || cleanup == OwnedCallable)
     CallableValue =>
       representation == I64 && (cleanup == Trivial || cleanup == OwnedCallable)
-    ByteSequenceValue | OpaqueReferenceValue =>
+    ByteSequenceValue =>
       representation == I32 && (cleanup == Trivial || cleanup == OwnedRef)
     DataValue(family) => {
       if family.value < 0 || family.value >= self.image.data_family_count {

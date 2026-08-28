@@ -87,7 +87,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|let bytes_length : (Bytes) -> I64 = builtin("%bytes_length")
       #|let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
       #|let bytes_set : (Bytes, I64, Byte) -> Bytes = builtin("%bytes_set")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe")
       #|
       #|fn[T] identity(value : T) -> T {
       #|  value
@@ -184,10 +184,10 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|    ),
       #|    RuntimeImport(
       #|      {
-      #|        abi_major: 1,
-      #|        parameters: [I64],
+      #|        module_name: "lane.test",
+      #|        field_name: "lane.test.observe",
+      #|        parameters: [Direct(I64)],
       #|        result: Unit,
-      #|        symbol: "lane.test.observe",
       #|      },
       #|    ),
       #|  ],
@@ -210,7 +210,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|let i64_to_byte : (I64) -> Byte = builtin("%i64_to_byte")
       #|let bytes_make : (I64, Byte) -> Bytes = builtin("%bytes_make")
       #|let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe")
       #|
       #|struct Stored {
       #|  byte : Byte
@@ -536,10 +536,10 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|    ),
       #|    RuntimeImport(
       #|      {
-      #|        abi_major: 1,
-      #|        parameters: [I64],
+      #|        module_name: "lane.test",
+      #|        field_name: "lane.test.observe",
+      #|        parameters: [Direct(I64)],
       #|        result: Unit,
-      #|        symbol: "lane.test.observe",
       #|      },
       #|    ),
       #|  ],

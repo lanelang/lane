@@ -2,7 +2,6 @@
 fn internal_import_image(
   uses_f32~ : Bool,
   uses_f64~ : Bool,
-  uses_host_objects~ : Bool,
 ) -> @physical.PhysicalProgram {
   let slots : Array[@physical.SlotMetadata] = []
   let instructions : Array[@physical.Instruction] = []
@@ -27,25 +26,7 @@ fn internal_import_image(
   let body = wasm_bytes_body(slots, [
     { parameters: [], instructions, terminator: Return(None), },
   ])
-  let image = wasm_bytes_image(body)
-  if !uses_host_objects {
-    return image
-  }
-  let import_ : @lane_runtime.RuntimeImport = {
-    abi_major: 1,
-    parameters: [Opaque],
-    result: Unit,
-    symbol: "lane.test.consume_host_object",
-  }
-  {
-    ..image,
-    callable_abis: [
-      { witnesses: [], parameters: [], result: Unit, },
-      @physical.runtime_import_callable_abi(import_),
-    ],
-    functions: [PhysicalBody(body), RuntimeImport(import_)],
-    layouts: [ByteSequence, Reference],
-  }
+  wasm_bytes_image(body)
 }
 
 ///|
@@ -68,23 +49,17 @@ fn internal_import_observation(
 
 ///|
 test "compiler emits selected internal imports in canonical order" {
-  let cases : Array[
-    (Bool, Bool, Bool, Array[@internal_abi.InternalRuntimeFunction]),
-  ] = [
-    (false, false, false, []),
-    (true, false, false, [F32ToString]),
-    (false, true, false, [F64ToString]),
-    (true, true, false, [F32ToString, F64ToString]),
-    (false, false, true, [HostObjectRelease]),
-    (true, false, true, [F32ToString, HostObjectRelease]),
-    (false, true, true, [F64ToString, HostObjectRelease]),
-    (true, true, true, [F32ToString, F64ToString, HostObjectRelease]),
+  let cases : Array[(Bool, Bool, Array[@internal_abi.InternalRuntimeFunction])] = [
+    (false, false, []),
+    (true, false, [F32ToString]),
+    (false, true, [F64ToString]),
+    (true, true, [F32ToString, F64ToString]),
   ]
   let actual = []
   let expected = []
   for case in cases {
-    let (uses_f32, uses_f64, uses_host_objects, functions) = case
-    let image = internal_import_image(uses_f32~, uses_f64~, uses_host_objects~)
+    let (uses_f32, uses_f64, functions) = case
+    let image = internal_import_image(uses_f32~, uses_f64~)
     let wasm_module = match compile(certify_physical_program_test(image)) {
       Ok(module_) => module_
       Err(error) => fail("compile failed: \{Repr(error)}")
@@ -111,11 +86,7 @@ test "Fatal selects the private fatal String import" {
       },
     ],
   }
-  let base = internal_import_image(
-    uses_f32=false,
-    uses_f64=false,
-    uses_host_objects=false,
-  )
+  let base = internal_import_image(uses_f32=false, uses_f64=false)
   let image = {
     ..base,
     functions: base.functions + [PhysicalBody(fatal_body)],

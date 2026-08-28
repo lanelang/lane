@@ -8,5 +8,6 @@ import {
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/module" @module_interface,
   "Milky2018/lanec/occurrence",
+  "Milky2018/lane_wasm_abi" @wasm_abi,
   "moonbitlang/core/hashset",
 }

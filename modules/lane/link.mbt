@@ -30,13 +30,13 @@ async fn lane_link(
     Ok(executable) => executable
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  match write_linked_program_artifact(output, executable) {
+  match write_wasm_executable(output, executable) {
     Ok(_) => ()
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
   if verbose {
     let linked_modules = program.module_path_texts().join(",")
-    println("linked program \{output}")
+    println("linked WebAssembly module \{output}")
     println("linked modules \{linked_modules}")
     println("linked entry \{display_public_entry_name(entry_name)}")
   }

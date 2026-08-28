@@ -38,8 +38,11 @@ fn lower_test_linked_program_to_physical(
 test "executable lowering emits reachable instance globals in source order" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let string_type = @buslane.Type::Primitive(String)
+  let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let consume_type = global_test_function_type([string_type], unit_type)
+  let length_type = global_test_function_type([string_type], i64_type)
+  let length = metadata.define_value("length", External, length_type)
+  let consume_type = global_test_function_type([i64_type], unit_type)
   let consume = metadata.define_value("consume", External, consume_type)
   let unused_import = metadata.define_value(
     "unused_import",
@@ -50,11 +53,13 @@ test "executable lowering emits reachable instance globals in source order" {
   let second = metadata.define_value("second", Value, string_type)
   let unused_type = global_test_function_type([], unit_type)
   let unused = metadata.define_value("unused", Function, unused_type)
+  let measured = metadata.define_value("measured", Local, i64_type)
   let main_type = global_test_function_type([], unit_type)
   let main = metadata.define_value("main", Function, main_type)
   let program : @buslane.Program = {
     metadata,
     terms: [
+      External(length),
       External(consume),
       External(unused_import),
       Let(first, Literal(String("Lane"))),
@@ -72,7 +77,11 @@ test "executable lowering emits reachable instance globals in source order" {
         Function({
           parameters: [],
           result_type: unit_type,
-          body: Call(Ref(consume), [Ref(second)]),
+          body: Let(
+            measured,
+            Call(Ref(length), [Ref(second)]),
+            Call(Ref(consume), [Ref(measured)]),
+          ),
         }),
       ),
     ],
@@ -81,17 +90,30 @@ test "executable lowering emits reachable instance globals in source order" {
     lower_test_linked_program_to_physical(
       program,
       {
-        builtins: [],
+        builtins: [
+          @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+            length,
+            BytesLength,
+          ),
+        ],
         runtime_imports: [
           {
             value: consume,
-            symbol: "lane.test.consume",
-            signature: { parameters: [String], result: Unit, },
+            contract: {
+              module_name: "lane.test",
+              field_name: "lane.test.consume",
+              parameters: [Direct(I64)],
+              result: Unit,
+            },
           },
           {
             value: unused_import,
-            symbol: "lane.test.unused",
-            signature: { parameters: [String], result: Unit, },
+            contract: {
+              module_name: "lane.test",
+              field_name: "lane.test.unused",
+              parameters: [Direct(I64)],
+              result: Unit,
+            },
           },
         ],
       },
@@ -128,7 +150,10 @@ test "executable lowering emits reachable instance globals in source order" {
       "expected two initializer steps, the reachable entry, its orchestrator, and one runtime import",
     )
   }
-  assert_eq(import_.symbol, "lane.test.consume")
+  assert_eq(
+    (import_.module_name, import_.field_name),
+    ("lane.test", "lane.test.consume"),
+  )
   assert_eq(first_step.blocks[0], {
     parameters: [],
     instructions: [ConstString({ value: 0, }, { value: 0, })],
@@ -158,7 +183,7 @@ test "executable lowering emits reachable instance globals in source order" {
   ])
   assert_eq(main_body.blocks[0].instructions, [
     BorrowGlobal({ value: 0, }, { value: 1, }),
-    RetainCopy({ value: 1, }, { value: 0, }),
+    ByteSequenceLength({ value: 1, }, { value: 0, }),
   ])
   assert_eq(
     main_body.blocks[0].terminator,
@@ -286,14 +311,17 @@ test "initializer orchestration is bounded by peak live owned results" {
   for count in [4, 16] {
     let metadata = @buslane.MetadataRegistry::MetadataRegistry()
     let string_type = @buslane.Type::Primitive(String)
+    let i64_type = @buslane.Type::Primitive(I64)
     let unit_type = @buslane.Type::Primitive(Unit)
+    let length_type = global_test_function_type([string_type], i64_type)
+    let length = metadata.define_value("length", External, length_type)
     let consume_type = global_test_function_type(
-      Array::make(count, string_type),
+      Array::make(count, i64_type),
       unit_type,
     )
     let consume = metadata.define_value("consume", External, consume_type)
     let values : Array[@buslane.ValueId] = []
-    let terms : Array[@buslane.TopTerm] = [External(consume)]
+    let terms : Array[@buslane.TopTerm] = [External(length), External(consume)]
     for index in 0..<count {
       let value = metadata.define_value("global_\{index}", Value, string_type)
       values.push(value)
@@ -307,7 +335,10 @@ test "initializer orchestration is bounded by peak live owned results" {
         Function({
           parameters: [],
           result_type: unit_type,
-          body: Call(Ref(consume), values.map(value => Ref(value))),
+          body: Call(
+            Ref(consume),
+            values.map(value => Call(Ref(length), [Ref(value)])),
+          ),
         }),
       ),
     )
@@ -316,13 +347,19 @@ test "initializer orchestration is bounded by peak live owned results" {
       lower_test_linked_program_to_physical(
         program,
         {
-          builtins: [],
+          builtins: [
+            @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
+              length,
+              BytesLength,
+            ),
+          ],
           runtime_imports: [
             {
               value: consume,
-              symbol: "lane.test.consume_many",
-              signature: {
-                parameters: Array::make(count, String),
+              contract: {
+                module_name: "lane.test",
+                field_name: "lane.test.consume_many",
+                parameters: Array::make(count, Direct(I64)),
                 result: Unit,
               },
             },

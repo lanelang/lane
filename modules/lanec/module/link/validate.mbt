@@ -292,49 +292,54 @@ fn validate_runtime_import_signature(
     diagnostics.push(
       invalid_module_object(
         object,
-        "runtime import `\{import_.symbol}` source type is not a function",
+        "Wasm import `\{import_.contract.module_name}.\{import_.contract.field_name}` source type is not a function",
       ),
     )
     return
   }
-  let parameter_kinds = parameters.map(type_ => {
-    runtime_import_source_kind(object.program.metadata, type_)
+  let parameter_contracts = parameters.map(type_ => {
+    runtime_import_source_parameter(type_)
   })
-  let result_kind = runtime_import_source_kind(object.program.metadata, result)
-  if parameter_kinds.any(kind => kind is None) ||
-    result_kind is None ||
-    parameter_kinds.filter_map(kind => kind) != import_.signature.parameters ||
-    result_kind != Some(import_.signature.result) ||
+  let result_contract = runtime_import_source_result(result)
+  if parameter_contracts.any(contract => contract is None) ||
+    result_contract is None ||
+    parameter_contracts.filter_map(contract => contract) !=
+    import_.contract.parameters ||
+    result_contract != Some(import_.contract.result) ||
     !runtime_import_effect_is_admissible(object.program.metadata, effect) {
     diagnostics.push(
       invalid_module_object(
         object,
-        "runtime import `\{import_.symbol}` host signature does not match its source type",
+        "Wasm import `\{import_.contract.module_name}.\{import_.contract.field_name}` contract does not match its source type",
       ),
     )
   }
 }
 
 ///|
-fn runtime_import_source_kind(
-  metadata : @buslane.MetadataRegistry,
+fn runtime_import_source_parameter(
   type_ : @buslane.Type,
-) -> @abi.ValueKind? {
+) -> @wasm_abi.ImportParameter? {
+  match type_ {
+    Primitive(Unit) => Some(ErasedUnit)
+    Primitive(I32) => Some(Direct(I32))
+    Primitive(I64) => Some(Direct(I64))
+    Primitive(F32) => Some(Direct(F32))
+    Primitive(F64) => Some(Direct(F64))
+    _ => None
+  }
+}
+
+///|
+fn runtime_import_source_result(
+  type_ : @buslane.Type,
+) -> @wasm_abi.ImportResult? {
   match type_ {
     Primitive(Unit) => Some(Unit)
-    Primitive(Bool) => Some(Bool)
-    Primitive(I64) => Some(I64)
-    Primitive(F32) => Some(F32)
-    Primitive(F64) => Some(F64)
-    Primitive(String) => Some(String)
-    Constructor(type_id) =>
-      if metadata
-        .type_info(type_id)
-        .map_or(false, info => info.flavor is External) {
-        Some(Opaque)
-      } else {
-        None
-      }
+    Primitive(I32) => Some(Direct(I32))
+    Primitive(I64) => Some(Direct(I64))
+    Primitive(F32) => Some(Direct(F32))
+    Primitive(F64) => Some(Direct(F64))
     _ => None
   }
 }

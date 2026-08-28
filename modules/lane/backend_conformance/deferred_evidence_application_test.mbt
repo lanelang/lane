@@ -21,7 +21,7 @@ test "deferred generic application preserves its producer ABI" {
       #|}
       #|
       #|let add : (I64, I64) -> I64 = builtin("%i64_add")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let values = List[I64]::cons(40, List[I64]::cons(2, List[I64]::empty()))
@@ -49,7 +49,7 @@ test "applying an existing generic closure preserves its captures" {
       #|  }
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let generic = captured_identity(7)

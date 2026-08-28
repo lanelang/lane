@@ -409,11 +409,12 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
         },
       }
     LayoutConstructor => { "kind": "layoutConstructor" }
-    RuntimeImport(value~, name~, symbol~) => {
+    RuntimeImport(value~, name~, module_name~, field_name~) => {
       let fields : Map[String, Json] = {
         "kind": "runtimeImport".to_json(),
         "value": value.to_json(),
-        "symbol": symbol.to_json(),
+        "moduleName": module_name.to_json(),
+        "fieldName": field_name.to_json(),
       }
       if name is Some(name) {
         fields["name"] = name.to_json()
@@ -422,11 +423,25 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
     }
     InternalRuntimeImport(name~) =>
       { "kind": "internalRuntimeImport", "name": name }
-    PhysicalRuntimeImport(symbol~) =>
-      { "kind": "physicalRuntimeImport", "symbol": symbol }
+    WasiPreview1Import(module_name~, field_name~) =>
+      {
+        "kind": "wasiPreview1Import",
+        "moduleName": module_name,
+        "fieldName": field_name,
+      }
+    PhysicalRuntimeImport(module_name~, field_name~) =>
+      {
+        "kind": "physicalRuntimeImport",
+        "moduleName": module_name,
+        "fieldName": field_name,
+      }
     WasmPhysicalFunction => { "kind": "wasmPhysicalFunction" }
-    RuntimeImportAdapter(symbol~) =>
-      { "kind": "runtimeImportAdapter", "symbol": symbol }
+    RuntimeImportAdapter(module_name~, field_name~) =>
+      {
+        "kind": "runtimeImportAdapter",
+        "moduleName": module_name,
+        "fieldName": field_name,
+      }
     WasmRuntimeFunction(name~) =>
       { "kind": "wasmRuntimeFunction", "name": name }
     WasmHelperFunction(name~, ordinal~) => {

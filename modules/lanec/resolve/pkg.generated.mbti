@@ -198,7 +198,7 @@ pub(all) enum ResolvedExpr {
   StructLiteral(type_name~ : ResolvedNominalName, type_name_loc~ : @basic.SourceSpan, reference~ : ResolvedTypeReference, generic_arguments~ : Array[ResolvedGenericArgument], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
   Derive(capability~ : ResolvedType, target~ : ResolvedType, arguments~ : Array[ResolvedCallArgument], source~ : @basic.DeriveSourceSite)
   Builtin(String, loc~ : @basic.SourceSpan)
-  Extern(String, loc~ : @basic.SourceSpan)
+  Extern(module_name~ : String, field_name~ : String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedFunctionLiteralParameter], return_type~ : ResolvedType?, effect~ : ResolvedEffectTerm?, body~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : ResolvedEffectOperationName, generic_witnesses~ : Array[ResolvedGenericArgument], arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   GenericApplication(callee~ : ResolvedExpr, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)

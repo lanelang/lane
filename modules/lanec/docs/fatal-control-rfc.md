@@ -83,16 +83,16 @@ Unit context.
 
 Both Wasm interpreter and JIT execution preserve the message, perform fatal
 cleanup, skip the normal continuation, and return the typed
-`ExecutionError::Fatal(message)` outcome. Runtime import failures remain a
-separate typed error.
+`ExecutionError::Fatal(message)` outcome. Failures in direct core Wasm host
+imports are engine traps at the Wasmoon linkage or execution boundary.
 
 The Void-result migration advances module-interface schema 12 to 13,
 module-object schema 19 to 20, and linked-program schema 15 to 16. Persisting
 the Canonical Basic ABI runtime contract subsequently advances the module-object
-schema from 20 to 21. The later WebAssembly-only target migration advances the
-linked-program schema to 17 because linked artifacts now persist WebAssembly
-and a semantic runtime-import manifest rather than a Physical Program. Decoders
-reject the immediately preceding schema versions.
+schema from 20 to 21. The later WebAssembly-only target migration removes the
+linked-program container entirely: linked executables are raw WebAssembly
+modules, while module-interface and module-object decoders continue to reject
+stale schema versions.
 
 ## Optimization
 

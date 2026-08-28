@@ -2,23 +2,18 @@
 package "Milky2018/lane_runtime/wasm_abi"
 
 import {
-  "Milky2018/lane_runtime",
   "Milky2018/wasm_core/types",
   "moonbitlang/core/debug",
 }
 
 // Values
+pub fn float_text_capacity() -> Int
+
 pub fn functions() -> Array[InternalRuntimeFunction]
 
 pub fn module_name() -> String
 
 pub fn runtime_control_globals() -> Array[RuntimeControlGlobal]
-
-pub fn runtime_import_parameters(@lane_runtime.RuntimeImport) -> Array[@types.ValueType]
-
-pub fn runtime_import_results(@lane_runtime.RuntimeImport) -> Array[@types.ValueType]
-
-pub fn runtime_services() -> Array[RuntimeService]
 
 // Errors
 
@@ -27,7 +22,6 @@ pub(all) enum InternalRuntimeFunction {
   F32ToString
   F64ToString
   FatalString
-  HostObjectRelease
 } derive(Eq, @debug.Debug)
 pub fn InternalRuntimeFunction::equal(Self, Self) -> Bool
 pub fn InternalRuntimeFunction::name(Self) -> String
@@ -39,24 +33,11 @@ pub(all) enum RuntimeControlGlobal {
   MaxLiveHeapBytes
   MaxCallDepth
   FailureCode
-  RuntimeImportFailed
 } derive(Eq, @debug.Debug)
 pub fn RuntimeControlGlobal::equal(Self, Self) -> Bool
 pub fn RuntimeControlGlobal::name(Self) -> String
 pub fn RuntimeControlGlobal::not_equal(Self, Self) -> Bool
 pub fn RuntimeControlGlobal::to_repr(Self) -> @debug.Repr
-
-pub(all) enum RuntimeService {
-  StringNew
-  HostObjectNew
-} derive(Eq, @debug.Debug)
-pub fn RuntimeService::equal(Self, Self) -> Bool
-pub fn RuntimeService::name(Self) -> String
-pub fn RuntimeService::not_equal(Self, Self) -> Bool
-pub fn RuntimeService::required_by_import_result(Self, @lane_runtime.RuntimeValueKind) -> Bool
-pub fn RuntimeService::required_by_internal_import(Self, InternalRuntimeFunction) -> Bool
-pub fn RuntimeService::to_repr(Self) -> @debug.Repr
-pub fn RuntimeService::type_(Self) -> @types.FuncType
 
 // Type aliases
 

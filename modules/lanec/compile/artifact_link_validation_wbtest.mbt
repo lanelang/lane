@@ -79,11 +79,11 @@ test "builtin external contract rejects metadata signature drift" {
 }
 
 ///|
-test "runtime import host signature is certified against metadata source type" {
+test "Wasm import contract is certified against metadata source type" {
   let object = compiled_test_object(
     (
       #|module Main
-      #|pub let observe : (String) -> Unit ! Io = extern("observe")
+      #|pub let observe : (I32) -> Unit ! Io = extern("lane.test", "observe")
     ),
   )
   guard object.externals.runtime_imports is [runtime_import] else {
@@ -94,7 +94,10 @@ test "runtime import host signature is certified against metadata source type" {
     externals: {
       ..object.externals,
       runtime_imports: [
-        { ..runtime_import, signature: { parameters: [I64], result: Unit, }, },
+        {
+          ..runtime_import,
+          contract: { ..runtime_import.contract, parameters: [Direct(I64)], },
+        },
       ],
     },
   })
@@ -111,7 +114,7 @@ test "runtime import host signature is certified against metadata source type" {
       #|      severity: Error,
       #|      code: Some("E4208"),
       #|      labels: [],
-      #|      notes: ["runtime import `observe` host signature does not match its source type; module objects must be internally valid before identity remapping begins"],
+      #|      notes: ["Wasm import `lane.test.observe` contract does not match its source type; module objects must be internally valid before identity remapping begins"],
       #|      helps: ["recompile the module object from valid Lane source"],
       #|      facts: [],
       #|      suggestions: [],

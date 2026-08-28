@@ -2,6 +2,7 @@
 package "Milky2018/lanec/checked"
 
 import {
+  "Milky2018/lane_wasm_abi",
   "Milky2018/lanec/abi",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/symbol",
@@ -229,7 +230,7 @@ pub(all) enum CheckedExpr {
   Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Value(name~ : String, symbol~ : @symbol.ValueSymbolId, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   CompilerIntrinsic(intrinsic~ : @abi.Intrinsic, type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  ExternBinding(name~ : String, signature~ : @abi.HostSignature, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  ExternBinding(contract~ : @lane_wasm_abi.ImportContract, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   ErrorRecovery(type_~ : @types.Type, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[@types.TypeParameter], parameters~ : Array[CheckedValueParameter], return_type~ : @types.Type, body~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   FunctionEffectWiden(value~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)

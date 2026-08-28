@@ -8,7 +8,6 @@ priv struct StaticImage {
   singleton_refs : Array[Int]
   singleton_layout_ids : Array[Int]
   byte_sequence_layout_id : Int
-  reference_layout_id : Int
   shape_layouts : Array[ShapeLayout]
   shape_layout_ids : Array[Int]
   object_shapes : Array[@physical.ObjectShape]
@@ -18,6 +17,7 @@ priv struct StaticImage {
   callable_table_size : Int
   global_lifecycle : @physical.GlobalLifecyclePlan
   global_cleanup_table_base : Int
+  wasi_iovec_base : Int
 }
 
 ///|
@@ -112,11 +112,10 @@ fn layout_fixed_size(
   image : @physical.PhysicalProgram,
   shape_layouts : Array[ShapeLayout],
   layout : @physical.LayoutRecipe,
-  host_objects_enabled : Bool,
 ) -> Int? {
   match layout {
     Unit | Bool | I64 | I32 | Char | F64 | F32 | Callable | Byte => Some(0)
-    Reference => Some(if host_objects_enabled { 16 } else { 0 })
+    Reference => Some(0)
     ByteSequence => None
     Data(shape) | Environment(shape) => {
       ignore(image)
@@ -150,7 +149,8 @@ fn instruction_requires_byte_sequence_layout(
     | ByteSequenceEqual(_, _, _)
     | ByteSequenceConcat(_, _, _)
     | ByteSequenceSlice(_, _, _, _)
-    | ByteSequenceIsValidUtf8(_, _) => true
+    | ByteSequenceIsValidUtf8(_, _)
+    | WasiFdWrite(_, _, _) => true
     _ => false
   }
 }
@@ -164,11 +164,7 @@ fn image_requires_byte_sequence_layout(
   }
   for function in image.functions {
     match function {
-      RuntimeImport(import_) =>
-        if import_.result == String ||
-          import_.parameters.any(parameter => parameter == String) {
-          return true
-        }
+      RuntimeImport(_) => ()
       PhysicalBody(body) =>
         for block in body.blocks {
           if block.instructions.any(instruction_requires_byte_sequence_layout) {
@@ -185,7 +181,6 @@ fn build_static_image(
   image : @physical.PhysicalProgram,
   global_lifecycle : @physical.GlobalLifecyclePlan,
   function_catalog : WasmFunctionCatalog,
-  host_objects_enabled : Bool,
 ) -> StaticImage raise WasmCompileError {
   let writer = @bytecodec.ByteWriter::new()
   let shape_layouts = image.object_shapes.map(object_shape_layout)
@@ -193,16 +188,7 @@ fn build_static_image(
   write_zeroes(writer, 8)
   let layout_table_base = writer.length()
   write_zeroes(writer, 32)
-  let byte_sequence_layout_id = match
-    function_catalog.runtime_service_layout(StringNew) {
-    Some(layout_id) => layout_id
-    None => function_catalog.runtime_layouts.byte_sequence
-  }
-  let reference_layout_id = match
-    function_catalog.runtime_service_layout(HostObjectNew) {
-    Some(layout_id) => layout_id
-    None => function_catalog.runtime_layouts.reference
-  }
+  let byte_sequence_layout_id = function_catalog.runtime_layouts.byte_sequence
   for index, layout in image.layouts {
     match layout {
       Data(shape) | Environment(shape) =>
@@ -210,8 +196,7 @@ fn build_static_image(
       _ => ()
     }
     writer.write_u32_le_int(layout_rep_kind(layout))
-    match
-      layout_fixed_size(image, shape_layouts, layout, host_objects_enabled) {
+    match layout_fixed_size(image, shape_layouts, layout) {
       Some(size) => {
         writer.write_u32_le_int(1)
         writer.write_u32_le_int(size)
@@ -260,10 +245,6 @@ fn build_static_image(
         Data(shape) | Environment(shape) =>
           function_catalog.table_slot(
             function_catalog.helper(DestroyShape(shape=shape.value)),
-          ).index
-        Reference if host_objects_enabled =>
-          function_catalog.table_slot(
-            function_catalog.helper(DestroyHostObject),
           ).index
         Unit
         | Bool
@@ -365,6 +346,16 @@ fn build_static_image(
     writer.write_i32_le((root.global.value << 2) | cleanup_tag)
   }
   pad_to(writer, 8)
+  let wasi_iovec_base = if function_catalog.requires(
+      WasiPreview1Import(FdWrite),
+    ) {
+    let base = writer.length()
+    write_zeroes(writer, 12)
+    base
+  } else {
+    0
+  }
+  pad_to(writer, 8)
   let heap_base = writer.length()
   {
     bytes: writer.to_bytes(),
@@ -375,7 +366,6 @@ fn build_static_image(
     singleton_refs,
     singleton_layout_ids,
     byte_sequence_layout_id,
-    reference_layout_id,
     shape_layouts,
     shape_layout_ids,
     object_shapes: image.object_shapes,
@@ -385,6 +375,7 @@ fn build_static_image(
     callable_table_size,
     global_lifecycle,
     global_cleanup_table_base,
+    wasi_iovec_base,
   }
 }
 

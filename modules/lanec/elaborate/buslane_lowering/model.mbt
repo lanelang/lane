@@ -46,8 +46,7 @@ pub fn source_value_type(
 ///|
 pub(all) struct BuslaneRuntimeImport {
   value : @buslane.ValueId
-  symbol : String
-  signature : @abi.HostSignature
+  contract : @wasm_abi.ImportContract
 } derive(Debug, Eq)
 
 ///|

@@ -236,7 +236,7 @@ test "linked tree shaking retains exports entries externals and metadata" {
   let host_log = provider_metadata.define_value(
     "host_log",
     External,
-    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+    Function([Primitive(I64)], Primitive(Unit), Builtin(Io)),
   )
   let provider : LinkModuleObject = {
     ..test_link_object("Provider", [], 0),
@@ -257,8 +257,12 @@ test "linked tree shaking retains exports entries externals and metadata" {
       runtime_imports: [
         {
           value: host_log,
-          symbol: "host_log",
-          signature: { parameters: [String], result: Unit, },
+          contract: {
+            module_name: "lane.test",
+            field_name: "host_log",
+            parameters: [Direct(I64)],
+            result: Unit,
+          },
         },
       ],
     },
@@ -301,7 +305,9 @@ test "linked tree shaking retains exports entries externals and metadata" {
       linked_term_names(linked.program.program()),
       linked.entries.map(entry => (entry.module_path_text, entry.name)),
       linked.externals.builtins.map(builtin => builtin.intrinsic()),
-      linked.externals.runtime_imports.map(import_ => import_.symbol),
+      linked.externals.runtime_imports.map(import_ => {
+        import_.contract.field_name
+      }),
       linked.program.program().metadata.effects.map(info => info.name.occurrence),
       linked.program.program().metadata.operations.map(info => {
         info.name.occurrence

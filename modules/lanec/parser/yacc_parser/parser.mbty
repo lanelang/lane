@@ -1072,7 +1072,9 @@ builtin_expression -> Expr
   ;
 
 extern_expression -> Expr
-  : "extern" "(" STRING ")" { Extern($3, loc=span($sloc)) }
+  : "extern" "(" STRING "," STRING ")" {
+    Extern(module_name=$3, field_name=$5, loc=span($sloc))
+  }
   ;
 
 pattern -> Pattern

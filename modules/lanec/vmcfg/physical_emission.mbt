@@ -158,6 +158,8 @@ fn emit_instruction(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(slot(destination), slot(source))
+    WasiFdWrite(destination, fd, bytes) =>
+      WasiFdWrite(slot(destination), slot(fd), slot(bytes))
     I32Add(destination, left, right) =>
       I32Add(slot(destination), slot(left), slot(right))
     I32Sub(destination, left, right) =>

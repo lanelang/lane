@@ -67,6 +67,20 @@ fn test_image(body : FunctionBody) -> Image {
 }
 
 ///|
+fn owned_ref_consumer_body() -> FunctionBody {
+  {
+    values: [owned_ref_value()],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0, }],
+    },
+    result: Unit,
+    blocks: [{ parameters: [], instructions: [], terminator: Return(None), }],
+  }
+}
+
+///|
 test "finalize transfers global owners and promotes global borrows" {
   let body : FunctionBody = {
     values: [owned_ref_value(), borrowed_ref_value()],
@@ -89,15 +103,7 @@ test "finalize transfers global owners and promotes global borrows" {
     finalize_test_image_without_physical_verification({
       ..test_image(body),
       initializer: Some({ value: 1, }),
-      functions: [
-        Body(body),
-        RuntimeImport({
-          abi_major: 1,
-          parameters: [String],
-          result: Unit,
-          symbol: "lane.test.consume",
-        }),
-      ],
+      functions: [Body(body), Body(owned_ref_consumer_body())],
       globals: [
         {
           representation: I32,
@@ -159,10 +165,10 @@ test "finalize preserves erased companions for promoted global borrows" {
       functions: [
         Body(body),
         RuntimeImport({
-          abi_major: 1,
-          parameters: [Opaque],
+          module_name: "lane.test",
+          field_name: "lane.test.consume_erased",
+          parameters: [Direct(I64)],
           result: Unit,
-          symbol: "lane.test.consume_erased",
         }),
       ],
     }) {
@@ -223,15 +229,7 @@ test "finalize promotes a borrowed call argument to an owner" {
   let image = match
     finalize_test_image_without_physical_verification({
       ..test_image(body),
-      functions: [
-        Body(body),
-        RuntimeImport({
-          abi_major: 1,
-          parameters: [String],
-          result: Unit,
-          symbol: "lane.test.consume",
-        }),
-      ],
+      functions: [Body(body), Body(owned_ref_consumer_body())],
     }) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")
@@ -415,15 +413,7 @@ test "finalize retains an owned call argument that is used afterward" {
   let image = match
     finalize_test_image_without_physical_verification({
       ..test_image(body),
-      functions: [
-        Body(body),
-        RuntimeImport({
-          abi_major: 1,
-          parameters: [String],
-          result: Unit,
-          symbol: "lane.test.consume",
-        }),
-      ],
+      functions: [Body(body), Body(owned_ref_consumer_body())],
     }) {
     Ok(value) => value
     Err(error) => fail("finalize failed: \{Repr(error)}")

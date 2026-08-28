@@ -17,7 +17,7 @@ pub(all) struct ModuleInterfaceArtifact {
 pub let module_interface_artifact_schema_version = 14
 
 ///|
-pub let module_object_artifact_schema_version = 22
+pub let module_object_artifact_schema_version = 25
 
 ///|
 pub let compiled_module_artifact_schema_version = 2
@@ -44,16 +44,6 @@ pub(all) struct ModuleObjectArtifact {
   imported_interface_fingerprints : Array[
     @artifact_model.ImportedInterfaceFingerprint,
   ]
-} derive(Debug, Eq)
-
-///|
-/// Complete WebAssembly executable at the linked-program persistence seam.
-/// Runtime imports retain their semantic host ABI beside the standard Wasm
-/// module because core Wasm function types do not distinguish values such as
-/// Lane strings and opaque host objects.
-pub(all) struct LinkedProgramArtifact {
-  wasm : Bytes
-  runtime_imports : Array[@lane_runtime.RuntimeImport]
 } derive(Debug, Eq)
 
 ///|

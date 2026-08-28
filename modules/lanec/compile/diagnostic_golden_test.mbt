@@ -97,14 +97,14 @@ test "golden extern missing expected type diagnostic is specific" {
       #|module Test
       #|fn bad() -> Bool {
       #|  {
-      #|    let host = extern("host")
+      #|    let host = extern("lane.test", "host")
       #|    true
       #|  }
       #|}
     ),
   )
   assert_diagnostic_headline(
-    diagnostic, "E3028", "extern `host` needs a complete expected function type",
+    diagnostic, "E3028", "extern `lane.test.host` needs a complete expected function type",
   )
   assert_single_help(
     diagnostic, "add a complete function type annotation next to this extern",
@@ -116,11 +116,28 @@ test "golden unsupported extern type diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (
       #|module Test
-      #|let bad : I64 = extern("host")
+      #|let bad : I64 = extern("lane.test", "host")
     ),
   )
   assert_diagnostic_headline(
-    diagnostic, "E3029", "extern `host` has an unsupported type",
+    diagnostic, "E3029", "extern `lane.test.host` has an unsupported type",
+  )
+  assert_single_help(
+    diagnostic, "change the declaration to a supported direct host function signature",
+  )
+}
+
+///|
+test "golden external nominal values are not a portable host ABI" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|extern type Handle : Type
+      #|let open : () -> Handle = extern("lane.test", "host.open")
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3029", "extern `lane.test.host.open` has an unsupported type",
   )
   assert_single_help(
     diagnostic, "change the declaration to a supported direct host function signature",

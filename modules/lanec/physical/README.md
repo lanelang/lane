@@ -6,6 +6,5 @@ value shapes, object layouts, ARC operations, globals, constants, and runtime
 import declarations.
 
 It is not a public VM, a persistence format, or an alternative execution
-target. No decoder or interpreter exists for it. The linked artifact boundary
-persists only standard WebAssembly bytes and the semantic runtime-import
-manifest needed by an embedding host.
+target. No decoder or interpreter exists for it. Its sole consumer emits the
+raw standard WebAssembly module used as the linked executable.

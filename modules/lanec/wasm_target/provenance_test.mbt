@@ -28,11 +28,11 @@ test "Wasm compilation records every function at its emission boundary" {
       },
     ],
   }
-  let import_ : @lane_runtime.RuntimeImport = {
-    abi_major: 1,
+  let import_ : @wasm_abi.ImportContract = {
+    module_name: "lane.test",
+    field_name: "lane.test.observe",
     parameters: [],
     result: Unit,
-    symbol: "lane.test.observe",
   }
   let image : @physical.PhysicalProgram = {
     entry: { value: 1, },
@@ -54,10 +54,7 @@ test "Wasm compilation records every function at its emission boundary" {
     Err(error) => fail("ordinary compile failed: \{Repr(error)}")
   }
   assert_eq(module_to_wat(observed.module_), module_to_wat(ordinary))
-  debug_inspect(
-    runtime_service_exports(observed.module_),
-    content="[\"lane.runtime.string.new\"]",
-  )
+  debug_inspect(runtime_service_exports(observed.module_), content="[]")
   debug_inspect(
     observed.functions,
     content=(
@@ -67,7 +64,8 @@ test "Wasm compilation records every function at its emission boundary" {
       #|    index: 1,
       #|    origin: PhysicalRuntimeImport(
       #|      function={ value: 2 },
-      #|      symbol="lane.test.observe",
+      #|      module_name="lane.test",
+      #|      field_name="lane.test.observe",
       #|    ),
       #|  },
       #|  { index: 2, origin: PhysicalFunction(function={ value: 1 }) },
@@ -75,7 +73,8 @@ test "Wasm compilation records every function at its emission boundary" {
       #|    index: 3,
       #|    origin: RuntimeImportAdapter(
       #|      function={ value: 2 },
-      #|      symbol="lane.test.observe",
+      #|      module_name="lane.test",
+      #|      field_name="lane.test.observe",
       #|    ),
       #|  },
       #|  { index: 4, origin: RuntimeFunction(Allocate) },

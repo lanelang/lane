@@ -12,6 +12,7 @@ import {
   "Milky2018/lanec/physical",
   "Milky2018/lanec/vmcfg",
   "Milky2018/lanec/wasm_target" @wasm_compiler,
+  "Milky2018/lane_wasm_abi",
   "moonbit-community/prettyprinter",
 }
 

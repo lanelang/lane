@@ -149,12 +149,12 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
       command_report(
         code="E6008",
         title="invalid exec target `\{target}`",
-        fields=[command_report_field("expected", "FILE.lbp")],
+        fields=[command_report_field("expected", "FILE.wasm")],
         details=[
-          "`lane exec` executes the entry selected when the linked program artifact was produced.",
+          "`lane exec` executes the entry selected when the WebAssembly module was linked.",
         ],
         suggestions=[
-          command_suggestion("Example:", command="lane exec program.lbp"),
+          command_suggestion("Example:", command="lane exec program.wasm"),
         ],
       )
     InvalidLinkEntry(entry~) =>
@@ -163,12 +163,12 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         title="invalid link entry `\{entry}`",
         fields=[command_report_field("expected", "Module.value")],
         details=[
-          "`lane link` selects one exported entry before producing a linked program artifact.",
+          "`lane link` selects one exported entry before producing a WebAssembly module.",
         ],
         suggestions=[
           command_suggestion(
             "Example:",
-            command="lane link --entry Main.main -o program.lbp Main.lmo",
+            command="lane link --entry Main.main -o program.wasm Main.lmo",
           ),
         ],
       )
@@ -183,7 +183,7 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
     ExecutionImageLowering(message~) =>
       command_report(
         code="E6011",
-        title="couldn't lower the linked program to physical program",
+        title="couldn't lower the executable to a physical program",
         fields=[command_report_field("reason", message)],
       )
     ExecutionImageLoad(message~) =>
@@ -300,11 +300,6 @@ fn execution_failure_report(
   match error {
     Fatal(message~) =>
       command_report(code="E6017", title="Lane program panicked", fields=[
-        command_report_field("message", message),
-      ])
-    RuntimeImportFailure(symbol~, message~) =>
-      command_report(code="E6013", title="runtime import failed", fields=[
-        command_report_field("symbol", symbol),
         command_report_field("message", message),
       ])
     error =>

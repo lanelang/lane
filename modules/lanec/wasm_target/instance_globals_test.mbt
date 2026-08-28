@@ -29,21 +29,6 @@ fn wasm_global_body(
 ///|
 test "Wasm entry wrapper runs initializer before entry using linear roots" {
   let mut observed = 0L
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.observe_global",
-      abi_major=1,
-      parameters=[I64],
-      result=Unit,
-      invoke=fn(_context, arguments) {
-        if arguments is [I64(value)] {
-          observed = value
-        }
-        Unit
-      },
-    ),
-  )
   let initializer = wasm_global_body([wasm_global_slot(I64)], [
     ConstI64({ value: 0, }, 42L),
     InitGlobal({ value: 0, }, { value: 0, }),
@@ -70,10 +55,10 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
       PhysicalBody(initializer),
       PhysicalBody(entry),
       RuntimeImport({
-        abi_major: 1,
-        parameters: [I64],
+        module_name: "lane.test",
+        field_name: "observe_global",
+        parameters: [Direct(I64)],
         result: Unit,
-        symbol: "lane.test.observe_global",
       }),
     ],
     globals: [
@@ -88,11 +73,23 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
     object_shapes: [],
     constants: [],
   }
-  let loaded = match load(image, registry) {
+  let loaded = match
+    load(image, configure_host=(linker : @wasmoon_runtime.Linker) => {
+      linker.add_host_func(
+        "lane.test",
+        "observe_global",
+        values => {
+          guard values is [I64(value)] else { raise TypeMismatch }
+          observed = value
+          []
+        },
+        func_type={ params: [I64], results: [], },
+      )
+    }) {
     Ok(loaded) => loaded
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.wasm_module().globals.length(), 11)
+  assert_eq(loaded.wasm_module().globals.length(), 10)
   let instance = match loaded.new_instance() {
     Ok(instance) => instance
     Err(error) => fail("instantiate failed: \{Repr(error)}")
@@ -105,102 +102,6 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
   guard heap_base is I32(heap_base) else { fail("expected I32 heap base") }
   let memory = instance.store.get_mem(instance.instance.mem_addrs[0])
   assert_eq(memory.load_i32(heap_base - 16), 0)
-}
-
-///|
-struct RuntimeContextObservation {
-  import_call_count : Int
-  identity_matrix : Array[Array[Bool]]
-} derive(Debug)
-
-///|
-fn runtime_context_observation(
-  contexts : Array[@lane_runtime.RuntimeContext],
-) -> RuntimeContextObservation {
-  {
-    import_call_count: contexts.length(),
-    identity_matrix: contexts.map(fn(left) {
-      contexts.map(fn(right) { physical_equal(left, right) })
-    }),
-  }
-}
-
-///|
-test "Wasm initializer and entry share one runtime context" {
-  let contexts : Array[@lane_runtime.RuntimeContext] = []
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.context",
-      abi_major=1,
-      parameters=[],
-      result=Unit,
-      invoke=fn(context, _arguments) {
-        contexts.push(context)
-        Unit
-      },
-    ),
-  )
-  let call_import = wasm_global_body([], [
-    CallDirect({ value: 3, }, None, [], [], None),
-  ])
-  let image : @physical.PhysicalProgram = {
-    entry: { value: 2, },
-    initializer: Some({ value: 1, }),
-    data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
-    functions: [
-      PhysicalBody(call_import),
-      PhysicalBody(call_import),
-      RuntimeImport({
-        abi_major: 1,
-        parameters: [],
-        result: Unit,
-        symbol: "lane.test.context",
-      }),
-    ],
-    globals: [],
-    layouts: [],
-    object_shapes: [],
-    constants: [],
-  }
-  let loaded = match load(image, registry) {
-    Ok(loaded) => loaded
-    Err(error) => fail("load failed: \{Repr(error)}")
-  }
-  let instance = match loaded.new_instance() {
-    Ok(instance) => instance
-    Err(error) => fail("instantiate failed: \{Repr(error)}")
-  }
-  assert_eq(instance.execute(), Ok(()))
-  debug_inspect(
-    runtime_context_observation(contexts),
-    content=(
-      #|{
-      #|  import_call_count: 2,
-      #|  identity_matrix: [[true, true], [true, true]],
-      #|}
-    ),
-  )
-  let second_instance = match loaded.new_instance() {
-    Ok(instance) => instance
-    Err(error) => fail("instantiate failed: \{Repr(error)}")
-  }
-  assert_eq(second_instance.execute(), Ok(()))
-  debug_inspect(
-    runtime_context_observation(contexts),
-    content=(
-      #|{
-      #|  import_call_count: 4,
-      #|  identity_matrix: [
-      #|    [true, true, false, false],
-      #|    [true, true, false, false],
-      #|    [false, false, true, true],
-      #|    [false, false, true, true],
-      #|  ],
-      #|}
-    ),
-  )
 }
 
 ///|
@@ -310,12 +211,6 @@ fn wasm_lifecycle_image() -> @physical.PhysicalProgram {
       PhysicalBody(wasm_lifecycle_initializer()),
       PhysicalBody(wasm_lifecycle_entry()),
       PhysicalBody(wasm_lifecycle_closure_body()),
-      RuntimeImport({
-        abi_major: 1,
-        parameters: [],
-        result: Unit,
-        symbol: "lane.test.fail",
-      }),
     ],
     globals: [
       {
@@ -368,26 +263,11 @@ fn wasm_lifecycle_image() -> @physical.PhysicalProgram {
 }
 
 ///|
-fn wasm_lifecycle_registry() -> @lane_runtime.RuntimeRegistry {
-  let registry = @lane_runtime.RuntimeRegistry::new()
-  registry.register(
-    @lane_runtime.RuntimeBinding::new(
-      symbol="lane.test.fail",
-      abi_major=1,
-      parameters=[],
-      result=Unit,
-      invoke=(_context, _arguments) => raise Failure(message="boom"),
-    ),
-  )
-  registry
-}
-
-///|
 fn wasm_global_instance(
   image : @physical.PhysicalProgram,
   config? : @lane_runtime.ExecutionConfig = @lane_runtime.ExecutionConfig::defaults(),
 ) -> @lane_wasm_runtime.ExecutionInstance raise {
-  let loaded = match load(image, wasm_lifecycle_registry()) {
+  let loaded = match load(image) {
     Ok(loaded) => loaded
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -406,7 +286,7 @@ test "Wasm global cleanup releases reference callable and erased roots" {
     I32(0),
   )
   assert_eq(
-    instance.store.get_global(instance.instance.global_addrs[10]).get(),
+    instance.store.get_global(instance.instance.global_addrs[9]).get(),
     I32(0),
   )
 }
@@ -416,7 +296,6 @@ test "Wasm initializer limits clean roots initialized before failure" {
   let instance = wasm_global_instance(wasm_lifecycle_image(), config={
     max_call_depth: None,
     max_live_heap_bytes: Some(16),
-    max_host_objects: None,
   })
   assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=LiveHeapBytes)))
   assert_eq(
@@ -426,19 +305,18 @@ test "Wasm initializer limits clean roots initialized before failure" {
 }
 
 ///|
-test "Wasm entry failures clean initialized global roots" {
+test "Wasm fatal control cleans initialized global roots" {
   let image = wasm_lifecycle_image()
   guard image.functions[1] is PhysicalBody(entry) else {
     fail("expected physical entry")
   }
-  entry.blocks[0].instructions.push(
-    CallDirect({ value: 4, }, None, [], [], None),
+  entry.slots.push(
+    wasm_global_slot(I32, cleanup=OwnedRef, kind=ByteSequenceValue),
   )
+  entry.blocks[0].instructions.push(ConstString({ value: 5, }, { value: 0, }))
+  entry.blocks[0] = { ..entry.blocks[0], terminator: Fatal({ value: 5, }), }
   let instance = wasm_global_instance(image)
-  assert_eq(
-    instance.execute(),
-    Err(RuntimeImportFailure(symbol="lane.test.fail", message="boom")),
-  )
+  assert_eq(instance.execute(), Err(Fatal(message="a")))
   assert_eq(
     instance.store.get_global(instance.instance.global_addrs[4]).get(),
     I32(0),
@@ -485,10 +363,7 @@ test "Wasm reports invalid instance-global initialization" {
     wasm_global_body([], []),
   )
   for image in [duplicate, incomplete, premature_read] {
-    assert_true(
-      load(image, @lane_runtime.RuntimeRegistry::new())
-      is Err(InvalidPhysicalProgram(_)),
-    )
+    assert_true(load(image) is Err(InvalidPhysicalProgram(_)))
   }
 }
 

@@ -9,7 +9,6 @@ pub(all) suberror WasmCompileError {
     actual~ : Int
   )
   MissingByteSequenceLayout
-  MissingRuntimeServiceLayout(service~ : @internal_abi.RuntimeService)
   InvalidFunctionCatalog(detail~ : String)
   ValidationFailure(detail~ : String)
 } derive(Debug, Eq)
@@ -56,19 +55,12 @@ fn compile_or_raise(
   let image = verified.image()
   let global_lifecycle = verified.global_lifecycle()
   let wasm_module = @wasm_types.Module::empty()
-  let imports = image.functions.filter_map(fn(entry) {
-    match entry {
-      RuntimeImport(import_) => Some(import_)
-      PhysicalBody(_) => None
-    }
-  })
-  let host_objects_enabled = imports.any(runtime_import_uses_host_objects)
   let function_catalog = plan_wasm_function_catalog(
-    image, global_lifecycle, host_objects_enabled, wasm_module,
+    image, global_lifecycle, wasm_module,
   )
   let emitter = WasmFunctionEmitter::new(wasm_module, observe is Some(_))
   let static_image = build_static_image(
-    image, global_lifecycle, function_catalog, host_objects_enabled,
+    image, global_lifecycle, function_catalog,
   )
   let fatal_tag_type = intern_function_type(wasm_module, [], [])
   wasm_module.tags.push({ type_idx: fatal_tag_type, })
@@ -91,7 +83,7 @@ fn compile_or_raise(
               function_catalog,
             )
           }
-          RuntimeImportAdapter(function~, symbol=_) => {
+          RuntimeImportAdapter(function~, ..) => {
             guard image.functions[function.value - 1] is RuntimeImport(import_) else {
               raise InvalidFunctionCatalog(
                 detail="runtime adapter role does not name a runtime import",
@@ -102,7 +94,6 @@ fn compile_or_raise(
                 import_,
                 @physical.runtime_import_callable_abi(import_),
                 function_catalog.physical_import(function),
-                function_catalog,
               ),
               RuntimeImportAdapter,
             )
@@ -133,7 +124,9 @@ fn compile_or_raise(
               },
               EntryLifecycle,
             )
-          InternalRuntimeImport(_) | PhysicalRuntimeImport(_) =>
+          InternalRuntimeImport(_)
+          | WasiPreview1Import(_)
+          | PhysicalRuntimeImport(_) =>
             raise InvalidFunctionCatalog(
               detail="catalog import was classified as a definition",
             )
@@ -177,18 +170,10 @@ fn compile_or_raise(
     init: element_initializers,
   })
   wasm_module.exports.push({
-    name: "lane.entry",
+    name: "_start",
     desc: Func(function_catalog.require(EntryWrapper).index),
   })
-  wasm_module.exports.push({ name: "lane.memory", desc: Memory(0), })
-  for capability in function_catalog.runtime_services {
-    wasm_module.exports.push({
-      name: capability.service.name(),
-      desc: Func(
-        function_catalog.runtime(runtime_service_function(capability.service)).index,
-      ),
-    })
-  }
+  wasm_module.exports.push({ name: "memory", desc: Memory(0), })
   if observe is Some(emit) {
     emit(
       function_catalog.provenance(),

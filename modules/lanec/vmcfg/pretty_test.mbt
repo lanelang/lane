@@ -42,23 +42,17 @@ test "VM CFG pretty printer exposes control flow and ownership" {
               ConstString({ value: 0, }, { value: 0, }),
               InitGlobal({ value: 0, }, { value: 0, }),
               BorrowGlobal({ value: 1, }, { value: 0, }),
-              CallDirect(
-                { value: 2, },
-                None,
-                [],
-                [{ value: 1, }, { value: 2, }],
-                None,
-              ),
+              CallDirect({ value: 2, }, None, [], [{ value: 2, }], None),
             ],
             terminator: Return(None),
           },
         ],
       }),
       RuntimeImport({
-        abi_major: 1,
-        parameters: [String, I64],
+        module_name: "lane.test",
+        field_name: "lane.test.print",
+        parameters: [Direct(I64)],
         result: Unit,
-        symbol: "lane.test.print",
       }),
     ],
     globals: [
@@ -98,15 +92,15 @@ test "VM CFG pretty printer exposes control flow and ownership" {
       #|    const_string %v0, c0
       #|    init_global g0, %v0
       #|    borrow_global %v1, g0
-      #|    call_direct f2 env=none witnesses=[] arguments=[%v1, %v2]
+      #|    call_direct f2 env=none witnesses=[] arguments=[%v2]
       #|    return none
       #|}
       #|
       #|function f2 = runtime_import(
-      #|  symbol="lane.test.print",
-      #|  abi_major=1,
-      #|  parameters=[string, i64],
-      #|  result=unit
+      #|  module="lane.test",
+      #|  field="lane.test.print",
+      #|  parameters=[Direct(I64)],
+      #|  result=Unit
       #|)
       #|
       #|instance global table:

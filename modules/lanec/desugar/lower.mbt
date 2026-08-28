@@ -234,7 +234,8 @@ fn desugar_expr(expr : @resolve.ResolvedExpr) -> DesugaredExpr {
         source~,
       )
     Builtin(name, loc~) => Builtin(name, loc~)
-    Extern(name, loc~) => Extern(name, loc~)
+    Extern(module_name~, field_name~, loc~) =>
+      Extern(module_name~, field_name~, loc~)
     FunctionLiteral(
       type_parameters~,
       parameters~,

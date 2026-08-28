@@ -1,16 +1,18 @@
 import {
   "Milky2018/bytecodec",
   "Milky2018/lanec/physical",
+  "Milky2018/lane_wasm_abi" @wasm_abi,
   "Milky2018/lane_runtime/float_format",
-  "Milky2018/lane_runtime",
   "Milky2018/lane_runtime/wasm_abi" @internal_abi,
   "Milky2018/wasm_core/types" @wasm_types,
   "moonbitlang/core/encoding/utf8",
 }
 
 import {
+  "Milky2018/lane_runtime",
   "Milky2018/lane_runtime/wasm" @lane_wasm_runtime,
   "Milky2018/wasm_core/encoder" @wasm_encoder,
+  "Milky2018/wasm_core/types" @wasm_types,
   "Milky2018/wasmoon/executor",
   "Milky2018/wasmoon/runtime" @wasmoon_runtime,
   "Milky2018/wasmoon/validator",
@@ -25,7 +27,6 @@ options(
     "compile_test.mbt": [ "native" ],
     "execution_test.mbt": [ "native" ],
     "f32_test.mbt": [ "native" ],
-    "host_objects_test.mbt": [ "native" ],
     "imports_test.mbt": [ "native" ],
     "instance_globals_test.mbt": [ "native" ],
     "wasm_roundtrip_test.mbt": [ "native" ],

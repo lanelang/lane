@@ -8,7 +8,7 @@ test "compiler lowers F32 literals and intrinsics to the physical program" {
       #|let f32_inf : F32 = builtin("%f32_inf")
       #|let f32_ninf : F32 = builtin("%f32_ninf")
       #|let f32_nan : F32 = builtin("%f32_nan")
-      #|let observe : (F32) -> Unit ! Io = extern("lane.test.observe_f32")
+      #|let observe : (F32) -> Unit ! Io = extern("lane.test", "lane.test.observe_f32")
       #|
       #|fn[T] identity(value : T) -> T {
       #|  value
@@ -186,10 +186,10 @@ test "compiler lowers F32 literals and intrinsics to the physical program" {
       #|    ),
       #|    RuntimeImport(
       #|      {
-      #|        abi_major: 1,
-      #|        parameters: [F32],
+      #|        module_name: "lane.test",
+      #|        field_name: "lane.test.observe_f32",
+      #|        parameters: [Direct(F32)],
       #|        result: Unit,
-      #|        symbol: "lane.test.observe_f32",
       #|      },
       #|    ),
       #|  ],

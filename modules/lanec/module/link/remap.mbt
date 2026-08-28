@@ -15,8 +15,7 @@ fn BuslaneLinker::remap_module_object(
       }),
       runtime_imports: object.externals.runtime_imports.map(import_ => {
         value: self.remap_value_id(object, import_.value),
-        symbol: import_.symbol,
-        signature: import_.signature,
+        contract: import_.contract,
       }),
     },
     entries: object.entries.map(entry => {

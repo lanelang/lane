@@ -234,7 +234,7 @@ fn run_entry(body : @physical.FunctionBody) -> Unit raise {
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -258,7 +258,7 @@ test "compiled scalar Physical Program executes with Wasmoon" {
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -273,28 +273,7 @@ test "compiled tail calls use Wasmoon tail-call support" {
   }
   assert_true(contains_return_call(wasm_module.codes[0].body, 1))
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
-}
-
-///|
-test "runtime imports compile from physical descriptors" {
-  let import_ : @lane_runtime.RuntimeImport = {
-    abi_major: 1,
-    parameters: [Opaque],
-    result: Opaque,
-    symbol: "lane.test",
-  }
-  let physical_program = {
-    ..image([PhysicalBody(body()), RuntimeImport(import_)]),
-    layouts: [Reference],
-  }
-  assert_eq(@wasm_target.physical_runtime_parameters_for_import(import_), [I64])
-  assert_eq(@wasm_target.runtime_results_for_import(import_), [I32])
-  assert_true(
-    compile_test_image(image([PhysicalBody(body()), RuntimeImport(import_)]))
-    is Err(MissingRuntimeServiceLayout(service=HostObjectNew)),
-  )
-  assert_true(compile_test_image(physical_program) is Ok(_))
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -367,7 +346,7 @@ test "structured CFG executes boolean branches and dense tag switches" {
     branch_module,
   )
   assert_eq(
-    @executor.call_exported_func(branch_store, branch_instance, "lane.entry", []),
+    @executor.call_exported_func(branch_store, branch_instance, "_start", []),
     [],
   )
   let switch_body : @physical.FunctionBody = {
@@ -410,7 +389,7 @@ test "reducible loops use Wasm loop control" {
   assert_true(contains_loop(wasm_module.codes[0].body))
   assert_false(contains_br_table(wasm_module.codes[0].body))
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -460,7 +439,7 @@ test "nested reducible loops preserve structured branch depths" {
   assert_true(contains_loop(wasm_module.codes[0].body))
   assert_false(contains_br_table(wasm_module.codes[0].body))
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -495,7 +474,7 @@ test "irreducible CFG uses the dispatcher fallback" {
   }
   assert_true(contains_br_table(wasm_module.codes[0].body))
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -515,7 +494,7 @@ test "straight-line CFG selects the balanced dispatcher above the cutoff" {
   assert_true(contains_loop(large_module.codes[0].body))
   assert_false(contains_br_table(large_module.codes[0].body))
   let (store, instance) = @executor.instantiate_module_with_init(large_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -625,7 +604,7 @@ test "packed callables execute through the canonical function table" {
     content="[{ category: RuntimeGuard, instruction_count: 24, local_count: 0 }]",
   )
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -667,8 +646,7 @@ test "packed callable ownership ABI mismatch traps in both Wasm modes" {
     ],
   }
   for mode in [@lane_wasm_runtime.ExecutionMode::Interpreter, Jit] {
-    let loaded = match
-      load(physical_program, @lane_runtime.RuntimeRegistry::new(), mode~) {
+    let loaded = match load(physical_program, mode~) {
       Ok(value) => value
       Err(error) => fail("load failed: \{Repr(error)}")
     }
@@ -720,7 +698,7 @@ test "packed closure environment and indirect tail call execute" {
   }
   assert_true(contains_return_call_indirect(wasm_module.codes[0].body))
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -775,7 +753,7 @@ test "static image materializes layout descriptors and immortal strings" {
   assert_eq(memory.load_i32(76), 1)
   assert_eq(memory.load_i32(80), 3)
   assert_eq(memory.read_bytes(84, 3), b"abc")
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -836,7 +814,7 @@ test "fieldless data construction reuses an immortal static singleton" {
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   let heap_base = store.get_global(instance.global_addrs[1]).get()
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
   assert_eq(store.get_global(instance.global_addrs[2]).get(), heap_base)
   guard heap_base is I32(heap_base) else { fail("expected wasm32 heap base") }
   let memory = store.get_mem(instance.mem_addrs[0])
@@ -913,7 +891,7 @@ test "dynamic String primitives allocate, copy, compare, and release" {
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
   debug_inspect(runtime_service_exports(wasm_module), content="[]")
 }
 
@@ -1034,7 +1012,7 @@ test "canonical Data and Environment layouts construct and project" {
   let memory = store.get_mem(instance.mem_addrs[0])
   assert_eq(memory.load_i32(48), 24)
   assert_eq(memory.load_i32(80), 16)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -1093,7 +1071,7 @@ test "descriptor destructors preserve owners across consuming projection" {
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
   assert_true(
     store.get_global(instance.global_addrs[3]).get() is I32(head) && head != 0,
   )
@@ -1151,7 +1129,7 @@ test "Wasm loads an object witness independently from members" {
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
@@ -1212,7 +1190,7 @@ test "OwnedErased ARC dispatches through its layout witness" {
     Err(error) => fail("compile failed: \{Repr(error)}")
   }
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
-  assert_eq(@executor.call_exported_func(store, instance, "lane.entry", []), [])
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
   assert_true(
     store.get_global(instance.global_addrs[3]).get() is I32(head) && head != 0,
   )
@@ -1225,10 +1203,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
   ])
   let target = body()
   let returning_loaded = match
-    load(
-      image([PhysicalBody(returning_entry), PhysicalBody(target)]),
-      @lane_runtime.RuntimeRegistry::new(),
-    ) {
+    load(image([PhysicalBody(returning_entry), PhysicalBody(target)])) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1236,7 +1211,6 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
     returning_loaded.new_instance(config={
       max_call_depth: Some(1),
       max_live_heap_bytes: None,
-      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{Repr(error)}")
@@ -1247,10 +1221,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
   )
   let tail_entry = body(terminator=TailCallDirect({ value: 2, }, None, [], []))
   let tail_loaded = match
-    load(
-      image([PhysicalBody(tail_entry), PhysicalBody(target)]),
-      @lane_runtime.RuntimeRegistry::new(),
-    ) {
+    load(image([PhysicalBody(tail_entry), PhysicalBody(target)])) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1258,7 +1229,6 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
     tail_loaded.new_instance(config={
       max_call_depth: Some(1),
       max_live_heap_bytes: None,
-      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{Repr(error)}")
@@ -1269,8 +1239,7 @@ test "Wasm returning calls enforce logical depth while tail calls preserve it" {
 ///|
 test "Wasmoon execution can be interrupted at a Wasm safepoint" {
   let entry = body(terminator=TailCallDirect({ value: 1, }, None, [], []))
-  let loaded = match
-    load(image([PhysicalBody(entry)]), @lane_runtime.RuntimeRegistry::new()) {
+  let loaded = match load(image([PhysicalBody(entry)])) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1323,8 +1292,7 @@ test "call depth exhaustion releases arguments transferred into the callee" {
     object_shapes: [],
     constants: [b"a", b"b"],
   }
-  let loaded = match
-    load(physical_program, @lane_runtime.RuntimeRegistry::new()) {
+  let loaded = match load(physical_program) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1332,7 +1300,6 @@ test "call depth exhaustion releases arguments transferred into the callee" {
     loaded.new_instance(config={
       max_call_depth: Some(1),
       max_live_heap_bytes: None,
-      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{Repr(error)}")
@@ -1364,8 +1331,7 @@ test "Wasm allocator enforces canonical live heap bytes" {
     object_shapes: [],
     constants: [b"a", b"b"],
   }
-  let loaded = match
-    load(physical_program, @lane_runtime.RuntimeRegistry::new()) {
+  let loaded = match load(physical_program) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1373,7 +1339,6 @@ test "Wasm allocator enforces canonical live heap bytes" {
     loaded.new_instance(config={
       max_call_depth: None,
       max_live_heap_bytes: Some(8),
-      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{Repr(error)}")
@@ -1383,7 +1348,6 @@ test "Wasm allocator enforces canonical live heap bytes" {
     loaded.new_instance(config={
       max_call_depth: None,
       max_live_heap_bytes: Some(16),
-      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{Repr(error)}")
@@ -1415,8 +1379,7 @@ test "live heap exhaustion unwinds owners from the current frame" {
     object_shapes: [],
     constants: [b"a", b"b"],
   }
-  let loaded = match
-    load(physical_program, @lane_runtime.RuntimeRegistry::new()) {
+  let loaded = match load(physical_program) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1424,7 +1387,6 @@ test "live heap exhaustion unwinds owners from the current frame" {
     loaded.new_instance(config={
       max_call_depth: None,
       max_live_heap_bytes: Some(16),
-      max_host_objects: None,
     }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{Repr(error)}")
@@ -1438,8 +1400,7 @@ test "live heap exhaustion unwinds owners from the current frame" {
 
 ///|
 test "non-positive execution limits provide zero budget" {
-  let empty_loaded = match
-    load(image([PhysicalBody(body())]), @lane_runtime.RuntimeRegistry::new()) {
+  let empty_loaded = match load(image([PhysicalBody(body())])) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1448,7 +1409,6 @@ test "non-positive execution limits provide zero budget" {
       empty_loaded.new_instance(config={
         max_call_depth: Some(limit),
         max_live_heap_bytes: None,
-        max_host_objects: None,
       }) {
       Ok(value) => value
       Err(error) => fail("instantiate failed: \{Repr(error)}")
@@ -1473,8 +1433,7 @@ test "non-positive execution limits provide zero budget" {
     object_shapes: [],
     constants: [b"a", b"b"],
   }
-  let allocating_loaded = match
-    load(allocating_image, @lane_runtime.RuntimeRegistry::new()) {
+  let allocating_loaded = match load(allocating_image) {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
@@ -1483,7 +1442,6 @@ test "non-positive execution limits provide zero budget" {
       allocating_loaded.new_instance(config={
         max_call_depth: None,
         max_live_heap_bytes: Some(limit),
-        max_host_objects: None,
       }) {
       Ok(value) => value
       Err(error) => fail("instantiate failed: \{Repr(error)}")

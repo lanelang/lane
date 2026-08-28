@@ -142,11 +142,17 @@ pub(all) enum ExploreFunctionRole {
     reason~ : @physical_lowering.CallableAdapterReason
   )
   LayoutConstructor
-  RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
+  RuntimeImport(
+    value~ : Int,
+    name~ : String?,
+    module_name~ : String,
+    field_name~ : String
+  )
   InternalRuntimeImport(name~ : String)
-  PhysicalRuntimeImport(symbol~ : String)
+  WasiPreview1Import(module_name~ : String, field_name~ : String)
+  PhysicalRuntimeImport(module_name~ : String, field_name~ : String)
   WasmPhysicalFunction
-  RuntimeImportAdapter(symbol~ : String)
+  RuntimeImportAdapter(module_name~ : String, field_name~ : String)
   WasmRuntimeFunction(name~ : String)
   WasmHelperFunction(name~ : String, ordinal~ : Int?)
   EntryWrapper

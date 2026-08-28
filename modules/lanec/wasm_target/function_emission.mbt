@@ -9,7 +9,6 @@ pub(all) enum WasmRuntimeFunctionRole {
   ByteSequenceEqual
   ByteSequenceConcat
   ByteSequenceSlice
-  HostObjectNew
   ByteSequenceMake
   ByteSequenceIndex
   ByteSequenceGet
@@ -27,7 +26,6 @@ pub(all) enum WasmHelperFunctionRole {
   RetainCallable
   ReleaseCallable
   DestroyNoop
-  DestroyHostObject
   DestroyShape(shape~ : Int)
   ByteSequenceSizer
 } derive(Debug, Eq)
@@ -35,9 +33,18 @@ pub(all) enum WasmHelperFunctionRole {
 ///|
 pub(all) enum WasmFunctionOrigin {
   InternalRuntimeImport(@internal_abi.InternalRuntimeFunction)
-  PhysicalRuntimeImport(function~ : @physical.FunctionId, symbol~ : String)
+  WasiPreview1Import(@wasm_abi.WasiPreview1Import)
+  PhysicalRuntimeImport(
+    function~ : @physical.FunctionId,
+    module_name~ : String,
+    field_name~ : String
+  )
   PhysicalFunction(function~ : @physical.FunctionId)
-  RuntimeImportAdapter(function~ : @physical.FunctionId, symbol~ : String)
+  RuntimeImportAdapter(
+    function~ : @physical.FunctionId,
+    module_name~ : String,
+    field_name~ : String
+  )
   RuntimeFunction(WasmRuntimeFunctionRole)
   HelperFunction(WasmHelperFunctionRole)
   EntryWrapper

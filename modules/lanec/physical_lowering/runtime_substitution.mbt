@@ -272,7 +272,7 @@ fn RuntimeSubstitution::apply_type_with(
   visited : Array[@anf.RuntimeEvidenceId],
 ) -> @anf.RuntimeType raise PhysicalLoweringError {
   match type_ {
-    Unit | Scalar(_) | ByteSequence | OpaqueReference(_) => type_
+    Unit | Scalar(_) | ByteSequence => type_
     Data(owner, arguments) =>
       Data(
         owner,

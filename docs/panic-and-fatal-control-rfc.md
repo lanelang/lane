@@ -445,11 +445,11 @@ Implementation must audit every persisted compatibility owner:
 
 - the Basic module-interface and module-object schema must reject the old
   Unit-returning intrinsic contract;
-- linked artifacts must reject any persisted intrinsic or entry contract that
+- module objects must reject any persisted intrinsic or entry contract that
   their compatibility promise can no longer validate;
 - the compiler-private Physical Program does not require a new Fatal form solely
-  because the wrapper's ordinary result ABI changes, but the enclosing linked
-  schema must advance if its persisted Wasm and manifest contract changes;
+  because the wrapper's ordinary result ABI changes; linked executables are raw
+  WebAssembly modules and have no Lane container schema;
 - textual inspection and canonical rendering must display the resolved Void
   result without inventing a primitive Void representation.
 
@@ -526,8 +526,8 @@ cover at least:
 - unsupported residual effects are rejected by that profile;
 - interpreter and Wasm/JIT return the same typed panic outcome and never run
   the continuation;
-- module interfaces, module objects, linked artifacts, inspection text, and
-  schema rejection follow the new contract;
+- module interfaces, module objects, raw WebAssembly executables, inspection
+  text, and schema rejection follow the new contract;
 - `--no-basic` compilation remains valid for source that does not use a
   canonical Basic-dependent feature.
 

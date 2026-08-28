@@ -103,7 +103,7 @@ async fn read_module_object_artifact(
 }
 
 ///|
-async fn write_linked_program_artifact(
+async fn write_wasm_executable(
   path : String,
   program : @executable.ExecutableProgram,
 ) -> Result[Unit, CliError] {
@@ -118,23 +118,11 @@ async fn write_linked_program_artifact(
 }
 
 ///|
-async fn read_linked_program_artifact(
-  path : String,
-) -> Result[@artifact.LinkedProgramArtifact, CliError] {
+async fn read_wasm_executable(path : String) -> Result[Bytes, CliError] {
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
-  match @artifact.parse_linked_program_artifact_binary(bytes) {
-    Ok(artifact) => Ok(artifact)
-    Err(message) =>
-      Err(
-        ArtifactLoad(
-          path~,
-          kind="linked WebAssembly program artifact",
-          message~,
-        ),
-      )
-  }
+  Ok(bytes)
 }
 
 ///|
