@@ -23,6 +23,12 @@ pub extend PhysicalFunctionProvenance with Debug::{to_repr}
 pub extend PhysicalFunctionProvenance with Eq::{not_equal, equal}
 
 ///|
+pub extend RuntimeAbiWorkerEmissionSummary with Debug::{to_repr}
+
+///|
+pub extend RuntimeAbiWorkerEmissionSummary with Eq::{not_equal, equal}
+
+///|
 pub extend PhysicalLoweringError with Debug::{to_repr}
 
 ///|

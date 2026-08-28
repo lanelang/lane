@@ -362,6 +362,16 @@ pub(all) struct PhysicalFunctionProvenance {
 } derive(Debug, Eq)
 
 ///|
+/// Emission facts for the canonical runtime-ABI worker contracts owned by
+/// Physical Lowering. Multiple origins carrying one contract inside the same
+/// finalized function are one emission; the same contract surviving in two
+/// finalized functions is one duplicate emission.
+pub(all) struct RuntimeAbiWorkerEmissionSummary {
+  emission_count : Int
+  duplicate_count : Int
+} derive(Debug, Eq)
+
+///|
 pub(all) enum IndirectCallOrigin {
   SourceBound
   SourceAnonymous

@@ -897,9 +897,9 @@ test "runtime imports are deduplicated and sorted after physical bodies" {
       { module_path_text: "Main", name: "main", value: main, },
       fn(observed) {
         match observed {
-          InitialVmcfg(_, provenance) =>
+          InitialVmcfg(_, provenance, _) =>
             initial_provenance = provenance.functions
-          FinalPhysicalProgram(_, provenance) =>
+          FinalPhysicalProgram(_, provenance, _) =>
             final_provenance = provenance.functions
           Anf(_) => ()
         }
@@ -1933,7 +1933,7 @@ test "closed generic calls specialize without changing the canonical fallback" {
       },
       { module_path_text: "Main", name: "main", value: main, },
       stage => {
-        if stage is InitialVmcfg(_, provenance) {
+        if stage is InitialVmcfg(_, provenance, _) {
           representation_worker_count = provenance.functions
             .filter(item => {
               item.origins.any(origin => origin is RepresentationWorker(..))
@@ -2180,7 +2180,7 @@ test "closed worker preserves a generic nominal callable field contract" {
   let mut worker_count = 0
   let specialized = match
     lower_test_executable_to_physical_observed(program, externals, entry, stage => {
-      if stage is InitialVmcfg(_, provenance) {
+      if stage is InitialVmcfg(_, provenance, _) {
         worker_count = provenance.functions
           .filter(item => {
             item.origins.any(origin => origin is RepresentationWorker(..))

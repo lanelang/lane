@@ -137,8 +137,8 @@ pub fn PhysicalLoweringProvenance::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PhysicalLoweringStage {
   Anf(@anf.AnfProgram)
-  InitialVmcfg(@vmcfg.Image, PhysicalLoweringProvenance)
-  FinalPhysicalProgram(@physical.PhysicalProgram, PhysicalLoweringProvenance)
+  InitialVmcfg(@vmcfg.Image, PhysicalLoweringProvenance, RuntimeAbiWorkerEmissionSummary)
+  FinalPhysicalProgram(@physical.PhysicalProgram, PhysicalLoweringProvenance, RuntimeAbiWorkerEmissionSummary)
 }
 
 pub(all) struct RepresentationWorkerContractId {
@@ -147,6 +147,14 @@ pub(all) struct RepresentationWorkerContractId {
 pub fn RepresentationWorkerContractId::equal(Self, Self) -> Bool
 pub fn RepresentationWorkerContractId::not_equal(Self, Self) -> Bool
 pub fn RepresentationWorkerContractId::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RuntimeAbiWorkerEmissionSummary {
+  emission_count : Int
+  duplicate_count : Int
+} derive(Eq, @debug.Debug)
+pub fn RuntimeAbiWorkerEmissionSummary::equal(Self, Self) -> Bool
+pub fn RuntimeAbiWorkerEmissionSummary::not_equal(Self, Self) -> Bool
+pub fn RuntimeAbiWorkerEmissionSummary::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

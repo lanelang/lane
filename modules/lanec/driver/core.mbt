@@ -169,23 +169,23 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
             )
             stages.complete(Anf, render_anf_code(program), [], observed.scale)
           }
-          InitialVmcfg(image, provenance) => {
+          InitialVmcfg(image, provenance, runtime_abi_workers) => {
             functions.observe_vmcfg(provenance.functions)
             stages.complete_with_indirect_calls(
               VmcfgInitial,
               @vmcfg.image_to_code(image),
               [],
-              vmcfg_scale(image, provenance.functions),
+              vmcfg_scale(image, provenance.functions, runtime_abi_workers),
               explore_indirect_calls(VmcfgInitial, provenance.indirect_calls),
             )
           }
-          FinalPhysicalProgram(image, provenance) => {
+          FinalPhysicalProgram(image, provenance, runtime_abi_workers) => {
             functions.observe_physical(provenance.functions)
             stages.complete_with_indirect_calls(
               PhysicalProgram,
               @physical.physical_program_to_code(image),
               [],
-              physical_scale(image, provenance.functions),
+              physical_scale(image, provenance.functions, runtime_abi_workers),
               explore_indirect_calls(PhysicalProgram, provenance.indirect_calls),
             )
           }

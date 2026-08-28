@@ -64,7 +64,7 @@ test "real example 37 classifies residual representation adaptation" {
     executable,
     stage => {
       match stage {
-        InitialVmcfg(image, provenance) => {
+        InitialVmcfg(image, provenance, _) => {
           indirect_calls = provenance.indirect_calls
           for item in provenance.functions {
             if item.origins.any(origin => origin is CallableAdapter(..)) {
@@ -111,7 +111,7 @@ test "real example 37 classifies residual representation adaptation" {
             }
           }
         }
-        FinalPhysicalProgram(_, provenance) =>
+        FinalPhysicalProgram(_, provenance, _) =>
           for item in provenance.functions {
             if item.origins.any(origin => origin is CallableAdapter(..)) {
               finalized_adapter_workers += 1

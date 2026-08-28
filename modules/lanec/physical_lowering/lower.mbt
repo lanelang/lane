@@ -48,8 +48,16 @@ pub fn lower_executable_program_to_physical(
 ///|
 pub(all) enum PhysicalLoweringStage {
   Anf(@anf.AnfProgram)
-  InitialVmcfg(@vmcfg.Image, PhysicalLoweringProvenance)
-  FinalPhysicalProgram(@physical.PhysicalProgram, PhysicalLoweringProvenance)
+  InitialVmcfg(
+    @vmcfg.Image,
+    PhysicalLoweringProvenance,
+    RuntimeAbiWorkerEmissionSummary
+  )
+  FinalPhysicalProgram(
+    @physical.PhysicalProgram,
+    PhysicalLoweringProvenance,
+    RuntimeAbiWorkerEmissionSummary
+  )
 }
 
 ///|
@@ -222,9 +230,60 @@ fn lower_executable_program_to_physical_or_raise(
       }
     }),
   }
-  observe(InitialVmcfg(finalized.pre_arc_image(), provenance))
-  observe(FinalPhysicalProgram(image, provenance))
+  let runtime_abi_workers = runtime_abi_worker_emission_summary(
+    function_provenance,
+  )
+  observe(
+    InitialVmcfg(finalized.pre_arc_image(), provenance, runtime_abi_workers),
+  )
+  observe(FinalPhysicalProgram(image, provenance, runtime_abi_workers))
   verified
+}
+
+///|
+fn runtime_abi_worker_emission_summary(
+  functions : Array[PhysicalFunctionProvenance],
+) -> RuntimeAbiWorkerEmissionSummary {
+  let emitted_representation_contracts : Array[RepresentationWorkerContractId] = []
+  let emitted_adapter_contracts : Array[CallableAdapterWorkerContractId] = []
+  let mut emission_count = 0
+  let mut duplicate_count = 0
+  for function in functions {
+    let function_representation_contracts : Array[
+      RepresentationWorkerContractId,
+    ] = []
+    let function_adapter_contracts : Array[CallableAdapterWorkerContractId] = []
+    for origin in function.origins {
+      match origin {
+        RepresentationWorker(contract~, ..) =>
+          if !function_representation_contracts.contains(contract) {
+            function_representation_contracts.push(contract)
+          }
+        CallableAdapter(contract~, ..) =>
+          if !function_adapter_contracts.contains(contract) {
+            function_adapter_contracts.push(contract)
+          }
+        _ => ()
+      }
+    }
+    for contract in function_representation_contracts {
+      emission_count += 1
+      if emitted_representation_contracts.contains(contract) {
+        duplicate_count += 1
+      } else {
+        emitted_representation_contracts.push(contract)
+      }
+    }
+    for contract in function_adapter_contracts {
+      emission_count += 1
+      if emitted_adapter_contracts.contains(contract) {
+        duplicate_count += 1
+      } else {
+        emitted_adapter_contracts.push(contract)
+      }
+    }
+  }
+  { emission_count, duplicate_count, }
 }
 
 ///|

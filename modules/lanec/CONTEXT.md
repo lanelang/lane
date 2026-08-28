@@ -448,6 +448,16 @@ worker contract and structured source-to-target contract differences unchanged;
 Driver and presentation layers may render these facts but never reclassify them.
 _Avoid_: planner sidecar, rendered-label identity, scale metric as semantic fact
 
+**Runtime ABI Worker Emission Summary**:
+The Physical Lowering-owned count of finalized functions carrying each
+canonical Callable Implementation Contract or Callable Adapter Worker Contract.
+Repeated source origins merged into one finalized function are one emission;
+the same contract surviving in another finalized function is a duplicate.
+Explore propagates this summary and does not reconstruct contract identity from
+function provenance. Contract canonicality remains the responsibility of the
+owning interning seam rather than a second metric-specific equivalence relation.
+_Avoid_: origin-count heuristic, Driver-owned contract equality, ABI-only body merging
+
 **Representation Specialization**:
 An optional rewrite that clones one generic definition for each closed direct
 evidence-application ABI and rewrites those calls to the interned worker. Its
