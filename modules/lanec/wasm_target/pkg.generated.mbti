@@ -133,6 +133,7 @@ pub(all) struct WasmModuleScale {
   table_entry_count : Int
   if_count : Int
   unreachable_count : Int
+  unreachable_support_role_count : Int
   expansions : Array[WasmExpansionScale]
   functions : Array[WasmFunctionScale]
 } derive(Eq, @debug.Debug)

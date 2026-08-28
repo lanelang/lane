@@ -123,12 +123,16 @@ fn compile_or_raise(
           }
           RuntimeFunction(role) =>
             account_whole_function(
-              compile_runtime_function(role, function_catalog, static_image),
+              compile_runtime_function(
+                role, function_catalog, static_image, wasm_module,
+              ),
               RuntimeSupport,
             )
           HelperFunction(role) =>
             account_whole_function(
-              compile_helper_function(role, static_image, function_catalog),
+              compile_helper_function(
+                role, static_image, function_catalog, wasm_module,
+              ),
               if role is CallableAbiGuard {
                 RuntimeGuard
               } else {
@@ -200,7 +204,10 @@ fn compile_or_raise(
     desc: Func(function_catalog.runtime(HostObjectNew).index),
   })
   if observe is Some(emit) {
-    emit(function_catalog.provenance(), emitter.scale())
+    emit(
+      function_catalog.provenance(),
+      emitter.scale(function_catalog.unreachable_support_role_count()),
+    )
   }
   wasm_module
 }

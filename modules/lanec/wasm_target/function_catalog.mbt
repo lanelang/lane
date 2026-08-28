@@ -37,6 +37,8 @@ priv struct WasmFunctionCatalog {
   image_functions : Array[WasmFunctionHandle]
   physical_imports : Array[WasmFunctionHandle?]
   table_entries : Array[WasmFunctionHandle]
+  roots : Array[WasmFunctionOrigin]
+  required : Array[WasmFunctionOrigin]
 }
 
 ///|
@@ -82,7 +84,7 @@ fn helper_function_type(role : WasmHelperFunctionRole) -> WasmFunctionType {
 }
 
 ///|
-fn runtime_function_roles() -> Array[WasmRuntimeFunctionRole] {
+fn runtime_function_order() -> Array[WasmRuntimeFunctionRole] {
   [
     Allocate,
     Free,
@@ -99,34 +101,16 @@ fn runtime_function_roles() -> Array[WasmRuntimeFunctionRole] {
     ByteSequenceGet,
     ByteSequenceSet,
     ByteSequenceIsValidUtf8,
+    InstanceGlobalCleanup,
   ]
 }
 
 ///|
-fn image_uses_indirect_calls(image : @physical.PhysicalProgram) -> Bool {
-  for entry in image.functions {
-    guard entry is PhysicalBody(body) else { continue }
-    for block in body.blocks {
-      if block.instructions.any(instruction => {
-          instruction is CallValue(_, _, _, _, _)
-        }) ||
-        block.terminator is TailCallValue(_, _, _, _) {
-        return true
-      }
-    }
-  }
-  false
-}
-
-///|
-fn helper_function_roles(
+fn helper_function_order(
   image : @physical.PhysicalProgram,
 ) -> Array[WasmHelperFunctionRole] {
-  let roles : Array[WasmHelperFunctionRole] = []
-  if image_uses_indirect_calls(image) {
-    roles.push(CallableAbiGuard)
-  }
-  roles.append([
+  let roles : Array[WasmHelperFunctionRole] = [
+    CallableAbiGuard,
     NoopErased,
     RetainReferenceErased,
     ReleaseReferenceErased,
@@ -134,7 +118,7 @@ fn helper_function_roles(
     ReleaseCallable,
     DestroyNoop,
     DestroyHostObject,
-  ])
+  ]
   for shape in 0..<image.object_shapes.length() {
     roles.push(DestroyShape(shape~))
   }
@@ -161,48 +145,17 @@ fn address_taken_functions(image : @physical.PhysicalProgram) -> Array[Bool] {
 }
 
 ///|
-fn required_internal_runtime_functions(
-  image : @physical.PhysicalProgram,
-  host_objects_enabled : Bool,
-) -> Array[@internal_abi.InternalRuntimeFunction] {
-  let mut uses_f32 = false
-  let mut uses_f64 = false
-  let mut uses_fatal = false
-  for entry in image.functions {
-    if entry is PhysicalBody(body) {
-      for block in body.blocks {
-        for instruction in block.instructions {
-          match instruction {
-            F32ToString(_, _) => uses_f32 = true
-            F64ToString(_, _) => uses_f64 = true
-            _ => ()
-          }
-        }
-        if block.terminator is Fatal(_) {
-          uses_fatal = true
-        }
-      }
-    }
-  }
-  @internal_abi.functions().filter(function => {
-    match function {
-      F32ToString => uses_f32
-      F64ToString => uses_f64
-      FatalString => uses_fatal
-      HostObjectRelease => host_objects_enabled
-    }
-  })
-}
-
-///|
 fn WasmFunctionCatalog::new(
   image : @physical.PhysicalProgram,
+  requirements : WasmFunctionRequirements,
 ) -> WasmFunctionCatalog {
   {
     entries: [],
     image_functions: Array::make(image.functions.length(), { index: -1, }),
     physical_imports: Array::make(image.functions.length(), None),
     table_entries: [],
+    roots: requirements.roots,
+    required: requirements.required,
   }
 }
 
@@ -290,6 +243,28 @@ fn WasmFunctionCatalog::find(
     }
   }
   None
+}
+
+///|
+fn WasmFunctionCatalog::requires(
+  self : WasmFunctionCatalog,
+  origin : WasmFunctionOrigin,
+) -> Bool {
+  self.required.contains(origin)
+}
+
+///|
+fn WasmFunctionCatalog::unreachable_support_role_count(
+  self : WasmFunctionCatalog,
+) -> Int {
+  self.entries.fold(init=0, fn(count, entry) {
+    let is_support = match entry.origin {
+      RuntimeFunction(_) | HelperFunction(_) => true
+      _ => false
+    }
+    let delta = if is_support && !self.requires(entry.origin) { 1 } else { 0 }
+    count + delta
+  })
 }
 
 ///|
@@ -427,12 +402,46 @@ fn WasmFunctionCatalog::validate(
   self : WasmFunctionCatalog,
   image : @physical.PhysicalProgram,
   global_lifecycle : @physical.GlobalLifecyclePlan,
-  host_objects_enabled : Bool,
   wasm_module : @wasm_types.Module,
 ) -> Unit raise WasmCompileError {
+  for root in self.roots {
+    if !self.requires(root) {
+      raise InvalidFunctionCatalog(
+        detail="function root is absent from the dependency closure: \{Repr(root)}",
+      )
+    }
+  }
+  for origin in self.required {
+    if self.find(origin) is None {
+      raise InvalidFunctionCatalog(
+        detail="required function is absent from the catalog: \{Repr(origin)}",
+      )
+    }
+    for
+      dependency in wasm_function_dependencies(image, global_lifecycle, origin) {
+      if !self.requires(dependency) {
+        raise InvalidFunctionCatalog(
+          detail="function dependency is absent from the closure: \{Repr(origin)} -> \{Repr(dependency)}",
+        )
+      }
+    }
+  }
+  let closed = close_wasm_function_roots(image, global_lifecycle, self.roots)
+  for origin in self.required {
+    if !closed.contains(origin) {
+      raise InvalidFunctionCatalog(
+        detail="function dependency closure contains an unreachable function: \{Repr(origin)}",
+      )
+    }
+  }
   let mut definitions_started = false
   let expected_table_entries : Array[WasmFunctionHandle] = []
   for index, entry in self.entries {
+    if !self.requires(entry.origin) {
+      raise InvalidFunctionCatalog(
+        detail="catalog contains an unreachable function: \{Repr(entry.origin)}",
+      )
+    }
     if entry.handle.index != index {
       raise InvalidFunctionCatalog(detail="function handles are not dense")
     }
@@ -517,39 +526,18 @@ fn WasmFunctionCatalog::validate(
         }
     }
   }
-  for role in runtime_function_roles() {
-    if self.find(RuntimeFunction(role)) is None {
-      raise InvalidFunctionCatalog(
-        detail="missing runtime function: \{Repr(role)}",
-      )
-    }
-  }
   let cleanup = self.find(RuntimeFunction(InstanceGlobalCleanup))
   if (cleanup is Some(_)) != !global_lifecycle.owned_roots.is_empty() {
     raise InvalidFunctionCatalog(
       detail="instance-global cleanup does not match lifecycle plan",
     )
   }
-  for role in helper_function_roles(image) {
-    let handle = match self.find(HelperFunction(role)) {
-      Some(handle) => handle
-      None =>
-        raise InvalidFunctionCatalog(
-          detail="missing helper function: \{Repr(role)}",
-        )
-    }
+  for role in helper_function_order(image) {
+    guard self.find(HelperFunction(role)) is Some(handle) else { continue }
     let is_layout_helper = !(role is CallableAbiGuard)
     if (self.entry(handle).table_slot is Some(_)) != is_layout_helper {
       raise InvalidFunctionCatalog(
         detail="helper function table membership does not match its role: \{Repr(role)}",
-      )
-    }
-  }
-  for
-    function in required_internal_runtime_functions(image, host_objects_enabled) {
-    if self.find(InternalRuntimeImport(function)) is None {
-      raise InvalidFunctionCatalog(
-        detail="missing internal runtime import: \{Repr(function)}",
       )
     }
   }
@@ -586,17 +574,23 @@ fn plan_wasm_function_catalog(
   host_objects_enabled : Bool,
   wasm_module : @wasm_types.Module,
 ) -> WasmFunctionCatalog raise WasmCompileError {
-  let catalog = WasmFunctionCatalog::new(image)
-  for
-    function in required_internal_runtime_functions(image, host_objects_enabled) {
-    catalog.declare_internal_import(wasm_module, function)
+  let requirements = plan_wasm_function_requirements(
+    image, global_lifecycle, host_objects_enabled,
+  )
+  let catalog = WasmFunctionCatalog::new(image, requirements)
+  for function in @internal_abi.functions() {
+    if catalog.requires(InternalRuntimeImport(function)) {
+      catalog.declare_internal_import(wasm_module, function)
+    }
   }
   for index, entry in image.functions {
     if entry is RuntimeImport(import_) {
       let function : @physical.FunctionId = { value: index + 1, }
+      let origin = PhysicalRuntimeImport(function~, symbol=import_.symbol)
+      guard catalog.requires(origin) else { continue }
       let handle = catalog.add_entry(
         wasm_module,
-        PhysicalRuntimeImport(function~, symbol=import_.symbol),
+        origin,
         wasm_function_type(
           physical_runtime_parameters(import_),
           runtime_results(import_),
@@ -627,7 +621,8 @@ fn plan_wasm_function_catalog(
       address_taken[index],
     )
   }
-  for role in runtime_function_roles() {
+  for role in runtime_function_order() {
+    guard catalog.requires(RuntimeFunction(role)) else { continue }
     ignore(
       catalog.add_entry(
         wasm_module,
@@ -638,7 +633,8 @@ fn plan_wasm_function_catalog(
       ),
     )
   }
-  for role in helper_function_roles(image) {
+  for role in helper_function_order(image) {
+    guard catalog.requires(HelperFunction(role)) else { continue }
     ignore(
       catalog.add_entry(
         wasm_module,
@@ -646,17 +642,6 @@ fn plan_wasm_function_catalog(
         helper_function_type(role),
         Defined,
         !(role is CallableAbiGuard),
-      ),
-    )
-  }
-  if !global_lifecycle.owned_roots.is_empty() {
-    ignore(
-      catalog.add_entry(
-        wasm_module,
-        RuntimeFunction(InstanceGlobalCleanup),
-        runtime_function_type(InstanceGlobalCleanup),
-        Defined,
-        false,
       ),
     )
   }
@@ -669,6 +654,6 @@ fn plan_wasm_function_catalog(
       false,
     ),
   )
-  catalog.validate(image, global_lifecycle, host_objects_enabled, wasm_module)
+  catalog.validate(image, global_lifecycle, wasm_module)
   catalog
 }

@@ -76,6 +76,7 @@ pub(all) enum ExploreMetricId {
   TableEntryCount
   WasmIfCount
   WasmUnreachableCount
+  UnreachableWasmSupportRoleCount
   WasmExpansionInstructionCount(String)
   WasmExpansionLocalCount(String)
 } derive(Debug, Eq)
@@ -556,6 +557,7 @@ pub fn ExploreMetricId::key(self : ExploreMetricId) -> String {
     TableEntryCount => "tableEntryCount"
     WasmIfCount => "wasmIfCount"
     WasmUnreachableCount => "wasmUnreachableCount"
+    UnreachableWasmSupportRoleCount => "unreachableWasmSupportRoleCount"
     WasmExpansionInstructionCount(category) =>
       "wasmExpansion.\{category}.instructionCount"
     WasmExpansionLocalCount(category) => "wasmExpansion.\{category}.localCount"
@@ -599,6 +601,7 @@ pub fn ExploreMetricId::title(self : ExploreMetricId) -> String {
     TableEntryCount => "Table entries"
     WasmIfCount => "Wasm if instructions"
     WasmUnreachableCount => "Wasm unreachable instructions"
+    UnreachableWasmSupportRoleCount => "Unreachable Wasm support roles"
     WasmExpansionInstructionCount(category) => "Wasm \{category} instructions"
     WasmExpansionLocalCount(category) => "Wasm \{category} locals"
   }

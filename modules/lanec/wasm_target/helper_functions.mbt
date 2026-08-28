@@ -3,9 +3,8 @@ fn compile_helper_function(
   role : WasmHelperFunctionRole,
   static_image : StaticImage,
   catalog : WasmFunctionCatalog,
+  wasm_module : @wasm_types.Module,
 ) -> @wasm_types.FunctionCode {
-  let retain_ref = catalog.runtime(RetainReference)
-  let release_ref = catalog.runtime(ReleaseReference)
   let body : Array[@wasm_types.Instruction] = match role {
     CallableAbiGuard =>
       [
@@ -33,22 +32,37 @@ fn compile_helper_function(
         If(Empty, [Unreachable], []),
       ]
     NoopErased | DestroyNoop => []
-    RetainReferenceErased => [LocalGet(0), I32WrapI64, retain_ref.call()]
-    ReleaseReferenceErased => [LocalGet(0), I32WrapI64, release_ref.call()]
+    RetainReferenceErased =>
+      [LocalGet(0), I32WrapI64, catalog.runtime(RetainReference).call()]
+    ReleaseReferenceErased =>
+      [LocalGet(0), I32WrapI64, catalog.runtime(ReleaseReference).call()]
     RetainCallable =>
-      [LocalGet(0), I64Const(32L), I64ShrU, I32WrapI64, retain_ref.call()]
+      [
+        LocalGet(0),
+        I64Const(32L),
+        I64ShrU,
+        I32WrapI64,
+        catalog.runtime(RetainReference).call(),
+      ]
     ReleaseCallable =>
-      [LocalGet(0), I64Const(32L), I64ShrU, I32WrapI64, release_ref.call()]
+      [
+        LocalGet(0),
+        I64Const(32L),
+        I64ShrU,
+        I32WrapI64,
+        catalog.runtime(ReleaseReference).call(),
+      ]
     DestroyHostObject =>
-      match catalog.find(InternalRuntimeImport(HostObjectRelease)) {
-        Some(import_) => [LocalGet(0), I64Load(0, 3, 8L), import_.call()]
-        None => []
-      }
+      [
+        LocalGet(0),
+        I64Load(0, 3, 8L),
+        catalog.internal_import(HostObjectRelease).call(),
+      ]
     DestroyShape(shape~) =>
       destroy_shape_body(
         static_image,
         catalog,
-        catalog.entry(catalog.helper(ReleaseReferenceErased)).type_index,
+        intern_function_type(wasm_module, [I64], []),
         shape,
       )
     ByteSequenceSizer =>

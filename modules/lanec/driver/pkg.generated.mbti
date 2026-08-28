@@ -216,6 +216,7 @@ pub(all) enum ExploreMetricId {
   TableEntryCount
   WasmIfCount
   WasmUnreachableCount
+  UnreachableWasmSupportRoleCount
   WasmExpansionInstructionCount(String)
   WasmExpansionLocalCount(String)
 } derive(Eq, @debug.Debug)

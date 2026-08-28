@@ -572,6 +572,10 @@ fn wasm_scale(
     metric(TableEntryCount, scale.table_entry_count),
     metric(WasmIfCount, scale.if_count),
     metric(WasmUnreachableCount, scale.unreachable_count),
+    metric(
+      UnreachableWasmSupportRoleCount,
+      scale.unreachable_support_role_count,
+    ),
   ]
   for expansion in scale.expansions {
     let category = expansion.category.key()

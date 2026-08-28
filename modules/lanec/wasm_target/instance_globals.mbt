@@ -92,13 +92,14 @@ fn compile_global_borrow(
 fn compile_global_cleanup_function(
   static_image : StaticImage,
   function_catalog : WasmFunctionCatalog,
+  wasm_module : @wasm_types.Module,
 ) -> @wasm_types.FunctionCode {
   {
     locals: [I32, I32, I32],
     body: global_cleanup_body(
       static_image,
       function_catalog,
-      function_catalog.entry(function_catalog.helper(ReleaseReferenceErased)).type_index,
+      intern_function_type(wasm_module, [I64], []),
     ),
   }
 }

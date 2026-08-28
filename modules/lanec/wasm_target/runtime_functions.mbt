@@ -3,13 +3,8 @@ fn compile_runtime_function(
   role : WasmRuntimeFunctionRole,
   catalog : WasmFunctionCatalog,
   static_image : StaticImage,
+  wasm_module : @wasm_types.Module,
 ) -> @wasm_types.FunctionCode {
-  let allocate = catalog.runtime(Allocate)
-  let free = catalog.runtime(Free)
-  let release_ref = catalog.runtime(ReleaseReference)
-  let byte_sequence_new = catalog.runtime(ByteSequenceNew)
-  let require_byte_sequence_layout = catalog.runtime(RequireByteSequenceLayout)
-  let byte_sequence_index = catalog.runtime(ByteSequenceIndex)
   match role {
     Allocate =>
       {
@@ -22,15 +17,15 @@ fn compile_runtime_function(
       {
         locals: [I32],
         body: release_ref_body(
-          free,
-          catalog.entry(catalog.helper(DestroyNoop)).type_index,
+          catalog.runtime(Free),
+          catalog.entry(catalog.runtime(ReleaseReference)).type_index,
         ),
       }
     ByteSequenceNew =>
       {
         locals: [I32],
         body: byte_sequence_new_body(
-          allocate,
+          catalog.runtime(Allocate),
           static_image.byte_sequence_layout_id,
         ),
       }
@@ -44,53 +39,71 @@ fn compile_runtime_function(
     ByteSequenceEqual =>
       {
         locals: [I32, I32],
-        body: byte_sequence_equal_body(require_byte_sequence_layout),
+        body: byte_sequence_equal_body(
+          catalog.runtime(RequireByteSequenceLayout),
+        ),
       }
     ByteSequenceConcat =>
       {
         locals: [I32, I32, I32, I32],
         body: byte_sequence_concat_body(
-          require_byte_sequence_layout, byte_sequence_new, release_ref,
+          catalog.runtime(RequireByteSequenceLayout),
+          catalog.runtime(ByteSequenceNew),
+          catalog.runtime(ReleaseReference),
         ),
       }
     ByteSequenceSlice =>
       {
         locals: [I64, I32, I32, I32],
         body: byte_sequence_slice_body(
-          require_byte_sequence_layout, byte_sequence_new, release_ref,
+          catalog.runtime(RequireByteSequenceLayout),
+          catalog.runtime(ByteSequenceNew),
+          catalog.runtime(ReleaseReference),
         ),
       }
     HostObjectNew =>
       {
         locals: [I32],
-        body: host_object_new_body(allocate, static_image.reference_layout_id),
+        body: host_object_new_body(
+          catalog.runtime(Allocate),
+          static_image.reference_layout_id,
+        ),
       }
     ByteSequenceMake =>
       {
         locals: [I32, I32, I32],
-        body: byte_sequence_make_body(byte_sequence_new),
+        body: byte_sequence_make_body(catalog.runtime(ByteSequenceNew)),
       }
     ByteSequenceIndex =>
       {
         locals: [],
-        body: byte_sequence_index_body(require_byte_sequence_layout),
+        body: byte_sequence_index_body(
+          catalog.runtime(RequireByteSequenceLayout),
+        ),
       }
     ByteSequenceGet =>
-      { locals: [], body: byte_sequence_get_body(byte_sequence_index), }
+      {
+        locals: [],
+        body: byte_sequence_get_body(catalog.runtime(ByteSequenceIndex)),
+      }
     ByteSequenceSet =>
       {
         locals: [I32, I32],
         body: byte_sequence_set_body(
-          byte_sequence_new, byte_sequence_index, release_ref,
+          catalog.runtime(ByteSequenceNew),
+          catalog.runtime(ByteSequenceIndex),
+          catalog.runtime(ReleaseReference),
         ),
       }
     ByteSequenceIsValidUtf8 =>
       {
         locals: [I32, I32, I32, I32],
-        body: byte_sequence_is_valid_utf8_body(require_byte_sequence_layout),
+        body: byte_sequence_is_valid_utf8_body(
+          catalog.runtime(RequireByteSequenceLayout),
+        ),
       }
     InstanceGlobalCleanup =>
-      compile_global_cleanup_function(static_image, catalog)
+      compile_global_cleanup_function(static_image, catalog, wasm_module)
   }
 }
 

@@ -78,6 +78,7 @@ pub(all) struct WasmModuleScale {
   table_entry_count : Int
   if_count : Int
   unreachable_count : Int
+  unreachable_support_role_count : Int
   expansions : Array[WasmExpansionScale]
   functions : Array[WasmFunctionScale]
 } derive(Debug, Eq)
@@ -107,7 +108,10 @@ fn account_whole_function(
 
 ///|
 /// Aggregates scale facts recorded while catalog entries are materialized.
-fn WasmFunctionEmitter::scale(self : WasmFunctionEmitter) -> WasmModuleScale {
+fn WasmFunctionEmitter::scale(
+  self : WasmFunctionEmitter,
+  unreachable_support_role_count : Int,
+) -> WasmModuleScale {
   let functions = self.function_scales
   let expansions : Array[WasmExpansionScale] = []
   for function in functions {
@@ -144,6 +148,7 @@ fn WasmFunctionEmitter::scale(self : WasmFunctionEmitter) -> WasmModuleScale {
         instruction is Unreachable
       })
     }),
+    unreachable_support_role_count,
     expansions,
     functions,
   }
