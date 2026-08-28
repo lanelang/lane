@@ -1,6 +1,6 @@
 # RFC: Pure generic Array values
 
-Status: Draft
+Status: Accepted for implementation on 2026-08-28
 
 ## Summary
 
@@ -362,9 +362,14 @@ Module interfaces and module objects encode `Array[T]` in exported types and enc
 
 Array adds no provider module identity. Importing or omitting Basic does not change the meaning or identity of `Array[T]`.
 
-### Checked core and Buslane
+### Checked core, Buslane, and Runtime ANF
 
-Checked expressions represent Array intrinsics with their complete polymorphic type. Buslane preserves the Array type constructor until execution-image lowering needs physical representation facts.
+Checked expressions represent Array intrinsics with their complete polymorphic
+type. Buslane preserves the compiler-owned Array constructor as source-semantic
+type structure. Runtime ANF projects an applied `Array[T]` to one explicit
+`Array(element: RuntimeArgument)` representation fact carrying the element
+layout evidence needed by intrinsic application. Runtime ANF does not retain
+the source constructor syntax or make Array a nominal declaration.
 
 For physical lowering, `Array[T]` has natural representation `I32 + OwnedRef`. A value that is exactly a representation-polymorphic parameter continues to use `I64 + OwnedErased` with a companion layout witness. Existing erasure bridges adapt between these forms.
 
@@ -376,9 +381,13 @@ The ABI package extends `IntrinsicSignature` from a list of monomorphic `Intrins
 
 The external `RuntimeValueKind` and Lane extern-binding rules remain unchanged. Array is not added to the host ABI merely because compiler intrinsics can mention it.
 
-### ANF and call lowering
+### Runtime ANF and call lowering
 
-ANF retains type application on intrinsic atoms until Physical Lowering can select the concrete or generic representation adaptation. Physical call lowering gains the intrinsic counterpart of its existing generic direct-call path:
+Runtime ANF retains evidence application on intrinsic atoms until Physical
+Lowering can select the concrete or generic representation adaptation. The
+generic-call projection is shared with ordinary callables: Array builtins do
+not introduce a second type-application representation. Physical call lowering
+gains the intrinsic counterpart of its existing generic direct-call path:
 
 - substitute source type parameters with explicit type arguments;
 - materialize every required `LayoutId` witness;
@@ -386,7 +395,10 @@ ANF retains type application on intrinsic atoms until Physical Lowering can sele
 - emit the Array VMCFG operation;
 - unerase an element result according to the actual result type.
 
-Materializing a polymorphic intrinsic produces a generic wrapper with witness inputs. Wrapper planning, reachability, deduplication, callable adaptation, and function-table assignment treat it as an ordinary compiler-generated function body.
+Materializing a polymorphic intrinsic produces a generic wrapper with witness
+inputs. Wrapper planning, reachability, complete-runtime-ABI deduplication,
+callable adaptation, and function-table assignment treat it as an ordinary
+compiler-generated function body.
 
 ### VMCFG
 
@@ -537,12 +549,20 @@ The collection roles are intentionally distinct:
 
 ## Implementation sequence
 
-1. Add the semantic Array type constructor and closed polymorphic intrinsic signature templates, with typechecker and artifact round-trip tests.
-2. Extend checked core, Buslane, ANF, generic intrinsic type application, erased argument/result adaptation, and first-class intrinsic wrapper lowering.
-3. Add VMCFG operations, ownership/use contracts, the Array Layout Recipe, Physical Program instructions, rendering, and verification.
-4. Implement Runtime Array Objects, descriptor-directed element ownership, bounds checks, destruction, and copy-on-write in the Wasm target.
-5. Verify identical behavior in Wasmoon interpreter and JIT modes.
-6. Add `Basic.Builtins` bindings, `Basic.Data.Array` checked wrappers and initial algorithms, tooling presentation, examples, and complete cross-tier tests.
+1. Add the semantic Array type constructor and closed polymorphic intrinsic
+   signature templates, with typechecker and artifact round-trip tests.
+2. Project Array and polymorphic intrinsic applications into verified Runtime
+   ANF without retaining source type syntax or introducing an Array-only generic
+   call path.
+3. Add VMCFG operations, ownership/use contracts, the Array Layout Recipe,
+   Physical Program instructions, first-class intrinsic wrapper lowering,
+   rendering, and verification.
+4. Implement Runtime Array Objects, descriptor-directed element ownership,
+   bounds checks, destruction, and copy-on-write in the sole Wasm target.
+5. Verify the same emitted Wasm through Wasmoon interpreter and JIT modes.
+6. Add `Basic.Builtins` bindings, `Basic.Data.Array` checked wrappers and initial
+   algorithms, tooling presentation, examples, and complete source-to-Wasm
+   tests.
 
 Each step must preserve the ordinary generic function model. No intermediate implementation should route element values through `Any`, expose raw layout witnesses to Lane code, or support only direct intrinsic calls.
 
