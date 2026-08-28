@@ -396,7 +396,18 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
     InitializerOrchestrator => { "kind": "initializerOrchestrator" }
     IntrinsicWrapper(name~) => { "kind": "intrinsicWrapper", "name": name }
     RepresentationWorker => { "kind": "representationWorker" }
-    CallableAdapter => { "kind": "callableAdapter" }
+    CallableAdapter(contract~, reason~) =>
+      {
+        "kind": "callableAdapter",
+        "contract": contract.value,
+        "reason": {
+          "source": reason.source.value,
+          "target": reason.target.value,
+          "differences": reason.differences
+          .map(callable_contract_difference_json)
+          .to_json(),
+        },
+      }
     LayoutConstructor => { "kind": "layoutConstructor" }
     RuntimeImport(value~, name~, symbol~) => {
       let fields : Map[String, Json] = {
@@ -429,6 +440,18 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
       fields.to_json()
     }
     EntryWrapper => { "kind": "entryWrapper" }
+  }
+}
+
+///|
+fn callable_contract_difference_json(
+  difference : @physical_lowering.CallableContractDifference,
+) -> Json {
+  match difference {
+    Invocation => { "kind": "invocation" }
+    Evidence => { "kind": "evidence" }
+    Parameter(index) => { "kind": "parameter", "index": index }
+    Result => { "kind": "result" }
   }
 }
 

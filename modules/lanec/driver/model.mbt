@@ -137,7 +137,10 @@ pub(all) enum ExploreFunctionRole {
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
   RepresentationWorker
-  CallableAdapter
+  CallableAdapter(
+    contract~ : @physical_lowering.CallableAdapterWorkerContractId,
+    reason~ : @physical_lowering.CallableAdapterReason
+  )
   LayoutConstructor
   RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
   InternalRuntimeImport(name~ : String)

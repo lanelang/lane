@@ -155,7 +155,7 @@ fn ExploreFunctionGraphBuilder::physical_roles(
       [Initializer(value=source.index, name=self.source_name(source))]
     InitializerOrchestrator => [InitializerOrchestrator]
     IntrinsicWrapper(name~) => [IntrinsicWrapper(name~)]
-    CallableAdapter(..) => [CallableAdapter]
+    CallableAdapter(contract~, reason~) => [CallableAdapter(contract~, reason~)]
     LayoutConstructor => [LayoutConstructor]
     RuntimeImport(source~, symbol~) =>
       [

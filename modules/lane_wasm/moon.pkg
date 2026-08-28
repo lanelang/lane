@@ -5,6 +5,7 @@ import {
   "Milky2018/lanec/driver",
   "Milky2018/lanec/executable",
   "Milky2018/lanec/module/frontend" @module_frontend,
+  "Milky2018/lanec/physical_lowering",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
 }

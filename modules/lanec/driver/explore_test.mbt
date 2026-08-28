@@ -628,7 +628,7 @@ test "explore records direct canonical generic representation costs" {
     })
   let adapters = report.functions.nodes.filter(node => {
     node.function.stage == VmcfgInitial &&
-    node.roles.any(role => role is CallableAdapter)
+    node.roles.any(role => role is CallableAdapter(..))
   })
   debug_inspect(
     (
@@ -759,12 +759,12 @@ test "explore records concrete-answer CPS callback representation costs" {
     })
   let adapters = report.functions.nodes.filter(node => {
     node.function.stage == VmcfgInitial &&
-    node.roles.any(role => role is CallableAdapter)
+    node.roles.any(role => role is CallableAdapter(..))
   })
   let adapter_count = report.functions.nodes
     .filter(node => {
       node.function.stage == VmcfgInitial &&
-      node.roles.any(role => role is CallableAdapter)
+      node.roles.any(role => role is CallableAdapter(..))
     })
     .length()
   let mut indirect_calls = []
@@ -805,11 +805,56 @@ test "explore records concrete-answer CPS callback representation costs" {
       #|  Succeeded,
       #|  [],
       #|  [
-      #|    [CallableAdapter],
-      #|    [CallableAdapter],
-      #|    [CallableAdapter],
-      #|    [CallableAdapter],
-      #|    [CallableAdapter],
+      #|    [
+      #|      CallableAdapter(
+      #|        contract={ value: 0 },
+      #|        reason={
+      #|          source: { value: 4 },
+      #|          target: { value: 6 },
+      #|          differences: [Invocation, Parameter(0), Result],
+      #|        },
+      #|      ),
+      #|    ],
+      #|    [
+      #|      CallableAdapter(
+      #|        contract={ value: 1 },
+      #|        reason={
+      #|          source: { value: 12 },
+      #|          target: { value: 14 },
+      #|          differences: [Invocation, Parameter(0), Parameter(1), Parameter(2)],
+      #|        },
+      #|      ),
+      #|    ],
+      #|    [
+      #|      CallableAdapter(
+      #|        contract={ value: 2 },
+      #|        reason={
+      #|          source: { value: 3 },
+      #|          target: { value: 15 },
+      #|          differences: [Invocation, Parameter(0), Result],
+      #|        },
+      #|      ),
+      #|    ],
+      #|    [
+      #|      CallableAdapter(
+      #|        contract={ value: 3 },
+      #|        reason={
+      #|          source: { value: 5 },
+      #|          target: { value: 3 },
+      #|          differences: [Invocation, Result],
+      #|        },
+      #|      ),
+      #|    ],
+      #|    [
+      #|      CallableAdapter(
+      #|        contract={ value: 4 },
+      #|        reason={
+      #|          source: { value: 16 },
+      #|          target: { value: 1 },
+      #|          differences: [Invocation, Parameter(0)],
+      #|        },
+      #|      ),
+      #|    ],
       #|  ],
       #|  5,
       #|  [
@@ -879,7 +924,7 @@ test "expanding recursive generic application uses one finite worker and fallbac
   )
   let adapters = report.functions.nodes.filter(node => {
     node.function.stage == VmcfgInitial &&
-    node.roles.any(role => role is CallableAdapter)
+    node.roles.any(role => role is CallableAdapter(..))
   })
   let workers = report.functions.nodes.filter(node => {
     node.function.stage == VmcfgInitial &&
@@ -947,7 +992,7 @@ test "explore attributes a closed effect worker nominal ABI crossing" {
   })
   let adapters = report.functions.nodes.filter(node => {
     node.function.stage == VmcfgInitial &&
-    node.roles.any(role => role is CallableAdapter)
+    node.roles.any(role => role is CallableAdapter(..))
   })
   let mut metrics = []
   let mut worker_calls = []
@@ -1238,7 +1283,7 @@ test "explore removes alpha-renamed adapters during CPS core normalization" {
   )
   let adapter_roles = report.functions.nodes.filter_map(node => {
     guard node.function.stage == VmcfgInitial &&
-      node.roles.any(role => role is CallableAdapter) else {
+      node.roles.any(role => role is CallableAdapter(..)) else {
       return None
     }
     Some(node.roles)

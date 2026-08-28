@@ -443,7 +443,9 @@ emission fallback
 The immutable source and transformation origins attached to emitted physical
 functions and explicit adaptation operations. Explore consumes this provenance
 without turning scale metrics into semantic facts or requiring a second model
-of the lowered program.
+of the lowered program. Callable Adapter origins retain the Physical Lowering
+worker contract and structured source-to-target contract differences unchanged;
+Driver and presentation layers may render these facts but never reclassify them.
 _Avoid_: planner sidecar, rendered-label identity, scale metric as semantic fact
 
 **Representation Specialization**:

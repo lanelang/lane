@@ -293,6 +293,41 @@ test "protocol v11 encodes ordered metrics and structured function lineage" {
 }
 
 ///|
+test "protocol v11 preserves callable adapter provenance" {
+  debug_inspect(
+    function_role_json(
+      CallableAdapter(contract={ value: 7, }, reason={
+        source: { value: 11, },
+        target: { value: 13, },
+        differences: [Invocation, Evidence, Parameter(2), Result],
+      }),
+    ),
+    content=(
+      #|Object(
+      #|  {
+      #|    "kind": String("callableAdapter"),
+      #|    "contract": Number(7),
+      #|    "reason": Object(
+      #|      {
+      #|        "source": Number(11),
+      #|        "target": Number(13),
+      #|        "differences": Array(
+      #|          [
+      #|            Object({ "kind": String("invocation") }),
+      #|            Object({ "kind": String("evidence") }),
+      #|            Object({ "kind": String("parameter"), "index": Number(2) }),
+      #|            Object({ "kind": String("result") }),
+      #|          ],
+      #|        ),
+      #|      },
+      #|    ),
+      #|  },
+      #|)
+    ),
+  )
+}
+
+///|
 test "protocol v11 encodes structured indirect call provenance" {
   let response = parsed_response_json(
     (
