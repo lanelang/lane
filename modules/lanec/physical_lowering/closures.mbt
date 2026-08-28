@@ -476,11 +476,52 @@ fn FunctionLowerer::prepare_direct_captures(
   for binding in bindings {
     match self.capture_value(binding) {
       Global(_) => ()
-      Unit => plans.push({ binding, type_: Unit, erased_witness: false, })
+      Unit =>
+        plans.push(
+          DirectValueCapture(binding~, type_=Unit, erased_witness=false),
+        )
       JoinTarget(_, _) | ControlTransferred =>
         raise RepresentationElaborationInvariant(
           detail="verified Runtime ANF direct callable captured a control-only value",
         )
+      DirectFunction(function, type_, captured_witnesses, captured_values) => {
+        let witness_metadata = captured_witnesses.map(witness => {
+          self.values[witness.value]
+        })
+        let input_values = captured_values.map(value => {
+          let metadata = self.values[value.value]
+          let erased_witness_index = match metadata.erased_companion {
+            Some(companion) => {
+              let mut found = None
+              for index, witness in captured_witnesses {
+                if witness == companion {
+                  found = Some(index)
+                  break
+                }
+              }
+              guard found is Some(_) else {
+                raise InvalidTypeApplication(
+                  detail="erased direct dependency is missing its layout evidence",
+                )
+              }
+              found
+            }
+            None => None
+          }
+          { metadata, erased_witness_index, }
+        })
+        witnesses.append(captured_witnesses)
+        values.append(captured_values)
+        plans.push(
+          DirectCallableInput(
+            binding~,
+            function~,
+            type_~,
+            witness_metadata~,
+            values=input_values,
+          ),
+        )
+      }
       captured => {
         guard self.materialize_local(captured) is Slot(slot, type_) else {
           raise RepresentationElaborationInvariant(
@@ -496,7 +537,7 @@ fn FunctionLowerer::prepare_direct_captures(
           }
           witnesses.push(witness)
         }
-        plans.push({ binding, type_, erased_witness, })
+        plans.push(DirectValueCapture(binding~, type_~, erased_witness~))
         values.push(slot)
       }
     }
@@ -533,7 +574,46 @@ fn FunctionLowerer::prepare_captures(
     let captured = self.capture_value(binding)
     match captured {
       Global(_) => ()
-      Unit => capture_plans.push({ binding, type_: Unit, member_index: None, })
+      Unit =>
+        capture_plans.push(
+          ValueCapture(binding~, type_=Unit, member_index=None),
+        )
+      DirectFunction(function, type_, witnesses, values) => {
+        let witness_members = witnesses.map(witness => {
+          append_direct_callable_capture_member(
+            self, witness, members, capture_slots,
+          )
+        })
+        let value_members = values.map(value => {
+          let erased_witness = match self.values[value.value].erased_companion {
+            Some(witness) => {
+              stored_layouts.push(witness)
+              true
+            }
+            None => false
+          }
+          append_direct_callable_capture_member(
+            self,
+            value,
+            members,
+            capture_slots,
+            witness_ordinal=if erased_witness {
+              Some(stored_layouts.length() - 1)
+            } else {
+              None
+            },
+          )
+        })
+        capture_plans.push(
+          DirectCallableCapture(
+            binding~,
+            function~,
+            type_~,
+            witnesses=witness_members,
+            values=value_members,
+          ),
+        )
+      }
       _ => {
         guard self.materialize_local(captured) is Slot(slot, type_) else {
           abort("captured value was not materialized")
@@ -568,11 +648,33 @@ fn FunctionLowerer::prepare_captures(
           witness_ordinal,
         })
         capture_slots.push(slot)
-        capture_plans.push({ binding, type_, member_index: Some(member_index), })
+        capture_plans.push(
+          ValueCapture(binding~, type_~, member_index=Some(member_index)),
+        )
       }
     }
   }
   (capture_plans, stored_layouts, capture_slots, members)
+}
+
+///|
+fn append_direct_callable_capture_member(
+  lowerer : FunctionLowerer,
+  value : @vmcfg.ValueId,
+  members : Array[@physical.MemberSchema],
+  capture_slots : Array[@vmcfg.ValueId],
+  witness_ordinal? : Int? = None,
+) -> DirectCallableCaptureMember {
+  let metadata = lowerer.values[value.value]
+  let member_index = members.length()
+  members.push({
+    representation: metadata.representation,
+    cleanup: metadata.cleanup,
+    kind: metadata.kind,
+    witness_ordinal,
+  })
+  capture_slots.push(value)
+  { member_index, metadata, }
 }
 
 ///|

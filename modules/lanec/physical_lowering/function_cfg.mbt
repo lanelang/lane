@@ -51,33 +51,29 @@ fn ImageLowerer::lower_function_body(
           lowerer.witnesses.push({ parameter: parameter.id, value: evidence, })
         }
         for capture in captures {
-          if capture.member_index is Some(member_index) {
-            let (destination, witness_destination) = if self.runtime_type(
-                capture.type_,
-              )
-              is Erased(_) {
-              let witness = lowerer.fresh_metadata(layout_witness_metadata())
-              (lowerer.fresh_erased_slot(witness, Borrowed), Some(witness))
-            } else {
-              (lowerer.fresh_borrowed_slot(capture.type_), None)
-            }
-            lowerer.emit(
-              BorrowCapture(shape, environment, member_index, {
-                value_destination: destination,
-                witness_destination,
-              }),
-            )
-            lowerer.bind_capture(
-              capture.binding,
-              Slot(destination, capture.type_),
-            )
-          } else {
-            lowerer.bind_capture(capture.binding, Unit)
-          }
+          lowerer.bind_environment_capture(shape, environment, capture)
         }
       } else {
         for capture in captures {
-          lowerer.bind_capture(capture.binding, Unit)
+          match capture {
+            ValueCapture(binding~, type_=Unit, ..) =>
+              lowerer.bind_capture(binding, Unit)
+            DirectCallableCapture(
+              binding~,
+              function~,
+              type_~,
+              witnesses=[],
+              values=[]
+            ) =>
+              lowerer.bind_capture(
+                binding,
+                DirectFunction(function, type_, [], []),
+              )
+            _ =>
+              raise RepresentationElaborationInvariant(
+                detail="an empty closure environment has a physical capture",
+              )
+          }
         }
       }
     DirectInputs(direct_captures) => {
@@ -89,29 +85,67 @@ fn ImageLowerer::lower_function_body(
         direct_capture_witnesses.push(evidence)
         lowerer.witnesses.push({ parameter: parameter.id, value: evidence, })
       }
-      let erased_witnesses : Array[@vmcfg.ValueId] = []
+      let capture_witnesses : Array[Array[@vmcfg.ValueId]] = []
       for capture in direct_captures {
-        if capture.erased_witness {
-          let witness = lowerer.fresh_metadata(layout_witness_metadata())
-          input_witnesses.push(witness)
-          direct_capture_witnesses.push(witness)
-          erased_witnesses.push(witness)
+        match capture {
+          DirectValueCapture(erased_witness=true, ..) => {
+            let witness = lowerer.fresh_metadata(layout_witness_metadata())
+            input_witnesses.push(witness)
+            direct_capture_witnesses.push(witness)
+            capture_witnesses.push([witness])
+          }
+          DirectValueCapture(..) => capture_witnesses.push([])
+          DirectCallableInput(witness_metadata~, ..) => {
+            let inputs = witness_metadata.map(metadata => {
+              lowerer.fresh_metadata(metadata)
+            })
+            input_witnesses.append(inputs)
+            direct_capture_witnesses.append(inputs)
+            capture_witnesses.push(inputs)
+          }
         }
       }
-      let mut erased_index = 0
-      for capture in direct_captures {
-        if self.runtime_type(capture.type_) is Concrete(Unit) {
-          lowerer.bind_capture(capture.binding, Unit)
-        } else {
-          let slot = if capture.erased_witness {
-            let witness = erased_witnesses[erased_index]
-            erased_index += 1
-            lowerer.fresh_erased_slot(witness, Owned)
-          } else {
-            lowerer.fresh_slot(capture.type_)
+      for capture_index, capture in direct_captures {
+        match capture {
+          DirectValueCapture(binding~, type_~, erased_witness~) => {
+            if self.runtime_type(type_) is Concrete(Unit) {
+              lowerer.bind_capture(binding, Unit)
+              continue
+            }
+            let slot = if erased_witness {
+              lowerer.fresh_erased_slot(
+                capture_witnesses[capture_index][0],
+                Owned,
+              )
+            } else {
+              lowerer.fresh_slot(type_)
+            }
+            direct_capture_slots.push(slot)
+            lowerer.bind_capture(binding, Slot(slot, type_))
           }
-          direct_capture_slots.push(slot)
-          lowerer.bind_capture(capture.binding, Slot(slot, capture.type_))
+          DirectCallableInput(binding~, function~, type_~, values~, ..) => {
+            let captured_values = values.map(value => {
+              let slot = match value.erased_witness_index {
+                Some(index) =>
+                  lowerer.fresh_erased_slot(
+                    capture_witnesses[capture_index][index],
+                    Owned,
+                  )
+                None => lowerer.fresh_metadata(value.metadata)
+              }
+              direct_capture_slots.push(slot)
+              slot
+            })
+            lowerer.bind_capture(
+              binding,
+              DirectFunction(
+                function,
+                type_,
+                capture_witnesses[capture_index],
+                captured_values,
+              ),
+            )
+          }
         }
       }
     }
@@ -197,6 +231,77 @@ fn ImageLowerer::lower_function_body(
     result: self.result_abi(result_type),
     blocks,
   }
+}
+
+///|
+fn FunctionLowerer::bind_environment_capture(
+  self : FunctionLowerer,
+  shape : @physical.ObjectShapeId,
+  environment : @vmcfg.ValueId,
+  capture : CapturePlan,
+) -> Unit raise PhysicalLoweringError {
+  match capture {
+    ValueCapture(binding~, type_=_, member_index=None) =>
+      self.bind_capture(binding, Unit)
+    ValueCapture(binding~, type_~, member_index=Some(member_index)) => {
+      let (destination, witness_destination) = if self.image.runtime_type(type_)
+        is Erased(_) {
+        let witness = self.fresh_metadata(layout_witness_metadata())
+        (self.fresh_erased_slot(witness, Borrowed), Some(witness))
+      } else {
+        (self.fresh_borrowed_slot(type_), None)
+      }
+      self.emit(
+        BorrowCapture(shape, environment, member_index, {
+          value_destination: destination,
+          witness_destination,
+        }),
+      )
+      self.bind_capture(binding, Slot(destination, type_))
+    }
+    DirectCallableCapture(binding~, function~, type_~, witnesses~, values~) => {
+      let captured_witnesses = witnesses.map(capture_member => {
+        self.borrow_direct_callable_capture_member(
+          shape, environment, capture_member,
+        )
+      })
+      let captured_values = values.map(capture_member => {
+        self.borrow_direct_callable_capture_member(
+          shape, environment, capture_member,
+        )
+      })
+      self.bind_capture(
+        binding,
+        DirectFunction(function, type_, captured_witnesses, captured_values),
+      )
+    }
+  }
+}
+
+///|
+fn FunctionLowerer::borrow_direct_callable_capture_member(
+  self : FunctionLowerer,
+  shape : @physical.ObjectShapeId,
+  environment : @vmcfg.ValueId,
+  capture_member : DirectCallableCaptureMember,
+) -> @vmcfg.ValueId {
+  let (destination, witness_destination) = if capture_member.metadata.erased_companion
+    is Some(_) {
+    let witness = self.fresh_metadata(layout_witness_metadata())
+    (self.fresh_erased_slot(witness, Borrowed), Some(witness))
+  } else {
+    (
+      self.fresh_metadata(borrowed_evidence_metadata(capture_member.metadata)),
+      None,
+    )
+  }
+  self.emit(
+    BorrowCapture(shape, environment, capture_member.member_index, {
+      value_destination: destination,
+      witness_destination,
+    }),
+  )
+  destination
 }
 
 ///|

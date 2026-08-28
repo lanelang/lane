@@ -41,11 +41,10 @@ fn FunctionLowerer::representation_worker(
     RuntimeSubstitution::new(),
     [],
   )
-  let contract = self.image.representation_worker_contracts.intern({
-    source,
-    callable,
-    arguments,
-  })
+  let contract = self.image.representation_worker_contracts.intern(
+    { source, callable, arguments, },
+    self.image.runtime_types,
+  )
   for worker in self.image.representation_workers {
     if worker.contract == contract {
       return Some((worker.function, worker.type_))
@@ -95,9 +94,16 @@ fn FunctionLowerer::representation_worker(
 fn RepresentationWorkerContractCatalog::intern(
   self : RepresentationWorkerContractCatalog,
   contract : RepresentationWorkerContract,
+  runtime_types : RuntimeTypeArena,
 ) -> RepresentationWorkerContractId {
   for index, existing in self.entries {
-    if existing == contract {
+    if existing.source == contract.source &&
+      existing.callable == contract.callable &&
+      @anf.runtime_arguments_alpha_equivalent(
+        existing.arguments,
+        contract.arguments,
+        expression => runtime_types.type_expression(expression),
+      ) {
       return { value: index, }
     }
   }

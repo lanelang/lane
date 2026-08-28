@@ -464,6 +464,10 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
 - Source field access lowers to a **Selector Function** call; Buslane has no field-access expression node.
 - **ANF Lowering** transforms **Buslane Core Language** into **ANF IR**.
 - **ANF IR** uses **Administrative Normal Form** and **Structured ANF**, not basic blocks.
+- **Runtime ANF** partitions non-minimal lexical `LetRec` input into
+  deterministic minimal callable SCCs before assigning callable disposition.
+- An acyclic singleton callable SCC becomes an ordinary Runtime ANF `Let`; a
+  recursive SCC remains `LetRec` and has one verified disposition.
 - **Buslane Core Language** and **ANF IR** represent source structs and enums as **Nominal Core Data**.
 - **Nominal Core Data** is introduced through **Data Constructors**.
 - A **Data Constructor** is not a first-class value; Buslane uses a **Dedicated Construction Form**.

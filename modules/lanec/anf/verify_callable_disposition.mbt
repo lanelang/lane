@@ -75,7 +75,18 @@ fn verify_callable_expr(
     }
     LetRec(bindings, body) => {
       let functions = bindings.map(binding => anf_atom_function(binding.rhs))
-      let expected = lexical_group_disposition(bindings, body, functions)
+      let components = lexical_binding_sccs(bindings)
+      if components.length() != 1 || !components[0].recursive {
+        invalid_callable_disposition(
+          "a lexical recursive group is not one minimal recursive SCC", path,
+        )
+      }
+      let expected = lexical_scc_disposition(
+        bindings,
+        body,
+        functions,
+        components[0].members,
+      )
       for index, binding in bindings {
         let binding_path = path + [RecursiveBinding(index)]
         match expected {

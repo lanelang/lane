@@ -247,7 +247,7 @@ priv struct RepresentationWorkerContract {
   source : @physical.FunctionId
   callable : PhysicalCallableContractId
   arguments : Array[@anf.RuntimeArgument]
-} derive(Eq)
+}
 
 ///|
 priv struct RepresentationWorkerContractCatalog {
@@ -406,17 +406,47 @@ priv enum CaptureBinding {
 } derive(Eq)
 
 ///|
-priv struct CapturePlan {
-  binding : CaptureBinding
-  type_ : @anf.RuntimeType
-  member_index : Int?
+priv enum CapturePlan {
+  ValueCapture(
+    binding~ : CaptureBinding,
+    type_~ : @anf.RuntimeType,
+    member_index~ : Int?
+  )
+  DirectCallableCapture(
+    binding~ : CaptureBinding,
+    function~ : @physical.FunctionId,
+    type_~ : @anf.RuntimeType,
+    witnesses~ : Array[DirectCallableCaptureMember],
+    values~ : Array[DirectCallableCaptureMember]
+  )
 }
 
 ///|
-priv struct DirectCapturePlan {
-  binding : CaptureBinding
-  type_ : @anf.RuntimeType
-  erased_witness : Bool
+priv struct DirectCallableCaptureMember {
+  member_index : Int
+  metadata : @vmcfg.ValueMetadata
+}
+
+///|
+priv enum DirectCapturePlan {
+  DirectValueCapture(
+    binding~ : CaptureBinding,
+    type_~ : @anf.RuntimeType,
+    erased_witness~ : Bool
+  )
+  DirectCallableInput(
+    binding~ : CaptureBinding,
+    function~ : @physical.FunctionId,
+    type_~ : @anf.RuntimeType,
+    witness_metadata~ : Array[@vmcfg.ValueMetadata],
+    values~ : Array[DirectCallableInputMember]
+  )
+}
+
+///|
+priv struct DirectCallableInputMember {
+  metadata : @vmcfg.ValueMetadata
+  erased_witness_index : Int?
 }
 
 ///|

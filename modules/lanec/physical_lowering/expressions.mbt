@@ -90,8 +90,9 @@ fn FunctionLowerer::lower_atom(
         detail="verified Runtime ANF join point escaped its lexical binding",
       )
     EvidenceLambda(parameters~, body~) => {
-      let function = match extract_top_function(body) {
-        Some(function) => function
+      let (nested_parameters, function) = match
+        extract_top_generic_function(body) {
+        Some(parts) => parts
         None =>
           raise RepresentationElaborationInvariant(
             detail="verified Runtime ANF generic value is not callable",
@@ -99,7 +100,10 @@ fn FunctionLowerer::lower_atom(
       }
       self.lower_nested_function_with_type(
         function,
-        Forall(parameters, self.image.anf_function_type(function)),
+        Forall(
+          parameters + nested_parameters,
+          self.image.anf_function_type(function),
+        ),
       )
     }
   }

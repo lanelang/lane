@@ -276,11 +276,14 @@ fn nested_callable_disposition_program(
 ///|
 fn nested_callable_atom(program : @buslane.Program) -> AnfAtom {
   let anf = lower_cps_core_to_runtime_anf(runtime_anf_test_input(program)).unwrap()
-  guard anf.terms()[0] is Let(_, Atom(Function(main))) &&
-    main.body is LetRec([binding], _) else {
-    abort("expected one nested recursive callable")
+  guard anf.terms()[0] is Let(_, Atom(Function(main))) else {
+    abort("expected one enclosing function")
   }
-  binding.rhs
+  match main.body {
+    LetRec([binding], _) => binding.rhs
+    Let(Value(rhs=Atom(atom), ..), _) => atom
+    _ => abort("expected one nested callable")
+  }
 }
 
 ///|
@@ -317,6 +320,119 @@ test "runtime ANF preserves closure semantics for a returned local function" {
     loop_type,
   )
   assert_true(nested_callable_atom(program) is Function(_))
+}
+
+///|
+test "runtime ANF partitions an escaping callable from an independent join SCC" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let i64 = @buslane.Type::Primitive(I64)
+  let callable = @buslane.Type::Function([i64], i64, Empty)
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], callable, Empty),
+  )
+  let recursive = metadata.define_value("loop", Local, callable)
+  let escape = metadata.define_value("escape", Local, callable)
+  let loop_parameter = metadata.define_value("n", Parameter, i64)
+  let escape_parameter = metadata.define_value("value", Parameter, i64)
+  let source = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: callable,
+          body: LetRec(
+            [
+              {
+                id: recursive,
+                rhs: Function({
+                  parameters: [loop_parameter],
+                  result_type: i64,
+                  body: Call(Ref(recursive), [Ref(loop_parameter)]),
+                }),
+              },
+              {
+                id: escape,
+                rhs: Function({
+                  parameters: [escape_parameter],
+                  result_type: i64,
+                  body: Ref(escape_parameter),
+                }),
+              },
+            ],
+            Ref(escape),
+          ),
+        }),
+      ),
+    ],
+  }
+  let lowered = lower_cps_core_to_runtime_anf(runtime_anf_test_input(source)).unwrap()
+  guard lowered.terms is [Let(_, Atom(Function(lowered_main)))] &&
+    lowered_main.body is LetRec([loop_binding], Let(escape_binding, _)) else {
+    fail("expected a recursive SCC around an acyclic callable binding")
+  }
+  assert_true(loop_binding.rhs is JoinPoint(_))
+  assert_true(
+    escape_binding is Value(id=actual, rhs=Atom(Function(_))) &&
+    actual == escape,
+  )
+}
+
+///|
+test "runtime ANF partitions independent recursive SCCs with different results" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let i64 = @buslane.Type::Primitive(I64)
+  let bool = @buslane.Type::Primitive(Bool)
+  let i64_callable = @buslane.Type::Function([i64], i64, Empty)
+  let bool_callable = @buslane.Type::Function([bool], bool, Empty)
+  let main = metadata.define_value("main", Function, Function([], i64, Empty))
+  let integers = metadata.define_value("integers", Local, i64_callable)
+  let booleans = metadata.define_value("booleans", Local, bool_callable)
+  let integer = metadata.define_value("integer", Parameter, i64)
+  let boolean = metadata.define_value("boolean", Parameter, bool)
+  let source = @buslane.Program::{
+    metadata,
+    terms: [
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: i64,
+          body: LetRec(
+            [
+              {
+                id: integers,
+                rhs: Function({
+                  parameters: [integer],
+                  result_type: i64,
+                  body: Call(Ref(integers), [Ref(integer)]),
+                }),
+              },
+              {
+                id: booleans,
+                rhs: Function({
+                  parameters: [boolean],
+                  result_type: bool,
+                  body: Call(Ref(booleans), [Ref(boolean)]),
+                }),
+              },
+            ],
+            Call(Ref(integers), [Literal(I64(0L))]),
+          ),
+        }),
+      ),
+    ],
+  }
+  let lowered = lower_cps_core_to_runtime_anf(runtime_anf_test_input(source)).unwrap()
+  guard lowered.terms is [Let(_, Atom(Function(lowered_main)))] &&
+    lowered_main.body is LetRec([integer_binding], LetRec([boolean_binding], _)) else {
+    fail("expected two minimal recursive SCCs")
+  }
+  assert_true(integer_binding.rhs is JoinPoint(_))
+  assert_true(boolean_binding.rhs is JoinPoint(_))
 }
 
 ///|
@@ -486,11 +602,16 @@ test "Runtime ANF boundary rejects an unbound value with complete metadata" {
       ),
     ),
   ).unwrap()
-  guard lowered.terms is [Let(main_id, Atom(Function(main)))] &&
-    main.body is LetRec([binding], _) &&
-    anf_atom_function(binding.rhs) is Some(nested) &&
-    nested.parameters is [unbound] else {
-    fail("expected one nested function parameter")
+  guard lowered.terms is [Let(main_id, Atom(Function(main)))] else {
+    fail("expected one top-level function")
+  }
+  let nested = match main.body {
+    LetRec([binding], _) => anf_atom_function(binding.rhs)
+    Let(Value(rhs=Atom(atom), ..), _) => anf_atom_function(atom)
+    _ => None
+  }
+  guard nested is Some(nested) && nested.parameters is [unbound] else {
+    fail("expected one nested callable parameter")
   }
   let invalid : AnfProgram = {
     metadata: lowered.metadata,

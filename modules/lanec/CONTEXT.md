@@ -299,11 +299,14 @@ late metadata or lexical-scope validation
 **Runtime Callable Disposition**:
 The verified Runtime ANF fact that classifies a lexical callable as a local join
 point, a lifted direct-only function, or an escaping closure from exact
-saturated-call, tail-position, and first-class-use structure. A join point is
-local VM CFG control flow. A direct-only function receives captures as explicit
-physical inputs. Only an escaping closure may allocate an environment or become
-table-addressable. Physical Lowering consumes this fact and never recomputes
-escape policy.
+saturated-call, tail-position, and first-class-use structure. Runtime ANF first
+partitions every source recursive group into deterministic minimal callable
+SCCs; acyclic singleton components become ordinary lexical bindings, and an
+escaping SCC does not change an unrelated component's disposition. A join point
+is local VM CFG control flow. A direct-only function receives captures and any
+transitively referenced direct-callable inputs explicitly. Only an escaping
+closure may allocate an environment or become table-addressable. Physical
+Lowering consumes this fact and never recomputes escape policy.
 _Avoid_: function-origin heuristic, closure-conversion sidecar, late VM CFG escape guess
 
 **Canonical Generic ABI**:
@@ -409,7 +412,10 @@ convention need not compute the same result; the closed arguments are mandatory
 because Generic Nominal Data Schemas can hide nested representation differences
 from the outer invocation boundary. Closure environment shape belongs to the
 implementation, not to callable compatibility, and therefore never changes the
-meaning of the Physical Callable ABI Graph.
+meaning of the Physical Callable ABI Graph. Closed Runtime ANF arguments are
+compared by their Runtime ANF-owned alpha equivalence: bound evidence identities
+may be renamed, while free identities, nominal arguments, and type-expression
+semantics remain significant.
 _Avoid_: ABI-equality-means-body-equality, source spelling as ABI, outer shape only
 
 **Callable Adapter Worker Contract**:

@@ -147,8 +147,8 @@ test "real example 37 classifies residual representation adaptation" {
     ),
   )
   assert_eq(summarize_indirect_calls(indirect_calls), {
-    total: 44,
-    source_bound: 9,
+    total: 43,
+    source_bound: 8,
     source_anonymous: 0,
     handler_elaboration: 0,
     monadic_transformation: 8,
@@ -160,7 +160,7 @@ test "real example 37 classifies residual representation adaptation" {
     exact_capture_free: 0,
     exact_local: 0,
     exact_packed: 9,
-    multiple_targets: 35,
+    multiple_targets: 34,
     unknown_with_candidates: 0,
     unknown_without_candidates: 0,
     calls_without_boundary: 0,

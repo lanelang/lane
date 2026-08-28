@@ -242,6 +242,23 @@ fn extract_top_function(expression : @anf.AnfExpr) -> @anf.AnfFunction? {
 }
 
 ///|
+fn extract_top_generic_function(
+  expression : @anf.AnfExpr,
+) -> (Array[@anf.RuntimeEvidenceParameter], @anf.AnfFunction)? {
+  guard expression is Atom(atom) else { return None }
+  match atom {
+    Function(function) => Some(([], function))
+    EvidenceLambda(parameters~, body~) => {
+      guard extract_top_generic_function(body) is Some((nested, function)) else {
+        return None
+      }
+      Some((parameters + nested, function))
+    }
+    _ => None
+  }
+}
+
+///|
 fn extract_top_atom_function(atom : @anf.AnfAtom) -> @anf.AnfFunction? {
   match atom {
     Function(function) => Some(function)

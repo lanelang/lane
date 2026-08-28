@@ -77,32 +77,20 @@ fn build_call_graph_sccs(
 ) -> Array[CallGraphScc] {
   let count = callables.length()
   let adjacency : Array[Array[Int]] = Array::makei(count, _ => [])
-  let reverse : Array[Array[Int]] = Array::makei(count, _ => [])
   for caller_index, callable in callables {
     for callee in callable.callees {
       guard callable_index(callables, callee) is Some(callee_index) else {
         continue
       }
       adjacency[caller_index].push(callee_index)
-      reverse[callee_index].push(caller_index)
     }
   }
-  let visited = Array::make(count, false)
-  let order : Array[Int] = []
-  for index in 0..<count {
-    finish_call_graph_node(index, adjacency, visited, order)
-  }
-  let assigned = Array::make(count, false)
   let sccs : Array[CallGraphScc] = []
-  for index in order.rev_iter() {
-    if assigned[index] {
-      continue
-    }
-    let component : Array[Int] = []
-    collect_call_graph_component(index, reverse, assigned, component)
-    let members = component.map(member_index => callables[member_index].value)
-    let recursive = component.length() > 1 || adjacency[index].contains(index)
-    sccs.push({ members, recursive, })
+  for component in @graph.strongly_connected_components(adjacency) {
+    sccs.push({
+      members: component.members.map(index => callables[index].value),
+      recursive: component.recursive,
+    })
   }
   sccs
 }
@@ -118,40 +106,6 @@ fn callable_index(
     }
   }
   None
-}
-
-///|
-fn finish_call_graph_node(
-  index : Int,
-  adjacency : Array[Array[Int]],
-  visited : Array[Bool],
-  order : Array[Int],
-) -> Unit {
-  if visited[index] {
-    return
-  }
-  visited[index] = true
-  for callee in adjacency[index] {
-    finish_call_graph_node(callee, adjacency, visited, order)
-  }
-  order.push(index)
-}
-
-///|
-fn collect_call_graph_component(
-  index : Int,
-  reverse : Array[Array[Int]],
-  assigned : Array[Bool],
-  component : Array[Int],
-) -> Unit {
-  if assigned[index] {
-    return
-  }
-  assigned[index] = true
-  component.push(index)
-  for caller in reverse[index] {
-    collect_call_graph_component(caller, reverse, assigned, component)
-  }
 }
 
 ///|

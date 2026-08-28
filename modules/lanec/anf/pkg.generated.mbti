@@ -11,6 +11,8 @@ import {
 // Values
 pub fn lower_cps_core_to_runtime_anf(RuntimeAnfInput) -> Result[AnfProgram, RuntimeAnfLoweringError]
 
+pub fn runtime_arguments_alpha_equivalent(Array[RuntimeArgument], Array[RuntimeArgument], (RuntimeTypeExpressionId) -> RuntimeTypeExpression?) -> Bool
+
 // Errors
 pub(all) suberror RuntimeAnfLoweringError {
   InvalidRetention(@buslane.VerifyResult)
