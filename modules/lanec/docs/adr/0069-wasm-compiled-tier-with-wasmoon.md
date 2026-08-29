@@ -36,7 +36,8 @@ Consequences:
 - Milky2018/wasmoon is the default compiled execution engine and may evolve with Lane.
 - Current third-party engine feature support does not constrain the initial Lane backend design.
 - Lane v1 output uses wasm32 linear memory plus Multi-value, Reference Types, Typed Function References, Tail Call, and Bulk Memory.
-- Lane v1 uses Exception Handling only for private fatal-failure cleanup and unwinding.
+- Lane uses Exception Handling only to carry private fatal failure to the
+  Wasmoon boundary; ADR 0140 removes generated cleanup and unwinding.
 - Lane v1 may emit Sign-extension Operators and Extended Constant Expressions.
 - Non-trapping Float-to-int, Fixed-width SIMD, Branch Hinting, Wide Arithmetic, Custom Page Sizes, and Memory Control are aware-only features in v1.
 - Stack Switching and Relaxed SIMD are excluded from Lane v1 output.

@@ -2,21 +2,31 @@
 priv struct PhysicalEvidenceBinding {
   parameter : @anf.RuntimeEvidenceId
   contract : PhysicalEvidenceContract
+} derive(Eq)
+
+///|
+fn PhysicalCallableContractCatalog::reserve(
+  self : PhysicalCallableContractCatalog,
+  request : PhysicalCallableContractRequest,
+) -> (PhysicalCallableContractId, Bool) {
+  for index, existing in self.requests {
+    if existing == request {
+      return ({ value: index, }, false)
+    }
+  }
+  let id : PhysicalCallableContractId = { value: self.requests.length(), }
+  self.requests.push(request)
+  self.entries.push(None)
+  (id, true)
 }
 
 ///|
-fn PhysicalCallableContractCatalog::intern(
+fn PhysicalCallableContractCatalog::complete(
   self : PhysicalCallableContractCatalog,
+  id : PhysicalCallableContractId,
   contract : PhysicalCallableContract,
-) -> PhysicalCallableContractId {
-  for index, existing in self.entries {
-    if existing == contract {
-      return { value: index, }
-    }
-  }
-  let id : PhysicalCallableContractId = { value: self.entries.length(), }
-  self.entries.push(contract)
-  id
+) -> Unit {
+  self.entries[id.value] = Some(contract)
 }
 
 ///|
@@ -24,22 +34,146 @@ fn PhysicalCallableContractCatalog::get(
   self : PhysicalCallableContractCatalog,
   id : PhysicalCallableContractId,
 ) -> PhysicalCallableContract {
-  self.entries[id.value]
+  self.entries[id.value].unwrap()
 }
 
 ///|
-fn CallableAdapterWorkerContractCatalog::intern(
-  self : CallableAdapterWorkerContractCatalog,
+fn ImageLowerer::intern_callable_adapter_worker_contract(
+  self : ImageLowerer,
   contract : CallableAdapterWorkerContract,
 ) -> CallableAdapterWorkerContractId {
-  for index, existing in self.entries {
-    if existing == contract {
+  for index, existing in self.callable_adapter_worker_contracts.entries {
+    if existing.source_parameter_targets == contract.source_parameter_targets &&
+      self.physical_callable_contracts_equivalent(
+        existing.source,
+        contract.source,
+      ) &&
+      self.physical_callable_contracts_equivalent(
+        existing.target,
+        contract.target,
+      ) {
       return { value: index, }
     }
   }
-  let id : CallableAdapterWorkerContractId = { value: self.entries.length(), }
-  self.entries.push(contract)
+  let id : CallableAdapterWorkerContractId = {
+    value: self.callable_adapter_worker_contracts.entries.length(),
+  }
+  self.callable_adapter_worker_contracts.entries.push(contract)
   id
+}
+
+///|
+priv enum PhysicalContractComparison {
+  Invocation
+  Complete
+} derive(Eq)
+
+///|
+priv struct PhysicalContractVisit {
+  left : PhysicalCallableContractId
+  right : PhysicalCallableContractId
+  comparison : PhysicalContractComparison
+} derive(Eq)
+
+///|
+fn ImageLowerer::physical_callable_contracts_equivalent(
+  self : ImageLowerer,
+  left : PhysicalCallableContractId,
+  right : PhysicalCallableContractId,
+) -> Bool {
+  self.physical_callable_contracts_equivalent_under(left, right, [], Complete)
+}
+
+///|
+fn ImageLowerer::physical_callable_invocations_equivalent(
+  self : ImageLowerer,
+  left : PhysicalCallableContractId,
+  right : PhysicalCallableContractId,
+) -> Bool {
+  self.physical_callable_contracts_equivalent_under(left, right, [], Invocation)
+}
+
+///|
+fn ImageLowerer::physical_callable_contracts_equivalent_under(
+  self : ImageLowerer,
+  left : PhysicalCallableContractId,
+  right : PhysicalCallableContractId,
+  visited : Array[PhysicalContractVisit],
+  comparison : PhysicalContractComparison,
+) -> Bool {
+  let visit : PhysicalContractVisit = { left, right, comparison, }
+  if left == right || visited.contains(visit) {
+    return true
+  }
+  visited.push(visit)
+  let left_contract = self.physical_callable_contracts.get(left)
+  let right_contract = self.physical_callable_contracts.get(right)
+  if left_contract.witnesses != right_contract.witnesses ||
+    (
+      comparison is Complete &&
+      left_contract.evidence_arguments != right_contract.evidence_arguments
+    ) ||
+    left_contract.parameters.length() != right_contract.parameters.length() {
+    return false
+  }
+  for index, left_parameter in left_contract.parameters {
+    if !self.physical_value_boundaries_equivalent_under(
+        left_parameter,
+        right_contract.parameters[index],
+        visited,
+        comparison,
+      ) {
+      return false
+    }
+  }
+  self.physical_value_boundaries_equivalent_under(
+    left_contract.result,
+    right_contract.result,
+    visited,
+    comparison,
+  )
+}
+
+///|
+fn ImageLowerer::physical_value_boundaries_equivalent_under(
+  self : ImageLowerer,
+  left : PhysicalValueBoundary,
+  right : PhysicalValueBoundary,
+  visited : Array[PhysicalContractVisit],
+  comparison : PhysicalContractComparison,
+) -> Bool {
+  if !self.physical_value_contracts_equivalent_under(
+      left.abi,
+      right.abi,
+      visited,
+      Invocation,
+    ) {
+    return false
+  }
+  comparison is Invocation ||
+  self.physical_value_contracts_equivalent_under(
+    left.shape,
+    right.shape,
+    visited,
+    Complete,
+  )
+}
+
+///|
+fn ImageLowerer::physical_value_contracts_equivalent_under(
+  self : ImageLowerer,
+  left : PhysicalValueContract,
+  right : PhysicalValueContract,
+  visited : Array[PhysicalContractVisit],
+  comparison : PhysicalContractComparison,
+) -> Bool {
+  match (left, right) {
+    (Callable(left), Callable(right)) =>
+      self.physical_callable_contracts_equivalent_under(
+        left, right, visited, comparison,
+      )
+    _ => left == right
+  }
 }
 
 ///|
@@ -51,7 +185,7 @@ fn ImageLowerer::callable_adapter_reason(
   let source_contract = self.physical_callable_contracts.get(source)
   let target_contract = self.physical_callable_contracts.get(target)
   let differences : Array[CallableContractDifference] = []
-  if source_contract.abi != target_contract.abi {
+  if !self.physical_callable_invocations_equivalent(source, target) {
     differences.push(Invocation)
   }
   if source_contract.evidence_arguments != target_contract.evidence_arguments {
@@ -61,12 +195,30 @@ fn ImageLowerer::callable_adapter_reason(
     .length()
     .max(target_contract.parameters.length())
   for index = 0; index < parameter_count; index = index + 1 {
-    if source_contract.parameters.get(index) !=
-      target_contract.parameters.get(index) {
+    let different = match
+      (
+        source_contract.parameters.get(index),
+        target_contract.parameters.get(index),
+      ) {
+      (Some(source), Some(target)) =>
+        !self.physical_value_boundaries_equivalent_under(
+          source,
+          target,
+          [],
+          Complete,
+        )
+      _ => true
+    }
+    if different {
       differences.push(Parameter(index))
     }
   }
-  if source_contract.result != target_contract.result {
+  if !self.physical_value_boundaries_equivalent_under(
+      source_contract.result,
+      target_contract.result,
+      [],
+      Complete,
+    ) {
     differences.push(Result)
   }
   if differences.is_empty() {
@@ -83,12 +235,13 @@ fn ImageLowerer::callable_adapter_worker_contract(
   contract : CallableAdapterContract,
 ) -> (CallableAdapterWorkerContractId, CallableAdapterReason) raise PhysicalLoweringError {
   let (source, target) = self.callable_adapter_contract_boundaries(contract)
-  let worker_contract = self.callable_adapter_worker_contracts.intern({
+  let worker_contract = self.intern_callable_adapter_worker_contract({
     source,
     target,
     source_parameter_targets: contract.source_parameter_targets,
   })
-  let reason = self.callable_adapter_reason(source, target)
+  let canonical = self.callable_adapter_worker_contracts.entries[worker_contract.value]
+  let reason = self.callable_adapter_reason(canonical.source, canonical.target)
   (worker_contract, reason)
 }
 
@@ -148,6 +301,14 @@ fn ImageLowerer::physical_callable_contract(
   substitutions : RuntimeSubstitution,
   evidence : Array[PhysicalEvidenceBinding],
 ) -> PhysicalCallableContractId raise PhysicalLoweringError {
+  let (id, reserved) = self.physical_callable_contracts.reserve({
+    type_,
+    substitutions,
+    evidence: evidence.copy(),
+  })
+  if !reserved {
+    return id
+  }
   let (type_parameters, parameters, result) = function_type_parts(type_)
   let nested_evidence = evidence.copy()
   let mut bound_index = 0
@@ -165,8 +326,14 @@ fn ImageLowerer::physical_callable_contract(
       )
     }
   }
-  self.physical_callable_contracts.intern({
-    abi: self.physical_callable_abi_contract(type_, substitutions),
+  self.physical_callable_contracts.complete(id, {
+    witnesses: type_parameters.filter_map(parameter => {
+      if self.requires_runtime_evidence(parameter) {
+        Some(value_metadata_abi(runtime_evidence_metadata(parameter)))
+      } else {
+        None
+      }
+    }),
     evidence_arguments,
     parameters: parameters.filter_map(parameter => {
       let boundary = self.physical_value_boundary(
@@ -180,6 +347,7 @@ fn ImageLowerer::physical_callable_contract(
     }),
     result: self.physical_value_boundary(result, substitutions, nested_evidence),
   })
+  id
 }
 
 ///|
@@ -300,65 +468,3 @@ fn value_metadata_abi(metadata : @vmcfg.ValueMetadata) -> @physical.ValueAbi {
 }
 
 ///|
-fn ImageLowerer::physical_value_abi_contract_under(
-  self : ImageLowerer,
-  type_ : @anf.RuntimeType,
-  substitutions : RuntimeSubstitution,
-) -> @physical.CallableValueAbi raise PhysicalLoweringError {
-  match self.elaborate_runtime_representation(type_) {
-    RuntimeUnit => Unit
-    RuntimeErased(_) =>
-      Value({ representation: I64, cleanup: OwnedErased, kind: ErasedValue, })
-    Concrete(Callable(_, _) | Forall(_, _) as callable, _) =>
-      Callable(self.physical_callable_abi_contract(callable, substitutions))
-    Concrete(concrete, _) => {
-      let actual = substitutions.apply_type(self.runtime_types, concrete)
-      match self.elaborate_runtime_representation(actual) {
-        RuntimeUnit => Unit
-        RuntimeErased(_) =>
-          Value({
-            representation: I64,
-            cleanup: OwnedErased,
-            kind: ErasedValue,
-          })
-        Concrete(Callable(_, _) | Forall(_, _) as callable, _) =>
-          Callable(
-            self.physical_callable_abi_contract(
-              callable,
-              RuntimeSubstitution::new(),
-            ),
-          )
-        Concrete(_, metadata) => Value(value_metadata_abi(metadata))
-      }
-    }
-  }
-}
-
-///|
-fn ImageLowerer::physical_callable_abi_contract(
-  self : ImageLowerer,
-  type_ : @anf.RuntimeType,
-  substitutions : RuntimeSubstitution,
-) -> @physical.CallableAbiNodeId raise PhysicalLoweringError {
-  let (type_parameters, parameters, result) = function_type_parts(type_)
-  let witnesses = []
-  for parameter in type_parameters {
-    if self.requires_runtime_evidence(parameter) {
-      witnesses.push(value_metadata_abi(runtime_evidence_metadata(parameter)))
-    }
-  }
-  self.callable_abi_graph.intern({
-    witnesses,
-    parameters: parameters.filter_map(parameter => {
-      let contract = self.physical_value_abi_contract_under(
-        parameter, substitutions,
-      )
-      if contract is Unit {
-        None
-      } else {
-        Some(contract)
-      }
-    }),
-    result: self.physical_value_abi_contract_under(result, substitutions),
-  })
-}

@@ -307,7 +307,7 @@ fn ImageLowerer::plan_callable_adaptation(
     captured_parameters,
   }
   let (source, target) = self.callable_adapter_contract_boundaries(contract)
-  if source == target {
+  if self.physical_callable_contracts_equivalent(source, target) {
     None
   } else {
     Some(contract)
@@ -535,6 +535,9 @@ fn ImageLowerer::align_callable_parameters(
   let alignment = RuntimeSubstitution::new()
   for index, target_parameter in target_type_parameters {
     let source_parameter = source_type_parameters[index]
+    if target_parameter.id == source_parameter.id {
+      continue
+    }
     guard self.metadata.parameter_type_expression(source_parameter.id)
       is Some(type_expression) else {
       raise InvalidTypeApplication(

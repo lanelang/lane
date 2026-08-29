@@ -55,9 +55,6 @@ pub(all) enum WasmExpansionCategory {
   PhysicalOpcode(WasmPhysicalOpcodeFamily)
   ControlFlow
   RuntimeGuard
-  ArcFrameState
-  ArcUnwind
-  ArcCleanupSupport
   RuntimeImportAdapter
   RuntimeSupport
   HelperSupport
@@ -111,14 +108,12 @@ pub fn WasmFunctionScale::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WasmHelperFunctionRole {
   CallableAbiGuard
+  PackedCallableTargetGuard
   NoopErased
   RetainReferenceErased
   ReleaseReferenceErased
   RetainCallable
   ReleaseCallable
-  CleanupLiveReference
-  CleanupLiveCallable
-  CleanupLiveErased
   DestroyNoop
   DestroyShape(shape~ : Int)
   ByteSequenceSizer

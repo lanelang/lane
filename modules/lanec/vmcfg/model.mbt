@@ -100,6 +100,13 @@ pub(all) enum Instruction {
     Array[ValueId],
     ValueId?
   )
+  CallPackedDirect(
+    @physical.FunctionId,
+    ValueId,
+    Array[ValueId],
+    Array[ValueId],
+    ValueId?
+  )
   CallValue(ValueId, Array[ValueId], Array[ValueId], ValueId?)
   MakeData(
     ValueId,
@@ -221,6 +228,12 @@ pub(all) enum Terminator {
   SwitchTag(ValueId, Array[Edge], Edge)
   Return(ValueId?)
   TailCallDirect(@physical.FunctionId, ValueId?, Array[ValueId], Array[ValueId])
+  TailCallPackedDirect(
+    @physical.FunctionId,
+    ValueId,
+    Array[ValueId],
+    Array[ValueId]
+  )
   TailCallValue(ValueId, Array[ValueId], Array[ValueId])
   Fatal(ValueId)
   Unreachable

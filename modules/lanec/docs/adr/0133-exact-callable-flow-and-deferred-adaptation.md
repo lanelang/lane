@@ -27,9 +27,10 @@ equal-width values may differ in ownership, object shape, callable ABI, or
 required semantic conversion.
 
 Equal structural source/target contracts share one materialized worker. Every
-materialization site supplies its own captures. Recursive callable ABI
-identities belong to the physical ABI owner; they are not a second adapter
-equivalence analysis. Function-table processing owns reachability, Runtime
+materialization site supplies its own captures. Recursive callable identities
+belong to one representation-elaboration-owned contract graph; invocation ABI
+and adaptation equivalence are projections of that graph, not parallel
+recursive trees. Function-table processing owns reachability, Runtime
 Import deduplication, stable remapping, and provenance remapping, but never
 reconstructs adapter identity from VM CFG bodies.
 

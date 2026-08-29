@@ -60,6 +60,7 @@ test "real example 37 classifies residual representation adaptation" {
   ] = []
   let mut invalid_adapter_reasons = 0
   let mut indirect_calls = []
+  let mut packed_direct_calls = 0
   let lowered = @physical_lowering.lower_executable_program_to_physical_observed(
     executable,
     stage => {
@@ -95,6 +96,7 @@ test "real example 37 classifies residual representation adaptation" {
                   adapter_materializations += 1
                 }
                 match instruction {
+                  CallPackedDirect(_, _, _, _, _) => packed_direct_calls += 1
                   EraseI32(_, _)
                   | EraseI64(_, _)
                   | EraseF32(_, _)
@@ -107,6 +109,9 @@ test "real example 37 classifies residual representation adaptation" {
                   | UneraseUnit(_) => generic_abi_unerasures += 1
                   _ => ()
                 }
+              }
+              if block.terminator is TailCallPackedDirect(_, _, _, _) {
+                packed_direct_calls += 1
               }
             }
           }
@@ -133,6 +138,7 @@ test "real example 37 classifies residual representation adaptation" {
       generic_abi_unerasures,
       adapter_worker_contracts.length(),
       invalid_adapter_reasons,
+      packed_direct_calls,
       summarize_adapter_flow(indirect_calls, adapter_worker_ids),
     ),
     (
@@ -143,24 +149,25 @@ test "real example 37 classifies residual representation adaptation" {
       11,
       20,
       0,
-      { indirect_targets: 20, aggregate_stored_targets: 20, direct_only: 0, },
+      9,
+      { indirect_targets: 14, aggregate_stored_targets: 14, direct_only: 6, },
     ),
   )
   assert_eq(summarize_indirect_calls(indirect_calls), {
-    total: 43,
-    source_bound: 8,
+    total: 33,
+    source_bound: 9,
     source_anonymous: 0,
     handler_elaboration: 0,
-    monadic_transformation: 8,
-    selective_cps: 9,
-    callable_adapter: 17,
+    monadic_transformation: 3,
+    selective_cps: 6,
+    callable_adapter: 14,
     representation_worker: 0,
     initialization: 1,
     runtime_support: 0,
     exact_capture_free: 0,
     exact_local: 0,
-    exact_packed: 9,
-    multiple_targets: 34,
+    exact_packed: 0,
+    multiple_targets: 33,
     unknown_with_candidates: 0,
     unknown_without_candidates: 0,
     calls_without_boundary: 0,

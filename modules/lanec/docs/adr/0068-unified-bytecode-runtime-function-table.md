@@ -72,7 +72,7 @@ Runtime-import descriptors serialize ABI major version, the complete supported p
 
 String values keep the canonical immutable ASCII ARC layout. An argument is transferred as an owned VM value and read through a borrowed byte view valid only during the call. A String result copies validated host bytes into a new owned VM String through the runtime context. `Opaque` values use Lane ARC wrappers over execution-local Host Object Table handles; Bool, Int, Double, and Unit are immediate.
 
-Runtime-import failure returns no Lane value and fatally aborts the current execution. The binding first consumes or releases transferred arguments; the VM then releases remaining owned frame values while unwinding. Recoverable host outcomes use normal primitive results. Interpreter, native, and Wasm tiers may use different physical failure mechanisms, but none create a Lane exception, effect, or bytecode exceptional edge.
+Runtime-import failure returns no Lane value and fatally aborts the current execution. Recoverable host outcomes use normal primitive results. This historical design predated ADR 0140; the current Wasm target discards the single-shot instance and does not reconstruct frame ownership or promise recovery cleanup. No backend exposes the failure as a Lane exception, effect, or IR exceptional edge.
 
 ## Backend mapping
 

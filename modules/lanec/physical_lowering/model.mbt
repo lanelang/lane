@@ -313,19 +313,27 @@ priv enum PhysicalValueContract {
 priv struct PhysicalValueBoundary {
   abi : PhysicalValueContract
   shape : PhysicalValueContract
-} derive(Eq)
+}
 
 ///|
 priv struct PhysicalCallableContract {
-  abi : @physical.CallableAbiNodeId
+  witnesses : Array[@physical.ValueAbi]
   evidence_arguments : Array[PhysicalEvidenceContract]
   parameters : Array[PhysicalValueBoundary]
   result : PhysicalValueBoundary
+}
+
+///|
+priv struct PhysicalCallableContractRequest {
+  type_ : @anf.RuntimeType
+  substitutions : RuntimeSubstitution
+  evidence : Array[PhysicalEvidenceBinding]
 } derive(Eq)
 
 ///|
 priv struct PhysicalCallableContractCatalog {
-  entries : Array[PhysicalCallableContract]
+  requests : Array[PhysicalCallableContractRequest]
+  entries : Array[PhysicalCallableContract?]
 }
 
 ///|
@@ -333,7 +341,7 @@ priv struct CallableAdapterWorkerContract {
   source : PhysicalCallableContractId
   target : PhysicalCallableContractId
   source_parameter_targets : Array[Int]
-} derive(Eq)
+}
 
 ///|
 priv struct CallableAdapterWorkerContractCatalog {
@@ -527,7 +535,7 @@ priv struct WitnessBinding {
 ///|
 priv struct RuntimeSubstitution {
   entries : Array[(@anf.RuntimeEvidenceId, @anf.RuntimeArgument)]
-} derive(Debug)
+} derive(Debug, Eq)
 
 ///|
 priv struct ValueBinding {

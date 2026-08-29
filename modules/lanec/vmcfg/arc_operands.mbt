@@ -58,6 +58,34 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
         },
       }
     }
+    CallPackedDirect(target, callable, witnesses, arguments, destination) => {
+      let operands = [(callable, ArcOperandMode::Consume)]
+      operands.append(consume(witnesses))
+      operands.append(consume(arguments))
+      {
+        operands,
+        materialize: values => {
+          let mut cursor = 1
+          let lowered_witnesses = witnesses.map(fn(_) {
+            let value = values[cursor]
+            cursor += 1
+            value
+          })
+          let lowered_arguments = arguments.map(fn(_) {
+            let value = values[cursor]
+            cursor += 1
+            value
+          })
+          CallPackedDirect(
+            target,
+            values[0],
+            lowered_witnesses,
+            lowered_arguments,
+            destination,
+          )
+        },
+      }
+    }
     CallValue(callable, witnesses, arguments, destination) => {
       let operands = [(callable, ArcOperandMode::Consume)]
       operands.append(consume(witnesses))
@@ -363,6 +391,33 @@ fn arc_terminal_plan(terminator : Terminator) -> ArcTerminalPlan? {
         },
       })
     }
+    TailCallPackedDirect(target, callable, witnesses, arguments) => {
+      let operands = [(callable, ArcOperandMode::Consume)]
+      operands.append(witnesses.map(value => (value, Consume)))
+      operands.append(arguments.map(value => (value, Consume)))
+      Some({
+        operands,
+        materialize: values => {
+          let mut cursor = 1
+          let lowered_witnesses = witnesses.map(fn(_) {
+            let value = values[cursor]
+            cursor += 1
+            value
+          })
+          let lowered_arguments = arguments.map(fn(_) {
+            let value = values[cursor]
+            cursor += 1
+            value
+          })
+          TailCallPackedDirect(
+            target,
+            values[0],
+            lowered_witnesses,
+            lowered_arguments,
+          )
+        },
+      })
+    }
     TailCallValue(callable, witnesses, arguments) => {
       let operands = [(callable, ArcOperandMode::Consume)]
       operands.append(witnesses.map(value => (value, Consume)))
@@ -387,7 +442,7 @@ fn arc_terminal_plan(terminator : Terminator) -> ArcTerminalPlan? {
     }
     Fatal(message) =>
       Some({
-        operands: [(message, Consume)],
+        operands: [(message, Borrow)],
         materialize: values => Fatal(values[0]),
       })
     Unreachable => Some({ operands: [], materialize: _ => Unreachable, })

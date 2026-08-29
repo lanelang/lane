@@ -413,7 +413,15 @@ test "environment ABI remains packed when one target has multiple environments" 
       #|    },
       #|    {
       #|      parameters: [{ value: 6 }],
-      #|      instructions: [CallValue({ value: 6 }, [], [], Some({ value: 7 }))],
+      #|      instructions: [
+      #|        CallPackedDirect(
+      #|          { value: 2 },
+      #|          { value: 6 },
+      #|          [],
+      #|          [],
+      #|          Some({ value: 7 }),
+      #|        ),
+      #|      ],
       #|      terminator: Return(Some({ value: 7 })),
       #|    },
       #|  ],
@@ -690,6 +698,97 @@ test "callable flow crosses direct function parameters" {
 }
 
 ///|
+test "exact packed callable parameter devirtualizes in tail position" {
+  let environment : ValueMetadata = {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: EnvironmentValue({ value: 0, }),
+    ownership: Owned,
+    erased_companion: None,
+  }
+  let callable : ValueMetadata = {
+    representation: I64,
+    cleanup: OwnedCallable,
+    kind: CallableValue,
+    ownership: Owned,
+    erased_companion: None,
+  }
+  let entry : FunctionBody = {
+    values: [environment, callable],
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          MakeEnv({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+          MakeClosure({ value: 1, }, { value: 3, }, { value: 0, }),
+          CallDirect({ value: 2, }, None, [], [{ value: 1, }], None),
+        ],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let apply : FunctionBody = {
+    values: [callable],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0, }],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [],
+        terminator: TailCallValue({ value: 0, }, [], []),
+      },
+    ],
+  }
+  let target : FunctionBody = {
+    values: [environment],
+    inputs: {
+      environment: Some({ value: 0, }),
+      witnesses: [],
+      user_parameters: [],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [Release({ value: 0, })],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let image : Image = {
+    entry: { value: 1, },
+    initializer: None,
+    data_family_count: 0,
+    functions: [Body(entry), Body(apply), Body(target)],
+    globals: [],
+    layouts: [Environment({ value: 0, })],
+    object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
+    constants: [],
+  }
+  let optimized = devirtualize_image(image)
+  guard optimized.functions[1] is Body(optimized_apply) &&
+    optimized.functions[2] is Body(optimized_target) else {
+    fail("expected apply and target bodies")
+  }
+  debug_inspect(
+    (optimized_apply.blocks[0].terminator, optimized_target.inputs.environment),
+    content=(
+      #|(
+      #|  TailCallPackedDirect({ value: 3 }, { value: 0 }, [], []),
+      #|  Some({ value: 0 }),
+      #|)
+    ),
+  )
+  assert_true(finalize(image) is Ok(_))
+}
+
+///|
 test "callable flow crosses direct function results" {
   let callable : ValueMetadata = {
     representation: I64,
@@ -942,11 +1041,11 @@ test "stored closures keep their packed environment owner" {
         parameters: [],
         instructions: [
           ConstString({ value: 0, }, { value: 0, }),
-          MakeEnv({ value: 1, }, { value: 0, }, Immediate({ value: 0, }), [], [
+          MakeEnv({ value: 1, }, { value: 0, }, Immediate({ value: 1, }), [], [
             { value: 0, },
           ]),
           MakeClosure({ value: 2, }, { value: 2, }, { value: 1, }),
-          MakeData({ value: 3, }, { value: 1, }, Immediate({ value: 1, }), [], [
+          MakeData({ value: 3, }, { value: 1, }, Immediate({ value: 2, }), [], [
             { value: 2, },
           ]),
           BorrowField({ value: 1, }, { value: 3, }, 0, {
@@ -954,6 +1053,7 @@ test "stored closures keep their packed environment owner" {
             witness_destination: None,
           }),
           CallValue({ value: 4, }, [], [], None),
+          Release({ value: 3, }),
         ],
         terminator: Return(None),
       },
@@ -986,13 +1086,13 @@ test "stored closures keep their packed environment owner" {
       },
     ],
   }
-  let optimized = devirtualize_image({
+  let image : Image = {
     entry: { value: 1, },
     initializer: None,
     data_family_count: 1,
     functions: [Body(caller), Body(callee)],
     globals: [],
-    layouts: [],
+    layouts: [Environment({ value: 0, }), Data({ value: 1, })],
     object_shapes: [
       Environment({
         stored_witness_count: 0,
@@ -1020,13 +1120,58 @@ test "stored closures keep their packed environment owner" {
       }),
     ],
     constants: [b"capture"],
-  })
+  }
+  let optimized = devirtualize_image(image)
   guard optimized.functions[0] is Body(caller) &&
     optimized.functions[1] is Body(callee) else {
     fail("expected caller and callee bodies")
   }
   debug_inspect(
     (caller.blocks[0].instructions[5], callee.inputs.environment),
-    content="(CallValue({ value: 4 }, [], [], None), Some({ value: 0 }))",
+    content=(
+      #|(
+      #|  CallPackedDirect({ value: 2 }, { value: 4 }, [], [], None),
+      #|  Some({ value: 0 }),
+      #|)
+    ),
+  )
+  let finalized = match finalize(image) {
+    Ok(program) => program.image()
+    Err(error) => fail("finalization failed: \{Repr(error)}")
+  }
+  guard finalized.functions[0] is PhysicalBody(finalized_caller) else {
+    fail("expected finalized caller body")
+  }
+  debug_inspect(
+    finalized_caller.blocks[0].instructions,
+    content=(
+      #|[
+      #|  ConstString({ value: 0 }, { value: 0 }),
+      #|  MakeEnv(
+      #|    { value: 1 },
+      #|    { value: 0 },
+      #|    Immediate({ value: 1 }),
+      #|    [],
+      #|    [{ value: 0 }],
+      #|  ),
+      #|  MakeClosure({ value: 2 }, { value: 2 }, { value: 1 }),
+      #|  MakeData(
+      #|    { value: 3 },
+      #|    { value: 1 },
+      #|    Immediate({ value: 2 }),
+      #|    [],
+      #|    [{ value: 2 }],
+      #|  ),
+      #|  BorrowField(
+      #|    { value: 1 },
+      #|    { value: 3 },
+      #|    0,
+      #|    { value_destination: { value: 4 }, witness_destination: None },
+      #|  ),
+      #|  RetainCopy({ value: 2 }, { value: 4 }),
+      #|  CallPackedDirect({ value: 2 }, { value: 2 }, [], [], None),
+      #|  Release({ value: 3 }),
+      #|]
+    ),
   )
 }

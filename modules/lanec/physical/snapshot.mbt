@@ -78,6 +78,14 @@ fn Instruction::snapshot(self : Instruction) -> Instruction {
         arguments.copy(),
         environment,
       )
+    CallPackedDirect(function, callable, witnesses, arguments, destination) =>
+      CallPackedDirect(
+        function,
+        callable,
+        witnesses.copy(),
+        arguments.copy(),
+        destination,
+      )
     CallValue(callable, abi, witnesses, arguments, destination) =>
       CallValue(callable, abi, witnesses.copy(), arguments.copy(), destination)
     MakeData(destination, shape, layout, witnesses, fields) =>
@@ -106,6 +114,13 @@ fn Terminator::snapshot(self : Terminator) -> Terminator {
       )
     TailCallDirect(function, environment, witnesses, arguments) =>
       TailCallDirect(function, environment, witnesses.copy(), arguments.copy())
+    TailCallPackedDirect(function, callable, witnesses, arguments) =>
+      TailCallPackedDirect(
+        function,
+        callable,
+        witnesses.copy(),
+        arguments.copy(),
+      )
     TailCallValue(callable, abi, witnesses, arguments) =>
       TailCallValue(callable, abi, witnesses.copy(), arguments.copy())
     Return(_) | Fatal(_) | Unreachable => self

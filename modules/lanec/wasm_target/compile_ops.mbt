@@ -18,8 +18,6 @@ fn compile_instruction(
         LocalGet(locals.slot_local(source)),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_dead_after_definition(source, destination))
-      result.append(locals.mark_slot_live(destination))
       result
     }
     RetainCopy(destination, source) => {
@@ -49,7 +47,6 @@ fn compile_instruction(
           )
         }
       }
-      result.append(locals.mark_slot_live(destination))
       result
     }
     Release(source) => {
@@ -76,7 +73,6 @@ fn compile_instruction(
           )
         }
       }
-      result.append(locals.mark_slot_dead(source))
       result
     }
     ConstI64(destination, value) =>
@@ -109,7 +105,6 @@ fn compile_instruction(
         ),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_live(destination))
       result
     }
     ConstString(destination, constant) => {
@@ -117,7 +112,6 @@ fn compile_instruction(
         I32Const(static_image.constant_refs[constant.value]),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_live(destination))
       result
     }
     CallDirect(target, environment, witnesses, arguments, destination) => {
@@ -132,16 +126,25 @@ fn compile_instruction(
       for slot in arguments {
         result.push(LocalGet(locals.slot_local(slot)))
       }
-      if environment is Some(slot) {
-        result.append(locals.mark_slot_dead(slot))
+      result.push(function_catalog.image_function(target).call())
+      if destination is Some(slot) {
+        result.push(LocalSet(locals.slot_local(slot)))
+      }
+      result
+    }
+    CallPackedDirect(target, callable, witnesses, arguments, destination) => {
+      let result = load_packed_direct_environment(
+        locals, function_catalog, callable, target,
+      )
+      for slot in witnesses {
+        result.push(LocalGet(locals.slot_local(slot)))
       }
       for slot in arguments {
-        result.append(locals.mark_slot_dead(slot))
+        result.push(LocalGet(locals.slot_local(slot)))
       }
       result.push(function_catalog.image_function(target).call())
       if destination is Some(slot) {
         result.push(LocalSet(locals.slot_local(slot)))
-        result.append(locals.mark_slot_live(slot))
       }
       result
     }
@@ -163,10 +166,6 @@ fn compile_instruction(
       }
       result.push(LocalGet(locals.slot_local(callable)))
       result.push(I32WrapI64)
-      result.append(locals.mark_slot_dead(callable))
-      for slot in arguments {
-        result.append(locals.mark_slot_dead(slot))
-      }
       let type_index = indirect_type(
         wasm_module,
         static_image.callable_abi(abi_id),
@@ -174,7 +173,6 @@ fn compile_instruction(
       result.push(CallIndirect(type_index, 0))
       if destination is Some(slot) {
         result.push(LocalSet(locals.slot_local(slot)))
-        result.append(locals.mark_slot_live(slot))
       }
       result
     }
@@ -190,8 +188,6 @@ fn compile_instruction(
         I64Or,
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_dead(environment))
-      result.append(locals.mark_slot_live(destination))
       result
     }
     MakeData(destination, shape, layout, witnesses, fields) => {
@@ -214,10 +210,6 @@ fn compile_instruction(
           fields,
         )
       }
-      for field in fields {
-        result.append(locals.mark_slot_dead(field))
-      }
-      result.append(locals.mark_slot_live(destination))
       result
     }
     MakeEnv(destination, shape, layout, witnesses, captures) => {
@@ -225,10 +217,6 @@ fn compile_instruction(
         locals, static_image, function_catalog, destination, shape, layout, witnesses,
         captures,
       )
-      for capture in captures {
-        result.append(locals.mark_slot_dead(capture))
-      }
-      result.append(locals.mark_slot_live(destination))
       result
     }
     LoadTag(destination, object) => {
@@ -268,10 +256,6 @@ fn compile_instruction(
       let result = compile_consuming_projection(
         locals, static_image, function_catalog, wasm_module, shape, object, selections,
       )
-      result.append(locals.mark_slot_dead(object))
-      for selection in selections {
-        result.append(locals.mark_slot_live(selection.result.value_destination))
-      }
       result
     }
     ByteToI64(destination, source) =>
@@ -295,7 +279,6 @@ fn compile_instruction(
         function_catalog.runtime(ByteSequenceMake).call(),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_live(destination))
       result
     }
     ByteSequenceLength(destination, source) =>
@@ -342,8 +325,6 @@ fn compile_instruction(
         function_catalog.runtime(ByteSequenceSet).call(),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_dead_after_definition(source, destination))
-      result.append(locals.mark_slot_live(destination))
       result
     }
     ByteSequenceConcat(destination, left, right) => {
@@ -353,9 +334,6 @@ fn compile_instruction(
         function_catalog.runtime(ByteSequenceConcat).call(),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_dead_after_definition(left, destination))
-      result.append(locals.mark_slot_dead_after_definition(right, destination))
-      result.append(locals.mark_slot_live(destination))
       result
     }
     ByteSequenceSlice(destination, string, start, length) => {
@@ -366,8 +344,6 @@ fn compile_instruction(
         function_catalog.runtime(ByteSequenceSlice).call(),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_dead_after_definition(string, destination))
-      result.append(locals.mark_slot_live(destination))
       result
     }
     ByteSequenceEqual(destination, left, right) =>
@@ -526,7 +502,6 @@ fn compile_instruction(
         function_catalog.internal_import(F32ToString).call(),
         I32Store(0, 2, 8L),
       ]
-      result.append(locals.mark_slot_live(destination))
       result
     }
     F64ToString(destination, source) => {
@@ -542,7 +517,6 @@ fn compile_instruction(
         function_catalog.internal_import(F64ToString).call(),
         I32Store(0, 2, 8L),
       ]
-      result.append(locals.mark_slot_live(destination))
       result
     }
     EraseI32(destination, source) =>
@@ -561,8 +535,6 @@ fn compile_instruction(
         LocalGet(locals.slot_local(source)),
         LocalSet(locals.slot_local(destination)),
       ]
-      result.append(locals.mark_slot_dead(source))
-      result.append(locals.mark_slot_live(destination))
       result
     }
     EraseF64(destination, source) =>
@@ -608,28 +580,6 @@ fn compile_erased_ownership_call(
     I32Load(0, 2, descriptor_offset.to_int64()),
     CallIndirect(type_index, 0),
   ]
-}
-
-///|
-fn compile_frame_cleanup(
-  locals : FunctionLocalPlan,
-  plan : Array[FrameCleanupEntry],
-  function_catalog : WasmFunctionCatalog,
-) -> Array[@wasm_types.Instruction] {
-  let instructions : Array[@wasm_types.Instruction] = []
-  for entry in plan {
-    match entry {
-      Reference(slot) | Callable(slot) =>
-        instructions.push(LocalGet(locals.slot_local(slot)))
-      Erased(slot, witness) => {
-        instructions.push(LocalGet(locals.slot_local(slot)))
-        instructions.push(LocalGet(locals.slot_local(witness)))
-        instructions.push(LocalGet(locals.erased_liveness_local(slot)))
-      }
-    }
-    instructions.push(function_catalog.helper(entry.helper()).call())
-  }
-  instructions
 }
 
 ///|
@@ -911,11 +861,26 @@ fn compile_terminator(
       for slot in arguments {
         instructions.push(LocalGet(locals.slot_local(slot)))
       }
-      if environment is Some(slot) {
-        instructions.append(locals.mark_slot_dead(slot))
+      instructions.push(function_catalog.image_function(target).return_call())
+      instructions
+    }
+    TailCallPackedDirect(target, callable, witnesses, arguments) => {
+      let instructions : Array[@wasm_types.Instruction] = [
+        GlobalGet(call_depth_global_index),
+        I32Const(1),
+        I32Sub,
+        GlobalSet(call_depth_global_index),
+      ]
+      instructions.append(
+        load_packed_direct_environment(
+          locals, function_catalog, callable, target,
+        ),
+      )
+      for slot in witnesses {
+        instructions.push(LocalGet(locals.slot_local(slot)))
       }
       for slot in arguments {
-        instructions.append(locals.mark_slot_dead(slot))
+        instructions.push(LocalGet(locals.slot_local(slot)))
       }
       instructions.push(function_catalog.image_function(target).return_call())
       instructions
@@ -942,10 +907,6 @@ fn compile_terminator(
       }
       instructions.push(LocalGet(locals.slot_local(callable)))
       instructions.push(I32WrapI64)
-      instructions.append(locals.mark_slot_dead(callable))
-      for slot in arguments {
-        instructions.append(locals.mark_slot_dead(slot))
-      }
       let type_index = indirect_type(
         wasm_module,
         static_image.callable_abi(abi_id),
@@ -961,10 +922,7 @@ fn compile_terminator(
         LocalGet(locals.slot_local(message)),
         I32Load(0, 2, 8L),
         function_catalog.internal_import(FatalString).call(),
-        LocalGet(locals.slot_local(message)),
-        function_catalog.runtime(ReleaseReference).call(),
       ]
-      instructions.append(locals.mark_slot_dead(message))
       instructions.push(Throw(0))
       instructions
     }
@@ -989,8 +947,6 @@ fn compile_erasure_transfer(
   ]
   instructions.append(operations)
   instructions.push(LocalSet(locals.slot_local(destination)))
-  instructions.append(locals.mark_slot_dead(source))
-  instructions.append(locals.mark_slot_live(destination))
   instructions
 }
 
@@ -1017,6 +973,25 @@ fn validate_callable_abi(
     LocalGet(locals.slot_local(callable)),
     I32Const(expected.value),
     function_catalog.helper(CallableAbiGuard).call(),
+  ]
+}
+
+///|
+fn load_packed_direct_environment(
+  locals : FunctionLocalPlan,
+  function_catalog : WasmFunctionCatalog,
+  callable : @physical.SlotId,
+  target : @physical.FunctionId,
+) -> Array[@wasm_types.Instruction] {
+  let target_slot = function_catalog.image_table_slot(target).unwrap()
+  [
+    LocalGet(locals.slot_local(callable)),
+    I32Const(target_slot.index),
+    function_catalog.helper(PackedCallableTargetGuard).call(),
+    LocalGet(locals.slot_local(callable)),
+    I64Const(32L),
+    I64ShrU,
+    I32WrapI64,
   ]
 }
 

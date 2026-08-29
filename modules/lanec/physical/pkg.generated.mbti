@@ -61,12 +61,6 @@ pub fn CallableAbi::from_slot_metadata(Array[SlotMetadata], Array[SlotMetadata],
 pub fn CallableAbi::not_equal(Self, Self) -> Bool
 pub fn CallableAbi::to_repr(Self) -> @debug.Repr
 
-pub(all) struct CallableAbiGraph {
-  // private fields
-}
-pub fn CallableAbiGraph::intern(Self, CallableAbiNode) -> CallableAbiNodeId
-pub fn CallableAbiGraph::new() -> Self
-
 pub(all) struct CallableAbiId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
@@ -78,36 +72,6 @@ pub fn CallableAbiId::op_gt(Self, Self) -> Bool
 pub fn CallableAbiId::op_le(Self, Self) -> Bool
 pub fn CallableAbiId::op_lt(Self, Self) -> Bool
 pub fn CallableAbiId::to_repr(Self) -> @debug.Repr
-
-pub(all) struct CallableAbiNode {
-  witnesses : Array[ValueAbi]
-  parameters : Array[CallableValueAbi]
-  result : CallableValueAbi
-} derive(Eq, @debug.Debug)
-pub fn CallableAbiNode::equal(Self, Self) -> Bool
-pub fn CallableAbiNode::not_equal(Self, Self) -> Bool
-pub fn CallableAbiNode::to_repr(Self) -> @debug.Repr
-
-pub(all) struct CallableAbiNodeId {
-  value : Int
-} derive(Compare, Eq, @debug.Debug)
-pub fn CallableAbiNodeId::compare(Self, Self) -> Int
-pub fn CallableAbiNodeId::equal(Self, Self) -> Bool
-pub fn CallableAbiNodeId::not_equal(Self, Self) -> Bool
-pub fn CallableAbiNodeId::op_ge(Self, Self) -> Bool
-pub fn CallableAbiNodeId::op_gt(Self, Self) -> Bool
-pub fn CallableAbiNodeId::op_le(Self, Self) -> Bool
-pub fn CallableAbiNodeId::op_lt(Self, Self) -> Bool
-pub fn CallableAbiNodeId::to_repr(Self) -> @debug.Repr
-
-pub(all) enum CallableValueAbi {
-  Unit
-  Value(ValueAbi)
-  Callable(CallableAbiNodeId)
-} derive(Eq, @debug.Debug)
-pub fn CallableValueAbi::equal(Self, Self) -> Bool
-pub fn CallableValueAbi::not_equal(Self, Self) -> Bool
-pub fn CallableValueAbi::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Cleanup {
   Trivial
@@ -266,6 +230,7 @@ pub(all) enum Instruction {
   ConstFunction(SlotId, FunctionId)
   ConstString(SlotId, ConstantId)
   CallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId], SlotId?)
+  CallPackedDirect(FunctionId, SlotId, Array[SlotId], Array[SlotId], SlotId?)
   CallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId], SlotId?)
   MakeData(SlotId, ObjectShapeId, LayoutOperand, Array[SlotId], Array[SlotId])
   LoadTag(SlotId, SlotId)
@@ -542,6 +507,7 @@ pub(all) enum Terminator {
   SwitchTag(SlotId, Array[Edge], Edge)
   Return(SlotId?)
   TailCallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId])
+  TailCallPackedDirect(FunctionId, SlotId, Array[SlotId], Array[SlotId])
   TailCallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId])
   Fatal(SlotId)
   Unreachable

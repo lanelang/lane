@@ -54,10 +54,14 @@ fn insert_arc_block(
     original_block_count,
     edge_blocks,
   )
-  for value_index, is_live in live {
-    if is_live {
-      instructions.push(Release({ value: value_index, }))
-    }
+  match terminator {
+    Fatal(_) | Unreachable => ()
+    _ =>
+      for value_index, is_live in live {
+        if is_live {
+          instructions.push(Release({ value: value_index, }))
+        }
+      }
   }
   { parameters: block.parameters, instructions, terminator, }
 }
@@ -223,6 +227,7 @@ fn insert_arc_terminator(
     }
     Return(_)
     | TailCallDirect(_, _, _, _)
+    | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
     | Fatal(_)
     | Unreachable => {

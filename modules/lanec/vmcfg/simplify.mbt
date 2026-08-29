@@ -477,6 +477,7 @@ fn map_terminator_edges(
       SwitchTag(tag, cases.map(transform), transform(default))
     Return(_)
     | TailCallDirect(_, _, _, _)
+    | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
     | Fatal(_)
     | Unreachable => terminator
@@ -507,6 +508,13 @@ fn map_terminator_values(
       TailCallDirect(
         target,
         environment.map(transform),
+        witnesses.map(transform),
+        arguments.map(transform),
+      )
+    TailCallPackedDirect(target, callable, witnesses, arguments) =>
+      TailCallPackedDirect(
+        target,
+        transform(callable),
         witnesses.map(transform),
         arguments.map(transform),
       )
@@ -586,6 +594,14 @@ fn map_instruction_values(
       CallDirect(
         target,
         environment.map(transform),
+        witnesses.map(transform),
+        arguments.map(transform),
+        destination.map(transform),
+      )
+    CallPackedDirect(target, callable, witnesses, arguments, destination) =>
+      CallPackedDirect(
+        target,
+        transform(callable),
         witnesses.map(transform),
         arguments.map(transform),
         destination.map(transform),

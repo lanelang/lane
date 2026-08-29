@@ -71,15 +71,13 @@ fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
 ///|
 fn helper_function_type(role : WasmHelperFunctionRole) -> WasmFunctionType {
   match role {
-    CallableAbiGuard => wasm_function_type([I64, I32], [])
+    CallableAbiGuard | PackedCallableTargetGuard =>
+      wasm_function_type([I64, I32], [])
     NoopErased
     | RetainReferenceErased
     | ReleaseReferenceErased
     | RetainCallable
     | ReleaseCallable => wasm_function_type([I64], [])
-    CleanupLiveReference => wasm_function_type([I32], [])
-    CleanupLiveCallable => wasm_function_type([I64], [])
-    CleanupLiveErased => wasm_function_type([I64, I32, I32], [])
     DestroyNoop | DestroyShape(_) => wasm_function_type([I32], [])
     ByteSequenceSizer => wasm_function_type([I32], [I32])
   }
@@ -112,14 +110,12 @@ fn helper_function_order(
 ) -> Array[WasmHelperFunctionRole] {
   let roles : Array[WasmHelperFunctionRole] = [
     CallableAbiGuard,
+    PackedCallableTargetGuard,
     NoopErased,
     RetainReferenceErased,
     ReleaseReferenceErased,
     RetainCallable,
     ReleaseCallable,
-    CleanupLiveReference,
-    CleanupLiveCallable,
-    CleanupLiveErased,
     DestroyNoop,
   ]
   for shape in 0..<image.object_shapes.length() {
@@ -132,10 +128,7 @@ fn helper_function_order(
 ///|
 fn helper_is_layout_callback(role : WasmHelperFunctionRole) -> Bool {
   match role {
-    CallableAbiGuard
-    | CleanupLiveReference
-    | CleanupLiveCallable
-    | CleanupLiveErased => false
+    CallableAbiGuard | PackedCallableTargetGuard => false
     _ => true
   }
 }
@@ -148,10 +141,15 @@ fn address_taken_functions(image : @physical.PhysicalProgram) -> Array[Bool] {
     for block in body.blocks {
       for instruction in block.instructions {
         match instruction {
-          ConstFunction(_, function) | MakeClosure(_, function, _) =>
+          ConstFunction(_, function)
+          | MakeClosure(_, function, _)
+          | CallPackedDirect(function, _, _, _, _) =>
             address_taken[function.value - 1] = true
           _ => ()
         }
+      }
+      if block.terminator is TailCallPackedDirect(function, _, _, _) {
+        address_taken[function.value - 1] = true
       }
     }
   }

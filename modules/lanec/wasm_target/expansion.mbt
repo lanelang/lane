@@ -6,6 +6,7 @@ fn physical_opcode_family(
     Copy(_, _) | Move(_, _) | RetainCopy(_, _) | Release(_) => Ownership
     ConstFunction(_, _)
     | CallDirect(_, _, _, _, _)
+    | CallPackedDirect(_, _, _, _, _)
     | CallValue(_, _, _, _, _)
     | MakeClosure(_, _, _) => Callable
     MakeData(_, _, _, _, _)

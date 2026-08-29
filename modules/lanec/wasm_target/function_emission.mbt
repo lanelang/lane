@@ -20,14 +20,12 @@ pub(all) enum WasmRuntimeFunctionRole {
 ///|
 pub(all) enum WasmHelperFunctionRole {
   CallableAbiGuard
+  PackedCallableTargetGuard
   NoopErased
   RetainReferenceErased
   ReleaseReferenceErased
   RetainCallable
   ReleaseCallable
-  CleanupLiveReference
-  CleanupLiveCallable
-  CleanupLiveErased
   DestroyNoop
   DestroyShape(shape~ : Int)
   ByteSequenceSizer

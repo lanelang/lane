@@ -26,7 +26,7 @@ Lane v1 does not represent Lane objects with Wasm GC structs or arrays and does 
 
 The Wasm module includes its allocator and deallocator support rather than importing them. The v1 allocator combines a bump frontier with reusable free lists; size-class details and free-block metadata are private implementation choices. It invokes `memory.grow` when necessary. Wasmoon may recognize and optimize Lane allocation and ARC patterns in its JIT, but such optimization is not required for correctness and does not introduce non-standard Wasm instructions.
 
-Freed payload bytes may hold allocator metadata after destruction. Reused allocations are not guaranteed to be zeroed, so every constructor and environment initializer writes all observable fields before publishing a reference. Allocation failure throws the private fatal Wasm exception and follows the same cleanup unwind as other fatal errors. Free, layout destruction, and cleanup are non-throwing and non-reentrant.
+Freed payload bytes may hold allocator metadata after destruction. Reused allocations are not guaranteed to be zeroed, so every constructor and environment initializer writes all observable fields before publishing a reference. Allocation failure throws the private fatal Wasm exception and terminates the single-shot instance. Free, layout destruction, and normal-path cleanup are non-throwing and non-reentrant.
 
 Monomorphic Lane values lower to their natural Wasm representations. Representation-polymorphic values use an `i64` erased payload together with a hidden `LayoutId` descriptor that supplies generic ownership and layout behavior. LoisVM's tagged value representation does not determine the Wasm function ABI or require a uniform Wasm memory cell.
 
@@ -50,7 +50,7 @@ Consequences:
 - The Wasm module owns and exports its memory and allocator.
 - Allocation uses bump growth plus reusable free lists.
 - Reused blocks are not implicitly zeroed.
-- OOM uses private fatal exception unwinding.
+- OOM terminates the single-shot instance through the private fatal exception.
 - Generic values use representation erasure rather than whole-program monomorphization.
 - Object headers, allocation strategy, function tables, and host-memory ABI are
   delegated to the subsequent focused ADRs.

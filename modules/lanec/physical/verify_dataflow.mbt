@@ -101,26 +101,30 @@ fn PhysicalProgramVerifier::global_dependencies(
       if entry is PhysicalBody(body) {
         for block in body.blocks {
           for instruction in block.instructions {
-            if instruction is CallDirect(target, _, _, _, _) &&
-              target.value > 0 &&
-              target.value <= self.image.functions.length() {
+            match instruction {
+              CallDirect(target, _, _, _, _)
+              | CallPackedDirect(target, _, _, _, _) if target.value > 0 &&
+                target.value <= self.image.functions.length() =>
+                if merge_global_dependencies(
+                    dependencies[function_index],
+                    dependencies[target.value - 1],
+                  ) {
+                  changed = true
+                }
+              _ => ()
+            }
+          }
+          match block.terminator {
+            TailCallDirect(target, _, _, _)
+            | TailCallPackedDirect(target, _, _, _) if target.value > 0 &&
+              target.value <= self.image.functions.length() =>
               if merge_global_dependencies(
                   dependencies[function_index],
                   dependencies[target.value - 1],
                 ) {
                 changed = true
               }
-            }
-          }
-          if block.terminator is TailCallDirect(target, _, _, _) &&
-            target.value > 0 &&
-            target.value <= self.image.functions.length() {
-            if merge_global_dependencies(
-                dependencies[function_index],
-                dependencies[target.value - 1],
-              ) {
-              changed = true
-            }
+            _ => ()
           }
         }
       }
@@ -997,6 +1001,24 @@ fn PhysicalProgramVerifier::apply_instruction_flow(
         self.write_from_metadata(site, body, state, destination)
       }
     }
+    CallPackedDirect(target, callable, witnesses, arguments, destination) => {
+      for witness in witnesses {
+        ignore(self.consume_flow(site, body, state, witness))
+      }
+      self.require_global_dependencies(
+        site,
+        state,
+        global_dependencies[target.value - 1],
+        global_lifecycle,
+      )
+      ignore(self.consume_owner(site, body, state, callable))
+      for argument in arguments {
+        ignore(self.consume_flow(site, body, state, argument))
+      }
+      if destination is Some(destination) {
+        self.write_from_metadata(site, body, state, destination)
+      }
+    }
     CallValue(callable, _, witnesses, arguments, destination) => {
       for witness in witnesses {
         ignore(self.consume_flow(site, body, state, witness))
@@ -1539,6 +1561,23 @@ fn PhysicalProgramVerifier::apply_terminator_flow(
       if environment is Some(environment) {
         ignore(self.consume_owner(site, body, state, environment))
       }
+      for argument in arguments {
+        ignore(self.consume_flow(site, body, state, argument))
+      }
+      self.require_no_live_owners(site, state)
+      []
+    }
+    TailCallPackedDirect(target, callable, witnesses, arguments) => {
+      for witness in witnesses {
+        ignore(self.consume_flow(site, body, state, witness))
+      }
+      self.require_global_dependencies(
+        site,
+        state,
+        global_dependencies[target.value - 1],
+        global_lifecycle,
+      )
+      ignore(self.consume_owner(site, body, state, callable))
       for argument in arguments {
         ignore(self.consume_flow(site, body, state, argument))
       }

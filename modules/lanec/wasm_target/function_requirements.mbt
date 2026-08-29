@@ -70,6 +70,13 @@ fn require_physical_instruction_dependencies(
       require_wasm_function(dependencies, image_function_origin(image, target))
     CallDirect(target, _, _, _, _) =>
       require_wasm_function(dependencies, image_function_origin(image, target))
+    CallPackedDirect(target, _, _, _, _) => {
+      require_wasm_function(dependencies, image_function_origin(image, target))
+      require_wasm_function(
+        dependencies,
+        HelperFunction(PackedCallableTargetGuard),
+      )
+    }
     CallValue(_, _, _, _, _) =>
       require_wasm_function(dependencies, HelperFunction(CallableAbiGuard))
     MakeData(_, _, _, _, _) | MakeEnv(_, _, _, _, _) =>
@@ -139,12 +146,17 @@ fn require_physical_terminator_dependencies(
   match terminator {
     TailCallDirect(target, _, _, _) =>
       require_wasm_function(dependencies, image_function_origin(image, target))
+    TailCallPackedDirect(target, _, _, _) => {
+      require_wasm_function(dependencies, image_function_origin(image, target))
+      require_wasm_function(
+        dependencies,
+        HelperFunction(PackedCallableTargetGuard),
+      )
+    }
     TailCallValue(_, _, _, _) =>
       require_wasm_function(dependencies, HelperFunction(CallableAbiGuard))
-    Fatal(_) => {
+    Fatal(_) =>
       require_wasm_function(dependencies, InternalRuntimeImport(FatalString))
-      require_wasm_function(dependencies, RuntimeFunction(ReleaseReference))
-    }
     _ => ()
   }
 }
@@ -157,9 +169,6 @@ fn physical_body_dependencies(
   let dependencies : Array[WasmFunctionOrigin] = []
   for slot in body.slots {
     require_reference_operation(dependencies, slot.cleanup, false)
-  }
-  for entry in plan_frame_cleanup(body.slots) {
-    require_wasm_function(dependencies, HelperFunction(entry.helper()))
   }
   for block in body.blocks {
     for instruction in block.instructions {
@@ -232,15 +241,15 @@ fn helper_function_dependencies(
 ) -> Array[WasmFunctionOrigin] {
   let dependencies : Array[WasmFunctionOrigin] = []
   match role {
-    CallableAbiGuard | NoopErased | DestroyNoop | ByteSequenceSizer => ()
+    CallableAbiGuard
+    | PackedCallableTargetGuard
+    | NoopErased
+    | DestroyNoop
+    | ByteSequenceSizer => ()
     RetainReferenceErased | RetainCallable =>
       dependencies.push(RuntimeFunction(RetainReference))
-    ReleaseReferenceErased
-    | ReleaseCallable
-    | CleanupLiveReference
-    | CleanupLiveCallable =>
+    ReleaseReferenceErased | ReleaseCallable =>
       dependencies.push(RuntimeFunction(ReleaseReference))
-    CleanupLiveErased => ()
     DestroyShape(shape~) => {
       let members = match image.object_shapes[shape] {
         Data(shape) => shape.members

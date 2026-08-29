@@ -29,7 +29,7 @@ increments logical depth; normal return decrements it. Tail calls preserve the
 current depth, and runtime imports do not affect it. The Wasm tier enforces the
 same logical rule in generated code rather than relying on the engine's native
 stack limit. Exceeding the configured limit reports
-`ExecutionResourceLimit(CallDepth)` through the private fatal cleanup path.
+`ExecutionResourceLimit(CallDepth)` through the private fatal failure path.
 
 An engine-native stack overflow that occurs before the logical check is a
 non-unwinding EngineTrap. It provides no ARC cleanup guarantee and indicates an
@@ -42,7 +42,7 @@ header, payload, and canonical padding but excluding static image objects,
 allocator-private metadata, and free blocks. Final deallocation removes the
 same charge. Both the interpreter heap and the Wasm allocator enforce this
 logical live-byte counter. Exceeding it reports
-`ExecutionResourceLimit(LiveHeapBytes)` through private fatal cleanup.
+`ExecutionResourceLimit(LiveHeapBytes)` through private fatal failure.
 Fragmentation, `memory.grow` failure, address-space exhaustion, or host OOM may
 still fail before or independently of the logical live-byte limit.
 
@@ -55,11 +55,10 @@ standardizes observable fuel semantics.
 
 Private fatal failures, including runtime-import failure, logical call-depth
 exhaustion, logical live-heap exhaustion, allocation failure, and ARC overflow,
-perform the established ownership cleanup before reaching the execution
-boundary. The instance is discarded even when that cleanup leaves its internal
-state consistent. Non-unwinding arithmetic, conversion, unreachable, native
-stack, and external interruption paths may skip cleanup and also require
-discarding the instance.
+terminate the execution without generated ownership unwinding. Arithmetic,
+conversion, unreachable, native-stack, and external-interruption traps have the
+same terminal-instance ownership rule even when they use a different physical
+failure mechanism.
 
 Successful selected-entry return performs the explicit reverse-order Instance
 Global cleanup defined by ADR-0113, but no defensive frame scan, heap scan, or
@@ -99,7 +98,8 @@ exact budget, and a zero or negative configured value means zero budget.
   not.
 - Interpreter and Wasm paths enforce the same configured logical depth rule.
 - Dynamic allocation may be limited by canonical live Lane heap bytes.
-- Logical execution limits use cleanup-capable fatal failure.
+- Logical execution limits use structured fatal failure and terminate the
+  instance without recovery cleanup.
 - V1 has no portable fuel or timeout semantics.
 - External interruption and engine traps may bypass cleanup and always discard
   the instance.

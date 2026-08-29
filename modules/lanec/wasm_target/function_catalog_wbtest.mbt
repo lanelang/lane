@@ -70,7 +70,6 @@ test "function catalog closes dependencies before allocating identities" {
       #|    PhysicalFunction(function={ value: 4 }),
       #|    EntryWrapper,
       #|    RuntimeFunction(ReleaseReference),
-      #|    HelperFunction(CleanupLiveCallable),
       #|    RuntimeFunction(Free),
       #|  ],
       #|  [
@@ -80,7 +79,6 @@ test "function catalog closes dependencies before allocating identities" {
       #|    (PhysicalFunction(function={ value: 4 }), None),
       #|    (RuntimeFunction(Free), None),
       #|    (RuntimeFunction(ReleaseReference), None),
-      #|    (HelperFunction(CleanupLiveCallable), None),
       #|    (EntryWrapper, None),
       #|  ],
       #|  [{ index: 1 }, { index: 2 }],

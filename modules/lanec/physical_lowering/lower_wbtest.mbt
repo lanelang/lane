@@ -197,8 +197,7 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     representation_worker_candidates: [],
     callable_adapters: [],
     callable_adapter_worker_contracts: { entries: [], },
-    physical_callable_contracts: { entries: [], },
-    callable_abi_graph: @physical.CallableAbiGraph::new(),
+    physical_callable_contracts: { requests: [], entries: [], },
     data_families: [],
     synthetic_parameters: [],
     active_specialization_ancestry: [],
@@ -1269,7 +1268,7 @@ test "capture-free functions lower as callable values for higher-order calls" {
 }
 
 ///|
-test "nonescaping nested functions pass captures directly" {
+test "single-use nonescaping nested functions beta-reduce before closure conversion" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
@@ -1340,45 +1339,23 @@ test "nonescaping nested functions pass captures directly" {
   guard image.functions[0] is PhysicalBody(main_body) else {
     fail("expected main physical body")
   }
-  guard image.functions[1] is PhysicalBody(lifted_body) else {
-    fail("expected lifted physical body")
-  }
+  assert_eq(image.functions.length(), 2)
   debug_inspect(
-    (main_body.blocks, lifted_body.inputs, lifted_body.blocks),
+    main_body.blocks,
     content=(
-      #|(
-      #|  [
-      #|    {
-      #|      parameters: [],
-      #|      instructions: [
-      #|        ConstI64({ value: 0 }, 40),
-      #|        ConstI64({ value: 1 }, 0),
-      #|        I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
-      #|        ConstI64({ value: 0 }, 2),
-      #|        CallDirect(
-      #|          { value: 2 },
-      #|          None,
-      #|          [],
-      #|          [{ value: 2 }, { value: 0 }],
-      #|          Some({ value: 1 }),
-      #|        ),
-      #|      ],
-      #|      terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 1 }]),
-      #|    },
-      #|  ],
+      #|[
       #|  {
-      #|    environment: None,
-      #|    witnesses: [],
-      #|    user_parameters: [{ value: 0 }, { value: 1 }],
+      #|    parameters: [],
+      #|    instructions: [
+      #|      ConstI64({ value: 0 }, 40),
+      #|      ConstI64({ value: 1 }, 0),
+      #|      I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
+      #|      ConstI64({ value: 0 }, 2),
+      #|      I64Add({ value: 1 }, { value: 2 }, { value: 0 }),
+      #|    ],
+      #|    terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 1 }]),
       #|  },
-      #|  [
-      #|    {
-      #|      parameters: [],
-      #|      instructions: [I64Add({ value: 2 }, { value: 0 }, { value: 1 })],
-      #|      terminator: Return(Some({ value: 2 })),
-      #|    },
-      #|  ],
-      #|)
+      #|]
     ),
   )
   let mut observed = 0L
@@ -2766,7 +2743,7 @@ test "primitive literal matches lower to comparison decision chains" {
 }
 
 ///|
-test "generic nonescaping nested functions call their target directly" {
+test "single-use generic nested functions beta-reduce before representation lowering" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let type_parameter = metadata.define_type_parameter("T", Type)
   let generic_type = @buslane.Type::Parameter(type_parameter)
@@ -2846,22 +2823,8 @@ test "generic nonescaping nested functions call their target directly" {
       #|[
       #|  {
       #|    parameters: [],
-      #|    instructions: [
-      #|      ConstI64({ value: 0 }, 42),
-      #|      ConstLayout({ value: 1 }, { value: 1 }),
-      #|      ConstLayout({ value: 2 }, { value: 1 }),
-      #|      EraseI64({ value: 3 }, { value: 0 }),
-      #|      ConstLayout({ value: 4 }, { value: 1 }),
-      #|      CallDirect(
-      #|        { value: 2 },
-      #|        None,
-      #|        [{ value: 1 }],
-      #|        [{ value: 3 }],
-      #|        Some({ value: 5 }),
-      #|      ),
-      #|      UneraseI64({ value: 0 }, { value: 5 }),
-      #|    ],
-      #|    terminator: TailCallDirect({ value: 3 }, None, [], [{ value: 0 }]),
+      #|    instructions: [ConstI64({ value: 0 }, 42)],
+      #|    terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 0 }]),
       #|  },
       #|]
     ),

@@ -13,7 +13,7 @@ priv struct StaticImage {
   object_shapes : Array[@physical.ObjectShape]
   globals : Array[@physical.GlobalMetadata]
   callable_abis : Array[@physical.CallableAbi]
-  callable_abi_table_base : Int
+  callable_target_abi_table_base : Int
   callable_table_size : Int
   global_lifecycle : @physical.GlobalLifecyclePlan
   global_cleanup_table_base : Int
@@ -299,37 +299,26 @@ fn build_static_image(
     }
   }
   let callable_table_size = function_catalog.callable_value_table_size()
-  let mut callable_abi_table_base = 0
+  let mut callable_target_abi_table_base = 0
   if callable_table_size > 1 {
     pad_to(writer, 4)
-    callable_abi_table_base = writer.length()
-    let callable_table_abis : Array[@physical.CallableAbi?] = Array::make(
-      callable_table_size,
-      None,
-    )
+    callable_target_abi_table_base = writer.length()
+    let callable_target_abis = Array::make(callable_table_size, 0)
     for function_index, _ in image.functions {
       let function : @physical.FunctionId = { value: function_index + 1, }
       if function_catalog.image_table_slot(function) is Some(table_slot) {
-        let abi = match image.function_callable_abi(function) {
+        let abi = match image.function_callable_abi_id(function) {
           Some(abi) => abi
           None =>
             raise ValidationFailure(
               detail="callable table target has no canonical ABI",
             )
         }
-        callable_table_abis[table_slot.index] = Some(abi)
+        callable_target_abis[table_slot.index] = abi.value + 1
       }
     }
-    for actual in callable_table_abis {
-      for expected in image.callable_abis {
-        writer.write_i32_le(
-          if actual is Some(actual) && actual.accepts_callsite(expected) {
-            1
-          } else {
-            0
-          },
-        )
-      }
+    for abi in callable_target_abis {
+      writer.write_i32_le(abi)
     }
   }
   pad_to(writer, 8)
@@ -371,7 +360,7 @@ fn build_static_image(
     object_shapes: image.object_shapes,
     globals: image.globals,
     callable_abis: image.callable_abis,
-    callable_abi_table_base,
+    callable_target_abi_table_base,
     callable_table_size,
     global_lifecycle,
     global_cleanup_table_base,

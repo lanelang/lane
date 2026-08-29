@@ -164,6 +164,15 @@ fn collect_environment_instruction_candidate(
       }
       invalidate_callable_values(candidates, facts, flow, witnesses + arguments)
     }
+    CallPackedDirect(target, callable, witnesses, arguments, _) => {
+      invalidate_environment_candidate(candidates, target)
+      invalidate_callable_values(
+        candidates,
+        facts,
+        flow,
+        [callable] + witnesses + arguments,
+      )
+    }
     CallValue(callable, witnesses, arguments, destination) => {
       let callable_fact = complete_callable_at_callsite(
         image,
@@ -219,6 +228,15 @@ fn collect_environment_terminator_candidate(
         None => reject_capture_free_reference(image, candidates, target)
       }
       invalidate_callable_values(candidates, facts, flow, witnesses + arguments)
+    }
+    TailCallPackedDirect(target, callable, witnesses, arguments) => {
+      invalidate_environment_candidate(candidates, target)
+      invalidate_callable_values(
+        candidates,
+        facts,
+        flow,
+        [callable] + witnesses + arguments,
+      )
     }
     TailCallValue(callable, witnesses, arguments) => {
       let callable_fact = complete_callable_at_callsite(
@@ -533,6 +551,8 @@ fn devirtualize_instruction(
             target, environment, witnesses, arguments, destination, facts, flow,
             plans,
           )
+        KnownCallables([{ target, environment: PackedEnvironment, }], _) =>
+          CallPackedDirect(target, callable, witnesses, arguments, destination)
         _ => instruction
       }
     }
@@ -605,6 +625,8 @@ fn devirtualize_terminator(
           materialize_direct_tail_call(
             target, environment, witnesses, arguments, facts, flow, plans,
           )
+        KnownCallables([{ target, environment: PackedEnvironment, }], _) =>
+          TailCallPackedDirect(target, callable, witnesses, arguments)
         _ => terminator
       }
     }

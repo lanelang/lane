@@ -292,20 +292,17 @@ test "Wasm global cleanup releases reference callable and erased roots" {
 }
 
 ///|
-test "Wasm initializer limits clean roots initialized before failure" {
+test "Wasm initializer failure terminates the single-shot instance" {
   let instance = wasm_global_instance(wasm_lifecycle_image(), config={
     max_call_depth: None,
     max_live_heap_bytes: Some(16),
   })
   assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=LiveHeapBytes)))
-  assert_eq(
-    instance.store.get_global(instance.instance.global_addrs[4]).get(),
-    I32(0),
-  )
+  assert_eq(instance.execute(), Err(InstanceNotReady))
 }
 
 ///|
-test "Wasm fatal control cleans initialized global roots" {
+test "Wasm fatal control terminates the instance without recovery cleanup" {
   let image = wasm_lifecycle_image()
   guard image.functions[1] is PhysicalBody(entry) else {
     fail("expected physical entry")
@@ -317,10 +314,7 @@ test "Wasm fatal control cleans initialized global roots" {
   entry.blocks[0] = { ..entry.blocks[0], terminator: Fatal({ value: 5, }), }
   let instance = wasm_global_instance(image)
   assert_eq(instance.execute(), Err(Fatal(message="a")))
-  assert_eq(
-    instance.store.get_global(instance.instance.global_addrs[4]).get(),
-    I32(0),
-  )
+  assert_eq(instance.execute(), Err(InstanceNotReady))
 }
 
 ///|
@@ -440,5 +434,5 @@ test "Wasm instance-global lifecycle code is independent of global count" {
   let one = lifecycle_function_scale(1)
   let many = lifecycle_function_scale(64)
   assert_eq(one, many)
-  debug_inspect(one, content="(65, 11)")
+  debug_inspect(one, content="(65, 6)")
 }

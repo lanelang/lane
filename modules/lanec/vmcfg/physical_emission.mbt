@@ -61,6 +61,14 @@ fn emit_instruction(
         destination.map(value => slot(value)),
       )
     }
+    CallPackedDirect(target, callable, witnesses, arguments, destination) =>
+      CallPackedDirect(
+        target,
+        slot(callable),
+        witnesses.map(value => slot(value)),
+        arguments.map(value => slot(value)),
+        destination.map(value => slot(value)),
+      )
     CallValue(callable, witnesses, arguments, destination) => {
       let lowered_callable = slot(callable)
       let lowered_witnesses = witnesses.map(value => slot(value))
@@ -349,6 +357,13 @@ fn emit_terminator(
       TailCallDirect(
         target,
         environment.map(slot),
+        witnesses.map(slot),
+        arguments.map(slot),
+      )
+    TailCallPackedDirect(target, callable, witnesses, arguments) =>
+      TailCallPackedDirect(
+        target,
+        slot(callable),
         witnesses.map(slot),
         arguments.map(slot),
       )

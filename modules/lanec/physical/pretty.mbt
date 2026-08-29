@@ -180,6 +180,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "const_string \{render_slot(destination)}, \{render_constant(constant)}"
     CallDirect(function, environment, witnesses, arguments, destination) =>
       "call_direct \{render_optional_destination(destination)}\{render_function(function)} env=\{render_optional_slot(environment)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
+    CallPackedDirect(function, callable, witnesses, arguments, destination) =>
+      "call_packed_direct \{render_optional_destination(destination)}\{render_function(function)} callable=\{render_slot(callable)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
     CallValue(callable, abi, witnesses, arguments, destination) =>
       "call_value \{render_optional_destination(destination)}\{render_slot(callable)} abi=abi\{abi.value} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
     MakeData(destination, shape, layout, witnesses, fields) =>
@@ -380,6 +382,8 @@ fn render_terminator(terminator : Terminator) -> String {
     Return(value) => "return \{render_optional_slot(value)}"
     TailCallDirect(function, environment, witnesses, arguments) =>
       "tail_call_direct \{render_function(function)} env=\{render_optional_slot(environment)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
+    TailCallPackedDirect(function, callable, witnesses, arguments) =>
+      "tail_call_packed_direct \{render_function(function)} callable=\{render_slot(callable)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
     TailCallValue(callable, abi, witnesses, arguments) =>
       "tail_call_value \{render_slot(callable)} abi=abi\{abi.value} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
     Fatal(message) => "fatal \{render_slot(message)}"

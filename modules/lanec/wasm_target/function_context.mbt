@@ -14,7 +14,6 @@ fn FunctionCompilationContext::compile_instruction(
   self : FunctionCompilationContext,
   instruction : @physical.Instruction,
 ) -> Array[@wasm_types.Instruction] {
-  let state_before = self.locals.arc_frame_state_instructions()
   let compiled = compile_instruction(
     self.locals,
     self.body.slots,
@@ -23,12 +22,9 @@ fn FunctionCompilationContext::compile_instruction(
     self.function_catalog,
     instruction,
   )
-  let state_instructions = self.locals.arc_frame_state_instructions() -
-    state_before
-  self.record_expansion_count(ArcFrameState, state_instructions)
   self.record_expansion_count(
     PhysicalOpcode(physical_opcode_family(instruction)),
-    wasm_instruction_array_size(compiled) - state_instructions,
+    wasm_instruction_array_size(compiled),
   )
   compiled
 }
@@ -38,7 +34,6 @@ fn FunctionCompilationContext::compile_terminator(
   self : FunctionCompilationContext,
   terminator : @physical.Terminator,
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
-  let state_before = self.locals.arc_frame_state_instructions()
   let compiled = compile_terminator(
     self.function_id,
     self.locals,
@@ -47,12 +42,9 @@ fn FunctionCompilationContext::compile_terminator(
     self.function_catalog,
     terminator,
   )
-  let state_instructions = self.locals.arc_frame_state_instructions() -
-    state_before
-  self.record_expansion_count(ArcFrameState, state_instructions)
   self.record_expansion_count(
     PhysicalOpcode(ControlTransfer),
-    wasm_instruction_array_size(compiled) - state_instructions,
+    wasm_instruction_array_size(compiled),
   )
   compiled
 }
@@ -79,20 +71,4 @@ fn FunctionCompilationContext::dispatcher_state_local(
   self : FunctionCompilationContext,
 ) -> Int {
   self.locals.dispatcher_state_local()
-}
-
-///|
-fn FunctionCompilationContext::mark_slot_dead(
-  self : FunctionCompilationContext,
-  slot : @physical.SlotId,
-) -> Array[@wasm_types.Instruction] {
-  self.locals.mark_slot_dead(slot)
-}
-
-///|
-fn FunctionCompilationContext::mark_slot_live(
-  self : FunctionCompilationContext,
-  slot : @physical.SlotId,
-) -> Array[@wasm_types.Instruction] {
-  self.locals.mark_slot_live(slot)
 }

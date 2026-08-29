@@ -17,18 +17,25 @@ fn compile_helper_function(
         I32GeU,
         I32Or,
         If(Empty, [Unreachable], []),
-        I32Const(static_image.callable_abi_table_base),
+        I32Const(static_image.callable_target_abi_table_base),
         LocalGet(0),
         I32WrapI64,
-        I32Const(static_image.callable_abis.length()),
-        I32Mul,
-        LocalGet(1),
-        I32Add,
         I32Const(2),
         I32Shl,
         I32Add,
         I32Load(0, 2, 0L),
-        I32Eqz,
+        LocalGet(1),
+        I32Const(1),
+        I32Add,
+        I32Ne,
+        If(Empty, [Unreachable], []),
+      ]
+    PackedCallableTargetGuard =>
+      [
+        LocalGet(0),
+        I32WrapI64,
+        LocalGet(1),
+        I32Ne,
         If(Empty, [Unreachable], []),
       ]
     NoopErased | DestroyNoop => []
@@ -51,46 +58,6 @@ fn compile_helper_function(
         I64ShrU,
         I32WrapI64,
         catalog.runtime(ReleaseReference).call(),
-      ]
-    CleanupLiveReference =>
-      [
-        LocalGet(0),
-        If(Empty, [LocalGet(0), catalog.runtime(ReleaseReference).call()], []),
-      ]
-    CleanupLiveCallable =>
-      [
-        LocalGet(0),
-        I64Eqz,
-        I32Eqz,
-        If(
-          Empty,
-          [
-            LocalGet(0),
-            I64Const(32L),
-            I64ShrU,
-            I32WrapI64,
-            catalog.runtime(ReleaseReference).call(),
-          ],
-          [],
-        ),
-      ]
-    CleanupLiveErased =>
-      [
-        LocalGet(2),
-        If(
-          Empty,
-          [
-            LocalGet(0),
-            LocalGet(1),
-            I32Const(5),
-            I32Shl,
-            GlobalGet(layout_table_base_global_index),
-            I32Add,
-            I32Load(0, 2, 20L),
-            CallIndirect(intern_function_type(wasm_module, [I64], []), 0),
-          ],
-          [],
-        ),
       ]
     DestroyShape(shape~) =>
       destroy_shape_body(

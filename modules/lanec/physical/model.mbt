@@ -193,6 +193,7 @@ pub(all) enum Instruction {
   ConstFunction(SlotId, FunctionId)
   ConstString(SlotId, ConstantId)
   CallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId], SlotId?)
+  CallPackedDirect(FunctionId, SlotId, Array[SlotId], Array[SlotId], SlotId?)
   CallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId], SlotId?)
   MakeData(SlotId, ObjectShapeId, LayoutOperand, Array[SlotId], Array[SlotId])
   LoadTag(SlotId, SlotId)
@@ -302,6 +303,7 @@ pub(all) enum Terminator {
   SwitchTag(SlotId, Array[Edge], Edge)
   Return(SlotId?)
   TailCallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId])
+  TailCallPackedDirect(FunctionId, SlotId, Array[SlotId], Array[SlotId])
   TailCallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId])
   Fatal(SlotId)
   Unreachable

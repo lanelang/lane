@@ -288,6 +288,11 @@ Semantic eligibility answers whether a rewrite is observationally valid.
 Profitability answers whether the compiler should commit that valid rewrite.
 The two decisions must remain separate.
 
+Applying a function literal already present at the call site is administrative
+beta reduction, not interprocedural inlining: it clones no definition and is
+always performed with ordered argument materialization. The profitability
+policy below applies to moving a separate callable definition into a call.
+
 Direct substitution may duplicate a large pure expression. Profitability sees
 the fully contextually reduced candidate, including every branch or adapter
 that disappears. It uses structural program size, plus the exact removal of a

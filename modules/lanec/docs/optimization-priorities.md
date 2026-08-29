@@ -7,7 +7,7 @@ The measurements identify missing facts and transformations; future work must
 re-measure the same boundaries instead of tuning limits until one snapshot
 looks smaller.
 
-## Current reproducible baseline
+## Pre-ISS-423 reproducible baseline
 
 The current baseline was recorded on 2026-08-29 at Lane commit
 `2d3188534de69eb485d69d72027815321ee1120a` with pinned Basic
@@ -112,6 +112,68 @@ Two concrete costs require different treatment:
   the configurable execution limit in ADR-0112. Removing it requires an
   explicit execution-policy change or an engine-owned equivalent, not a local
   Wasm cleanup.
+
+ISS-423 was delivered on 2026-08-29. Exact packed-target calls now use an
+explicit direct call while the packed callable remains the environment owner.
+Environment ABI planning runs once. After move-inlining, callsite-only
+devirtualization runs to a structural fixed point, so a newly exposed exact call
+is handled without treating an already rewritten callee ABI as fresh planning
+input or using an iteration budget.
+The scheduler's nine and Basic's 35 exact packed indirect observations both
+fall to zero. The resulting measurements are:
+
+| Metric | Coroutine Scheduler | Basic test entry |
+| --- | ---: | ---: |
+| VM CFG and Physical direct / indirect calls | 31 / 34 | 479 / 120 |
+| Wasm functions / instructions | 105 / 7,128 | 493 / 61,835 |
+| Runtime-guard instructions | 690 | 4,221 |
+| Callable-operation instructions | 687 | 5,508 |
+| Callable table entries | 80 | 363 |
+
+The one additional Wasm function is the shared packed-target authentication
+helper. It centralizes the Physical Program trust-boundary check instead of
+inlining it at every direct call. Relative to the baseline, total Wasm
+instructions decrease by 12 for the scheduler and 93 for Basic; table size is
+unchanged because the packed callable values still legitimately escape.
+
+## Post-contract-graph and single-shot-fatal baseline
+
+The next structural cleanup removed three independent sources of expansion:
+
+- callable-table targets now store one canonical ABI identity rather than one
+  compatibility bit for every target/expected-ABI pair;
+- fatal execution abandons the current single-shot instance instead of
+  synthesizing per-frame ARC liveness and unwind code; and
+- CPS Core beta-reduces single-use local callable and type-lambda applications
+  before Runtime ANF escape classification. Recursive callable representation
+  is owned by one finite Physical Callable Contract Graph, so this cleanup does
+  not depend on recursively nested callable types forming a finite tree.
+
+Current owner-produced Explore measurements are:
+
+| Stage | Coroutine Scheduler | Basic test entry |
+| --- | ---: | ---: |
+| CPS-Core optimized functions / nodes / calls | 36 / 350 / 50 | 249 / 4,227 / 653 |
+| Runtime ANF functions / nodes / calls | 36 / 618 / 50 | 249 / 7,218 / 653 |
+| Initial VM CFG functions / instructions / values | 58 / 302 / 550 | 378 / 3,997 / 6,332 |
+| Physical functions / instructions / slots | 58 / 344 / 408 | 378 / 4,672 / 4,067 |
+| Physical direct / indirect calls | 30 / 33 | 472 / 120 |
+| Closures / environments | 46 / 48 | 361 / 381 |
+| Wasm functions / instructions / locals | 100 / 4,983 / 435 | 487 / 44,218 / 4,213 |
+| Wasm table entries | 79 | 363 |
+
+The scheduler no longer emits the three deleted frame-cleanup helpers and its
+Wasm instruction count falls by 2,145 from the pre-cleanup ISS-423 result.
+Basic falls by 17,617 instructions. Neither result is attributed to a peephole:
+the removed code implemented a recovery policy that contradicted the existing
+single-shot instance lifecycle. The remaining closures and table entries are
+not presumed dead. In particular, the coroutine scheduler stores continuations
+in `Step` and `Queue`; those callables escape by source semantics.
+
+The nested-handler regression in example 47 demonstrates the other boundary:
+administrative beta reduction removes five closures and two indirect calls,
+while the recursive contract graph makes the remaining higher-order handler
+ABI finite without flattening or truncating it.
 
 ## Historical baselines
 
@@ -313,27 +375,28 @@ task. Current Explore facts do not count repeated same-global borrows, so there
 is no owner-produced evidence that a separate global optimization is
 profitable.
 
-### 11. Coalesce ARC operations after upstream simplification
+### 11. Keep ARC on recoverable control flow
 
-Delivered by ISS-414. The Physical Program remains the ownership-semantics
-owner: Basic still contains 372 retains and 286 releases. The Wasm target now
-projects verified slot metadata once into a typed Frame Cleanup Plan and shares
-one complete helper for reference, callable, and erased cleanup. Per-frame
-unwind code only supplies the verified slot values and liveness. It no longer
-reconstructs or expands the release policy for every owning slot.
+ISS-414 first reduced duplicated unwind code by sharing cleanup helpers. That
+implementation is historical: ADR-0140 establishes that Fatal terminates a
+single-shot execution instance rather than recovering inside it. The Wasm
+target therefore no longer reconstructs per-frame liveness, emits unwind
+cleanup, or catches Fatal in the entry wrapper. Normal return and tail-call
+paths retain the verified Physical Program ARC contract; Fatal abandons the
+terminal instance.
 
-Explore now separates frame-state maintenance, per-frame unwind, and shared
-cleanup support. On the pinned programs, the structural result is:
+The earlier shared-helper experiment produced these intermediate measurements:
 
 | Program | Wasm instructions before | after | ARC unwind before | after | shared cleanup |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Basic | 72,672 | 61,928 | 20,351 | 9,584 | 23 |
 | coroutine scheduler | 8,346 | 7,140 | 2,377 | 1,148 | 23 |
 
-The three extra direct helpers do not enter the callable table. Physical
-function, instruction, slot, retain/release, and representation-bridge counts
-are unchanged. This is deliberately implementation sharing at the Wasm
-boundary, not an unsupported claim that ARC demands were removed.
+Those three helpers and all associated frame-state instructions have since
+been deleted. Explore must attribute no current instructions to frame-state,
+ARC unwind, or shared fatal cleanup. This is a control-semantics correction,
+not a peephole optimization and not a claim that normal-path ARC demands were
+removed.
 
 ## Priority three: conventional residual optimization
 

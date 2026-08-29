@@ -111,10 +111,7 @@ fn compile_or_raise(
                 role, static_image, function_catalog, wasm_module,
               ),
               match role {
-                CallableAbiGuard => RuntimeGuard
-                CleanupLiveReference
-                | CleanupLiveCallable
-                | CleanupLiveErased => ArcCleanupSupport
+                CallableAbiGuard | PackedCallableTargetGuard => RuntimeGuard
                 _ => HelperSupport
               },
             )
@@ -273,41 +270,29 @@ fn compile_body(
     expansions,
   }
   let instructions : Array[@wasm_types.Instruction] = []
-  let frame_cleanup = plan_frame_cleanup(body.slots)
   let mut parameter_index = 1
   if body.inputs.environment is Some(slot) {
     instructions.push(LocalGet(0))
     instructions.push(LocalSet(locals.slot_local(slot)))
-    instructions.append(context.mark_slot_live(slot))
   }
   for slot in body.inputs.witnesses {
     instructions.push(LocalGet(parameter_index))
     instructions.push(LocalSet(locals.slot_local(slot)))
-    instructions.append(context.mark_slot_live(slot))
     parameter_index += 1
   }
   for slot in body.inputs.user_parameters {
     instructions.push(LocalGet(parameter_index))
     instructions.push(LocalSet(locals.slot_local(slot)))
-    instructions.append(context.mark_slot_live(slot))
     parameter_index += 1
   }
   add_expansion(
     expansions,
     FunctionAbi,
-    wasm_instruction_array_size(instructions) -
-    locals.arc_frame_state_instructions(),
-    0,
-  )
-  add_expansion(
-    expansions,
-    ArcFrameState,
-    locals.arc_frame_state_instructions(),
+    wasm_instruction_array_size(instructions),
     0,
   )
   add_expansion(expansions, PhysicalStorage, 0, locals.slot_local_count)
   add_expansion(expansions, ControlFlow, 0, locals.control_local_count)
-  add_expansion(expansions, ArcUnwind, 0, locals.arc_local_count)
   let prologue = call_depth_prologue()
   add_expansion(
     expansions,
@@ -322,8 +307,10 @@ fn compile_body(
     compiled_control.append(compile_structured_cfg(context, sequence))
   } else if use_balanced_dispatcher {
     compiled_control.push(compile_balanced_dispatcher(context))
+    compiled_control.push(Unreachable)
   } else if use_dispatcher {
     compiled_control.push(compile_dispatcher(context))
+    compiled_control.push(Unreachable)
   } else {
     for instruction in body.blocks[0].instructions {
       compiled_control.append(context.compile_instruction(instruction))
@@ -341,38 +328,7 @@ fn compile_body(
     0,
   )
   guarded_body.append(compiled_control)
-  if !frame_cleanup.is_empty() {
-    let wrapper : Array[@wasm_types.Instruction] = [
-      Block(Empty, [TryTable(Empty, [Catch(0, 0)], guarded_body), Unreachable]),
-    ]
-    instructions.append(wrapper)
-    add_expansion(
-      expansions,
-      ArcUnwind,
-      wasm_instruction_array_size(wrapper) -
-      wasm_instruction_array_size(guarded_body),
-      0,
-    )
-    let cleanup = compile_frame_cleanup(locals, frame_cleanup, function_catalog)
-    instructions.append(cleanup)
-    let rethrow : Array[@wasm_types.Instruction] = [
-      GlobalGet(call_depth_global_index),
-      I32Const(1),
-      I32Sub,
-      GlobalSet(call_depth_global_index),
-      Throw(0),
-    ]
-    instructions.append(rethrow)
-    add_expansion(
-      expansions,
-      ArcUnwind,
-      wasm_instruction_array_size(cleanup) +
-      wasm_instruction_array_size(rethrow),
-      0,
-    )
-  } else {
-    instructions.append(guarded_body)
-  }
+  instructions.append(guarded_body)
   { code: { locals: locals.locals, body: instructions, }, expansions, }
 }
 

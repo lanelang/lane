@@ -127,6 +127,17 @@ fn PhysicalProgramVerifier::verify_instruction(
         destination,
         tail_result=None,
       )
+    CallPackedDirect(target, callable, witnesses, arguments, destination) =>
+      self.verify_packed_direct_call(
+        site,
+        body,
+        target,
+        callable,
+        witnesses,
+        arguments,
+        destination,
+        tail_result=None,
+      )
     CallValue(callable, abi_id, witnesses, arguments, destination) => {
       self.expect_slot(site, body, callable, I64, OwnedCallable)
       let callable_kind = self.slot_metadata(site, body, callable).kind
@@ -599,6 +610,35 @@ fn PhysicalProgramVerifier::verify_direct_call(
     site,
     body,
     abi,
+    witnesses,
+    arguments,
+    destination,
+    tail_result~,
+  )
+}
+
+///|
+fn PhysicalProgramVerifier::verify_packed_direct_call(
+  self : PhysicalProgramVerifier,
+  site : PhysicalVerificationSite,
+  body : FunctionBody,
+  target : FunctionId,
+  callable : SlotId,
+  witnesses : Array[SlotId],
+  arguments : Array[SlotId],
+  destination : SlotId?,
+  tail_result~ : ResultAbi?,
+) -> Unit raise PhysicalProgramVerificationError {
+  self.expect_slot(site, body, callable, I64, OwnedCallable)
+  self.expect_kind(site, body, callable, CallableValue)
+  guard self.function_entry(site, target) is PhysicalBody(target_body) &&
+    target_body.inputs.environment is Some(_) else {
+    self.fail(site, "packed direct-call target requires an environment")
+  }
+  self.verify_call_abi(
+    site,
+    body,
+    self.function_callable_abi(site, target),
     witnesses,
     arguments,
     destination,

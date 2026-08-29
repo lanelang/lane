@@ -154,6 +154,7 @@ fn terminator_targets(terminator : @physical.Terminator) -> Array[Int] {
     }
     Return(_)
     | TailCallDirect(_, _, _, _)
+    | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _, _)
     | Fatal(_)
     | Unreachable => []
@@ -457,13 +458,9 @@ fn compile_structured_edge(
     instructions.push(LocalGet(context.slot_local(edge.arguments[index])))
     instructions.push(LocalSet(context.transfer_local(edge.target, index)))
   }
-  for source in edge.arguments {
-    instructions.append(context.mark_slot_dead(source))
-  }
   for index, destination in target_parameters {
     instructions.push(LocalGet(context.transfer_local(edge.target, index)))
     instructions.push(LocalSet(context.slot_local(destination)))
-    instructions.append(context.mark_slot_live(destination))
   }
   let depth = match structured_label_depth(labels, edge.target.value) {
     Some(depth) => depth

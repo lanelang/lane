@@ -98,6 +98,8 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
       uses.append(arguments)
       uses
     }
+    CallPackedDirect(_, callable, witnesses, arguments, _) =>
+      [callable] + witnesses + arguments
     CallValue(callable, witnesses, arguments, _) =>
       [callable] + witnesses + arguments
     MakeData(_, _, layout, witnesses, fields)
@@ -160,6 +162,8 @@ fn terminator_operand_values(terminator : Terminator) -> Array[ValueId] {
       uses.append(arguments)
       uses
     }
+    TailCallPackedDirect(_, callable, witnesses, arguments) =>
+      [callable] + witnesses + arguments
     TailCallValue(callable, witnesses, arguments) =>
       [callable] + witnesses + arguments
   }
@@ -276,7 +280,9 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | EraseUnit(destination)
     | BorrowGlobal(destination, _) => [destination]
     WasiFdWrite(destination, _, _) => [destination]
-    CallDirect(_, _, _, _, destination) | CallValue(_, _, _, destination) =>
+    CallDirect(_, _, _, _, destination)
+    | CallPackedDirect(_, _, _, _, destination)
+    | CallValue(_, _, _, destination) =>
       destination.map(value => [value]).unwrap_or([])
     BorrowField(_, _, _, result) | BorrowCapture(_, _, _, result) =>
       projection_destinations(result)

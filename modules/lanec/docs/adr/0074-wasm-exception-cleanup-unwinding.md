@@ -1,5 +1,9 @@
 # Wasm fatal exception cleanup unwinding
 
+> **Superseded by ADR 0140.** Fatal execution now terminates and discards the
+> single-shot WebAssembly instance without generated frame or global cleanup.
+> This document is retained as historical context.
+
 Lane's Wasm backend uses Exception Handling with `exnref` to implement out-of-band fatal execution unwinding. Runtime-import failure, out-of-memory, ARC overflow, and similar fatal internal errors use a private Wasm exception. This is a backend cleanup mechanism only. Lane source effects have already been erased, LoisVM bytecode has no exceptional control-flow edge, and the private exception is never represented as a Lane value or exposed to Lane code.
 
 Compiler-proven unreachable bytecode, undefined integer arithmetic, and invalid Double-to-Int conversion are outside this recoverable-cleanup channel. Unreachable lowering may emit `unreachable` directly. Signed division by zero or `MIN_INT / -1`, signed remainder by zero, and trapping `i64.trunc_f64_s` conversion may use Wasm traps directly. These traps do not run private-exception cleanup; the embedding discards the current instance rather than resuming or reusing it.
