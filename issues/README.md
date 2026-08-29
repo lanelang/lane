@@ -438,6 +438,7 @@ graph TD
   ISS_422["ISS-422: Rebaseline and explain current Wasm structural expansion"]
   ISS_423["ISS-423: Direct-call exact packed callable targets"]
   ISS_424["ISS-424: Remove mandatory logical call-depth instrumentation"]
+  ISS_425["ISS-425: Complete conventional VM CFG cleanup"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008
@@ -801,6 +802,7 @@ graph TD
   ISS_422 --> ISS_421
   ISS_398 --> ISS_422
   ISS_399 --> ISS_422
+  ISS_424 --> ISS_425
 ```
 
 ## Warnings

@@ -1346,14 +1346,8 @@ test "single-use nonescaping nested functions beta-reduce before closure convers
       #|[
       #|  {
       #|    parameters: [],
-      #|    instructions: [
-      #|      ConstI64({ value: 0 }, 40),
-      #|      ConstI64({ value: 1 }, 0),
-      #|      I64Add({ value: 2 }, { value: 0 }, { value: 1 }),
-      #|      ConstI64({ value: 0 }, 2),
-      #|      I64Add({ value: 1 }, { value: 2 }, { value: 0 }),
-      #|    ],
-      #|    terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 1 }]),
+      #|    instructions: [ConstI64({ value: 0 }, 42)],
+      #|    terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 0 }]),
       #|  },
       #|]
     ),

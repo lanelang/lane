@@ -37,24 +37,6 @@ test "compiler preserves I32 literal and arithmetic through executable lowering"
       #|      {
       #|        slots: [
       #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
       #|            representation: I64,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
@@ -66,31 +48,8 @@ test "compiler preserves I32 literal and arithmetic through executable lowering"
       #|        blocks: [
       #|          {
       #|            parameters: [],
-      #|            instructions: [
-      #|              ConstI32({ value: 0 }, 2147483647),
-      #|              ConstI32({ value: 1 }, 1),
-      #|              I32Add({ value: 2 }, { value: 0 }, { value: 1 }),
-      #|              ConstI32({ value: 0 }, -2147483648),
-      #|              I32Eq({ value: 1 }, { value: 2 }, { value: 0 }),
-      #|            ],
-      #|            terminator: BranchBool(
-      #|              { value: 1 },
-      #|              { target: { value: 1 }, arguments: [] },
-      #|              { target: { value: 2 }, arguments: [] },
-      #|            ),
-      #|          },
-      #|          {
-      #|            parameters: [],
-      #|            instructions: [
-      #|              ConstI32({ value: 0 }, -2147483648),
-      #|              I32ToI64({ value: 3 }, { value: 0 }),
-      #|            ],
-      #|            terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 3 }]),
-      #|          },
-      #|          {
-      #|            parameters: [],
-      #|            instructions: [ConstI64({ value: 3 }, 0)],
-      #|            terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 3 }]),
+      #|            instructions: [ConstI64({ value: 0 }, -2147483648)],
+      #|            terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 0 }]),
       #|          },
       #|        ],
       #|      },

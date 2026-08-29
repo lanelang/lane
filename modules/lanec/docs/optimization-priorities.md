@@ -403,11 +403,26 @@ removed.
 
 ## Priority three: conventional residual optimization
 
-After the structural work above, apply standard sparse conditional constant
-propagation, cross-block scalar constant propagation, dead branch removal, and
-local Wasm canonicalization. The current image has only 46 boolean branches and
-29 tag switches at Physical Program level, so these passes are unlikely to dominate the
-present JIT problem.
+ISS-425 delivered standard sparse conditional constant propagation,
+cross-block constant propagation, dead branch removal, and dominator-scoped
+scalar common-subexpression elimination at the VM CFG owner. The transformation
+runs to a structural fixed point before ARC insertion and slot allocation;
+potentially trapping operations are not deleted merely because their result is
+unused. The Wasm emitter owns no duplicate peephole policy.
+
+The coroutine scheduler has no residual constant control flow and is unchanged
+at every measured boundary. The Basic test entry changes as follows:
+
+| Metric | Before ISS-425 | After ISS-425 |
+| --- | ---: | ---: |
+| Initial VM CFG blocks / instructions / values | 632 / 3,997 / 6,332 | 628 / 3,917 / 6,323 |
+| Initial VM CFG direct / indirect calls | 472 / 120 | 472 / 118 |
+| Physical blocks / instructions / slots | 757 / 4,672 / 4,067 | 752 / 4,588 / 4,033 |
+| Wasm instructions / locals | 38,480 / 4,213 | 38,133 / 4,177 |
+
+The 347-instruction Wasm reduction is real but does not dominate image size.
+Object construction and projection remain the largest expansion family; no
+claim is made that those operations are redundant.
 
 Wasmoon lazy compilation, caching, and compiler throughput remain useful but
 belong to the runtime project. Lane must first avoid requiring the runtime to
@@ -418,9 +433,9 @@ eagerly compile avoidable functions and representation plumbing.
 ISS-410 through ISS-414 completed static-head ownership, local scalar
 replacement, erased-contract analysis, and fatal-control cleanup. ISS-423
 consumed exact packed-call targets, and ISS-424 removed the non-semantic
-per-function call-depth protocol. Further work is evidence-driven: conventional
-residual optimization may proceed, while any representation or ARC rewrite
-first needs owner-produced evidence identifying the removable boundary.
+per-function call-depth protocol. ISS-425 completed conventional VM CFG cleanup.
+Further work is evidence-driven: any object-representation or ARC rewrite first
+needs owner-produced evidence identifying the removable boundary.
 
 The current evidence does not authorize another representation bridge,
 destructor-sharing, or ARC peephole pass. There are no duplicate runtime-ABI
