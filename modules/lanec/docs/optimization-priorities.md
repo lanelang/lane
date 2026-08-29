@@ -7,62 +7,111 @@ The measurements identify missing facts and transformations; future work must
 re-measure the same boundaries instead of tuning limits until one snapshot
 looks smaller.
 
-## Current reproducible comparison
+## Current reproducible baseline
 
-The comparison was recorded on 2026-08-28 from the pre-milestone Lane commit
-`75e2bdd73b444493d798b555dbc603749ae65b14` and the post-transformation commit
-`eeca63d24accca34a6cdc49a7cac8637ceabdf4c`. Both use pinned Basic
-`807f78b4bd3106b1223c13884849b317f831e285`, the Wasmoon dependency family at
-`0.12.6`, Apple Silicon running macOS 26.5.2, and MoonBit nightly 2026-08-26.
-The programs were loaded from committed repository inputs with
-`--lib-dir basic --no-basic`.
+The current baseline was recorded on 2026-08-29 at Lane commit
+`2d3188534de69eb485d69d72027815321ee1120a` with pinned Basic
+`b4b95e1c04f785b61a65fffc2b4433f20c118a22`, the Wasmoon dependency family at
+`0.12.6`, MoonBit nightly 2026-08-26, and Apple Silicon running macOS 26.5.2.
+It uses two committed inputs:
 
-Explore is the owner-produced structural observation boundary. The tables come
-from typed scale facts; no IR or Wasm text was searched to reconstruct counts.
-The Coroutine Scheduler is unchanged by this local aggregate transformation:
-it remains at 60 Physical functions, 349 Physical instructions, 414 slots, 101
-Wasm functions, 8,346 Wasm instructions, and 480 Wasm locals.
+```sh
+lane explore examples/valid/37_coroutine_scheduler.lane:answer \
+  --lib-dir ../basic --no-basic -o scheduler.html
+lane explore ../basic/test/entry.lane:test_entry \
+  --lib-dir ../basic --no-basic -o basic.html
+```
 
-| Basic metric | Before | After | Delta |
+Explore Protocol v11 is the owner-produced structural observation boundary.
+All counts below are typed scale, provenance, call-resolution, and expansion
+facts from the report model; rendered IR and WAT were not searched to infer
+compiler facts.
+
+| Stage | Coroutine Scheduler | Basic test entry |
+| --- | ---: | ---: |
+| Core optimized functions / nodes / calls | 15 / 234 / 30 | 146 / 3,956 / 631 |
+| Selective-CPS functions / nodes / calls | 45 / 416 / 59 | 286 / 4,757 / 699 |
+| CPS-Core optimized functions / nodes / calls | 39 / 373 / 53 | 254 / 4,252 / 658 |
+| Runtime ANF functions / nodes / calls | 39 / 659 / 53 | 254 / 7,263 / 658 |
+| Initial VM CFG functions / instructions / values | 60 / 307 / 562 | 381 / 3,932 / 6,214 |
+| Physical functions / instructions / slots | 60 / 349 / 414 | 381 / 4,573 / 4,030 |
+| Wasm functions / instructions / locals | 104 / 7,140 / 480 | 492 / 61,928 / 4,782 |
+| Wasm imports / table entries | 1 / 80 | 3 / 363 |
+
+The function growth is not owned by Wasm alone. Selective CPS triples the
+scheduler's 15 Core functions to 45 before cleanup returns 39. Runtime ANF then
+becomes 60 Physical functions; 20 are structural callable adapters and 13 are
+handler/CPS/monadic functions. Basic similarly grows from 254 Runtime ANF
+functions to 381 Physical functions, including 73 structural callable adapters
+and 115 handler/CPS/monadic functions.
+
+The remaining Physical facts are:
+
+| Physical fact | Coroutine Scheduler | Basic test entry |
+| --- | ---: | ---: |
+| Direct / indirect calls | 22 / 43 | 451 / 148 |
+| Exact-target calls still indirect because the environment is packed | 9 | 35 |
+| Closures / environments | 48 / 50 | 361 / 381 |
+| Erase / unerase | 15 / 11 | 327 / 146 |
+| Retain / release | 13 / 29 | 372 / 286 |
+| Callable ABIs / object shapes | 29 / 24 | 121 / 84 |
+| Duplicate runtime-ABI workers | 0 | 0 |
+
+## Where the Wasm expansion comes from
+
+The Wasm emitter's exhaustive expansion accounting sums exactly to each
+module's instruction total:
+
+| Expansion owner | Scheduler | Basic | Basic share |
 | --- | ---: | ---: | ---: |
-| Core-optimized functions / nodes | 146 / 3,956 | 146 / 3,956 | 0 / 0 |
-| Selective-CPS functions / nodes | 286 / 4,757 | 286 / 4,757 | 0 / 0 |
-| Runtime ANF functions / nodes | 254 / 7,272 | 254 / 7,263 | 0 / -9 |
-| Initial VM CFG functions | 382 | 381 | -1 |
-| Initial VM CFG instructions / values | 3,953 / 6,239 | 3,932 / 6,214 | -21 / -25 |
-| Initial direct / indirect calls | 450 / 150 | 451 / 148 | +1 / -2 |
-| Initial closures / environments | 362 / 383 | 361 / 381 | -1 / -2 |
-| Physical functions / instructions | 382 / 4,594 | 381 / 4,573 | -1 / -21 |
-| Physical slots | 4,045 | 4,030 | -15 |
-| Physical erase / unerase operations | 330 / 149 | 327 / 146 | -3 / -3 |
-| Physical retain / release operations | 372 / 286 | 372 / 286 | 0 / 0 |
-| Callable ABI count | 121 | 121 | 0 |
-| Wasm functions / imports | 490 / 3 | 489 / 3 | -1 / 0 |
-| Wasm instructions / locals | 72,967 / 4,803 | 72,672 / 4,782 | -295 / -21 |
-| Wasm table entries | 365 | 363 | -2 |
-| Wasm `if` / `unreachable` instructions | 3,357 / 486 | 3,344 / 485 | -13 / -1 |
+| Physical object operations | 1,740 | 16,303 | 26.3% |
+| ARC unwind | 1,148 | 9,584 | 15.5% |
+| ARC frame-state maintenance | 822 | 8,184 | 13.2% |
+| Physical callable operations | 695 | 5,576 | 9.0% |
+| Runtime guards | 684 | 4,215 | 6.8% |
+| Physical control transfer | 620 | 3,714 | 6.0% |
+| CFG structuring | 185 | 3,217 | 5.2% |
+| Physical ownership operations | 152 | 2,816 | 4.5% |
+| Physical scalar operations | 94 | 2,340 | 3.8% |
+| Physical erasure operations | 90 | 1,485 | 2.4% |
+| Function ABI | 284 | 1,414 | 2.3% |
+| Helper support | 196 | 1,155 | 1.9% |
+| Runtime support | 355 | 767 | 1.2% |
+| Byte sequence, global, cleanup, and entry work | 75 | 1,158 | 1.9% |
+| **Total** | **7,140** | **61,928** | **100%** |
 
-The focused public example proves the ownership boundary directly. Its two
-effectful constructor payloads execute once in source order, yet the final VM
-CFG has no object shape, closure, environment, or indirect call. The Basic
-comparison shows the same rewrite crossing Runtime ANF and reducing physical
-functions, instructions, slots, representation bridges, and final Wasm. Its
-explicit retain/release counts do not move, so this milestone does not claim an
-ARC optimization that it did not perform.
+Object operations plus ARC frame state and unwind account for 52.0% of the
+scheduler and 55.0% of Basic. This is the dominant boundary to study, but the
+totals alone do not prove redundancy: objects require headers, shape-aware
+cleanup, and ownership transfer, while fatal unwinding requires path-sensitive
+live-owner state.
 
-Three warm-process invocations at each commit produced these wall-clock ranges:
+Wasm function count is also fully attributable. Basic's 492 defined functions
+are 381 Physical bodies, 84 shape destructors, 15 runtime functions, 11 shared
+helpers, and one entry wrapper; its three imports are counted separately. The
+scheduler's 104 are 60 Physical bodies, 24 shape destructors, eight runtime
+functions, 11 shared helpers, and one entry wrapper. Both reports have zero
+unreachable Wasm support roles, so reachable-support pruning has no residual
+dead family to delete.
 
-| Boundary | Scheduler before | Scheduler after | Basic before | Basic after |
-| --- | ---: | ---: | ---: | ---: |
-| Explore through Wasm plus report rendering | 0.04-0.05 s | 0.04-0.05 s | 0.74-0.76 s | 0.74-0.75 s |
-| Complete compile, JIT load, and execution | 0.16 s | 0.16 s | 1.94-1.95 s | 1.92-2.00 s |
-| Complete compile, interpreter load, and execution | 0.04 s | 0.03-0.04 s | 0.69-0.71 s | 0.69-0.71 s |
+Locals principally preserve the Physical storage plan. Basic's 4,782 locals
+partition exactly into 4,030 Physical slots, 620 ARC-unwind locals, 99 CFG
+locals, and 33 runtime-support locals. The scheduler splits 480 into 414, 39,
+nine, and 18 respectively. Reducing locals therefore primarily means reducing
+Physical live ranges and slots rather than applying a Wasm-local peephole.
 
-The CLI does not persist the raw Wasm produced by `run`, so these measurements
-do not derive a fictional standalone JIT or execution time by subtraction.
-They establish one compiler-pipeline boundary and two complete engine
-boundaries. The timing ranges overlap; the demonstrated result is structural,
-not a claimed throughput improvement.
+Two concrete costs require different treatment:
+
+- Callable-flow already proves 35 Basic and nine scheduler indirect calls have
+  exactly one target, but their environment remains inside a packed callable.
+  This is demonstrated removable dispatch work and is tracked separately by
+  ISS-423; the packed callable may still be required by source semantics.
+- Eleven logical call-depth instructions are emitted in every Physical body.
+  They account for 4,191 of Basic's 4,215 runtime-guard instructions and 660 of
+  the scheduler's 684. This is not accidental guard duplication: it implements
+  the configurable execution limit in ADR-0112. Removing it requires an
+  explicit execution-policy change or an engine-owned equivalent, not a local
+  Wasm cleanup.
 
 ## Historical baselines
 
@@ -259,10 +308,10 @@ specialization that removes the boundary itself.
 
 ### 10. Hoist immutable global borrows
 
-This remains a possible consequence of paired erased-witness propagation, not
-an active task. Current Explore facts do not count repeated same-global borrows,
-so there is no owner-produced evidence that a separate global optimization is
-profitable. Re-evaluate it after ISS-413 instead of opening an overlapping pass.
+This remains a possible consequence of closed-ABI specialization, not an active
+task. Current Explore facts do not count repeated same-global borrows, so there
+is no owner-produced evidence that a separate global optimization is
+profitable.
 
 ### 11. Coalesce ARC operations after upstream simplification
 
@@ -300,24 +349,24 @@ eagerly compile avoidable functions and representation plumbing.
 
 ## Recommended implementation order
 
-ISS-410 and ISS-411 completed static-head ownership and local scalar
-replacement, and ISS-412 remeasured their complete downstream result. The next
-order is now evidence-driven:
+ISS-410 through ISS-414 completed static-head ownership, local scalar
+replacement, erased-contract analysis, and shared ARC cleanup. The next order
+is evidence-driven:
 
-1. Complete ISS-413 so erased payloads and witnesses propagate as one fact,
-   then remeasure the 473 remaining representation bridges.
-2. Complete ISS-414 using the resulting ARC-final program, separating ownership
-   demand from unwind implementation before changing either.
-3. Re-measure object, callable, global, and conventional CFG costs. Open another
-   task only when an owner-produced fact demonstrates a removable structure.
+1. Complete ISS-423 by consuming the existing exact-target/packed-environment
+   fact at the VM CFG owner. This removes known indirect dispatch without
+   changing closure escape semantics or adding a heuristic.
+2. Add finer owner-produced object-operation and ARC-frame attribution before
+   choosing a representation or unwind rewrite. Their aggregate size is large,
+   but it mixes required semantics with potential implementation expansion.
+3. Decide whether configurable logical call depth remains part of Lane's
+   execution contract before changing its per-function Wasm instrumentation.
 
-The current Wasm expansion categories explain this ordering. Basic attributes
-20,351 instructions to ARC/unwind, 18,847 to object operations, 7,564 to
-callables, 4,215 to runtime guards, and 2,659 to erasure. Only erasure already
-has a precise paired semantic fact to deepen. ARC/unwind has a verified lifetime
-owner but needs finer attribution. The object and callable totals include
-necessary semantics and therefore do not by themselves authorize another
-rewrite.
+The current evidence does not authorize another representation bridge,
+destructor-sharing, or ARC peephole pass. There are no duplicate runtime-ABI
+workers or unreachable Wasm support roles, and the remaining bridge counts cross
+real generic boundaries. New work needs a fact that identifies which specific
+boundary can be removed.
 
 Each completed item must update the pinned Explore metrics and the end-to-end
 Basic timing. A smaller source-level IR without a smaller executable image is
